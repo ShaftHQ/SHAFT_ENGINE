@@ -1,8 +1,16 @@
 {
   "body_path": "memory/gotchas/marketplace-json-skills-entries-must-list-individual-skill-dirs-never-for-vercel-skills-cli-interop.md",
-  "content_hash": "sha256:5a0e93712cef66a3165ee6cd221a2478b3c761c4cebd03adefefef0bd619b787",
+  "content_hash": "sha256:0f4dcc92a97d1975e027f742b39a420f64e7fbaa84ebf3529575cebd6bff43ef",
   "created_at": "2026-07-29T16:50:08+03:00",
   "evidence": [
+    {
+      "id": ".agents/skills/act-as-mohab/SKILL.md",
+      "kind": "file"
+    },
+    {
+      "id": ".claude/skills/act-as-mohab/SKILL.md",
+      "kind": "file"
+    },
     {
       "id": ".claude-plugin/marketplace.json",
       "kind": "file"
@@ -32,5 +40,5 @@
   ],
   "title": "marketplace.json skills entries must list individual skill dirs, never ./ , for vercel skills CLI interop",
   "type": "gotcha",
-  "updated_at": "2026-08-04T18:37:44+03:00"
+  "updated_at": "2026-08-09T23:46:44+03:00"
 }

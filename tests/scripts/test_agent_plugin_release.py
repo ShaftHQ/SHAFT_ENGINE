@@ -5,6 +5,7 @@ import hashlib
 import tempfile
 import unittest
 import zipfile
+import xml.etree.ElementTree as ET
 from pathlib import Path
 from unittest import mock
 
@@ -14,16 +15,38 @@ except ModuleNotFoundError:
     build_release_artifacts = None
     load_release_manifest = None
 
+ROOT = Path(__file__).resolve().parents[2]
+ENGINE_VERSION = ET.parse(ROOT / "pom.xml").getroot().findtext(
+    "{http://maven.apache.org/POM/4.0.0}version"
+)
+
 
 class AgentPluginReleaseTest(unittest.TestCase):
-    def write_manifest(self, document: dict) -> Path:
+    def write_manifest(self, document: dict, pom_version: str = "1.0.0") -> Path:
         temporary_directory = tempfile.TemporaryDirectory()
         self.addCleanup(temporary_directory.cleanup)
         root = Path(temporary_directory.name)
         target = root / "agent-plugins/release.json"
         target.parent.mkdir(parents=True)
         target.write_text(json.dumps(document), encoding="utf-8")
+        (root / "pom.xml").write_text(
+            '<project xmlns="http://maven.apache.org/POM/4.0.0">'
+            f'<modelVersion>4.0.0</modelVersion><version>{pom_version}</version></project>',
+            encoding="utf-8",
+        )
         return root
+
+    def test_release_manifest_rejects_any_root_pom_version_mismatch(self):
+        root = self.write_manifest(
+            {"packages": [
+                {"name": "act-as-mohab", "version": "1.0.0"},
+                {"name": "shaft-skills", "version": "1.0.0"},
+            ]},
+            pom_version="10.3.20260809",
+        )
+
+        with self.assertRaisesRegex(ValueError, "root POM version"):
+            load_release_manifest(root)
 
     def test_release_manifest_rejects_missing_package(self):
         self.assertTrue(callable(load_release_manifest), "release manifest loader must be available")
@@ -50,7 +73,7 @@ class AgentPluginReleaseTest(unittest.TestCase):
 
     def test_build_release_artifacts_is_deterministic(self):
         self.assertTrue(callable(build_release_artifacts), "release artifact builder must be available")
-        repository_root = Path(__file__).resolve().parents[2]
+        repository_root = ROOT
         with tempfile.TemporaryDirectory() as temporary_directory:
             first_output = Path(temporary_directory) / "first"
             second_output = Path(temporary_directory) / "second"
@@ -60,12 +83,12 @@ class AgentPluginReleaseTest(unittest.TestCase):
 
             self.assertEqual([path.name for path in first], [path.name for path in second])
             self.assertEqual(
-                ["act-as-mohab-1.0.0.zip", "act-as-mohab-1.0.0.zip.sha256", "shaft-skills-1.0.0.zip", "shaft-skills-1.0.0.zip.sha256"],
+                [f"act-as-mohab-{ENGINE_VERSION}.zip", f"act-as-mohab-{ENGINE_VERSION}.zip.sha256", f"shaft-skills-{ENGINE_VERSION}.zip", f"shaft-skills-{ENGINE_VERSION}.zip.sha256"],
                 [path.name for path in first],
             )
             for first_path, second_path in zip(first, second):
                 self.assertEqual(first_path.read_bytes(), second_path.read_bytes(), first_path.name)
-            for archive in (first_output / "act-as-mohab-1.0.0.zip", first_output / "shaft-skills-1.0.0.zip"):
+            for archive in (first_output / f"act-as-mohab-{ENGINE_VERSION}.zip", first_output / f"shaft-skills-{ENGINE_VERSION}.zip"):
                 checksum = archive.with_suffix(archive.suffix + ".sha256").read_bytes()
                 self.assertEqual(
                     checksum,
@@ -78,6 +101,13 @@ class AgentPluginReleaseTest(unittest.TestCase):
                     self.assertIn("COMPATIBILITY.md", package.namelist())
                     self.assertTrue(all(item.create_system == 3 for item in package.infolist()))
                     self.assertTrue(all(item.compress_type == zipfile.ZIP_STORED for item in package.infolist()))
+                    for manifest_name in (
+                        "plugin.json",
+                        ".claude-plugin/plugin.json",
+                        ".codex-plugin/plugin.json",
+                    ):
+                        embedded = json.loads(package.read(manifest_name))
+                        self.assertEqual(embedded["version"], ENGINE_VERSION)
                     for item in package.infolist():
                         if item.filename.endswith((".md", ".json", ".yaml", ".yml", ".LICENSE")) or item.filename == "LICENSE":
                             self.assertNotIn(b"\r\n", package.read(item))

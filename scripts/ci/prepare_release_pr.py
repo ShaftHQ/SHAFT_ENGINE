@@ -168,6 +168,24 @@ def _replace_literal(path: Path, old: str, new: str) -> bool:
     return True
 
 
+def _update_agent_plugin_versions(path: Path, version: str) -> bool:
+    """Set every bundled agent package to the canonical engine version."""
+    document = json.loads(path.read_text(encoding="utf-8"))
+    packages = document.get("packages") if isinstance(document, dict) else None
+    if not isinstance(packages, list) or not packages:
+        raise ValueError(f"{path}: packages must be a non-empty array")
+    changed = False
+    for package in packages:
+        if not isinstance(package, dict) or not isinstance(package.get("name"), str):
+            raise ValueError(f"{path}: packages must be named objects")
+        if package.get("version") != version:
+            package["version"] = version
+            changed = True
+    if changed:
+        path.write_text(json.dumps(document, indent=2) + "\n", encoding="utf-8")
+    return changed
+
+
 def _module_poms(root: Path) -> list[Path]:
     parent = ET.parse(root / "pom.xml").getroot()
     return [
@@ -223,6 +241,10 @@ def prepare_release(
         path = root / relative
         if path.is_file() and _replace_literal(path, current_version, release_version):
             changed.append(path)
+
+    plugin_release = root / "agent-plugins/release.json"
+    if _update_agent_plugin_versions(plugin_release, release_version):
+        changed.append(plugin_release)
 
     return current_version, release_version, sorted(set(changed))
 

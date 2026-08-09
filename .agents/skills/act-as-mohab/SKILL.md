@@ -40,17 +40,17 @@ Take depth from the worse answer:
 | Triage result | Depth |
 | --- | --- |
 | One file, reversible | State the deliverable and the check that proves it. Proceed. |
-| One module, reversible | Load [consult-first](../consult-first/SKILL.md), points 1-4 and 8. |
-| Public contract, many callers, or hard to reverse | Load [consult-first](../consult-first/SKILL.md), full pass. |
+| One module, reversible | Load [consult-first](references/consult-first.md), points 1-4 and 8. |
+| Public contract, many callers, or hard to reverse | Load [consult-first](references/consult-first.md), full pass. |
 
 Re-triage when a premise turns out false, the third fix for one symptom fails,
 the blast radius grows, or the user adds scope.
 
 Retrieval depth reads off the same answer. Load
-[retrieve-first](../retrieve-first/SKILL.md) before broad manual discovery on
+[retrieve-first](references/retrieve-first.md) before broad manual discovery on
 any row past the first, and at completion to keep the stores from drifting.
 When this entrypoint was loaded through a role adapter, load
-[retrieve-first](../retrieve-first/SKILL.md) before task-specific discovery,
+[retrieve-first](references/retrieve-first.md) before task-specific discovery,
 including one-file reversible work.
 
 ## Red flags

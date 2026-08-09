@@ -15,7 +15,7 @@ Ponytail, TDD, PDCA, Memory, MemPalace, Graphify, delegation, and completion.
 Every main thread and delegate loads it; repo playbooks are reached through
 that entrypoint, never as competing policy. Its triage runs before every task
 and decides whether the change also earns
-[consult-first](.agents/skills/consult-first/SKILL.md).
+[consult-first](.agents/skills/act-as-mohab/references/consult-first.md).
 
 Name capability only as most intelligent, default, or mechanical. Never name a
 model or product in tracked guidance.

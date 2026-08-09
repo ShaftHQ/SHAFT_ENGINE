@@ -1,11 +1,3 @@
----
-name: retrieve-first
-description: >-
-  Knowledge retrieval gate. Use at session start and before broad manual
-  discovery, at the depth the entrypoint's triage already selected; also
-  carries the completion half that keeps the stores from drifting.
----
-
 # Retrieve
 
 You are here because the work has earned a look at what is already known.
@@ -33,7 +25,7 @@ everyone follows than a thorough one everyone routes around.
 | --- | --- |
 | Has this constraint or gotcha already bitten us? | native Memory — `memory search`, then `memory inspect <id>` |
 | What happened around this before, and what does it touch? | MemPalace |
-| What calls or depends on this? | [Graphify](../act-as-mohab/references/graphify.md) |
+| What calls or depends on this? | [Graphify](graphify.md) |
 | What does the code do right now? | targeted `rg` and exact reads |
 
 Only the last one settles a disagreement. A retrieved claim is a lead: confirm
@@ -53,9 +45,9 @@ tell you a path is a dead end before you walk it.
 
 ## The completion half
 
-The [learning loop](../act-as-mohab/references/work-github-playbook.md#learned-lessons-workflow)
-routes each learning to its home. That is where a *fact* goes. It is not what
-keeps the stores usable:
+The [learning loop](work-github-playbook.md#learned-lessons-workflow) routes
+each learning to its home. That is where a *fact* goes. It is not what keeps
+the stores usable:
 
 - `memory remember` for a durable fact or decision, with the evidence.
 - Flag a Graphify refresh when the change alters what calls or depends on what.
@@ -75,5 +67,5 @@ the injected constraints, which is the floor rather than a failure.
 If a store whose trigger fired is unavailable, **name the degraded mode in your
 report** and continue with the rest. Skipping a store silently is the failure
 this gate exists to prevent — and the one that actually happened, which is why
-the gate is a skill the entrypoint names rather than a paragraph inside a file
-you reach only after routing.
+the gate is a reference the entrypoint names rather than a separate discovery
+surface.

@@ -1,11 +1,3 @@
----
-name: consult-first
-description: >-
-  Deliberation gate. Use when the entrypoint's triage selects a depth beyond a
-  single reversible file, before any hard-to-reverse step, or when an approach
-  stops holding.
----
-
 # Consult
 
 You are here because the entrypoint's triage selected a depth beyond the
@@ -42,6 +34,54 @@ user's framing disagree about size, say so in one line and work to the larger.
 8. **Completion gate.** State what you will run, read, and show to close this
    out, and who reviews it.
 
+## Executable specification for consequential work
+
+For cross-cutting or hard-to-reverse work, the three matrices below are mandatory.
+Every required cell must be resolved. Blank cells, TODO, TBD, placeholders,
+and guesses are invalid, even when qualified by explanatory text.
+Any unresolved cell blocks RED/GREEN.
+Every acceptance criterion and invariant must map to positive and negative proof.
+At least one sibling/caller omission mutation must fail.
+Record the completed matrices on the target GitHub issue comment before the first
+implementing commit.
+
+Use exactly these names and columns, in this order. Add one resolved data row
+for every caller/site, every state/transition/failure mode, and every acceptance
+criterion/invariant.
+
+### Resolved caller matrix
+
+| Site | Effective cwd/path | Runtime/version/platform | Permissions/trust | Configuration precedence | Input existence |
+| --- | --- | --- | --- | --- | --- |
+
+### State/failure matrix
+
+| State | Immutable ownership | Preflight | Mutation order | Mixed state | Atomicity | Concurrency | Idempotency | Recovery | Fail-closed |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+
+### Acceptance-to-proof map
+
+| Criterion or invariant | Positive proof | Negative or mutation proof | Command |
+| --- | --- | --- | --- |
+
+Use #4649 and #4650 as mandatory regression prompts when relevant. Cover each applicable scenario:
+
+- Effective working-directory/path resolution.
+- Interpreter/version/conditional dependency marker.
+- Mixed owned+unknown preflight.
+- Immutable ownership.
+- Atomic backup/concurrent replacement.
+- Post-migration adapter/link resolution.
+
+## Plan artifact destination
+
+Choose the repository-safe destination before any imported design or planning
+workflow writes a file. For issue-backed work, persist the approved design and
+implementation plan on the target GitHub issue. For non-issue work, keep them
+transient unless the owner explicitly approves an existing operational-guidance
+location. Never create or write `docs/superpowers/**` in this repository; this
+rule overrides an imported skill's default path.
+
 ## Lifecycle
 
 Work runs in this order, and each phase ends before the next begins:
@@ -50,8 +90,7 @@ analyze -> plan -> design -> RED -> GREEN -> refactor -> commit ->
 pull request -> babysit to green -> merge.
 
 Every phase that changes behavior ends with the independent adversarial review
-defined in [delegation](../act-as-mohab/references/delegation.md), at the depth
-this task's triage set.
+defined in [delegation](delegation.md), at the depth this task's triage set.
 
 ## Output
 

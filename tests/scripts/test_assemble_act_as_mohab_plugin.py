@@ -6,6 +6,7 @@ import re
 import subprocess
 import tempfile
 import unittest
+import xml.etree.ElementTree as ET
 from pathlib import Path
 from unittest import mock
 
@@ -22,6 +23,9 @@ from scripts.ci.validate_agent_plugins import validate_package
 ROOT = Path(__file__).resolve().parents[2]
 CANONICAL_SKILLS = ROOT / ".agents/skills"
 MARKDOWN_LINK = re.compile(r"\]\(([^)#?]+)")
+ENGINE_VERSION = ET.parse(ROOT / "pom.xml").getroot().findtext(
+    "{http://maven.apache.org/POM/4.0.0}version"
+)
 
 
 class AssembleActAsMohabPluginTest(unittest.TestCase):
@@ -34,7 +38,7 @@ class AssembleActAsMohabPluginTest(unittest.TestCase):
 
     def create_source_repository(self, source_root: Path) -> Path:
         source_skills = source_root / ".agents/skills"
-        for skill in ("act-as-mohab", "consult-first", "retrieve-first"):
+        for skill in ("act-as-mohab",):
             target = source_skills / skill / "SKILL.md"
             target.parent.mkdir(parents=True, exist_ok=True)
             target.write_text(
@@ -54,6 +58,11 @@ class AssembleActAsMohabPluginTest(unittest.TestCase):
             '{"name":"shaft-skills","version":"1.0.0"}]}\n',
             encoding="utf-8",
         )
+        (source_root / "pom.xml").write_text(
+            '<project xmlns="http://maven.apache.org/POM/4.0.0">'
+            '<modelVersion>4.0.0</modelVersion><version>1.0.0</version></project>',
+            encoding="utf-8",
+        )
         subprocess.run([git_executable(), "init", "--quiet"], cwd=source_root, check=True)  # nosec B603
         subprocess.run(
             [git_executable(), "add", ".agents/skills", "LICENSE", "agent-plugins"],
@@ -61,6 +70,29 @@ class AssembleActAsMohabPluginTest(unittest.TestCase):
             check=True,
         )  # nosec B603
         return source_skills
+
+    def test_discovery_content_is_bound_to_engine_version(self):
+        release = json.loads((ROOT / "agent-plugins/release.json").read_text(encoding="utf-8"))
+        version = next(
+            package["version"] for package in release["packages"]
+            if package["name"] == "act-as-mohab"
+        )
+        self.assertEqual(version, ENGINE_VERSION)
+        changelog = (ROOT / "agent-plugins/act-as-mohab/CHANGELOG.md").read_text(encoding="utf-8")
+        compatibility = (ROOT / "agent-plugins/act-as-mohab/COMPATIBILITY.md").read_text(encoding="utf-8")
+        self.assertIn(f"## {ENGINE_VERSION}", changelog)
+        self.assertIn("breaking", changelog.lower())
+        self.assertIn(ENGINE_VERSION, compatibility)
+
+        assemble(ROOT, self.package_root)
+        packaged_skills = {
+            path.name for path in (self.package_root / "skills").iterdir()
+            if (path / "SKILL.md").is_file()
+        }
+        self.assertEqual(packaged_skills, {"act-as-mohab"})
+        for relative in ("plugin.json", ".claude-plugin/plugin.json", ".codex-plugin/plugin.json"):
+            manifest = json.loads((self.package_root / relative).read_text(encoding="utf-8"))
+            self.assertEqual(manifest["version"], version)
 
     def test_assembly_creates_a_valid_self_contained_package_from_canonical_sources(self):
         self.assertTrue(callable(assemble), "assemble must be available")
@@ -72,18 +104,20 @@ class AssembleActAsMohabPluginTest(unittest.TestCase):
             {
                 "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
                 "name": "act-as-mohab",
-                "version": "1.0.0",
+                "version": ENGINE_VERSION,
                 "description": "Maintainer workflow and harness skills for SHAFT.",
                 "author": {"name": "ShaftHQ", "url": "https://github.com/ShaftHQ/SHAFT_ENGINE"},
                 "repository": "https://github.com/ShaftHQ/SHAFT_ENGINE",
                 "license": "MIT",
             },
         )
-        for skill in ("act-as-mohab", "consult-first", "retrieve-first"):
+        for skill in ("act-as-mohab",):
             self.assertEqual(
                 (self.package_root / "skills" / skill / "SKILL.md").read_bytes(),
                 (CANONICAL_SKILLS / skill / "SKILL.md").read_bytes(),
             )
+        self.assertFalse((self.package_root / "skills/consult-first").exists())
+        self.assertFalse((self.package_root / "skills/retrieve-first").exists())
         canonical_references = CANONICAL_SKILLS / "act-as-mohab/references"
         for source in sorted(tracked_source_files(ROOT)):
             if source.is_relative_to(canonical_references) and source.suffix in {".md", ".LICENSE"}:
@@ -99,7 +133,7 @@ class AssembleActAsMohabPluginTest(unittest.TestCase):
         manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
 
         self.assertEqual(manifest["name"], "act-as-mohab")
-        self.assertEqual(manifest["version"], "1.0.0")
+        self.assertEqual(manifest["version"], ENGINE_VERSION)
         self.assertIn("maintainer", manifest["description"].lower())
         self.assertEqual(manifest.get("author", {}).get("name"), "ShaftHQ")
 
@@ -111,7 +145,7 @@ class AssembleActAsMohabPluginTest(unittest.TestCase):
         manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
 
         self.assertEqual(manifest["name"], "act-as-mohab")
-        self.assertEqual(manifest["version"], "1.0.0")
+        self.assertEqual(manifest["version"], ENGINE_VERSION)
         self.assertEqual(manifest["skills"], "./skills/")
 
     def test_assembly_includes_a_codex_marketplace_entry(self):
@@ -134,10 +168,15 @@ class AssembleActAsMohabPluginTest(unittest.TestCase):
         manifest = source_root / "agent-plugins/release.json"
         manifest.write_text(
             '{"packages":[{"name":"act-as-mohab","version":"1.2.3"},'
-            '{"name":"shaft-skills","version":"1.0.0"}]}\n',
+            '{"name":"shaft-skills","version":"1.2.3"}]}\n',
             encoding="utf-8",
         )
-        subprocess.run([git_executable(), "add", "agent-plugins/release.json"], cwd=source_root, check=True)  # nosec B603
+        (source_root / "pom.xml").write_text(
+            '<project xmlns="http://maven.apache.org/POM/4.0.0">'
+            '<modelVersion>4.0.0</modelVersion><version>1.2.3</version></project>',
+            encoding="utf-8",
+        )
+        subprocess.run([git_executable(), "add", "agent-plugins/release.json", "pom.xml"], cwd=source_root, check=True)  # nosec B603
         assemble(source_root, self.package_root)
 
         for relative in ("plugin.json", ".claude-plugin/plugin.json", ".codex-plugin/plugin.json"):
@@ -217,7 +256,7 @@ class AssembleActAsMohabPluginTest(unittest.TestCase):
         source_skills = self.create_source_repository(source_root)
         outside = self.package_root.parent / "outside.md"
         outside.write_text("host secret", encoding="utf-8")
-        skill_path = source_skills / "consult-first/SKILL.md"
+        skill_path = source_skills / "act-as-mohab/SKILL.md"
         skill_path.unlink()
         try:
             skill_path.symlink_to(outside)
@@ -248,8 +287,9 @@ class AssembleActAsMohabPluginTest(unittest.TestCase):
         outside = self.package_root.parent / "outside"
         outside.mkdir()
         (outside / "SKILL.md").write_text("host secret", encoding="utf-8")
-        skill_directory = source_skills / "consult-first"
+        skill_directory = source_skills / "act-as-mohab"
         (skill_directory / "SKILL.md").unlink()
+        (skill_directory / "references").rmdir()
         skill_directory.rmdir()
         try:
             skill_directory.symlink_to(outside, target_is_directory=True)

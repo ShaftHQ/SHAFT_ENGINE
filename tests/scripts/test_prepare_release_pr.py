@@ -78,6 +78,12 @@ String androidCommandLineToolsVersion();
             )
             _write(root / "shaft-intellij/gradle.properties", "pluginVersion=10.2.20260630\n")
             _write(root / "modular-era-feature-catalog.md", "Plugin 10.2.20260630\n")
+            _write(
+                root / "agent-plugins/release.json",
+                '{"packages": ['
+                '{"name": "act-as-mohab", "version": "10.2.20260630"}, '
+                '{"name": "shaft-skills", "version": "10.2.20260630"}]}'
+            )
 
             old_version, release_version, changed = MODULE.prepare_release(
                 root,
@@ -108,6 +114,13 @@ String androidCommandLineToolsVersion();
             self.assertIn('@DefaultValue("8.0.1")', internal)
             self.assertIn('@DefaultValue("11.17.1")', internal)
             self.assertIn('@DefaultValue("15641748")', internal)
+            plugin_release = __import__("json").loads(
+                (root / "agent-plugins/release.json").read_text(encoding="utf-8")
+            )
+            self.assertEqual(
+                {package["version"] for package in plugin_release["packages"]},
+                {release_version},
+            )
 
     def test_rejects_non_newer_release_date(self):
         with tempfile.TemporaryDirectory() as temp:

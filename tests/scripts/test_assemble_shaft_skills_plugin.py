@@ -7,6 +7,7 @@ import shutil
 import subprocess
 import tempfile
 import unittest
+import xml.etree.ElementTree as ET
 from pathlib import Path
 
 try:
@@ -27,6 +28,17 @@ ROOT = Path(__file__).resolve().parents[2]
 CANONICAL_SKILLS = ROOT / "shaft-skills"
 CANONICAL_EVALS = ROOT / "agent-plugins/shaft-skills/evals"
 MARKDOWN_LINK = re.compile(r"\]\(([^)#?]+)")
+ENGINE_VERSION = ET.parse(ROOT / "pom.xml").getroot().findtext(
+    "{http://maven.apache.org/POM/4.0.0}version"
+)
+
+
+def write_test_pom(root: Path, version: str) -> None:
+    (root / "pom.xml").write_text(
+        '<project xmlns="http://maven.apache.org/POM/4.0.0">'
+        f'<modelVersion>4.0.0</modelVersion><version>{version}</version></project>',
+        encoding="utf-8",
+    )
 
 
 class AssembleShaftSkillsPluginTest(unittest.TestCase):
@@ -47,7 +59,7 @@ class AssembleShaftSkillsPluginTest(unittest.TestCase):
             {
                 "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
                 "name": "shaft-skills",
-                "version": "1.0.0",
+                "version": ENGINE_VERSION,
                 "description": "User-facing SHAFT test-automation skills.",
                 "author": {"name": "ShaftHQ", "url": "https://github.com/ShaftHQ/SHAFT_ENGINE"},
                 "repository": "https://github.com/ShaftHQ/SHAFT_ENGINE",
@@ -91,11 +103,11 @@ class AssembleShaftSkillsPluginTest(unittest.TestCase):
                     "name": "shaft-skills",
                     "source": "./",
                     "description": "User-facing SHAFT test-automation skills.",
-                    "version": "1.0.0",
+                    "version": ENGINE_VERSION,
                 }
             ],
         )
-        self.assertEqual(codex, {"name": "shaft-skills", "version": "1.0.0", "skills": "./skills/"})
+        self.assertEqual(codex, {"name": "shaft-skills", "version": ENGINE_VERSION, "skills": "./skills/"})
         self.assertEqual(
             marketplace["plugins"],
             [{"name": "shaft-skills", "source": {"source": "local", "path": "./"}}],
@@ -116,10 +128,11 @@ class AssembleShaftSkillsPluginTest(unittest.TestCase):
         compatibility.write_text("# Test compatibility\n", encoding="utf-8")
         manifest = source_root / "agent-plugins/release.json"
         manifest.write_text(
-            '{"packages":[{"name":"act-as-mohab","version":"1.0.0"},'
+            '{"packages":[{"name":"act-as-mohab","version":"1.2.3"},'
             '{"name":"shaft-skills","version":"1.2.3"}]}\n',
             encoding="utf-8",
         )
+        write_test_pom(source_root, "1.2.3")
         git = shutil.which("git")
         self.assertIsNotNone(git)
         subprocess.run([git, "init", "--quiet"], cwd=source_root, check=True)  # nosec B603
@@ -203,6 +216,7 @@ class AssembleShaftSkillsPluginTest(unittest.TestCase):
             '{"name":"shaft-skills","version":"1.0.0"}]}\n',
             encoding="utf-8",
         )
+        write_test_pom(source_root, "1.0.0")
         subprocess.run([git, "add", "shaft-skills", "LICENSE", "agent-plugins/release.json"], cwd=source_root, check=True)  # nosec B603
 
         with self.assertRaisesRegex(ValueError, "tracked"):
@@ -230,6 +244,7 @@ class AssembleShaftSkillsPluginTest(unittest.TestCase):
             '{"name":"shaft-skills","version":"1.0.0"}]}\n',
             encoding="utf-8",
         )
+        write_test_pom(source_root, "1.0.0")
         subprocess.run([git, "init", "--quiet"], cwd=source_root, check=True)  # nosec B603
         subprocess.run([git, "add", "shaft-skills", "LICENSE", "agent-plugins"], cwd=source_root, check=True)  # nosec B603
 

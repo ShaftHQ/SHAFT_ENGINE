@@ -10,7 +10,7 @@ know. Infer the row from what they asked for.
 ## Always, before any row
 
 Take the depth the entrypoint's triage already selected, loading
-[consult-first](../../consult-first/SKILL.md) only when that triage sends you
+[consult-first](consult-first.md) only when that triage sends you
 there. Apply the entrypoint's Caveman, Ponytail, and TDD rules; use
 [delegation](delegation.md) before dispatch and [roles](roles.md) for role
 boundaries. When the change involves a mock, a method a production class gains

@@ -1,0 +1,460 @@
+{
+  "schema_version": 1,
+  "base_revision": "3993405e097d5d310c1d8a79d5c1974758064a85",
+  "entries": [
+    {
+      "label": "../.agents/skills/act-as-mohab/SKILL.md",
+      "source": ".agents/skills/act-as-mohab/SKILL.md",
+      "category": "canonical-skill-file",
+      "hashes": [
+        "c4fcaab387fdbb9a2ee169e8777fd697fc672bf490659dda86a6221db7c48769"
+      ]
+    },
+    {
+      "label": "../.agents/skills/act-as-mohab/agents/openai.yaml",
+      "source": ".agents/skills/act-as-mohab/agents/openai.yaml",
+      "category": "canonical-skill-file",
+      "hashes": [
+        "0e0a07a27ae2f0c874c51e6e164f8acafa69d6ae0634d33406218bc5dbb03074"
+      ]
+    },
+    {
+      "label": "../.agents/skills/act-as-mohab/references/caveman.LICENSE",
+      "source": ".agents/skills/act-as-mohab/references/caveman.LICENSE",
+      "category": "canonical-skill-file",
+      "hashes": [
+        "5eb826cd03151bcc7cce3f80d40e87733237fedfc6c36d6908aca5fd650a0bdb"
+      ]
+    },
+    {
+      "label": "../.agents/skills/act-as-mohab/references/delegation.md",
+      "source": ".agents/skills/act-as-mohab/references/delegation.md",
+      "category": "canonical-skill-file",
+      "hashes": [
+        "10ae56e53bcc792ece1797081a692677071d534ef8ae45198c2a39453dfbf88b"
+      ]
+    },
+    {
+      "label": "../.agents/skills/act-as-mohab/references/graphify.md",
+      "source": ".agents/skills/act-as-mohab/references/graphify.md",
+      "category": "canonical-skill-file",
+      "hashes": [
+        "336943d814798f039709602b117646eff1c132773069521fc809ff1106699509"
+      ]
+    },
+    {
+      "label": "../.agents/skills/act-as-mohab/references/heuristics.md",
+      "source": ".agents/skills/act-as-mohab/references/heuristics.md",
+      "category": "canonical-skill-file",
+      "hashes": [
+        "a2ea79cc3094a51188a70a381fbf5fea23886afe3578f4c48724bd674407c97c"
+      ]
+    },
+    {
+      "label": "../.agents/skills/act-as-mohab/references/orchestrator-bootstrap.md",
+      "source": ".agents/skills/act-as-mohab/references/orchestrator-bootstrap.md",
+      "category": "canonical-skill-file",
+      "hashes": [
+        "0c7dd2f5b818a25d5d6af848d76677a7dd4a5e4063c010555dbe32b025c20fe8"
+      ]
+    },
+    {
+      "label": "../.agents/skills/act-as-mohab/references/playbooks/agent-guidance-boundary-guard.md",
+      "source": ".agents/skills/act-as-mohab/references/playbooks/agent-guidance-boundary-guard.md",
+      "category": "canonical-skill-file",
+      "hashes": [
+        "ec24de3638e2e81553c68510b1632ae7a42ff218ddc4474387cb2982bbabf390"
+      ]
+    },
+    {
+      "label": "../.agents/skills/act-as-mohab/references/playbooks/agentic-pdca-loop.md",
+      "source": ".agents/skills/act-as-mohab/references/playbooks/agentic-pdca-loop.md",
+      "category": "canonical-skill-file",
+      "hashes": [
+        "c499602adaf8314cd2c60e22fe1bfe484d599154a3163d1ec85621b25c22ca5c"
+      ]
+    },
+    {
+      "label": "../.agents/skills/act-as-mohab/references/playbooks/allure-extent-report-operator.md",
+      "source": ".agents/skills/act-as-mohab/references/playbooks/allure-extent-report-operator.md",
+      "category": "canonical-skill-file",
+      "hashes": [
+        "d9557cecc0b6a25534b3134e11f9bad1ae23b1bbbb269fe84179a93445cb766f"
+      ]
+    },
+    {
+      "label": "../.agents/skills/act-as-mohab/references/playbooks/ci-failure-investigator.md",
+      "source": ".agents/skills/act-as-mohab/references/playbooks/ci-failure-investigator.md",
+      "category": "canonical-skill-file",
+      "hashes": [
+        "d04ffb273187f3aa1d9092b7a211c055ac6d98da8b27f56ba27150c25e3c9176"
+      ]
+    },
+    {
+      "label": "../.agents/skills/act-as-mohab/references/playbooks/flaky-test-stabilizer.md",
+      "source": ".agents/skills/act-as-mohab/references/playbooks/flaky-test-stabilizer.md",
+      "category": "canonical-skill-file",
+      "hashes": [
+        "e9566341ef7883252028bbd98dc7f9fca3edb58b456480244056ab679a25137a"
+      ]
+    },
+    {
+      "label": "../.agents/skills/act-as-mohab/references/playbooks/framework-source.md",
+      "source": ".agents/skills/act-as-mohab/references/playbooks/framework-source.md",
+      "category": "canonical-skill-file",
+      "hashes": [
+        "af7b2cfa299cc5ef95acbd7b8e1680730e2c6006e0fa8fdaf6066cc85b782565"
+      ]
+    },
+    {
+      "label": "../.agents/skills/act-as-mohab/references/playbooks/java-tests.md",
+      "source": ".agents/skills/act-as-mohab/references/playbooks/java-tests.md",
+      "category": "canonical-skill-file",
+      "hashes": [
+        "83fc4269e3a2dca1f69c1ae672c449b72f52b923d470085376c6a87e9ec67907"
+      ]
+    },
+    {
+      "label": "../.agents/skills/act-as-mohab/references/playbooks/mcp-transport-contract-auditor.md",
+      "source": ".agents/skills/act-as-mohab/references/playbooks/mcp-transport-contract-auditor.md",
+      "category": "canonical-skill-file",
+      "hashes": [
+        "747a03ff610b68178d45accbebce7d8c3f9ce85b291410c110f10442cffd57f5"
+      ]
+    },
+    {
+      "label": "../.agents/skills/act-as-mohab/references/playbooks/modular-boundary-auditor.md",
+      "source": ".agents/skills/act-as-mohab/references/playbooks/modular-boundary-auditor.md",
+      "category": "canonical-skill-file",
+      "hashes": [
+        "bfb37a8c17d29cb11f2dfcff8ebd8bf6da6bd4ab25058f3c9895c88258465947"
+      ]
+    },
+    {
+      "label": "../.agents/skills/act-as-mohab/references/playbooks/public-behavior-docs-synchronizer.md",
+      "source": ".agents/skills/act-as-mohab/references/playbooks/public-behavior-docs-synchronizer.md",
+      "category": "canonical-skill-file",
+      "hashes": [
+        "4bf5e64d8656c78ad3d24ea9bfa0476df4615323b333148b716f52572a65b537"
+      ]
+    },
+    {
+      "label": "../.agents/skills/act-as-mohab/references/playbooks/release-dependency-guard.md",
+      "source": ".agents/skills/act-as-mohab/references/playbooks/release-dependency-guard.md",
+      "category": "canonical-skill-file",
+      "hashes": [
+        "c98c514d32550e156ad57a7ced4401fd84d4b49ead1b3ac45d6e51371d941466"
+      ]
+    },
+    {
+      "label": "../.agents/skills/act-as-mohab/references/playbooks/shaft-marketing-ad-producer.md",
+      "source": ".agents/skills/act-as-mohab/references/playbooks/shaft-marketing-ad-producer.md",
+      "category": "canonical-skill-file",
+      "hashes": [
+        "5e428739a6553c2728117657519611ff03ccbaaebc33e36ce805fad330fe40c6"
+      ]
+    },
+    {
+      "label": "../.agents/skills/act-as-mohab/references/playbooks/shaft-ui-design.md",
+      "source": ".agents/skills/act-as-mohab/references/playbooks/shaft-ui-design.md",
+      "category": "canonical-skill-file",
+      "hashes": [
+        "326b1f41edfc10a45fe12eefe9fd448a6719735c60ca9b67022434506f367f66"
+      ]
+    },
+    {
+      "label": "../.agents/skills/act-as-mohab/references/ponytail.LICENSE",
+      "source": ".agents/skills/act-as-mohab/references/ponytail.LICENSE",
+      "category": "canonical-skill-file",
+      "hashes": [
+        "fb1bc6909ac3ef82d5c22106e32ef682b0cff66788fa915fb9b53b15c9d2f3ab"
+      ]
+    },
+    {
+      "label": "../.agents/skills/act-as-mohab/references/roles.md",
+      "source": ".agents/skills/act-as-mohab/references/roles.md",
+      "category": "canonical-skill-file",
+      "hashes": [
+        "93f0bcac86a6a0ba5f2b66f41b6612cff9b729ef8ddbcf0a8e97bf05f6c75ec6"
+      ]
+    },
+    {
+      "label": "../.agents/skills/act-as-mohab/references/routing.md",
+      "source": ".agents/skills/act-as-mohab/references/routing.md",
+      "category": "canonical-skill-file",
+      "hashes": [
+        "751b255b251665a098be8d2f7bb306c5e7f8fd87bf44f6c7a1cdea7859962c4c"
+      ]
+    },
+    {
+      "label": "../.agents/skills/act-as-mohab/references/shaft-mastery/allure-internals.md",
+      "source": ".agents/skills/act-as-mohab/references/shaft-mastery/allure-internals.md",
+      "category": "canonical-skill-file",
+      "hashes": [
+        "4e76d7a858f1b2fafc373f4d0285bce2b6251f61da39099dd4e01b7aebfa58c5"
+      ]
+    },
+    {
+      "label": "../.agents/skills/act-as-mohab/references/shaft-mastery/appium-mobile.md",
+      "source": ".agents/skills/act-as-mohab/references/shaft-mastery/appium-mobile.md",
+      "category": "canonical-skill-file",
+      "hashes": [
+        "3202dcc3358d38a0b3212e51fe48e8e7ddbc808dca572eec8651a249b91a8ec7"
+      ]
+    },
+    {
+      "label": "../.agents/skills/act-as-mohab/references/shaft-mastery/ci-forensics.md",
+      "source": ".agents/skills/act-as-mohab/references/shaft-mastery/ci-forensics.md",
+      "category": "canonical-skill-file",
+      "hashes": [
+        "12cabd64e1de3fc4b78e4b5081554046566a52f070c78ec9303f774f07f16872"
+      ]
+    },
+    {
+      "label": "../.agents/skills/act-as-mohab/references/shaft-mastery/intellij-plugin.md",
+      "source": ".agents/skills/act-as-mohab/references/shaft-mastery/intellij-plugin.md",
+      "category": "canonical-skill-file",
+      "hashes": [
+        "bd81263eaad3d553efd02b2697f77bc341cbcd52a9f598c4afe46324f7db39f5"
+      ]
+    },
+    {
+      "label": "../.agents/skills/act-as-mohab/references/shaft-mastery/locator-healing.md",
+      "source": ".agents/skills/act-as-mohab/references/shaft-mastery/locator-healing.md",
+      "category": "canonical-skill-file",
+      "hashes": [
+        "61bc4d91cd2023baa893368835446cab7a03d281d1a9fbe26889226883066b7e"
+      ]
+    },
+    {
+      "label": "../.agents/skills/act-as-mohab/references/shaft-mastery/maven-release.md",
+      "source": ".agents/skills/act-as-mohab/references/shaft-mastery/maven-release.md",
+      "category": "canonical-skill-file",
+      "hashes": [
+        "d884f28243c711d8ace1b758b17747a13f445529c1221c5fd1f991fee212a258"
+      ]
+    },
+    {
+      "label": "../.agents/skills/act-as-mohab/references/shaft-mastery/mcp-protocol.md",
+      "source": ".agents/skills/act-as-mohab/references/shaft-mastery/mcp-protocol.md",
+      "category": "canonical-skill-file",
+      "hashes": [
+        "54f3c793824b2d8b7668ba45c023a1909f97260602f73a97659d7349204495c0"
+      ]
+    },
+    {
+      "label": "../.agents/skills/act-as-mohab/references/shaft-mastery/selenium-bidi.md",
+      "source": ".agents/skills/act-as-mohab/references/shaft-mastery/selenium-bidi.md",
+      "category": "canonical-skill-file",
+      "hashes": [
+        "bc59102d1d8370d91ac0fe82fc00a5eccde524f59000940b1cfcb56854408175"
+      ]
+    },
+    {
+      "label": "../.agents/skills/act-as-mohab/references/shaft-mastery/testng-lifecycle.md",
+      "source": ".agents/skills/act-as-mohab/references/shaft-mastery/testng-lifecycle.md",
+      "category": "canonical-skill-file",
+      "hashes": [
+        "27c2a287d2d092623fb4aa76bcf27ae79dfefda973d260f6fff02a10db5a96c7"
+      ]
+    },
+    {
+      "label": "../.agents/skills/act-as-mohab/references/shaft-mastery/wait-strategies.md",
+      "source": ".agents/skills/act-as-mohab/references/shaft-mastery/wait-strategies.md",
+      "category": "canonical-skill-file",
+      "hashes": [
+        "7f9cb828e9b0902ecdaa325df4695838e3e131cc50de95151c44f0203d25b593"
+      ]
+    },
+    {
+      "label": "../.agents/skills/act-as-mohab/references/tdd-failure-modes.md",
+      "source": ".agents/skills/act-as-mohab/references/tdd-failure-modes.md",
+      "category": "canonical-skill-file",
+      "hashes": [
+        "a023c52527cde8f5ab334201e96182c167838bdf0a623815a590cea69e610182"
+      ]
+    },
+    {
+      "label": "../.agents/skills/act-as-mohab/references/test-driven-development.LICENSE",
+      "source": ".agents/skills/act-as-mohab/references/test-driven-development.LICENSE",
+      "category": "canonical-skill-file",
+      "hashes": [
+        "a37e0e9697144819e1d965176ac4ae5bc3fa02d11e7812036bbcadf6dafe2400"
+      ]
+    },
+    {
+      "label": "../.agents/skills/act-as-mohab/references/verification-gap-lens.md",
+      "source": ".agents/skills/act-as-mohab/references/verification-gap-lens.md",
+      "category": "canonical-skill-file",
+      "hashes": [
+        "cdb3f8e9193404f345c36936e5011437127f4e3824702e2b65232edaf18d1a06"
+      ]
+    },
+    {
+      "label": "../.agents/skills/act-as-mohab/references/work-github-planning.md",
+      "source": ".agents/skills/act-as-mohab/references/work-github-planning.md",
+      "category": "canonical-skill-file",
+      "hashes": [
+        "df7ec9748506c61f4139834fba0f012126ec1846fcb1eb4f0b4af3cb440c3441"
+      ]
+    },
+    {
+      "label": "../.agents/skills/act-as-mohab/references/work-github-playbook.md",
+      "source": ".agents/skills/act-as-mohab/references/work-github-playbook.md",
+      "category": "canonical-skill-file",
+      "hashes": [
+        "2e43bc7168a3c231a8e711d61725ffdaaba2a37129dfb4df96671aae7fcf7a6d"
+      ]
+    },
+    {
+      "label": "../.agents/skills/consult-first/SKILL.md",
+      "source": ".agents/skills/consult-first/SKILL.md",
+      "category": "canonical-skill-file",
+      "hashes": [
+        "5c6a6759c6ccd5cccaf3bb6f57bf5ce7459c2a7eb04532cdcf4c8f64b1c70535"
+      ]
+    },
+    {
+      "label": "../.agents/skills/consult-first/agents/openai.yaml",
+      "source": ".agents/skills/consult-first/agents/openai.yaml",
+      "category": "canonical-skill-file",
+      "hashes": [
+        "12ead2e3e57444f062625cc9f0c9604080fd58891e7a4b4197b312da83897719"
+      ]
+    },
+    {
+      "label": "../.agents/skills/retrieve-first/SKILL.md",
+      "source": ".agents/skills/retrieve-first/SKILL.md",
+      "category": "canonical-skill-file",
+      "hashes": [
+        "8195430a95680c81b5348a8ef55a200f7c8a612670ae0f472e0d59d88cb534e7"
+      ]
+    },
+    {
+      "label": "../.agents/skills/retrieve-first/agents/openai.yaml",
+      "source": ".agents/skills/retrieve-first/agents/openai.yaml",
+      "category": "canonical-skill-file",
+      "hashes": [
+        "22c7c185bdb2f9063b467dcf527fa15a986806126af3c9e8e494930c2eea3b92"
+      ]
+    },
+    {
+      "label": "skills/act-as-mohab/SKILL.md",
+      "source": ".claude/skills/act-as-mohab/SKILL.md",
+      "category": "claude-skill-adapter",
+      "hashes": [
+        "172facb0694139ef2db2d1e5f0f5c316978935437dced34af8b9589bfe27235b"
+      ]
+    },
+    {
+      "label": "skills/consult-first/SKILL.md",
+      "source": ".claude/skills/consult-first/SKILL.md",
+      "category": "claude-skill-adapter",
+      "hashes": [
+        "3327a3d1de3f87b50454f163483eec59f1a6905dcce9fc03d1f5c00ad515198a"
+      ]
+    },
+    {
+      "label": "skills/retrieve-first/SKILL.md",
+      "source": ".claude/skills/retrieve-first/SKILL.md",
+      "category": "claude-skill-adapter",
+      "hashes": [
+        "dd99d0763b6f15c4b4bac7cbdbf1c239b9935e560d0be82af6893f377ce5b9a5"
+      ]
+    },
+    {
+      "label": "agents/chaos-engine.md",
+      "source": ".claude/agents/chaos-engine.md",
+      "category": "claude-role-adapter",
+      "hashes": [
+        "d928d466cee5cabffa99c48f1d5c9c5bf9483ab50daa390639f415ebe92e50ba"
+      ]
+    },
+    {
+      "label": "agents/coder.md",
+      "source": ".claude/agents/coder.md",
+      "category": "claude-role-adapter",
+      "hashes": [
+        "9d9eacb043e0a03abb98ad8daadc9814d157d1e448a03cb81c777e6472f86ff6"
+      ]
+    },
+    {
+      "label": "agents/helper.md",
+      "source": ".claude/agents/helper.md",
+      "category": "claude-role-adapter",
+      "hashes": [
+        "eb998184e9f06b0f79b9e12a19ef528d2914dc1ffc01e18bb2fa68aef55b0c29"
+      ]
+    },
+    {
+      "label": "agents/reviewer.md",
+      "source": ".claude/agents/reviewer.md",
+      "category": "claude-role-adapter",
+      "hashes": [
+        "d6107490e6af6f2007a014b291050d4fd49102bb50ef3bd3d8ae841e61c5475a"
+      ]
+    },
+    {
+      "label": "agents/tester.md",
+      "source": ".claude/agents/tester.md",
+      "category": "claude-role-adapter",
+      "hashes": [
+        "ef6b3030613980bf70918c7e36d6616a701308925f4dcee5b28655336c5695b4"
+      ]
+    },
+    {
+      "label": "../.codex/AGENTS.md",
+      "source": ".claude/user-harness/CLAUDE.md",
+      "category": "codex-host-adapter",
+      "hashes": [
+        "e72fd1a7dee6553227a066f69ee7a71263852b3730758e08b7d271787dd5d788",
+        "58488d3c6f860afec44c078d060c280ef887b69d37bd82e6b2be713371268865",
+        "eae7709a4c36efd170327c4bfbdbbed626f14915c8c46b8d3f3eb9947b9fbb25"
+      ]
+    },
+    {
+      "label": "../.codex/agents/chaos-engine.toml",
+      "source": ".codex/agents/chaos-engine.toml",
+      "category": "codex-role-adapter",
+      "hashes": [
+        "816bf080533ca02e85039a8548d2476bee29d11e266a0a8a8f215208631c14a2",
+        "e50c90620d99eaa2701cacedc2a5f2b1f0f01e0607c04548aa7a80d8e5126915"
+      ]
+    },
+    {
+      "label": "../.codex/agents/coder.toml",
+      "source": ".codex/agents/coder.toml",
+      "category": "codex-role-adapter",
+      "hashes": [
+        "90321da46a1cfe6ddcfc41049efdadf3702d8463768796df6b0145130b77df2f",
+        "3c0dc2baa41a29c5049d68a815e9a41333432725850b92a7c964a3a1c28814f6"
+      ]
+    },
+    {
+      "label": "../.codex/agents/helper.toml",
+      "source": ".codex/agents/helper.toml",
+      "category": "codex-role-adapter",
+      "hashes": [
+        "5ed6ddd66ccd6b616c0f2a90be5245e02cad1dedf17d5bf8394c5d78a9e17625"
+      ]
+    },
+    {
+      "label": "../.codex/agents/reviewer.toml",
+      "source": ".codex/agents/reviewer.toml",
+      "category": "codex-role-adapter",
+      "hashes": [
+        "a2006ec0f326cf0c3c33d15f493f18df7dafaf8096edbc86db856c4e81fbfd1f",
+        "95b6f4d87be43a7b33bf173fddefd8589fb0950853e98bf9fca8e9645c386e99"
+      ]
+    },
+    {
+      "label": "../.codex/agents/tester.toml",
+      "source": ".codex/agents/tester.toml",
+      "category": "codex-role-adapter",
+      "hashes": [
+        "877b67bf48ca8c945279493c86ee5c56fd406c1be07ebf42dacdf4ebaa0aa632",
+        "f08a90fcb3e8a595f3572559bbadcff2ced310adbd534f7de491555abe3d35ea"
+      ]
+    }
+  ]
+}

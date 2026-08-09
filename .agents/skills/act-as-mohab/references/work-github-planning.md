@@ -41,6 +41,11 @@ Test the least-understood, highest-risk premise first. Scout architectural or
 data-model decisions yourself. Delegate only a concrete spec that names the
 files, precedent, exclusions, focused test, and validation command.
 
+For consequential or multi-file work, follow the executable-specification
+template in [consult-first](consult-first.md). Record the completed
+executable-specification matrices on the target GitHub issue comment before the first
+implementing commit.
+
 ## 3b. Tracking issue + one-issue-per-subtask (mandatory default for new work)
 
 For every substantial request, analyze and plan before landing code, then open a

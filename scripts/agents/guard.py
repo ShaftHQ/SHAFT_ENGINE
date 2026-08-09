@@ -3045,9 +3045,7 @@ def check_r18_unpushed_work(hook_input: dict) -> str | None:
     )
 
 
-_HARNESS_SOURCE = re.compile(
-    r"^(?:\.agents/skills/|\.claude/skills/|\.claude/user-harness/|\.claude/agents/|\.codex/agents/)"
-)
+_HARNESS_SOURCE = re.compile(r"^\.claude/user-harness/")
 
 
 def _branch_edits_harness_sources(cwd: object = None) -> bool:

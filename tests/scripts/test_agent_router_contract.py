@@ -36,7 +36,7 @@ ROUTING = REFERENCES / "routing.md"
 ROLES = REFERENCES / "roles.md"
 DELEGATION = REFERENCES / "delegation.md"
 LENS = REFERENCES / "verification-gap-lens.md"
-CONSULT = CANONICAL_SKILLS / "consult-first/SKILL.md"
+CONSULT = REFERENCES / "consult-first.md"
 BUDGET = ROOT / "scripts/ci/agent_guidance_budget.json"
 
 # agentskills.io/specification: keep SKILL.md under 500 lines so a host never
@@ -96,6 +96,38 @@ PINNED_CLAUSES: tuple[tuple[Path, str, str], ...] = (
     (DELEGATION, REVIEW, "the exact revision under review"),
     (DELEGATION, REVIEW, "first action confirms the revision is what it thinks it is"),
 )
+
+
+class ActiveMemoryContractTest(unittest.TestCase):
+    def test_active_memory_names_only_the_single_repo_local_skill_layout(self):
+        memory_root = ROOT / ".memory"
+        constraint = json.loads((
+            memory_root / "memory/constraints/approved-designs-proceed-with-most-intelligent-consultation-without-repeat-user-approval.json"
+        ).read_text(encoding="utf-8"))
+        gotcha = json.loads((
+            memory_root / "memory/gotchas/marketplace-json-skills-entries-must-list-individual-skill-dirs-never-for-vercel-skills-cli-interop.json"
+        ).read_text(encoding="utf-8"))
+
+        self.assertEqual(constraint["status"], "active")
+        self.assertNotIn(
+            ".agents/skills/consult-first/SKILL.md",
+            constraint["facets"]["applies_to"],
+        )
+        gotcha_body = (memory_root / gotcha["body_path"]).read_text(encoding="utf-8")
+        self.assertNotIn("4 SKILL.md today", gotcha_body)
+        self.assertIn("one repo-local", gotcha_body.lower())
+
+
+class PlanArtifactRoutingTest(unittest.TestCase):
+    def test_plan_artifacts_use_repository_safe_destinations(self):
+        content = compact(CONSULT)
+
+        self.assertIn("target github issue", content)
+        self.assertIn("transient", content)
+        self.assertIn("existing operational-guidance location", content)
+        self.assertIn("docs/superpowers", content)
+        self.assertRegex(content, r"never (?:create|write).{0,80}docs/superpowers")
+
 
 # How many rules each pinned section is supposed to have (#4534).
 #
@@ -321,6 +353,17 @@ REQUIRED_ACTION_REGISTRY: tuple[dict, ...] = (
             "'an owner decided something in conversation' and 'a sequencing "
             "constraint was discovered' are not events any hook observes, so they "
             "stay prose and the issue stays open rather than being counted as done."
+        ),
+    },
+    {
+        "law": None,
+        "rule": "complete the executable specification before RED/GREEN and record it remotely before commit",
+        "status": "prose-only",
+        "reason": (
+            "A deterministic local hook cannot infer semantic risk or prove that a "
+            "remote issue comment preceded RED/GREEN or a commit before a diff or "
+            "action exists. Runtime enforcement caused false positives and new trust "
+            "failures, so CI enforces the source-controlled structure and wording only."
         ),
     },
 )
@@ -726,20 +769,17 @@ def read_chain_depth(start: Path) -> dict[Path, int]:
 
 
 class ConsultGateTest(unittest.TestCase):
-    """The deliberation skill exists and runs before any task-specific work."""
+    """The internal deliberation gate runs before any task-specific work."""
 
-    def test_consult_skill_exists_on_every_host_discovery_path(self):
-        for path in (CONSULT, CLAUDE_SKILLS / "consult-first/SKILL.md"):
-            self.assertTrue(path.is_file(), f"missing skill: {path}")
-        self.assertTrue((CONSULT.parent / "agents/openai.yaml").is_file())
+    def test_consult_gate_is_internal_to_the_single_discovery_skill(self):
+        self.assertTrue(CONSULT.is_file())
+        self.assertFalse((CANONICAL_SKILLS / "consult-first/SKILL.md").exists())
+        self.assertFalse((CLAUDE_SKILLS / "consult-first/SKILL.md").exists())
 
-    def test_only_the_canonical_consult_skill_carries_a_substantive_body(self):
-        adapter = CLAUDE_SKILLS / "consult-first/SKILL.md"
+    def test_internal_consult_gate_carries_the_substantive_body(self):
         self.assertGreater(len(markdown_body(CONSULT)), 1000)
-        self.assertLess(len(markdown_body(adapter)), 500)
-        targets = local_links(adapter)
-        self.assertTrue(targets, "adapter must link the canonical body")
-        self.assertEqual((adapter.parent / targets[0]).resolve(), CONSULT.resolve())
+        targets = [(ENTRYPOINT.parent / target).resolve() for target in local_links(ENTRYPOINT)]
+        self.assertIn(CONSULT.resolve(), targets)
 
     def test_entrypoint_opens_every_task_by_consulting_before_acting(self):
         content = compact(ENTRYPOINT)
@@ -1026,7 +1066,7 @@ class HostParityTest(unittest.TestCase):
         """#4570 A5: a delegate misses SessionStart, so its adapter path owns retrieval."""
         clause = (
             "When this entrypoint was loaded through a role adapter, load "
-            "[retrieve-first](../retrieve-first/SKILL.md) before task-specific discovery, "
+            "[retrieve-first](references/retrieve-first.md) before task-specific discovery, "
             "including one-file reversible work."
         )
         entrypoint = ENTRYPOINT.read_text(encoding="utf-8")
@@ -2656,6 +2696,56 @@ class VacuousSetupPatchTest(unittest.TestCase):
             "            self.assertTrue(guard._helper('.'))\n"
         )
         self.assertEqual(setup_patch_defects(source, "synthetic.py"), [])
+
+
+class ExecutableSpecificationStructureTest(unittest.TestCase):
+    """#4656's planning template is three independently pinned matrices."""
+
+    SCHEMA = (
+        ("Resolved caller matrix", ("Site", "Effective cwd/path", "Runtime/version/platform", "Permissions/trust", "Configuration precedence", "Input existence")),
+        ("State/failure matrix", ("State", "Immutable ownership", "Preflight", "Mutation order", "Mixed state", "Atomicity", "Concurrency", "Idempotency", "Recovery", "Fail-closed")),
+        ("Acceptance-to-proof map", ("Criterion or invariant", "Positive proof", "Negative or mutation proof", "Command")),
+    )
+
+    def test_real_guidance_has_exact_named_6_10_4_tables(self):
+        text = CONSULT.read_text(encoding="utf-8")
+        for name, columns in self.SCHEMA:
+            with self.subTest(table=name):
+                marker = f"### {name}"
+                self.assertEqual(text.count(marker), 1)
+                block = text.split(marker, 1)[1]
+                header = next((line for line in block.splitlines() if line.startswith("|")), "")
+                self.assertEqual(tuple(cell.strip() for cell in header.strip("|").split("|")), columns)
+
+    def test_registry_honestly_marks_semantic_risk_and_remote_ordering_prose_only(self):
+        rows = [row for row in REQUIRED_ACTION_REGISTRY if "executable specification" in row["rule"]]
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0]["status"], "prose-only")
+        self.assertIn("before red/green", rows[0]["rule"].lower())
+        self.assertIn("before commit", rows[0]["rule"].lower())
+        reason = rows[0]["reason"].lower()
+        self.assertIn("semantic risk", reason)
+        self.assertIn("remote", reason)
+        self.assertIn("false", reason)
+
+    def test_real_guidance_requires_exhaustive_rows_and_concrete_regressions(self):
+        text = CONSULT.read_text(encoding="utf-8")
+        compact_text = " ".join(text.split())
+        self.assertIn(
+            "Add one resolved data row for every caller/site, every state/transition/failure mode, "
+            "and every acceptance criterion/invariant.",
+            compact_text,
+        )
+        for scenario in (
+            "Effective working-directory/path resolution.",
+            "Interpreter/version/conditional dependency marker.",
+            "Mixed owned+unknown preflight.",
+            "Immutable ownership.",
+            "Atomic backup/concurrent replacement.",
+            "Post-migration adapter/link resolution.",
+        ):
+            with self.subTest(scenario=scenario):
+                self.assertIn(f"- {scenario}", text)
 
 
 if __name__ == "__main__":
