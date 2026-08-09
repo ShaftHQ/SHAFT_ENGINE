@@ -98,12 +98,18 @@ public class TestNGListenerCoverageUnitTest {
         XmlSuite suite = new XmlSuite();
         XmlTest xmlTest = new XmlTest(suite);
         xmlTest.setXmlClasses(new ArrayList<>(List.of(new XmlClass(cucumberTestRunner.CucumberTests.class))));
+        int configuredDataProviderThreadCount = com.shaft.driver.SHAFT.Properties.testNG.dataProviderThreadCount();
+        suite.setDataProviderThreadCount(configuredDataProviderThreadCount + 1);
+        Assert.assertNotEquals(suite.getDataProviderThreadCount(), configuredDataProviderThreadCount,
+                "The suite must start with a non-configured sentinel value so the assertion cannot pass vacuously.");
 
         new TestNGListener().alter(new ArrayList<>(List.of(suite)));
 
         assertEquals(suite.getParameters().get("cucumber.features"),
                 com.shaft.driver.SHAFT.Properties.cucumber.cucumberFeatures(),
                 "alter() should have taken the CUCUMBER branch and configured cucumber.features on the suite.");
+        assertEquals(suite.getDataProviderThreadCount(), configuredDataProviderThreadCount,
+                "alter() should apply SHAFT's TestNG data-provider thread count to a Cucumber-over-TestNG suite.");
     }
 
     @Test(description = "alter() must NOT wire cucumber.features onto a suite that hosts no Cucumber TestNG " +
