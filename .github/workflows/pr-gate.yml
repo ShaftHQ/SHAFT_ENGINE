@@ -270,6 +270,7 @@ jobs:
           python -m unittest
           tests.scripts.test_agent_router_contract
           tests.scripts.test_agent_harness_portability
+          tests.scripts.test_agent_harness_adherence
           tests.scripts.test_agent_harness_reachability
           tests.scripts.test_guard_nul_corruption
           tests.scripts.test_guard_memory_worktree

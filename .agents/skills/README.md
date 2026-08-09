@@ -303,6 +303,7 @@ change it:
 | --- | --- |
 | `tests/scripts/test_agent_router_contract.py` | The router: triage, the routing table, role adapters, budgets, the learning loop. |
 | `tests/scripts/test_agent_harness_portability.py` | One policy body per rule, relative paths, hook parity, memory against guidance. |
+| `tests/scripts/test_agent_harness_adherence.py` | Reviewed deterministic episodes, unknown evidence, and fail-closed adherence comparison. |
 | `tests/scripts/test_agent_harness_reachability.py` | That every element on this page is reachable from the entrypoint, and that the duties below stay unqualified. |
 | `tests/scripts/test_validate_agent_guidance.py` | The budget validator itself. |
 | `tests/scripts/test_validate_agent_setup.py` | The aggregate gate and the host-parity matrix. |
