@@ -1,6 +1,6 @@
 ---
 name: shaft-test-planning
-description: Use when creating or revising a risk-based SHAFT test plan covering objectives, scope, approach, resources, estimates, schedule, criteria, monitoring, and completion.
+description: Use when creating or revising a risk-based SHAFT test plan covering objectives, scope, approach, resources, estimates, schedule, criteria, and monitoring.
 ---
 
 # SHAFT Test Planning

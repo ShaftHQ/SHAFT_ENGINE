@@ -1,6 +1,6 @@
 ---
 name: shaft-test-recording
-description: Use when an approved live web, Playwright, native-mobile, mobile-web, Appium Inspector, or API flow must be captured with checkpoints and privacy-safe evidence.
+description: Use when an approved live web, Playwright, native-mobile, mobile-web, Appium Inspector, or API flow must be captured with privacy-safe evidence.
 ---
 
 # SHAFT Test Recording

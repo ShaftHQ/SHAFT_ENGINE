@@ -1,6 +1,6 @@
 ---
 name: shaft-locator-design
-description: Use when identifying, ranking, verifying, repairing, or generating resilient SHAFT web or mobile locators from current DOM, ARIA, or accessibility-tree evidence.
+description: Use when identifying, ranking, repairing, or generating resilient SHAFT web or mobile locators from current DOM, ARIA, or accessibility-tree evidence.
 ---
 
 # SHAFT Locator Design

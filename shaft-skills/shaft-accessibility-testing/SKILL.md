@@ -1,6 +1,6 @@
 ---
 name: shaft-accessibility-testing
-description: Use when designing, executing, or reviewing web and mobile accessibility testing for WCAG conformance, keyboard and focus behavior, semantics, errors, and user impact.
+description: Use when testing web or mobile accessibility for WCAG conformance, keyboard and focus behavior, semantics, errors, or user impact.
 ---
 
 # SHAFT Accessibility Testing

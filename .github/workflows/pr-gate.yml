@@ -93,6 +93,7 @@ jobs:
               - 'scripts/ci/validate_agent_plugins.py'
               - 'scripts/ci/assemble_act_as_mohab_plugin.py'
               - 'scripts/ci/assemble_shaft_skills_plugin.py'
+              - 'scripts/ci/shaft_skill_quality.py'
               - 'scripts/ci/validate_red_before_green.py'
               - 'scripts/ci/validate_skills.py'
               - 'scripts/ci/worktree_hygiene.py'
@@ -120,6 +121,7 @@ jobs:
               - 'tests/scripts/test_sync_user_harness.py'
               - 'tests/scripts/test_shaft_skills_content.py'
               - 'tests/scripts/test_shaft_skill_cli_examples.py'
+              - 'tests/scripts/test_shaft_skill_quality.py'
               # Not agent guidance, but this is the only gate that runs the
               # script suites on both a Linux and a Windows runner, which is
               # what build_retry.sh needs (issue #4445).
@@ -291,6 +293,7 @@ jobs:
           tests.scripts.test_sync_user_harness
           tests.scripts.test_shaft_skills_content
           tests.scripts.test_shaft_skill_cli_examples
+          tests.scripts.test_shaft_skill_quality
           tests.scripts.test_worktree_hygiene
           tests.scripts.test_build_retry
           tests.scripts.test_extract_allure_failures
@@ -336,6 +339,8 @@ jobs:
           done
       - name: Validate agent guidance budgets and routing
         run: python scripts/ci/validate_agent_setup.py --skip-external
+      - name: Validate SHAFT skill inventory and quality evidence
+        run: python scripts/ci/shaft_skill_quality.py
       - name: Run the portable PreToolUse guard self-test
         run: python scripts/agents/guard.py --self-test
 

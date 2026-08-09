@@ -8,6 +8,12 @@ from pathlib import Path
 
 SCHEMA_URL = "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json"
 CANONICAL_SKILLS_DIRECTORY = "shaft-skills"
+PACKAGED_SKILLS_DIRECTORY = "skills"
+
+
+def package_path_for_source(canonical_skills: Path, source: Path) -> Path:
+    """Map a canonical source to its authoritative portable package path."""
+    return Path(PACKAGED_SKILLS_DIRECTORY) / source.relative_to(canonical_skills)
 
 
 def git_executable() -> str:
@@ -92,7 +98,7 @@ def assemble(repository_root: Path, package_root: Path) -> None:
     write_adapters(package_root)
     for source in sorted(tracked_source_files(repository_root)):
         source = require_contained(canonical_skills, source, "canonical skill source")
-        target = package_root / "skills" / source.relative_to(canonical_skills)
+        target = package_root / package_path_for_source(canonical_skills, source)
         target.parent.mkdir(parents=True, exist_ok=True)
         shutil.copyfile(source, target)
 

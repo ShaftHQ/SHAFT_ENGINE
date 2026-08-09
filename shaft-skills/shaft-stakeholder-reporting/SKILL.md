@@ -1,6 +1,6 @@
 ---
 name: shaft-stakeholder-reporting
-description: Use when producing business-facing SHAFT quality or release reports that translate verified coverage, outcomes, defects, trends, and residual risk into decisions.
+description: Use when translating verified SHAFT coverage, outcomes, defects, trends, and residual risk into business quality or release decisions.
 ---
 
 # SHAFT Stakeholder Reporting

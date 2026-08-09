@@ -1,6 +1,6 @@
 ---
 name: shaft-api-testing
-description: Use when implementing, reviewing, or repairing SHAFT.API tests for HTTP requests, authentication, payloads, schemas, status, headers, bodies, contracts, or service workflows.
+description: Use when implementing or repairing SHAFT.API tests for HTTP requests, authentication, payloads, schemas, responses, contracts, or service workflows.
 ---
 
 # SHAFT API Testing

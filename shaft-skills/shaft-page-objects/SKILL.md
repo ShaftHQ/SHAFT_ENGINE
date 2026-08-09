@@ -1,6 +1,6 @@
 ---
 name: shaft-page-objects
-description: Use when creating, reviewing, or refactoring reusable SHAFT page objects, component objects, locators, and user-intent methods without duplicating existing owners.
+description: Use when creating or refactoring reusable SHAFT page objects, component objects, locators, and user-intent methods without duplicating owners.
 ---
 
 # SHAFT Page Objects

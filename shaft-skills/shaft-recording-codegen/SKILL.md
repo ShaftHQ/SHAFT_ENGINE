@@ -1,6 +1,6 @@
 ---
 name: shaft-recording-codegen
-description: Use when a persisted SHAFT web, Playwright, mobile, or API recording must become compilable, replayable, repository-aware Java code or focused insertion blocks.
+description: Use when a persisted SHAFT web, Playwright, mobile, or API recording must become compilable, repository-aware Java code or insertion blocks.
 ---
 
 # SHAFT Recording Codegen

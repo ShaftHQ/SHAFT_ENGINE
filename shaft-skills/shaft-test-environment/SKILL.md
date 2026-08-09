@@ -1,6 +1,6 @@
 ---
 name: shaft-test-environment
-description: Use when defining, reviewing, or troubleshooting SHAFT test environment readiness, parity, versions, configuration, dependencies, isolation, reset, and drift.
+description: Use when defining or troubleshooting SHAFT test environment readiness, parity, versions, configuration, dependencies, isolation, reset, or drift.
 ---
 
 # SHAFT Test Environment

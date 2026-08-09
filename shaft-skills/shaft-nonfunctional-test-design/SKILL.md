@@ -1,6 +1,6 @@
 ---
 name: shaft-nonfunctional-test-design
-description: Use when designing measurable risk-based nonfunctional tests for performance, security, reliability, recovery, compatibility, scalability, usability, and operational quality.
+description: Use when designing measurable risk-based tests for performance, security, reliability, recovery, compatibility, scalability, usability, or operations.
 ---
 
 # SHAFT Nonfunctional Test Design

@@ -1,6 +1,6 @@
 ---
 name: shaft-flaky-test-analysis
-description: Use when investigating SHAFT tests that inconsistently pass, fail, or break under equivalent conditions by analyzing history, retries, timing, state, data, and environment variance.
+description: Use when SHAFT tests inconsistently pass or fail under equivalent conditions and need history, retry, timing, state, data, or environment analysis.
 ---
 
 # SHAFT Flaky Test Analysis

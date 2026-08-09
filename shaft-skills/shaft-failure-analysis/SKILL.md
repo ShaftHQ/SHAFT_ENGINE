@@ -1,6 +1,6 @@
 ---
 name: shaft-failure-analysis
-description: Use when investigating consistent failed or broken SHAFT results using Allure evidence, logs, traces, screenshots, controlled reproduction, hypotheses, and root-cause ownership.
+description: Use when investigating consistently failed SHAFT results through evidence, controlled reproduction, hypotheses, and root-cause ownership.
 ---
 
 # SHAFT Failure Analysis

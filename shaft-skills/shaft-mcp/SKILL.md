@@ -1,6 +1,6 @@
 ---
 name: shaft-mcp
-description: Use when a SHAFT task needs direct structured tool calls, interactive exploration, or browser, mobile, driver, and capture state that must survive across calls.
+description: Use when a SHAFT task needs structured tool calls, interactive exploration, or browser, mobile, driver, and capture state that persists across calls.
 ---
 
 # SHAFT MCP

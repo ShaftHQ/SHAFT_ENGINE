@@ -1,6 +1,6 @@
 ---
 name: shaft-assertions
-description: Use when selecting, writing, reviewing, or repairing SHAFT hard assertions, soft verifications, browser or element oracles, API response checks, object checks, files, images, or failure messages.
+description: Use when selecting or repairing SHAFT hard assertions, soft verifications, browser or element oracles, API checks, object checks, or failure messages.
 ---
 
 # SHAFT Assertions

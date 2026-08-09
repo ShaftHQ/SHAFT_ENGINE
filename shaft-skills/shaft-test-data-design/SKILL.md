@@ -1,6 +1,6 @@
 ---
 name: shaft-test-data-design
-description: Use when designing deterministic, private, isolated SHAFT test data, including partitions, factories, seeding, uniqueness, cleanup, retention, and schema-version rules.
+description: Use when designing deterministic, private, isolated SHAFT test data with partitions, factories, seeding, uniqueness, cleanup, retention, or schema rules.
 ---
 
 # SHAFT Test Data Design
