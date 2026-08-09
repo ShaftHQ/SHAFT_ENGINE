@@ -120,9 +120,9 @@ class ReconcileReleaseTest(unittest.TestCase):
             reconcile.verify, "missing_publication_paths", return_value=all_missing
         ), mock.patch.object(reconcile, "release_exists", return_value=True), mock.patch.object(
             reconcile.subprocess, "run", return_value=subprocess.CompletedProcess([], 0)
-        ), mock.patch.object(
-            reconcile, "release_assets_need_repair", return_value=False
         ) as run, mock.patch.object(
+            reconcile, "release_assets_need_repair", return_value=False
+        ), mock.patch.object(
             reconcile.verify, "maven_executable", return_value="mvn"
         ):
             exit_code = reconcile.reconcile_release(
@@ -192,8 +192,6 @@ class ReconcileReleaseTest(unittest.TestCase):
             reconcile.verify, "missing_publication_paths", return_value=[]
         ), mock.patch.object(reconcile, "release_exists", return_value=True), mock.patch.object(
             reconcile.subprocess, "run", return_value=subprocess.CompletedProcess([], 0)
-        ), mock.patch.object(
-            reconcile, "release_assets_need_repair", return_value=False
         ) as run, mock.patch.object(
             reconcile.urllib.request, "urlopen"
         ) as urlopen:
@@ -231,9 +229,9 @@ class ReconcileReleaseTest(unittest.TestCase):
             reconcile.verify, "missing_publication_paths", return_value=[]
         ), mock.patch.object(reconcile, "release_exists", return_value=True), mock.patch.object(
             reconcile.subprocess, "run", return_value=subprocess.CompletedProcess([], 0)
-        ), mock.patch.object(
-            reconcile, "release_assets_need_repair", return_value=False
         ) as run, mock.patch.object(
+            reconcile, "release_assets_need_repair", return_value=False
+        ), mock.patch.object(
             reconcile.urllib.request, "urlopen"
         ) as urlopen:
             kwargs = dict(
