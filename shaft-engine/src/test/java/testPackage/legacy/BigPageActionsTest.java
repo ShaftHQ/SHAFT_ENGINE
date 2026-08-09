@@ -7,38 +7,36 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 public class BigPageActionsTest {
-    private static final By USERNAME = By.id("user-name");
-    private static final By PASSWORD = By.id("password");
-    private static final By LOGIN = By.id("login-button");
-    private static final By INVENTORY = By.id("inventory_container");
+    private static final String FORM_URL = "https://www.selenium.dev/selenium/web/web-form.html";
+    private static final By TEXT_INPUT = By.id("my-text-id");
+    private static final By PASSWORD = By.name("my-password");
     private static final ThreadLocal<SHAFT.GUI.WebDriver> driver = new ThreadLocal<>();
 
     @Test
     public void virtualThreads_1_sequential() {
-        loginAndCaptureEvidence();
-        driver.get().assertThat().browser().url().contains("inventory.html").perform();
+        enterFormAndCaptureEvidence();
+        driver.get().assertThat().browser().url().contains("web-form.html").perform();
     }
 
     @Test
     public void bigTest_1_Sequential() {
-        loginAndCaptureEvidence();
-        driver.get().element().captureScreenshot(INVENTORY)
+        enterFormAndCaptureEvidence();
+        driver.get().element().captureScreenshot(TEXT_INPUT)
                 .and().browser().captureScreenshot();
-        driver.get().assertThat().element(INVENTORY).exists().perform();
+        driver.get().assertThat().element(TEXT_INPUT).exists().perform();
     }
 
-    private void loginAndCaptureEvidence() {
-        driver.get().element().type(USERNAME, "standard_user")
-                .type(PASSWORD, "secret_sauce")
+    private void enterFormAndCaptureEvidence() {
+        driver.get().element().type(TEXT_INPUT, "SHAFT")
+                .type(PASSWORD, "stable fixture")
                 .captureScreenshot(PASSWORD)
                 .and().browser().captureScreenshot();
-        driver.get().element().click(LOGIN);
     }
 
     @BeforeMethod
     public void beforeMethod() {
         driver.set(new SHAFT.GUI.WebDriver());
-        driver.get().browser().navigateToURL("https://www.saucedemo.com/");
+        driver.get().browser().navigateToURL(FORM_URL);
     }
 
     @AfterMethod(alwaysRun = true)
