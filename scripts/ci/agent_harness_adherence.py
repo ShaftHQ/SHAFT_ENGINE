@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import argparse
+import json
 import tempfile
 from pathlib import Path, PurePosixPath, PureWindowsPath
 
@@ -52,7 +54,7 @@ def _is_safe_relative_file(path: object) -> bool:
 def validate_corpus(corpus: dict) -> list[str]:
     """Return structural errors for a version-1 adherence corpus."""
     errors: list[str] = []
-    if corpus.get("schema_version") != 1:
+    if type(corpus.get("schema_version")) is not int or corpus.get("schema_version") != 1:
         errors.append("schema_version must be 1")
 
     episodes = corpus.get("episodes")
@@ -106,6 +108,34 @@ def validate_corpus(corpus: dict) -> list[str]:
     return errors
 
 
+def validate_evidence(corpus: dict, evidence_by_episode: dict) -> list[str]:
+    """Return structural errors for evidence bound exactly to ``corpus``."""
+    if not isinstance(evidence_by_episode, dict):
+        return ["evidence must be an object"]
+    corpus_identifiers = {episode["id"] for episode in corpus["episodes"]}
+    evidence_identifiers = set(evidence_by_episode)
+    errors: list[str] = []
+    extra = evidence_identifiers - corpus_identifiers
+    if extra:
+        errors.append(f"evidence has unknown episode IDs: {', '.join(sorted(extra))}")
+    for identifier, episode_evidence in evidence_by_episode.items():
+        if not isinstance(episode_evidence, dict):
+            errors.append(f"{identifier}: evidence must be an object")
+            continue
+        actions = episode_evidence.get("actions", [])
+        if not isinstance(actions, list) or not all(_is_nonempty_string(action) for action in actions):
+            errors.append(f"{identifier}: actions must be a list of nonempty strings")
+        guard_outcomes = episode_evidence.get("guard_outcomes", [])
+        if not isinstance(guard_outcomes, list) or any(
+            not isinstance(outcome, dict)
+            or not _is_nonempty_string(outcome.get("outcome"))
+            or not _is_nonempty_string(outcome.get("remedy"))
+            for outcome in guard_outcomes
+        ):
+            errors.append(f"{identifier}: guard_outcomes must contain outcome and remedy strings")
+    return errors
+
+
 def materialize_workspace(episode: dict, directory: Path) -> Path:
     """Create and populate a fresh disposable workspace below ``directory``."""
     root = Path(tempfile.mkdtemp(prefix="agent-harness-", dir=directory.resolve())).resolve()
@@ -148,6 +178,8 @@ def evaluate(corpus: dict, evidence_by_episode: dict) -> dict:
     errors = validate_corpus(corpus)
     if errors:
         raise ValueError("; ".join(errors))
+    if not isinstance(evidence_by_episode, dict):
+        raise ValueError("evidence must be an object")
 
     rules: dict[str, dict] = {}
     episodes: dict[str, dict] = {}
@@ -158,7 +190,11 @@ def evaluate(corpus: dict, evidence_by_episode: dict) -> dict:
         identifier = episode["id"]
         episode_evidence = evidence_by_episode.get(identifier)
         if not isinstance(episode_evidence, dict):
-            episodes[identifier] = {"strict_episode_pass": None, "expectations": []}
+            episodes[identifier] = {
+                "rule_ids": episode["rule_ids"],
+                "strict_episode_pass": None,
+                "expectations": [],
+            }
             unmeasured_rule_ids.update(episode["rule_ids"])
             continue
 
@@ -202,6 +238,7 @@ def evaluate(corpus: dict, evidence_by_episode: dict) -> dict:
             if isinstance(outcome, dict)
         )
         episodes[identifier] = {
+            "rule_ids": episode["rule_ids"],
             "strict_episode_pass": (
                 None
                 if any(result["passed"] is None for result in expectation_results)
@@ -218,3 +255,158 @@ def evaluate(corpus: dict, evidence_by_episode: dict) -> dict:
         },
         "unmeasured_rule_ids": sorted(unmeasured_rule_ids),
     }
+
+
+def compare(baseline: dict, candidate: dict) -> dict:
+    """Compare two evaluated reports without hiding prohibition regressions."""
+    prohibition_regressions: list[str] = []
+    prohibition_regression_rule_ids: set[str] = set()
+    comparison_errors: list[str] = []
+    if not isinstance(baseline, dict) or not isinstance(candidate, dict):
+        comparison_errors.append("both reports must be objects")
+        baseline = {}
+        candidate = {}
+    baseline_episodes = baseline.get("episodes", {})
+    candidate_episodes = candidate.get("episodes", {})
+    if not isinstance(baseline_episodes, dict) or not isinstance(candidate_episodes, dict):
+        comparison_errors.append("both reports must contain an episodes object")
+        baseline_episodes = {}
+        candidate_episodes = {}
+    elif set(baseline_episodes) != set(candidate_episodes):
+        comparison_errors.append("reports do not contain the same episode IDs")
+    for identifier, baseline_episode in baseline_episodes.items():
+        candidate_episode = candidate_episodes.get(identifier)
+        if not isinstance(baseline_episode, dict) or not isinstance(candidate_episode, dict):
+            comparison_errors.append(f"{identifier}: episode report is invalid")
+            continue
+        baseline_expectations = baseline_episode.get("expectations", [])
+        candidate_expectations = candidate_episode.get("expectations", [])
+        if not isinstance(baseline_expectations, list) or not isinstance(candidate_expectations, list):
+            comparison_errors.append(f"{identifier}: expectations are invalid")
+            continue
+        baseline_kinds = [
+            expectation.get("kind") if isinstance(expectation, dict) else None
+            for expectation in baseline_expectations
+        ]
+        candidate_kinds = [
+            expectation.get("kind") if isinstance(expectation, dict) else None
+            for expectation in candidate_expectations
+        ]
+        if (
+            not all(isinstance(expectation, dict) for expectation in baseline_expectations)
+            or not all(isinstance(expectation, dict) for expectation in candidate_expectations)
+            or any(
+                expectation.get("kind") not in VALID_EXPECTATION_KINDS
+                or "passed" not in expectation
+                or type(expectation["passed"]) not in (bool, type(None))
+                for expectation in [*baseline_expectations, *candidate_expectations]
+            )
+        ):
+            comparison_errors.append(f"{identifier}: expectation entries are invalid")
+            continue
+        if baseline_kinds != candidate_kinds:
+            comparison_errors.append(f"{identifier}: expectation shapes differ")
+            continue
+        if any(
+            baseline_expectation.get("kind") == "forbids"
+            and baseline_expectation.get("passed") is True
+            and candidate_expectation.get("kind") == "forbids"
+            and candidate_expectation.get("passed") is not True
+            for baseline_expectation, candidate_expectation in zip(
+                baseline_expectations, candidate_expectations
+            )
+        ):
+            prohibition_regressions.append(identifier)
+            rule_ids = baseline_episode.get("rule_ids", [])
+            if isinstance(rule_ids, list):
+                prohibition_regression_rule_ids.update(
+                    rule_id for rule_id in rule_ids if _is_nonempty_string(rule_id)
+                )
+    baseline_unmeasured = baseline.get("unmeasured_rule_ids", [])
+    candidate_unmeasured = candidate.get("unmeasured_rule_ids", [])
+    if not all(
+        isinstance(unmeasured, list)
+        and all(_is_nonempty_string(rule_id) for rule_id in unmeasured)
+        for unmeasured in (baseline_unmeasured, candidate_unmeasured)
+    ):
+        comparison_errors.append("reports have invalid unmeasured_rule_ids")
+        unmeasured_rule_ids: list[str] = []
+    else:
+        unmeasured_rule_ids = sorted(set(baseline_unmeasured) | set(candidate_unmeasured))
+        if unmeasured_rule_ids:
+            comparison_errors.append("reports have unmeasured rule IDs")
+    return {
+        "prohibition_regressions": prohibition_regressions,
+        "prohibition_regression_rule_ids": sorted(prohibition_regression_rule_ids),
+        "comparison_errors": comparison_errors,
+        "release_gate_passed": not prohibition_regressions and not comparison_errors,
+        "unmeasured_rule_ids": unmeasured_rule_ids,
+    }
+
+
+def load_json(path: Path) -> dict:
+    """Read one caller-supplied JSON document without writing any run state."""
+    with path.open(encoding="utf-8") as source:
+        value = json.load(source)
+    if not isinstance(value, dict):
+        raise ValueError(f"{path}: expected a JSON object")
+    return value
+
+
+def build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(
+        description=__doc__,
+        epilog=(
+            "Add only reviewed cases with stable IDs, rule IDs, a horizon, and a minimal "
+            "workspace. Freeze a baseline only for reviewed intended behavior; do not update "
+            "it merely to pass a candidate. Missing observations are unknown, and comparisons "
+            "fail their release gate when rules are unmeasured. Keep cases varied so they test "
+            "the harness rule rather than a prompt-specific response."
+        ),
+    )
+    parser.add_argument("--corpus", type=Path, required=True)
+    inputs = parser.add_mutually_exclusive_group(required=True)
+    inputs.add_argument("--evidence", type=Path)
+    inputs.add_argument("--baseline", type=Path)
+    parser.add_argument("--candidate", type=Path)
+    parser.add_argument("--json", action="store_true", help="emit the JSON report (default)")
+    return parser
+
+
+def main(arguments: list[str] | None = None) -> int:
+    parser = build_parser()
+    options = parser.parse_args(arguments)
+    if options.baseline and not options.candidate:
+        parser.error("--candidate is required with --baseline")
+    if options.candidate and not options.baseline:
+        parser.error("--candidate requires --baseline")
+    try:
+        corpus = load_json(options.corpus)
+        if errors := validate_corpus(corpus):
+            raise ValueError("; ".join(errors))
+        if options.evidence:
+            evidence = load_json(options.evidence)
+            if errors := validate_evidence(corpus, evidence):
+                raise ValueError("; ".join(errors))
+            report = evaluate(corpus, evidence)
+            exit_code = 0
+        else:
+            baseline = load_json(options.baseline)
+            candidate = load_json(options.candidate)
+            if errors := validate_evidence(corpus, baseline):
+                raise ValueError("baseline: " + "; ".join(errors))
+            if errors := validate_evidence(corpus, candidate):
+                raise ValueError("candidate: " + "; ".join(errors))
+            report = compare(
+                evaluate(corpus, baseline),
+                evaluate(corpus, candidate),
+            )
+            exit_code = 1 if not report["release_gate_passed"] else 0
+    except (OSError, ValueError, json.JSONDecodeError) as error:
+        parser.error(str(error))
+    print(json.dumps(report, indent=2, sort_keys=True))
+    return exit_code
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
