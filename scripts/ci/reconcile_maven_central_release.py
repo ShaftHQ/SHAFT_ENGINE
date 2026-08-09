@@ -16,8 +16,10 @@ monkeypatch it - the real network/subprocess call is never made from a test.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
+import shutil
 import subprocess  # nosec B404 - runs Maven deployment of release artifacts.
 import sys
 import tempfile
@@ -70,27 +72,77 @@ def release_exists(version: str) -> bool:
     return result.returncode == 0
 
 
+def gh_executable() -> str:
+    """Return the resolved GitHub CLI executable for fixed release commands."""
+    executable = shutil.which("gh")
+    if executable is None:
+        raise RuntimeError("GitHub CLI is required for release reconciliation")
+    return executable
+
+
 def render_release_body(version: str, template_path: Path = RELEASE_BODY_TEMPLATE) -> str:
     """Render the release body the same way announce_release's "Prepare Release Body" step does."""
     return template_path.read_text(encoding="utf-8").replace("$RELEASE_VERSION", version)
 
 
-def build_release_create_command(version: str, body_file: Path) -> list[str]:
+def build_release_create_command(version: str, body_file: Path, assets: list[Path]) -> list[str]:
     """Build the `gh release create` invocation for a version, given a rendered body file."""
     return [
         "gh", "release", "create", version,
         "--title", version,
         "--notes-file", str(body_file),
         "--generate-notes",
+        *(str(asset) for asset in assets),
     ]
 
 
-def create_release(version: str) -> str:
+def build_plugin_release_assets(version: str, output_directory: Path) -> list[Path]:
+    """Build package assets from the checked-out release revision."""
+    from scripts.ci.agent_plugin_release import build_release_artifacts
+
+    if read_reactor_version() != version:
+        raise RuntimeError(
+            f"checked-out reactor version does not match requested reconciliation version: {version}"
+        )
+    return build_release_artifacts(ROOT, output_directory)
+
+
+def release_assets_need_repair(version: str, assets: list[Path]) -> bool:
+    """Return whether a release is missing any expected asset bytes."""
+    result = subprocess.run(
+        [gh_executable(), "release", "view", version, "--json", "assets"],
+        cwd=ROOT, capture_output=True, text=True, check=False,
+    )
+    if result.returncode != 0:
+        raise RuntimeError(f"could not inspect GitHub Release {version}")
+    if not result.stdout:
+        return True
+    try:
+        remote = {asset["name"]: asset.get("digest") for asset in json.loads(result.stdout)["assets"]}
+    except (KeyError, TypeError, json.JSONDecodeError) as error:
+        raise RuntimeError(f"invalid GitHub Release asset data for {version}") from error
+    return any(remote.get(asset.name) != f"sha256:{hashlib.sha256(asset.read_bytes()).hexdigest()}" for asset in assets)
+
+
+def upload_plugin_release_assets(version: str, assets: list[Path]) -> None:
+    """Attach or replace package assets on an existing GitHub Release."""
+    result = subprocess.run(
+        ["gh", "release", "upload", version, "--clobber", *(str(asset) for asset in assets)],
+        cwd=ROOT, capture_output=True, text=True, check=False,
+    )
+    if result.returncode != 0:
+        raise RuntimeError(
+            f"gh release upload failed (exit {result.returncode}): "
+            f"{result.stderr.strip() or result.stdout.strip()}"
+        )
+
+
+def create_release(version: str, assets: list[Path]) -> str:
     """Create the GitHub Release for a version and return its URL."""
     with tempfile.TemporaryDirectory(prefix="shaft-release-body-") as temp_dir:
         body_file = Path(temp_dir) / "release_body.md"
         body_file.write_text(render_release_body(version), encoding="utf-8")
-        command = build_release_create_command(version, body_file)
+        command = build_release_create_command(version, body_file, assets)
         result = subprocess.run(command, cwd=ROOT, capture_output=True, text=True, check=False)
         if result.returncode != 0:
             raise RuntimeError(
@@ -166,6 +218,10 @@ def reconcile_release(
     version: str, repository_url: str, gpg_keyname: str, gpg_passphrase: str, dry_run: bool
 ) -> int:
     """Reconcile one version: deploy missing artifacts, then announce if genuinely new."""
+    if not dry_run and read_reactor_version() != version:
+        raise RuntimeError(
+            f"checked-out reactor version does not match requested reconciliation version: {version}"
+        )
     missing = verify.missing_publication_paths(repository_url, version)
     module_dirs = missing_module_dirs(missing)
 
@@ -186,16 +242,21 @@ def reconcile_release(
     else:
         print(f"All Maven Central artifacts already present for {version}.")
 
-    if release_exists(version):
-        print(f"GitHub Release {version} already exists.")
-        return 0
-
     if dry_run:
         print(f"[dry-run] would create GitHub Release {version}")
         return 0
 
-    release_url = create_release(version)
-    print(f"Created GitHub Release {version}: {release_url}")
+    with tempfile.TemporaryDirectory(prefix="shaft-agent-plugin-release-") as temp_dir:
+        assets = build_plugin_release_assets(version, Path(temp_dir) / "assets")
+        if release_exists(version):
+            if not release_assets_need_repair(version, assets):
+                print(f"GitHub Release {version} already has complete portable Agent Plugin assets.")
+                return 0
+            upload_plugin_release_assets(version, assets)
+            print(f"Repaired portable Agent Plugin assets on GitHub Release {version}.")
+            return 0
+        release_url = create_release(version, assets)
+        print(f"Created GitHub Release {version}: {release_url}")
 
     webhook_url = os.environ.get("SLACK_WEBHOOK_URL")
     if not webhook_url:

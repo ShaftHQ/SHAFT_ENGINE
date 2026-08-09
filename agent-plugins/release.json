@@ -1,0 +1,12 @@
+{
+  "packages": [
+    {
+      "name": "act-as-mohab",
+      "version": "1.0.0"
+    },
+    {
+      "name": "shaft-skills",
+      "version": "1.0.0"
+    }
+  ]
+}

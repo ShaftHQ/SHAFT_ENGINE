@@ -5,10 +5,20 @@ import shutil
 import subprocess
 from pathlib import Path
 
+try:
+    from scripts.ci.agent_plugin_release import release_version
+except ModuleNotFoundError:
+    from agent_plugin_release import release_version
+
 
 SCHEMA_URL = "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json"
 SKILLS = ("act-as-mohab", "consult-first", "retrieve-first")
 PORTABLE_REFERENCE_SUFFIXES = {".md", ".LICENSE"}
+RELEASE_FILES = (
+    (Path("LICENSE"), Path("LICENSE")),
+    (Path("agent-plugins/act-as-mohab/CHANGELOG.md"), Path("CHANGELOG.md")),
+    (Path("agent-plugins/act-as-mohab/COMPATIBILITY.md"), Path("COMPATIBILITY.md")),
+)
 
 
 def git_executable() -> str:
@@ -64,9 +74,37 @@ def copy_tree(source: Path, destination: Path, allowed_files: set[Path]) -> None
         shutil.copyfile(path, target)
 
 
-def assemble(repository_root: Path, package_root: Path) -> None:
+def tracked_release_file(repository_root: Path, relative: Path) -> Path:
+    """Return a tracked regular release file without following repository links."""
+    candidate = repository_root / relative
+    current = candidate
+    while current != repository_root:
+        if current.is_symlink():
+            raise ValueError(f"release file must not be a symlink: {relative}")
+        current = current.parent
+    source = require_contained(repository_root, candidate, f"release file {relative}")
+    if not source.is_file():
+        raise ValueError(f"release file must be a file: {relative}")
+    tracked = subprocess.run(
+        [git_executable(), "ls-files", "--error-unmatch", "--", relative.as_posix()],
+        cwd=repository_root,
+        capture_output=True,  # nosec B603: fixed Git command and arguments; shell is disabled.
+    )
+    if tracked.returncode:
+        raise ValueError(f"release file must be tracked: {relative}")
+    return source
+
+
+def copy_release_files(repository_root: Path, package_root: Path) -> None:
+    """Copy tracked public release files into a portable package root."""
+    for relative, target in RELEASE_FILES:
+        shutil.copyfile(tracked_release_file(repository_root, relative), package_root / target)
+
+
+def assemble(repository_root: Path, package_root: Path, version: str | None = None) -> None:
     """Create a new portable package from the canonical skill sources."""
     repository_root = Path(repository_root).resolve()
+    version = release_version(repository_root, "act-as-mohab", version)
     package_root = Path(package_root)
     canonical_skills = repository_root / ".agents/skills"
     try:
@@ -81,7 +119,7 @@ def assemble(repository_root: Path, package_root: Path) -> None:
     allowed_files = tracked_source_files(repository_root)
     package_root.mkdir(parents=True)
     (package_root / "plugin.json").write_text(
-        f'{{"$schema":"{SCHEMA_URL}","name":"act-as-mohab","version":"1.0.0",'
+        f'{{"$schema":"{SCHEMA_URL}","name":"act-as-mohab","version":"{version}",'
         '"description":"Maintainer workflow and harness skills for SHAFT.",'
         '"author":{"name":"ShaftHQ","url":"https://github.com/ShaftHQ/SHAFT_ENGINE"},'
         '"repository":"https://github.com/ShaftHQ/SHAFT_ENGINE","license":"MIT"}\n',
@@ -90,7 +128,7 @@ def assemble(repository_root: Path, package_root: Path) -> None:
     claude_adapter = package_root / ".claude-plugin"
     claude_adapter.mkdir()
     (claude_adapter / "plugin.json").write_text(
-        '{"name":"act-as-mohab","version":"1.0.0",'
+        f'{{"name":"act-as-mohab","version":"{version}",'
         '"description":"Maintainer workflow and harness skills for SHAFT.",'
         '"author":{"name":"ShaftHQ","url":"https://github.com/ShaftHQ/SHAFT_ENGINE"}}\n',
         encoding="utf-8",
@@ -98,7 +136,7 @@ def assemble(repository_root: Path, package_root: Path) -> None:
     codex_adapter = package_root / ".codex-plugin"
     codex_adapter.mkdir()
     (codex_adapter / "plugin.json").write_text(
-        '{"name":"act-as-mohab","version":"1.0.0",'
+        f'{{"name":"act-as-mohab","version":"{version}",'
         '"description":"Maintainer workflow and harness skills for SHAFT.",'
         '"skills":"./skills/"}\n',
         encoding="utf-8",
@@ -125,6 +163,7 @@ def assemble(repository_root: Path, package_root: Path) -> None:
         package_root / "skills/act-as-mohab/references",
         allowed_files,
     )
+    copy_release_files(repository_root, package_root)
     (package_root / "skills/README.md").write_text(
         "# Act as Mohab portable skills\n\n"
         "This package contains the maintainer workflow entrypoint and its required companion skills.\n",
@@ -136,8 +175,9 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("output", type=Path, help="new package output directory")
     parser.add_argument("--repository-root", type=Path, default=Path(__file__).resolve().parents[2])
+    parser.add_argument("--version")
     arguments = parser.parse_args()
-    assemble(arguments.repository_root, arguments.output)
+    assemble(arguments.repository_root, arguments.output, arguments.version)
     return 0
 
 
