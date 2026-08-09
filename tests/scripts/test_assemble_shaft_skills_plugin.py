@@ -1,7 +1,10 @@
 """Portable shaft-skills package assembly tests (#4576)."""
 
 import json
+import inspect
 import re
+import shutil
+import subprocess
 import tempfile
 import unittest
 from pathlib import Path
@@ -64,6 +67,44 @@ class AssembleShaftSkillsPluginTest(unittest.TestCase):
             [{"name": "shaft-skills", "source": {"source": "local", "path": "./"}}],
         )
 
+    def test_assembly_uses_the_declared_release_version_and_release_files(self):
+        self.assertTrue(callable(assemble), "assemble must be available")
+        self.assertIn("version", inspect.signature(assemble).parameters)
+        source_root = self.package_root.parent / "source"
+        skill = source_root / "shaft-skills/example/SKILL.md"
+        skill.parent.mkdir(parents=True)
+        skill.write_text("---\nname: example\ndescription: Example.\n---\n", encoding="utf-8")
+        (source_root / "LICENSE").write_text("test license\n", encoding="utf-8")
+        changelog = source_root / "agent-plugins/shaft-skills/CHANGELOG.md"
+        changelog.parent.mkdir(parents=True)
+        changelog.write_text("# Test changelog\n", encoding="utf-8")
+        compatibility = source_root / "agent-plugins/shaft-skills/COMPATIBILITY.md"
+        compatibility.write_text("# Test compatibility\n", encoding="utf-8")
+        manifest = source_root / "agent-plugins/release.json"
+        manifest.write_text(
+            '{"packages":[{"name":"act-as-mohab","version":"1.0.0"},'
+            '{"name":"shaft-skills","version":"1.2.3"}]}\n',
+            encoding="utf-8",
+        )
+        git = shutil.which("git")
+        self.assertIsNotNone(git)
+        subprocess.run([git, "init", "--quiet"], cwd=source_root, check=True)  # nosec B603
+        subprocess.run([git, "add", "."], cwd=source_root, check=True)  # nosec B603
+        assemble(source_root, self.package_root)
+
+        for relative in ("plugin.json", ".claude-plugin/plugin.json", ".codex-plugin/plugin.json"):
+            manifest = json.loads((self.package_root / relative).read_text(encoding="utf-8"))
+            self.assertEqual(manifest["version"], "1.2.3")
+        self.assertEqual((self.package_root / "LICENSE").read_text(encoding="utf-8"), (source_root / "LICENSE").read_text(encoding="utf-8"))
+        self.assertEqual(
+            (self.package_root / "CHANGELOG.md").read_text(encoding="utf-8"),
+            (source_root / "agent-plugins/shaft-skills/CHANGELOG.md").read_text(encoding="utf-8"),
+        )
+        self.assertEqual(
+            (self.package_root / "COMPATIBILITY.md").read_text(encoding="utf-8"),
+            (source_root / "agent-plugins/shaft-skills/COMPATIBILITY.md").read_text(encoding="utf-8"),
+        )
+
     def test_assembly_is_deterministic_and_ignores_untracked_sources(self):
         self.assertTrue(callable(assemble), "assemble must be available")
         untracked = CANONICAL_SKILLS / "session-notes.md"
@@ -101,6 +142,57 @@ class AssembleShaftSkillsPluginTest(unittest.TestCase):
             assemble(ROOT, output)
 
         self.assertFalse(output.exists())
+
+    def test_assembly_rejects_an_untracked_release_file(self):
+        git = shutil.which("git")
+        self.assertIsNotNone(git, "Git is required for portable assembly")
+        source_root = self.package_root.parent / "source"
+        skill = source_root / "shaft-skills/example/SKILL.md"
+        skill.parent.mkdir(parents=True)
+        skill.write_text("---\nname: example\ndescription: Example.\n---\n", encoding="utf-8")
+        (source_root / "LICENSE").write_text("test license\n", encoding="utf-8")
+        changelog = source_root / "agent-plugins/shaft-skills/CHANGELOG.md"
+        changelog.parent.mkdir(parents=True)
+        changelog.write_text("# Untracked\n", encoding="utf-8")
+        subprocess.run([git, "init", "--quiet"], cwd=source_root, check=True)  # nosec B603
+        manifest = source_root / "agent-plugins/release.json"
+        manifest.write_text(
+            '{"packages":[{"name":"act-as-mohab","version":"1.0.0"},'
+            '{"name":"shaft-skills","version":"1.0.0"}]}\n',
+            encoding="utf-8",
+        )
+        subprocess.run([git, "add", "shaft-skills", "LICENSE", "agent-plugins/release.json"], cwd=source_root, check=True)  # nosec B603
+
+        with self.assertRaisesRegex(ValueError, "tracked"):
+            assemble(source_root, self.package_root)
+
+    def test_assembly_rejects_a_symlinked_release_file(self):
+        git = shutil.which("git")
+        self.assertIsNotNone(git, "Git is required for portable assembly")
+        source_root = self.package_root.parent / "source"
+        skill = source_root / "shaft-skills/example/SKILL.md"
+        skill.parent.mkdir(parents=True)
+        skill.write_text("---\nname: example\ndescription: Example.\n---\n", encoding="utf-8")
+        (source_root / "LICENSE").write_text("test license\n", encoding="utf-8")
+        changelog = source_root / "agent-plugins/shaft-skills/CHANGELOG.md"
+        changelog.parent.mkdir(parents=True)
+        private = source_root / "private-changelog.md"
+        private.write_text("private release note\n", encoding="utf-8")
+        try:
+            changelog.symlink_to(private)
+        except OSError as error:
+            self.skipTest(f"symlinks unavailable: {error}")
+        manifest = source_root / "agent-plugins/release.json"
+        manifest.write_text(
+            '{"packages":[{"name":"act-as-mohab","version":"1.0.0"},'
+            '{"name":"shaft-skills","version":"1.0.0"}]}\n',
+            encoding="utf-8",
+        )
+        subprocess.run([git, "init", "--quiet"], cwd=source_root, check=True)  # nosec B603
+        subprocess.run([git, "add", "shaft-skills", "LICENSE", "agent-plugins"], cwd=source_root, check=True)  # nosec B603
+
+        with self.assertRaisesRegex(ValueError, "symlink"):
+            assemble(source_root, self.package_root)
 
 
 if __name__ == "__main__":

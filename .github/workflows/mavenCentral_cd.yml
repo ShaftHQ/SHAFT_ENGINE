@@ -33,6 +33,7 @@ on:
       - '.github/workflows/mavenCentral_cd.yml'
       - 'shaft-capture-proxy/**'
       - 'shaft-intellij/**'
+      - 'agent-plugins/**'
       - 'scripts/ci/check_maven_release_version.py'
       - 'scripts/ci/validate_reactor_versions.py'
       - 'scripts/ci/validate_modular_documentation.py'
@@ -43,6 +44,10 @@ on:
       - 'scripts/ci/validate_shaft_mcp_transports.py'
       - 'scripts/ci/verify_maven_central_release.py'
       - 'scripts/ci/verify_shaft_mcp_installer_release.py'
+      - 'scripts/ci/agent_plugin_release.py'
+      - 'scripts/ci/assemble_act_as_mohab_plugin.py'
+      - 'scripts/ci/assemble_shaft_skills_plugin.py'
+      - 'scripts/ci/validate_agent_plugins.py'
       - 'scripts/mcp/**'
   workflow_dispatch:
 
@@ -194,6 +199,14 @@ jobs:
           image-tag: shaft-pilot-release:test
           container-name: shaft-pilot-release-smoke
           client-name: release-smoke
+      - name: Build portable Agent Plugin release assets
+        run: python3 scripts/ci/agent_plugin_release.py agent-plugin-release-assets
+      - name: Upload portable Agent Plugin release assets
+        uses: actions/upload-artifact@v7
+        with:
+          name: agent-plugin-release-assets
+          path: agent-plugin-release-assets/*
+          if-no-files-found: error
       - name: Setup Prerequisites
         run: |
           git config --global user.signingKey "${{ secrets.GPG_KEYNAME }}"
@@ -258,6 +271,11 @@ jobs:
         env:
           RELEASE_VERSION: ${{ needs.build_release_and_deliver.outputs.release_version }}
         run: sed "s/\$RELEASE_VERSION/${RELEASE_VERSION}/g" .github/RELEASE_BODY_TEMPLATE.md > /tmp/release_body.md
+      - name: Download portable Agent Plugin release assets
+        uses: actions/download-artifact@v8
+        with:
+          name: agent-plugin-release-assets
+          path: /tmp/agent-plugin-release-assets
       - name: Create GitHub Release
         id: create_release
         uses: ncipollo/release-action@v1.21.0
@@ -272,6 +290,7 @@ jobs:
           bodyFile: /tmp/release_body.md
           name: ${{ needs.build_release_and_deliver.outputs.release_version }}
           tag: ${{ needs.build_release_and_deliver.outputs.release_version }}
+          artifacts: /tmp/agent-plugin-release-assets/*
       - name: Notify User Guide Repository
         uses: peter-evans/repository-dispatch@v4
         with:

@@ -286,6 +286,7 @@ jobs:
           tests.scripts.test_validate_red_before_green
           tests.scripts.test_validate_agent_guidance
           tests.scripts.test_validate_agent_plugins
+          tests.scripts.test_agent_plugin_release
           tests.scripts.test_assemble_act_as_mohab_plugin
           tests.scripts.test_assemble_shaft_skills_plugin
           tests.scripts.test_validate_agent_setup
