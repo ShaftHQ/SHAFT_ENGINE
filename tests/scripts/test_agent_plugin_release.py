@@ -72,11 +72,15 @@ class AgentPluginReleaseTest(unittest.TestCase):
                     f"{hashlib.sha256(archive.read_bytes()).hexdigest()}  {archive.name}\n".encode("utf-8"),
                 )
                 with zipfile.ZipFile(archive) as package:
+                    self.assertEqual(package.namelist(), sorted(package.namelist()))
                     self.assertIn("LICENSE", package.namelist())
                     self.assertIn("CHANGELOG.md", package.namelist())
                     self.assertIn("COMPATIBILITY.md", package.namelist())
                     self.assertTrue(all(item.create_system == 3 for item in package.infolist()))
                     self.assertTrue(all(item.compress_type == zipfile.ZIP_STORED for item in package.infolist()))
+                    for item in package.infolist():
+                        if item.filename.endswith((".md", ".json", ".yaml", ".yml", ".LICENSE")) or item.filename == "LICENSE":
+                            self.assertNotIn(b"\r\n", package.read(item))
 
     def test_failed_package_validation_leaves_no_partial_release_assets(self):
         self.assertTrue(callable(build_release_artifacts), "release artifact builder must be available")

@@ -16,6 +16,7 @@ REQUIRED_PACKAGES = ("act-as-mohab", "shaft-skills")
 SEMVER = re.compile(r"^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$")
 RELEASE_MANIFEST = Path("agent-plugins/release.json")
 ROOT = Path(__file__).resolve().parents[2]
+PORTABLE_TEXT_SUFFIXES = {".LICENSE", ".json", ".md", ".yaml", ".yml"}
 
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
@@ -62,12 +63,17 @@ def release_version(repository_root: Path, package_name: str, requested: str | N
 def write_deterministic_zip(package_root: Path, archive: Path) -> None:
     """Archive package files in lexical order with fixed portable metadata."""
     with zipfile.ZipFile(archive, "w", compression=zipfile.ZIP_STORED) as output:
-        for source in sorted(path for path in package_root.rglob("*") if path.is_file()):
-            entry = zipfile.ZipInfo(source.relative_to(package_root).as_posix(), (1980, 1, 1, 0, 0, 0))
+        files = (path for path in package_root.rglob("*") if path.is_file())
+        for source in sorted(files, key=lambda path: path.relative_to(package_root).as_posix()):
+            name = source.relative_to(package_root).as_posix()
+            entry = zipfile.ZipInfo(name, (1980, 1, 1, 0, 0, 0))
             entry.create_system = 3
             entry.external_attr = 0o100644 << 16
             entry.compress_type = zipfile.ZIP_STORED
-            output.writestr(entry, source.read_bytes(), compress_type=zipfile.ZIP_STORED)
+            contents = source.read_bytes()
+            if source.suffix in PORTABLE_TEXT_SUFFIXES or source.name == "LICENSE":
+                contents = contents.replace(b"\r\n", b"\n")
+            output.writestr(entry, contents, compress_type=zipfile.ZIP_STORED)
 
 
 def write_checksum(archive: Path) -> Path:
