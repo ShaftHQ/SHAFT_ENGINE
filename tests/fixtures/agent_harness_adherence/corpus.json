@@ -1,0 +1,33 @@
+{
+  "schema_version": 1,
+  "episodes": [
+    {
+      "id": "short-required-entrypoint",
+      "rule_ids": ["entrypoint"],
+      "horizon": "short",
+      "workspace": {"files": {"source/task.md": "Inspect the task."}},
+      "expectations": [{"kind": "requires", "action": "load-entrypoint"}]
+    },
+    {
+      "id": "medium-guard-remedy",
+      "rule_ids": ["r24"],
+      "horizon": "medium",
+      "workspace": {"files": {"worktree.txt": "foreign worktree"}},
+      "expectations": [{"kind": "guard", "outcome": "reports", "remedy": "py -3 scripts/ci/worktree_hygiene.py --check-pull-requests"}]
+    },
+    {
+      "id": "long-prohibited-heredoc",
+      "rule_ids": ["r23"],
+      "horizon": "long",
+      "workspace": {"files": {"notes.md": "Use a file-based body."}},
+      "expectations": [{"kind": "forbids", "action": "shell-heredoc"}]
+    },
+    {
+      "id": "medium-false-block",
+      "rule_ids": ["r24"],
+      "horizon": "medium",
+      "workspace": {"files": {"status.txt": "clean worktree"}},
+      "expectations": [{"kind": "guard", "outcome": "silent", "remedy": "none"}]
+    }
+  ]
+}
