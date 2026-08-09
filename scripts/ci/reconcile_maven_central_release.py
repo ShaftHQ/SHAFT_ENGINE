@@ -19,6 +19,7 @@ import argparse
 import hashlib
 import json
 import os
+import shutil
 import subprocess  # nosec B404 - runs Maven deployment of release artifacts.
 import sys
 import tempfile
@@ -71,6 +72,14 @@ def release_exists(version: str) -> bool:
     return result.returncode == 0
 
 
+def gh_executable() -> str:
+    """Return the resolved GitHub CLI executable for fixed release commands."""
+    executable = shutil.which("gh")
+    if executable is None:
+        raise RuntimeError("GitHub CLI is required for release reconciliation")
+    return executable
+
+
 def render_release_body(version: str, template_path: Path = RELEASE_BODY_TEMPLATE) -> str:
     """Render the release body the same way announce_release's "Prepare Release Body" step does."""
     return template_path.read_text(encoding="utf-8").replace("$RELEASE_VERSION", version)
@@ -101,7 +110,7 @@ def build_plugin_release_assets(version: str, output_directory: Path) -> list[Pa
 def release_assets_need_repair(version: str, assets: list[Path]) -> bool:
     """Return whether a release is missing any expected asset bytes."""
     result = subprocess.run(
-        ["gh", "release", "view", version, "--json", "assets"],
+        [gh_executable(), "release", "view", version, "--json", "assets"],
         cwd=ROOT, capture_output=True, text=True, check=False,
     )
     if result.returncode != 0:

@@ -88,7 +88,7 @@ def tracked_release_file(repository_root: Path, relative: Path) -> Path:
     tracked = subprocess.run(
         [git_executable(), "ls-files", "--error-unmatch", "--", relative.as_posix()],
         cwd=repository_root,
-        capture_output=True,
+        capture_output=True,  # nosec B603: fixed Git command and arguments; shell is disabled.
     )
     if tracked.returncode:
         raise ValueError(f"release file must be tracked: {relative}")

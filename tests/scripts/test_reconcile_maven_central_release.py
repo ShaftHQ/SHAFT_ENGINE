@@ -149,7 +149,7 @@ class ReconcileReleaseTest(unittest.TestCase):
             with self.assertRaisesRegex(RuntimeError, "does not match"):
                 reconcile.reconcile_release(
                     version="1.2.3", repository_url=reconcile.verify.DEFAULT_REPOSITORY,
-                    gpg_keyname="KEY", gpg_passphrase="PASS", dry_run=False,
+                    gpg_keyname="KEY", gpg_passphrase="not-a-secret", dry_run=False,
                 )
 
         run.assert_not_called()
