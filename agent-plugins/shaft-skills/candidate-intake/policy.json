@@ -1,0 +1,64 @@
+{
+  "schema_version": 1,
+  "decision_kinds": [
+    "adopt-code",
+    "adopt-pattern",
+    "retain-test-target",
+    "reject"
+  ],
+  "required_stages": [
+    "provenance_license",
+    "static_review",
+    "quarantine_trial",
+    "local_evaluation"
+  ],
+  "canonical_roots": [
+    "shaft-skills",
+    "agent-plugins/shaft-skills",
+    ".agents/skills",
+    ".claude/skills",
+    ".codex/skills"
+  ],
+  "halt_conditions": [
+    "source, author, immutable revision, or applicable license is unknown",
+    "license or terms do not permit the proposed adoption",
+    "a path or symlink escapes the candidate root",
+    "a secret, credential, opaque executable, install hook, or undeclared script cannot be cleared",
+    "the container-only no-network trial cannot be enforced",
+    "the candidate requests credentials, canonical-root writes, elevated privileges, host networking, or undeclared network access",
+    "local SHAFT evaluations regress or evidence is incomplete",
+    "the material duplicates vendor-specific policy instead of portable SHAFT behavior"
+  ],
+  "trial_contract": {
+    "container_only": true,
+    "network": "none",
+    "read_only_root": true,
+    "credentials": "none",
+    "non_root_user": "65532:65532",
+    "canonical_roots_mounted": false,
+    "capabilities": "drop-all",
+    "new_privileges": false,
+    "candidate_mount": "read-only",
+    "fixture_mount": "read-only",
+    "only_writable_mount": "/output",
+    "image_reference": "immutable-sha256-only",
+    "resource_limits": {
+      "cpus": 1,
+      "memory": "512m",
+      "pids": 64,
+      "tmpfs": "64m-noexec"
+    }
+  },
+  "promotion": {
+    "code_requires_separate_pr": true,
+    "review_pr_may_adopt_code": false,
+    "required_evidence": [
+      "pinned source and license",
+      "static scan report",
+      "quarantine command and result",
+      "local evaluation result",
+      "small scoped diff",
+      "independent review"
+    ]
+  }
+}

@@ -1,0 +1,275 @@
+{
+  "schema_version": 1,
+  "reviewed_at": "2026-08-09",
+  "code_adopted": false,
+  "review_scope": {
+    "candidate_ids": [
+      "anthropic-document-skills",
+      "anthropic-skill-creator-eval-pattern",
+      "agent-plugins-v1-specification",
+      "microsoft-cross-client-manifest-layout",
+      "microsoft-azure-skill-content",
+      "openai-plugin-examples"
+    ],
+    "rejected_candidate_ids": [
+      "anthropic-document-skills",
+      "microsoft-azure-skill-content",
+      "openai-plugin-examples"
+    ]
+  },
+  "candidates": [
+    {
+      "id": "anthropic-document-skills",
+      "category": "documents",
+      "source_url": "https://github.com/anthropics/skills",
+      "source_paths": [
+        "skills/docx",
+        "skills/pdf",
+        "skills/xlsx"
+      ],
+      "revision": "f17010c9bb483898c1d9c9f42dde2b3a98889434",
+      "version": null,
+      "official_source": true,
+      "license": "Anthropic service terms; copyright 2025 Anthropic, PBC; all rights reserved",
+      "permissions": "Local document reads/writes and office/PDF subprocesses are described by the skills.",
+      "network": "Dependency installation and some conversion tooling may require network access; not trialed.",
+      "scripts": "Large Python and JavaScript script trees, Office schemas, and executable-marked helpers.",
+      "overlap": "Overlaps the already available first-party document, PDF, and spreadsheet artifact workflows; contributor artifacts do not justify a second vendor-bound implementation.",
+      "material_kind": "code",
+      "stage_results": {
+        "provenance_license": {
+          "status": "halt",
+          "evidence": "Pinned official revision; each reviewed document skill is all-rights-reserved and governed by Anthropic service terms, so code adoption into this MIT repository is not permitted by the reviewed terms."
+        },
+        "static_review": {
+          "status": "not_run",
+          "evidence": "Not run after license HALT; upstream tree inventory alone shows substantial executable/script surface."
+        },
+        "quarantine_trial": {
+          "status": "not_run",
+          "evidence": "Not run after license HALT."
+        },
+        "local_evaluation": {
+          "status": "not_run",
+          "evidence": "Not run after license HALT; existing first-party artifact workflows remain the baseline."
+        }
+      },
+      "evaluation": "Not evaluated because the provenance/license gate halted adoption.",
+      "decision": "reject",
+      "decision_reason": "Reject code adoption because the reviewed terms are not an open-source grant and the workflows duplicate first-party capabilities.",
+      "vendor_policy_duplication": false,
+      "promotion_pr": null,
+      "adopted_files": []
+    },
+    {
+      "id": "anthropic-skill-creator-eval-pattern",
+      "category": "plugin-evaluation",
+      "source_url": "https://github.com/anthropics/skills",
+      "source_paths": [
+        "skills/skill-creator"
+      ],
+      "revision": "f17010c9bb483898c1d9c9f42dde2b3a98889434",
+      "version": null,
+      "official_source": true,
+      "license": "Apache-2.0 for skills/skill-creator",
+      "permissions": "Upstream evaluation helpers can spawn model clients and write reports; no helper was copied or executed.",
+      "network": "Upstream live evaluation can call model providers; SHAFT keeps authenticated execution in its bounded scheduled client lane.",
+      "scripts": "Upstream contains run_eval, run_loop, aggregation, report, packaging, and validation helpers.",
+      "overlap": "The case/expectation pattern is useful; its runner and improvement loop overlap local SHAFT-native runners and policy.",
+      "material_kind": "pattern",
+      "stage_results": {
+        "provenance_license": {
+          "status": "pass",
+          "evidence": "Official source pinned to a full revision; the selected skill carries Apache-2.0."
+        },
+        "static_review": {
+          "status": "pass",
+          "evidence": "Reviewed the pinned tree and selected only the case/expectation structure; no upstream file, dependency, hook, or executable entered the repository."
+        },
+        "quarantine_trial": {
+          "status": "not_applicable",
+          "evidence": "Pattern-only reuse was reimplemented locally; no candidate code was executed."
+        },
+        "local_evaluation": {
+          "status": "pass",
+          "evidence": "The locally authored corpus validates 30 positive skill routes and every reviewed directed confusion edge, with client-native generated adapters and regression tests."
+        }
+      },
+      "evaluation": "Pattern passed through the local 30-case #4642 corpus and strict generated-drift checks.",
+      "decision": "adopt-pattern",
+      "decision_reason": "Adopt only the reviewed cases-plus-expectations pattern; retain SHAFT prompts, assertions, data, runners, and policy locally.",
+      "vendor_policy_duplication": false,
+      "promotion_pr": null,
+      "adopted_files": []
+    },
+    {
+      "id": "agent-plugins-v1-specification",
+      "category": "cross-client-packaging",
+      "source_url": "https://github.com/agentplugins/agent-plugins-spec",
+      "source_paths": [
+        "spec/1.0.0",
+        "schemas/1.0.0"
+      ],
+      "revision": "bd383552095128f6effe895b9257cfd580a6d179",
+      "version": "1.0.0",
+      "official_source": true,
+      "license": "CC-BY-4.0 specification text and Apache-2.0 schemas",
+      "permissions": "Read-only normative text and JSON Schema validation target.",
+      "network": "No runtime schema fetch is allowed by the specification; local validation uses pinned behavior.",
+      "scripts": "No candidate scripts are required or adopted.",
+      "overlap": "Defines the portable floor already implemented by SHAFT; it does not define installation, permissions UI, or model routing.",
+      "material_kind": "test-target",
+      "stage_results": {
+        "provenance_license": {
+          "status": "pass",
+          "evidence": "Official specification repository pinned to a full revision and published 1.0.0 licensing split."
+        },
+        "static_review": {
+          "status": "pass",
+          "evidence": "Retained only as an external normative/schema target; no repository files or executables were copied."
+        },
+        "quarantine_trial": {
+          "status": "not_applicable",
+          "evidence": "Read-only conformance target; no candidate code execution."
+        },
+        "local_evaluation": {
+          "status": "pass",
+          "evidence": "SHAFT portable-package assembly and validator tests pass against the v1 manifest/discovery contract and keep native adapters separate."
+        }
+      },
+      "evaluation": "Retained as the portable package conformance target; native install and routing evidence remain independent.",
+      "decision": "retain-test-target",
+      "decision_reason": "Keep the official v1 specification as an external conformance target without copying policy or implementation code.",
+      "vendor_policy_duplication": false,
+      "promotion_pr": null,
+      "adopted_files": []
+    },
+    {
+      "id": "microsoft-cross-client-manifest-layout",
+      "category": "cross-client-packaging",
+      "source_url": "https://github.com/MicrosoftDocs/Agent-Skills",
+      "source_paths": [
+        "plugin.json",
+        ".claude-plugin",
+        ".codex-plugin",
+        ".agents/plugins"
+      ],
+      "revision": "baf3ca1710ef394f4bd409443abc7dcd0b493c82",
+      "version": null,
+      "official_source": true,
+      "license": "CC-BY-4.0",
+      "permissions": "Manifest-layout reference only; no executable or credential surface adopted.",
+      "network": "The upstream skill catalog is documentation-backed and network-oriented; the manifest pattern itself requires no network.",
+      "scripts": "Upstream repository pipelines and skill scripts are outside the selected pattern.",
+      "overlap": "Its thin multi-client manifests corroborate SHAFT's portable root plus native adapter design.",
+      "material_kind": "pattern",
+      "stage_results": {
+        "provenance_license": {
+          "status": "pass",
+          "evidence": "Official MicrosoftDocs repository pinned to a full revision with CC-BY-4.0 metadata."
+        },
+        "static_review": {
+          "status": "pass",
+          "evidence": "Reviewed only manifest paths; no Azure content, scripts, dependency, or candidate file was copied."
+        },
+        "quarantine_trial": {
+          "status": "not_applicable",
+          "evidence": "Pattern-only comparison; no candidate code execution."
+        },
+        "local_evaluation": {
+          "status": "pass",
+          "evidence": "SHAFT's portable root, Claude adapter, Codex adapter, and native marketplace discovery/install checks pass independently."
+        }
+      },
+      "evaluation": "The locally authored adapter arrangement passes both pinned native clients without importing upstream manifests.",
+      "decision": "adopt-pattern",
+      "decision_reason": "Retain the thin-adapter idea only; SHAFT's manifests and client contracts remain locally authored and tested.",
+      "vendor_policy_duplication": false,
+      "promotion_pr": null,
+      "adopted_files": []
+    },
+    {
+      "id": "microsoft-azure-skill-content",
+      "category": "cross-client-packaging",
+      "source_url": "https://github.com/MicrosoftDocs/Agent-Skills",
+      "source_paths": [
+        "skills"
+      ],
+      "revision": "baf3ca1710ef394f4bd409443abc7dcd0b493c82",
+      "version": null,
+      "official_source": true,
+      "license": "CC-BY-4.0",
+      "permissions": "Would direct agents toward Azure-specific services, tools, and documentation workflows.",
+      "network": "Requires current Microsoft/Azure documentation and service access for intended behavior.",
+      "scripts": "Catalog includes provider-specific skill and pipeline surfaces not needed by SHAFT.",
+      "overlap": "Duplicates vendor policy and product guidance outside SHAFT's test-automation domain.",
+      "material_kind": "code",
+      "stage_results": {
+        "provenance_license": {
+          "status": "pass",
+          "evidence": "Official source, immutable revision, and CC-BY-4.0 are known."
+        },
+        "static_review": {
+          "status": "halt",
+          "evidence": "Scope review found provider-specific policy duplication and no narrow SHAFT task that warrants importing the catalog."
+        },
+        "quarantine_trial": {
+          "status": "not_run",
+          "evidence": "Not run after overlap HALT."
+        },
+        "local_evaluation": {
+          "status": "not_run",
+          "evidence": "Not run after overlap HALT."
+        }
+      },
+      "evaluation": "Rejected at static scope/overlap review before execution.",
+      "decision": "reject",
+      "decision_reason": "Reject vendor-specific policy duplication; the manifest pattern is reviewed separately.",
+      "vendor_policy_duplication": true,
+      "promotion_pr": null,
+      "adopted_files": []
+    },
+    {
+      "id": "openai-plugin-examples",
+      "category": "cross-client-packaging",
+      "source_url": "https://github.com/openai/plugins",
+      "source_paths": [
+        ".agents/plugins/marketplace.json",
+        "plugins"
+      ],
+      "revision": "11c74d6ba24d3a6d48f54a194cd00ef3beea18f9",
+      "version": null,
+      "official_source": true,
+      "license": "NOASSERTION; no repository-wide license was present at the reviewed revision",
+      "permissions": "Examples include connector, MCP, app, hook, command, asset, and skill surfaces with provider-specific permissions.",
+      "network": "Most examples depend on remote services or connected apps.",
+      "scripts": "Large heterogeneous plugin catalog; scripts and executable-marked files vary per plugin.",
+      "overlap": "Codex-specific examples are useful documentation but do not improve SHAFT's already tested portable root and thin native adapters.",
+      "material_kind": "code",
+      "stage_results": {
+        "provenance_license": {
+          "status": "halt",
+          "evidence": "Official source and immutable revision are known, but no repository-wide license grant was found for the reviewed catalog."
+        },
+        "static_review": {
+          "status": "not_run",
+          "evidence": "Not run after license HALT; the catalog is also far broader than this ticket's cross-client packaging question."
+        },
+        "quarantine_trial": {
+          "status": "not_run",
+          "evidence": "Not run after license HALT."
+        },
+        "local_evaluation": {
+          "status": "not_run",
+          "evidence": "Not run after license HALT; SHAFT native adapter evidence is already local and pinned."
+        }
+      },
+      "evaluation": "Rejected before execution; retained only as a cited official example source in this report.",
+      "decision": "reject",
+      "decision_reason": "Reject code adoption because repository-wide licensing is unresolved and the provider-specific catalog exceeds the narrow need.",
+      "vendor_policy_duplication": false,
+      "promotion_pr": null,
+      "adopted_files": []
+    }
+  ]
+}
