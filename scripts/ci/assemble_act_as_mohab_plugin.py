@@ -2,6 +2,7 @@
 
 import argparse
 import shutil
+import subprocess
 from pathlib import Path
 
 
@@ -10,10 +11,45 @@ SKILLS = ("act-as-mohab", "consult-first", "retrieve-first")
 PORTABLE_REFERENCE_SUFFIXES = {".md", ".LICENSE"}
 
 
-def copy_tree(source: Path, destination: Path) -> None:
-    """Copy one canonical source tree without preserving host-specific metadata."""
-    for path in sorted(source.rglob("*")):
-        if path.is_symlink() or not path.is_file() or path.suffix not in PORTABLE_REFERENCE_SUFFIXES:
+def require_contained(root: Path, candidate: Path, label: str) -> Path:
+    """Resolve one source path and reject a link that leaves its canonical root."""
+    try:
+        resolved = candidate.resolve(strict=True)
+        resolved.relative_to(root.resolve())
+    except (FileNotFoundError, ValueError) as error:
+        raise ValueError(f"{label} must stay inside canonical skill sources: {candidate}") from error
+    return resolved
+
+
+def tracked_source_files(repository_root: Path) -> set[Path]:
+    """Return the reviewed canonical files permitted to enter the package."""
+    result = subprocess.run(
+        [
+            "git",
+            "ls-files",
+            "-z",
+            "--",
+            ".agents/skills/act-as-mohab",
+            ".agents/skills/consult-first/SKILL.md",
+            ".agents/skills/retrieve-first/SKILL.md",
+        ],
+        cwd=repository_root,
+        check=True,
+        capture_output=True,
+    )
+    return {
+        repository_root / Path(path.decode("utf-8"))
+        for path in result.stdout.split(b"\0")
+        if path
+    }
+
+
+def copy_tree(source: Path, destination: Path, allowed_files: set[Path]) -> None:
+    """Copy reviewed portable references without preserving host-specific metadata."""
+    source = require_contained(source.parent, source, "canonical reference directory")
+    for path in sorted(path for path in allowed_files if path.is_relative_to(source)):
+        path = require_contained(source, path, "canonical reference")
+        if path.suffix not in PORTABLE_REFERENCE_SUFFIXES:
             continue
         target = destination / path.relative_to(source)
         target.parent.mkdir(parents=True, exist_ok=True)
@@ -34,6 +70,7 @@ def assemble(repository_root: Path, package_root: Path) -> None:
     if package_root.exists():
         raise FileExistsError(f"refusing to overwrite package output: {package_root}")
 
+    allowed_files = tracked_source_files(repository_root)
     package_root.mkdir(parents=True)
     (package_root / "plugin.json").write_text(
         f'{{"$schema":"{SCHEMA_URL}","name":"act-as-mohab"}}\n', encoding="utf-8"
@@ -42,12 +79,16 @@ def assemble(repository_root: Path, package_root: Path) -> None:
         source = canonical_skills / skill
         destination = package_root / "skills" / skill
         destination.mkdir(parents=True, exist_ok=True)
-        if (source / "SKILL.md").is_symlink():
-            raise ValueError(f"canonical skill must not be a symlink: {skill}")
-        shutil.copyfile(source / "SKILL.md", destination / "SKILL.md")
+        source = require_contained(canonical_skills, source, f"canonical skill directory {skill}")
+        skill_file = source / "SKILL.md"
+        if skill_file not in allowed_files:
+            raise ValueError(f"canonical skill must be tracked: {skill}")
+        skill_file = require_contained(canonical_skills, skill_file, f"canonical skill {skill}")
+        shutil.copyfile(skill_file, destination / "SKILL.md")
     copy_tree(
         canonical_skills / "act-as-mohab/references",
         package_root / "skills/act-as-mohab/references",
+        allowed_files,
     )
     (package_root / "skills/README.md").write_text(
         "# Act as Mohab portable skills\n\n"
