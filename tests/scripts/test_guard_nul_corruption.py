@@ -36,6 +36,15 @@ PNG_BYTES = bytes.fromhex(
 )
 
 
+class ShellMultilineGuardTest(unittest.TestCase):
+    """R23: shell multiline text must not write source or commit metadata."""
+
+    def test_rejects_multiline_shell_metadata_but_allows_single_line_message(self):
+        self.assertIsNotNone(evaluate_command('git commit -m "first\nsecond"'))
+        self.assertIsNotNone(evaluate_command("cat <<EOF\ntext\nEOF"))
+        self.assertIsNone(evaluate_command('git commit -m "single line"'))
+
+
 def git(cwd: Path, *arguments: str) -> subprocess.CompletedProcess:
     return subprocess.run(  # nosec B603 B607 - fixed git commands on a temp fixture.
         ["git", *arguments],

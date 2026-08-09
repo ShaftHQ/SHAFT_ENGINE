@@ -569,6 +569,25 @@ def check_r8_git_stash(command: str) -> str | None:
     return None
 
 
+def check_r23_shell_multiline_text(command: str) -> str | None:
+    """Refuse multiline text in source-writing shells and git commit metadata."""
+    github_prose = re.search(
+        r"\bgh\s+(?:issue|pr)\s+(?:create|edit)\b.*--body(?:-file)?(?:\s|=)",
+        command,
+        re.DOTALL,
+    )
+    writes_source = ("<<" in command or _PS_HERE_STRING_RE.search(command)) and not github_prose
+    multiline_commit = re.search(
+        r"\bgit\s+commit\b.*(?:--message|-m)\s+['\"][^'\"]*\r?\n", command, re.DOTALL
+    )
+    if not writes_source and not multiline_commit:
+        return None
+    return (
+        "Do not pass multiline text through the shell. Use apply_patch for source, "
+        "`git commit -F <file>` for commits, or `gh ... --body-file <file>` for GitHub prose."
+    )
+
+
 # ---------------------------------------------------------------------------
 # R9: `git worktree add` guardrails (backslash-via-Bash, missing longpaths)
 # ---------------------------------------------------------------------------
@@ -1078,7 +1097,7 @@ def check_r10_nul_corruption(command: str, cwd: str | None = None) -> str | None
 # Dispatcher
 # ---------------------------------------------------------------------------
 
-_CHECKS = (check_r1_maven, check_r2_allure, check_r3_gui_open, check_r8_git_stash)
+_CHECKS = (check_r1_maven, check_r2_allure, check_r3_gui_open, check_r8_git_stash, check_r23_shell_multiline_text)
 
 
 # ---------------------------------------------------------------------------
@@ -3421,6 +3440,7 @@ _SELF_TEST_COVERAGE: dict[str, str] = {
     "check_r2_allure": "command cases",
     "check_r3_gui_open": "command cases",
     "check_r8_git_stash": "command cases",
+    "check_r23_shell_multiline_text": "command cases",
     "check_r9_worktree_add": "run_r9_worktree_self_test",
     "check_r10_nul_corruption": "run_r10_nul_corruption_self_test",
     "check_r11_memory_write_worktree": "run_r11_memory_write_self_test",
