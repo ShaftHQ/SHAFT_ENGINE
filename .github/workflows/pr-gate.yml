@@ -92,6 +92,7 @@ jobs:
               - 'scripts/ci/validate_agent_guidance.py'
               - 'scripts/ci/validate_agent_plugins.py'
               - 'scripts/ci/assemble_act_as_mohab_plugin.py'
+              - 'scripts/ci/assemble_shaft_skills_plugin.py'
               - 'scripts/ci/validate_red_before_green.py'
               - 'scripts/ci/validate_skills.py'
               - 'scripts/ci/worktree_hygiene.py'
@@ -112,6 +113,7 @@ jobs:
               - 'tests/scripts/test_validate_agent_guidance.py'
               - 'tests/scripts/test_validate_agent_plugins.py'
               - 'tests/scripts/test_assemble_act_as_mohab_plugin.py'
+              - 'tests/scripts/test_assemble_shaft_skills_plugin.py'
               - 'tests/scripts/test_validate_agent_setup.py'
               - 'tests/scripts/test_worktree_hygiene.py'
               - 'tests/scripts/test_validate_skills.py'
@@ -283,6 +285,7 @@ jobs:
           tests.scripts.test_validate_agent_guidance
           tests.scripts.test_validate_agent_plugins
           tests.scripts.test_assemble_act_as_mohab_plugin
+          tests.scripts.test_assemble_shaft_skills_plugin
           tests.scripts.test_validate_agent_setup
           tests.scripts.test_validate_skills
           tests.scripts.test_sync_user_harness
