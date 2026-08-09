@@ -869,15 +869,13 @@ class ManagedCaptureRecorderBrowserTest {
 
             driver.findElement(By.id("to-b")).click();
             waitFor(() -> elementPresent(driver, By.id("nav-b-page")));
-            // Dwell past the overlay-identity attach window so the Back traversal to /nav-a is
-            // a distinct user navigation rather than a redelivery of the initial open.
-            Thread.sleep(2500);
+            waitFor(recorder::readyForDistinctUserTraversal);
             driver.navigate().back();
             waitFor(() -> elementPresent(driver, By.id("to-b")));
-            Thread.sleep(1000);
+            waitFor(() -> navigateRowCount(js) == 1);
             driver.navigate().forward();
             waitFor(() -> elementPresent(driver, By.id("nav-b-page")));
-            Thread.sleep(2000);
+            waitFor(() -> navigateRowCount(js) == 2);
 
             assertEquals(2, navigateRowCount(js),
                     "Back and Forward must each append exactly one \"Navigate to\" row. Rows: "
