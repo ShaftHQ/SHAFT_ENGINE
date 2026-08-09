@@ -10,6 +10,7 @@ import tempfile
 import unittest
 from copy import deepcopy
 from pathlib import Path
+from unittest.mock import patch
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -88,6 +89,20 @@ class AgentHarnessAdherenceTest(unittest.TestCase):
                 materialize(episode, directory)
 
             self.assertFalse(outside.exists())
+
+    def test_materializer_preserves_the_callers_workspace_path_spelling(self) -> None:
+        corpus = self.load_fixture("corpus.json")
+        episode = corpus["episodes"][0]
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            directory = Path(temporary_directory)
+            actual_workspace = directory / "workspace"
+            actual_workspace.mkdir()
+            caller_spelling = actual_workspace / ".." / "workspace"
+            with patch.object(adherence.tempfile, "mkdtemp", return_value=str(caller_spelling)):
+                workspace = adherence.materialize_workspace(episode, directory)
+
+            self.assertEqual(Path(caller_spelling), workspace)
+            self.assertTrue(workspace.is_relative_to(directory))
 
     def test_rejects_windows_ambiguous_workspace_file_names(self) -> None:
         validator = getattr(adherence, "validate_corpus", None)

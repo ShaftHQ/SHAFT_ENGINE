@@ -144,7 +144,8 @@ def validate_evidence(corpus: dict, evidence_by_episode: dict) -> list[str]:
 
 def materialize_workspace(episode: dict, directory: Path) -> Path:
     """Create and populate a fresh disposable workspace below ``directory``."""
-    root = Path(tempfile.mkdtemp(prefix="agent-harness-", dir=directory.resolve())).resolve()
+    workspace = Path(tempfile.mkdtemp(prefix="agent-harness-", dir=directory))
+    root = workspace.resolve()
     files = episode["workspace"]["files"]
     for relative_path, contents in files.items():
         if not _is_safe_relative_file(relative_path) or not isinstance(contents, str):
@@ -156,7 +157,7 @@ def materialize_workspace(episode: dict, directory: Path) -> Path:
             raise ValueError(f"workspace path escapes root: {relative_path!r}") from error
         destination.parent.mkdir(parents=True, exist_ok=True)
         destination.write_text(contents, encoding="utf-8")
-    return root
+    return workspace
 
 
 def _expectation_result(expectation: dict, evidence: dict) -> bool | None:
