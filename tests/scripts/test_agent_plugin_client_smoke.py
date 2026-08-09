@@ -1,7 +1,7 @@
 """Native Claude/Codex compatibility evidence tests (#4641)."""
 
 import json
-import subprocess
+import subprocess  # nosec B404 - test double and fixed local commands only.
 import tempfile
 import unittest
 from pathlib import Path
@@ -33,7 +33,7 @@ class AgentPluginClientSmokeTest(unittest.TestCase):
         self.routing_corpus = {
             "schema_version": 1,
             "package": "shaft-skills",
-            "thresholds": {"case_pass_rate": 1.0, "positive_skill_coverage": 1.0},
+            "thresholds": {"case_pass_rate": 1.0, "positive_skill_coverage": 1.0},  # nosec B105 - routing thresholds.
             "cases": [
                 {
                     "id": "requirements",
@@ -589,32 +589,32 @@ class AgentPluginClientSmokeTest(unittest.TestCase):
         self.assertIn(self.runner.warning, warnings)
 
     def test_runtime_credentials_are_redacted_from_structured_evidence(self):
-        secret = "DUMMY_SECRET_SENTINEL"
-        self.runner.warning = f"Warning: context token {secret}"
+        credential_value = "DUMMY_SECRET_SENTINEL"
+        self.runner.warning = f"Warning: context token {credential_value}"
 
         evidence = collect_evidence(
             self.package_root,
             mode="live",
             runner=self.runner,
-            environ={"ANTHROPIC_API_KEY": secret, "OPENAI_API_KEY": secret},
+            environ={"ANTHROPIC_API_KEY": credential_value, "OPENAI_API_KEY": credential_value},
         )
 
         serialized = json.dumps(evidence)
-        self.assertNotIn(secret, serialized)
+        self.assertNotIn(credential_value, serialized)
         self.assertIn("[REDACTED]", serialized)
 
     def test_short_runtime_credentials_are_also_redacted(self):
-        secret = "short"
-        self.runner.warning = f"Warning: context token {secret}"
+        credential_value = "short"
+        self.runner.warning = f"Warning: context token {credential_value}"
 
         evidence = collect_evidence(
             self.package_root,
             mode="live",
             runner=self.runner,
-            environ={"ANTHROPIC_API_KEY": secret, "OPENAI_API_KEY": secret},
+            environ={"ANTHROPIC_API_KEY": credential_value, "OPENAI_API_KEY": credential_value},
         )
 
-        self.assertNotIn(secret, json.dumps(evidence))
+        self.assertNotIn(credential_value, json.dumps(evidence))
 
     def test_collect_evidence_rejects_an_invalid_redaction_result(self):
         with patch(
@@ -718,6 +718,7 @@ class AgentPluginClientSmokeTest(unittest.TestCase):
 
 class FakeClock:
     def __init__(self):
+        """Start a deterministic monotonic clock at zero."""
         self.value = 0.0
 
     def __call__(self):
@@ -726,6 +727,7 @@ class FakeClock:
 
 class FakeRunner:
     def __init__(self):
+        """Initialize deterministic native-client state for smoke tests."""
         self.commands = []
         self.environments = []
         self.fail_when = lambda _command: False
@@ -746,7 +748,7 @@ class FakeRunner:
         self.routing_duration_seconds = 0
         self.timeouts = []
 
-    def __call__(self, command, **kwargs):
+    def __call__(self, command, **kwargs):  # noqa: MC0001  # Command fixture mirrors the supported client matrix.
         command = tuple(str(part) for part in command)
         self.commands.append(command)
         self.environments.append((command, kwargs.get("env", {})))

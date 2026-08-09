@@ -39,7 +39,7 @@ def output_schema() -> dict:
     }
 
 
-def validate_corpus(corpus: dict, review: dict) -> list[dict]:
+def validate_corpus(corpus: dict, review: dict) -> list[dict]:  # noqa: MC0001  # Linear schema checks stay auditable together.
     defects: list[dict] = []
     skills = set(review.get("skills", {}))
     cases = corpus.get("cases")
@@ -48,7 +48,7 @@ def validate_corpus(corpus: dict, review: dict) -> list[dict]:
     if corpus.get("package") != "shaft-skills":
         defects.append(_defect("package", "package must be shaft-skills"))
     if corpus.get("thresholds") != {
-        "case_pass_rate": 1.0,
+        "case_pass_rate": 1.0,  # nosec B105 - routing threshold, not a credential.
         "positive_skill_coverage": 1.0,
     }:
         defects.append(_defect("threshold", "both routing thresholds must be exactly 1.0"))

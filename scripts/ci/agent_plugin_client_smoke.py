@@ -7,7 +7,7 @@ import argparse
 import json
 import os
 import re
-import subprocess
+import subprocess  # nosec B404 - runs pinned native client commands without a shell.
 import tempfile
 import time
 from pathlib import Path
@@ -189,7 +189,7 @@ def _redact(value: object, secrets: tuple[str, ...]) -> object:
     return value
 
 
-def _extract_chosen_skill(output: str) -> str | None:
+def _extract_chosen_skill(output: str) -> str | None:  # noqa: MC0001  # Nested client JSON has several valid shapes.
     def visit(value: object) -> str | None:
         if isinstance(value, dict):
             chosen = value.get("chosen_skill")
@@ -313,7 +313,7 @@ def _codex_commands(package_root: Path) -> dict[str, list[list[str]]]:
     }
 
 
-def _client_evidence(
+def _client_evidence(  # noqa: MC0001  # One lifecycle owns setup, evidence, and guaranteed cleanup.
     client: str,
     package_root: Path,
     working_directory: Path,

@@ -85,7 +85,7 @@ def _overlaps(left: Path, right: Path) -> bool:
     return _inside(left, right) or _inside(right, left)
 
 
-def scan_candidate(candidate_root: Path) -> dict:
+def scan_candidate(candidate_root: Path) -> dict:  # noqa: MC0001  # Single-pass scanner keeps file evidence aligned.
     """Statically inventory one already-quarantined candidate without executing it."""
     root = Path(candidate_root).resolve(strict=True)
     if not root.is_dir():
@@ -205,7 +205,7 @@ def quarantine_command(
         "--user",
         "65532:65532",
         "--tmpfs",
-        "/tmp:rw,noexec,nosuid,nodev,size=64m",
+        "/tmp:rw,noexec,nosuid,nodev,size=64m",  # nosec B108 - fixed container tmpfs target, not a host path.
         "--mount",
         f"type=bind,src={candidate},dst=/candidate,readonly",
         "--mount",
@@ -248,9 +248,10 @@ def validate_policy(policy: dict) -> list[dict]:
     return defects
 
 
-def validate_review(review: dict, policy: dict) -> list[dict]:
+def validate_review(review: dict, policy: dict) -> list[dict]:  # noqa: MC0001  # Ordered fail-closed schema gate is intentionally linear.
     defects: list[dict] = []
-    if type(review.get("schema_version")) is not int or review["schema_version"] != 1:
+    schema_version = review.get("schema_version")
+    if type(schema_version) is not int or schema_version != 1:  # pylint: disable=unidiomatic-typecheck  # Exact type rejects bool, subclasses, and __class__ spoofing.
         defects.append(_defect("review-schema", "review schema_version must be integer 1"))
     reviewed_at = review.get("reviewed_at")
     try:
@@ -325,7 +326,7 @@ def validate_review(review: dict, policy: dict) -> list[dict]:
             if status == "not_run" and not terminated:
                 defects.append(_defect("stage-order", f"{stage} cannot be not_run without an earlier HALT", path))
             terminated = terminated or status in {"halt", "not_run"}
-        if type(candidate.get("vendor_policy_duplication")) is not bool:
+        if not isinstance(candidate.get("vendor_policy_duplication"), bool):
             defects.append(_defect("candidate-field", "vendor_policy_duplication must be boolean", path))
         if candidate.get("vendor_policy_duplication") and decision != "reject":
             defects.append(_defect("vendor-policy", "vendor-specific policy duplication must be rejected", path))

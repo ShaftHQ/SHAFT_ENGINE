@@ -166,7 +166,7 @@ def _integer_budget(budgets: dict, field: str, defects: list[str]) -> int | None
     return value
 
 
-def validate_repository(root: Path = ROOT) -> list[str]:
+def validate_repository(root: Path = ROOT) -> list[str]:  # noqa: MC0001  # One pass reports the full quality contract.
     """Return stable validation defects for the canonical SHAFT skill corpus."""
     root = Path(root)
     defects: list[str] = []

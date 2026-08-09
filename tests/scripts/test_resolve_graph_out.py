@@ -2,7 +2,7 @@
 
 import json
 import shutil
-import subprocess
+import subprocess  # nosec B404 - tests run fixed local Git and Python commands.
 import sys
 import tempfile
 import unittest
@@ -33,7 +33,7 @@ class ResolveGraphOutTest(unittest.TestCase):
     def git(self, *args, cwd):
         git_executable = shutil.which("git")
         self.assertIsNotNone(git_executable)
-        return subprocess.run(
+        return subprocess.run(  # nosec B603 - resolved Git executable and controlled fixture arguments.
             [git_executable, *args],
             cwd=cwd,
             check=True,
@@ -42,7 +42,7 @@ class ResolveGraphOutTest(unittest.TestCase):
         )
 
     def resolver(self, *args, cwd=None):
-        return subprocess.run(
+        return subprocess.run(  # nosec B603 - current interpreter and repository-owned resolver.
             [sys.executable, str(SCRIPT), *args],
             cwd=cwd or self.primary,
             check=False,

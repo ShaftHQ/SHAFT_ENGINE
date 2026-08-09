@@ -39,7 +39,7 @@ class ShaftSkillRoutingEvalTest(unittest.TestCase):
         self.corpus = {
             "schema_version": 1,
             "package": "shaft-skills",
-            "thresholds": {"case_pass_rate": 1.0, "positive_skill_coverage": 1.0},
+            "thresholds": {"case_pass_rate": 1.0, "positive_skill_coverage": 1.0},  # nosec B105 - routing thresholds.
             "cases": [
                 {
                     "id": "route-skill-a",

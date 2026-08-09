@@ -138,6 +138,28 @@ class ShaftSkillCandidateIntakeTest(unittest.TestCase):
         self.assertIn("adopted-files", codes)
         self.assertIn("stage-order", codes)
 
+    def test_review_schema_version_requires_a_concrete_integer(self):
+        class IntegerSubclass(int):
+            pass
+
+        class SpoofedInteger:
+            @property
+            def __class__(self):
+                return int
+
+            def __eq__(self, other):
+                return other == 1
+
+        policy = json.loads(POLICY_PATH.read_text(encoding="utf-8"))
+        for schema_version in (True, IntegerSubclass(1), SpoofedInteger()):
+            with self.subTest(schema_version=repr(schema_version)):
+                review = json.loads(REVIEW_PATH.read_text(encoding="utf-8"))
+                review["schema_version"] = schema_version
+
+                defects = validate_review(review, policy)
+
+                self.assertTrue(any(defect["code"] == "review-schema" for defect in defects))
+
     def test_not_applicable_is_only_valid_for_the_quarantine_trial(self):
         policy = json.loads(POLICY_PATH.read_text(encoding="utf-8"))
         review = json.loads(REVIEW_PATH.read_text(encoding="utf-8"))
