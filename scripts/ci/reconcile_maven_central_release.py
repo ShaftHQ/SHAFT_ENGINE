@@ -209,6 +209,10 @@ def reconcile_release(
     version: str, repository_url: str, gpg_keyname: str, gpg_passphrase: str, dry_run: bool
 ) -> int:
     """Reconcile one version: deploy missing artifacts, then announce if genuinely new."""
+    if not dry_run and read_reactor_version() != version:
+        raise RuntimeError(
+            f"checked-out reactor version does not match requested reconciliation version: {version}"
+        )
     missing = verify.missing_publication_paths(repository_url, version)
     module_dirs = missing_module_dirs(missing)
 

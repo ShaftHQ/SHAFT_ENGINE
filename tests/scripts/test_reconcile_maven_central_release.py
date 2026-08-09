@@ -112,6 +112,9 @@ class ReconcileReleaseTest(unittest.TestCase):
         )
         asset_patcher.start()
         self.addCleanup(asset_patcher.stop)
+        version_patcher = mock.patch.object(reconcile, "read_reactor_version", return_value="1.2.3")
+        version_patcher.start()
+        self.addCleanup(version_patcher.stop)
         os.environ.pop("SLACK_WEBHOOK_URL", None)
 
     def test_all_artifacts_missing_deploys_every_configured_module(self):
@@ -138,6 +141,18 @@ class ReconcileReleaseTest(unittest.TestCase):
         self.assertEqual(command[:4], ["mvn", "--batch-mode", "deploy", "-pl"])
         modules = command[4].split(",")
         self.assertEqual(set(modules), set(reconcile.MODULE_DIR_BY_ARTIFACT.values()))
+
+    def test_mismatched_checked_out_version_does_not_deploy(self):
+        with mock.patch.object(reconcile, "read_reactor_version", return_value="9.9.9"), mock.patch.object(
+            reconcile.subprocess, "run"
+        ) as run:
+            with self.assertRaisesRegex(RuntimeError, "does not match"):
+                reconcile.reconcile_release(
+                    version="1.2.3", repository_url=reconcile.verify.DEFAULT_REPOSITORY,
+                    gpg_keyname="KEY", gpg_passphrase="PASS", dry_run=False,
+                )
+
+        run.assert_not_called()
 
     def test_some_artifacts_missing_deploys_only_those_modules(self):
         missing = [p for p in reconcile.verify.publication_paths("1.2.3") if "/shaft-cli/" in p]
