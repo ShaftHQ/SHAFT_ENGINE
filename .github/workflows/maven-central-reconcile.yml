@@ -19,7 +19,7 @@ on:
         required: false
         type: string
       source_ref:
-        description: "Immutable commit SHA or tag containing the release source."
+        description: "Full 40-character commit SHA containing the release source."
         required: true
         type: string
       dry_run:
@@ -52,6 +52,15 @@ jobs:
       # is a PAT, so its release does trigger those workflows (mirrors announce_release).
       GH_TOKEN: ${{ secrets.BOT_TOKEN }}
     steps:
+      - name: Validate immutable source commit
+        env:
+          SOURCE_COMMIT: ${{ inputs.source_ref }}
+        run: |
+          set -euo pipefail
+          if [[ ! "${SOURCE_COMMIT}" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "::error::source_ref must be a full lowercase 40-character commit SHA."
+            exit 1
+          fi
       - name: Checkout Code
         uses: actions/checkout@v7
         with:
