@@ -165,58 +165,67 @@ def _uncommitted_files(worktree: Path) -> int | None:
     return len(paths) if paths is not None else None
 
 
+def _existing_parent_mtime(path: Path, worktree: Path) -> float | None:
+    """Newest available parent mtime for a deleted path, bounded to `worktree`."""
+    parent = path.parent
+    while True:
+        try:
+            return parent.stat().st_mtime
+        except FileNotFoundError:
+            if parent == worktree:
+                return None
+            parent = parent.parent
+        except OSError:
+            return None
+
+
+def _uncommitted_path_activity_epochs(worktree: Path, paths: list[str] | None) -> list[float]:
+    """Mtimes for changed paths, using a deleted path's nearest existing parent."""
+    if paths is None:
+        return []
+    try:
+        resolved_worktree = worktree.resolve()
+    except OSError:
+        return []
+
+    signals: list[float] = []
+    for relative_path in paths[:MAX_ACTIVITY_PATHS]:
+        try:
+            candidate = (worktree / relative_path).resolve()
+            candidate.relative_to(resolved_worktree)
+            signals.append(candidate.stat().st_mtime)
+        except FileNotFoundError:
+            parent_mtime = _existing_parent_mtime(candidate, resolved_worktree)
+            if parent_mtime is not None:
+                signals.append(parent_mtime)
+        except (OSError, ValueError):
+            continue
+    return signals
+
+
+def _linked_worktree_creation_epoch(worktree: Path) -> float | None:
+    """Return a linked worktree's private `.git` marker mtime, when readable."""
+    try:
+        git_marker = worktree / ".git"
+        # The primary checkout has the shared admin directory instead, and
+        # fetches elsewhere can refresh it indefinitely.
+        return git_marker.stat().st_mtime if git_marker.is_file() else None
+    except OSError:
+        return None
+
+
 def _activity_epoch(
     root: Path, worktree: Path, committish: str | None, paths: list[str] | None
 ) -> float | None:
     """Freshest non-self-contaminating activity signal for one worktree."""
-    signals: list[float] = []
+    signals = _uncommitted_path_activity_epochs(worktree, paths)
     if committish is not None:
         last_commit_epoch = _last_commit_epoch(root, committish)
         if last_commit_epoch is not None:
             signals.append(float(last_commit_epoch))
-    if paths is not None:
-        try:
-            resolved_worktree = worktree.resolve()
-        except OSError:
-            resolved_worktree = None
-        if resolved_worktree is not None:
-            for relative_path in paths[:MAX_ACTIVITY_PATHS]:
-                try:
-                    candidate = (worktree / relative_path).resolve()
-                    candidate.relative_to(resolved_worktree)
-                    signals.append(candidate.stat().st_mtime)
-                except FileNotFoundError:
-                    # A deletion has no file mtime. Its parent changes when
-                    # the deletion happens, which is the bounded, local
-                    # proxy that keeps fresh destructive edits from reading
-                    # as stale without using the self-refreshing index mtime.
-                    parent = candidate.parent
-                    while True:
-                        try:
-                            signals.append(parent.stat().st_mtime)
-                            break
-                        except FileNotFoundError:
-                            if parent == resolved_worktree:
-                                break
-                            parent = parent.parent
-                        except OSError:
-                            break
-                except OSError:
-                    continue
-                except ValueError:
-                    continue
-    try:
-        git_marker = worktree / ".git"
-        # Linked worktrees have a private .git file whose mtime is their
-        # creation floor. The primary checkout has the shared admin directory
-        # instead, and fetches elsewhere can refresh it indefinitely.
-        if git_marker.is_file():
-            signals.append(git_marker.stat().st_mtime)
-    except OSError:
-        # The marker is advisory activity evidence, not a required report
-        # dependency; an unreadable marker must not turn a usable git report
-        # into an unknown worktree.
-        return max(signals) if signals else None
+    creation_epoch = _linked_worktree_creation_epoch(worktree)
+    if creation_epoch is not None:
+        signals.append(creation_epoch)
     return max(signals) if signals else None
 
 
