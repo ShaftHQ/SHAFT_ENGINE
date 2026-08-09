@@ -851,19 +851,48 @@ def _without_fenced_markdown(text: str) -> str:
 
 
 def executable_spec_cell_is_unresolved(cell: str) -> bool:
-    """True only for a blank or leading/whole-cell unresolved value."""
+    """True when a cell leaves an executable-specification value unresolved."""
     value = cell.strip()
     if not value or value == "?" or value in {"—", "–"}:
         return True
-    if re.match(
-        r"^(?:todo|tbd|tba|tbc|to\s+be\s+confirmed|pending|placeholder|n\s*/\s*a|"
-        r"guess(?:es|ed|ing)?|probably|maybe|likely|unknown|"
-        r"assum(?:e|ed|ing|ption))\b",
-        value,
+    searchable = re.sub(r"https?://\S+|\b(?:query\s+)?\?\S+|\bglob\s+\S+", "", value, flags=re.IGNORECASE)
+    negative_proof = re.fullmatch(
+        r"negative\s+proof\s+(?:rejects?|blocks?|forbids?|fails?)\s+(.*)",
+        searchable,
         re.IGNORECASE,
-    ):
-        return True
-    return bool(re.match(r"^(?:<[^>]+>|\[[^\]]+\])(?:\s|$)", value))
+    )
+    if negative_proof:
+        marker_list = re.sub(
+            r"\b(?:todo|tbd|tba|tbc|to\s+be\s+confirmed|pending|n\s*/\s*a|"
+            r"guess\s+placeholders?|placeholders?)\b",
+            "",
+            negative_proof.group(1),
+            flags=re.IGNORECASE,
+        )
+        if not re.sub(r"\b(?:and|or)\b|[\s,;/]+", "", marker_list, flags=re.IGNORECASE):
+            return False
+    searchable = re.sub(
+        r"^unknown(?=\s+target\s+is\s+(?:rejected|verified)\s+by\b)",
+        "",
+        searchable,
+        flags=re.IGNORECASE,
+    )
+    searchable = re.sub(
+        r"^assumption(?=\s+is\s+(?:rejected|verified)\s+by\b)",
+        "",
+        searchable,
+        flags=re.IGNORECASE,
+    )
+    return bool(
+        re.search(
+            r"\b(?:todo|tbd|tba|tbc|to\s+be\s+confirmed|pending|placeholder|n\s*/\s*a|"
+            r"guess(?:es|ed|ing)?|probably|maybe|likely|unknown|"
+            r"assum(?:e|ed|ing|ption))\b",
+            searchable,
+            re.IGNORECASE,
+        )
+        or re.search(r"(?:<[^>]+>|\[[^\]]+\])", searchable)
+    )
 
 
 def _executable_spec_section(text: str) -> str | None:
