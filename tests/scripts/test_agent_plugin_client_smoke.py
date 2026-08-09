@@ -5,6 +5,7 @@ import subprocess
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 try:
     from scripts.ci.agent_plugin_client_smoke import (
@@ -614,6 +615,14 @@ class AgentPluginClientSmokeTest(unittest.TestCase):
         )
 
         self.assertNotIn(secret, json.dumps(evidence))
+
+    def test_collect_evidence_rejects_an_invalid_redaction_result(self):
+        with patch(
+            "scripts.ci.agent_plugin_client_smoke._redact",
+            return_value="not-an-evidence-object",
+        ):
+            with self.assertRaisesRegex(TypeError, "redacted evidence must be an object"):
+                collect_evidence(self.package_root, runner=self.runner)
 
     def test_install_evidence_requires_the_native_plugin_id_to_be_enabled(self):
         self.runner.installed_plugin = {"id": "shaft-skills@shaft-skills", "enabled": False}

@@ -783,7 +783,8 @@ def collect_evidence(
         and secret
     )
     redacted = _redact(evidence, secrets)
-    assert isinstance(redacted, dict)
+    if not isinstance(redacted, dict):
+        raise TypeError("redacted evidence must be an object")
     return redacted
 
 
