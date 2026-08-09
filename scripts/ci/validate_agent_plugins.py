@@ -2,9 +2,11 @@
 
 import argparse
 import json
+import os
 import re
 from pathlib import Path
 
+from scripts.ci.validate_agent_guidance import parse_frontmatter
 
 SCHEMA_URL = "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json"
 MANIFEST_PATH = "plugin.json"
@@ -21,6 +23,7 @@ ALLOWED_MANIFEST_FIELDS = {
     "extensions",
 }
 PLUGIN_NAME = re.compile(r"^(?!.*(?:--|\.\.))[a-z0-9](?:[a-z0-9.-]{0,62}[a-z0-9])?$")
+SKILL_NAME = re.compile(r"^(?!.*--)[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?$")
 
 
 def issue(code: str, path: Path | str, message: str, severity: str = "error") -> dict[str, str]:
@@ -35,6 +38,46 @@ def resolves_inside(root: Path, candidate: Path) -> bool:
     except (OSError, ValueError):
         return False
     return True
+
+
+def has_directory_entry(path: Path) -> bool:
+    """Detect a path entry without following a dangling link or junction."""
+    return os.path.lexists(path)
+
+
+def manifest_field_errors(manifest: dict) -> list[dict[str, str]]:
+    """Validate every schema-governed manifest field that is present."""
+    findings: list[dict[str, str]] = []
+    string_fields = {"version", "description", "homepage", "repository", "license"}
+    for field in sorted(string_fields & set(manifest)):
+        if not isinstance(manifest[field], str):
+            findings.append(issue("manifest-field", MANIFEST_PATH, f"{field} must be a string"))
+    if "keywords" in manifest and (
+        not isinstance(manifest["keywords"], list) or not all(isinstance(item, str) for item in manifest["keywords"])
+    ):
+        findings.append(issue("manifest-field", MANIFEST_PATH, "keywords must be an array of strings"))
+    if "author" in manifest:
+        author = manifest["author"]
+        if (
+            not isinstance(author, dict)
+            or set(author) - {"name", "email", "url"}
+            or not all(isinstance(value, str) for value in author.values())
+        ):
+            findings.append(issue("manifest-field", MANIFEST_PATH, "author must contain only string name, email, or url fields"))
+    if "extensions" in manifest:
+        extensions = manifest["extensions"]
+        if not isinstance(extensions, dict):
+            findings.append(
+                issue(
+                    "extensions-invalid",
+                    MANIFEST_PATH,
+                    "extensions must be an object and is ignored by this validator",
+                    "warning",
+                )
+            )
+        elif not all(isinstance(value, dict) for value in extensions.values()):
+            findings.append(issue("manifest-field", MANIFEST_PATH, "each extensions namespace must contain an object"))
+    return findings
 
 
 def validate_manifest(root: Path) -> tuple[dict | None, list[dict[str, str]]]:
@@ -63,6 +106,7 @@ def validate_manifest(root: Path) -> tuple[dict | None, list[dict[str, str]]]:
                 "name must be 1-64 lowercase letters, digits, dots, or hyphens without repeated dots or hyphens",
             )
         )
+    findings.extend(manifest_field_errors(manifest))
     for field in sorted(set(manifest) - ALLOWED_MANIFEST_FIELDS):
         findings.append(
             issue(
@@ -78,7 +122,7 @@ def validate_manifest(root: Path) -> tuple[dict | None, list[dict[str, str]]]:
 def validate_skills(root: Path) -> list[dict[str, str]]:
     """Validate immediate Agent Skills without requiring host-specific policy."""
     skills_path = root / "skills"
-    if not skills_path.exists():
+    if not has_directory_entry(skills_path):
         return []
     if not resolves_inside(root, skills_path):
         return [issue("component-escapes-root", "skills", "skills must remain inside the package")]
@@ -88,7 +132,7 @@ def validate_skills(root: Path) -> list[dict[str, str]]:
     findings: list[dict[str, str]] = []
     for child in sorted(skills_path.iterdir(), key=lambda entry: entry.name):
         skill_path = child / "SKILL.md"
-        if not child.is_dir() or not skill_path.exists():
+        if not child.is_dir() or not has_directory_entry(skill_path):
             continue
         relative_path = skill_path.relative_to(root)
         if not resolves_inside(root, skill_path):
@@ -99,8 +143,20 @@ def validate_skills(root: Path) -> list[dict[str, str]]:
         except (OSError, UnicodeDecodeError) as error:
             findings.append(issue("skill-read", relative_path, f"SKILL.md cannot be read: {error}"))
             continue
-        if not skill.startswith("---\n"):
+        frontmatter = parse_frontmatter(skill.replace("\r\n", "\n").replace("\r", "\n"))
+        if frontmatter is None:
             findings.append(issue("skill-frontmatter", relative_path, "SKILL.md must start with YAML frontmatter"))
+            continue
+        name = frontmatter.get("name")
+        if not isinstance(name, str) or not SKILL_NAME.fullmatch(name) or name != child.name:
+            findings.append(
+                issue("skill-name", relative_path, "frontmatter name must be a valid skill name matching its directory")
+            )
+        description = frontmatter.get("description")
+        if not isinstance(description, str) or not 1 <= len(description) <= 1024:
+            findings.append(
+                issue("skill-description", relative_path, "frontmatter description must contain 1-1024 characters")
+            )
     return findings
 
 
@@ -109,6 +165,8 @@ def validate_package(root: Path) -> list[dict[str, str]]:
     root = Path(root)
     manifest, findings = validate_manifest(root)
     if manifest is None:
+        return findings
+    if any(finding["severity"] == "error" for finding in findings):
         return findings
     return findings + validate_skills(root)
 

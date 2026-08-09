@@ -6,8 +6,9 @@ import unittest
 from pathlib import Path
 
 try:
-    from scripts.ci.validate_agent_plugins import validate_package
+    from scripts.ci.validate_agent_plugins import resolves_inside, validate_package
 except ModuleNotFoundError:
+    resolves_inside = None
     validate_package = None
 
 
@@ -37,6 +38,21 @@ class ValidateAgentPluginsTest(unittest.TestCase):
         self.assertTrue(callable(validate_package), "validate_package must be available")
         return {issue["code"] for issue in validate_package(self.root)}
 
+    def write_skill(self, name="valid-skill", line_ending="\n"):
+        self.write(
+            f"skills/{name}/SKILL.md",
+            line_ending.join(
+                [
+                    "---",
+                    f"name: {name}",
+                    "description: A valid skill used when validating a portable package.",
+                    "---",
+                    "",
+                    "# Instructions",
+                ]
+            ),
+        )
+
     def test_valid_minimal_package_passes(self):
         self.assertTrue(callable(validate_package), "validate_package must be available")
         self.assertEqual(validate_package(self.root), [])
@@ -64,6 +80,53 @@ class ValidateAgentPluginsTest(unittest.TestCase):
         self.write("skills/broken/SKILL.md", "# Missing frontmatter\n")
 
         self.assertEqual(self.codes(), {"skill-frontmatter"})
+
+    def test_rejects_invalid_manifest_field_types_but_ignores_non_object_extensions(self):
+        self.manifest.update(
+            {
+                "version": 7,
+                "description": ["not a string"],
+                "author": {"name": 2},
+                "keywords": "not an array",
+                "extensions": "old client data",
+            }
+        )
+        self.write_manifest()
+
+        issues = validate_package(self.root)
+
+        self.assertEqual(
+            {issue["code"] for issue in issues},
+            {"manifest-field", "extensions-invalid"},
+        )
+        self.assertEqual(
+            [issue["severity"] for issue in issues if issue["code"] == "extensions-invalid"],
+            ["warning"],
+        )
+
+    def test_accepts_complete_crlf_skill_frontmatter(self):
+        self.write_skill(line_ending="\r\n")
+
+        self.assertEqual(validate_package(self.root), [])
+
+    def test_rejects_unclosed_or_incomplete_skill_frontmatter(self):
+        self.write("skills/broken/SKILL.md", "---\nname: broken\n")
+
+        self.assertEqual(self.codes(), {"skill-frontmatter"})
+
+    def test_rejects_skill_name_that_does_not_match_its_directory(self):
+        self.write_skill(name="actual-name")
+        self.write(
+            "skills/actual-name/SKILL.md",
+            "---\nname: different-name\ndescription: A valid description with the wrong name.\n---\n",
+        )
+
+        self.assertEqual(self.codes(), {"skill-name"})
+
+    def test_containment_predicate_rejects_a_lexical_escape_without_symlink_support(self):
+        self.assertTrue(callable(resolves_inside), "resolves_inside must be available")
+
+        self.assertFalse(resolves_inside(self.root, self.root / ".." / "outside"))
 
     def test_rejects_a_skills_directory_that_resolves_outside_the_package(self):
         outside = self.root.parent / "outside"
