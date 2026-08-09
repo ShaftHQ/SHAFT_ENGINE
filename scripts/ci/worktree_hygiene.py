@@ -58,6 +58,12 @@ MAX_REPORTED_WORKTREES = 50
 # has had a chance to open a pull request.
 DEFAULT_STALE_DAYS = 3
 SECONDS_PER_DAY = 86400
+# A local worktree can hold the only copy of uncommitted work, so its advisory
+# clock is deliberately much shorter than the three-day remote-branch clock.
+FOREIGN_WORKTREE_STALE_HOURS = 12
+# Keep activity inspection bounded like the NUL scan. A truncated list still
+# has a known activity floor; it is not silently treated as unknown.
+MAX_ACTIVITY_PATHS = 2000
 
 ADVISORY_STATES = ("corrupt", "abandoned", "superseded", "uncommitted", "unknown", "orphaned")
 
@@ -91,7 +97,13 @@ def _parse_worktree_list(output: str) -> list[dict]:
     current: dict = {}
 
     def blank() -> dict:
-        return {"path": None, "branch": None, "locked": False, "prunable": False}
+        return {
+            "path": None,
+            "branch": None,
+            "locked": False,
+            "lock_reason": None,
+            "prunable": False,
+        }
 
     for line in output.splitlines():
         if not line.strip():
@@ -111,6 +123,7 @@ def _parse_worktree_list(output: str) -> list[dict]:
             current["branch"] = None
         elif key == "locked":
             current["locked"] = True
+            current["lock_reason"] = value or None
         elif key == "prunable":
             current["prunable"] = True
     if current:
@@ -118,14 +131,90 @@ def _parse_worktree_list(output: str) -> list[dict]:
     return [entry for entry in entries if entry.get("path")]
 
 
-def _uncommitted_files(worktree: Path) -> int | None:
-    """Count changed paths, or None when git could not answer."""
+def _uncommitted_paths(worktree: Path) -> list[str] | None:
+    """Changed paths, or None when git could not answer."""
     # None is not zero. Reading a failed query as "clean" would feed the
     # superseded verdict, which tells the reader to delete the branch.
-    output = _git(worktree, "status", "--porcelain")
+    output = _git(worktree, "status", "--porcelain=v1", "-z")
     if output is None:
         return None
-    return len([line for line in output.splitlines() if line.strip()])
+    paths: list[str] = []
+    records = output.split("\0")
+    index = 0
+    while index < len(records):
+        record = records[index]
+        index += 1
+        if not record:
+            continue
+        if len(record) < 4 or record[2] != " ":
+            return None
+        paths.append(record[3:])
+        # A rename/copy record carries its source path after the destination.
+        # It is not a second changed path in this worktree, and may no longer
+        # exist, so skip it without another status query.
+        if "R" in record[:2] or "C" in record[:2]:
+            if index >= len(records):
+                return None
+            index += 1
+    return paths
+
+
+def _uncommitted_files(worktree: Path) -> int | None:
+    """Count changed paths from the reporter's one status query."""
+    paths = _uncommitted_paths(worktree)
+    return len(paths) if paths is not None else None
+
+
+def _activity_epoch(
+    root: Path, worktree: Path, committish: str | None, paths: list[str] | None
+) -> float | None:
+    """Freshest non-self-contaminating activity signal for one worktree."""
+    signals: list[float] = []
+    if committish is not None:
+        last_commit_epoch = _last_commit_epoch(root, committish)
+        if last_commit_epoch is not None:
+            signals.append(float(last_commit_epoch))
+    if paths is not None:
+        try:
+            resolved_worktree = worktree.resolve()
+        except OSError:
+            resolved_worktree = None
+        if resolved_worktree is not None:
+            for relative_path in paths[:MAX_ACTIVITY_PATHS]:
+                try:
+                    candidate = (worktree / relative_path).resolve()
+                    candidate.relative_to(resolved_worktree)
+                    signals.append(candidate.stat().st_mtime)
+                except FileNotFoundError:
+                    # A deletion has no file mtime. Its parent changes when
+                    # the deletion happens, which is the bounded, local
+                    # proxy that keeps fresh destructive edits from reading
+                    # as stale without using the self-refreshing index mtime.
+                    parent = candidate.parent
+                    while True:
+                        try:
+                            signals.append(parent.stat().st_mtime)
+                            break
+                        except FileNotFoundError:
+                            if parent == resolved_worktree:
+                                break
+                            parent = parent.parent
+                        except OSError:
+                            break
+                except OSError:
+                    continue
+                except ValueError:
+                    continue
+    try:
+        git_marker = worktree / ".git"
+        # Linked worktrees have a private .git file whose mtime is their
+        # creation floor. The primary checkout has the shared admin directory
+        # instead, and fetches elsewhere can refresh it indefinitely.
+        if git_marker.is_file():
+            signals.append(git_marker.stat().st_mtime)
+    except OSError:
+        pass
+    return max(signals) if signals else None
 
 
 def _unique_commits(root: Path, committish: str | None) -> int | None:
@@ -335,6 +424,7 @@ def collect_worktree_report(
     except OSError:
         return []
 
+    reference_time = time.time() if now is None else now
     report: list[dict] = []
     for index, record in enumerate(_parse_worktree_list(listing)[:MAX_REPORTED_WORKTREES]):
         if record["prunable"]:
@@ -351,6 +441,8 @@ def collect_worktree_report(
         committish = branch or head
         corrupt, _, scan_truncated = scan_for_nul_corruption(str(worktree))
         ahead, behind = _ahead_behind(root, committish)
+        uncommitted_paths = _uncommitted_paths(worktree)
+        last_activity_epoch = _activity_epoch(root, worktree, committish, uncommitted_paths)
 
         pull_requests: int | None = None
         if open_pull_requests is not None and branch is not None:
@@ -365,7 +457,16 @@ def collect_worktree_report(
             "is_main": index == 0,
             "is_current": resolved == current,
             "locked": record["locked"],
-            "uncommitted_files": _uncommitted_files(worktree),
+            "lock_reason": record["lock_reason"],
+            "uncommitted_files": (
+                len(uncommitted_paths) if uncommitted_paths is not None else None
+            ),
+            "last_activity_epoch": last_activity_epoch,
+            "age_hours": (
+                max(0.0, reference_time - last_activity_epoch) / 3600
+                if last_activity_epoch is not None
+                else None
+            ),
             "corrupt_files": len(corrupt),
             "corrupt_paths": corrupt[:5],
             "scan_truncated": scan_truncated,
@@ -384,7 +485,7 @@ def collect_worktree_report(
             worktree_branches,
             open_pull_requests=open_pull_requests,
             stale_days=stale_days,
-            now=now,
+            now=reference_time,
         )
     )
     return report
@@ -509,7 +610,16 @@ def main() -> int:
         open_pull_requests=open_pull_requests_via_gh if args.check_pull_requests else None,
     )
     if args.format == "json":
-        print(json.dumps({"worktrees": report, "advisories": format_advisories(report)}, indent=2))
+        print(
+            json.dumps(
+                {
+                    "foreign_worktree_stale_hours": FOREIGN_WORKTREE_STALE_HOURS,
+                    "worktrees": report,
+                    "advisories": format_advisories(report),
+                },
+                indent=2,
+            )
+        )
         return 0
     advisories = format_advisories(report)
     if not advisories:

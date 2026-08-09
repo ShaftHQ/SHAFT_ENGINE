@@ -46,6 +46,7 @@ ISOLATED_STOP_RULES = (
     # exists for, caught by the equality pin in the commit that added it.
     "check_r20_user_harness_drift",
     "check_r21_run_state_not_recorded",
+    "check_r24_foreign_worktree_left_behind",
 )
 
 
@@ -1925,6 +1926,148 @@ class _NoSubprocess:
         raise OSError("subprocess disabled for the determinism check")
 
 
+class ForeignWorktreeStopGateTest(unittest.TestCase):
+    """R24 / #4546: surface stale foreign work without refusing the Stop retry."""
+
+    def setUp(self):
+        isolate_stop_rules(self, except_for=("check_r24_foreign_worktree_left_behind",))
+
+    def stop(self, payload: dict) -> dict | None:
+        stream = io.StringIO()
+        with redirect_stdout(stream):
+            self.assertEqual(guard.run_stop(payload), 0)
+        text = stream.getvalue().strip()
+        return json.loads(text) if text else None
+
+    def test_stale_foreign_uncommitted_work_reaches_stop(self):
+        """Reachability through `run_stop` prevents a defined but inert report rule."""
+        report = {
+            "foreign_worktree_stale_hours": 12,
+            "worktrees": [
+                {"path": "C:/current", "is_current": True, "state": "clean"},
+                {
+                    "path": "C:/foreign/still-working",
+                    "is_current": False,
+                    "is_remote_only": False,
+                    "state": "uncommitted",
+                    "age_hours": 24,
+                },
+            ]
+        }
+        with patch("scripts.agents.guard._worktree_report", return_value=report):
+            output = self.stop({"cwd": "."})
+
+        self.assertIsNotNone(output)
+        self.assertIn("C:/foreign/still-working", output["reason"])
+        self.assertIn("worktree_hygiene.py --check-pull-requests", output["reason"])
+
+    def test_threshold_is_inclusive_and_fresh_work_is_silent(self):
+        """The 12-hour boundary is exact; a one-second drift changes the safety outcome."""
+        for age, expected in ((12, True), (12 - (1 / 3600), False)):
+            with self.subTest(age=age):
+                reason = guard.check_r24_foreign_worktree_left_behind(
+                    {},
+                    {
+                        "foreign_worktree_stale_hours": 12,
+                        "worktrees": [
+                            {"path": "C:/foreign", "state": "uncommitted", "age_hours": age}
+                        ]
+                    },
+                )
+                self.assertEqual(reason is not None, expected)
+
+    def test_reporter_owned_threshold_controls_foreign_age_selection(self):
+        """#4546: Stop must follow the reporter's one threshold source, not a literal."""
+        worktree = {"path": "C:/foreign", "state": "uncommitted", "age_hours": 24}
+        self.assertIsNone(
+            guard.check_r24_foreign_worktree_left_behind(
+                {}, {"foreign_worktree_stale_hours": 25, "worktrees": [worktree]}
+            )
+        )
+        self.assertIsNotNone(
+            guard.check_r24_foreign_worktree_left_behind(
+                {}, {"foreign_worktree_stale_hours": 24, "worktrees": [worktree]}
+            )
+        )
+
+    def test_unknown_age_and_urgent_states_are_reported_without_waiting(self):
+        """Unknown, corrupt, and unanswerable states cannot be safely aged away."""
+        cases = (
+            {"path": "C:/foreign/unknown-age", "state": "uncommitted", "age_hours": None},
+            {"path": "C:/foreign/corrupt", "state": "corrupt", "age_hours": 0.01},
+            {"path": "C:/foreign/unknown", "state": "unknown", "age_hours": 0.01},
+        )
+        for entry in cases:
+            with self.subTest(entry=entry):
+                reason = guard.check_r24_foreign_worktree_left_behind({}, {"worktrees": [entry]})
+                self.assertIsNotNone(reason)
+        unknown_age = guard.check_r24_foreign_worktree_left_behind(
+            {}, {"worktrees": [cases[0]]}
+        )
+        self.assertIn("age could not be determined", unknown_age)
+
+    def test_current_remote_only_and_nonpreserving_states_stay_silent(self):
+        """R24 does not duplicate current-state gates or surface deletion-oriented advice."""
+        worktrees = [
+            {
+                "path": "C:/current",
+                "is_current": True,
+                "state": "uncommitted",
+                "age_hours": 30,
+            },
+            {
+                "path": "origin/foreign",
+                "is_remote_only": True,
+                "state": "unknown",
+                "age_hours": None,
+            },
+            *[
+                {"path": f"C:/foreign/{state}", "state": state, "age_hours": 30}
+                for state in ("pending", "superseded", "clean", "orphaned")
+            ],
+        ]
+        self.assertIsNone(guard.check_r24_foreign_worktree_left_behind({}, {"worktrees": worktrees}))
+        with patch("scripts.agents.guard._worktree_report", return_value={"worktrees": [worktrees[0]]}):
+            output = self.stop({"cwd": "."})
+        self.assertIsNotNone(output)
+        self.assertIn("Current worktree has uncommitted work", output["reason"])
+        self.assertNotIn("Foreign worktree report", output["reason"])
+
+    def test_message_caps_paths_names_locks_and_avoids_unconfirmed_cleanup_commands(self):
+        """A long report remains actionable without suggesting another agent's work be destroyed."""
+        worktrees = [
+            {
+                "path": f"C:/foreign/{index}",
+                "state": "uncommitted",
+                "age_hours": 24,
+                "locked": index == 0,
+                "lock_reason": "agent session" if index == 0 else None,
+            }
+            for index in range(20)
+        ]
+        reason = guard.check_r24_foreign_worktree_left_behind(
+            {}, {"foreign_worktree_stale_hours": 12, "worktrees": worktrees}
+        )
+        self.assertIsNotNone(reason)
+        self.assertIn("C:/foreign/0", reason)
+        self.assertIn("C:/foreign/1", reason)
+        self.assertIn("C:/foreign/2", reason)
+        self.assertNotIn("C:/foreign/3", reason)
+        self.assertIn("Showing 3 of 20 worktrees", reason)
+        self.assertIn("locked: agent session", reason)
+        self.assertIn("worktree_hygiene.py --check-pull-requests", reason)
+        self.assertNotIn("git worktree remove", reason)
+        self.assertNotIn("git branch -D", reason)
+        self.assertIn("do not commit on its behalf", reason)
+        self.assertIn("gh issue comment <tracker>", reason)
+
+    def test_malformed_reports_are_silent_rather_than_raising(self):
+        """A corrupt helper payload cannot kill the hook process."""
+        for report in (None, {}, {"worktrees": {}}, {"worktrees": [{"state": "uncommitted"}]}):
+            with self.subTest(report=report):
+                self.assertIsNone(guard.check_r24_foreign_worktree_left_behind({}, report))
+
+
 class StopTestsAreIndependentOfLiveStateTest(unittest.TestCase):
     """#4555: assert determinism directly instead of enumerating the readers.
 
@@ -1957,6 +2100,7 @@ class StopTestsAreIndependentOfLiveStateTest(unittest.TestCase):
         "UnpushedWorkStopGateTest",
         "LearningLoopStopGateTest",
         "RunStateStopGateTest",
+        "ForeignWorktreeStopGateTest",
     )
 
     def subjects(self) -> unittest.TestSuite:

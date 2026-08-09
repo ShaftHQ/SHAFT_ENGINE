@@ -3191,6 +3191,73 @@ def check_r21_run_state_not_recorded(hook_input: dict) -> str | None:
     )
 
 
+def check_r24_foreign_worktree_left_behind(hook_input: dict, report: dict | None) -> str | None:
+    """Report stale foreign worktrees from the already-fetched hygiene report (#4546)."""
+    # This rule is deliberately pure over `report`: Stop tests disable every
+    # subprocess and require identical outcomes, while the reporter remains
+    # the single live reader. `hook_input` stays in the signature so all Stop
+    # rules have one shape for isolation and dispatch.
+    del hook_input
+    if not isinstance(report, dict):
+        return None
+    worktrees = report.get("worktrees")
+    if not isinstance(worktrees, list):
+        return None
+    threshold = report.get("foreign_worktree_stale_hours")
+    if not isinstance(threshold, (int, float)) or isinstance(threshold, bool) or threshold < 0:
+        threshold = None
+
+    candidates: list[str] = []
+    for entry in worktrees:
+        if not isinstance(entry, dict):
+            continue
+        if entry.get("is_current") or entry.get("is_remote_only"):
+            continue
+        state = entry.get("state")
+        path = entry.get("path")
+        if state not in ("corrupt", "unknown", "uncommitted", "abandoned") or not isinstance(
+            path, str
+        ) or not path:
+            continue
+
+        if state in ("uncommitted", "abandoned"):
+            if "age_hours" not in entry:
+                continue
+            age = entry["age_hours"]
+            if age is None:
+                age_description = "its age could not be determined"
+            elif (
+                threshold is not None
+                and isinstance(age, (int, float))
+                and not isinstance(age, bool)
+                and age >= threshold
+            ):
+                age_description = f"{age:.1f} hour(s) since recorded activity"
+            else:
+                continue
+        else:
+            age_description = "age-independent"
+
+        lock_description = ""
+        if entry.get("locked"):
+            reason = entry.get("lock_reason")
+            lock_description = f"; locked: {reason}" if isinstance(reason, str) and reason else "; locked"
+        candidates.append(f"{path} ({state}; {age_description}{lock_description})")
+
+    if not candidates:
+        return None
+    shown = "; ".join(candidates[:3])
+    remaining = "" if len(candidates) <= 3 else f" Showing 3 of {len(candidates)} worktrees."
+    return (
+        f"Foreign worktree report: {shown}.{remaining} Run `py -3 scripts/ci/"
+        "worktree_hygiene.py --check-pull-requests` to inspect the current state. "
+        "This interrupts once per turn: `stop_hook_active` makes the retry proceed. "
+        "For any worktree you do not own, do not commit on its behalf; name it with "
+        "`gh issue comment <tracker>` so it outlives this session. Only after confirming "
+        "ownership and redundancy should any cleanup be considered."
+    )
+
+
 def run_stop(hook_input: dict) -> int:
     """Continue incomplete repository work once, without creating a Stop loop."""
     if hook_input.get("stop_hook_active") is True:
@@ -3203,6 +3270,7 @@ def run_stop(hook_input: dict) -> int:
     # that worse. It is also better for the reader -- an agent ending its
     # turn learns everything it owes at once, instead of discovering the
     # next duty only after satisfying the previous one.
+    report = _worktree_report(_hook_working_directory(hook_input))
     reasons = [
         item
         for item in (
@@ -3211,10 +3279,10 @@ def run_stop(hook_input: dict) -> int:
             check_r18_unpushed_work(hook_input),
             check_r20_user_harness_drift(hook_input),
             check_r21_run_state_not_recorded(hook_input),
+            check_r24_foreign_worktree_left_behind(hook_input, report),
         )
         if item is not None
     ]
-    report = _worktree_report(_hook_working_directory(hook_input))
     if report is None:
         reason = "Completion hygiene could not be verified; inspect the current worktree."
     else:
@@ -3474,6 +3542,7 @@ _SELF_TEST_COVERAGE: dict[str, str] = {
     "check_r20_user_harness_drift": "run_required_action_self_test",
     "check_r21_run_state_not_recorded": "run_required_action_self_test",
     "check_r22_dispatch_adapter": "run_required_action_self_test",
+    "check_r24_foreign_worktree_left_behind": "run_required_action_self_test",
 }
 
 
@@ -3555,6 +3624,19 @@ _STOP_RULE_RENDERERS = {
     "check_r21_run_state_not_recorded": lambda: _with_stubs(
         {"ledger_events": lambda payload: ["delegate-dispatch", "commit"]},
         lambda: check_r21_run_state_not_recorded({"session_id": "s"}),
+    ),
+    "check_r24_foreign_worktree_left_behind": lambda: check_r24_foreign_worktree_left_behind(
+        {},
+        {
+            "foreign_worktree_stale_hours": 12,
+            "worktrees": [
+                {
+                    "path": "C:/foreign/stale",
+                    "state": "uncommitted",
+                    "age_hours": 24,
+                }
+            ]
+        },
     ),
 }
 
@@ -3873,6 +3955,36 @@ def run_required_action_self_test() -> int:
         _with_stubs(
             {"ledger_events": lambda payload: ["commit"]},
             lambda: check_r21_run_state_not_recorded({"session_id": "s"}),
+        )
+        is None,
+    )
+
+    # R24: a stale foreign worktree is report-only and carries no live reader.
+    foreign_report = {
+        "foreign_worktree_stale_hours": 12,
+        "worktrees": [
+            {"path": "C:/current", "is_current": True, "state": "clean"},
+            {
+                "path": "C:/foreign/stale",
+                "state": "uncommitted",
+                "age_hours": 12,
+            },
+        ]
+    }
+    check(
+        "R24 reports foreign uncommitted work at the twelve-hour threshold",
+        check_r24_foreign_worktree_left_behind({}, foreign_report) is not None,
+    )
+    check(
+        "R24 is silent for fresh foreign uncommitted work",
+        check_r24_foreign_worktree_left_behind(
+            {},
+            {
+                "foreign_worktree_stale_hours": 12,
+                "worktrees": [
+                    {"path": "C:/foreign/fresh", "state": "uncommitted", "age_hours": 1}
+                ],
+            },
         )
         is None,
     )
