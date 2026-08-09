@@ -104,6 +104,40 @@ class ValidateAgentPluginsTest(unittest.TestCase):
             ["warning"],
         )
 
+    def test_rejects_each_invalid_permitted_manifest_field(self):
+        invalid_fields = {
+            "version": 7,
+            "description": ["not a string"],
+            "homepage": 7,
+            "repository": 7,
+            "license": 7,
+            "author": {"unexpected": "field"},
+            "keywords": ["valid", 7],
+            "extensions": {"org.example": "not an object"},
+        }
+        for field, value in invalid_fields.items():
+            with self.subTest(field=field):
+                self.manifest = {"$schema": SCHEMA_URL, "name": "fixture-plugin", field: value}
+                self.write_manifest()
+                self.assertEqual(self.codes(), {"manifest-field"})
+
+    def test_accepts_a_complete_valid_manifest(self):
+        self.manifest.update(
+            {
+                "version": "1.0.0",
+                "description": "A portable package fixture.",
+                "author": {"name": "ShaftHQ", "email": "maintainers@example.test", "url": "https://example.test"},
+                "homepage": "https://example.test",
+                "repository": "https://github.com/ShaftHQ/SHAFT_ENGINE",
+                "license": "MIT",
+                "keywords": ["agent", "fixture"],
+                "extensions": {"org.example": {"host-setting": "enabled"}},
+            }
+        )
+        self.write_manifest()
+
+        self.assertEqual(validate_package(self.root), [])
+
     def test_accepts_complete_crlf_skill_frontmatter(self):
         self.write_skill(line_ending="\r\n")
 
@@ -123,10 +157,58 @@ class ValidateAgentPluginsTest(unittest.TestCase):
 
         self.assertEqual(self.codes(), {"skill-name"})
 
+    def test_rejects_each_invalid_optional_skill_field(self):
+        invalid_fields = {
+            "license": "license: []",
+            "compatibility": "compatibility: []",
+            "metadata": "metadata: []",
+            "allowed-tools": "allowed-tools: []",
+        }
+        for field, line in invalid_fields.items():
+            with self.subTest(field=field):
+                self.write(
+                    "skills/valid-skill/SKILL.md",
+                    "---\n"
+                    "name: valid-skill\n"
+                    "description: A valid skill with one invalid optional field.\n"
+                    f"{line}\n"
+                    "---\n",
+                )
+                self.assertEqual(self.codes(), {"skill-field"})
+
+    def test_accepts_valid_optional_skill_fields(self):
+        self.write(
+            "skills/valid-skill/SKILL.md",
+            "---\n"
+            "name: valid-skill\n"
+            "description: A valid skill with optional metadata for testing.\n"
+            "license: MIT\n"
+            "compatibility: Requires Python.\n"
+            "metadata:\n"
+            "  author: ShaftHQ\n"
+            "  version: \"1.0\"\n"
+            "allowed-tools: Read Bash(git:*)\n"
+            "---\n",
+        )
+
+        self.assertEqual(validate_package(self.root), [])
+
     def test_containment_predicate_rejects_a_lexical_escape_without_symlink_support(self):
         self.assertTrue(callable(resolves_inside), "resolves_inside must be available")
 
         self.assertFalse(resolves_inside(self.root, self.root / ".." / "outside"))
+
+    def test_absent_skills_component_is_ignored(self):
+        self.assertEqual(validate_package(self.root), [])
+
+    def test_rejects_a_dangling_skills_link_outside_the_package(self):
+        outside = self.root.parent / "missing-outside"
+        try:
+            (self.root / "skills").symlink_to(outside, target_is_directory=True)
+        except OSError as error:  # unprivileged Windows runner
+            self.skipTest(f"symlinks unavailable: {error}")
+
+        self.assertEqual(self.codes(), {"component-escapes-root"})
 
     def test_rejects_a_skills_directory_that_resolves_outside_the_package(self):
         outside = self.root.parent / "outside"

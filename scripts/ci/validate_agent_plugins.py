@@ -6,7 +6,7 @@ import os
 import re
 from pathlib import Path
 
-from scripts.ci.validate_agent_guidance import parse_frontmatter
+import yaml
 
 SCHEMA_URL = "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json"
 MANIFEST_PATH = "plugin.json"
@@ -43,6 +43,24 @@ def resolves_inside(root: Path, candidate: Path) -> bool:
 def has_directory_entry(path: Path) -> bool:
     """Detect a path entry without following a dangling link or junction."""
     return os.path.lexists(path)
+
+
+def parse_skill_frontmatter(content: str) -> dict | None:
+    """Load complete YAML frontmatter without accepting an unclosed marker."""
+    content = content.replace("\r\n", "\n").replace("\r", "\n")
+    if not content.startswith("---\n"):
+        return None
+    marker = content.find("\n---", 4)
+    if marker < 0:
+        return None
+    after_marker = content[marker + 4 :]
+    if after_marker and not after_marker.startswith("\n"):
+        return None
+    try:
+        frontmatter = yaml.safe_load(content[4:marker])
+    except yaml.YAMLError:
+        return None
+    return frontmatter if isinstance(frontmatter, dict) else None
 
 
 def manifest_field_errors(manifest: dict) -> list[dict[str, str]]:
@@ -143,7 +161,7 @@ def validate_skills(root: Path) -> list[dict[str, str]]:
         except (OSError, UnicodeDecodeError) as error:
             findings.append(issue("skill-read", relative_path, f"SKILL.md cannot be read: {error}"))
             continue
-        frontmatter = parse_frontmatter(skill.replace("\r\n", "\n").replace("\r", "\n"))
+        frontmatter = parse_skill_frontmatter(skill)
         if frontmatter is None:
             findings.append(issue("skill-frontmatter", relative_path, "SKILL.md must start with YAML frontmatter"))
             continue
@@ -157,6 +175,19 @@ def validate_skills(root: Path) -> list[dict[str, str]]:
             findings.append(
                 issue("skill-description", relative_path, "frontmatter description must contain 1-1024 characters")
             )
+        optional_string_limits = {"license": None, "compatibility": 500, "allowed-tools": None}
+        for field, maximum_length in optional_string_limits.items():
+            if field not in frontmatter:
+                continue
+            value = frontmatter[field]
+            if not isinstance(value, str) or (maximum_length is not None and not 1 <= len(value) <= maximum_length):
+                findings.append(issue("skill-field", relative_path, f"{field} must be a valid string"))
+        if "metadata" in frontmatter:
+            metadata = frontmatter["metadata"]
+            if not isinstance(metadata, dict) or not all(
+                isinstance(key, str) and isinstance(value, str) for key, value in metadata.items()
+            ):
+                findings.append(issue("skill-field", relative_path, "metadata must map string keys to string values"))
     return findings
 
 
