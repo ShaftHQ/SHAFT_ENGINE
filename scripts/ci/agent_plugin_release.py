@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 import re
 import hashlib
-import shutil
+import os
 import sys
 import tempfile
 import zipfile
@@ -61,13 +61,13 @@ def release_version(repository_root: Path, package_name: str, requested: str | N
 
 def write_deterministic_zip(package_root: Path, archive: Path) -> None:
     """Archive package files in lexical order with fixed portable metadata."""
-    with zipfile.ZipFile(archive, "w", compression=zipfile.ZIP_DEFLATED, compresslevel=9) as output:
+    with zipfile.ZipFile(archive, "w", compression=zipfile.ZIP_STORED) as output:
         for source in sorted(path for path in package_root.rglob("*") if path.is_file()):
             entry = zipfile.ZipInfo(source.relative_to(package_root).as_posix(), (1980, 1, 1, 0, 0, 0))
             entry.create_system = 3
             entry.external_attr = 0o100644 << 16
-            entry.compress_type = zipfile.ZIP_DEFLATED
-            output.writestr(entry, source.read_bytes(), compress_type=zipfile.ZIP_DEFLATED, compresslevel=9)
+            entry.compress_type = zipfile.ZIP_STORED
+            output.writestr(entry, source.read_bytes(), compress_type=zipfile.ZIP_STORED)
 
 
 def write_checksum(archive: Path) -> Path:
@@ -86,12 +86,9 @@ def build_release_artifacts(repository_root: Path, output_directory: Path) -> li
 
     repository_root = Path(repository_root).resolve()
     output_directory = Path(output_directory)
-    if output_directory.exists() and not output_directory.is_dir():
-        raise ValueError(f"release artifact output must be a directory: {output_directory}")
-    if output_directory.exists() and any(output_directory.iterdir()):
-        raise ValueError(f"release artifact output must be empty: {output_directory}")
+    if output_directory.exists():
+        raise ValueError(f"release artifact output must not already exist: {output_directory}")
     output_directory.parent.mkdir(parents=True, exist_ok=True)
-    output_directory.mkdir(parents=True, exist_ok=True)
     assemblers = {
         "act-as-mohab": assemble_act_as_mohab,
         "shaft-skills": assemble_shaft_skills,
@@ -118,8 +115,7 @@ def build_release_artifacts(repository_root: Path, output_directory: Path) -> li
             archive = staged_assets / f"{package_name}-{version}.zip"
             write_deterministic_zip(package_root, archive)
             artifacts.extend((archive, write_checksum(archive)))
-        for asset in artifacts:
-            shutil.move(str(asset), output_directory / asset.name)
+        os.replace(staged_assets, output_directory)
     return [output_directory / asset.name for asset in artifacts]
 
 
@@ -127,7 +123,7 @@ def main() -> int:
     import argparse
 
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("output", type=Path, help="empty directory for ZIP and checksum assets")
+    parser.add_argument("output", type=Path, help="new directory for ZIP and checksum assets")
     parser.add_argument("--repository-root", type=Path, default=ROOT)
     arguments = parser.parse_args()
     build_release_artifacts(arguments.repository_root, arguments.output)

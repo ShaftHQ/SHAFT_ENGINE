@@ -76,6 +76,7 @@ class AgentPluginReleaseTest(unittest.TestCase):
                     self.assertIn("CHANGELOG.md", package.namelist())
                     self.assertIn("COMPATIBILITY.md", package.namelist())
                     self.assertTrue(all(item.create_system == 3 for item in package.infolist()))
+                    self.assertTrue(all(item.compress_type == zipfile.ZIP_STORED for item in package.infolist()))
 
     def test_failed_package_validation_leaves_no_partial_release_assets(self):
         self.assertTrue(callable(build_release_artifacts), "release artifact builder must be available")
@@ -87,7 +88,18 @@ class AgentPluginReleaseTest(unittest.TestCase):
                 with self.assertRaisesRegex(ValueError, "plugin.json: invalid test package"):
                     build_release_artifacts(repository_root, output)
 
-            self.assertEqual(list(output.iterdir()), [])
+            self.assertFalse(output.exists())
+
+    def test_failed_final_promotion_leaves_no_partial_release_assets(self):
+        self.assertTrue(callable(build_release_artifacts), "release artifact builder must be available")
+        repository_root = Path(__file__).resolve().parents[2]
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            output = Path(temporary_directory) / "assets"
+            with mock.patch("scripts.ci.agent_plugin_release.os.replace", side_effect=OSError("test failure")):
+                with self.assertRaisesRegex(OSError, "test failure"):
+                    build_release_artifacts(repository_root, output)
+
+            self.assertFalse(output.exists())
 
 
 if __name__ == "__main__":

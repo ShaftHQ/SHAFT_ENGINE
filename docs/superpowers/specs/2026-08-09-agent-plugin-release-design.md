@@ -51,7 +51,8 @@ installation, and real-load evidence per client. Package assembly receives the
 declared version rather than hard-coding `1.0.0`. The release-artifact script
 accepts an empty output directory, assembles both packages, runs the existing
 validator, creates one ZIP and one `.sha256` file per package, and prints their
-paths.
+paths. Its output path must be new, so all assets can be promoted atomically as
+one directory.
 
 Both normal-release paths supply those files as release assets. They do not
 publish them for ordinary `main` commits; assets are attached only after Maven,

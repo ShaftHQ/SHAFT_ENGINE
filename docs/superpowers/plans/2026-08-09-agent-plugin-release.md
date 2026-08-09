@@ -37,7 +37,7 @@
 
 - [ ] Write a failing test for `build_release_artifacts(ROOT, output)`: it must emit exactly two versioned ZIPs and two matching `.sha256` files; both output sets must have byte-identical names and content.
 - [ ] Run RED: `py -3 -m unittest tests.scripts.test_agent_plugin_release.AgentPluginReleaseTest.test_build_release_artifacts_is_deterministic -v`.
-- [ ] Load release metadata, call both assemblers, validate each package, write sorted fixed-timestamp ZIP entries, and emit `<sha256>  <archive-name>` checksum files.
+- [ ] Load release metadata, call both assemblers, validate each package, write sorted fixed-timestamp uncompressed ZIP entries, and atomically promote one new output directory containing `<sha256>  <archive-name>` checksum files.
 - [ ] Reject an unchanged package version when its package payload has changed since the most recent tagged release manifest.
 - [ ] Run GREEN: `py -3 -m unittest tests.scripts.test_agent_plugin_release tests.scripts.test_assemble_act_as_mohab_plugin tests.scripts.test_assemble_shaft_skills_plugin -v`.
 - [ ] Commit: `feat(ci): build portable plugin release assets (#4576)`.
