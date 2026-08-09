@@ -16,7 +16,7 @@ public class JunitTest {
     @Test
     void testMethod() {
         loginAndCaptureEvidence();
-        driver.get().assertThat().url().contains("inventory.html").perform();
+        driver.get().assertThat().browser().url().contains("inventory.html").perform();
     }
 
     @Test

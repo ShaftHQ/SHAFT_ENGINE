@@ -16,7 +16,7 @@ public class BigPageActionsTest {
     @Test
     public void virtualThreads_1_sequential() {
         loginAndCaptureEvidence();
-        driver.get().assertThat().url().contains("inventory.html").perform();
+        driver.get().assertThat().browser().url().contains("inventory.html").perform();
     }
 
     @Test
