@@ -1173,13 +1173,18 @@ class CiGateIsBlockingTest(unittest.TestCase):
         filters = yaml.safe_load(workflow["jobs"]["changes"]["steps"][1]["with"]["filters"])
         guarded = set(filters["agent_guidance"])
         for required in (
+            ".github/workflows/mavenCentral_cd.yml",
+            "agent-plugins/**",
+            "scripts/ci/agent_plugin_release.py",
             "scripts/ci/validate_agent_plugins.py",
+            "tests/scripts/test_agent_plugin_release.py",
             "tests/scripts/test_validate_agent_plugins.py",
         ):
             self.assertIn(required, guarded, f"guidance filter misses {required}")
         commands = " ".join(
             str(step.get("run", "")) for step in workflow["jobs"]["agent-guidance"]["steps"]
         )
+        self.assertIn("tests.scripts.test_agent_plugin_release", commands)
         self.assertIn("tests.scripts.test_validate_agent_plugins", commands)
 
     def test_dependency_review_runs_only_for_dependency_bearing_diffs(self):
