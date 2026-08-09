@@ -2385,7 +2385,7 @@ def _sync_advisory() -> str | None:
         return None
     try:
         completed = subprocess.run(  # nosec B603 - fixed repository helper.
-            [sys.executable, helper],
+            [sys.executable, helper, "--json"],
             cwd=_harness_root(),
             capture_output=True,
             text=True,
@@ -2396,6 +2396,11 @@ def _sync_advisory() -> str | None:
         return "User harness sync check was unavailable; verify it before completion."
     if completed.returncode == 0:
         return None
+    if completed.returncode == 2:
+        return (
+            "User harness sync has a hard failure. Inspect the reported missing, invalid, "
+            "or conflicting target before completion; it needs a decision rather than deployment."
+        )
     return (
         "User harness drift detected. Review the tracked harness, then run "
         "`py -3 scripts/agents/sync_user_harness.py --apply` and re-check it."
@@ -3026,8 +3031,8 @@ def _branch_edits_harness_sources(cwd: object = None) -> bool:
     Deliberately coarse, and the trade is stated rather than hidden: this also
     silences genuine staleness for the life of such a branch. The precise
     version compares drift per file against what the branch touched, which
-    needs a machine-readable mode on the sync tool that does not exist yet --
-    filed rather than approximated here, because parsing its printed labels
+    needs the machine-readable mode tracked in #4557 rather than parsing printed
+    labels, because parsing its printed labels
     would couple this rule to a print format.
 
     Committed and uncommitted both count: an edit in the working tree changes

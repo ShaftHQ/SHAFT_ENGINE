@@ -1529,6 +1529,16 @@ class UserHarnessDriftStopGateTest(unittest.TestCase):
         with patch("scripts.agents.guard._uncommitted_file_count", return_value=4):
             self.assertIsNone(guard.check_r14_hard_reset(remedy, "Bash", "."))
 
+    @patch(
+        "scripts.agents.guard.subprocess.run",
+        return_value=subprocess.CompletedProcess([], 2, "", ""),
+    )
+    def test_hard_sync_failure_does_not_recommend_apply(self, _run):
+        advisory = guard._sync_advisory()
+        self.assertIsNotNone(advisory)
+        self.assertIn("hard failure", advisory)
+        self.assertNotIn("--apply", advisory)
+
 
 class LedgerIsAppendOnlyAndReapedTest(unittest.TestCase):
     """#4552: a read-modify-write loses whole events, and files lived forever.
