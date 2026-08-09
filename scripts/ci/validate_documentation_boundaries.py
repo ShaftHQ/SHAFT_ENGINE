@@ -45,6 +45,7 @@ ALLOWED_GLOBS = (
     "skills/*/SKILL.md",
     "shaft-skills/*.md",
     "shaft-skills/**/*.md",
+    "agent-plugins/**/*.md",
     "tools/**/*.md",
     "*/src/test/resources/fixtures/**/*.md",
 )
