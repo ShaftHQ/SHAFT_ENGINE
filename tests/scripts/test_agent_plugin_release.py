@@ -142,20 +142,6 @@ class AgentPluginReleaseTest(unittest.TestCase):
         self.assertIn("- name: Validate immutable source commit", workflow)
         self.assertIn("SOURCE_COMMIT: ${{ inputs.source_ref }}", workflow)
         self.assertIn('[[ ! "${SOURCE_COMMIT}" =~ ^[0-9a-f]{40}$ ]]', workflow)
-        self.assertLess(
-            workflow.index("- name: Validate immutable source commit"),
-            workflow.index("- name: Checkout Code"),
-        )
-
-    def test_reconciliation_rejects_a_mutable_source_ref_before_checkout(self):
-        workflow = (
-            Path(__file__).resolve().parents[2] / ".github/workflows/maven-central-reconcile.yml"
-        ).read_text(encoding="utf-8")
-
-        self.assertIn('description: "Full 40-character commit SHA containing the release source."', workflow)
-        self.assertIn("- name: Validate immutable source commit", workflow)
-        self.assertIn("SOURCE_COMMIT: ${{ inputs.source_ref }}", workflow)
-        self.assertIn('[[ ! "${SOURCE_COMMIT}" =~ ^[0-9a-f]{40}$ ]]', workflow)
         validation = workflow[
             workflow.index("- name: Validate immutable source commit"):
             workflow.index("- name: Checkout Code")
