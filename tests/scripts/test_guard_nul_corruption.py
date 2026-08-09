@@ -41,8 +41,21 @@ class ShellMultilineGuardTest(unittest.TestCase):
 
     def test_rejects_multiline_shell_metadata_but_allows_single_line_message(self):
         self.assertIsNotNone(evaluate_command('git commit -m "first\nsecond"'))
+        self.assertIsNotNone(evaluate_command('git commit -m"first\nsecond"'))
+        self.assertIsNotNone(evaluate_command('git commit --message="first\nsecond"'))
         self.assertIsNotNone(evaluate_command("cat <<EOF\ntext\nEOF"))
+        self.assertIsNotNone(evaluate_command("cat <<'END-TEXT'\ntext\nEND-TEXT"))
+        self.assertIsNotNone(evaluate_command("cat <<END.TEXT\ntext\nEND.TEXT"))
+        self.assertIsNotNone(evaluate_command("cat <<'END TEXT'\ntext\nEND TEXT"))
+        self.assertIsNotNone(evaluate_command("cat <<\\END-TEXT\ntext\nEND-TEXT"))
+        self.assertIsNotNone(evaluate_command("cat <<-EOF\n\ttext\n\tEOF"))
+        self.assertIsNotNone(evaluate_command("gh issue create --body x; cat <<EOF\ntext\nEOF"))
         self.assertIsNone(evaluate_command('git commit -m "single line"'))
+        self.assertIsNone(evaluate_command('python -c "print(1 << 2)"'))
+        self.assertIsNone(
+            evaluate_command("gh pr create --title 'Fix A & B' --body-file - <<'EOF'\ntext\nEOF")
+        )
+        self.assertIsNone(evaluate_command("gh pr create --body-file - <<'END-TEXT'\ntext\nEND-TEXT"))
 
 
 def git(cwd: Path, *arguments: str) -> subprocess.CompletedProcess:

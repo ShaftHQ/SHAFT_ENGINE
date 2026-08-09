@@ -91,9 +91,17 @@ _HEADLESS_TRUE_RE = re.compile(r"-DheadlessExecution=true\b", re.IGNORECASE)
 # mvn/allure token must then be the executable at the start of its command
 # segment (allowing env-var assignments and common runner/wrapper prefixes).
 
-# Bash/POSIX heredoc bodies: <<EOF ... EOF (optionally quoted/indented tag).
+# Canonical Bash/POSIX heredoc bodies: <<EOF ... EOF, including whole quoted
+# or backslash-quoted delimiters. Constructed shell words remain outside this
+# workflow guard's deliberately small parser boundary.
 _BASH_HEREDOC_RE = re.compile(
-    r"<<-?\s*([\"']?)(\w+)\1.*?(?:\r?\n)\s*\2(?=\s|$)", re.DOTALL
+    r"<<-?\s*(?:"
+    r"'(?P<sq_delim>[^'\r\n]+)'|"
+    r'"(?P<dq_delim>[^"\r\n]+)"|'
+    r"\\(?P<escaped_delim>[^\s;|&<>\r\n]+)|"
+    r"(?P<bare_delim>[^\s;|&<>\r\n]+)"
+    r").*?(?:\r?\n)\s*(?:(?P=sq_delim)|(?P=dq_delim)|(?P=escaped_delim)|(?P=bare_delim))(?=\s|$)",
+    re.DOTALL,
 )
 # PowerShell here-strings: @' ... '@ and @" ... "@ (bodies are data).
 _PS_HERE_STRING_RE = re.compile(r"@(['\"])\r?\n.*?\r?\n\1@", re.DOTALL)
@@ -571,16 +579,25 @@ def check_r8_git_stash(command: str) -> str | None:
 
 def check_r23_shell_multiline_text(command: str) -> str | None:
     """Refuse multiline text in source-writing shells and git commit metadata."""
-    github_prose = re.search(
-        r"\bgh\s+(?:issue|pr)\s+(?:create|edit)\b.*--body(?:-file)?(?:\s|=)",
+    for match in (*_BASH_HEREDOC_RE.finditer(command), *_PS_HERE_STRING_RE.finditer(command)):
+        segment = _SEGMENT_SPLIT_RE.split(_blank_prose_quotes(command[: match.start()]))[-1]
+        github_prose = re.search(
+            r"^\s*gh(?:\.exe)?\s+(?:issue|pr)\s+(?:create|edit)\b"
+            r".*--body(?:-file)?(?=\s|=|$)",
+            segment,
+            re.DOTALL,
+        )
+        if not github_prose:
+            break
+    else:
+        match = None
+    multiline_commit = re.search(
+        r"\bgit\s+commit\b.*(?:--message(?:\s+|=)|-m(?:\s+|(?=['\"])))"
+        r"['\"][^'\"]*\r?\n",
         command,
         re.DOTALL,
     )
-    writes_source = ("<<" in command or _PS_HERE_STRING_RE.search(command)) and not github_prose
-    multiline_commit = re.search(
-        r"\bgit\s+commit\b.*(?:--message|-m)\s+['\"][^'\"]*\r?\n", command, re.DOTALL
-    )
-    if not writes_source and not multiline_commit:
+    if match is None and not multiline_commit:
         return None
     return (
         "Do not pass multiline text through the shell. Use apply_patch for source, "
@@ -3366,6 +3383,8 @@ _SELF_TEST_CASES: list[tuple[str, str, bool]] = [
     # `gh issue create --body` (issue #4147) ---
     ("git commit -m mentioning 'explorer' in prose is not a real command",
      'git commit -m "explorer word appears in this commit message only"', False),
+    ("R23 blocks multiline git commit metadata", 'git commit -m "first\nsecond"', True),
+    ("R23 blocks source-writing heredocs", "cat <<EOF\ntext\nEOF", True),
     ("gh issue create --body mentioning 'rundll32' in prose is not a real command",
      'gh issue create --body "this body discusses rundll32 in prose only"', False),
     ("gh pr create --title mentioning 'Start-Process' in prose is not a real command",
