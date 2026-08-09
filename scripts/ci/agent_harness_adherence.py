@@ -21,6 +21,10 @@ def _is_windows_reserved_name(part: str) -> bool:
     return part.split(".", 1)[0].upper() in WINDOWS_RESERVED_NAMES
 
 
+def _is_nonempty_string(value: object) -> bool:
+    return isinstance(value, str) and bool(value)
+
+
 def _is_safe_relative_file(path: object) -> bool:
     if not isinstance(path, str) or not path:
         return False
@@ -89,6 +93,13 @@ def validate_corpus(corpus: dict) -> list[str]:
         elif any(
             not isinstance(expectation, dict)
             or expectation.get("kind") not in VALID_EXPECTATION_KINDS
+            or expectation.get("kind") in {"requires", "forbids"}
+            and not _is_nonempty_string(expectation.get("action"))
+            or expectation.get("kind") == "guard"
+            and (
+                not _is_nonempty_string(expectation.get("outcome"))
+                or not _is_nonempty_string(expectation.get("remedy"))
+            )
             for expectation in expectations
         ):
             errors.append(f"{identifier}: expectation kind is invalid")
@@ -110,3 +121,100 @@ def materialize_workspace(episode: dict, directory: Path) -> Path:
         destination.parent.mkdir(parents=True, exist_ok=True)
         destination.write_text(contents, encoding="utf-8")
     return root
+
+
+def _expectation_result(expectation: dict, evidence: dict) -> bool | None:
+    if expectation["kind"] == "requires":
+        if not isinstance(evidence.get("actions"), list):
+            return None
+        return expectation.get("action") in evidence.get("actions", [])
+    if expectation["kind"] == "forbids":
+        if not isinstance(evidence.get("actions"), list):
+            return None
+        return expectation.get("action") not in evidence.get("actions", [])
+    if not isinstance(evidence.get("guard_outcomes"), list):
+        return None
+    return any(
+        outcome.get("outcome") == expectation.get("outcome")
+        and outcome.get("remedy") == expectation.get("remedy")
+        and _is_nonempty_string(outcome.get("remedy"))
+        for outcome in evidence.get("guard_outcomes", [])
+        if isinstance(outcome, dict)
+    )
+
+
+def evaluate(corpus: dict, evidence_by_episode: dict) -> dict:
+    """Evaluate recorded action evidence against a validated corpus."""
+    errors = validate_corpus(corpus)
+    if errors:
+        raise ValueError("; ".join(errors))
+
+    rules: dict[str, dict] = {}
+    episodes: dict[str, dict] = {}
+    unmeasured_rule_ids: set[str] = set()
+    false_block_count = 0
+    actionable_remedy_count = 0
+    for episode in corpus["episodes"]:
+        identifier = episode["id"]
+        episode_evidence = evidence_by_episode.get(identifier)
+        if not isinstance(episode_evidence, dict):
+            episodes[identifier] = {"strict_episode_pass": None, "expectations": []}
+            unmeasured_rule_ids.update(episode["rule_ids"])
+            continue
+
+        expectation_results = []
+        guard_outcomes = episode_evidence.get("guard_outcomes")
+        guard_outcomes = guard_outcomes if isinstance(guard_outcomes, list) else []
+        for expectation in episode["expectations"]:
+            passed = _expectation_result(expectation, episode_evidence)
+            expectation_results.append({"kind": expectation["kind"], "passed": passed})
+            for rule_id in episode["rule_ids"]:
+                rule = rules.setdefault(
+                    rule_id,
+                    {
+                        "required_action_adherence": {"passed": 0, "total": 0},
+                        "prohibited_action_adherence": {"passed": 0, "total": 0},
+                    },
+                )
+                metric = {
+                    "requires": "required_action_adherence",
+                    "forbids": "prohibited_action_adherence",
+                }.get(expectation["kind"])
+                if metric:
+                    if passed is not None:
+                        rule[metric]["total"] += 1
+                        if passed:
+                            rule[metric]["passed"] += 1
+            if passed is None:
+                unmeasured_rule_ids.update(episode["rule_ids"])
+        if any(
+            expectation["kind"] == "guard" and expectation.get("outcome") == "silent"
+            for expectation in episode["expectations"]
+        ):
+            false_block_count += sum(
+                outcome.get("outcome") == "blocks"
+                for outcome in guard_outcomes
+                if isinstance(outcome, dict)
+            )
+        actionable_remedy_count += sum(
+            bool(outcome.get("remedy")) and outcome.get("remedy") != "none"
+            for outcome in guard_outcomes
+            if isinstance(outcome, dict)
+        )
+        episodes[identifier] = {
+            "strict_episode_pass": (
+                None
+                if any(result["passed"] is None for result in expectation_results)
+                else all(result["passed"] for result in expectation_results)
+            ),
+            "expectations": expectation_results,
+        }
+    return {
+        "episodes": episodes,
+        "rules": rules,
+        "guard_metrics": {
+            "false_block_count": false_block_count,
+            "actionable_remedy_count": actionable_remedy_count,
+        },
+        "unmeasured_rule_ids": sorted(unmeasured_rule_ids),
+    }

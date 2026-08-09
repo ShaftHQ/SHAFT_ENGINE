@@ -20,6 +20,9 @@ except ModuleNotFoundError:
 
 
 class AgentHarnessAdherenceTest(unittest.TestCase):
+    def load_fixture(self, name: str) -> dict:
+        return json.loads((FIXTURES / name).read_text(encoding="utf-8"))
+
     def test_validate_corpus_accepts_the_reviewed_fixture(self) -> None:
         validator = getattr(adherence, "validate_corpus", None)
         self.assertTrue(callable(validator), "the corpus validator must be available")
@@ -93,6 +96,88 @@ class AgentHarnessAdherenceTest(unittest.TestCase):
             any("escape workspace path" in error for error in errors),
             errors,
         )
+
+    def test_evaluates_required_prohibited_and_guard_expectations(self) -> None:
+        evaluator = getattr(adherence, "evaluate", None)
+        self.assertTrue(callable(evaluator), "the evidence evaluator must be available")
+
+        report = evaluator(self.load_fixture("corpus.json"), self.load_fixture("baseline.json"))
+
+        self.assertTrue(report["episodes"]["short-required-entrypoint"]["strict_episode_pass"])
+        self.assertTrue(report["episodes"]["long-prohibited-heredoc"]["strict_episode_pass"])
+        self.assertTrue(report["episodes"]["medium-guard-remedy"]["strict_episode_pass"])
+        self.assertEqual(
+            {"passed": 1, "total": 1},
+            report["rules"]["entrypoint"]["required_action_adherence"],
+        )
+        self.assertEqual(
+            {"passed": 1, "total": 1},
+            report["rules"]["r23"]["prohibited_action_adherence"],
+        )
+        self.assertEqual([], report["unmeasured_rule_ids"])
+
+    def test_marks_incomplete_action_evidence_as_unknown(self) -> None:
+        evaluator = getattr(adherence, "evaluate", None)
+        self.assertTrue(callable(evaluator), "the evidence evaluator must be available")
+        evidence = self.load_fixture("baseline.json")
+        evidence["long-prohibited-heredoc"] = {}
+
+        report = evaluator(self.load_fixture("corpus.json"), evidence)
+
+        episode = report["episodes"]["long-prohibited-heredoc"]
+        self.assertIsNone(episode["strict_episode_pass"])
+        self.assertEqual(
+            {"passed": 0, "total": 0},
+            report["rules"]["r23"]["prohibited_action_adherence"],
+        )
+        self.assertEqual(["r23"], report["unmeasured_rule_ids"])
+
+    def test_guard_metrics_require_a_remedy_and_count_each_block_once(self) -> None:
+        evaluator = getattr(adherence, "evaluate", None)
+        self.assertTrue(callable(evaluator), "the evidence evaluator must be available")
+        corpus = self.load_fixture("corpus.json")
+        evidence = self.load_fixture("baseline.json")
+        corpus = deepcopy(corpus)
+        corpus["episodes"][3]["expectations"].append(
+            {"kind": "guard", "outcome": "silent", "remedy": "none"}
+        )
+        evidence["medium-guard-remedy"] = {
+            "actions": [],
+            "guard_outcomes": [{"outcome": "reports"}],
+        }
+        evidence["medium-false-block"] = {
+            "actions": [],
+            "guard_outcomes": [{"outcome": "blocks", "remedy": "inspect worktree"}],
+        }
+
+        try:
+            report = evaluator(corpus, evidence)
+        except TypeError as error:
+            self.fail(f"incomplete guard evidence must not crash evaluation: {error}")
+
+        self.assertFalse(report["episodes"]["medium-guard-remedy"]["strict_episode_pass"])
+        self.assertEqual(1, report["guard_metrics"]["false_block_count"])
+        self.assertEqual(1, report["guard_metrics"]["actionable_remedy_count"])
+
+    def test_marks_incomplete_guard_evidence_unknown_and_rejects_missing_remedies(self) -> None:
+        evaluator = getattr(adherence, "evaluate", None)
+        self.assertTrue(callable(evaluator), "the evidence evaluator must be available")
+        corpus = self.load_fixture("corpus.json")
+        evidence = self.load_fixture("baseline.json")
+        evidence["medium-guard-remedy"] = {"actions": [], "guard_outcomes": None}
+        evidence["medium-false-block"] = {
+            "actions": [],
+            "guard_outcomes": [{"outcome": "silent"}],
+        }
+
+        try:
+            report = evaluator(corpus, evidence)
+        except TypeError as error:
+            self.fail(f"incomplete guard evidence must not crash evaluation: {error}")
+
+        self.assertIsNone(report["episodes"]["medium-guard-remedy"]["strict_episode_pass"])
+        self.assertFalse(report["episodes"]["medium-false-block"]["strict_episode_pass"])
+        self.assertEqual(["r24"], report["unmeasured_rule_ids"])
 
 
 if __name__ == "__main__":
