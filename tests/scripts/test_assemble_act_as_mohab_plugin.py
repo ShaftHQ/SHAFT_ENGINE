@@ -68,6 +68,7 @@ class AssembleActAsMohabPluginTest(unittest.TestCase):
             target.write_text("---\nname: " + skill + "\ndescription: Use when testing assembly.\n---\n", encoding="utf-8")
         outside = self.package_root.parent / "outside.md"
         outside.write_text("host secret", encoding="utf-8")
+        (source_references / "session-token.json").write_text("host secret", encoding="utf-8")
         try:
             (source_references / "leak.md").symlink_to(outside)
         except OSError as error:
@@ -76,6 +77,27 @@ class AssembleActAsMohabPluginTest(unittest.TestCase):
         assemble(source_root, self.package_root)
 
         self.assertFalse((self.package_root / "skills/act-as-mohab/references/leak.md").exists())
+        self.assertFalse((self.package_root / "skills/act-as-mohab/references/session-token.json").exists())
+
+    def test_assembly_rejects_a_symlinked_canonical_skill(self):
+        source_root = self.package_root.parent / "source"
+        source_skills = source_root / ".agents/skills"
+        for skill in ("act-as-mohab", "consult-first", "retrieve-first"):
+            target = source_skills / skill / "SKILL.md"
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_text("---\nname: " + skill + "\ndescription: Use when testing assembly.\n---\n", encoding="utf-8")
+        (source_skills / "act-as-mohab/references").mkdir()
+        outside = self.package_root.parent / "outside.md"
+        outside.write_text("host secret", encoding="utf-8")
+        skill_path = source_skills / "consult-first/SKILL.md"
+        skill_path.unlink()
+        try:
+            skill_path.symlink_to(outside)
+        except OSError as error:
+            self.skipTest(f"symlinks unavailable: {error}")
+
+        with self.assertRaises(ValueError):
+            assemble(source_root, self.package_root)
 
     def test_assembly_rejects_output_inside_its_canonical_sources(self):
         source_root = self.package_root.parent / "source"

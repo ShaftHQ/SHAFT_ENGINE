@@ -7,12 +7,13 @@ from pathlib import Path
 
 SCHEMA_URL = "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json"
 SKILLS = ("act-as-mohab", "consult-first", "retrieve-first")
+PORTABLE_REFERENCE_SUFFIXES = {".md", ".LICENSE"}
 
 
 def copy_tree(source: Path, destination: Path) -> None:
     """Copy one canonical source tree without preserving host-specific metadata."""
     for path in sorted(source.rglob("*")):
-        if path.is_symlink() or not path.is_file():
+        if path.is_symlink() or not path.is_file() or path.suffix not in PORTABLE_REFERENCE_SUFFIXES:
             continue
         target = destination / path.relative_to(source)
         target.parent.mkdir(parents=True, exist_ok=True)
@@ -41,6 +42,8 @@ def assemble(repository_root: Path, package_root: Path) -> None:
         source = canonical_skills / skill
         destination = package_root / "skills" / skill
         destination.mkdir(parents=True, exist_ok=True)
+        if (source / "SKILL.md").is_symlink():
+            raise ValueError(f"canonical skill must not be a symlink: {skill}")
         shutil.copyfile(source / "SKILL.md", destination / "SKILL.md")
     copy_tree(
         canonical_skills / "act-as-mohab/references",
