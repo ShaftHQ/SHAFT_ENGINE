@@ -687,7 +687,7 @@ class AgentHarnessPortabilityTest(unittest.TestCase):
             {
                 "hook_event_name": "PreToolUse",
                 "tool_name": "Write",
-                "tool_input": {"file_path": "shaft-engine/src/main/java/Example.java"},
+                "tool_input": {"file_path": str(Path(tempfile.gettempdir()) / "guard-scratch.txt")},
             },
             {
                 "hook_event_name": "PreToolUse",
@@ -699,6 +699,45 @@ class AgentHarnessPortabilityTest(unittest.TestCase):
         ):
             completed = self.run_guard_completed(payload, "claude")
             self.assertEqual(completed.stdout, "")
+
+    def test_guard_denies_an_in_repository_write_on_the_default_branch(self):
+        """R19 is in contract: only unrelated PreToolUse events stay silent."""
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            repository = Path(temporary_directory)
+            (repository / "tracked.txt").write_text("fixture", encoding="utf-8")
+            git = shutil.which("git")
+            self.assertIsNotNone(git, "the R19 fixture needs Git")
+            for command in (
+                [git, "init", "--quiet", "--initial-branch", "main"],
+                [git, "add", "tracked.txt"],
+                [
+                    git,
+                    "-c",
+                    "user.name=fixture",
+                    "-c",
+                    "user.email=fixture@example.test",
+                    "commit",
+                    "--quiet",
+                    "-m",
+                    "initial",
+                ],
+            ):
+                subprocess.run(command, cwd=repository, check=True)  # nosec B603
+
+            completed = self.run_guard_completed(
+                {
+                    "hook_event_name": "PreToolUse",
+                    "tool_name": "Write",
+                    "cwd": str(repository),
+                    "tool_input": {"file_path": "Example.java"},
+                },
+                "claude",
+            )
+
+        output = json.loads(completed.stdout)
+        decision, reason = self.logical_decision(output)
+        self.assertEqual(decision, "deny")
+        self.assertIn("R19", reason)
 
     def test_deployed_canonical_subtree_has_no_external_or_broken_markdown_links(self):
         # The deployment unit is the whole skills tree, not one skill: the
