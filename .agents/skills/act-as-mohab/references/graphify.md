@@ -15,4 +15,4 @@ knowledge sources, and flag a primary-checkout refresh. Never rebuild or record
 the cache from a linked worktree, and never commit `graphify-out/`.
 
 Freshness behavior is pinned by
-[the resolver regression suite](../../../../tests/scripts/test_resolve_graph_out.py).
+`tests/scripts/test_resolve_graph_out.py`.
