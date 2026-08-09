@@ -6618,11 +6618,12 @@ class ShaftPanelSetupTest {
     }
 
     @Test
-    void assistantAskOrPlanMcpPromptOffersOneClickSwitchToAgentMode() {
+    void assistantAskOrPlanMcpPromptOffersOneClickSwitchToAgentMode() throws Exception {
         // Issue #3681: SHAFT already knows exactly which binary confirmation and control this gate
         // needs, so it must offer a one-click fix instead of plain chat text the user has to act on
         // by finding the mode combo box themselves.
         ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
+        useFailingTestLocalAgentLauncher(panel);
         JComboBox<?> assistantMode = findByAccessibleName(panel, "Assistant mode", JComboBox.class);
         assertNotNull(assistantMode);
         assistantMode.setSelectedItem("PLAN");
@@ -6647,6 +6648,33 @@ class ShaftPanelSetupTest {
     }
 
     @Test
+    void assistantGateResendUsesAnInjectedLocalAgentLauncher() throws Exception {
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
+        assertTrue(Arrays.stream(ShaftAssistantPanel.class.getDeclaredFields())
+                .anyMatch(field -> field.getName().equals("localAgentProcessLauncher")),
+                "panel resend tests need a local-agent launcher seam");
+        CountDownLatch launchAttempted = new CountDownLatch(1);
+        setField(panel, "localAgentProcessLauncher", (AssistantLocalAgentRunner.ProcessLauncher) (command, directory, environment) -> {
+            launchAttempted.countDown();
+            throw new IOException("test launcher");
+        });
+        setField(panel, "requireLocalAgentCommandAvailable", false);
+
+        JComboBox<?> assistantMode = findByAccessibleName(panel, "Assistant mode", JComboBox.class);
+        assertNotNull(assistantMode);
+        assistantMode.setSelectedItem("PLAN");
+        assistantPrompt(panel).setText("open duckduckgo and search for SHAFT Engine");
+        clickAccessible(panel, "Send assistant prompt");
+
+        JButton fix = findByAccessibleName(panel, "Switch to Agent mode and resend", JButton.class);
+        assertNotNull(fix);
+        fix.doClick();
+
+        assertTrue(launchAttempted.await(5, TimeUnit.SECONDS),
+                "the resend must invoke the injected launcher instead of a real CLI process");
+    }
+
+    @Test
     void assistantAgentModeSourceEditWarningUsesActiveContextForContinuationPrompt() {
         assertAll(
                 () -> assertTrue(ShaftAssistantPanel.requiresSourceEditApprovalBeforeSend(
@@ -6668,11 +6696,12 @@ class ShaftPanelSetupTest {
     }
 
     @Test
-    void assistantSourceEditGateOffersOneClickAllowAndResend() {
+    void assistantSourceEditGateOffersOneClickAllowAndResend() throws Exception {
         // Issue #3681: same one-click-fix treatment as the MCP-mode gate above, for the source-edit
         // approval gate -- ticks the checkbox and resends instead of leaving prose for the user to
         // act on.
         ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
+        useFailingTestLocalAgentLauncher(panel);
         JComboBox<?> assistantMode = findByAccessibleName(panel, "Assistant mode", JComboBox.class);
         JCheckBox allowEdits = findByAccessibleName(panel, "Approve source mutation for Agent mode", JCheckBox.class);
         JTextComponent customCommand = textComponent(panel, "Optional local agent command");
@@ -8202,6 +8231,13 @@ class ShaftPanelSetupTest {
         Method method = ShaftAssistantPanel.class.getDeclaredMethod("selectedRoute");
         method.setAccessible(true);
         return (AssistantCommand.Selection) method.invoke(panel);
+    }
+
+    private static void useFailingTestLocalAgentLauncher(ShaftAssistantPanel panel) throws Exception {
+        setField(panel, "localAgentProcessLauncher", (AssistantLocalAgentRunner.ProcessLauncher) (command, directory, environment) -> {
+            throw new IOException("test launcher");
+        });
+        setField(panel, "requireLocalAgentCommandAvailable", false);
     }
 
     private static void setField(Object target, String name, Object value) throws Exception {

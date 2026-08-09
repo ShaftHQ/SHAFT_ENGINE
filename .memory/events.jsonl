@@ -1006,3 +1006,4 @@
 {"actor":"agent","event":"memory.created","id":"gotcha.historical-dispatch-audits-must-count-the-structured-transcript-not-prose-summaries","timestamp":"2026-08-05T19:39:59+03:00"}
 {"actor":"agent","event":"memory.created","id":"decision.portable-plugin-assembly-copies-only-tracked-contained-canonical-sources","timestamp":"2026-08-09T09:28:03+03:00"}
 {"actor":"agent","event":"memory.created","id":"decision.portable-agent-plugins-retain-native-claude-and-codex-discovery-adapters","timestamp":"2026-08-09T10:02:05+03:00"}
+{"actor":"agent","event":"memory.created","id":"decision.panel-one-click-resend-uses-an-injectable-local-agent-process-boundary","timestamp":"2026-08-09T10:21:07+03:00"}
