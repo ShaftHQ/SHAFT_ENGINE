@@ -1,8 +1,11 @@
 package com.shaft.intellij.ui;
 
 import com.intellij.openapi.application.ApplicationManager;
+import com.intellij.openapi.Disposable;
 import com.intellij.openapi.project.Project;
+import com.intellij.openapi.util.Disposer;
 
+import javax.swing.Timer;
 import java.lang.reflect.Method;
 import java.util.function.Consumer;
 
@@ -56,7 +59,7 @@ final class ShaftTerminalCommands {
             if (widget == null) {
                 return false;
             }
-            scheduleCommandTyping(widget, command, onOutcome);
+            scheduleCommandTyping(project, widget, command, onOutcome);
             return true;
         } catch (Throwable terminalUnavailable) {
             // Terminal plugin disabled/missing, or its API drifted: the clipboard fallback covers it.
@@ -88,9 +91,9 @@ final class ShaftTerminalCommands {
      * genuine success or genuine failure (retry-exhaustion or a thrown {@code write()}) — never on
      * a still-retrying attempt (issue #3551).
      */
-    private static void scheduleCommandTyping(Object widget, String command, Consumer<Boolean> onOutcome) {
+    static Timer scheduleCommandTyping(Disposable owner, Object widget, String command, Consumer<Boolean> onOutcome) {
         java.util.concurrent.atomic.AtomicInteger attempts = new java.util.concurrent.atomic.AtomicInteger();
-        javax.swing.Timer typeSoon = new javax.swing.Timer(TYPE_RETRY_DELAY_MILLIS, null);
+        Timer typeSoon = new Timer(TYPE_RETRY_DELAY_MILLIS, null);
         typeSoon.setInitialDelay(SHELL_READY_DELAY_MILLIS);
         typeSoon.addActionListener(event -> {
             boolean typed = false;
@@ -113,7 +116,9 @@ final class ShaftTerminalCommands {
             }
         });
         typeSoon.setRepeats(true);
+        Disposer.register(owner, typeSoon::stop);
         typeSoon.start();
+        return typeSoon;
     }
 
     private static Object ttyConnector(Object widget) {
