@@ -130,9 +130,9 @@ public class TestNGListener implements IAlterSuiteListener, IAnnotationTransform
         // here (no io.cucumber.core.runner.Runner frame exists this early), which would leave the
         // CUCUMBER branch below unreachable for a Cucumber-over-TestNG run (see #4078). This
         // overload inspects the suites themselves instead, which is available at this call site.
-        switch (ProjectStructureManager.identifyRunType(suites)) {
-            case TESTNG -> TestNGListenerHelper.configureTestNGProperties(suites);
-            case CUCUMBER -> CucumberHelper.configureCucumberProperties(suites);
+        TestNGListenerHelper.configureTestNGProperties(suites);
+        if (ProjectStructureManager.RunType.CUCUMBER.equals(ProjectStructureManager.identifyRunType(suites))) {
+            CucumberHelper.configureCucumberProperties(suites);
         }
         TestNGListenerHelper.attachConfigurationHelperClass(suites);
         //All alterations should be finalized before duplicating the
