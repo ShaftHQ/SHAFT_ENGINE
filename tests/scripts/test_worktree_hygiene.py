@@ -10,8 +10,11 @@
 
 from __future__ import annotations
 
+import json
 import os
+import shutil
 import subprocess  # nosec B404 - tests drive the local git binary on fixtures.
+import sys
 import tempfile
 import time
 import unittest
@@ -19,6 +22,8 @@ from pathlib import Path
 from unittest.mock import patch
 
 from scripts.ci.worktree_hygiene import (
+    FOREIGN_WORKTREE_STALE_HOURS,
+    _activity_epoch,
     collect_worktree_report,
     format_advisories,
     open_pull_requests_via_gh,
@@ -114,6 +119,78 @@ class WorktreeHygieneTest(unittest.TestCase):
         self.assertTrue(report[0]["is_current"])
         self.assertEqual(report[0]["state"], "clean")
         self.assertEqual(format_advisories(report), [])
+
+    def test_local_worktree_exposes_its_activity_age(self):
+        """#4546: foreign-worktree Stop reporting needs a reporter-owned clock."""
+        worktree = self.add_worktree("active", "ChaosEngine/active")
+        self.write(worktree, "notes.md", "still in progress\n")
+
+        entry = self.entry(collect_worktree_report(self.main), "active")
+
+        self.assertIn("last_activity_epoch", entry)
+        self.assertIn("age_hours", entry)
+        self.assertIsNotNone(entry["last_activity_epoch"])
+        self.assertIsNotNone(entry["age_hours"])
+
+    def test_json_report_exposes_the_foreign_worktree_threshold(self):
+        """#4546: Stop receives its age threshold from the reporter, not a duplicate literal."""
+        helper = Path(__file__).resolve().parents[2] / "scripts" / "ci" / "worktree_hygiene.py"
+        completed = subprocess.run(  # nosec B603 - fixed tracked helper on a temp fixture.
+            [sys.executable, str(helper), "--root", str(self.main), "--format", "json"],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+
+        self.assertEqual(completed.returncode, 0, completed.stderr)
+        self.assertEqual(
+            json.loads(completed.stdout)["foreign_worktree_stale_hours"],
+            FOREIGN_WORKTREE_STALE_HOURS,
+        )
+
+    def test_deleted_path_activity_uses_its_parent_directory_mtime(self):
+        """#4546: a fresh deletion must not look stale just because its file is gone."""
+        worktree = self.add_worktree("deleted", "ChaosEngine/deleted")
+        changed = self.write(worktree, "tracked.txt", "tracked\n")
+        git(worktree, "add", "tracked.txt")
+        git(worktree, "commit", "-qm", "track it")
+        changed.unlink()
+        old_epoch = time.time() - (10 * 24 * 60 * 60)
+        os.utime(worktree / ".git", (old_epoch, old_epoch))
+
+        with patch("scripts.ci.worktree_hygiene._last_commit_epoch", return_value=int(old_epoch)):
+            activity = _activity_epoch(self.main, worktree, "ChaosEngine/deleted", ["tracked.txt"])
+
+        self.assertIsNotNone(activity)
+        self.assertGreater(activity, old_epoch + 1)
+
+    def test_primary_git_directory_is_not_an_activity_creation_marker(self):
+        """#4546: shared admin writes must not keep a stale primary tree fresh."""
+        old_epoch = time.time() - (10 * 24 * 60 * 60)
+        os.utime(self.main / ".git", None)
+
+        with patch("scripts.ci.worktree_hygiene._last_commit_epoch", return_value=int(old_epoch)):
+            activity = _activity_epoch(self.main, self.main, "main", [])
+
+        self.assertEqual(activity, float(int(old_epoch)))
+
+    def test_recursive_deletion_uses_the_nearest_existing_parent_mtime(self):
+        """#4546: deleting a directory tree is fresh work even after its parent is gone."""
+        worktree = self.add_worktree("recursive-delete", "ChaosEngine/recursive-delete")
+        changed = self.write(worktree, "nested/tracked.txt", "tracked\n")
+        git(worktree, "add", "nested/tracked.txt")
+        git(worktree, "commit", "-qm", "track nested file")
+        shutil.rmtree(changed.parent)
+        old_epoch = time.time() - (10 * 24 * 60 * 60)
+        os.utime(worktree / ".git", (old_epoch, old_epoch))
+
+        with patch("scripts.ci.worktree_hygiene._last_commit_epoch", return_value=int(old_epoch)):
+            activity = _activity_epoch(
+                self.main, worktree, "ChaosEngine/recursive-delete", ["nested/tracked.txt"]
+            )
+
+        self.assertIsNotNone(activity)
+        self.assertGreater(activity, old_epoch + 1)
 
     def test_directory_outside_any_repository_reports_nothing(self):
         with tempfile.TemporaryDirectory() as outside:
