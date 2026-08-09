@@ -384,6 +384,13 @@ final class CaptureEventPipeline implements AutoCloseable {
         lastAppendedNavigationAt = signal.timestamp();
     }
 
+    boolean overlayNavigationAttachWindowHasClosed(Instant now) {
+        return !lastAppendedNavigationUrl.isBlank()
+                && !now.isBefore(lastAppendedNavigationAt)
+                && Duration.between(lastAppendedNavigationAt, now)
+                        .compareTo(OVERLAY_NAVIGATION_ATTACH_WINDOW) >= 0;
+    }
+
     /**
      * Gives the most recent identity-less recorded navigation to {@code url} the overlay row's
      * client action id and description, so the row becomes a server-backed step: it survives

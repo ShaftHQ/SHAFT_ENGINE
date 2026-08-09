@@ -302,6 +302,10 @@ class ManagedCaptureRecorder {
         }
     }
 
+    synchronized boolean readyForDistinctUserTraversal() {
+        return pipeline != null && pipeline.overlayNavigationAttachWindowHasClosed(Instant.now());
+    }
+
     synchronized void checkpoint(String description, Checkpoint.CheckpointKind kind) {
         ensureActive();
         pipeline.checkpoint(description, kind);

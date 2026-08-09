@@ -34,6 +34,22 @@ class CaptureEventPipelineTest {
     private static final Instant START = Instant.parse("2026-06-11T10:00:00Z");
 
     @Test
+    void exposesWhenARecordedNavigationIsReadyForDistinctOverlayTraversal(@TempDir Path temp) throws Exception {
+        Path output = temp.resolve("session.json");
+        CaptureSessionStore store = startedStore(output);
+        CaptureEventPipeline pipeline = new CaptureEventPipeline(
+                store, output, CapturePrivacyPolicy.defaults(), ignored -> {
+                }, ignored -> {
+                });
+        pipeline.accept(signal("navigation", START, Map.of(),
+                Map.of("action", "OPEN", "navigationSource", "user_traversal"),
+                Map.of("url", "https://example.test/a")));
+
+        assertFalse(pipeline.overlayNavigationAttachWindowHasClosed(START.plusSeconds(1)));
+        assertTrue(pipeline.overlayNavigationAttachWindowHasClosed(START.plusSeconds(2)));
+    }
+
+    @Test
     void debouncesSemanticEventsAndClassifiesValuesBeforePersistence(@TempDir Path temp) throws Exception {
         Path output = temp.resolve("path with spaces").resolve("session.json");
         CaptureSessionStore store = startedStore(output);
