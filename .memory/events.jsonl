@@ -1011,3 +1011,4 @@
 {"actor":"agent","event":"memory.created","id":"decision.local-agent-cancellation-preserves-the-original-soft-versus-force-intent-across-process-publication-2","timestamp":"2026-08-09T10:46:14+03:00"}
 {"actor":"agent","event":"memory.updated","id":"decision.local-agent-cancellation-preserves-the-original-soft-versus-force-intent-across-process-publication","timestamp":"2026-08-09T10:47:00+03:00"}
 {"actor":"agent","event":"memory.deleted","id":"decision.local-agent-cancellation-preserves-the-original-soft-versus-force-intent-across-process-publication-2","timestamp":"2026-08-09T10:47:00+03:00"}
+{"actor":"agent","event":"memory.created","id":"decision.pin-the-intellij-plugin-verifier-and-omit-artifact-transforms-from-actions-cache","timestamp":"2026-08-09T11:12:10+03:00"}

@@ -25,6 +25,9 @@ dependencies {
         // (see io.github.shafthq.shaft-withJUnit.xml / shaft-withTestNG.xml), not in com.intellij.java.
         bundledPlugin("JUnit")
         bundledPlugin("TestNG-J")
+        // The verifier's default is dynamic (latest), which makes the CI verdict depend on cache age.
+        // Keep upgrades reviewable and prevent a remote version-list lookup during verification.
+        pluginVerifier("1.409")
     }
     implementation("com.google.code.gson:gson:2.14.0")
     testImplementation("org.junit.jupiter:junit-jupiter:6.1.0")
