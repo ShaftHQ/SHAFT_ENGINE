@@ -1,10 +1,10 @@
 # Compatibility
 
-Evidence applies to `shaft-skills` 1.0.0 as of 2026-08-09.
+Evidence applies to `shaft-skills` 1.0.0 as of 2026-08-09. Each column is an independent evidence level; a pass in one column never implies a pass in another.
 
-| Client | Discovery and validation | Clean live load |
-| --- | --- | --- |
-| Codex | Native `.codex-plugin` adapter and package validation passed. | Passed; evidence is recorded in [#4576](https://github.com/ShaftHQ/SHAFT_ENGINE/issues/4576). |
-| Claude Code | Native `.claude-plugin` adapter; `claude plugin validate --strict` passed. | **Unverified.** The organization blocked Claude Code subscription access before the package could load. The maintainer explicitly approved skipping this check for 1.0.0; this is not a support claim. |
+| Client | Package validation | Marketplace discovery | Install / enable | Real load |
+| --- | --- | --- | --- | --- |
+| Claude Code 2.1.223 | `claude plugin validate --strict <package>`; required by unauthenticated PR smoke. | `claude plugin marketplace add <package> --scope project`, then `claude plugin list --available --json`; required by unauthenticated PR smoke. | `claude plugin install shaft-skills@shaft-skills --scope project`, then `claude plugin list --json`; required by unauthenticated PR smoke and followed by cleanup. | Scheduled/manual acceptance runs `claude -p ... --output-format json`. A missing `ANTHROPIC_API_KEY` is recorded as `external_blocker`, not a package failure. |
+| Codex CLI 0.146.0 | `codex plugin marketplace add <package> --json` validates the native marketplace snapshot; required by unauthenticated PR smoke. | `codex plugin list --available --json`; required by unauthenticated PR smoke. | `codex plugin add shaft-skills@shaft-skills --json`, then `codex plugin list --json`; required by unauthenticated PR smoke and followed by cleanup. | Scheduled/manual acceptance runs `codex exec --json -s read-only --skip-git-repo-check -`. A missing `OPENAI_API_KEY` is recorded as `external_blocker`, not a package failure. |
 
-The Claude live-load proof remains tracked in [#4636](https://github.com/ShaftHQ/SHAFT_ENGINE/issues/4636). Consumers should validate the package in their own client before relying on it.
+The smoke and live lanes publish `agent-plugin-client-evidence.json`. Every row records the client version, exactly one evidence level, commands, verdict, detail, and context-budget warnings. Live acceptance also runs the canonical 30-case corpus in `agent-plugins/shaft-skills/evals/cases.json`; each per-case result records the expected, rejected, and observed specialist. Every native call shares a 900-second execution budget; the 600-second routing deadline preserves completed evidence when the deadline or a recognized provider/network blocker stops the remaining cases, while cleanup and artifact time are reserved separately. An unrecognized nonzero client exit is a distinct client failure, not a routing-selection failure. The historical Codex load passed in [#4576](https://github.com/ShaftHQ/SHAFT_ENGINE/issues/4576); Claude model access was blocked there. [#4636](https://github.com/ShaftHQ/SHAFT_ENGINE/issues/4636) owns the repeatable evidence introduced here.

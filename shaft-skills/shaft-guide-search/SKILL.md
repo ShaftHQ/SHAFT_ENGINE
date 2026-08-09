@@ -1,6 +1,6 @@
 ---
 name: shaft-guide-search
-description: Use when current official SHAFT syntax, behavior, configuration, migration, troubleshooting, or feature guidance must be found and cited before code is written.
+description: Use when current official SHAFT syntax, configuration, migration, troubleshooting, or feature guidance must be found and cited before coding.
 ---
 
 # SHAFT Guide Search

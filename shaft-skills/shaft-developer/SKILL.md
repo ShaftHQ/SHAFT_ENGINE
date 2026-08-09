@@ -1,6 +1,6 @@
 ---
 name: shaft-developer
-description: Use when starting any SHAFT Engine testing task to select exactly one lifecycle, implementation, or tool specialist before planning, authoring, executing, diagnosing, or reporting tests.
+description: Use when starting any SHAFT testing task to select exactly one lifecycle, implementation, or tool specialist before doing the work.
 ---
 
 # SHAFT Developer

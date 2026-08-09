@@ -13,6 +13,16 @@ except ModuleNotFoundError:
 
 SCHEMA_URL = "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json"
 CANONICAL_SKILLS_DIRECTORY = "shaft-skills"
+CANONICAL_EVALS_DIRECTORY = "agent-plugins/shaft-skills/evals"
+PACKAGED_SKILLS_DIRECTORY = "skills"
+
+
+def package_path_for_source(canonical_skills: Path, source: Path) -> Path:
+    """Map a canonical source to its authoritative portable package path."""
+    relative = source.relative_to(canonical_skills)
+    return Path(PACKAGED_SKILLS_DIRECTORY) / relative
+
+
 RELEASE_FILES = (
     (Path("LICENSE"), Path("LICENSE")),
     (Path("agent-plugins/shaft-skills/CHANGELOG.md"), Path("CHANGELOG.md")),
@@ -38,10 +48,13 @@ def require_contained(root: Path, candidate: Path, label: str) -> Path:
     return resolved
 
 
-def tracked_source_files(repository_root: Path) -> set[Path]:
+def tracked_source_files(
+    repository_root: Path,
+    source_directory: str = CANONICAL_SKILLS_DIRECTORY,
+) -> set[Path]:
     """Return the reviewed canonical files permitted to enter the package."""
     result = subprocess.run(
-        [git_executable(), "ls-files", "-z", "--", CANONICAL_SKILLS_DIRECTORY],
+        [git_executable(), "ls-files", "-z", "--", source_directory],
         cwd=repository_root,
         check=True,
         capture_output=True,  # nosec B603: fixed Git command and arguments; shell is disabled.
@@ -86,6 +99,13 @@ def write_adapters(package_root: Path, version: str) -> None:
         '"author":{"name":"ShaftHQ","url":"https://github.com/ShaftHQ/SHAFT_ENGINE"}}\n',
         encoding="utf-8",
     )
+    (claude_adapter / "marketplace.json").write_text(
+        f'{{"name":"shaft-skills","owner":{{"name":"ShaftHQ"}},'
+        f'"description":"Official SHAFT test-automation skills.","plugins":['
+        f'{{"name":"shaft-skills","source":"./",'
+        f'"description":"User-facing SHAFT test-automation skills.","version":"{version}"}}]}}\n',
+        encoding="utf-8",
+    )
     codex_adapter = package_root / ".codex-plugin"
     codex_adapter.mkdir()
     (codex_adapter / "plugin.json").write_text(
@@ -105,13 +125,14 @@ def assemble(repository_root: Path, package_root: Path, version: str | None = No
     repository_root = Path(repository_root).resolve()
     version = release_version(repository_root, "shaft-skills", version)
     canonical_skills = repository_root / CANONICAL_SKILLS_DIRECTORY
+    canonical_evals = repository_root / CANONICAL_EVALS_DIRECTORY
     package_root = Path(package_root)
-    try:
-        package_root.resolve(strict=False).relative_to(canonical_skills.resolve())
-    except ValueError:
-        pass
-    else:
-        raise ValueError("package output must not overlap canonical skill sources")
+    for canonical_source in (canonical_skills, canonical_evals):
+        try:
+            package_root.resolve(strict=False).relative_to(canonical_source.resolve())
+        except ValueError:
+            continue
+        raise ValueError("package output must not overlap canonical package sources")
     if package_root.exists():
         raise FileExistsError(f"refusing to overwrite package output: {package_root}")
 
@@ -126,7 +147,14 @@ def assemble(repository_root: Path, package_root: Path, version: str | None = No
     write_adapters(package_root, version)
     for source in sorted(tracked_source_files(repository_root)):
         source = require_contained(canonical_skills, source, "canonical skill source")
-        target = package_root / "skills" / source.relative_to(canonical_skills)
+        target = package_root / package_path_for_source(canonical_skills, source)
+        target.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(source, target)
+    for source in sorted(
+        tracked_source_files(repository_root, CANONICAL_EVALS_DIRECTORY)
+    ):
+        source = require_contained(canonical_evals, source, "canonical eval source")
+        target = package_root / "evals" / source.relative_to(canonical_evals)
         target.parent.mkdir(parents=True, exist_ok=True)
         shutil.copyfile(source, target)
     for relative, target in RELEASE_FILES:

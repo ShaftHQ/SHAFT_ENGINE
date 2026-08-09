@@ -1,6 +1,6 @@
 ---
 name: shaft-change-verification
-description: Use when generated or edited SHAFT Java needs a reuse plan, preview diff, lexical guardrail check, approved application, focused compile or test, and evidence-backed verdict.
+description: Use when edited SHAFT Java needs a reuse plan, preview diff, guardrail check, approved application, focused test, and evidence-backed verdict.
 ---
 
 # SHAFT Change Verification

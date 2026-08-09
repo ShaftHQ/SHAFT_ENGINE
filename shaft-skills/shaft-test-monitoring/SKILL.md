@@ -1,6 +1,6 @@
 ---
 name: shaft-test-monitoring
-description: Use when monitoring and controlling SHAFT test progress, coverage, quality gates, defects, risks, duration, flakiness, infrastructure health, and completion.
+description: Use when monitoring SHAFT test progress, coverage, quality gates, defects, risks, duration, flakiness, infrastructure health, or completion.
 ---
 
 # SHAFT Test Monitoring

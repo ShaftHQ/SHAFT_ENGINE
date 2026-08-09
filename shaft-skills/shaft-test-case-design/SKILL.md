@@ -1,6 +1,6 @@
 ---
 name: shaft-test-case-design
-description: Use when designing reviewable manual or automatable test cases and scenarios with traceability, data, steps, expected results, techniques, priorities, and boundary coverage.
+description: Use when designing reviewable test cases or scenarios with traceability, data, steps, expected results, techniques, priorities, and boundary coverage.
 ---
 
 # SHAFT Test Case Design

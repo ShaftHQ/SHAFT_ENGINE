@@ -1,6 +1,6 @@
 ---
 name: shaft-database-testing
-description: Use when implementing, reviewing, or repairing SHAFT.DB checks for persisted state, queries, rows, columns, transactions, cleanup, or database-backed integration behavior.
+description: Use when implementing or repairing SHAFT.DB checks for persisted state, queries, rows, transactions, cleanup, or database-backed integration behavior.
 ---
 
 # SHAFT Database Testing

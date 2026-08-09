@@ -1,6 +1,6 @@
 ---
 name: shaft-execution-reporting
-description: Use when producing engineering-facing SHAFT execution reports with reconciled counts, coverage, environments, failures, defects, flakes, evidence links, risks, and next actions.
+description: Use when reporting SHAFT execution to engineers with reconciled counts, coverage, environments, failures, defects, flakes, evidence, risks, and next actions.
 ---
 
 # SHAFT Execution Reporting

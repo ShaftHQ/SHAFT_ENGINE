@@ -84,9 +84,12 @@ jobs:
               - '.github/skills/**'
               - '.github/instructions/**'
               - '.github/copilot-instructions.md'
+              - '.github/workflows/agent-plugin-acceptance.yml'
+              - '.github/workflows/README.md'
               - '.github/workflows/mavenCentral_cd.yml'
               - 'agent-plugins/**'
               - 'shaft-skills/**'
+              - 'agent-plugins/**'
               - '.claude-plugin/marketplace.json'
               - '.memory/**'
               - 'scripts/agents/**'
@@ -96,9 +99,16 @@ jobs:
               - 'scripts/ci/validate_agent_plugins.py'
               - 'scripts/ci/assemble_act_as_mohab_plugin.py'
               - 'scripts/ci/assemble_shaft_skills_plugin.py'
+              - 'scripts/ci/agent_plugin_client_smoke.py'
+              - 'scripts/ci/shaft_skill_quality.py'
+              - 'scripts/ci/shaft_skill_routing_eval.py'
+              - 'scripts/ci/shaft_skill_candidate_intake.py'
               - 'scripts/ci/validate_red_before_green.py'
               - 'scripts/ci/validate_skills.py'
               - 'scripts/ci/worktree_hygiene.py'
+              - 'tools/repository-map/README.md'
+              - 'tools/repository-map/resolve_graph_out.py'
+              - 'tools/agent-infra/graphify-refresh.cmd'
               # Reachability elements: the harness check fails when either
               # moves, so a change to them has to run this gate.
               - 'scripts/ci/watch_pr_checks.py'
@@ -120,10 +130,15 @@ jobs:
               - 'tests/scripts/test_assemble_shaft_skills_plugin.py'
               - 'tests/scripts/test_validate_agent_setup.py'
               - 'tests/scripts/test_worktree_hygiene.py'
+              - 'tests/scripts/test_resolve_graph_out.py'
               - 'tests/scripts/test_validate_skills.py'
               - 'tests/scripts/test_sync_user_harness.py'
               - 'tests/scripts/test_shaft_skills_content.py'
               - 'tests/scripts/test_shaft_skill_cli_examples.py'
+              - 'tests/scripts/test_shaft_skill_quality.py'
+              - 'tests/scripts/test_shaft_skill_routing_eval.py'
+              - 'tests/scripts/test_shaft_skill_candidate_intake.py'
+              - 'tests/scripts/test_agent_plugin_client_smoke.py'
               # Not agent guidance, but this is the only gate that runs the
               # script suites on both a Linux and a Windows runner, which is
               # what build_retry.sh needs (issue #4445).
@@ -275,6 +290,12 @@ jobs:
           python-version: "3.13"
       - name: Install PyYAML
         run: python -m pip install pyyaml --quiet
+      - name: Set up Node.js 24 for native client smoke
+        uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+      - name: Install pinned native plugin clients
+        run: npm install --global '@anthropic-ai/claude-code@2.1.223' '@openai/codex@0.146.0'
       - name: Run agent harness unit tests
         run: >-
           python -m unittest
@@ -289,6 +310,7 @@ jobs:
           tests.scripts.test_validate_agent_guidance
           tests.scripts.test_validate_agent_plugins
           tests.scripts.test_agent_plugin_release
+          tests.scripts.test_agent_plugin_client_smoke
           tests.scripts.test_assemble_act_as_mohab_plugin
           tests.scripts.test_assemble_shaft_skills_plugin
           tests.scripts.test_validate_agent_setup
@@ -296,7 +318,11 @@ jobs:
           tests.scripts.test_sync_user_harness
           tests.scripts.test_shaft_skills_content
           tests.scripts.test_shaft_skill_cli_examples
+          tests.scripts.test_shaft_skill_quality
+          tests.scripts.test_shaft_skill_routing_eval
+          tests.scripts.test_shaft_skill_candidate_intake
           tests.scripts.test_worktree_hygiene
+          tests.scripts.test_resolve_graph_out
           tests.scripts.test_build_retry
           tests.scripts.test_extract_allure_failures
           -v
@@ -341,6 +367,24 @@ jobs:
           done
       - name: Validate agent guidance budgets and routing
         run: python scripts/ci/validate_agent_setup.py --skip-external
+      - name: Validate SHAFT skill inventory and quality evidence
+        run: python scripts/ci/shaft_skill_quality.py
+      - name: Validate SHAFT routing corpus and native evals
+        run: python scripts/ci/shaft_skill_routing_eval.py
+      - name: Validate quarantined SHAFT skill-candidate intake
+        run: python scripts/ci/shaft_skill_candidate_intake.py
+      - name: Collect unauthenticated native client evidence
+        run: >-
+          python scripts/ci/agent_plugin_client_smoke.py --mode smoke
+          --output agent-plugin-client-evidence.json
+      - name: Upload native client smoke evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: agent-plugin-client-smoke-${{ runner.os }}
+          path: agent-plugin-client-evidence.json
+          if-no-files-found: error
+          retention-days: 14
       - name: Run the portable PreToolUse guard self-test
         run: python scripts/agents/guard.py --self-test
 

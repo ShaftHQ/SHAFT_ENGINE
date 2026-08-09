@@ -10,9 +10,14 @@ import unittest
 from pathlib import Path
 
 try:
-    from scripts.ci.assemble_shaft_skills_plugin import assemble, tracked_source_files
+    from scripts.ci.assemble_shaft_skills_plugin import (
+        assemble,
+        package_path_for_source,
+        tracked_source_files,
+    )
 except ModuleNotFoundError:
     assemble = None
+    package_path_for_source = None
     tracked_source_files = None
 
 from scripts.ci.validate_agent_plugins import validate_package
@@ -20,6 +25,7 @@ from scripts.ci.validate_agent_plugins import validate_package
 
 ROOT = Path(__file__).resolve().parents[2]
 CANONICAL_SKILLS = ROOT / "shaft-skills"
+CANONICAL_EVALS = ROOT / "agent-plugins/shaft-skills/evals"
 MARKDOWN_LINK = re.compile(r"\]\(([^)#?]+)")
 
 
@@ -49,18 +55,46 @@ class AssembleShaftSkillsPluginTest(unittest.TestCase):
             },
         )
         for source in tracked_source_files(ROOT):
-            target = self.package_root / "skills" / source.relative_to(CANONICAL_SKILLS)
+            target = self.package_root / package_path_for_source(CANONICAL_SKILLS, source)
             self.assertEqual(target.read_bytes(), source.read_bytes(), target)
+
+    def test_routing_evals_package_as_metadata_not_as_a_fake_skill(self):
+        assemble(ROOT, self.package_root)
+
+        canonical_evals = ROOT / "agent-plugins/shaft-skills/evals"
+        for source in tracked_source_files(
+            ROOT, "agent-plugins/shaft-skills/evals"
+        ):
+            target = self.package_root / "evals" / source.relative_to(canonical_evals)
+            self.assertEqual(target.read_bytes(), source.read_bytes(), target)
+        self.assertFalse((self.package_root / "skills/evals").exists())
 
     def test_assembly_includes_native_discovery_adapters(self):
         self.assertTrue(callable(assemble), "assemble must be available")
         assemble(ROOT, self.package_root)
 
         claude = json.loads((self.package_root / ".claude-plugin/plugin.json").read_text(encoding="utf-8"))
+        claude_marketplace = json.loads(
+            (self.package_root / ".claude-plugin/marketplace.json").read_text(encoding="utf-8")
+        )
         codex = json.loads((self.package_root / ".codex-plugin/plugin.json").read_text(encoding="utf-8"))
         marketplace = json.loads((self.package_root / ".agents/plugins/marketplace.json").read_text(encoding="utf-8"))
 
         self.assertEqual(claude["name"], "shaft-skills")
+        self.assertEqual(claude_marketplace["name"], "shaft-skills")
+        self.assertEqual(claude_marketplace["owner"], {"name": "ShaftHQ"})
+        self.assertEqual(claude_marketplace["description"], "Official SHAFT test-automation skills.")
+        self.assertEqual(
+            claude_marketplace["plugins"],
+            [
+                {
+                    "name": "shaft-skills",
+                    "source": "./",
+                    "description": "User-facing SHAFT test-automation skills.",
+                    "version": "1.0.0",
+                }
+            ],
+        )
         self.assertEqual(codex, {"name": "shaft-skills", "version": "1.0.0", "skills": "./skills/"})
         self.assertEqual(
             marketplace["plugins"],
@@ -137,6 +171,14 @@ class AssembleShaftSkillsPluginTest(unittest.TestCase):
     def test_assembly_rejects_output_inside_canonical_sources(self):
         self.assertTrue(callable(assemble), "assemble must be available")
         output = CANONICAL_SKILLS / "assembled-output"
+
+        with self.assertRaises(ValueError):
+            assemble(ROOT, output)
+
+        self.assertFalse(output.exists())
+
+    def test_assembly_rejects_output_inside_canonical_eval_sources(self):
+        output = CANONICAL_EVALS / "assembled-output"
 
         with self.assertRaises(ValueError):
             assemble(ROOT, output)

@@ -1,6 +1,6 @@
 ---
 name: shaft-requirements-analysis
-description: Analyze requirements for testability, acceptance criteria, traceability, contradictions, omissions, risks, assumptions, and coverage gaps before SHAFT test planning or implementation.
+description: Use when analyzing requirements for testability, acceptance criteria, traceability, contradictions, omissions, risks, assumptions, or coverage gaps.
 ---
 
 # SHAFT Requirements Analysis

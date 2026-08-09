@@ -1,6 +1,6 @@
 ---
 name: shaft-mobile-actions
-description: Use when implementing or repairing SHAFT native or mobile-web sessions, context switches, element taps, swipes, gestures, rotation, keyboard, or app lifecycle behavior.
+description: Use when implementing SHAFT native or mobile-web sessions, context switches, taps, gestures, rotation, keyboard, or app lifecycle behavior.
 ---
 
 # SHAFT Mobile Actions

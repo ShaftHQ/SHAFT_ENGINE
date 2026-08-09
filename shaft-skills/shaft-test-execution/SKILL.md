@@ -1,6 +1,6 @@
 ---
 name: shaft-test-execution
-description: Use when executing approved SHAFT tests with controlled scope, preflight checks, deterministic configuration, evidence capture, status reconciliation, and safe cleanup.
+description: Use when executing approved SHAFT tests with controlled scope, preflight checks, deterministic configuration, evidence, status reconciliation, and cleanup.
 ---
 
 # SHAFT Test Execution

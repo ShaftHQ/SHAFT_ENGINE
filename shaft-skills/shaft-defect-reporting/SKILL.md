@@ -1,6 +1,6 @@
 ---
 name: shaft-defect-reporting
-description: Use when creating or improving concise, reproducible product defect reports from confirmed SHAFT findings, including severity, impact, environment, steps, expected and actual behavior, and trace links.
+description: Use when reporting a confirmed SHAFT product defect with severity, impact, environment, reproduction steps, expected and actual behavior, and evidence links.
 ---
 
 # SHAFT Defect Reporting

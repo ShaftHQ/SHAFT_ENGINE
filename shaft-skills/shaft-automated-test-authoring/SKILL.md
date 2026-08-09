@@ -1,6 +1,6 @@
 ---
 name: shaft-automated-test-authoring
-description: Use when implementing, reviewing, or repairing executable SHAFT Java tests for web, mobile, API, database, CLI, TestNG, JUnit, or Cucumber behavior.
+description: Use when implementing or repairing executable SHAFT Java tests for web, mobile, API, database, CLI, TestNG, JUnit, or Cucumber behavior.
 ---
 
 # SHAFT Automated Test Authoring
