@@ -1,11 +1,28 @@
 package com.shaft.gui.driver;
 
+import com.shaft.gui.capabilities.AutomationCapabilities;
 import com.shaft.gui.element.TouchActions;
 
 /**
  * Public contract for SHAFT GUI automation sessions.
  */
 public interface DriverContract {
+
+    /**
+     * Returns an immutable snapshot of the automation features available to this session.
+     *
+     * <p>The default is deliberately fail-closed so existing implementations gain no unsupported
+     * behavior. As with any Java interface method addition, an implementation that also inherits
+     * an unrelated same-signature method with an incompatible return type must resolve that source
+     * conflict explicitly. Competing unrelated default implementations also require an explicit
+     * override even when their return types match.</p>
+     *
+     * @return effective capability snapshot
+     */
+    default AutomationCapabilities capabilities() {
+        return AutomationCapabilities.unknown(
+                "This GUI driver implementation did not declare its automation capabilities.");
+    }
 
     /**
      * Returns the primary native automation object for the active backend.

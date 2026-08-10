@@ -10,6 +10,8 @@ import com.shaft.db.DatabaseActions;
 import com.shaft.driver.internal.DriverFactory.DriverFactoryHelper;
 import com.shaft.driver.internal.WizardHelpers;
 import com.shaft.gui.browser.BrowserActions;
+import com.shaft.gui.capabilities.AutomationCapabilities;
+import com.shaft.gui.capabilities.internal.AutomationCapabilityResolver;
 import com.shaft.gui.driver.BrowserActionsContract;
 import com.shaft.gui.element.AlertActions;
 import com.shaft.gui.element.AsyncElementActions;
@@ -162,6 +164,11 @@ public class SHAFT {
              * resources. Should be called in {@code @AfterMethod} (TestNG) or
              * {@code @AfterEach} (JUnit 5).
              */
+            @Override
+            public AutomationCapabilities capabilities() {
+                return AutomationCapabilityResolver.forWebDriver(helper == null ? null : helper.getDriver());
+            }
+
             @Override
             public void quit() {
                 if (helper != null)
@@ -348,6 +355,11 @@ public class SHAFT {
                         browser,
                         browserContext,
                         page);
+            }
+
+            @Override
+            public AutomationCapabilities capabilities() {
+                return AutomationCapabilityResolver.forPlaywright(session);
             }
 
             @Override
