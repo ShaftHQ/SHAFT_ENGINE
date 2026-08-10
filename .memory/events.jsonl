@@ -1098,3 +1098,5 @@
 {"actor":"agent","event":"memory.updated","id":"gotcha.rebasing-a-stacked-branch-after-its-shared-history-was-squash-merged-use-onto-with-the-last-shared-commit","timestamp":"2026-08-10T15:23:17+03:00"}
 {"actor":"agent","event":"memory.updated","id":"gotcha.gh-pr-merge-squash-builds-its-commit-message-from-branch-commit-history-not-the-pr-body","timestamp":"2026-08-10T15:23:17+03:00"}
 {"actor":"agent","event":"memory.created","id":"decision.intellij-codex-source-edits-stay-project-scoped-unrestricted-windows-recovery-is-separate","timestamp":"2026-08-10T21:59:42+03:00"}
+{"actor":"agent","event":"memory.created","id":"decision.intellij-assistant-capability-help-derives-from-registries-and-treats-valid-live-mcp-discovery-as-authoritative","timestamp":"2026-08-10T23:54:33+03:00"}
+{"actor":"agent","event":"memory.created","id":"decision.one-intellij-assistant-agent-route-owns-its-mcp-installer-target","timestamp":"2026-08-10T23:54:33+03:00"}
