@@ -297,18 +297,21 @@ class GuardLifecycleTest(unittest.TestCase):
 
     def test_live_tool_events_map_to_the_receipt_vocabulary(self):
         fixtures = (
-            ("Read", {"file_path": "src/Main.java"}, "read-live-files"),
-            ("Read", {"file_path": ".agents/skills/act-as-mohab/SKILL.md"}, "load-routed-skill"),
-            ("PowerShell", {"command": "memory search harness"}, "query-native-memory"),
-            ("PowerShell", {"command": "mempalace search harness"}, "query-mempalace"),
-            ("PowerShell", {"command": "graphify query guard"}, "query-graphify"),
-            ("WebSearch", {"query": "official hook documentation"}, "authoritative-online-research"),
-            ("update_plan", {"explanation": "Compare proven approaches", "plan": []}, "compare-proven-approaches"),
-            ("update_plan", {"explanation": "Compare proven approaches", "plan": [{"step": "Implement", "status": "pending"}]}, "record-plan"),
+            ("Read", {"file_path": "src/Main.java"}, None, "read-live-files"),
+            ("Read", {"file_path": ".agents/skills/act-as-mohab/SKILL.md"}, None, "load-routed-skill"),
+            ("PowerShell", {"command": "memory search harness"}, None, "query-native-memory"),
+            ("PowerShell", {"command": "mempalace search harness"}, None, "query-mempalace"),
+            ("PowerShell", {"command": "graphify query guard"}, None, "query-graphify"),
+            ("WebSearch", {"query": "official hook documentation"}, {"url": "https://docs.github.com/en/actions"}, "authoritative-online-research"),
+            ("update_plan", {"explanation": "Compare proven approaches", "plan": []}, None, "compare-proven-approaches"),
+            ("update_plan", {"explanation": "Compare proven approaches", "plan": [{"step": "Implement", "status": "pending"}]}, None, "record-plan"),
         )
-        for tool_name, tool_input, expected in fixtures:
+        for tool_name, tool_input, tool_result, expected in fixtures:
             with self.subTest(tool_name=tool_name, expected=expected):
-                self.assertIn(expected, guard._research_preflight_events(tool_name, tool_input))
+                self.assertIn(
+                    expected,
+                    guard._research_preflight_events(tool_name, tool_input, tool_result),
+                )
 
     def test_portable_hook_matchers_observe_receipt_and_mutation_tools(self):
         for relative in (".claude/settings.json", ".codex/hooks.json"):

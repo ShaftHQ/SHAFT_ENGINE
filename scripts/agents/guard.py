@@ -64,6 +64,7 @@ import sys
 import tempfile
 import time
 from typing import NamedTuple
+from urllib.parse import urlparse
 
 # ---------------------------------------------------------------------------
 # R1: Maven test scoping + headless execution
@@ -1582,7 +1583,43 @@ def check_r12_test_before_production(hook_input: dict, tool_name: str) -> str | 
     )
 
 
-def _research_preflight_events(tool_name: str, tool_input: object) -> tuple[str, ...]:
+_PRIMARY_SOURCE_HOSTS = frozenset(
+    {
+        "docs.github.com",
+        "github.com",
+        "learn.microsoft.com",
+        "docs.python.org",
+        "docs.oracle.com",
+        "openjdk.org",
+        "maven.apache.org",
+        "w3.org",
+        "ietf.org",
+        "rfc-editor.org",
+        "nodejs.org",
+        "docs.npmjs.com",
+        "platform.openai.com",
+        "docs.anthropic.com",
+        "developer.mozilla.org",
+        "selenium.dev",
+        "playwright.dev",
+    }
+)
+
+
+def _has_primary_source_url(tool_result: object) -> bool:
+    rendered = json.dumps(tool_result, sort_keys=True) if tool_result is not None else ""
+    for candidate in re.findall(r"https?://[^\s\"'<>]+", rendered):
+        host = (urlparse(candidate).hostname or "").lower()
+        if host in _PRIMARY_SOURCE_HOSTS or any(
+            host.endswith("." + allowed) for allowed in _PRIMARY_SOURCE_HOSTS
+        ):
+            return True
+    return False
+
+
+def _research_preflight_events(
+    tool_name: str, tool_input: object, tool_result: object = None
+) -> tuple[str, ...]:
     """Map one successful native-client tool call to receipt events in observed order."""
     details = tool_input if isinstance(tool_input, dict) else {}
     rendered = json.dumps(details, sort_keys=True).lower()
@@ -1616,9 +1653,8 @@ def _research_preflight_events(tool_name: str, tool_input: object) -> tuple[str,
         events.append("query-mempalace")
     if "graphify" in lowered_name:
         events.append("query-graphify")
-    if tool_name in {"WebSearch", "WebFetch", "web__run"} and any(
-        marker in rendered
-        for marker in ("official", "documentation", "standard", "specification", "rfc", "upstream")
+    if tool_name in {"WebSearch", "WebFetch", "web__run"} and _has_primary_source_url(
+        tool_result
     ):
         events.append("authoritative-online-research")
     if tool_name == "update_plan":
@@ -1628,6 +1664,10 @@ def _research_preflight_events(tool_name: str, tool_input: object) -> tuple[str,
         plan = details.get("plan")
         if isinstance(plan, list) and plan:
             events.append("record-plan")
+    if tool_name in {"Bash", "PowerShell"} and _is_plan_receipt_command(
+        str(details.get("command") or "")
+    ):
+        events.append("record-plan")
     return tuple(dict.fromkeys(events))
 
 
@@ -1645,13 +1685,45 @@ def _implementation_targets(tool_name: str, tool_input: object) -> tuple[str, ..
                 r"(?m)^\*\*\* (?:Add|Update|Delete) File:\s*(.+?)\s*$", patch_text
             )
         )
+    if tool_name in {"Bash", "PowerShell"}:
+        return _shell_mutation_targets(str(details.get("command") or ""))
     return ()
+
+
+def _shell_mutation_targets(command: str) -> tuple[str, ...]:
+    targets: list[str] = []
+    one_target = {
+        "set-content",
+        "add-content",
+        "clear-content",
+        "remove-content",
+        "remove-item",
+        "new-item",
+        "out-file",
+    }
+    destination_target = {"copy-item", "rename-item", "move-item"}
+    for segment in _command_segments(command):
+        tokens = _segment_tokens(segment)
+        if not tokens:
+            continue
+        head = tokens[0].lower()
+        if head in one_target and len(tokens) > 1:
+            targets.append(tokens[1])
+        elif head in destination_target and len(tokens) > 2:
+            targets.append(tokens[2])
+        for match in re.finditer(r"(?<![0-9])>(?![>&])\s*(?:\"([^\"]+)\"|'([^']+)'|([^\s]+))", segment):
+            targets.append(next(group for group in match.groups() if group is not None))
+    return tuple(dict.fromkeys(targets))
 
 
 def _shell_is_mutation(command: str) -> bool:
     for segment in _command_segments(command):
         lowered = segment.lower()
-        if re.search(r"\b(?:set-content|add-content|out-file|remove-item|move-item)\b", lowered):
+        if re.search(
+            r"\b(?:set-content|add-content|clear-content|remove-content|out-file|"
+            r"new-item|remove-item|copy-item|rename-item|move-item)\b",
+            lowered,
+        ):
             return True
         if re.search(r"(?<![0-9])>(?![>&])", lowered):
             return True
@@ -1664,6 +1736,21 @@ def _shell_is_mutation(command: str) -> bool:
         if re.search(r"\bmempalace\s+(?:add|delete|mine|sync|sweep|update|checkpoint)\b", lowered):
             return True
     return False
+
+
+def _is_plan_receipt_command(command: str) -> bool:
+    lowered = command.lower()
+    return bool(
+        re.search(r"\bgh\s+issue\s+comment\b", lowered)
+        and any(
+            marker in lowered
+            for marker in (
+                "implementation plan",
+                "executable specification",
+                "resolved caller matrix",
+            )
+        )
+    )
 
 
 def _is_implementation_mutation(tool_name: str, tool_input: object) -> bool:
@@ -1705,11 +1792,23 @@ def check_r25_research_before_implementation(
     root = _act_as_mohab_root(cwd)
     if not root:
         return None
-    if tool_name in _FILE_MUTATION_TOOLS:
+    if tool_name in _FILE_MUTATION_TOOLS or tool_name in {"Bash", "PowerShell"}:
         targets = _implementation_targets(tool_name, tool_input)
         if targets and all(not _path_is_inside(path, root, cwd) for path in targets):
             return None
     events = ledger_events(hook_input)
+    if _is_plan_receipt_command(
+        str((tool_input if isinstance(tool_input, dict) else {}).get("command") or "")
+    ):
+        required_prefix = RESEARCH_PREFLIGHT_EVENTS[:-1]
+        cursor = -1
+        for required in required_prefix:
+            try:
+                cursor = events.index(required, cursor + 1)
+            except ValueError:
+                break
+        else:
+            return None
     cursor = -1
     for required in RESEARCH_PREFLIGHT_EVENTS:
         try:
@@ -2362,13 +2461,15 @@ def check_r19_fresh_base(hook_input: dict, tool_name: str) -> str | None:
     the abnormal case -- so an ordinary edit costs exactly the one subprocess
     it cost before, which is what keeps this inside HOOK_BUDGET_SECONDS.
     """
-    if tool_name not in _FILE_MUTATION_TOOLS:
+    if tool_name not in _FILE_MUTATION_TOOLS and tool_name not in {"Bash", "PowerShell"}:
+        return None
+    targets = _implementation_targets(tool_name, hook_input.get("tool_input"))
+    if tool_name in {"Bash", "PowerShell"} and not targets:
         return None
     cwd = _hook_working_directory(hook_input)
     branch = _current_branch(cwd)
     if not branch or branch not in DEFAULT_BRANCHES:
         return None
-    targets = _implementation_targets(tool_name, hook_input.get("tool_input"))
     root = _repository_root(cwd)
     if targets and root and all(not _path_is_inside(path, root, cwd) for path in targets):
         return None
@@ -2478,7 +2579,10 @@ def run_pretooluse(hook_input: dict, host: str = "portable") -> int:
 def run_posttooluse(hook_input: dict) -> int:
     """Certify only successful tool calls; failure hooks never route here."""
     tool_name = hook_input.get("tool_name", "")
-    for event in _research_preflight_events(tool_name, hook_input.get("tool_input")):
+    result = hook_input.get("tool_response", hook_input.get("tool_result"))
+    for event in _research_preflight_events(
+        tool_name, hook_input.get("tool_input"), result
+    ):
         ledger_record(hook_input, event)
     return 0
 
