@@ -56,7 +56,11 @@
       "workspace": {"files": {"source/task.md": "Do not retry. Wait 15 ms. Run mvn -q test."}},
       "expectations": [{
         "kind": "preserves",
-        "exact": ["not", "15", "ms", "mvn -q test"]
+        "facts": [
+          {"kind": "negated_action", "value": "retry"},
+          {"kind": "quantity", "value": "15", "unit": "ms"},
+          {"kind": "command", "value": "mvn -q test"}
+        ]
       }]
     },
     {

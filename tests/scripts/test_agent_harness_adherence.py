@@ -184,6 +184,7 @@ class AgentHarnessAdherenceTest(unittest.TestCase):
         self.assertTrue(adherence.evaluate(corpus, baseline)["episodes"][identifier]["strict_episode_pass"])
         for response in (
             "Do retry; wait 15 ms; run mvn -q test.",
+            "Retry now, not later; wait 15 ms; run mvn -q test.",
             "Do not retry; wait 16 ms; run mvn -q test.",
             "Do not retry; wait 15 seconds; run mvn -q test.",
             "Do not retry; wait 15 ms; run mvn test.",

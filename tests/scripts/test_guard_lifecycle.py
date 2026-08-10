@@ -316,6 +316,88 @@ class GuardLifecycleTest(unittest.TestCase):
                 text = (Path(__file__).resolve().parents[2] / relative).read_text(encoding="utf-8")
                 for tool in ("Read", "WebSearch", "WebFetch", "update_plan", "apply_patch"):
                     self.assertIn(tool, text)
+                self.assertIn("PostToolUse", text)
+
+    def test_every_live_mutation_lane_requires_the_receipt(self):
+        fixtures = (
+            ("PowerShell", {"command": "Set-Content scripts/x.py changed"}),
+            ("Bash", {"command": "printf changed > scripts/x.py"}),
+            ("mcp__shaft-memory__remember_memory", {"content": "durable"}),
+            ("mcp__mempalace__mempalace_delete_drawer", {"drawer_id": "x"}),
+            ("PowerShell", {"command": "gh api --method PATCH repos/o/r -f x=y"}),
+        )
+        for tool_name, tool_input in fixtures:
+            with self.subTest(tool_name=tool_name, tool_input=tool_input):
+                payload = {"cwd": ".", "tool_input": tool_input}
+                with patch("scripts.agents.guard.ledger_events", return_value=[]):
+                    self.assertIsNotNone(
+                        guard.check_r25_research_before_implementation(payload, tool_name)
+                    )
+
+    def test_apply_patch_shares_default_branch_and_outside_target_scoping(self):
+        inside = {
+            "cwd": ".",
+            "tool_input": {"patch": "*** Update File: scripts/x.py\n"},
+        }
+        outside = {
+            "cwd": ".",
+            "tool_input": {"patch": "*** Update File: ../scratch.txt\n"},
+        }
+        with patch("scripts.agents.guard._current_branch", return_value="main"):
+            self.assertIsNotNone(guard.check_r19_fresh_base(inside, "apply_patch"))
+            self.assertIsNone(guard.check_r19_fresh_base(outside, "apply_patch"))
+        with patch("scripts.agents.guard.ledger_events", return_value=[]):
+            self.assertIsNone(
+                guard.check_r25_research_before_implementation(outside, "apply_patch")
+            )
+
+    def test_only_successful_post_tool_events_certify_research(self):
+        payload = {
+            "cwd": ".",
+            "session_id": "post-tool-receipt",
+            "tool_name": "Read",
+            "tool_input": {"file_path": ".agents/skills/act-as-mohab/SKILL.md"},
+        }
+        observed = []
+        with patch("scripts.agents.guard.ledger_record", side_effect=lambda _payload, event: observed.append(event)):
+            self.assertEqual(guard.run_pretooluse(payload), 0)
+        self.assertEqual(observed, [], "attempted PreToolUse calls must not certify success")
+
+        with patch("scripts.agents.guard.ledger_record", side_effect=lambda _payload, event: observed.append(event)):
+            self.assertEqual(guard.run_posttooluse(payload), 0)
+        self.assertEqual(observed, ["read-live-files", "load-routed-skill"])
+
+    def test_successful_shell_research_is_recorded_in_command_order(self):
+        payload = {
+            "cwd": ".",
+            "session_id": "ordered-shell-receipt",
+            "tool_name": "PowerShell",
+            "tool_input": {
+                "command": "graphify query x; mempalace search x; memory search x; "
+                "Get-Content .agents/skills/act-as-mohab/SKILL.md"
+            },
+        }
+        observed = []
+        with patch("scripts.agents.guard.ledger_record", side_effect=lambda _payload, event: observed.append(event)):
+            guard.run_posttooluse(payload)
+        self.assertEqual(
+            observed,
+            [
+                "query-graphify",
+                "query-mempalace",
+                "query-native-memory",
+                "read-live-files",
+                "load-routed-skill",
+            ],
+        )
+
+    def test_only_explicit_primary_source_research_counts_as_authoritative(self):
+        generic = guard._research_preflight_events("WebSearch", {"query": "hook ideas"})
+        primary = guard._research_preflight_events(
+            "WebSearch", {"query": "official GitHub hooks documentation"}
+        )
+        self.assertNotIn("authoritative-online-research", generic)
+        self.assertIn("authoritative-online-research", primary)
 
 
     @patch("scripts.agents.guard._open_pull_request_count", return_value=1)
