@@ -1,0 +1,45 @@
+{
+  "schemaVersion": "1.0",
+  "commands": [
+    {
+      "name": "browser",
+      "description": "Browser shortcuts: navigate | screenshot | dom | url."
+    },
+    {
+      "name": "call",
+      "description": "Invoke any shaft-mcp tool by name."
+    },
+    {
+      "name": "capture",
+      "description": "Capture shortcuts: start | stop | status | code | step-delete | step-reorder."
+    },
+    {
+      "name": "codegen",
+      "description": "Generate SHAFT test code from a capture recording (deterministic, no MCP session)."
+    },
+    {
+      "name": "doctor",
+      "description": "Doctor shortcuts: analyze | suggest."
+    },
+    {
+      "name": "element",
+      "description": "Element shortcuts: click | type | hover."
+    },
+    {
+      "name": "guide",
+      "description": "Guide shortcut: search."
+    },
+    {
+      "name": "help",
+      "description": "When no COMMAND is given, the usage help for the main command is displayed. If a COMMAND is specified, the help for that command is shown."
+    },
+    {
+      "name": "session",
+      "description": "Manage the shaft-mcp daemon session (start | status | stop)."
+    },
+    {
+      "name": "tools",
+      "description": "List the tools exposed by shaft-mcp."
+    }
+  ]
+}

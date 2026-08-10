@@ -162,6 +162,9 @@ tasks {
         from(project.file("../shaft-mcp/src/main/resources/META-INF/shaft-mcp/tool-index.json")) {
             into("META-INF/shaft-mcp")
         }
+        from(project.file("../shaft-cli/src/main/resources/META-INF/shaft-cli/command-index.json")) {
+            into("META-INF/shaft-cli")
+        }
     }
 
     test {

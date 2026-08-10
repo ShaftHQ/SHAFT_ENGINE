@@ -81,6 +81,7 @@ import java.util.function.Function;
 import javax.swing.text.JTextComponent;
 
 import static org.junit.jupiter.api.Assertions.assertAll;
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
@@ -92,6 +93,64 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class ShaftPanelSetupTest {
     private static final List<Path> TEMP_DIRECTORIES = new ArrayList<>();
+
+    @Test
+    void assistantCapabilityHelpAppliesFreshMcpDiscoveryToTheTranscript() throws Exception {
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
+        Method apply = assertDoesNotThrow(() -> ShaftAssistantPanel.class.getDeclaredMethod(
+                "applyCapabilityHelpResult", String.class, ShaftMcpToolResult.class, Throwable.class));
+        apply.setAccessible(true);
+        String payload = """
+                {"tools":[{"name":"future_live_tool","description":"A live future capability"}]}
+                """;
+
+        apply.invoke(panel, "", ShaftMcpToolResult.success(payload), null);
+
+        String transcript = transcriptMarkdown(panel);
+        assertAll(
+                () -> assertTrue(transcript.contains("future_live_tool"), transcript),
+                () -> assertTrue(transcript.contains("Live SHAFT MCP discovery succeeded"), transcript),
+                () -> assertFalse(transcript.contains("element_click"), transcript));
+    }
+
+    @Test
+    void capabilityDiscoveryCancellationDoesNotCancelTheSharedMcpClient() throws Exception {
+        AtomicBoolean sharedCancelCalled = new AtomicBoolean();
+        CompletableFuture<ShaftMcpToolResult> sharedFuture = new CompletableFuture<>();
+        ShaftMcpInvocation shared = new ShaftMcpInvocation(sharedFuture,
+                () -> sharedCancelCalled.set(true));
+        Method wrap = ShaftAssistantPanel.class.getDeclaredMethod(
+                "nonDisruptiveCapabilityDiscovery", ShaftMcpInvocation.class);
+        wrap.setAccessible(true);
+
+        ShaftMcpInvocation help = (ShaftMcpInvocation) wrap.invoke(null, shared);
+        help.cancel();
+
+        assertAll(
+                () -> assertTrue(help.future().isCancelled()),
+                () -> assertFalse(sharedFuture.isCancelled()),
+                () -> assertFalse(sharedCancelCalled.get(),
+                        "cancelling help must not invoke the shared MCP client's cancel-all action"));
+        assertTrue(sharedFuture.complete(ShaftMcpToolResult.success("{\"tools\":[]}")));
+        assertTrue(sharedFuture.join().success());
+    }
+
+    @Test
+    void capabilityDiscoveryFailureLeadsWithFallbackNoticeAndRestoresReady() throws Exception {
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
+        Method apply = ShaftAssistantPanel.class.getDeclaredMethod(
+                "applyCapabilityHelpResult", String.class, ShaftMcpToolResult.class, Throwable.class);
+        apply.setAccessible(true);
+
+        apply.invoke(panel, "", ShaftMcpToolResult.failure("server exploded\nraw stack detail"), null);
+
+        String transcript = transcriptMarkdown(panel);
+        assertTrue(transcript.indexOf("Live discovery failed. Showing the bundled catalog instead.")
+                < transcript.indexOf("# SHAFT Assistant capabilities"), transcript);
+        assertFalse(transcript.contains("server exploded"), transcript);
+        assertFalse(transcript.contains("raw stack detail"), transcript);
+        assertTrue(transcript.contains("element_click"), transcript);
+    }
 
     /**
      * Temp-dir factory with suite-level cleanup: raw Files.createTempDirectory calls leaked one

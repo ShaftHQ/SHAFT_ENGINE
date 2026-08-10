@@ -1640,6 +1640,10 @@ final class ShaftAssistantPanel extends JPanel implements Disposable {
             attachments = List.of();
             refreshAttachmentsChipRow();
         }
+        if (invocation.isCapabilityHelp() && project != null && mcpConfigured()) {
+            startCapabilityHelp(invocation.capabilityTopic());
+            return;
+        }
         if (invocation.isLocal()) {
             showLocalResponse(invocation.localResponse());
             return;
@@ -1683,6 +1687,43 @@ final class ShaftAssistantPanel extends JPanel implements Disposable {
         }
         rememberCaptureInvocation(text, invocation);
         startMcpInvocation(invocation);
+    }
+
+    private void startCapabilityHelp(String topic) {
+        setRunning(true, "Discovering SHAFT capabilities...");
+        try {
+            currentInvocation = nonDisruptiveCapabilityDiscovery(
+                    ShaftMcpInvocationService.getInstance(project).startListTools(true));
+            currentInvocation.future().whenComplete((result, error) ->
+                    runOnEdt(() -> applyCapabilityHelpResult(topic, result, error)));
+        } catch (RuntimeException error) {
+            applyCapabilityHelpResult(topic, null, error);
+        }
+    }
+
+    /** Cancels only the help future; the shared MCP client's cancel action cancels every pending request. */
+    private static ShaftMcpInvocation nonDisruptiveCapabilityDiscovery(ShaftMcpInvocation sharedInvocation) {
+        CompletableFuture<ShaftMcpToolResult> requestView = sharedInvocation.future().thenApply(result -> result);
+        return new ShaftMcpInvocation(requestView, () -> {
+            // The tools/list request may finish in the background and refresh its cache.
+        });
+    }
+
+    void applyCapabilityHelpResult(String topic, ShaftMcpToolResult result, Throwable error) {
+        currentInvocation = null;
+        setRunning(false, READY_STATUS);
+        if (error == null && result != null && result.success()) {
+            showLocalResponse(AssistantCapabilityCatalog.live(topic, result.output()));
+            return;
+        }
+        String detail;
+        if (error instanceof CancellationException) {
+            detail = "Live discovery was cancelled.";
+        } else {
+            detail = "Live discovery failed.";
+        }
+        showLocalResponse(detail + " Showing the bundled catalog instead.\n\n"
+                + AssistantCapabilityCatalog.bundled(topic));
     }
 
     /**
