@@ -567,7 +567,10 @@ class AgentHarnessPortabilityTest(unittest.TestCase):
         codex_hooks = hook_groups(ROOT / ".codex/hooks.json")
         self.assertEqual(set(claude_hooks), set(codex_hooks))
         for hooks in (claude_hooks, codex_hooks):
-            self.assertEqual(set(hooks), {"PreToolUse", "SessionStart", "Stop", "SubagentStop"})
+            self.assertEqual(
+                set(hooks),
+                {"PreToolUse", "PostToolUse", "SessionStart", "Stop", "SubagentStop"},
+            )
             commands = {
                 handler["command"]
                 for groups in hooks.values()

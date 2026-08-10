@@ -344,8 +344,12 @@ class GuardLifecycleTest(unittest.TestCase):
             "tool_input": {"patch": "*** Update File: ../scratch.txt\n"},
         }
         with patch("scripts.agents.guard._current_branch", return_value="main"):
-            self.assertIsNotNone(guard.check_r19_fresh_base(inside, "apply_patch"))
-            self.assertIsNone(guard.check_r19_fresh_base(outside, "apply_patch"))
+            with patch(
+                "scripts.agents.guard._repository_root",
+                return_value=os.path.realpath("."),
+            ):
+                self.assertIsNotNone(guard.check_r19_fresh_base(inside, "apply_patch"))
+                self.assertIsNone(guard.check_r19_fresh_base(outside, "apply_patch"))
         with patch("scripts.agents.guard.ledger_events", return_value=[]):
             self.assertIsNone(
                 guard.check_r25_research_before_implementation(outside, "apply_patch")

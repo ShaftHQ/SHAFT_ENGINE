@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import tempfile
 from pathlib import Path, PurePosixPath, PureWindowsPath
 
@@ -46,12 +47,18 @@ def _valid_expectation(expectation: object) -> bool:
             expectation.get("remedy")
         )
     if kind == "preserves":
-        exact = expectation.get("exact")
+        facts = expectation.get("facts")
+        valid_fact_kinds = {"negated_action", "quantity", "command"}
         return (
-            isinstance(exact, list)
-            and bool(exact)
-            and all(_is_nonempty_string(term) for term in exact)
-            and len(set(exact)) == len(exact)
+            isinstance(facts, list)
+            and bool(facts)
+            and all(
+                isinstance(fact, dict)
+                and fact.get("kind") in valid_fact_kinds
+                and _is_nonempty_string(fact.get("value"))
+                and (fact["kind"] != "quantity" or _is_nonempty_string(fact.get("unit")))
+                for fact in facts
+            )
         )
     ordered = expectation.get("ordered")
     ordered_is_valid = (
@@ -231,7 +238,18 @@ def _expectation_result(expectation: dict, evidence: dict) -> bool | None:
         response = evidence.get("response")
         if not isinstance(response, str):
             return None
-        return all(term in response for term in expectation["exact"])
+        for fact in expectation["facts"]:
+            value = re.escape(fact["value"])
+            if fact["kind"] == "negated_action":
+                if not re.search(rf"\b(?:do\s+not|don't|never)\s+{value}\b", response, re.I):
+                    return False
+            elif fact["kind"] == "quantity":
+                unit = re.escape(fact["unit"])
+                if not re.search(rf"(?<!\w){value}\s*{unit}(?!\w)", response, re.I):
+                    return False
+            elif fact["value"] not in response:
+                return False
+        return True
     if expectation["kind"] == "first_viable":
         chosen = evidence.get("chosen_action")
         if not isinstance(chosen, str):
