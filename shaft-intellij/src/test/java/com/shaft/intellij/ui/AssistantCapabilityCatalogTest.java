@@ -4,19 +4,13 @@ import com.shaft.intellij.mcp.ShaftCliCommandIndex;
 import com.shaft.intellij.mcp.ToolCatalogIndex;
 import org.junit.jupiter.api.Test;
 
-import java.lang.reflect.Method;
-
-import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class AssistantCapabilityCatalogTest {
 
     @Test
-    void liveCatalogIsAuthoritativeAndKeepsUnknownDiscoveredTools() throws Exception {
-        Method live = assertDoesNotThrow(() -> AssistantCapabilityCatalog.class
-                .getDeclaredMethod("live", String.class, String.class));
-        live.setAccessible(true);
+    void liveCatalogIsAuthoritativeAndKeepsUnknownDiscoveredTools() {
         String payload = """
                 {"tools":[
                   {"name":"browser_navigate","description":"Live browser navigation"},
@@ -24,7 +18,7 @@ class AssistantCapabilityCatalogTest {
                 ]}
                 """;
 
-        String output = (String) live.invoke(null, "", payload);
+        String output = AssistantCapabilityCatalog.live("", payload);
 
         assertTrue(output.contains("Live SHAFT MCP discovery succeeded."), output);
         assertTrue(output.contains("browser_navigate"), output);

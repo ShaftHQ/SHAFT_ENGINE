@@ -78,6 +78,20 @@ final class AssistantCapabilityCatalog {
                 .append(sourceNote);
         int matchesBefore = output.length();
 
+        appendAssistantCommands(output, matches);
+        appendMcpTools(output, tools, live, matches);
+        appendCliCommands(output, normalizedTopic, matches);
+
+        if (output.length() == matchesBefore) {
+            output.append("\n\nNo capability matched `").append(topic == null ? "" : topic.trim())
+                    .append("`. Use `/help` to show the complete catalog.");
+        } else if (!normalizedTopic.isBlank()) {
+            output.append("\n\n_Filtered by: `").append(topic.trim()).append("`. Use `/help` for everything._");
+        }
+        return output.toString();
+    }
+
+    private static void appendAssistantCommands(StringBuilder output, Predicate<String> matches) {
         List<AssistantCommand.CommandHint> commands = AssistantCommand.registeredCommandHints().stream()
                 .filter(command -> matches.test(command.canonical() + " " + command.summary() + " "
                         + String.join(" ", command.synonyms())))
@@ -94,7 +108,10 @@ final class AssistantCapabilityCatalog {
                 output.append("\n  Example: `").append(command.example()).append('`');
             }
         }
+    }
 
+    private static void appendMcpTools(StringBuilder output, List<ToolEntry> tools, boolean live,
+                                       Predicate<String> matches) {
         List<ToolEntry> matchingTools = tools.stream()
                 .filter(tool -> matches.test(tool.name() + " " + tool.service() + " "
                         + tool.description() + " " + tool.slashAlias()))
@@ -117,7 +134,10 @@ final class AssistantCapabilityCatalog {
                 }
             }
         }
+    }
 
+    private static void appendCliCommands(StringBuilder output, String normalizedTopic,
+                                          Predicate<String> matches) {
         List<ShaftCliCommandIndex.CommandMetadata> cliCommands = ShaftCliCommandIndex.commands().stream()
                 .filter(command -> matches.test(command.name() + " " + command.description()))
                 .toList();
@@ -132,14 +152,6 @@ final class AssistantCapabilityCatalog {
                 output.append("\n\nUse `shaft-cli call <tool> [json]` to invoke any SHAFT MCP tool by name.");
             }
         }
-
-        if (output.length() == matchesBefore) {
-            output.append("\n\nNo capability matched `").append(topic == null ? "" : topic.trim())
-                    .append("`. Use `/help` to show the complete catalog.");
-        } else if (!normalizedTopic.isBlank()) {
-            output.append("\n\n_Filtered by: `").append(topic.trim()).append("`. Use `/help` for everything._");
-        }
-        return output.toString();
     }
 
     private static String friendlyService(String service) {

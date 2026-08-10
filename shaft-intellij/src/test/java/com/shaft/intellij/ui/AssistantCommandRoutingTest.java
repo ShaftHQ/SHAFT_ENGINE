@@ -385,11 +385,8 @@ class AssistantCommandRoutingTest {
     }
 
     @Test
-    void capabilityHelpContainsEveryRegisteredCommandExactlyOnce() throws Exception {
-        java.lang.reflect.Method registered = AssistantCommand.class.getDeclaredMethod("registeredCommandHints");
-        registered.setAccessible(true);
-        @SuppressWarnings("unchecked")
-        List<AssistantCommand.CommandHint> hints = (List<AssistantCommand.CommandHint>) registered.invoke(null);
+    void capabilityHelpContainsEveryRegisteredCommandExactlyOnce() {
+        List<AssistantCommand.CommandHint> hints = AssistantCommand.registeredCommandHints();
         String help = command("/help").localResponse();
 
         for (AssistantCommand.CommandHint hint : hints) {
