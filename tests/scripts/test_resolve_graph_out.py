@@ -158,15 +158,17 @@ class ResolveGraphOutTest(unittest.TestCase):
         commands = [
             line.strip()
             for line in wrapper.splitlines()
-            if line.strip().lower().startswith(("py ", "if errorlevel", "if not errorlevel"))
+            if line.strip().lower().startswith(
+                ("call graphify ", "py ", "if errorlevel", "if not errorlevel")
+            )
         ]
 
         self.assertEqual(
             [
-                'py -3 -m graphify . > "%USERPROFILE%\\.agent-infra\\logs\\graphify-refresh.log" 2>&1',
+                'call graphify . > "%USERPROFILE%\\.agent-infra\\logs\\graphify-refresh.log" 2>&1',
                 "if errorlevel 1 exit /b 1",
                 "if not errorlevel 0 exit /b 1",
-                'py -3 -m graphify cluster-only . >> "%USERPROFILE%\\.agent-infra\\logs\\graphify-refresh.log" 2>&1',
+                'call graphify cluster-only . >> "%USERPROFILE%\\.agent-infra\\logs\\graphify-refresh.log" 2>&1',
                 "if errorlevel 1 exit /b 1",
                 "if not errorlevel 0 exit /b 1",
                 'py -3 tools\\repository-map\\resolve_graph_out.py --record-current >> "%USERPROFILE%\\.agent-infra\\logs\\graphify-refresh.log" 2>&1',
@@ -181,17 +183,13 @@ class ResolveGraphOutTest(unittest.TestCase):
         wrapper_dir.mkdir(parents=True)
         wrapper = wrapper_dir / "graphify-refresh.cmd"
         shutil.copy2(ROOT / "tools/agent-infra/graphify-refresh.cmd", wrapper)
-        fake_python = self.sandbox / "fake-python"
-        fake_python.mkdir()
-        (fake_python / "graphify.py").write_text(
-            """import os
-import sys
-
-if sys.argv[1:] == ["."]:
-    raise SystemExit(int(os.environ["GRAPHIFY_BUILD_EXIT"]))
-if sys.argv[1:] == ["cluster-only", "."]:
-    raise SystemExit(int(os.environ["GRAPHIFY_CLUSTER_EXIT"]))
-raise SystemExit(99)
+        fake_bin = self.sandbox / "fake-bin"
+        fake_bin.mkdir()
+        (fake_bin / "graphify.cmd").write_text(
+            """@echo off
+if "%~1"=="." exit /b %GRAPHIFY_BUILD_EXIT%
+if "%~1"=="cluster-only" if "%~2"=="." exit /b %GRAPHIFY_CLUSTER_EXIT%
+exit /b 99
 """,
             encoding="utf-8",
         )
@@ -209,7 +207,7 @@ Path(os.environ["GRAPHIFY_MARKER"]).touch()
         )
 
         base_env = os.environ.copy()
-        base_env["PYTHONPATH"] = str(fake_python)
+        base_env["PATH"] = str(fake_bin) + os.pathsep + base_env["PATH"]
         base_env["USERPROFILE"] = str(self.sandbox)
         base_env["GRAPHIFY_MARKER"] = str(marker)
         cmd_executable = shutil.which("cmd.exe")
@@ -245,6 +243,13 @@ Path(os.environ["GRAPHIFY_MARKER"]).touch()
         )
         self.assertEqual(0, success.returncode, success.stderr)
         self.assertTrue(marker.exists())
+
+    def test_install_guidance_uses_upgradeable_official_graphify_tool(self):
+        readme = (ROOT / "tools/repository-map/README.md").read_text(encoding="utf-8")
+
+        self.assertIn("uv tool install graphifyy", readme)
+        self.assertIn("uv tool upgrade graphifyy", readme)
+        self.assertNotIn("graphifyy==0.9.17", readme)
 
 
 if __name__ == "__main__":
