@@ -1,0 +1,305 @@
+package com.shaft.tools.io.internal;
+
+import java.io.IOException;
+import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.AtomicMoveNotSupportedException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.CopyOption;
+import java.nio.file.StandardCopyOption;
+import java.nio.file.StandardOpenOption;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Objects;
+import java.util.UUID;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipOutputStream;
+
+/**
+ * Writes a bounded SHAFT trace archive without buffering the complete ZIP in memory.
+ */
+final class TraceArchiveWriter {
+    private static final int COPY_BUFFER_SIZE = 16 * 1024;
+    private static final MoveStrategy DEFAULT_MOVES = Files::move;
+    private static final CopyStrategy DEFAULT_COPIES = Files::copy;
+
+    private TraceArchiveWriter() {
+        throw new IllegalStateException("Utility class");
+    }
+
+    /**
+     * Streams all entries to a sibling temporary archive and publishes it only after the ZIP has
+     * closed successfully. An existing target is therefore preserved if any entry cannot be read.
+     */
+    static void write(Path target, List<Entry> entries, long maxEntryBytes, String omissionMarker) throws IOException {
+        write(target, entries, maxEntryBytes, omissionMarker, DEFAULT_MOVES);
+    }
+
+    static void write(Path target, List<Entry> entries, long maxEntryBytes, String omissionMarker,
+                      MoveStrategy moves) throws IOException {
+        write(target, entries, maxEntryBytes, omissionMarker, moves, DEFAULT_COPIES);
+    }
+
+    static void write(Path target, List<Entry> entries, long maxEntryBytes, String omissionMarker,
+                      MoveStrategy moves, CopyStrategy copies) throws IOException {
+        Objects.requireNonNull(target, "target");
+        Objects.requireNonNull(entries, "entries");
+        Objects.requireNonNull(moves, "moves");
+        Objects.requireNonNull(copies, "copies");
+        if (maxEntryBytes < 1) {
+            throw new IllegalArgumentException("maxEntryBytes must be positive");
+        }
+        Path absoluteTarget = target.toAbsolutePath();
+        Path parent = absoluteTarget.getParent();
+        if (parent == null) {
+            throw new IOException("Trace archive target must have a parent directory.");
+        }
+        Files.createDirectories(parent);
+        Path temporary = parent.resolve(absoluteTarget.getFileName() + ".tmp-" + UUID.randomUUID());
+        byte[] omitted = String.valueOf(omissionMarker).getBytes(StandardCharsets.UTF_8);
+        try {
+            try (ZipOutputStream zip = new ZipOutputStream(Files.newOutputStream(temporary,
+                    StandardOpenOption.CREATE_NEW, StandardOpenOption.WRITE))) {
+                for (Entry entry : entries) {
+                    addEntry(zip, entry, maxEntryBytes, omitted);
+                }
+            }
+            publish(temporary, absoluteTarget, moves, copies);
+        } catch (IOException | RuntimeException exception) {
+            cleanup(temporary, exception);
+            throw exception;
+        }
+    }
+
+    /** Copies a completed archive through the same recoverable publication protocol. */
+    static void copy(Path source, Path target) throws IOException {
+        Objects.requireNonNull(source, "source");
+        Objects.requireNonNull(target, "target");
+        Path absoluteTarget = target.toAbsolutePath();
+        Path parent = absoluteTarget.getParent();
+        if (parent == null) {
+            throw new IOException("Trace archive target must have a parent directory.");
+        }
+        Files.createDirectories(parent);
+        Path temporary = temporarySibling(absoluteTarget);
+        try {
+            Files.copy(source, temporary);
+            publish(temporary, absoluteTarget, DEFAULT_MOVES, DEFAULT_COPIES);
+        } catch (IOException | RuntimeException exception) {
+            cleanup(temporary, exception);
+            throw exception;
+        }
+    }
+
+    private static void addEntry(ZipOutputStream zip, Entry entry, long maxEntryBytes, byte[] omissionMarker)
+            throws IOException {
+        Objects.requireNonNull(entry, "entry");
+        if (entry.optional()) {
+            addOptionalEntry(zip, entry, maxEntryBytes, omissionMarker);
+            return;
+        }
+        writeEntry(zip, entry, maxEntryBytes, omissionMarker);
+    }
+
+    private static void addOptionalEntry(ZipOutputStream zip, Entry entry, long maxEntryBytes,
+                                         byte[] omissionMarker) throws IOException {
+        Path stable = null;
+        try {
+            if (entry.size() > maxEntryBytes) {
+                writeMarkerEntry(zip, entry.name(), omissionMarker);
+                return;
+            }
+            stable = Files.createTempFile("shaft-trace-optional-", ".tmp");
+            try (InputStream input = entry.open(); var output = Files.newOutputStream(stable)) {
+                byte[] buffer = new byte[COPY_BUFFER_SIZE];
+                long written = 0;
+                int count;
+                while ((count = input.read(buffer)) != -1) {
+                    written += count;
+                    if (written > maxEntryBytes) {
+                        throw new IOException("Optional trace entry exceeded its configured bound: " + entry.name());
+                    }
+                    output.write(buffer, 0, count);
+                }
+            }
+            writeEntry(zip, Entry.file(entry.name(), stable), maxEntryBytes, omissionMarker);
+        } catch (IOException ignored) {
+            writeMarkerEntry(zip, entry.name(), omissionMarker);
+        } finally {
+            if (stable != null) {
+                try {
+                    Files.deleteIfExists(stable);
+                } catch (IOException ignored) {
+                    stable.toFile().deleteOnExit();
+                }
+            }
+        }
+    }
+
+    private static void writeMarkerEntry(ZipOutputStream zip, String name, byte[] omissionMarker) throws IOException {
+        zip.putNextEntry(new ZipEntry(name));
+        try {
+            zip.write(omissionMarker);
+        } finally {
+            zip.closeEntry();
+        }
+    }
+
+    private static void writeEntry(ZipOutputStream zip, Entry entry, long maxEntryBytes, byte[] omissionMarker)
+            throws IOException {
+        zip.putNextEntry(new ZipEntry(entry.name()));
+        try {
+            if (entry.size() > maxEntryBytes) {
+                zip.write(omissionMarker);
+                return;
+            }
+            try (InputStream input = entry.open()) {
+                byte[] buffer = new byte[COPY_BUFFER_SIZE];
+                long written = 0;
+                int count;
+                while ((count = input.read(buffer)) != -1) {
+                    written += count;
+                    if (written > maxEntryBytes) {
+                        throw new IOException("Trace entry changed size while being written: " + entry.name());
+                    }
+                    zip.write(buffer, 0, count);
+                }
+            }
+        } finally {
+            zip.closeEntry();
+        }
+    }
+
+    private static void publish(Path temporary, Path target, MoveStrategy moves, CopyStrategy copies) throws IOException {
+        try {
+            moves.move(temporary, target, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
+        } catch (AtomicMoveNotSupportedException ignored) {
+            recoverableReplace(temporary, target, moves, copies);
+        }
+    }
+
+    private static void recoverableReplace(Path temporary, Path target, MoveStrategy moves, CopyStrategy copies)
+            throws IOException {
+        if (!Files.exists(target)) {
+            try {
+                moves.move(temporary, target, StandardCopyOption.REPLACE_EXISTING);
+            } catch (IOException | RuntimeException publicationFailure) {
+                try {
+                    Files.deleteIfExists(target);
+                } catch (IOException cleanupFailure) {
+                    publicationFailure.addSuppressed(cleanupFailure);
+                }
+                throw publicationFailure;
+            }
+            return;
+        }
+        Path backup = target.resolveSibling(target.getFileName() + ".backup-" + UUID.randomUUID());
+        try {
+            copies.copy(target, backup);
+        } catch (IOException backupFailure) {
+            cleanup(backup, backupFailure);
+            throw backupFailure;
+        }
+        try {
+            moves.move(temporary, target, StandardCopyOption.REPLACE_EXISTING);
+        } catch (IOException | RuntimeException publicationFailure) {
+            try {
+                copies.copy(backup, target, StandardCopyOption.REPLACE_EXISTING);
+            } catch (IOException | RuntimeException restorationFailure) {
+                publicationFailure.addSuppressed(restorationFailure);
+                publicationFailure.addSuppressed(new IOException("Known-good trace backup retained at " + backup));
+                throw publicationFailure;
+            }
+            try {
+                Files.deleteIfExists(backup);
+            } catch (IOException cleanupFailure) {
+                publicationFailure.addSuppressed(cleanupFailure);
+                backup.toFile().deleteOnExit();
+            }
+            throw publicationFailure;
+        }
+        try {
+            Files.deleteIfExists(backup);
+        } catch (IOException ignored) {
+            backup.toFile().deleteOnExit();
+        }
+    }
+
+    private static Path temporarySibling(Path target) {
+        return target.resolveSibling(target.getFileName() + ".tmp-" + UUID.randomUUID());
+    }
+
+    private static void cleanup(Path temporary, Throwable original) {
+        try {
+            Files.deleteIfExists(temporary);
+        } catch (IOException cleanupFailure) {
+            original.addSuppressed(cleanupFailure);
+        }
+    }
+
+    /** A lazily opened archive entry backed by either bounded bytes or a filesystem path. */
+    record Entry(String name, byte[] bytes, Path path, Source source, boolean optional) {
+        Entry {
+            if (name == null || name.isBlank() || name.startsWith("/") || name.startsWith("\\")
+                    || name.contains("../") || name.contains("..\\")) {
+                throw new IllegalArgumentException("Trace archive entry name must be relative and traversal-free.");
+            }
+            int sourceCount = (bytes == null ? 0 : 1) + (path == null ? 0 : 1) + (source == null ? 0 : 1);
+            if (sourceCount != 1) {
+                throw new IllegalArgumentException("Trace archive entry needs exactly one content source.");
+            }
+            bytes = bytes == null ? null : Arrays.copyOf(bytes, bytes.length);
+        }
+
+        static Entry text(String name, String text) {
+            return bytes(name, String.valueOf(text).getBytes(StandardCharsets.UTF_8));
+        }
+
+        static Entry bytes(String name, byte[] bytes) {
+            return new Entry(name, Objects.requireNonNull(bytes, "bytes"), null, null, false);
+        }
+
+        static Entry file(String name, Path path) {
+            return new Entry(name, null, Objects.requireNonNull(path, "path"), null, false);
+        }
+
+        static Entry optionalFile(String name, Path path) {
+            return new Entry(name, null, Objects.requireNonNull(path, "path"), null, true);
+        }
+
+        static Entry optional(String name, Source source) {
+            return new Entry(name, null, null, Objects.requireNonNull(source, "source"), true);
+        }
+
+        long size() throws IOException {
+            return bytes != null ? bytes.length : path != null ? Files.size(path) : source.size();
+        }
+
+        InputStream open() throws IOException {
+            return bytes != null ? new java.io.ByteArrayInputStream(bytes)
+                    : path != null ? Files.newInputStream(path) : source.open();
+        }
+
+        @Override
+        public byte[] bytes() {
+            return bytes == null ? null : Arrays.copyOf(bytes, bytes.length);
+        }
+    }
+
+    interface Source {
+        long size() throws IOException;
+
+        InputStream open() throws IOException;
+    }
+
+    @FunctionalInterface
+    interface MoveStrategy {
+        void move(Path source, Path target, CopyOption... options) throws IOException;
+    }
+
+    @FunctionalInterface
+    interface CopyStrategy {
+        void copy(Path source, Path target, CopyOption... options) throws IOException;
+    }
+}

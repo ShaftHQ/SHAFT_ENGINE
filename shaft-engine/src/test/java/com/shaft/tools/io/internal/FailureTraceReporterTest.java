@@ -42,6 +42,8 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.Executors;
 import java.util.zip.ZipFile;
 
 @Test(singleThreaded = true)
@@ -814,6 +816,15 @@ public class FailureTraceReporterTest {
                     "The retained failed attempt bundle must survive a later passing retry.");
             Assert.assertTrue(Files.exists(traceDirectory.resolve("shaft-trace.zip")),
                     "The root archive should always reflect the latest attempt.");
+            try (ZipFile failed = new ZipFile(traceDirectory.resolve("shaft-trace-attempt-1.zip").toFile());
+                 ZipFile latest = new ZipFile(traceDirectory.resolve("shaft-trace.zip").toFile())) {
+                String failedJson = readZipEntry(failed, "shaft-trace.json");
+                String latestJson = readZipEntry(latest, "shaft-trace.json");
+                Assert.assertTrue(failedJson.contains("attempt one failed"), failedJson);
+                Assert.assertFalse(failedJson.contains("attempt two passed"), failedJson);
+                Assert.assertTrue(latestJson.contains("attempt two passed"), latestJson);
+                Assert.assertFalse(latestJson.contains("attempt one failed"), latestJson);
+            }
 
             String index = Files.readString(traceDirectory.resolve("index.json"), StandardCharsets.UTF_8);
             Assert.assertTrue(index.contains("\"attempt\": \"2\""), index);
@@ -827,6 +838,98 @@ public class FailureTraceReporterTest {
             SHAFT.Properties.flags.set().retryMaximumNumberOfAttempts(originalRetries);
             Properties.clearForCurrentThread();
         }
+    }
+
+    @Test(description = "Parallel same-id publication should keep the highest completed attempt and unique invocation paths")
+    public void parallelSameIdPublicationShouldNotCrossWireArchives() throws Exception {
+        TestExecutionInfo info = info("parallelPublicationScenario", failure());
+        Path directory = FailureTraceReporter.traceDirectory(info);
+        Path first = FailureTraceReporter.completedArchivePath(info, 1);
+        Path second = FailureTraceReporter.completedArchivePath(info, 2);
+        Path root = directory.resolve("shaft-trace.zip");
+        Assert.assertNotEquals(first, second);
+        Files.createDirectories(directory);
+        Files.writeString(first, "first invocation", StandardCharsets.UTF_8);
+        Files.writeString(second, "second invocation", StandardCharsets.UTF_8);
+        CountDownLatch ready = new CountDownLatch(2);
+        CountDownLatch start = new CountDownLatch(1);
+        try (var executor = Executors.newFixedThreadPool(2)) {
+            var publishFirst = executor.submit(() -> {
+                ready.countDown();
+                start.await();
+                return FailureTraceReporter.publishLatest("parallel-publication-proof", 1, first, root);
+            });
+            var publishSecond = executor.submit(() -> {
+                ready.countDown();
+                start.await();
+                return FailureTraceReporter.publishLatest("parallel-publication-proof", 2, second, root);
+            });
+            ready.await();
+            start.countDown();
+            publishFirst.get();
+            Assert.assertTrue(publishSecond.get());
+        } finally {
+            Assert.assertEquals(Files.readString(root, StandardCharsets.UTF_8), "second invocation");
+            deleteDirectory(directory);
+        }
+    }
+
+    @Test(description = "A late lower attempt should extend history without replacing latest root metadata")
+    public void reverseCompletionShouldKeepLatestRootAndCompleteOrderedHistory() throws Exception {
+        int originalRetries = SHAFT.Properties.flags.retryMaximumNumberOfAttempts();
+        TestExecutionInfo info = info("reverseCompletionScenario", failure());
+        Path directory = FailureTraceReporter.traceDirectory(info);
+        Path first = directory.resolve("first-completed.zip");
+        Path second = directory.resolve("second-completed.zip");
+        try {
+            deleteDirectory(directory);
+            Files.createDirectories(directory);
+            Files.writeString(first, "first invocation", StandardCharsets.UTF_8);
+            Files.writeString(second, "second invocation", StandardCharsets.UTF_8);
+            SHAFT.Properties.reporting.set().traceEnabled(true).traceMode("retry").traceRetainFailedAttempts(true);
+            SHAFT.Properties.flags.set().retryMaximumNumberOfAttempts(2);
+
+            FailureTraceReporter.persistTraceArtifacts(info, second, Map.of(), 2, List.of());
+            FailureTraceReporter.persistTraceArtifacts(info, first, Map.of(), 1, List.of());
+
+            Assert.assertEquals(Files.readString(directory.resolve("shaft-trace.zip"), StandardCharsets.UTF_8),
+                    "second invocation");
+            String index = Files.readString(directory.resolve("index.json"), StandardCharsets.UTF_8);
+            Assert.assertTrue(index.contains("\"attempt\": \"2\""), index);
+            Assert.assertTrue(index.contains("\"attempt\": 1"), index);
+            Assert.assertTrue(index.contains("\"attempt\": 2"), index);
+            Assert.assertTrue(index.indexOf("\"attempt\": 1") < index.indexOf("\"attempt\": 2"), index);
+        } finally {
+            deleteDirectory(directory);
+            SHAFT.Properties.flags.set().retryMaximumNumberOfAttempts(originalRetries);
+            Properties.clearForCurrentThread();
+        }
+    }
+
+    @Test(description = "Lossy path sanitization should not collapse distinct stable test ids")
+    public void sanitizedAndTruncatedTestIdsShouldRemainCollisionResistant() throws Exception {
+        Method method = FailureTraceReporterTest.class.getDeclaredMethod("failingScenario");
+        TestExecutionInfo slash = new TestExecutionInfo("customer/test", "customer.LoginTest", "one", "one",
+                "trace test", method, failure(), false);
+        TestExecutionInfo colon = new TestExecutionInfo("customer:test", "customer.LoginTest", "two", "two",
+                "trace test", method, failure(), false);
+        String longPrefix = "x".repeat(130);
+        TestExecutionInfo longOne = new TestExecutionInfo(longPrefix + "one", "customer.LoginTest", "one", "one",
+                "trace test", method, failure(), false);
+        TestExecutionInfo longTwo = new TestExecutionInfo(longPrefix + "two", "customer.LoginTest", "two", "two",
+                "trace test", method, failure(), false);
+
+        Assert.assertNotEquals(FailureTraceReporter.safeTestId(slash), FailureTraceReporter.safeTestId(colon));
+        Assert.assertNotEquals(FailureTraceReporter.safeTestId(longOne), FailureTraceReporter.safeTestId(longTwo));
+        Assert.assertTrue(FailureTraceReporter.safeTestId(longOne).length() <= 120);
+        TestExecutionInfo dot = new TestExecutionInfo("..", "customer.LoginTest", "dot", "dot",
+                "trace test", method, failure(), false);
+        TestExecutionInfo reserved = new TestExecutionInfo("CON", "customer.LoginTest", "reserved", "reserved",
+                "trace test", method, failure(), false);
+        Assert.assertNotEquals(FailureTraceReporter.safeTestId(dot), "..");
+        Assert.assertNotEquals(FailureTraceReporter.safeTestId(reserved), "CON");
+        Path base = Path.of("target", "shaft-traces").toAbsolutePath().normalize();
+        Assert.assertTrue(FailureTraceReporter.traceDirectory(dot).toAbsolutePath().normalize().startsWith(base));
     }
 
     @Test(description = "Disabling attempt retention should skip persisting attempt-indexed archives for failed retries")

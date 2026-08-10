@@ -16,19 +16,21 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Base64;
+import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Pattern;
-import java.util.zip.ZipEntry;
-import java.util.zip.ZipOutputStream;
 
 /**
  * Builds the failure-scoped SHAFT trace viewer artifacts attached to Allure.
@@ -49,6 +51,9 @@ public final class FailureTraceReporter {
     private static final ThreadLocal<Map<String, byte[]>> CURRENT_SCREENSHOTS = ThreadLocal.withInitial(Map::of);
     private static final ConcurrentMap<String, AtomicInteger> ATTEMPT_COUNTERS = new ConcurrentHashMap<>();
     private static final ConcurrentMap<String, List<AttemptRecord>> ATTEMPT_HISTORY = new ConcurrentHashMap<>();
+    private static final ConcurrentMap<String, Object> TRACE_LOCKS = new ConcurrentHashMap<>();
+    private static final ConcurrentMap<String, Integer> LATEST_PUBLISHED_ATTEMPT = new ConcurrentHashMap<>();
+    private static final ConcurrentMap<String, TraceIndexSnapshot> LATEST_INDEX = new ConcurrentHashMap<>();
 
     private FailureTraceReporter() {
         throw new IllegalStateException("Utility class");
@@ -65,25 +70,37 @@ public final class FailureTraceReporter {
         if (!shouldAttachTrace(info)) {
             return;
         }
+        Path completedArchive = null;
         try {
             stopPlaywrightTraceIfRunning();
-            int attempt = ATTEMPT_COUNTERS.computeIfAbsent(safeTestId(info), id -> new AtomicInteger()).incrementAndGet();
+            String testId = safeTestId(info);
+            int attempt = ATTEMPT_COUNTERS.computeIfAbsent(testId, id -> new AtomicInteger()).incrementAndGet();
             String json = renderTraceJson(info, logText, attachments, attempt);
             Map<String, byte[]> screenshots = CURRENT_SCREENSHOTS.get();
             List<String> omitted = omittedEntries(json, CURRENT_NETWORK_JSON.get(), screenshots);
             String html = renderTraceHtml(json, omitted);
-            byte[] zip = renderTraceZip(json, html, CURRENT_NETWORK_JSON.get(), screenshots);
-            persistTraceArtifacts(info, zip, screenshots, attempt, omitted);
             // In-report trace launcher (issue #3534 P2): the viewer HTML is fully self-contained --
             // it embeds the trace JSON (with base64 screenshots and inline DOM snapshots) and reads
             // everything from that embedded data, referencing no sibling files -- so attach it
             // directly for a one-click, in-report open, alongside the zip kept for full-fidelity
             // offline download.
             attach("html", "shaft-trace.html", html.getBytes(StandardCharsets.UTF_8), traceViewerLabel(info, attempt));
-            attach("zip", "shaft-trace.zip", zip, traceAttachmentLabel(info, attempt));
+            completedArchive = completedArchivePath(info, attempt);
+            renderTraceZip(completedArchive, json, html, CURRENT_NETWORK_JSON.get(), screenshots);
+            persistTraceArtifacts(info, completedArchive, screenshots, attempt, omitted);
+            AttachmentReporter.attachBasedOnFileType("zip", "shaft-trace.zip", completedArchive,
+                    traceAttachmentLabel(info, attempt));
         } catch (RuntimeException e) {
             ReportManagerHelper.logDiscrete("Could not attach SHAFT trace report: " + e.getMessage(), Level.WARN);
         } finally {
+            if (completedArchive != null) {
+                try {
+                    Files.deleteIfExists(completedArchive);
+                } catch (IOException e) {
+                    ReportManagerHelper.logDiscrete("Could not remove temporary SHAFT trace archive: " + e.getMessage(),
+                            Level.WARN);
+                }
+            }
             CURRENT_NETWORK_JSON.remove();
             CURRENT_SCREENSHOTS.remove();
         }
@@ -680,37 +697,34 @@ public final class FailureTraceReporter {
                 """;
     }
 
-    private static byte[] renderTraceZip(String json, String html, String networkJson, Map<String, byte[]> screenshots) {
+    private static void renderTraceZip(Path target, String json, String html, String networkJson,
+                                       Map<String, byte[]> screenshots) {
         int maxBytes = Math.max(1, SHAFT.Properties.reporting.traceMaxArtifactMb()) * 1024 * 1024;
-        try (ByteArrayOutputStream output = new ByteArrayOutputStream();
-             ZipOutputStream zip = new ZipOutputStream(output)) {
-            addZipEntry(zip, "shaft-trace.json", json.getBytes(StandardCharsets.UTF_8), maxBytes);
-            addZipEntry(zip, "shaft-network.har", BrowserObservabilityRecorder.networkHarJson(networkJson)
-                    .getBytes(StandardCharsets.UTF_8), maxBytes);
-            addZipEntry(zip, "SHAFT Trace Report.html", html.getBytes(StandardCharsets.UTF_8), maxBytes);
-            for (Map.Entry<String, byte[]> entry : screenshots.entrySet()) {
-                addZipEntry(zip, "screenshots/" + entry.getKey() + ".png", entry.getValue(), maxBytes);
-            }
-            Path playwrightTrace = PlaywrightTraceManager.getLastTracePath();
-            if (playwrightTrace != null && Files.isRegularFile(playwrightTrace)) {
-                addZipEntry(zip, playwrightTrace.getFileName().toString(), Files.readAllBytes(playwrightTrace), maxBytes);
-            }
-            zip.finish();
-            return output.toByteArray();
+        Path playwrightTrace = PlaywrightTraceManager.getLastTracePath();
+        String omissionMarker = "Omitted because artifact exceeded shaft.trace.maxArtifactMb="
+                + SHAFT.Properties.reporting.traceMaxArtifactMb();
+        renderTraceZip(target, json, html, networkJson, screenshots, playwrightTrace, maxBytes, omissionMarker);
+    }
+
+    static void renderTraceZip(Path target, String json, String html, String networkJson,
+                               Map<String, byte[]> screenshots, Path nativeTrace, int maxBytes,
+                               String omissionMarker) {
+        List<TraceArchiveWriter.Entry> entries = new ArrayList<>();
+        entries.add(TraceArchiveWriter.Entry.text("shaft-trace.json", json));
+        entries.add(TraceArchiveWriter.Entry.text("shaft-network.har",
+                BrowserObservabilityRecorder.networkHarJson(networkJson)));
+        entries.add(TraceArchiveWriter.Entry.text("SHAFT Trace Report.html", html));
+        for (Map.Entry<String, byte[]> entry : screenshots.entrySet()) {
+            entries.add(TraceArchiveWriter.Entry.bytes("screenshots/" + entry.getKey() + ".png", entry.getValue()));
+        }
+        if (nativeTrace != null && Files.isRegularFile(nativeTrace)) {
+            entries.add(TraceArchiveWriter.Entry.optionalFile(nativeTrace.getFileName().toString(), nativeTrace));
+        }
+        try {
+            TraceArchiveWriter.write(target, entries, maxBytes, omissionMarker);
         } catch (IOException e) {
             throw new IllegalStateException("Could not create SHAFT trace zip.", e);
         }
-    }
-
-    private static void addZipEntry(ZipOutputStream zip, String name, byte[] bytes, int maxBytes) throws IOException {
-        zip.putNextEntry(new ZipEntry(name));
-        if (bytes.length <= maxBytes) {
-            zip.write(bytes);
-        } else {
-            zip.write(("Omitted because artifact exceeded shaft.trace.maxArtifactMb=" + SHAFT.Properties.reporting.traceMaxArtifactMb())
-                    .getBytes(StandardCharsets.UTF_8));
-        }
-        zip.closeEntry();
     }
 
     private static void attach(String type, String name, byte[] bytes, String description) {
@@ -723,33 +737,42 @@ public final class FailureTraceReporter {
         AttachmentReporter.attachBasedOnFileType(type, name, output, description);
     }
 
-    private static void persistTraceArtifacts(TestExecutionInfo info, byte[] zip, Map<String, byte[]> screenshots,
-                                              int attempt, List<String> omitted) {
+    static void persistTraceArtifacts(TestExecutionInfo info, Path completedArchive, Map<String, byte[]> screenshots,
+                                      int attempt, List<String> omitted) {
         try {
             Path directory = traceDirectory(info);
             Files.createDirectories(directory);
-            Path zipPath = directory.resolve("shaft-trace.zip");
-            Files.deleteIfExists(directory.resolve("SHAFT Trace Report.html"));
-            Files.deleteIfExists(directory.resolve("shaft-trace.json"));
-            Files.write(zipPath, zip);
             boolean failed = info != null && info.throwable() != null;
             String archiveName = "shaft-trace.zip";
             // Retain failed-attempt bundles under attempt-indexed names so a later passing retry
             // (which rewrites shaft-trace.zip) never erases the flake evidence.
             if (failed && retriesConfigured() && SHAFT.Properties.reporting.traceRetainFailedAttempts()) {
                 archiveName = "shaft-trace-attempt-" + attempt + ".zip";
-                Files.write(directory.resolve(archiveName), zip);
+                TraceArchiveWriter.copy(completedArchive, directory.resolve(archiveName));
             }
-            recordAttempt(info, attempt, failed ? "failed" : "passed", archiveName);
-            if (!screenshots.isEmpty()) {
-                Path screenshotsDirectory = directory.resolve("screenshots");
-                Files.createDirectories(screenshotsDirectory);
-                for (Map.Entry<String, byte[]> entry : screenshots.entrySet()) {
-                    Files.write(screenshotsDirectory.resolve(entry.getKey() + ".png"), entry.getValue());
+            String testId = safeTestId(info);
+            synchronized (TRACE_LOCKS.computeIfAbsent(testId, id -> new Object())) {
+                recordAttempt(info, attempt, failed ? "failed" : "passed", archiveName);
+                if (publishLatest(testId, attempt, completedArchive, directory.resolve("shaft-trace.zip"))) {
+                    LATEST_INDEX.put(testId, new TraceIndexSnapshot(info, !screenshots.isEmpty(), attempt,
+                            List.copyOf(omitted)));
+                    Files.deleteIfExists(directory.resolve("SHAFT Trace Report.html"));
+                    Files.deleteIfExists(directory.resolve("shaft-trace.json"));
+                    if (!screenshots.isEmpty()) {
+                        Path screenshotsDirectory = directory.resolve("screenshots");
+                        Files.createDirectories(screenshotsDirectory);
+                        for (Map.Entry<String, byte[]> entry : screenshots.entrySet()) {
+                            Files.write(screenshotsDirectory.resolve(entry.getKey() + ".png"), entry.getValue());
+                        }
+                    }
+                }
+                TraceIndexSnapshot latest = LATEST_INDEX.get(testId);
+                if (latest != null) {
+                    Files.writeString(directory.resolve("index.json"),
+                            renderTraceIndexJson(latest.info(), directory.resolve("shaft-trace.zip"),
+                                    latest.hasScreenshots(), latest.attempt(), latest.omitted()), StandardCharsets.UTF_8);
                 }
             }
-            Files.writeString(directory.resolve("index.json"),
-                    renderTraceIndexJson(info, zipPath, !screenshots.isEmpty(), attempt, omitted), StandardCharsets.UTF_8);
         } catch (IOException e) {
             ReportManagerHelper.logDiscrete("Could not persist SHAFT trace artifacts: " + e.getMessage(), Level.WARN);
         }
@@ -762,6 +785,22 @@ public final class FailureTraceReporter {
 
     static Path traceDirectory(TestExecutionInfo info) {
         return Path.of("target", "shaft-traces", safeTestId(info));
+    }
+
+    static Path completedArchivePath(TestExecutionInfo info, int attempt) {
+        return traceDirectory(info).resolve(".shaft-trace-" + attempt + "-" + UUID.randomUUID() + ".zip");
+    }
+
+    static boolean publishLatest(String testId, int attempt, Path completedArchive, Path target) throws IOException {
+        synchronized (TRACE_LOCKS.computeIfAbsent(testId, id -> new Object())) {
+            int latestAttempt = LATEST_PUBLISHED_ATTEMPT.getOrDefault(testId, 0);
+            if (attempt < latestAttempt) {
+                return false;
+            }
+            TraceArchiveWriter.copy(completedArchive, target);
+            LATEST_PUBLISHED_ATTEMPT.put(testId, attempt);
+            return true;
+        }
     }
 
     static String safeTestId(TestExecutionInfo info) {
@@ -779,7 +818,29 @@ public final class FailureTraceReporter {
         if (safeId.isBlank()) {
             safeId = "unknown";
         }
-        return safeId.length() <= 120 ? safeId : safeId.substring(0, 120);
+        boolean unsafeComponent = safeId.equals(".") || safeId.equals("..") || safeId.endsWith(".")
+                || isWindowsReservedName(safeId);
+        boolean lossy = !id.isBlank() && (!safeId.equals(id) || safeId.length() > 120 || unsafeComponent);
+        if (!lossy) {
+            return safeId;
+        }
+        String suffix = "-" + shortHash(id);
+        int prefixLength = Math.min(safeId.length(), 120 - suffix.length());
+        return safeId.substring(0, prefixLength) + suffix;
+    }
+
+    private static boolean isWindowsReservedName(String value) {
+        String baseName = value.contains(".") ? value.substring(0, value.indexOf('.')) : value;
+        return baseName.matches("(?i)CON|PRN|AUX|NUL|COM[1-9]|LPT[1-9]");
+    }
+
+    private static String shortHash(String value) {
+        try {
+            byte[] digest = MessageDigest.getInstance("SHA-256").digest(value.getBytes(StandardCharsets.UTF_8));
+            return java.util.HexFormat.of().formatHex(digest, 0, 6);
+        } catch (NoSuchAlgorithmException e) {
+            throw new IllegalStateException("SHA-256 is required by the Java platform.", e);
+        }
     }
 
     private static String renderTraceIndexJson(TestExecutionInfo info, Path zipPath, boolean hasScreenshots,
@@ -812,8 +873,11 @@ public final class FailureTraceReporter {
         List<AttemptRecord> history = ATTEMPT_HISTORY.getOrDefault(testId, List.of());
         indent(json, 1).append("\"attempts\": [");
         synchronized (history) {
-            for (int i = 0; i < history.size(); i++) {
-                AttemptRecord record = history.get(i);
+            List<AttemptRecord> orderedHistory = history.stream()
+                    .sorted(Comparator.comparingInt(AttemptRecord::attempt))
+                    .toList();
+            for (int i = 0; i < orderedHistory.size(); i++) {
+                AttemptRecord record = orderedHistory.get(i);
                 json.append(i > 0 ? "," : "").append("\n");
                 indent(json, 2).append("{\"attempt\": ").append(record.attempt())
                         .append(", \"status\": \"").append(escapeJson(record.status()))
@@ -1073,6 +1137,10 @@ public final class FailureTraceReporter {
     }
 
     private record AttemptRecord(int attempt, String status, String archive, String generatedAt) {
+    }
+
+    private record TraceIndexSnapshot(TestExecutionInfo info, boolean hasScreenshots, int attempt,
+                                      List<String> omitted) {
     }
 
     private record Snapshot(String type, String content) {

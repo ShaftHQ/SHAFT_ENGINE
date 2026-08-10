@@ -369,6 +369,7 @@ public class TestNGListener implements IAlterSuiteListener, IAnnotationTransform
                 rethrow(engineTearDownFailure);
             }
         } finally {
+            AttachmentReporter.cleanupReportPortalDeferredFiles();
             resetTrackedResultState();
             resetThreadLocalLifecycleState(true);
         }
