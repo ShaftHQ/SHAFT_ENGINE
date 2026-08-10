@@ -268,9 +268,46 @@ class AssistantCommandTest {
     }
 
     @Test
-    void slashCodegenWithLiveInstructionsRoutesToReviewOnlyAgentCodegenPrompt() {
+    void slashCodegenScenarioStartsCaptureWithFullGoalAndTargetUrl() {
+        String scenario = "navigate to https://duckduckgo.com, search for shaft_engine, "
+                + "open the first result and assert that the url is correct.";
+
         AssistantCommand.Invocation invocation = AssistantCommand.fromPrompt(
-                "/codegen navigate to https://duckduckgo.com, search for shaft_engine, open the first result and assert that the url is correct.",
+                "/codegen " + scenario,
+                AssistantCommand.Selection.local("CODEX", "CLI"),
+                "AGENT",
+                ".",
+                "",
+                true);
+
+        assertAll(
+                () -> assertEquals("capture_start", invocation.toolName()),
+                () -> assertEquals(scenario, invocation.arguments().get("sessionGoal").getAsString()),
+                () -> assertEquals("https://duckduckgo.com", invocation.arguments().get("targetUrl").getAsString()),
+                () -> assertFalse(invocation.isSequence()));
+    }
+
+    @Test
+    void multilineSlashCodegenScenarioStartsCapture() {
+        AssistantCommand.Invocation invocation = AssistantCommand.fromPrompt(
+                "/codegen\nnavigate to https://example.com and click login",
+                AssistantCommand.Selection.local("CODEX", "CLI"),
+                "AGENT",
+                ".",
+                "",
+                true);
+
+        assertAll(
+                () -> assertEquals("capture_start", invocation.toolName()),
+                () -> assertEquals("navigate to https://example.com and click login",
+                        invocation.arguments().get("sessionGoal").getAsString()));
+    }
+
+    @Test
+    void naturalCodeOnlyRequestRoutesToReviewOnlyAgentCodegenPrompt() {
+        AssistantCommand.Invocation invocation = AssistantCommand.fromPrompt(
+                "generate SHAFT Java code for this browser flow: navigate to https://duckduckgo.com, "
+                        + "search for shaft_engine, open the first result and assert that the url is correct.",
                 AssistantCommand.Selection.local("CODEX", "CLI"),
                 "AGENT",
                 ".",

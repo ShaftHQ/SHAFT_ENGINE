@@ -249,9 +249,10 @@ class AssistantCommandToolIndexRoutingTest {
                 "an explicit recording path must still deterministically drive the replay generator");
         AssistantCommand.Invocation liveCodegen =
                 command("/codegen navigate to https://example.com and click login");
-        assertFalse(liveCodegen.toolName().equals("element_click"),
-                "a free-text /codegen flow description must not be hijacked by the new explicit-tool-mention "
-                        + "route just because it happens to describe an element action");
+        assertEquals("capture_start", liveCodegen.toolName(),
+                "a free-text /codegen flow description must start the plugin-owned recorder");
+        assertEquals("navigate to https://example.com and click login",
+                liveCodegen.arguments().get("sessionGoal").getAsString());
     }
 
     private static AssistantCommand.Invocation command(String prompt) {

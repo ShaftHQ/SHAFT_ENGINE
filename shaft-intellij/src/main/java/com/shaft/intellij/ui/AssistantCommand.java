@@ -797,10 +797,10 @@ final class AssistantCommand {
                     + "generate a test, diagnose a failed run, or upgrade this project to SHAFT.");
         }
         String liveCodegen = liveCodegenSlashPrompt(text);
-        boolean liveCodegenRequest = !liveCodegen.isBlank();
         boolean upgradeAgentRequest = false;
         if (!liveCodegen.isBlank()) {
-            text = liveCodegen;
+            return Invocation.tool("capture_start", captureStart(liveCodegen))
+                    .withDefaultRoutedVia("slash command");
         } else if (isUpgradeSlashCommand(text) || isNaturalUpgradeIntent(text)) {
             // Upgrading is an action, not a recipe: the local agent performs the upgrade itself
             // (with source-edit approval), repairs what breaks, and reports what it changed —
@@ -815,7 +815,7 @@ final class AssistantCommand {
         } else if (text.startsWith("/")) {
             return slash(text, workingDirectory, openFileContext).withDefaultRoutedVia("slash command");
         }
-        if (!liveCodegenRequest && !upgradeAgentRequest) {
+        if (!upgradeAgentRequest) {
             // Deterministic-first routing (design doc Decision 5, issue #3870/#3866 T4 goal 3-4): an
             // explicit tool-name mention is the single most unambiguous signal available and must
             // win over every softer heuristic below it, including isCodeGenerationRequest's
@@ -831,10 +831,10 @@ final class AssistantCommand {
         boolean codeGenerationRequest = !upgradeAgentRequest && isCodeGenerationRequest(text);
         // A code-generation request that already names a recording JSON converts deterministically:
         // the recording file is the source of truth and needs no live session and no agent CLI.
-        if (codeGenerationRequest && !liveCodegenRequest && !firstJsonLikePath(text).isBlank()) {
+        if (codeGenerationRequest && !firstJsonLikePath(text).isBlank()) {
             return generateTest(text);
         }
-        if (!liveCodegenRequest && !upgradeAgentRequest) {
+        if (!upgradeAgentRequest) {
             if (isCodingPartnerIntent(text)) {
                 return Invocation.tool(
                         "shaft_coding_partner_plan",
@@ -844,7 +844,7 @@ final class AssistantCommand {
                 return Invocation.tool("test_code_guardrails_check", guardrails(naturalCode(text)));
             }
         }
-        if (!liveCodegenRequest && !upgradeAgentRequest && !codeGenerationRequest) {
+        if (!upgradeAgentRequest && !codeGenerationRequest) {
             Invocation recording = recording(text);
             if (recording != null) {
                 return recording;
@@ -941,14 +941,15 @@ final class AssistantCommand {
 
     private static String liveCodegenSlashPrompt(String text) {
         String trimmed = text(text);
-        if (!"/codegen".equals(firstWord(trimmed).toLowerCase(Locale.ROOT))) {
+        String[] parts = trimmed.split("\\s+", 2);
+        if (parts.length == 0 || !"/codegen".equals(parts[0].toLowerCase(Locale.ROOT))) {
             return "";
         }
-        String rest = afterFirstWord(trimmed);
+        String rest = parts.length == 2 ? parts[1].trim() : "";
         if (rest.isBlank() || !firstJsonLikePath(rest).isBlank()) {
             return "";
         }
-        return "Generate SHAFT Java code for this browser flow: " + rest;
+        return rest;
     }
 
     private static JsonObject guide(String query) {
@@ -2513,6 +2514,7 @@ final class AssistantCommand {
         arguments.addProperty("browser", "Chrome");
         arguments.addProperty("outputPath", defaultCaptureRecordingPath());
         arguments.addProperty("headless", recorderHeadlessPreference());
+        arguments.addProperty("sessionGoal", text(rest));
         return arguments;
     }
 
@@ -3135,8 +3137,9 @@ final class AssistantCommand {
     private static String parseLeadingUrl(String rest) {
         String[] parts = (rest == null ? "" : rest).trim().split("\\s+");
         for (String part : parts) {
-            if (isUrl(part)) {
-                return part;
+            String candidate = part.replaceFirst("[,.!?;:]+$", "");
+            if (isUrl(candidate)) {
+                return candidate;
             }
         }
         return "";
