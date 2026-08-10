@@ -733,6 +733,31 @@ class HookBudgetTest(unittest.TestCase):
         )
 
 
+class MergeCommitBranchReachabilityTest(unittest.TestCase):
+    """R13/R18: merge commits make remote reachability the deletion-safety invariant."""
+
+    def test_unrecoverable_count_is_the_remote_reachability_count(self):
+        with patch("scripts.agents.guard._unpushed_commit_count", return_value=2):
+            with patch(
+                "scripts.agents.guard._content_exists_on_default_branch",
+                return_value=True,
+                create=True,
+            ) as removed_bypass:
+                self.assertEqual(guard._unrecoverable_commit_count("feature"), 2)
+        removed_bypass.assert_not_called()
+
+    def test_unanswerable_reachability_stays_unanswerable(self):
+        with patch("scripts.agents.guard._unpushed_commit_count", return_value=None):
+            self.assertIsNone(guard._unrecoverable_commit_count("feature"))
+        self.assertNotIn(
+            "_content_exists_on_default_branch",
+            inspect.getsource(guard._unrecoverable_commit_count),
+        )
+
+    def test_squash_content_bypass_is_removed(self):
+        self.assertFalse(hasattr(guard, "_content_exists_on_default_branch"))
+
+
 class DeliveredBranchIsNotUnrecoverableTest(unittest.TestCase):
     """A squash-merged branch is delivered, however its commit count reads.
 
@@ -1032,6 +1057,22 @@ class ReviewBeforeArmingGateTest(unittest.TestCase):
             self.assertIsNone(
                 guard.check_r15_review_before_arming("gh pr merge 4539 --auto --squash", "Bash")
             )
+
+    def test_non_merge_commit_modes_are_refused_even_after_review(self):
+        with patch("scripts.agents.guard._independent_review_count", return_value=1):
+            for command in (
+                "gh pr merge 4539 --auto --squash",
+                "gh pr merge 4539 --auto --rebase",
+                "gh pr merge 4539 --auto --squash=true",
+                "gh pr merge 4539 --auto --rebase=true",
+                "gh -R ShaftHQ/SHAFT_ENGINE pr merge 4539 --auto --squash",
+                "gh -RShaftHQ/SHAFT_ENGINE pr merge 4539 --auto --squash",
+                "gh --repo=ShaftHQ/SHAFT_ENGINE pr merge 4539 --auto --rebase=true",
+            ):
+                with self.subTest(command=command):
+                    reason = guard.check_r15_review_before_arming(command, "Bash")
+                    self.assertIsNotNone(reason)
+                    self.assertIn("--merge", reason)
 
     def test_arming_after_a_commit_requires_a_learning_route(self):
         with patch("scripts.agents.guard._independent_review_count", return_value=1):
