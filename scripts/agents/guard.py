@@ -1783,7 +1783,7 @@ def check_r15_review_before_arming(
             continue
         arguments = rest[2:]
         if any(
-            argument in {"--squash", "--rebase"}
+            argument in {"--squash", "--rebase", "-s", "-r"}
             or (
                 any(argument.lower().startswith(f"{mode}=") for mode in ("--squash", "--rebase"))
                 and argument.partition("=")[2].lower() not in {"false", "0", "f"}
