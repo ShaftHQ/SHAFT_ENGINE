@@ -692,6 +692,13 @@ class ShaftPanelSetupTest {
         method.invoke(target);
     }
 
+    private static void invokePrivate(Object target, String methodName, Class<?>[] parameterTypes, Object... arguments)
+            throws Exception {
+        Method method = target.getClass().getDeclaredMethod(methodName, parameterTypes);
+        method.setAccessible(true);
+        method.invoke(target, arguments);
+    }
+
     @Test
     void toolsExplainMissingMcpConfiguration() {
         ShaftFeaturePanel panel = new ShaftFeaturePanel(null, blankMcpSettings());
@@ -6736,6 +6743,86 @@ class ShaftPanelSetupTest {
 
         assertTrue(launchAttempted.await(5, TimeUnit.SECONDS),
                 "the resend must invoke the injected launcher instead of a real CLI process");
+    }
+
+    @Test
+    void assistantBlocksLocalAgentWhenRequiredShaftSkillsAreMissing(@TempDir Path projectRoot) throws Exception {
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(
+                fakeProject(new ShaftAssistantChatState(), projectRoot.toString()), blankMcpSettings());
+        CountDownLatch launchAttempted = new CountDownLatch(1);
+        setField(panel, "localAgentProcessLauncher",
+                (AssistantLocalAgentRunner.ProcessLauncher) (command, directory, environment) -> {
+                    launchAttempted.countDown();
+                    throw new IOException("test launcher");
+                });
+        setField(panel, "requireLocalAgentCommandAvailable", false);
+
+        setPendingCaptureReview(panel, "```java\nclass RecordedFlowTest {}\n```");
+        assistantPrompt(panel).setText("approve");
+        clickAccessible(panel, "Send assistant prompt");
+
+        assertAll(
+                () -> assertEquals(1L, launchAttempted.getCount()),
+                () -> assertNotNull(findByAccessibleName(panel, "Repair SHAFT skills and resend", JButton.class)),
+                () -> assertTrue(containsText(panel, "shaft-developer")),
+                () -> assertTrue(containsText(panel, "shaft-recording-codegen")));
+
+        for (String skill : List.of("shaft-developer", "shaft-recording-codegen")) {
+            Path skillDirectory = projectRoot.resolve(".agents/skills").resolve(skill);
+            Files.createDirectories(skillDirectory);
+            Files.writeString(skillDirectory.resolve("SKILL.md"), "name: " + skill);
+        }
+        clickAccessible(panel, "Recheck SHAFT skills");
+
+        assertTrue(launchAttempted.await(5, TimeUnit.SECONDS),
+                "recheck must resume the pending request after both skills are present");
+    }
+
+    @Test
+    void assistantFamilySwitchRefreshesSkillHealth(@TempDir Path projectRoot) throws Exception {
+        for (String skill : List.of("shaft-developer", "shaft-recording-codegen")) {
+            Path skillDirectory = projectRoot.resolve(".agents/skills").resolve(skill);
+            Files.createDirectories(skillDirectory);
+            Files.writeString(skillDirectory.resolve("SKILL.md"), "name: " + skill);
+        }
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(
+                fakeProject(new ShaftAssistantChatState(), projectRoot.toString()), blankMcpSettings());
+        JComboBox<?> family = findByAccessibleName(panel, "Assistant family", JComboBox.class);
+        JLabel health = findByAccessibleName(panel, "Local agent health status", JLabel.class);
+
+        assertTrue(health.getText().contains("Ready"), health.getText());
+        family.setSelectedItem("CLAUDE");
+
+        assertAll(
+                () -> assertTrue(health.getText().contains("Missing"), health.getText()),
+                () -> assertTrue(findByAccessibleName(panel, "Repair SHAFT agent skills", JButton.class).isVisible()));
+    }
+
+    @Test
+    void assistantClearsPendingSkillResumeWhenRepairIsDeniedOrCancelled() throws Exception {
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
+        setField(panel, "pendingSkillRepairResume", true);
+        invokePrivate(panel, "showDeniedToolResult", new Class<?>[]{String.class}, "shaft_project_init_agents");
+        assertFalse((Boolean) getField(panel, "pendingSkillRepairResume"));
+
+        setField(panel, "pendingSkillRepairResume", true);
+        invokePrivate(panel, "showCancelledToolResult", new Class<?>[]{String.class, boolean.class},
+                "shaft_project_init_agents", false);
+        assertFalse((Boolean) getField(panel, "pendingSkillRepairResume"));
+    }
+
+    @Test
+    void assistantAgentHealthControlsWrapAtNarrowWidth() throws Exception {
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
+        JPanel health = (JPanel) getField(panel, "agentHealthPanel");
+        health.setSize(240, 100);
+        health.doLayout();
+
+        int firstRow = health.getComponent(0).getY();
+        assertAll(
+                () -> assertTrue(health.getLayout() instanceof WrapLayout),
+                () -> assertTrue(Arrays.stream(health.getComponents()).anyMatch(child -> child.getY() > firstRow),
+                        "health actions must wrap below the status at 240px"));
     }
 
     @Test
