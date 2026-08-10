@@ -210,9 +210,9 @@ final class AssistantCommand {
                     - Never claim a live browser check happened, and never present a returned locator as live-verified or replay-proven.
                     - Base each selected locator on the page structure the user described or attached, applying the same locator policy as any other request.
                     """.stripIndent().trim();
-    private static final CommandDefinition COMMAND_HELP = new CommandDefinition("/commands", "Show command help",
-            List.of("/help", "/mcp-help", "/shaft-help"),
-            "/commands", (command, rest, workingDirectory) -> Invocation.local(commandHelp(false)));
+    private static final CommandDefinition COMMAND_HELP = new CommandDefinition("/help", "Show all SHAFT capabilities",
+            List.of("/commands", "/mcp-help", "/shaft-help"),
+            "/help browser", (command, rest, workingDirectory) -> Invocation.capabilities(rest));
     private static final CommandDefinition CODEGEN_COMMAND = new CommandDefinition("/codegen",
             "Generate code from recordings",
             List.of(),
@@ -279,6 +279,7 @@ final class AssistantCommand {
             (command, rest, workingDirectory) -> Invocation.local(skillsHelp()));
     // Default composer shows only the core entry points; the rest are revealed by Expert mode.
     private static final List<CommandDefinition> CORE_COMMANDS = List.of(
+            COMMAND_HELP,
             RECORD_WEB_COMMAND,
             RECORD_MOBILE_COMMAND,
             RECORD_API_COMMAND,
@@ -370,7 +371,7 @@ final class AssistantCommand {
     private static final int WEIGHT_DOCTOR = 30;
     private static final List<NaturalIntent> NATURAL_INTENTS = List.of(
             new NaturalIntent("command help", WEIGHT_COMMAND_HELP, AssistantCommand::isCommandHelpIntent,
-                    (text, workingDirectory) -> Invocation.local(commandHelp(false))),
+                    (text, workingDirectory) -> Invocation.capabilities("")),
             new NaturalIntent("coding partner", WEIGHT_NAMED_TOOL_REQUEST, AssistantCommand::isCodingPartnerIntent,
                     (text, workingDirectory) -> Invocation.tool(
                             "shaft_coding_partner_plan",
@@ -601,6 +602,11 @@ final class AssistantCommand {
         return ALL_HINTS;
     }
 
+    /** Returns the authoritative slash-command parser surface, including non-menu compatibility commands. */
+    static List<CommandHint> registeredCommandHints() {
+        return COMMANDS.stream().map(CommandDefinition::hint).toList();
+    }
+
     /**
      * Returns the command hints that should be visible in menus/autocomplete: core-only by default, or every
      * command when Expert mode is enabled.
@@ -627,27 +633,7 @@ final class AssistantCommand {
     }
 
     static String commandHelp(boolean expertEnabled) {
-        StringBuilder help = new StringBuilder("SHAFT Assistant commands:");
-        for (CommandDefinition definition : (expertEnabled ? VISIBLE_COMMANDS : CORE_COMMANDS)) {
-            help.append("\n\n**")
-                    .append(definition.canonical())
-                    .append("** - ")
-                    .append(definition.summary());
-            if (!definition.aliases().isEmpty()) {
-                help.append("\n  Aliases: ")
-                        .append(String.join(", ", definition.aliases()));
-            }
-            help.append("\n  Example:\n```text\n")
-                    .append(definition.example())
-                    .append("\n```");
-        }
-        if (!expertEnabled) {
-            help.append("\n\n_Enable Expert mode in SHAFT settings to reveal advanced commands: ")
-                    .append(EXPERT_COMMANDS.stream().map(CommandDefinition::canonical)
-                            .collect(java.util.stream.Collectors.joining(", ")))
-                    .append("._");
-        }
-        return help.toString();
+        return AssistantCapabilityCatalog.bundled("");
     }
 
     private static <T> List<T> concat(List<T> first, List<T> second) {
@@ -2097,12 +2083,23 @@ final class AssistantCommand {
      */
     private static boolean isCommandHelpIntent(String text) {
         String normalized = normalizeNaturalCommand(text);
-        return normalized.contains("command")
-                && (normalized.startsWith("what ")
+        boolean question = normalized.startsWith("what ")
                 || normalized.startsWith("which ")
                 || normalized.startsWith("show ")
                 || normalized.startsWith("list ")
-                || normalized.contains(" can i use"));
+                || normalized.startsWith("how ");
+        return (normalized.contains("command") && (question || normalized.contains(" can i use")))
+                || (question && (normalized.contains("what can shaft assistant do")
+                || normalized.contains("what can the shaft assistant do")
+                || normalized.contains("what can you do")
+                || normalized.contains("your capabilit")
+                || normalized.contains("assistant capabilit")
+                || normalized.contains("shaft capabilit")
+                || (normalized.contains("capabilit")
+                && (normalized.contains("you have") || normalized.contains("you offer")))
+                || normalized.contains("available tools")
+                || normalized.contains("tools are available")
+                || (normalized.contains("tools") && normalized.contains("can you"))));
     }
 
     private static boolean isCodingPartnerIntent(String text) {
@@ -3296,23 +3293,29 @@ final class AssistantCommand {
         Invocation build(String text, String workingDirectory);
     }
 
-    record Invocation(List<ToolCall> toolCalls, String localResponse, String routedVia) {
+    record Invocation(List<ToolCall> toolCalls, String localResponse, String routedVia, String capabilityTopic) {
         private static final String LOCAL_AGENT_TOOL = "autobot_local_agent_run";
         private static final String PROVIDER_CHAT_TOOL = "autobot_provider_chat";
 
         static Invocation tool(String toolName, JsonObject arguments) {
-            return new Invocation(List.of(new ToolCall(toolName, arguments == null ? new JsonObject() : arguments)), null, null);
+            return new Invocation(List.of(new ToolCall(toolName, arguments == null ? new JsonObject() : arguments)), null, null, null);
         }
 
         static Invocation sequence(List<ToolCall> toolCalls) {
             if (toolCalls == null || toolCalls.isEmpty()) {
                 return local("No MCP tools were selected.");
             }
-            return new Invocation(List.copyOf(toolCalls), null, null);
+            return new Invocation(List.copyOf(toolCalls), null, null, null);
         }
 
         static Invocation local(String response) {
-            return new Invocation(List.of(), response, null);
+            return new Invocation(List.of(), response, null, null);
+        }
+
+        static Invocation capabilities(String topic) {
+            String normalizedTopic = topic == null ? "" : topic.trim();
+            return new Invocation(List.of(), AssistantCapabilityCatalog.bundled(normalizedTopic), null,
+                    normalizedTopic);
         }
 
         /**
@@ -3322,7 +3325,7 @@ final class AssistantCommand {
          * command, or a curated slash alias) without turning on Verbose mode.
          */
         Invocation routedVia(String via) {
-            return new Invocation(toolCalls, localResponse, via);
+            return new Invocation(toolCalls, localResponse, via, capabilityTopic);
         }
 
         /**
@@ -3337,6 +3340,10 @@ final class AssistantCommand {
 
         boolean isLocal() {
             return localResponse != null;
+        }
+
+        boolean isCapabilityHelp() {
+            return capabilityTopic != null;
         }
 
         boolean isSequence() {

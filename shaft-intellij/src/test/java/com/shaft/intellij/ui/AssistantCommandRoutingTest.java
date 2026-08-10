@@ -309,8 +309,8 @@ class AssistantCommandRoutingTest {
         String expertTooltip = AssistantCommand.commandTooltip(true);
 
         assertAll(
-                // default composer shows only the six core entry points
-                () -> assertEquals(List.of("/record", "/record-mobile", "/record-api", "/codegen", "/doctor",
+                // default composer includes the capability entry point and the six core actions
+                () -> assertEquals(List.of("/help", "/record", "/record-mobile", "/record-api", "/codegen", "/doctor",
                         "/upgrade"), coreHints),
                 // Expert mode reveals the rest, including the two new commands
                 () -> assertTrue(allHints.containsAll(List.of("/record", "/record-mobile", "/record-api",
@@ -325,36 +325,104 @@ class AssistantCommandRoutingTest {
                 () -> assertTrue(expertTooltip.contains("/partner")),
                 () -> assertTrue(expertTooltip.contains("/verify")),
                 () -> assertTrue(expertTooltip.contains("/skills")),
-                () -> assertFalse(expertTooltip.contains("/commands")),
+                () -> assertTrue(expertTooltip.contains("/commands")),
                 () -> assertFalse(expertTooltip.contains("/assistant")),
                 () -> assertFalse(expertTooltip.contains("/mobile-record")));
     }
 
     @Test
-    void commandHelpShowsCoreCommandsAndPointsToExpertMode() {
+    void commandHelpAliasShowsTheCompleteCapabilityCatalog() {
         AssistantCommand.Invocation help = command("/commands");
         String response = help.localResponse();
 
         assertAll(
                 () -> assertTrue(help.isLocal()),
+                () -> assertTrue(help.isCapabilityHelp()),
                 () -> assertTrue(response.contains("**/codegen**")),
                 () -> assertTrue(response.contains("**/record**")),
                 () -> assertTrue(response.contains("**/record-mobile**")),
                 () -> assertTrue(response.contains("**/record-api**")),
                 () -> assertTrue(response.contains("**/doctor**")),
                 () -> assertTrue(response.contains("**/upgrade**")),
-                // expert commands are not shown as sections in the default help
-                () -> assertFalse(response.contains("**/guide**")),
-                () -> assertFalse(response.contains("**/partner**")),
-                // but the Expert-mode footer names them
-                () -> assertTrue(response.contains("Expert mode")),
+                () -> assertTrue(response.contains("**/guide**")),
+                () -> assertTrue(response.contains("**/partner**")),
                 () -> assertTrue(response.contains("/verify")),
                 () -> assertTrue(response.contains("/skills")),
-                () -> assertTrue(response.contains("```text\n/codegen recordings/intellij-capture.json\n```")),
-                () -> assertTrue(response.contains("```text\n/record https://example.com\n```")),
-                () -> assertTrue(response.contains("```text\n/upgrade .\n```")),
-                () -> assertFalse(response.contains("/commands -")),
+                () -> assertTrue(response.contains("`/codegen recordings/intellij-capture.json`")),
+                () -> assertTrue(response.contains("`/record https://example.com`")),
+                () -> assertTrue(response.contains("`/upgrade .`")),
+                () -> assertTrue(response.contains("SHAFT MCP tools")),
+                () -> assertTrue(response.contains("SHAFT CLI commands")),
                 () -> assertFalse(response.contains("/assistant -")));
+    }
+
+    @Test
+    void capabilityHelpIsCanonicalCompleteTopicAwareAndLocal() {
+        List<String> coreHints = AssistantCommand.commandHints(false).stream()
+                .map(AssistantCommand.CommandHint::canonical)
+                .toList();
+        AssistantCommand.Invocation browserHelp = command("/help browser");
+        AssistantCommand.Invocation naturalHelp = command("What can SHAFT Assistant do?");
+
+        assertAll(
+                () -> assertTrue(coreHints.contains("/help"), coreHints.toString()),
+                () -> assertTrue(browserHelp.isLocal()),
+                () -> assertTrue(browserHelp.localResponse().contains("SHAFT MCP tools"),
+                        browserHelp.localResponse()),
+                () -> assertTrue(browserHelp.localResponse().contains("browser_navigate"),
+                        browserHelp.localResponse()),
+                () -> assertTrue(browserHelp.localResponse().contains("shaft-cli browser"),
+                        browserHelp.localResponse()),
+                () -> assertFalse(browserHelp.localResponse().contains("element_click"),
+                        browserHelp.localResponse()),
+                () -> assertTrue(naturalHelp.isLocal()),
+                () -> assertTrue(naturalHelp.localResponse().contains("SHAFT Assistant commands"),
+                        naturalHelp.localResponse()),
+                () -> assertTrue(naturalHelp.localResponse().contains("SHAFT MCP tools"),
+                        naturalHelp.localResponse()),
+                () -> assertTrue(naturalHelp.localResponse().contains("SHAFT CLI commands"),
+                        naturalHelp.localResponse()));
+    }
+
+    @Test
+    void capabilityHelpContainsEveryRegisteredCommandExactlyOnce() {
+        List<AssistantCommand.CommandHint> hints = AssistantCommand.registeredCommandHints();
+        String help = command("/help").localResponse();
+
+        for (AssistantCommand.CommandHint hint : hints) {
+            String heading = "**" + hint.canonical() + "**";
+            assertEquals(1, occurrences(help, heading), hint.canonical() + " must appear once in\n" + help);
+            for (String alias : hint.synonyms()) {
+                assertTrue(help.contains(alias), "Missing alias " + alias + " in\n" + help);
+            }
+        }
+        assertTrue(hints.stream().map(AssistantCommand.CommandHint::canonical).toList()
+                .containsAll(List.of("/scenarios", "/mobile-record", "/mobile-codegen", "/mobile-replay",
+                        "/allure", "/assistant", "/mcp", "/generate")), hints.toString());
+    }
+
+    @Test
+    void commonCapabilityQuestionsRouteLocallyWithoutHijackingOrdinaryToolPrompts() {
+        for (String question : List.of(
+                "What are your capabilities?",
+                "What tools can you use?",
+                "What can the SHAFT Assistant do?",
+                "Show available commands and tools")) {
+            assertTrue(command(question).isCapabilityHelp(), question);
+        }
+        assertFalse(command("Use the browser tool to open example.com").isCapabilityHelp());
+        assertFalse(command("Explain this command pattern").isCapabilityHelp());
+        assertFalse(command("How should I implement capability-based security?").isCapabilityHelp());
+        for (String alias : List.of("/help browser navigate", "/commands browser navigate",
+                "/mcp-help browser navigate", "/shaft-help browser navigate")) {
+            AssistantCommand.Invocation invocation = command(alias);
+            assertTrue(invocation.isCapabilityHelp(), alias);
+            assertEquals("browser navigate", invocation.capabilityTopic(), alias);
+        }
+    }
+
+    private static int occurrences(String text, String needle) {
+        return (text.length() - text.replace(needle, "").length()) / needle.length();
     }
 
     @Test

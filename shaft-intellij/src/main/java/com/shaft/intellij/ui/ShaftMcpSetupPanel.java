@@ -16,6 +16,7 @@ import com.intellij.util.ui.JBUI;
 import com.shaft.intellij.mcp.ShaftMcpConnectionProbe;
 import com.shaft.intellij.mcp.ShaftMcpToolResult;
 import com.shaft.intellij.mcp.ShaftPluginExecutor;
+import com.shaft.intellij.settings.AssistantAgentRoute;
 import com.shaft.intellij.settings.ShaftPluginResetService;
 import com.shaft.intellij.settings.ShaftSettingsState;
 import org.jetbrains.annotations.NotNull;
@@ -23,6 +24,7 @@ import org.jetbrains.annotations.NotNull;
 import javax.swing.JButton;
 import javax.swing.JCheckBox;
 import javax.swing.JComboBox;
+import javax.swing.DefaultListCellRenderer;
 import javax.swing.JComponent;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
@@ -75,7 +77,7 @@ final class ShaftMcpSetupPanel extends JPanel implements Disposable {
             "INTELLIJ_PLUGIN"
     };
     private static final String GUIDE_SETUP_STEP =
-            "Next: pick your agent, then press Install SHAFT MCP -- this opens a terminal with the MCP+skills+CLI "
+            "Next: choose your agent, then press Copy -- this opens a terminal with the MCP+skills+CLI "
                     + "install command ready to go; run it there, then press Check.";
     private static final String CHECK_NEXT_STEP = "Press Check now.";
     // Issue #4160 area A: a returning user reopening the panel in a new IDE session after setup
@@ -136,6 +138,7 @@ final class ShaftMcpSetupPanel extends JPanel implements Disposable {
     private final JBTextArea mcpCommand;
     private final JComboBox<String> family;
     private final JComboBox<String> runtime;
+    private final JComboBox<AssistantAgentRoute> agentRoute;
     private final javax.swing.JPasswordField geminiApiKey;
     private final JLabel geminiKeyStatus;
     private final JPanel runtimeRow;
@@ -309,6 +312,24 @@ final class ShaftMcpSetupPanel extends JPanel implements Disposable {
         ShaftUiLabels.applyFriendlyRenderer(runtime);
         runtime.setSelectedItem(normalize(settings.assistantRuntime, "CLI"));
         runtime.getAccessibleContext().setAccessibleName("Assistant runtime");
+        agentRoute = new JComboBox<>(AssistantAgentRoute.values());
+        agentRoute.setSelectedItem(AssistantAgentRoute.fromSettings(settings));
+        agentRoute.getAccessibleContext().setAccessibleName("Assistant agent");
+        agentRoute.getAccessibleContext().setAccessibleDescription(
+                "Select the agent that SHAFT will configure and use for MCP installation.");
+        agentRoute.setRenderer((list, value, index, selected, focused) -> {
+            JLabel label = (JLabel) new DefaultListCellRenderer()
+                    .getListCellRendererComponent(list, value, index, selected, focused);
+            if (value != null) {
+                AssistantAgentRoute route = value;
+                String suffix = index >= 0 && recommendation.basis() == RecommendationBasis.DETECTED
+                        && route.cli() && route.family().equals(recommendation.family())
+                        ? " — Recommended · Detected" : "";
+                label.setText(route.displayName() + suffix);
+            }
+            return label;
+        });
+        syncLegacySelectionFromRoute();
         geminiApiKey = new javax.swing.JPasswordField(24);
         geminiApiKey.getAccessibleContext().setAccessibleName("Gemini API key");
         geminiApiKey.getAccessibleContext().setAccessibleDescription(
@@ -316,17 +337,17 @@ final class ShaftMcpSetupPanel extends JPanel implements Disposable {
         geminiKeyStatus = setupStatusLabel("Gemini API key status");
         installerTarget = new JComboBox<>(INSTALLER_TARGETS);
         ShaftUiLabels.applyFriendlyRenderer(installerTarget);
-        installerTarget.setSelectedItem(suggestedInstallerTarget());
+        installerTarget.setSelectedItem(selectedAgentRoute().installerTarget());
         installerTarget.getAccessibleContext().setAccessibleName("MCP installer target");
         installerTarget.getAccessibleContext().setAccessibleDescription(
                 "MCP client or plugin target used to build the installer command.");
         installerTarget.setVisible(false);
         manualInstallerTarget = new JCheckBox("MCP target");
+        manualInstallerTarget.setVisible(false);
         manualInstallerTarget.getAccessibleContext().setAccessibleName("Show manual MCP install target");
         manualInstallerTarget.setToolTipText("Show advanced installer targets when the inferred default is not correct");
         manualInstallerTarget.addActionListener(event -> {
-            installerTarget.setVisible(manualInstallerTarget.isSelected());
-            assistantSelectionChanged();
+            installerTarget.setVisible(false);
         });
         installShaftCli = new JCheckBox("Also install shaft-cli");
         installShaftCli.getAccessibleContext().setAccessibleName("Also install shaft-cli command line");
@@ -342,7 +363,6 @@ final class ShaftMcpSetupPanel extends JPanel implements Disposable {
         copyUpgradeCommand.getAccessibleContext().setAccessibleName("Copy SHAFT upgrade command");
         copyUpgradeCommand.setToolTipText("Copy the SHAFT upgrade command and open a terminal with it pre-typed "
                 + "— just press Enter there to run it");
-        copyUpgradeCommand.setMnemonic(KeyEvent.VK_U);
         applyLabeledAction(copyUpgradeCommand, ShaftIcons.COPY);
         copyUpgradeCommand.addActionListener(event -> copyUpgradeCommand());
         checkUpgrade = new JButton("Check");
@@ -375,13 +395,12 @@ final class ShaftMcpSetupPanel extends JPanel implements Disposable {
         // already uses; the plugin never executes the command itself, the user presses Enter.
         // Issue #4314 fix 3: this used to be two functionally near-identical buttons ("Install" and
         // a separate "Copy" that additionally copied to clipboard first) -- merged into this one.
-        installNow = new JButton("Install");
-        installNow.getAccessibleContext().setAccessibleName("Install SHAFT MCP");
+        installNow = new JButton("Copy");
+        installNow.getAccessibleContext().setAccessibleName("Copy SHAFT MCP setup command");
         installNow.setToolTipText("Copies the SHAFT MCP + skills + shaft-cli install command to the clipboard and "
                 + "opens a terminal with it pre-typed for the selected client -- press Enter there to run it, "
                 + "then press Check.");
-        installNow.setMnemonic(KeyEvent.VK_I);
-        applyLabeledAction(installNow, ShaftIcons.DOWNLOAD);
+        applyLabeledAction(installNow, ShaftIcons.COPY);
         installNow.addActionListener(event -> runInstall());
         mcpVersionDetail = setupStatusLabel("SHAFT MCP version status");
         test = new JButton("Check");
@@ -414,11 +433,10 @@ final class ShaftMcpSetupPanel extends JPanel implements Disposable {
         applyLabeledAction(connectAgent, ShaftIcons.CHECK);
         connectAgent.setVisible(false);
         connectAgent.addActionListener(event -> connectAgentClicked());
-        resetAndReinstall = new JButton("Reinstall");
-        resetAndReinstall.getAccessibleContext().setAccessibleName("Reset and reinstall SHAFT MCP");
+        resetAndReinstall = new JButton("Copy");
+        resetAndReinstall.getAccessibleContext().setAccessibleName("Copy fresh SHAFT MCP setup command");
         resetAndReinstall.setToolTipText("Clear the saved MCP command and copy a fresh installer command");
-        resetAndReinstall.setMnemonic(KeyEvent.VK_R);
-        applyLabeledAction(resetAndReinstall, ShaftIcons.RESET);
+        applyLabeledAction(resetAndReinstall, ShaftIcons.COPY);
         resetAndReinstall.setVisible(false);
         resetAndReinstall.addActionListener(event -> resetAndCopyInstaller());
         boolean postSetupReentry = settings.mcpReady();
@@ -474,28 +492,27 @@ final class ShaftMcpSetupPanel extends JPanel implements Disposable {
         status.setMinimumSize(JBUI.size(560, 28));
         setStatusText(GUIDE_SETUP_STEP);
         status.getAccessibleContext().setAccessibleName("SHAFT MCP setup next step");
-        copyCommand = new JButton("Copy command");
+        copyCommand = new JButton("Copy");
         copyCommand.getAccessibleContext().setAccessibleName("Copy setup diagnostic command");
         copyCommand.setToolTipText("Copy the diagnostic command and open a terminal with it pre-typed");
-        ShaftIconButtons.apply(copyCommand, ShaftIcons.CODE);
+        applyLabeledAction(copyCommand, ShaftIcons.COPY);
         copyCommand.setEnabled(false);
         copyCommand.setVisible(false);
         copyCommand.addActionListener(event -> copyDiagnosticCommand());
-        copyOutput = new JButton("Copy output");
+        copyOutput = new JButton("Copy");
         copyOutput.getAccessibleContext().setAccessibleName("Copy setup diagnostic output");
         copyOutput.setToolTipText("Copy the setup diagnostic output");
         applyLabeledAction(copyOutput, ShaftIcons.COPY);
         copyOutput.setEnabled(false);
         copyOutput.addActionListener(event -> copyDiagnosticOutput());
-        copyDocs = new JButton("Copy docs link");
+        copyDocs = new JButton("Copy");
         copyDocs.getAccessibleContext().setAccessibleName("Copy SHAFT MCP docs link");
         copyDocs.setToolTipText("Copy the SHAFT MCP setup docs link");
-        copyDocs.setMnemonic(KeyEvent.VK_D);
         applyLabeledAction(copyDocs, ShaftIcons.HELP);
         copyDocs.setEnabled(false);
         copyDocs.setVisible(false);
         copyDocs.addActionListener(event -> copyDocsLink());
-        copyRestartCommand = new JButton("Copy restart command");
+        copyRestartCommand = new JButton("Copy");
         copyRestartCommand.getAccessibleContext().setAccessibleName("Copy assistant CLI restart command");
         copyRestartCommand.setToolTipText(
                 "Copy a command that stops any running sessions of the selected assistant CLI and "
@@ -533,8 +550,8 @@ final class ShaftMcpSetupPanel extends JPanel implements Disposable {
         upgradeState = setupStateLabel("Upgrade project setup state");
         chooseStep = setupStepLabel("Choose agent setup step");
         chooseState = setupStateLabel("Choose agent setup state");
-        installStep = setupStepLabel("Install SHAFT MCP setup step");
-        installState = setupStateLabel("Install SHAFT MCP setup state");
+        installStep = setupStepLabel("Copy setup command step");
+        installState = setupStateLabel("Copy setup command state");
         testStep = setupStepLabel("Check now setup step");
         testState = setupStateLabel("Check now setup state");
         readyStep = setupStepLabel("Start chatting setup step");
@@ -542,15 +559,22 @@ final class ShaftMcpSetupPanel extends JPanel implements Disposable {
         JPanel agentControls = new JPanel();
         agentControls.setLayout(new javax.swing.BoxLayout(agentControls, javax.swing.BoxLayout.Y_AXIS));
         agentControls.setOpaque(false);
+        JPanel agentRouteRow = labeledControl("Agent", agentRoute);
+        agentControls.add(agentRouteRow);
         JPanel familyRow = labeledControl("Assistant family", family);
+        familyRow.setVisible(false);
+        family.setVisible(false);
         agentControls.add(familyRow);
         runtimeRow = labeledControl("Runtime", runtime);
+        runtimeRow.setVisible(false);
+        runtime.setVisible(false);
         agentControls.add(runtimeRow);
         apiKeyRow = labeledControl("Gemini API key", geminiApiKey);
         apiKeyRow.add(geminiKeyStatus);
         apiKeyRow.setVisible(false);
         agentControls.add(apiKeyRow);
-        agentControls.add(recommendedAgent);
+        JPanel recommendationRow = labeledControl("", recommendedAgent);
+        agentControls.add(recommendationRow);
         JPanel chooseActions = new JPanel(new FlowLayout(FlowLayout.LEFT, 4, 0));
         chooseActions.setOpaque(false);
         chooseActions.add(checkChosenAgent);
@@ -558,7 +582,7 @@ final class ShaftMcpSetupPanel extends JPanel implements Disposable {
         // Issue #3771: each labeledControl row above packs its own label at that label's natural
         // width ("Assistant family" is longer than "Runtime"), so without this the dropdowns beside
         // them land at different x-offsets -- a ragged left edge next to a real aligned form.
-        alignLabelColumn(familyRow, runtimeRow, apiKeyRow);
+        alignLabelColumn(agentRouteRow, recommendationRow, apiKeyRow);
         JPanel checkActions = new JPanel(new FlowLayout(FlowLayout.LEFT, 4, 0));
         checkActions.setOpaque(false);
         checkActions.add(test);
@@ -594,7 +618,7 @@ final class ShaftMcpSetupPanel extends JPanel implements Disposable {
             refreshPrerequisites();
             updateActionState(false);
         });
-        JButton copyEngineWarmup = new JButton("Warm up Engine");
+        JButton copyEngineWarmup = new JButton("Copy");
         // Resolve the latest engine release off-EDT now so the click below can pin a real version.
         SetupPrerequisites.prefetchLatestEngineVersion();
         // Same fire-once, off-EDT pattern for the latest shaft-mcp release (issue #3538).
@@ -676,6 +700,7 @@ final class ShaftMcpSetupPanel extends JPanel implements Disposable {
         JPanel targetRow = new JPanel(new FlowLayout(FlowLayout.LEFT, 4, 0));
         targetRow.add(manualInstallerTarget);
         targetRow.add(installerTarget);
+        targetRow.setVisible(false);
         JPanel diagnosticRow = new JPanel(new FlowLayout(FlowLayout.LEFT, 4, 0));
         diagnosticRow.add(copyCommand);
         diagnosticRow.add(copyOutput);
@@ -689,11 +714,8 @@ final class ShaftMcpSetupPanel extends JPanel implements Disposable {
         postSetupControls.add(expertMode);
         postSetupControls.add(connectionAgentsRecheck);
         postSetupControls.add(resetEverything);
-        family.addActionListener(event -> {
-            recommendation = recommendFamily(currentSelectionSnapshot());
-            assistantSelectionChanged();
-        });
-        runtime.addActionListener(event -> {
+        agentRoute.addActionListener(event -> {
+            syncLegacySelectionFromRoute();
             recommendation = recommendFamily(currentSelectionSnapshot());
             assistantSelectionChanged();
         });
@@ -717,7 +739,7 @@ final class ShaftMcpSetupPanel extends JPanel implements Disposable {
         advancedInstallerToggle = new JCheckBox("Advanced installer options");
         advancedInstallerToggle.getAccessibleContext().setAccessibleName("Show advanced installer options");
         advancedInstallerToggle.setToolTipText(
-                "Show the raw installer command and manual MCP target selection.");
+                "Show the raw installer command and shaft-cli option.");
         advancedInstallerToggle.setOpaque(false);
         advancedInstallerToggle.addActionListener(event -> {
             installerDetailsPanel.setVisible(advancedInstallerToggle.isSelected());
@@ -929,7 +951,7 @@ final class ShaftMcpSetupPanel extends JPanel implements Disposable {
     private void refreshPrerequisites() {
         prerequisitesList.removeAll();
         List<SetupPrerequisites.Prerequisite> detected =
-                prerequisitesDetector.apply(String.valueOf(family.getSelectedItem()));
+                prerequisitesDetector.apply(selectedAgentRoute().family());
         boolean allRequiredPresent = true;
         for (SetupPrerequisites.Prerequisite prerequisite : detected) {
             boolean blocking = !prerequisite.present() && prerequisite.required();
@@ -967,7 +989,7 @@ final class ShaftMcpSetupPanel extends JPanel implements Disposable {
     }
 
     JComponent preferredFocusComponent() {
-        return family;
+        return agentRoute;
     }
 
     private void testConnection() {
@@ -1188,6 +1210,10 @@ final class ShaftMcpSetupPanel extends JPanel implements Disposable {
             applyConnectAgentResult(verifySelectedAgentReadiness(null));
             return;
         }
+        if (!selectedAgentRoute().cli()) {
+            applyConnectAgentResult(verifySelectedAgentReadiness(null));
+            return;
+        }
         String selectedClient = settings.defaultAutobotClient;
         String selectedRuntime = settings.assistantRuntime;
         CompletableFuture.supplyAsync(() -> deepReadinessProbe.test(selectedClient, selectedRuntime),
@@ -1229,6 +1255,10 @@ final class ShaftMcpSetupPanel extends JPanel implements Disposable {
             applyChosenAgentCheckResult(verifySelectedAgentReadiness(null));
             return;
         }
+        if (!selectedAgentRoute().cli()) {
+            applyChosenAgentCheckResult(verifySelectedAgentReadiness(null));
+            return;
+        }
         String selectedClient = settings.defaultAutobotClient;
         String selectedRuntime = settings.assistantRuntime;
         CompletableFuture.supplyAsync(() -> deepReadinessProbe.test(selectedClient, selectedRuntime),
@@ -1255,6 +1285,7 @@ final class ShaftMcpSetupPanel extends JPanel implements Disposable {
         mcpCommand.setEnabled(!running);
         family.setEnabled(!running);
         runtime.setEnabled(!running);
+        agentRoute.setEnabled(!running);
         geminiApiKey.setEnabled(!running);
         setStatusText(text);
     }
@@ -1303,16 +1334,15 @@ final class ShaftMcpSetupPanel extends JPanel implements Disposable {
     }
 
     private void assistantSelectionChanged() {
+        settings.agentLaneReady = false;
         updateCloudControls();
         showRuntimeSelected();
         refreshPrerequisites();
         refreshRealChecks();
-        if (!manualInstallerTarget.isSelected()) {
-            String suggestedTarget = suggestedInstallerTarget();
-            if (!suggestedTarget.equals(String.valueOf(installerTarget.getSelectedItem()))) {
-                installerTarget.setSelectedItem(suggestedTarget);
-                return;
-            }
+        String suggestedTarget = suggestedInstallerTarget();
+        if (!suggestedTarget.equals(String.valueOf(installerTarget.getSelectedItem()))) {
+            installerTarget.setSelectedItem(suggestedTarget);
+            return;
         }
         installerTargetChanged();
     }
@@ -1351,8 +1381,19 @@ final class ShaftMcpSetupPanel extends JPanel implements Disposable {
         return geminiCloudConfigured ? GEMINI_FAMILY : resolveFamily(settings);
     }
 
+    private AssistantAgentRoute selectedAgentRoute() {
+        Object selected = agentRoute.getSelectedItem();
+        return selected instanceof AssistantAgentRoute route ? route : AssistantAgentRoute.CODEX_CLI;
+    }
+
+    private void syncLegacySelectionFromRoute() {
+        AssistantAgentRoute route = selectedAgentRoute();
+        family.setSelectedItem(route.family());
+        runtime.setSelectedItem(route.runtime());
+    }
+
     private boolean cloudFamilySelected() {
-        return GEMINI_FAMILY.equals(normalize(String.valueOf(family.getSelectedItem()), "CODEX"));
+        return selectedAgentRoute().gemini();
     }
 
     /**
@@ -1361,19 +1402,13 @@ final class ShaftMcpSetupPanel extends JPanel implements Disposable {
      * to a local agent later restores the previous local configuration.
      */
     private void applySelectionToSettings() {
-        if (cloudFamilySelected()) {
-            settings.assistantProviderType = "CLOUD";
-            settings.cloudProvider = "gemini";
+        AssistantAgentRoute route = selectedAgentRoute();
+        route.applyTo(settings);
+        if (route.gemini()) {
             if (settings.cloudModel == null || settings.cloudModel.isBlank()) {
                 settings.cloudModel = AssistantModelCatalog.defaultCloudModel("gemini");
             }
-            settings.passProviderApiKeysToMcp = true;
-            return;
         }
-        settings.assistantProviderType = "LOCAL";
-        settings.assistantFamily = String.valueOf(family.getSelectedItem());
-        settings.assistantRuntime = String.valueOf(runtime.getSelectedItem());
-        settings.defaultAutobotClient = clientFromFamily(settings.assistantFamily);
     }
 
     /**
@@ -1383,7 +1418,13 @@ final class ShaftMcpSetupPanel extends JPanel implements Disposable {
      * cloud route stores the entered API key and checks that one is present in Password Safe.
      */
     private ShaftMcpToolResult verifySelectedAgentReadiness(ShaftMcpToolResult precomputedReadiness) {
-        if (!cloudFamilySelected()) {
+        AssistantAgentRoute route = selectedAgentRoute();
+        if (!route.gemini() && !route.cli()) {
+            return ShaftMcpToolResult.failure(route.displayName()
+                    + " selected. SHAFT cannot verify this external runtime from IntelliJ; "
+                    + "copy the setup command, run it, then confirm the integration in that client.");
+        }
+        if (!route.gemini()) {
             return precomputedReadiness != null
                     ? precomputedReadiness
                     : deepReadinessProbe.test(settings.defaultAutobotClient, settings.assistantRuntime);
@@ -1416,7 +1457,7 @@ final class ShaftMcpSetupPanel extends JPanel implements Disposable {
 
     private void updateCloudControls() {
         boolean cloud = cloudFamilySelected();
-        runtimeRow.setVisible(!cloud);
+        runtimeRow.setVisible(false);
         apiKeyRow.setVisible(cloud);
         // The CLI recommendation only applies to local agent families.
         recommendedAgent.setVisible(!cloud);
@@ -1460,8 +1501,7 @@ final class ShaftMcpSetupPanel extends JPanel implements Disposable {
     private ShaftSettingsState.Settings currentSelectionSnapshot() {
         ShaftSettingsState.Settings snapshot = new ShaftSettingsState.Settings();
         snapshot.defaultAutobotClient = settings.defaultAutobotClient;
-        snapshot.assistantFamily = String.valueOf(family.getSelectedItem());
-        snapshot.assistantRuntime = String.valueOf(runtime.getSelectedItem());
+        selectedAgentRoute().applyTo(snapshot);
         return snapshot;
     }
 
@@ -1510,7 +1550,7 @@ final class ShaftMcpSetupPanel extends JPanel implements Disposable {
     }
 
     private String installerCommand() {
-        String command = installerCommandFor(installerArgumentFor(String.valueOf(installerTarget.getSelectedItem())));
+        String command = installerCommandFor(installerArgumentFor(selectedAgentRoute().installerTarget()));
         if (installShaftCli.isSelected()) {
             // Insert next to the skills flag so the addition stays inside the quoted
             // PowerShell command on Windows.
@@ -1520,18 +1560,7 @@ final class ShaftMcpSetupPanel extends JPanel implements Disposable {
     }
 
     private String suggestedInstallerTarget() {
-        return switch (normalize(String.valueOf(family.getSelectedItem()), "CODEX")) {
-            case "CLAUDE" -> "DESKTOP_APP".equals(normalize(String.valueOf(runtime.getSelectedItem()), "CLI"))
-                    ? "CLAUDE_DESKTOP"
-                    : "CLAUDE_CODE";
-            case "COPILOT" -> "IDE_PLUGIN".equals(normalize(String.valueOf(runtime.getSelectedItem()), "CLI"))
-                    ? "COPILOT_INTELLIJ"
-                    : "COPILOT_CLI";
-            // Gemini prompts run through SHAFT MCP's provider chat, so only this plugin's own
-            // MCP integration needs installing.
-            case GEMINI_FAMILY -> "INTELLIJ_PLUGIN";
-            default -> "CODEX";
-        };
+        return selectedAgentRoute().installerTarget();
     }
 
     private static String installerArgumentFor(String target) {
@@ -2013,16 +2042,11 @@ final class ShaftMcpSetupPanel extends JPanel implements Disposable {
     }
 
     private String clientDisplayName() {
-        return switch (normalize(String.valueOf(family.getSelectedItem()), "CODEX")) {
-            case "CLAUDE" -> "Claude";
-            case "COPILOT" -> "GitHub Copilot";
-            case GEMINI_FAMILY -> "Gemini";
-            default -> "Codex";
-        };
+        return selectedAgentRoute().displayName();
     }
 
     private String runtimeDisplayName() {
-        return String.valueOf(runtime.getSelectedItem()).replace('_', ' ');
+        return ShaftUiLabels.friendly(selectedAgentRoute().runtime());
     }
 
     private static String normalize(String value, String fallback) {
@@ -2143,8 +2167,8 @@ final class ShaftMcpSetupPanel extends JPanel implements Disposable {
         boolean hasCommand = !currentCommand().isBlank();
         boolean complete = settings.mcpSetupComplete && hasCommand;
         setStep(upgradeStep, upgradeState, "1 Upgrade project", upgradeStepState());
-        setStep(chooseStep, chooseState, "2 Pick agent", chooseStepState());
-        setStep(installStep, installState, "3 Install SHAFT MCP", mcpVersionStepState());
+        setStep(chooseStep, chooseState, "2 Choose agent", chooseStepState());
+        setStep(installStep, installState, "3 Copy setup command", mcpVersionStepState());
         setStep(testStep, testState, "4 Check setup", checkStepState(running, complete, hasCommand));
         setStep(null, readyState, "Ready", complete ? "next" : "wait");
         alignStepLabelWidths();
@@ -2514,16 +2538,7 @@ final class ShaftMcpSetupPanel extends JPanel implements Disposable {
     }
 
     private String assistantRuntimeLabel() {
-        String selectedFamily = normalize(String.valueOf(family.getSelectedItem()), "CODEX");
-        String selectedRuntime = normalize(String.valueOf(runtime.getSelectedItem()), "CLI");
-        return switch (selectedFamily) {
-            case "CLAUDE" -> "DESKTOP_APP".equals(selectedRuntime) ? "Claude Desktop" : "Claude Code CLI";
-            case "COPILOT" -> "IDE_PLUGIN".equals(selectedRuntime)
-                    ? "GitHub Copilot in IntelliJ"
-                    : "GitHub Copilot CLI";
-            case GEMINI_FAMILY -> "Gemini cloud API";
-            default -> "Codex " + ShaftUiLabels.friendly(selectedRuntime);
-        };
+        return selectedAgentRoute().displayName();
     }
 
     private void showAssistNotConfigured() {

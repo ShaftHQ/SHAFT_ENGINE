@@ -48,6 +48,13 @@ public final class ToolCatalogIndex {
     }
 
     /**
+     * @return presentation metadata for every bundled SHAFT MCP tool, in canonical catalog order
+     */
+    public static List<ToolMetadata> tools() {
+        return Holder.TOOLS;
+    }
+
+    /**
      * @param toolName exact tool name (e.g. {@code "capture_start"})
      * @return the curated {@code intentKeywords} for that tool, or an empty list when the tool is
      *     unknown or has no curated keywords yet
@@ -72,28 +79,32 @@ public final class ToolCatalogIndex {
      * itself is loaded.
      */
     private static final class Holder {
+        private static final List<ToolMetadata> TOOLS;
         private static final Set<String> TOOL_NAMES;
         private static final Map<String, List<String>> INTENT_KEYWORDS;
         private static final Map<String, String> SLASH_ALIASES;
 
         static {
+            List<ToolMetadata> tools = new ArrayList<>();
             Set<String> names = new LinkedHashSet<>();
             Map<String, List<String>> keywords = new LinkedHashMap<>();
             Map<String, String> aliases = new LinkedHashMap<>();
-            parse(names, keywords, aliases);
+            parse(tools, names, keywords, aliases);
+            TOOLS = List.copyOf(tools);
             TOOL_NAMES = Collections.unmodifiableSet(names);
             INTENT_KEYWORDS = Collections.unmodifiableMap(keywords);
             SLASH_ALIASES = Collections.unmodifiableMap(aliases);
         }
 
-        private static void parse(Set<String> names, Map<String, List<String>> keywords, Map<String, String> aliases) {
+        private static void parse(List<ToolMetadata> tools, Set<String> names,
+                                  Map<String, List<String>> keywords, Map<String, String> aliases) {
             try (InputStream stream = ToolCatalogIndex.class.getResourceAsStream(RESOURCE_PATH)) {
-                JsonArray tools = resolveToolsArray(stream);
-                if (tools == null) {
+                JsonArray toolArray = resolveToolsArray(stream);
+                if (toolArray == null) {
                     return;
                 }
-                for (JsonElement element : tools) {
-                    parseTool(element, names, keywords, aliases);
+                for (JsonElement element : toolArray) {
+                    parseTool(element, tools, names, keywords, aliases);
                 }
             } catch (IOException | RuntimeException ignored) {
                 // Best-effort catalog only: AssistantCommand's built-in keyword lists remain the
@@ -129,8 +140,8 @@ public final class ToolCatalogIndex {
          * {@code aliases}, silently skipping entries that aren't a JSON object or have no usable
          * {@code name} member.
          */
-        private static void parseTool(JsonElement element, Set<String> names, Map<String, List<String>> keywords,
-                                       Map<String, String> aliases) {
+        private static void parseTool(JsonElement element, List<ToolMetadata> tools, Set<String> names,
+                                      Map<String, List<String>> keywords, Map<String, String> aliases) {
             if (!element.isJsonObject()) {
                 return;
             }
@@ -143,9 +154,16 @@ public final class ToolCatalogIndex {
             names.add(name);
             keywords.put(name, stringArray(tool.get("intentKeywords")));
             String alias = curatedSlashAlias(tool);
+            tools.add(new ToolMetadata(name, string(tool, "service"), string(tool, "description"),
+                    alias == null ? "" : alias));
             if (alias != null) {
                 aliases.put(alias, name);
             }
+        }
+
+        private static String string(JsonObject object, String key) {
+            JsonElement value = object.get(key);
+            return value != null && value.isJsonPrimitive() ? value.getAsString() : "";
         }
 
         /**
@@ -180,5 +198,9 @@ public final class ToolCatalogIndex {
             }
             return List.copyOf(values);
         }
+    }
+
+    /** Bundled presentation metadata for one SHAFT MCP tool. */
+    public record ToolMetadata(String name, String service, String description, String slashAlias) {
     }
 }
