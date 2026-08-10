@@ -321,6 +321,9 @@ class GuardLifecycleTest(unittest.TestCase):
     def test_every_live_mutation_lane_requires_the_receipt(self):
         fixtures = (
             ("PowerShell", {"command": "Set-Content scripts/x.py changed"}),
+            ("PowerShell", {"command": "Clear-Content scripts/x.py"}),
+            ("PowerShell", {"command": "Copy-Item source.txt scripts/x.py"}),
+            ("PowerShell", {"command": "Rename-Item old.txt scripts/x.py"}),
             ("Bash", {"command": "printf changed > scripts/x.py"}),
             ("mcp__shaft-memory__remember_memory", {"content": "durable"}),
             ("mcp__mempalace__mempalace_delete_drawer", {"drawer_id": "x"}),
@@ -396,12 +399,61 @@ class GuardLifecycleTest(unittest.TestCase):
         )
 
     def test_only_explicit_primary_source_research_counts_as_authoritative(self):
-        generic = guard._research_preflight_events("WebSearch", {"query": "hook ideas"})
+        generic = guard._research_preflight_events(
+            "WebSearch",
+            {"query": "unofficial blog, no standard documentation"},
+            {"results": [{"url": "https://example.com/opinion"}]},
+        )
         primary = guard._research_preflight_events(
-            "WebSearch", {"query": "official GitHub hooks documentation"}
+            "WebSearch",
+            {"query": "official GitHub hooks documentation"},
+            {"results": [{"url": "https://docs.github.com/en/actions"}]},
         )
         self.assertNotIn("authoritative-online-research", generic)
         self.assertIn("authoritative-online-research", primary)
+
+    def test_shell_file_targets_share_main_and_outside_scoping(self):
+        inside = {"cwd": ".", "tool_input": {"command": "Set-Content scripts/x.py x"}}
+        outside_path = os.path.join(tempfile.gettempdir(), "research-scratch.txt")
+        outside = {
+            "cwd": ".",
+            "tool_input": {"command": f'Set-Content "{outside_path}" x'},
+        }
+        root = os.path.realpath(".")
+        with patch("scripts.agents.guard._current_branch", return_value="main"):
+            with patch("scripts.agents.guard._repository_root", return_value=root):
+                self.assertIsNotNone(guard.check_r19_fresh_base(inside, "PowerShell"))
+                self.assertIsNone(guard.check_r19_fresh_base(outside, "PowerShell"))
+        with patch("scripts.agents.guard.ledger_events", return_value=[]):
+            self.assertIsNone(
+                guard.check_r25_research_before_implementation(outside, "PowerShell")
+            )
+
+    def test_issue_backed_plan_comment_completes_its_own_receipt_after_success(self):
+        command = (
+            "gh issue comment 4666 --body 'Implementation plan and executable specification'"
+        )
+        payload = {"cwd": ".", "tool_input": {"command": command}}
+        first_seven = list(guard.RESEARCH_PREFLIGHT_EVENTS[:-1])
+        with patch("scripts.agents.guard.ledger_events", return_value=first_seven):
+            self.assertIsNone(
+                guard.check_r25_research_before_implementation(payload, "PowerShell")
+            )
+        observed = []
+        with patch(
+            "scripts.agents.guard.ledger_record",
+            side_effect=lambda _payload, event: observed.append(event),
+        ):
+            guard.run_posttooluse(
+                {**payload, "tool_name": "PowerShell", "session_id": "issue-plan"}
+            )
+        self.assertIn("record-plan", observed)
+
+        unrelated = {"cwd": ".", "tool_input": {"command": "gh issue comment 4666 --body status"}}
+        with patch("scripts.agents.guard.ledger_events", return_value=first_seven):
+            self.assertIsNotNone(
+                guard.check_r25_research_before_implementation(unrelated, "PowerShell")
+            )
 
 
     @patch("scripts.agents.guard._open_pull_request_count", return_value=1)
