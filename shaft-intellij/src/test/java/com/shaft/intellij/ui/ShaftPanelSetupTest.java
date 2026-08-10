@@ -2124,7 +2124,67 @@ class ShaftPanelSetupTest {
     }
 
     @Test
-    void assistantDoesNotOfferGuessedModelsWhenCliReportsNoModels() throws Exception {
+    void assistantKeepsCliDefaultAvailableAndShowsModelDiscoveryStatus() throws Exception {
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
+        JComboBox<?> localModel = findByAccessibleName(panel, "Assistant local agent model", JComboBox.class);
+        JLabel status = findByAccessibleName(panel, "Local model discovery status", JLabel.class);
+
+        applyLocalModels(panel, "CODEX", List.of());
+        assertAll(
+                () -> assertEquals(1, localModel.getItemCount()),
+                () -> assertEquals("CLI default", localModel.getItemAt(0)),
+                () -> assertEquals("CLI default", localModel.getSelectedItem()),
+                () -> assertTrue(status.getText().contains("No models reported"), status.getText()),
+                () -> assertEquals(status.getText(), status.getAccessibleContext().getAccessibleDescription()));
+
+        applyLocalModels(panel, "CODEX", List.of("gpt-5.6-sol", "gpt-5.6-terra"));
+        AssistantCommand.Invocation defaultInvocation = AssistantCommand.fromPrompt(
+                "Explain this failure", selectedRoute(panel), "ASK", ".", "", false);
+        assertAll(
+                () -> assertEquals(3, localModel.getItemCount()),
+                () -> assertEquals("CLI default", localModel.getItemAt(0)),
+                () -> assertTrue(status.getText().contains("2 models"), status.getText()),
+                () -> assertEquals(status.getText(), status.getAccessibleContext().getAccessibleDescription()),
+                () -> assertFalse(AssistantLocalAgentRunner.commandFor(defaultInvocation.arguments())
+                        .contains("--model")));
+    }
+
+    @Test
+    void assistantModelFailureStatusesRemainAccessibleAndFitNarrowSettings() throws Exception {
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
+        JLabel status = findByAccessibleName(panel, "Local model discovery status", JLabel.class);
+
+        applyLocalModelDiscovery(panel, "CODEX", AssistantLocalAgentRunner.ModelDiscoveryState.UNAVAILABLE);
+        assertAll(
+                () -> assertTrue(status.getText().contains("CLI unavailable"), status.getText()),
+                () -> assertEquals(status.getText(), status.getAccessibleContext().getAccessibleDescription()),
+                () -> assertTrue(status.getPreferredSize().width <= 307,
+                        "unavailable status width=" + status.getPreferredSize().width));
+
+        applyLocalModelDiscovery(panel, "CODEX", AssistantLocalAgentRunner.ModelDiscoveryState.FAILED);
+        assertAll(
+                () -> assertTrue(status.getText().contains("Reload failed"), status.getText()),
+                () -> assertEquals(status.getText(), status.getAccessibleContext().getAccessibleDescription()),
+                () -> assertTrue(status.getPreferredSize().width <= 307,
+                        "failed status width=" + status.getPreferredSize().width));
+    }
+
+    @Test
+    void assistantKeepsManualModelDuringAcceptedSameFamilyRefresh() throws Exception {
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
+        JComboBox<String> localModel = findByAccessibleName(panel, "Assistant local agent model", JComboBox.class);
+        localModel.getEditor().setItem("manual-account-model");
+
+        applyLocalModels(panel, "CODEX", List.of("gpt-5.6-sol"));
+
+        assertAll(
+                () -> assertEquals("manual-account-model", localModel.getEditor().getItem()),
+                () -> assertEquals("CLI default", localModel.getItemAt(0)),
+                () -> assertEquals("gpt-5.6-sol", localModel.getItemAt(1)));
+    }
+
+    @Test
+    void assistantDoesNotOfferGuessedNamedModelsWhenCliReportsNoModels() throws Exception {
         ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
         JComboBox<String> family = findByAccessibleName(panel, "Assistant family", JComboBox.class);
         JComboBox<?> localModel = findByAccessibleName(panel, "Assistant local agent model", JComboBox.class);
@@ -2133,7 +2193,8 @@ class ShaftPanelSetupTest {
         applyLocalModels(panel, "CLAUDE", List.of());
 
         assertAll(
-                () -> assertEquals(0, localModel.getItemCount()),
+                () -> assertEquals(1, localModel.getItemCount()),
+                () -> assertEquals("CLI default", localModel.getItemAt(0)),
                 () -> assertTrue(localModel.isEditable()),
                 () -> assertTrue(localModel.getToolTipText().contains("did not report models"),
                         localModel.getToolTipText()));
@@ -2148,13 +2209,15 @@ class ShaftPanelSetupTest {
 
         applyLocalModelDiscovery(panel, "CLAUDE", AssistantLocalAgentRunner.ModelDiscoveryState.UNAVAILABLE);
         assertAll(
-                () -> assertEquals(0, localModel.getItemCount()),
+                () -> assertEquals(1, localModel.getItemCount()),
+                () -> assertEquals("CLI default", localModel.getItemAt(0)),
                 () -> assertTrue(localModel.isEditable()),
                 () -> assertTrue(localModel.getToolTipText().contains("unavailable"), localModel.getToolTipText()));
 
         applyLocalModelDiscovery(panel, "CLAUDE", AssistantLocalAgentRunner.ModelDiscoveryState.FAILED);
         assertAll(
-                () -> assertEquals(0, localModel.getItemCount()),
+                () -> assertEquals(1, localModel.getItemCount()),
+                () -> assertEquals("CLI default", localModel.getItemAt(0)),
                 () -> assertTrue(localModel.isEditable()),
                 () -> assertTrue(localModel.getToolTipText().contains("failed"), localModel.getToolTipText()));
     }
@@ -2174,7 +2237,8 @@ class ShaftPanelSetupTest {
         assertAll(
                 () -> assertEquals("CLAUDE", family.getSelectedItem()),
                 () -> assertEquals("manual-model", localModel.getEditor().getItem()),
-                () -> assertEquals("claude-new", localModel.getItemAt(0)));
+                () -> assertEquals("CLI default", localModel.getItemAt(0)),
+                () -> assertEquals("claude-new", localModel.getItemAt(1)));
     }
 
     @Test

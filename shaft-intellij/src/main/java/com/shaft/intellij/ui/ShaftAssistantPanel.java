@@ -139,6 +139,7 @@ final class ShaftAssistantPanel extends JPanel implements Disposable {
     private static final String READY_STATUS = "Try asking me to do something...";
     private static final int NARROW_RUN_SETTINGS_WIDTH = 420;
     private static final String SEND_TOOLTIP = "Send assistant prompt (Ctrl+Enter, Command+Enter, or Ctrl+click)";
+    private static final String CLI_DEFAULT_MODEL = "CLI default";
     private static final String LOCAL_MODEL_TOOLTIP_LIVE = "Model reported by the connected agent CLI";
     private static final String LOCAL_MODEL_TOOLTIP_EMPTY =
             "CLI did not report models — type a model name or click refresh to try again";
@@ -180,6 +181,7 @@ final class ShaftAssistantPanel extends JPanel implements Disposable {
     private final JButton retryProviderModels;
     private final JComboBox<String> localModel;
     private final JButton refreshLocalModels;
+    private final JLabel localModelStatus;
     private final JComboBox<String> effort;
     private final JBTextField customCommand;
     private final JPanel cloudKeyPanel;
@@ -504,6 +506,9 @@ final class ShaftAssistantPanel extends JPanel implements Disposable {
             localModelEditor.getAccessibleContext().setAccessibleName("Assistant local agent model text");
             localModelEditor.setToolTipText(LOCAL_MODEL_TOOLTIP_LIVE);
         }
+        localModelStatus = new JLabel("Using CLI default");
+        localModelStatus.getAccessibleContext().setAccessibleName("Local model discovery status");
+        localModelStatus.getAccessibleContext().setAccessibleDescription(localModelStatus.getText());
         // Local model names are account-specific; only the CLI can offer choices, while this
         // editable selector always permits manual entry.
         applyLocalModels(resolveFamily(settings), List.of());
@@ -789,6 +794,7 @@ final class ShaftAssistantPanel extends JPanel implements Disposable {
         runSettingsPanel.add(runSetting("Provider key", cloudKeyPanel));
         runSettingsPanel.add(runSetting("Local model", localModel));
         runSettingsPanel.add(runSetting("Refresh models", refreshLocalModels));
+        runSettingsPanel.add(runSetting("Model status", localModelStatus));
         runSettingsPanel.add(runSetting("Effort", effort));
         runSettingsPanel.add(runSetting("Source edits", allowSourceMutationChip));
         runSettingsPanel.add(runSetting("Output", verboseAgentOutput));
@@ -3587,6 +3593,8 @@ final class ShaftAssistantPanel extends JPanel implements Disposable {
         localModel.setEnabled(controlsEnabled && localCli);
         refreshLocalModels.setVisible(localCli);
         refreshLocalModels.setEnabled(controlsEnabled && localCli);
+        localModelStatus.setVisible(localCli);
+        localModelStatus.setEnabled(controlsEnabled && localCli);
         effort.setVisible(cloud || localCli);
         effort.setEnabled(controlsEnabled && (cloud || localCli));
         autoCompact.setVisible(localAgent && localCli);
@@ -3620,6 +3628,7 @@ final class ShaftAssistantPanel extends JPanel implements Disposable {
         }
         modelListRefreshing = true;
         modelListRefreshingFamily = family;
+        setLocalModelStatus("Checking model catalog…");
         long requestGeneration = ++modelListRequestGeneration;
         JsonObject arguments = new JsonObject();
         arguments.addProperty("client", AssistantCommand.Selection.local(family, "CLI").client());
@@ -3661,7 +3670,11 @@ final class ShaftAssistantPanel extends JPanel implements Disposable {
         String selectedModel = previousSelection != null && !previousSelection.isBlank()
                 ? previousSelection
                 : settings.localModel == null ? "" : settings.localModel.trim();
-        List<String> effectiveModels = discovery.models();
+        List<String> effectiveModels = new ArrayList<>();
+        effectiveModels.add(CLI_DEFAULT_MODEL);
+        effectiveModels.addAll(discovery.models().stream()
+                .filter(candidate -> !CLI_DEFAULT_MODEL.equals(candidate))
+                .toList());
         DefaultComboBoxModel<String> model = new DefaultComboBoxModel<>(effectiveModels.toArray(new String[0]));
         localModel.setModel(model);
         String tooltip = switch (discovery.state()) {
@@ -3671,14 +3684,25 @@ final class ShaftAssistantPanel extends JPanel implements Disposable {
             case FAILED -> LOCAL_MODEL_TOOLTIP_FAILED;
         };
         localModel.setToolTipText(tooltip);
+        setLocalModelStatus(switch (discovery.state()) {
+            case AVAILABLE -> "Ready · " + discovery.models().size() + " models + CLI default";
+            case EMPTY -> "No models reported · CLI default";
+            case UNAVAILABLE -> "CLI unavailable · Check PATH";
+            case FAILED -> "Reload failed · Retry";
+        });
         if (localModel.getEditor().getEditorComponent() instanceof JTextComponent localModelEditor) {
             localModelEditor.setToolTipText(tooltip);
         }
         if (!selectedModel.isBlank()) {
             localModel.setSelectedItem(selectedModel);
-        } else if (!effectiveModels.isEmpty()) {
-            localModel.setSelectedItem(effectiveModels.get(0));
+        } else {
+            localModel.setSelectedItem(CLI_DEFAULT_MODEL);
         }
+    }
+
+    private void setLocalModelStatus(String message) {
+        localModelStatus.setText(message);
+        localModelStatus.getAccessibleContext().setAccessibleDescription(message);
     }
 
     private void refreshProviderModelsIfNeeded() {
@@ -3936,7 +3960,8 @@ final class ShaftAssistantPanel extends JPanel implements Disposable {
         Object item = combo.isEditable() && combo.getEditor() != null
                 ? combo.getEditor().getItem()
                 : combo.getSelectedItem();
-        return item == null ? "" : item.toString().trim();
+        String value = item == null ? "" : item.toString().trim();
+        return CLI_DEFAULT_MODEL.equals(value) ? "" : value;
     }
 
     private static void runOnEdt(Runnable action) {
