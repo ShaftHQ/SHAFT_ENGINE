@@ -15,6 +15,7 @@ import tempfile
 import time
 import unittest
 from contextlib import redirect_stdout
+from pathlib import Path
 from unittest import mock
 from unittest.mock import patch
 
@@ -249,6 +250,72 @@ class GuardLifecycleTest(unittest.TestCase):
             "concrete plan",
         ):
             self.assertIn(required, context)
+
+    def payload(self) -> dict:
+        return {
+            "cwd": ".",
+            "session_id": "research-first-test",
+            "tool_name": "Write",
+            "tool_input": {"file_path": ".agents/skills/act-as-mohab/SKILL.md"},
+        }
+
+    def test_write_without_a_receipt_is_blocked(self):
+        with patch("scripts.agents.guard.ledger_events", return_value=[]):
+            reason = guard.check_r25_research_before_implementation(self.payload(), "Write")
+        self.assertIn("research-first", reason.lower())
+        self.assertIn("read-live-files", reason)
+
+    def test_each_missing_or_late_receipt_event_blocks_the_mutation(self):
+        required = guard.RESEARCH_PREFLIGHT_EVENTS
+        for missing in required:
+            with self.subTest(missing=missing):
+                events = [event for event in required if event != missing]
+                with patch("scripts.agents.guard.ledger_events", return_value=events):
+                    self.assertIsNotNone(
+                        guard.check_r25_research_before_implementation(self.payload(), "Write")
+                    )
+        late = [*required[1:], required[0]]
+        with patch("scripts.agents.guard.ledger_events", return_value=late):
+            self.assertIsNotNone(
+                guard.check_r25_research_before_implementation(self.payload(), "Write")
+            )
+
+    def test_complete_ordered_receipt_allows_the_mutation(self):
+        with patch(
+            "scripts.agents.guard.ledger_events",
+            return_value=list(guard.RESEARCH_PREFLIGHT_EVENTS),
+        ):
+            self.assertIsNone(
+                guard.check_r25_research_before_implementation(self.payload(), "Write")
+            )
+
+    def test_analysis_tools_are_not_blocked(self):
+        with patch("scripts.agents.guard.ledger_events", return_value=[]):
+            self.assertIsNone(
+                guard.check_r25_research_before_implementation(self.payload(), "Read")
+            )
+
+    def test_live_tool_events_map_to_the_receipt_vocabulary(self):
+        fixtures = (
+            ("Read", {"file_path": "src/Main.java"}, "read-live-files"),
+            ("Read", {"file_path": ".agents/skills/act-as-mohab/SKILL.md"}, "load-routed-skill"),
+            ("PowerShell", {"command": "memory search harness"}, "query-native-memory"),
+            ("PowerShell", {"command": "mempalace search harness"}, "query-mempalace"),
+            ("PowerShell", {"command": "graphify query guard"}, "query-graphify"),
+            ("WebSearch", {"query": "official hook documentation"}, "authoritative-online-research"),
+            ("update_plan", {"explanation": "Compare proven approaches", "plan": []}, "compare-proven-approaches"),
+            ("update_plan", {"explanation": "Compare proven approaches", "plan": [{"step": "Implement", "status": "pending"}]}, "record-plan"),
+        )
+        for tool_name, tool_input, expected in fixtures:
+            with self.subTest(tool_name=tool_name, expected=expected):
+                self.assertIn(expected, guard._research_preflight_events(tool_name, tool_input))
+
+    def test_portable_hook_matchers_observe_receipt_and_mutation_tools(self):
+        for relative in (".claude/settings.json", ".codex/hooks.json"):
+            with self.subTest(relative=relative):
+                text = (Path(__file__).resolve().parents[2] / relative).read_text(encoding="utf-8")
+                for tool in ("Read", "WebSearch", "WebFetch", "update_plan", "apply_patch"):
+                    self.assertIn(tool, text)
 
 
     @patch("scripts.agents.guard._open_pull_request_count", return_value=1)

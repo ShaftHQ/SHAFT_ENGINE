@@ -48,6 +48,27 @@
           "record-plan"
         ]
       }]
+    },
+    {
+      "id": "short-caveman-preserves-exact-facts",
+      "rule_ids": ["caveman"],
+      "horizon": "short",
+      "workspace": {"files": {"source/task.md": "Do not retry. Wait 15 ms. Run mvn -q test."}},
+      "expectations": [{
+        "kind": "preserves",
+        "exact": ["not", "15", "ms", "mvn -q test"]
+      }]
+    },
+    {
+      "id": "short-ponytail-first-viable-rung",
+      "rule_ids": ["ponytail"],
+      "horizon": "short",
+      "workspace": {"files": {"source/task.md": "Choose the first viable implementation rung."}},
+      "expectations": [{
+        "kind": "first_viable",
+        "ordered": ["existing-owner", "standard-library", "native-platform", "installed-dependency", "minimum-new-code"],
+        "viable": ["standard-library", "installed-dependency", "minimum-new-code"]
+      }]
     }
   ]
 }

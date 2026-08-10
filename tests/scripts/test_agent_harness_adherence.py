@@ -177,6 +177,33 @@ class AgentHarnessAdherenceTest(unittest.TestCase):
 
         self.assertTrue(adherence.evaluate(corpus, evidence)["episodes"][identifier]["strict_episode_pass"])
 
+    def test_caveman_evidence_rejects_changed_negation_number_unit_or_command(self) -> None:
+        corpus = self.load_fixture("corpus.json")
+        baseline = self.load_fixture("baseline.json")
+        identifier = "short-caveman-preserves-exact-facts"
+        self.assertTrue(adherence.evaluate(corpus, baseline)["episodes"][identifier]["strict_episode_pass"])
+        for response in (
+            "Do retry; wait 15 ms; run mvn -q test.",
+            "Do not retry; wait 16 ms; run mvn -q test.",
+            "Do not retry; wait 15 seconds; run mvn -q test.",
+            "Do not retry; wait 15 ms; run mvn test.",
+        ):
+            with self.subTest(response=response):
+                evidence = deepcopy(baseline)
+                evidence[identifier]["response"] = response
+                self.assertFalse(adherence.evaluate(corpus, evidence)["episodes"][identifier]["strict_episode_pass"])
+
+    def test_ponytail_evidence_rejects_skipping_the_first_viable_rung(self) -> None:
+        corpus = self.load_fixture("corpus.json")
+        baseline = self.load_fixture("baseline.json")
+        identifier = "short-ponytail-first-viable-rung"
+        self.assertTrue(adherence.evaluate(corpus, baseline)["episodes"][identifier]["strict_episode_pass"])
+        for chosen in ("existing-owner", "native-platform", "installed-dependency", "minimum-new-code"):
+            with self.subTest(chosen=chosen):
+                evidence = deepcopy(baseline)
+                evidence[identifier]["chosen_action"] = chosen
+                self.assertFalse(adherence.evaluate(corpus, evidence)["episodes"][identifier]["strict_episode_pass"])
+
     def test_marks_incomplete_action_evidence_as_unknown(self) -> None:
         evaluator = getattr(adherence, "evaluate", None)
         self.assertTrue(callable(evaluator), "the evidence evaluator must be available")
