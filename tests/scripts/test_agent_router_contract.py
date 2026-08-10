@@ -826,6 +826,63 @@ class ConsultGateTest(unittest.TestCase):
         self.assertRegex(content, r"(?:two|2) .{0,40}(?:approach|option|candidate)")
         self.assertIn("steelman", content)
 
+    def test_entrypoint_requires_a_complete_research_receipt_before_implementation(self):
+        content = compact(ENTRYPOINT)
+        required = (
+            "read live files",
+            "load the routed skill",
+            "native memory",
+            "mempalace",
+            "graphify",
+            "authoritative online research",
+            "compare proven approaches",
+            "record a concrete plan",
+        )
+        positions = [content.index(item) for item in required]
+        self.assertEqual(positions, sorted(positions))
+        self.assertRegex(content, r"missing .{0,80} blocks implementation")
+
+    def test_caveman_preserves_exact_meaning_before_compression(self):
+        content = compact(ENTRYPOINT)
+        caveman = content.split("### caveman", 1)[1].split("### ponytail", 1)[0]
+        for exact in ("negation", "numbers", "units", "user language", "commands", "errors"):
+            self.assertIn(exact, caveman)
+
+    def test_ponytail_has_separate_reuse_native_dependency_and_code_rungs(self):
+        content = compact(ENTRYPOINT)
+        ponytail = content.split("### ponytail", 1)[1].split("### test-driven", 1)[0]
+        rungs = (
+            "reuse the existing owner",
+            "standard library",
+            "native platform",
+            "already-installed dependency",
+            "minimum new code",
+        )
+        positions = [ponytail.index(rung) for rung in rungs]
+        self.assertEqual(positions, sorted(positions))
+
+    def test_every_ponytail_marker_names_its_ceiling_and_upgrade_trigger(self):
+        markers = []
+        for path in ROOT.rglob("*"):
+            if (
+                not path.is_file()
+                or path.suffix not in {".java", ".py"}
+                or any(part in {".git", "target", "graphify-out"} for part in path.parts)
+            ):
+                continue
+            try:
+                lines = path.read_text(encoding="utf-8").splitlines()
+            except (OSError, UnicodeDecodeError):
+                continue
+            for index, line in enumerate(lines):
+                if "ponytail:" in line.lower() and path != Path(__file__).resolve():
+                    markers.append((path, index, " ".join(lines[index:index + 4]).lower()))
+        self.assertTrue(markers)
+        for path, line, marker in markers:
+            with self.subTest(path=path, line=line + 1):
+                self.assertIn("ceiling:", marker)
+                self.assertIn("upgrade trigger:", marker)
+
 
 class RouterTableTest(unittest.TestCase):
     """The router reaches every skill surface it owns, in one hop from itself."""

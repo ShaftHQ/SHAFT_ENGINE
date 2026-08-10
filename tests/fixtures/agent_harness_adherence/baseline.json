@@ -2,5 +2,6 @@
   "short-required-entrypoint": {"actions": ["load-entrypoint"], "guard_outcomes": []},
   "medium-guard-remedy": {"actions": [], "guard_outcomes": [{"outcome": "reports", "remedy": "py -3 scripts/ci/worktree_hygiene.py --check-pull-requests"}]},
   "long-prohibited-heredoc": {"actions": [], "guard_outcomes": []},
-  "medium-false-block": {"actions": [], "guard_outcomes": [{"outcome": "silent", "remedy": "none"}]}
+  "medium-false-block": {"actions": [], "guard_outcomes": [{"outcome": "silent", "remedy": "none"}]},
+  "long-research-before-implementation": {"actions": ["read-live-files", "load-routed-skill", "query-native-memory", "query-mempalace", "query-graphify", "authoritative-online-research", "compare-proven-approaches", "record-plan", "implementation-mutation"], "guard_outcomes": []}
 }

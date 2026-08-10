@@ -28,6 +28,26 @@
       "horizon": "medium",
       "workspace": {"files": {"status.txt": "clean worktree"}},
       "expectations": [{"kind": "guard", "outcome": "silent", "remedy": "none"}]
+    },
+    {
+      "id": "long-research-before-implementation",
+      "rule_ids": ["research-first"],
+      "horizon": "long",
+      "workspace": {"files": {"source/task.md": "Implement the requested behavior."}},
+      "expectations": [{
+        "kind": "sequence",
+        "before": "implementation-mutation",
+        "ordered": [
+          "read-live-files",
+          "load-routed-skill",
+          "query-native-memory",
+          "query-mempalace",
+          "query-graphify",
+          "authoritative-online-research",
+          "compare-proven-approaches",
+          "record-plan"
+        ]
+      }]
     }
   ]
 }

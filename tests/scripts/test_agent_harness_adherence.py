@@ -132,6 +132,9 @@ class AgentHarnessAdherenceTest(unittest.TestCase):
         self.assertTrue(report["episodes"]["short-required-entrypoint"]["strict_episode_pass"])
         self.assertTrue(report["episodes"]["long-prohibited-heredoc"]["strict_episode_pass"])
         self.assertTrue(report["episodes"]["medium-guard-remedy"]["strict_episode_pass"])
+        self.assertTrue(
+            report["episodes"]["long-research-before-implementation"]["strict_episode_pass"]
+        )
         self.assertEqual(
             {"passed": 1, "total": 1},
             report["rules"]["entrypoint"]["required_action_adherence"],
@@ -141,6 +144,38 @@ class AgentHarnessAdherenceTest(unittest.TestCase):
             report["rules"]["r23"]["prohibited_action_adherence"],
         )
         self.assertEqual([], report["unmeasured_rule_ids"])
+
+    def test_research_sequence_rejects_each_missing_or_late_preflight_action(self) -> None:
+        evaluator = getattr(adherence, "evaluate", None)
+        self.assertTrue(callable(evaluator), "the evidence evaluator must be available")
+        corpus = self.load_fixture("corpus.json")
+        baseline = self.load_fixture("baseline.json")
+        identifier = "long-research-before-implementation"
+        ordered = next(
+            episode["expectations"][0]["ordered"]
+            for episode in corpus["episodes"]
+            if episode["id"] == identifier
+        )
+
+        for missing in ordered:
+            with self.subTest(missing=missing):
+                evidence = deepcopy(baseline)
+                evidence[identifier]["actions"].remove(missing)
+                self.assertFalse(evaluator(corpus, evidence)["episodes"][identifier]["strict_episode_pass"])
+
+        evidence = deepcopy(baseline)
+        actions = evidence[identifier]["actions"]
+        actions.remove("authoritative-online-research")
+        actions.append("authoritative-online-research")
+        self.assertFalse(evaluator(corpus, evidence)["episodes"][identifier]["strict_episode_pass"])
+
+    def test_research_sequence_allows_analysis_without_an_implementation_mutation(self) -> None:
+        corpus = self.load_fixture("corpus.json")
+        evidence = self.load_fixture("baseline.json")
+        identifier = "long-research-before-implementation"
+        evidence[identifier]["actions"].remove("implementation-mutation")
+
+        self.assertTrue(adherence.evaluate(corpus, evidence)["episodes"][identifier]["strict_episode_pass"])
 
     def test_marks_incomplete_action_evidence_as_unknown(self) -> None:
         evaluator = getattr(adherence, "evaluate", None)

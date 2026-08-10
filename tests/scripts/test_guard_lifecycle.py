@@ -223,6 +223,33 @@ class GuardLifecycleTest(unittest.TestCase):
             "act-as-mohab", output["hookSpecificOutput"]["additionalContext"]
         )
 
+    @patch("scripts.agents.guard._mempalace_wake_up", return_value=None)
+    @patch("scripts.agents.guard._memory_do_not_lines", return_value=None)
+    @patch("scripts.agents.guard._standing_constraints", return_value=None)
+    @patch("scripts.agents.guard._sync_advisory", return_value=None)
+    @patch(
+        "scripts.agents.guard._worktree_report",
+        return_value={"worktrees": [], "advisories": []},
+    )
+    def test_session_start_injects_the_complete_implementation_preflight(
+        self, _report, _sync, _constraints, _reminders, _wake_up
+    ):
+        context = self.output(guard.run_session_start, {"cwd": "."})[
+            "hookSpecificOutput"
+        ]["additionalContext"].lower()
+        for required in (
+            "implementation preflight",
+            "live files",
+            "routed skill",
+            "native memory",
+            "mempalace",
+            "graphify",
+            "authoritative online research",
+            "proven approaches",
+            "concrete plan",
+        ):
+            self.assertIn(required, context)
+
 
     @patch("scripts.agents.guard._open_pull_request_count", return_value=1)
     @patch(
