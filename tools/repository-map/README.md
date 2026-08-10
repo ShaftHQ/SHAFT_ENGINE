@@ -7,14 +7,19 @@ SHAFT_ENGINE uses Graphify for an optional local repository map. The checked-in 
 Use the official package name, `graphifyy`; the CLI command is still `graphify`.
 
 ```powershell
-# preferred when uv is installed
-uv tool install graphifyy==0.9.17
+# preferred isolated install
+uv tool install graphifyy
+
+# update an existing isolated install
+uv tool upgrade graphifyy
 
 # Windows fallback
-py -3 -m pip install --user graphifyy==0.9.17
+py -3 -m pip install --user --upgrade graphifyy
 ```
 
-If `pip` installs `graphify.exe` outside PATH, open a new terminal after updating the user PATH, or run commands as `py -3 -m graphify ...`.
+If `graphify` is not found after the uv install, run `uv tool update-shell` and
+open a new terminal. A plain-pip fallback may likewise require adding its
+Scripts directory to PATH.
 
 ## Build
 
