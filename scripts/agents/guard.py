@@ -1425,6 +1425,17 @@ _TEST_RUNNER = frozenset({"py", "python", "python3", "pytest", "mvn", "mvnw"})
 # run. `-Dtest=` is a prefix rather than a token, so it is checked separately.
 _TEST_TOKENS = frozenset({"unittest", "pytest", "surefire", "test", "verify"})
 _WRITE_TOOLS = frozenset({"Write", "Edit", "NotebookEdit"})
+_IMPLEMENTATION_TOOLS = frozenset({*_WRITE_TOOLS, "apply_patch"})
+RESEARCH_PREFLIGHT_EVENTS = (
+    "read-live-files",
+    "load-routed-skill",
+    "query-native-memory",
+    "query-mempalace",
+    "query-graphify",
+    "authoritative-online-research",
+    "compare-proven-approaches",
+    "record-plan",
+)
 _NATIVE_MEMORY_WRITE_TOOLS = frozenset(
     {"mcp__shaft-memory__remember_memory", "mcp__shaft-memory__save_memory_patch"}
 )
@@ -1569,6 +1580,99 @@ def check_r12_test_before_production(hook_input: dict, tool_name: str) -> str | 
         "is not. Tests, guidance, configuration and docs are never blocked by "
         "this rule."
     )
+
+
+def _research_preflight_events(tool_name: str, tool_input: object) -> tuple[str, ...]:
+    """Map observable native-client tool calls to the shared receipt vocabulary."""
+    details = tool_input if isinstance(tool_input, dict) else {}
+    rendered = json.dumps(details, sort_keys=True).lower()
+    events: list[str] = []
+    if tool_name in {"Read", "Grep"}:
+        events.append("read-live-files")
+        if "skill.md" in rendered:
+            events.append("load-routed-skill")
+    if tool_name in {"Bash", "PowerShell"}:
+        command = str(details.get("command") or "").lower()
+        if re.search(r"(?:^|[;&|]\s*)(?:rg|grep|get-content|git\s+(?:show|diff))\b", command):
+            events.append("read-live-files")
+        if "skill.md" in command and "get-content" in command:
+            events.append("load-routed-skill")
+        if re.search(r"(?:^|[;&|]\s*)memory\s+(?:search|load|inspect)\b", command):
+            events.append("query-native-memory")
+        if re.search(r"(?:^|[;&|]\s*)mempalace\s+(?:search|recall|wake-up|status|inspect)\b", command):
+            events.append("query-mempalace")
+        if "graphify" in command:
+            events.append("query-graphify")
+    lowered_name = tool_name.lower()
+    if "shaft-memory" in lowered_name and any(
+        verb in lowered_name for verb in ("search", "load", "inspect")
+    ):
+        events.append("query-native-memory")
+    if "mempalace" in lowered_name and any(
+        verb in lowered_name for verb in ("search", "recall", "wake", "status", "inspect")
+    ):
+        events.append("query-mempalace")
+    if "graphify" in lowered_name:
+        events.append("query-graphify")
+    if tool_name in {"WebSearch", "WebFetch", "web__run"}:
+        events.append("authoritative-online-research")
+    if tool_name == "update_plan":
+        explanation = str(details.get("explanation") or "").lower()
+        if "compare proven approaches" in explanation:
+            events.append("compare-proven-approaches")
+        plan = details.get("plan")
+        if isinstance(plan, list) and plan:
+            events.append("record-plan")
+    return tuple(dict.fromkeys(events))
+
+
+def _act_as_mohab_root(cwd: object) -> str | None:
+    """Nearest ancestor that owns the canonical entrypoint, without invoking Git."""
+    if not cwd:
+        return None
+    current = os.path.abspath(str(cwd))
+    while True:
+        entrypoint = os.path.join(
+            current, ".agents", "skills", "act-as-mohab", "SKILL.md"
+        )
+        if os.path.isfile(entrypoint):
+            return current
+        parent = os.path.dirname(current)
+        if parent == current:
+            return None
+        current = parent
+
+
+def check_r25_research_before_implementation(
+    hook_input: dict, tool_name: str
+) -> str | None:
+    """Fail closed when an implementation tool arrives before the ordered receipt."""
+    if tool_name not in _IMPLEMENTATION_TOOLS:
+        return None
+    cwd = _hook_working_directory(hook_input)
+    root = _act_as_mohab_root(cwd)
+    if not root:
+        return None
+    if tool_name in _WRITE_TOOLS:
+        details = hook_input.get("tool_input")
+        details = details if isinstance(details, dict) else {}
+        path = details.get("file_path") or details.get("path")
+        if path and not _path_is_inside(str(path), root, cwd):
+            return None
+    events = ledger_events(hook_input)
+    cursor = -1
+    for required in RESEARCH_PREFLIGHT_EVENTS:
+        try:
+            cursor = events.index(required, cursor + 1)
+        except ValueError:
+            return (
+                "R25 research-first blocked: implementation requires the ordered "
+                "session receipt before mutation. Missing or late event: "
+                f"{required}. Required order: "
+                + ", ".join(RESEARCH_PREFLIGHT_EVENTS)
+                + ". Complete the live query or plan action; do not forge the ledger."
+            )
+    return None
 
 
 def _unpushed_commit_count(branch: str, cwd: object = None) -> int | None:
@@ -2238,6 +2342,9 @@ def check_r19_fresh_base(hook_input: dict, tool_name: str) -> str | None:
 def run_pretooluse(hook_input: dict, host: str = "portable") -> int:
     tool_name = hook_input.get("tool_name", "")
 
+    for event in _research_preflight_events(tool_name, hook_input.get("tool_input")):
+        ledger_record(hook_input, event)
+
     reason = check_r22_dispatch_adapter(hook_input, tool_name)
     if reason is not None:
         _record_guard_block_and_deny(hook_input, reason, host)
@@ -2262,6 +2369,11 @@ def run_pretooluse(hook_input: dict, host: str = "portable") -> int:
         return 0
 
     reason = check_r19_fresh_base(hook_input, tool_name)
+    if reason is not None:
+        _record_guard_block_and_deny(hook_input, reason, host)
+        return 0
+
+    reason = check_r25_research_before_implementation(hook_input, tool_name)
     if reason is not None:
         _record_guard_block_and_deny(hook_input, reason, host)
         return 0
@@ -3481,6 +3593,7 @@ _SELF_TEST_COVERAGE: dict[str, str] = {
     "check_r21_run_state_not_recorded": "run_required_action_self_test",
     "check_r22_dispatch_adapter": "run_required_action_self_test",
     "check_r24_foreign_worktree_left_behind": "run_required_action_self_test",
+    "check_r25_research_before_implementation": "run_required_action_self_test",
 }
 
 
@@ -3617,7 +3730,25 @@ def run_required_action_self_test() -> int:
         if not condition:
             failures.append(description)
 
-    write = {"tool_input": {"file_path": "shaft-engine/src/main/java/A.java"}}
+    write = {"cwd": ".", "tool_input": {"file_path": "shaft-engine/src/main/java/A.java"}}
+
+    # R25: every implementation mutation needs the live ordered research receipt.
+    check(
+        "R25 blocks an implementation write with no research receipt",
+        _with_stubs(
+            {"ledger_events": lambda payload: []},
+            lambda: check_r25_research_before_implementation(write, "Write"),
+        )
+        is not None,
+    )
+    check(
+        "R25 allows an implementation write after the ordered research receipt",
+        _with_stubs(
+            {"ledger_events": lambda payload: list(RESEARCH_PREFLIGHT_EVENTS)},
+            lambda: check_r25_research_before_implementation(write, "Write"),
+        )
+        is None,
+    )
 
     # R22: only a host adapter can deliver the mandatory entrypoint to a delegate.
     check(

@@ -8,7 +8,14 @@ import tempfile
 from pathlib import Path, PurePosixPath, PureWindowsPath
 
 VALID_HORIZONS = {"short", "medium", "long"}
-VALID_EXPECTATION_KINDS = {"requires", "forbids", "guard", "sequence"}
+VALID_EXPECTATION_KINDS = {
+    "requires",
+    "forbids",
+    "guard",
+    "sequence",
+    "preserves",
+    "first_viable",
+}
 UNKNOWN_RESULT = None
 WINDOWS_RESERVED_NAMES = {
     "CON",
@@ -38,13 +45,33 @@ def _valid_expectation(expectation: object) -> bool:
         return _is_nonempty_string(expectation.get("outcome")) and _is_nonempty_string(
             expectation.get("remedy")
         )
+    if kind == "preserves":
+        exact = expectation.get("exact")
+        return (
+            isinstance(exact, list)
+            and bool(exact)
+            and all(_is_nonempty_string(term) for term in exact)
+            and len(set(exact)) == len(exact)
+        )
     ordered = expectation.get("ordered")
-    return (
-        _is_nonempty_string(expectation.get("before"))
-        and isinstance(ordered, list)
+    ordered_is_valid = (
+        isinstance(ordered, list)
         and bool(ordered)
         and all(_is_nonempty_string(action) for action in ordered)
         and len(set(ordered)) == len(ordered)
+    )
+    if kind == "first_viable":
+        viable = expectation.get("viable")
+        return (
+            ordered_is_valid
+            and isinstance(viable, list)
+            and bool(viable)
+            and all(_is_nonempty_string(action) and action in ordered for action in viable)
+            and len(set(viable)) == len(viable)
+        )
+    return (
+        ordered_is_valid
+        and _is_nonempty_string(expectation.get("before"))
         and expectation["before"] not in ordered
     )
 
@@ -149,6 +176,12 @@ def validate_evidence(corpus: dict, evidence_by_episode: dict) -> list[str]:
             for outcome in guard_outcomes
         ):
             errors.append(f"{identifier}: guard_outcomes must contain outcome and remedy strings")
+        response = episode_evidence.get("response")
+        if response is not None and not isinstance(response, str):
+            errors.append(f"{identifier}: response must be a string")
+        chosen_action = episode_evidence.get("chosen_action")
+        if chosen_action is not None and not _is_nonempty_string(chosen_action):
+            errors.append(f"{identifier}: chosen_action must be a nonempty string")
     return errors
 
 
@@ -194,6 +227,17 @@ def _expectation_result(expectation: dict, evidence: dict) -> bool | None:
             except ValueError:
                 return False
         return True
+    if expectation["kind"] == "preserves":
+        response = evidence.get("response")
+        if not isinstance(response, str):
+            return None
+        return all(term in response for term in expectation["exact"])
+    if expectation["kind"] == "first_viable":
+        chosen = evidence.get("chosen_action")
+        if not isinstance(chosen, str):
+            return None
+        first = next(action for action in expectation["ordered"] if action in expectation["viable"])
+        return chosen == first
     if not isinstance(evidence.get("guard_outcomes"), list):
         return None
     return any(
@@ -247,6 +291,8 @@ def evaluate(corpus: dict, evidence_by_episode: dict) -> dict:
                 metric = {
                     "requires": "required_action_adherence",
                     "sequence": "required_action_adherence",
+                    "preserves": "required_action_adherence",
+                    "first_viable": "required_action_adherence",
                     "forbids": "prohibited_action_adherence",
                 }.get(expectation["kind"])
                 if metric:
