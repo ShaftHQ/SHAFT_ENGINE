@@ -3,6 +3,7 @@ package com.shaft.tools.io.internal;
 import com.shaft.driver.SHAFT;
 import com.shaft.listeners.internal.TestExecutionInfo;
 import com.shaft.properties.internal.Properties;
+import com.shaft.gui.playwright.internal.PlaywrightTraceManager;
 import io.qameta.allure.Allure;
 import io.qameta.allure.model.Attachment;
 import io.qameta.allure.model.Status;
@@ -10,6 +11,8 @@ import org.testng.Assert;
 import org.testng.annotations.Test;
 
 import java.lang.reflect.Method;
+import java.lang.reflect.Field;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.zip.ZipEntry;
@@ -90,6 +93,28 @@ public class FailureDiagnosticsReporterTest {
             Assert.assertFalse(SHAFT.Properties.reporting.diagnosticsBundleEnabled());
             Assert.assertEquals(SHAFT.Properties.reporting.diagnosticsMaxArtifactMb(), 3);
         } finally {
+            Properties.clearForCurrentThread();
+        }
+    }
+
+    @Test(description = "The final failure reporter should release native trace ownership for the worker thread")
+    public void diagnosticsReporterShouldReleaseNativeTraceBeforeTheNextSameThreadTest() throws Exception {
+        Field field = PlaywrightTraceManager.class.getDeclaredField("LAST_TRACE_PATH");
+        field.setAccessible(true);
+        @SuppressWarnings("unchecked")
+        ThreadLocal<Path> lastTrace = (ThreadLocal<Path>) field.get(null);
+        try {
+            lastTrace.set(Path.of("target", "stale-playwright-trace.zip"));
+            SHAFT.Properties.reporting.set().diagnosticsBundleEnabled(false).traceEnabled(true);
+
+            FailureDiagnosticsReporter.attachOnFailure(info("firstScenario", failure()), "failed", List.of());
+
+            Assert.assertNull(PlaywrightTraceManager.getLastTracePath());
+            String nextTrace = FailureTraceReporter.renderTraceJson(info("secondScenario", failure()), "failed",
+                    List.of());
+            Assert.assertFalse(nextTrace.contains("\"id\":\"native-trace\""), nextTrace);
+        } finally {
+            lastTrace.remove();
             Properties.clearForCurrentThread();
         }
     }

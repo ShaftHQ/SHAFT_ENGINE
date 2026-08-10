@@ -6,12 +6,14 @@ import com.shaft.gui.browser.BrowserActions;
 import com.shaft.gui.element.TouchActions;
 import com.shaft.gui.browser.internal.BrowserNetworkInterceptor;
 import com.shaft.gui.internal.locator.LocatorHealthReporter;
+import com.shaft.gui.playwright.internal.PlaywrightTraceManager;
 import com.shaft.listeners.internal.TestExecutionInfo;
 import com.shaft.properties.internal.Properties;
 import io.appium.java_client.android.AndroidDriver;
 import io.qameta.allure.Allure;
 import io.qameta.allure.model.Attachment;
 import org.mockito.MockedConstruction;
+import org.mockito.MockedStatic;
 import org.mockito.Mockito;
 import org.openqa.selenium.By;
 import org.openqa.selenium.Dimension;
@@ -30,6 +32,8 @@ import org.openqa.selenium.remote.http.HttpRequest;
 import org.openqa.selenium.remote.http.HttpResponse;
 import org.testng.Assert;
 import org.testng.annotations.Test;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
 
 import java.lang.reflect.Method;
 import java.nio.charset.StandardCharsets;
@@ -48,6 +52,7 @@ import java.util.zip.ZipFile;
 
 @Test(singleThreaded = true)
 public class FailureTraceReporterTest {
+    private static final ObjectMapper JSON = new ObjectMapper();
 
     @Test(description = "Failure mode should attach trace artifacts only for failed tests")
     public void failureModeShouldAttachTraceArtifactsOnlyForFailures() throws Exception {
@@ -249,6 +254,12 @@ public class FailureTraceReporterTest {
             Assert.assertTrue(json.contains("\"id\": \"action-1\""), json);
             Assert.assertTrue(json.contains("\"screenshot\": \""
                     + Base64.getEncoder().encodeToString(png) + "\""), json);
+            JsonNode session = JSON.readTree(json).path("session");
+            JsonNode screenshot = findArtifact(session, "screenshot-action-1");
+            Assert.assertEquals(screenshot.path("path").asText(), "screenshots/action-1.png");
+            Assert.assertFalse(screenshot.path("omitted").asBoolean());
+            Assert.assertEquals(session.path("events").get(0).path("artifactIds").get(0).asText(),
+                    "screenshot-action-1");
         } finally {
             TraceEventRecorder.clear();
             Properties.clearForCurrentThread();
@@ -840,6 +851,47 @@ public class FailureTraceReporterTest {
         }
     }
 
+    @Test(description = "Trace JSON should publish v2 session/events while retaining legacy action fields")
+    public void traceJsonShouldExposeBackendNeutralV2AndLegacyCompatibilityFields() throws Exception {
+        SHAFT.Properties.reporting.set().traceEnabled(true);
+        TraceEventRecorder.record("element", "click", "passed", "id=pay", null, "clicked", null,
+                Map.of("context", "web"), List.of());
+
+        String json = FailureTraceReporter.renderTraceJson(info("v2SchemaScenario", failure()), "log", List.of());
+
+        JsonNode root = JSON.readTree(json);
+        Assert.assertEquals(root.path("schemaVersion").asText(), "1.0");
+        JsonNode session = root.path("session");
+        Assert.assertEquals(session.path("schemaVersion").asText(), "2.0");
+        Assert.assertEquals(session.path("backend").asText(), "UNKNOWN");
+        Assert.assertEquals(session.path("attempt").asInt(), 1);
+        JsonNode event = session.path("events").get(0);
+        Assert.assertTrue(event.path("id").asText().endsWith("/action-1"), event.toPrettyString());
+        Assert.assertEquals(event.path("backend").asText(), "UNKNOWN");
+        Assert.assertEquals(event.path("category").asText(), "element");
+        Assert.assertEquals(event.path("name").asText(), "click");
+        Assert.assertEquals(event.path("status").asText(), "PASSED");
+        Assert.assertFalse(event.path("startedAt").asText().isBlank());
+        Assert.assertTrue(event.path("durationMs").asLong() >= 0);
+        Assert.assertTrue(event.has("source"));
+        Assert.assertEquals(event.path("target").asText(), "id=pay");
+        Assert.assertEquals(event.path("message").asText(), "clicked");
+        Assert.assertEquals(event.path("metadata").path("context").asText(), "web");
+        Assert.assertEquals(session.path("artifacts").get(0).path("id").asText(), "network");
+
+        Assert.assertEquals(legacyActionNames(root), List.of("click"));
+        Assert.assertEquals(root.path("actions").get(0).path("id").asText(), "action-1");
+    }
+
+    private static List<String> legacyActionNames(JsonNode root) {
+        if (!"1.0".equals(root.path("schemaVersion").asText()) || !root.path("actions").isArray()) {
+            throw new IllegalArgumentException("Unsupported legacy trace document");
+        }
+        List<String> names = new ArrayList<>();
+        root.path("actions").forEach(action -> names.add(action.path("name").asText()));
+        return names;
+    }
+
     @Test(description = "Parallel same-id publication should keep the highest completed attempt and unique invocation paths")
     public void parallelSameIdPublicationShouldNotCrossWireArchives() throws Exception {
         TestExecutionInfo info = info("parallelPublicationScenario", failure());
@@ -991,6 +1043,18 @@ public class FailureTraceReporterTest {
 
             // Now shrink the cap so the already-buffered 2MB screenshot exceeds it at persist time.
             SHAFT.Properties.reporting.set().traceMaxArtifactMb(1);
+            String v2Json = FailureTraceReporter.renderTraceJson(failingInfo, "failed", List.of());
+            Assert.assertTrue(findArtifact(JSON.readTree(v2Json).path("session"), "screenshot-action-1")
+                    .path("omitted").asBoolean());
+
+            // Recreate the action because rendering drains the recorder, then exercise persisted index/ZIP behavior.
+            TraceEventRecorder.clear();
+            SHAFT.Properties.reporting.set().traceMaxArtifactMb(50);
+            event = TraceEventRecorder.start("element", "CLICK", By.id("pay"), null);
+            TraceEventRecorder.recordScreenshot(event, oversizedPng);
+            TraceEventRecorder.finish(event, "failed", "Click failed",
+                    new RuntimeException("boom"), Map.of(), List.of());
+            SHAFT.Properties.reporting.set().traceMaxArtifactMb(1);
             FailureTraceReporter.attachOnFailure(failingInfo, "failed", List.of());
 
             String index = Files.readString(traceDirectory.resolve("index.json"), StandardCharsets.UTF_8);
@@ -1081,5 +1145,51 @@ public class FailureTraceReporterTest {
         try (var input = zip.getInputStream(zip.getEntry(entryName))) {
             return new String(input.readAllBytes(), StandardCharsets.UTF_8);
         }
+    }
+
+    @Test(description = "An advertised but missing native Playwright trace should remain explicit everywhere")
+    public void missingNativeTraceShouldAgreeAcrossSchemaViewerZipAndIndex() throws Exception {
+        TestExecutionInfo failingInfo = info("missingNativeTraceScenario", failure());
+        Path traceDirectory = FailureTraceReporter.traceDirectory(failingInfo);
+        Path missingTrace = Path.of("target", "missing-native-trace.zip");
+        try (MockedStatic<PlaywrightTraceManager> traceManager = Mockito.mockStatic(PlaywrightTraceManager.class)) {
+            deleteDirectory(traceDirectory);
+            Files.deleteIfExists(missingTrace);
+            SHAFT.Properties.reporting.set().traceEnabled(true).traceMode("failure").traceMaxArtifactMb(1);
+            traceManager.when(PlaywrightTraceManager::getLastTracePath).thenReturn(missingTrace);
+
+            FailureTraceReporter.attachOnFailure(failingInfo, "failed", List.of());
+
+            try (ZipFile zip = new ZipFile(traceDirectory.resolve("shaft-trace.zip").toFile())) {
+                String json = readZipEntry(zip, "shaft-trace.json");
+                JsonNode nativeArtifact = findArtifact(JSON.readTree(json).path("session"), "native-trace");
+                Assert.assertTrue(nativeArtifact.path("omitted").asBoolean(), json);
+                Assert.assertTrue(nativeArtifact.path("metadata").path("omissionReason").asText()
+                        .contains("unavailable"), json);
+                Assert.assertTrue(readZipEntry(zip, "missing-native-trace.zip").contains("unavailable"));
+                String html = readZipEntry(zip, "SHAFT Trace Report.html");
+                String truncationPayload = html.substring(
+                        html.indexOf("<pre hidden id=\"trace-truncation\">")
+                                + "<pre hidden id=\"trace-truncation\">".length(),
+                        html.indexOf("</pre>", html.indexOf("<pre hidden id=\"trace-truncation\">")));
+                Assert.assertTrue(truncationPayload.contains("missing-native-trace.zip"), truncationPayload);
+            }
+            String index = Files.readString(traceDirectory.resolve("index.json"), StandardCharsets.UTF_8);
+            Assert.assertTrue(index.contains("missing-native-trace.zip"), index);
+        } finally {
+            TraceEventRecorder.clear();
+            deleteDirectory(traceDirectory);
+            Files.deleteIfExists(missingTrace);
+            Properties.clearForCurrentThread();
+        }
+    }
+
+    private static JsonNode findArtifact(JsonNode session, String id) {
+        for (JsonNode artifact : session.path("artifacts")) {
+            if (id.equals(artifact.path("id").asText())) {
+                return artifact;
+            }
+        }
+        throw new AssertionError("Missing trace artifact reference: " + id + " in " + session.toPrettyString());
     }
 }

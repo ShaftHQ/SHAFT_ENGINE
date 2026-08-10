@@ -49,15 +49,18 @@ public final class FailureDiagnosticsReporter {
      * @param attachments generated artifact file paths already known to SHAFT
      */
     public static void attachOnFailure(TestExecutionInfo info, String logText, List<String> attachments) {
-        if (!shouldAttachDiagnostics(info)) {
-            return;
-        }
         try {
+            if (!shouldAttachDiagnostics(info)) {
+                return;
+            }
             attach("zip", "shaft-diagnostics.zip",
                     renderDiagnosticsZip(renderDiagnosticsJson(info, logText, attachments)),
                     "shaft-diagnostics");
         } catch (RuntimeException e) {
             ReportManagerHelper.logDiscrete("Could not attach SHAFT diagnostics bundle: " + e.getMessage(), Level.WARN);
+        } finally {
+            // This is the final native-trace consumer in both supported listener pipelines.
+            PlaywrightTraceManager.clearLastTracePath();
         }
     }
 

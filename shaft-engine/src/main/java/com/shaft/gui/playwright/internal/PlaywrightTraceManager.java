@@ -51,6 +51,15 @@ public final class PlaywrightTraceManager {
         return LAST_TRACE_PATH.get();
     }
 
+    /**
+     * Releases the completed native trace after all same-test failure reporters have consumed it.
+     * Listener worker threads are reused, so retaining this pointer would attribute stale evidence
+     * to a later Selenium, Appium, or Playwright test on the same thread.
+     */
+    public static void clearLastTracePath() {
+        LAST_TRACE_PATH.remove();
+    }
+
     public void start() {
         try {
             Files.createDirectories(artifactsDirectory);

@@ -1,6 +1,9 @@
 package com.shaft.tools.io.internal;
 
 import com.shaft.driver.SHAFT;
+import com.shaft.gui.capabilities.AutomationBackend;
+import com.shaft.gui.capabilities.internal.AutomationCapabilityResolver;
+import com.shaft.gui.playwright.internal.PlaywrightSessionManager;
 import org.openqa.selenium.By;
 import org.openqa.selenium.WebDriver;
 
@@ -18,6 +21,8 @@ import java.util.concurrent.TimeUnit;
  */
 public final class TraceEventRecorder {
     private static final ThreadLocal<List<ActionEvent>> EVENTS = ThreadLocal.withInitial(ArrayList::new);
+    private static final ThreadLocal<Map<String, AutomationBackend>> EVENT_BACKENDS =
+            ThreadLocal.withInitial(LinkedHashMap::new);
     private static final ThreadLocal<Integer> NEXT_ID = ThreadLocal.withInitial(() -> 0);
     private static final ThreadLocal<Map<String, byte[]>> SCREENSHOTS = ThreadLocal.withInitial(LinkedHashMap::new);
     private static final ThreadLocal<Long> SCREENSHOT_BYTES = ThreadLocal.withInitial(() -> 0L);
@@ -55,9 +60,11 @@ public final class TraceEventRecorder {
         }
         int index = NEXT_ID.get() + 1;
         NEXT_ID.set(index);
+        String id = "action-" + index;
+        EVENT_BACKENDS.get().put(id, backend(driver));
         return new Event(
                 true,
-                "action-" + index,
+                id,
                 value(category),
                 value(name),
                 Instant.now().toString(),
@@ -187,6 +194,7 @@ public final class TraceEventRecorder {
         }
         EVENTS.get().add(new ActionEvent(
                 event.id(),
+                EVENT_BACKENDS.get().getOrDefault(event.id(), AutomationBackend.UNKNOWN),
                 event.category(),
                 event.name(),
                 normalizeStatus(status),
@@ -204,6 +212,7 @@ public final class TraceEventRecorder {
                 event.domSnapshotBefore(),
                 domSnapshot(event.driver()),
                 screenshotBase64(event.id())));
+        EVENT_BACKENDS.get().remove(event.id());
     }
 
     /**
@@ -214,6 +223,7 @@ public final class TraceEventRecorder {
     static List<ActionEvent> drain() {
         List<ActionEvent> snapshot = snapshot();
         EVENTS.get().clear();
+        EVENT_BACKENDS.get().clear();
         NEXT_ID.set(0);
         return snapshot;
     }
@@ -242,6 +252,7 @@ public final class TraceEventRecorder {
      */
     public static void clear() {
         EVENTS.remove();
+        EVENT_BACKENDS.remove();
         NEXT_ID.remove();
         SCREENSHOTS.remove();
         SCREENSHOT_BYTES.remove();
@@ -319,6 +330,22 @@ public final class TraceEventRecorder {
             return value(driver.getCurrentUrl());
         } catch (RuntimeException e) {
             return "";
+        }
+    }
+
+    private static AutomationBackend backend(WebDriver driver) {
+        try {
+            if (driver != null) {
+                return AutomationCapabilityResolver.forWebDriver(driver).backend();
+            }
+            var playwright = PlaywrightSessionManager.currentSession();
+            if (playwright != null) {
+                return AutomationCapabilityResolver.forPlaywright(playwright).backend();
+            }
+            return AutomationCapabilityResolver.forWebDriver(
+                    com.shaft.driver.internal.DriverFactory.DriverFactoryHelper.getActiveDriver()).backend();
+        } catch (RuntimeException ignored) {
+            return AutomationBackend.UNKNOWN;
         }
     }
 
@@ -549,7 +576,8 @@ public final class TraceEventRecorder {
         }
     }
 
-    record ActionEvent(String id, String category, String name, String status, String startTime, long durationMs,
+    record ActionEvent(String id, AutomationBackend backend, String category, String name, String status,
+                       String startTime, long durationMs,
                        String locator, String url, String caller, String message, String exceptionType,
                        String exceptionMessage, List<String> attachments, Map<String, String> metadata,
                        Map<String, Object> actionability, String domSnapshotBefore, String domSnapshotAfter,

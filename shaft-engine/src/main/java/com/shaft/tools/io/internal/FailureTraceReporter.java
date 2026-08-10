@@ -7,6 +7,7 @@ import com.shaft.gui.internal.locator.LocatorHealthReporter;
 import com.shaft.gui.playwright.internal.PlaywrightSessionManager;
 import com.shaft.gui.playwright.internal.PlaywrightTraceManager;
 import com.shaft.listeners.internal.TestExecutionInfo;
+import com.shaft.tools.io.trace.TraceSession;
 import com.shaft.tools.internal.support.ReportHtmlTheme;
 import org.apache.logging.log4j.Level;
 import org.openqa.selenium.WebDriver;
@@ -49,6 +50,7 @@ public final class FailureTraceReporter {
     private static final int MAX_SOURCE_FILE_CHARACTERS = 100_000;
     private static final ThreadLocal<String> CURRENT_NETWORK_JSON = ThreadLocal.withInitial(() -> "[]");
     private static final ThreadLocal<Map<String, byte[]>> CURRENT_SCREENSHOTS = ThreadLocal.withInitial(Map::of);
+    private static final ThreadLocal<TraceArtifactManifest> CURRENT_ARTIFACT_MANIFEST = new ThreadLocal<>();
     private static final ConcurrentMap<String, AtomicInteger> ATTEMPT_COUNTERS = new ConcurrentHashMap<>();
     private static final ConcurrentMap<String, List<AttemptRecord>> ATTEMPT_HISTORY = new ConcurrentHashMap<>();
     private static final ConcurrentMap<String, Object> TRACE_LOCKS = new ConcurrentHashMap<>();
@@ -77,7 +79,7 @@ public final class FailureTraceReporter {
             int attempt = ATTEMPT_COUNTERS.computeIfAbsent(testId, id -> new AtomicInteger()).incrementAndGet();
             String json = renderTraceJson(info, logText, attachments, attempt);
             Map<String, byte[]> screenshots = CURRENT_SCREENSHOTS.get();
-            List<String> omitted = omittedEntries(json, CURRENT_NETWORK_JSON.get(), screenshots);
+            List<String> omitted = omittedEntries(json, CURRENT_ARTIFACT_MANIFEST.get());
             String html = renderTraceHtml(json, omitted);
             // In-report trace launcher (issue #3534 P2): the viewer HTML is fully self-contained --
             // it embeds the trace JSON (with base64 screenshots and inline DOM snapshots) and reads
@@ -103,6 +105,7 @@ public final class FailureTraceReporter {
             }
             CURRENT_NETWORK_JSON.remove();
             CURRENT_SCREENSHOTS.remove();
+            closeArtifactManifest();
         }
     }
 
@@ -133,10 +136,20 @@ public final class FailureTraceReporter {
         CURRENT_NETWORK_JSON.set(networkJson);
         String consoleJson = BrowserObservabilityRecorder.drainConsoleJson();
         Throwable throwable = info == null ? null : info.throwable();
+        closeArtifactManifest();
+        int maxBytes = Math.max(1, SHAFT.Properties.reporting.traceMaxArtifactMb()) * 1024 * 1024;
+        String omissionMarker = "Omitted because artifact exceeded shaft.trace.maxArtifactMb="
+                + SHAFT.Properties.reporting.traceMaxArtifactMb();
+        TraceArtifactManifest manifest = TraceArtifactManifest.create(networkJson, CURRENT_SCREENSHOTS.get(),
+                PlaywrightTraceManager.getLastTracePath(), maxBytes, omissionMarker);
+        CURRENT_ARTIFACT_MANIFEST.set(manifest);
+        TraceSession traceSession = TraceSchemaSerializer.create(safeTestId(info), attempt, actions,
+                manifest.references());
         StringBuilder json = new StringBuilder();
         json.append("{\n");
         field(json, 1, "schemaVersion", "1.0", true);
-        field(json, 1, "generatedAt", Instant.now().toString(), true);
+        field(json, 1, "generatedAt", traceSession.generatedAt().toString(), true);
+        rawObject(json, 1, "session", TraceSchemaSerializer.toJson(traceSession), true);
         appendTestObject(json, info, throwable, attempt);
         objectStart(json, 1, "environment");
         field(json, 2, "shaftVersion", safeProperty(() -> SHAFT.Properties.internal.shaftEngineVersion()), true);
@@ -270,28 +283,14 @@ public final class FailureTraceReporter {
      * therefore carry an omission marker inside the zip. Surfaced in the viewer and index so
      * truncation is never silent.
      */
-    private static List<String> omittedEntries(String json, String networkJson, Map<String, byte[]> screenshots) {
+    private static List<String> omittedEntries(String json, TraceArtifactManifest manifest) {
         int maxBytes = Math.max(1, SHAFT.Properties.reporting.traceMaxArtifactMb()) * 1024 * 1024;
         List<String> omitted = new ArrayList<>();
         if (json.getBytes(StandardCharsets.UTF_8).length > maxBytes) {
             omitted.add("shaft-trace.json");
         }
-        if (BrowserObservabilityRecorder.networkHarJson(networkJson)
-                .getBytes(StandardCharsets.UTF_8).length > maxBytes) {
-            omitted.add("shaft-network.har");
-        }
-        screenshots.forEach((id, bytes) -> {
-            if (bytes.length > maxBytes) {
-                omitted.add("screenshots/" + id + ".png");
-            }
-        });
-        try {
-            Path playwrightTrace = PlaywrightTraceManager.getLastTracePath();
-            if (playwrightTrace != null && Files.isRegularFile(playwrightTrace) && Files.size(playwrightTrace) > maxBytes) {
-                omitted.add(playwrightTrace.getFileName().toString());
-            }
-        } catch (IOException | RuntimeException ignored) {
-            // Size probing is best-effort; never let it fail trace generation.
+        if (manifest != null) {
+            omitted.addAll(manifest.omittedPaths());
         }
         return omitted;
     }
@@ -700,15 +699,25 @@ public final class FailureTraceReporter {
     private static void renderTraceZip(Path target, String json, String html, String networkJson,
                                        Map<String, byte[]> screenshots) {
         int maxBytes = Math.max(1, SHAFT.Properties.reporting.traceMaxArtifactMb()) * 1024 * 1024;
-        Path playwrightTrace = PlaywrightTraceManager.getLastTracePath();
         String omissionMarker = "Omitted because artifact exceeded shaft.trace.maxArtifactMb="
                 + SHAFT.Properties.reporting.traceMaxArtifactMb();
-        renderTraceZip(target, json, html, networkJson, screenshots, playwrightTrace, maxBytes, omissionMarker);
+        TraceArtifactManifest manifest = CURRENT_ARTIFACT_MANIFEST.get();
+        TraceArchiveWriter.Entry nativeEntry = manifest == null ? null : manifest.nativeEntry();
+        renderTraceZip(target, json, html, networkJson, screenshots, nativeEntry, maxBytes, omissionMarker);
     }
 
     static void renderTraceZip(Path target, String json, String html, String networkJson,
                                Map<String, byte[]> screenshots, Path nativeTrace, int maxBytes,
                                String omissionMarker) {
+        TraceArchiveWriter.Entry nativeEntry = nativeTrace == null
+                ? null
+                : TraceArchiveWriter.Entry.optionalFile(nativeTrace.getFileName().toString(), nativeTrace);
+        renderTraceZip(target, json, html, networkJson, screenshots, nativeEntry, maxBytes, omissionMarker);
+    }
+
+    private static void renderTraceZip(Path target, String json, String html, String networkJson,
+                                       Map<String, byte[]> screenshots, TraceArchiveWriter.Entry nativeEntry,
+                                       int maxBytes, String omissionMarker) {
         List<TraceArchiveWriter.Entry> entries = new ArrayList<>();
         entries.add(TraceArchiveWriter.Entry.text("shaft-trace.json", json));
         entries.add(TraceArchiveWriter.Entry.text("shaft-network.har",
@@ -717,14 +726,22 @@ public final class FailureTraceReporter {
         for (Map.Entry<String, byte[]> entry : screenshots.entrySet()) {
             entries.add(TraceArchiveWriter.Entry.bytes("screenshots/" + entry.getKey() + ".png", entry.getValue()));
         }
-        if (nativeTrace != null && Files.isRegularFile(nativeTrace)) {
-            entries.add(TraceArchiveWriter.Entry.optionalFile(nativeTrace.getFileName().toString(), nativeTrace));
+        if (nativeEntry != null) {
+            entries.add(nativeEntry);
         }
         try {
             TraceArchiveWriter.write(target, entries, maxBytes, omissionMarker);
         } catch (IOException e) {
             throw new IllegalStateException("Could not create SHAFT trace zip.", e);
         }
+    }
+
+    private static void closeArtifactManifest() {
+        TraceArtifactManifest manifest = CURRENT_ARTIFACT_MANIFEST.get();
+        if (manifest != null) {
+            manifest.close();
+        }
+        CURRENT_ARTIFACT_MANIFEST.remove();
     }
 
     private static void attach(String type, String name, byte[] bytes, String description) {
