@@ -8,7 +8,7 @@ import tempfile
 from pathlib import Path, PurePosixPath, PureWindowsPath
 
 VALID_HORIZONS = {"short", "medium", "long"}
-VALID_EXPECTATION_KINDS = {"requires", "forbids", "guard"}
+VALID_EXPECTATION_KINDS = {"requires", "forbids", "guard", "sequence"}
 UNKNOWN_RESULT = None
 WINDOWS_RESERVED_NAMES = {
     "CON",
@@ -26,6 +26,27 @@ def _is_windows_reserved_name(part: str) -> bool:
 
 def _is_nonempty_string(value: object) -> bool:
     return isinstance(value, str) and bool(value)
+
+
+def _valid_expectation(expectation: object) -> bool:
+    if not isinstance(expectation, dict) or expectation.get("kind") not in VALID_EXPECTATION_KINDS:
+        return False
+    kind = expectation["kind"]
+    if kind in {"requires", "forbids"}:
+        return _is_nonempty_string(expectation.get("action"))
+    if kind == "guard":
+        return _is_nonempty_string(expectation.get("outcome")) and _is_nonempty_string(
+            expectation.get("remedy")
+        )
+    ordered = expectation.get("ordered")
+    return (
+        _is_nonempty_string(expectation.get("before"))
+        and isinstance(ordered, list)
+        and bool(ordered)
+        and all(_is_nonempty_string(action) for action in ordered)
+        and len(set(ordered)) == len(ordered)
+        and expectation["before"] not in ordered
+    )
 
 
 def _is_safe_relative_file(path: object) -> bool:
@@ -98,18 +119,7 @@ def validate_corpus(corpus: dict) -> list[str]:
         expectations = episode.get("expectations")
         if not isinstance(expectations, list) or not expectations:
             errors.append(f"{identifier}: expectations must be a nonempty list")
-        elif any(
-            not isinstance(expectation, dict)
-            or expectation.get("kind") not in VALID_EXPECTATION_KINDS
-            or expectation.get("kind") in {"requires", "forbids"}
-            and not _is_nonempty_string(expectation.get("action"))
-            or expectation.get("kind") == "guard"
-            and (
-                not _is_nonempty_string(expectation.get("outcome"))
-                or not _is_nonempty_string(expectation.get("remedy"))
-            )
-            for expectation in expectations
-        ):
+        elif any(not _valid_expectation(expectation) for expectation in expectations):
             errors.append(f"{identifier}: expectation kind is invalid")
     return errors
 
@@ -169,6 +179,21 @@ def _expectation_result(expectation: dict, evidence: dict) -> bool | None:
         if not isinstance(evidence.get("actions"), list):
             return None
         return expectation.get("action") not in evidence.get("actions", [])
+    if expectation["kind"] == "sequence":
+        actions = evidence.get("actions")
+        if not isinstance(actions, list):
+            return None
+        boundary_action = expectation["before"]
+        if boundary_action not in actions:
+            return True
+        boundary = actions.index(boundary_action)
+        cursor = -1
+        for required in expectation["ordered"]:
+            try:
+                cursor = actions.index(required, cursor + 1, boundary)
+            except ValueError:
+                return False
+        return True
     if not isinstance(evidence.get("guard_outcomes"), list):
         return None
     return any(
@@ -221,6 +246,7 @@ def evaluate(corpus: dict, evidence_by_episode: dict) -> dict:
                 )
                 metric = {
                     "requires": "required_action_adherence",
+                    "sequence": "required_action_adherence",
                     "forbids": "prohibited_action_adherence",
                 }.get(expectation["kind"])
                 if metric:

@@ -2714,7 +2714,11 @@ def run_session_start(hook_input: dict) -> int:
     """Inject the mandatory entrypoint plus read-only hygiene and sync findings."""
     context = [
         "Harness preflight: load and follow "
-        "`.agents/skills/act-as-mohab/SKILL.md` before task work."
+        "`.agents/skills/act-as-mohab/SKILL.md` before task work.\n"
+        "Implementation preflight before any mutation: read live files; load the "
+        "routed skill; query native Memory, MemPalace, and Graphify; do "
+        "authoritative online research; compare proven approaches; record a "
+        "concrete plan. Missing evidence blocks implementation, not analysis."
     ]
     constraints = _standing_constraints(_hook_working_directory(hook_input))
     if constraints:
