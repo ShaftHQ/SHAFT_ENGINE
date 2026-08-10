@@ -1361,7 +1361,7 @@ final class AssistantLocalAgentRunner {
      * the read-only sandbox it also falls back to.
      */
     private static List<String> codexCommand(String mode, boolean allowSourceMutation, String model, String effort) {
-        List<String> command = new ArrayList<>(List.of("codex", "exec"));
+        List<String> command = new ArrayList<>(List.of("codex", "--ask-for-approval", "never", "exec"));
         command.add("--skip-git-repo-check");
         if (!model.isBlank()) {
             command.add("--model");
@@ -1482,7 +1482,7 @@ final class AssistantLocalAgentRunner {
         return switch (normalize(string(arguments, "client", "CODEX"))) {
             case "CLAUDE_CODE" -> List.of("claude", "config", "list-models");
             case "COPILOT_CLI" -> List.of("copilot", "models");
-            default -> List.of("codex", "models");
+            default -> List.of("codex", "debug", "models");
         };
     }
 
@@ -1529,7 +1529,7 @@ final class AssistantLocalAgentRunner {
                 return new ModelDiscovery(List.of(), process.exitValue() == 0
                         ? ModelDiscoveryState.EMPTY : ModelDiscoveryState.FAILED);
             }
-            List<String> models = parseModelNames(output);
+            List<String> models = parseDiscoveredModelNames(arguments, output);
             return new ModelDiscovery(models, models.isEmpty()
                     ? ModelDiscoveryState.EMPTY : ModelDiscoveryState.AVAILABLE);
         } catch (InterruptedException exception) {
@@ -1575,6 +1575,38 @@ final class AssistantLocalAgentRunner {
             }
         }
         return List.copyOf(models);
+    }
+
+    private static List<String> parseDiscoveredModelNames(JsonObject arguments, String output) {
+        if (!"CODEX".equals(normalize(string(arguments, "client", "CODEX")))) {
+            return parseModelNames(output);
+        }
+        try {
+            JsonElement parsed = JsonParser.parseString(output == null ? "" : output.strip());
+            if (!parsed.isJsonObject()) {
+                return List.of();
+            }
+            JsonElement catalog = parsed.getAsJsonObject().get("models");
+            if (catalog == null || !catalog.isJsonArray()) {
+                return List.of();
+            }
+            Set<String> models = new LinkedHashSet<>();
+            for (JsonElement item : catalog.getAsJsonArray()) {
+                if (!item.isJsonObject()) {
+                    continue;
+                }
+                JsonObject model = item.getAsJsonObject();
+                JsonElement slug = model.get("slug");
+                JsonElement visibility = model.get("visibility");
+                if (slug != null && slug.isJsonPrimitive()
+                        && visibility != null && "list".equalsIgnoreCase(visibility.getAsString())) {
+                    models.add(slug.getAsString());
+                }
+            }
+            return List.copyOf(models);
+        } catch (JsonParseException | IllegalStateException ignored) {
+            return List.of();
+        }
     }
 
     private static void collectModelNames(JsonElement element, Set<String> models) {
