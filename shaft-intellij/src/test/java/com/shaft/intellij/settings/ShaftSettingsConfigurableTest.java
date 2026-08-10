@@ -43,6 +43,16 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 class ShaftSettingsConfigurableTest {
+    private static void selectDisplayValue(JComboBox<?> comboBox, String displayValue) {
+        for (int index = 0; index < comboBox.getItemCount(); index++) {
+            if (displayValue.equals(String.valueOf(comboBox.getItemAt(index)))) {
+                comboBox.setSelectedIndex(index);
+                return;
+            }
+        }
+        throw new AssertionError("Missing combo item: " + displayValue);
+    }
+
     @Test
     void settingsConfigurableContainsProviderClearAccessibilityAndWarnings() throws Exception {
         String source = Files.readString(Path.of(
@@ -209,8 +219,69 @@ class ShaftSettingsConfigurableTest {
                 () -> assertFalse(shaftAiProvider.isVisible()),
                 () -> assertFalse(openAiField.isVisible()),
                 () -> assertFalse(clearOpenAi.isVisible()),
-                () -> assertTrue(findByAccessibleName(panel, "Assistant family", JComboBox.class).isVisible()),
-                () -> assertTrue(findByAccessibleName(panel, "Assistant runtime", JComboBox.class).isVisible()));
+                () -> assertTrue(findByAccessibleName(panel, "Assistant agent", JComboBox.class).isVisible()),
+                () -> assertFalse(findByAccessibleName(panel, "Assistant family", JComboBox.class).isVisible()),
+                () -> assertFalse(findByAccessibleName(panel, "Assistant runtime", JComboBox.class).isVisible()));
+    }
+
+    @Test
+    void settingsAgentPickerPersistsTheCompleteRoute() throws Exception {
+        ShaftSettingsState.Settings settings = new ShaftSettingsState.Settings();
+        ShaftSettingsConfigurable configurable = new ShaftSettingsConfigurable(settings, new InMemoryCredentials());
+        JComponent panel = (JComponent) configurable.createComponent();
+        JComboBox<?> agent = findByAccessibleName(panel, "Assistant agent", JComboBox.class);
+        JLabel agentLabel = (JLabel) getField(configurable, "assistantAgentLabel");
+        JLabel githubKeyLabel = (JLabel) getField(configurable, "githubKeyLabel");
+
+        assertEquals(6, agent.getItemCount());
+        assertNotEquals(agentLabel.getDisplayedMnemonic(), githubKeyLabel.getDisplayedMnemonic());
+        selectDisplayValue(agent, "Claude Desktop");
+        configurable.apply();
+
+        assertAll(
+                () -> assertEquals("LOCAL", settings.assistantProviderType),
+                () -> assertEquals("CLAUDE", settings.assistantFamily),
+                () -> assertEquals("DESKTOP_APP", settings.assistantRuntime),
+                () -> assertEquals("CLAUDE_CODE", settings.defaultAutobotClient));
+    }
+
+    @Test
+    void changingAgentRouteInvalidatesStaleMcpAndAgentReadiness() throws Exception {
+        ShaftSettingsState.Settings settings = new ShaftSettingsState.Settings();
+        settings.mcpCommand = "\"java\" \"@target/shaft-mcp.args\"";
+        settings.mcpSetupComplete = true;
+        settings.agentLaneReady = true;
+        ShaftSettingsConfigurable configurable = new ShaftSettingsConfigurable(settings, new InMemoryCredentials());
+        JComponent panel = (JComponent) configurable.createComponent();
+        JComboBox<?> agent = findByAccessibleName(panel, "Assistant agent", JComboBox.class);
+
+        findByAccessibleName(panel, "Configure assistant agent", JButton.class).doClick();
+        selectDisplayValue(agent, "Claude Desktop");
+        configurable.apply();
+
+        assertAll(
+                () -> assertFalse(settings.mcpSetupComplete),
+                () -> assertFalse(settings.agentLaneReady),
+                () -> assertEquals("CLAUDE", settings.assistantFamily),
+                () -> assertEquals("DESKTOP_APP", settings.assistantRuntime));
+    }
+
+    @Test
+    void unchangedAgentRoutePreservesVerifiedReadiness() throws Exception {
+        ShaftSettingsState.Settings settings = new ShaftSettingsState.Settings();
+        settings.mcpCommand = "\"java\" \"@target/shaft-mcp.args\"";
+        settings.mcpSetupComplete = true;
+        settings.agentLaneReady = true;
+        ShaftSettingsConfigurable configurable = new ShaftSettingsConfigurable(settings, new InMemoryCredentials());
+        configurable.createComponent();
+
+        configurable.apply();
+
+        assertAll(
+                () -> assertTrue(settings.mcpSetupComplete),
+                () -> assertTrue(settings.agentLaneReady),
+                () -> assertEquals("CODEX", settings.assistantFamily),
+                () -> assertEquals("CLI", settings.assistantRuntime));
     }
 
     @Test
@@ -327,11 +398,13 @@ class ShaftSettingsConfigurableTest {
 
         JLabel currentAgent = findByAccessibleName(panel, "Current agent configuration", JLabel.class);
         JButton configure = findByAccessibleName(panel, "Configure assistant agent", JButton.class);
+        JComboBox<?> agent = findByAccessibleName(panel, "Assistant agent", JComboBox.class);
         JComboBox<?> family = findByAccessibleName(panel, "Assistant family", JComboBox.class);
         JComboBox<?> runtime = findByAccessibleName(panel, "Assistant runtime", JComboBox.class);
 
         assertNotNull(currentAgent);
         assertNotNull(configure);
+        assertNotNull(agent);
         assertNotNull(family);
         assertNotNull(runtime);
         assertTrue(currentAgent.isVisible());
@@ -339,6 +412,7 @@ class ShaftSettingsConfigurableTest {
         assertTrue(currentAgent.getText().contains("Agent: Local / Claude / Desktop app"));
         assertFalse(family.isVisible());
         assertFalse(runtime.isVisible());
+        assertFalse(agent.isVisible());
         // Issue #3603: the accessible name stays the short, stable "Current agent configuration"
         // (test-id-safe), but a screen reader also needs the live agent/runtime text.
         assertEquals(currentAgent.getText(), currentAgent.getAccessibleContext().getAccessibleDescription());
@@ -348,8 +422,9 @@ class ShaftSettingsConfigurableTest {
 
         assertFalse(currentAgent.isVisible());
         assertFalse(configure.isVisible());
-        assertTrue(family.isVisible());
-        assertTrue(runtime.isVisible());
+        assertTrue(agent.isVisible());
+        assertFalse(family.isVisible());
+        assertFalse(runtime.isVisible());
         assertEquals(modifiedBeforeConfigure, configurable.isModified());
     }
 

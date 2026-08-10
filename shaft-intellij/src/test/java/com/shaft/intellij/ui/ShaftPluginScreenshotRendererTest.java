@@ -1476,9 +1476,14 @@ class ShaftPluginScreenshotRendererTest {
                             // Screenshot rendering never stores real keys.
                         }
                     });
-            JComboBox<?> family = findComboByAccessibleName(component, "Assistant family");
-            if (family != null) {
-                family.setSelectedItem("GEMINI");
+            JComboBox<?> agent = findComboByAccessibleName(component, "Assistant agent");
+            if (agent != null) {
+                for (int index = 0; index < agent.getItemCount(); index++) {
+                    if ("Gemini in IntelliJ".equals(String.valueOf(agent.getItemAt(index)))) {
+                        agent.setSelectedIndex(index);
+                        break;
+                    }
+                }
             }
             component.setSize(new Dimension(WIDTH, HEIGHT));
             component.setPreferredSize(new Dimension(WIDTH, HEIGHT));

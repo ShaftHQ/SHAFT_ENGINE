@@ -95,6 +95,7 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
     private JPanel currentAgentChip;
     private JButton configureAgent;
     private JLabel assistantProviderTypeLabel;
+    private JLabel assistantAgentLabel;
     private JLabel assistantFamilyLabel;
     private JLabel assistantRuntimeLabel;
     private JLabel cloudProviderLabel;
@@ -115,6 +116,7 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
     private JLabel lmStudioKeyLabel;
     private JLabel ollamaKeyLabel;
     private JComboBox<String> assistantProviderType;
+    private JComboBox<AssistantAgentRoute> assistantAgent;
     private JComboBox<String> assistantFamily;
     private JComboBox<String> assistantRuntime;
     private JComboBox<String> cloudProvider;
@@ -281,6 +283,11 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
         ShaftUiLabels.applyFriendlyRenderer(assistantProviderType);
         assistantProviderType.getAccessibleContext().setAccessibleName("Assistant provider type");
         assistantProviderType.getAccessibleContext().setAccessibleDescription("Select whether Assistant prompts use local tools or a cloud provider.");
+        assistantAgent = new JComboBox<>(AssistantAgentRoute.values());
+        assistantAgent.getAccessibleContext().setAccessibleName("Assistant agent");
+        assistantAgent.getAccessibleContext().setAccessibleDescription(
+                "Select the agent route used by SHAFT Assistant and MCP setup.");
+        assistantAgent.addActionListener(event -> syncLegacyAgentControls());
         assistantFamily = new JComboBox<>(model("CODEX", "CLAUDE", "COPILOT"));
         ShaftUiLabels.applyFriendlyRenderer(assistantFamily);
         assistantFamily.getAccessibleContext().setAccessibleName("Assistant family");
@@ -391,6 +398,7 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
         currentAgentConfigurationTitle = label("Current agent", 'C', currentAgentConfiguration);
         currentAgentChip = agentConfigurationRow(currentAgentConfiguration, configureAgent);
         assistantProviderTypeLabel = label("Provider type", 'Y', assistantProviderType);
+        assistantAgentLabel = label("Agent", 'T', assistantAgent);
         assistantFamilyLabel = label("Family", 'F', assistantFamily);
         assistantRuntimeLabel = label("Runtime", 'R', assistantRuntime);
         cloudProviderLabel = label("Cloud provider", 'V', cloudProvider);
@@ -425,6 +433,7 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
                 .addComponent(testExecutionHelp)
                 .addComponent(section("Execution"))
                 .addLabeledComponent(currentAgentConfigurationTitle, currentAgentChip)
+                .addLabeledComponent(assistantAgentLabel, assistantAgent)
                 .addLabeledComponent(assistantProviderTypeLabel, assistantProviderType)
                 .addLabeledComponent(assistantFamilyLabel, assistantFamily)
                 .addLabeledComponent(assistantRuntimeLabel, assistantRuntime)
@@ -466,17 +475,17 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
     public boolean isModified() {
         ShaftSettingsState.Settings state = settingsProvider.get();
         boolean advancedSelected = advancedUiEnabled.isSelected();
-        String selectedProviderType = advancedSelected ? String.valueOf(assistantProviderType.getSelectedItem()) : "LOCAL";
-        String stateProviderType = state.advancedUiEnabled ? normalize(state.assistantProviderType, "LOCAL") : "LOCAL";
+        AssistantAgentRoute selectedRoute = selectedAgentRoute();
+        String selectedProviderType = advancedSelected
+                ? String.valueOf(assistantProviderType.getSelectedItem()) : selectedRoute.providerType();
+        String stateProviderType = normalize(state.assistantProviderType, "LOCAL");
         return !Objects.equals(state.mcpCommand, mcpCommand.getText())
                 || state.advancedUiEnabled != advancedSelected
                 || state.watchModeEnabled != watchModeEnabled.isSelected()
+                || AssistantAgentRoute.fromSettings(state) != selectedRoute
                 || !Objects.equals(stateProviderType, selectedProviderType)
-                || !Objects.equals(resolveFamily(state), assistantFamily.getSelectedItem())
-                || !Objects.equals(normalize(state.assistantRuntime, "CLI"), assistantRuntime.getSelectedItem())
                 || !Objects.equals(normalizeLower(state.cloudProvider, "gemini"), cloudProvider.getSelectedItem())
                 || !Objects.equals(state.cloudModel == null ? "" : state.cloudModel, cloudModel.getText())
-                || !Objects.equals(state.defaultAutobotClient, clientFromFamily(String.valueOf(assistantFamily.getSelectedItem())))
                 || !Objects.equals(state.defaultAutobotMode, defaultMode.getSelectedItem())
                 || !Objects.equals(state.pilotAiProvider, pilotAiProvider.getSelectedItem())
                 || !Objects.equals(state.pilotAiModel, pilotAiModel.getText())
@@ -504,21 +513,21 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
         validateLocalEndpoint(provider, endpoint);
         ShaftSettingsState.Settings state = settingsProvider.get();
         String command = mcpCommand.getText().trim();
-        if (!Objects.equals(state.mcpCommand, command)) {
+        boolean routeChanged = AssistantAgentRoute.fromSettings(state) != selectedAgentRoute();
+        if (!Objects.equals(state.mcpCommand, command) || routeChanged) {
             state.mcpSetupComplete = false;
+            state.agentLaneReady = false;
             state.agentGuidanceOptimizationPromptPending = false;
         }
         state.mcpCommand = command;
         state.advancedUiEnabled = advancedUiEnabled.isSelected();
         state.watchModeEnabled = watchModeEnabled.isSelected();
+        selectedAgentRoute().applyTo(state);
         state.assistantProviderType = state.advancedUiEnabled
                 ? String.valueOf(assistantProviderType.getSelectedItem())
-                : "LOCAL";
-        state.assistantFamily = String.valueOf(assistantFamily.getSelectedItem());
-        state.assistantRuntime = String.valueOf(assistantRuntime.getSelectedItem());
+                : selectedAgentRoute().providerType();
         state.cloudProvider = String.valueOf(cloudProvider.getSelectedItem());
         state.cloudModel = cloudModel.getText().trim();
-        state.defaultAutobotClient = clientFromFamily(state.assistantFamily);
         state.defaultAutobotMode = String.valueOf(defaultMode.getSelectedItem());
         state.pilotAiProvider = provider;
         state.pilotAiModel = pilotAiModel.getText().trim();
@@ -559,6 +568,7 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
         updateMcpCommandEditableState();
         advancedUiEnabled.setSelected(state.advancedUiEnabled);
         watchModeEnabled.setSelected(state.watchModeEnabled);
+        assistantAgent.setSelectedItem(AssistantAgentRoute.fromSettings(state));
         assistantProviderType.setSelectedItem(normalize(state.assistantProviderType, "LOCAL"));
         assistantFamily.setSelectedItem(resolveFamily(state));
         assistantRuntime.setSelectedItem(normalize(state.assistantRuntime, "CLI"));
@@ -601,11 +611,13 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
         currentAgentChip = null;
         configureAgent = null;
         assistantProviderTypeLabel = null;
+        assistantAgentLabel = null;
         assistantFamilyLabel = null;
         assistantRuntimeLabel = null;
         cloudProviderLabel = null;
         cloudModelLabel = null;
         assistantProviderType = null;
+        assistantAgent = null;
         assistantFamily = null;
         assistantRuntime = null;
         cloudProvider = null;
@@ -1194,14 +1206,12 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
         ShaftSettingsState.Settings settings = new ShaftSettingsState.Settings();
         settings.mcpCommand = mcpCommand.getText() == null ? "" : mcpCommand.getText().trim();
         settings.advancedUiEnabled = advancedUiEnabled.isSelected();
+        selectedAgentRoute().applyTo(settings);
         settings.assistantProviderType = settings.advancedUiEnabled
                 ? String.valueOf(assistantProviderType.getSelectedItem())
-                : "LOCAL";
-        settings.assistantFamily = String.valueOf(assistantFamily.getSelectedItem());
-        settings.assistantRuntime = String.valueOf(assistantRuntime.getSelectedItem());
+                : selectedAgentRoute().providerType();
         settings.cloudProvider = String.valueOf(cloudProvider.getSelectedItem());
         settings.cloudModel = cloudModel.getText() == null ? "" : cloudModel.getText().trim();
-        settings.defaultAutobotClient = clientFromFamily(settings.assistantFamily);
         settings.defaultAutobotMode = String.valueOf(defaultMode.getSelectedItem());
         settings.pilotAiProvider = String.valueOf(pilotAiProvider.getSelectedItem());
         settings.pilotAiModel = pilotAiModel.getText() == null ? "" : pilotAiModel.getText().trim();
@@ -1230,6 +1240,28 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
         state.mcpSetupComplete = true;
     }
 
+    private AssistantAgentRoute selectedAgentRoute() {
+        Object selected = assistantAgent == null ? null : assistantAgent.getSelectedItem();
+        return selected instanceof AssistantAgentRoute route ? route : AssistantAgentRoute.CODEX_CLI;
+    }
+
+    private void syncLegacyAgentControls() {
+        if (assistantFamily == null || assistantRuntime == null || assistantProviderType == null) {
+            return;
+        }
+        AssistantAgentRoute route = selectedAgentRoute();
+        assistantProviderType.setSelectedItem(route.providerType());
+        assistantFamily.setSelectedItem(route.family());
+        assistantRuntime.setSelectedItem(route.runtime());
+        if (defaultClient != null) {
+            defaultClient.setSelectedItem(route.client());
+        }
+        if (route.gemini() && cloudProvider != null) {
+            cloudProvider.setSelectedItem("gemini");
+        }
+        updateAgentConfigurationControls();
+    }
+
     private void updateAgentConfigurationControls() {
         if (currentAgentConfiguration == null) {
             return;
@@ -1254,12 +1286,14 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
         currentAgentChip.setVisible(showSummary);
         currentAgentConfiguration.setVisible(showSummary);
         configureAgent.setVisible(showSummary);
+        assistantAgentLabel.setVisible(!showSummary);
+        assistantAgent.setVisible(!showSummary);
         assistantProviderTypeLabel.setVisible(advanced && !showSummary);
         assistantProviderType.setVisible(advanced && !showSummary);
-        assistantFamilyLabel.setVisible(!showSummary);
-        assistantFamily.setVisible(!showSummary);
-        assistantRuntimeLabel.setVisible(!showSummary);
-        assistantRuntime.setVisible(!showSummary);
+        assistantFamilyLabel.setVisible(false);
+        assistantFamily.setVisible(false);
+        assistantRuntimeLabel.setVisible(false);
+        assistantRuntime.setVisible(false);
         cloudProviderLabel.setVisible(cloud && !showSummary);
         cloudProvider.setVisible(cloud && !showSummary);
         cloudModelLabel.setVisible(cloud && !showSummary);
