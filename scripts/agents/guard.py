@@ -1622,96 +1622,14 @@ def _git_output(arguments: list[str], cwd: object = None) -> str | None:
     return completed.stdout or ""
 
 
-def _content_exists_on_default_branch(branch: str, cwd: object = None) -> bool:
-    """True when deleting `branch` would lose no content the default branch lacks.
-
-    This repository squash-merges and GitHub deletes the head branch on merge.
-    So a *fully delivered* branch reports every one of its original commits as
-    existing on no remote: the commits really are gone, and their content is
-    on `main` under a single new commit that shares no ancestry with them.
-
-    Commit identity therefore cannot answer the question R13 and R18 are
-    actually asking, which is whether deleting the branch destroys work.
-    `git cherry` cannot either -- it compares patch ids, and a squash of two
-    commits matches neither of them, which is exactly this repository's shape.
-    `validate_agent_setup.py` already says as much in its own advisory: "this
-    repo squash-merges, so landed work can still show commits ahead of main."
-
-    So ask about content. Take the files the branch introduced relative to its
-    merge base, then compare just those files against the default branch. That
-    stays correct once `main` advances with unrelated work, because the
-    comparison is restricted to the branch's own files.
-
-    Require identity (#4567 review). A deletion-only branch looks identical to
-    a branch `main` merely moved ahead of when read as one-sided line counts,
-    but deleting the former loses an unpushed commit. This guard cannot prove a
-    deletion landed after a squash without reading commit meaning, so it fails
-    closed on either side of a textual difference.
-
-    `--numstat` reads that direction as data instead of as an exit code: one
-    structured field per file, `-` for a binary difference, and exit 0 either
-    way, so it goes through `_git_output` like every other query here.
-
-    False on any uncertainty, on purpose: "I could not tell" and "nothing
-    would be lost" are opposite facts, and only one of them may permit a
-    deletion. A binary difference is uncertainty, since `--numstat` cannot say
-    which side holds what.
-
-    """
-    if not branch:
-        return False
-    reference = None
-    for candidate in sorted(DEFAULT_BRANCHES):
-        probe = _git_output(
-            ["rev-parse", "--verify", "--quiet", f"origin/{candidate}"], cwd=cwd
-        )
-        if probe is not None:
-            reference = f"origin/{candidate}"
-            break
-    if reference is None:
-        return False
-    listing = _git_output(["diff", "--name-only", f"{reference}...{branch}"], cwd=cwd)
-    if listing is None:
-        return False
-    files = [line for line in listing.splitlines() if line.strip()]
-    if not files:
-        return True  # introduces nothing the default branch does not already have
-    numstat = _git_output(
-        ["diff", "--numstat", reference, branch, "--", *files], cwd=cwd
-    )
-    if numstat is None:
-        return False
-    for line in numstat.splitlines():
-        if not line.strip():
-            continue
-        added, _, deleted = line.partition("\t")
-        if added.strip() != "0" or deleted.split("\t", 1)[0].strip() != "0":
-            return False
-    return True
-
-
 def _unrecoverable_commit_count(branch: str, cwd: object = None) -> int | None:
     """Commits whose deletion would destroy work, or None if unanswerable.
 
-    Wraps the raw unpushed count with the delivery question, because the raw
-    count alone blocked correct work: on a squash-merged branch whose remote
-    was deleted it reports the original commits, so R13 refused the cleanup
-    step the entrypoint itself mandates, and told the agent to run `git push
-    -u origin <branch>` -- which would re-create the remote branch for already
-    merged work. A gate that fires on correct work and whose remedy makes
-    things worse is the shape that gets guards deleted, which iron law 4
-    forbids as the exit.
-
-    The delivery query costs git calls, so it runs only when the raw count is
-    about to block. A branch with nothing unpushed -- the common case -- pays
-    nothing.
+    Merge commits preserve branch ancestry, so remote reachability is the
+    authoritative signal. Content-equivalence guesses are intentionally not a
+    deletion bypass.
     """
-    count = _unpushed_commit_count(branch, cwd)
-    if count is None or count <= 0:
-        return count
-    if _content_exists_on_default_branch(branch, cwd):
-        return 0
-    return count
+    return _unpushed_commit_count(branch, cwd)
 
 
 def _uncommitted_file_count(cwd: object) -> int | None:
@@ -1859,9 +1777,23 @@ def check_r15_review_before_arming(
         return None
     for segment in _command_segments(command):
         rest = _tokens_after_head(segment, frozenset({"gh"}))
+        if rest:
+            rest, _ = _split_gh_global_flags(rest)
         if not rest or rest[:2] != ["pr", "merge"]:
             continue
         arguments = rest[2:]
+        if any(
+            argument in {"--squash", "--rebase", "-s", "-r"}
+            or (
+                any(argument.lower().startswith(f"{mode}=") for mode in ("--squash", "--rebase"))
+                and argument.partition("=")[2].lower() not in {"false", "0", "f"}
+            )
+            for argument in arguments
+        ):
+            return (
+                "R15 blocked: this repository requires merge commits. Use `--merge`; "
+                "squash and rebase merging are disabled."
+            )
         auto_merge = any(
             argument == "--auto"
             or (argument.lower().startswith("--auto=") and argument.lower()[7:] not in {"false", "0", "f"})
@@ -1951,7 +1883,7 @@ _GH_GLOBAL_FLAGS_WITH_ARG = frozenset({"-R", "--repo"})
 def _split_gh_global_flags(tokens: list[str]) -> tuple[list[str], str | None]:
     """Remove `-R`/`--repo <value>` anywhere in `tokens`, returning its value.
 
-    `-R owner/repo` / `--repo owner/repo` is gh's own global flag for
+    `-R owner/repo` / `-Rowner/repo` / `--repo owner/repo` is gh's own global flag for
     targeting a repository explicitly -- the standard way to post run state
     from a linked worktree or any cwd that is not the tracked repo's own
     checkout. `_tokens_after_head` strips env assignments and runner
@@ -1983,6 +1915,10 @@ def _split_gh_global_flags(tokens: list[str]) -> tuple[list[str], str | None]:
         if token in _GH_GLOBAL_FLAGS_WITH_ARG:
             repository = tokens[index + 1] if index + 1 < len(tokens) else None
             index += 2
+            continue
+        if token.startswith("-R") and token != "-R":
+            repository = token[2:].removeprefix("=") or None
+            index += 1
             continue
         matched = next(
             (flag for flag in _GH_GLOBAL_FLAGS_WITH_ARG if token.startswith(f"{flag}=")),
@@ -2983,7 +2919,7 @@ def check_r17_unarmed_pull_request(hook_input: dict) -> str | None:
     return (
         f"Pull request #{number} has an independent review and auto-merge is not "
         "armed. Opening a pull request does not end the duty: arm it now with "
-        f"`gh pr merge {number} --auto --squash`, then watch with `py -3 "
+        f"`gh pr merge {number} --auto --merge`, then watch with `py -3 "
         "scripts/ci/watch_pr_checks.py` until the remote confirms merged. Red and "
         "conflicting are yours to fix; stale emits no event, so ask for it. This "
         "interrupts once per turn: `stop_hook_active` makes the retry proceed, and "
@@ -3752,7 +3688,7 @@ def run_required_action_self_test() -> int:
         "R15 blocks arming with no independent review",
         _with_stubs(
             {"_independent_review_count": lambda target, cwd=None: 0},
-            lambda: check_r15_review_before_arming("gh pr merge 1 --auto --squash", "Bash"),
+            lambda: check_r15_review_before_arming("gh pr merge 1 --auto --merge", "Bash"),
         )
         is not None,
     )
@@ -3760,7 +3696,7 @@ def run_required_action_self_test() -> int:
         "R15 allows arming once a review exists",
         _with_stubs(
             {"_independent_review_count": lambda target, cwd=None: 1},
-            lambda: check_r15_review_before_arming("gh pr merge 1 --auto --squash", "Bash"),
+            lambda: check_r15_review_before_arming("gh pr merge 1 --auto --merge", "Bash"),
         )
         is None,
     )
@@ -3775,7 +3711,7 @@ def run_required_action_self_test() -> int:
                 "_ledger_records_a_review": lambda payload, branch: True,
             },
             lambda: check_r15_review_before_arming(
-                "gh pr merge 1 --auto --squash", "Bash", {"session_id": "s"}
+                "gh pr merge 1 --auto --merge", "Bash", {"session_id": "s"}
             ),
         )
         is None,

@@ -90,7 +90,7 @@ class DelegatePreflightRedTest(unittest.TestCase):
             with patch("scripts.agents.guard._independent_review_count", return_value=1):
                 self.assertIsNotNone(
                     guard.check_r15_review_before_arming(
-                        "gh pr merge 1 --auto --squash", "Bash", {"session_id": "red-r15"}
+                        "gh pr merge 1 --auto --merge", "Bash", {"session_id": "red-r15"}
                     )
                 )
 
@@ -733,230 +733,29 @@ class HookBudgetTest(unittest.TestCase):
         )
 
 
-class DeliveredBranchIsNotUnrecoverableTest(unittest.TestCase):
-    """A squash-merged branch is delivered, however its commit count reads.
+class MergeCommitBranchReachabilityTest(unittest.TestCase):
+    """R13/R18: merge commits make remote reachability the deletion-safety invariant."""
 
-    Found by adversarial review of this pull request. This repository
-    squash-merges and GitHub deletes the head branch on merge, so every
-    original commit of a *fully delivered* branch reports as existing on no
-    remote. R13 therefore refused `git branch -D` -- the entrypoint's own
-    cleanup step 2 -- on correct work, and the remedy it named,
-    `git push -u origin <branch>`, would have re-created the remote branch for
-    already merged work. R18 nagged for the same push on every turn.
-
-    Reproduced in a fixture repository before the fix: pushed, squash-merged,
-    remote branch deleted, and `git rev-list --count feature --not --remotes`
-    still answered 2.
-
-    `git cherry` cannot substitute. It compares patch ids, and a squash of two
-    commits matches neither of them -- verified in the same fixture, where
-    both commits came back marked `+`. Only a content comparison answers the
-    question the rules are actually asking.
-    """
-
-    def test_a_delivered_branch_reports_nothing_unrecoverable(self):
+    def test_unrecoverable_count_is_the_remote_reachability_count(self):
         with patch("scripts.agents.guard._unpushed_commit_count", return_value=2):
             with patch(
-                "scripts.agents.guard._content_exists_on_default_branch", return_value=True
-            ):
-                self.assertEqual(guard._unrecoverable_commit_count("feature"), 0)
-
-    def test_an_undelivered_branch_still_reports_its_commits(self):
-        with patch("scripts.agents.guard._unpushed_commit_count", return_value=2):
-            with patch(
-                "scripts.agents.guard._content_exists_on_default_branch", return_value=False
-            ):
+                "scripts.agents.guard._content_exists_on_default_branch",
+                return_value=True,
+                create=True,
+            ) as removed_bypass:
                 self.assertEqual(guard._unrecoverable_commit_count("feature"), 2)
+        removed_bypass.assert_not_called()
 
-    def test_unanswerable_stays_unanswerable(self):
-        """None and 0 are opposite facts and must not collapse into each other."""
+    def test_unanswerable_reachability_stays_unanswerable(self):
         with patch("scripts.agents.guard._unpushed_commit_count", return_value=None):
             self.assertIsNone(guard._unrecoverable_commit_count("feature"))
-
-    def test_delivery_is_not_queried_when_nothing_is_unpushed(self):
-        """The common case must not pay for the git calls the rare case needs.
-
-        A PreToolUse hook has a 10s budget and fails *open* when killed, so
-        every avoidable subprocess in the common path is a chance to silently
-        bypass every rule in this file.
-        """
-        with patch("scripts.agents.guard._unpushed_commit_count", return_value=0):
-            with patch(
-                "scripts.agents.guard._content_exists_on_default_branch"
-            ) as delivery:
-                self.assertEqual(guard._unrecoverable_commit_count("feature"), 0)
-                delivery.assert_not_called()
-
-    def test_r13_permits_deleting_a_delivered_branch(self):
-        """End to end: the cleanup the entrypoint mandates must be reachable."""
-        with patch("scripts.agents.guard._unpushed_commit_count", return_value=2):
-            with patch(
-                "scripts.agents.guard._content_exists_on_default_branch", return_value=True
-            ):
-                self.assertIsNone(
-                    guard.check_r13_push_before_delete("git branch -D feature", "Bash")
-                )
-
-    def test_r13_still_blocks_a_branch_that_exists_nowhere_else(self):
-        with patch("scripts.agents.guard._unpushed_commit_count", return_value=2):
-            with patch(
-                "scripts.agents.guard._content_exists_on_default_branch", return_value=False
-            ):
-                reason = guard.check_r13_push_before_delete("git branch -D feature", "Bash")
-        self.assertIsNotNone(reason)
-        self.assertIn("R13 blocked", reason)
-
-
-class OnlyAddedLinesAreBranchUniqueTest(unittest.TestCase):
-    """The delivery predicate reads a diff direction it was getting backwards (#4569).
-
-    `_content_exists_on_default_branch` asks whether deleting a branch would
-    lose content the default branch lacks, and answered it with `git diff
-    --quiet`, which reports *any* difference. In `git diff origin/main
-    <branch>` a `-` line is content on `main` and not on the branch: the
-    default branch moved on after the squash landed. Only a `+` line is
-    content the branch holds and `main` does not, and only that can be lost.
-
-    Measured, not reasoned: of the nine branches #4569 left undeletable, three
-    carry zero branch-only added lines and were still refused. The stored
-    gotcha `squash-merge-makes-landed-branches-look-unmerged-by-rev-list-count`
-    had already recorded the same trap in the same words -- `git diff
-    origin/main <branch>` "renders main's newer commits as deletions on the
-    branch side, which reads like the branch is about to delete live work".
-
-    `--numstat` rather than counting `+` lines out of a patch. It is one
-    structured field per file, it reports a binary difference as `-` instead of
-    a number -- which must never read as delivered -- and it exits 0 whether or
-    not anything differs, so it goes through `_git_output` like every other
-    query here instead of needing its own `subprocess.run` to read an exit
-    code as data.
-
-    What this deliberately does NOT decide: whether a branch whose own work was
-    a *deletion* has landed. Such a branch is a content subset of `main` and is
-    read as delivered. That is the predicate this function is named for and
-    documents -- "loses no content the default branch lacks" -- and telling it
-    apart from a landed branch needs main read for meaning, which is the shape
-    section 6.1 of #4567 records this repository losing at every time.
-    """
-
-    REFERENCE = "abc123\n"
-    BRANCH = "ChaosEngine/probe-that-does-not-exist"
-
-    def delivery(self, numstat: str | None, listing: str = "one.py\ntwo.py\n"):
-        """Run the predicate with git's three answers scripted."""
-        git = mock.Mock(side_effect=[self.REFERENCE, listing, numstat])
-        with patch("scripts.agents.guard._git_output", git):
-            answer = guard._content_exists_on_default_branch(self.BRANCH)
-        return answer, git
-
-    def test_an_unmerged_deletion_only_branch_is_not_delivered(self):
-        """A deletion is branch work until the default branch proves it landed."""
-        answer, git = self.delivery("0\t12\tone.py\n0\t3\ttwo.py\n")
-        self.assertFalse(answer, "R13 must not discard unpushed deletion-only work")
-        self.assertEqual(git.call_count, 3, "the delivery question must reach git")
-        self.assertIn(
-            "--numstat",
-            git.call_args_list[2].args[0],
-            "added lines have to be counted, and --quiet cannot count them",
+        self.assertNotIn(
+            "_content_exists_on_default_branch",
+            inspect.getsource(guard._unrecoverable_commit_count),
         )
 
-    def test_an_identical_branch_is_delivered(self):
-        answer, _ = self.delivery("")
-        self.assertTrue(answer)
-
-    def test_a_branch_holding_added_lines_is_not_delivered(self):
-        """The protection, unweakened: one `+` line is one line only this branch has."""
-        answer, _ = self.delivery("7\t0\tone.py\n0\t3\ttwo.py\n")
-        self.assertFalse(answer)
-
-    def test_a_binary_difference_is_never_read_as_delivered(self):
-        """`--numstat` writes `-` for binary, and `-` is not zero."""
-        answer, _ = self.delivery("-\t-\tone.bin\n")
-        self.assertFalse(answer)
-
-    def test_an_unanswerable_diff_is_not_read_as_delivered(self):
-        """False on uncertainty, because only one of the two answers permits a deletion."""
-        answer, _ = self.delivery(None)
-        self.assertFalse(answer)
-
-    def test_a_branch_that_introduces_no_files_is_delivered(self):
-        """Unchanged behaviour, pinned so the rewrite cannot drop it."""
-        answer, _ = self.delivery("unused", listing="\n")
-        self.assertTrue(answer)
-
-    def test_r13_refuses_deleting_a_branch_with_unproved_deletions(self):
-        """End to end through the rule, not only the predicate.
-
-        `gotcha.a-guards-tests-passing-proves-the-function-works-never-that-the-
-        hook-can-reach-it` is why this exists: every other test in this class
-        would pass identically if `_unrecoverable_commit_count` stopped calling
-        the predicate at all.
-        """
-        git = mock.Mock(side_effect=[self.REFERENCE, "one.py\n", "0\t9\tone.py\n"])
-        with patch("scripts.agents.guard._unpushed_commit_count", return_value=3):
-            with patch("scripts.agents.guard._git_output", git):
-                self.assertIn(
-                    "R13 blocked",
-                    guard.check_r13_push_before_delete(f"git branch -D {self.BRANCH}", "Bash"),
-                )
-
-    def test_r13_still_refuses_a_branch_holding_unlanded_additions(self):
-        """The over-application guard: the fix must not clear a branch with real work."""
-        git = mock.Mock(side_effect=[self.REFERENCE, "one.py\n", "42\t0\tone.py\n"])
-        with patch("scripts.agents.guard._unpushed_commit_count", return_value=3):
-            with patch("scripts.agents.guard._git_output", git):
-                reason = guard.check_r13_push_before_delete(
-                    f"git branch -D {self.BRANCH}", "Bash"
-                )
-        self.assertIsNotNone(reason)
-        self.assertIn("R13 blocked", reason)
-
-    def test_r13_and_r18_agree_an_unproved_branch_needs_a_push(self):
-        """Pairwise: both guards retain work whose delivery is unproved.
-
-        `decision.check-every-new-guard-pairwise-against-the-guards-already-
-        shipped` lists "the push-cadence rule versus R13 (do not push a branch
-        about to be deleted)" under still to check. This is that pair: R13's
-        refusal is what makes a squash-landed branch look unpushed, and R18 is
-        the rule whose remedy is to push it. Both read
-        `_unrecoverable_commit_count`, so the safety predicate must drive both
-        guards consistently.
-        """
-        git = mock.Mock(side_effect=[self.REFERENCE, "one.py\n", "0\t9\tone.py\n"])
-        with patch("scripts.agents.guard._unpushed_commit_count", return_value=3):
-            with patch("scripts.agents.guard._git_output", git):
-                self.assertIsNotNone(
-                    guard.check_r13_push_before_delete(f"git branch -D {self.BRANCH}", "Bash")
-                )
-        git = mock.Mock(side_effect=[self.REFERENCE, "one.py\n", "0\t9\tone.py\n"])
-        with patch("scripts.agents.guard._current_branch", return_value=self.BRANCH):
-            with patch("scripts.agents.guard._unpushed_commit_count", return_value=3):
-                with patch("scripts.agents.guard._git_output", git):
-                    self.assertIsNotNone(
-                        guard.check_r18_unpushed_work({"cwd": "."}),
-                        "R18 must demand a push for work R13 cannot safely delete",
-                    )
-
-    def test_the_unpushed_count_asks_git_with_an_explicit_revision(self):
-        """`--not --remotes` with no positive revision reports nothing, ever.
-
-        Not a regression this branch introduced -- `_unpushed_commit_count`
-        already names the branch -- and pinned here because #4569 watched the
-        revisionless form hand a clean bill of health to all ten branches while
-        `git branch -r --contains` said the opposite. The next agent editing
-        this query will reach for the shape that reads more naturally, and it
-        is the one that can never fail.
-        """
-        completed = mock.Mock(returncode=0, stdout="2\n")
-        with patch("scripts.agents.guard.subprocess.run", return_value=completed) as run:
-            guard._unpushed_commit_count("feature")
-        argv = run.call_args.args[0]
-        self.assertIn("feature", argv, "the query must name a positive revision")
-        self.assertLess(
-            argv.index("feature"),
-            argv.index("--not"),
-            "git does not default to HEAD; the revision has to precede --not",
-        )
+    def test_squash_content_bypass_is_removed(self):
+        self.assertFalse(hasattr(guard, "_content_exists_on_default_branch"))
 
 
 class HardResetGateTest(unittest.TestCase):
@@ -1023,21 +822,40 @@ class ReviewBeforeArmingGateTest(unittest.TestCase):
 
     def test_arming_without_any_review_is_refused(self):
         with patch("scripts.agents.guard._independent_review_count", return_value=0):
-            reason = guard.check_r15_review_before_arming("gh pr merge 4539 --auto --squash", "Bash")
+            reason = guard.check_r15_review_before_arming("gh pr merge 4539 --auto --merge", "Bash")
         self.assertIsNotNone(reason)
         self.assertIn("review", reason.lower())
 
     def test_arming_after_an_independent_review_is_allowed(self):
         with patch("scripts.agents.guard._independent_review_count", return_value=1):
             self.assertIsNone(
-                guard.check_r15_review_before_arming("gh pr merge 4539 --auto --squash", "Bash")
+                guard.check_r15_review_before_arming("gh pr merge 4539 --auto --merge", "Bash")
             )
+
+    def test_non_merge_commit_modes_are_refused_even_after_review(self):
+        with patch("scripts.agents.guard._independent_review_count", return_value=1):
+            for command in (
+                "gh pr merge 4539 --auto --squash",
+                "gh pr merge 4539 --auto --rebase",
+                "gh pr merge 4539 --auto -s",
+                "gh pr merge 4539 --auto -r",
+                "gh pr merge 4539 --auto --squash=true",
+                "gh pr merge 4539 --auto --rebase=true",
+                "gh -R ShaftHQ/SHAFT_ENGINE pr merge 4539 --auto --squash",
+                "gh -RShaftHQ/SHAFT_ENGINE pr merge 4539 --auto --squash",
+                "gh -RShaftHQ/SHAFT_ENGINE pr merge 4539 --auto -s",
+                "gh --repo=ShaftHQ/SHAFT_ENGINE pr merge 4539 --auto --rebase=true",
+            ):
+                with self.subTest(command=command):
+                    reason = guard.check_r15_review_before_arming(command, "Bash")
+                    self.assertIsNotNone(reason)
+                    self.assertIn("--merge", reason)
 
     def test_arming_after_a_commit_requires_a_learning_route(self):
         with patch("scripts.agents.guard._independent_review_count", return_value=1):
             with patch("scripts.agents.guard.ledger_events", return_value=["commit"]):
                 reason = guard.check_r15_review_before_arming(
-                    "gh pr merge 4539 --auto --squash", "Bash", {"session_id": "s"}
+                    "gh pr merge 4539 --auto --merge", "Bash", {"session_id": "s"}
                 )
         self.assertIsNotNone(reason)
         self.assertIn("learning", reason.lower())
@@ -1049,7 +867,7 @@ class ReviewBeforeArmingGateTest(unittest.TestCase):
                     with self.subTest(auto=auto):
                         self.assertIsNotNone(
                             guard.check_r15_review_before_arming(
-                                f"gh pr merge 4539 --auto={auto} --squash",
+                                f"gh pr merge 4539 --auto={auto} --merge",
                                 "Bash",
                                 {"session_id": "s"},
                             )
@@ -1060,7 +878,7 @@ class ReviewBeforeArmingGateTest(unittest.TestCase):
             with patch("scripts.agents.guard.ledger_events", return_value=["commit", "memory-write"]):
                 self.assertIsNone(
                     guard.check_r15_review_before_arming(
-                        "gh pr merge 4539 --auto --squash", "Bash", {"session_id": "s"}
+                        "gh pr merge 4539 --auto --merge", "Bash", {"session_id": "s"}
                     )
                 )
 
@@ -1291,6 +1109,8 @@ class UnarmedPullRequestStopGateTest(unittest.TestCase):
         self.assertIsNotNone(reason)
         self.assertIn("4539", reason)
         self.assertIn("auto-merge", reason.lower())
+        self.assertIn("--merge", reason)
+        self.assertNotIn("--squash", reason)
 
     def test_an_armed_pull_request_is_silent(self):
         with patch("scripts.agents.guard._unarmed_reviewed_pull_request", return_value=None):
@@ -1892,11 +1712,6 @@ class HookWorkingDirectoryIsReadOneWayTest(unittest.TestCase):
         with patch("scripts.agents.guard.subprocess.run", return_value=completed) as run:
             guard._unpushed_commit_count("feature", cwd)
         self.assertEqual(run.call_args.kwargs["cwd"], cwd)
-
-        with patch("scripts.agents.guard._git_output", return_value=None) as git:
-            guard._content_exists_on_default_branch("feature", cwd)
-        self.assertTrue(git.call_args_list)
-        self.assertTrue(all(call.kwargs["cwd"] == cwd for call in git.call_args_list))
 
         completed.stdout = '{"author":{"login":"author"},"reviews":[]}'
         with patch("scripts.agents.guard.subprocess.run", return_value=completed) as run:
@@ -2508,7 +2323,7 @@ class HistoricalDispatchReplayTest(unittest.TestCase):
                 self.assertEqual("R22 blocked" not in output.getvalue(), allowed)
 
     def test_r15_accepts_an_observed_dispatch(self):
-        arming = "gh pr merge 1 --auto --squash"
+        arming = "gh pr merge 1 --auto --merge"
         with patch("scripts.agents.guard._independent_review_count", return_value=0):
             with patch("scripts.agents.guard._current_branch", return_value="feature"):
                 with patch(
@@ -2523,7 +2338,7 @@ class HistoricalDispatchReplayTest(unittest.TestCase):
                     )
 
     def test_a_review_of_another_branch_does_not_count(self):
-        arming = "gh pr merge 1 --auto --squash"
+        arming = "gh pr merge 1 --auto --merge"
         with patch("scripts.agents.guard._independent_review_count", return_value=0):
             with patch("scripts.agents.guard._current_branch", return_value="feature"):
                 with patch(
@@ -2638,6 +2453,7 @@ class RunStateStopGateTest(unittest.TestCase):
         ):
             for command in (
                 "gh -R ShaftHQ/SHAFT_ENGINE issue comment 4536 --body x",
+                "gh -RShaftHQ/SHAFT_ENGINE issue comment 4536 --body x",
                 "gh --repo ShaftHQ/SHAFT_ENGINE pr edit 4554 --body x",
                 "gh --repo=ShaftHQ/SHAFT_ENGINE issue edit 4536 --body x",
                 # A fork's own `origin` is `someone/SHAFT_ENGINE`; the name

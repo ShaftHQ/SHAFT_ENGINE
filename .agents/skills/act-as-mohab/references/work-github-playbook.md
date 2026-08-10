@@ -53,7 +53,10 @@ push; a later push loses the context needed to record it accurately.
 The entrypoint makes this a duty. The terminal states are merged, red,
 conflicting, and stale; a watcher observes only green and red.
 
-1. **Arm** after the review gate: `gh pr merge <n> --auto --squash`.
+This repository uses merge commits so a delivered branch remains identifiable
+by ancestry. Squash and rebase merging are disabled; do not substitute them.
+
+1. **Arm** after the review gate: `gh pr merge <n> --auto --merge`.
 2. **Watch** with `py -3 scripts/ci/watch_pr_checks.py --pr <n>`; exit 0 is
    green, 1 is red, 2 is pending, and 3 is an environment error.
 3. **Ask for unseen states** with `gh pr view <n> --json

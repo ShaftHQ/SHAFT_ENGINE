@@ -518,12 +518,10 @@ def _describe(entry: dict) -> str:
         return (
             f"branch-orphaned: {location} ({branch}): {age} day(s) since its last "
             f"commit, no local worktree holds it, and {caveat}. This branch is "
-            "invisible to every other hygiene check. Its commit count relative to "
-            f"{UPSTREAM_REF} is not evidence either way -- this repo squash-merges, "
-            "so landed work can still show commits ahead of main. Diff its tip "
-            "against main over exactly the files it touched, then check whether "
-            "anything still differing ever existed on main, before opening a pull "
-            "request for it or deleting it."
+            "invisible to every other hygiene check. This repository preserves PR "
+            "ancestry with merge commits: run `git merge-base --is-ancestor <branch> "
+            f"{UPSTREAM_REF}`. Delete an ancestor; otherwise inspect its exact diff "
+            "and PR state before opening a pull request or deleting it."
         )
     if entry["state"] == "corrupt":
         shown = ", ".join(entry["corrupt_paths"]) or "changed files"
