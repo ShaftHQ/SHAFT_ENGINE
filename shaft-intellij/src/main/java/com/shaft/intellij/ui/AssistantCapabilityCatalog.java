@@ -66,7 +66,8 @@ final class AssistantCapabilityCatalog {
     }
 
     private static String render(String topic, List<ToolEntry> tools, boolean live, String sourceNote) {
-        String normalizedTopic = normalize(topic);
+        String displayTopic = topic == null ? "" : topic.trim();
+        String normalizedTopic = normalize(displayTopic);
         List<String> topicTokens = List.of(normalizedTopic.split(" ")).stream()
                 .filter(token -> !token.isBlank())
                 .toList();
@@ -83,10 +84,10 @@ final class AssistantCapabilityCatalog {
         appendCliCommands(output, normalizedTopic, matches);
 
         if (output.length() == matchesBefore) {
-            output.append("\n\nNo capability matched `").append(topic == null ? "" : topic.trim())
+            output.append("\n\nNo capability matched `").append(displayTopic)
                     .append("`. Use `/help` to show the complete catalog.");
         } else if (!normalizedTopic.isBlank()) {
-            output.append("\n\n_Filtered by: `").append(topic.trim()).append("`. Use `/help` for everything._");
+            output.append("\n\n_Filtered by: `").append(displayTopic).append("`. Use `/help` for everything._");
         }
         return output.toString();
     }
