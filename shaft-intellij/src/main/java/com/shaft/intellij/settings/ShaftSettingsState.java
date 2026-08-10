@@ -125,6 +125,8 @@ public final class ShaftSettingsState implements PersistentStateComponent<ShaftS
         public boolean passProviderApiKeysToMcp = false;
         public boolean advancedUiEnabled = false;
         public boolean autoCompactEnabled = false;
+        /** Explicit opt-in for local-agent commands to run outside the project sandbox. */
+        public boolean unrestrictedLocalAgentAccess = false;
         /**
          * Opt-in, default-off "watch mode": reruns the last SHAFT test run configuration when a
          * {@code src/test/} file changes, bounded by {@code WatchRerunThrottle} (see

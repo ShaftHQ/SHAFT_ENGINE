@@ -20,6 +20,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.jupiter.api.Assertions.assertAll;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -46,6 +47,26 @@ class AssistantLocalAgentRunnerCommandTest {
                         "Ungranted AGENT mode must not hard-code auto-approve: " + ungranted),
                 () -> assertTrue(ungranted.contains("read-only"), "Ungranted AGENT mode keeps the read-only sandbox: "
                         + ungranted));
+    }
+
+    @Test
+    void codexExecUsesUnrestrictedAutoModeOnlyWhenSourceEditsAreGranted() {
+        List<String> granted = AssistantLocalAgentRunner.commandFor(arguments("CODEX", "AGENT", true));
+        JsonObject unrestrictedArguments = arguments("CODEX", "AGENT", true);
+        unrestrictedArguments.addProperty("unrestrictedLocalAgentAccess", true);
+        List<String> unrestricted = AssistantLocalAgentRunner.commandFor(unrestrictedArguments);
+        List<String> ungranted = AssistantLocalAgentRunner.commandFor(arguments("CODEX", "AGENT", false));
+
+        assertAll(
+                () -> assertEquals(List.of("codex", "--dangerously-bypass-approvals-and-sandbox", "exec"),
+                        unrestricted.subList(0, 3), unrestricted.toString()),
+                () -> assertFalse(unrestricted.contains("--sandbox"), unrestricted.toString()),
+                () -> assertEquals(List.of("codex", "--ask-for-approval", "never", "exec"),
+                        granted.subList(0, 4), granted.toString()),
+                () -> assertTrue(granted.contains("workspace-write"), granted.toString()),
+                () -> assertEquals(List.of("codex", "--ask-for-approval", "never", "exec"),
+                        ungranted.subList(0, 4), ungranted.toString()),
+                () -> assertTrue(ungranted.contains("read-only"), ungranted.toString()));
     }
 
     @Test

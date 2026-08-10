@@ -139,6 +139,7 @@ final class ShaftAssistantPanel extends JPanel implements Disposable {
     private static final String READY_STATUS = "Try asking me to do something...";
     private static final int NARROW_RUN_SETTINGS_WIDTH = 420;
     private static final String SEND_TOOLTIP = "Send assistant prompt (Ctrl+Enter, Command+Enter, or Ctrl+click)";
+    private static final String CLI_DEFAULT_MODEL = "CLI default";
     private static final String LOCAL_MODEL_TOOLTIP_LIVE = "Model reported by the connected agent CLI";
     private static final String LOCAL_MODEL_TOOLTIP_EMPTY =
             "CLI did not report models — type a model name or click refresh to try again";
@@ -180,6 +181,11 @@ final class ShaftAssistantPanel extends JPanel implements Disposable {
     private final JButton retryProviderModels;
     private final JComboBox<String> localModel;
     private final JButton refreshLocalModels;
+    private final JLabel localModelStatus;
+    private final JLabel agentHealthStatus;
+    private final JButton recheckAgentHealth;
+    private final JButton repairAgentSkills;
+    private final JPanel agentHealthPanel;
     private final JComboBox<String> effort;
     private final JBTextField customCommand;
     private final JPanel cloudKeyPanel;
@@ -187,6 +193,7 @@ final class ShaftAssistantPanel extends JPanel implements Disposable {
     private final JButton saveCloudApiKey;
     private final JLabel cloudKeyStatus;
     private final JBCheckBox allowSourceMutation;
+    private final JBCheckBox unrestrictedLocalAgentAccess;
     /**
      * Bordered chip wrapping {@link #allowSourceMutation} so the highest-stakes toggle in
      * {@code routeRow} (it lets Agent mode mutate the user's project source) reads with distinct
@@ -388,6 +395,7 @@ final class ShaftAssistantPanel extends JPanel implements Disposable {
     private String modelListFamily = "";
     private boolean modelListRefreshing;
     private String modelListRefreshingFamily = "";
+    private boolean pendingSkillRepairResume;
     private long modelListRequestGeneration;
     private String providerModelRequestKey = "";
     private boolean providerModelRefreshing;
@@ -504,6 +512,9 @@ final class ShaftAssistantPanel extends JPanel implements Disposable {
             localModelEditor.getAccessibleContext().setAccessibleName("Assistant local agent model text");
             localModelEditor.setToolTipText(LOCAL_MODEL_TOOLTIP_LIVE);
         }
+        localModelStatus = new JLabel("Using CLI default");
+        localModelStatus.getAccessibleContext().setAccessibleName("Local model discovery status");
+        localModelStatus.getAccessibleContext().setAccessibleDescription(localModelStatus.getText());
         // Local model names are account-specific; only the CLI can offer choices, while this
         // editable selector always permits manual entry.
         applyLocalModels(resolveFamily(settings), List.of());
@@ -515,6 +526,16 @@ final class ShaftAssistantPanel extends JPanel implements Disposable {
             refreshLocalModelsIfNeeded();
         });
         ShaftIconButtons.apply(refreshLocalModels, ShaftIcons.RERUN);
+        agentHealthStatus = new JLabel();
+        agentHealthStatus.getAccessibleContext().setAccessibleName("Local agent health status");
+        recheckAgentHealth = button("Recheck", "Recheck local agent health", event -> updateAgentHealth());
+        repairAgentSkills = button("Repair skills", "Repair SHAFT agent skills", event -> repairAgentSkills(false));
+        agentHealthPanel = new JPanel(new WrapLayout(FlowLayout.LEFT, 6, 0));
+        agentHealthPanel.getAccessibleContext().setAccessibleName("Local agent health controls");
+        agentHealthPanel.add(agentHealthStatus);
+        agentHealthPanel.add(recheckAgentHealth);
+        agentHealthPanel.add(repairAgentSkills);
+        updateAgentHealth();
         effort = combo("Assistant effort", AssistantModelCatalog.effortLevels().toArray(new String[0]));
         effort.setSelectedItem(normalize(settings.assistantEffort, AssistantModelCatalog.DEFAULT_EFFORT));
         effort.setToolTipText("Reasoning effort requested from the selected model");
@@ -559,6 +580,14 @@ final class ShaftAssistantPanel extends JPanel implements Disposable {
                 JBUI.Borders.customLine(ShaftStatusPresentation.disconnected(), 1),
                 JBUI.Borders.empty(2, 6)));
         allowSourceMutationChip.add(allowSourceMutation, BorderLayout.CENTER);
+        unrestrictedLocalAgentAccess = new JBCheckBox("Run Codex without sandbox");
+        unrestrictedLocalAgentAccess.getAccessibleContext()
+                .setAccessibleName("Allow unrestricted Codex access outside the project");
+        unrestrictedLocalAgentAccess.setToolTipText("Recovery option for a broken Windows sandbox. "
+                + "Codex commands and file edits may access paths outside this project.");
+        unrestrictedLocalAgentAccess.setSelected(settings.unrestrictedLocalAgentAccess);
+        unrestrictedLocalAgentAccess.addActionListener(event ->
+                settings.unrestrictedLocalAgentAccess = unrestrictedLocalAgentAccess.isSelected());
         verboseAgentOutput = new JBCheckBox("Verbose");
         verboseAgentOutput.getAccessibleContext().setAccessibleName("Show verbose agent output");
         verboseAgentOutput.setToolTipText("Forward everything as-is: live local agent output "
@@ -709,7 +738,10 @@ final class ShaftAssistantPanel extends JPanel implements Disposable {
 
         mode.addActionListener(event -> onModeOrRouteSelectionChanged());
         providerType.addActionListener(event -> onModeOrRouteSelectionChanged());
-        assistantFamily.addActionListener(event -> updateControlVisibility());
+        assistantFamily.addActionListener(event -> {
+            updateControlVisibility();
+            updateAgentHealth();
+        });
         assistantRuntime.addActionListener(event -> updateControlVisibility());
         cloudProvider.addActionListener(event -> {
             invalidateProviderModels();
@@ -789,8 +821,11 @@ final class ShaftAssistantPanel extends JPanel implements Disposable {
         runSettingsPanel.add(runSetting("Provider key", cloudKeyPanel));
         runSettingsPanel.add(runSetting("Local model", localModel));
         runSettingsPanel.add(runSetting("Refresh models", refreshLocalModels));
+        runSettingsPanel.add(runSetting("Model status", localModelStatus));
+        runSettingsPanel.add(runSetting("Agent health", agentHealthPanel));
         runSettingsPanel.add(runSetting("Effort", effort));
         runSettingsPanel.add(runSetting("Source edits", allowSourceMutationChip));
+        runSettingsPanel.add(runSetting("Sandbox", unrestrictedLocalAgentAccess));
         runSettingsPanel.add(runSetting("Output", verboseAgentOutput));
         runSettingsPanel.add(runSetting("Context", autoCompact));
         runSettingsPanel.setVisible(false);
@@ -1540,6 +1575,10 @@ final class ShaftAssistantPanel extends JPanel implements Disposable {
                 openFileContext(project),
                 conversationContext,
                 attachmentsContext);
+        if ("autobot_local_agent_run".equals(invocation.toolName())) {
+            invocation.arguments().addProperty("unrestrictedLocalAgentAccess",
+                    unrestrictedLocalAgentAccess.isSelected());
+        }
         invocation = routeNaturalStopToActiveRecorder(text, invocation);
         // AssistantCommand.requiresShaftProject(invocation) checked FIRST (and short-circuits): it is
         // a cheap, pure tool-name-set check, whereas ShaftProjectDetector.isShaftProject(project) hits
@@ -1586,6 +1625,15 @@ final class ShaftAssistantPanel extends JPanel implements Disposable {
                     "Allow source edits and resend",
                     () -> allowSourceMutation.setSelected(true));
             return;
+        }
+        if (AssistantLocalAgentRunner.supports(invocation)) {
+            AssistantSkillReadiness.Result readiness = skillReadiness();
+            if (!readiness.ready()) {
+                setRunning(false, "Repair SHAFT skills");
+                updateAgentHealth();
+                showSkillReadinessGate(readiness);
+                return;
+            }
         }
         prompt.setText("");
         if (!attachments.isEmpty()) {
@@ -1761,6 +1809,9 @@ final class ShaftAssistantPanel extends JPanel implements Disposable {
     }
 
     private void showDeniedToolResult(String toolName) {
+        if ("shaft_project_init_agents".equals(toolName)) {
+            pendingSkillRepairResume = false;
+        }
         setRunning(false, "Denied " + toolName);
         showResponse("**SHAFT Assistant (" + toolName + " denied)**\n\nThe request was denied.", "",
                 ShaftAssistantChatState.KIND_TOOL_EVENT);
@@ -2073,6 +2124,16 @@ final class ShaftAssistantPanel extends JPanel implements Disposable {
             appendToolEvidence(toolName, output);
         }
         String markdown = AssistantMarkdown.fromMcpOutput(toolName, output);
+        if ("shaft_project_init_agents".equals(toolName)) {
+            boolean resume = pendingSkillRepairResume;
+            pendingSkillRepairResume = false;
+            updateAgentHealth();
+            showFinalToolResult(toolName, success, markdown, output);
+            if (success && resume && skillReadiness().ready()) {
+                rerun(project);
+            }
+            return;
+        }
         if (rejectedGeneratedJava) {
             showRejectedToolResult(toolName, markdown);
             return;
@@ -2106,6 +2167,9 @@ final class ShaftAssistantPanel extends JPanel implements Disposable {
 
     private void showCancelledToolResult(String toolName, boolean killed) {
         String terminalStep = killed ? "Killed" : "Cancelled";
+        if ("shaft_project_init_agents".equals(toolName)) {
+            pendingSkillRepairResume = false;
+        }
         if (isRecordingCodeReviewTool(toolName) && captureReviewGenerationRunning) {
             captureReviewGenerationRunning = false;
             clearPendingCaptureReview();
@@ -3579,6 +3643,10 @@ final class ShaftAssistantPanel extends JPanel implements Disposable {
         // the checkbox's own visibility above so it never renders as an empty colored box (#3601
         // B3.4). Selection/enable/listener logic for the checkbox itself is untouched.
         allowSourceMutationChip.setVisible(agentMode && localAgent);
+        boolean codexAgent = agentMode && localCli
+                && "CODEX".equals(String.valueOf(assistantFamily.getSelectedItem()));
+        unrestrictedLocalAgentAccess.setVisible(codexAgent);
+        unrestrictedLocalAgentAccess.setEnabled(controlsEnabled && codexAgent && allowSourceMutation.isSelected());
         // Verbose applies to every run shape: local agent CLI streams AND direct MCP tool runs,
         // so it stays available on every route (issue #3426 B5).
         verboseAgentOutput.setVisible(true);
@@ -3587,6 +3655,11 @@ final class ShaftAssistantPanel extends JPanel implements Disposable {
         localModel.setEnabled(controlsEnabled && localCli);
         refreshLocalModels.setVisible(localCli);
         refreshLocalModels.setEnabled(controlsEnabled && localCli);
+        localModelStatus.setVisible(localCli);
+        localModelStatus.setEnabled(controlsEnabled && localCli);
+        agentHealthPanel.setVisible(localCli);
+        recheckAgentHealth.setEnabled(controlsEnabled && localCli);
+        repairAgentSkills.setEnabled(controlsEnabled && localCli && !skillReadiness().ready());
         effort.setVisible(cloud || localCli);
         effort.setEnabled(controlsEnabled && (cloud || localCli));
         autoCompact.setVisible(localAgent && localCli);
@@ -3620,6 +3693,7 @@ final class ShaftAssistantPanel extends JPanel implements Disposable {
         }
         modelListRefreshing = true;
         modelListRefreshingFamily = family;
+        setLocalModelStatus("Checking model catalog…");
         long requestGeneration = ++modelListRequestGeneration;
         JsonObject arguments = new JsonObject();
         arguments.addProperty("client", AssistantCommand.Selection.local(family, "CLI").client());
@@ -3661,7 +3735,11 @@ final class ShaftAssistantPanel extends JPanel implements Disposable {
         String selectedModel = previousSelection != null && !previousSelection.isBlank()
                 ? previousSelection
                 : settings.localModel == null ? "" : settings.localModel.trim();
-        List<String> effectiveModels = discovery.models();
+        List<String> effectiveModels = new ArrayList<>();
+        effectiveModels.add(CLI_DEFAULT_MODEL);
+        effectiveModels.addAll(discovery.models().stream()
+                .filter(candidate -> !CLI_DEFAULT_MODEL.equals(candidate))
+                .toList());
         DefaultComboBoxModel<String> model = new DefaultComboBoxModel<>(effectiveModels.toArray(new String[0]));
         localModel.setModel(model);
         String tooltip = switch (discovery.state()) {
@@ -3671,14 +3749,82 @@ final class ShaftAssistantPanel extends JPanel implements Disposable {
             case FAILED -> LOCAL_MODEL_TOOLTIP_FAILED;
         };
         localModel.setToolTipText(tooltip);
+        setLocalModelStatus(switch (discovery.state()) {
+            case AVAILABLE -> "Ready · " + discovery.models().size() + " models + CLI default";
+            case EMPTY -> "No models reported · CLI default";
+            case UNAVAILABLE -> "CLI unavailable · Check PATH";
+            case FAILED -> "Reload failed · Retry";
+        });
         if (localModel.getEditor().getEditorComponent() instanceof JTextComponent localModelEditor) {
             localModelEditor.setToolTipText(tooltip);
         }
         if (!selectedModel.isBlank()) {
             localModel.setSelectedItem(selectedModel);
-        } else if (!effectiveModels.isEmpty()) {
-            localModel.setSelectedItem(effectiveModels.get(0));
+        } else {
+            localModel.setSelectedItem(CLI_DEFAULT_MODEL);
         }
+    }
+
+    private void setLocalModelStatus(String message) {
+        localModelStatus.setText(message);
+        localModelStatus.getAccessibleContext().setAccessibleDescription(message);
+    }
+
+    private AssistantSkillReadiness.Result skillReadiness() {
+        String projectRoot = project == null ? "" : project.getBasePath();
+        return AssistantSkillReadiness.inspect(projectRoot,
+                String.valueOf(assistantFamily.getSelectedItem()));
+    }
+
+    private void updateAgentHealth() {
+        AssistantSkillReadiness.Result readiness = skillReadiness();
+        String message = readiness.status();
+        agentHealthStatus.setText(message);
+        agentHealthStatus.getAccessibleContext().setAccessibleDescription(message);
+        repairAgentSkills.setVisible(!readiness.ready());
+        repairAgentSkills.setEnabled(!running && !readiness.ready());
+    }
+
+    private void repairAgentSkills(boolean resumePrompt) {
+        String projectRoot = project == null ? "" : project.getBasePath();
+        if (projectRoot == null || projectRoot.isBlank()) {
+            setStatus("Open a project to repair skills");
+            return;
+        }
+        pendingSkillRepairResume = resumePrompt;
+        JsonObject arguments = new JsonObject();
+        arguments.addProperty("loop", AssistantSkillReadiness.repairLoop(
+                String.valueOf(assistantFamily.getSelectedItem())));
+        arguments.addProperty("targetDirectory", projectRoot);
+        arguments.addProperty("overwrite", false);
+        startMcpInvocation(AssistantCommand.Invocation.tool("shaft_project_init_agents", arguments));
+    }
+
+    private void showSkillReadinessGate(AssistantSkillReadiness.Result readiness) {
+        JButton repair = new JButton("Repair SHAFT skills and resend");
+        repair.getAccessibleContext().setAccessibleName("Repair SHAFT skills and resend");
+        repair.addActionListener(event -> {
+            transcript.clearWidget();
+            repairAgentSkills(true);
+        });
+        JButton recheck = new JButton("Recheck skills");
+        recheck.getAccessibleContext().setAccessibleName("Recheck SHAFT skills");
+        recheck.addActionListener(event -> {
+            updateAgentHealth();
+            if (skillReadiness().ready()) {
+                transcript.clearWidget();
+                rerun(project);
+            }
+        });
+        JPanel actions = new JPanel(new WrapLayout(FlowLayout.LEFT, 6, 0));
+        actions.add(repair);
+        actions.add(recheck);
+        String missing = String.join("`, `", readiness.missingSkills());
+        transcript.showWidget("assistant", transcript.assistantBubbleWithActions(
+                "Required SHAFT skills are missing: `" + missing
+                        + "`. Repair installs the project-local skills, rechecks them, and resumes this request.",
+                actions, "SHAFT skill readiness gate"));
+        runOnEdt(repair::requestFocusInWindow);
     }
 
     private void refreshProviderModelsIfNeeded() {
@@ -3936,7 +4082,8 @@ final class ShaftAssistantPanel extends JPanel implements Disposable {
         Object item = combo.isEditable() && combo.getEditor() != null
                 ? combo.getEditor().getItem()
                 : combo.getSelectedItem();
-        return item == null ? "" : item.toString().trim();
+        String value = item == null ? "" : item.toString().trim();
+        return CLI_DEFAULT_MODEL.equals(value) ? "" : value;
     }
 
     private static void runOnEdt(Runnable action) {
@@ -4464,6 +4611,7 @@ final class ShaftAssistantPanel extends JPanel implements Disposable {
         generateCaptureReviewAfterStop = false;
         captureReviewGenerationRunning = false;
         captureIntegrationRunning = false;
+        pendingSkillRepairResume = false;
         transcript.clear();
         contextTruncationBoundaryIndex = -1;
         lastResponse = "";
@@ -4485,6 +4633,7 @@ final class ShaftAssistantPanel extends JPanel implements Disposable {
         generateCaptureReviewAfterStop = false;
         captureReviewGenerationRunning = false;
         captureIntegrationRunning = false;
+        pendingSkillRepairResume = false;
         refreshChatSelector();
         transcript.clear();
         prompt.setText("");
@@ -4511,6 +4660,7 @@ final class ShaftAssistantPanel extends JPanel implements Disposable {
             generateCaptureReviewAfterStop = false;
             captureReviewGenerationRunning = false;
             captureIntegrationRunning = false;
+            pendingSkillRepairResume = false;
             restoreTranscript();
             setStatus("Chat loaded");
         }

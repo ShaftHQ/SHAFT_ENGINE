@@ -692,6 +692,13 @@ class ShaftPanelSetupTest {
         method.invoke(target);
     }
 
+    private static void invokePrivate(Object target, String methodName, Class<?>[] parameterTypes, Object... arguments)
+            throws Exception {
+        Method method = target.getClass().getDeclaredMethod(methodName, parameterTypes);
+        method.setAccessible(true);
+        method.invoke(target, arguments);
+    }
+
     @Test
     void toolsExplainMissingMcpConfiguration() {
         ShaftFeaturePanel panel = new ShaftFeaturePanel(null, blankMcpSettings());
@@ -2124,7 +2131,67 @@ class ShaftPanelSetupTest {
     }
 
     @Test
-    void assistantDoesNotOfferGuessedModelsWhenCliReportsNoModels() throws Exception {
+    void assistantKeepsCliDefaultAvailableAndShowsModelDiscoveryStatus() throws Exception {
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
+        JComboBox<?> localModel = findByAccessibleName(panel, "Assistant local agent model", JComboBox.class);
+        JLabel status = findByAccessibleName(panel, "Local model discovery status", JLabel.class);
+
+        applyLocalModels(panel, "CODEX", List.of());
+        assertAll(
+                () -> assertEquals(1, localModel.getItemCount()),
+                () -> assertEquals("CLI default", localModel.getItemAt(0)),
+                () -> assertEquals("CLI default", localModel.getSelectedItem()),
+                () -> assertTrue(status.getText().contains("No models reported"), status.getText()),
+                () -> assertEquals(status.getText(), status.getAccessibleContext().getAccessibleDescription()));
+
+        applyLocalModels(panel, "CODEX", List.of("gpt-5.6-sol", "gpt-5.6-terra"));
+        AssistantCommand.Invocation defaultInvocation = AssistantCommand.fromPrompt(
+                "Explain this failure", selectedRoute(panel), "ASK", ".", "", false);
+        assertAll(
+                () -> assertEquals(3, localModel.getItemCount()),
+                () -> assertEquals("CLI default", localModel.getItemAt(0)),
+                () -> assertTrue(status.getText().contains("2 models"), status.getText()),
+                () -> assertEquals(status.getText(), status.getAccessibleContext().getAccessibleDescription()),
+                () -> assertFalse(AssistantLocalAgentRunner.commandFor(defaultInvocation.arguments())
+                        .contains("--model")));
+    }
+
+    @Test
+    void assistantModelFailureStatusesRemainAccessibleAndFitNarrowSettings() throws Exception {
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
+        JLabel status = findByAccessibleName(panel, "Local model discovery status", JLabel.class);
+
+        applyLocalModelDiscovery(panel, "CODEX", AssistantLocalAgentRunner.ModelDiscoveryState.UNAVAILABLE);
+        assertAll(
+                () -> assertTrue(status.getText().contains("CLI unavailable"), status.getText()),
+                () -> assertEquals(status.getText(), status.getAccessibleContext().getAccessibleDescription()),
+                () -> assertTrue(status.getPreferredSize().width <= 307,
+                        "unavailable status width=" + status.getPreferredSize().width));
+
+        applyLocalModelDiscovery(panel, "CODEX", AssistantLocalAgentRunner.ModelDiscoveryState.FAILED);
+        assertAll(
+                () -> assertTrue(status.getText().contains("Reload failed"), status.getText()),
+                () -> assertEquals(status.getText(), status.getAccessibleContext().getAccessibleDescription()),
+                () -> assertTrue(status.getPreferredSize().width <= 307,
+                        "failed status width=" + status.getPreferredSize().width));
+    }
+
+    @Test
+    void assistantKeepsManualModelDuringAcceptedSameFamilyRefresh() throws Exception {
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
+        JComboBox<String> localModel = findByAccessibleName(panel, "Assistant local agent model", JComboBox.class);
+        localModel.getEditor().setItem("manual-account-model");
+
+        applyLocalModels(panel, "CODEX", List.of("gpt-5.6-sol"));
+
+        assertAll(
+                () -> assertEquals("manual-account-model", localModel.getEditor().getItem()),
+                () -> assertEquals("CLI default", localModel.getItemAt(0)),
+                () -> assertEquals("gpt-5.6-sol", localModel.getItemAt(1)));
+    }
+
+    @Test
+    void assistantDoesNotOfferGuessedNamedModelsWhenCliReportsNoModels() throws Exception {
         ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
         JComboBox<String> family = findByAccessibleName(panel, "Assistant family", JComboBox.class);
         JComboBox<?> localModel = findByAccessibleName(panel, "Assistant local agent model", JComboBox.class);
@@ -2133,7 +2200,8 @@ class ShaftPanelSetupTest {
         applyLocalModels(panel, "CLAUDE", List.of());
 
         assertAll(
-                () -> assertEquals(0, localModel.getItemCount()),
+                () -> assertEquals(1, localModel.getItemCount()),
+                () -> assertEquals("CLI default", localModel.getItemAt(0)),
                 () -> assertTrue(localModel.isEditable()),
                 () -> assertTrue(localModel.getToolTipText().contains("did not report models"),
                         localModel.getToolTipText()));
@@ -2148,13 +2216,15 @@ class ShaftPanelSetupTest {
 
         applyLocalModelDiscovery(panel, "CLAUDE", AssistantLocalAgentRunner.ModelDiscoveryState.UNAVAILABLE);
         assertAll(
-                () -> assertEquals(0, localModel.getItemCount()),
+                () -> assertEquals(1, localModel.getItemCount()),
+                () -> assertEquals("CLI default", localModel.getItemAt(0)),
                 () -> assertTrue(localModel.isEditable()),
                 () -> assertTrue(localModel.getToolTipText().contains("unavailable"), localModel.getToolTipText()));
 
         applyLocalModelDiscovery(panel, "CLAUDE", AssistantLocalAgentRunner.ModelDiscoveryState.FAILED);
         assertAll(
-                () -> assertEquals(0, localModel.getItemCount()),
+                () -> assertEquals(1, localModel.getItemCount()),
+                () -> assertEquals("CLI default", localModel.getItemAt(0)),
                 () -> assertTrue(localModel.isEditable()),
                 () -> assertTrue(localModel.getToolTipText().contains("failed"), localModel.getToolTipText()));
     }
@@ -2174,7 +2244,8 @@ class ShaftPanelSetupTest {
         assertAll(
                 () -> assertEquals("CLAUDE", family.getSelectedItem()),
                 () -> assertEquals("manual-model", localModel.getEditor().getItem()),
-                () -> assertEquals("claude-new", localModel.getItemAt(0)));
+                () -> assertEquals("CLI default", localModel.getItemAt(0)),
+                () -> assertEquals("claude-new", localModel.getItemAt(1)));
     }
 
     @Test
@@ -5877,6 +5948,10 @@ class ShaftPanelSetupTest {
                 // Provider discovery failures expose a direct, visible retry label; the focused
                 // provider-model layout contract verifies that text independently.
                 .filter(button -> !"Retry provider models".equals(accessibleName(button)))
+                // Local-agent health recovery uses visible action labels because Recheck and Repair
+                // have different effects that an icon-only pair would not communicate in settings.
+                .filter(button -> !"Recheck local agent health".equals(accessibleName(button)))
+                .filter(button -> !"Repair SHAFT agent skills".equals(accessibleName(button)))
                 .map(button -> () -> assertIconOnlySymmetric(button)));
     }
 
@@ -6672,6 +6747,101 @@ class ShaftPanelSetupTest {
 
         assertTrue(launchAttempted.await(5, TimeUnit.SECONDS),
                 "the resend must invoke the injected launcher instead of a real CLI process");
+    }
+
+    @Test
+    void unrestrictedCodexAccessIsExplicitDefaultOffAndPersisted() {
+        ShaftSettingsState.Settings settings = connectedMcpSettings();
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, settings);
+        JCheckBox unrestricted = findByAccessibleName(panel,
+                "Allow unrestricted Codex access outside the project", JCheckBox.class);
+
+        assertNotNull(unrestricted);
+        assertFalse(unrestricted.isSelected());
+        assertTrue(unrestricted.getToolTipText().contains("outside this project"));
+
+        unrestricted.doClick();
+        assertTrue(settings.unrestrictedLocalAgentAccess);
+    }
+
+    @Test
+    void assistantBlocksLocalAgentWhenRequiredShaftSkillsAreMissing(@TempDir Path projectRoot) throws Exception {
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(
+                fakeProject(new ShaftAssistantChatState(), projectRoot.toString()), blankMcpSettings());
+        CountDownLatch launchAttempted = new CountDownLatch(1);
+        setField(panel, "localAgentProcessLauncher",
+                (AssistantLocalAgentRunner.ProcessLauncher) (command, directory, environment) -> {
+                    launchAttempted.countDown();
+                    throw new IOException("test launcher");
+                });
+        setField(panel, "requireLocalAgentCommandAvailable", false);
+
+        setPendingCaptureReview(panel, "```java\nclass RecordedFlowTest {}\n```");
+        assistantPrompt(panel).setText("approve");
+        clickAccessible(panel, "Send assistant prompt");
+
+        assertAll(
+                () -> assertEquals(1L, launchAttempted.getCount()),
+                () -> assertNotNull(findByAccessibleName(panel, "Repair SHAFT skills and resend", JButton.class)),
+                () -> assertTrue(containsText(panel, "shaft-developer")),
+                () -> assertTrue(containsText(panel, "shaft-recording-codegen")));
+
+        for (String skill : List.of("shaft-developer", "shaft-recording-codegen")) {
+            Path skillDirectory = projectRoot.resolve(".agents/skills").resolve(skill);
+            Files.createDirectories(skillDirectory);
+            Files.writeString(skillDirectory.resolve("SKILL.md"), "name: " + skill);
+        }
+        clickAccessible(panel, "Recheck SHAFT skills");
+
+        assertTrue(launchAttempted.await(5, TimeUnit.SECONDS),
+                "recheck must resume the pending request after both skills are present");
+    }
+
+    @Test
+    void assistantFamilySwitchRefreshesSkillHealth(@TempDir Path projectRoot) throws Exception {
+        for (String skill : List.of("shaft-developer", "shaft-recording-codegen")) {
+            Path skillDirectory = projectRoot.resolve(".agents/skills").resolve(skill);
+            Files.createDirectories(skillDirectory);
+            Files.writeString(skillDirectory.resolve("SKILL.md"), "name: " + skill);
+        }
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(
+                fakeProject(new ShaftAssistantChatState(), projectRoot.toString()), blankMcpSettings());
+        JComboBox<?> family = findByAccessibleName(panel, "Assistant family", JComboBox.class);
+        JLabel health = findByAccessibleName(panel, "Local agent health status", JLabel.class);
+
+        assertTrue(health.getText().contains("Ready"), health.getText());
+        family.setSelectedItem("CLAUDE");
+
+        assertAll(
+                () -> assertTrue(health.getText().contains("Missing"), health.getText()),
+                () -> assertTrue(findByAccessibleName(panel, "Repair SHAFT agent skills", JButton.class).isVisible()));
+    }
+
+    @Test
+    void assistantClearsPendingSkillResumeWhenRepairIsDeniedOrCancelled() throws Exception {
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
+        setField(panel, "pendingSkillRepairResume", true);
+        invokePrivate(panel, "showDeniedToolResult", new Class<?>[]{String.class}, "shaft_project_init_agents");
+        assertFalse((Boolean) getField(panel, "pendingSkillRepairResume"));
+
+        setField(panel, "pendingSkillRepairResume", true);
+        invokePrivate(panel, "showCancelledToolResult", new Class<?>[]{String.class, boolean.class},
+                "shaft_project_init_agents", false);
+        assertFalse((Boolean) getField(panel, "pendingSkillRepairResume"));
+    }
+
+    @Test
+    void assistantAgentHealthControlsWrapAtNarrowWidth() throws Exception {
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
+        JPanel health = (JPanel) getField(panel, "agentHealthPanel");
+        health.setSize(240, 100);
+        health.doLayout();
+
+        int firstRow = health.getComponent(0).getY();
+        assertAll(
+                () -> assertTrue(health.getLayout() instanceof WrapLayout),
+                () -> assertTrue(Arrays.stream(health.getComponents()).anyMatch(child -> child.getY() > firstRow),
+                        "health actions must wrap below the status at 240px"));
     }
 
     @Test

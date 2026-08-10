@@ -171,6 +171,11 @@ tasks {
         systemProperty("shaft.intellij.liveGemini", System.getProperty("shaft.intellij.liveGemini", "false"))
         systemProperty("shaft.intellij.liveWorkflows", System.getProperty("shaft.intellij.liveWorkflows", "false"))
         systemProperty("shaft.intellij.liveToolE2E", System.getProperty("shaft.intellij.liveToolE2E", "false"))
+        systemProperty("shaft.intellij.liveAgentE2E", System.getProperty("shaft.intellij.liveAgentE2E", "false"))
+        systemProperty("shaft.intellij.liveUnrestrictedAgentE2E",
+                System.getProperty("shaft.intellij.liveUnrestrictedAgentE2E", "false"))
+        systemProperty("shaft.intellij.liveShaftVersion",
+                System.getProperty("shaft.intellij.liveShaftVersion", project.version.toString()))
         systemProperty("shaft.intellij.liveMcpCommand", System.getProperty("shaft.intellij.liveMcpCommand", ""))
         systemProperty("shaft.intellij.workspaceRoot", System.getProperty("shaft.intellij.workspaceRoot", ".."))
         systemProperty("shaft.intellij.mcp.applicationDataRoot",

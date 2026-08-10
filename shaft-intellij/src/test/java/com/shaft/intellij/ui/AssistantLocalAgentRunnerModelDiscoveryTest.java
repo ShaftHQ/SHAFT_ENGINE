@@ -139,13 +139,34 @@ class AssistantLocalAgentRunnerModelDiscoveryTest {
     // -- listModels(JsonObject, ProcessLauncher) -----------------------------------------------
 
     @Test
-    void listModelsParsesTheStubProcessJsonStdoutOnASuccessfulExit() {
+    void listModelsParsesGenericCliJsonStdoutOnASuccessfulExit() {
         StubProcess process = new StubProcess("[\"gpt-5\",\"o1-mini\"]", "", 0, true);
 
         List<String> models = AssistantLocalAgentRunner.listModels(
-                arguments("CODEX"), (command, workingDirectory, environment) -> process);
+                arguments("CLAUDE_CODE"), (command, workingDirectory, environment) -> process);
 
         assertEquals(List.of("gpt-5", "o1-mini"), models);
+    }
+
+    @Test
+    void codexDiscoveryUsesDebugCatalogAndReturnsOnlyVisibleSlugs() {
+        String catalog = """
+                {"models":[
+                  {"slug":"gpt-5.6-sol","visibility":"list","display_name":"GPT-5.6-Sol",
+                   "upgrade":{"name":"not-a-model"}},
+                  {"slug":"internal-model","visibility":"hide","display_name":"Internal"},
+                  {"slug":"gpt-5.6-terra","visibility":"list","display_name":"GPT-5.6-Terra"}
+                ]}
+                """;
+
+        List<String> models = AssistantLocalAgentRunner.listModels(
+                arguments("CODEX"),
+                (command, workingDirectory, environment) -> new StubProcess(catalog, "", 0, true));
+
+        assertAll(
+                () -> assertEquals(List.of("codex", "debug", "models"),
+                        AssistantLocalAgentRunner.modelsCommandFor(arguments("CODEX"))),
+                () -> assertEquals(List.of("gpt-5.6-sol", "gpt-5.6-terra"), models));
     }
 
     @Test

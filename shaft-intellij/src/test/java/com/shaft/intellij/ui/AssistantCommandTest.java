@@ -268,9 +268,46 @@ class AssistantCommandTest {
     }
 
     @Test
-    void slashCodegenWithLiveInstructionsRoutesToReviewOnlyAgentCodegenPrompt() {
+    void slashCodegenScenarioStartsCaptureWithFullGoalAndTargetUrl() {
+        String scenario = "navigate to https://duckduckgo.com, search for shaft_engine, "
+                + "open the first result and assert that the url is correct.";
+
         AssistantCommand.Invocation invocation = AssistantCommand.fromPrompt(
-                "/codegen navigate to https://duckduckgo.com, search for shaft_engine, open the first result and assert that the url is correct.",
+                "/codegen " + scenario,
+                AssistantCommand.Selection.local("CODEX", "CLI"),
+                "AGENT",
+                ".",
+                "",
+                true);
+
+        assertAll(
+                () -> assertEquals("capture_start", invocation.toolName()),
+                () -> assertEquals(scenario, invocation.arguments().get("sessionGoal").getAsString()),
+                () -> assertEquals("https://duckduckgo.com", invocation.arguments().get("targetUrl").getAsString()),
+                () -> assertFalse(invocation.isSequence()));
+    }
+
+    @Test
+    void multilineSlashCodegenScenarioStartsCapture() {
+        AssistantCommand.Invocation invocation = AssistantCommand.fromPrompt(
+                "/codegen\nnavigate to https://example.com and click login",
+                AssistantCommand.Selection.local("CODEX", "CLI"),
+                "AGENT",
+                ".",
+                "",
+                true);
+
+        assertAll(
+                () -> assertEquals("capture_start", invocation.toolName()),
+                () -> assertEquals("navigate to https://example.com and click login",
+                        invocation.arguments().get("sessionGoal").getAsString()));
+    }
+
+    @Test
+    void naturalCodeOnlyRequestRoutesToReviewOnlyAgentCodegenPrompt() {
+        AssistantCommand.Invocation invocation = AssistantCommand.fromPrompt(
+                "generate SHAFT Java code for this browser flow: navigate to https://duckduckgo.com, "
+                        + "search for shaft_engine, open the first result and assert that the url is correct.",
                 AssistantCommand.Selection.local("CODEX", "CLI"),
                 "AGENT",
                 ".",
@@ -512,10 +549,11 @@ class AssistantCommandTest {
         // Deliberate flag change (R3-T1): codex exec now always adds the experimental --json flag,
         // and claude always adds --output-format stream-json --verbose, so the runner receives
         // incremental NDJSON events instead of a single buffered blob. Custom commands are untouched.
-        assertEquals(List.of("codex", "exec", "--skip-git-repo-check", "--sandbox", "read-only", "--json", "-"),
+        assertEquals(List.of("codex", "--ask-for-approval", "never", "exec", "--skip-git-repo-check",
+                        "--sandbox", "read-only", "--json", "-"),
                 AssistantLocalAgentRunner.commandFor(codexAsk.arguments()));
         assertEquals(List.of(
-                "codex", "exec",
+                "codex", "--ask-for-approval", "never", "exec",
                 "--skip-git-repo-check",
                 "--sandbox", "workspace-write",
                 "-c", "mcp_servers.shaft-mcp.default_tools_approval_mode=\"approve\"",
@@ -527,7 +565,7 @@ class AssistantCommandTest {
         // store grants it (allowSourceMutation is false here, so it must be absent) instead of being
         // hard-coded unconditionally as it was before.
         assertEquals(List.of(
-                "codex", "exec",
+                "codex", "--ask-for-approval", "never", "exec",
                 "--skip-git-repo-check",
                 "--sandbox", "read-only",
                 "-c", "mcp_servers.shaft-mcp.tool_timeout_sec=600",
@@ -557,7 +595,7 @@ class AssistantCommandTest {
 
         assertAll(
                 () -> assertEquals(List.of(
-                                "codex", "exec",
+                                "codex", "--ask-for-approval", "never", "exec",
                                 "--skip-git-repo-check",
                                 "--model", "gpt-5.2-codex",
                                 "-c", "model_reasoning_effort=\"high\"",
@@ -810,6 +848,7 @@ class AssistantCommandTest {
                 () -> assertFalse(prompt.toLowerCase(Locale.ROOT).contains("smart locator"), prompt),
                 () -> assertFalse(prompt.contains("SHAFT.GUI.Locator.hasRole("), prompt),
                 () -> assertFalse(prompt.contains(
-                        "By.xpath(...) only when the element exposes no ARIA role"), prompt));
+                        "By.xpath(...) only when the element exposes no ARIA role"), prompt),
+                () -> assertTrue(prompt.contains("Preserve project build descriptors"), prompt));
     }
 }
