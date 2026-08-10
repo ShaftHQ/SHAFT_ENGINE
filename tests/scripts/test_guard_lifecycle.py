@@ -837,10 +837,13 @@ class ReviewBeforeArmingGateTest(unittest.TestCase):
             for command in (
                 "gh pr merge 4539 --auto --squash",
                 "gh pr merge 4539 --auto --rebase",
+                "gh pr merge 4539 --auto -s",
+                "gh pr merge 4539 --auto -r",
                 "gh pr merge 4539 --auto --squash=true",
                 "gh pr merge 4539 --auto --rebase=true",
                 "gh -R ShaftHQ/SHAFT_ENGINE pr merge 4539 --auto --squash",
                 "gh -RShaftHQ/SHAFT_ENGINE pr merge 4539 --auto --squash",
+                "gh -RShaftHQ/SHAFT_ENGINE pr merge 4539 --auto -s",
                 "gh --repo=ShaftHQ/SHAFT_ENGINE pr merge 4539 --auto --rebase=true",
             ):
                 with self.subTest(command=command):
