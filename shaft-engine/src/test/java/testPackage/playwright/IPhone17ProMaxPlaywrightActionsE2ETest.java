@@ -8,7 +8,8 @@ public class IPhone17ProMaxPlaywrightActionsE2ETest extends PlaywrightMobileWebE
 
     @Override
     protected String expectedUserAgentText() {
-        // ponytail: keep UA check resilient to OS version churn in Playwright/browser updates
+        // ponytail: keep the UA check resilient to OS version churn. Ceiling: iPhone OS identity only.
+        // Upgrade trigger: the flow depends on a specific browser or operating-system version.
         return "iPhone OS";
     }
 

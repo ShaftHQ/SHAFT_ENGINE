@@ -28,6 +28,51 @@
       "horizon": "medium",
       "workspace": {"files": {"status.txt": "clean worktree"}},
       "expectations": [{"kind": "guard", "outcome": "silent", "remedy": "none"}]
+    },
+    {
+      "id": "long-research-before-implementation",
+      "rule_ids": ["research-first"],
+      "horizon": "long",
+      "workspace": {"files": {"source/task.md": "Implement the requested behavior."}},
+      "expectations": [{
+        "kind": "sequence",
+        "before": "implementation-mutation",
+        "ordered": [
+          "read-live-files",
+          "load-routed-skill",
+          "query-native-memory",
+          "query-mempalace",
+          "query-graphify",
+          "authoritative-online-research",
+          "compare-proven-approaches",
+          "record-plan"
+        ]
+      }]
+    },
+    {
+      "id": "short-caveman-preserves-exact-facts",
+      "rule_ids": ["caveman"],
+      "horizon": "short",
+      "workspace": {"files": {"source/task.md": "Do not retry. Wait 15 ms. Run mvn -q test."}},
+      "expectations": [{
+        "kind": "preserves",
+        "facts": [
+          {"kind": "negated_action", "value": "retry"},
+          {"kind": "quantity", "value": "15", "unit": "ms"},
+          {"kind": "command", "value": "mvn -q test"}
+        ]
+      }]
+    },
+    {
+      "id": "short-ponytail-first-viable-rung",
+      "rule_ids": ["ponytail"],
+      "horizon": "short",
+      "workspace": {"files": {"source/task.md": "Choose the first viable implementation rung."}},
+      "expectations": [{
+        "kind": "first_viable",
+        "ordered": ["existing-owner", "standard-library", "native-platform", "installed-dependency", "minimum-new-code"],
+        "viable": ["standard-library", "installed-dependency", "minimum-new-code"]
+      }]
     }
   ]
 }

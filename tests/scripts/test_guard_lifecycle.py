@@ -15,6 +15,7 @@ import tempfile
 import time
 import unittest
 from contextlib import redirect_stdout
+from pathlib import Path
 from unittest import mock
 from unittest.mock import patch
 
@@ -222,6 +223,240 @@ class GuardLifecycleTest(unittest.TestCase):
         self.assertIn(
             "act-as-mohab", output["hookSpecificOutput"]["additionalContext"]
         )
+
+    @patch("scripts.agents.guard._mempalace_wake_up", return_value=None)
+    @patch("scripts.agents.guard._memory_do_not_lines", return_value=None)
+    @patch("scripts.agents.guard._standing_constraints", return_value=None)
+    @patch("scripts.agents.guard._sync_advisory", return_value=None)
+    @patch(
+        "scripts.agents.guard._worktree_report",
+        return_value={"worktrees": [], "advisories": []},
+    )
+    def test_session_start_injects_the_complete_implementation_preflight(
+        self, _report, _sync, _constraints, _reminders, _wake_up
+    ):
+        context = self.output(guard.run_session_start, {"cwd": "."})[
+            "hookSpecificOutput"
+        ]["additionalContext"].lower()
+        for required in (
+            "implementation preflight",
+            "live files",
+            "routed skill",
+            "native memory",
+            "mempalace",
+            "graphify",
+            "authoritative online research",
+            "proven approaches",
+            "concrete plan",
+        ):
+            self.assertIn(required, context)
+
+    def payload(self) -> dict:
+        return {
+            "cwd": ".",
+            "session_id": "research-first-test",
+            "tool_name": "Write",
+            "tool_input": {"file_path": ".agents/skills/act-as-mohab/SKILL.md"},
+        }
+
+    def test_write_without_a_receipt_is_blocked(self):
+        with patch("scripts.agents.guard.ledger_events", return_value=[]):
+            reason = guard.check_r25_research_before_implementation(self.payload(), "Write")
+        self.assertIn("research-first", reason.lower())
+        self.assertIn("read-live-files", reason)
+
+    def test_each_missing_or_late_receipt_event_blocks_the_mutation(self):
+        required = guard.RESEARCH_PREFLIGHT_EVENTS
+        for missing in required:
+            with self.subTest(missing=missing):
+                events = [event for event in required if event != missing]
+                with patch("scripts.agents.guard.ledger_events", return_value=events):
+                    self.assertIsNotNone(
+                        guard.check_r25_research_before_implementation(self.payload(), "Write")
+                    )
+        late = [*required[1:], required[0]]
+        with patch("scripts.agents.guard.ledger_events", return_value=late):
+            self.assertIsNotNone(
+                guard.check_r25_research_before_implementation(self.payload(), "Write")
+            )
+
+    def test_complete_ordered_receipt_allows_the_mutation(self):
+        with patch(
+            "scripts.agents.guard.ledger_events",
+            return_value=list(guard.RESEARCH_PREFLIGHT_EVENTS),
+        ):
+            self.assertIsNone(
+                guard.check_r25_research_before_implementation(self.payload(), "Write")
+            )
+
+    def test_analysis_tools_are_not_blocked(self):
+        with patch("scripts.agents.guard.ledger_events", return_value=[]):
+            self.assertIsNone(
+                guard.check_r25_research_before_implementation(self.payload(), "Read")
+            )
+
+    def test_live_tool_events_map_to_the_receipt_vocabulary(self):
+        fixtures = (
+            ("Read", {"file_path": "src/Main.java"}, None, "read-live-files"),
+            ("Read", {"file_path": ".agents/skills/act-as-mohab/SKILL.md"}, None, "load-routed-skill"),
+            ("PowerShell", {"command": "memory search harness"}, None, "query-native-memory"),
+            ("PowerShell", {"command": "mempalace search harness"}, None, "query-mempalace"),
+            ("PowerShell", {"command": "graphify query guard"}, None, "query-graphify"),
+            ("WebSearch", {"query": "official hook documentation"}, {"url": "https://docs.github.com/en/actions"}, "authoritative-online-research"),
+            ("update_plan", {"explanation": "Compare proven approaches", "plan": []}, None, "compare-proven-approaches"),
+            ("update_plan", {"explanation": "Compare proven approaches", "plan": [{"step": "Implement", "status": "pending"}]}, None, "record-plan"),
+        )
+        for tool_name, tool_input, tool_result, expected in fixtures:
+            with self.subTest(tool_name=tool_name, expected=expected):
+                self.assertIn(
+                    expected,
+                    guard._research_preflight_events(tool_name, tool_input, tool_result),
+                )
+
+    def test_portable_hook_matchers_observe_receipt_and_mutation_tools(self):
+        for relative in (".claude/settings.json", ".codex/hooks.json"):
+            with self.subTest(relative=relative):
+                text = (Path(__file__).resolve().parents[2] / relative).read_text(encoding="utf-8")
+                for tool in ("Read", "WebSearch", "WebFetch", "update_plan", "apply_patch"):
+                    self.assertIn(tool, text)
+                self.assertIn("PostToolUse", text)
+
+    def test_every_live_mutation_lane_requires_the_receipt(self):
+        fixtures = (
+            ("PowerShell", {"command": "Set-Content scripts/x.py changed"}),
+            ("PowerShell", {"command": "Clear-Content scripts/x.py"}),
+            ("PowerShell", {"command": "Copy-Item source.txt scripts/x.py"}),
+            ("PowerShell", {"command": "Rename-Item old.txt scripts/x.py"}),
+            ("Bash", {"command": "printf changed > scripts/x.py"}),
+            ("mcp__shaft-memory__remember_memory", {"content": "durable"}),
+            ("mcp__mempalace__mempalace_delete_drawer", {"drawer_id": "x"}),
+            ("PowerShell", {"command": "gh api --method PATCH repos/o/r -f x=y"}),
+        )
+        for tool_name, tool_input in fixtures:
+            with self.subTest(tool_name=tool_name, tool_input=tool_input):
+                payload = {"cwd": ".", "tool_input": tool_input}
+                with patch("scripts.agents.guard.ledger_events", return_value=[]):
+                    self.assertIsNotNone(
+                        guard.check_r25_research_before_implementation(payload, tool_name)
+                    )
+
+    def test_apply_patch_shares_default_branch_and_outside_target_scoping(self):
+        inside = {
+            "cwd": ".",
+            "tool_input": {"patch": "*** Update File: scripts/x.py\n"},
+        }
+        outside = {
+            "cwd": ".",
+            "tool_input": {"patch": "*** Update File: ../scratch.txt\n"},
+        }
+        with patch("scripts.agents.guard._current_branch", return_value="main"):
+            with patch(
+                "scripts.agents.guard._repository_root",
+                return_value=os.path.realpath("."),
+            ):
+                self.assertIsNotNone(guard.check_r19_fresh_base(inside, "apply_patch"))
+                self.assertIsNone(guard.check_r19_fresh_base(outside, "apply_patch"))
+        with patch("scripts.agents.guard.ledger_events", return_value=[]):
+            self.assertIsNone(
+                guard.check_r25_research_before_implementation(outside, "apply_patch")
+            )
+
+    def test_only_successful_post_tool_events_certify_research(self):
+        payload = {
+            "cwd": ".",
+            "session_id": "post-tool-receipt",
+            "tool_name": "Read",
+            "tool_input": {"file_path": ".agents/skills/act-as-mohab/SKILL.md"},
+        }
+        observed = []
+        with patch("scripts.agents.guard.ledger_record", side_effect=lambda _payload, event: observed.append(event)):
+            self.assertEqual(guard.run_pretooluse(payload), 0)
+        self.assertEqual(observed, [], "attempted PreToolUse calls must not certify success")
+
+        with patch("scripts.agents.guard.ledger_record", side_effect=lambda _payload, event: observed.append(event)):
+            self.assertEqual(guard.run_posttooluse(payload), 0)
+        self.assertEqual(observed, ["read-live-files", "load-routed-skill"])
+
+    def test_successful_shell_research_is_recorded_in_command_order(self):
+        payload = {
+            "cwd": ".",
+            "session_id": "ordered-shell-receipt",
+            "tool_name": "PowerShell",
+            "tool_input": {
+                "command": "graphify query x; mempalace search x; memory search x; "
+                "Get-Content .agents/skills/act-as-mohab/SKILL.md"
+            },
+        }
+        observed = []
+        with patch("scripts.agents.guard.ledger_record", side_effect=lambda _payload, event: observed.append(event)):
+            guard.run_posttooluse(payload)
+        self.assertEqual(
+            observed,
+            [
+                "query-graphify",
+                "query-mempalace",
+                "query-native-memory",
+                "read-live-files",
+                "load-routed-skill",
+            ],
+        )
+
+    def test_only_explicit_primary_source_research_counts_as_authoritative(self):
+        generic = guard._research_preflight_events(
+            "WebSearch",
+            {"query": "unofficial blog, no standard documentation"},
+            {"results": [{"url": "https://example.com/opinion"}]},
+        )
+        primary = guard._research_preflight_events(
+            "WebSearch",
+            {"query": "official GitHub hooks documentation"},
+            {"results": [{"url": "https://docs.github.com/en/actions"}]},
+        )
+        self.assertNotIn("authoritative-online-research", generic)
+        self.assertIn("authoritative-online-research", primary)
+
+    def test_shell_file_targets_share_main_and_outside_scoping(self):
+        inside = {"cwd": ".", "tool_input": {"command": "Set-Content scripts/x.py x"}}
+        outside_path = os.path.join(tempfile.gettempdir(), "research-scratch.txt")
+        outside = {
+            "cwd": ".",
+            "tool_input": {"command": f'Set-Content "{outside_path}" x'},
+        }
+        root = os.path.realpath(".")
+        with patch("scripts.agents.guard._current_branch", return_value="main"):
+            with patch("scripts.agents.guard._repository_root", return_value=root):
+                self.assertIsNotNone(guard.check_r19_fresh_base(inside, "PowerShell"))
+                self.assertIsNone(guard.check_r19_fresh_base(outside, "PowerShell"))
+        with patch("scripts.agents.guard.ledger_events", return_value=[]):
+            self.assertIsNone(
+                guard.check_r25_research_before_implementation(outside, "PowerShell")
+            )
+
+    def test_issue_backed_plan_comment_completes_its_own_receipt_after_success(self):
+        command = (
+            "gh issue comment 4666 --body 'Implementation plan and executable specification'"
+        )
+        payload = {"cwd": ".", "tool_input": {"command": command}}
+        first_seven = list(guard.RESEARCH_PREFLIGHT_EVENTS[:-1])
+        with patch("scripts.agents.guard.ledger_events", return_value=first_seven):
+            self.assertIsNone(
+                guard.check_r25_research_before_implementation(payload, "PowerShell")
+            )
+        observed = []
+        with patch(
+            "scripts.agents.guard.ledger_record",
+            side_effect=lambda _payload, event: observed.append(event),
+        ):
+            guard.run_posttooluse(
+                {**payload, "tool_name": "PowerShell", "session_id": "issue-plan"}
+            )
+        self.assertIn("record-plan", observed)
+
+        unrelated = {"cwd": ".", "tool_input": {"command": "gh issue comment 4666 --body status"}}
+        with patch("scripts.agents.guard.ledger_events", return_value=first_seven):
+            self.assertIsNotNone(
+                guard.check_r25_research_before_implementation(unrelated, "PowerShell")
+            )
 
 
     @patch("scripts.agents.guard._open_pull_request_count", return_value=1)

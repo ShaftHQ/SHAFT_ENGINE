@@ -125,7 +125,8 @@ def validate_toml_bytes(content: bytes) -> None:
         tomllib.loads(text_content)
         return
 
-    # ponytail: fixtures use simple TOML; use stdlib parsing until CI runs 3.11+.
+    # ponytail: fixtures use simple TOML. Ceiling: this accepts the fixture subset only.
+    # Upgrade trigger: a fixture needs arrays, dotted keys, or another TOML feature.
     parser = configparser.ConfigParser()
     try:
         parser.read_string(text_content if text_content.lstrip().startswith("[") else f"[root]\n{text_content}")

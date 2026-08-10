@@ -64,6 +64,7 @@ import sys
 import tempfile
 import time
 from typing import NamedTuple
+from urllib.parse import urlparse
 
 # ---------------------------------------------------------------------------
 # R1: Maven test scoping + headless execution
@@ -1425,6 +1426,17 @@ _TEST_RUNNER = frozenset({"py", "python", "python3", "pytest", "mvn", "mvnw"})
 # run. `-Dtest=` is a prefix rather than a token, so it is checked separately.
 _TEST_TOKENS = frozenset({"unittest", "pytest", "surefire", "test", "verify"})
 _WRITE_TOOLS = frozenset({"Write", "Edit", "NotebookEdit"})
+_FILE_MUTATION_TOOLS = frozenset({*_WRITE_TOOLS, "apply_patch"})
+RESEARCH_PREFLIGHT_EVENTS = (
+    "read-live-files",
+    "load-routed-skill",
+    "query-native-memory",
+    "query-mempalace",
+    "query-graphify",
+    "authoritative-online-research",
+    "compare-proven-approaches",
+    "record-plan",
+)
 _NATIVE_MEMORY_WRITE_TOOLS = frozenset(
     {"mcp__shaft-memory__remember_memory", "mcp__shaft-memory__save_memory_patch"}
 )
@@ -1569,6 +1581,247 @@ def check_r12_test_before_production(hook_input: dict, tool_name: str) -> str | 
         "is not. Tests, guidance, configuration and docs are never blocked by "
         "this rule."
     )
+
+
+_PRIMARY_SOURCE_HOSTS = frozenset(
+    {
+        "docs.github.com",
+        "github.com",
+        "learn.microsoft.com",
+        "docs.python.org",
+        "docs.oracle.com",
+        "openjdk.org",
+        "maven.apache.org",
+        "w3.org",
+        "ietf.org",
+        "rfc-editor.org",
+        "nodejs.org",
+        "docs.npmjs.com",
+        "platform.openai.com",
+        "docs.anthropic.com",
+        "developer.mozilla.org",
+        "selenium.dev",
+        "playwright.dev",
+    }
+)
+
+
+def _has_primary_source_url(tool_result: object) -> bool:
+    rendered = json.dumps(tool_result, sort_keys=True) if tool_result is not None else ""
+    for candidate in re.findall(r"https?://[^\s\"'<>]+", rendered):
+        host = (urlparse(candidate).hostname or "").lower()
+        if host in _PRIMARY_SOURCE_HOSTS or any(
+            host.endswith("." + allowed) for allowed in _PRIMARY_SOURCE_HOSTS
+        ):
+            return True
+    return False
+
+
+def _research_preflight_events(
+    tool_name: str, tool_input: object, tool_result: object = None
+) -> tuple[str, ...]:
+    """Map one successful native-client tool call to receipt events in observed order."""
+    details = tool_input if isinstance(tool_input, dict) else {}
+    rendered = json.dumps(details, sort_keys=True).lower()
+    events: list[str] = []
+    if tool_name in {"Read", "Grep"}:
+        events.append("read-live-files")
+        if "skill.md" in rendered:
+            events.append("load-routed-skill")
+    if tool_name in {"Bash", "PowerShell"}:
+        command = str(details.get("command") or "").lower()
+        for segment in _command_segments(command):
+            lowered = segment.lower()
+            if re.search(r"(?:^|\s)(?:rg|grep|get-content|git\s+(?:show|diff))\b", lowered):
+                events.append("read-live-files")
+                if "skill.md" in lowered:
+                    events.append("load-routed-skill")
+            if re.search(r"(?:^|\s)memory\s+(?:search|load|inspect)\b", lowered):
+                events.append("query-native-memory")
+            if re.search(r"(?:^|\s)mempalace\s+(?:search|recall|wake-up|status|inspect)\b", lowered):
+                events.append("query-mempalace")
+            if "graphify" in lowered:
+                events.append("query-graphify")
+    lowered_name = tool_name.lower()
+    if "shaft-memory" in lowered_name and any(
+        verb in lowered_name for verb in ("search", "load", "inspect")
+    ):
+        events.append("query-native-memory")
+    if "mempalace" in lowered_name and any(
+        verb in lowered_name for verb in ("search", "recall", "wake", "status", "inspect")
+    ):
+        events.append("query-mempalace")
+    if "graphify" in lowered_name:
+        events.append("query-graphify")
+    if tool_name in {"WebSearch", "WebFetch", "web__run"} and _has_primary_source_url(
+        tool_result
+    ):
+        events.append("authoritative-online-research")
+    if tool_name == "update_plan":
+        explanation = str(details.get("explanation") or "").lower()
+        if "compare proven approaches" in explanation:
+            events.append("compare-proven-approaches")
+        plan = details.get("plan")
+        if isinstance(plan, list) and plan:
+            events.append("record-plan")
+    if tool_name in {"Bash", "PowerShell"} and _is_plan_receipt_command(
+        str(details.get("command") or "")
+    ):
+        events.append("record-plan")
+    return tuple(dict.fromkeys(events))
+
+
+def _implementation_targets(tool_name: str, tool_input: object) -> tuple[str, ...]:
+    """File targets for supported mutation tools; empty means no explicit target."""
+    details = tool_input if isinstance(tool_input, dict) else {}
+    if tool_name in _WRITE_TOOLS:
+        path = details.get("file_path") or details.get("path") or details.get("notebook_path")
+        return (str(path),) if path else ()
+    if tool_name == "apply_patch":
+        patch_text = str(details.get("patch") or details.get("input") or "")
+        return tuple(
+            match.group(1).strip()
+            for match in re.finditer(
+                r"(?m)^\*\*\* (?:Add|Update|Delete) File:\s*(.+?)\s*$", patch_text
+            )
+        )
+    if tool_name in {"Bash", "PowerShell"}:
+        return _shell_mutation_targets(str(details.get("command") or ""))
+    return ()
+
+
+def _shell_mutation_targets(command: str) -> tuple[str, ...]:
+    targets: list[str] = []
+    one_target = {
+        "set-content",
+        "add-content",
+        "clear-content",
+        "remove-content",
+        "remove-item",
+        "new-item",
+        "out-file",
+    }
+    destination_target = {"copy-item", "rename-item", "move-item"}
+    for segment in _command_segments(command):
+        tokens = _segment_tokens(segment)
+        if not tokens:
+            continue
+        head = tokens[0].lower()
+        if head in one_target and len(tokens) > 1:
+            targets.append(tokens[1])
+        elif head in destination_target and len(tokens) > 2:
+            targets.append(tokens[2])
+        for match in re.finditer(r"(?<![0-9])>(?![>&])\s*(?:\"([^\"]+)\"|'([^']+)'|([^\s]+))", segment):
+            targets.append(next(group for group in match.groups() if group is not None))
+    return tuple(dict.fromkeys(targets))
+
+
+def _shell_is_mutation(command: str) -> bool:
+    for segment in _command_segments(command):
+        lowered = segment.lower()
+        if re.search(
+            r"\b(?:set-content|add-content|clear-content|remove-content|out-file|"
+            r"new-item|remove-item|copy-item|rename-item|move-item)\b",
+            lowered,
+        ):
+            return True
+        if re.search(r"(?<![0-9])>(?![>&])", lowered):
+            return True
+        if re.search(r"\bgit\s+(?:add|commit|push|merge|rebase|reset|restore|rm|mv|tag|branch|checkout|switch|cherry-pick)\b", lowered):
+            return True
+        if re.search(r"\bgh\s+(?:api\b.*--method\s+(?:post|put|patch|delete)|pr\s+(?:create|merge|close|comment|edit)|issue\s+(?:create|close|comment|edit))\b", lowered):
+            return True
+        if re.search(r"\bmemory\s+(?:remember|delete|supersede|patch)\b", lowered):
+            return True
+        if re.search(r"\bmempalace\s+(?:add|delete|mine|sync|sweep|update|checkpoint)\b", lowered):
+            return True
+    return False
+
+
+def _is_plan_receipt_command(command: str) -> bool:
+    lowered = command.lower()
+    return bool(
+        re.search(r"\bgh\s+issue\s+comment\b", lowered)
+        and any(
+            marker in lowered
+            for marker in (
+                "implementation plan",
+                "executable specification",
+                "resolved caller matrix",
+            )
+        )
+    )
+
+
+def _is_implementation_mutation(tool_name: str, tool_input: object) -> bool:
+    if tool_name in _FILE_MUTATION_TOOLS:
+        return True
+    if tool_name in _NATIVE_MEMORY_WRITE_TOOLS or tool_name in _MEMPALACE_WRITE_TOOLS:
+        return True
+    if tool_name in {"Bash", "PowerShell"}:
+        details = tool_input if isinstance(tool_input, dict) else {}
+        return _shell_is_mutation(str(details.get("command") or ""))
+    return False
+
+
+def _act_as_mohab_root(cwd: object) -> str | None:
+    """Nearest ancestor that owns the canonical entrypoint, without invoking Git."""
+    if not cwd:
+        return None
+    current = os.path.abspath(str(cwd))
+    while True:
+        entrypoint = os.path.join(
+            current, ".agents", "skills", "act-as-mohab", "SKILL.md"
+        )
+        if os.path.isfile(entrypoint):
+            return current
+        parent = os.path.dirname(current)
+        if parent == current:
+            return None
+        current = parent
+
+
+def check_r25_research_before_implementation(
+    hook_input: dict, tool_name: str
+) -> str | None:
+    """Fail closed when an implementation tool arrives before the ordered receipt."""
+    tool_input = hook_input.get("tool_input")
+    if not _is_implementation_mutation(tool_name, tool_input):
+        return None
+    cwd = _hook_working_directory(hook_input)
+    root = _act_as_mohab_root(cwd)
+    if not root:
+        return None
+    if tool_name in _FILE_MUTATION_TOOLS or tool_name in {"Bash", "PowerShell"}:
+        targets = _implementation_targets(tool_name, tool_input)
+        if targets and all(not _path_is_inside(path, root, cwd) for path in targets):
+            return None
+    events = ledger_events(hook_input)
+    if _is_plan_receipt_command(
+        str((tool_input if isinstance(tool_input, dict) else {}).get("command") or "")
+    ):
+        required_prefix = RESEARCH_PREFLIGHT_EVENTS[:-1]
+        cursor = -1
+        for required in required_prefix:
+            try:
+                cursor = events.index(required, cursor + 1)
+            except ValueError:
+                break
+        else:
+            return None
+    cursor = -1
+    for required in RESEARCH_PREFLIGHT_EVENTS:
+        try:
+            cursor = events.index(required, cursor + 1)
+        except ValueError:
+            return (
+                "R25 research-first blocked: implementation requires the ordered "
+                "session receipt before mutation. Missing or late event: "
+                f"{required}. Required order: "
+                + ", ".join(RESEARCH_PREFLIGHT_EVENTS)
+                + ". Complete the live query or plan action; do not forge the ledger."
+            )
+    return None
 
 
 def _unpushed_commit_count(branch: str, cwd: object = None) -> int | None:
@@ -2208,23 +2461,17 @@ def check_r19_fresh_base(hook_input: dict, tool_name: str) -> str | None:
     the abnormal case -- so an ordinary edit costs exactly the one subprocess
     it cost before, which is what keeps this inside HOOK_BUDGET_SECONDS.
     """
-    if tool_name not in _WRITE_TOOLS:
+    if tool_name not in _FILE_MUTATION_TOOLS and tool_name not in {"Bash", "PowerShell"}:
+        return None
+    targets = _implementation_targets(tool_name, hook_input.get("tool_input"))
+    if tool_name in {"Bash", "PowerShell"} and not targets:
         return None
     cwd = _hook_working_directory(hook_input)
     branch = _current_branch(cwd)
     if not branch or branch not in DEFAULT_BRANCHES:
         return None
-    tool_input = hook_input.get("tool_input")
-    path = ""
-    if isinstance(tool_input, dict):
-        path = (
-            tool_input.get("file_path")
-            or tool_input.get("path")
-            or tool_input.get("notebook_path")
-            or ""
-        )
     root = _repository_root(cwd)
-    if path and root and not _path_is_inside(path, root, cwd):
+    if targets and root and all(not _path_is_inside(path, root, cwd) for path in targets):
         return None
     return (
         f"R19 blocked: HEAD is {branch}, and task work never lands on the default "
@@ -2262,6 +2509,11 @@ def run_pretooluse(hook_input: dict, host: str = "portable") -> int:
         return 0
 
     reason = check_r19_fresh_base(hook_input, tool_name)
+    if reason is not None:
+        _record_guard_block_and_deny(hook_input, reason, host)
+        return 0
+
+    reason = check_r25_research_before_implementation(hook_input, tool_name)
     if reason is not None:
         _record_guard_block_and_deny(hook_input, reason, host)
         return 0
@@ -2322,6 +2574,17 @@ def run_pretooluse(hook_input: dict, host: str = "portable") -> int:
         return 0
 
     return 0  # not a tool this hook checks
+
+
+def run_posttooluse(hook_input: dict) -> int:
+    """Certify only successful tool calls; failure hooks never route here."""
+    tool_name = hook_input.get("tool_name", "")
+    result = hook_input.get("tool_response", hook_input.get("tool_result"))
+    for event in _research_preflight_events(
+        tool_name, hook_input.get("tool_input"), result
+    ):
+        ledger_record(hook_input, event)
+    return 0
 
 
 def _harness_root() -> str:
@@ -2714,7 +2977,11 @@ def run_session_start(hook_input: dict) -> int:
     """Inject the mandatory entrypoint plus read-only hygiene and sync findings."""
     context = [
         "Harness preflight: load and follow "
-        "`.agents/skills/act-as-mohab/SKILL.md` before task work."
+        "`.agents/skills/act-as-mohab/SKILL.md` before task work.\n"
+        "Implementation preflight before any mutation: read live files; load the "
+        "routed skill; query native Memory, MemPalace, and Graphify; do "
+        "authoritative online research; compare proven approaches; record a "
+        "concrete plan. Missing evidence blocks implementation, not analysis."
     ]
     constraints = _standing_constraints(_hook_working_directory(hook_input))
     if constraints:
@@ -3477,6 +3744,7 @@ _SELF_TEST_COVERAGE: dict[str, str] = {
     "check_r21_run_state_not_recorded": "run_required_action_self_test",
     "check_r22_dispatch_adapter": "run_required_action_self_test",
     "check_r24_foreign_worktree_left_behind": "run_required_action_self_test",
+    "check_r25_research_before_implementation": "run_required_action_self_test",
 }
 
 
@@ -3613,7 +3881,25 @@ def run_required_action_self_test() -> int:
         if not condition:
             failures.append(description)
 
-    write = {"tool_input": {"file_path": "shaft-engine/src/main/java/A.java"}}
+    write = {"cwd": ".", "tool_input": {"file_path": "shaft-engine/src/main/java/A.java"}}
+
+    # R25: every implementation mutation needs the live ordered research receipt.
+    check(
+        "R25 blocks an implementation write with no research receipt",
+        _with_stubs(
+            {"ledger_events": lambda payload: []},
+            lambda: check_r25_research_before_implementation(write, "Write"),
+        )
+        is not None,
+    )
+    check(
+        "R25 allows an implementation write after the ordered research receipt",
+        _with_stubs(
+            {"ledger_events": lambda payload: list(RESEARCH_PREFLIGHT_EVENTS)},
+            lambda: check_r25_research_before_implementation(write, "Write"),
+        )
+        is None,
+    )
 
     # R22: only a host adapter can deliver the mandatory entrypoint to a delegate.
     check(
@@ -4328,6 +4614,8 @@ def main(argv: list[str]) -> int:
         return run_stop(hook_input)
     if event == "PreToolUse":
         return run_pretooluse(hook_input, hook_host(raw_hook_input))
+    if event == "PostToolUse":
+        return run_posttooluse(hook_input)
     return 0
 
 

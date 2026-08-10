@@ -33,7 +33,8 @@ public final class FailureDiagnosticsReporter {
     private static final Pattern SECRET_QUERY_PATTERN = Pattern.compile(
             "(?i)([?&](?:password|passwd|pwd|secret|token|access[_-]?key|api[_-]?key)=)[^&#\\s]+");
     private static final int SNIPPET_RADIUS = 2;
-    // ponytail: bounded log list, make configurable if agent handoff needs deeper local history.
+    // ponytail: bounded log list. Ceiling: the latest 200 lines only. Upgrade trigger: an agent
+    // handoff needs older evidence that the bounded report demonstrably omits.
     private static final int MAX_LOG_LINES = 200;
 
     private FailureDiagnosticsReporter() {

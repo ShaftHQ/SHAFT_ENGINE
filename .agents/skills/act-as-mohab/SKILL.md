@@ -15,7 +15,8 @@ below.
 
 ## Iron laws
 
-1. Consult before acting. Triage first, then take the matching depth.
+1. Research and plan before implementation. Complete the implementation
+   preflight below for every task; triage changes depth, never ordering.
 2. Evidence over inference. Inspect or run before claiming.
 3. No production code before an observed failing test.
 4. Never weaken, delete, or rewrite a test to reach green. When a test and the
@@ -39,19 +40,44 @@ Take depth from the worse answer:
 
 | Triage result | Depth |
 | --- | --- |
-| One file, reversible | State the deliverable and the check that proves it. Proceed. |
-| One module, reversible | Load [consult-first](references/consult-first.md), points 1-4 and 8. |
-| Public contract, many callers, or hard to reverse | Load [consult-first](references/consult-first.md), full pass. |
+| One file, reversible | Load [consult-first](references/consult-first.md); keep the complete receipt concise. |
+| One module, reversible | Load [consult-first](references/consult-first.md); use a normal full pass. |
+| Public contract, many callers, or hard to reverse | Load [consult-first](references/consult-first.md); use the executable specification and full pass. |
 
 Re-triage when a premise turns out false, the third fix for one symptom fails,
 the blast radius grows, or the user adds scope.
 
 Retrieval depth reads off the same answer. Load
 [retrieve-first](references/retrieve-first.md) before broad manual discovery on
-any row past the first, and at completion to keep the stores from drifting.
+every row, and at completion to keep the stores from drifting.
 When this entrypoint was loaded through a role adapter, load
 [retrieve-first](references/retrieve-first.md) before task-specific discovery,
 including one-file reversible work.
+
+## Implementation preflight
+
+Before the first implementation mutation, do these in order for every task:
+
+1. Read live files and current instructions.
+2. Load the routed skill and any directly required references.
+3. Query native Memory for durable constraints and prior gotchas.
+4. Query MemPalace for cross-session history and relations.
+5. Query Graphify for callers, dependencies, and blast radius; verify every hit
+   against the live files.
+6. Do authoritative online research, preferring current primary documentation,
+   standards, and proven upstream implementations. Record source URLs and date.
+7. Compare proven approaches, steelman the rejected approach, and choose the
+   smallest root-owner fix that preserves the invariants.
+8. Record a concrete plan, proof commands, and the first RED observation in the
+   issue for issue-backed work, otherwise in the transient working context.
+
+This ordered list is the research receipt. Missing required evidence blocks
+implementation, even for a trivial or urgent task. Analysis may continue while
+a failed store or research source is diagnosed, but code, configuration,
+guidance, persisted-data, and external-system mutation wait for the repaired
+source and a complete receipt. Never substitute a stale index, recollection, or
+generic summary for the named live query. Reuse established solutions and
+standards before inventing a local one.
 
 ## Red flags
 
@@ -103,8 +129,8 @@ safety boundaries.
 Default voice is terse and exact. Lead with outcome; remove filler,
 pleasantries, hedging, repetition, decorative formatting, and unrequested raw
 logs. Prefer short familiar words and fragments, but preserve user language,
-technical names, commands, errors, code, commits, and PR prose exactly where
-precision requires them. Report measurable progress and results, not routine
+negation, numbers, units, technical names, commands, errors, code, commits, and
+PR prose exactly where precision requires them. Report measurable progress and results, not routine
 tool mechanics. Use normal grammar for security, irreversible actions, or
 multi-step instructions where compression could mislead. `/caveman
 lite|full|ultra` selects full sentences, concise fragments, or each fact once;
@@ -117,13 +143,14 @@ real flow and callers are understood. Stop at the first rung that holds:
 
 1. Skip speculative need.
 2. Reuse the existing owner or pattern.
-3. Use standard library or native platform behavior.
-4. Use an already-installed dependency.
-5. Use one line, then minimum new code.
+3. Use the standard library.
+4. Use native platform behavior.
+5. Use an already-installed dependency.
+6. Use one line, then minimum new code.
 
 Prefer deletion, boring code, few files, and no new dependency, abstraction,
 configuration, or scaffolding for an unproven future. Mark a deliberate shortcut
-with `ponytail:` plus its ceiling and upgrade trigger. Never simplify away
+with `ponytail:` plus `Ceiling:` and an observable `Upgrade trigger:`. Never simplify away
 explicit requirements, trust-boundary validation, security, accessibility,
 data-loss prevention, error handling, or public API compatibility. Non-trivial
 logic leaves one small runnable check. `/ponytail lite|full|ultra` means suggest

@@ -147,7 +147,8 @@ final class RemoteGridPreflight {
         var limiter = LIMITERS.computeIfAbsent(limiterKey,
                 ignored -> new SessionLimiter(capacity, new Semaphore(capacity, true)));
         if (limiter.capacity() != capacity) {
-            // ponytail: keep the first detected capacity per endpoint/browser; restart the JVM if Grid capacity changes mid-suite.
+            // ponytail: keep the first detected capacity per endpoint/browser. Ceiling: one capacity
+            // snapshot per JVM. Upgrade trigger: Grid capacity must change without restarting the suite.
             ReportManagerHelper.logDiscrete("Selenium Grid preflight limiter already uses capacity "
                     + limiter.capacity() + " for `" + limiterKey + "`.", Level.DEBUG);
         }

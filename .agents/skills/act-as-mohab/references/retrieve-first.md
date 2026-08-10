@@ -11,8 +11,8 @@ depth off that answer rather than judging it twice.
 
 | Triage result | Retrieve |
 | --- | --- |
-| One file, reversible | Main thread: nothing; SessionStart injected standing constraints. Delegates: use `memory search` before discovery, because SessionStart does not reach them. |
-| One module, reversible | `memory search "<subsystem>"`. Add MemPalace when the change touches history you were not present for. |
+| One file, reversible | Query native Memory, MemPalace, and Graphify with a narrow task phrase; keep the receipt concise. |
+| One module, reversible | Query native Memory, MemPalace, and Graphify for the subsystem and affected callers. |
 | Public contract, many callers, or hard to reverse | All three, then verify every hit against the live file. |
 
 The first row is the load-bearing one. A rule that demands three queries before
@@ -64,8 +64,7 @@ Configuration is source-controlled and travels; a built index does not, and
 generated indexes are never committed. A machine with no MCP servers still has
 the injected constraints, which is the floor rather than a failure.
 
-If a store whose trigger fired is unavailable, **name the degraded mode in your
-report** and continue with the rest. Skipping a store silently is the failure
-this gate exists to prevent — and the one that actually happened, which is why
-the gate is a reference the entrypoint names rather than a separate discovery
-surface.
+If a required store is unavailable, **name the degraded mode**, diagnose its
+root owner, and continue analysis with the remaining sources. Implementation
+waits until the store works and the receipt is complete. Skipping a store
+silently is the failure this gate exists to prevent.
