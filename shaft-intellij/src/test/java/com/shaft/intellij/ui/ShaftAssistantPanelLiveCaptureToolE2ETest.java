@@ -1,5 +1,6 @@
 package com.shaft.intellij.ui;
 
+import com.google.gson.JsonObject;
 import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
@@ -8,7 +9,10 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
+import java.util.List;
+import java.util.concurrent.TimeUnit;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -25,6 +29,81 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * description), so this class never touches EngineService/BrowserService/ElementService directly.</p>
  */
 class ShaftAssistantPanelLiveCaptureToolE2ETest {
+
+    @Test
+    @Timeout(900)
+    void codegenScenarioRecordsAndReturnsToModularSourceGeneration() throws Exception {
+        Assumptions.assumeTrue(Boolean.getBoolean("shaft.intellij.liveAgentE2E"),
+                "Set -Dshaft.intellij.liveAgentE2E=true to run the real local-agent integration flow.");
+        Assumptions.assumeTrue(Boolean.getBoolean("shaft.intellij.liveUnrestrictedAgentE2E"),
+                "Set -Dshaft.intellij.liveUnrestrictedAgentE2E=true to authorize the no-sandbox recovery flow.");
+        LiveContext context = LiveContext.assumeConfigured();
+        Path projectRoot = context.workspace().resolve("prompt-record-codegen");
+        resetDirectory(projectRoot);
+        Files.createDirectories(projectRoot);
+        Path fixture = projectRoot.resolve("fixtures/scenario.html");
+        Files.createDirectories(fixture.getParent());
+        Files.writeString(fixture, webFixture(), StandardCharsets.UTF_8);
+        String fixtureUrl = fixture.toUri().toString();
+        String shaftVersion = System.getProperty("shaft.intellij.liveShaftVersion", "").trim();
+        assertTrue(shaftVersion.matches("[0-9A-Za-z.-]+"), "A concrete SHAFT version is required: " + shaftVersion);
+
+        try (LiveChatToolE2ESupport support = LiveChatToolE2ESupport.install(projectRoot, context.mcpCommand())) {
+            ShaftAssistantPanel panel = support.newPanel();
+            assertNotError(support.send(panel,
+                    "/mcp shaft_project_create {\"outputDirectory\":\".\",\"runner\":\"TestNG\","
+                            + "\"platform\":\"web\",\"groupId\":\"com.example\",\"artifactId\":\"recorded-flow\","
+                            + "\"version\":\"1.0.0\",\"shaftVersion\":\"" + shaftVersion
+                            + "\",\"optionalModules\":[],"
+                            + "\"includeGithubActions\":false,\"includeDependabot\":false,\"overwrite\":true}",
+                    Duration.ofSeconds(90)), "shaft_project_create");
+            assertTrue(Files.isRegularFile(projectRoot.resolve("pom.xml")),
+                    "shaft_project_create must produce a Maven build descriptor");
+            String originalPom = Files.readString(projectRoot.resolve("pom.xml"), StandardCharsets.UTF_8);
+            assertNotError(support.send(panel,
+                    "/mcp shaft_project_init_agents {\"loop\":\"codex\",\"targetDirectory\":\".\","
+                            + "\"overwrite\":true}", Duration.ofSeconds(60)), "shaft_project_init_agents");
+
+            String scenario = "navigate to " + fixtureUrl
+                    + ", enter mohab in the username field, click Go, and assert the final title";
+            String startResponse = support.send(panel, "/codegen " + scenario, Duration.ofSeconds(120));
+            assertNotError(startResponse, "capture_start");
+            assertTrue(LiveChatToolE2ESupport.unwrapToolPayload(startResponse).contains("\"ACTIVE\""),
+                    startResponse);
+
+            assertNotError(support.send(panel,
+                    "/mcp element_type {\"locatorStrategy\":\"ID\",\"locatorValue\":\"username\","
+                            + "\"text\":\"mohab\",\"append\":false,\"clear\":true}",
+                    Duration.ofSeconds(60)), "element_type");
+            assertNotError(support.send(panel,
+                    "/mcp element_click {\"locatorStrategy\":\"ID\",\"locatorValue\":\"go\","
+                            + "\"mode\":\"SINGLE\"}", Duration.ofSeconds(60)), "element_click");
+
+            String reviewResponse = support.send(panel, "stop recording", Duration.ofSeconds(120));
+            assertNotError(reviewResponse, "capture_code_blocks");
+            assertTrue(panel.transcriptMarkdown().contains("Awaiting approval")
+                            || panel.transcriptMarkdown().contains("Review before writing files"),
+                    panel.transcriptMarkdown());
+
+            String integrationResponse = support.send(panel, "approve", Duration.ofSeconds(480));
+            assertFalse(integrationResponse.isBlank(), "approved local agent integration must return a result");
+
+            List<Path> javaFiles;
+            try (var files = Files.walk(projectRoot.resolve("src/test/java"))) {
+                javaFiles = files.filter(path -> path.toString().endsWith(".java")).toList();
+                assertTrue(javaFiles.stream().anyMatch(path -> path.getFileName().toString().contains("Page")),
+                        "Expected a generated page object: " + javaFiles + "\nAgent result:\n" + integrationResponse
+                                + "\nTranscript:\n" + panel.transcriptMarkdown());
+                assertTrue(javaFiles.stream().anyMatch(path -> path.getFileName().toString().endsWith("Test.java")),
+                        "Expected a generated test class: " + javaFiles + "\nAgent result:\n" + integrationResponse
+                                + "\nTranscript:\n" + panel.transcriptMarkdown());
+            }
+            assertEquals(originalPom, Files.readString(projectRoot.resolve("pom.xml"), StandardCharsets.UTF_8),
+                    "The local agent must preserve the generated Maven build descriptor byte-for-byte");
+            assertShaftGeneratedCodeQuality(support, panel, projectRoot, javaFiles);
+            assertGeneratedProjectCompiles(projectRoot);
+        }
+    }
 
     /**
      * {@code capture_start} (targeting a local fixture) -> {@code capture_status} (asserts an ACTIVE
@@ -97,6 +176,72 @@ class ShaftAssistantPanelLiveCaptureToolE2ETest {
     private static void assertNotError(String rawResponse, String toolName) {
         assertTrue(rawResponse != null && !rawResponse.isBlank(), toolName + ": expected a non-blank response");
         assertFalse(rawResponse.contains("\"isError\":true"), toolName + ": MCP reported an error: " + rawResponse);
+    }
+
+    private static void resetDirectory(Path directory) throws Exception {
+        if (!Files.exists(directory)) {
+            return;
+        }
+        try (var paths = Files.walk(directory)) {
+            for (Path path : paths.sorted((left, right) -> right.compareTo(left)).toList()) {
+                Files.delete(path);
+            }
+        }
+    }
+
+    private static void assertGeneratedProjectCompiles(Path projectRoot) throws Exception {
+        String maven = System.getProperty("os.name", "").toLowerCase().contains("win") ? "mvn.cmd" : "mvn";
+        Process process = new ProcessBuilder(maven, "--quiet", "-DskipTests",
+                "-Dallure.automaticallyOpen=false", "test-compile")
+                .directory(projectRoot.toFile())
+                .redirectErrorStream(true)
+                .start();
+        boolean finished = process.waitFor(180, TimeUnit.SECONDS);
+        if (!finished) {
+            process.destroyForcibly();
+        }
+        String output = new String(process.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
+        assertTrue(finished, "Generated project test-compile timed out:\n" + output);
+        assertTrue(process.exitValue() == 0, "Generated project test-compile failed:\n" + output);
+    }
+
+    private static void assertShaftGeneratedCodeQuality(
+            LiveChatToolE2ESupport support, ShaftAssistantPanel panel, Path projectRoot, List<Path> javaFiles)
+            throws Exception {
+        Path pagePath = javaFiles.stream()
+                .filter(path -> path.getFileName().toString().contains("Page"))
+                .findFirst().orElseThrow();
+        Path testPath = javaFiles.stream()
+                .filter(path -> path.getFileName().toString().endsWith("Test.java"))
+                .findFirst().orElseThrow();
+        String pageSource = Files.readString(pagePath, StandardCharsets.UTF_8);
+        String testSource = Files.readString(testPath, StandardCharsets.UTF_8);
+        String combinedSource = pageSource + "\n" + testSource;
+
+        assertTrue(pageSource.contains("SHAFT.GUI.Locator"), "Page locators must use SHAFT.GUI.Locator:\n" + pageSource);
+        assertTrue(pageSource.contains("hasId(\"username\")") && pageSource.contains("hasId(\"go\")"),
+                "Recorded controls must use stable ID locators:\n" + pageSource);
+        assertTrue(pageSource.contains(".element().type(") && pageSource.contains(".element().click("),
+                "Recorded actions must use SHAFT element APIs:\n" + pageSource);
+        assertTrue(testSource.contains("assertThat().browser().title()")
+                        || testSource.contains("browser().assertThat().title()"),
+                "Final validation must use the SHAFT browser assertion builder:\n" + testSource);
+        assertFalse(combinedSource.contains("driver.findElement") || combinedSource.contains("Thread.sleep")
+                        || combinedSource.contains("WebDriverWait") || combinedSource.contains("/html/"),
+                "Generated code contains a native Selenium or brittle-locator anti-pattern:\n" + combinedSource);
+        String data = Files.readString(projectRoot.resolve(
+                "src/test/resources/testDataFiles/recorded-flow-test.json"), StandardCharsets.UTF_8);
+        assertTrue(data.contains("SHAFT Live Capture Fixture - done"),
+                "Final-title oracle must be externalized in test data:\n" + data);
+
+        JsonObject arguments = new JsonObject();
+        arguments.addProperty("language", "java");
+        arguments.addProperty("code", combinedSource);
+        String response = support.send(panel, "/mcp test_code_guardrails_check " + arguments,
+                Duration.ofSeconds(60));
+        assertNotError(response, "test_code_guardrails_check");
+        String payload = LiveChatToolE2ESupport.unwrapToolPayload(response);
+        assertTrue(payload.contains("\"passed\": true") || payload.contains("\"passed\":true"), payload);
     }
 
     private static String webFixture() {

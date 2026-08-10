@@ -131,6 +131,8 @@ final class LiveChatToolE2ESupport implements AutoCloseable {
         ShaftSettingsState.Settings settings = new ShaftSettingsState.Settings();
         settings.mcpCommand = mcpCommand;
         settings.mcpSetupComplete = true;
+        settings.recorderHeadless = true;
+        settings.unrestrictedLocalAgentAccess = Boolean.getBoolean("shaft.intellij.liveUnrestrictedAgentE2E");
         settingsState.loadState(settings);
 
         AtomicLong invokeLaterGeneration = new AtomicLong();

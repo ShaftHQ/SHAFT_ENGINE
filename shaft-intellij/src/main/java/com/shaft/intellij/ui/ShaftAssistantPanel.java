@@ -193,6 +193,7 @@ final class ShaftAssistantPanel extends JPanel implements Disposable {
     private final JButton saveCloudApiKey;
     private final JLabel cloudKeyStatus;
     private final JBCheckBox allowSourceMutation;
+    private final JBCheckBox unrestrictedLocalAgentAccess;
     /**
      * Bordered chip wrapping {@link #allowSourceMutation} so the highest-stakes toggle in
      * {@code routeRow} (it lets Agent mode mutate the user's project source) reads with distinct
@@ -579,6 +580,14 @@ final class ShaftAssistantPanel extends JPanel implements Disposable {
                 JBUI.Borders.customLine(ShaftStatusPresentation.disconnected(), 1),
                 JBUI.Borders.empty(2, 6)));
         allowSourceMutationChip.add(allowSourceMutation, BorderLayout.CENTER);
+        unrestrictedLocalAgentAccess = new JBCheckBox("Run Codex without sandbox");
+        unrestrictedLocalAgentAccess.getAccessibleContext()
+                .setAccessibleName("Allow unrestricted Codex access outside the project");
+        unrestrictedLocalAgentAccess.setToolTipText("Recovery option for a broken Windows sandbox. "
+                + "Codex commands and file edits may access paths outside this project.");
+        unrestrictedLocalAgentAccess.setSelected(settings.unrestrictedLocalAgentAccess);
+        unrestrictedLocalAgentAccess.addActionListener(event ->
+                settings.unrestrictedLocalAgentAccess = unrestrictedLocalAgentAccess.isSelected());
         verboseAgentOutput = new JBCheckBox("Verbose");
         verboseAgentOutput.getAccessibleContext().setAccessibleName("Show verbose agent output");
         verboseAgentOutput.setToolTipText("Forward everything as-is: live local agent output "
@@ -816,6 +825,7 @@ final class ShaftAssistantPanel extends JPanel implements Disposable {
         runSettingsPanel.add(runSetting("Agent health", agentHealthPanel));
         runSettingsPanel.add(runSetting("Effort", effort));
         runSettingsPanel.add(runSetting("Source edits", allowSourceMutationChip));
+        runSettingsPanel.add(runSetting("Sandbox", unrestrictedLocalAgentAccess));
         runSettingsPanel.add(runSetting("Output", verboseAgentOutput));
         runSettingsPanel.add(runSetting("Context", autoCompact));
         runSettingsPanel.setVisible(false);
@@ -1565,6 +1575,10 @@ final class ShaftAssistantPanel extends JPanel implements Disposable {
                 openFileContext(project),
                 conversationContext,
                 attachmentsContext);
+        if ("autobot_local_agent_run".equals(invocation.toolName())) {
+            invocation.arguments().addProperty("unrestrictedLocalAgentAccess",
+                    unrestrictedLocalAgentAccess.isSelected());
+        }
         invocation = routeNaturalStopToActiveRecorder(text, invocation);
         // AssistantCommand.requiresShaftProject(invocation) checked FIRST (and short-circuits): it is
         // a cheap, pure tool-name-set check, whereas ShaftProjectDetector.isShaftProject(project) hits
@@ -3629,6 +3643,10 @@ final class ShaftAssistantPanel extends JPanel implements Disposable {
         // the checkbox's own visibility above so it never renders as an empty colored box (#3601
         // B3.4). Selection/enable/listener logic for the checkbox itself is untouched.
         allowSourceMutationChip.setVisible(agentMode && localAgent);
+        boolean codexAgent = agentMode && localCli
+                && "CODEX".equals(String.valueOf(assistantFamily.getSelectedItem()));
+        unrestrictedLocalAgentAccess.setVisible(codexAgent);
+        unrestrictedLocalAgentAccess.setEnabled(controlsEnabled && codexAgent && allowSourceMutation.isSelected());
         // Verbose applies to every run shape: local agent CLI streams AND direct MCP tool runs,
         // so it stays available on every route (issue #3426 B5).
         verboseAgentOutput.setVisible(true);

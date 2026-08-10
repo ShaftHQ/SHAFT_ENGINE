@@ -5948,6 +5948,10 @@ class ShaftPanelSetupTest {
                 // Provider discovery failures expose a direct, visible retry label; the focused
                 // provider-model layout contract verifies that text independently.
                 .filter(button -> !"Retry provider models".equals(accessibleName(button)))
+                // Local-agent health recovery uses visible action labels because Recheck and Repair
+                // have different effects that an icon-only pair would not communicate in settings.
+                .filter(button -> !"Recheck local agent health".equals(accessibleName(button)))
+                .filter(button -> !"Repair SHAFT agent skills".equals(accessibleName(button)))
                 .map(button -> () -> assertIconOnlySymmetric(button)));
     }
 
@@ -6743,6 +6747,21 @@ class ShaftPanelSetupTest {
 
         assertTrue(launchAttempted.await(5, TimeUnit.SECONDS),
                 "the resend must invoke the injected launcher instead of a real CLI process");
+    }
+
+    @Test
+    void unrestrictedCodexAccessIsExplicitDefaultOffAndPersisted() {
+        ShaftSettingsState.Settings settings = connectedMcpSettings();
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, settings);
+        JCheckBox unrestricted = findByAccessibleName(panel,
+                "Allow unrestricted Codex access outside the project", JCheckBox.class);
+
+        assertNotNull(unrestricted);
+        assertFalse(unrestricted.isSelected());
+        assertTrue(unrestricted.getToolTipText().contains("outside this project"));
+
+        unrestricted.doClick();
+        assertTrue(settings.unrestrictedLocalAgentAccess);
     }
 
     @Test

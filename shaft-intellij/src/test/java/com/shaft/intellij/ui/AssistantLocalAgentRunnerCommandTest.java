@@ -50,11 +50,17 @@ class AssistantLocalAgentRunnerCommandTest {
     }
 
     @Test
-    void codexExecIsNonInteractiveAndKeepsTheGrantedSandboxBoundary() {
+    void codexExecUsesUnrestrictedAutoModeOnlyWhenSourceEditsAreGranted() {
         List<String> granted = AssistantLocalAgentRunner.commandFor(arguments("CODEX", "AGENT", true));
+        JsonObject unrestrictedArguments = arguments("CODEX", "AGENT", true);
+        unrestrictedArguments.addProperty("unrestrictedLocalAgentAccess", true);
+        List<String> unrestricted = AssistantLocalAgentRunner.commandFor(unrestrictedArguments);
         List<String> ungranted = AssistantLocalAgentRunner.commandFor(arguments("CODEX", "AGENT", false));
 
         assertAll(
+                () -> assertEquals(List.of("codex", "--dangerously-bypass-approvals-and-sandbox", "exec"),
+                        unrestricted.subList(0, 3), unrestricted.toString()),
+                () -> assertFalse(unrestricted.contains("--sandbox"), unrestricted.toString()),
                 () -> assertEquals(List.of("codex", "--ask-for-approval", "never", "exec"),
                         granted.subList(0, 4), granted.toString()),
                 () -> assertTrue(granted.contains("workspace-write"), granted.toString()),

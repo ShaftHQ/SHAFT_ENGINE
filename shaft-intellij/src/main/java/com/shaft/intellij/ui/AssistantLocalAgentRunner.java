@@ -539,13 +539,14 @@ final class AssistantLocalAgentRunner {
             return custom;
         }
         boolean allowSourceMutation = allowSourceMutation(arguments);
+        boolean unrestrictedLocalAgentAccess = booleanValue(arguments, "unrestrictedLocalAgentAccess");
         String mode = normalize(string(arguments, "mode", "ASK"));
         String model = string(arguments, "model", "").trim();
         String effort = normalize(string(arguments, "effort", ""));
         return switch (normalize(string(arguments, "client", "CODEX"))) {
             case "CLAUDE_CODE" -> claudeCommand(mode, allowSourceMutation, model, bridge);
             case "COPILOT_CLI" -> copilotCommand(mode, allowSourceMutation, model);
-            default -> codexCommand(mode, allowSourceMutation, model, effort);
+            default -> codexCommand(mode, allowSourceMutation, unrestrictedLocalAgentAccess, model, effort);
         };
     }
 
@@ -1356,12 +1357,17 @@ final class AssistantLocalAgentRunner {
      * <p>{@code mcp_servers.shaft-mcp.default_tools_approval_mode="approve"} is a launch-time
      * pre-approval flag — see {@link AgentApprovalCapability#CODEX}, which has no interactive
      * approval scopes, so this is the only approval mechanism available to Codex today. It is only
-     * added when {@link AgentApprovalCapability#isAutoApproveGranted(boolean)} grants it; otherwise
-     * Codex runs in AGENT mode with its default (deny-by-default) tool approval behavior, matching
-     * the read-only sandbox it also falls back to.
+     * added when {@link AgentApprovalCapability#isAutoApproveGranted(boolean)} grants it. Source-edit
+     * runs remain project-scoped unless the user separately enables the explicitly disclosed
+     * unrestricted recovery option; ungranted runs retain the read-only sandbox.
      */
-    private static List<String> codexCommand(String mode, boolean allowSourceMutation, String model, String effort) {
-        List<String> command = new ArrayList<>(List.of("codex", "--ask-for-approval", "never", "exec"));
+    private static List<String> codexCommand(
+            String mode, boolean allowSourceMutation, boolean unrestrictedLocalAgentAccess,
+            String model, String effort) {
+        boolean unrestrictedAgent = "AGENT".equals(mode) && allowSourceMutation && unrestrictedLocalAgentAccess;
+        List<String> command = new ArrayList<>(unrestrictedAgent
+                ? List.of("codex", "--dangerously-bypass-approvals-and-sandbox", "exec")
+                : List.of("codex", "--ask-for-approval", "never", "exec"));
         command.add("--skip-git-repo-check");
         if (!model.isBlank()) {
             command.add("--model");
@@ -1371,8 +1377,10 @@ final class AssistantLocalAgentRunner {
             command.add("-c");
             command.add("model_reasoning_effort=\"" + effort.toLowerCase(Locale.ROOT) + "\"");
         }
-        command.add("--sandbox");
-        command.add("AGENT".equals(mode) && allowSourceMutation ? "workspace-write" : "read-only");
+        if (!unrestrictedAgent) {
+            command.add("--sandbox");
+            command.add("AGENT".equals(mode) && allowSourceMutation ? "workspace-write" : "read-only");
+        }
         if ("AGENT".equals(mode)) {
             if (AgentApprovalCapability.CODEX.isAutoApproveGranted(allowSourceMutation)) {
                 command.add("-c");

@@ -2760,8 +2760,9 @@ final class AssistantCommand {
                 - Preserve the recorded browser journey; do not collapse it to only opening the start page or a generic title check.
                 - When the capture searched results, open the first result with a scoped first-result locator before asserting.
                 - assert the final page title or final page-specific text from the recorded destination.
-                - Preserve existing repository style and the smallest compiling source edit.
-                - Do not start a new recording or drive the browser again.
+                 - Preserve existing repository style and the smallest compiling source edit.
+                 - Preserve project build descriptors and configuration such as pom.xml; do not delete or replace them.
+                 - Do not start a new recording or drive the browser again.
                 - Run the smallest relevant compile or test check only if a shell tool is available and approved; skip it otherwise.
 
                 Final answer format (mandatory):
