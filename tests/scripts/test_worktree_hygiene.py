@@ -599,10 +599,7 @@ class WorktreeHygieneTest(unittest.TestCase):
         )
         self.assertIn("not checked", advisory)
 
-    def test_orphaned_branch_advisory_does_not_claim_ahead_count_as_proof(self):
-        # The issue's own correctness point, in bold: this repo squash-merges,
-        # so a landed branch still shows commits ahead of main. The advisory
-        # must send the reader to a content diff, never assert "unmerged".
+    def test_orphaned_branch_advisory_uses_merge_commit_ancestry(self):
         old_epoch = int(time.time()) - (10 * 86400)
         self.push_and_remove_worktree(
             "maybe-landed", "ChaosEngine/maybe-landed", commit_epoch=old_epoch
@@ -615,9 +612,9 @@ class WorktreeHygieneTest(unittest.TestCase):
             )
             if "maybe-landed" in item
         )
-        self.assertIn("squash-merges", advisory)
-        self.assertIn("not evidence", advisory)
-        self.assertIn("Diff its tip against main", advisory)
+        self.assertIn("git merge-base --is-ancestor", advisory)
+        self.assertIn("inspect its exact diff", advisory)
+        self.assertNotIn("squash", advisory)
 
     def test_a_branch_that_still_has_a_local_worktree_is_not_reported_as_orphaned(self):
         # The remote-only scan must not double-report a branch the ordinary
