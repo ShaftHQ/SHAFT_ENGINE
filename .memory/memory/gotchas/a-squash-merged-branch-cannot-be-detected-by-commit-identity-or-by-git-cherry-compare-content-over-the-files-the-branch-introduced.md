@@ -1,4 +1,4 @@
-This repository squash-merges and GitHub deletes the head branch on merge. So a FULLY DELIVERED branch reports every one of its original commits as existing on no remote: `git rev-list --count <branch> --not --remotes` answers with the original commit count, not zero. Reproduced in a fixture repo (push, squash-merge, delete remote branch) where it answered 2.
+A repository that squash-merges and deletes its head branch has this failure mode; the companion https://github.com/ShaftHQ/shafthq.github.io repository currently does both. So a FULLY DELIVERED branch reports every one of its original commits as existing on no remote: `git rev-list --count <branch> --not --remotes` answers with the original commit count, not zero. Reproduced in a fixture repo (push, squash-merge, delete remote branch) where it answered 2.
 
 `git cherry <default> <branch>` does NOT substitute. It compares patch ids, and a squash of two commits matches neither of them -- in the same fixture both commits came back marked `+`. Any fix built on patch-id equivalence silently fails for every multi-commit branch, which is most of them.
 

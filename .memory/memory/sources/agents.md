@@ -1,3 +1,3 @@
 # Source: AGENTS.md
 
-Canonical repository instructions for coding agents. Current signals: SHAFT_ENGINE is a Maven-published Java 25 automation framework; current files and config win; task-specific rules live in scoped `.agents/skills/`; new file-edit tasks start from clean `origin/main` on a fresh `codex/*` branch; implementation tasks finish with validation, commit, push, ready PR, and PR link; Memory should stay small, durable, and evidence-backed.
+Canonical repository instructions for ChaosEngine work. Current signals: SHAFT_ENGINE is a Maven Java automation framework; configuration and live files win; every task routes through act-as-mohab; implementation starts with ordered research and planning; session work uses fresh ChaosEngine/* branches from origin/main; behavior changes use RED-GREEN-REFACTOR, independent review, PR delivery, and exact validation; durable knowledge is routed once among native Memory, MemPalace, Graphify, guidance, or issues.

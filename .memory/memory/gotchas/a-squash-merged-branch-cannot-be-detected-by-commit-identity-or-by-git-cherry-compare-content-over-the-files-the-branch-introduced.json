@@ -1,13 +1,9 @@
 {
   "body_path": "memory/gotchas/a-squash-merged-branch-cannot-be-detected-by-commit-identity-or-by-git-cherry-compare-content-over-the-files-the-branch-introduced.md",
-  "content_hash": "sha256:276bc59e2e79ef0adcf779cbb6051c16be6b0604332c2f7a5f31398ee9f08945",
-  "created_at": "2026-08-05T10:56:09+03:00",
+  "content_hash": "sha256:d2bb4af71948ef2eeb954c591a2bf04d6a9211e682c890a30b6a6ff6754fb6d6",
+  "created_at": "2026-08-10T15:22:23+03:00",
   "evidence": [],
   "facets": {
-    "applies_to": [
-      "scripts/agents/guard.py",
-      "scripts/ci/worktree_hygiene.py"
-    ],
     "category": "gotcha"
   },
   "id": "gotcha.a-squash-merged-branch-cannot-be-detected-by-commit-identity-or-by-git-cherry-compare-content-over-the-files-the-branch-introduced",
@@ -27,9 +23,10 @@
     "squash-merge",
     "guard",
     "hooks",
-    "branch-cleanup"
+    "branch-cleanup",
+    "companion-docs-repo"
   ],
   "title": "A squash-merged branch cannot be detected by commit identity or by git cherry; compare content over the files the branch introduced",
   "type": "gotcha",
-  "updated_at": "2026-08-05T10:56:09+03:00"
+  "updated_at": "2026-08-10T15:23:17+03:00"
 }

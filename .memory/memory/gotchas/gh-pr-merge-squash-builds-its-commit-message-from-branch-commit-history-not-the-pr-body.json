@@ -1,7 +1,7 @@
 {
   "body_path": "memory/gotchas/gh-pr-merge-squash-builds-its-commit-message-from-branch-commit-history-not-the-pr-body.md",
-  "content_hash": "sha256:3aaedd15a612e9f4b20572626f602b342f5bbd9e0e2d9543b819628f546636d7",
-  "created_at": "2026-07-18T02:06:26+03:00",
+  "content_hash": "sha256:794b51f7822c3a3367910c91edc131d6a341b0fbf1ed5aaf5e87c6af3498adf8",
+  "created_at": "2026-08-10T15:22:23+03:00",
   "evidence": [
     {
       "id": "f469a0ae88666d36a15cad7ec92037247c01d893",
@@ -36,9 +36,10 @@
     "git",
     "merge",
     "gotcha",
-    "work-github"
+    "work-github",
+    "companion-docs-repo"
   ],
   "title": "gh pr merge --squash builds its commit message from branch commit history, not the PR body",
   "type": "gotcha",
-  "updated_at": "2026-07-29T16:45:37+03:00"
+  "updated_at": "2026-08-10T15:23:17+03:00"
 }

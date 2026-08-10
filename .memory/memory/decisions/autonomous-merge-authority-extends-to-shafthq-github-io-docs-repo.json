@@ -1,6 +1,6 @@
 {
   "body_path": "memory/decisions/autonomous-merge-authority-extends-to-shafthq-github-io-docs-repo.md",
-  "content_hash": "sha256:48f661ce8063178c1e3eb80624bb04dafa230364fa0ac24712c2a270d3067f06",
+  "content_hash": "sha256:dae82ad82fbc60d321150bbeeaabcbc200aee608c2cfbc0b90e0f0ac65f1b785",
   "created_at": "2026-07-17T17:29:30+03:00",
   "evidence": [],
   "facets": {
@@ -23,7 +23,7 @@
     "docs-repo",
     "github-issue"
   ],
-  "title": "autonomous-merge-authority-extends-to-shafthq-github-io-docs-repo",
+  "title": "Merge authority includes the companion documentation repository",
   "type": "decision",
-  "updated_at": "2026-07-17T17:29:30+03:00"
+  "updated_at": "2026-08-10T15:11:29+03:00"
 }

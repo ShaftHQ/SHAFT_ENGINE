@@ -1,6 +1,6 @@
 {
   "body_path": "memory/gotchas/shaftassistantpanel-construction-starts-a-background-local-model-refresh-racing-tests.md",
-  "content_hash": "sha256:1ba2651067c96688c93d79b93f2e29b9f751da3ae4540c45fb204faa07ce7c01",
+  "content_hash": "sha256:a9aef7f19437cd7751ed989e8694d2122c181bb37b536a0a622ae90a6ee7ebb2",
   "created_at": "2026-07-17T05:36:37+03:00",
   "evidence": [
     {
@@ -24,7 +24,7 @@
   },
   "source": {
     "kind": "agent",
-    "task": "PR #3647 (Phase 2) CI: ShaftPanelSetupTest.assistantLocalModelTooltipReflectsFallbackWhenCliReportsNoModels flaked once on build-and-verify"
+    "task": "PR #3647 CI race investigation"
   },
   "status": "active",
   "tags": [
@@ -38,5 +38,5 @@
   ],
   "title": "ShaftAssistantPanel construction silently starts a background local-model refresh that races with any test driving applyLocalModels/refreshLocalModelsIfNeeded via reflection",
   "type": "gotcha",
-  "updated_at": "2026-07-29T16:45:37+03:00"
+  "updated_at": "2026-08-10T15:11:29+03:00"
 }

@@ -16,4 +16,4 @@ What to do instead, in the same step that writes the guard:
 - Exercise the real entry point -- pipe a JSON payload into `py -3 scripts/agents/guard.py`, run the CLI from an unrelated cwd -- not only the unit under test.
 - Clear `__pycache__` before trusting any suite run taken after a file went missing or moved.
 
-General shape: every one of these is a green signal independent of the thing it claimed to verify, which is the unbound-check pattern references/verification-gap-lens.md exists to name. Producing it four times while building enforcement machinery is the strongest available argument that the machinery is needed.
+General shape: every one of these is a green signal independent of the thing it claimed to verify, which is the unbound-check pattern .agents/skills/act-as-mohab/references/verification-gap-lens.md exists to name. Producing it four times while building enforcement machinery is the strongest available argument that the machinery is needed.

@@ -1,1 +1,3 @@
 gbrain was fully removed and remains unsupported. Current retrieval routes through `.agents/skills/act-as-mohab/SKILL.md`: native Memory, MemPalace RAG, Graphify, then live-file verification. Do not restore gbrain infrastructure or obsolete hook nudges; Git history preserves the abandoned experiment.
+
+The Obsidian migration rejection remains current: no official Obsidian MCP was found; GUI-backed community servers violate the repository's headless/no-GUI contract, while file-only vault servers duplicate the local, source-controlled native Memory layer without replacing MemPalace semantic retrieval or Graphify structure. Do not add Obsidian as a parallel memory stack unless those premises change.
