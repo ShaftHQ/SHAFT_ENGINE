@@ -1,6 +1,6 @@
 {
   "body_path": "memory/gotchas/a-guards-tests-passing-proves-the-function-works-never-that-the-hook-can-reach-it-assert-the-wiring-in-the-same-step.md",
-  "content_hash": "sha256:2c14d8ccd8d316be9a791ff2b828023c33948ddfbcd8b757f2ecc67e057a8284",
+  "content_hash": "sha256:c87a341b9140ebfcd23a2662205845fe6cd7a5bf999405060a33181a8f52720f",
   "created_at": "2026-08-05T08:51:33+03:00",
   "evidence": [
     {
@@ -41,5 +41,5 @@
   ],
   "title": "A guard's tests passing proves the function works, never that the hook can reach it -- assert the wiring in the same step",
   "type": "gotcha",
-  "updated_at": "2026-08-05T08:51:33+03:00"
+  "updated_at": "2026-08-10T15:22:23+03:00"
 }

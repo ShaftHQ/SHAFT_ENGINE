@@ -1,11 +1,21 @@
 {
   "confidence": "high",
-  "content_hash": "sha256:036d07636d27d579e2aa5d5edde1e024854fb0a447ea4c22171ca51ba1077db4",
+  "content_hash": "sha256:285660eaa20718c8ee0573ccc4c4fe133f64e420a6e1f50343013f99a2b21dbf",
   "created_at": "2026-08-04T10:15:43+03:00",
+  "evidence": [
+    {
+      "id": "5e569021731736adce45caa587ff6616331c99b8",
+      "kind": "commit"
+    },
+    {
+      "id": "ShaftHQ/SHAFT_ENGINE#4442",
+      "kind": "task"
+    }
+  ],
   "from": "gotcha.a-superseding-pull-request-may-absorb-only-part-of-the-branch-it-closes",
   "id": "rel.gotcha-a-superseding-pull-request-may-absorb-only-part-of-the-branch-it-closes-related-to-fact-worktree-hygiene-report-and-guard-rule-r10",
   "predicate": "related_to",
   "status": "active",
   "to": "fact.worktree-hygiene-report-and-guard-rule-r10",
-  "updated_at": "2026-08-04T10:15:43+03:00"
+  "updated_at": "2026-08-10T15:11:29+03:00"
 }

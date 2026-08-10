@@ -1,7 +1,7 @@
 {
   "body_path": "memory/gotchas/squash-merge-makes-landed-branches-look-unmerged-by-rev-list-count.md",
-  "content_hash": "sha256:7512f05252e238432d3b0dafc3fd2538a99c409462d5c6d4fab5d24bc062bf96",
-  "created_at": "2026-07-26T17:57:51+03:00",
+  "content_hash": "sha256:22a7397acd37164842b43e673db46ed432c3772319942faf094593ba53517a29",
+  "created_at": "2026-08-10T15:22:23+03:00",
   "evidence": [],
   "facets": {
     "category": "gotcha"
@@ -21,9 +21,10 @@
   "tags": [
     "git",
     "squash-merge",
-    "worktree-cleanup"
+    "worktree-cleanup",
+    "companion-docs-repo"
   ],
   "title": "Squash-merge makes landed branches look unmerged by rev-list count",
   "type": "gotcha",
-  "updated_at": "2026-07-26T17:57:51+03:00"
+  "updated_at": "2026-08-10T15:23:17+03:00"
 }
