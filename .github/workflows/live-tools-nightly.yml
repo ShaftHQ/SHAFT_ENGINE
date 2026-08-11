@@ -51,6 +51,13 @@ jobs:
           -Dshaft.intellij.liveToolE2E=true
           "-Dshaft.intellij.liveMcpCommand=${MCP_JAVA} @${MCP_ARGS}"
           '-DheadlessExecution=true' '-Dallure.automaticallyOpen=false' -Dgpg.skip
+      - name: Upload shaft-cli coverage to Codecov
+        if: always()
+        uses: ./.github/actions/upload-jacoco-coverage
+        with:
+          codecov-token: ${{ secrets.CODECOV_TOKEN }}
+          required-files: ./shaft-cli/target/jacoco/jacoco.xml
+          source-id: live-tools-cli
       - name: Verify shaft-cli live tests actually executed
         run: >-
           python3 scripts/ci/assert_tests_executed.py
@@ -94,6 +101,14 @@ jobs:
           -Dshaft.intellij.liveToolE2E=true
           "-Dshaft.intellij.liveMcpCommand=${MCP_JAVA} @${MCP_ARGS}"
           "-Dshaft.intellij.workspaceRoot=${GITHUB_WORKSPACE}/build/live-tools/core"
+      - name: Upload core IntelliJ coverage to Codecov
+        if: always()
+        uses: ./.github/actions/upload-jacoco-coverage
+        with:
+          codecov-token: ${{ secrets.CODECOV_TOKEN }}
+          files: ./shaft-intellij/build/reports/jacoco/test/jacocoTestReport.xml
+          required-files: ./shaft-intellij/build/reports/jacoco/test/jacocoTestReport.xml
+          source-id: live-tools-intellij-core
       - name: Verify live tool tests actually executed
         run: >-
           python3 scripts/ci/assert_tests_executed.py
@@ -137,6 +152,14 @@ jobs:
           -Dshaft.intellij.liveToolE2E=true
           "-Dshaft.intellij.liveMcpCommand=${MCP_JAVA} @${MCP_ARGS}"
           "-Dshaft.intellij.workspaceRoot=${GITHUB_WORKSPACE}/build/live-tools/diagnostics"
+      - name: Upload diagnostics IntelliJ coverage to Codecov
+        if: always()
+        uses: ./.github/actions/upload-jacoco-coverage
+        with:
+          codecov-token: ${{ secrets.CODECOV_TOKEN }}
+          files: ./shaft-intellij/build/reports/jacoco/test/jacocoTestReport.xml
+          required-files: ./shaft-intellij/build/reports/jacoco/test/jacocoTestReport.xml
+          source-id: live-tools-intellij-diagnostics
       - name: Verify live tool tests actually executed
         run: >-
           python3 scripts/ci/assert_tests_executed.py
@@ -186,6 +209,14 @@ jobs:
           -Dshaft.intellij.liveToolE2E=true
           "-Dshaft.intellij.liveMcpCommand=${MCP_JAVA} @${MCP_ARGS}"
           "-Dshaft.intellij.workspaceRoot=${GITHUB_WORKSPACE}/build/live-tools/authoring"
+      - name: Upload gating authoring coverage to Codecov
+        if: always()
+        uses: ./.github/actions/upload-jacoco-coverage
+        with:
+          codecov-token: ${{ secrets.CODECOV_TOKEN }}
+          files: ./shaft-intellij/build/reports/jacoco/test/jacocoTestReport.xml
+          required-files: ./shaft-intellij/build/reports/jacoco/test/jacocoTestReport.xml
+          source-id: live-tools-intellij-authoring-gating
       - name: Verify authoring gating tests actually executed
         run: >-
           python3 scripts/ci/assert_tests_executed.py
@@ -200,6 +231,14 @@ jobs:
           -Dshaft.intellij.liveToolE2E=true
           "-Dshaft.intellij.liveMcpCommand=${MCP_JAVA} @${MCP_ARGS}"
           "-Dshaft.intellij.workspaceRoot=${GITHUB_WORKSPACE}/build/live-tools/authoring"
+      - name: Upload networked authoring coverage to Codecov
+        if: always()
+        uses: ./.github/actions/upload-jacoco-coverage
+        with:
+          codecov-token: ${{ secrets.CODECOV_TOKEN }}
+          files: ./shaft-intellij/build/reports/jacoco/test/jacocoTestReport.xml
+          required-files: ./shaft-intellij/build/reports/jacoco/test/jacocoTestReport.xml
+          source-id: live-tools-intellij-authoring-networked
       - name: Upload live tool evidence
         if: always()
         uses: actions/upload-artifact@v7
@@ -250,6 +289,14 @@ jobs:
           -Dshaft.intellij.liveGemini=true
           "-Dshaft.intellij.liveMcpCommand=${MCP_JAVA} @${MCP_ARGS}"
           "-Dshaft.intellij.workspaceRoot=${GITHUB_WORKSPACE}/build/live-tools/gemini"
+      - name: Upload Gemini IntelliJ coverage to Codecov
+        if: always() && env.GEMINI_API_KEY != ''
+        uses: ./.github/actions/upload-jacoco-coverage
+        with:
+          codecov-token: ${{ secrets.CODECOV_TOKEN }}
+          files: ./shaft-intellij/build/reports/jacoco/test/jacocoTestReport.xml
+          required-files: ./shaft-intellij/build/reports/jacoco/test/jacocoTestReport.xml
+          source-id: live-tools-intellij-gemini
       - name: Verify live Gemini test actually executed
         if: env.GEMINI_API_KEY != ''
         run: >-

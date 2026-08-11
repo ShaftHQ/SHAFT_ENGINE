@@ -1111,4 +1111,5 @@
 {"actor":"agent","event":"memory.marked_stale","id":"gotcha.markdown-link-checkers-miss-bare-filenames-in-table-cells-check-both-directions-against-disk","reason":"The feature catalog no longer contains screenshot proof tables; it is now a compatibility pointer.","timestamp":"2026-08-11T13:45:11+03:00"}
 {"actor":"agent","event":"memory.deleted","id":"gotcha.markdown-link-checkers-miss-bare-filenames-in-table-cells-check-both-directions-against-disk","timestamp":"2026-08-11T13:46:04+03:00"}
 {"actor":"agent","event":"memory.updated","id":"source.project-readme","timestamp":"2026-08-11T13:57:05+03:00"}
+{"actor":"agent","event":"memory.created","id":"decision.github-actions-coverage-uploads-are-main-only-and-fail-open-into-one-manual-tracking-issue","timestamp":"2026-08-11T13:22:17+03:00"}
 {"actor":"agent","event":"memory.created","id":"gotcha.windows-directory-junctions-bypass-path-is-symlink-and-must-be-rejected-as-reparse-points","timestamp":"2026-08-11T13:48:58+03:00"}

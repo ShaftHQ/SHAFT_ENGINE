@@ -4,9 +4,12 @@
 from __future__ import annotations
 
 import re
+import shlex
 import sys
 import xml.etree.ElementTree as ET
 from pathlib import Path
+
+import yaml
 
 ROOT = Path(__file__).resolve().parents[2]
 NS = {"m": "http://maven.apache.org/POM/4.0.0"}
@@ -39,6 +42,16 @@ FORBIDDEN_OPTIONAL_COVERAGE_SETTINGS = (
     "require-coverage: false",
     "allow-missing-coverage: true",
 )
+COVERAGE_ACTIONS = (
+    "./.github/actions/upload-jacoco-coverage",
+    "./.github/actions/post-test-report",
+)
+MAVEN_EXECUTABLES = {"mvn", "mvn.cmd", "mvnw", "mvnw.cmd", "./mvnw"}
+MAVEN_TEST_PHASES = {"test", "package", "verify", "install", "deploy"}
+GRADLE_EXECUTABLES = {"gradle", "gradle.bat", "gradlew", "gradlew.bat", "./gradlew"}
+GRADLE_TEST_TASKS = {"test", "check", "build"}
+COMMAND_WRAPPERS = {"bash", "sh", "pwsh", "powershell", "cmd", "sudo", "env", "timeout"}
+SHELL_ASSIGNMENT = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*=.*$")
 UNIT_SCOPE_SENTINEL = "!%regex[.*testPackage.unitTests.*]"
 GRID_ONLY_SCOPE_EXCLUSIONS = (
     "!%regex[.*playwright.*PlaywrightActionsE2ETest.*]",
@@ -84,18 +97,196 @@ def validate_surefire_jacoco_arg_lines(root: Path = ROOT) -> list[str]:
     return errors
 
 
+def _split_shell_commands(run: str) -> list[list[str]]:
+    normalized = run.replace("\\\r\n", " ").replace("\\\n", " ").replace("`\r\n", " ")
+    logical_lines: list[str] = []
+    for line in normalized.splitlines():
+        stripped = line.strip()
+        if stripped.startswith("-") and logical_lines:
+            logical_lines[-1] += " " + stripped
+        else:
+            logical_lines.append(line)
+    normalized = "\n".join(logical_lines)
+    commands = re.split(r"(?:\r?\n|&&|\|\||;)", normalized)
+    tokenized: list[list[str]] = []
+    for command in commands:
+        command = command.strip()
+        if not command or command.startswith("#"):
+            continue
+        try:
+            tokens = shlex.split(command, posix=True)
+        except ValueError:
+            tokens = command.split()
+        if tokens:
+            tokenized.append(tokens)
+    return tokenized
+
+
+def _command_runs_jvm_tests(tokens: list[str]) -> bool:
+    executable_index = next(
+        (
+            index
+            for index, token in enumerate(tokens)
+            if token in MAVEN_EXECUTABLES or token in GRADLE_EXECUTABLES
+        ),
+        None,
+    )
+    if executable_index is None:
+        return False
+    if executable_index > 0:
+        prefix = [token for token in tokens[:executable_index] if not SHELL_ASSIGNMENT.fullmatch(token)]
+        if prefix and prefix[0] not in COMMAND_WRAPPERS:
+            return False
+
+    executable = tokens[executable_index]
+    arguments = tokens[executable_index + 1:]
+    if executable in MAVEN_EXECUTABLES:
+        skip_tests = any(
+            re.fullmatch(r"-D(?:skipTests|maven\.test\.skip)(?:=true)?", argument, re.IGNORECASE)
+            for argument in arguments
+        )
+        if skip_tests:
+            return False
+        return any(argument.lstrip(":") in MAVEN_TEST_PHASES for argument in arguments)
+
+    return any(
+        argument.split(":")[-1] in GRADLE_TEST_TASKS
+        for argument in arguments
+        if not argument.startswith("-")
+    )
+
+
+def _run_value_runs_jvm_tests(run: object) -> bool:
+    return isinstance(run, str) and any(
+        _command_runs_jvm_tests(tokens) for tokens in _split_shell_commands(run)
+    )
+
+
+def _local_action_runs_jvm_tests(root: Path, action: str, seen: set[Path] | None = None) -> bool:
+    if not action.startswith("./"):
+        return False
+    action_path = root / action.removeprefix("./")
+    metadata_path = action_path / "action.yml" if action_path.is_dir() else action_path
+    if not metadata_path.is_file():
+        return False
+    seen = seen or set()
+    resolved = metadata_path.resolve()
+    if resolved in seen:
+        return False
+    seen.add(resolved)
+    try:
+        document = yaml.safe_load(metadata_path.read_text(encoding="utf-8")) or {}
+    except yaml.YAMLError:
+        return False
+    for step in document.get("runs", {}).get("steps", []):
+        if not isinstance(step, dict):
+            continue
+        if _run_value_runs_jvm_tests(step.get("run")):
+            return True
+        nested_action = step.get("uses")
+        if isinstance(nested_action, str) and _local_action_runs_jvm_tests(
+            root, nested_action, seen
+        ):
+            return True
+    return False
+
+
+def _step_is_disabled(step: dict[object, object]) -> bool:
+    condition = step.get("if")
+    if condition is False:
+        return True
+    if not isinstance(condition, str):
+        return False
+    normalized = condition.strip().lower().replace("${{", "").replace("}}", "").strip()
+    return normalized in {"false", "0", "null"}
+
+
+def _normalize_workflow_condition(condition: str) -> str:
+    return condition.strip().lower().replace("${{", "").replace("}}", "").strip()
+
+
+def _coverage_step_runs_after_failure_on_main(
+    step: dict[object, object], test_conditions: set[str]
+) -> bool:
+    action = step.get("uses")
+    if action not in COVERAGE_ACTIONS:
+        return False
+    condition = step.get("if")
+    if not isinstance(condition, str):
+        return False
+    normalized = _normalize_workflow_condition(condition)
+    safe_conditions = (
+        r"always\(\)",
+        r"always\(\)\s*&&\s*steps\.[a-z0-9_-]+\.outcome\s*!=\s*['\"]skipped['\"]",
+        r"always\(\)\s*&&\s*github\.event_name\s*!=\s*['\"]pull_request['\"]",
+        r"always\(\)\s*&&\s*github\.ref\s*==\s*['\"]refs/heads/main['\"]",
+    )
+    if any(re.fullmatch(pattern, normalized) for pattern in safe_conditions):
+        return True
+    conditional = re.fullmatch(r"always\(\)\s*&&\s*(.+)", normalized)
+    return bool(conditional and conditional.group(1).strip() in test_conditions)
+
+
 def validate_workflow_coverage_policy(root: Path = ROOT) -> list[str]:
     errors: list[str] = []
     workflows = root / ".github" / "workflows"
     if not workflows.is_dir():
         return errors
 
-    for path in sorted(workflows.glob("*.yml")):
+    paths = sorted((*workflows.glob("*.yml"), *workflows.glob("*.yaml")))
+    for path in paths:
         workflow = path.read_text(encoding="utf-8")
         for forbidden in FORBIDDEN_OPTIONAL_COVERAGE_SETTINGS:
             if forbidden in workflow:
                 errors.append(
                     f"{path.relative_to(root).as_posix()} must not mark JaCoCo coverage optional with {forbidden!r}"
+                )
+        try:
+            document = yaml.safe_load(workflow) or {}
+        except yaml.YAMLError as error:
+            errors.append(f"{path.relative_to(root).as_posix()} is not valid YAML: {error}")
+            continue
+        jobs = document.get("jobs", {}) if isinstance(document, dict) else {}
+        if not isinstance(jobs, dict):
+            continue
+        for job, definition in jobs.items():
+            if not isinstance(definition, dict):
+                continue
+            steps = definition.get("steps", [])
+            if not isinstance(steps, list):
+                continue
+            test_step_indexes: list[int] = []
+            test_conditions: set[str] = set()
+            coverage_steps: list[tuple[int, dict[object, object]]] = []
+            for step_index, step in enumerate(steps):
+                if not isinstance(step, dict) or _step_is_disabled(step):
+                    continue
+                action = step.get("uses")
+                if isinstance(action, str):
+                    if action in COVERAGE_ACTIONS:
+                        coverage_steps.append((step_index, step))
+                    if _local_action_runs_jvm_tests(root, action):
+                        test_step_indexes.append(step_index)
+                        if isinstance(step.get("if"), str):
+                            test_conditions.add(_normalize_workflow_condition(step["if"]))
+                if _run_value_runs_jvm_tests(step.get("run")):
+                    test_step_indexes.append(step_index)
+                    if isinstance(step.get("if"), str):
+                        test_conditions.add(_normalize_workflow_condition(step["if"]))
+
+            coverage_step_indexes = [
+                index
+                for index, step in coverage_steps
+                if _coverage_step_runs_after_failure_on_main(step, test_conditions)
+            ]
+            has_coverage_after_last_test = bool(
+                test_step_indexes
+                and any(index > max(test_step_indexes) for index in coverage_step_indexes)
+            )
+            if test_step_indexes and not has_coverage_after_last_test:
+                errors.append(
+                    f"{path.relative_to(root).as_posix()} job {job!r} runs JVM tests "
+                    "without upload-jacoco-coverage or post-test-report"
                 )
     return errors
 

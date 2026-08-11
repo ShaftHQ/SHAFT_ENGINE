@@ -20,12 +20,14 @@ flowchart TD
   RELEASE --> IDEA[Publish IntelliJ Plugin]
   RELEASE --> MCP[Publish shaft-mcp Distributions]
   MCP --> DEPLOY[Deploy shaft-mcp]
+  COVERAGE[Coverage artifact] --> COVERAGE_ISSUE[Coverage failure notifier]
   MANUAL[Manual recovery] --> RECONCILE[Maven Central Release Reconciliation]
 ```
 
 `workflow_run` consumers match the upstream workflow `name`, not its filename.
-Renaming **Maven Central Continuous Delivery** or **Publish shaft-mcp
-Distributions** requires updating downstream listeners in the same change.
+Renaming **Maven Central Continuous Delivery**, **Publish shaft-mcp
+Distributions**, or a coverage-producing workflow requires updating downstream
+listeners in the same change.
 
 The release workflow creates GitHub Releases with `BOT_TOKEN`. GitHub does not
 fan out a `release` event created by a workflow's default `GITHUB_TOKEN`, so
@@ -45,6 +47,7 @@ changing that token silently breaks both distribution publishers.
 | `publish-intellij-plugin.yml` | published GitHub release, manual | Checks out the release tag, verifies, signs, and publishes the IntelliJ plugin. |
 | `publish-shaft-mcp.yml` | published GitHub release, manual | Publishes MCP images and registry metadata. |
 | `deploy-shaft-mcp.yml` | successful MCP distribution workflow, manual | Deploys configured MCP services and records optional-provider handoffs. |
+| `codecoverage-failure-notifier.yml` | completed coverage-producing workflow on `main` | Consolidates coverage failure artifacts into one manually closed tracking issue. |
 | `e2eTests.yml` | nightly, manual | Broad hosted database, API, browser, mobile, visual, video, Cucumber, and JUnit coverage. |
 | `e2eLocalTests.yml` | nightly, manual | Windows and macOS local browser and desktop coverage. |
 | `lambdatestTests.yml` | manual | Serial LambdaTest app upload plus native and desktop suites. |
@@ -70,12 +73,22 @@ table. Remove a row only in the same change that deletes its workflow.
 - `publish-intellij-plugin.yml` and `publish-shaft-mcp.yml` listen for an actual
   published release rather than the Maven workflow conclusion, because an
   already-published version is a successful no-op delivery.
+- Coverage-producing jobs upload complete JaCoCo/Gradle XML evidence on `main`.
+  Upload failures stay separate from test verdicts and feed the notifier.
 - The agnix job copies staged plugin content outside canonical roots, validates
   it with a pinned checksum-verified binary in a no-network, read-only,
   nonroot container, and fails on new errors.
 - External credentials and infrastructure can make cloud/live lanes report an
   explicit external blocker. Unknown client exits, contract drift, and
   ordinary test failures remain failures.
+
+## Shared coverage actions
+
+| Action | Responsibility |
+|---|---|
+| `.github/actions/upload-jacoco-coverage` | Discovers every Maven `jacoco.exec`, generates XML, includes Gradle reports, and uploads the complete report set on `main`. |
+| `.github/actions/post-test-report` | Invokes coverage upload for E2E jobs, creates Allure artifacts, writes summaries, and derives the test verdict. |
+| `.github/actions/notify-codecoverage-failure` | Files or updates the consolidated coverage tracking issue from failure artifacts. |
 
 ## Safe editing checklist
 

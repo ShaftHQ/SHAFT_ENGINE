@@ -22,6 +22,9 @@ outputs:
   duration:
     description: 'Execution duration in milliseconds'
     value: ${{ steps.collect_results.outputs.duration }}
+  coverage-status:
+    description: 'JaCoCo/Codecov result: success, failure, or skipped'
+    value: ${{ steps.coverage.outputs.status }}
 inputs:
   job-name:
     description: 'Name of the job (used for naming the Allure report artifact)'
@@ -48,12 +51,14 @@ runs:
   using: 'composite'
   steps:
     - name: Upload coverage to Codecov
+      id: coverage
       if: always()
       uses: ./.github/actions/upload-jacoco-coverage
       with:
         codecov-token: ${{ inputs.codecov-token }}
         files: ${{ inputs.coverage-files }}
         required-files: ./${{ inputs.module-directory }}/target/jacoco/jacoco.xml
+        source-id: ${{ inputs.job-name }}
         allow-missing-coverage: ${{ inputs.require-coverage != 'true' }}
     - name: Generate Allure Report Fallback
       if: always()
