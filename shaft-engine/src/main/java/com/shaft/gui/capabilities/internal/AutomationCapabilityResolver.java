@@ -86,13 +86,16 @@ public final class AutomationCapabilityResolver {
                 .nativeFeature(AutomationFeature.BROWSING_CONTEXTS, "Playwright BrowserContext")
                 .nativeFeature(AutomationFeature.STORAGE, "Playwright storage state")
                 .nativeFeature(AutomationFeature.PERMISSIONS, "Playwright BrowserContext permissions")
+                .nativeFeature(AutomationFeature.GEOLOCATION_EMULATION, "Playwright BrowserContext geolocation")
                 .nativeFeature(AutomationFeature.DOWNLOADS, "Playwright BrowserContext download lifecycle")
                 .adaptedFeature(AutomationFeature.AUTHENTICATION, "SHAFT HTTP authentication routing")
                 .nativeFeature(AutomationFeature.TRACE, "Playwright BrowserContext trace with SHAFT evidence integration");
         if (session.page() != null && !session.page().isClosed()) {
             builder.nativeFeature(AutomationFeature.BROWSER_AUTOMATION, "Playwright Browser and Page")
                     .nativeFeature(AutomationFeature.CONSOLE_LOGS, "Playwright console and page-error events")
-                    .nativeFeature(AutomationFeature.SCRIPT_EXECUTION, "Playwright evaluate and bindings");
+                    .nativeFeature(AutomationFeature.SCRIPT_EXECUTION, "Playwright evaluate and bindings")
+                    .nativeFeature(AutomationFeature.VIEWPORT_EMULATION, "Playwright Page viewport")
+                    .nativeFeature(AutomationFeature.MEDIA_EMULATION, "Playwright Page media emulation");
         }
         return builder.build();
     }
@@ -115,15 +118,23 @@ public final class AutomationCapabilityResolver {
             builder.adaptedFeature(AutomationFeature.CONSOLE_LOGS, "Selenium browser logs through SHAFT");
         }
 
-        boolean bidiAdvertised = hasNegotiatedBiDi(driver, capabilities);
+        boolean bidiAdvertised = hasNegotiatedBiDi(driver);
         if (bidiAdvertised) {
             builder.nativeFeature(AutomationFeature.BIDI, "W3C WebDriver BiDi")
                     .adaptedFeature(AutomationFeature.NETWORK_OBSERVATION, "Selenium BiDi through SHAFT")
                     .adaptedFeature(AutomationFeature.CONSOLE_LOGS, "Selenium BiDi through SHAFT")
-                    .adaptedFeature(AutomationFeature.PERMISSIONS, "Selenium BiDi through SHAFT");
+                    .adaptedFeature(AutomationFeature.PERMISSIONS, "Selenium BiDi through SHAFT")
+                    .nativeFeature(AutomationFeature.SCREEN_EMULATION, "W3C WebDriver BiDi emulation")
+                    .nativeFeature(AutomationFeature.GEOLOCATION_EMULATION, "W3C WebDriver BiDi emulation")
+                    .nativeFeature(AutomationFeature.TIMEZONE_EMULATION, "W3C WebDriver BiDi emulation")
+                    .nativeFeature(AutomationFeature.LOCALE_EMULATION, "W3C WebDriver BiDi emulation")
+                    .nativeFeature(AutomationFeature.USER_AGENT_EMULATION, "W3C WebDriver BiDi emulation")
+                    .nativeFeature(AutomationFeature.SCRIPTING_EMULATION, "W3C WebDriver BiDi emulation");
         }
-        if (driver instanceof HasDevTools hasDevTools && hasDevTools.maybeGetDevTools().isPresent()) {
-            builder.adaptedFeature(AutomationFeature.NETWORK_INTERCEPTION, "Selenium DevTools through SHAFT");
+        if (hasLiveDevTools(driver)) {
+            builder.adaptedFeature(AutomationFeature.NETWORK_INTERCEPTION, "Selenium DevTools through SHAFT")
+                    .adaptedFeature(AutomationFeature.VIEWPORT_EMULATION, "Selenium DevTools through SHAFT")
+                    .adaptedFeature(AutomationFeature.MEDIA_EMULATION, "Selenium DevTools through SHAFT");
             if (driver instanceof HasAuthentication
                     && (!(driver instanceof RemoteWebDriver remote) || remote.getSessionId() != null)) {
                 builder.nativeFeature(AutomationFeature.AUTHENTICATION, "Selenium CDP-backed HasAuthentication");
@@ -190,10 +201,16 @@ public final class AutomationCapabilityResolver {
         if (driver instanceof AuthenticatesByFinger || driver instanceof PerformsTouchID) {
             builder.nativeFeature(AutomationFeature.BIOMETRICS, "Platform Appium biometric extensions");
         }
-        if (hasNegotiatedBiDi(driver, capabilities)) {
+        if (hasNegotiatedBiDi(driver)) {
             builder.nativeFeature(AutomationFeature.BIDI, "W3C WebDriver BiDi")
                     .adaptedFeature(AutomationFeature.NETWORK_OBSERVATION, "Appium BiDi through SHAFT")
-                    .adaptedFeature(AutomationFeature.CONSOLE_LOGS, "Appium BiDi through SHAFT");
+                    .adaptedFeature(AutomationFeature.CONSOLE_LOGS, "Appium BiDi through SHAFT")
+                    .nativeFeature(AutomationFeature.SCREEN_EMULATION, "W3C WebDriver BiDi emulation")
+                    .nativeFeature(AutomationFeature.GEOLOCATION_EMULATION, "W3C WebDriver BiDi emulation")
+                    .nativeFeature(AutomationFeature.TIMEZONE_EMULATION, "W3C WebDriver BiDi emulation")
+                    .nativeFeature(AutomationFeature.LOCALE_EMULATION, "W3C WebDriver BiDi emulation")
+                    .nativeFeature(AutomationFeature.USER_AGENT_EMULATION, "W3C WebDriver BiDi emulation")
+                    .nativeFeature(AutomationFeature.SCRIPTING_EMULATION, "W3C WebDriver BiDi emulation");
         }
         if (hasBrowserConsoleLogs(driver)) {
             builder.adaptedFeature(AutomationFeature.CONSOLE_LOGS, "Appium browser logs through SHAFT");
@@ -219,14 +236,31 @@ public final class AutomationCapabilityResolver {
         }
     }
 
+    /**
+     * Returns whether one live driver has both a usable BiDi object and the negotiated websocket capability.
+     * Runtime protocol users call this same predicate so advertised and executable support cannot diverge.
+     */
     @SuppressWarnings("removal")
-    private static boolean hasNegotiatedBiDi(WebDriver driver, Capabilities capabilities) {
-        if (!(driver instanceof HasBiDi hasBiDi) || capabilities == null
-                || hasBiDi.maybeGetBiDi().isEmpty()) {
+    public static boolean hasNegotiatedBiDi(WebDriver driver) {
+        try {
+            if ((driver instanceof RemoteWebDriver remote && remote.getSessionId() == null)
+                    || !(driver instanceof HasBiDi hasBiDi)
+                    || !(driver instanceof HasCapabilities hasCapabilities)
+                    || hasBiDi.maybeGetBiDi().isEmpty()) {
+                return false;
+            }
+            Capabilities capabilities = hasCapabilities.getCapabilities();
+            Object webSocketUrl = capabilities == null ? null : capabilities.getCapability("webSocketUrl");
+            return webSocketUrl instanceof String url && !url.isBlank();
+        } catch (RuntimeException ignored) {
             return false;
         }
-        Object webSocketUrl = capabilities.getCapability("webSocketUrl");
-        return webSocketUrl instanceof String url && !url.isBlank();
+    }
+
+    private static boolean hasLiveDevTools(WebDriver driver) {
+        return (!(driver instanceof RemoteWebDriver remote) || remote.getSessionId() != null)
+                && driver instanceof HasDevTools hasDevTools
+                && hasDevTools.maybeGetDevTools().isPresent();
     }
 
     private static String browserRuntime(Capabilities capabilities) {

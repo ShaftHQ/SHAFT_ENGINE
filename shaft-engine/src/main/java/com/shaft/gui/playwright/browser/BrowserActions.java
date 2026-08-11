@@ -5,6 +5,13 @@ import com.microsoft.playwright.Locator;
 import com.microsoft.playwright.Page;
 import com.microsoft.playwright.options.Cookie;
 import com.microsoft.playwright.options.LoadState;
+import com.microsoft.playwright.options.ColorScheme;
+import com.microsoft.playwright.options.Geolocation;
+import com.microsoft.playwright.options.Media;
+import com.microsoft.playwright.options.ReducedMotion;
+import com.shaft.gui.driver.EmulatedColorScheme;
+import com.shaft.gui.driver.EmulatedMediaType;
+import com.shaft.gui.driver.EmulatedReducedMotion;
 import com.shaft.driver.SHAFT;
 import com.shaft.enums.internal.Screenshots;
 import com.shaft.gui.browser.NetworkInterceptionRequestBuilder;
@@ -50,6 +57,7 @@ public class BrowserActions implements com.shaft.gui.driver.BrowserActionsContra
 
     public BrowserActions(PlaywrightSession session) {
         this.session = session;
+        FailureTraceReporter.activateBrowserEvidenceOwner(session);
     }
 
     @Override
@@ -101,6 +109,164 @@ public class BrowserActions implements com.shaft.gui.driver.BrowserActionsContra
     @Override
     public DownloadActions downloads() {
         return new DownloadActions(this);
+    }
+
+    @Override
+    public EmulationActions emulation() {
+        return new EmulationActions(this);
+    }
+
+    void emulateViewportNamespace(int width, int height) {
+        queryEmulation("screen", "viewport", width + "x" + height, () -> {
+            requirePositiveDimensions(width, height);
+            requireLiveSession("emulation screen viewport");
+            session.setViewport(page(), width, height);
+            return null;
+        });
+    }
+
+    void clearViewportEmulationNamespace() {
+        queryEmulation("screen", "clear-viewport", "", () -> {
+            requireLiveSession("emulation screen clear viewport");
+            session.clearViewport(page());
+            return null;
+        });
+    }
+
+    void emulateGeolocationNamespace(double latitude, double longitude, double accuracy) {
+        queryEmulation("location", "geolocation", "<geolocation>", () -> {
+            requireValidGeolocation(latitude, longitude, accuracy);
+            requireLivePermissionContext("emulation geolocation");
+            session.browserContext().setGeolocation(new Geolocation(latitude, longitude).setAccuracy(accuracy));
+            return null;
+        }, latitude, longitude, accuracy);
+    }
+
+    void clearGeolocationEmulationNamespace() {
+        queryEmulation("location", "clear-geolocation", "", () -> {
+            requireLivePermissionContext("emulation clear geolocation");
+            session.browserContext().setGeolocation(null);
+            return null;
+        });
+    }
+
+    void emulateMediaTypeNamespace(EmulatedMediaType type) {
+        queryEmulation("media", "type", String.valueOf(type), () -> {
+            requireEmulationValue(type, "Media type");
+            requireLiveSession("emulation media type");
+            session.setMediaType(page(), switch (type) {
+                case SCREEN -> Media.SCREEN;
+                case PRINT -> Media.PRINT;
+            });
+            return null;
+        });
+    }
+
+    void emulateColorSchemeNamespace(EmulatedColorScheme scheme) {
+        queryEmulation("media", "color-scheme", String.valueOf(scheme), () -> {
+            requireEmulationValue(scheme, "Color scheme");
+            requireLiveSession("emulation color scheme");
+            session.setColorScheme(page(), switch (scheme) {
+                case LIGHT -> ColorScheme.LIGHT;
+                case DARK -> ColorScheme.DARK;
+                case NO_PREFERENCE -> ColorScheme.NO_PREFERENCE;
+            });
+            return null;
+        });
+    }
+
+    void emulateReducedMotionNamespace(EmulatedReducedMotion motion) {
+        queryEmulation("media", "reduced-motion", String.valueOf(motion), () -> {
+            requireEmulationValue(motion, "Reduced motion");
+            requireLiveSession("emulation reduced motion");
+            session.setReducedMotion(page(), switch (motion) {
+                case REDUCE -> ReducedMotion.REDUCE;
+                case NO_PREFERENCE -> ReducedMotion.NO_PREFERENCE;
+            });
+            return null;
+        });
+    }
+
+    void resetMediaEmulationNamespace() {
+        queryEmulation("media", "reset", "", () -> {
+            requireLiveSession("emulation media reset");
+            session.resetMedia(page());
+            return null;
+        });
+    }
+
+    void unsupportedLiveContextEmulation(String category, String operation, String property,
+                                         Object... sensitiveSourceValues) {
+        if (sensitiveSourceValues != null) {
+            for (Object value : sensitiveSourceValues) {
+                if (value != null) {
+                    FailureTraceReporter.registerSensitiveSourceValue(String.valueOf(value));
+                }
+            }
+        }
+        queryEmulation(category, operation, "", () -> {
+            requireLivePermissionContext("emulation " + operation);
+            throw new UnsupportedOperationException("Playwright " + operation
+                    + " is fixed when BrowserContext is created; configure " + property + " before creating the session.");
+        });
+    }
+
+    private <T> T queryEmulation(String category, String operation, String locator, Supplier<T> action,
+                                 Object... sensitiveValues) {
+        boolean sensitive = sensitiveValues != null && sensitiveValues.length > 0;
+        if (sensitive) {
+            FailureTraceReporter.suppressSensitiveBrowserArtifacts();
+            for (Object value : sensitiveValues) {
+                if (value != null) {
+                    FailureTraceReporter.registerSensitiveSourceValue(String.valueOf(value));
+                }
+            }
+        }
+        var event = TraceEventRecorder.startForBackend("emulation/" + category, operation, locator,
+                AutomationBackend.MICROSOFT_PLAYWRIGHT);
+        try {
+            T result = action.get();
+            if (sensitive) {
+                FailureTraceReporter.registerPersistentSensitiveBrowserState(session, operation, sensitiveValues);
+            } else if ("clear-geolocation".equals(operation)) {
+                FailureTraceReporter.clearPersistentSensitiveBrowserState(session, "geolocation");
+            }
+            TraceEventRecorder.finish(event, "passed", "emulation " + category + " " + operation + " completed.",
+                    null, Map.of("backend", "MICROSOFT_PLAYWRIGHT"), List.of());
+            return result;
+        } catch (RuntimeException exception) {
+            if (sensitive) {
+                FailureTraceReporter.registerSensitiveThrowable(exception);
+                FailureTraceReporter.registerSensitiveValues(sensitiveValues);
+            }
+            TraceEventRecorder.finish(event, "failed", "emulation " + category + " " + operation + " failed.",
+                    exception, Map.of("backend", "MICROSOFT_PLAYWRIGHT"), List.of());
+            throw exception;
+        }
+    }
+
+    private static void requirePositiveDimensions(int width, int height) {
+        if (width < 1 || height < 1) {
+            throw new IllegalArgumentException("Viewport width and height must both be positive.");
+        }
+    }
+
+    private static void requireValidGeolocation(double latitude, double longitude, double accuracy) {
+        if (!Double.isFinite(latitude) || latitude < -90 || latitude > 90) {
+            throw new IllegalArgumentException("Latitude must be finite and between -90 and 90.");
+        }
+        if (!Double.isFinite(longitude) || longitude < -180 || longitude > 180) {
+            throw new IllegalArgumentException("Longitude must be finite and between -180 and 180.");
+        }
+        if (!Double.isFinite(accuracy) || accuracy < 0) {
+            throw new IllegalArgumentException("Geolocation accuracy must be finite and non-negative.");
+        }
+    }
+
+    private static void requireEmulationValue(Object value, String name) {
+        if (value == null) {
+            throw new IllegalArgumentException(name + " must not be null.");
+        }
     }
 
     List<com.shaft.gui.driver.BrowserDownload> downloadedFilesNamespace(DownloadActions owner) {
@@ -677,7 +843,9 @@ public class BrowserActions implements com.shaft.gui.driver.BrowserActionsContra
     }
 
     void requireLiveSession(String operation) {
-        if (session == null || session.browserContext() == null || session.page() == null
+        FailureTraceReporter.activateBrowserEvidenceOwner(session);
+        if (session == null || session.browserContext() == null || session.browserContext().isClosed()
+                || session.page() == null
                 || session.page().isClosed() || session.browser() == null || !session.browser().isConnected()) {
             throw new UnsupportedOperationException("Operation " + operation
                     + " requires a live Playwright session. Query capabilities() again after session changes.");
@@ -962,9 +1130,10 @@ public class BrowserActions implements com.shaft.gui.driver.BrowserActionsContra
     }
 
     private void requireLivePermissionContext(String operation) {
+        FailureTraceReporter.activateBrowserEvidenceOwner(session);
         if (session == null || session.browserContext() == null || session.browserContext().isClosed()
                 || session.browser() == null || !session.browser().isConnected()) {
-            throw new UnsupportedOperationException("Browser permissions " + operation
+            throw new UnsupportedOperationException("Operation " + operation
                     + " requires a live Playwright BrowserContext and connected Browser.");
         }
     }
@@ -1033,6 +1202,7 @@ public class BrowserActions implements com.shaft.gui.driver.BrowserActionsContra
     }
 
     private Page page() {
+        FailureTraceReporter.activateBrowserEvidenceOwner(session);
         return session.page();
     }
 

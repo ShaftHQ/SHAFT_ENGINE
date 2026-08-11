@@ -47,5 +47,21 @@ public enum AutomationFeature {
     /** W3C virtual-authenticator and passkey operations. */
     WEBAUTHN,
     /** HTTP authentication registration or request adaptation. */
-    AUTHENTICATION
+    AUTHENTICATION,
+    /** Runtime viewport-size emulation for the current page. */
+    VIEWPORT_EMULATION,
+    /** Web-exposed screen-size emulation for the current browsing context. */
+    SCREEN_EMULATION,
+    /** Geolocation emulation for the current context or session. */
+    GEOLOCATION_EMULATION,
+    /** IANA timezone emulation for the current browsing context. */
+    TIMEZONE_EMULATION,
+    /** BCP 47 locale emulation for the current browsing context. */
+    LOCALE_EMULATION,
+    /** CSS media type and preference emulation. */
+    MEDIA_EMULATION,
+    /** User-agent override for the current browsing context. */
+    USER_AGENT_EMULATION,
+    /** JavaScript execution disabling/reset override for the current browsing context. */
+    SCRIPTING_EMULATION
 }

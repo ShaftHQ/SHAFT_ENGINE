@@ -23,6 +23,7 @@ import org.openqa.selenium.bidi.HasBiDi;
 import org.openqa.selenium.bidi.BiDi;
 import org.openqa.selenium.devtools.HasDevTools;
 import org.openqa.selenium.logging.Logs;
+import org.openqa.selenium.remote.SessionId;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
@@ -167,6 +168,7 @@ public class AutomationCapabilityResolverUnitTest {
             AndroidDriver android = mock(AndroidDriver.class);
             MutableCapabilities rawCapabilities = appiumCapabilities("UiAutomator2", "android");
             rawCapabilities.setCapability("webSocketUrl", "ws://localhost/appium/session/1");
+            when(android.getSessionId()).thenReturn(new SessionId("live-appium-bidi"));
             when(android.getCapabilities()).thenReturn(rawCapabilities);
             when(android.maybeGetBiDi()).thenReturn(Optional.empty());
 

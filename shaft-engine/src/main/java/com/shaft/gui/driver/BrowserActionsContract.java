@@ -109,6 +109,14 @@ public interface BrowserActionsContract {
         throw new UnsupportedOperationException("Download actions are not supported by this browser facade.");
     }
 
+    /**
+     * Returns categorized browser environment emulation actions. The Java default-method collision boundary documented
+     * for {@link #network()} also applies.
+     */
+    default EmulationActionsContract emulation() {
+        throw new UnsupportedOperationException("Emulation actions are not supported by this browser facade.");
+    }
+
     BrowserActionsContract and();
 
     BrowserAssertions assertThat();

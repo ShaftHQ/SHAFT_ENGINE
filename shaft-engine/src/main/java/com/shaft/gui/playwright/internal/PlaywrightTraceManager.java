@@ -4,6 +4,7 @@ import com.microsoft.playwright.BrowserContext;
 import com.microsoft.playwright.Tracing;
 import com.shaft.driver.SHAFT;
 import com.shaft.tools.io.ReportManager;
+import com.shaft.tools.io.internal.FailureTraceReporter;
 import com.shaft.tools.io.internal.ReportManagerHelper;
 import org.apache.logging.log4j.Level;
 
@@ -80,8 +81,16 @@ public final class PlaywrightTraceManager {
             return null;
         }
 
-        Path tracePath = artifactsDirectory.resolve("playwright-trace-" + TRACE_TIMESTAMP.format(LocalDateTime.now()) + ".zip");
         try {
+            if (FailureTraceReporter.shouldOmitSensitiveBrowserEvidence()) {
+                browserContext.tracing().stop();
+                LAST_TRACE_PATH.remove();
+                ReportManager.logDiscrete("Playwright trace discarded because this test submitted sensitive browser data.",
+                        Level.INFO);
+                return null;
+            }
+            Path tracePath = artifactsDirectory.resolve(
+                    "playwright-trace-" + TRACE_TIMESTAMP.format(LocalDateTime.now()) + ".zip");
             browserContext.tracing().stop(new Tracing.StopOptions().setPath(tracePath));
             LAST_TRACE_PATH.set(tracePath);
             ReportManager.logDiscrete("Playwright trace saved: " + tracePath, Level.INFO);

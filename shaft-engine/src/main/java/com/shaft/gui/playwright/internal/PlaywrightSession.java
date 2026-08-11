@@ -6,9 +6,14 @@ import com.microsoft.playwright.Dialog;
 import com.microsoft.playwright.Download;
 import com.microsoft.playwright.Page;
 import com.microsoft.playwright.Playwright;
+import com.microsoft.playwright.options.ColorScheme;
+import com.microsoft.playwright.options.Media;
+import com.microsoft.playwright.options.ReducedMotion;
+import com.microsoft.playwright.options.ViewportSize;
 import com.shaft.gui.browser.internal.PlaywrightNetworkInterceptor;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.io.internal.BrowserObservabilityRecorder;
+import com.shaft.tools.io.internal.FailureTraceReporter;
 import org.apache.logging.log4j.Level;
 
 import java.util.IdentityHashMap;
@@ -36,6 +41,8 @@ public final class PlaywrightSession implements AutoCloseable {
     private final AtomicReference<DialogAction> nextDialogAction = new AtomicReference<>();
     private final AtomicReference<String> nextPromptText = new AtomicReference<>("");
     private final Map<Page, String> pageHandles = new IdentityHashMap<>();
+    private final Map<Page, ViewportSize> initialViewports = new IdentityHashMap<>();
+    private final Map<Page, MediaState> mediaStates = new IdentityHashMap<>();
     private final Set<Page> observedPages = Collections.newSetFromMap(new IdentityHashMap<>());
     private final Set<Page> downloadObservedPages = Collections.newSetFromMap(new IdentityHashMap<>());
     private final List<BrowserObservabilityRecorder.ConsoleSnapshotEntry> consoleEvents = new ArrayList<>();
@@ -126,16 +133,22 @@ public final class PlaywrightSession implements AutoCloseable {
 
     @Override
     public void close() {
-        clearConsole();
-        clearDownloadHandles();
-        networkInterceptor.close();
-        if (traceManager != null) {
-            traceManager.stopAndAttach();
+        try {
+            clearConsole();
+            clearDownloadHandles();
+            initialViewports.clear();
+            mediaStates.clear();
+            networkInterceptor.close();
+            if (traceManager != null) {
+                traceManager.stopAndAttach();
+            }
+            closeQuietly(page);
+            closeQuietly(browserContext);
+            closeQuietly(browser);
+            closeQuietly(playwright);
+        } finally {
+            FailureTraceReporter.clearPersistentSensitiveBrowserState(this);
         }
-        closeQuietly(page);
-        closeQuietly(browserContext);
-        closeQuietly(browser);
-        closeQuietly(playwright);
     }
 
     private void registerDialogBridge(Page targetPage) {
@@ -217,6 +230,65 @@ public final class PlaywrightSession implements AutoCloseable {
         downloads.clear();
     }
 
+    /** Applies a page viewport override while retaining the pre-SHAFT value for a later reset. */
+    public synchronized void setViewport(Page targetPage, int width, int height) {
+        if (!initialViewports.containsKey(targetPage)) {
+            initialViewports.put(targetPage, targetPage.viewportSize());
+        }
+        targetPage.setViewportSize(width, height);
+    }
+
+    /** Restores and forgets the page viewport captured before SHAFT's first override. */
+    public synchronized void clearViewport(Page targetPage) {
+        if (!initialViewports.containsKey(targetPage) || initialViewports.get(targetPage) == null) {
+            throw new UnsupportedOperationException(
+                    "The original Playwright viewport was disabled and cannot be restored on a live page; recreate the context.");
+        }
+        ViewportSize original = initialViewports.get(targetPage);
+        targetPage.setViewportSize(original.width, original.height);
+        initialViewports.remove(targetPage);
+    }
+
+    /** Applies a media type without clearing the page's other SHAFT-owned media overrides. */
+    public synchronized void setMediaType(Page targetPage, Media media) {
+        applyMedia(targetPage, mediaState(targetPage).withMedia(media));
+    }
+
+    /** Applies a color scheme without clearing the page's other SHAFT-owned media overrides. */
+    public synchronized void setColorScheme(Page targetPage, ColorScheme colorScheme) {
+        applyMedia(targetPage, mediaState(targetPage).withColorScheme(colorScheme));
+    }
+
+    /** Applies reduced-motion preference without clearing the page's other SHAFT-owned media overrides. */
+    public synchronized void setReducedMotion(Page targetPage, ReducedMotion reducedMotion) {
+        applyMedia(targetPage, mediaState(targetPage).withReducedMotion(reducedMotion));
+    }
+
+    /** Clears every SHAFT-owned media override for one page. */
+    public synchronized void resetMedia(Page targetPage) {
+        targetPage.emulateMedia(new Page.EmulateMediaOptions());
+        mediaStates.remove(targetPage);
+    }
+
+    private MediaState mediaState(Page targetPage) {
+        return mediaStates.getOrDefault(targetPage, MediaState.EMPTY);
+    }
+
+    private void applyMedia(Page targetPage, MediaState state) {
+        Page.EmulateMediaOptions options = new Page.EmulateMediaOptions();
+        if (state.media() != null) {
+            options.setMedia(state.media());
+        }
+        if (state.colorScheme() != null) {
+            options.setColorScheme(state.colorScheme());
+        }
+        if (state.reducedMotion() != null) {
+            options.setReducedMotion(state.reducedMotion());
+        }
+        targetPage.emulateMedia(options);
+        mediaStates.put(targetPage, state);
+    }
+
     /** Atomically transfers this session's console observations to failure-trace storage. */
     public void drainConsoleToRecorder() {
         List<BrowserObservabilityRecorder.ConsoleSnapshotEntry> snapshot;
@@ -254,5 +326,21 @@ public final class PlaywrightSession implements AutoCloseable {
         ACCEPT,
         DISMISS,
         PROMPT
+    }
+
+    private record MediaState(Media media, ColorScheme colorScheme, ReducedMotion reducedMotion) {
+        private static final MediaState EMPTY = new MediaState(null, null, null);
+
+        private MediaState withMedia(Media value) {
+            return new MediaState(value, colorScheme, reducedMotion);
+        }
+
+        private MediaState withColorScheme(ColorScheme value) {
+            return new MediaState(media, value, reducedMotion);
+        }
+
+        private MediaState withReducedMotion(ReducedMotion value) {
+            return new MediaState(media, colorScheme, value);
+        }
     }
 }

@@ -14,10 +14,12 @@ import com.shaft.gui.browser.internal.BrowserNetworkInterceptionRule;
 import com.shaft.gui.browser.internal.BrowserStorageStateManager;
 import com.shaft.gui.browser.internal.BidiConsoleLogSource;
 import com.shaft.gui.browser.internal.BidiPermissionState;
+import com.shaft.gui.browser.internal.BrowserEmulationManager;
 import com.shaft.gui.browser.internal.PermissionOrigin;
 import com.shaft.gui.browser.internal.HarReplayRules;
 import com.shaft.gui.browser.internal.JavaScriptWaitManager;
 import com.shaft.gui.browser.internal.ScrollSweepPlanner;
+import com.shaft.gui.capabilities.AutomationBackend;
 import com.shaft.gui.driver.BrowserConsoleMessage;
 import com.shaft.gui.internal.image.ScreenshotManager;
 import com.shaft.gui.internal.locator.LocatorBuilder;
@@ -82,6 +84,7 @@ public class BrowserActions extends FluentWebDriverAction implements com.shaft.g
      */
     public BrowserActions() {
         initialize();
+        activateBrowserEvidenceOwner();
     }
 
     /**
@@ -91,6 +94,7 @@ public class BrowserActions extends FluentWebDriverAction implements com.shaft.g
      */
     public BrowserActions(WebDriver driver) {
         initialize(driver);
+        FailureTraceReporter.activateBrowserEvidenceOwner(driver);
     }
 
     /**
@@ -102,6 +106,7 @@ public class BrowserActions extends FluentWebDriverAction implements com.shaft.g
      */
     public BrowserActions(WebDriver driver, boolean isSilent) {
         initialize(driver, isSilent);
+        FailureTraceReporter.activateBrowserEvidenceOwner(driver);
     }
 
     /**
@@ -112,6 +117,7 @@ public class BrowserActions extends FluentWebDriverAction implements com.shaft.g
      */
     public BrowserActions(DriverFactoryHelper helper) {
         initialize(helper);
+        activateBrowserEvidenceOwner();
     }
 
     @Override
@@ -163,6 +169,136 @@ public class BrowserActions extends FluentWebDriverAction implements com.shaft.g
     @Override
     public DownloadActions downloads() {
         return new DownloadActions(this);
+    }
+
+    @Override
+    public EmulationActions emulation() {
+        return new EmulationActions(this);
+    }
+
+    void emulateViewportNamespace(int width, int height) {
+        performEmulation("screen", "viewport", width + "x" + height,
+                driver -> BrowserEmulationManager.setViewport(driver, width, height));
+    }
+
+    void clearViewportEmulationNamespace() {
+        performEmulation("screen", "clear-viewport", "", BrowserEmulationManager::clearViewport);
+    }
+
+    void emulateScreenSizeNamespace(int width, int height) {
+        performEmulation("screen", "screen-size", width + "x" + height,
+                driver -> BrowserEmulationManager.setScreenSize(driver, width, height));
+    }
+
+    void clearScreenSizeEmulationNamespace() {
+        performEmulation("screen", "clear-screen-size", "", BrowserEmulationManager::clearScreenSize);
+    }
+
+    void emulateGeolocationNamespace(double latitude, double longitude, double accuracy) {
+        performEmulation("location", "geolocation", "<geolocation>",
+                driver -> BrowserEmulationManager.setGeolocation(driver, latitude, longitude, accuracy),
+                latitude, longitude, accuracy);
+    }
+
+    void clearGeolocationEmulationNamespace() {
+        performEmulation("location", "clear-geolocation", "", BrowserEmulationManager::clearGeolocation);
+    }
+
+    void emulateTimezoneNamespace(String timezoneId) {
+        performEmulation("location", "timezone", timezoneId, driver -> BrowserEmulationManager.setTimezone(driver, timezoneId));
+    }
+
+    void clearTimezoneEmulationNamespace() {
+        performEmulation("location", "clear-timezone", "", BrowserEmulationManager::clearTimezone);
+    }
+
+    void emulateLocaleNamespace(String locale) {
+        performEmulation("location", "locale", locale, driver -> BrowserEmulationManager.setLocale(driver, locale));
+    }
+
+    void clearLocaleEmulationNamespace() {
+        performEmulation("location", "clear-locale", "", BrowserEmulationManager::clearLocale);
+    }
+
+    void emulateUserAgentNamespace(String userAgent) {
+        performEmulation("runtime", "user-agent", "", driver -> BrowserEmulationManager.setUserAgent(driver, userAgent),
+                userAgent);
+    }
+
+    void clearUserAgentEmulationNamespace() {
+        performEmulation("runtime", "clear-user-agent", "", BrowserEmulationManager::clearUserAgent);
+    }
+
+    void disableScriptingEmulationNamespace() {
+        performEmulation("runtime", "disable-scripting", "", BrowserEmulationManager::disableScripting);
+    }
+
+    void clearScriptingEmulationNamespace() {
+        performEmulation("runtime", "clear-scripting", "", BrowserEmulationManager::clearScriptingOverride);
+    }
+
+    void emulateMediaTypeNamespace(com.shaft.gui.driver.EmulatedMediaType mediaType) {
+        performEmulation("media", "type", String.valueOf(mediaType),
+                driver -> BrowserEmulationManager.setMediaType(driver, mediaType));
+    }
+
+    void emulateColorSchemeNamespace(com.shaft.gui.driver.EmulatedColorScheme colorScheme) {
+        performEmulation("media", "color-scheme", String.valueOf(colorScheme),
+                driver -> BrowserEmulationManager.setColorScheme(driver, colorScheme));
+    }
+
+    void emulateReducedMotionNamespace(com.shaft.gui.driver.EmulatedReducedMotion reducedMotion) {
+        performEmulation("media", "reduced-motion", String.valueOf(reducedMotion),
+                driver -> BrowserEmulationManager.setReducedMotion(driver, reducedMotion));
+    }
+
+    void resetMediaEmulationNamespace() {
+        performEmulation("media", "reset", "", BrowserEmulationManager::resetMedia);
+    }
+
+    private void performEmulation(String category, String operation, String locator,
+                                  java.util.function.Consumer<WebDriver> action, Object... sensitiveValues) {
+        WebDriver driver = driverFactoryHelper == null ? null : driverFactoryHelper.getDriver();
+        AutomationBackend backend = driver instanceof AppiumDriver
+                ? AutomationBackend.APPIUM : AutomationBackend.SELENIUM_WEBDRIVER;
+        boolean sensitive = sensitiveValues != null && sensitiveValues.length > 0;
+        if (sensitive) {
+            FailureTraceReporter.suppressSensitiveBrowserArtifacts();
+            for (Object value : sensitiveValues) {
+                if (value != null) {
+                    FailureTraceReporter.registerSensitiveSourceValue(String.valueOf(value));
+                }
+            }
+        }
+        var event = sensitive
+                ? TraceEventRecorder.startForBackend("emulation/" + category, operation,
+                locator == null ? "" : locator, backend)
+                : TraceEventRecorder.start("emulation/" + category, operation, locator == null ? "" : locator, driver);
+        try {
+            action.accept(driver);
+            if (sensitive) {
+                FailureTraceReporter.registerPersistentSensitiveBrowserState(driver, operation, sensitiveValues);
+            } else if ("clear-geolocation".equals(operation)) {
+                FailureTraceReporter.clearPersistentSensitiveBrowserState(driver, "geolocation");
+            } else if ("clear-user-agent".equals(operation)) {
+                FailureTraceReporter.clearPersistentSensitiveBrowserState(driver, "user-agent");
+            }
+            TraceEventRecorder.finish(event, "passed", "emulation " + category + " " + operation + " completed.",
+                    null, Map.of("backend", backend.name()), List.of());
+        } catch (RuntimeException exception) {
+            if (sensitive) {
+                FailureTraceReporter.registerSensitiveThrowable(exception);
+                FailureTraceReporter.registerSensitiveValues(sensitiveValues);
+            }
+            TraceEventRecorder.finish(event, "failed", "emulation " + category + " " + operation + " failed.",
+                    exception, Map.of("backend", backend.name()), List.of());
+            throw exception;
+        }
+    }
+
+    private void activateBrowserEvidenceOwner() {
+        FailureTraceReporter.activateBrowserEvidenceOwner(
+                driverFactoryHelper == null ? null : driverFactoryHelper.getDriver());
     }
 
     List<com.shaft.gui.driver.BrowserDownload> downloadedFilesNamespace(DownloadActions owner) {

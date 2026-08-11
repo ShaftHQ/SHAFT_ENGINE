@@ -57,6 +57,7 @@ public final class TraceEventRecorder {
      * @return started event handle, or a disabled handle when tracing is off
      */
     public static Event start(String category, String name, String locator, WebDriver driver) {
+        FailureTraceReporter.activateBrowserEvidenceOwner(driver);
         if (!isEnabled() || SUPPRESSION_DEPTH.get() > 0) {
             return Event.disabled();
         }
@@ -280,13 +281,26 @@ public final class TraceEventRecorder {
      * Clears current thread action events.
      */
     public static void clear() {
+        clearEvents();
+        FailureTraceReporter.clearSensitiveValues();
+    }
+
+    static void clearForNewTest() {
+        clearEvents();
+        FailureTraceReporter.clearInvocationSensitiveValues();
+    }
+
+    static void clearPreservingSensitiveValues() {
+        clearEvents();
+    }
+
+    private static void clearEvents() {
         EVENTS.remove();
         EVENT_BACKENDS.remove();
         NEXT_ID.remove();
         SCREENSHOTS.remove();
         SCREENSHOT_BYTES.remove();
         SUPPRESSION_DEPTH.remove();
-        FailureTraceReporter.clearSensitiveValues();
     }
 
     /**

@@ -14,6 +14,8 @@ import org.openqa.selenium.WebDriver;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.lang.ref.WeakReference;
+import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -37,6 +39,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Pattern;
+import java.util.regex.Matcher;
 
 /**
  * Builds the failure-scoped SHAFT trace viewer artifacts attached to Allure.
@@ -51,6 +54,9 @@ public final class FailureTraceReporter {
             "(?i)((?:password|passwd|pwd|secret|token|access[_-]?key|api[_-]?key)\\s*=\\s*[\"'])[^\"']*([\"'])");
     private static final Pattern SECRET_JSON_PATTERN = Pattern.compile(
             "(?i)(\"(?:password|passwd|pwd|secret|token|access[_-]?key|api[_-]?key)\"\\s*:\\s*\")[^\"]*(\")");
+    private static final Pattern NUMERIC_TOKEN_PATTERN = Pattern.compile(
+            "(?<![\\d.+\\-])([+\\-]?(?:\\d++(?:\\.\\d*+)?|\\.\\d++)(?:[eE][+\\-]?\\d++)?)"
+                    + "(?![\\d.]|[eE][+\\-]?\\d)");
     private static final int SNIPPET_RADIUS = 2;
     private static final int MAX_SOURCE_FILE_CHARACTERS = 100_000;
     private static final ThreadLocal<String> CURRENT_NETWORK_JSON = ThreadLocal.withInitial(() -> "[]");
@@ -62,8 +68,19 @@ public final class FailureTraceReporter {
             ThreadLocal.withInitial(LinkedHashSet::new);
     private static final ThreadLocal<Set<Throwable>> SENSITIVE_THROWABLES =
             ThreadLocal.withInitial(() -> Collections.newSetFromMap(new IdentityHashMap<>()));
+    private static final ThreadLocal<Boolean> SUPPRESS_SENSITIVE_BROWSER_ARTIFACTS =
+            ThreadLocal.withInitial(() -> false);
+    private static final ThreadLocal<Boolean> SENSITIVE_VALUE_OVERFLOW = ThreadLocal.withInitial(() -> false);
+    private static final ThreadLocal<SensitiveBrowserSessionRegistry> PERSISTENT_BROWSER_SENSITIVITY =
+            ThreadLocal.withInitial(SensitiveBrowserSessionRegistry::new);
     private static final int SENSITIVE_VALUE_TRAVERSAL_LIMIT = 1000;
     private static final int SENSITIVE_VALUE_DEPTH_LIMIT = 20;
+    private static final int SENSITIVE_VALUE_LIMIT = 128;
+    private static final int SENSITIVE_VALUE_LENGTH_LIMIT = 512;
+    private static final int NUMERIC_TOKEN_LIMIT = 256;
+    private static final int NUMERIC_TOKEN_LENGTH_LIMIT = 128;
+    private static final String SENSITIVE_BOUNDS_OMISSION =
+            "[evidence omitted because sensitive-value bounds were exceeded]";
     private static final ConcurrentMap<String, AtomicInteger> ATTEMPT_COUNTERS = new ConcurrentHashMap<>();
     private static final ConcurrentMap<String, List<AttemptRecord>> ATTEMPT_HISTORY = new ConcurrentHashMap<>();
     private static final ConcurrentMap<String, Object> TRACE_LOCKS = new ConcurrentHashMap<>();
@@ -83,7 +100,6 @@ public final class FailureTraceReporter {
      */
     public static void attachOnFailure(TestExecutionInfo info, String logText, List<String> attachments) {
         if (!shouldAttachTrace(info)) {
-            clearSensitiveValues();
             return;
         }
         Path completedArchive = null;
@@ -119,7 +135,6 @@ public final class FailureTraceReporter {
             }
             CURRENT_NETWORK_JSON.remove();
             CURRENT_SCREENSHOTS.remove();
-            clearSensitiveValues();
             closeArtifactManifest();
         }
     }
@@ -141,22 +156,34 @@ public final class FailureTraceReporter {
     }
 
     static String renderTraceJson(TestExecutionInfo info, String logText, List<String> attachments, int attempt) {
-        SourceContext source = sourceContext(info);
-        Snapshot snapshot = snapshot();
-        List<TraceEventRecorder.ActionEvent> actions = TraceEventRecorder.drain();
-        CURRENT_SCREENSHOTS.set(decodeScreenshots(actions));
-        BrowserObservabilityRecorder.collectConsole(DriverFactoryHelper.getActiveDriver());
-        String observabilityJson = BrowserObservabilityRecorder.drainMetadataJson();
-        String networkJson = BrowserObservabilityRecorder.drainNetworkJson();
-        CURRENT_NETWORK_JSON.set(networkJson);
-        String consoleJson = BrowserObservabilityRecorder.drainConsoleJson();
         Throwable throwable = info == null ? null : info.throwable();
+        SourceContext source = sourceContext(info);
+        boolean suppressBrowserArtifacts = shouldOmitSensitiveBrowserEvidence()
+                || containsSensitiveThrowable(throwable);
+        Snapshot snapshot = suppressBrowserArtifacts
+                ? new Snapshot("omitted-sensitive", "")
+                : snapshot();
+        List<TraceEventRecorder.ActionEvent> actions = TraceEventRecorder.drain();
+        if (suppressBrowserArtifacts) {
+            actions = actions.stream().map(FailureTraceReporter::withoutBrowserEvidence).toList();
+        }
+        CURRENT_SCREENSHOTS.set(decodeScreenshots(actions));
+        if (suppressBrowserArtifacts) {
+            BrowserObservabilityRecorder.clear();
+        } else {
+            BrowserObservabilityRecorder.collectConsole(DriverFactoryHelper.getActiveDriver());
+        }
+        String observabilityJson = suppressBrowserArtifacts
+                ? "{\"warnings\": []}" : BrowserObservabilityRecorder.drainMetadataJson();
+        String networkJson = suppressBrowserArtifacts ? "[]" : BrowserObservabilityRecorder.drainNetworkJson();
+        CURRENT_NETWORK_JSON.set(networkJson);
+        String consoleJson = suppressBrowserArtifacts ? "[]" : BrowserObservabilityRecorder.drainConsoleJson();
         closeArtifactManifest();
         int maxBytes = Math.max(1, SHAFT.Properties.reporting.traceMaxArtifactMb()) * 1024 * 1024;
         String omissionMarker = "Omitted because artifact exceeded shaft.trace.maxArtifactMb="
                 + SHAFT.Properties.reporting.traceMaxArtifactMb();
         TraceArtifactManifest manifest = TraceArtifactManifest.create(networkJson, CURRENT_SCREENSHOTS.get(),
-                PlaywrightTraceManager.getLastTracePath(), maxBytes, omissionMarker);
+                suppressBrowserArtifacts ? null : PlaywrightTraceManager.getLastTracePath(), maxBytes, omissionMarker);
         CURRENT_ARTIFACT_MANIFEST.set(manifest);
         TraceSession traceSession = TraceSchemaSerializer.create(safeTestId(info), attempt, actions,
                 manifest.references());
@@ -198,6 +225,17 @@ public final class FailureTraceReporter {
         array(json, 1, "attachments", attachmentEntries(attachments), false);
         json.append("}\n");
         return json.toString();
+    }
+
+    private static TraceEventRecorder.ActionEvent withoutBrowserEvidence(TraceEventRecorder.ActionEvent action) {
+        Map<String, String> safeMetadata = new LinkedHashMap<>();
+        action.metadata().forEach((key, value) -> safeMetadata.put(key, redactSourceText(value)));
+        return new TraceEventRecorder.ActionEvent(action.id(), action.backend(), action.category(), action.name(),
+                action.status(), action.startTime(), action.durationMs(), redactSourceText(action.locator()),
+                redactSourceText(action.url()), action.caller(), redactSourceText(action.message()),
+                action.exceptionType(), redactSourceText(action.exceptionMessage()),
+                action.attachments().stream().map(FailureTraceReporter::redactSourceText).toList(),
+                safeMetadata, Map.of(), "", "", "");
     }
 
     private static void appendTestObject(StringBuilder json, TestExecutionInfo info, Throwable throwable, int attempt) {
@@ -1064,7 +1102,8 @@ public final class FailureTraceReporter {
                     .map(FailureTraceReporter::redact)
                     .forEach(entries::add);
         }
-        Path playwrightTrace = PlaywrightTraceManager.getLastTracePath();
+        Path playwrightTrace = shouldOmitSensitiveBrowserEvidence()
+                ? null : PlaywrightTraceManager.getLastTracePath();
         if (playwrightTrace != null) {
             entries.add("Playwright Trace (raw): " + redact(playwrightTrace.toString()));
         }
@@ -1087,46 +1126,143 @@ public final class FailureTraceReporter {
 
     static String redactThrowableText(Throwable throwable, String value) {
         if (containsSensitiveThrowable(throwable)) {
-            return "[provider error text omitted because submitted script data may be sensitive]";
+            return "[provider error text omitted because submitted data may be sensitive]";
         }
-        String redacted = value(value);
-        for (String sensitiveValue : EXACT_SENSITIVE_VALUES.get()) {
-            if (redacted.contains(sensitiveValue)) {
-                if (sensitiveValue.length() < 4) {
-                    return "[provider error text omitted because it may contain a sensitive storage value]";
-                }
-                redacted = redacted.replace(sensitiveValue, "********");
-            }
+        if (SENSITIVE_VALUE_OVERFLOW.get()) {
+            return SENSITIVE_BOUNDS_OMISSION;
         }
-        return redact(redacted);
+        String redacted = redactSensitiveValues(value(value), EXACT_SENSITIVE_VALUES.get(),
+                "[provider error text omitted because it may contain a sensitive storage value]");
+        return redactSourceText(redacted);
     }
 
     /** Registers an exact value for current-invocation trace redaction. */
     public static void registerSensitiveValue(String value) {
         if (value != null && !value.isEmpty()) {
-            EXACT_SENSITIVE_VALUES.get().add(value);
+            addSensitiveValue(EXACT_SENSITIVE_VALUES.get(), value);
         }
     }
 
     /** Registers a credential that must be removed from later source-code evidence in this invocation. */
     public static void registerSensitiveSourceValue(String value) {
         if (value != null && !value.isEmpty()) {
-            SOURCE_SENSITIVE_VALUES.get().add(value);
+            addSensitiveValue(SOURCE_SENSITIVE_VALUES.get(), value);
         }
     }
 
-    private static String redactSourceText(String value) {
+    private static void addSensitiveValue(Set<String> values, String value) {
+        if (!addBoundedSensitiveValue(values, value)) {
+            SENSITIVE_VALUE_OVERFLOW.set(true);
+        }
+    }
+
+    private static boolean addBoundedSensitiveValue(Set<String> values, String value) {
+        if (value.length() > SENSITIVE_VALUE_LENGTH_LIMIT) {
+            return false;
+        }
+        List<String> additions = new ArrayList<>();
+        additions.add(value);
+        if ("-0.0".equals(value)) {
+            additions.add("0.0");
+        } else if ("0.0".equals(value)) {
+            additions.add("-0.0");
+        }
+        for (String addition : additions) {
+            if (!values.contains(addition) && values.size() >= SENSITIVE_VALUE_LIMIT) {
+                return false;
+            }
+            values.add(addition);
+        }
+        return true;
+    }
+
+    static String redactSourceText(String value) {
+        SensitiveBrowserSessionRegistry registry = PERSISTENT_BROWSER_SENSITIVITY.get();
+        if (SENSITIVE_VALUE_OVERFLOW.get() || registry.currentOverflowed()) {
+            return SENSITIVE_BOUNDS_OMISSION;
+        }
         String redacted = redact(value);
-        for (String sensitiveValue : SOURCE_SENSITIVE_VALUES.get()) {
-            if (!redacted.contains(sensitiveValue)) {
+        LinkedHashSet<String> sensitiveValues = new LinkedHashSet<>(SOURCE_SENSITIVE_VALUES.get());
+        sensitiveValues.addAll(registry.currentValues());
+        return redactSensitiveValues(redacted, sensitiveValues,
+                "[source context omitted because it contains a sensitive credential]");
+    }
+
+    private static String redactSensitiveValues(String text, Set<String> sensitiveValues, String shortOmission) {
+        LinkedHashSet<BigDecimal> numericValues = new LinkedHashSet<>();
+        List<String> literalValues = new ArrayList<>();
+        for (String sensitiveValue : sensitiveValues) {
+            BigDecimal numeric = numericValue(sensitiveValue);
+            if (numeric == null) {
+                literalValues.add(sensitiveValue);
+            } else {
+                numericValues.add(normalizeNumericValue(numeric));
+            }
+        }
+        String redacted = numericValues.isEmpty() ? text : redactNumericValues(text, numericValues);
+        if (redacted == null) {
+            return SENSITIVE_BOUNDS_OMISSION;
+        }
+        for (String sensitiveValue : literalValues) {
+            Matcher matcher = sensitiveValuePattern(sensitiveValue).matcher(redacted);
+            if (!matcher.find()) {
                 continue;
             }
             if (sensitiveValue.length() < 4) {
-                return "[source context omitted because it contains a sensitive credential]";
+                return shortOmission;
             }
-            redacted = redacted.replace(sensitiveValue, "********");
+            redacted = matcher.replaceAll("********");
         }
         return redacted;
+    }
+
+    private static String redactNumericValues(String text, Set<BigDecimal> sensitiveValues) {
+        Matcher matcher = NUMERIC_TOKEN_PATTERN.matcher(text);
+        StringBuilder redacted = new StringBuilder();
+        int candidates = 0;
+        while (matcher.find()) {
+            if (++candidates > NUMERIC_TOKEN_LIMIT || matcher.group(1).length() > NUMERIC_TOKEN_LENGTH_LIMIT) {
+                return null;
+            }
+            BigDecimal candidate = numericValue(matcher.group(1));
+            if (candidate != null && sensitiveValues.contains(normalizeNumericValue(candidate))) {
+                matcher.appendReplacement(redacted, "********");
+            } else {
+                matcher.appendReplacement(redacted, Matcher.quoteReplacement(matcher.group()));
+            }
+        }
+        matcher.appendTail(redacted);
+        return redacted.toString();
+    }
+
+    private static BigDecimal normalizeNumericValue(BigDecimal value) {
+        return value.signum() == 0 ? BigDecimal.ZERO : value.stripTrailingZeros();
+    }
+
+    private static Pattern sensitiveValuePattern(String sensitiveValue) {
+        if (sensitiveValue.length() < 4) {
+            return Pattern.compile("(?<![\\p{Alnum}_])" + Pattern.quote(sensitiveValue)
+                    + "(?![\\p{Alnum}_])");
+        }
+        return Pattern.compile(Pattern.quote(sensitiveValue));
+    }
+
+    private static BigDecimal numericValue(String value) {
+        try {
+            return new BigDecimal(value);
+        } catch (NumberFormatException ignored) {
+            return null;
+        }
+    }
+
+    /** Redacts current-invocation exact and source-sensitive values for downstream failure consumers. */
+    public static String redactInvocationText(String value) {
+        return redactThrowableText(value);
+    }
+
+    /** Redacts one throwable's identity-sensitive text plus current-invocation exact and source values. */
+    public static String redactInvocationText(Throwable throwable, String value) {
+        return redactThrowableText(throwable, value);
     }
 
     /** Registers string values recursively reachable from a script or structured argument. */
@@ -1184,7 +1320,59 @@ public final class FailureTraceReporter {
         }
     }
 
-    private static boolean containsSensitiveThrowable(Throwable root) {
+    /**
+     * Omits browser snapshots and backend-native traces for the rest of this test invocation.
+     * Use when an otherwise successful browser operation submits values that must not enter later evidence.
+     */
+    public static void suppressSensitiveBrowserArtifacts() {
+        SUPPRESS_SENSITIVE_BROWSER_ARTIFACTS.set(true);
+    }
+
+    /** @return whether the current test invocation owns a sensitive browser-artifact boundary */
+    public static boolean shouldSuppressSensitiveBrowserArtifacts() {
+        return SUPPRESS_SENSITIVE_BROWSER_ARTIFACTS.get()
+                || PERSISTENT_BROWSER_SENSITIVITY.get().currentIsSensitive();
+    }
+
+    /** @return whether browser-derived evidence may still contain active or stale sensitive state */
+    public static boolean shouldOmitSensitiveBrowserEvidence() {
+        return SUPPRESS_SENSITIVE_BROWSER_ARTIFACTS.get()
+                || PERSISTENT_BROWSER_SENSITIVITY.get().currentHasSensitiveEvidence();
+    }
+
+    /** Selects the browser/session whose persistent emulation state owns later browser evidence. */
+    public static void activateBrowserEvidenceOwner(Object owner) {
+        PERSISTENT_BROWSER_SENSITIVITY.get().activate(owner);
+    }
+
+    /** Records sensitive browser state until its matching override is cleared or the session closes. */
+    public static void registerPersistentSensitiveBrowserState(Object owner, String channel, Object... values) {
+        activateBrowserEvidenceOwner(owner);
+        if (owner != null) {
+            PERSISTENT_BROWSER_SENSITIVITY.get().current().put(channel, values);
+        }
+    }
+
+    /** Clears one persistent sensitive browser-state channel after its provider override is cleared. */
+    public static void clearPersistentSensitiveBrowserState(Object owner, String channel) {
+        SensitiveBrowserSessionRegistry registry = PERSISTENT_BROWSER_SENSITIVITY.get();
+        registry.activate(owner);
+        PersistentBrowserSensitivity state = registry.current();
+        if (state != null) {
+            state.retire(channel);
+        }
+    }
+
+    /** Clears every persistent sensitive browser-state channel owned by the supplied session. */
+    public static void clearPersistentSensitiveBrowserState(Object owner) {
+        if (owner == null) {
+            PERSISTENT_BROWSER_SENSITIVITY.remove();
+        } else {
+            PERSISTENT_BROWSER_SENSITIVITY.get().remove(owner);
+        }
+    }
+
+    static boolean containsSensitiveThrowable(Throwable root) {
         if (root == null || SENSITIVE_THROWABLES.get().isEmpty()) {
             return false;
         }
@@ -1220,6 +1408,148 @@ public final class FailureTraceReporter {
         EXACT_SENSITIVE_VALUES.remove();
         SOURCE_SENSITIVE_VALUES.remove();
         SENSITIVE_THROWABLES.remove();
+        SUPPRESS_SENSITIVE_BROWSER_ARTIFACTS.remove();
+        SENSITIVE_VALUE_OVERFLOW.remove();
+        PERSISTENT_BROWSER_SENSITIVITY.remove();
+    }
+
+    static void clearInvocationSensitiveValues() {
+        EXACT_SENSITIVE_VALUES.remove();
+        SOURCE_SENSITIVE_VALUES.remove();
+        SENSITIVE_THROWABLES.remove();
+        SUPPRESS_SENSITIVE_BROWSER_ARTIFACTS.remove();
+        SENSITIVE_VALUE_OVERFLOW.remove();
+    }
+
+    private static final class SensitiveBrowserSessionRegistry {
+        private final List<PersistentBrowserSensitivity> sessions = new ArrayList<>();
+        private WeakReference<Object> activeOwner = new WeakReference<>(null);
+
+        private void activate(Object owner) {
+            if (owner == null) {
+                return;
+            }
+            sessions.removeIf(state -> state.owner() == null);
+            activeOwner = new WeakReference<>(owner);
+            if (sessions.stream().noneMatch(state -> state.owns(owner))) {
+                sessions.add(new PersistentBrowserSensitivity(owner));
+            }
+        }
+
+        private PersistentBrowserSensitivity current() {
+            Object owner = activeOwner.get();
+            return owner == null ? null : sessions.stream().filter(state -> state.owns(owner)).findFirst().orElse(null);
+        }
+
+        private LinkedHashSet<String> currentValues() {
+            PersistentBrowserSensitivity current = current();
+            return current == null ? new LinkedHashSet<>() : current.values();
+        }
+
+        private boolean currentIsSensitive() {
+            PersistentBrowserSensitivity current = current();
+            return current != null && current.isActive();
+        }
+
+        private boolean currentHasSensitiveEvidence() {
+            PersistentBrowserSensitivity current = current();
+            return current != null && (!current.values().isEmpty() || current.overflowed());
+        }
+
+        private boolean currentOverflowed() {
+            PersistentBrowserSensitivity current = current();
+            return current != null && current.overflowed();
+        }
+
+        private void remove(Object owner) {
+            sessions.removeIf(state -> state.owns(owner) || state.owner() == null);
+            if (activeOwner.get() == owner) {
+                activeOwner = new WeakReference<>(null);
+            }
+        }
+    }
+
+    private static final class PersistentBrowserSensitivity {
+        private final WeakReference<Object> owner;
+        private final Map<String, LinkedHashSet<String>> channels = new LinkedHashMap<>();
+        private final Map<String, LinkedHashSet<String>> staleChannels = new LinkedHashMap<>();
+        private final Set<String> activeOverflowChannels = new LinkedHashSet<>();
+        private final Set<String> staleOverflowChannels = new LinkedHashSet<>();
+
+        private PersistentBrowserSensitivity(Object owner) {
+            this.owner = new WeakReference<>(owner);
+        }
+
+        private Object owner() {
+            return owner.get();
+        }
+
+        private boolean owns(Object candidate) {
+            return candidate != null && owner.get() == candidate;
+        }
+
+        private void put(String channel, Object... submittedValues) {
+            LinkedHashSet<String> previousValues = channels.remove(channel);
+            if (previousValues != null && !previousValues.isEmpty()) {
+                addHistoricalValues(channel, previousValues);
+            }
+            if (activeOverflowChannels.remove(channel)) {
+                staleOverflowChannels.add(channel);
+            }
+
+            LinkedHashSet<String> values = new LinkedHashSet<>();
+            boolean channelOverflowed = false;
+            if (submittedValues != null) {
+                for (Object submittedValue : submittedValues) {
+                    if (submittedValue != null) {
+                        if (!addBoundedSensitiveValue(values, String.valueOf(submittedValue))) {
+                            channelOverflowed = true;
+                        }
+                    }
+                }
+            }
+            if (!values.isEmpty()) {
+                channels.put(channel, values);
+            }
+            if (channelOverflowed) {
+                activeOverflowChannels.add(channel);
+            }
+        }
+
+        private void retire(String channel) {
+            LinkedHashSet<String> values = channels.remove(channel);
+            if (values != null && !values.isEmpty()) {
+                addHistoricalValues(channel, values);
+            }
+            if (activeOverflowChannels.remove(channel)) {
+                staleOverflowChannels.add(channel);
+            }
+        }
+
+        private void addHistoricalValues(String channel, Set<String> values) {
+            LinkedHashSet<String> history = staleChannels.computeIfAbsent(channel, ignored -> new LinkedHashSet<>());
+            for (String value : values) {
+                if (!addBoundedSensitiveValue(history, value)) {
+                    staleOverflowChannels.add(channel);
+                    break;
+                }
+            }
+        }
+
+        private boolean isActive() {
+            return !channels.isEmpty() || !activeOverflowChannels.isEmpty();
+        }
+
+        private boolean overflowed() {
+            return !activeOverflowChannels.isEmpty() || !staleOverflowChannels.isEmpty();
+        }
+
+        private LinkedHashSet<String> values() {
+            LinkedHashSet<String> values = new LinkedHashSet<>();
+            channels.values().forEach(values::addAll);
+            staleChannels.values().forEach(values::addAll);
+            return values;
+        }
     }
 
     private static void objectStart(StringBuilder json, int indent, String key) {

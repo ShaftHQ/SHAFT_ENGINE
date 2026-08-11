@@ -67,7 +67,8 @@ public final class FailureDiagnosticsReporter {
     static String renderDiagnosticsJson(TestExecutionInfo info, String logText, List<String> attachments) {
         Redactor redactor = new Redactor();
         Throwable throwable = info == null ? null : info.throwable();
-        SourceContext source = sourceContext(throwable);
+        SourceContext source = FailureTraceReporter.containsSensitiveThrowable(throwable)
+                ? new SourceContext("", "", "", "") : sourceContext(throwable);
         List<String> logLines = logLines(logText, redactor);
         List<ArtifactReference> artifactReferences = artifactReferences(attachments, redactor, info);
 
@@ -87,15 +88,17 @@ public final class FailureDiagnosticsReporter {
         objectStart(json, 1, "failure");
         stringField(json, 2, "status", status(), true, redactor);
         stringField(json, 2, "type", throwable == null ? "" : throwable.getClass().getName(), true, redactor);
-        stringField(json, 2, "message", throwable == null ? "" : throwable.getMessage(), true, redactor);
-        stringField(json, 2, "stacktrace", ReportManagerHelper.formatStackTraceToLogEntry(throwable), true, redactor);
+        stringField(json, 2, "message", FailureTraceReporter.redactThrowableText(throwable,
+                throwable == null ? "" : throwable.getMessage()), true, redactor);
+        stringField(json, 2, "stacktrace", FailureTraceReporter.redactThrowableText(throwable,
+                ReportManagerHelper.formatStackTraceToLogEntry(throwable)), true, redactor);
         stringField(json, 2, "topProjectFrame", source.frame(), true, redactor);
         stringArray(json, 2, "causes", causes(throwable), false, redactor);
         objectEnd(json, 1, true);
         objectStart(json, 1, "codeContext");
         stringField(json, 2, "file", source.file(), true, redactor);
         stringField(json, 2, "line", source.line(), true, redactor);
-        stringField(json, 2, "snippet", source.snippet(), false, redactor);
+        stringField(json, 2, "snippet", FailureTraceReporter.redactSourceText(source.snippet()), false, redactor);
         objectEnd(json, 1, true);
         objectStart(json, 1, "configuration");
         booleanField(json, 2, "diagnosticsBundleEnabled", SHAFT.Properties.reporting.diagnosticsBundleEnabled(), true);
@@ -173,7 +176,8 @@ public final class FailureDiagnosticsReporter {
         for (Throwable current = throwable == null ? null : throwable.getCause();
              current != null;
              current = current.getCause()) {
-            causes.add(current.getClass().getName() + ": " + value(current.getMessage()));
+            causes.add(current.getClass().getName() + ": "
+                    + FailureTraceReporter.redactThrowableText(current, value(current.getMessage())));
         }
         return causes;
     }
@@ -218,7 +222,8 @@ public final class FailureDiagnosticsReporter {
         if (FailureTraceReporter.shouldAttachTrace(info)) {
             references.add(new ArtifactReference("trace-zip", "application/zip", "shaft-trace.zip"));
         }
-        Path playwrightTrace = PlaywrightTraceManager.getLastTracePath();
+        Path playwrightTrace = FailureTraceReporter.shouldOmitSensitiveBrowserEvidence()
+                ? null : PlaywrightTraceManager.getLastTracePath();
         if (playwrightTrace != null) {
             references.add(new ArtifactReference("playwright-trace", "application/zip",
                     redactor.redact(playwrightTrace.toString())));

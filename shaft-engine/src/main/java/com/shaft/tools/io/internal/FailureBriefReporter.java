@@ -62,9 +62,12 @@ public final class FailureBriefReporter {
                                   List<ReportContext.AttachmentRecord> attachments) {
         FailureDiagnosticsReporter.Redactor redactor = new FailureDiagnosticsReporter.Redactor();
         Throwable throwable = info == null ? null : info.throwable();
-        SourceContext source = sourceContext(throwable);
-        String stacktrace = ReportManagerHelper.formatStackTraceToLogEntry(throwable);
-        String message = throwable == null ? "" : throwable.getMessage();
+        SourceContext source = FailureTraceReporter.containsSensitiveThrowable(throwable)
+                ? new SourceContext("") : sourceContext(throwable);
+        String stacktrace = FailureTraceReporter.redactThrowableText(throwable,
+                ReportManagerHelper.formatStackTraceToLogEntry(throwable));
+        String message = FailureTraceReporter.redactThrowableText(throwable,
+                throwable == null ? "" : throwable.getMessage());
         String category = classifyFailure(message, stacktrace, logText);
         redactor.redact(logText);
 
@@ -82,7 +85,8 @@ public final class FailureBriefReporter {
         stringField(json, 2, "category", category, true, redactor);
         stringField(json, 2, "type", throwable == null ? "" : throwable.getClass().getName(), true, redactor);
         stringField(json, 2, "message", message, true, redactor);
-        stringField(json, 2, "topProjectFrame", source.frame(), false, redactor);
+        stringField(json, 2, "topProjectFrame", FailureTraceReporter.redactInvocationText(source.frame()),
+                false, redactor);
         objectEnd(json, 1, true);
         stringArray(json, 1, "openFirst", openFirst(attachments), true, redactor);
         artifacts(json, 1, attachments, true, redactor);
