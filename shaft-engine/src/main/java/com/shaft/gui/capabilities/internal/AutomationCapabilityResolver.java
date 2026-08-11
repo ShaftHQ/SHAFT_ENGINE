@@ -28,6 +28,8 @@ import org.openqa.selenium.bidi.HasBiDi;
 import org.openqa.selenium.devtools.HasDevTools;
 import org.openqa.selenium.virtualauthenticator.HasVirtualAuthenticator;
 
+import java.util.Locale;
+
 /**
  * Resolves effective capability snapshots without opening protocol channels or mutating sessions.
  */
@@ -138,6 +140,12 @@ public final class AutomationCapabilityResolver {
         if (driver instanceof SupportsContextSwitching) {
             builder.nativeFeature(AutomationFeature.BROWSING_CONTEXTS, "Appium native and web contexts");
         }
+        if (driver instanceof JavascriptExecutor
+                && driver instanceof SupportsContextSwitching contexts
+                && isWebContext(contexts)) {
+            builder.nativeFeature(AutomationFeature.SCRIPT_EXECUTION, "JavaScript in the active Appium web context")
+                    .nativeFeature(AutomationFeature.STORAGE, "Web Storage in the active Appium web context");
+        }
         if (driver instanceof PerformsTouchActions) {
             builder.nativeFeature(AutomationFeature.TOUCH_GESTURES, "Appium touch actions");
         }
@@ -165,6 +173,16 @@ public final class AutomationCapabilityResolver {
                     .adaptedFeature(AutomationFeature.CONSOLE_LOGS, "Appium BiDi through SHAFT");
         }
         return builder.build();
+    }
+
+    private static boolean isWebContext(SupportsContextSwitching contexts) {
+        try {
+            String context = contexts.getContext();
+            String normalized = context == null ? "" : context.toUpperCase(Locale.ROOT);
+            return normalized.contains("WEB") || normalized.contains("CHROMIUM");
+        } catch (RuntimeException ignored) {
+            return false;
+        }
     }
 
     @SuppressWarnings("removal")

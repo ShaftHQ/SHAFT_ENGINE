@@ -21,12 +21,14 @@ import com.shaft.performance.internal.LightHouseGenerateReport;
 import com.shaft.tools.internal.support.JavaScriptHelper;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.io.internal.FlakeProfiler;
+import com.shaft.tools.io.internal.FailureTraceReporter;
 import com.shaft.tools.io.internal.HttpContractRecorder;
 import com.shaft.tools.io.internal.MobileTraceMetadata;
 import com.shaft.tools.io.internal.ReportManagerHelper;
 import com.shaft.tools.io.internal.TraceEventRecorder;
 import com.shaft.validation.accessibility.AccessibilityActions;
 import com.shaft.validation.internal.WebDriverBrowserValidationsBuilder;
+import io.appium.java_client.AppiumDriver;
 import io.appium.java_client.android.AndroidDriver;
 import io.appium.java_client.ios.IOSDriver;
 import io.appium.java_client.remote.SupportsContextSwitching;
@@ -124,6 +126,11 @@ public class BrowserActions extends FluentWebDriverAction implements com.shaft.g
         return new ContextActions(this);
     }
 
+    @Override
+    public StorageActions storage() {
+        return new StorageActions(this);
+    }
+
     void requireContextSupport(String operation) {
         WebDriver driver = driverFactoryHelper == null ? null : driverFactoryHelper.getDriver();
         boolean closedRemoteSession = driver instanceof RemoteWebDriver remoteDriver && remoteDriver.getSessionId() == null;
@@ -155,8 +162,12 @@ public class BrowserActions extends FluentWebDriverAction implements com.shaft.g
     }
 
     <T> T queryNamespace(String category, String operation, Supplier<T> action) {
+        return queryNamespace(category, operation, "", action);
+    }
+
+    <T> T queryNamespace(String category, String operation, String locator, Supplier<T> action) {
         WebDriver driver = driverFactoryHelper == null ? null : driverFactoryHelper.getDriver();
-        var event = TraceEventRecorder.start(category, operation, "", driver);
+        var event = TraceEventRecorder.start(category, operation, locator, driver);
         try {
             T result = TraceEventRecorder.withoutNestedEvents(action);
             TraceEventRecorder.finish(event, "passed", category + " " + operation + " completed.", null,
@@ -165,6 +176,109 @@ public class BrowserActions extends FluentWebDriverAction implements com.shaft.g
         } catch (RuntimeException exception) {
             TraceEventRecorder.finish(event, "failed", category + " " + operation + " failed.", exception,
                     Map.of(), List.of());
+            throw exception;
+        }
+    }
+
+    void saveStorageStateNamespace(String filePath) {
+        queryNamespace("storage", "save-state", filePath, () -> {
+            requireStorageSupport("save state");
+            saveStorageState(filePath);
+            return null;
+        });
+    }
+
+    void loadStorageStateNamespace(String filePath) {
+        queryNamespace("storage", "load-state", filePath, () -> {
+            requireStorageSupport("load state");
+            loadStorageState(filePath);
+            return null;
+        });
+    }
+
+    String getStorageValue(String scope, String key) {
+        return queryNamespace("storage", scope + "/get", key, () -> {
+            requireStorageKey(key);
+            Object value = storageExecutor("read " + scope).executeScript(
+                    "return window[arguments[0]].getItem(arguments[1]);", scope, key);
+            return value == null ? null : String.valueOf(value);
+        });
+    }
+
+    void setStorageValue(String scope, String key, String value) {
+        performSensitiveStorageWrite(scope + "/set", key, value, () -> {
+            requireStorageKey(key);
+            Objects.requireNonNull(value, "value");
+            storageExecutor("write " + scope).executeScript(
+                    "window[arguments[0]].setItem(arguments[1], arguments[2]);", scope, key, value);
+        });
+    }
+
+    void removeStorageValue(String scope, String key) {
+        queryNamespace("storage", scope + "/remove", key, () -> {
+            requireStorageKey(key);
+            storageExecutor("remove from " + scope).executeScript(
+                    "window[arguments[0]].removeItem(arguments[1]);", scope, key);
+            return null;
+        });
+    }
+
+    void clearStorage(String scope) {
+        queryNamespace("storage", scope + "/clear", "", () -> {
+            storageExecutor("clear " + scope).executeScript("window[arguments[0]].clear();", scope);
+            return null;
+        });
+    }
+
+    private JavascriptExecutor storageExecutor(String operation) {
+        WebDriver driver = driverFactoryHelper == null ? null : driverFactoryHelper.getDriver();
+        boolean closedRemoteSession = driver instanceof RemoteWebDriver remoteDriver && remoteDriver.getSessionId() == null;
+        boolean appiumWebContext = true;
+        if (driver instanceof AppiumDriver) {
+            appiumWebContext = isAppiumWebStorageContext(driver);
+        }
+        if (!(driver instanceof JavascriptExecutor executor) || closedRemoteSession || !appiumWebContext) {
+            throw new UnsupportedOperationException("Browser storage " + operation
+                    + " requires a live JavaScript-capable Selenium or Appium web-context session.");
+        }
+        return executor;
+    }
+
+    private boolean isAppiumWebStorageContext(WebDriver driver) {
+        try {
+            if (driver instanceof SupportsContextSwitching contexts) {
+                String context = contexts.getContext();
+                String normalized = context == null ? "" : context.toUpperCase(Locale.ROOT);
+                return normalized.contains("WEB") || normalized.contains("CHROMIUM");
+            }
+        } catch (RuntimeException ignored) {
+            // Fail closed when the provider cannot report the active context.
+        }
+        return false;
+    }
+
+    private void requireStorageSupport(String operation) {
+        storageExecutor(operation);
+    }
+
+    private void requireStorageKey(String key) {
+        Objects.requireNonNull(key, "key");
+    }
+
+    private void performSensitiveStorageWrite(String operation, String key, String value, Runnable action) {
+        WebDriver driver = driverFactoryHelper == null ? null : driverFactoryHelper.getDriver();
+        var event = TraceEventRecorder.start("storage", operation, key, driver);
+        try {
+            TraceEventRecorder.withoutNestedEvents(() -> {
+                action.run();
+                return null;
+            });
+            TraceEventRecorder.finish(event, "passed", "storage " + operation + " completed.", null,
+                    Map.of(), List.of());
+        } catch (RuntimeException exception) {
+            FailureTraceReporter.registerSensitiveValue(value);
+            TraceEventRecorder.finish(event, "failed", "storage " + operation + " failed.",
+                    exception, Map.of(), List.of());
             throw exception;
         }
     }

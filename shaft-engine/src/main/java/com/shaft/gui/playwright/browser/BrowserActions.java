@@ -16,6 +16,7 @@ import com.shaft.gui.playwright.internal.PlaywrightSession;
 import com.shaft.gui.playwright.validation.PlaywrightBrowserValidationsBuilder;
 import com.shaft.tools.io.internal.BrowserPerformanceExecutionReport;
 import com.shaft.tools.io.internal.HttpContractRecorder;
+import com.shaft.tools.io.internal.FailureTraceReporter;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.io.internal.ReportManagerHelper;
 import com.shaft.tools.io.internal.TraceEventRecorder;
@@ -29,6 +30,7 @@ import java.io.ByteArrayInputStream;
 import java.net.URI;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Locale;
 import java.util.Set;
 import java.util.function.Predicate;
@@ -65,6 +67,11 @@ public class BrowserActions implements com.shaft.gui.driver.BrowserActionsContra
     @Override
     public ContextActions context() {
         return new ContextActions(this);
+    }
+
+    @Override
+    public StorageActions storage() {
+        return new StorageActions(this);
     }
 
     @Override
@@ -603,7 +610,12 @@ public class BrowserActions implements com.shaft.gui.driver.BrowserActionsContra
     }
 
     <T> T queryNamespace(String category, String operation, Supplier<T> action) {
-        var event = TraceEventRecorder.startForBackend(category, operation, "", AutomationBackend.MICROSOFT_PLAYWRIGHT);
+        return queryNamespace(category, operation, "", action);
+    }
+
+    <T> T queryNamespace(String category, String operation, String locator, Supplier<T> action) {
+        var event = TraceEventRecorder.startForBackend(category, operation, locator,
+                AutomationBackend.MICROSOFT_PLAYWRIGHT);
         try {
             requireLiveSession(operation);
             T result = TraceEventRecorder.withoutNestedEvents(action);
@@ -613,6 +625,66 @@ public class BrowserActions implements com.shaft.gui.driver.BrowserActionsContra
         } catch (RuntimeException exception) {
             TraceEventRecorder.finish(event, "failed", category + " " + operation + " failed.", exception,
                     Map.of("backend", "MICROSOFT_PLAYWRIGHT"), List.of());
+            throw exception;
+        }
+    }
+
+    void saveStorageStateNamespace(String filePath) {
+        queryNamespace("storage", "save-state", filePath, () -> saveStorageState(filePath));
+    }
+
+    void loadStorageStateNamespace(String filePath) {
+        queryNamespace("storage", "load-state", filePath, () -> loadStorageState(filePath));
+    }
+
+    String getStorageValue(String scope, String key) {
+        return queryNamespace("storage", scope + "/get", key, () -> {
+            requireStorageKey(key);
+            Object value = page().evaluate("([scope, key]) => window[scope].getItem(key)", List.of(scope, key));
+            return value == null ? null : String.valueOf(value);
+        });
+    }
+
+    void setStorageValue(String scope, String key, String value) {
+        performSensitiveStorageWrite(scope + "/set", key, value, () -> {
+            requireStorageKey(key);
+            Objects.requireNonNull(value, "value");
+                page().evaluate("([scope, key, value]) => window[scope].setItem(key, value)",
+                        List.of(scope, key, value));
+        });
+    }
+
+    void removeStorageValue(String scope, String key) {
+        queryNamespace("storage", scope + "/remove", key, () -> {
+            requireStorageKey(key);
+            page().evaluate("([scope, key]) => window[scope].removeItem(key)", List.of(scope, key));
+            return null;
+        });
+    }
+
+    void clearStorage(String scope) {
+        queryNamespace("storage", scope + "/clear", () -> page().evaluate("scope => window[scope].clear()", scope));
+    }
+
+    private void requireStorageKey(String key) {
+        Objects.requireNonNull(key, "key");
+    }
+
+    private void performSensitiveStorageWrite(String operation, String key, String value, Runnable action) {
+        var event = TraceEventRecorder.startForBackend("storage", operation, key,
+                AutomationBackend.MICROSOFT_PLAYWRIGHT);
+        try {
+            requireLiveSession(operation);
+            TraceEventRecorder.withoutNestedEvents(() -> {
+                action.run();
+                return null;
+            });
+            TraceEventRecorder.finish(event, "passed", "storage " + operation + " completed.", null,
+                    Map.of("backend", "MICROSOFT_PLAYWRIGHT"), List.of());
+        } catch (RuntimeException exception) {
+            FailureTraceReporter.registerSensitiveValue(value);
+            TraceEventRecorder.finish(event, "failed", "storage " + operation + " failed.",
+                    exception, Map.of("backend", "MICROSOFT_PLAYWRIGHT"), List.of());
             throw exception;
         }
     }

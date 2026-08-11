@@ -25,6 +25,7 @@ import java.util.Base64;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.LinkedHashSet;
 import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
@@ -51,6 +52,8 @@ public final class FailureTraceReporter {
     private static final ThreadLocal<String> CURRENT_NETWORK_JSON = ThreadLocal.withInitial(() -> "[]");
     private static final ThreadLocal<Map<String, byte[]>> CURRENT_SCREENSHOTS = ThreadLocal.withInitial(Map::of);
     private static final ThreadLocal<TraceArtifactManifest> CURRENT_ARTIFACT_MANIFEST = new ThreadLocal<>();
+    private static final ThreadLocal<LinkedHashSet<String>> EXACT_SENSITIVE_VALUES =
+            ThreadLocal.withInitial(LinkedHashSet::new);
     private static final ConcurrentMap<String, AtomicInteger> ATTEMPT_COUNTERS = new ConcurrentHashMap<>();
     private static final ConcurrentMap<String, List<AttemptRecord>> ATTEMPT_HISTORY = new ConcurrentHashMap<>();
     private static final ConcurrentMap<String, Object> TRACE_LOCKS = new ConcurrentHashMap<>();
@@ -70,6 +73,7 @@ public final class FailureTraceReporter {
      */
     public static void attachOnFailure(TestExecutionInfo info, String logText, List<String> attachments) {
         if (!shouldAttachTrace(info)) {
+            clearSensitiveValues();
             return;
         }
         Path completedArchive = null;
@@ -105,6 +109,7 @@ public final class FailureTraceReporter {
             }
             CURRENT_NETWORK_JSON.remove();
             CURRENT_SCREENSHOTS.remove();
+            clearSensitiveValues();
             closeArtifactManifest();
         }
     }
@@ -201,8 +206,8 @@ public final class FailureTraceReporter {
     private static void appendExceptionObject(StringBuilder json, Throwable throwable) {
         objectStart(json, 1, "exception");
         field(json, 2, "type", throwable == null ? "" : throwable.getClass().getName(), true);
-        field(json, 2, "message", redact(throwable == null ? "" : throwable.getMessage()), true);
-        field(json, 2, "stacktrace", redact(ReportManagerHelper.formatStackTraceToLogEntry(throwable)), false);
+        field(json, 2, "message", redactThrowableText(throwable == null ? "" : throwable.getMessage()), true);
+        field(json, 2, "stacktrace", redactThrowableText(ReportManagerHelper.formatStackTraceToLogEntry(throwable)), false);
         objectEnd(json, 1, true);
     }
 
@@ -1059,6 +1064,30 @@ public final class FailureTraceReporter {
         redacted = SECRET_JSON_PATTERN.matcher(redacted).replaceAll("$1********$2");
         redacted = SECRET_ATTRIBUTE_PATTERN.matcher(redacted).replaceAll("$1********$2");
         return SECRET_ASSIGNMENT_PATTERN.matcher(redacted).replaceAll("$1$2********");
+    }
+
+    static String redactThrowableText(String value) {
+        String redacted = value(value);
+        for (String sensitiveValue : EXACT_SENSITIVE_VALUES.get()) {
+            if (redacted.contains(sensitiveValue)) {
+                if (sensitiveValue.length() < 4) {
+                    return "[provider error text omitted because it may contain a sensitive storage value]";
+                }
+                redacted = redacted.replace(sensitiveValue, "********");
+            }
+        }
+        return redact(redacted);
+    }
+
+    /** Registers an exact value for current-invocation trace redaction. */
+    public static void registerSensitiveValue(String value) {
+        if (value != null && !value.isEmpty()) {
+            EXACT_SENSITIVE_VALUES.get().add(value);
+        }
+    }
+
+    static void clearSensitiveValues() {
+        EXACT_SENSITIVE_VALUES.remove();
     }
 
     private static void objectStart(StringBuilder json, int indent, String key) {

@@ -15,6 +15,7 @@ import io.appium.java_client.android.AndroidDriver;
 import io.appium.java_client.ios.IOSDriver;
 import io.appium.java_client.mac.Mac2Driver;
 import io.appium.java_client.windows.WindowsDriver;
+import io.appium.java_client.remote.SupportsContextSwitching;
 import org.openqa.selenium.HasCapabilities;
 import org.openqa.selenium.MutableCapabilities;
 import org.openqa.selenium.WebDriver;
@@ -90,6 +91,22 @@ public class AutomationCapabilityResolverUnitTest {
         Assert.assertFalse(capabilities.supports(AutomationFeature.PERFORMANCE_DATA));
         Assert.assertFalse(capabilities.supports(AutomationFeature.FILE_TRANSFER));
         Assert.assertFalse(capabilities.supports(AutomationFeature.SCREEN_RECORDING));
+        Assert.assertFalse(capabilities.supports(AutomationFeature.STORAGE));
+    }
+
+    @Test
+    public void appiumStorageCapabilityShouldFollowTheLiveWebContext() {
+        AppiumDriver driver = mock(AppiumDriver.class,
+                withSettings().extraInterfaces(SupportsContextSwitching.class));
+        SupportsContextSwitching contexts = (SupportsContextSwitching) driver;
+        when(driver.getCapabilities()).thenReturn(appiumCapabilities("UiAutomator2", "android"));
+        when(contexts.getContext()).thenReturn("NATIVE_APP", "WEBVIEW_com.example");
+
+        Assert.assertFalse(AutomationCapabilityResolver.forWebDriver(driver)
+                .supports(AutomationFeature.STORAGE));
+        AutomationCapabilities webView = AutomationCapabilityResolver.forWebDriver(driver);
+        Assert.assertTrue(webView.supports(AutomationFeature.STORAGE));
+        Assert.assertTrue(webView.supports(AutomationFeature.SCRIPT_EXECUTION));
     }
 
     @Test

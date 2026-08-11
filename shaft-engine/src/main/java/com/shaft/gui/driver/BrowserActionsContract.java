@@ -48,6 +48,19 @@ public interface BrowserActionsContract {
         throw new UnsupportedOperationException("Context actions are not supported by this browser facade.");
     }
 
+    /**
+     * Returns scoped browser storage actions.
+     *
+     * <p>This default preserves compatibility for implementations that do not provide storage actions. The
+     * default-method collision boundary is the same as documented for {@link #network()}.</p>
+     *
+     * @return storage state and key/value actions
+     * @throws UnsupportedOperationException when this facade has no storage implementation
+     */
+    default StorageActionsContract storage() {
+        throw new UnsupportedOperationException("Storage actions are not supported by this browser facade.");
+    }
+
     BrowserActionsContract and();
 
     BrowserAssertions assertThat();
