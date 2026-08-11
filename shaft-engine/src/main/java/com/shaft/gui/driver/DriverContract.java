@@ -72,6 +72,21 @@ public interface DriverContract {
     TouchActions touch();
 
     /**
+     * Returns categorized native-mobile actions.
+     *
+     * <p>The default is deliberately fail-closed. As with every Java interface default-method
+     * addition, a competing unrelated zero-argument {@code mobile()} declaration with a
+     * covariant-compatible return must be overridden explicitly. An existing declaration with an
+     * incompatible return type is source-incompatible and cannot be bridged by an override.</p>
+     *
+     * @return mobile actions facade
+     * @throws UnsupportedOperationException when this backend has no mobile implementation
+     */
+    default MobileActionsContract mobile() {
+        throw new UnsupportedOperationException("Mobile actions require a live Appium session.");
+    }
+
+    /**
      * Returns alert/prompt helpers.
      *
      * @return alert actions facade

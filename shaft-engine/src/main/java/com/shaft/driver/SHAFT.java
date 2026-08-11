@@ -16,6 +16,7 @@ import com.shaft.gui.driver.BrowserActionsContract;
 import com.shaft.gui.element.AlertActions;
 import com.shaft.gui.element.AsyncElementActions;
 import com.shaft.gui.element.TouchActions;
+import com.shaft.gui.mobile.MobileActions;
 import com.shaft.gui.element.internal.Actions;
 import com.shaft.gui.internal.natural.NaturalActionExecutor;
 import com.shaft.gui.internal.natural.PlaywrightNaturalActionExecutor;
@@ -199,6 +200,16 @@ public class SHAFT {
             @Override
             public TouchActions touch() {
                 return new TouchActions(helper);
+            }
+
+            /**
+             * Returns categorized native-mobile application, device, gesture, context, and evidence actions.
+             *
+             * @return mobile actions facade scoped to this driver session
+             */
+            @Override
+            public MobileActions mobile() {
+                return new MobileActions(this);
             }
 
             /**
