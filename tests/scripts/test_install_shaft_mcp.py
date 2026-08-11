@@ -185,7 +185,7 @@ class InstallShaftMcpTest(unittest.TestCase):
 
     def test_downloaded_agent_validation_bundle_imports_from_isolated_project(self):
         with tempfile.TemporaryDirectory() as temp_dir:
-            target = Path(temp_dir)
+            target = Path(temp_dir).resolve()
             (target / "AGENTS.md").write_text("# Installed guidance\n", encoding="utf-8")
 
             def install_repository_file(_url, destination, _label, **_kwargs):
