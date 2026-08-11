@@ -4431,12 +4431,12 @@ def run_required_action_self_test() -> int:
         is not None,
     )
     check(
-        "R16 accepts an issue update for an observed guard block",
+        "R16 rejects a bare issue update for an observed guard block",
         _with_stubs(
             {"ledger_events": lambda payload: {"guard-block", "issue-update"}},
             lambda: check_r16_learning_loop({"session_id": "s"}),
         )
-        is None,
+        is not None,
     )
 
     # R17: a reviewed pull request nobody armed.
