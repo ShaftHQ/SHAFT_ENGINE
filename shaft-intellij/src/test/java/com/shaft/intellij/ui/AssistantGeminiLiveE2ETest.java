@@ -95,7 +95,7 @@ class AssistantGeminiLiveE2ETest {
         assertEquals("gemini", response.get("provider").getAsString());
         assertTrue(response.get("model").getAsString().startsWith(model), response.get("model").getAsString());
         assertEquals("ASK", response.get("mode").getAsString());
-        assertTrue(answer.contains("SHAFT_GEMINI_LIVE_OK"), answer);
+        assertEquals("SHAFT_GEMINI_LIVE_OK", answer.trim(), answer);
     }
 
     @SuppressWarnings("unchecked")
