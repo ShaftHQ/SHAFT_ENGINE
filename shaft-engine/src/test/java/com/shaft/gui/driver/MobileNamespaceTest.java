@@ -58,12 +58,34 @@ public class MobileNamespaceTest {
 
         for (String contract : Set.of(
                 "MobileEvidenceActionsContract",
-                "MobilePerformanceActionsContract",
                 "MobileRecordingActionsContract")) {
             Assert.assertNotNull(Class.forName("com.shaft.gui.driver." + contract));
             Assert.assertEquals(descriptors("com.shaft.gui.driver." + contract),
                     Set.of("and[]->MobileActionsContract"));
         }
+        Assert.assertEquals(descriptors("com.shaft.gui.driver.MobilePerformanceActionsContract"), Set.of(
+                "and[]->MobileActionsContract",
+                "clear[]->MobilePerformanceActionsContract",
+                "history[]->List",
+                "sample[class java.lang.String, class java.lang.String]->MobilePerformanceSample",
+                "supportedTypes[]->List"));
+        Class<?> performanceContract = Class.forName("com.shaft.gui.driver.MobilePerformanceActionsContract");
+        Assert.assertTrue(Arrays.stream(performanceContract.getDeclaredMethods())
+                .filter(method -> Modifier.isPublic(method.getModifiers()) && !method.getName().equals("and"))
+                .allMatch(Method::isDefault));
+        Assert.assertEquals(performanceContract.getMethod("history").getGenericReturnType().getTypeName(),
+                "java.util.List<com.shaft.gui.driver.MobilePerformanceSample>");
+        Assert.assertEquals(performanceContract.getMethod("supportedTypes").getGenericReturnType().getTypeName(),
+                "java.util.List<java.lang.String>");
+        assertRecord("com.shaft.gui.driver.MobilePerformanceSample", List.of(
+                "capturedAt:java.time.Instant", "applicationId:java.lang.String", "dataType:java.lang.String",
+                "columns:java.util.List", "rows:java.util.List"));
+        Class<?> sample = Class.forName("com.shaft.gui.driver.MobilePerformanceSample");
+        Assert.assertTrue(Modifier.isPublic(sample.getModifiers()));
+        Assert.assertEquals(Arrays.stream(sample.getRecordComponents())
+                .map(component -> component.getGenericType().getTypeName()).toList(), List.of(
+                "java.time.Instant", "java.lang.String", "java.lang.String", "java.util.List<java.lang.String>",
+                "java.util.List<java.util.List<java.lang.Object>>"));
         Assert.assertEquals(descriptors("com.shaft.gui.driver.MobileBiometricActionsContract"), Set.of(
                 "and[]->MobileActionsContract",
                 "fingerprint[]->MobileFingerprintActionsContract",
@@ -180,6 +202,21 @@ public class MobileNamespaceTest {
         Assert.assertEquals(enumValues("com.shaft.gui.driver.MobileApplicationState"), Set.of(
                 "NOT_INSTALLED", "NOT_RUNNING", "RUNNING_IN_BACKGROUND_SUSPENDED",
                 "RUNNING_IN_BACKGROUND", "RUNNING_IN_FOREGROUND"));
+    }
+
+    @Test
+    public void existingPerformanceContractImplementationsShouldRemainSourceAndBinaryCompatible() {
+        MobilePerformanceActionsContract oldConsumer = new MobilePerformanceActionsContract() {
+            @Override
+            public MobileActionsContract and() {
+                return null;
+            }
+        };
+
+        Assert.expectThrows(UnsupportedOperationException.class, oldConsumer::supportedTypes);
+        Assert.expectThrows(UnsupportedOperationException.class, () -> oldConsumer.sample("app", "cpuinfo"));
+        Assert.expectThrows(UnsupportedOperationException.class, oldConsumer::history);
+        Assert.expectThrows(UnsupportedOperationException.class, oldConsumer::clear);
     }
 
     @Test

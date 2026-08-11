@@ -6,6 +6,7 @@ import com.shaft.gui.element.TouchActions;
 import io.appium.java_client.AppiumBy;
 import io.appium.java_client.android.AndroidDriver;
 import org.openqa.selenium.By;
+import org.testng.Assert;
 import org.testng.annotations.Test;
 
 import java.time.Duration;
@@ -20,6 +21,20 @@ public class AndroidBasicInteractionsTests extends MobileTest {
     @Test(groups = {"ApiDemosDebug"})
     public void testAppLaunch() {
         driver.get().assertThat().element(By.xpath("//android.widget.TextView[@text='API Demos']")).exists().perform();
+    }
+
+    /** Real-provider acceptance for the bounded Android performance-data namespace. */
+    @Test(groups = {"ApiDemosDebug"})
+    public void performanceDataShouldExposeAProviderSampleAndBoundedHistory() {
+        var performance = driver.get().mobile().performance();
+
+        Assert.assertTrue(performance.supportedTypes().contains("memoryinfo"));
+        var sample = performance.sample(PACKAGE, "memoryinfo");
+
+        Assert.assertEquals(sample.applicationId(), PACKAGE);
+        Assert.assertEquals(sample.dataType(), "memoryinfo");
+        Assert.assertFalse(sample.columns().isEmpty());
+        Assert.assertEquals(performance.history(), java.util.List.of(sample));
     }
 
     @Test(groups = {"ApiDemosDebug"})
