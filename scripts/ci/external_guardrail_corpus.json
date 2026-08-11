@@ -1,0 +1,22 @@
+{
+  "schema_version": 1,
+  "source": {
+    "repository": "https://github.com/dshakes/compass",
+    "revision": "fb41822123b4b556079b9a1c945c2521404ec978",
+    "path": "scripts/guardrail-corpus.tsv",
+    "url": "https://raw.githubusercontent.com/dshakes/compass/fb41822123b4b556079b9a1c945c2521404ec978/scripts/guardrail-corpus.tsv",
+    "sha256": "d6ec74e741f76aa10dc057126dd8acd49047a7f78fa6c286e31da9b42e707eeb",
+    "expected_cases": 61
+  },
+  "floors": {
+    "precision": 1.0,
+    "recall": 0.95
+  },
+  "exclusion_rules": [
+    {
+      "id": "git-semantics",
+      "command_prefix": "git ",
+      "reason": "Compass labels these rows through protected-branch and optional current-branch semantics. ChaosEngine keeps Git authorization and repository-state decisions in separate stateful rules, so the static catastrophic-command classifier must not impersonate that owner."
+    }
+  ]
+}

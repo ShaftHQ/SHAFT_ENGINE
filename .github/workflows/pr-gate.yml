@@ -103,6 +103,8 @@ jobs:
               - 'scripts/ci/shaft_skill_quality.py'
               - 'scripts/ci/shaft_skill_routing_eval.py'
               - 'scripts/ci/shaft_skill_candidate_intake.py'
+              - 'scripts/ci/external_guardrail_corpus.py'
+              - 'scripts/ci/external_guardrail_corpus.json'
               - 'scripts/ci/validate_red_before_green.py'
               - 'scripts/ci/validate_skills.py'
               - 'scripts/ci/worktree_hygiene.py'
@@ -313,6 +315,7 @@ jobs:
           tests.scripts.test_guard_nul_corruption
           tests.scripts.test_guard_memory_worktree
           tests.scripts.test_guard_lifecycle
+          tests.scripts.test_guard_external_corpus
           tests.scripts.test_validate_red_before_green
           tests.scripts.test_validate_agent_guidance
           tests.scripts.test_validate_agent_plugins
