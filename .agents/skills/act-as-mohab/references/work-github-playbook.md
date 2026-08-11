@@ -96,8 +96,9 @@ performs and verifies the repair or revert.
 ## 7. Push, PR, green, merge, compact
 
 - For work not already covered by the first-checkpoint rule, push the branch and
-  open the agreed PR shape. Keep every PR description current with each sub-item
-  and its commit.
+  open the agreed PR shape with a
+  description that lists each sub-item and its commit. Keep that description
+  current as later commits land.
 - Verify `closingIssuesReferences` after opening: GitHub matches closing words
   even inside negated or illustrative prose, so partial work says `Related to
   #N`, never a closing keyword adjacent to an issue number. If it lists an issue
