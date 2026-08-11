@@ -203,7 +203,7 @@ class InstallShaftMcpTest(unittest.TestCase):
                 "import scripts.agents.guard; "
                 "import scripts.ci.validate_agent_setup"
             )
-            completed = subprocess.run(
+            completed = subprocess.run(  # nosec B603 - fixed interpreter and generated local import script.
                 [sys.executable, "-I", "-S", "-c", command],
                 cwd=target,
                 capture_output=True,
