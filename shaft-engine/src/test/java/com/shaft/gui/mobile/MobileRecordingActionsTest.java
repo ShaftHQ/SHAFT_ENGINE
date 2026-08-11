@@ -23,19 +23,29 @@ import org.testng.Assert;
 import org.testng.annotations.Test;
 
 import java.io.IOException;
+import java.io.UncheckedIOException;
+import java.lang.ref.Reference;
+import java.lang.reflect.Field;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.security.MessageDigest;
 import java.time.Duration;
 import java.util.Base64;
 import java.util.Comparator;
+import java.util.HexFormat;
 import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 
 public class MobileRecordingActionsTest {
     @Test
@@ -206,6 +216,166 @@ public class MobileRecordingActionsTest {
     }
 
     @Test
+    public void evidenceSnapshotShouldRetainOnlyTheLatestSuccessfulSavedRecording() throws Exception {
+        Method snapshotMethod = java.util.Arrays.stream(MobileRecordingState.class.getMethods())
+                .filter(method -> method.getName().equals("snapshotIfPresent")
+                        && java.util.Arrays.equals(method.getParameterTypes(), new Class<?>[]{AppiumDriver.class}))
+                .findFirst().orElse(null);
+        Assert.assertNotNull(snapshotMethod, "Evidence needs a non-creating recording-state snapshot.");
+
+        AppiumDriver absent = customRecorder("evidence-recording-absent");
+        Assert.assertFalse(hasRecordingState(absent));
+        Assert.assertEquals(snapshotMethod.invoke(null, absent), Optional.empty());
+        Assert.assertFalse(hasRecordingState(absent), "Evidence reads must not create recording state.");
+        Mockito.verifyNoInteractions((CanRecordScreen) absent);
+        InvocationTargetException nullFailure = Assert.expectThrows(InvocationTargetException.class,
+                () -> snapshotMethod.invoke(null, new Object[]{null}));
+        Assert.assertTrue(nullFailure.getCause() instanceof NullPointerException);
+
+        AppiumDriver active = customRecorder("evidence-recording-active");
+        CanRecordScreen activeProvider = (CanRecordScreen) active;
+        Mockito.when(activeProvider.stopRecordingScreen())
+                .thenReturn(Base64.getEncoder().encodeToString(new byte[]{1}));
+        MobileRecordingActionsContract activeRecording = new SHAFT.GUI.WebDriver(active).mobile().recording();
+        activeRecording.start();
+        Object activeSnapshot = ((Optional<?>) snapshotMethod.invoke(null, active)).orElseThrow();
+        Assert.assertTrue((Boolean) activeSnapshot.getClass().getMethod("recordingInProgress").invoke(activeSnapshot));
+        Assert.assertEquals(activeSnapshot.getClass().getMethod("savedRecording").invoke(activeSnapshot), Optional.empty());
+        Mockito.verify(activeProvider, Mockito.never()).stopRecordingScreen();
+        activeRecording.stop();
+        Object stoppedSnapshot = ((Optional<?>) snapshotMethod.invoke(null, active)).orElseThrow();
+        Assert.assertFalse((Boolean) stoppedSnapshot.getClass().getMethod("recordingInProgress").invoke(stoppedSnapshot));
+        Assert.assertEquals(stoppedSnapshot.getClass().getMethod("savedRecording").invoke(stoppedSnapshot), Optional.empty());
+
+        Path directory = Files.createTempDirectory("shaft-mobile-recording-evidence");
+        try {
+            AppiumDriver savedDriver = customRecorder("evidence-recording-saved");
+            CanRecordScreen savedProvider = (CanRecordScreen) savedDriver;
+            byte[] firstBytes = new byte[]{3, 2, 1};
+            byte[] secondBytes = new byte[]{4, 5, 6, 7};
+            Mockito.when(savedProvider.stopRecordingScreen()).thenReturn(
+                    Base64.getEncoder().encodeToString(firstBytes),
+                    Base64.getEncoder().encodeToString(secondBytes),
+                    "malformed!",
+                    Base64.getEncoder().encodeToString(new byte[]{9}));
+            MobileRecordingActionsContract savedRecording =
+                    new SHAFT.GUI.WebDriver(savedDriver).mobile().recording();
+            Path firstTarget = directory.resolve("first.mp4");
+            Path secondTarget = directory.resolve("second.mp4");
+
+            savedRecording.start();
+            savedRecording.stopAndSave(firstTarget);
+            Object firstSnapshot = ((Optional<?>) snapshotMethod.invoke(null, savedDriver)).orElseThrow();
+            Object firstReference = ((Optional<?>) firstSnapshot.getClass()
+                    .getMethod("savedRecording").invoke(firstSnapshot)).orElseThrow();
+            String firstDigest = sha256(firstBytes);
+            Assert.assertEquals(firstReference.getClass().getMethod("path").invoke(firstReference),
+                    firstTarget.toAbsolutePath().normalize());
+            Assert.assertEquals(firstReference.getClass().getMethod("sizeBytes").invoke(firstReference),
+                    (long) firstBytes.length);
+            Assert.assertEquals(firstReference.getClass().getMethod("sha256").invoke(firstReference), firstDigest);
+            Assert.assertEquals(firstReference.toString(), "SavedRecording[sizeBytes=3]");
+
+            Object savedState = recordingState(savedDriver);
+            AtomicReference<Thread> snapshotThread = new AtomicReference<>();
+            try (var executor = Executors.newSingleThreadExecutor()) {
+                Future<?> blockedSnapshot;
+                synchronized (savedState) {
+                    blockedSnapshot = executor.submit(() -> {
+                        snapshotThread.set(Thread.currentThread());
+                        return snapshotMethod.invoke(null, savedDriver);
+                    });
+                    long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(10);
+                    while ((snapshotThread.get() == null || snapshotThread.get().getState() != Thread.State.BLOCKED)
+                            && System.nanoTime() < deadline) {
+                        Thread.onSpinWait();
+                    }
+                    Assert.assertNotNull(snapshotThread.get());
+                    Assert.assertEquals(snapshotThread.get().getState(), Thread.State.BLOCKED,
+                            "Recording evidence snapshots must share the lifecycle state monitor.");
+                }
+                Assert.assertTrue(((Optional<?>) blockedSnapshot.get(10, TimeUnit.SECONDS)).isPresent());
+            }
+
+            savedRecording.start();
+            savedRecording.stopAndSave(secondTarget);
+            Object latestSnapshot = ((Optional<?>) snapshotMethod.invoke(null, savedDriver)).orElseThrow();
+            Object latestReference = ((Optional<?>) latestSnapshot.getClass()
+                    .getMethod("savedRecording").invoke(latestSnapshot)).orElseThrow();
+            Assert.assertEquals(latestReference.getClass().getMethod("path").invoke(latestReference),
+                    secondTarget.toAbsolutePath().normalize());
+            Assert.assertEquals(latestReference.getClass().getMethod("sizeBytes").invoke(latestReference),
+                    (long) secondBytes.length);
+            Assert.assertEquals(latestReference.getClass().getMethod("sha256").invoke(latestReference),
+                    sha256(secondBytes));
+            Assert.assertEquals(firstReference.getClass().getMethod("path").invoke(firstReference),
+                    firstTarget.toAbsolutePath().normalize());
+            Assert.assertEquals(firstReference.getClass().getMethod("sha256").invoke(firstReference), firstDigest);
+
+            savedRecording.start();
+            Assert.expectThrows(IllegalArgumentException.class,
+                    () -> savedRecording.stopAndSave(directory.resolve("decode-failure.mp4")));
+            Object failedDecodeSnapshot = ((Optional<?>) snapshotMethod.invoke(null, savedDriver)).orElseThrow();
+            Assert.assertEquals(failedDecodeSnapshot.getClass().getMethod("savedRecording")
+                    .invoke(failedDecodeSnapshot), Optional.of(latestReference));
+
+            Path fileAsParent = directory.resolve("not-a-directory");
+            Files.writeString(fileAsParent, "parent");
+            savedRecording.start();
+            Assert.expectThrows(UncheckedIOException.class,
+                    () -> savedRecording.stopAndSave(fileAsParent.resolve("recording.mp4")));
+            Object failedPublicationSnapshot =
+                    ((Optional<?>) snapshotMethod.invoke(null, savedDriver)).orElseThrow();
+            Assert.assertEquals(failedPublicationSnapshot.getClass().getMethod("savedRecording")
+                    .invoke(failedPublicationSnapshot), Optional.of(latestReference));
+
+            EqualRecordingDriver first = new EqualRecordingDriver("evidence-equal-first", new byte[]{7});
+            EqualRecordingDriver second = new EqualRecordingDriver("evidence-equal-second", new byte[]{8});
+            MobileRecordingActionsContract firstRecording = new SHAFT.GUI.WebDriver(first).mobile().recording();
+            MobileRecordingActionsContract secondRecording = new SHAFT.GUI.WebDriver(second).mobile().recording();
+            Path equalFirst = directory.resolve("equal-first.mp4");
+            Path equalSecond = directory.resolve("equal-second.mp4");
+            firstRecording.start();
+            firstRecording.stopAndSave(equalFirst);
+            secondRecording.start();
+            secondRecording.stopAndSave(equalSecond);
+            Object firstState = recordingState(first);
+            MobileRecordingState.closeAndRemove(first);
+            Assert.assertEquals(snapshotMethod.invoke(null, first), Optional.empty());
+            Field retainedField = firstState.getClass().getDeclaredField("savedRecording");
+            retainedField.setAccessible(true);
+            Assert.assertNull(retainedField.get(firstState),
+                    "Terminal teardown must release the sensitive path and digest descriptor.");
+            Object secondSnapshot = ((Optional<?>) snapshotMethod.invoke(null, second)).orElseThrow();
+            Object secondReference = ((Optional<?>) secondSnapshot.getClass()
+                    .getMethod("savedRecording").invoke(secondSnapshot)).orElseThrow();
+            Assert.assertEquals(secondReference.getClass().getMethod("path").invoke(secondReference),
+                    equalSecond.toAbsolutePath().normalize());
+
+            String validDigest = "0".repeat(64);
+            Path relative = Path.of("folder", "..", "recording.mp4");
+            MobileRecordingState.SavedRecording normalized =
+                    new MobileRecordingState.SavedRecording(relative, 0, validDigest);
+            Assert.assertEquals(normalized.path(), relative.toAbsolutePath().normalize());
+            Assert.assertEquals(normalized.toString(), "SavedRecording[sizeBytes=0]");
+            Assert.expectThrows(NullPointerException.class,
+                    () -> new MobileRecordingState.SavedRecording(null, 0, validDigest));
+            Assert.expectThrows(IllegalArgumentException.class,
+                    () -> new MobileRecordingState.SavedRecording(relative, -1, validDigest));
+            Assert.expectThrows(NullPointerException.class,
+                    () -> new MobileRecordingState.SavedRecording(relative, 0, null));
+            Assert.expectThrows(IllegalArgumentException.class,
+                    () -> new MobileRecordingState.SavedRecording(relative, 0, "invalid"));
+            Assert.expectThrows(IllegalArgumentException.class,
+                    () -> new MobileRecordingState.SavedRecording(relative, 0, "A".repeat(64)));
+            Assert.expectThrows(NullPointerException.class,
+                    () -> new MobileRecordingState.Snapshot(false, null));
+        } finally {
+            deleteRecursively(directory);
+        }
+    }
+
+    @Test
     public void teardownShouldMakeOnlyTheClosingDriversRecordingStateTerminal() {
         AppiumDriver closing = customRecorder("recording-closing");
         AppiumDriver retained = customRecorder("recording-retained");
@@ -351,6 +521,28 @@ public class MobileRecordingActionsTest {
     private static AppiumDriver customRecorder(String sessionId) {
         return live(Mockito.mock(AppiumDriver.class,
                 Mockito.withSettings().extraInterfaces(CanRecordScreen.class)), sessionId);
+    }
+
+    private static boolean hasRecordingState(AppiumDriver driver) throws Exception {
+        return recordingState(driver) != null;
+    }
+
+    private static Object recordingState(AppiumDriver driver) throws Exception {
+        Field statesField = MobileRecordingState.class.getDeclaredField("STATES");
+        statesField.setAccessible(true);
+        Map<?, ?> states = (Map<?, ?>) statesField.get(null);
+        synchronized (states) {
+            for (Map.Entry<?, ?> entry : states.entrySet()) {
+                if (entry.getKey() instanceof Reference<?> reference && reference.get() == driver) {
+                    return entry.getValue();
+                }
+            }
+            return null;
+        }
+    }
+
+    private static String sha256(byte[] bytes) throws Exception {
+        return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(bytes));
     }
 
     private static MobileRecordingActionsContract staleRecording(String sessionId) {
