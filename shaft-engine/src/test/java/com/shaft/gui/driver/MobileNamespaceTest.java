@@ -15,6 +15,10 @@ import org.openqa.selenium.remote.SessionId;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
+import javax.tools.SimpleJavaFileObject;
+import javax.tools.ToolProvider;
+import java.net.URI;
+import java.net.URLClassLoader;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.nio.file.Files;
@@ -56,13 +60,26 @@ public class MobileNamespaceTest {
                 .map(constructor -> Arrays.toString(constructor.getParameterTypes()))
                 .collect(Collectors.toSet()), Set.of("[class com.shaft.driver.SHAFT$GUI$WebDriver]"));
 
-        for (String contract : Set.of(
-                "MobileEvidenceActionsContract",
-                "MobileRecordingActionsContract")) {
+        for (String contract : Set.of("MobileEvidenceActionsContract")) {
             Assert.assertNotNull(Class.forName("com.shaft.gui.driver." + contract));
             Assert.assertEquals(descriptors("com.shaft.gui.driver." + contract),
                     Set.of("and[]->MobileActionsContract"));
         }
+        Class<?> recordingOptions = classOrNull("com.shaft.gui.driver.MobileRecordingOptions");
+        Assert.assertNotNull(recordingOptions, "MobileRecordingOptions must be a public record");
+        Assert.assertTrue(Modifier.isPublic(recordingOptions.getModifiers()));
+        assertRecord("com.shaft.gui.driver.MobileRecordingOptions",
+                List.of("timeLimit:java.time.Duration", "maxBytes:long"));
+        Assert.assertEquals(descriptors("com.shaft.gui.driver.MobileRecordingActionsContract"), Set.of(
+                "and[]->MobileActionsContract",
+                "start[]->MobileRecordingActionsContract",
+                "start[class com.shaft.gui.driver.MobileRecordingOptions]->MobileRecordingActionsContract",
+                "stop[]->byte[]",
+                "stopAndSave[interface java.nio.file.Path]->Path"));
+        Class<?> recordingContract = Class.forName("com.shaft.gui.driver.MobileRecordingActionsContract");
+        Assert.assertTrue(Arrays.stream(recordingContract.getDeclaredMethods())
+                .filter(method -> Modifier.isPublic(method.getModifiers()) && !method.getName().equals("and"))
+                .allMatch(Method::isDefault));
         Assert.assertEquals(descriptors("com.shaft.gui.driver.MobilePerformanceActionsContract"), Set.of(
                 "and[]->MobileActionsContract",
                 "clear[]->MobilePerformanceActionsContract",
@@ -217,6 +234,60 @@ public class MobileNamespaceTest {
         Assert.expectThrows(UnsupportedOperationException.class, () -> oldConsumer.sample("app", "cpuinfo"));
         Assert.expectThrows(UnsupportedOperationException.class, oldConsumer::history);
         Assert.expectThrows(UnsupportedOperationException.class, oldConsumer::clear);
+    }
+
+    @Test
+    public void existingRecordingContractImplementationsShouldRemainSourceCompatible() {
+        MobileRecordingActionsContract oldConsumer = new MobileRecordingActionsContract() {
+            @Override
+            public MobileActionsContract and() {
+                return null;
+            }
+        };
+
+        Assert.expectThrows(UnsupportedOperationException.class, oldConsumer::start);
+        Assert.expectThrows(UnsupportedOperationException.class,
+                () -> oldConsumer.start(new MobileRecordingOptions(Duration.ofMinutes(1), 1024)));
+        Assert.expectThrows(UnsupportedOperationException.class, oldConsumer::stop);
+        Assert.expectThrows(UnsupportedOperationException.class,
+                () -> oldConsumer.stopAndSave(Path.of("recording.mp4")));
+    }
+
+    @Test
+    public void recordingContractShouldLinkAndRunImplementationsCompiledAgainstTheOldInterface() throws Exception {
+        Path output = Files.createTempDirectory("shaft-mobile-recording-binary-compat");
+        var compiler = ToolProvider.getSystemJavaCompiler();
+        var oldContract = source("com.shaft.gui.driver.MobileRecordingActionsContract", """
+                package com.shaft.gui.driver;
+                public interface MobileRecordingActionsContract {
+                    MobileActionsContract and();
+                }
+                """);
+        var oldConsumer = source("compat.OldRecordingConsumer", """
+                package compat;
+                import com.shaft.gui.driver.MobileActionsContract;
+                import com.shaft.gui.driver.MobileRecordingActionsContract;
+                public final class OldRecordingConsumer implements MobileRecordingActionsContract {
+                    public MobileActionsContract and() { return null; }
+                }
+                """);
+        boolean compiled = Boolean.TRUE.equals(compiler.getTask(null, null, null,
+                List.of("-classpath", System.getProperty("java.class.path"), "-d", output.toString()),
+                null, List.of(oldContract, oldConsumer)).call());
+        Assert.assertTrue(compiled, "The frozen old-contract consumer should compile against its old interface.");
+
+        try (URLClassLoader loader = new URLClassLoader(new java.net.URL[]{output.toUri().toURL()},
+                MobileNamespaceTest.class.getClassLoader())) {
+            MobileRecordingActionsContract linkedConsumer = (MobileRecordingActionsContract) Class
+                    .forName("compat.OldRecordingConsumer", true, loader).getDeclaredConstructor().newInstance();
+
+            Assert.expectThrows(UnsupportedOperationException.class, linkedConsumer::start);
+            Assert.expectThrows(UnsupportedOperationException.class,
+                    () -> linkedConsumer.start(MobileRecordingOptions.defaults()));
+            Assert.expectThrows(UnsupportedOperationException.class, linkedConsumer::stop);
+            Assert.expectThrows(UnsupportedOperationException.class,
+                    () -> linkedConsumer.stopAndSave(Path.of("recording.mp4")));
+        }
     }
 
     @Test
@@ -476,6 +547,24 @@ public class MobileNamespaceTest {
     private static Set<String> enumValues(String className) throws ClassNotFoundException {
         Object[] values = Class.forName(className).getEnumConstants();
         return Arrays.stream(values).map(String::valueOf).collect(Collectors.toSet());
+    }
+
+    private static Class<?> classOrNull(String className) {
+        try {
+            return Class.forName(className);
+        } catch (ClassNotFoundException ignored) {
+            return null;
+        }
+    }
+
+    private static SimpleJavaFileObject source(String className, String source) {
+        return new SimpleJavaFileObject(URI.create("string:///" + className.replace('.', '/') + ".java"),
+                javax.tools.JavaFileObject.Kind.SOURCE) {
+            @Override
+            public CharSequence getCharContent(boolean ignoreEncodingErrors) {
+                return source;
+            }
+        };
     }
 
     private static void assertRecord(String className, List<String> components) throws Exception {
