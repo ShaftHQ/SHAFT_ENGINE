@@ -167,6 +167,14 @@ class CliGatePackagingContractTest(unittest.TestCase):
 
 class MobileRecordingAcceptanceWorkflowContractTest(unittest.TestCase):
     WORKFLOW = Path(__file__).resolve().parents[2] / ".github/workflows/e2eTests.yml"
+    ANDROID_TEST = (
+        Path(__file__).resolve().parents[2]
+        / "shaft-engine/src/test/java/testPackage/appium/AndroidBasicInteractionsTests.java"
+    )
+    IOS_TEST = (
+        Path(__file__).resolve().parents[2]
+        / "shaft-engine/src/test/java/testPackage/appium/IOSBasicInteractionsTest.java"
+    )
 
     def test_ios_recording_acceptance_uses_verified_immutable_app_and_exact_guard(self):
         workflow = yaml.safe_load(self.WORKFLOW.read_text(encoding="utf-8"))
@@ -213,6 +221,7 @@ class MobileRecordingAcceptanceWorkflowContractTest(unittest.TestCase):
             (steps, "Run iOS recording acceptance"),
         ]
         executions = []
+        execution_arguments = []
         for job_steps, step_name in execution_steps:
             matches = [step for step in job_steps if step.get("name") == step_name]
             self.assertEqual(1, len(matches))
@@ -231,22 +240,82 @@ class MobileRecordingAcceptanceWorkflowContractTest(unittest.TestCase):
             self.assertEqual(["-DbrowserStack.appiumVersion=3.3.0"], version_arguments)
             self.assertFalse(any(all(character in ";&|" for character in argument) for argument in arguments))
             executions.append(provider_execution)
+            execution_arguments.append(arguments)
+
+        expected_selectors = [
+            "AndroidBasicInteractionsTests#screenRecordingShouldPreserveUnsupportedProviderFailureAndResetState",
+            "IOSBasicInteractionsTest#screenRecordingShouldPreserveUnsupportedProviderFailureAndResetState",
+        ]
+        for arguments, expected_selector in zip(execution_arguments, expected_selectors):
+            selectors = [argument for argument in arguments if argument.startswith("-Dtest=")]
+            self.assertEqual([f"-Dtest={expected_selector}"], selectors)
+
+        broad_android_matches = [
+            step
+            for step in workflow["jobs"]["Android_Native_BrowserStack"]["steps"]
+            if step.get("name") == "Run tests"
+        ]
+        self.assertEqual(1, len(broad_android_matches))
+        broad_android_execution = broad_android_matches[0]["run"]
+        self.assertNotIn("\n", broad_android_execution)
+        self.assertNotIn("\r", broad_android_execution)
+        broad_lexer = shlex.shlex(broad_android_execution, posix=True, punctuation_chars=";&|")
+        broad_lexer.whitespace_split = True
+        broad_lexer.commenters = "#"
+        broad_arguments = list(broad_lexer)
+        self.assertEqual("mvn", broad_arguments[0])
+        self.assertEqual(1, broad_arguments.count("mvn"))
+        self.assertFalse(
+            any(all(character in ";&|" for character in argument) for argument in broad_arguments)
+        )
+        compatible_group = "mobile-recording-compatible-provider"
+        exclusions = [
+            argument for argument in broad_arguments if argument.startswith("-Dsurefire.excludedGroups=")
+        ]
+        self.assertEqual(
+            [f"-Dsurefire.excludedGroups=allure3-visual-demo,{compatible_group}"],
+            exclusions,
+        )
+        positive_methods = [
+            (
+                self.ANDROID_TEST,
+                f'@Test(groups = {{"ApiDemosDebug", "{compatible_group}"}})\n',
+            ),
+            (
+                self.IOS_TEST,
+                f'@Test(groups = {{"{compatible_group}"}})\n',
+            ),
+        ]
+        for source, annotation in positive_methods:
+            test_source = source.read_text(encoding="utf-8")
+            self.assertIn(
+                annotation + "    public void screenRecordingShouldReturnAndSaveBoundedMedia()",
+                test_source,
+            )
 
         execution = executions[1]
         self.assertIn('"-Dshaft.enableNativeIosE2E=true"', execution)
-        self.assertEqual(1, execution.count("-Dtest="))
-        self.assertIn(
-            '"-Dtest=IOSBasicInteractionsTest#screenRecordingShouldReturnAndSaveBoundedMedia"',
-            execution,
-        )
 
-        guard_step = steps_by_name["Verify iOS recording acceptance executed"]
-        self.assertFalse(guard_step.get("continue-on-error", False))
-        guard = guard_step["run"]
-        expected_guard = (
-            "python3 scripts/ci/assert_tests_executed.py "
-            "shaft-engine/target/surefire-reports/"
-            "TEST-testPackage.appium.IOSBasicInteractionsTest.xml "
-            "--min-executed 1"
-        )
-        self.assertEqual(expected_guard, guard.strip())
+        expected_guards = [
+            (
+                workflow["jobs"]["Android_Recording_BrowserStack"]["steps"],
+                "Verify Android recording acceptance executed",
+                "TEST-testPackage.appium.AndroidBasicInteractionsTests.xml",
+            ),
+            (
+                steps,
+                "Verify iOS recording acceptance executed",
+                "TEST-testPackage.appium.IOSBasicInteractionsTest.xml",
+            ),
+        ]
+        for job_steps, guard_name, report in expected_guards:
+            matches = [step for step in job_steps if step.get("name") == guard_name]
+            self.assertEqual(1, len(matches))
+            guard_step = matches[0]
+            self.assertFalse(guard_step.get("continue-on-error", False))
+            expected_guard = (
+                "python3 scripts/ci/assert_tests_executed.py "
+                f"shaft-engine/target/surefire-reports/{report} "
+                "--min-executed 1"
+            )
+            self.assertEqual(expected_guard, guard_step["run"].strip())

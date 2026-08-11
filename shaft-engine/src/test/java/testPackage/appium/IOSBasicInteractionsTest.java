@@ -7,6 +7,7 @@ import com.shaft.properties.internal.Properties;
 import com.shaft.validation.Validations;
 import io.appium.java_client.AppiumBy;
 import org.openqa.selenium.Platform;
+import org.openqa.selenium.WebDriverException;
 import org.testng.SkipException;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
@@ -34,7 +35,7 @@ public class IOSBasicInteractionsTest {
     }
 
     /** Real-provider acceptance for bounded iOS screen recording and exact-target saving. */
-    @Test
+    @Test(groups = {"mobile-recording-compatible-provider"})
     public void screenRecordingShouldReturnAndSaveBoundedMedia() throws Exception {
         long maxBytes = 32L * 1024 * 1024;
         var options = new MobileRecordingOptions(Duration.ofSeconds(30), maxBytes);
@@ -55,6 +56,19 @@ public class IOSBasicInteractionsTest {
             Files.deleteIfExists(target);
             Files.deleteIfExists(directory);
         }
+    }
+
+    /** Real-provider proof that BrowserStack rejects Appium recording without corrupting SHAFT's lifecycle. */
+    @Test
+    public void screenRecordingShouldPreserveUnsupportedProviderFailureAndResetState() {
+        var recording = driver.get().mobile().recording();
+
+        WebDriverException firstFailure = Assert.expectThrows(WebDriverException.class, recording::start);
+        Assert.assertTrue(firstFailure.getMessage().contains("Command is not supported"));
+        Assert.expectThrows(IllegalStateException.class, () -> recording.stop());
+
+        WebDriverException retryFailure = Assert.expectThrows(WebDriverException.class, recording::start);
+        Assert.assertTrue(retryFailure.getMessage().contains("Command is not supported"));
     }
 
     @SuppressWarnings("CommentedOutCode")
