@@ -190,6 +190,72 @@ class CaptureEventPipelineTest {
     }
 
     @Test
+    void lateDeliveryOfAnOlderInputSignalCannotTruncateTheRecordedValue(@TempDir Path temp) throws Exception {
+        Path output = temp.resolve("session.json");
+        CaptureSessionStore store = startedStore(output);
+        CaptureEventPipeline pipeline = new CaptureEventPipeline(
+                store, output, CapturePrivacyPolicy.defaults(), ignored -> {
+                }, ignored -> {
+                });
+
+        pipeline.accept(signal("input", START.plusMillis(20), usernameTarget(),
+                Map.of("value", "shaft_engine", "committed", true), Map.of()));
+        pipeline.accept(signal("input", START.plusMillis(10), usernameTarget(),
+                Map.of("value", "shaft_engin"), Map.of()));
+        pipeline.close();
+
+        assertEquals(1, store.read().events().size());
+        String dataJson = Files.readString(temp.resolve("capture-data.json"), StandardCharsets.UTF_8);
+        assertTrue(dataJson.contains("\"shaft_engine\""),
+                "A late duplicate from another collector must not replace a newer complete input value");
+        assertFalse(dataJson.contains("\"shaft_engin\""),
+                "The stale prefix must not survive as the externalized replay value");
+    }
+
+    @Test
+    void browserSignalSequenceOrdersDistinctInputValuesWithinOneMillisecond(@TempDir Path temp) throws Exception {
+        Path output = temp.resolve("session.json");
+        CaptureSessionStore store = startedStore(output);
+        CaptureEventPipeline pipeline = new CaptureEventPipeline(
+                store, output, CapturePrivacyPolicy.defaults(), ignored -> {
+                }, ignored -> {
+                });
+
+        pipeline.accept(signal("input", START, usernameTarget(),
+                Map.of("value", "shaft_engine", "captureSignalSequence", 12), Map.of()));
+        pipeline.accept(signal("input", START, usernameTarget(),
+                Map.of("value", "shaft_engin", "captureSignalSequence", 11), Map.of()));
+        pipeline.close();
+
+        String dataJson = Files.readString(temp.resolve("capture-data.json"), StandardCharsets.UTF_8);
+        assertTrue(dataJson.contains("\"shaft_engine\""));
+        assertFalse(dataJson.contains("\"shaft_engin\""));
+    }
+
+    @Test
+    void identicalElementIdsInDifferentBrowsingContextsKeepDistinctInputStreams(@TempDir Path temp) throws Exception {
+        Path output = temp.resolve("session.json");
+        CaptureSessionStore store = startedStore(output);
+        CaptureEventPipeline pipeline = new CaptureEventPipeline(
+                store, output, CapturePrivacyPolicy.defaults(), ignored -> {
+                }, ignored -> {
+                });
+
+        pipeline.accept(signalFromContext("input", START.plusMillis(20), "tab-2", usernameTarget(),
+                Map.of("value", "second-tab", "captureSignalSequence", 2), Map.of()));
+        pipeline.accept(signalFromContext("input", START.plusMillis(10), "tab-1", usernameTarget(),
+                Map.of("value", "first-tab", "captureSignalSequence", 1), Map.of()));
+        pipeline.close();
+
+        assertEquals(2, store.read().events().stream()
+                .filter(CaptureEvent.TypeEvent.class::isInstance)
+                .count());
+        String dataJson = Files.readString(temp.resolve("capture-data.json"), StandardCharsets.UTF_8);
+        assertTrue(dataJson.contains("\"first-tab\""));
+        assertTrue(dataJson.contains("\"second-tab\""));
+    }
+
+    @Test
     void suppressesBrowserSynthesizedClickOnInvisibleTarget(@TempDir Path temp) {
         // Issue #3426 B2: pressing Enter in a form makes the browser "click" the form's default
         // submit button even when it is invisible. A real user can never click an element with no

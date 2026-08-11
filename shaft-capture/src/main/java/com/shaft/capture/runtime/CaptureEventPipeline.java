@@ -61,6 +61,8 @@ final class CaptureEventPipeline implements AutoCloseable {
     private final Consumer<String> warningConsumer;
     private final List<ClassifiedValue> classifiedValues = new ArrayList<>();
     private final Map<String, BrowserSignal> pendingInputs = new LinkedHashMap<>();
+    /** Newest input signal seen per browser action, retained after flush to reject delayed copies. */
+    private final Map<String, BrowserSignal> latestInputs = new LinkedHashMap<>();
     /** Last flushed input value per target, to drop the duplicate change-on-submit re-emission. */
     private final Map<String, String> lastEmittedInputValues = new LinkedHashMap<>();
     private final Map<String, BrowserSignal> pendingClicks = new LinkedHashMap<>();
@@ -150,7 +152,16 @@ final class CaptureEventPipeline implements AutoCloseable {
         try {
             switch (signal.kind()) {
                 case "input" -> {
-                    pendingInputs.put(targetKey(signal), signal);
+                    // BiDi, polling, and the loopback sink can deliver the same input stream out
+                    // of order, including after a newer value was already committed and flushed.
+                    // Retain the ordering watermark for the whole browser action (#4715).
+                    String inputKey = inputTargetKey(signal);
+                    BrowserSignal latest = latestInputs.get(inputKey);
+                    if (latest != null && inputPrecedes(signal, latest)) {
+                        return;
+                    }
+                    latestInputs.put(inputKey, signal);
+                    pendingInputs.put(inputKey, signal);
                     if (signal.dataBoolean("committed")) {
                         // This commit flushes immediately, bypassing flushPendingBefore; an
                         // older buffered navigation must still be appended first so persisted
@@ -158,7 +169,7 @@ final class CaptureEventPipeline implements AutoCloseable {
                         List<BrowserSignal> readyNavigations = new ArrayList<>();
                         collectReady(pendingNavigations, signal.timestamp(), readyNavigations);
                         flushOrdered(readyNavigations);
-                        flushSignal(pendingInputs.remove(targetKey(signal)));
+                        flushSignal(pendingInputs.remove(inputKey));
                     }
                 }
                 case "click" -> pendingClicks.put(targetKey(signal), signal);
@@ -515,11 +526,12 @@ final class CaptureEventPipeline implements AutoCloseable {
         String value = signal.dataString("value");
         // Form submission re-fires "change" with the value that was already flushed for this
         // element: appending it again duplicated the type step (issue #3426 B2).
-        String lastEmitted = lastEmittedInputValues.get(targetKey(signal));
+        String inputKey = inputTargetKey(signal);
+        String lastEmitted = lastEmittedInputValues.get(inputKey);
         if (!value.isEmpty() && value.equals(lastEmitted)) {
             return;
         }
-        lastEmittedInputValues.put(targetKey(signal), value);
+        lastEmittedInputValues.put(inputKey, value);
         if (value.isEmpty()) {
             append(new CaptureEvent.ClearEvent(context(signal), target.snapshot()),
                     target.summary(), List.of());
@@ -1064,6 +1076,30 @@ final class CaptureEventPipeline implements AutoCloseable {
     private static String targetKey(BrowserSignal signal) {
         String target = string(signal.target().get("logicalElementId"));
         return target.isBlank() ? signal.kind() + "-" + signal.browsingContextId() : target;
+    }
+
+    private String inputTargetKey(BrowserSignal signal) {
+        String clientActionId = signal.dataString("clientActionId");
+        if (!clientActionId.isBlank()) {
+            return "action|" + clientActionId;
+        }
+        String contextId = signal.browsingContextId();
+        if (BrowserEventSink.LOOPBACK_BROWSING_CONTEXT_ID.equals(contextId)
+                && !currentRealBrowsingContextId.isBlank()) {
+            contextId = currentRealBrowsingContextId;
+        }
+        return "target|" + contextId
+                + "|" + string(signal.page().get("framePath"))
+                + "|" + targetKey(signal);
+    }
+
+    private static boolean inputPrecedes(BrowserSignal candidate, BrowserSignal current) {
+        int candidateSequence = candidate.dataInt("captureSignalSequence", -1);
+        int currentSequence = current.dataInt("captureSignalSequence", -1);
+        if (candidateSequence >= 0 && currentSequence >= 0 && candidateSequence != currentSequence) {
+            return candidateSequence < currentSequence;
+        }
+        return candidate.timestamp().isBefore(current.timestamp());
     }
 
     private static boolean isStandaloneEditingKey(BrowserSignal signal) {
