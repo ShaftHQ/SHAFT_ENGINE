@@ -3,6 +3,7 @@ import unittest
 from pathlib import Path
 
 from scripts.ci.validate_quality_configuration import (
+    validate_browser_matrix_scope_policy,
     validate_maven_jvm_configuration,
     validate_quality_configuration,
     validate_surefire_jacoco_arg_lines,
@@ -13,6 +14,80 @@ from scripts.ci.validate_quality_configuration import (
 class ValidateQualityConfigurationTest(unittest.TestCase):
     def test_repository_configuration_is_valid(self):
         self.assertEqual(validate_quality_configuration(), [])
+
+    def test_local_browser_matrix_excludes_pr_gate_owned_unit_tests(self):
+        root = Path(__file__).resolve().parents[2]
+        local_e2e_workflow = (root / ".github" / "workflows" / "e2eLocalTests.yml").read_text(
+            encoding="utf-8"
+        )
+
+        self.assertIn("!%regex[.*testPackage.unitTests.*]", local_e2e_workflow)
+
+    def test_rejects_local_browser_scope_that_omits_pr_gate_owned_unit_tests(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            workflows = root / ".github" / "workflows"
+            workflows.mkdir(parents=True)
+            (workflows / "e2eTests.yml").write_text(
+                'env:\n  GLOBAL_TESTING_SCOPE: "!%regex[.*testPackage.unitTests.*], '
+                '!%regex[.*ExampleUnitTest.*]"\n',
+                encoding="utf-8",
+            )
+            (workflows / "e2eLocalTests.yml").write_text(
+                'env:\n  GLOBAL_TESTING_SCOPE: "!%regex[.*DatabaseActions.*]"\n',
+                encoding="utf-8",
+            )
+            (workflows / "pr-gate.yml").write_text(
+                "-Dtest=testPackage/unitTests/*, ExampleUnitTest\n",
+                encoding="utf-8",
+            )
+
+            self.assertEqual(
+                validate_browser_matrix_scope_policy(root),
+                [
+                    "e2eLocalTests.yml must exclude PR-gate-owned unit tests: "
+                    "!%regex[.*testPackage.unitTests.*], !%regex[.*ExampleUnitTest.*]"
+                ],
+            )
+
+    def test_rejects_browser_exclusion_that_loses_pr_gate_ownership(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            workflows = root / ".github" / "workflows"
+            workflows.mkdir(parents=True)
+            shared_scope = (
+                'env:\n  GLOBAL_TESTING_SCOPE: "!%regex[.*testPackage.unitTests.*], '
+                '!%regex[.*ExampleUnitTest.*]"\n'
+            )
+            (workflows / "e2eTests.yml").write_text(shared_scope, encoding="utf-8")
+            (workflows / "e2eLocalTests.yml").write_text(shared_scope, encoding="utf-8")
+            (workflows / "pr-gate.yml").write_text(
+                "-Dtest=testPackage/unitTests/*\n",
+                encoding="utf-8",
+            )
+
+            self.assertEqual(
+                validate_browser_matrix_scope_policy(root),
+                [
+                    "pr-gate.yml must retain unit-test ownership for browser-matrix exclusions: "
+                    "ExampleUnitTest"
+                ],
+            )
+
+    def test_browser_matrix_scope_policy_fails_closed_when_workflow_is_missing(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            workflows = root / ".github" / "workflows"
+            workflows.mkdir(parents=True)
+            (workflows / "e2eTests.yml").write_text("", encoding="utf-8")
+
+            self.assertEqual(
+                validate_browser_matrix_scope_policy(root),
+                [
+                    "browser-matrix scope policy is missing workflow files: "
+                    "e2eLocalTests.yml, pr-gate.yml"
+                ],
+            )
 
     def test_rejects_java_25_only_maven_startup_option(self):
         with tempfile.TemporaryDirectory() as temp_dir:
