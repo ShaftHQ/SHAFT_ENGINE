@@ -40,6 +40,10 @@ FORBIDDEN_OPTIONAL_COVERAGE_SETTINGS = (
     "allow-missing-coverage: true",
 )
 UNIT_SCOPE_SENTINEL = "!%regex[.*testPackage.unitTests.*]"
+GRID_ONLY_SCOPE_EXCLUSIONS = (
+    "!%regex[.*playwright.*PlaywrightActionsE2ETest.*]",
+    "!%regex[.*LazyLoadingFixtureLiveTest.*]",
+)
 
 
 def text(element: ET.Element, path: str) -> str | None:
@@ -101,6 +105,14 @@ def _global_testing_scope(workflow: str) -> list[str]:
     return [token.strip() for token in match.group(1).split(",")] if match else []
 
 
+def _pr_gate_unit_selectors(workflow: str) -> set[str]:
+    for selector in re.findall(r"^\s*'-Dtest=([^']*)'\s*$", workflow, re.MULTILINE):
+        tokens = {token.strip() for token in selector.split(",") if token.strip()}
+        if "testPackage/unitTests/*" in tokens:
+            return {token for token in tokens if not token.startswith("!")}
+    return set()
+
+
 def validate_browser_matrix_scope_policy(root: Path = ROOT) -> list[str]:
     workflows = root / ".github" / "workflows"
     paths = {
@@ -116,10 +128,15 @@ def validate_browser_matrix_scope_policy(root: Path = ROOT) -> list[str]:
         return ["e2eTests.yml must mark the environment-independent unit-test exclusion trailer"]
 
     unit_exclusions = grid_scope[grid_scope.index(UNIT_SCOPE_SENTINEL):]
-    local_scope = set(_global_testing_scope(paths["e2eLocalTests.yml"].read_text(encoding="utf-8")))
-    missing_local = [exclusion for exclusion in unit_exclusions if exclusion not in local_scope]
+    expected_local_scope = [
+        exclusion for exclusion in grid_scope if exclusion not in GRID_ONLY_SCOPE_EXCLUSIONS
+    ]
+    local_scope = _global_testing_scope(paths["e2eLocalTests.yml"].read_text(encoding="utf-8"))
+    missing_local = [exclusion for exclusion in expected_local_scope if exclusion not in local_scope]
+    unexpected_local = [exclusion for exclusion in local_scope if exclusion not in expected_local_scope]
 
     pr_gate = paths["pr-gate.yml"].read_text(encoding="utf-8")
+    pr_gate_unit_selectors = _pr_gate_unit_selectors(pr_gate)
     missing_pr_gate = []
     for exclusion in unit_exclusions:
         owner_selector = (
@@ -127,7 +144,7 @@ def validate_browser_matrix_scope_policy(root: Path = ROOT) -> list[str]:
             if exclusion == UNIT_SCOPE_SENTINEL
             else exclusion.removeprefix("!%regex[.*").removesuffix(".*]")
         )
-        if owner_selector not in pr_gate:
+        if owner_selector not in pr_gate_unit_selectors:
             missing_pr_gate.append(owner_selector)
 
     errors = []
@@ -136,6 +153,13 @@ def validate_browser_matrix_scope_policy(root: Path = ROOT) -> list[str]:
             "e2eLocalTests.yml must exclude PR-gate-owned unit tests: "
             + ", ".join(missing_local)
         )
+    if unexpected_local:
+        errors.append(
+            "e2eLocalTests.yml contains exclusions outside the shared local-browser scope: "
+            + ", ".join(unexpected_local)
+        )
+    if not missing_local and not unexpected_local and local_scope != expected_local_scope:
+        errors.append("e2eLocalTests.yml must keep the shared browser exclusions in grid order")
     if missing_pr_gate:
         errors.append(
             "pr-gate.yml must retain unit-test ownership for browser-matrix exclusions: "

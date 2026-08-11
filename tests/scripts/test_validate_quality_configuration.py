@@ -29,7 +29,8 @@ class ValidateQualityConfigurationTest(unittest.TestCase):
             workflows = root / ".github" / "workflows"
             workflows.mkdir(parents=True)
             (workflows / "e2eTests.yml").write_text(
-                'env:\n  GLOBAL_TESTING_SCOPE: "!%regex[.*testPackage.unitTests.*], '
+                'env:\n  GLOBAL_TESTING_SCOPE: "!%regex[.*DatabaseActions.*], '
+                "!%regex[.*testPackage.unitTests.*], "
                 '!%regex[.*ExampleUnitTest.*]"\n',
                 encoding="utf-8",
             )
@@ -38,7 +39,7 @@ class ValidateQualityConfigurationTest(unittest.TestCase):
                 encoding="utf-8",
             )
             (workflows / "pr-gate.yml").write_text(
-                "-Dtest=testPackage/unitTests/*, ExampleUnitTest\n",
+                "'-Dtest=testPackage/unitTests/*, ExampleUnitTest'\n",
                 encoding="utf-8",
             )
 
@@ -62,7 +63,7 @@ class ValidateQualityConfigurationTest(unittest.TestCase):
             (workflows / "e2eTests.yml").write_text(shared_scope, encoding="utf-8")
             (workflows / "e2eLocalTests.yml").write_text(shared_scope, encoding="utf-8")
             (workflows / "pr-gate.yml").write_text(
-                "-Dtest=testPackage/unitTests/*\n",
+                "'-Dtest=testPackage/unitTests/*'\n",
                 encoding="utf-8",
             )
 
@@ -73,6 +74,70 @@ class ValidateQualityConfigurationTest(unittest.TestCase):
                     "ExampleUnitTest"
                 ],
             )
+
+    def test_rejects_grid_only_exclusion_in_local_browser_scope(self):
+        for forbidden in (
+            "!%regex[.*playwright.*PlaywrightActionsE2ETest.*]",
+            "!%regex[.*LazyLoadingFixtureLiveTest.*]",
+        ):
+            with self.subTest(forbidden=forbidden), tempfile.TemporaryDirectory() as temp_dir:
+                root = Path(temp_dir)
+                workflows = root / ".github" / "workflows"
+                workflows.mkdir(parents=True)
+                (workflows / "e2eTests.yml").write_text(
+                    'env:\n  GLOBAL_TESTING_SCOPE: "!%regex[.*DatabaseActions.*], '
+                    "!%regex[.*playwright.*PlaywrightActionsE2ETest.*], "
+                    "!%regex[.*LazyLoadingFixtureLiveTest.*], "
+                    '!%regex[.*testPackage.unitTests.*]"\n',
+                    encoding="utf-8",
+                )
+                (workflows / "e2eLocalTests.yml").write_text(
+                    'env:\n  GLOBAL_TESTING_SCOPE: "!%regex[.*DatabaseActions.*], '
+                    f'{forbidden}, !%regex[.*testPackage.unitTests.*]"\n',
+                    encoding="utf-8",
+                )
+                (workflows / "pr-gate.yml").write_text(
+                    "'-Dtest=testPackage/unitTests/*'\n",
+                    encoding="utf-8",
+                )
+
+                self.assertEqual(
+                    validate_browser_matrix_scope_policy(root),
+                    [
+                        "e2eLocalTests.yml contains exclusions outside the shared "
+                        f"local-browser scope: {forbidden}"
+                    ],
+                )
+
+    def test_pr_gate_ownership_requires_exact_positive_selector(self):
+        selectors = {
+            "comment-only": (
+                "# '-Dtest=testPackage/unitTests/*, ExampleUnitTest'\n"
+                "'-Dtest=testPackage/unitTests/*'\n"
+            ),
+            "negative": "'-Dtest=testPackage/unitTests/*, !ExampleUnitTest'\n",
+            "prefix-collision": "'-Dtest=testPackage/unitTests/*, ExampleUnitTestExtra'\n",
+        }
+        for scenario, selector in selectors.items():
+            with self.subTest(scenario=scenario), tempfile.TemporaryDirectory() as temp_dir:
+                root = Path(temp_dir)
+                workflows = root / ".github" / "workflows"
+                workflows.mkdir(parents=True)
+                shared_scope = (
+                    'env:\n  GLOBAL_TESTING_SCOPE: "!%regex[.*testPackage.unitTests.*], '
+                    '!%regex[.*ExampleUnitTest.*]"\n'
+                )
+                (workflows / "e2eTests.yml").write_text(shared_scope, encoding="utf-8")
+                (workflows / "e2eLocalTests.yml").write_text(shared_scope, encoding="utf-8")
+                (workflows / "pr-gate.yml").write_text(selector, encoding="utf-8")
+
+                self.assertEqual(
+                    validate_browser_matrix_scope_policy(root),
+                    [
+                        "pr-gate.yml must retain unit-test ownership for browser-matrix "
+                        "exclusions: ExampleUnitTest"
+                    ],
+                )
 
     def test_browser_matrix_scope_policy_fails_closed_when_workflow_is_missing(self):
         with tempfile.TemporaryDirectory() as temp_dir:
