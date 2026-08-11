@@ -242,9 +242,9 @@ class CaptureEventPipelineTest {
                 });
 
         pipeline.accept(signalFromContext("input", START.plusMillis(20), "tab-2", usernameTarget(),
-                Map.of("value", "second-tab", "captureSignalSequence", 2), Map.of()));
+                Map.of("value", "second-tab", "captureSignalSequence", 2, "clientActionId", "ui-1"), Map.of()));
         pipeline.accept(signalFromContext("input", START.plusMillis(10), "tab-1", usernameTarget(),
-                Map.of("value", "first-tab", "captureSignalSequence", 1), Map.of()));
+                Map.of("value", "first-tab", "captureSignalSequence", 1, "clientActionId", "ui-1"), Map.of()));
         pipeline.close();
 
         assertEquals(2, store.read().events().stream()

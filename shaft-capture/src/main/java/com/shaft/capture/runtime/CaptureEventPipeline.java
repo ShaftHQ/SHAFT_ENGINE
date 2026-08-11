@@ -1079,18 +1079,17 @@ final class CaptureEventPipeline implements AutoCloseable {
     }
 
     private String inputTargetKey(BrowserSignal signal) {
-        String clientActionId = signal.dataString("clientActionId");
-        if (!clientActionId.isBlank()) {
-            return "action|" + clientActionId;
-        }
         String contextId = signal.browsingContextId();
         if (BrowserEventSink.LOOPBACK_BROWSING_CONTEXT_ID.equals(contextId)
                 && !currentRealBrowsingContextId.isBlank()) {
             contextId = currentRealBrowsingContextId;
         }
-        return "target|" + contextId
-                + "|" + string(signal.page().get("framePath"))
-                + "|" + targetKey(signal);
+        String contextScope = contextId + "|" + string(signal.page().get("framePath"));
+        String clientActionId = signal.dataString("clientActionId");
+        if (!clientActionId.isBlank()) {
+            return "action|" + contextScope + "|" + clientActionId;
+        }
+        return "target|" + contextScope + "|" + targetKey(signal);
     }
 
     private static boolean inputPrecedes(BrowserSignal candidate, BrowserSignal current) {
