@@ -32,6 +32,22 @@ public interface BrowserActionsContract {
         throw new UnsupportedOperationException("Network actions are not supported by this browser facade.");
     }
 
+    /**
+     * Returns concise alert, confirm, and prompt actions. The Java default-method collision
+     * boundary documented for {@link #network()} also applies to this namespace method.
+     */
+    default DialogActionsContract dialog() {
+        throw new UnsupportedOperationException("Dialog actions are not supported by this browser facade.");
+    }
+
+    /**
+     * Returns native/web browsing-context actions. The Java default-method collision boundary
+     * documented for {@link #network()} also applies to this namespace method.
+     */
+    default ContextActionsContract context() {
+        throw new UnsupportedOperationException("Context actions are not supported by this browser facade.");
+    }
+
     BrowserActionsContract and();
 
     BrowserAssertions assertThat();

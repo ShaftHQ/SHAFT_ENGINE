@@ -15,6 +15,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Supplier;
 
 /**
  * Thread-local Selenium trace event recorder used by failure trace artifacts.
@@ -26,6 +27,7 @@ public final class TraceEventRecorder {
     private static final ThreadLocal<Integer> NEXT_ID = ThreadLocal.withInitial(() -> 0);
     private static final ThreadLocal<Map<String, byte[]>> SCREENSHOTS = ThreadLocal.withInitial(LinkedHashMap::new);
     private static final ThreadLocal<Long> SCREENSHOT_BYTES = ThreadLocal.withInitial(() -> 0L);
+    private static final ThreadLocal<Integer> SUPPRESSION_DEPTH = ThreadLocal.withInitial(() -> 0);
     private static final int MAX_DOM_SNAPSHOT_CHARACTERS = 200_000;
 
     private TraceEventRecorder() {
@@ -55,7 +57,7 @@ public final class TraceEventRecorder {
      * @return started event handle, or a disabled handle when tracing is off
      */
     public static Event start(String category, String name, String locator, WebDriver driver) {
-        if (!isEnabled()) {
+        if (!isEnabled() || SUPPRESSION_DEPTH.get() > 0) {
             return Event.disabled();
         }
         int index = NEXT_ID.get() + 1;
@@ -86,6 +88,21 @@ public final class TraceEventRecorder {
             EVENT_BACKENDS.get().put(event.id(), backend == null ? AutomationBackend.UNKNOWN : backend);
         }
         return event;
+    }
+
+    /** Executes a nested legacy delegate without recording a duplicate event around its owner action. */
+    public static <T> T withoutNestedEvents(Supplier<T> action) {
+        SUPPRESSION_DEPTH.set(SUPPRESSION_DEPTH.get() + 1);
+        try {
+            return action.get();
+        } finally {
+            int remaining = SUPPRESSION_DEPTH.get() - 1;
+            if (remaining <= 0) {
+                SUPPRESSION_DEPTH.remove();
+            } else {
+                SUPPRESSION_DEPTH.set(remaining);
+            }
+        }
     }
 
     /**
@@ -268,6 +285,7 @@ public final class TraceEventRecorder {
         NEXT_ID.remove();
         SCREENSHOTS.remove();
         SCREENSHOT_BYTES.remove();
+        SUPPRESSION_DEPTH.remove();
     }
 
     /**

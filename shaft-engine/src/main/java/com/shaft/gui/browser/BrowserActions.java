@@ -29,6 +29,7 @@ import com.shaft.validation.accessibility.AccessibilityActions;
 import com.shaft.validation.internal.WebDriverBrowserValidationsBuilder;
 import io.appium.java_client.android.AndroidDriver;
 import io.appium.java_client.ios.IOSDriver;
+import io.appium.java_client.remote.SupportsContextSwitching;
 import io.qameta.allure.Step;
 import org.apache.logging.log4j.Level;
 import org.openqa.selenium.*;
@@ -42,6 +43,7 @@ import java.net.URI;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Predicate;
+import java.util.function.Supplier;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -110,6 +112,103 @@ public class BrowserActions extends FluentWebDriverAction implements com.shaft.g
     @Override
     public NetworkActions network() {
         return new NetworkActions(this);
+    }
+
+    @Override
+    public DialogActions dialog() {
+        return new DialogActions(this);
+    }
+
+    @Override
+    public ContextActions context() {
+        return new ContextActions(this);
+    }
+
+    void requireContextSupport(String operation) {
+        WebDriver driver = driverFactoryHelper == null ? null : driverFactoryHelper.getDriver();
+        boolean closedRemoteSession = driver instanceof RemoteWebDriver remoteDriver && remoteDriver.getSessionId() == null;
+        if (!(driver instanceof SupportsContextSwitching) || closedRemoteSession) {
+            throw new UnsupportedOperationException("Appium context " + operation
+                    + " is not supported by the live Selenium/Appium session.");
+        }
+    }
+
+    boolean isCurrentAlertPresent() {
+        WebDriver driver = driverFactoryHelper == null ? null : driverFactoryHelper.getDriver();
+        boolean closedRemoteSession = driver instanceof RemoteWebDriver remoteDriver && remoteDriver.getSessionId() == null;
+        if (driver == null || closedRemoteSession) {
+            throw new UnsupportedOperationException("Dialog inspection requires a live Selenium/Appium session.");
+        }
+        try {
+            driver.switchTo().alert();
+            return true;
+        } catch (NoAlertPresentException ignored) {
+            return false;
+        }
+    }
+
+    void performNamespace(String category, String operation, Runnable action) {
+        queryNamespace(category, operation, () -> {
+            action.run();
+            return null;
+        });
+    }
+
+    <T> T queryNamespace(String category, String operation, Supplier<T> action) {
+        WebDriver driver = driverFactoryHelper == null ? null : driverFactoryHelper.getDriver();
+        var event = TraceEventRecorder.start(category, operation, "", driver);
+        try {
+            T result = TraceEventRecorder.withoutNestedEvents(action);
+            TraceEventRecorder.finish(event, "passed", category + " " + operation + " completed.", null,
+                    Map.of(), List.of());
+            return result;
+        } catch (RuntimeException exception) {
+            TraceEventRecorder.finish(event, "failed", category + " " + operation + " failed.", exception,
+                    Map.of(), List.of());
+            throw exception;
+        }
+    }
+
+    String currentContextNamespace() {
+        return queryContext("current", "", contextDriver -> contextDriver.getContext());
+    }
+
+    List<String> contextHandlesNamespace() {
+        return queryContext("handles", "", contextDriver -> new ArrayList<>(contextDriver.getContextHandles()));
+    }
+
+    void switchContextNamespace(String requestedContext) {
+        queryContext("switch-to", requestedContext, contextDriver -> {
+            contextDriver.context(requestedContext);
+            return contextDriver.getContext();
+        });
+    }
+
+    private <T> T queryContext(String operation, String requestedContext,
+                               java.util.function.Function<SupportsContextSwitching, T> action) {
+        WebDriver driver = driverFactoryHelper == null ? null : driverFactoryHelper.getDriver();
+        var event = TraceEventRecorder.start("context", operation, requestedContext, driver);
+        String before = currentMobileContext();
+        try {
+            requireContextSupport(operation);
+            T result = action.apply((SupportsContextSwitching) driver);
+            Map<String, String> metadata = new LinkedHashMap<>(MobileTraceMetadata.mobileMetadata(driver, false));
+            metadata.put("requestedContext", requestedContext);
+            metadata.put("contextBefore", before);
+            metadata.put("contextAfter", currentMobileContext());
+            metadata.put("result", String.valueOf(result));
+            TraceEventRecorder.finish(event, "passed", "Context " + operation + " completed.", null,
+                    metadata, List.of());
+            return result;
+        } catch (RuntimeException exception) {
+            Map<String, String> metadata = new LinkedHashMap<>(MobileTraceMetadata.mobileMetadata(driver, true));
+            metadata.put("requestedContext", requestedContext);
+            metadata.put("contextBefore", before);
+            metadata.put("contextAfter", currentMobileContext());
+            TraceEventRecorder.finish(event, "failed", "Context " + operation + " failed.", exception,
+                    metadata, List.of());
+            throw exception;
+        }
     }
 
     void requireNetworkNamespaceSupport(String operation) {
@@ -1605,10 +1704,8 @@ public class BrowserActions extends FluentWebDriverAction implements com.shaft.g
     @Override
     public String getContext() {
         String context = "";
-        if (driverFactoryHelper.getDriver() instanceof AndroidDriver androidDriver) {
-            context = androidDriver.getContext();
-        } else if (driverFactoryHelper.getDriver() instanceof IOSDriver iosDriver) {
-            context = iosDriver.getContext();
+        if (driverFactoryHelper.getDriver() instanceof SupportsContextSwitching contextDriver) {
+            context = contextDriver.getContext();
         } else {
             elementActionsHelper.failAction(driverFactoryHelper.getDriver(), null);
         }
@@ -1627,10 +1724,8 @@ public class BrowserActions extends FluentWebDriverAction implements com.shaft.g
     public BrowserActions setContext(String context) {
         String contextBefore = currentMobileContext();
         try {
-            if (driverFactoryHelper.getDriver() instanceof AndroidDriver androidDriver) {
-                androidDriver.context(context);
-            } else if (driverFactoryHelper.getDriver() instanceof IOSDriver iosDriver) {
-                iosDriver.context(context);
+            if (driverFactoryHelper.getDriver() instanceof SupportsContextSwitching contextDriver) {
+                contextDriver.context(context);
             } else {
                 elementActionsHelper.failAction(driverFactoryHelper.getDriver(), context, null);
             }
@@ -1665,10 +1760,8 @@ public class BrowserActions extends FluentWebDriverAction implements com.shaft.g
     @Override
     public List<String> getContextHandles() {
         List<String> windowHandles = new ArrayList<>();
-        if (driverFactoryHelper.getDriver() instanceof AndroidDriver androidDriver) {
-            windowHandles.addAll(androidDriver.getContextHandles());
-        } else if (driverFactoryHelper.getDriver() instanceof IOSDriver iosDriver) {
-            windowHandles.addAll(iosDriver.getContextHandles());
+        if (driverFactoryHelper.getDriver() instanceof SupportsContextSwitching contextDriver) {
+            windowHandles.addAll(contextDriver.getContextHandles());
         } else {
             elementActionsHelper.failAction(driverFactoryHelper.getDriver(), null);
         }
@@ -1678,11 +1771,8 @@ public class BrowserActions extends FluentWebDriverAction implements com.shaft.g
 
     private String currentMobileContext() {
         try {
-            if (driverFactoryHelper.getDriver() instanceof AndroidDriver androidDriver) {
-                return androidDriver.getContext();
-            }
-            if (driverFactoryHelper.getDriver() instanceof IOSDriver iosDriver) {
-                return iosDriver.getContext();
+            if (driverFactoryHelper.getDriver() instanceof SupportsContextSwitching contextDriver) {
+                return contextDriver.getContext();
             }
             return "unsupported by active driver";
         } catch (RuntimeException ignored) {

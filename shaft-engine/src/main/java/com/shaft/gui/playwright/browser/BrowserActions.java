@@ -32,6 +32,7 @@ import java.util.Map;
 import java.util.Locale;
 import java.util.Set;
 import java.util.function.Predicate;
+import java.util.function.Supplier;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -54,6 +55,16 @@ public class BrowserActions implements com.shaft.gui.driver.BrowserActionsContra
     @Override
     public NetworkActions network() {
         return new NetworkActions(this);
+    }
+
+    @Override
+    public DialogActions dialog() {
+        return new DialogActions(this);
+    }
+
+    @Override
+    public ContextActions context() {
+        return new ContextActions(this);
     }
 
     @Override
@@ -562,10 +573,10 @@ public class BrowserActions implements com.shaft.gui.driver.BrowserActionsContra
         return session.browserContext();
     }
 
-    void requireLiveNetworkSession(String operation) {
+    void requireLiveSession(String operation) {
         if (session == null || session.browserContext() == null || session.page() == null
                 || session.page().isClosed() || session.browser() == null || !session.browser().isConnected()) {
-            throw new UnsupportedOperationException("Network " + operation
+            throw new UnsupportedOperationException("Operation " + operation
                     + " requires a live Playwright session. Query capabilities() again after session changes.");
         }
     }
@@ -573,7 +584,7 @@ public class BrowserActions implements com.shaft.gui.driver.BrowserActionsContra
     void performNetworkAction(String operation, Runnable action) {
         var event = TraceEventRecorder.startForBackend("network", operation, "", AutomationBackend.MICROSOFT_PLAYWRIGHT);
         try {
-            requireLiveNetworkSession(operation);
+            requireLiveSession(operation);
             timedBrowserAction("playwright.browser.network." + operation, action);
             TraceEventRecorder.finish(event, "passed", "Playwright network " + operation + " completed.",
                     null, Map.of("backend", "MICROSOFT_PLAYWRIGHT"), List.of());
@@ -584,9 +595,31 @@ public class BrowserActions implements com.shaft.gui.driver.BrowserActionsContra
         }
     }
 
+    void performNamespace(String category, String operation, Runnable action) {
+        queryNamespace(category, operation, () -> {
+            action.run();
+            return null;
+        });
+    }
+
+    <T> T queryNamespace(String category, String operation, Supplier<T> action) {
+        var event = TraceEventRecorder.startForBackend(category, operation, "", AutomationBackend.MICROSOFT_PLAYWRIGHT);
+        try {
+            requireLiveSession(operation);
+            T result = TraceEventRecorder.withoutNestedEvents(action);
+            TraceEventRecorder.finish(event, "passed", category + " " + operation + " completed.", null,
+                    Map.of("backend", "MICROSOFT_PLAYWRIGHT"), List.of());
+            return result;
+        } catch (RuntimeException exception) {
+            TraceEventRecorder.finish(event, "failed", category + " " + operation + " failed.", exception,
+                    Map.of("backend", "MICROSOFT_PLAYWRIGHT"), List.of());
+            throw exception;
+        }
+    }
+
     NetworkInterceptionRequestBuilder<BrowserActions> networkInterceptRequest() {
         try {
-            requireLiveNetworkSession("interception");
+            requireLiveSession("interception");
         } catch (RuntimeException exception) {
             var event = TraceEventRecorder.startForBackend("network", "intercept-request", "",
                     AutomationBackend.MICROSOFT_PLAYWRIGHT);
