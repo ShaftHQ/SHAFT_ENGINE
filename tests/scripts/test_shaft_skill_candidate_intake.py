@@ -4,12 +4,14 @@ import json
 import os
 import tempfile
 import unittest
+from datetime import date
 from inspect import signature
 from pathlib import Path
 
 try:
     from scripts.ci.shaft_skill_candidate_intake import (
         quarantine_command,
+        freshness_findings,
         scan_candidate,
         validate_policy,
         validate_repository,
@@ -17,6 +19,7 @@ try:
     )
 except ImportError:
     quarantine_command = None
+    freshness_findings = None
     scan_candidate = None
     validate_repository = None
     validate_review = None
@@ -29,6 +32,115 @@ REVIEW_PATH = ROOT / "agent-plugins/shaft-skills/candidate-intake/candidates.jso
 
 
 class ShaftSkillCandidateIntakeTest(unittest.TestCase):
+    def test_v2_policy_owns_categories_and_tool_adoption(self):
+        policy = json.loads(POLICY_PATH.read_text(encoding="utf-8"))
+
+        self.assertEqual(policy["schema_version"], 2)
+        self.assertIn("adopt-tool", policy["decision_kinds"])
+        self.assertEqual(policy["freshness_contract"], {"max_age_days": 90})
+        self.assertEqual(
+            set(policy["tool_contract"]["required_platforms"]),
+            {"linux-x86_64", "macos-aarch64", "windows-x86_64"},
+        )
+        self.assertEqual(
+            set(policy["allowed_categories"]),
+            {
+                "agent-runtime",
+                "catalog",
+                "cross-client-harness",
+                "cross-client-packaging",
+                "documents",
+                "guardrail-evaluation",
+                "guidance-linter",
+                "outcome-memory",
+                "plugin-evaluation",
+                "security-scanner",
+                "skill-routing",
+            },
+        )
+
+    def test_every_candidate_has_consistent_freshness_metadata(self):
+        policy = json.loads(POLICY_PATH.read_text(encoding="utf-8"))
+        review = json.loads(REVIEW_PATH.read_text(encoding="utf-8"))
+
+        self.assertEqual(validate_review(review, policy), [])
+        for candidate in review["candidates"]:
+            freshness = candidate["freshness"]
+            self.assertRegex(freshness["upstream_head"], r"^[0-9a-f]{40}$")
+            if freshness["status"] == "current":
+                self.assertEqual(freshness["upstream_head"], candidate["revision"])
+            elif freshness["status"] == "outdated":
+                self.assertNotEqual(freshness["upstream_head"], candidate["revision"])
+
+    def test_adopt_tool_requires_pinned_platform_artifacts_and_promotion(self):
+        policy = json.loads(POLICY_PATH.read_text(encoding="utf-8"))
+        review = json.loads(REVIEW_PATH.read_text(encoding="utf-8"))
+        candidate = review["candidates"][0]
+        candidate["material_kind"] = "tool"
+        candidate["decision"] = "adopt-tool"
+        candidate["version"] = "v1.2.3"
+        candidate["tool"] = {
+            "version": "v1.2.3",
+            "execution": "read-only no-network container",
+            "artifacts": [
+                {
+                    "platform": "linux-x86_64",
+                    "url": "https://example.test/tool.tar.gz",
+                    "sha256": "0" * 64,
+                },
+                {
+                    "platform": "macos-aarch64",
+                    "url": "https://example.test/tool-macos.tar.gz",
+                    "sha256": "1" * 64,
+                },
+                {
+                    "platform": "windows-x86_64",
+                    "url": "https://example.test/tool-windows.zip",
+                    "sha256": "2" * 64,
+                }
+            ],
+        }
+        candidate["promotion_pr"] = "https://github.com/ShaftHQ/SHAFT_ENGINE/pull/9999"
+        candidate["stage_results"] = {
+            stage: {"status": "pass", "evidence": f"passed {stage}"}
+            for stage in policy["required_stages"]
+        }
+        review["review_scope"]["rejected_candidate_ids"] = [
+            row["id"] for row in review["candidates"] if row["decision"] == "reject"
+        ]
+
+        def validate_tool_review():
+            return validate_review(review, policy, as_of=date(2026, 8, 11))
+
+        self.assertEqual(validate_tool_review(), [])
+
+        candidate["tool"]["artifacts"][0]["sha256"] = "short"
+        defects = validate_tool_review()
+        self.assertIn("tool-artifact", {defect["code"] for defect in defects})
+        candidate["tool"]["artifacts"][0]["sha256"] = "0" * 64
+
+        linux_artifact = candidate["tool"]["artifacts"].pop(0)
+        self.assertIn("tool-artifact", {defect["code"] for defect in validate_tool_review()})
+        candidate["tool"]["artifacts"].insert(0, linux_artifact)
+
+        candidate["tool"]["version"] = ""
+        self.assertIn("tool-evidence", {defect["code"] for defect in validate_tool_review()})
+        candidate["tool"]["version"] = candidate["version"]
+
+        candidate["promotion_pr"] = None
+        self.assertIn("promotion-pr", {defect["code"] for defect in validate_tool_review()})
+        candidate["promotion_pr"] = "https://github.com/ShaftHQ/SHAFT_ENGINE/pull/9999"
+
+        candidate["freshness"]["status"] = "outdated"
+        candidate["freshness"]["upstream_head"] = "f" * 40
+        self.assertIn("promotion-freshness", {defect["code"] for defect in validate_tool_review()})
+        candidate["freshness"] = {
+            "checked_at": "2026-05-11",
+            "upstream_head": candidate["revision"],
+            "status": "current",
+        }
+        self.assertIn("promotion-freshness", {defect["code"] for defect in validate_tool_review()})
+
     def test_candidate_intake_api_is_available(self):
         self.assertTrue(callable(validate_repository))
         self.assertTrue(callable(validate_review))
@@ -43,7 +155,7 @@ class ShaftSkillCandidateIntakeTest(unittest.TestCase):
         decisions = {candidate["decision"] for candidate in review["candidates"]}
         self.assertEqual(
             set(policy["decision_kinds"]),
-            {"adopt-code", "adopt-pattern", "retain-test-target", "reject"},
+            {"adopt-code", "adopt-pattern", "adopt-tool", "retain-test-target", "reject"},
         )
         self.assertTrue({"adopt-pattern", "retain-test-target", "reject"}.issubset(decisions))
         self.assertFalse(review["code_adopted"])
@@ -65,12 +177,13 @@ class ShaftSkillCandidateIntakeTest(unittest.TestCase):
                 self.assertIn("trial-contract", {row["code"] for row in validate_policy(policy)})
 
     def test_review_covers_each_required_candidate_category_and_every_rejection(self):
+        policy = json.loads(POLICY_PATH.read_text(encoding="utf-8"))
         review = json.loads(REVIEW_PATH.read_text(encoding="utf-8"))
         candidates = review["candidates"]
 
         self.assertEqual(
             {candidate["category"] for candidate in candidates},
-            {"documents", "plugin-evaluation", "cross-client-packaging"},
+            set(policy["allowed_categories"]),
         )
         self.assertEqual(
             set(review["review_scope"]["candidate_ids"]),
@@ -80,6 +193,47 @@ class ShaftSkillCandidateIntakeTest(unittest.TestCase):
             set(review["review_scope"]["rejected_candidate_ids"]),
             {candidate["id"] for candidate in candidates if candidate["decision"] == "reject"},
         )
+
+    def test_freshness_check_reports_outdated_and_expired_records(self):
+        review = json.loads(REVIEW_PATH.read_text(encoding="utf-8"))
+        review["candidates"] = review["candidates"][:2]
+        review["candidates"][0]["freshness"] = {
+            "checked_at": "2026-08-11",
+            "upstream_head": "f" * 40,
+            "status": "outdated",
+        }
+        review["candidates"][1]["freshness"] = {
+            "checked_at": "2026-01-01",
+            "upstream_head": review["candidates"][1]["revision"],
+            "status": "current",
+        }
+
+        findings = freshness_findings(review, as_of=date(2026, 8, 11), max_age_days=90)
+
+        self.assertEqual([finding["code"] for finding in findings], ["candidate-stale", "candidate-stale"])
+
+    def test_review_rejects_future_dated_freshness(self):
+        policy = json.loads(POLICY_PATH.read_text(encoding="utf-8"))
+        review = json.loads(REVIEW_PATH.read_text(encoding="utf-8"))
+        review["reviewed_at"] = "2099-01-01"
+        review["candidates"][0]["freshness"]["checked_at"] = "2099-01-01"
+
+        codes = {
+            defect["code"]
+            for defect in validate_review(review, policy, as_of=date(2026, 8, 11))
+        }
+        finding_codes = {
+            finding["code"]
+            for finding in freshness_findings(
+                review,
+                as_of=date(2026, 8, 11),
+                max_age_days=90,
+            )
+        }
+
+        self.assertIn("candidate-freshness", codes)
+        self.assertIn("review-date", codes)
+        self.assertEqual(finding_codes, {"candidate-stale", "review-future"})
 
     def test_review_rejects_mutable_or_incomplete_provenance(self):
         policy = json.loads(POLICY_PATH.read_text(encoding="utf-8"))
@@ -91,6 +245,20 @@ class ShaftSkillCandidateIntakeTest(unittest.TestCase):
 
         self.assertTrue(any(defect["code"] == "immutable-revision" for defect in defects))
         self.assertTrue(any(defect["code"] == "candidate-field" for defect in defects))
+
+    def test_review_rejects_empty_discovery_paths_and_incomplete_category_coverage(self):
+        policy = json.loads(POLICY_PATH.read_text(encoding="utf-8"))
+        review = json.loads(REVIEW_PATH.read_text(encoding="utf-8"))
+        review["candidates"][0]["discovered_via"] = []
+        removed = review["candidates"].pop()
+        review["review_scope"]["candidate_ids"].remove(removed["id"])
+        if removed["id"] in review["review_scope"]["rejected_candidate_ids"]:
+            review["review_scope"]["rejected_candidate_ids"].remove(removed["id"])
+
+        codes = {defect["code"] for defect in validate_review(review, policy)}
+
+        self.assertIn("candidate-evidence", codes)
+        self.assertIn("candidate-categories", codes)
 
     def test_adopt_code_requires_all_gates_and_a_separate_promotion_pr(self):
         policy = json.loads(POLICY_PATH.read_text(encoding="utf-8"))
