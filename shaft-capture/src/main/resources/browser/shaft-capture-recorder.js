@@ -554,6 +554,17 @@
     const {count, includesElement} = evaluateXpath("(" + union + ")", element);
     return count === 1 && includesElement;
   };
+  // A selected TEST_ID cannot clear the native-locator ladder on preference score alone: it needs
+  // the same live-DOM, self-verified XPath evidence as every other rung-2 candidate. Keep the tag
+  // wildcard so a stable authored identity survives equivalent markup changes (for example an
+  // <a> becoming a nested <span>). Invalid custom attribute names, duplicate values, and values
+  // that do not resolve back to this exact element all fail closed with no replay XPath.
+  const computeTestIdReplayXpath = (element, attribute, value) => {
+    if (!/^[A-Za-z_][A-Za-z0-9_.:-]*$/.test(attribute)) return "";
+    const xpath = `//*[@${attribute}=${xpathLiteral(value)}]`;
+    const {count, includesElement} = evaluateXpath(xpath, element);
+    return count === 1 && includesElement ? xpath : "";
+  };
   const cssPath = element => {
     const parts = [];
     let current = element;
@@ -637,7 +648,10 @@
       const value = element.getAttribute(attribute);
       if (value) {
         const selector = `[${attribute}="${cssEscape(value)}"]`;
-        add("TEST_ID", selector, selector, !dynamic(value), ["TEST_ATTRIBUTE", "STABLE_ATTRIBUTE"]);
+        const stable = !dynamic(value);
+        const replayXpath = stable ? computeTestIdReplayXpath(element, attribute, value) : "";
+        add("TEST_ID", selector, selector, stable,
+          ["TEST_ATTRIBUTE", "STABLE_ATTRIBUTE"], replayXpath);
       }
     });
     if (element.id) {

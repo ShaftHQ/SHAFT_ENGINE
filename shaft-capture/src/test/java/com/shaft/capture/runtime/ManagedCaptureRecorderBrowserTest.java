@@ -37,6 +37,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import static org.junit.jupiter.api.Assertions.assertAll;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -1557,6 +1558,103 @@ class ManagedCaptureRecorderBrowserTest {
         }
     }
 
+    /**
+     * Issue #4717: choosing a stable TEST_ID for an element assertion must carry enough verified
+     * evidence for code generation to preserve that choice. The selected result title deliberately
+     * has volatile visible text, while duplicate and dynamic test IDs prove the recorder fails
+     * closed instead of manufacturing rung-2 evidence.
+     */
+    @Test
+    void selectedStableTestIdCarriesSelfVerifiedRelativeXpath(@TempDir Path temp) throws Exception {
+        HttpServer server = localFixture();
+        Path output = temp.resolve("selected-test-id.json");
+        ManagedCaptureRecorder recorder = new ManagedCaptureRecorder(new CaptureStartRequest(
+                "http://127.0.0.1:" + server.getAddress().getPort() + "/selected-test-id",
+                CaptureBrowser.parse("chrome"),
+                output,
+                temp.resolve("selected-test-id-runtime"),
+                true));
+        try {
+            recorder.start();
+            WebDriver driver = recorder.driverForTesting();
+            waitFor(() -> elementPresent(driver, By.id("shaft-capture-assert")));
+
+            driver.findElement(By.id("shaft-capture-assert")).click();
+            waitFor(() -> elementPresent(driver, assertionChoice("Element")));
+            driver.findElement(assertionChoice("Element")).click();
+            driver.findElement(By.id("result-title")).click();
+            By selectedTestId = By.xpath("//*[@id='shaft-capture-assertion-panel']"
+                    + "//li[.//span[contains(@class,'locator-meta')"
+                    + " and starts-with(normalize-space(),'TEST_ID')]]"
+                    + "//button[normalize-space()='Use this locator']");
+            waitFor(() -> elementPresent(driver, selectedTestId));
+            driver.findElement(selectedTestId).click();
+            waitFor(() -> elementPresent(driver, By.cssSelector(
+                    "#shaft-capture-assertion-panel button[data-assertion-kind='TEXT_CONTAINS']")));
+            driver.findElement(By.cssSelector(
+                    "#shaft-capture-assertion-panel button[data-assertion-kind='TEXT_CONTAINS']")).click();
+            waitFor(() -> elementPresent(driver, By.cssSelector(
+                    "#shaft-capture-assertion-panel input[name='expected']")));
+            WebElement expected = driver.findElement(By.cssSelector(
+                    "#shaft-capture-assertion-panel input[name='expected']"));
+            expected.clear();
+            expected.sendKeys("ShaftHQ");
+            driver.findElement(By.xpath(
+                    "//*[@id='shaft-capture-assertion-panel']//button[normalize-space()='Save assertion']"))
+                    .click();
+            waitFor(() -> stepDescriptions(recorder).stream()
+                    .anyMatch(description -> description.startsWith("Assert text contains")));
+
+            driver.findElement(By.id("duplicate-a")).click();
+            waitFor(() -> stepDescriptions(recorder).stream()
+                    .anyMatch(description -> description.contains("Duplicate A")));
+            driver.findElement(By.id("dynamic-test-id")).click();
+            waitFor(() -> stepDescriptions(recorder).stream()
+                    .anyMatch(description -> description.contains("Dynamic test id")));
+            driver.findElement(By.id("missing-test-id")).click();
+            waitFor(() -> stepDescriptions(recorder).stream()
+                    .anyMatch(description -> description.contains("Missing test id")));
+            driver.findElement(By.id("unconfigured-test-id")).click();
+            waitFor(() -> stepDescriptions(recorder).stream()
+                    .anyMatch(description -> description.contains("Unconfigured test id")));
+            recorder.stop(false);
+        } finally {
+            if (recorder.status().state() == CaptureStatus.State.ACTIVE) {
+                recorder.interrupt();
+            }
+            server.stop(0);
+        }
+
+        CaptureSession session = new CaptureJsonCodec().read(output);
+        CaptureEvent.VerificationEvent verification = session.events().stream()
+                .filter(CaptureEvent.VerificationEvent.class::isInstance)
+                .map(CaptureEvent.VerificationEvent.class::cast)
+                .filter(event -> event.verification() == CaptureEvent.VerificationKind.TEXT_CONTAINS)
+                .findFirst()
+                .orElseThrow();
+        LocatorCandidate selected = verification.target().locatorCandidates().stream()
+                .filter(candidate -> candidate.strategy() == LocatorCandidate.LocatorStrategy.TEST_ID)
+                .findFirst()
+                .orElseThrow();
+        assertAll(
+                () -> assertTrue(selected.signals().contains(LocatorCandidate.LocatorSignal.USER_PROVIDED)),
+                () -> assertEquals("//*[@data-testid=\"result-title-a\"]", selected.replayXpath()));
+
+        LocatorCandidate duplicate = locatorCandidateFor(
+                session, "duplicate-result", LocatorCandidate.LocatorStrategy.TEST_ID);
+        LocatorCandidate dynamic = locatorCandidateFor(
+                session, "result-12345678", LocatorCandidate.LocatorStrategy.TEST_ID);
+        assertAll(
+                () -> assertEquals(2, duplicate.uniquenessCount()),
+                () -> assertTrue(duplicate.replayXpath().isBlank()),
+                () -> assertFalse(dynamic.stable()),
+                () -> assertTrue(dynamic.replayXpath().isBlank()),
+                () -> assertTrue(clickTarget(session, "missing-test-id").target().locatorCandidates().stream()
+                        .noneMatch(candidate -> candidate.strategy() == LocatorCandidate.LocatorStrategy.TEST_ID)),
+                () -> assertTrue(clickTarget(session, "unconfigured-test-id").target().locatorCandidates().stream()
+                        .noneMatch(candidate -> candidate.strategy() == LocatorCandidate.LocatorStrategy.TEST_ID)));
+    }
+
     private static CaptureEvent.ClickEvent clickTarget(CaptureSession session, String logicalElementId) {
         return session.events().stream()
                 .filter(CaptureEvent.ClickEvent.class::isInstance)
@@ -1952,6 +2050,22 @@ class ManagedCaptureRecorderBrowserTest {
                   <label for="labeled-input">Username</label>
                   <input id="labeled-input" type="text" aria-label="Enter your username">
                   <span id="roleless-text" onclick="void 0">Click me plain span</span>
+                </body>
+                </html>
+                """));
+        server.createContext("/selected-test-id", exchange -> respond(exchange, """
+                <!doctype html>
+                <html>
+                <head><title>Selected Test ID Fixture</title></head>
+                <body>
+                  <article><h2><a id="result-title" data-testid="result-title-a" href="/detail">
+                    ShaftHQ / SHAFT_ENGINE — volatile rendering A
+                  </a></h2></article>
+                  <button id="duplicate-a" data-testid="duplicate-result">Duplicate A</button>
+                  <button id="duplicate-b" data-testid="duplicate-result">Duplicate B</button>
+                  <button id="dynamic-test-id" data-testid="result-12345678">Dynamic test id</button>
+                  <button id="missing-test-id">Missing test id</button>
+                  <button id="unconfigured-test-id" data-pw="unconfigured-result">Unconfigured test id</button>
                 </body>
                 </html>
                 """));
