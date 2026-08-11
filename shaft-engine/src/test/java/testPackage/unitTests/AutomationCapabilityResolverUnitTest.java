@@ -145,9 +145,11 @@ public class AutomationCapabilityResolverUnitTest {
         AutomationCapabilities macCapabilities = AutomationCapabilityResolver.forWebDriver(mac);
 
         Assert.assertTrue(androidCapabilities.supports(AutomationFeature.PERFORMANCE_DATA));
+        Assert.assertTrue(androidCapabilities.supports(AutomationFeature.DEVICE_CONTROL));
         Assert.assertTrue(androidCapabilities.supports(AutomationFeature.MOBILE_AUTOMATION));
         Assert.assertTrue(androidCapabilities.supports(AutomationFeature.BIOMETRICS));
         Assert.assertTrue(iosCapabilities.supports(AutomationFeature.MOBILE_AUTOMATION));
+        Assert.assertTrue(iosCapabilities.supports(AutomationFeature.DEVICE_CONTROL));
         Assert.assertTrue(iosCapabilities.supports(AutomationFeature.BIOMETRICS));
         Assert.assertFalse(iosCapabilities.supports(AutomationFeature.PERFORMANCE_DATA));
         Assert.assertTrue(windowsCapabilities.supports(AutomationFeature.TOUCH_GESTURES));

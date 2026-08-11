@@ -221,7 +221,7 @@ public final class FailureTraceReporter {
         rawArray(json, 1, "network", networkJson, true);
         rawArray(json, 1, "console", consoleJson, true);
         rawArray(json, 1, "actions", TraceEventRecorder.toJson(actions), true);
-        array(json, 1, "timeline", timeline(logText), true);
+        array(json, 1, "timeline", timeline(throwable, logText), true);
         array(json, 1, "attachments", attachmentEntries(attachments), false);
         json.append("}\n");
         return json.toString();
@@ -1081,14 +1081,14 @@ public final class FailureTraceReporter {
         }
     }
 
-    private static List<String> timeline(String logText) {
+    private static List<String> timeline(Throwable throwable, String logText) {
         if (logText == null || logText.isBlank()) {
             return List.of();
         }
         List<String> timeline = new ArrayList<>();
         for (String line : logText.split("\\R")) {
             if (!line.isBlank()) {
-                timeline.add(redactThrowableText(line));
+                timeline.add(redactThrowableText(throwable, line));
             }
         }
         return timeline;

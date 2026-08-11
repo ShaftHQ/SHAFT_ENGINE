@@ -32,7 +32,7 @@ public final class MobileActions implements MobileActionsContract {
 
     @Override
     public MobileDeviceActionsContract device() {
-        throw unsupported("device controls");
+        return new DeviceActions(this);
     }
 
     @Override

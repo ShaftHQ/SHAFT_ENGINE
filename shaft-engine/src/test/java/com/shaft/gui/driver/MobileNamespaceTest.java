@@ -2,11 +2,13 @@ package com.shaft.gui.driver;
 
 import com.shaft.driver.SHAFT;
 import io.appium.java_client.AppiumDriver;
+import io.appium.java_client.android.AndroidBatteryInfo;
 import io.appium.java_client.android.AndroidDriver;
 import io.appium.java_client.appmanagement.ApplicationState;
 import io.appium.java_client.windows.WindowsDriver;
 import org.mockito.Mockito;
 import org.openqa.selenium.WebDriver;
+import org.openqa.selenium.ScreenOrientation;
 import org.openqa.selenium.remote.SessionId;
 import org.testng.Assert;
 import org.testng.annotations.Test;
@@ -52,7 +54,6 @@ public class MobileNamespaceTest {
         for (String contract : Set.of(
                 "MobileBiometricActionsContract",
                 "MobileContextActionsContract",
-                "MobileDeviceActionsContract",
                 "MobileEvidenceActionsContract",
                 "MobileFileActionsContract",
                 "MobileGestureActionsContract",
@@ -63,6 +64,32 @@ public class MobileNamespaceTest {
             Assert.assertEquals(descriptors("com.shaft.gui.driver." + contract),
                     Set.of("and[]->MobileActionsContract"));
         }
+        Assert.assertEquals(descriptors("com.shaft.gui.driver.MobileDeviceActionsContract"), Set.of(
+                "and[]->MobileActionsContract",
+                "battery[]->MobileBatteryInfo",
+                "clipboard[]->MobileClipboardActionsContract",
+                "isLocked[]->boolean",
+                "keyboard[]->MobileKeyboardActionsContract",
+                "lock[]->MobileDeviceActionsContract",
+                "lock[class java.time.Duration]->MobileDeviceActionsContract",
+                "orientation[]->ScreenOrientation",
+                "orientation[class org.openqa.selenium.ScreenOrientation]->MobileDeviceActionsContract",
+                "time[]->String",
+                "time[class java.lang.String]->String",
+                "unlock[]->MobileDeviceActionsContract"));
+        Assert.assertEquals(descriptors("com.shaft.gui.driver.MobileKeyboardActionsContract"), Set.of(
+                "and[]->MobileDeviceActionsContract",
+                "hide[]->MobileKeyboardActionsContract",
+                "isShown[]->boolean"));
+        Assert.assertEquals(descriptors("com.shaft.gui.driver.MobileClipboardActionsContract"), Set.of(
+                "and[]->MobileDeviceActionsContract",
+                "text[]->String",
+                "text[class java.lang.String]->MobileClipboardActionsContract"));
+        Class<?> batteryInfo = Class.forName("com.shaft.gui.driver.MobileBatteryInfo");
+        Assert.assertTrue(batteryInfo.isRecord());
+        Assert.assertEquals(Arrays.stream(batteryInfo.getRecordComponents())
+                .map(component -> component.getName() + ":" + component.getType().getSimpleName())
+                .collect(Collectors.toSet()), Set.of("level:double", "state:String"));
         Assert.assertEquals(descriptors("com.shaft.gui.driver.MobileApplicationActionsContract"), Set.of(
                 "activate[class java.lang.String]->MobileApplicationActionsContract",
                 "and[]->MobileActionsContract",
@@ -165,6 +192,60 @@ public class MobileNamespaceTest {
         MobileApplicationActionsContract windowsApp = new SHAFT.GUI.WebDriver(windows).mobile().app();
         assertUnsupported(windowsApp::launchConfiguredApp);
         Mockito.verify(windows, Mockito.never()).launchApp();
+    }
+
+    @Test
+    public void commonAndroidDeviceControlsShouldDelegateThroughSmallNamespaces() {
+        AndroidDriver driver = Mockito.mock(AndroidDriver.class);
+        AndroidBatteryInfo battery = Mockito.mock(AndroidBatteryInfo.class);
+        Mockito.when(driver.getSessionId()).thenReturn(new SessionId("android-device"));
+        Mockito.when(driver.isDeviceLocked()).thenReturn(true);
+        Mockito.when(driver.getOrientation()).thenReturn(ScreenOrientation.PORTRAIT);
+        Mockito.when(driver.getDeviceTime()).thenReturn("2026-08-11T14:00:00Z");
+        Mockito.when(driver.getDeviceTime("yyyy-MM-dd")).thenReturn("2026-08-11");
+        Mockito.when(driver.getBatteryInfo()).thenReturn(battery);
+        Mockito.when(battery.getLevel()).thenReturn(0.75);
+        Mockito.when(battery.getState()).thenReturn(AndroidBatteryInfo.BatteryState.CHARGING);
+        Mockito.when(driver.isKeyboardShown()).thenReturn(true);
+        Mockito.when(driver.getClipboardText()).thenReturn("copied text");
+
+        MobileActionsContract mobile = new SHAFT.GUI.WebDriver(driver).mobile();
+        MobileDeviceActionsContract device = mobile.device();
+
+        Assert.assertSame(device.lock(), device);
+        Assert.assertSame(device.lock(Duration.ofSeconds(4)), device);
+        Assert.assertTrue(device.isLocked());
+        Assert.assertSame(device.unlock(), device);
+        Assert.assertEquals(device.orientation(), ScreenOrientation.PORTRAIT);
+        Assert.assertSame(device.orientation(ScreenOrientation.LANDSCAPE), device);
+        Assert.assertEquals(device.time(), "2026-08-11T14:00:00Z");
+        Assert.assertEquals(device.time("yyyy-MM-dd"), "2026-08-11");
+        Assert.assertEquals(device.battery(), new MobileBatteryInfo(0.75, "CHARGING"));
+        Assert.assertTrue(device.keyboard().isShown());
+        Assert.assertSame(device.keyboard().hide().and(), device);
+        Assert.assertEquals(device.clipboard().text(), "copied text");
+        Assert.assertSame(device.clipboard().text("new text").and(), device);
+        Assert.assertSame(device.and(), mobile);
+
+        Mockito.verify(driver).lockDevice();
+        Mockito.verify(driver).lockDevice(Duration.ofSeconds(4));
+        Mockito.verify(driver).unlockDevice();
+        Mockito.verify(driver).rotate(ScreenOrientation.LANDSCAPE);
+        Mockito.verify(driver).hideKeyboard();
+        Mockito.verify(driver).setClipboardText("new text");
+    }
+
+    @Test
+    public void missingProviderBatteryStateShouldNormalizeToUnknown() {
+        AndroidDriver driver = Mockito.mock(AndroidDriver.class);
+        AndroidBatteryInfo battery = Mockito.mock(AndroidBatteryInfo.class);
+        Mockito.when(driver.getSessionId()).thenReturn(new SessionId("android-battery-unknown"));
+        Mockito.when(driver.getBatteryInfo()).thenReturn(battery);
+        Mockito.when(battery.getLevel()).thenReturn(0.5);
+        Mockito.when(battery.getState()).thenReturn(null);
+
+        Assert.assertEquals(new SHAFT.GUI.WebDriver(driver).mobile().device().battery(),
+                new MobileBatteryInfo(0.5, "unknown"));
     }
 
     private static Set<String> descriptors(String className) throws ClassNotFoundException {
