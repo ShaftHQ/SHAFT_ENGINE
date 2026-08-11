@@ -1,3 +1,4 @@
+import ast
 import importlib.util
 import contextlib
 import hashlib
@@ -64,6 +65,35 @@ def scripted_stdin(answer: str):
 
 
 class InstallShaftMcpTest(unittest.TestCase):
+    def agent_validation_missing_imports(self, shipped=None):
+        repository_root = Path(__file__).resolve().parents[2]
+        shipped = set(MODULE.AGENT_VALIDATION_SCRIPT_FILES if shipped is None else shipped)
+        missing = set()
+        for relative in sorted(shipped):
+            if not relative.endswith(".py"):
+                continue
+            source_path = repository_root / relative
+            tree = ast.parse(source_path.read_text(encoding="utf-8"), filename=relative)
+            for node in ast.walk(tree):
+                required_modules = []
+                if isinstance(node, ast.Import):
+                    required_modules.extend(alias.name for alias in node.names)
+                elif isinstance(node, ast.ImportFrom) and node.module:
+                    for alias in node.names:
+                        child = f"{node.module.replace('.', '/')}/{alias.name}.py"
+                        module = node.module.replace(".", "/") + ".py"
+                        if (repository_root / child).is_file():
+                            required_modules.append(f"{node.module}.{alias.name}")
+                        elif (repository_root / module).is_file():
+                            required_modules.append(node.module)
+                for module in required_modules:
+                    if not module.startswith("scripts."):
+                        continue
+                    required = module.replace(".", "/") + ".py"
+                    if (repository_root / required).is_file() and required not in shipped:
+                        missing.add(f"{relative} imports {module}")
+        return sorted(missing)
+
     def test_banner_is_not_repeated_after_bootstrap_banner(self):
         with temporary_environment(SHAFT_MCP_BOOTSTRAP_BANNER_SHOWN="1"):
             stderr = io.StringIO()
@@ -169,18 +199,47 @@ class InstallShaftMcpTest(unittest.TestCase):
         # module it imports at module scope must travel with it or the
         # installed validator dies on ImportError. Checked by reading the real
         # import statements rather than by listing them again here.
-        repository_root = Path(__file__).resolve().parents[2]
+        self.assertEqual(self.agent_validation_missing_imports(), [])
+
+    def test_agent_validation_manifest_detects_an_omitted_aliased_child_module(self):
         shipped = set(MODULE.AGENT_VALIDATION_SCRIPT_FILES)
-        missing = set()
-        for relative in sorted(shipped):
-            if not relative.endswith(".py"):
-                continue
-            source = (repository_root / relative).read_text(encoding="utf-8")
-            for module in re.findall(r"(?m)^from (scripts[\w.]*) import", source):
-                required = module.replace(".", "/") + ".py"
-                if required not in shipped:
-                    missing.add(f"{relative} imports {module}")
-        self.assertEqual(sorted(missing), [])
+        shipped.remove("scripts/agents/learning_loop.py")
+
+        self.assertIn(
+            "scripts/agents/guard.py imports scripts.agents.learning_loop",
+            self.agent_validation_missing_imports(shipped),
+        )
+
+    def test_installed_agent_validation_scaffold_imports_and_runs_without_checkout(self):
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            scaffold = Path(temporary_directory) / "consumer"
+
+            def copy_canonical(_url, target, _label, **_kwargs):
+                relative = target.relative_to(scaffold)
+                target.parent.mkdir(parents=True, exist_ok=True)
+                target.write_bytes((REPO_ROOT / relative).read_bytes())
+
+            with mock.patch.object(MODULE, "download_file", side_effect=copy_canonical):
+                MODULE.download_agent_validation_script_files(scaffold)
+
+            environment = dict(os.environ)
+            environment.pop("PYTHONPATH", None)
+            environment["PYTHONNOUSERSITE"] = "1"
+            result = subprocess.run(  # nosec B603 - current interpreter and fixed smoke code.
+                [
+                    MODULE.sys.executable,
+                    "scripts/agents/guard.py",
+                ],
+                cwd=scaffold,
+                env=environment,
+                input="",
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+
+            self.assertEqual(0, result.returncode, result.stderr or result.stdout)
+            self.assertNotIn(str(REPO_ROOT), result.stderr + result.stdout)
 
     def test_render_client_menu_groups_ai_agents_and_advanced_sections(self):
         lines = MODULE.render_client_menu()
