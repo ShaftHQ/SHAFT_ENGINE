@@ -36,6 +36,7 @@ import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.jupiter.api.Assertions.assertAll;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -1588,7 +1589,13 @@ class ManagedCaptureRecorderBrowserTest {
                     + " and starts-with(normalize-space(),'TEST_ID')]]"
                     + "//button[normalize-space()='Use this locator']");
             waitFor(() -> elementPresent(driver, selectedTestId));
-            driver.findElement(selectedTestId).click();
+            WebElement selectedTestIdButton = driver.findElement(selectedTestId);
+            assertEquals(
+                    "By.xpath(\"//*[@data-testid=\\\"result-title-a\\\"]\")",
+                    selectedTestIdButton.findElement(By.xpath("./ancestor::li[1]"))
+                            .findElement(By.cssSelector(".locator-expression"))
+                            .getText());
+            selectedTestIdButton.click();
             waitFor(() -> elementPresent(driver, By.cssSelector(
                     "#shaft-capture-assertion-panel button[data-assertion-kind='TEXT_CONTAINS']")));
             driver.findElement(By.cssSelector(
@@ -1653,6 +1660,218 @@ class ManagedCaptureRecorderBrowserTest {
                         .noneMatch(candidate -> candidate.strategy() == LocatorCandidate.LocatorStrategy.TEST_ID)),
                 () -> assertTrue(clickTarget(session, "unconfigured-test-id").target().locatorCandidates().stream()
                         .noneMatch(candidate -> candidate.strategy() == LocatorCandidate.LocatorStrategy.TEST_ID)));
+    }
+
+    @Test
+    void selectedTestIdEvidenceIsRevalidatedWhenTheAssertionIsSaved(@TempDir Path temp) throws Exception {
+        HttpServer server = localFixture();
+        Path output = temp.resolve("stale-selected-test-id.json");
+        ManagedCaptureRecorder recorder = new ManagedCaptureRecorder(new CaptureStartRequest(
+                "http://127.0.0.1:" + server.getAddress().getPort() + "/selected-test-id",
+                CaptureBrowser.parse("chrome"),
+                output,
+                temp.resolve("stale-selected-test-id-runtime"),
+                true));
+        try {
+            recorder.start();
+            WebDriver driver = recorder.driverForTesting();
+            waitFor(() -> elementPresent(driver, By.id("shaft-capture-assert")));
+
+            driver.findElement(By.id("shaft-capture-assert")).click();
+            waitFor(() -> elementPresent(driver, assertionChoice("Element")));
+            driver.findElement(assertionChoice("Element")).click();
+            driver.findElement(By.id("stale-result")).click();
+            By selectedTestId = By.xpath("//*[@id='shaft-capture-assertion-panel']"
+                    + "//li[.//span[contains(@class,'locator-meta')"
+                    + " and starts-with(normalize-space(),'TEST_ID')]]"
+                    + "//button[normalize-space()='Use this locator']");
+            waitFor(() -> elementPresent(driver, selectedTestId));
+            driver.findElement(selectedTestId).click();
+            waitFor(() -> elementPresent(driver, By.cssSelector(
+                    "#shaft-capture-assertion-panel button[data-assertion-kind='ELEMENT_PRESENT']")));
+
+            ((JavascriptExecutor) driver).executeScript("""
+                    const duplicate = document.createElement('span');
+                    duplicate.id = 'stale-result-duplicate';
+                    duplicate.setAttribute('data-testid', 'stale-result-a');
+                    duplicate.textContent = 'Inserted after locator selection';
+                    document.body.appendChild(duplicate);
+                    """);
+            driver.findElement(By.cssSelector(
+                    "#shaft-capture-assertion-panel button[data-assertion-kind='ELEMENT_PRESENT']")).click();
+            waitFor(() -> elementPresent(driver, By.cssSelector(
+                    "#shaft-capture-assertion-panel select[name='expectedBoolean']")));
+            driver.findElement(By.xpath(
+                    "//*[@id='shaft-capture-assertion-panel']//button[normalize-space()='Save assertion']"))
+                    .click();
+            waitFor(() -> stepDescriptions(recorder).stream()
+                    .anyMatch(description -> description.startsWith("Assert element exists")));
+            recorder.stop(false);
+        } finally {
+            if (recorder.status().state() == CaptureStatus.State.ACTIVE) {
+                recorder.interrupt();
+            }
+            server.stop(0);
+        }
+
+        CaptureEvent.VerificationEvent verification = new CaptureJsonCodec().read(output).events().stream()
+                .filter(CaptureEvent.VerificationEvent.class::isInstance)
+                .map(CaptureEvent.VerificationEvent.class::cast)
+                .filter(event -> event.verification() == CaptureEvent.VerificationKind.ELEMENT_PRESENT)
+                .findFirst()
+                .orElseThrow();
+        LocatorCandidate selected = verification.target().locatorCandidates().stream()
+                .filter(candidate -> candidate.strategy() == LocatorCandidate.LocatorStrategy.TEST_ID)
+                .filter(candidate -> candidate.signals().contains(LocatorCandidate.LocatorSignal.USER_PROVIDED))
+                .findFirst()
+                .orElseThrow();
+        assertAll(
+                () -> assertEquals(2, selected.uniquenessCount()),
+                () -> assertTrue(selected.replayXpath().isBlank()));
+    }
+
+    @Test
+    void recordedSelectedTestIdGeneratesAndReplaysAcrossEquivalentMarkup(@TempDir Path temp) throws Exception {
+        AtomicReference<String> resultMarkup = new AtomicReference<>(
+                "<h2><a data-testid=\"result-title-a\" href=\"/detail\">"
+                        + "ShaftHQ result</a></h2>"
+                        + "<a href=\"/other\">ShaftHQ result</a>");
+        HttpServer server = localFixture(resultMarkup);
+        Path output = temp.resolve("recorded-selected-test-id.json");
+        ManagedCaptureRecorder recorder = new ManagedCaptureRecorder(new CaptureStartRequest(
+                "http://127.0.0.1:" + server.getAddress().getPort() + "/selected-test-id",
+                CaptureBrowser.parse("chrome"),
+                output,
+                temp.resolve("recorded-selected-test-id-runtime"),
+                true));
+        try {
+            recorder.start();
+            WebDriver driver = recorder.driverForTesting();
+            waitFor(() -> elementPresent(driver, By.id("shaft-capture-assert")));
+            driver.findElement(By.id("shaft-capture-assert")).click();
+            waitFor(() -> elementPresent(driver, assertionChoice("Element")));
+            driver.findElement(assertionChoice("Element")).click();
+            driver.findElement(By.cssSelector("[data-testid='result-title-a']")).click();
+            By selectedTestId = By.xpath("//*[@id='shaft-capture-assertion-panel']"
+                    + "//li[.//span[contains(@class,'locator-meta')"
+                    + " and starts-with(normalize-space(),'TEST_ID')]]"
+                    + "//button[normalize-space()='Use this locator']");
+            waitFor(() -> elementPresent(driver, selectedTestId));
+            driver.findElement(selectedTestId).click();
+            waitFor(() -> elementPresent(driver, By.cssSelector(
+                    "#shaft-capture-assertion-panel button[data-assertion-kind='TEXT_CONTAINS']")));
+            driver.findElement(By.cssSelector(
+                    "#shaft-capture-assertion-panel button[data-assertion-kind='TEXT_CONTAINS']")).click();
+            waitFor(() -> elementPresent(driver, By.cssSelector(
+                    "#shaft-capture-assertion-panel input[name='expected']")));
+            WebElement expected = driver.findElement(By.cssSelector(
+                    "#shaft-capture-assertion-panel input[name='expected']"));
+            expected.clear();
+            expected.sendKeys("ShaftHQ");
+            driver.findElement(By.xpath(
+                    "//*[@id='shaft-capture-assertion-panel']//button[normalize-space()='Save assertion']"))
+                    .click();
+            waitFor(() -> stepDescriptions(recorder).stream()
+                    .anyMatch(description -> description.startsWith("Assert text contains")));
+            recorder.stop(false);
+
+            com.shaft.capture.generate.CaptureGenerationResult linkResult =
+                    new com.shaft.capture.generate.CaptureGenerator().generate(
+                            selectedTestIdReplayRequest(
+                                    output,
+                                    temp.resolve("recorded-selected-test-id-link"),
+                                    "RecordedSelectedTestIdLinkReplayTest"));
+            resultMarkup.set(
+                    "<h2><span data-testid=\"result-title-a\">"
+                            + "ShaftHQ result</span></h2>"
+                            + "<a href=\"/other\">ShaftHQ result</a>");
+            com.shaft.capture.generate.CaptureGenerationResult spanResult =
+                    new com.shaft.capture.generate.CaptureGenerator().generate(
+                            selectedTestIdReplayRequest(
+                                    output,
+                                    temp.resolve("recorded-selected-test-id-span"),
+                                    "RecordedSelectedTestIdSpanReplayTest"));
+
+            assertAll(
+                    () -> assertTrue(linkResult.successful(),
+                            linkResult.report().replay().diagnostics().toString()),
+                    () -> assertTrue(spanResult.successful(),
+                            spanResult.report().replay().diagnostics().toString()),
+                    () -> assertEquals(
+                            com.shaft.capture.generate.CaptureGenerationReport.Validation.ValidationStatus.PASSED,
+                            linkResult.report().replay().status()),
+                    () -> assertEquals(
+                            com.shaft.capture.generate.CaptureGenerationReport.Validation.ValidationStatus.PASSED,
+                            spanResult.report().replay().status()),
+                    () -> assertTrue(Files.readString(linkResult.sourcePath())
+                                    .contains("By.xpath(\"//*[@data-testid=\\\"result-title-a\\\"]\")"),
+                            Files.readString(linkResult.sourcePath())),
+                    () -> assertTrue(Files.readString(spanResult.sourcePath())
+                                    .contains("By.xpath(\"//*[@data-testid=\\\"result-title-a\\\"]\")"),
+                            Files.readString(spanResult.sourcePath())));
+        } finally {
+            if (recorder.status().state() == CaptureStatus.State.ACTIVE) {
+                recorder.interrupt();
+            }
+            server.stop(0);
+        }
+    }
+
+    @Test
+    void configuredCustomTestIdAttributeCarriesVerifiedReplayXpath(@TempDir Path temp) throws Exception {
+        HttpServer server = localFixture();
+        Path output = temp.resolve("custom-test-id.json");
+        CaptureStartOptions options = new CaptureStartOptions(
+                "", "data-pw", "", "", "", "", "", false, false,
+                "", "", "", "", "", "", "", "", Duration.ZERO, "", null);
+        ManagedCaptureRecorder recorder = new ManagedCaptureRecorder(new CaptureStartRequest(
+                "http://127.0.0.1:" + server.getAddress().getPort() + "/selected-test-id",
+                CaptureBrowser.CHROME,
+                output,
+                temp.resolve("custom-test-id-runtime"),
+                true,
+                options));
+        try {
+            recorder.start();
+            WebDriver driver = recorder.driverForTesting();
+            driver.findElement(By.id("unconfigured-test-id")).click();
+            waitFor(() -> stepDescriptions(recorder).stream()
+                    .anyMatch(description -> description.contains("Unconfigured test id")));
+            recorder.stop(false);
+        } finally {
+            if (recorder.status().state() == CaptureStatus.State.ACTIVE) {
+                recorder.interrupt();
+            }
+            server.stop(0);
+        }
+
+        LocatorCandidate custom = locatorCandidateFor(
+                new CaptureJsonCodec().read(output),
+                "unconfigured-test-id",
+                LocatorCandidate.LocatorStrategy.TEST_ID);
+        assertAll(
+                () -> assertEquals("[data-pw=\"unconfigured-result\"]", custom.expression()),
+                () -> assertEquals(1, custom.uniquenessCount()),
+                () -> assertEquals("//*[@data-pw=\"unconfigured-result\"]", custom.replayXpath()));
+    }
+
+    private static com.shaft.capture.generate.CaptureGenerationRequest selectedTestIdReplayRequest(
+            Path sessionPath,
+            Path output,
+            String className) {
+        return new com.shaft.capture.generate.CaptureGenerationRequest(
+                sessionPath,
+                output,
+                "generated.capture",
+                className,
+                false,
+                true,
+                true,
+                Duration.ofMinutes(2),
+                com.shaft.capture.generate.CaptureGenerationRequest.EnrichmentMode.NONE,
+                null,
+                false,
+                com.shaft.pilot.ai.ApprovalPolicy.denyAll());
     }
 
     private static CaptureEvent.ClickEvent clickTarget(CaptureSession session, String logicalElementId) {
@@ -1841,6 +2060,10 @@ class ManagedCaptureRecorderBrowserTest {
     }
 
     private static HttpServer localFixture() throws IOException {
+        return localFixture(null);
+    }
+
+    private static HttpServer localFixture(AtomicReference<String> selectedTestIdMarkup) throws IOException {
         HttpServer server = HttpServer.create(
                 new InetSocketAddress(InetAddress.getByName("127.0.0.1"), 0), 0);
         server.createContext("/", exchange -> respond(exchange, """
@@ -2053,7 +2276,8 @@ class ManagedCaptureRecorderBrowserTest {
                 </body>
                 </html>
                 """));
-        server.createContext("/selected-test-id", exchange -> respond(exchange, """
+        server.createContext("/selected-test-id", exchange -> respond(exchange,
+                selectedTestIdMarkup == null ? """
                 <!doctype html>
                 <html>
                 <head><title>Selected Test ID Fixture</title></head>
@@ -2066,9 +2290,16 @@ class ManagedCaptureRecorderBrowserTest {
                   <button id="dynamic-test-id" data-testid="result-12345678">Dynamic test id</button>
                   <button id="missing-test-id">Missing test id</button>
                   <button id="unconfigured-test-id" data-pw="unconfigured-result">Unconfigured test id</button>
+                  <a id="stale-result" data-testid="stale-result-a" href="/stale">Stale result</a>
                 </body>
                 </html>
-                """));
+                """ : """
+                <!doctype html>
+                <html>
+                <head><title>Selected Test ID Fixture</title></head>
+                <body><article>%s</article></body>
+                </html>
+                """.formatted(selectedTestIdMarkup.get())));
         server.start();
         return server;
     }
