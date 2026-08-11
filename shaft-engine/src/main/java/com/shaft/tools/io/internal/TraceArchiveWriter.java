@@ -93,6 +93,26 @@ public final class TraceArchiveWriter {
         }
     }
 
+    /** Publishes in-memory bytes through the same recoverable exact-target protocol. */
+    public static void writeBytes(Path target, byte[] content) throws IOException {
+        Objects.requireNonNull(target, "target");
+        Objects.requireNonNull(content, "content");
+        Path absoluteTarget = target.toAbsolutePath();
+        Path parent = absoluteTarget.getParent();
+        if (parent == null) {
+            throw new IOException("Target must have a parent directory.");
+        }
+        Files.createDirectories(parent);
+        Path temporary = temporarySibling(absoluteTarget);
+        try {
+            Files.write(temporary, content, StandardOpenOption.CREATE_NEW, StandardOpenOption.WRITE);
+            publish(temporary, absoluteTarget, DEFAULT_MOVES, DEFAULT_COPIES);
+        } catch (IOException | RuntimeException exception) {
+            cleanup(temporary, exception);
+            throw exception;
+        }
+    }
+
     private static void addEntry(ZipOutputStream zip, Entry entry, long maxEntryBytes, byte[] omissionMarker)
             throws IOException {
         Objects.requireNonNull(entry, "entry");

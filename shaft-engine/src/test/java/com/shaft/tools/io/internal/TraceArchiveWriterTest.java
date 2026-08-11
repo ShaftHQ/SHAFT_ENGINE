@@ -6,6 +6,7 @@ import org.testng.annotations.Test;
 import java.io.IOException;
 import java.io.File;
 import java.io.InputStream;
+import java.lang.reflect.Method;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -15,6 +16,27 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.zip.ZipFile;
 
 public class TraceArchiveWriterTest {
+
+    @Test
+    public void bytePublicationShouldSafelyReplaceAnExactTargetWithoutCallerOwnedStaging() throws Exception {
+        Method writer = java.util.Arrays.stream(TraceArchiveWriter.class.getMethods())
+                .filter(method -> method.getName().equals("writeBytes"))
+                .filter(method -> java.util.Arrays.equals(method.getParameterTypes(),
+                        new Class<?>[]{Path.class, byte[].class}))
+                .findFirst().orElse(null);
+        Assert.assertNotNull(writer, "The shared safe publisher must accept in-memory provider bytes directly.");
+        Path directory = Files.createTempDirectory("shaft-byte-writer-");
+        Path target = directory.resolve("result.bin");
+        Files.writeString(target, "known-good", StandardCharsets.UTF_8);
+        try {
+            writer.invoke(null, target, "replacement".getBytes(StandardCharsets.UTF_8));
+
+            Assert.assertEquals(Files.readString(target, StandardCharsets.UTF_8), "replacement");
+            Assert.assertEquals(temporaryArchiveCount(directory), 0L);
+        } finally {
+            deleteRecursively(directory);
+        }
+    }
 
     @Test
     public void shouldStreamByteAndFileEntriesIntoACompletedArchive() throws Exception {

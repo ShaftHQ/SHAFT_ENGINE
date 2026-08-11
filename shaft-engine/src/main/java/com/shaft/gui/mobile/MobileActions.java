@@ -49,7 +49,7 @@ public final class MobileActions implements MobileActionsContract {
 
     @Override
     public MobileFileActionsContract files() {
-        throw unsupported("file transfer");
+        return new FileActions(this);
     }
 
     @Override

@@ -56,7 +56,6 @@ public class MobileNamespaceTest {
         for (String contract : Set.of(
                 "MobileBiometricActionsContract",
                 "MobileEvidenceActionsContract",
-                "MobileFileActionsContract",
                 "MobileLogActionsContract",
                 "MobilePerformanceActionsContract",
                 "MobileRecordingActionsContract")) {
@@ -64,6 +63,15 @@ public class MobileNamespaceTest {
             Assert.assertEquals(descriptors("com.shaft.gui.driver." + contract),
                     Set.of("and[]->MobileActionsContract"));
         }
+        Assert.assertEquals(descriptors("com.shaft.gui.driver.MobileFileActionsContract"), Set.of(
+                "and[]->MobileActionsContract",
+                "pull[class java.lang.String]->byte[]",
+                "pullFolder[class java.lang.String]->byte[]",
+                "pullText[class java.lang.String]->String",
+                "pullTo[class java.lang.String, interface java.nio.file.Path]->Path",
+                "push[class java.lang.String, class [B]->MobileFileActionsContract",
+                "pushFrom[class java.lang.String, interface java.nio.file.Path]->MobileFileActionsContract",
+                "pushText[class java.lang.String, class java.lang.String]->MobileFileActionsContract"));
         Assert.assertEquals(descriptors("com.shaft.gui.driver.MobileGestureActionsContract"), Set.of(
                 "and[]->MobileActionsContract",
                 "drag[]->MobileDragActionsContract",
