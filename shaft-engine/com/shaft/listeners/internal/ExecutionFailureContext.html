@@ -45,11 +45,13 @@
 <div class="toc-header">Contents&nbsp;<input type="text" class="filter-input" disabled placeholder="Filter contents (type .)" aria-label="Filter table of contents" autocomplete="off" spellcheck="false"><input type="reset" class="reset-filter" disabled tabindex="-1" value="Reset"></div>
 <ol class="toc-list" tabindex="-1">
 <li><a href="#" tabindex="0">Description</a></li>
+<li><a href="#nested-class-summary" tabindex="0">Nested Class Summary</a></li>
 <li><a href="#method-summary" tabindex="0">Method Summary</a></li>
 <li><a href="#method-detail" tabindex="0">Method Details</a>
 <ol class="toc-list">
 <li><a href="#setPendingConfigFailure(java.lang.Throwable)" tabindex="0">setPendingConfigFailure(Throwable)</a></li>
 <li><a href="#getAndClearPendingConfigFailure()" tabindex="0">getAndClearPendingConfigFailure()</a></li>
+<li><a href="#getAndClearPendingConfigFailureEvidence()" tabindex="0">getAndClearPendingConfigFailureEvidence()</a></li>
 </ol>
 </li>
 </ol>
@@ -72,6 +74,23 @@
 </section>
 <section class="summary">
 <ul class="summary-list">
+<!-- ======== NESTED CLASS SUMMARY ======== -->
+<li>
+<section class="nested-class-summary" id="nested-class-summary">
+<h2>Nested Class Summary</h2>
+<div class="caption"><span>Nested Classes</span></div>
+<div class="summary-table three-column-summary">
+<div class="table-header col-first">Modifier and Type</div>
+<div class="table-header col-second">Class</div>
+<div class="table-header col-last">Description</div>
+<div class="col-first even-row-color"><code>static final record&nbsp;</code></div>
+<div class="col-second even-row-color"><code><a href="ExecutionFailureContext.PendingConfigFailure.html" class="type-name-link" title="class in com.shaft.listeners.internal">ExecutionFailureContext.PendingConfigFailure</a></code></div>
+<div class="col-last even-row-color">
+<div class="block">Immutable configuration failure evidence safe for later runner/report lifecycle phases.</div>
+</div>
+</div>
+</section>
+</li>
 <!-- ========== METHOD SUMMARY =========== -->
 <li>
 <section class="method-summary" id="method-summary">
@@ -88,9 +107,14 @@
 <div class="col-last even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
 <div class="block">Returns and clears the current thread's pending setup/teardown failure.</div>
 </div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static void</code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#setPendingConfigFailure(java.lang.Throwable)" class="member-name-link">setPendingConfigFailure</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Throwable.html" title="class or interface in java.lang" class="external-link">Throwable</a>&nbsp;throwable)</code></div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static <a href="ExecutionFailureContext.PendingConfigFailure.html" title="class in com.shaft.listeners.internal">ExecutionFailureContext.PendingConfigFailure</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#getAndClearPendingConfigFailureEvidence()" class="member-name-link">getAndClearPendingConfigFailureEvidence</a>()</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
+<div class="block">Returns and clears the original failure plus text sanitized at configuration-failure time.</div>
+</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static void</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#setPendingConfigFailure(java.lang.Throwable)" class="member-name-link">setPendingConfigFailure</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Throwable.html" title="class or interface in java.lang" class="external-link">Throwable</a>&nbsp;throwable)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
 <div class="block">Stores the current thread's setup/teardown failure.</div>
 </div>
 </div>
@@ -133,6 +157,15 @@
 <dt>Returns:</dt>
 <dd>pending failure, or <code>null</code></dd>
 </dl>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="getAndClearPendingConfigFailureEvidence()">
+<h3>getAndClearPendingConfigFailureEvidence</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public static</span>&nbsp;<span class="return-type"><a href="ExecutionFailureContext.PendingConfigFailure.html" title="class in com.shaft.listeners.internal">ExecutionFailureContext.PendingConfigFailure</a></span>&nbsp;<span class="element-name">getAndClearPendingConfigFailureEvidence</span>()</div>
+<div class="block">Returns and clears the original failure plus text sanitized at configuration-failure time.</div>
 </div>
 </section>
 </li>

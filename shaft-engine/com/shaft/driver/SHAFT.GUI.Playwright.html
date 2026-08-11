@@ -58,6 +58,7 @@
 </li>
 <li><a href="#method-detail" tabindex="0">Method Details</a>
 <ol class="toc-list">
+<li><a href="#capabilities()" tabindex="0">capabilities()</a></li>
 <li><a href="#quit()" tabindex="0">quit()</a></li>
 <li><a href="#element()" tabindex="0">element()</a></li>
 <li><a href="#touch()" tabindex="0">touch()</a></li>
@@ -154,43 +155,48 @@ browser actions, element actions, alert helpers, and assertions.</div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Returns browser-level actions and context helpers.</div>
 </div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="../gui/playwright/element/ElementActions.html" title="class in com.shaft.gui.playwright.element">ElementActions</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#element()" class="member-name-link">element</a>()</code></div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="../gui/capabilities/AutomationCapabilities.html" title="class in com.shaft.gui.capabilities">AutomationCapabilities</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#capabilities()" class="member-name-link">capabilities</a>()</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Returns an immutable snapshot of the automation features available to this session.</div>
+</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="../gui/playwright/element/ElementActions.html" title="class in com.shaft.gui.playwright.element">ElementActions</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#element()" class="member-name-link">element</a>()</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Returns element-level actions and assertions.</div>
 </div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>com.microsoft.playwright.Page</code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#getDriver()" class="member-name-link">getDriver</a>()</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>com.microsoft.playwright.Page</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#getDriver()" class="member-name-link">getDriver</a>()</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Returns the primary native automation object for the active backend.</div>
 </div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>com.microsoft.playwright.BrowserContext</code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#getNativeContext()" class="member-name-link">getNativeContext</a>()</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>com.microsoft.playwright.BrowserContext</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#getNativeContext()" class="member-name-link">getNativeContext</a>()</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Returns the native backend context object when the backend exposes one.</div>
 </div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>com.microsoft.playwright.Page</code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#getNativeDriver()" class="member-name-link">getNativeDriver</a>()</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>com.microsoft.playwright.Page</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#getNativeDriver()" class="member-name-link">getNativeDriver</a>()</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Alias for <a href="../gui/driver/DriverContract.html#getDriver()"><code>DriverContract.getDriver()</code></a> that reads naturally when callers handle
 the session through the generic GUI driver contract.</div>
 </div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>com.microsoft.playwright.Playwright</code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#getPlaywright()" class="member-name-link">getPlaywright</a>()</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>void</code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#quit()" class="member-name-link">quit</a>()</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>com.microsoft.playwright.Playwright</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#getPlaywright()" class="member-name-link">getPlaywright</a>()</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>void</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#quit()" class="member-name-link">quit</a>()</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Terminates the underlying driver session.</div>
 </div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="../gui/element/TouchActions.html" title="class in com.shaft.gui.element">TouchActions</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#touch()" class="member-name-link">touch</a>()</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="../gui/element/TouchActions.html" title="class in com.shaft.gui.element">TouchActions</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#touch()" class="member-name-link">touch</a>()</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Returns touch-action helpers for mobile scenarios.</div>
 </div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="../gui/playwright/validation/PlaywrightDriverVerifications.html" title="class in com.shaft.gui.playwright.validation">PlaywrightDriverVerifications</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#verifyThat()" class="member-name-link">verifyThat</a>()</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="../gui/playwright/validation/PlaywrightDriverVerifications.html" title="class in com.shaft.gui.playwright.validation">PlaywrightDriverVerifications</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#verifyThat()" class="member-name-link">verifyThat</a>()</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Returns soft-verification builder methods scoped to this session.</div>
 </div>
 </div>
@@ -199,6 +205,9 @@ the session through the generic GUI driver contract.</div>
 <div class="inherited-list">
 <h3 id="methods-inherited-from-class-java.lang.Object">Methods inherited from class&nbsp;<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Object.html#method-summary" title="class or interface in java.lang" class="external-link">Object</a></h3>
 <code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Object.html#equals(java.lang.Object)" title="class or interface in java.lang" class="external-link">equals</a>, <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Object.html#getClass()" title="class or interface in java.lang" class="external-link">getClass</a>, <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Object.html#hashCode()" title="class or interface in java.lang" class="external-link">hashCode</a>, <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Object.html#notify()" title="class or interface in java.lang" class="external-link">notify</a>, <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Object.html#notifyAll()" title="class or interface in java.lang" class="external-link">notifyAll</a>, <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Object.html#toString()" title="class or interface in java.lang" class="external-link">toString</a>, <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Object.html#wait()" title="class or interface in java.lang" class="external-link">wait</a>, <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Object.html#wait(long)" title="class or interface in java.lang" class="external-link">wait</a>, <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Object.html#wait(long,int)" title="class or interface in java.lang" class="external-link">wait</a></code></div>
+<div class="inherited-list">
+<h3 id="methods-inherited-from-class-com.shaft.gui.driver.DriverContract">Methods inherited from interface&nbsp;<a href="../gui/driver/DriverContract.html#method-summary" title="interface in com.shaft.gui.driver">DriverContract</a></h3>
+<code><a href="../gui/driver/DriverContract.html#mobile()" title="mobile()">mobile</a></code></div>
 </section>
 </li>
 </ul>
@@ -245,6 +254,28 @@ the session through the generic GUI driver contract.</div>
 <section class="method-details" id="method-detail">
 <h2>Method Details</h2>
 <ul class="member-list">
+<li>
+<section class="detail" id="capabilities()">
+<h3>capabilities</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="../gui/capabilities/AutomationCapabilities.html" title="class in com.shaft.gui.capabilities">AutomationCapabilities</a></span>&nbsp;<span class="element-name">capabilities</span>()</div>
+<div class="block"><span class="description-from-type-label">Description copied from interface:&nbsp;<code><a href="../gui/driver/DriverContract.html#capabilities()">DriverContract</a></code></span></div>
+<div class="block">Returns an immutable snapshot of the automation features available to this session.
+
+<p>The default is deliberately fail-closed so existing implementations gain no unsupported
+behavior. As with any Java interface method addition, an implementation that also inherits
+an unrelated same-signature method with an incompatible return type must resolve that source
+conflict explicitly. Competing unrelated default implementations also require an explicit
+override even when their return types match.</p></div>
+<dl class="notes">
+<dt>Specified by:</dt>
+<dd><code><a href="../gui/driver/DriverContract.html#capabilities()">capabilities</a></code>&nbsp;in interface&nbsp;<code><a href="../gui/driver/DriverContract.html" title="interface in com.shaft.gui.driver">DriverContract</a></code></dd>
+<dt>Returns:</dt>
+<dd>effective capability snapshot</dd>
+</dl>
+</div>
+</section>
+</li>
 <li>
 <section class="detail" id="quit()">
 <h3>quit</h3>

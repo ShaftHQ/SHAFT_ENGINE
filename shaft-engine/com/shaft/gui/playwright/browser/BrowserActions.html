@@ -55,6 +55,16 @@
 <li><a href="#method-detail" tabindex="0">Method Details</a>
 <ol class="toc-list">
 <li><a href="#and()" tabindex="0">and()</a></li>
+<li><a href="#network()" tabindex="0">network()</a></li>
+<li><a href="#dialog()" tabindex="0">dialog()</a></li>
+<li><a href="#context()" tabindex="0">context()</a></li>
+<li><a href="#storage()" tabindex="0">storage()</a></li>
+<li><a href="#console()" tabindex="0">console()</a></li>
+<li><a href="#script()" tabindex="0">script()</a></li>
+<li><a href="#permissions()" tabindex="0">permissions()</a></li>
+<li><a href="#authentication()" tabindex="0">authentication()</a></li>
+<li><a href="#downloads()" tabindex="0">downloads()</a></li>
+<li><a href="#emulation()" tabindex="0">emulation()</a></li>
 <li><a href="#assertThat()" tabindex="0">assertThat()</a></li>
 <li><a href="#verifyThat()" tabindex="0">verifyThat()</a></li>
 <li><a href="#capturePageSnapshot()" tabindex="0">capturePageSnapshot()</a></li>
@@ -192,34 +202,64 @@ implements <a href="../../driver/BrowserActionsContract.html" title="interface i
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="../validation/PlaywrightBrowserValidationsBuilder.html" title="class in com.shaft.gui.playwright.validation">PlaywrightBrowserValidationsBuilder</a></code></div>
 <div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#assertThat()" class="member-name-link">assertThat</a>()</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="AuthenticationActions.html" title="class in com.shaft.gui.playwright.browser">AuthenticationActions</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#authentication()" class="member-name-link">authentication</a>()</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Returns session-scoped HTTP authentication actions.</div>
+</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="BrowserActions.html" title="class in com.shaft.gui.playwright.browser">BrowserActions</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#capturePageSnapshot()" class="member-name-link">capturePageSnapshot</a>()</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="BrowserActions.html" title="class in com.shaft.gui.playwright.browser">BrowserActions</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#capturePageSnapshot()" class="member-name-link">capturePageSnapshot</a>()</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#captureScreenshot()" class="member-name-link">captureScreenshot</a>()</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="BrowserActions.html" title="class in com.shaft.gui.playwright.browser">BrowserActions</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#captureScreenshot()" class="member-name-link">captureScreenshot</a>()</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#captureScreenshot(com.shaft.enums.internal.Screenshots)" class="member-name-link">captureScreenshot</a><wbr>(<a href="../../../enums/internal/Screenshots.html" title="enum class in com.shaft.enums.internal">Screenshots</a>&nbsp;type)</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="BrowserActions.html" title="class in com.shaft.gui.playwright.browser">BrowserActions</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#captureScreenshot(com.shaft.enums.internal.Screenshots)" class="member-name-link">captureScreenshot</a><wbr>(<a href="../../../enums/internal/Screenshots.html" title="enum class in com.shaft.enums.internal">Screenshots</a>&nbsp;type)</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#captureSnapshot()" class="member-name-link">captureSnapshot</a>()</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="BrowserActions.html" title="class in com.shaft.gui.playwright.browser">BrowserActions</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#captureSnapshot()" class="member-name-link">captureSnapshot</a>()</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#clearNetworkInterceptors()" class="member-name-link">clearNetworkInterceptors</a>()</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="BrowserActions.html" title="class in com.shaft.gui.playwright.browser">BrowserActions</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#clearNetworkInterceptors()" class="member-name-link">clearNetworkInterceptors</a>()</code></div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>void</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#closeCurrentWindow()" class="member-name-link">closeCurrentWindow</a>()</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>void</code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#closeCurrentWindow()" class="member-name-link">closeCurrentWindow</a>()</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="BrowserActions.html" title="class in com.shaft.gui.playwright.browser">BrowserActions</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#deleteAllCookies()" class="member-name-link">deleteAllCookies</a>()</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="ConsoleActions.html" title="class in com.shaft.gui.playwright.browser">ConsoleActions</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#console()" class="member-name-link">console</a>()</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Returns bounded browser console observations.</div>
+</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="ContextActions.html" title="class in com.shaft.gui.playwright.browser">ContextActions</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#context()" class="member-name-link">context</a>()</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Returns native/web browsing-context actions.</div>
+</div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="BrowserActions.html" title="class in com.shaft.gui.playwright.browser">BrowserActions</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#deleteCookie(java.lang.String)" class="member-name-link">deleteCookie</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;cookieName)</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#deleteAllCookies()" class="member-name-link">deleteAllCookies</a>()</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="BrowserActions.html" title="class in com.shaft.gui.playwright.browser">BrowserActions</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#deleteCookie(java.lang.String)" class="member-name-link">deleteCookie</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;cookieName)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="DialogActions.html" title="class in com.shaft.gui.playwright.browser">DialogActions</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#dialog()" class="member-name-link">dialog</a>()</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Returns concise alert, confirm, and prompt actions.</div>
+</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="BrowserActions.html" title="class in com.shaft.gui.playwright.browser">BrowserActions</a></code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#dismissAlert()" class="member-name-link">dismissAlert</a>()</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Dismisses the current browser alert, confirm, or prompt dialog.</div>
+</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="DownloadActions.html" title="class in com.shaft.gui.playwright.browser">DownloadActions</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#downloads()" class="member-name-link">downloads</a>()</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Returns managed browser-download actions.</div>
+</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="EmulationActions.html" title="class in com.shaft.gui.playwright.browser">EmulationActions</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#emulation()" class="member-name-link">emulation</a>()</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Returns categorized browser environment emulation actions.</div>
 </div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="BrowserActions.html" title="class in com.shaft.gui.playwright.browser">BrowserActions</a></code></div>
 <div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#fullScreenWindow()" class="member-name-link">fullScreenWindow</a>()</code></div>
@@ -336,15 +376,25 @@ implements <a href="../../driver/BrowserActionsContract.html" title="interface i
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;password,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;targetUrlAfterAuthentication)</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="BrowserActions.html" title="class in com.shaft.gui.playwright.browser">BrowserActions</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#openNewTab(java.lang.String)" class="member-name-link">openNewTab</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;targetUrl)</code></div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="NetworkActions.html" title="class in com.shaft.gui.playwright.browser">NetworkActions</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#network()" class="member-name-link">network</a>()</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
-<div class="block">Opens the target URL in a new browser tab and switches focus to it.</div>
+<div class="block">Returns cohesive browser-network observation, mocking, replay, and emulation actions.</div>
 </div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="BrowserActions.html" title="class in com.shaft.gui.playwright.browser">BrowserActions</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#openNewWindow(java.lang.String)" class="member-name-link">openNewWindow</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;targetUrl)</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#openNewTab(java.lang.String)" class="member-name-link">openNewTab</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;targetUrl)</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Opens the target URL in a new browser tab and switches focus to it.</div>
+</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="BrowserActions.html" title="class in com.shaft.gui.playwright.browser">BrowserActions</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#openNewWindow(java.lang.String)" class="member-name-link">openNewWindow</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;targetUrl)</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Opens the target URL in a new browser window and switches focus to it.</div>
+</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="PermissionActions.html" title="class in com.shaft.gui.playwright.browser">PermissionActions</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#permissions()" class="member-name-link">permissions</a>()</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Returns browser-context permission controls.</div>
 </div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="BrowserActions.html" title="class in com.shaft.gui.playwright.browser">BrowserActions</a></code></div>
 <div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#refreshCurrentPage()" class="member-name-link">refreshCurrentPage</a>()</code></div>
@@ -368,18 +418,28 @@ implements <a href="../../driver/BrowserActionsContract.html" title="interface i
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Saves the current browser cookies, <code>localStorage</code>, and <code>sessionStorage</code> to a JSON file.</div>
 </div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="BrowserActions.html" title="class in com.shaft.gui.playwright.browser">BrowserActions</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#setContext(java.lang.String)" class="member-name-link">setContext</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;context)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="ScriptActions.html" title="class in com.shaft.gui.playwright.browser">ScriptActions</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#script()" class="member-name-link">script</a>()</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Returns script evaluation actions.</div>
+</div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="BrowserActions.html" title="class in com.shaft.gui.playwright.browser">BrowserActions</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#setWindowSize(int,int)" class="member-name-link">setWindowSize</a><wbr>(int&nbsp;width,
- int&nbsp;height)</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#setContext(java.lang.String)" class="member-name-link">setContext</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;context)</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="BrowserActions.html" title="class in com.shaft.gui.playwright.browser">BrowserActions</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#startContractRecording(java.lang.String,java.lang.String...)" class="member-name-link">startContractRecording</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;contractFilePath,
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#setWindowSize(int,int)" class="member-name-link">setWindowSize</a><wbr>(int&nbsp;width,
+ int&nbsp;height)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="BrowserActions.html" title="class in com.shaft.gui.playwright.browser">BrowserActions</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#startContractRecording(java.lang.String,java.lang.String...)" class="member-name-link">startContractRecording</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;contractFilePath,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>...&nbsp;urlContains)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Starts recording selected Playwright browser traffic into an HTTP contract.</div>
+</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="StorageActions.html" title="class in com.shaft.gui.playwright.browser">StorageActions</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#storage()" class="member-name-link">storage</a>()</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Returns scoped browser storage actions.</div>
 </div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="BrowserActions.html" title="class in com.shaft.gui.playwright.browser">BrowserActions</a></code></div>
 <div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#switchToWindow(java.lang.String)" class="member-name-link">switchToWindow</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;nameOrHandle)</code></div>
@@ -445,6 +505,174 @@ implements <a href="../../driver/BrowserActionsContract.html" title="interface i
 <dl class="notes">
 <dt>Specified by:</dt>
 <dd><code><a href="../../driver/BrowserActionsContract.html#and()">and</a></code>&nbsp;in interface&nbsp;<code><a href="../../driver/BrowserActionsContract.html" title="interface in com.shaft.gui.driver">BrowserActionsContract</a></code></dd>
+</dl>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="network()">
+<h3>network</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="NetworkActions.html" title="class in com.shaft.gui.playwright.browser">NetworkActions</a></span>&nbsp;<span class="element-name">network</span>()</div>
+<div class="block"><span class="description-from-type-label">Description copied from interface:&nbsp;<code><a href="../../driver/BrowserActionsContract.html#network()">BrowserActionsContract</a></code></span></div>
+<div class="block">Returns cohesive browser-network observation, mocking, replay, and emulation actions.
+Existing implementations that do not declare a competing zero-argument <code>network</code>
+method inherit this fail-closed default. As with every Java interface default-method
+addition, a facade that also inherits an unrelated <code>network()</code> declaration with a
+covariant-compatible return must override it to resolve default dispatch. An existing
+declaration with an incompatible return type is source-incompatible and cannot be bridged
+by an override; that facade must rename one API or stop combining the interfaces.</div>
+<dl class="notes">
+<dt>Specified by:</dt>
+<dd><code><a href="../../driver/BrowserActionsContract.html#network()">network</a></code>&nbsp;in interface&nbsp;<code><a href="../../driver/BrowserActionsContract.html" title="interface in com.shaft.gui.driver">BrowserActionsContract</a></code></dd>
+<dt>Returns:</dt>
+<dd>cohesive network observation, mocking, and replay actions</dd>
+</dl>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="dialog()">
+<h3>dialog</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="DialogActions.html" title="class in com.shaft.gui.playwright.browser">DialogActions</a></span>&nbsp;<span class="element-name">dialog</span>()</div>
+<div class="block"><span class="description-from-type-label">Description copied from interface:&nbsp;<code><a href="../../driver/BrowserActionsContract.html#dialog()">BrowserActionsContract</a></code></span></div>
+<div class="block">Returns concise alert, confirm, and prompt actions. The Java default-method collision
+boundary documented for <a href="../../driver/BrowserActionsContract.html#network()"><code>BrowserActionsContract.network()</code></a> also applies to this namespace method.</div>
+<dl class="notes">
+<dt>Specified by:</dt>
+<dd><code><a href="../../driver/BrowserActionsContract.html#dialog()">dialog</a></code>&nbsp;in interface&nbsp;<code><a href="../../driver/BrowserActionsContract.html" title="interface in com.shaft.gui.driver">BrowserActionsContract</a></code></dd>
+</dl>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="context()">
+<h3>context</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="ContextActions.html" title="class in com.shaft.gui.playwright.browser">ContextActions</a></span>&nbsp;<span class="element-name">context</span>()</div>
+<div class="block"><span class="description-from-type-label">Description copied from interface:&nbsp;<code><a href="../../driver/BrowserActionsContract.html#context()">BrowserActionsContract</a></code></span></div>
+<div class="block">Returns native/web browsing-context actions. The Java default-method collision boundary
+documented for <a href="../../driver/BrowserActionsContract.html#network()"><code>BrowserActionsContract.network()</code></a> also applies to this namespace method.</div>
+<dl class="notes">
+<dt>Specified by:</dt>
+<dd><code><a href="../../driver/BrowserActionsContract.html#context()">context</a></code>&nbsp;in interface&nbsp;<code><a href="../../driver/BrowserActionsContract.html" title="interface in com.shaft.gui.driver">BrowserActionsContract</a></code></dd>
+</dl>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="storage()">
+<h3>storage</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="StorageActions.html" title="class in com.shaft.gui.playwright.browser">StorageActions</a></span>&nbsp;<span class="element-name">storage</span>()</div>
+<div class="block"><span class="description-from-type-label">Description copied from interface:&nbsp;<code><a href="../../driver/BrowserActionsContract.html#storage()">BrowserActionsContract</a></code></span></div>
+<div class="block">Returns scoped browser storage actions.
+
+<p>This default preserves compatibility for implementations that do not provide storage actions. The
+default-method collision boundary is the same as documented for <a href="../../driver/BrowserActionsContract.html#network()"><code>BrowserActionsContract.network()</code></a>.</p></div>
+<dl class="notes">
+<dt>Specified by:</dt>
+<dd><code><a href="../../driver/BrowserActionsContract.html#storage()">storage</a></code>&nbsp;in interface&nbsp;<code><a href="../../driver/BrowserActionsContract.html" title="interface in com.shaft.gui.driver">BrowserActionsContract</a></code></dd>
+<dt>Returns:</dt>
+<dd>storage state and key/value actions</dd>
+</dl>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="console()">
+<h3>console</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="ConsoleActions.html" title="class in com.shaft.gui.playwright.browser">ConsoleActions</a></span>&nbsp;<span class="element-name">console</span>()</div>
+<div class="block"><span class="description-from-type-label">Description copied from interface:&nbsp;<code><a href="../../driver/BrowserActionsContract.html#console()">BrowserActionsContract</a></code></span></div>
+<div class="block">Returns bounded browser console observations.
+
+<p>The default-method collision boundary is the same as documented for <a href="../../driver/BrowserActionsContract.html#network()"><code>BrowserActionsContract.network()</code></a>.</p></div>
+<dl class="notes">
+<dt>Specified by:</dt>
+<dd><code><a href="../../driver/BrowserActionsContract.html#console()">console</a></code>&nbsp;in interface&nbsp;<code><a href="../../driver/BrowserActionsContract.html" title="interface in com.shaft.gui.driver">BrowserActionsContract</a></code></dd>
+<dt>Returns:</dt>
+<dd>console query and clear actions</dd>
+</dl>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="script()">
+<h3>script</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="ScriptActions.html" title="class in com.shaft.gui.playwright.browser">ScriptActions</a></span>&nbsp;<span class="element-name">script</span>()</div>
+<div class="block"><span class="description-from-type-label">Description copied from interface:&nbsp;<code><a href="../../driver/BrowserActionsContract.html#script()">BrowserActionsContract</a></code></span></div>
+<div class="block">Returns script evaluation actions. The Java default-method collision boundary documented for
+<a href="../../driver/BrowserActionsContract.html#network()"><code>BrowserActionsContract.network()</code></a> also applies.</div>
+<dl class="notes">
+<dt>Specified by:</dt>
+<dd><code><a href="../../driver/BrowserActionsContract.html#script()">script</a></code>&nbsp;in interface&nbsp;<code><a href="../../driver/BrowserActionsContract.html" title="interface in com.shaft.gui.driver">BrowserActionsContract</a></code></dd>
+<dt>Returns:</dt>
+<dd>script actions facade</dd>
+</dl>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="permissions()">
+<h3>permissions</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="PermissionActions.html" title="class in com.shaft.gui.playwright.browser">PermissionActions</a></span>&nbsp;<span class="element-name">permissions</span>()</div>
+<div class="block"><span class="description-from-type-label">Description copied from interface:&nbsp;<code><a href="../../driver/BrowserActionsContract.html#permissions()">BrowserActionsContract</a></code></span></div>
+<div class="block">Returns browser-context permission controls. The Java default-method collision boundary documented for
+<a href="../../driver/BrowserActionsContract.html#network()"><code>BrowserActionsContract.network()</code></a> also applies.</div>
+<dl class="notes">
+<dt>Specified by:</dt>
+<dd><code><a href="../../driver/BrowserActionsContract.html#permissions()">permissions</a></code>&nbsp;in interface&nbsp;<code><a href="../../driver/BrowserActionsContract.html" title="interface in com.shaft.gui.driver">BrowserActionsContract</a></code></dd>
+<dt>Returns:</dt>
+<dd>permission actions facade</dd>
+</dl>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="authentication()">
+<h3>authentication</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="AuthenticationActions.html" title="class in com.shaft.gui.playwright.browser">AuthenticationActions</a></span>&nbsp;<span class="element-name">authentication</span>()</div>
+<div class="block"><span class="description-from-type-label">Description copied from interface:&nbsp;<code><a href="../../driver/BrowserActionsContract.html#authentication()">BrowserActionsContract</a></code></span></div>
+<div class="block">Returns session-scoped HTTP authentication actions. The Java default-method collision boundary documented for
+<a href="../../driver/BrowserActionsContract.html#network()"><code>BrowserActionsContract.network()</code></a> also applies.</div>
+<dl class="notes">
+<dt>Specified by:</dt>
+<dd><code><a href="../../driver/BrowserActionsContract.html#authentication()">authentication</a></code>&nbsp;in interface&nbsp;<code><a href="../../driver/BrowserActionsContract.html" title="interface in com.shaft.gui.driver">BrowserActionsContract</a></code></dd>
+</dl>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="downloads()">
+<h3>downloads</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="DownloadActions.html" title="class in com.shaft.gui.playwright.browser">DownloadActions</a></span>&nbsp;<span class="element-name">downloads</span>()</div>
+<div class="block"><span class="description-from-type-label">Description copied from interface:&nbsp;<code><a href="../../driver/BrowserActionsContract.html#downloads()">BrowserActionsContract</a></code></span></div>
+<div class="block">Returns managed browser-download actions. The Java default-method collision boundary documented for
+<a href="../../driver/BrowserActionsContract.html#network()"><code>BrowserActionsContract.network()</code></a> also applies.</div>
+<dl class="notes">
+<dt>Specified by:</dt>
+<dd><code><a href="../../driver/BrowserActionsContract.html#downloads()">downloads</a></code>&nbsp;in interface&nbsp;<code><a href="../../driver/BrowserActionsContract.html" title="interface in com.shaft.gui.driver">BrowserActionsContract</a></code></dd>
+</dl>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="emulation()">
+<h3>emulation</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="EmulationActions.html" title="class in com.shaft.gui.playwright.browser">EmulationActions</a></span>&nbsp;<span class="element-name">emulation</span>()</div>
+<div class="block"><span class="description-from-type-label">Description copied from interface:&nbsp;<code><a href="../../driver/BrowserActionsContract.html#emulation()">BrowserActionsContract</a></code></span></div>
+<div class="block">Returns categorized browser environment emulation actions. The Java default-method collision boundary documented
+for <a href="../../driver/BrowserActionsContract.html#network()"><code>BrowserActionsContract.network()</code></a> also applies.</div>
+<dl class="notes">
+<dt>Specified by:</dt>
+<dd><code><a href="../../driver/BrowserActionsContract.html#emulation()">emulation</a></code>&nbsp;in interface&nbsp;<code><a href="../../driver/BrowserActionsContract.html" title="interface in com.shaft.gui.driver">BrowserActionsContract</a></code></dd>
 </dl>
 </div>
 </section>

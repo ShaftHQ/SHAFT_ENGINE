@@ -48,6 +48,7 @@
 <li><a href="#method-summary" tabindex="0">Method Summary</a></li>
 <li><a href="#method-detail" tabindex="0">Method Details</a>
 <ol class="toc-list">
+<li><a href="#cleanupReportPortalDeferredFiles()" tabindex="0">cleanupReportPortalDeferredFiles()</a></li>
 <li><a href="#attachBasedOnFileType(java.lang.String,java.lang.String,java.io.ByteArrayOutputStream,java.lang.String)" tabindex="0">attachBasedOnFileType(String, String, ByteArrayOutputStream, String)</a></li>
 <li><a href="#attachBasedOnFileType(java.lang.String,java.lang.String,java.nio.file.Path,java.lang.String)" tabindex="0">attachBasedOnFileType(String, String, Path, String)</a></li>
 </ol>
@@ -109,6 +110,11 @@ attachment type and name strings.</div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
 <div class="block">Attaches an already materialized file to Allure without copying the whole file into memory first.</div>
 </div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static void</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#cleanupReportPortalDeferredFiles()" class="member-name-link">cleanupReportPortalDeferredFiles</a>()</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
+<div class="block">Deletes file-backed copies after ReportPortal's launch-finishing boundary has drained logs.</div>
+</div>
 </div>
 </div>
 </div>
@@ -126,6 +132,15 @@ attachment type and name strings.</div>
 <section class="method-details" id="method-detail">
 <h2>Method Details</h2>
 <ul class="member-list">
+<li>
+<section class="detail" id="cleanupReportPortalDeferredFiles()">
+<h3>cleanupReportPortalDeferredFiles</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public static</span>&nbsp;<span class="return-type">void</span>&nbsp;<span class="element-name">cleanupReportPortalDeferredFiles</span>()</div>
+<div class="block">Deletes file-backed copies after ReportPortal's launch-finishing boundary has drained logs.</div>
+</div>
+</section>
+</li>
 <li>
 <section class="detail" id="attachBasedOnFileType(java.lang.String,java.lang.String,java.io.ByteArrayOutputStream,java.lang.String)">
 <h3>attachBasedOnFileType</h3>

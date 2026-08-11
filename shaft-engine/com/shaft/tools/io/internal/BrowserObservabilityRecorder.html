@@ -53,11 +53,15 @@
 <li><a href="#finishNetwork(com.shaft.tools.io.internal.BrowserObservabilityRecorder.NetworkExchange,org.openqa.selenium.remote.http.HttpResponse,java.lang.String)" tabindex="0">finishNetwork(BrowserObservabilityRecorder.NetworkExchange, HttpResponse, String)</a></li>
 <li><a href="#recordNetwork(com.shaft.tools.io.internal.BrowserObservabilityRecorder.NetworkObservation)" tabindex="0">recordNetwork(BrowserObservabilityRecorder.NetworkObservation)</a></li>
 <li><a href="#collectConsole(org.openqa.selenium.WebDriver)" tabindex="0">collectConsole(WebDriver)</a></li>
+<li><a href="#tryCollectConsole(org.openqa.selenium.WebDriver)" tabindex="0">tryCollectConsole(WebDriver)</a></li>
 <li><a href="#recordConsole(java.lang.String,java.lang.String,java.lang.String,long)" tabindex="0">recordConsole(String, String, String, long)</a></li>
 <li><a href="#recordWarning(java.lang.String,java.lang.String)" tabindex="0">recordWarning(String, String)</a></li>
 <li><a href="#drainWarnings()" tabindex="0">drainWarnings()</a></li>
 <li><a href="#snapshot()" tabindex="0">snapshot()</a></li>
 <li><a href="#drainNetworkHarJson()" tabindex="0">drainNetworkHarJson()</a></li>
+<li><a href="#snapshotConsole()" tabindex="0">snapshotConsole()</a></li>
+<li><a href="#consoleEntry(java.lang.String,java.lang.String,java.lang.String,long)" tabindex="0">consoleEntry(String, String, String, long)</a></li>
+<li><a href="#clearConsole()" tabindex="0">clearConsole()</a></li>
 <li><a href="#clear()" tabindex="0">clear()</a></li>
 </ol>
 </li>
@@ -91,18 +95,23 @@
 <div class="table-header col-second">Class</div>
 <div class="table-header col-last">Description</div>
 <div class="col-first even-row-color"><code>static final record&nbsp;</code></div>
-<div class="col-second even-row-color"><code><a href="BrowserObservabilityRecorder.NetworkExchange.html" class="type-name-link" title="class in com.shaft.tools.io.internal">BrowserObservabilityRecorder.NetworkExchange</a></code></div>
+<div class="col-second even-row-color"><code><a href="BrowserObservabilityRecorder.ConsoleSnapshotEntry.html" class="type-name-link" title="class in com.shaft.tools.io.internal">BrowserObservabilityRecorder.ConsoleSnapshotEntry</a></code></div>
 <div class="col-last even-row-color">
-<div class="block">Active network exchange handle.</div>
+<div class="block">Read-only console observation for namespace consumers.</div>
 </div>
 <div class="col-first odd-row-color"><code>static final record&nbsp;</code></div>
-<div class="col-second odd-row-color"><code><a href="BrowserObservabilityRecorder.NetworkObservation.html" class="type-name-link" title="class in com.shaft.tools.io.internal">BrowserObservabilityRecorder.NetworkObservation</a></code></div>
+<div class="col-second odd-row-color"><code><a href="BrowserObservabilityRecorder.NetworkExchange.html" class="type-name-link" title="class in com.shaft.tools.io.internal">BrowserObservabilityRecorder.NetworkExchange</a></code></div>
 <div class="col-last odd-row-color">
-<div class="block">Browser network exchange details recorded into the trace.</div>
+<div class="block">Active network exchange handle.</div>
 </div>
 <div class="col-first even-row-color"><code>static final record&nbsp;</code></div>
-<div class="col-second even-row-color"><code><a href="BrowserObservabilityRecorder.NetworkSnapshotEntry.html" class="type-name-link" title="class in com.shaft.tools.io.internal">BrowserObservabilityRecorder.NetworkSnapshotEntry</a></code></div>
+<div class="col-second even-row-color"><code><a href="BrowserObservabilityRecorder.NetworkObservation.html" class="type-name-link" title="class in com.shaft.tools.io.internal">BrowserObservabilityRecorder.NetworkObservation</a></code></div>
 <div class="col-last even-row-color">
+<div class="block">Browser network exchange details recorded into the trace.</div>
+</div>
+<div class="col-first odd-row-color"><code>static final record&nbsp;</code></div>
+<div class="col-second odd-row-color"><code><a href="BrowserObservabilityRecorder.NetworkSnapshotEntry.html" class="type-name-link" title="class in com.shaft.tools.io.internal">BrowserObservabilityRecorder.NetworkSnapshotEntry</a></code></div>
+<div class="col-last odd-row-color">
 <div class="block">Read-only snapshot of one observed network transaction, safe to hand to a caller outside this
 class (unlike <code>BrowserObservabilityRecorder.NetworkEvent</code>, which stays private since it backs the mutable trace list).</div>
 </div>
@@ -126,9 +135,22 @@ class (unlike <code>BrowserObservabilityRecorder.NetworkEvent</code>, which stay
 <div class="block">Clears current-thread browser observability state.</div>
 </div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static void</code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#collectConsole(org.openqa.selenium.WebDriver)" class="member-name-link">collectConsole</a><wbr>(org.openqa.selenium.WebDriver&nbsp;driver)</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#clearConsole()" class="member-name-link">clearConsole</a>()</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
+<div class="block">Clears current-thread console observations without affecting network evidence.</div>
+</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static void</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#collectConsole(org.openqa.selenium.WebDriver)" class="member-name-link">collectConsole</a><wbr>(org.openqa.selenium.WebDriver&nbsp;driver)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
 <div class="block">Collects Selenium browser logs into the console trace section.</div>
+</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static <a href="BrowserObservabilityRecorder.ConsoleSnapshotEntry.html" title="class in com.shaft.tools.io.internal">BrowserObservabilityRecorder.ConsoleSnapshotEntry</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#consoleEntry(java.lang.String,java.lang.String,java.lang.String,long)" class="member-name-link">consoleEntry</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;source,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;level,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;message,
+ long&nbsp;timestamp)</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
+<div class="block">Creates one normalized, redacted public console snapshot entry.</div>
 </div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#drainNetworkHarJson()" class="member-name-link">drainNetworkHarJson</a>()</code></div>
@@ -174,10 +196,18 @@ without draining them, so a caller can list transactions repeatedly (for example
 answering separate "list" and "get by id" requests) without racing <a href="FailureTraceReporter.html" title="class in com.shaft.tools.io.internal"><code>FailureTraceReporter</code></a>'s
 end-of-test drain of the same thread-local state.</div>
 </div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static <a href="BrowserObservabilityRecorder.NetworkExchange.html" title="class in com.shaft.tools.io.internal">BrowserObservabilityRecorder.NetworkExchange</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#startNetwork(org.openqa.selenium.remote.http.HttpRequest)" class="member-name-link">startNetwork</a><wbr>(org.openqa.selenium.remote.http.HttpRequest&nbsp;request)</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a><wbr>&lt;<a href="BrowserObservabilityRecorder.ConsoleSnapshotEntry.html" title="class in com.shaft.tools.io.internal">BrowserObservabilityRecorder.ConsoleSnapshotEntry</a>&gt;</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#snapshotConsole()" class="member-name-link">snapshotConsole</a>()</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">&nbsp;</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static <a href="BrowserObservabilityRecorder.NetworkExchange.html" title="class in com.shaft.tools.io.internal">BrowserObservabilityRecorder.NetworkExchange</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#startNetwork(org.openqa.selenium.remote.http.HttpRequest)" class="member-name-link">startNetwork</a><wbr>(org.openqa.selenium.remote.http.HttpRequest&nbsp;request)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
 <div class="block">Starts a network exchange and copies the request body so downstream filters can still read it.</div>
+</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static boolean</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#tryCollectConsole(org.openqa.selenium.WebDriver)" class="member-name-link">tryCollectConsole</a><wbr>(org.openqa.selenium.WebDriver&nbsp;driver)</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
+<div class="block">Collects Selenium browser logs and reports whether the provider exposes the browser log type.</div>
 </div>
 </div>
 </div>
@@ -255,6 +285,21 @@ end-of-test drain of the same thread-local state.</div>
 </section>
 </li>
 <li>
+<section class="detail" id="tryCollectConsole(org.openqa.selenium.WebDriver)">
+<h3>tryCollectConsole</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public static</span>&nbsp;<span class="return-type">boolean</span>&nbsp;<span class="element-name">tryCollectConsole</span><wbr><span class="parameters">(org.openqa.selenium.WebDriver&nbsp;driver)</span></div>
+<div class="block">Collects Selenium browser logs and reports whether the provider exposes the browser log type.</div>
+<dl class="notes">
+<dt>Parameters:</dt>
+<dd><code>driver</code> - active driver</dd>
+<dt>Returns:</dt>
+<dd><code>true</code> when browser logs are supported and collected</dd>
+</dl>
+</div>
+</section>
+</li>
+<li>
 <section class="detail" id="recordConsole(java.lang.String,java.lang.String,java.lang.String,long)">
 <h3>recordConsole</h3>
 <div class="horizontal-scroll">
@@ -327,6 +372,39 @@ end-of-test drain of the same thread-local state.</div>
 <dt>Returns:</dt>
 <dd>HAR-like network JSON</dd>
 </dl>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="snapshotConsole()">
+<h3>snapshotConsole</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public static</span>&nbsp;<span class="return-type"><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="BrowserObservabilityRecorder.ConsoleSnapshotEntry.html" title="class in com.shaft.tools.io.internal">BrowserObservabilityRecorder.ConsoleSnapshotEntry</a>&gt;</span>&nbsp;<span class="element-name">snapshotConsole</span>()</div>
+<dl class="notes">
+<dt>Returns:</dt>
+<dd>immutable, redacted current-thread console snapshot, oldest first</dd>
+</dl>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="consoleEntry(java.lang.String,java.lang.String,java.lang.String,long)">
+<h3>consoleEntry</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public static</span>&nbsp;<span class="return-type"><a href="BrowserObservabilityRecorder.ConsoleSnapshotEntry.html" title="class in com.shaft.tools.io.internal">BrowserObservabilityRecorder.ConsoleSnapshotEntry</a></span>&nbsp;<span class="element-name">consoleEntry</span><wbr><span class="parameters">(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;source,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;level,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;message,
+ long&nbsp;timestamp)</span></div>
+<div class="block">Creates one normalized, redacted public console snapshot entry.</div>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="clearConsole()">
+<h3>clearConsole</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public static</span>&nbsp;<span class="return-type">void</span>&nbsp;<span class="element-name">clearConsole</span>()</div>
+<div class="block">Clears current-thread console observations without affecting network evidence.</div>
 </div>
 </section>
 </li>

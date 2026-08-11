@@ -56,6 +56,7 @@
 <ol class="toc-list">
 <li><a href="#addRule(com.shaft.gui.browser.internal.BrowserNetworkInterceptionRule)" tabindex="0">addRule(BrowserNetworkInterceptionRule)</a></li>
 <li><a href="#startObserving()" tabindex="0">startObserving()</a></li>
+<li><a href="#stopObserving()" tabindex="0">stopObserving()</a></li>
 <li><a href="#hasActiveRules()" tabindex="0">hasActiveRules()</a></li>
 <li><a href="#releaseForHandoff()" tabindex="0">releaseForHandoff()</a></li>
 <li><a href="#clear()" tabindex="0">clear()</a></li>
@@ -145,6 +146,11 @@ filter) can become the sole registrant for this driver.</div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Starts passive network observation without changing existing mock/assert/verify rules.</div>
 </div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>void</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#stopObserving()" class="member-name-link">stopObserving</a>()</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Stops passive observation while preserving registered interception rules.</div>
+</div>
 </div>
 </div>
 </div>
@@ -206,6 +212,15 @@ filter) can become the sole registrant for this driver.</div>
 <dt>Returns:</dt>
 <dd><code>true</code> when observation started</dd>
 </dl>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="stopObserving()">
+<h3>stopObserving</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type">void</span>&nbsp;<span class="element-name">stopObserving</span>()</div>
+<div class="block">Stops passive observation while preserving registered interception rules.</div>
 </div>
 </section>
 </li>

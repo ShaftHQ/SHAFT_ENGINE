@@ -60,9 +60,11 @@
 </li>
 <li><a href="#method-detail" tabindex="0">Method Details</a>
 <ol class="toc-list">
+<li><a href="#capabilities()" tabindex="0">capabilities()</a></li>
 <li><a href="#quit()" tabindex="0">quit()</a></li>
 <li><a href="#element()" tabindex="0">element()</a></li>
 <li><a href="#touch()" tabindex="0">touch()</a></li>
+<li><a href="#mobile()" tabindex="0">mobile()</a></li>
 <li><a href="#browser()" tabindex="0">browser()</a></li>
 <li><a href="#act(java.lang.String,java.lang.Object...)" tabindex="0">act(String, Object...)</a></li>
 <li><a href="#alert()" tabindex="0">alert()</a></li>
@@ -212,22 +214,32 @@ asynchronously.</div>
 <div class="block">Returns a browser actions object for navigation, window management,
 cookies, and screenshots.</div>
 </div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="../gui/element/internal/Actions.html" title="class in com.shaft.gui.element.internal">Actions</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#element()" class="member-name-link">element</a>()</code></div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="../gui/capabilities/AutomationCapabilities.html" title="class in com.shaft.gui.capabilities">AutomationCapabilities</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#capabilities()" class="member-name-link">capabilities</a>()</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Terminates the current WebDriver session and releases all associated
+resources.</div>
+</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="../gui/element/internal/Actions.html" title="class in com.shaft.gui.element.internal">Actions</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#element()" class="member-name-link">element</a>()</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Returns an element actions object for interacting with web elements
 (click, type, select, etc.).</div>
 </div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>org.openqa.selenium.WebDriver</code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#getDriver()" class="member-name-link">getDriver</a>()</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>org.openqa.selenium.WebDriver</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#getDriver()" class="member-name-link">getDriver</a>()</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Returns the current Selenium WebDriver instance for custom manipulation.</div>
+</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="../gui/mobile/MobileActions.html" title="class in com.shaft.gui.mobile">MobileActions</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#mobile()" class="member-name-link">mobile</a>()</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Returns categorized native-mobile application, device, gesture, context, and evidence actions.</div>
 </div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>void</code></div>
 <div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#quit()" class="member-name-link">quit</a>()</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
-<div class="block">Terminates the current WebDriver session and releases all associated
-resources.</div>
+<div class="block">Terminates the underlying driver session.</div>
 </div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="../gui/element/TouchActions.html" title="class in com.shaft.gui.element">TouchActions</a></code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#touch()" class="member-name-link">touch</a>()</code></div>
@@ -325,13 +337,29 @@ fluent API.</div>
 <h2>Method Details</h2>
 <ul class="member-list">
 <li>
+<section class="detail" id="capabilities()">
+<h3>capabilities</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="../gui/capabilities/AutomationCapabilities.html" title="class in com.shaft.gui.capabilities">AutomationCapabilities</a></span>&nbsp;<span class="element-name">capabilities</span>()</div>
+<div class="block">Terminates the current WebDriver session and releases all associated
+resources. Should be called in <code>@AfterMethod</code> (TestNG) or
+<code>@AfterEach</code> (JUnit 5).</div>
+<dl class="notes">
+<dt>Specified by:</dt>
+<dd><code><a href="../gui/driver/DriverContract.html#capabilities()">capabilities</a></code>&nbsp;in interface&nbsp;<code><a href="../gui/driver/DriverContract.html" title="interface in com.shaft.gui.driver">DriverContract</a></code></dd>
+<dt>Returns:</dt>
+<dd>effective capability snapshot</dd>
+</dl>
+</div>
+</section>
+</li>
+<li>
 <section class="detail" id="quit()">
 <h3>quit</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type">void</span>&nbsp;<span class="element-name">quit</span>()</div>
-<div class="block">Terminates the current WebDriver session and releases all associated
-resources. Should be called in <code>@AfterMethod</code> (TestNG) or
-<code>@AfterEach</code> (JUnit 5).</div>
+<div class="block"><span class="description-from-type-label">Description copied from interface:&nbsp;<code><a href="../gui/driver/DriverContract.html#quit()">DriverContract</a></code></span></div>
+<div class="block">Terminates the underlying driver session.</div>
 <dl class="notes">
 <dt>Specified by:</dt>
 <dd><code><a href="../gui/driver/DriverContract.html#quit()">quit</a></code>&nbsp;in interface&nbsp;<code><a href="../gui/driver/DriverContract.html" title="interface in com.shaft.gui.driver">DriverContract</a></code></dd>
@@ -367,6 +395,21 @@ resources. Should be called in <code>@AfterMethod</code> (TestNG) or
 <dd><code><a href="../gui/driver/DriverContract.html#touch()">touch</a></code>&nbsp;in interface&nbsp;<code><a href="../gui/driver/DriverContract.html" title="interface in com.shaft.gui.driver">DriverContract</a></code></dd>
 <dt>Returns:</dt>
 <dd>a <a href="../gui/element/TouchActions.html" title="class in com.shaft.gui.element"><code>TouchActions</code></a> instance scoped to this driver session</dd>
+</dl>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="mobile()">
+<h3>mobile</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="../gui/mobile/MobileActions.html" title="class in com.shaft.gui.mobile">MobileActions</a></span>&nbsp;<span class="element-name">mobile</span>()</div>
+<div class="block">Returns categorized native-mobile application, device, gesture, context, and evidence actions.</div>
+<dl class="notes">
+<dt>Specified by:</dt>
+<dd><code><a href="../gui/driver/DriverContract.html#mobile()">mobile</a></code>&nbsp;in interface&nbsp;<code><a href="../gui/driver/DriverContract.html" title="interface in com.shaft.gui.driver">DriverContract</a></code></dd>
+<dt>Returns:</dt>
+<dd>mobile actions facade scoped to this driver session</dd>
 </dl>
 </div>
 </section>

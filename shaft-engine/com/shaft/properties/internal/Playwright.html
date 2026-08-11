@@ -61,6 +61,10 @@
 <li><a href="#artifactsDirectory()" tabindex="0">artifactsDirectory()</a></li>
 <li><a href="#downloadsDirectory()" tabindex="0">downloadsDirectory()</a></li>
 <li><a href="#acceptDownloads()" tabindex="0">acceptDownloads()</a></li>
+<li><a href="#timezoneId()" tabindex="0">timezoneId()</a></li>
+<li><a href="#locale()" tabindex="0">locale()</a></li>
+<li><a href="#userAgent()" tabindex="0">userAgent()</a></li>
+<li><a href="#javaScriptEnabled()" tabindex="0">javaScriptEnabled()</a></li>
 <li><a href="#tracingEnabled()" tabindex="0">tracingEnabled()</a></li>
 <li><a href="#tracingOnRetryOnly()" tabindex="0">tracingOnRetryOnly()</a></li>
 <li><a href="#tracingScreenshots()" tabindex="0">tracingScreenshots()</a></li>
@@ -154,8 +158,14 @@ override is exposed here.</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#endpoint()" class="member-name-link">endpoint</a>()</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">&nbsp;</div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code>int</code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#launchTimeoutMilliseconds()" class="member-name-link">launchTimeoutMilliseconds</a>()</code></div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code>boolean</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#javaScriptEnabled()" class="member-name-link">javaScriptEnabled</a>()</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">&nbsp;</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code>int</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#launchTimeoutMilliseconds()" class="member-name-link">launchTimeoutMilliseconds</a>()</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">&nbsp;</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#locale()" class="member-name-link">locale</a>()</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">&nbsp;</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code>int</code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#navigationTimeoutMilliseconds()" class="member-name-link">navigationTimeoutMilliseconds</a>()</code></div>
@@ -169,20 +179,26 @@ of individual configuration properties at runtime.</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code>int</code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#slowMo()" class="member-name-link">slowMo</a>()</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">&nbsp;</div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code>boolean</code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#tracingEnabled()" class="member-name-link">tracingEnabled</a>()</code></div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#timezoneId()" class="member-name-link">timezoneId</a>()</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">&nbsp;</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code>boolean</code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#tracingOnRetryOnly()" class="member-name-link">tracingOnRetryOnly</a>()</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#tracingEnabled()" class="member-name-link">tracingEnabled</a>()</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">&nbsp;</div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code>boolean</code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#tracingScreenshots()" class="member-name-link">tracingScreenshots</a>()</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#tracingOnRetryOnly()" class="member-name-link">tracingOnRetryOnly</a>()</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">&nbsp;</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code>boolean</code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#tracingSnapshots()" class="member-name-link">tracingSnapshots</a>()</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#tracingScreenshots()" class="member-name-link">tracingScreenshots</a>()</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">&nbsp;</div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code>boolean</code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#tracingSources()" class="member-name-link">tracingSources</a>()</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#tracingSnapshots()" class="member-name-link">tracingSnapshots</a>()</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">&nbsp;</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code>boolean</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#tracingSources()" class="member-name-link">tracingSources</a>()</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">&nbsp;</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#userAgent()" class="member-name-link">userAgent</a>()</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">&nbsp;</div>
 </div>
 </div>
@@ -322,6 +338,62 @@ device aliases for pinned Playwright versions.</div>
 <div class="member-signature"><span class="annotations">@Key("playwright.acceptDownloads")
 @DefaultValue("true")
 </span><span class="return-type">boolean</span>&nbsp;<span class="element-name">acceptDownloads</span>()</div>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="timezoneId()">
+<h3>timezoneId</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="annotations">@Key("playwright.timezoneId")
+@DefaultValue("")
+</span><span class="return-type"><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></span>&nbsp;<span class="element-name">timezoneId</span>()</div>
+<dl class="notes">
+<dt>Returns:</dt>
+<dd>timezone identifier applied when a new browser context is created, or blank for the browser default</dd>
+</dl>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="locale()">
+<h3>locale</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="annotations">@Key("playwright.locale")
+@DefaultValue("")
+</span><span class="return-type"><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></span>&nbsp;<span class="element-name">locale</span>()</div>
+<dl class="notes">
+<dt>Returns:</dt>
+<dd>locale applied when a new browser context is created, or blank for the browser default</dd>
+</dl>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="userAgent()">
+<h3>userAgent</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="annotations">@Key("playwright.userAgent")
+@DefaultValue("")
+</span><span class="return-type"><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></span>&nbsp;<span class="element-name">userAgent</span>()</div>
+<dl class="notes">
+<dt>Returns:</dt>
+<dd>user agent applied when a new browser context is created, or blank for the browser/device default</dd>
+</dl>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="javaScriptEnabled()">
+<h3>javaScriptEnabled</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="annotations">@Key("playwright.javaScriptEnabled")
+@DefaultValue("true")
+</span><span class="return-type">boolean</span>&nbsp;<span class="element-name">javaScriptEnabled</span>()</div>
+<dl class="notes">
+<dt>Returns:</dt>
+<dd>whether JavaScript is enabled in newly created browser contexts</dd>
+</dl>
 </div>
 </section>
 </li>

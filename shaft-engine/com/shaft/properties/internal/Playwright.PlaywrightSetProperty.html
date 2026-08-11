@@ -67,6 +67,10 @@
 <li><a href="#artifactsDirectory(java.lang.String)" tabindex="0">artifactsDirectory(String)</a></li>
 <li><a href="#downloadsDirectory(java.lang.String)" tabindex="0">downloadsDirectory(String)</a></li>
 <li><a href="#acceptDownloads(boolean)" tabindex="0">acceptDownloads(boolean)</a></li>
+<li><a href="#timezoneId(java.lang.String)" tabindex="0">timezoneId(String)</a></li>
+<li><a href="#locale(java.lang.String)" tabindex="0">locale(String)</a></li>
+<li><a href="#userAgent(java.lang.String)" tabindex="0">userAgent(String)</a></li>
+<li><a href="#javaScriptEnabled(boolean)" tabindex="0">javaScriptEnabled(boolean)</a></li>
 <li><a href="#tracingEnabled(boolean)" tabindex="0">tracingEnabled(boolean)</a></li>
 <li><a href="#tracingOnRetryOnly(boolean)" tabindex="0">tracingOnRetryOnly(boolean)</a></li>
 <li><a href="#tracingScreenshots(boolean)" tabindex="0">tracingScreenshots(boolean)</a></li>
@@ -156,7 +160,13 @@ implements <a href="EngineProperties.SetProperty.html" title="interface in com.s
 <div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#endpoint(java.lang.String)" class="member-name-link">endpoint</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;value)</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="Playwright.PlaywrightSetProperty.html" title="class in com.shaft.properties.internal">Playwright.PlaywrightSetProperty</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#launchTimeoutMilliseconds(int)" class="member-name-link">launchTimeoutMilliseconds</a><wbr>(int&nbsp;value)</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#javaScriptEnabled(boolean)" class="member-name-link">javaScriptEnabled</a><wbr>(boolean&nbsp;value)</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="Playwright.PlaywrightSetProperty.html" title="class in com.shaft.properties.internal">Playwright.PlaywrightSetProperty</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#launchTimeoutMilliseconds(int)" class="member-name-link">launchTimeoutMilliseconds</a><wbr>(int&nbsp;value)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="Playwright.PlaywrightSetProperty.html" title="class in com.shaft.properties.internal">Playwright.PlaywrightSetProperty</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#locale(java.lang.String)" class="member-name-link">locale</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;value)</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="Playwright.PlaywrightSetProperty.html" title="class in com.shaft.properties.internal">Playwright.PlaywrightSetProperty</a></code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#navigationTimeoutMilliseconds(int)" class="member-name-link">navigationTimeoutMilliseconds</a><wbr>(int&nbsp;value)</code></div>
@@ -165,19 +175,25 @@ implements <a href="EngineProperties.SetProperty.html" title="interface in com.s
 <div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#slowMo(int)" class="member-name-link">slowMo</a><wbr>(int&nbsp;value)</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="Playwright.PlaywrightSetProperty.html" title="class in com.shaft.properties.internal">Playwright.PlaywrightSetProperty</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#tracingEnabled(boolean)" class="member-name-link">tracingEnabled</a><wbr>(boolean&nbsp;value)</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#timezoneId(java.lang.String)" class="member-name-link">timezoneId</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;value)</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="Playwright.PlaywrightSetProperty.html" title="class in com.shaft.properties.internal">Playwright.PlaywrightSetProperty</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#tracingOnRetryOnly(boolean)" class="member-name-link">tracingOnRetryOnly</a><wbr>(boolean&nbsp;value)</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#tracingEnabled(boolean)" class="member-name-link">tracingEnabled</a><wbr>(boolean&nbsp;value)</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="Playwright.PlaywrightSetProperty.html" title="class in com.shaft.properties.internal">Playwright.PlaywrightSetProperty</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#tracingScreenshots(boolean)" class="member-name-link">tracingScreenshots</a><wbr>(boolean&nbsp;value)</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#tracingOnRetryOnly(boolean)" class="member-name-link">tracingOnRetryOnly</a><wbr>(boolean&nbsp;value)</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="Playwright.PlaywrightSetProperty.html" title="class in com.shaft.properties.internal">Playwright.PlaywrightSetProperty</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#tracingSnapshots(boolean)" class="member-name-link">tracingSnapshots</a><wbr>(boolean&nbsp;value)</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#tracingScreenshots(boolean)" class="member-name-link">tracingScreenshots</a><wbr>(boolean&nbsp;value)</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="Playwright.PlaywrightSetProperty.html" title="class in com.shaft.properties.internal">Playwright.PlaywrightSetProperty</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#tracingSources(boolean)" class="member-name-link">tracingSources</a><wbr>(boolean&nbsp;value)</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#tracingSnapshots(boolean)" class="member-name-link">tracingSnapshots</a><wbr>(boolean&nbsp;value)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="Playwright.PlaywrightSetProperty.html" title="class in com.shaft.properties.internal">Playwright.PlaywrightSetProperty</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#tracingSources(boolean)" class="member-name-link">tracingSources</a><wbr>(boolean&nbsp;value)</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="Playwright.PlaywrightSetProperty.html" title="class in com.shaft.properties.internal">Playwright.PlaywrightSetProperty</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#userAgent(java.lang.String)" class="member-name-link">userAgent</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;value)</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
 </div>
 </div>
@@ -315,6 +331,38 @@ implements <a href="EngineProperties.SetProperty.html" title="interface in com.s
 <h3>acceptDownloads</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="Playwright.PlaywrightSetProperty.html" title="class in com.shaft.properties.internal">Playwright.PlaywrightSetProperty</a></span>&nbsp;<span class="element-name">acceptDownloads</span><wbr><span class="parameters">(boolean&nbsp;value)</span></div>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="timezoneId(java.lang.String)">
+<h3>timezoneId</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="Playwright.PlaywrightSetProperty.html" title="class in com.shaft.properties.internal">Playwright.PlaywrightSetProperty</a></span>&nbsp;<span class="element-name">timezoneId</span><wbr><span class="parameters">(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;value)</span></div>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="locale(java.lang.String)">
+<h3>locale</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="Playwright.PlaywrightSetProperty.html" title="class in com.shaft.properties.internal">Playwright.PlaywrightSetProperty</a></span>&nbsp;<span class="element-name">locale</span><wbr><span class="parameters">(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;value)</span></div>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="userAgent(java.lang.String)">
+<h3>userAgent</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="Playwright.PlaywrightSetProperty.html" title="class in com.shaft.properties.internal">Playwright.PlaywrightSetProperty</a></span>&nbsp;<span class="element-name">userAgent</span><wbr><span class="parameters">(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;value)</span></div>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="javaScriptEnabled(boolean)">
+<h3>javaScriptEnabled</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="Playwright.PlaywrightSetProperty.html" title="class in com.shaft.properties.internal">Playwright.PlaywrightSetProperty</a></span>&nbsp;<span class="element-name">javaScriptEnabled</span><wbr><span class="parameters">(boolean&nbsp;value)</span></div>
 </div>
 </section>
 </li>

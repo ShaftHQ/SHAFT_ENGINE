@@ -60,6 +60,7 @@
 <li><a href="#registerBrowserNetworkInterceptionRule(com.shaft.gui.browser.internal.BrowserNetworkInterceptionRule)" tabindex="0">registerBrowserNetworkInterceptionRule(BrowserNetworkInterceptionRule)</a></li>
 <li><a href="#clearBrowserNetworkInterceptors()" tabindex="0">clearBrowserNetworkInterceptors()</a></li>
 <li><a href="#startBrowserNetworkObservation()" tabindex="0">startBrowserNetworkObservation()</a></li>
+<li><a href="#stopBrowserNetworkObservation()" tabindex="0">stopBrowserNetworkObservation()</a></li>
 <li><a href="#releaseBrowserNetworkObservationForHandoff(org.openqa.selenium.WebDriver)" tabindex="0">releaseBrowserNetworkObservationForHandoff(WebDriver)</a></li>
 <li><a href="#hasBlockingBrowserNetworkInterceptionRules(org.openqa.selenium.WebDriver)" tabindex="0">hasBlockingBrowserNetworkInterceptionRules(WebDriver)</a></li>
 <li><a href="#isMobileNativeExecution()" tabindex="0">isMobileNativeExecution()</a></li>
@@ -236,6 +237,11 @@ dedicated API-capture recorder) does not silently race with and replace it.</div
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Starts passive browser network observation for trace or contract capture.</div>
 </div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>void</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#stopBrowserNetworkObservation()" class="member-name-link">stopBrowserNetworkObservation</a>()</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Rolls back passive browser-network observation after setup failure.</div>
+</div>
 </div>
 </div>
 </div>
@@ -341,6 +347,15 @@ dedicated API-capture recorder) does not silently race with and replace it.</div
 <dt>Returns:</dt>
 <dd><code>true</code> when observation started</dd>
 </dl>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="stopBrowserNetworkObservation()">
+<h3>stopBrowserNetworkObservation</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type">void</span>&nbsp;<span class="element-name">stopBrowserNetworkObservation</span>()</div>
+<div class="block">Rolls back passive browser-network observation after setup failure.</div>
 </div>
 </section>
 </li>

@@ -71,23 +71,37 @@
 </li>
 <li>
 <div id="class-summary">
-<div class="table-tabs" role="tablist" aria-orientation="horizontal"><button id="class-summary-tab0" role="tab" aria-selected="true" aria-controls="class-summary.tabpanel" tabindex="0" onkeydown="switchTab(event)" onclick="show('class-summary', 'class-summary', 2)" class="active-table-tab">All Classes and Interfaces</button><button id="class-summary-tab2" role="tab" aria-selected="false" aria-controls="class-summary.tabpanel" tabindex="-1" onkeydown="switchTab(event)" onclick="show('class-summary', 'class-summary-tab2', 2)" class="table-tab">Classes</button><button id="class-summary-tab3" role="tab" aria-selected="false" aria-controls="class-summary.tabpanel" tabindex="-1" onkeydown="switchTab(event)" onclick="show('class-summary', 'class-summary-tab3', 2)" class="table-tab">Enum Classes</button></div>
+<div class="table-tabs" role="tablist" aria-orientation="horizontal"><button id="class-summary-tab0" role="tab" aria-selected="true" aria-controls="class-summary.tabpanel" tabindex="0" onkeydown="switchTab(event)" onclick="show('class-summary', 'class-summary', 2)" class="active-table-tab">All Classes and Interfaces</button><button id="class-summary-tab2" role="tab" aria-selected="false" aria-controls="class-summary.tabpanel" tabindex="-1" onkeydown="switchTab(event)" onclick="show('class-summary', 'class-summary-tab2', 2)" class="table-tab">Classes</button><button id="class-summary-tab3" role="tab" aria-selected="false" aria-controls="class-summary.tabpanel" tabindex="-1" onkeydown="switchTab(event)" onclick="show('class-summary', 'class-summary-tab3', 2)" class="table-tab">Enum Classes</button><button id="class-summary-tab4" role="tab" aria-selected="false" aria-controls="class-summary.tabpanel" tabindex="-1" onkeydown="switchTab(event)" onclick="show('class-summary', 'class-summary-tab4', 2)" class="table-tab">Record Classes</button></div>
 <div id="class-summary.tabpanel" role="tabpanel" aria-labelledby="class-summary-tab0">
 <div class="summary-table two-column-summary">
 <div class="table-header col-first">Class</div>
 <div class="table-header col-last">Description</div>
-<div class="col-first even-row-color class-summary class-summary-tab2"><a href="BidiNetworkActivitySource.html" title="class in com.shaft.gui.browser.internal">BidiNetworkActivitySource</a></div>
+<div class="col-first even-row-color class-summary class-summary-tab2"><a href="BidiConsoleLogSource.html" title="class in com.shaft.gui.browser.internal">BidiConsoleLogSource</a></div>
 <div class="col-last even-row-color class-summary class-summary-tab2">
+<div class="block">Session-scoped Selenium BiDi console and JavaScript-error bridge.</div>
+</div>
+<div class="col-first odd-row-color class-summary class-summary-tab2"><a href="BidiNetworkActivitySource.html" title="class in com.shaft.gui.browser.internal">BidiNetworkActivitySource</a></div>
+<div class="col-last odd-row-color class-summary class-summary-tab2">
 <div class="block">Advisory, best-effort BiDi network-activity signal that <a href="JavaScriptWaitManager.html" title="class in com.shaft.gui.browser.internal"><code>JavaScriptWaitManager</code></a> folds
 into its existing JS-derived quiet-window engine (issue #3749, Increment B).</div>
 </div>
-<div class="col-first odd-row-color class-summary class-summary-tab2"><a href="BrowserActionsHelper.html" title="class in com.shaft.gui.browser.internal">BrowserActionsHelper</a></div>
-<div class="col-last odd-row-color class-summary class-summary-tab2">
+<div class="col-first even-row-color class-summary class-summary-tab2"><a href="BidiPermissionState.html" title="class in com.shaft.gui.browser.internal">BidiPermissionState</a></div>
+<div class="col-last even-row-color class-summary class-summary-tab2">
+<div class="block">Session-owned inventory used to restore SHAFT-managed BiDi permissions to prompt.</div>
+</div>
+<div class="col-first odd-row-color class-summary class-summary-tab4"><a href="BidiPermissionState.Change.html" title="class in com.shaft.gui.browser.internal">BidiPermissionState.Change</a></div>
+<div class="col-last odd-row-color class-summary class-summary-tab4">&nbsp;</div>
+<div class="col-first even-row-color class-summary class-summary-tab2"><a href="BrowserActionsHelper.html" title="class in com.shaft.gui.browser.internal">BrowserActionsHelper</a></div>
+<div class="col-last even-row-color class-summary class-summary-tab2">
 <div class="block">Internal helper class for browser actions within the SHAFT framework.</div>
 </div>
-<div class="col-first even-row-color class-summary class-summary-tab3"><a href="BrowserActionsHelper.BasicAuthenticationStrategy.html" title="enum class in com.shaft.gui.browser.internal">BrowserActionsHelper.BasicAuthenticationStrategy</a></div>
-<div class="col-last even-row-color class-summary class-summary-tab3">
+<div class="col-first odd-row-color class-summary class-summary-tab3"><a href="BrowserActionsHelper.BasicAuthenticationStrategy.html" title="enum class in com.shaft.gui.browser.internal">BrowserActionsHelper.BasicAuthenticationStrategy</a></div>
+<div class="col-last odd-row-color class-summary class-summary-tab3">
 <div class="block">The basic-authentication mechanism selected by <a href="BrowserActionsHelper.html#determineBasicAuthenticationStrategy(java.lang.String,boolean)"><code>BrowserActionsHelper.determineBasicAuthenticationStrategy(String, boolean)</code></a>.</div>
+</div>
+<div class="col-first even-row-color class-summary class-summary-tab2"><a href="BrowserEmulationManager.html" title="class in com.shaft.gui.browser.internal">BrowserEmulationManager</a></div>
+<div class="col-last even-row-color class-summary class-summary-tab2">
+<div class="block">Applies browser emulation through the narrowest live protocol supported by a Selenium/Appium session.</div>
 </div>
 <div class="col-first odd-row-color class-summary class-summary-tab2"><a href="BrowserNetworkInterceptionRule.html" title="class in com.shaft.gui.browser.internal">BrowserNetworkInterceptionRule</a></div>
 <div class="col-last odd-row-color class-summary class-summary-tab2">
@@ -117,16 +131,20 @@ into its existing JS-derived quiet-window engine (issue #3749, Increment B).</di
 </div>
 <div class="col-first odd-row-color class-summary class-summary-tab2"><a href="JavaScriptWaitManager.html" title="class in com.shaft.gui.browser.internal">JavaScriptWaitManager</a></div>
 <div class="col-last odd-row-color class-summary class-summary-tab2">&nbsp;</div>
-<div class="col-first even-row-color class-summary class-summary-tab2"><a href="PlaywrightNetworkInterceptor.html" title="class in com.shaft.gui.browser.internal">PlaywrightNetworkInterceptor</a></div>
+<div class="col-first even-row-color class-summary class-summary-tab2"><a href="PermissionOrigin.html" title="class in com.shaft.gui.browser.internal">PermissionOrigin</a></div>
 <div class="col-last even-row-color class-summary class-summary-tab2">
+<div class="block">Validates and normalizes a credential-free browser permission origin.</div>
+</div>
+<div class="col-first odd-row-color class-summary class-summary-tab2"><a href="PlaywrightNetworkInterceptor.html" title="class in com.shaft.gui.browser.internal">PlaywrightNetworkInterceptor</a></div>
+<div class="col-last odd-row-color class-summary class-summary-tab2">
 <div class="block">Owns browser network interception rules for one Playwright browser context.</div>
 </div>
-<div class="col-first odd-row-color class-summary class-summary-tab2"><a href="PlaywrightStorageStateManager.html" title="class in com.shaft.gui.browser.internal">PlaywrightStorageStateManager</a></div>
-<div class="col-last odd-row-color class-summary class-summary-tab2">
+<div class="col-first even-row-color class-summary class-summary-tab2"><a href="PlaywrightStorageStateManager.html" title="class in com.shaft.gui.browser.internal">PlaywrightStorageStateManager</a></div>
+<div class="col-last even-row-color class-summary class-summary-tab2">
 <div class="block">Saves and restores browser cookies, localStorage, and sessionStorage for one Playwright context.</div>
 </div>
-<div class="col-first even-row-color class-summary class-summary-tab2"><a href="ScrollSweepPlanner.html" title="class in com.shaft.gui.browser.internal">ScrollSweepPlanner</a></div>
-<div class="col-last even-row-color class-summary class-summary-tab2">
+<div class="col-first odd-row-color class-summary class-summary-tab2"><a href="ScrollSweepPlanner.html" title="class in com.shaft.gui.browser.internal">ScrollSweepPlanner</a></div>
+<div class="col-last odd-row-color class-summary class-summary-tab2">
 <div class="block">Pure decision logic for <code>BrowserActions.scrollToLoadAll()</code>'s bounded progressive scroll
 sweep (issue #3749, Increment D).</div>
 </div>

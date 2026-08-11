@@ -63,6 +63,19 @@
 <li><a href="#pageHandle(com.microsoft.playwright.Page)" tabindex="0">pageHandle(Page)</a></li>
 <li><a href="#pageByHandle(java.lang.String)" tabindex="0">pageByHandle(String)</a></li>
 <li><a href="#close()" tabindex="0">close()</a></li>
+<li><a href="#consoleSnapshot()" tabindex="0">consoleSnapshot()</a></li>
+<li><a href="#clearConsole()" tabindex="0">clearConsole()</a></li>
+<li><a href="#downloadSnapshot()" tabindex="0">downloadSnapshot()</a></li>
+<li><a href="#trackDownload(com.microsoft.playwright.Download)" tabindex="0">trackDownload(Download)</a></li>
+<li><a href="#forgetDownload(com.microsoft.playwright.Download)" tabindex="0">forgetDownload(Download)</a></li>
+<li><a href="#clearDownloadHandles()" tabindex="0">clearDownloadHandles()</a></li>
+<li><a href="#setViewport(com.microsoft.playwright.Page,int,int)" tabindex="0">setViewport(Page, int, int)</a></li>
+<li><a href="#clearViewport(com.microsoft.playwright.Page)" tabindex="0">clearViewport(Page)</a></li>
+<li><a href="#setMediaType(com.microsoft.playwright.Page,com.microsoft.playwright.options.Media)" tabindex="0">setMediaType(Page, Media)</a></li>
+<li><a href="#setColorScheme(com.microsoft.playwright.Page,com.microsoft.playwright.options.ColorScheme)" tabindex="0">setColorScheme(Page, ColorScheme)</a></li>
+<li><a href="#setReducedMotion(com.microsoft.playwright.Page,com.microsoft.playwright.options.ReducedMotion)" tabindex="0">setReducedMotion(Page, ReducedMotion)</a></li>
+<li><a href="#resetMedia(com.microsoft.playwright.Page)" tabindex="0">resetMedia(Page)</a></li>
+<li><a href="#drainConsoleToRecorder()" tabindex="0">drainConsoleToRecorder()</a></li>
 </ol>
 </li>
 </ol>
@@ -111,41 +124,107 @@ implements <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base
 <div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#browserContext()" class="member-name-link">browserContext</a>()</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>void</code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#close()" class="member-name-link">close</a>()</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#clearConsole()" class="member-name-link">clearConsole</a>()</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Clears only this Playwright session's console observations.</div>
+</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>void</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#clearDownloadHandles()" class="member-name-link">clearDownloadHandles</a>()</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Clears retained handles after their native files have been removed.</div>
+</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>void</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#clearViewport(com.microsoft.playwright.Page)" class="member-name-link">clearViewport</a><wbr>(com.microsoft.playwright.Page&nbsp;targetPage)</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Restores and forgets the page viewport captured before SHAFT's first override.</div>
+</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>void</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#close()" class="member-name-link">close</a>()</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a><wbr>&lt;<a href="../../../tools/io/internal/BrowserObservabilityRecorder.ConsoleSnapshotEntry.html" title="class in com.shaft.tools.io.internal">BrowserObservabilityRecorder.ConsoleSnapshotEntry</a>&gt;</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#consoleSnapshot()" class="member-name-link">consoleSnapshot</a>()</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>void</code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#dismissNextDialog()" class="member-name-link">dismissNextDialog</a>()</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>boolean</code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#isDialogSeen()" class="member-name-link">isDialogSeen</a>()</code></div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a><wbr>&lt;com.microsoft.playwright.Download&gt;</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#downloadSnapshot()" class="member-name-link">downloadSnapshot</a>()</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#lastDialogText()" class="member-name-link">lastDialogText</a>()</code></div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>void</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#drainConsoleToRecorder()" class="member-name-link">drainConsoleToRecorder</a>()</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Atomically transfers this session's console observations to failure-trace storage.</div>
+</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>void</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#forgetDownload(com.microsoft.playwright.Download)" class="member-name-link">forgetDownload</a><wbr>(com.microsoft.playwright.Download&nbsp;download)</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Removes a deleted native download handle from this session.</div>
+</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>boolean</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#isDialogSeen()" class="member-name-link">isDialogSeen</a>()</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="../../browser/internal/PlaywrightNetworkInterceptor.html" title="class in com.shaft.gui.browser.internal">PlaywrightNetworkInterceptor</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#networkInterceptor()" class="member-name-link">networkInterceptor</a>()</code></div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#lastDialogText()" class="member-name-link">lastDialogText</a>()</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>com.microsoft.playwright.Page</code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#page()" class="member-name-link">page</a>()</code></div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="../../browser/internal/PlaywrightNetworkInterceptor.html" title="class in com.shaft.gui.browser.internal">PlaywrightNetworkInterceptor</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#networkInterceptor()" class="member-name-link">networkInterceptor</a>()</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>com.microsoft.playwright.Page</code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#pageByHandle(java.lang.String)" class="member-name-link">pageByHandle</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;handle)</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#page()" class="member-name-link">page</a>()</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#pageHandle(com.microsoft.playwright.Page)" class="member-name-link">pageHandle</a><wbr>(com.microsoft.playwright.Page&nbsp;targetPage)</code></div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>com.microsoft.playwright.Page</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#pageByHandle(java.lang.String)" class="member-name-link">pageByHandle</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;handle)</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>com.microsoft.playwright.Playwright</code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#playwright()" class="member-name-link">playwright</a>()</code></div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#pageHandle(com.microsoft.playwright.Page)" class="member-name-link">pageHandle</a><wbr>(com.microsoft.playwright.Page&nbsp;targetPage)</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>com.microsoft.playwright.Playwright</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#playwright()" class="member-name-link">playwright</a>()</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>void</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#resetMedia(com.microsoft.playwright.Page)" class="member-name-link">resetMedia</a><wbr>(com.microsoft.playwright.Page&nbsp;targetPage)</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Clears every SHAFT-owned media override for one page.</div>
+</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>void</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#setColorScheme(com.microsoft.playwright.Page,com.microsoft.playwright.options.ColorScheme)" class="member-name-link">setColorScheme</a><wbr>(com.microsoft.playwright.Page&nbsp;targetPage,
+ com.microsoft.playwright.options.ColorScheme&nbsp;colorScheme)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Applies a color scheme without clearing the page's other SHAFT-owned media overrides.</div>
+</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>void</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#setMediaType(com.microsoft.playwright.Page,com.microsoft.playwright.options.Media)" class="member-name-link">setMediaType</a><wbr>(com.microsoft.playwright.Page&nbsp;targetPage,
+ com.microsoft.playwright.options.Media&nbsp;media)</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Applies a media type without clearing the page's other SHAFT-owned media overrides.</div>
+</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>void</code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#setPage(com.microsoft.playwright.Page)" class="member-name-link">setPage</a><wbr>(com.microsoft.playwright.Page&nbsp;page)</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>void</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#setReducedMotion(com.microsoft.playwright.Page,com.microsoft.playwright.options.ReducedMotion)" class="member-name-link">setReducedMotion</a><wbr>(com.microsoft.playwright.Page&nbsp;targetPage,
+ com.microsoft.playwright.options.ReducedMotion&nbsp;reducedMotion)</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Applies reduced-motion preference without clearing the page's other SHAFT-owned media overrides.</div>
+</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>void</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#setViewport(com.microsoft.playwright.Page,int,int)" class="member-name-link">setViewport</a><wbr>(com.microsoft.playwright.Page&nbsp;targetPage,
+ int&nbsp;width,
+ int&nbsp;height)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Applies a page viewport override while retaining the pre-SHAFT value for a later reset.</div>
+</div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="PlaywrightTraceManager.html" title="class in com.shaft.gui.playwright.internal">PlaywrightTraceManager</a></code></div>
 <div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#traceManager()" class="member-name-link">traceManager</a>()</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>void</code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#typeIntoNextPrompt(java.lang.String)" class="member-name-link">typeIntoNextPrompt</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;text)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#trackDownload(com.microsoft.playwright.Download)" class="member-name-link">trackDownload</a><wbr>(com.microsoft.playwright.Download&nbsp;download)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Retains one native download handle without duplicating listener and wait-for observations.</div>
+</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>void</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#typeIntoNextPrompt(java.lang.String)" class="member-name-link">typeIntoNextPrompt</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;text)</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
 </div>
 </div>
 </div>
@@ -284,6 +363,134 @@ implements <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base
 <dt>Specified by:</dt>
 <dd><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/AutoCloseable.html#close()" title="class or interface in java.lang" class="external-link">close</a></code>&nbsp;in interface&nbsp;<code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/AutoCloseable.html" title="class or interface in java.lang" class="external-link">AutoCloseable</a></code></dd>
 </dl>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="consoleSnapshot()">
+<h3>consoleSnapshot</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="../../../tools/io/internal/BrowserObservabilityRecorder.ConsoleSnapshotEntry.html" title="class in com.shaft.tools.io.internal">BrowserObservabilityRecorder.ConsoleSnapshotEntry</a>&gt;</span>&nbsp;<span class="element-name">consoleSnapshot</span>()</div>
+<dl class="notes">
+<dt>Returns:</dt>
+<dd>immutable console observations owned by this session, oldest first</dd>
+</dl>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="clearConsole()">
+<h3>clearConsole</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type">void</span>&nbsp;<span class="element-name">clearConsole</span>()</div>
+<div class="block">Clears only this Playwright session's console observations.</div>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="downloadSnapshot()">
+<h3>downloadSnapshot</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;com.microsoft.playwright.Download&gt;</span>&nbsp;<span class="element-name">downloadSnapshot</span>()</div>
+<dl class="notes">
+<dt>Returns:</dt>
+<dd>immutable native download handles owned by this session, oldest first</dd>
+</dl>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="trackDownload(com.microsoft.playwright.Download)">
+<h3>trackDownload</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type">void</span>&nbsp;<span class="element-name">trackDownload</span><wbr><span class="parameters">(com.microsoft.playwright.Download&nbsp;download)</span></div>
+<div class="block">Retains one native download handle without duplicating listener and wait-for observations.</div>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="forgetDownload(com.microsoft.playwright.Download)">
+<h3>forgetDownload</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type">void</span>&nbsp;<span class="element-name">forgetDownload</span><wbr><span class="parameters">(com.microsoft.playwright.Download&nbsp;download)</span></div>
+<div class="block">Removes a deleted native download handle from this session.</div>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="clearDownloadHandles()">
+<h3>clearDownloadHandles</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type">void</span>&nbsp;<span class="element-name">clearDownloadHandles</span>()</div>
+<div class="block">Clears retained handles after their native files have been removed.</div>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="setViewport(com.microsoft.playwright.Page,int,int)">
+<h3>setViewport</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type">void</span>&nbsp;<span class="element-name">setViewport</span><wbr><span class="parameters">(com.microsoft.playwright.Page&nbsp;targetPage,
+ int&nbsp;width,
+ int&nbsp;height)</span></div>
+<div class="block">Applies a page viewport override while retaining the pre-SHAFT value for a later reset.</div>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="clearViewport(com.microsoft.playwright.Page)">
+<h3>clearViewport</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type">void</span>&nbsp;<span class="element-name">clearViewport</span><wbr><span class="parameters">(com.microsoft.playwright.Page&nbsp;targetPage)</span></div>
+<div class="block">Restores and forgets the page viewport captured before SHAFT's first override.</div>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="setMediaType(com.microsoft.playwright.Page,com.microsoft.playwright.options.Media)">
+<h3>setMediaType</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type">void</span>&nbsp;<span class="element-name">setMediaType</span><wbr><span class="parameters">(com.microsoft.playwright.Page&nbsp;targetPage,
+ com.microsoft.playwright.options.Media&nbsp;media)</span></div>
+<div class="block">Applies a media type without clearing the page's other SHAFT-owned media overrides.</div>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="setColorScheme(com.microsoft.playwright.Page,com.microsoft.playwright.options.ColorScheme)">
+<h3>setColorScheme</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type">void</span>&nbsp;<span class="element-name">setColorScheme</span><wbr><span class="parameters">(com.microsoft.playwright.Page&nbsp;targetPage,
+ com.microsoft.playwright.options.ColorScheme&nbsp;colorScheme)</span></div>
+<div class="block">Applies a color scheme without clearing the page's other SHAFT-owned media overrides.</div>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="setReducedMotion(com.microsoft.playwright.Page,com.microsoft.playwright.options.ReducedMotion)">
+<h3>setReducedMotion</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type">void</span>&nbsp;<span class="element-name">setReducedMotion</span><wbr><span class="parameters">(com.microsoft.playwright.Page&nbsp;targetPage,
+ com.microsoft.playwright.options.ReducedMotion&nbsp;reducedMotion)</span></div>
+<div class="block">Applies reduced-motion preference without clearing the page's other SHAFT-owned media overrides.</div>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="resetMedia(com.microsoft.playwright.Page)">
+<h3>resetMedia</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type">void</span>&nbsp;<span class="element-name">resetMedia</span><wbr><span class="parameters">(com.microsoft.playwright.Page&nbsp;targetPage)</span></div>
+<div class="block">Clears every SHAFT-owned media override for one page.</div>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="drainConsoleToRecorder()">
+<h3>drainConsoleToRecorder</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type">void</span>&nbsp;<span class="element-name">drainConsoleToRecorder</span>()</div>
+<div class="block">Atomically transfers this session's console observations to failure-trace storage.</div>
 </div>
 </section>
 </li>

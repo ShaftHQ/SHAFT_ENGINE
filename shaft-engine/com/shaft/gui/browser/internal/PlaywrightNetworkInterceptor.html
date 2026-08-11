@@ -56,7 +56,11 @@
 <ol class="toc-list">
 <li><a href="#addRule(com.shaft.gui.browser.internal.BrowserNetworkInterceptionRule)" tabindex="0">addRule(BrowserNetworkInterceptionRule)</a></li>
 <li><a href="#startObserving()" tabindex="0">startObserving()</a></li>
+<li><a href="#stopObserving()" tabindex="0">stopObserving()</a></li>
 <li><a href="#clear()" tabindex="0">clear()</a></li>
+<li><a href="#registerBasicAuthentication(java.lang.String,java.lang.String)" tabindex="0">registerBasicAuthentication(String, String)</a></li>
+<li><a href="#clearAuthentication()" tabindex="0">clearAuthentication()</a></li>
+<li><a href="#close()" tabindex="0">close()</a></li>
 </ol>
 </li>
 </ol>
@@ -116,9 +120,30 @@
 <div class="block">Clears all registered rules and removes the Playwright route handler.</div>
 </div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>void</code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#startObserving()" class="member-name-link">startObserving</a>()</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#clearAuthentication()" class="member-name-link">clearAuthentication</a>()</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Clears only SHAFT-managed authentication policies.</div>
+</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>void</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#close()" class="member-name-link">close</a>()</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Clears every route concern owned by this interceptor during session teardown.</div>
+</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>void</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#registerBasicAuthentication(java.lang.String,java.lang.String)" class="member-name-link">registerBasicAuthentication</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;origin,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;authorizationHeader)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Registers or replaces a global or origin-scoped HTTP Basic authentication policy.</div>
+</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>void</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#startObserving()" class="member-name-link">startObserving</a>()</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Starts passive network observation for contract recording or validation.</div>
+</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>void</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#stopObserving()" class="member-name-link">stopObserving</a>()</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Stops passive observation while preserving registered interception rules.</div>
 </div>
 </div>
 </div>
@@ -181,11 +206,48 @@
 </section>
 </li>
 <li>
+<section class="detail" id="stopObserving()">
+<h3>stopObserving</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type">void</span>&nbsp;<span class="element-name">stopObserving</span>()</div>
+<div class="block">Stops passive observation while preserving registered interception rules.</div>
+</div>
+</section>
+</li>
+<li>
 <section class="detail" id="clear()">
 <h3>clear</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type">void</span>&nbsp;<span class="element-name">clear</span>()</div>
 <div class="block">Clears all registered rules and removes the Playwright route handler.</div>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="registerBasicAuthentication(java.lang.String,java.lang.String)">
+<h3>registerBasicAuthentication</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type">void</span>&nbsp;<span class="element-name">registerBasicAuthentication</span><wbr><span class="parameters">(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;origin,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;authorizationHeader)</span></div>
+<div class="block">Registers or replaces a global or origin-scoped HTTP Basic authentication policy.</div>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="clearAuthentication()">
+<h3>clearAuthentication</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type">void</span>&nbsp;<span class="element-name">clearAuthentication</span>()</div>
+<div class="block">Clears only SHAFT-managed authentication policies.</div>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="close()">
+<h3>close</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type">void</span>&nbsp;<span class="element-name">close</span>()</div>
+<div class="block">Clears every route concern owned by this interceptor during session teardown.</div>
 </div>
 </section>
 </li>

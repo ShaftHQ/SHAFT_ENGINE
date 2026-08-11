@@ -9,6 +9,8 @@ com.shaft.driver.internal.DriverFactory
 com.shaft.enums.internal
 com.shaft.gui.browser
 com.shaft.gui.browser.internal
+com.shaft.gui.capabilities
+com.shaft.gui.capabilities.internal
 com.shaft.gui.driver
 com.shaft.gui.element
 com.shaft.gui.element.internal
@@ -19,6 +21,8 @@ com.shaft.gui.internal.image
 com.shaft.gui.internal.locator
 com.shaft.gui.internal.natural
 com.shaft.gui.internal.video
+com.shaft.gui.mobile
+com.shaft.gui.mobile.internal
 com.shaft.gui.playwright.browser
 com.shaft.gui.playwright.element
 com.shaft.gui.playwright.internal
@@ -33,6 +37,7 @@ com.shaft.tools.internal.support
 com.shaft.tools.internal.tms
 com.shaft.tools.io
 com.shaft.tools.io.internal
+com.shaft.tools.io.trace
 com.shaft.validation
 com.shaft.validation.accessibility
 com.shaft.validation.internal

@@ -48,12 +48,14 @@
 <li><a href="#method-summary" tabindex="0">Method Summary</a></li>
 <li><a href="#method-detail" tabindex="0">Method Details</a>
 <ol class="toc-list">
+<li><a href="#capabilities()" tabindex="0">capabilities()</a></li>
 <li><a href="#getDriver()" tabindex="0">getDriver()</a></li>
 <li><a href="#getNativeDriver()" tabindex="0">getNativeDriver()</a></li>
 <li><a href="#getNativeContext()" tabindex="0">getNativeContext()</a></li>
 <li><a href="#browser()" tabindex="0">browser()</a></li>
 <li><a href="#element()" tabindex="0">element()</a></li>
 <li><a href="#touch()" tabindex="0">touch()</a></li>
+<li><a href="#mobile()" tabindex="0">mobile()</a></li>
 <li><a href="#alert()" tabindex="0">alert()</a></li>
 <li><a href="#assertThat()" tabindex="0">assertThat()</a></li>
 <li><a href="#verifyThat()" tabindex="0">verifyThat()</a></li>
@@ -117,26 +119,36 @@
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
 <div class="block">Returns browser-level actions and context helpers.</div>
 </div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="ElementActionsContract.html" title="interface in com.shaft.gui.driver">ElementActionsContract</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#element()" class="member-name-link">element</a>()</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code>default <a href="../capabilities/AutomationCapabilities.html" title="class in com.shaft.gui.capabilities">AutomationCapabilities</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#capabilities()" class="member-name-link">capabilities</a>()</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5">
+<div class="block">Returns an immutable snapshot of the automation features available to this session.</div>
+</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="ElementActionsContract.html" title="interface in com.shaft.gui.driver">ElementActionsContract</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#element()" class="member-name-link">element</a>()</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
 <div class="block">Returns element-level actions and assertions.</div>
 </div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Object.html" title="class or interface in java.lang" class="external-link">Object</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#getDriver()" class="member-name-link">getDriver</a>()</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Object.html" title="class or interface in java.lang" class="external-link">Object</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#getDriver()" class="member-name-link">getDriver</a>()</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
 <div class="block">Returns the primary native automation object for the active backend.</div>
 </div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code>default <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Object.html" title="class or interface in java.lang" class="external-link">Object</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#getNativeContext()" class="member-name-link">getNativeContext</a>()</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5">
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code>default <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Object.html" title="class or interface in java.lang" class="external-link">Object</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#getNativeContext()" class="member-name-link">getNativeContext</a>()</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5">
 <div class="block">Returns the native backend context object when the backend exposes one.</div>
 </div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code>default <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Object.html" title="class or interface in java.lang" class="external-link">Object</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#getNativeDriver()" class="member-name-link">getNativeDriver</a>()</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5">
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code>default <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Object.html" title="class or interface in java.lang" class="external-link">Object</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#getNativeDriver()" class="member-name-link">getNativeDriver</a>()</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5">
 <div class="block">Alias for <a href="#getDriver()"><code>getDriver()</code></a> that reads naturally when callers handle
 the session through the generic GUI driver contract.</div>
+</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code>default <a href="MobileActionsContract.html" title="interface in com.shaft.gui.driver">MobileActionsContract</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#mobile()" class="member-name-link">mobile</a>()</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5">
+<div class="block">Returns categorized native-mobile actions.</div>
 </div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code>void</code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#quit()" class="member-name-link">quit</a>()</code></div>
@@ -167,6 +179,25 @@ the session through the generic GUI driver contract.</div>
 <section class="method-details" id="method-detail">
 <h2>Method Details</h2>
 <ul class="member-list">
+<li>
+<section class="detail" id="capabilities()">
+<h3>capabilities</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">default</span>&nbsp;<span class="return-type"><a href="../capabilities/AutomationCapabilities.html" title="class in com.shaft.gui.capabilities">AutomationCapabilities</a></span>&nbsp;<span class="element-name">capabilities</span>()</div>
+<div class="block">Returns an immutable snapshot of the automation features available to this session.
+
+<p>The default is deliberately fail-closed so existing implementations gain no unsupported
+behavior. As with any Java interface method addition, an implementation that also inherits
+an unrelated same-signature method with an incompatible return type must resolve that source
+conflict explicitly. Competing unrelated default implementations also require an explicit
+override even when their return types match.</p></div>
+<dl class="notes">
+<dt>Returns:</dt>
+<dd>effective capability snapshot</dd>
+</dl>
+</div>
+</section>
+</li>
 <li>
 <section class="detail" id="getDriver()">
 <h3>getDriver</h3>
@@ -242,6 +273,26 @@ the session through the generic GUI driver contract.</div>
 <dl class="notes">
 <dt>Returns:</dt>
 <dd>touch actions facade</dd>
+</dl>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="mobile()">
+<h3>mobile</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">default</span>&nbsp;<span class="return-type"><a href="MobileActionsContract.html" title="interface in com.shaft.gui.driver">MobileActionsContract</a></span>&nbsp;<span class="element-name">mobile</span>()</div>
+<div class="block">Returns categorized native-mobile actions.
+
+<p>The default is deliberately fail-closed. As with every Java interface default-method
+addition, a competing unrelated zero-argument <code>mobile()</code> declaration with a
+covariant-compatible return must be overridden explicitly. An existing declaration with an
+incompatible return type is source-incompatible and cannot be bridged by an override.</p></div>
+<dl class="notes">
+<dt>Returns:</dt>
+<dd>mobile actions facade</dd>
+<dt>Throws:</dt>
+<dd><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/UnsupportedOperationException.html" title="class or interface in java.lang" class="external-link">UnsupportedOperationException</a></code> - when this backend has no mobile implementation</dd>
 </dl>
 </div>
 </section>
