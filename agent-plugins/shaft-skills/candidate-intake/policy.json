@@ -1,11 +1,35 @@
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "decision_kinds": [
     "adopt-code",
     "adopt-pattern",
+    "adopt-tool",
     "retain-test-target",
     "reject"
   ],
+  "allowed_categories": [
+    "agent-runtime",
+    "catalog",
+    "cross-client-harness",
+    "cross-client-packaging",
+    "documents",
+    "guardrail-evaluation",
+    "guidance-linter",
+    "outcome-memory",
+    "plugin-evaluation",
+    "security-scanner",
+    "skill-routing"
+  ],
+  "freshness_contract": {
+    "max_age_days": 90
+  },
+  "tool_contract": {
+    "required_platforms": [
+      "linux-x86_64",
+      "macos-aarch64",
+      "windows-x86_64"
+    ]
+  },
   "required_stages": [
     "provenance_license",
     "static_review",

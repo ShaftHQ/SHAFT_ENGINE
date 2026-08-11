@@ -3,10 +3,11 @@
 
 from __future__ import annotations
 
+import argparse
 import json
 import re
 import stat
-from datetime import date
+from datetime import date, timedelta
 from pathlib import Path
 
 
@@ -15,10 +16,11 @@ INTAKE_ROOT = Path("agent-plugins/shaft-skills/candidate-intake")
 POLICY_PATH = INTAKE_ROOT / "policy.json"
 REVIEW_PATH = INTAKE_ROOT / "candidates.json"
 README_PATH = INTAKE_ROOT / "README.md"
-DECISIONS = {"adopt-code", "adopt-pattern", "retain-test-target", "reject"}
+DECISIONS = {"adopt-code", "adopt-pattern", "adopt-tool", "retain-test-target", "reject"}
 STAGES = ("provenance_license", "static_review", "quarantine_trial", "local_evaluation")
 STAGE_STATUSES = {"pass", "halt", "not_run", "not_applicable"}
-REQUIRED_CATEGORIES = {"documents", "plugin-evaluation", "cross-client-packaging"}
+FRESHNESS_STATUSES = {"current", "outdated", "retired"}
+MATERIAL_KINDS = {"code", "pattern", "test-target", "tool"}
 REQUIRED_CANDIDATE_FIELDS = {
     "id",
     "category",
@@ -37,9 +39,12 @@ REQUIRED_CANDIDATE_FIELDS = {
     "evaluation",
     "decision",
     "decision_reason",
+    "discovered_via",
+    "freshness",
     "vendor_policy_duplication",
     "promotion_pr",
     "adopted_files",
+    "tool",
 }
 EXECUTABLE_SUFFIXES = {
     ".bat",
@@ -220,12 +225,31 @@ def quarantine_command(
 def validate_policy(policy: dict) -> list[dict]:
     defects: list[dict] = []
     schema_version = policy.get("schema_version")
-    if type(schema_version) is not int or schema_version != 1:  # pylint: disable=unidiomatic-typecheck  # Exact type rejects bool aliases.
-        defects.append(_defect("policy-schema", "policy schema_version must be 1"))
+    if type(schema_version) is not int or schema_version != 2:  # pylint: disable=unidiomatic-typecheck  # Exact type rejects bool aliases.
+        defects.append(_defect("policy-schema", "policy schema_version must be 2"))
     if set(policy.get("decision_kinds", [])) != DECISIONS:
-        defects.append(_defect("policy-decisions", "policy must declare all four decision kinds"))
+        defects.append(_defect("policy-decisions", "policy must declare all five decision kinds"))
+    categories = policy.get("allowed_categories")
+    if not isinstance(categories, list) or not categories or not all(
+        isinstance(category, str) and re.fullmatch(r"[a-z0-9-]+", category)
+        for category in categories
+    ) or len(categories) != len(set(categories)):
+        defects.append(_defect("policy-categories", "policy must declare unique lowercase allowed_categories"))
     if tuple(policy.get("required_stages", [])) != STAGES:
         defects.append(_defect("policy-stages", "policy stages or order drifted"))
+    freshness_contract = policy.get("freshness_contract")
+    if not isinstance(freshness_contract, dict) or set(freshness_contract) != {"max_age_days"} or (
+        type(freshness_contract.get("max_age_days")) is not int  # pylint: disable=unidiomatic-typecheck
+        or freshness_contract["max_age_days"] <= 0
+    ):
+        defects.append(_defect("freshness-contract", "policy must declare a positive integer max_age_days"))
+    tool_contract = policy.get("tool_contract")
+    required_platforms = tool_contract.get("required_platforms") if isinstance(tool_contract, dict) else None
+    if not isinstance(required_platforms, list) or not required_platforms or not all(
+        isinstance(platform, str) and re.fullmatch(r"[a-z0-9_-]+", platform)
+        for platform in required_platforms
+    ) or len(required_platforms) != len(set(required_platforms)):
+        defects.append(_defect("tool-contract", "policy must declare unique lowercase required tool platforms"))
     trial = policy.get("trial_contract", {})
     required_trial = {
         "container_only": True,
@@ -252,17 +276,101 @@ def validate_policy(policy: dict) -> list[dict]:
     return defects
 
 
-def validate_review(review: dict, policy: dict) -> list[dict]:  # noqa: MC0001  # Ordered fail-closed schema gate is intentionally linear.
+def _valid_iso_date(value: object) -> bool:
+    try:
+        return isinstance(value, str) and date.fromisoformat(value).isoformat() == value
+    except ValueError:
+        return False
+
+
+def _validate_freshness(candidate: dict, path: str) -> list[dict]:
     defects: list[dict] = []
+    freshness = candidate.get("freshness")
+    if not isinstance(freshness, dict):
+        return [_defect("candidate-freshness", "freshness must be an object", path)]
+    if set(freshness) != {"checked_at", "upstream_head", "status"}:
+        defects.append(_defect("candidate-freshness", "freshness must contain checked_at, upstream_head, and status", path))
+    if not _valid_iso_date(freshness.get("checked_at")):
+        defects.append(_defect("candidate-freshness", "freshness checked_at must be an ISO calendar date", path))
+    upstream_head = freshness.get("upstream_head")
+    if not isinstance(upstream_head, str) or not re.fullmatch(r"[0-9a-f]{40}", upstream_head):
+        defects.append(_defect("candidate-freshness", "freshness upstream_head must be a full commit SHA", path))
+    status = freshness.get("status")
+    if status not in FRESHNESS_STATUSES:
+        defects.append(_defect("candidate-freshness", "freshness status is invalid", path))
+    revision = candidate.get("revision")
+    if status == "current" and upstream_head != revision:
+        defects.append(_defect("candidate-freshness", "current freshness requires upstream_head to equal revision", path))
+    if status == "outdated" and upstream_head == revision:
+        defects.append(_defect("candidate-freshness", "outdated freshness requires a changed upstream_head", path))
+    return defects
+
+
+def _validate_tool(candidate: dict, policy: dict, path: str) -> list[dict]:
+    defects: list[dict] = []
+    tool = candidate.get("tool")
+    if candidate.get("decision") != "adopt-tool":
+        if tool is not None:
+            defects.append(_defect("tool-evidence", "tool evidence is reserved for adopt-tool", path))
+        return defects
+    if candidate.get("material_kind") != "tool" or not isinstance(tool, dict):
+        return [_defect("tool-evidence", "adopt-tool requires material_kind tool and a tool object", path)]
+    if set(tool) != {"version", "execution", "artifacts"}:
+        defects.append(_defect("tool-evidence", "tool must contain version, execution, and artifacts", path))
+    version = tool.get("version")
+    if not isinstance(version, str) or not version.strip() or candidate.get("version") != version:
+        defects.append(_defect("tool-evidence", "tool version must be non-empty and match candidate version", path))
+    if not isinstance(tool.get("execution"), str) or not tool.get("execution", "").strip():
+        defects.append(_defect("tool-evidence", "tool execution boundary is required", path))
+    artifacts = tool.get("artifacts")
+    if not isinstance(artifacts, list) or not artifacts:
+        defects.append(_defect("tool-artifact", "tool requires at least one platform artifact", path))
+        return defects
+    platforms: list[str] = []
+    for index, artifact in enumerate(artifacts):
+        artifact_path = f"{path}.tool.artifacts[{index}]"
+        if not isinstance(artifact, dict) or set(artifact) != {"platform", "url", "sha256"}:
+            defects.append(_defect("tool-artifact", "artifact must contain platform, url, and sha256", artifact_path))
+            continue
+        platform = artifact.get("platform")
+        url = artifact.get("url")
+        digest = artifact.get("sha256")
+        if not isinstance(platform, str) or not re.fullmatch(r"[a-z0-9_-]+", platform):
+            defects.append(_defect("tool-artifact", "artifact platform is invalid", artifact_path))
+        else:
+            platforms.append(platform)
+        if not isinstance(url, str) or not url.startswith("https://"):
+            defects.append(_defect("tool-artifact", "artifact URL must use HTTPS", artifact_path))
+        if not isinstance(digest, str) or not re.fullmatch(r"[0-9a-f]{64}", digest):
+            defects.append(_defect("tool-artifact", "artifact sha256 must contain 64 lowercase hex characters", artifact_path))
+    if len(platforms) != len(set(platforms)):
+        defects.append(_defect("tool-artifact", "tool artifact platforms must be unique", path))
+    tool_contract = policy.get("tool_contract", {})
+    required_platforms = set(tool_contract.get("required_platforms", [])) if isinstance(tool_contract, dict) else set()
+    if set(platforms) != required_platforms:
+        defects.append(_defect("tool-artifact", "tool artifacts must cover every policy-required platform", path))
+    return defects
+
+
+def validate_review(  # noqa: MC0001  # Ordered fail-closed schema gate is intentionally linear.
+    review: dict,
+    policy: dict,
+    *,
+    as_of: date | None = None,
+) -> list[dict]:
+    defects: list[dict] = []
+    validation_date = as_of or date.today()
     schema_version = review.get("schema_version")
-    if type(schema_version) is not int or schema_version != 1:  # pylint: disable=unidiomatic-typecheck  # Exact type rejects bool, subclasses, and __class__ spoofing.
-        defects.append(_defect("review-schema", "review schema_version must be integer 1"))
+    if type(schema_version) is not int or schema_version != 2:  # pylint: disable=unidiomatic-typecheck  # Exact type rejects bool, subclasses, and __class__ spoofing.
+        defects.append(_defect("review-schema", "review schema_version must be integer 2"))
     reviewed_at = review.get("reviewed_at")
     try:
         if not isinstance(reviewed_at, str) or date.fromisoformat(reviewed_at).isoformat() != reviewed_at:
             raise ValueError
     except ValueError:
         defects.append(_defect("review-date", "reviewed_at must be an ISO calendar date"))
+    if _valid_iso_date(reviewed_at) and date.fromisoformat(reviewed_at) > validation_date:
+        defects.append(_defect("review-date", "reviewed_at cannot be later than the validation date"))
     candidates = review.get("candidates")
     if not isinstance(candidates, list):
         return [_defect("review-shape", "candidates must be a list")]
@@ -284,6 +392,8 @@ def validate_review(review: dict, policy: dict) -> list[dict]:  # noqa: MC0001  
         category = candidate.get("category")
         if isinstance(category, str):
             categories.add(category)
+            if category not in set(policy.get("allowed_categories", [])):
+                defects.append(_defect("candidate-category", "candidate category is not allowed by policy", path))
         revision = candidate.get("revision")
         if not isinstance(revision, str) or not re.fullmatch(r"[0-9a-f]{40}", revision):
             defects.append(_defect("immutable-revision", "candidate revision must be a full immutable commit SHA", path))
@@ -307,8 +417,19 @@ def validate_review(review: dict, policy: dict) -> list[dict]:  # noqa: MC0001  
             isinstance(item, str) and item.strip() for item in source_paths
         ):
             defects.append(_defect("candidate-evidence", "source_paths evidence is required", path))
-        if candidate.get("material_kind") not in {"code", "pattern", "test-target"}:
+        if candidate.get("material_kind") not in MATERIAL_KINDS:
             defects.append(_defect("candidate-evidence", "material_kind is invalid", path))
+        discovered_via = candidate.get("discovered_via")
+        if not isinstance(discovered_via, list) or not discovered_via or not all(
+            isinstance(item, str) and item.startswith("https://") for item in discovered_via
+        ):
+            defects.append(_defect("candidate-evidence", "discovered_via must be a list of HTTPS URLs", path))
+        defects.extend(_validate_freshness(candidate, path))
+        freshness = candidate.get("freshness")
+        if isinstance(freshness, dict) and _valid_iso_date(freshness.get("checked_at")) and _valid_iso_date(reviewed_at):
+            checked_at = date.fromisoformat(freshness["checked_at"])
+            if checked_at > date.fromisoformat(reviewed_at) or checked_at > validation_date:
+                defects.append(_defect("candidate-freshness", "freshness check cannot be later than reviewed_at or the validation date", path))
         decision = candidate.get("decision")
         if decision not in DECISIONS:
             defects.append(_defect("candidate-decision", "unknown candidate decision", path))
@@ -347,6 +468,32 @@ def validate_review(review: dict, policy: dict) -> list[dict]:  # noqa: MC0001  
                 r"https://github\.com/ShaftHQ/SHAFT_ENGINE/pull/\d+", promotion
             ):
                 defects.append(_defect("promotion-pr", "code adoption requires a separate SHAFT promotion PR", path))
+        if decision == "adopt-tool":
+            if any(stages.get(stage, {}).get("status") != "pass" for stage in STAGES):
+                defects.append(_defect("adopt-tool-gates", "tool adoption requires every gate to pass", path))
+            promotion = candidate.get("promotion_pr")
+            if not isinstance(promotion, str) or not re.fullmatch(
+                r"https://github\.com/ShaftHQ/SHAFT_ENGINE/pull/\d+", promotion
+            ):
+                defects.append(_defect("promotion-pr", "tool adoption requires a separate SHAFT promotion PR", path))
+        defects.extend(_validate_tool(candidate, policy, path))
+        if decision in {"adopt-code", "adopt-tool"}:
+            freshness = candidate.get("freshness", {})
+            freshness_contract = policy.get("freshness_contract", {})
+            max_age_days = freshness_contract.get("max_age_days") if isinstance(freshness_contract, dict) else None
+            current_enough = False
+            if (
+                isinstance(freshness, dict)
+                and freshness.get("status") == "current"
+                and _valid_iso_date(freshness.get("checked_at"))
+                and _valid_iso_date(reviewed_at)
+                and type(max_age_days) is int  # pylint: disable=unidiomatic-typecheck
+                and max_age_days > 0
+            ):
+                checked_at = date.fromisoformat(freshness["checked_at"])
+                current_enough = validation_date - timedelta(days=max_age_days) <= checked_at <= validation_date
+            if not current_enough:
+                defects.append(_defect("promotion-freshness", "code and tool promotion require current, unexpired freshness", path))
         if decision in {"adopt-pattern", "retain-test-target"}:
             required = ("provenance_license", "static_review", "local_evaluation")
             if any(stages.get(stage, {}).get("status") != "pass" for stage in required):
@@ -363,8 +510,9 @@ def validate_review(review: dict, policy: dict) -> list[dict]:  # noqa: MC0001  
             defects.append(_defect("candidate-code", "this review PR must not contain adopted candidate files", path))
     if len(ids) != len(set(ids)):
         defects.append(_defect("candidate-id", "candidate ids must be unique"))
-    if categories != REQUIRED_CATEGORIES:
-        defects.append(_defect("candidate-categories", "review must cover documents, plugin evaluation, and cross-client packaging"))
+    allowed_categories = set(policy.get("allowed_categories", []))
+    if categories != allowed_categories:
+        defects.append(_defect("candidate-categories", "review must cover every policy-owned candidate category"))
     scope = review.get("review_scope", {})
     if not isinstance(scope, dict):
         defects.append(_defect("review-scope", "review_scope must be an object"))
@@ -377,6 +525,29 @@ def validate_review(review: dict, policy: dict) -> list[dict]:  # noqa: MC0001  
     if review.get("code_adopted") is not False:
         defects.append(_defect("candidate-code", "candidate code must not enter the intake PR"))
     return defects
+
+
+def freshness_findings(review: dict, *, max_age_days: int, as_of: date | None = None) -> list[dict]:
+    """Report candidates that need a metadata recheck without mutating the ledger."""
+    today = as_of or date.today()
+    threshold = today - timedelta(days=max_age_days)
+    findings: list[dict] = []
+    reviewed_at = review.get("reviewed_at")
+    if _valid_iso_date(reviewed_at) and date.fromisoformat(reviewed_at) > today:
+        findings.append(_defect("review-future", "reviewed_at is later than the validation date"))
+    for index, candidate in enumerate(review.get("candidates", [])):
+        if not isinstance(candidate, dict):
+            continue
+        freshness = candidate.get("freshness", {})
+        checked_at = freshness.get("checked_at") if isinstance(freshness, dict) else None
+        status = freshness.get("status") if isinstance(freshness, dict) else None
+        if _valid_iso_date(checked_at) and date.fromisoformat(checked_at) > today:
+            findings.append(_defect("candidate-stale", "freshness check is later than the validation date", f"candidates[{index}]"))
+        elif status in {"outdated", "retired"}:
+            findings.append(_defect("candidate-stale", f"freshness status is {status}", f"candidates[{index}]"))
+        elif _valid_iso_date(checked_at) and date.fromisoformat(checked_at) < threshold:
+            findings.append(_defect("candidate-stale", f"freshness check is older than {max_age_days} days", f"candidates[{index}]"))
+    return findings
 
 
 def validate_repository(root: Path = ROOT) -> list[dict]:
@@ -394,6 +565,7 @@ def validate_repository(root: Path = ROOT) -> list[dict]:
         "No host fallback",
         "separate adoption PR",
         "adopt code",
+        "adopt tool",
         "adopt a pattern",
         "retain a test target",
         "reject",
@@ -403,13 +575,27 @@ def validate_repository(root: Path = ROOT) -> list[dict]:
     return defects
 
 
-def main() -> int:
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--check-freshness", action="store_true")
+    parser.add_argument("--max-age-days", type=int)
+    args = parser.parse_args(argv)
+    if args.max_age_days is not None and args.max_age_days <= 0:
+        parser.error("--max-age-days must be a positive integer")
     defects = validate_repository()
     if defects:
         for defect in defects:
             print(f"{defect['code']}: {defect['path']}: {defect['message']}")
         return 1
     review = json.loads((ROOT / REVIEW_PATH).read_text(encoding="utf-8"))
+    if args.check_freshness:
+        policy = json.loads((ROOT / POLICY_PATH).read_text(encoding="utf-8"))
+        max_age_days = args.max_age_days or policy["freshness_contract"]["max_age_days"]
+        stale = freshness_findings(review, max_age_days=max_age_days)
+        if stale:
+            for defect in stale:
+                print(f"{defect['code']}: {defect['path']}: {defect['message']}")
+            return 1
     print(f"SHAFT candidate intake is valid: {len(review['candidates'])} reviewed candidates")
     return 0
 
