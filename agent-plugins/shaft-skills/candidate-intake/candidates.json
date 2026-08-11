@@ -1,6 +1,6 @@
 {
-  "schema_version": 1,
-  "reviewed_at": "2026-08-09",
+  "schema_version": 2,
+  "reviewed_at": "2026-08-11",
   "code_adopted": false,
   "review_scope": {
     "candidate_ids": [
@@ -9,12 +9,24 @@
       "agent-plugins-v1-specification",
       "microsoft-cross-client-manifest-layout",
       "microsoft-azure-skill-content",
-      "openai-plugin-examples"
+      "openai-plugin-examples",
+      "claude-engineer-runtime",
+      "awesome-claude-code-catalog",
+      "nvidia-skillspector",
+      "agnix-guidance-linter",
+      "infrastructure-showcase-routing",
+      "compass-guardrail-corpus",
+      "presence-outcome-memory",
+      "claude-code-harness-runtime"
     ],
     "rejected_candidate_ids": [
       "anthropic-document-skills",
       "microsoft-azure-skill-content",
-      "openai-plugin-examples"
+      "openai-plugin-examples",
+      "claude-engineer-runtime",
+      "infrastructure-showcase-routing",
+      "presence-outcome-memory",
+      "claude-code-harness-runtime"
     ]
   },
   "candidates": [
@@ -57,9 +69,18 @@
       "evaluation": "Not evaluated because the provenance/license gate halted adoption.",
       "decision": "reject",
       "decision_reason": "Reject code adoption because the reviewed terms are not an open-source grant and the workflows duplicate first-party capabilities.",
+      "discovered_via": [
+        "https://github.com/anthropics/skills"
+      ],
+      "freshness": {
+        "checked_at": "2026-08-11",
+        "upstream_head": "f17010c9bb483898c1d9c9f42dde2b3a98889434",
+        "status": "current"
+      },
       "vendor_policy_duplication": false,
       "promotion_pr": null,
-      "adopted_files": []
+      "adopted_files": [],
+      "tool": null
     },
     {
       "id": "anthropic-skill-creator-eval-pattern",
@@ -98,9 +119,18 @@
       "evaluation": "Pattern passed through the local 30-case #4642 corpus and strict generated-drift checks.",
       "decision": "adopt-pattern",
       "decision_reason": "Adopt only the reviewed cases-plus-expectations pattern; retain SHAFT prompts, assertions, data, runners, and policy locally.",
+      "discovered_via": [
+        "https://github.com/anthropics/skills"
+      ],
+      "freshness": {
+        "checked_at": "2026-08-11",
+        "upstream_head": "f17010c9bb483898c1d9c9f42dde2b3a98889434",
+        "status": "current"
+      },
       "vendor_policy_duplication": false,
       "promotion_pr": null,
-      "adopted_files": []
+      "adopted_files": [],
+      "tool": null
     },
     {
       "id": "agent-plugins-v1-specification",
@@ -140,9 +170,18 @@
       "evaluation": "Retained as the portable package conformance target; native install and routing evidence remain independent.",
       "decision": "retain-test-target",
       "decision_reason": "Keep the official v1 specification as an external conformance target without copying policy or implementation code.",
+      "discovered_via": [
+        "https://github.com/agentplugins/agent-plugins-spec"
+      ],
+      "freshness": {
+        "checked_at": "2026-08-11",
+        "upstream_head": "bd383552095128f6effe895b9257cfd580a6d179",
+        "status": "current"
+      },
       "vendor_policy_duplication": false,
       "promotion_pr": null,
-      "adopted_files": []
+      "adopted_files": [],
+      "tool": null
     },
     {
       "id": "microsoft-cross-client-manifest-layout",
@@ -184,9 +223,18 @@
       "evaluation": "The locally authored adapter arrangement passes both pinned native clients without importing upstream manifests.",
       "decision": "adopt-pattern",
       "decision_reason": "Retain the thin-adapter idea only; SHAFT's manifests and client contracts remain locally authored and tested.",
+      "discovered_via": [
+        "https://github.com/MicrosoftDocs/Agent-Skills"
+      ],
+      "freshness": {
+        "checked_at": "2026-08-11",
+        "upstream_head": "00be373fec26109c3087728188f6a45554c47617",
+        "status": "outdated"
+      },
       "vendor_policy_duplication": false,
       "promotion_pr": null,
-      "adopted_files": []
+      "adopted_files": [],
+      "tool": null
     },
     {
       "id": "microsoft-azure-skill-content",
@@ -225,9 +273,18 @@
       "evaluation": "Rejected at static scope/overlap review before execution.",
       "decision": "reject",
       "decision_reason": "Reject vendor-specific policy duplication; the manifest pattern is reviewed separately.",
+      "discovered_via": [
+        "https://github.com/MicrosoftDocs/Agent-Skills"
+      ],
+      "freshness": {
+        "checked_at": "2026-08-11",
+        "upstream_head": "00be373fec26109c3087728188f6a45554c47617",
+        "status": "outdated"
+      },
       "vendor_policy_duplication": true,
       "promotion_pr": null,
-      "adopted_files": []
+      "adopted_files": [],
+      "tool": null
     },
     {
       "id": "openai-plugin-examples",
@@ -267,9 +324,363 @@
       "evaluation": "Rejected before execution; retained only as a cited official example source in this report.",
       "decision": "reject",
       "decision_reason": "Reject code adoption because repository-wide licensing is unresolved and the provider-specific catalog exceeds the narrow need.",
+      "discovered_via": [
+        "https://github.com/openai/plugins"
+      ],
+      "freshness": {
+        "checked_at": "2026-08-11",
+        "upstream_head": "11c74d6ba24d3a6d48f54a194cd00ef3beea18f9",
+        "status": "current"
+      },
       "vendor_policy_duplication": false,
       "promotion_pr": null,
-      "adopted_files": []
+      "adopted_files": [],
+      "tool": null
+    },
+    {
+      "id": "claude-engineer-runtime",
+      "category": "agent-runtime",
+      "source_url": "https://github.com/Doriandarko/claude-engineer",
+      "source_paths": [
+        "ce3.py",
+        "prompts/system_prompts.py",
+        "tools"
+      ],
+      "revision": "0a9e4b309bf6b2eda05dcf073cf5094beb08e0c8",
+      "version": "0.1.0",
+      "official_source": true,
+      "license": "MIT declared in pyproject.toml; no root LICENSE file detected by GitHub",
+      "permissions": "Dynamic tools can read and write files, launch a browser, capture the screen, install packages, and execute code.",
+      "network": "Uses hosted model, search, scraping, package, and E2B services and can open the system browser.",
+      "scripts": "Dynamically imports every tools module and can generate and hot-load new Python tools.",
+      "overlap": "Native host tools, Ponytail, plugin/skill creation, and quarantined candidate intake already own the useful capability-gap behavior with stronger controls.",
+      "material_kind": "code",
+      "stage_results": {
+        "provenance_license": {
+          "status": "pass",
+          "evidence": "Official repository and immutable revision are known; the package metadata declares MIT although repository-level license discovery is absent."
+        },
+        "static_review": {
+          "status": "halt",
+          "evidence": "The runtime permits self-modification, automatic package installation, GUI launch, screen capture, recursive tool execution, and broad network access while its tracked tests do not exercise those contracts."
+        },
+        "quarantine_trial": {
+          "status": "not_run",
+          "evidence": "Not run after the static safety and overlap HALT."
+        },
+        "local_evaluation": {
+          "status": "not_run",
+          "evidence": "Not run after HALT; local host-native tools and creation gates remain the baseline."
+        }
+      },
+      "evaluation": "Rejected after source-level comparison against the live ChaosEngine harness.",
+      "decision": "reject",
+      "decision_reason": "Reject runtime and code adoption because no unique capability outweighs its trust-boundary, GUI, dependency, and test-evidence gaps.",
+      "discovered_via": [
+        "https://github.com/Doriandarko/claude-engineer"
+      ],
+      "freshness": {
+        "checked_at": "2026-08-11",
+        "upstream_head": "0a9e4b309bf6b2eda05dcf073cf5094beb08e0c8",
+        "status": "current"
+      },
+      "vendor_policy_duplication": false,
+      "promotion_pr": null,
+      "adopted_files": [],
+      "tool": null
+    },
+    {
+      "id": "awesome-claude-code-catalog",
+      "category": "catalog",
+      "source_url": "https://github.com/hesreallyhim/awesome-claude-code",
+      "source_paths": [
+        "THE_RESOURCES_TABLE_NEW.csv",
+        "config.yaml",
+        "resources",
+        "tests"
+      ],
+      "revision": "b45279417f51010b9b5bd8db7aa8fb10ec255806",
+      "version": null,
+      "official_source": true,
+      "license": "CC-BY-NC-ND-4.0",
+      "permissions": "Catalog data and maintenance scripts operate on repository files and GitHub issue/PR metadata.",
+      "network": "Repository metadata and ticker maintenance query GitHub; the adopted local pattern performs no implicit network call.",
+      "scripts": "CSV validation, duplicate guards, generated README maintenance, issue intake, and freshness fields.",
+      "overlap": "Candidate intake already records provenance and decisions but lacks per-candidate freshness, policy-owned categories, and a tool-adoption decision.",
+      "material_kind": "pattern",
+      "stage_results": {
+        "provenance_license": {
+          "status": "pass",
+          "evidence": "Official repository and immutable revision are known; the restrictive license permits studying but not copying or modifying the catalog implementation."
+        },
+        "static_review": {
+          "status": "pass",
+          "evidence": "Reviewed the schema and maintenance flow; selected only generic freshness, category ownership, and duplicate-source concepts."
+        },
+        "quarantine_trial": {
+          "status": "not_applicable",
+          "evidence": "Pattern-only local reimplementation; no upstream code or data executed."
+        },
+        "local_evaluation": {
+          "status": "pass",
+          "evidence": "The locally authored v2 validator and mutation tests exercise freshness, categories, and tool evidence without copying upstream content."
+        }
+      },
+      "evaluation": "The maintenance pattern closes concrete lifecycle gaps while preserving the existing local JSON owner.",
+      "decision": "adopt-pattern",
+      "decision_reason": "Adopt only the catalog-maintenance concepts through locally authored validation and data fields.",
+      "discovered_via": [
+        "https://github.com/hesreallyhim/awesome-claude-code"
+      ],
+      "freshness": {
+        "checked_at": "2026-08-11",
+        "upstream_head": "b45279417f51010b9b5bd8db7aa8fb10ec255806",
+        "status": "current"
+      },
+      "vendor_policy_duplication": false,
+      "promotion_pr": null,
+      "adopted_files": [],
+      "tool": null
+    },
+    {
+      "id": "nvidia-skillspector",
+      "category": "security-scanner",
+      "source_url": "https://github.com/NVIDIA/SkillSpector",
+      "source_paths": [
+        "src/skillspector/nodes/analyzers",
+        "src/skillspector/cli.py",
+        "tests"
+      ],
+      "revision": "81e2c4d30c175fce8b6f622e84c54bc399a756ce",
+      "version": "v2.9.2",
+      "official_source": true,
+      "license": "Apache-2.0",
+      "permissions": "Reads candidate files; optional providers can use credentials, but the proposed path disables LLM analysis and credentials.",
+      "network": "Static SC4 can query OSV with offline fallback; promotion must enforce a no-network scan container.",
+      "scripts": "Python scanner with static, AST, taint, YARA, MCP, and optional semantic analyzers.",
+      "overlap": "The current intake inventories executables, hooks, secrets, and containment but does not detect malicious instruction or behavior patterns.",
+      "material_kind": "test-target",
+      "stage_results": {
+        "provenance_license": {
+          "status": "pass",
+          "evidence": "Official NVIDIA source, Apache-2.0 license, release v2.9.2, and immutable revision are known."
+        },
+        "static_review": {
+          "status": "pass",
+          "evidence": "Reviewed the static-only CLI contract, 68-pattern catalog, JSON output, exit semantics, network fallback, and test tree."
+        },
+        "quarantine_trial": {
+          "status": "not_applicable",
+          "evidence": "Retained only as an external target in this intake PR; executable promotion is issue #4703."
+        },
+        "local_evaluation": {
+          "status": "pass",
+          "evidence": "Source comparison proves a concrete malicious-skill detection gap; no claim of executable acceptance is made before #4703."
+        }
+      },
+      "evaluation": "Strong candidate for isolated promotion after a real pinned Docker trial.",
+      "decision": "retain-test-target",
+      "decision_reason": "Retain the scanner contract and pinned source pending the separate executable promotion gate.",
+      "discovered_via": [
+        "https://github.com/hesreallyhim/awesome-claude-code"
+      ],
+      "freshness": {
+        "checked_at": "2026-08-11",
+        "upstream_head": "81e2c4d30c175fce8b6f622e84c54bc399a756ce",
+        "status": "current"
+      },
+      "vendor_policy_duplication": false,
+      "promotion_pr": null,
+      "adopted_files": [],
+      "tool": null
+    },
+    {
+      "id": "agnix-guidance-linter",
+      "category": "guidance-linter",
+      "source_url": "https://github.com/agent-sh/agnix",
+      "source_paths": [
+        "crates/agnix-core/src/rules",
+        "crates/agnix-cli",
+        "tests"
+      ],
+      "revision": "3792c6cfdf2e56ddf205340fb5afe8f272218501",
+      "version": "v0.48.0",
+      "official_source": true,
+      "license": "Apache-2.0",
+      "permissions": "Reads agent configuration files; autofix and editor modes can write, but the proposed validation path is read-only.",
+      "network": "Standalone linting is local; telemetry is opt-in and disabled in CI and will also be explicitly disabled.",
+      "scripts": "Rust CLI and LSP with cross-client rules, machine-readable output, and release binaries.",
+      "overlap": "Local validators own repository-specific budgets and reachability; agnix adds broad official-format and cross-client conformance coverage.",
+      "material_kind": "test-target",
+      "stage_results": {
+        "provenance_license": {
+          "status": "pass",
+          "evidence": "Official source, Apache-2.0 license, v0.48.0 release, and immutable revision are known."
+        },
+        "static_review": {
+          "status": "pass",
+          "evidence": "Reviewed supported file types, rule families, release assets, telemetry default-off behavior, and CI interfaces."
+        },
+        "quarantine_trial": {
+          "status": "not_applicable",
+          "evidence": "Retained only as an external target in this intake PR; executable promotion is issue #4702."
+        },
+        "local_evaluation": {
+          "status": "pass",
+          "evidence": "Source comparison identifies format coverage outside the current repository-specific validators without claiming a trial result."
+        }
+      },
+      "evaluation": "Strong candidate for a pinned read-only promotion after Docker evidence and baseline triage.",
+      "decision": "retain-test-target",
+      "decision_reason": "Retain the conformance contract pending the separate executable promotion gate.",
+      "discovered_via": [
+        "https://github.com/hesreallyhim/awesome-claude-code"
+      ],
+      "freshness": {
+        "checked_at": "2026-08-11",
+        "upstream_head": "3792c6cfdf2e56ddf205340fb5afe8f272218501",
+        "status": "current"
+      },
+      "vendor_policy_duplication": false,
+      "promotion_pr": null,
+      "adopted_files": [],
+      "tool": null
+    },
+    {
+      "id": "infrastructure-showcase-routing",
+      "category": "skill-routing",
+      "source_url": "https://github.com/diet103/claude-code-infrastructure-showcase",
+      "source_paths": [
+        ".claude/hooks/skill-activation-prompt.ts",
+        ".claude/hooks/skill-verification-guard.ts",
+        ".claude/hooks/README.md"
+      ],
+      "revision": "07f75ce3c301259e857343596e7883b8ce5a9f50",
+      "version": null,
+      "official_source": true,
+      "license": "MIT",
+      "permissions": "Hooks read prompts, files, session state, and skill rules and can inject context.",
+      "network": "Optional classification and vector search use multiple hosted or local providers.",
+      "scripts": "Node/TypeScript hooks with npm dependencies, shell adapters, session state, embeddings, and provider clients.",
+      "overlap": "act-as-mohab already provides one deterministic, cross-host router with reachability and routing-corpus tests.",
+      "material_kind": "code",
+      "stage_results": {
+        "provenance_license": {"status": "pass", "evidence": "Official repository, MIT license, and immutable revision are known."},
+        "static_review": {"status": "halt", "evidence": "Provider-specific prompt classification, npm hook dependencies, fallback behavior, and no focused tracked tests add cost and ambiguity without closing a local routing gap."},
+        "quarantine_trial": {"status": "not_run", "evidence": "Not run after overlap and portability HALT."},
+        "local_evaluation": {"status": "not_run", "evidence": "Not run after HALT; local routing corpus and guard remain authoritative."}
+      },
+      "evaluation": "Rejected after comparing the activation flow with the live single-entrypoint router.",
+      "decision": "reject",
+      "decision_reason": "Reject because it duplicates routing with a larger provider-specific and dependency-bearing surface.",
+      "discovered_via": ["https://github.com/hesreallyhim/awesome-claude-code"],
+      "freshness": {"checked_at": "2026-08-11", "upstream_head": "07f75ce3c301259e857343596e7883b8ce5a9f50", "status": "current"},
+      "vendor_policy_duplication": true,
+      "promotion_pr": null,
+      "adopted_files": [],
+      "tool": null
+    },
+    {
+      "id": "compass-guardrail-corpus",
+      "category": "guardrail-evaluation",
+      "source_url": "https://github.com/dshakes/compass",
+      "source_paths": [
+        "scripts/guardrail-corpus.tsv",
+        "docs/18-benchmark.md"
+      ],
+      "revision": "fb41822123b4b556079b9a1c945c2521404ec978",
+      "version": null,
+      "official_source": true,
+      "license": "MIT",
+      "permissions": "Read-only labeled corpus and benchmark documentation.",
+      "network": "No runtime network is required after the pinned corpus is fetched and hash-verified.",
+      "scripts": "Offline TSV scoring reference; broader compass runtime is outside the selected paths.",
+      "overlap": "ChaosEngine has extensive self-tests but lacks an independently authored external destructive-command corpus.",
+      "material_kind": "test-target",
+      "stage_results": {
+        "provenance_license": {"status": "pass", "evidence": "Official repository, MIT license, and immutable revision are known."},
+        "static_review": {"status": "pass", "evidence": "Reviewed the corpus schema, labels, stated precision/recall floors, and offline execution contract."},
+        "quarantine_trial": {"status": "not_applicable", "evidence": "Plain-text external conformance target; no upstream executable is adopted."},
+        "local_evaluation": {"status": "pass", "evidence": "The applicable command rows map to ChaosEngine's PreToolUse command boundary; executable scoring is issue #4704."}
+      },
+      "evaluation": "Useful independent test target; the compass runtime and policy remain out of scope.",
+      "decision": "retain-test-target",
+      "decision_reason": "Retain the pinned corpus for a separate hash-verified external evaluation lane.",
+      "discovered_via": ["https://github.com/hesreallyhim/awesome-claude-code"],
+      "freshness": {"checked_at": "2026-08-11", "upstream_head": "fb41822123b4b556079b9a1c945c2521404ec978", "status": "current"},
+      "vendor_policy_duplication": false,
+      "promotion_pr": null,
+      "adopted_files": [],
+      "tool": null
+    },
+    {
+      "id": "presence-outcome-memory",
+      "category": "outcome-memory",
+      "source_url": "https://github.com/sara-star-quant/presence",
+      "source_paths": [
+        "skills/confidence-gate/SKILL.md",
+        "skills/outcome-check/SKILL.md",
+        "docs/security.md"
+      ],
+      "revision": "6e8c301b0a1d5c254c4325e8df116b9ee2c577fc",
+      "version": null,
+      "official_source": true,
+      "license": "Apache-2.0",
+      "permissions": "Hooks read local transcripts and persist per-user state under a provider-specific home directory.",
+      "network": "Default local-only behavior has optional release, pull-request, and webhook calls.",
+      "scripts": "Shell hooks, Python daemon and MCP code, local telemetry, redaction, encryption, and provider adapters.",
+      "overlap": "Native Memory, MemPalace, Graphify, evidence rules, review findings, and PR ownership already cover the useful outcomes without a fourth memory layer.",
+      "material_kind": "code",
+      "stage_results": {
+        "provenance_license": {"status": "pass", "evidence": "Official repository, Apache-2.0 license, and immutable revision are known."},
+        "static_review": {"status": "halt", "evidence": "The provider-specific transcript and user-state runtime duplicates the established three-store retrieval contract and adds hooks, daemon state, and optional network paths."},
+        "quarantine_trial": {"status": "not_run", "evidence": "Not run after architecture-overlap HALT."},
+        "local_evaluation": {"status": "not_run", "evidence": "Not run after HALT; current retrieval and evidence gates remain the baseline."}
+      },
+      "evaluation": "Rejected as a parallel memory and telemetry stack.",
+      "decision": "reject",
+      "decision_reason": "Reject because it duplicates durable knowledge ownership and adds provider-specific persisted state.",
+      "discovered_via": ["https://github.com/hesreallyhim/awesome-claude-code"],
+      "freshness": {"checked_at": "2026-08-11", "upstream_head": "6e8c301b0a1d5c254c4325e8df116b9ee2c577fc", "status": "current"},
+      "vendor_policy_duplication": true,
+      "promotion_pr": null,
+      "adopted_files": [],
+      "tool": null
+    },
+    {
+      "id": "claude-code-harness-runtime",
+      "category": "cross-client-harness",
+      "source_url": "https://github.com/Chachamaru127/claude-code-harness",
+      "source_paths": [
+        "agents/reviewer.md",
+        "skills",
+        "go",
+        "scripts"
+      ],
+      "revision": "9736a5b4eba7d836b31df85d73dc4722a464d9c4",
+      "version": null,
+      "official_source": true,
+      "license": "MIT",
+      "permissions": "Broad multi-host plugin runtime with setup scripts, hooks, state, subprocesses, and release workflows.",
+      "network": "Installation, companion clients, release, and cross-model review paths can use network services.",
+      "scripts": "Large Go, shell, JavaScript, plugin, schema, benchmark, and multi-host adapter surface.",
+      "overlap": "ChaosEngine already has stricter RED/GREEN, independent evidence-block reviews, capability-level roles, single-entry routing, and PR merge ownership.",
+      "material_kind": "code",
+      "stage_results": {
+        "provenance_license": {"status": "pass", "evidence": "Official repository, MIT license, and immutable revision are known."},
+        "static_review": {"status": "halt", "evidence": "The runtime substantially duplicates the local harness, includes provider/model pins in tracked guidance, and would replace rather than narrow an invariant owner."},
+        "quarantine_trial": {"status": "not_run", "evidence": "Not run after duplication and policy HALT."},
+        "local_evaluation": {"status": "not_run", "evidence": "Not run after HALT; local review format and lifecycle tests are stronger and already enforced."}
+      },
+      "evaluation": "Rejected as a competing harness rather than an incremental capability.",
+      "decision": "reject",
+      "decision_reason": "Reject runtime adoption; keep the existing provider-agnostic root owners.",
+      "discovered_via": ["https://github.com/hesreallyhim/awesome-claude-code"],
+      "freshness": {"checked_at": "2026-08-11", "upstream_head": "9736a5b4eba7d836b31df85d73dc4722a464d9c4", "status": "current"},
+      "vendor_policy_duplication": true,
+      "promotion_pr": null,
+      "adopted_files": [],
+      "tool": null
     }
   ]
 }
