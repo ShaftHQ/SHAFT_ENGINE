@@ -1,6 +1,8 @@
 # IntelliJ Plugin Capture Workflow
 
-Use this flow to validate the assistant-driven e2e capture path. This workflow does not include video capture.
+Use this flow to validate the assistant-driven e2e capture path. For the
+reproducible headed recording, duplicate-frame processing, verified replay,
+and Drive evidence, follow [RUNBOOK.md](RUNBOOK.md).
 
 ## Build
 
@@ -46,13 +48,13 @@ Screenshot commands write workspace evidence paths and omit base64 payloads by d
 2. Confirm the managed browser opens and remains open.
 3. In the managed browser:
    - open DuckDuckGo
-   - search for `SHAFT Engine`
-   - open the first result
-   - validate the page title
+   - search for `shaft_engine`
+   - assert the first result title contains `ShaftHQ`
 4. Send `stop` in Assistant.
 5. Review the generated capture code blocks shown in chat.
 6. Approve generation with `approve`, `okay`, or `generate`.
-7. Confirm the local agent writes Page Object Model automation files after approval.
+7. Confirm the local agent writes the generated test/data, refactors browser
+   operations into a Page Object, and passes the focused headed replay.
 
 ## Assistant Mobile Recording
 

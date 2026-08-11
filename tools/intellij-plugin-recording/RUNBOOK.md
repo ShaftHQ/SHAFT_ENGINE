@@ -1,227 +1,217 @@
-# IntelliJ SHAFT Capture Demo -- Runbook
+# IntelliJ SHAFT capture demo runbook
 
 Tracking issue: [#4299](https://github.com/ShaftHQ/SHAFT_ENGINE/issues/4299).
 
-> **Status: scaffolding only.** This runbook, the local-scope Windows-MCP
-> installer, and the reset-scripted demo project are landed and verified.
-> The actual recorded take -- plugin install, Assistant recording,
-> DuckDuckGo search + assertion, codegen, video post-processing, Drive
-> upload -- has **not** been performed yet. That step needs a fresh Claude
-> Code session started *after* `install-windows-mcp.ps1` has run, since MCP
-> servers are only discovered at session start (see Prerequisites). Update
-> this status line once a real take has been recorded end to end.
+## Delivered reference take
 
-## Goal
+Executed on Windows on 2026-08-11 with sandboxed IntelliJ 2024.3 and
+SHAFT 10.3.20260809.
 
-Produce a real, AI-driven (no human touching the mouse/keyboard) screen
-recording of: installing the SHAFT IntelliJ plugin's optional upgrade,
-asking the SHAFT Assistant to record a browser flow (DuckDuckGo search for
-`shaft_engine`, assert the first result contains `shafthq`), stopping the
-recording, running codegen, and reviewing the generated test + page object.
-The recording is then post-processed (duplicate near-static frames removed)
-and uploaded to Google Drive.
+- Video: [SHAFT-IntelliJ-Assistant-demo-issue-4299-final.mp4](https://drive.google.com/file/d/1Tyuo6HJ9MNRd0AKaFrESIP1JpU0mlJFM/view)
+- Processed media: 2560 x 1440, 15 fps, 152.33 seconds, 11,553,949 bytes.
+- Preserved concatenated raw media: 1,022 seconds, 71,296,536 bytes. The
+  reference take used four bounded segments, assembled as documented below.
+- Replay: TestNG 1 test, 0 failures, 0 errors. The closing frames show the
+  generated test, Page Object, data file, and 100% Allure result.
+
+The Drive file ID and preview were verified after upload. Automated
+organization sharing returned `permission.domain: invalid or not applicable`.
+If the link is not visible to its intended audience, the owner must use
+**Share -> General access -> Anyone with the link -> Viewer** and verify from
+a signed-out window. Upload success alone does not prove public access.
+
+## Safety boundary
+
+Use a UI connector limited to visible IDE/browser operations. The reference
+take used the bundled Windows Computer Use connector as the equivalent
+approved by #4299.
+
+- Allowed: activate applications, inspect visible state, click, type, scroll,
+  press shortcuts, and take screenshots.
+- Do not automate terminals, authentication dialogs, password managers,
+  security/privacy prompts, registry changes, process termination, or
+  arbitrary filesystem operations.
+- The SHAFT Assistant used its configured Gemini provider. Do not automate a
+  coding-agent UI through Computer Use.
+- `install-windows-mcp.ps1` remains an optional user-local alternative with
+  shell, registry, process, filesystem, scraping, clipboard, and bulk-edit
+  tools excluded.
 
 ## Prerequisites
 
-| Requirement | Verified as | Notes |
-|---|---|---|
-| `ffmpeg` | `ffmpeg version 8.1.1-essentials_build` | Already installed on this machine; `gdigrab` (Windows screen capture) ships built in, no extra install. |
-| `uv`/`uvx` | `uv 0.11.29` | Used to run Windows-MCP without a manual pip install (`uvx windows-mcp ...`). |
-| Windows-MCP | via `install-windows-mcp.ps1` (below) | github.com/CursorTouch/Windows-MCP. **Local scope only** -- never add it to this repo's checked-in `.mcp.json`; its own README says it "operates with full system access and can perform irreversible operations." |
-| JDK for `shaft-intellij`'s Gradle daemon | `~/.jdks/ms-21.0.11` | **Must** be JDK 21 or earlier. JDK 25 crashes the Gradle Daemon on Windows (`EXCEPTION_ACCESS_VIOLATION` in G1 GC) -- `shaft-intellij/settings.gradle.kts` fails fast with an actionable message if it detects a newer JDK (issue #3784). See `../../.agents/skills/act-as-mohab/references/shaft-mastery/intellij-plugin.md`. |
+- JDK 21 for the `shaft-intellij` Gradle daemon.
+- Maven, Chrome, `ffmpeg`, and `ffprobe` with Windows `gdigrab`.
+- A configured SHAFT Assistant provider key. Enter it only in the masked IDE
+  field and clear the clipboard afterward.
 
-## 1. Install Windows-MCP (local scope, scoped-down tools)
-
-```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File tools\intellij-plugin-recording\install-windows-mcp.ps1
-```
-
-This runs:
-
-```
-claude mcp add windows-mcp --scope local -- uvx windows-mcp serve --tools "Click,Type,Scroll,Move,Shortcut,Wait,WaitFor,Screenshot,Snapshot,App"
-```
-
-- **`--scope local`** writes to the current user's own `~/.claude.json`
-  project entry, never to this repo's `.mcp.json`. Verify with
-  `git status --short .mcp.json` (must be empty) after running.
-- **Tool allow-list**: `Click, Type, Scroll, Move, Shortcut, Wait, WaitFor,
-  Screenshot, Snapshot, App` -- every UI-Interaction / Desktop-Capture /
-  Application-Management tool the server offers, nothing more. `Snapshot`
-  (the Windows UI Automation accessibility-tree read) is included on
-  purpose: it's why Windows-MCP was chosen over vision/pixel-based clicking
-  for a Swing-based IDE. **Explicitly excluded**: `PowerShell` (raw shell
-  execution), `Registry`, `Process` (can kill arbitrary processes),
-  `FileSystem` (arbitrary read/write/delete), `Scrape`, `MultiSelect`/
-  `MultiEdit` (bulk-edit blast radius), `Clipboard`, `Notification`.
-- The script is idempotent: if `windows-mcp` is already registered at local
-  scope it reports that and exits 0 rather than re-registering.
-- **Restart Claude Code after running this** -- MCP servers are only
-  discovered when a session starts; a session that was already running
-  when you registered the server will not see its tools.
-
-## 2. Launch the sandboxed IDE
-
-```powershell
-$env:JAVA_HOME = "$env:USERPROFILE\.jdks\ms-21.0.11"
-cd shaft-intellij
-.\gradlew.bat runIde
-```
-
-This builds the local plugin and launches a **sandboxed** IntelliJ instance
-with it pre-loaded -- not your real IDE install. First run downloads the
-IntelliJ Platform distribution into the Gradle cache and can take several
-minutes; subsequent runs are much faster.
-
-Verified 2026-07-28: build went `initializeIntellijPlatformPlugin` ->
-`compileJava` -> `prepareSandbox` -> `runIde`, and produced a real, visible,
-on-screen window (`Get-Process java | Select MainWindowTitle` showed
-`"Welcome to IntelliJ IDEA (Administrator)"` with a non-zero window handle).
-Stop it with `taskkill /PID <gradlew PID> /T /F` -- `runIde` blocks the
-Gradle task for as long as the IDE stays open, so it will not exit on its
-own when you're done.
-
-## 3. Reset the demo project before every take
+## 1. Reset the external demo
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File tools\intellij-plugin-recording\reset-demo-project.ps1
 ```
 
-Deletes and re-copies `demo-project-template/` into
-`%USERPROFILE%\shaft-demo-workspace\selenium-testng-demo` (override with
-`-TargetPath`). Deliberately outside this repo, so opening it in IntelliJ
-never touches SHAFT_ENGINE's own VCS state. Run this before the *first*
-take and before every re-recording attempt -- it wipes `.idea/`, `target/`,
-and any codegen output a previous attempt left behind.
+The default target is
+`%USERPROFILE%\shaft-demo-workspace\selenium-testng-demo`. It is outside the
+repository and must be reset before every take.
 
-The template is a minimal Maven project: `selenium-java` + `testng` on the
-classpath, one trivial passing `SampleTest`, and deliberately **no** SHAFT
-dependency and **no** real Selenium test yet -- the demo's whole point is
-that the plugin's Assistant adds the DuckDuckGo test + page object live,
-during the recording.
+## 2. Build and launch the sandbox
 
-Verified 2026-07-28: ran the script, then `mvn -Dtest=SampleTest
--Dallure.automaticallyOpen=false -DheadlessExecution=true test` (surefire:
-`Tests run: 1, Failures: 0, Errors: 0`); then deliberately dirtied the
-working copy (stray `.idea/`, `target/`, a fake leftover
-`DuckDuckGoTest.java`) and re-ran the script -- confirmed it restores
-exactly the two template files.
-
-## 4. The recording procedure (not yet performed -- see status banner)
-
-1. Start the screen recording (see step 5) *before* touching the IDE.
-2. In the sandboxed IDE, open the reset demo project
-   (`%USERPROFILE%\shaft-demo-workspace\selenium-testng-demo`).
-3. Install the SHAFT plugin (`Settings > Plugins`, or via the SHAFT tool
-   window if pre-bundled by `runIde`) and complete first-run setup --
-   including the optional upgrade-to-SHAFT step. Pre-handle the first-run
-   popups called out in Known Pitfalls below so they don't clutter the
-   recording.
-4. Ask the SHAFT Assistant to start a recording (`start recording`).
-5. In the managed browser: open DuckDuckGo, search `shaft_engine`, assert
-   the first result contains the text `shafthq`.
-6. Tell the Assistant to stop the recording (`stop`).
-7. Ask it to run codegen against the capture and approve generation
-   (`approve` / `okay` / `generate`).
-8. Let playback and codegen finish; show the generated test class and page
-   object class.
-9. Stop the screen recording.
-
-The existing `tools/intellij-plugin-recording/README.md` documents the
-non-video-capture version of steps 4-8 (`Capture Scenario` section) in more
-detail and is the pattern this procedure follows; this runbook adds the
-video capture, the plugin *install* step (not just an already-built plugin),
-and the DuckDuckGo/`shafthq` assertion specifics.
-
-## 5. Screen recording and post-processing (commands verified, not yet run for a real take)
-
-Record with `gdigrab` (Windows' built-in screen-capture demuxer, no extra
-install):
+Select any installed JDK 21 as `JAVA_HOME`, then use the repository wrapper:
 
 ```powershell
-ffmpeg -f gdigrab -framerate 15 -i desktop raw-capture.mp4
+$env:JAVA_HOME = '<absolute path to a JDK 21 installation>'
+shaft-intellij\gradlew.bat -p shaft-intellij check buildPlugin verifyPlugin
+shaft-intellij\gradlew.bat -p shaft-intellij runIde
 ```
 
-(Ctrl+C to stop.) Back up the raw file before post-processing -- do not
-process in place.
+Open the reset demo project. On the JetBrains trust dialog, clear the Windows
+Defender exclusion checkbox. Dismiss nonessential IDE suggestions before
+recording.
 
-Remove near-duplicate consecutive frames (e.g. the mouse moving with
-nothing else changing) with `mpdecimate`, then renumber timestamps with
-`setpts` so the result plays at a consistent rate:
+## 3. Complete SHAFT setup
+
+In the SHAFT tool window:
+
+1. Configure the Assistant provider and test the connection.
+2. Install/verify `shaft-mcp`, `shaft-cli`, and SHAFT skills.
+3. Use the deterministic repository installer shown by the setup panel if
+   the UI installer is unavailable.
+4. Approve the optional SHAFT project upgrade.
+
+The reference take also verified the non-AI upgrader:
 
 ```powershell
-ffmpeg -i raw-capture.mp4 -vf "mpdecimate,setpts=N/FRAME_RATE/TB" -an processed-capture.mp4
+py -3 shaft-upgrader\upgrade_to_modular_shaft.py --project "$env:USERPROFILE\shaft-demo-workspace\selenium-testng-demo" --yes --no-ai
 ```
 
-Sanity-checked on a 2-second test clip of a mostly-static desktop
-(2026-07-28): input was 30 frames / 2.00s; `mpdecimate` output was 13 frames
-/ 0.87s -- confirms the filter drops duplicate frames as intended. A real
-multi-minute take with genuine idle/reading stretches should compress more
-in both frame count and file size than this trivial sanity check; verify
-size and playability again on the real recording before uploading (see
-Deliverables checkpoint 6 in issue #4299).
+Both baseline and upgraded Maven compilation must pass before recording.
 
-## 6. Upload
+## 4. Record the real browser flow
 
-Upload the processed `.mp4` to Google Drive root via
-`mcp__claude_ai_Google_Drive__create_file` with `base64Content` +
-`contentMimeType: "video/mp4"` + `disableConversionToGoogleType: true` (so
-it isn't converted to a Google-native type). **Do not claim the upload is
-shared successfully without independently re-fetching the file's metadata**
-(`get_file_metadata`) -- issue #3285's own attempt found automated sharing
-unreliable even though the upload itself succeeded.
+```powershell
+$videoDir = "$env:USERPROFILE\shaft-demo-workspace\issue-4299-video"
+$main = "$videoDir\main.mp4"
+powershell -NoProfile -ExecutionPolicy Bypass -File tools\intellij-plugin-recording\capture-desktop.ps1 -OutputPath $main -FrameRate 15 -MaximumDurationSeconds 900
+```
 
-## Known pitfalls (from issue #3285 -- read before re-attempting)
+The script prints a stop-file path. Creating it sends `q` to ffmpeg so the
+MP4 is finalized cleanly.
 
-Issue #3285 was an earlier, near-identical manual attempt at this same
-DuckDuckGo/POM demo (no video capture). It is **closed**, reportedly fixed
-via [#3286](https://github.com/ShaftHQ/SHAFT_ENGINE/pull/3286) with a paired
-docs sync in `shafthq.github.io#708`. That fix has **not been
-re-independently verified** as part of this scaffolding-only PR (no live
-Assistant session was driven here) -- treat the following as "watch for
-this recurring, confirm it's actually gone" rather than "guaranteed fixed":
+In the SHAFT Assistant:
 
-- **Source-edit approval gate**: the built-in optimization prompt could not
-  proceed in Agent mode unless `Allow source edits` was approved, with no
-  read-only audit path when source edits were disabled.
-- **DuckDuckGo POM request mis-routing**: asking Agent mode for DuckDuckGo
-  Page Object Model code (with source edits enabled) routed the prompt
-  through `sequence` and started `driver_initialize` -- a live browser
-  execution -- instead of returning or adding focused Java POM code.
-- **Broad unrelated repo changes**: that same run generated broad,
-  unrelated repo changes and artifacts (provider/config/test edits plus
-  generated report/resource folders) before it was cancelled and manually
-  reverted. **If this recurs during the real take: stop immediately, do not
-  let anything unintended get committed**, and re-open a fresh issue
-  referencing #3285 and #4299.
-- **First-run IDE popup clutter**: JetBrains project trust defaults the
-  Windows Defender exclusion checkbox on, and terminal/Cucumber suggestion
-  popups can overlap the setup panel. Dismiss/pre-handle before starting the
-  actual recording take.
-- **Windows Firewall prompt**: an earlier pass saw a Firewall prompt for an
-  OpenJDK process during driver initialization. Pre-approve or otherwise
-  handle this before recording so it doesn't interrupt or appear in the
-  footage.
-- **Google Drive auto-share unreliability**: #3285's upload succeeded but
-  automated sharing failed for both workspace-domain sharing and the local
-  Git email -- the resulting link may need the owner to adjust access
-  manually. Don't claim sharing succeeded without checking
-  `get_file_metadata`.
-- **Non-interactive setup fallback**: the plugin's own copied setup command
-  did not offer a non-interactive skills-install path in the visible UI
-  flow; `scripts/mcp/install-shaft-mcp.ps1 -Client codex
-  --install-shaft-skills --json` is the deterministic fallback used to keep
-  setup scriptable, but the real take should still show the UI-driven
-  install (that's the point of an onboarding demo) and use the script only
-  as a sanity-check, not a silent substitute for the recorded flow.
+1. Ask `start recording https://duckduckgo.com`.
+2. In the managed headed browser, enter `shaft_engine` and submit.
+3. Verify the first visible result is ShaftHQ/SHAFT_ENGINE.
+4. Add **Text contains** on the first result title with value `ShaftHQ`.
+   Generated `contains` assertions are case-sensitive.
+5. Ask `stop` and preserve the returned capture JSON under `recordings/`.
 
-## Files in this directory
+The reference capture completed six events: tab open, navigation, click,
+type, submission/navigation, and `TEXT_CONTAINS` verification.
+
+## 5. Generate, create the Page Object, and replay
+
+```powershell
+shaft-cli codegen --session recordings\<capture>.json --output-dir . --package tests.generated --class-name RecordedFlowTest --overwrite
+```
+
+Expected generated artifacts:
+
+- `src/test/java/tests/generated/RecordedFlowTest.java`
+- `src/test/resources/testDataFiles/recorded-flow-test.json`
+
+Ask the Assistant to refactor the browser operations into
+`src/test/java/pages/DuckDuckGoPage.java`, leaving the generated test as its
+consumer. Show all three files in the recording.
+
+Remove only the demo project's prior test evidence, then force a headed,
+focused replay:
+
+```powershell
+Remove-Item -LiteralPath allure-results,allure-report,allure-single -Recurse -Force -ErrorAction SilentlyContinue
+mvn clean test '-Dtest=tests.generated.RecordedFlowTest' '-DheadlessExecution=false' '-Dallure.automaticallyOpen=false'
+allure generate allure-results --single-file --clean --output allure-single
+```
+
+Inspect the Surefire XML rather than trusting Maven's banner. Acceptance is
+exactly 1 newly written test, 0 failures, 0 errors. Open the new
+`allure-single\index.html` in the headed browser for the closing proof. The
+reference take used externalized values `shaft_engine` and `ShaftHQ` and a
+first-result locator targeting `article#r1-0 [data-testid=result-title-a]`.
+
+Friction found during the take is tracked in
+[#4715](https://github.com/ShaftHQ/SHAFT_ENGINE/issues/4715),
+[#4716](https://github.com/ShaftHQ/SHAFT_ENGINE/issues/4716), and
+[#4717](https://github.com/ShaftHQ/SHAFT_ENGINE/issues/4717).
+
+## 6. Stop, assemble, and post-process
+
+```powershell
+New-Item -ItemType File -Path "$main.stop" -Force
+```
+
+If the main capture contains every accepted step, process it directly:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File tools\intellij-plugin-recording\postprocess-desktop-capture.ps1 -InputPath $main -OutputPath "$videoDir\final.mp4"
+```
+
+The reference take instead kept the accepted long setup and added three short
+segments so a failed closing proof did not invalidate it. Keep the desktop
+resolution unchanged and capture each supplement through the same script at
+15 fps; each command prints the marker to create from the orchestration shell
+after the named proof is visible:
+
+```powershell
+$success = "$videoDir\success-15fps.mp4"
+powershell -NoProfile -ExecutionPolicy Bypass -File tools\intellij-plugin-recording\capture-desktop.ps1 -OutputPath $success -FrameRate 15 -MaximumDurationSeconds 120
+
+$allureProof = "$videoDir\allure-proof.mp4"
+powershell -NoProfile -ExecutionPolicy Bypass -File tools\intellij-plugin-recording\capture-desktop.ps1 -OutputPath $allureProof -FrameRate 15 -MaximumDurationSeconds 120
+
+$pageObjectProof = "$videoDir\page-object-proof.mp4"
+powershell -NoProfile -ExecutionPolicy Bypass -File tools\intellij-plugin-recording\capture-desktop.ps1 -OutputPath $pageObjectProof -FrameRate 15 -MaximumDurationSeconds 120
+```
+
+After finalizing all four files through their printed stop markers, assemble
+them without re-encoding and post-process that preserved combined raw file:
+
+```powershell
+$segments = @(
+    $main,
+    $success,
+    $allureProof,
+    $pageObjectProof
+)
+$concatFile = "$videoDir\concat.txt"
+$concatLines = $segments | ForEach-Object {
+    if ($_ -match "'") { throw "Segment path contains an unsupported single quote: $_" }
+    "file '$($_.Replace('\', '/'))'"
+}
+[System.IO.File]::WriteAllLines($concatFile, $concatLines, [System.Text.UTF8Encoding]::new($false))
+ffmpeg -hide_banner -loglevel warning -f concat -safe 0 -i $concatFile -c copy -n "$videoDir\combined-raw.mp4"
+powershell -NoProfile -ExecutionPolicy Bypass -File tools\intellij-plugin-recording\postprocess-desktop-capture.ps1 -InputPath "$videoDir\combined-raw.mp4" -OutputPath "$videoDir\final.mp4"
+```
+
+The postprocessor refuses in-place/overwrite operations, preserves raw media,
+removes near-duplicate frames with `mpdecimate`, renumbers timestamps, writes
+H.264/yuv420p fast-start output, and reports both media summaries. Inspect
+representative frames and the final frame before upload.
+
+## 7. Upload and verify
+
+Upload the final MP4 to Drive root as `video/mp4`. Re-fetch metadata or open
+the returned URL and verify filename, preview, and file ID. Sharing is a
+separate operation; verify the resulting permission independently and use the
+manual owner step above if the connector cannot create it.
+
+## Repository files
 
 | File | Purpose |
 |---|---|
-| `RUNBOOK.md` | This document. |
-| `README.md` | Pre-existing non-video-capture Assistant e2e capture workflow; this runbook extends it with recording/upload. |
-| `install-windows-mcp.ps1` | Idempotent local-scope Windows-MCP registration with the scoped tool allow-list. |
-| `record-onboarding.ps1` | Pre-existing plugin build/verify script (`gradle -p shaft-intellij check buildPlugin verifyPlugin`). |
-| `demo-project-template/` | Minimal Maven Selenium+TestNG scaffold opened during the recording. |
-| `reset-demo-project.ps1` | Restores a pristine copy of the template before every take. |
+| `capture-desktop.ps1` | Graceful bounded Windows desktop capture. |
+| `postprocess-desktop-capture.ps1` | Raw-preserving duplicate-frame removal. |
+| `reset-demo-project.ps1` | Recreates the external Selenium+TestNG demo. |
+| `demo-project-template/` | Minimal resettable project seed. |
+| `record-onboarding.ps1` | Plugin build/verification helper. |
+| `install-windows-mcp.ps1` | Optional user-local Windows-MCP registration. |
