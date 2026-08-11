@@ -21,37 +21,52 @@ public record TraceSession(String id, AutomationBackend backend, Instant generat
     public TraceSession(String id, AutomationBackend backend, Instant generatedAt, String testId, int attempt,
                         List<TraceEvent> events, List<TraceArtifactReference> artifacts,
                         Map<String, String> metadata) {
+        String checkedId = requiredId(id);
+        AutomationBackend checkedBackend = java.util.Objects.requireNonNull(backend, "backend");
+        Instant checkedGeneratedAt = java.util.Objects.requireNonNull(generatedAt, "generatedAt");
+        int checkedAttempt = positiveAttempt(attempt);
+        List<TraceEvent> copiedEvents = events == null ? List.of() : List.copyOf(events);
+        List<TraceArtifactReference> copiedArtifacts = artifacts == null ? List.of() : List.copyOf(artifacts);
+        validateArtifactReferences(copiedEvents, copiedArtifacts);
+        this.id = checkedId;
+        this.backend = checkedBackend;
+        this.generatedAt = checkedGeneratedAt;
+        this.testId = testId == null ? "" : testId;
+        this.attempt = checkedAttempt;
+        this.events = copiedEvents;
+        this.artifacts = copiedArtifacts;
+        this.metadata = metadata == null ? Map.of() : Map.copyOf(metadata);
+    }
+
+    private static String requiredId(String id) {
         if (id == null || id.isBlank()) {
             throw new IllegalArgumentException("id must not be blank");
         }
-        AutomationBackend checkedBackend = java.util.Objects.requireNonNull(backend, "backend");
-        Instant checkedGeneratedAt = java.util.Objects.requireNonNull(generatedAt, "generatedAt");
+        return id;
+    }
+
+    private static int positiveAttempt(int attempt) {
         if (attempt < 1) {
             throw new IllegalArgumentException("attempt must be positive");
         }
-        List<TraceEvent> copiedEvents = events == null ? List.of() : List.copyOf(events);
-        List<TraceArtifactReference> copiedArtifacts = artifacts == null ? List.of() : List.copyOf(artifacts);
+        return attempt;
+    }
+
+    private static void validateArtifactReferences(List<TraceEvent> events,
+                                                   List<TraceArtifactReference> artifacts) {
         Set<String> artifactIds = new HashSet<>();
-        for (TraceArtifactReference artifact : copiedArtifacts) {
+        for (TraceArtifactReference artifact : artifacts) {
             if (!artifactIds.add(artifact.id())) {
                 throw new IllegalArgumentException("artifact ids must be unique: " + artifact.id());
             }
         }
-        for (TraceEvent event : copiedEvents) {
+        for (TraceEvent event : events) {
             for (String artifactId : event.artifactIds()) {
                 if (!artifactIds.contains(artifactId)) {
                     throw new IllegalArgumentException("event artifact id does not resolve: " + artifactId);
                 }
             }
         }
-        this.id = id;
-        this.backend = checkedBackend;
-        this.generatedAt = checkedGeneratedAt;
-        this.testId = testId == null ? "" : testId;
-        this.attempt = attempt;
-        this.events = copiedEvents;
-        this.artifacts = copiedArtifacts;
-        this.metadata = metadata == null ? Map.of() : Map.copyOf(metadata);
     }
 
     @Override

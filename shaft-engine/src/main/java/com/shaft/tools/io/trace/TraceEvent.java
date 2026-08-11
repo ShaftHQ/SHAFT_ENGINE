@@ -13,6 +13,7 @@ public record TraceEvent(String id, AutomationBackend backend, String category, 
                          TraceEventStatus status, Instant startedAt, long durationMs, String source,
                          String target, String message, Map<String, String> metadata,
                          List<String> artifactIds) {
+    @SuppressWarnings("PMD.ExcessiveParameterList") // canonical constructor mirrors the stable trace schema
     public TraceEvent(String id, AutomationBackend backend, String category, String name,
                       TraceEventStatus status, Instant startedAt, long durationMs, String source,
                       String target, String message, Map<String, String> metadata,

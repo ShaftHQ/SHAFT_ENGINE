@@ -638,7 +638,7 @@ public class TestNGListenerCoverageUnitTest {
             com.shaft.tools.io.internal.ReportContext.start(new com.shaft.listeners.internal.TestExecutionInfo(
                     "next-config-test", getClass().getName(), "nextConfigTest", "next test", "next test",
                     null, null, false));
-            Assert.assertEquals(FailureTraceReporter.redactInvocationText(sensitiveValue), sensitiveValue,
+            assertEquals(FailureTraceReporter.redactInvocationText(sensitiveValue), sensitiveValue,
                     "The next test boundary must clear invocation-only configuration state.");
         } finally {
             setReportPortalEnabled(listener, false);
@@ -666,7 +666,7 @@ public class TestNGListenerCoverageUnitTest {
             com.shaft.tools.io.internal.ReportContext.start(new com.shaft.listeners.internal.TestExecutionInfo(
                     "next-retry-test", getClass().getName(), "nextRetryTest", "next test", "next test",
                     null, null, false));
-            Assert.assertEquals(FailureTraceReporter.redactInvocationText(sensitiveValue), sensitiveValue,
+            assertEquals(FailureTraceReporter.redactInvocationText(sensitiveValue), sensitiveValue,
                     "The next attempt boundary must clear invocation-only retry state.");
         } finally {
             restoreTrackedResultState(originalState);
