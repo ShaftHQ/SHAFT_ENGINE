@@ -1,6 +1,7 @@
 package com.shaft.gui.browser;
 
 import com.shaft.tools.io.internal.CheckpointStatus;
+import com.shaft.tools.io.internal.BrowserObservabilityRecorder;
 import com.shaft.driver.SHAFT;
 import com.shaft.driver.internal.DriverFactory.DriverFactoryHelper;
 import com.shaft.driver.internal.FluentWebDriverAction;
@@ -11,9 +12,11 @@ import com.shaft.gui.browser.internal.BrowserActionsHelper;
 import com.shaft.gui.browser.internal.BrowserNetworkProfileManager;
 import com.shaft.gui.browser.internal.BrowserNetworkInterceptionRule;
 import com.shaft.gui.browser.internal.BrowserStorageStateManager;
+import com.shaft.gui.browser.internal.BidiConsoleLogSource;
 import com.shaft.gui.browser.internal.HarReplayRules;
 import com.shaft.gui.browser.internal.JavaScriptWaitManager;
 import com.shaft.gui.browser.internal.ScrollSweepPlanner;
+import com.shaft.gui.driver.BrowserConsoleMessage;
 import com.shaft.gui.internal.image.ScreenshotManager;
 import com.shaft.gui.internal.locator.LocatorBuilder;
 import com.shaft.gui.internal.locator.ShadowLocatorBuilder;
@@ -129,6 +132,11 @@ public class BrowserActions extends FluentWebDriverAction implements com.shaft.g
     @Override
     public StorageActions storage() {
         return new StorageActions(this);
+    }
+
+    @Override
+    public ConsoleActions console() {
+        return new ConsoleActions(this);
     }
 
     void requireContextSupport(String operation) {
@@ -281,6 +289,55 @@ public class BrowserActions extends FluentWebDriverAction implements com.shaft.g
                     exception, Map.of(), List.of());
             throw exception;
         }
+    }
+
+    List<BrowserConsoleMessage> consoleMessages(String operation, boolean errorsOnly) {
+        return queryNamespace("console", operation, () -> {
+            WebDriver driver = requireLiveConsoleDriver(operation);
+            List<BrowserObservabilityRecorder.ConsoleSnapshotEntry> entries;
+            if (BidiConsoleLogSource.isHealthy(driver)) {
+                entries = BidiConsoleLogSource.snapshot(driver);
+            } else if (BrowserObservabilityRecorder.tryCollectConsole(driver)) {
+                entries = BrowserObservabilityRecorder.snapshotConsole();
+            } else {
+                throw unsupportedConsole(operation);
+            }
+            return entries.stream()
+                    .map(entry -> new BrowserConsoleMessage(entry.source(), entry.level(), entry.message(),
+                            entry.timestamp()))
+                    .filter(message -> !errorsOnly || message.isError())
+                    .toList();
+        });
+    }
+
+    void clearConsoleNamespace() {
+        queryNamespace("console", "clear", () -> {
+            WebDriver driver = requireLiveConsoleDriver("clear");
+            boolean bidiSupported = BidiConsoleLogSource.isHealthy(driver);
+            boolean legacySupported = BrowserObservabilityRecorder.tryCollectConsole(driver);
+            BrowserObservabilityRecorder.clearConsole();
+            if (bidiSupported) {
+                BidiConsoleLogSource.clear(driver);
+            }
+            if (!bidiSupported && !legacySupported) {
+                throw unsupportedConsole("clear");
+            }
+            return null;
+        });
+    }
+
+    private WebDriver requireLiveConsoleDriver(String operation) {
+        WebDriver driver = driverFactoryHelper == null ? null : driverFactoryHelper.getDriver();
+        boolean closedRemoteSession = driver instanceof RemoteWebDriver remoteDriver && remoteDriver.getSessionId() == null;
+        if (driver == null || closedRemoteSession) {
+            throw unsupportedConsole(operation);
+        }
+        return driver;
+    }
+
+    private UnsupportedOperationException unsupportedConsole(String operation) {
+        return new UnsupportedOperationException("Browser console " + operation
+                + " is not supported by the live Selenium/Appium session.");
     }
 
     String currentContextNamespace() {

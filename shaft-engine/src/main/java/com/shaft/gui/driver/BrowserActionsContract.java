@@ -61,6 +61,18 @@ public interface BrowserActionsContract {
         throw new UnsupportedOperationException("Storage actions are not supported by this browser facade.");
     }
 
+    /**
+     * Returns bounded browser console observations.
+     *
+     * <p>The default-method collision boundary is the same as documented for {@link #network()}.</p>
+     *
+     * @return console query and clear actions
+     * @throws UnsupportedOperationException when this facade has no console implementation
+     */
+    default ConsoleActionsContract console() {
+        throw new UnsupportedOperationException("Console actions are not supported by this browser facade.");
+    }
+
     BrowserActionsContract and();
 
     BrowserAssertions assertThat();

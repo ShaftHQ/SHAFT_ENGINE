@@ -107,6 +107,9 @@ public final class AutomationCapabilityResolver {
         if (driver instanceof JavascriptExecutor) {
             builder.nativeFeature(AutomationFeature.SCRIPT_EXECUTION, "W3C WebDriver script execution");
         }
+        if (hasBrowserConsoleLogs(driver)) {
+            builder.adaptedFeature(AutomationFeature.CONSOLE_LOGS, "Selenium browser logs through SHAFT");
+        }
 
         boolean bidiAdvertised = hasNegotiatedBiDi(driver, capabilities);
         if (bidiAdvertised) {
@@ -172,7 +175,18 @@ public final class AutomationCapabilityResolver {
                     .adaptedFeature(AutomationFeature.NETWORK_OBSERVATION, "Appium BiDi through SHAFT")
                     .adaptedFeature(AutomationFeature.CONSOLE_LOGS, "Appium BiDi through SHAFT");
         }
+        if (hasBrowserConsoleLogs(driver)) {
+            builder.adaptedFeature(AutomationFeature.CONSOLE_LOGS, "Appium browser logs through SHAFT");
+        }
         return builder.build();
+    }
+
+    private static boolean hasBrowserConsoleLogs(WebDriver driver) {
+        try {
+            return driver != null && driver.manage().logs().getAvailableLogTypes().contains("browser");
+        } catch (RuntimeException ignored) {
+            return false;
+        }
     }
 
     private static boolean isWebContext(SupportsContextSwitching contexts) {

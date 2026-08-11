@@ -12,6 +12,7 @@ import com.shaft.gui.browser.internal.BrowserNetworkInterceptionRule;
 import com.shaft.gui.browser.internal.HarReplayRules;
 import com.shaft.gui.browser.internal.PlaywrightStorageStateManager;
 import com.shaft.gui.capabilities.AutomationBackend;
+import com.shaft.gui.driver.BrowserConsoleMessage;
 import com.shaft.gui.playwright.internal.PlaywrightSession;
 import com.shaft.gui.playwright.validation.PlaywrightBrowserValidationsBuilder;
 import com.shaft.tools.io.internal.BrowserPerformanceExecutionReport;
@@ -72,6 +73,11 @@ public class BrowserActions implements com.shaft.gui.driver.BrowserActionsContra
     @Override
     public StorageActions storage() {
         return new StorageActions(this);
+    }
+
+    @Override
+    public ConsoleActions console() {
+        return new ConsoleActions(this);
     }
 
     @Override
@@ -687,6 +693,20 @@ public class BrowserActions implements com.shaft.gui.driver.BrowserActionsContra
                     exception, Map.of("backend", "MICROSOFT_PLAYWRIGHT"), List.of());
             throw exception;
         }
+    }
+
+    List<BrowserConsoleMessage> consoleMessages(String operation, boolean errorsOnly) {
+        return queryNamespace("console", operation, () -> session.consoleSnapshot().stream()
+                .map(entry -> new BrowserConsoleMessage(entry.source(), entry.level(), entry.message(), entry.timestamp()))
+                .filter(message -> !errorsOnly || message.isError())
+                .toList());
+    }
+
+    void clearConsoleNamespace() {
+        queryNamespace("console", "clear", () -> {
+            session.clearConsole();
+            return null;
+        });
     }
 
     NetworkInterceptionRequestBuilder<BrowserActions> networkInterceptRequest() {

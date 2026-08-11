@@ -22,6 +22,7 @@ import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.bidi.HasBiDi;
 import org.openqa.selenium.bidi.BiDi;
 import org.openqa.selenium.devtools.HasDevTools;
+import org.openqa.selenium.logging.Logs;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
@@ -92,6 +93,23 @@ public class AutomationCapabilityResolverUnitTest {
         Assert.assertFalse(capabilities.supports(AutomationFeature.FILE_TRANSFER));
         Assert.assertFalse(capabilities.supports(AutomationFeature.SCREEN_RECORDING));
         Assert.assertFalse(capabilities.supports(AutomationFeature.STORAGE));
+    }
+
+    @Test
+    public void seleniumConsoleCapabilityShouldFollowTheLiveBrowserLogType() {
+        WebDriver driver = mock(WebDriver.class);
+        WebDriver.Options options = mock(WebDriver.Options.class);
+        Logs logs = mock(Logs.class);
+        when(driver.manage()).thenReturn(options);
+        when(options.logs()).thenReturn(logs);
+        when(logs.getAvailableLogTypes()).thenReturn(java.util.Set.of("browser"));
+
+        Assert.assertTrue(AutomationCapabilityResolver.forWebDriver(driver)
+                .supports(AutomationFeature.CONSOLE_LOGS));
+
+        when(logs.getAvailableLogTypes()).thenReturn(java.util.Set.of());
+        Assert.assertFalse(AutomationCapabilityResolver.forWebDriver(driver)
+                .supports(AutomationFeature.CONSOLE_LOGS));
     }
 
     @Test

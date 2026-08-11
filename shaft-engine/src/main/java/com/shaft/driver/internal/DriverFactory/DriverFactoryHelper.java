@@ -6,6 +6,7 @@ import com.shaft.driver.DriverFactory.DriverType;
 import com.shaft.driver.SHAFT;
 import com.shaft.gui.browser.BrowserActions;
 import com.shaft.gui.browser.internal.BidiNetworkActivitySource;
+import com.shaft.gui.browser.internal.BidiConsoleLogSource;
 import com.shaft.gui.browser.internal.BrowserNetworkInterceptionRule;
 import com.shaft.gui.browser.internal.BrowserNetworkInterceptor;
 import com.shaft.gui.browser.internal.BrowserStorageStateManager;
@@ -35,6 +36,7 @@ import lombok.*;
 import org.apache.logging.log4j.Level;
 import org.openqa.selenium.*;
 import org.openqa.selenium.bidi.BiDiProvider;
+import org.openqa.selenium.bidi.HasBiDi;
 import org.openqa.selenium.chrome.ChromeDriver;
 import org.openqa.selenium.devtools.Command;
 import org.openqa.selenium.devtools.DevTools;
@@ -270,8 +272,12 @@ public class DriverFactoryHelper {
         return browserNetworkInterceptor;
     }
 
+    @SuppressWarnings("removal")
     private void startBrowserObservability() {
         try {
+            if (driver instanceof HasBiDi hasBiDi && hasBiDi.maybeGetBiDi().isPresent()) {
+                BidiConsoleLogSource.attach(driver);
+            }
             if (driver != null
                     && SHAFT.Properties.reporting != null
                     && SHAFT.Properties.reporting.traceEnabled()
@@ -279,7 +285,7 @@ public class DriverFactoryHelper {
                 getBrowserNetworkInterceptor().startObserving();
             }
         } catch (RuntimeException e) {
-            ReportManagerHelper.logDiscrete("Could not start browser network trace capture: " + e.getMessage(), Level.WARN);
+            ReportManagerHelper.logDiscrete("Could not start browser observability: " + e.getMessage(), Level.WARN);
         }
     }
 
@@ -893,6 +899,7 @@ public class DriverFactoryHelper {
                 HealingManager.clear(driver);
                 browserNetworkInterceptor = null;
                 BidiNetworkActivitySource.closeAndRemove(driver);
+                BidiConsoleLogSource.closeAndRemove(driver);
                 releaseRemoteGridPreflightPermit();
                 clearThreadLocalDriverState();
                 ReportManager.log("Closed the WebDriver session.");
