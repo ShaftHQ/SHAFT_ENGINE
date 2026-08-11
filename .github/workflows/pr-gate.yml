@@ -103,6 +103,8 @@ jobs:
               - 'scripts/ci/shaft_skill_quality.py'
               - 'scripts/ci/shaft_skill_routing_eval.py'
               - 'scripts/ci/shaft_skill_candidate_intake.py'
+              - 'scripts/ci/agnix_conformance.py'
+              - 'scripts/ci/agnix_conformance.json'
               - 'scripts/ci/external_guardrail_corpus.py'
               - 'scripts/ci/external_guardrail_corpus.json'
               - 'scripts/ci/validate_red_before_green.py'
@@ -140,6 +142,7 @@ jobs:
               - 'tests/scripts/test_shaft_skill_quality.py'
               - 'tests/scripts/test_shaft_skill_routing_eval.py'
               - 'tests/scripts/test_shaft_skill_candidate_intake.py'
+              - 'tests/scripts/test_agnix_conformance.py'
               - 'tests/scripts/test_agent_plugin_client_smoke.py'
               # Not agent guidance, but this is the only gate that runs the
               # script suites on both a Linux and a Windows runner, which is
@@ -331,6 +334,7 @@ jobs:
           tests.scripts.test_shaft_skill_quality
           tests.scripts.test_shaft_skill_routing_eval
           tests.scripts.test_shaft_skill_candidate_intake
+          tests.scripts.test_agnix_conformance
           tests.scripts.test_worktree_hygiene
           tests.scripts.test_resolve_graph_out
           tests.scripts.test_build_retry
@@ -383,6 +387,8 @@ jobs:
         run: python scripts/ci/shaft_skill_routing_eval.py
       - name: Validate quarantined SHAFT skill-candidate intake
         run: python scripts/ci/shaft_skill_candidate_intake.py
+      - name: Validate pinned agnix promotion contract
+        run: python scripts/ci/agnix_conformance.py --check-contract
       - name: Collect unauthenticated native client evidence
         run: >-
           python scripts/ci/agent_plugin_client_smoke.py --mode smoke
