@@ -2,26 +2,30 @@
 
 Tracking issue: [#4299](https://github.com/ShaftHQ/SHAFT_ENGINE/issues/4299).
 
-## Delivered reference take
+## Withdrawn reference take
 
 Executed on Windows on 2026-08-11 with sandboxed IntelliJ 2024.3 and
 SHAFT 10.3.20260809.
 
-- Video: [SHAFT-IntelliJ-Assistant-demo-issue-4299-final.mp4](https://drive.google.com/file/d/1Tyuo6HJ9MNRd0AKaFrESIP1JpU0mlJFM/view)
+- Withdrawn video: [SHAFT-IntelliJ-Assistant-demo-issue-4299-final.mp4](https://drive.google.com/file/d/1Tyuo6HJ9MNRd0AKaFrESIP1JpU0mlJFM/view)
 - Processed media: 2560 x 1440, 15 fps, 152.33 seconds, 11,553,949 bytes.
 - Preserved concatenated raw media: 1,022 seconds, 71,296,536 bytes. The
-  reference take used four bounded segments, assembled as documented below.
-- Replay: TestNG 1 test, 0 failures, 0 errors. The closing frames show the
-  generated test, Page Object, data file, and 100% Allure result.
+  withdrawn take used four bounded segments, assembled as documented below.
+- Rejection reason: the Assistant visibly reports that `capture_generate_replay`
+  could not finish because the promoted generated source is missing. The later
+  appended manual replay is a different execution and does not repair that failed
+  Assistant flow. This file is retained only as a defect artifact and is not
+  acceptance evidence for #4299.
 
 The Drive file ID and preview were verified after upload. General access is
 **Anyone with the link -> Viewer**. An independent permission read returned
 `type=anyone`, `role=reader`, and `allowFileDiscovery=false`; an unauthenticated
-request returned HTTP 200 with the expected filename. The connector's earlier
+request returned HTTP 200 with the expected filename. Those checks prove access
+to the withdrawn artifact, not product acceptance. The connector's earlier
 organization-share attempt returned `permission.domain: invalid or not
 applicable`, so the owner completed the general-access change in Drive's UI.
 Upload success alone does not prove public access; verify permission metadata
-and signed-out access separately as this take did.
+and signed-out access separately for the replacement take.
 
 ## Safety boundary
 

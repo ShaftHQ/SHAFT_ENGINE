@@ -13,11 +13,14 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.nio.file.LinkOption;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.Properties;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.jar.JarEntry;
@@ -89,16 +92,33 @@ public class GeneratedTestValidator {
             Path resourcesDirectory,
             Path workDirectory,
             Duration timeout) {
-        Path replayDirectory = workDirectory.resolve("target/shaft-capture/replay");
+        Path replayDirectory = workDirectory.resolve("target/shaft-capture/replay")
+                .resolve("attempt-" + UUID.randomUUID());
         Path allureResults = replayDirectory.resolve("allure-results");
         Path testngOutput = replayDirectory.resolve("testng-output");
         Path outputLog = replayDirectory.resolve("replay.log");
         Path chromeDriverLog = replayDirectory.resolve("chromedriver.log");
         Process process = null;
         try {
+            Files.createDirectories(replayDirectory);
             Files.createDirectories(allureResults);
             Files.createDirectories(testngOutput);
-            seedHeadlessCustomProperties(workDirectory);
+            boolean headlessExecution = configuredHeadlessExecution(workDirectory);
+            Path bootstrapDirectory = replayDirectory.resolve("properties");
+            Files.createDirectories(bootstrapDirectory);
+            Path projectProperties = workDirectory.resolve("src/main/resources/properties");
+            if (Files.isDirectory(projectProperties, LinkOption.NOFOLLOW_LINKS)) {
+                List<Path> propertyFiles;
+                try (Stream<Path> files = Files.list(projectProperties)) {
+                    propertyFiles = files
+                            .filter(path -> Files.isRegularFile(path, LinkOption.NOFOLLOW_LINKS))
+                            .filter(path -> path.getFileName().toString().endsWith(".properties"))
+                            .toList();
+                }
+                for (Path propertyFile : propertyFiles) {
+                    Files.copy(propertyFile, bootstrapDirectory.resolve(propertyFile.getFileName()));
+                }
+            }
             String classpath = classesDirectory.toAbsolutePath().normalize()
                     + File.pathSeparator
                     + resourcesDirectory.toAbsolutePath().normalize()
@@ -111,10 +131,9 @@ public class GeneratedTestValidator {
             StringBuilder argsContent = new StringBuilder();
             argsContent.append(argFileQuote(
                     "-Dallure.results.directory=" + allureResults.toAbsolutePath().normalize())).append('\n');
-            // Always headless regardless of the outer process's own headlessExecution setting
-            // (e.g. shaft-capture's custom.properties defaults to false for local interactive
-            // development) -- this replay is a non-interactive validation run.
-            argsContent.append("-DheadlessExecution=true").append('\n');
+            argsContent.append("-DheadlessExecution=").append(headlessExecution).append('\n');
+            argsContent.append(argFileQuote("-Dshaft.properties.bootstrapDirectory="
+                    + bootstrapDirectory.toAbsolutePath().normalize())).append('\n');
             argsContent.append("-Dwebdriver.chrome.verboseLogging=true").append('\n');
             argsContent.append(argFileQuote(
                     "-Dwebdriver.chrome.logfile=" + chromeDriverLog.toAbsolutePath().normalize())).append('\n');
@@ -141,10 +160,11 @@ public class GeneratedTestValidator {
                 // destroyForcibly() only kills the forked TestNG JVM itself -- it leaves
                 // ChromeDriver/Chrome (its descendants) running as orphans, especially on Windows.
                 destroyProcessTree(process);
-                return failed("Generated test replay timed out.");
+                return failed("Generated test replay timed out. " + attemptDiagnostic(replayDirectory));
             }
             AllureSummary allure = allure(allureResults);
             List<String> diagnostics = new ArrayList<>();
+            diagnostics.add(attemptDiagnostic(replayDirectory));
             if (process.exitValue() != 0) {
                 diagnostics.add("TestNG replay exited with code " + process.exitValue() + ".");
             }
@@ -166,13 +186,14 @@ public class GeneratedTestValidator {
             if (process != null) {
                 destroyProcessTree(process);
             }
-            return failed("Generated test replay could not be launched: " + exception.getMessage());
+            return failed("Generated test replay could not be launched: " + exception.getMessage()
+                    + ". " + attemptDiagnostic(replayDirectory));
         } catch (InterruptedException exception) {
             Thread.currentThread().interrupt();
             if (process != null) {
                 destroyProcessTree(process);
             }
-            return failed("Generated test replay was interrupted.");
+            return failed("Generated test replay was interrupted. " + attemptDiagnostic(replayDirectory));
         }
     }
 
@@ -221,25 +242,21 @@ public class GeneratedTestValidator {
         return '"' + value.replace("\\", "/").replace("\"", "\\\"") + '"';
     }
 
-    /**
-     * Pre-seeds a {@code custom.properties} at the path SHAFT's engine bootstrap looks for one
-     * relative to the replay's working directory, forcing headless/CI-safe Chrome flags.
-     *
-     * <p>Without this, the engine's own "create custom.properties from the bundled template if
-     * missing" bootstrap step fills that same file with the template's {@code headlessExecution=false}
-     * default and reloads it into system properties, silently discarding any headless override
-     * passed to the replay subprocess on the command line — Chrome then launches without
-     * {@code --headless} and crashes on runners with no display.
-     *
-     * @param workDirectory the replay subprocess's working directory
-     */
-    private static void seedHeadlessCustomProperties(Path workDirectory) throws IOException {
+    private static boolean configuredHeadlessExecution(Path workDirectory) throws IOException {
         Path customProperties = workDirectory.resolve("src/main/resources/properties/custom.properties");
-        Files.createDirectories(customProperties.getParent());
-        Files.writeString(customProperties,
-                "headlessExecution=true" + System.lineSeparator()
-                        + "automaticallyAddRecommendedChromeOptions=true" + System.lineSeparator(),
-                StandardCharsets.UTF_8);
+        if (!Files.isRegularFile(customProperties)) {
+            return true;
+        }
+        Properties properties = new Properties();
+        try (var reader = Files.newBufferedReader(customProperties, StandardCharsets.UTF_8)) {
+            properties.load(reader);
+        }
+        String configured = properties.getProperty("headlessExecution", "").trim();
+        return !"false".equalsIgnoreCase(configured);
+    }
+
+    private static String attemptDiagnostic(Path replayDirectory) {
+        return "Replay attempt artifacts: " + replayDirectory.toAbsolutePath().normalize();
     }
 
     private static AllureSummary allure(Path directory) throws IOException {

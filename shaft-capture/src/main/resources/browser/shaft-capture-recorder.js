@@ -64,6 +64,7 @@
     suppressedEvents: [],
     actions: [],
     pendingSignals: [],
+    signalSequence: 0,
     nextId: 1,
     instanceId: "",
     currentInputActionKey: "",
@@ -74,6 +75,7 @@
   uiState.actions = Array.isArray(uiState.actions) ? uiState.actions.slice(-80) : [];
   uiState.pendingSignals = Array.isArray(uiState.pendingSignals) ? uiState.pendingSignals.slice(-200) : [];
   uiState.nextId = Number(uiState.nextId || uiState.actions.length + 1);
+  uiState.signalSequence = Number(uiState.signalSequence) || 0;
   uiState.instanceId = text(uiState.instanceId) || String(Date.now()) + "-" + Math.random().toString(36).slice(2);
   uiState.currentInputActionKey = text(uiState.currentInputActionKey);
   uiState.assertionMode = Boolean(uiState.assertionMode);
@@ -117,6 +119,7 @@
         suppressedEvents: uiState.suppressedEvents.slice(-50),
         actions: uiState.actions.slice(-80),
         pendingSignals: uiState.pendingSignals.slice(-200),
+        signalSequence: uiState.signalSequence,
         nextId: uiState.nextId,
         instanceId: uiState.instanceId,
         currentInputActionKey: uiState.currentInputActionKey,
@@ -143,6 +146,8 @@
   };
   const send = payload => {
     payload.timestamp = Date.now();
+    payload.data = payload.data && typeof payload.data === "object" ? payload.data : {};
+    payload.data.captureSignalSequence = ++uiState.signalSequence;
     uiState.pendingSignals.push(payload);
     uiState.pendingSignals = uiState.pendingSignals.slice(-200);
     persist();
