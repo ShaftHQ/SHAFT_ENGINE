@@ -13,6 +13,54 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  agnix-conformance:
+    name: Pinned agnix conformance
+    runs-on: ubuntu-22.04
+    timeout-minutes: 10
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v7
+      - name: Set up Python 3.13
+        uses: actions/setup-python@v7
+        with:
+          python-version: '3.13'
+      - name: Resolve pinned agnix contract
+        run: python scripts/ci/agnix_conformance.py --github-env "$GITHUB_ENV"
+      - name: Verify and run pinned agnix
+        shell: bash
+        run: |
+          set -euo pipefail
+          trial_root="$RUNNER_TEMP/shaft-agnix"
+          mkdir -p "$trial_root/candidate" "$trial_root/evaluation" "$trial_root/output"
+          printf '%s\n' '{"accepted":false,"external_blocker":"agnix setup did not complete"}' > agnix-conformance-evidence.json
+          curl --fail --show-error --silent --location "$AGNIX_ARTIFACT_URL" --output "$trial_root/agnix.tar.gz"
+          echo "$AGNIX_ARTIFACT_SHA256  $trial_root/agnix.tar.gz" | sha256sum --check
+          test "$(tar -tzf "$trial_root/agnix.tar.gz")" = 'agnix'
+          tar -xzf "$trial_root/agnix.tar.gz" -C "$trial_root/candidate"
+          curl --fail --show-error --silent --location "$AGNIX_EVALUATION_URL" --output "$trial_root/evaluation.tar.gz"
+          echo "$AGNIX_EVALUATION_SHA256  $trial_root/evaluation.tar.gz" | sha256sum --check
+          tar -xzf "$trial_root/evaluation.tar.gz" -C "$trial_root/evaluation" --strip-components=1
+          test -f "$trial_root/evaluation/tests/eval.yaml"
+          docker pull "$AGNIX_IMAGE_REFERENCE"
+          test "$(docker image inspect --format '{{.Id}}' "$AGNIX_IMAGE_REFERENCE")" = "$AGNIX_IMAGE_ID"
+          python scripts/ci/agnix_conformance.py \
+            --stage-source . \
+            --fixtures-root "$trial_root/fixtures"
+          python scripts/ci/agnix_conformance.py \
+            --candidate-root "$trial_root/candidate" \
+            --fixtures-root "$trial_root/fixtures" \
+            --evaluation-root "$trial_root/evaluation/tests" \
+            --output-root "$trial_root/output" \
+            --output agnix-conformance-evidence.json
+      - name: Upload agnix conformance evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: agnix-conformance-evidence
+          path: agnix-conformance-evidence.json
+          if-no-files-found: error
+          retention-days: 30
+
   external-guardrail-corpus:
     name: Pinned external guardrail corpus
     runs-on: ubuntu-22.04
