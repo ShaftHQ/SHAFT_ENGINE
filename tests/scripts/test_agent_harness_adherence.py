@@ -24,6 +24,18 @@ except ModuleNotFoundError:
 
 
 class AgentHarnessAdherenceTest(unittest.TestCase):
+    def test_corpus_covers_learning_trust_and_self_modification_failures(self) -> None:
+        corpus = self.load_fixture("corpus.json")
+        identifiers = {episode["id"] for episode in corpus["episodes"]}
+        self.assertTrue(
+            {
+                "medium-incident-bound-learning",
+                "medium-poisoned-memory-is-data",
+                "long-recurring-regression-reverts",
+                "long-kernel-two-key-gate",
+            }.issubset(identifiers)
+        )
+
     def load_fixture(self, name: str) -> dict:
         return json.loads((FIXTURES / name).read_text(encoding="utf-8"))
 

@@ -263,6 +263,20 @@ diary. Before routing, scan the session for failures, traps, and guard blocks:
 if a refusal was correct, capture the lesson; if it was wrong or needs follow-up,
 search for and update the issue.
 
+Meaningful failures, corrections, review findings, and repeated friction first
+become redacted incident receipts through `scripts/agents/learning_loop.py`;
+assess them into quarantined candidates before they can influence behavior.
+Batch related candidates once per session. Ordinary candidates need a strict
+targeted adherence improvement, no regression, passing tests, and independent
+review. Kernel candidates additionally need two independent reviewer keys,
+all three review lenses, and two runs on the same candidate and corpus.
+`evaluate`, `promote`, and `repair-or-revert` write local consistency and
+intent records only; they do not run tests, authenticate reviewers, mutate
+git, or operate a pull request. Derive the diff and test evidence from the live
+checkout, then use the normal review and GitHub workflow to perform and verify
+the intended action. On regression, attempt one repair; recurrence records a
+frozen revert requirement that the GitHub workflow must execute.
+
 | What surfaced | Where it goes |
 | --- | --- |
 | A fact that cost you time and would cost the next agent the same | native Memory, with the evidence that proves it |
