@@ -243,11 +243,95 @@ class CheckpointPullRequestGateTest(unittest.TestCase):
             "closingIssuesReferences": [],
         }]
         with patch("scripts.agents.guard.shutil.which", return_value="gh"):
-            with patch("scripts.agents.guard.subprocess.run", return_value=mock.Mock(returncode=0, stdout=json.dumps(response))):
+            with patch("scripts.agents.guard.subprocess.run", side_effect=[
+                mock.Mock(returncode=0, stdout=json.dumps(response)),
+                mock.Mock(returncode=0, stdout=json.dumps({"defaultBranchRef": {"name": "main"}})),
+            ]):
                 self.assertEqual(
                     guard._exact_head_pull_request("ShaftHQ/SHAFT_ENGINE", "ChaosEngine/r27", "b" * 40)[0],
                     "unmapped",
                 )
+
+    def test_stacked_exact_head_pr_uses_explicit_body_closing_keyword(self):
+        response = [{
+            "number": 4756, "url": "https://github.com/ShaftHQ/SHAFT_ENGINE/pull/4756",
+            "state": "OPEN", "isDraft": True,
+            "headRefName": "ChaosEngine/r27", "headRefOid": "b" * 40,
+            "baseRefName": "ChaosEngine/issue-4726-portable-runtime",
+            "closingIssuesReferences": [], "body": "Closes #4745",
+        }]
+        with patch("scripts.agents.guard.shutil.which", return_value="gh"):
+            with patch("scripts.agents.guard.subprocess.run", side_effect=[
+                mock.Mock(returncode=0, stdout=json.dumps(response)),
+                mock.Mock(returncode=0, stdout=json.dumps({"defaultBranchRef": {"name": "main"}})),
+            ]):
+                status, pull_request = guard._exact_head_pull_request(
+                    "ShaftHQ/SHAFT_ENGINE", "ChaosEngine/r27", "b" * 40
+                )
+        self.assertEqual(status, "exact")
+        self.assertEqual(pull_request["issueNumbers"], [4745])
+
+    def test_stacked_body_fallback_rejects_ambiguous_malformed_and_free_refs(self):
+        for body in (
+            "Closes #4745 or #4746",
+            "Closes #4745 and #4746",
+            "Closes #4745, #4746",
+            "Does not fix #4745",
+            "This does not fully resolve #4745",
+            "Closes #4745 or ShaftHQ/SHAFT_ENGINE#4746",
+            "Closes #4745, ShaftHQ/SHAFT_ENGINE#4746",
+            "Closes #4745 and ShaftHQ/SHAFT_ENGINE#4746",
+            "Closes ShaftHQ/SHAFT_ENGINE#4745",
+            "Closes issue #4745",
+            "Related to #4745",
+        ):
+            with self.subTest(body=body):
+                response = [{
+                    "number": 4756, "url": "https://example.invalid/4756", "state": "OPEN",
+                    "isDraft": True, "headRefName": "ChaosEngine/r27", "headRefOid": "b" * 40,
+                    "baseRefName": "ChaosEngine/issue-4726-portable-runtime",
+                    "closingIssuesReferences": [], "body": body,
+                }]
+                with patch("scripts.agents.guard.shutil.which", return_value="gh"):
+                    with patch("scripts.agents.guard.subprocess.run", side_effect=[
+                        mock.Mock(returncode=0, stdout=json.dumps(response)),
+                        mock.Mock(returncode=0, stdout=json.dumps({"defaultBranchRef": {"name": "main"}})),
+                    ]):
+                        status, _ = guard._exact_head_pull_request(
+                            "ShaftHQ/SHAFT_ENGINE", "ChaosEngine/r27", "b" * 40
+                        )
+                self.assertEqual(status, "unmapped")
+
+    def test_default_branch_pr_never_uses_the_stacked_body_fallback(self):
+        response = [{
+            "number": 4756, "url": "https://example.invalid/4756", "state": "OPEN",
+            "isDraft": True, "headRefName": "ChaosEngine/r27", "headRefOid": "b" * 40,
+            "baseRefName": "main", "closingIssuesReferences": [], "body": "Closes #4745",
+        }]
+        with patch("scripts.agents.guard.shutil.which", return_value="gh"):
+            with patch("scripts.agents.guard.subprocess.run", side_effect=[
+                mock.Mock(returncode=0, stdout=json.dumps(response)),
+                mock.Mock(returncode=0, stdout=json.dumps({"defaultBranchRef": {"name": "main"}})),
+            ]):
+                status, _ = guard._exact_head_pull_request(
+                    "ShaftHQ/SHAFT_ENGINE", "ChaosEngine/r27", "b" * 40
+                )
+        self.assertEqual(status, "unmapped")
+
+    def test_default_branch_lookup_uses_gh_repo_view_positional_repository(self):
+        completed = mock.Mock(
+            returncode=0,
+            stdout=json.dumps({"defaultBranchRef": {"name": "main"}}),
+        )
+        with patch("scripts.agents.guard.subprocess.run", return_value=completed) as runner:
+            self.assertEqual(
+                guard._repository_default_branch("gh", "ShaftHQ/SHAFT_ENGINE"),
+                "main",
+            )
+        self.assertEqual(
+            runner.call_args.args[0],
+            ["gh", "repo", "view", "ShaftHQ/SHAFT_ENGINE", "--json", "defaultBranchRef"],
+        )
 
     def test_exact_mapping_append_failure_fails_closed(self):
         identity = ("ShaftHQ/SHAFT_ENGINE", "ChaosEngine/r27", "b" * 40)

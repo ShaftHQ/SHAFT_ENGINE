@@ -32,7 +32,12 @@ behavior change or commit:
    its intended branch base, never an assumed default branch.
 3. Require the PR to cover the exact checkpoint SHA. Persist its canonical
    `baseRefName`, PR identity, and `closingIssuesReferences`; those closing
-   references, not branch text, supply the issue mapping.
+   references, not branch text, supply the issue mapping. GitHub ignores
+   closing keywords when a PR targets a non-default stacked base. Only in that
+   state, an explicit, unambiguous same-repository closing keyword in the PR
+   body supplies the fallback issue mapping until the stack reaches the
+   default branch; titles, branch names, ordinary references, and malformed or
+   cross-repository clauses never do.
 4. Keep the PR body/checklist and linked tracker current as later commits land.
 
 Read-only work, failed commit attempts, and sessions with no retained

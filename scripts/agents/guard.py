@@ -2821,12 +2821,65 @@ def _record_successful_commit_checkpoint(hook_input: dict) -> None:
     ledger_record(hook_input, _checkpoint_json_event("checkpoint", *identity))
 
 
+_CLOSING_KEYWORD_RE = re.compile(
+    r"\b(?:close[sd]?|fix(?:e[sd])?|resolve[sd]?)\b", re.IGNORECASE
+)
+_SAME_REPOSITORY_CLOSING_RE = re.compile(
+    r"\b(?:close[sd]?|fix(?:e[sd])?|resolve[sd]?)\b\s*:?\s*#([1-9][0-9]*)\b",
+    re.IGNORECASE,
+)
+
+
+def _stacked_body_closing_issues(body: object) -> list[int]:
+    """Return explicit unambiguous same-repository closing refs, or none."""
+    if not isinstance(body, str):
+        return []
+    keywords = list(_CLOSING_KEYWORD_RE.finditer(body))
+    matches = list(_SAME_REPOSITORY_CLOSING_RE.finditer(body))
+    if not matches or len(matches) != len(keywords):
+        return []
+    for match in matches:
+        clause_prefix = re.split(r"[.!?\n]", body[:match.start()])[-1]
+        if re.search(r"\b(?:not|never|no)\b|n't", clause_prefix, re.IGNORECASE):
+            return []
+        following = body[match.end():]
+        if re.match(
+            r"\s*(?:/|,|\b(?:or|and)\b)[^.\n]*#",
+            following,
+            re.IGNORECASE,
+        ):
+            return []
+    return sorted({int(match.group(1)) for match in matches})
+
+
+def _repository_default_branch(executable: str, repository: str) -> str | None:
+    """Read the canonical default branch; never guess main or master."""
+    try:
+        completed = subprocess.run(  # nosec B603 - fixed read-only gh query.
+            [executable, "repo", "view", repository, "--json", "defaultBranchRef"],
+            capture_output=True,
+            text=True,
+            timeout=_subprocess_timeout(),
+            check=False,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return None
+    if completed.returncode != 0:
+        return None
+    try:
+        payload = json.loads(completed.stdout)
+        branch = payload["defaultBranchRef"]["name"]
+    except (json.JSONDecodeError, KeyError, TypeError):
+        return None
+    return branch if isinstance(branch, str) and branch else None
+
+
 def _exact_head_pull_request(repository: str, branch: str, head: str) -> tuple[str, dict | None]:
     """Return exact-head PR state: exact, unmapped, none, or unavailable."""
     executable = shutil.which("gh")
     if executable is None:
         return "unavailable", None
-    fields = "number,url,state,isDraft,headRefName,headRefOid,baseRefName,closingIssuesReferences"
+    fields = "number,url,state,isDraft,headRefName,headRefOid,baseRefName,body,closingIssuesReferences"
     try:
         completed = subprocess.run(  # nosec B603 - fixed read-only gh query.
             [executable, "pr", "list", "--repo", repository, "--head", branch,
@@ -2860,11 +2913,17 @@ def _exact_head_pull_request(repository: str, branch: str, head: str) -> tuple[s
         return "none", None
     base = exact.get("baseRefName")
     issues = exact.get("closingIssuesReferences")
-    if not isinstance(base, str) or not base or not isinstance(issues, list) or not issues:
+    if not isinstance(base, str) or not base or not isinstance(issues, list):
         return "unmapped", exact
     issue_numbers = sorted(
         {item.get("number") for item in issues if isinstance(item, dict) and isinstance(item.get("number"), int)}
     )
+    if not issue_numbers:
+        default_branch = _repository_default_branch(executable, repository)
+        if default_branch is None:
+            return "unavailable", None
+        if base != default_branch:
+            issue_numbers = _stacked_body_closing_issues(exact.get("body"))
     if not issue_numbers:
         return "unmapped", exact
     exact = dict(exact)
