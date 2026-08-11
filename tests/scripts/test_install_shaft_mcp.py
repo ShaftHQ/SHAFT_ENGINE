@@ -204,7 +204,7 @@ class InstallShaftMcpTest(unittest.TestCase):
                 "import scripts.ci.validate_agent_setup"
             )
             completed = subprocess.run(
-                [sys.executable, "-I", "-c", command],
+                [sys.executable, "-I", "-S", "-c", command],
                 cwd=target,
                 capture_output=True,
                 text=True,
