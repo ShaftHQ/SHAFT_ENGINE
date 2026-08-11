@@ -13,21 +13,25 @@ public record TraceEvent(String id, AutomationBackend backend, String category, 
                          TraceEventStatus status, Instant startedAt, long durationMs, String source,
                          String target, String message, Map<String, String> metadata,
                          List<String> artifactIds) {
-    public TraceEvent {
-        id = required(id, "id");
-        backend = java.util.Objects.requireNonNull(backend, "backend");
-        category = required(category, "category");
-        name = required(name, "name");
-        status = java.util.Objects.requireNonNull(status, "status");
-        startedAt = java.util.Objects.requireNonNull(startedAt, "startedAt");
+    public TraceEvent(String id, AutomationBackend backend, String category, String name,
+                      TraceEventStatus status, Instant startedAt, long durationMs, String source,
+                      String target, String message, Map<String, String> metadata,
+                      List<String> artifactIds) {
+        this.id = required(id, "id");
+        this.backend = java.util.Objects.requireNonNull(backend, "backend");
+        this.category = required(category, "category");
+        this.name = required(name, "name");
+        this.status = java.util.Objects.requireNonNull(status, "status");
+        this.startedAt = java.util.Objects.requireNonNull(startedAt, "startedAt");
         if (durationMs < 0) {
             throw new IllegalArgumentException("durationMs must not be negative");
         }
-        source = source == null ? "" : source;
-        target = target == null ? "" : target;
-        message = message == null ? "" : message;
-        metadata = metadata == null ? Map.of() : Map.copyOf(metadata);
-        artifactIds = artifactIds == null ? List.of() : List.copyOf(artifactIds);
+        this.durationMs = durationMs;
+        this.source = source == null ? "" : source;
+        this.target = target == null ? "" : target;
+        this.message = message == null ? "" : message;
+        this.metadata = metadata == null ? Map.of() : Map.copyOf(metadata);
+        this.artifactIds = artifactIds == null ? List.of() : List.copyOf(artifactIds);
     }
 
     @Override

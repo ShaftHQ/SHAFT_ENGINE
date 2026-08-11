@@ -8,13 +8,15 @@ import java.util.Map;
  */
 public record TraceArtifactReference(String id, String kind, String path, String mimeType, boolean omitted,
                                      Map<String, String> metadata) {
-    public TraceArtifactReference {
-        id = required(id, "id");
-        kind = required(kind, "kind");
-        path = required(path, "path");
-        validateArchivePath(path);
-        mimeType = mimeType == null ? "" : mimeType;
-        metadata = metadata == null ? Map.of() : Map.copyOf(metadata);
+    public TraceArtifactReference(String id, String kind, String path, String mimeType, boolean omitted,
+                                  Map<String, String> metadata) {
+        this.id = required(id, "id");
+        this.kind = required(kind, "kind");
+        this.path = required(path, "path");
+        validateArchivePath(this.path);
+        this.mimeType = mimeType == null ? "" : mimeType;
+        this.omitted = omitted;
+        this.metadata = metadata == null ? Map.of() : Map.copyOf(metadata);
     }
 
     @Override
