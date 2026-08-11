@@ -1,3 +1,4 @@
+import shlex
 import tempfile
 import unittest
 from pathlib import Path
@@ -204,7 +205,34 @@ class MobileRecordingAcceptanceWorkflowContractTest(unittest.TestCase):
         )
         self.assertEqual(expected_fetch, fetch.strip())
 
-        execution = steps_by_name["Run iOS recording acceptance"]["run"]
+        execution_steps = [
+            (
+                workflow["jobs"]["Android_Recording_BrowserStack"]["steps"],
+                "Run Android recording acceptance",
+            ),
+            (steps, "Run iOS recording acceptance"),
+        ]
+        executions = []
+        for job_steps, step_name in execution_steps:
+            matches = [step for step in job_steps if step.get("name") == step_name]
+            self.assertEqual(1, len(matches))
+            provider_execution = matches[0]["run"]
+            self.assertNotIn("\n", provider_execution)
+            self.assertNotIn("\r", provider_execution)
+            lexer = shlex.shlex(provider_execution, posix=True, punctuation_chars=";&|")
+            lexer.whitespace_split = True
+            lexer.commenters = "#"
+            arguments = list(lexer)
+            self.assertEqual("mvn", arguments[0])
+            self.assertEqual(1, arguments.count("mvn"))
+            version_arguments = [
+                argument for argument in arguments if argument.startswith("-DbrowserStack.appiumVersion=")
+            ]
+            self.assertEqual(["-DbrowserStack.appiumVersion=3.3.0"], version_arguments)
+            self.assertFalse(any(all(character in ";&|" for character in argument) for argument in arguments))
+            executions.append(provider_execution)
+
+        execution = executions[1]
         self.assertIn('"-Dshaft.enableNativeIosE2E=true"', execution)
         self.assertEqual(1, execution.count("-Dtest="))
         self.assertIn(

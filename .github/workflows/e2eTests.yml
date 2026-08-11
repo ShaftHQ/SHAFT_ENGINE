@@ -762,7 +762,7 @@ jobs:
       - name: Run Android recording acceptance
         continue-on-error: true
         timeout-minutes: 25
-        run: mvn -pl shaft-browserstack -am -e test "-Dallure.automaticallyOpen=false" "-DdefaultElementIdentificationTimeout=60" "-DretryMaximumNumberOfAttempts=0" "-DexecutionAddress=browserstack" "-DtargetOperatingSystem=android" "-Dmobile_automationName=UIAutomator2" "-DbrowserStack.platformVersion=13.0" "-DbrowserStack.deviceName=Google Pixel 7" "-DbrowserStack.appUrl=" "-DgenerateAllureReportArchive=true" "-Dtest=AndroidBasicInteractionsTests#screenRecordingShouldReturnAndSaveBoundedMedia"
+        run: mvn -pl shaft-browserstack -am -e test "-Dallure.automaticallyOpen=false" "-DdefaultElementIdentificationTimeout=60" "-DretryMaximumNumberOfAttempts=0" "-DexecutionAddress=browserstack" "-DtargetOperatingSystem=android" "-Dmobile_automationName=UIAutomator2" "-DbrowserStack.appiumVersion=3.3.0" "-DbrowserStack.platformVersion=13.0" "-DbrowserStack.deviceName=Google Pixel 7" "-DbrowserStack.appUrl=" "-DgenerateAllureReportArchive=true" "-Dtest=AndroidBasicInteractionsTests#screenRecordingShouldReturnAndSaveBoundedMedia"
       - name: Verify Android recording acceptance executed
         run: >-
           python3 scripts/ci/assert_tests_executed.py
@@ -806,7 +806,7 @@ jobs:
       - name: Run iOS recording acceptance
         continue-on-error: true
         timeout-minutes: 35
-        run: mvn -pl shaft-browserstack -am -e test "-Dallure.automaticallyOpen=false" "-DdefaultElementIdentificationTimeout=60" "-DretryMaximumNumberOfAttempts=0" "-DexecutionAddress=browserstack" "-DtargetOperatingSystem=iOS" "-Dmobile_automationName=XCuiTest" "-DbrowserStack.platformVersion=16" "-DbrowserStack.deviceName=iPhone 14" "-DbrowserStack.appUrl=" "-Dshaft.enableNativeIosE2E=true" "-DgenerateAllureReportArchive=true" "-Dtest=IOSBasicInteractionsTest#screenRecordingShouldReturnAndSaveBoundedMedia"
+        run: mvn -pl shaft-browserstack -am -e test "-Dallure.automaticallyOpen=false" "-DdefaultElementIdentificationTimeout=60" "-DretryMaximumNumberOfAttempts=0" "-DexecutionAddress=browserstack" "-DtargetOperatingSystem=iOS" "-Dmobile_automationName=XCuiTest" "-DbrowserStack.appiumVersion=3.3.0" "-DbrowserStack.platformVersion=16" "-DbrowserStack.deviceName=iPhone 14" "-DbrowserStack.appUrl=" "-Dshaft.enableNativeIosE2E=true" "-DgenerateAllureReportArchive=true" "-Dtest=IOSBasicInteractionsTest#screenRecordingShouldReturnAndSaveBoundedMedia"
       - name: Verify iOS recording acceptance executed
         run: >-
           python3 scripts/ci/assert_tests_executed.py
