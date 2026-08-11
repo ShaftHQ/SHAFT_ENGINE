@@ -17,6 +17,7 @@ import java.util.LinkedHashMap;
 import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.net.URI;
 
 /**
  * Owns browser network interception rules for one Playwright browser context.
@@ -25,6 +26,7 @@ public class PlaywrightNetworkInterceptor {
     private static final String ALL_REQUESTS = "**/*";
     private final BrowserContext browserContext;
     private final List<BrowserNetworkInterceptionRule> rules = new CopyOnWriteArrayList<>();
+    private final List<BasicAuthenticationPolicy> authenticationPolicies = new CopyOnWriteArrayList<>();
     private AutoCloseable activeRoute;
     private boolean observing;
 
@@ -59,22 +61,62 @@ public class PlaywrightNetworkInterceptor {
         }
     }
 
+    /** Stops passive observation while preserving registered interception rules. */
+    public synchronized void stopObserving() {
+        observing = false;
+        if (rules.isEmpty() && authenticationPolicies.isEmpty()) {
+            closeActiveRoute();
+        }
+    }
+
     /**
      * Clears all registered rules and removes the Playwright route handler.
      */
     public synchronized void clear() {
         rules.clear();
-        if (!observing) {
+        if (!observing && authenticationPolicies.isEmpty()) {
             closeActiveRoute();
         }
+    }
+
+    /** Registers or replaces a global or origin-scoped HTTP Basic authentication policy. */
+    public synchronized void registerBasicAuthentication(String origin, String authorizationHeader) {
+        java.util.Objects.requireNonNull(origin, "origin");
+        authenticationPolicies.removeIf(policy -> java.util.Objects.equals(policy.origin(), origin));
+        authenticationPolicies.add(new BasicAuthenticationPolicy(origin, authorizationHeader));
+        if (activeRoute == null) {
+            activeRoute = browserContext.route(ALL_REQUESTS, this::handle);
+        }
+    }
+
+    /** Clears only SHAFT-managed authentication policies. */
+    public synchronized void clearAuthentication() {
+        authenticationPolicies.clear();
+        if (!observing && rules.isEmpty()) {
+            closeActiveRoute();
+        }
+    }
+
+    /** Clears every route concern owned by this interceptor during session teardown. */
+    public synchronized void close() {
+        rules.clear();
+        authenticationPolicies.clear();
+        observing = false;
+        closeActiveRoute();
     }
 
     private void handle(Route route) {
         HttpRequest request = toSeleniumRequest(route.request());
         BrowserNetworkInterceptionRule rule = findMatchingRule(request);
+        String authorization = authorizationFor(route.request().url());
+        Map<String, String> providerHeaders = authorization == null ? null : withAuthorization(route.request(), authorization);
         boolean contractMode = HttpContractRecorder.isBrowserContractModeActive();
         if (rule == null && !contractMode) {
-            route.resume();
+            if (providerHeaders == null) {
+                route.fallback();
+            } else {
+                route.fallback(new Route.FallbackOptions().setHeaders(providerHeaders));
+            }
             return;
         }
         if (rule != null && rule.mocksResponse()) {
@@ -85,7 +127,16 @@ public class PlaywrightNetworkInterceptor {
         }
 
         try {
-            APIResponse response = route.fetch();
+            APIResponse response;
+            if (authenticationPolicies.isEmpty()) {
+                response = route.fetch();
+            } else {
+                Route.FetchOptions options = new Route.FetchOptions().setMaxRedirects(0);
+                if (providerHeaders != null) {
+                    options.setHeaders(providerHeaders);
+                }
+                response = route.fetch(options);
+            }
             if (rule != null) {
                 rule.validate(toRestAssuredResponse(response));
             }
@@ -95,6 +146,30 @@ public class PlaywrightNetworkInterceptor {
             HttpContractRecorder.handleBrowserExchange(request, null, e.getClass().getSimpleName());
             throw e;
         }
+    }
+
+    private String authorizationFor(String requestUrl) {
+        String requestOrigin;
+        try {
+            URI uri = URI.create(requestUrl);
+            requestOrigin = PermissionOrigin.normalize(uri.getScheme() + "://" + uri.getRawAuthority());
+        } catch (RuntimeException ignored) {
+            return null;
+        }
+        for (int i = authenticationPolicies.size() - 1; i >= 0; i--) {
+            BasicAuthenticationPolicy policy = authenticationPolicies.get(i);
+            if (policy.origin().equals(requestOrigin)) {
+                return policy.authorizationHeader();
+            }
+        }
+        return null;
+    }
+
+    private Map<String, String> withAuthorization(Request request, String authorization) {
+        Map<String, String> headers = new LinkedHashMap<>(request.headers());
+        headers.keySet().removeIf(name -> name.equalsIgnoreCase("Authorization"));
+        headers.put("Authorization", authorization);
+        return headers;
     }
 
     private BrowserNetworkInterceptionRule findMatchingRule(HttpRequest request) {
@@ -171,4 +246,6 @@ public class PlaywrightNetworkInterceptor {
             }
         }
     }
+
+    private record BasicAuthenticationPolicy(String origin, String authorizationHeader) { }
 }

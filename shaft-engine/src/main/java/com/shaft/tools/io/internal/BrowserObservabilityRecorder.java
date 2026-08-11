@@ -1,6 +1,8 @@
 package com.shaft.tools.io.internal;
 
 import com.shaft.driver.SHAFT;
+import com.shaft.gui.browser.internal.BidiConsoleLogSource;
+import com.shaft.gui.playwright.internal.PlaywrightSessionManager;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.logging.LogEntry;
 import org.openqa.selenium.remote.http.Contents;
@@ -21,6 +23,7 @@ import java.util.concurrent.TimeUnit;
  */
 public final class BrowserObservabilityRecorder {
     private static final int BODY_PREVIEW_LIMIT = 2048;
+    private static final int CONSOLE_EVENT_LIMIT = 1000;
     private static final ThreadLocal<List<NetworkEvent>> NETWORK = ThreadLocal.withInitial(ArrayList::new);
     private static final ThreadLocal<List<ConsoleEvent>> CONSOLE = ThreadLocal.withInitial(ArrayList::new);
     private static final ThreadLocal<List<WarningEvent>> WARNINGS = ThreadLocal.withInitial(ArrayList::new);
@@ -104,24 +107,43 @@ public final class BrowserObservabilityRecorder {
         if (!isConsoleEnabled()) {
             return;
         }
-        if (driver == null) {
-            recordWarning("console", "Console capture is unavailable because no active driver is registered.");
+        if (driver == null && PlaywrightSessionManager.currentSession() != null) {
+            PlaywrightSessionManager.currentSession().drainConsoleToRecorder();
             return;
+        }
+        if (BidiConsoleLogSource.isHealthy(driver)) {
+            BidiConsoleLogSource.drainToRecorder(driver);
+        } else if (!tryCollectConsole(driver)) {
+            recordWarning("console", driver == null
+                    ? "Console capture is unavailable because no active driver is registered."
+                    : "Browser console logs are not supported by this driver.");
+        }
+    }
+
+    /**
+     * Collects Selenium browser logs and reports whether the provider exposes the browser log type.
+     *
+     * @param driver active driver
+     * @return {@code true} when browser logs are supported and collected
+     */
+    public static boolean tryCollectConsole(WebDriver driver) {
+        if (driver == null) {
+            return false;
         }
         try {
             var logs = driver.manage().logs();
             Set<String> logTypes = logs.getAvailableLogTypes();
             if (!logTypes.contains("browser")) {
-                recordWarning("console", "Browser console logs are not supported by this driver.");
-                return;
+                return false;
             }
             List<LogEntry> entries = new ArrayList<>(logs.get("browser").getAll());
             entries.sort(Comparator.comparingLong(LogEntry::getTimestamp));
             for (LogEntry entry : entries) {
                 recordConsole("browser", entry.getLevel().getName(), entry.getMessage(), entry.getTimestamp());
             }
+            return true;
         } catch (RuntimeException e) {
-            recordWarning("console", "Browser console logs are not supported by this driver.");
+            return false;
         }
     }
 
@@ -134,10 +156,11 @@ public final class BrowserObservabilityRecorder {
      * @param timestamp epoch timestamp in milliseconds
      */
     public static void recordConsole(String source, String level, String message, long timestamp) {
-        if (!isConsoleEnabled()) {
-            return;
+        List<ConsoleEvent> events = CONSOLE.get();
+        if (events.size() >= CONSOLE_EVENT_LIMIT) {
+            events.removeFirst();
         }
-        CONSOLE.get().add(new ConsoleEvent(value(source), value(level), value(message), Math.max(0, timestamp)));
+        events.add(new ConsoleEvent(value(source), value(level), value(message), Math.max(0, timestamp)));
     }
 
     /**
@@ -225,9 +248,32 @@ public final class BrowserObservabilityRecorder {
     }
 
     static String drainConsoleJson() {
+        if (!isConsoleEnabled()) {
+            CONSOLE.get().clear();
+            return "[]";
+        }
         String json = consoleJson(CONSOLE.get());
         CONSOLE.get().clear();
         return json;
+    }
+
+    /** @return immutable, redacted current-thread console snapshot, oldest first */
+    public static List<ConsoleSnapshotEntry> snapshotConsole() {
+        return CONSOLE.get().stream()
+                .map(event -> new ConsoleSnapshotEntry(event.source(), event.level(),
+                        FailureTraceReporter.redact(event.message()), event.timestamp()))
+                .toList();
+    }
+
+    /** Creates one normalized, redacted public console snapshot entry. */
+    public static ConsoleSnapshotEntry consoleEntry(String source, String level, String message, long timestamp) {
+        return new ConsoleSnapshotEntry(value(source), value(level), FailureTraceReporter.redact(value(message)),
+                Math.max(0, timestamp));
+    }
+
+    /** Clears current-thread console observations without affecting network evidence. */
+    public static void clearConsole() {
+        CONSOLE.get().clear();
     }
 
     static String drainMetadataJson() {
@@ -522,6 +568,10 @@ public final class BrowserObservabilityRecorder {
     }
 
     private record ConsoleEvent(String source, String level, String message, long timestamp) {
+    }
+
+    /** Read-only console observation for namespace consumers. */
+    public record ConsoleSnapshotEntry(String source, String level, String message, long timestamp) {
     }
 
     private record WarningEvent(String source, String message) {

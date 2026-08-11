@@ -1,10 +1,13 @@
 package com.shaft.listeners.internal;
 
+import com.shaft.tools.io.internal.FailureTraceReporter;
+import com.shaft.tools.io.internal.ReportManagerHelper;
+
 /**
  * Shares per-thread execution failure context between runner adapters and Allure lifecycle hooks.
  */
 public final class ExecutionFailureContext {
-    private static final ThreadLocal<Throwable> pendingConfigFailure = new ThreadLocal<>();
+    private static final ThreadLocal<PendingConfigFailure> pendingConfigFailure = new ThreadLocal<>();
 
     private ExecutionFailureContext() {
         throw new IllegalStateException("Utility class");
@@ -19,7 +22,10 @@ public final class ExecutionFailureContext {
         if (throwable == null) {
             pendingConfigFailure.remove();
         } else {
-            pendingConfigFailure.set(throwable);
+            pendingConfigFailure.set(new PendingConfigFailure(throwable,
+                    FailureTraceReporter.redactInvocationText(throwable, throwable.getMessage()),
+                    FailureTraceReporter.redactInvocationText(throwable,
+                            ReportManagerHelper.formatStackTraceToLogEntry(throwable))));
         }
     }
 
@@ -29,8 +35,17 @@ public final class ExecutionFailureContext {
      * @return pending failure, or {@code null}
      */
     public static Throwable getAndClearPendingConfigFailure() {
-        Throwable throwable = pendingConfigFailure.get();
-        pendingConfigFailure.remove();
-        return throwable;
+        PendingConfigFailure failure = getAndClearPendingConfigFailureEvidence();
+        return failure == null ? null : failure.throwable();
     }
+
+    /** Returns and clears the original failure plus text sanitized at configuration-failure time. */
+    public static PendingConfigFailure getAndClearPendingConfigFailureEvidence() {
+        PendingConfigFailure failure = pendingConfigFailure.get();
+        pendingConfigFailure.remove();
+        return failure;
+    }
+
+    /** Immutable configuration failure evidence safe for later runner/report lifecycle phases. */
+    public record PendingConfigFailure(Throwable throwable, String message, String trace) { }
 }

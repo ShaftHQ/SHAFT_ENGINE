@@ -498,7 +498,8 @@ public class ReportManagerHelper {
         }
         reportMessage.append("\nStatus: ").append(testStatus);
         if (failureReason != null) {
-            reportMessage.append("\n").append(FailureReporter.getRootCause(failureReason).trim());
+            reportMessage.append("\n").append(FailureTraceReporter.redactThrowableText(failureReason,
+                    FailureReporter.getRootCause(failureReason).trim()));
         }
 
         createImportantReportEntry(reportMessage.toString(), logLevel);

@@ -162,19 +162,26 @@ class ManagedCaptureRecorderControlTest {
 
         recorder.acceptSignal(userTraversal("ui-keep", "https://example.test/keep"));
         recorder.acceptSignal(userTraversal("ui-drop", "https://example.test/drop"));
-        assertTrue(store.steps().stream().anyMatch(step -> "ui-keep".equals(step.clientActionId())),
+        assertTrue(store.steps().stream().anyMatch(step -> step.clientActionId().endsWith(":ui-keep")),
                 "The kept step must be persisted before stop.");
-        assertTrue(store.steps().stream().anyMatch(step -> "ui-drop".equals(step.clientActionId())),
+        String droppedActionId = store.steps().stream()
+                .map(step -> step.clientActionId())
+                .filter(clientActionId -> clientActionId.endsWith(":ui-drop"))
+                .findFirst()
+                .orElseThrow(() -> new AssertionError(
+                        "The soft-deleted step must still be persisted server-side before stop."));
+        assertTrue(droppedActionId.startsWith("ctx:"),
                 "The soft-deleted step is still persisted server-side until the delete is committed.");
 
-        // The overlay reports "ui-drop" as soft-deleted but not yet committed when stop is pressed.
-        recorder.pendingBrowserDeletesReaderForTesting(() -> List.of("ui-drop"));
+        // The overlay reports the server-synced, globally unique id as soft-deleted but not yet
+        // committed when stop is pressed.
+        recorder.pendingBrowserDeletesReaderForTesting(() -> List.of(droppedActionId));
         CaptureStatus status = recorder.stop(false);
 
         assertEquals(CaptureStatus.State.COMPLETED, status.state());
-        assertTrue(store.steps().stream().anyMatch(step -> "ui-keep".equals(step.clientActionId())),
+        assertTrue(store.steps().stream().anyMatch(step -> step.clientActionId().endsWith(":ui-keep")),
                 "The step the user did not delete must survive.");
-        assertFalse(store.steps().stream().anyMatch(step -> "ui-drop".equals(step.clientActionId())),
+        assertFalse(store.steps().stream().anyMatch(step -> step.clientActionId().endsWith(":ui-drop")),
                 "A step soft-deleted in the undo grace window must not resurface after stop.");
     }
 

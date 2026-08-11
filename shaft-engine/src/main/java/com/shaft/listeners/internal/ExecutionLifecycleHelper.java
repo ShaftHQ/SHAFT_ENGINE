@@ -150,7 +150,7 @@ public final class ExecutionLifecycleHelper {
                 className,
                 caseName,
                 valueOrBlank(info.description()),
-                valueOrBlank(errorMessage),
+                FailureTraceReporter.redactInvocationText(errorMessage),
                 statusMessage,
                 getIssueAnnotationValue(info.method()));
     }

@@ -1,6 +1,7 @@
 package com.shaft.gui.browser;
 
 import com.shaft.tools.io.internal.CheckpointStatus;
+import com.shaft.tools.io.internal.BrowserObservabilityRecorder;
 import com.shaft.driver.SHAFT;
 import com.shaft.driver.internal.DriverFactory.DriverFactoryHelper;
 import com.shaft.driver.internal.FluentWebDriverAction;
@@ -11,9 +12,15 @@ import com.shaft.gui.browser.internal.BrowserActionsHelper;
 import com.shaft.gui.browser.internal.BrowserNetworkProfileManager;
 import com.shaft.gui.browser.internal.BrowserNetworkInterceptionRule;
 import com.shaft.gui.browser.internal.BrowserStorageStateManager;
+import com.shaft.gui.browser.internal.BidiConsoleLogSource;
+import com.shaft.gui.browser.internal.BidiPermissionState;
+import com.shaft.gui.browser.internal.BrowserEmulationManager;
+import com.shaft.gui.browser.internal.PermissionOrigin;
 import com.shaft.gui.browser.internal.HarReplayRules;
 import com.shaft.gui.browser.internal.JavaScriptWaitManager;
 import com.shaft.gui.browser.internal.ScrollSweepPlanner;
+import com.shaft.gui.capabilities.AutomationBackend;
+import com.shaft.gui.driver.BrowserConsoleMessage;
 import com.shaft.gui.internal.image.ScreenshotManager;
 import com.shaft.gui.internal.locator.LocatorBuilder;
 import com.shaft.gui.internal.locator.ShadowLocatorBuilder;
@@ -21,28 +28,36 @@ import com.shaft.performance.internal.LightHouseGenerateReport;
 import com.shaft.tools.internal.support.JavaScriptHelper;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.io.internal.FlakeProfiler;
+import com.shaft.tools.io.internal.FailureTraceReporter;
 import com.shaft.tools.io.internal.HttpContractRecorder;
 import com.shaft.tools.io.internal.MobileTraceMetadata;
 import com.shaft.tools.io.internal.ReportManagerHelper;
 import com.shaft.tools.io.internal.TraceEventRecorder;
 import com.shaft.validation.accessibility.AccessibilityActions;
 import com.shaft.validation.internal.WebDriverBrowserValidationsBuilder;
-import io.appium.java_client.android.AndroidDriver;
-import io.appium.java_client.ios.IOSDriver;
+import io.appium.java_client.AppiumDriver;
+import io.appium.java_client.remote.SupportsContextSwitching;
 import io.qameta.allure.Step;
 import org.apache.logging.log4j.Level;
 import org.openqa.selenium.*;
 import org.openqa.selenium.devtools.HasDevTools;
+import org.openqa.selenium.bidi.HasBiDi;
+import org.openqa.selenium.bidi.permissions.PermissionState;
+import org.openqa.selenium.remote.RemoteWebDriver;
 import org.openqa.selenium.remote.http.HttpRequest;
 import org.openqa.selenium.remote.http.HttpResponse;
 
 import java.io.ByteArrayInputStream;
 import java.net.URI;
+import java.time.Duration;
 import java.util.*;
+import java.util.NoSuchElementException;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Predicate;
+import java.util.function.Supplier;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import org.openqa.selenium.support.ui.FluentWait;
 
 /**
  * Provides a fluent API for performing browser-level actions such as navigation, window management,
@@ -68,6 +83,7 @@ public class BrowserActions extends FluentWebDriverAction implements com.shaft.g
      */
     public BrowserActions() {
         initialize();
+        activateBrowserEvidenceOwner();
     }
 
     /**
@@ -77,6 +93,7 @@ public class BrowserActions extends FluentWebDriverAction implements com.shaft.g
      */
     public BrowserActions(WebDriver driver) {
         initialize(driver);
+        FailureTraceReporter.activateBrowserEvidenceOwner(driver);
     }
 
     /**
@@ -88,6 +105,7 @@ public class BrowserActions extends FluentWebDriverAction implements com.shaft.g
      */
     public BrowserActions(WebDriver driver, boolean isSilent) {
         initialize(driver, isSilent);
+        FailureTraceReporter.activateBrowserEvidenceOwner(driver);
     }
 
     /**
@@ -98,11 +116,879 @@ public class BrowserActions extends FluentWebDriverAction implements com.shaft.g
      */
     public BrowserActions(DriverFactoryHelper helper) {
         initialize(helper);
+        activateBrowserEvidenceOwner();
     }
 
     @Override
     public BrowserActions and() {
         return this;
+    }
+
+    /** @return cohesive network observation, mocking, replay, and emulation actions */
+    @Override
+    public NetworkActions network() {
+        return new NetworkActions(this);
+    }
+
+    @Override
+    public DialogActions dialog() {
+        return new DialogActions(this);
+    }
+
+    @Override
+    public ContextActions context() {
+        return new ContextActions(this);
+    }
+
+    @Override
+    public StorageActions storage() {
+        return new StorageActions(this);
+    }
+
+    @Override
+    public ConsoleActions console() {
+        return new ConsoleActions(this);
+    }
+
+    @Override
+    public ScriptActions script() {
+        return new ScriptActions(this);
+    }
+
+    @Override
+    public PermissionActions permissions() {
+        return new PermissionActions(this);
+    }
+
+    @Override
+    public AuthenticationActions authentication() {
+        return new AuthenticationActions(this);
+    }
+
+    @Override
+    public DownloadActions downloads() {
+        return new DownloadActions(this);
+    }
+
+    @Override
+    public EmulationActions emulation() {
+        return new EmulationActions(this);
+    }
+
+    void emulateViewportNamespace(int width, int height) {
+        performEmulation("screen", "viewport", width + "x" + height,
+                driver -> BrowserEmulationManager.setViewport(driver, width, height));
+    }
+
+    void clearViewportEmulationNamespace() {
+        performEmulation("screen", "clear-viewport", "", BrowserEmulationManager::clearViewport);
+    }
+
+    void emulateScreenSizeNamespace(int width, int height) {
+        performEmulation("screen", "screen-size", width + "x" + height,
+                driver -> BrowserEmulationManager.setScreenSize(driver, width, height));
+    }
+
+    void clearScreenSizeEmulationNamespace() {
+        performEmulation("screen", "clear-screen-size", "", BrowserEmulationManager::clearScreenSize);
+    }
+
+    void emulateGeolocationNamespace(double latitude, double longitude, double accuracy) {
+        performEmulation("location", "geolocation", "<geolocation>",
+                driver -> BrowserEmulationManager.setGeolocation(driver, latitude, longitude, accuracy),
+                latitude, longitude, accuracy);
+    }
+
+    void clearGeolocationEmulationNamespace() {
+        performEmulation("location", "clear-geolocation", "", BrowserEmulationManager::clearGeolocation);
+    }
+
+    void emulateTimezoneNamespace(String timezoneId) {
+        performEmulation("location", "timezone", timezoneId, driver -> BrowserEmulationManager.setTimezone(driver, timezoneId));
+    }
+
+    void clearTimezoneEmulationNamespace() {
+        performEmulation("location", "clear-timezone", "", BrowserEmulationManager::clearTimezone);
+    }
+
+    void emulateLocaleNamespace(String locale) {
+        performEmulation("location", "locale", locale, driver -> BrowserEmulationManager.setLocale(driver, locale));
+    }
+
+    void clearLocaleEmulationNamespace() {
+        performEmulation("location", "clear-locale", "", BrowserEmulationManager::clearLocale);
+    }
+
+    void emulateUserAgentNamespace(String userAgent) {
+        performEmulation("runtime", "user-agent", "", driver -> BrowserEmulationManager.setUserAgent(driver, userAgent),
+                userAgent);
+    }
+
+    void clearUserAgentEmulationNamespace() {
+        performEmulation("runtime", "clear-user-agent", "", BrowserEmulationManager::clearUserAgent);
+    }
+
+    void disableScriptingEmulationNamespace() {
+        performEmulation("runtime", "disable-scripting", "", BrowserEmulationManager::disableScripting);
+    }
+
+    void clearScriptingEmulationNamespace() {
+        performEmulation("runtime", "clear-scripting", "", BrowserEmulationManager::clearScriptingOverride);
+    }
+
+    void emulateMediaTypeNamespace(com.shaft.gui.driver.EmulatedMediaType mediaType) {
+        performEmulation("media", "type", String.valueOf(mediaType),
+                driver -> BrowserEmulationManager.setMediaType(driver, mediaType));
+    }
+
+    void emulateColorSchemeNamespace(com.shaft.gui.driver.EmulatedColorScheme colorScheme) {
+        performEmulation("media", "color-scheme", String.valueOf(colorScheme),
+                driver -> BrowserEmulationManager.setColorScheme(driver, colorScheme));
+    }
+
+    void emulateReducedMotionNamespace(com.shaft.gui.driver.EmulatedReducedMotion reducedMotion) {
+        performEmulation("media", "reduced-motion", String.valueOf(reducedMotion),
+                driver -> BrowserEmulationManager.setReducedMotion(driver, reducedMotion));
+    }
+
+    void resetMediaEmulationNamespace() {
+        performEmulation("media", "reset", "", BrowserEmulationManager::resetMedia);
+    }
+
+    private void performEmulation(String category, String operation, String locator,
+                                  java.util.function.Consumer<WebDriver> action, Object... sensitiveValues) {
+        WebDriver driver = driverFactoryHelper == null ? null : driverFactoryHelper.getDriver();
+        AutomationBackend backend = driver instanceof AppiumDriver
+                ? AutomationBackend.APPIUM : AutomationBackend.SELENIUM_WEBDRIVER;
+        boolean sensitive = registerEmulationSensitivity(sensitiveValues);
+        var event = startEmulationEvent(category, operation, locator, driver, backend, sensitive);
+        try {
+            action.accept(driver);
+            updatePersistentEmulationSensitivity(driver, operation, sensitive, sensitiveValues);
+            TraceEventRecorder.finish(event, "passed", "emulation " + category + " " + operation + " completed.",
+                    null, Map.of("backend", backend.name()), List.of());
+        } catch (RuntimeException exception) {
+            registerSensitiveEmulationFailure(exception, sensitive, sensitiveValues);
+            TraceEventRecorder.finish(event, "failed", "emulation " + category + " " + operation + " failed.",
+                    exception, Map.of("backend", backend.name()), List.of());
+            throw exception;
+        }
+    }
+
+    private static boolean registerEmulationSensitivity(Object... sensitiveValues) {
+        boolean sensitive = sensitiveValues != null && sensitiveValues.length > 0;
+        if (!sensitive) {
+            return false;
+        }
+        FailureTraceReporter.suppressSensitiveBrowserArtifacts();
+        for (Object value : sensitiveValues) {
+            if (value != null) {
+                FailureTraceReporter.registerSensitiveSourceValue(String.valueOf(value));
+            }
+        }
+        return true;
+    }
+
+    private static TraceEventRecorder.Event startEmulationEvent(String category, String operation, String locator,
+                                                                 WebDriver driver, AutomationBackend backend,
+                                                                 boolean sensitive) {
+        String safeLocator = locator == null ? "" : locator;
+        return sensitive
+                ? TraceEventRecorder.startForBackend("emulation/" + category, operation, safeLocator, backend)
+                : TraceEventRecorder.start("emulation/" + category, operation, safeLocator, driver);
+    }
+
+    private static void updatePersistentEmulationSensitivity(WebDriver driver, String operation, boolean sensitive,
+                                                              Object... sensitiveValues) {
+        if (sensitive) {
+            FailureTraceReporter.registerPersistentSensitiveBrowserState(driver, operation, sensitiveValues);
+            return;
+        }
+        if ("clear-geolocation".equals(operation)) {
+            FailureTraceReporter.clearPersistentSensitiveBrowserState(driver, "geolocation");
+        } else if ("clear-user-agent".equals(operation)) {
+            FailureTraceReporter.clearPersistentSensitiveBrowserState(driver, "user-agent");
+        }
+    }
+
+    private static void registerSensitiveEmulationFailure(RuntimeException exception, boolean sensitive,
+                                                           Object... sensitiveValues) {
+        if (!sensitive) {
+            return;
+        }
+        FailureTraceReporter.registerSensitiveThrowable(exception);
+        FailureTraceReporter.registerSensitiveValues(sensitiveValues);
+    }
+
+    private void activateBrowserEvidenceOwner() {
+        FailureTraceReporter.activateBrowserEvidenceOwner(
+                driverFactoryHelper == null ? null : driverFactoryHelper.getDriver());
+    }
+
+    List<com.shaft.gui.driver.BrowserDownload> downloadedFilesNamespace(DownloadActions owner) {
+        return queryDownloads("all", "", () -> downloadedFiles(owner, requireDownloadsSupport("all")));
+    }
+
+    private List<com.shaft.gui.driver.BrowserDownload> downloadedFiles(DownloadActions owner, HasDownloads downloads) {
+        return downloads.getDownloadedFiles().stream()
+                .sorted(Comparator.comparingLong(HasDownloads.DownloadedFile::getCreationTime)
+                        .thenComparingLong(HasDownloads.DownloadedFile::getLastModifiedTime)
+                        .thenComparing(HasDownloads.DownloadedFile::getName))
+                .map(file -> (com.shaft.gui.driver.BrowserDownload) new SeleniumBrowserDownload(file, owner, downloads))
+                .toList();
+    }
+
+    com.shaft.gui.driver.BrowserDownload waitForDownloadedFileNamespace(DownloadActions owner,
+                                                                         Predicate<com.shaft.gui.driver.BrowserDownload> predicate,
+                                                                         Runnable trigger) {
+        return queryDownloads("wait-for", "", () -> {
+            Objects.requireNonNull(predicate, "predicate");
+            Objects.requireNonNull(trigger, "trigger");
+            HasDownloads downloads = requireDownloadsSupport("wait-for");
+            Map<DownloadIdentity, Long> baseline = downloads.getDownloadedFiles().stream()
+                    .collect(java.util.stream.Collectors.groupingBy(DownloadIdentity::from,
+                            LinkedHashMap::new, java.util.stream.Collectors.counting()));
+            trigger.run();
+            return new FluentWait<>(downloads)
+                    .withTimeout(Duration.ofSeconds(SHAFT.Properties.timeouts.browserNavigationTimeout()))
+                    .pollingEvery(Duration.ofMillis(100))
+                    .until(source -> newDownloads(source.getDownloadedFiles(), baseline).stream()
+                            .sorted(Comparator.comparingLong(HasDownloads.DownloadedFile::getCreationTime)
+                                    .thenComparingLong(HasDownloads.DownloadedFile::getLastModifiedTime))
+                            .map(file -> (com.shaft.gui.driver.BrowserDownload) new SeleniumBrowserDownload(file, owner, downloads))
+                            .filter(predicate)
+                            .findFirst()
+                            .orElse(null));
+        });
+    }
+
+    com.shaft.gui.driver.BrowserDownload latestDownloadedFileNamespace(DownloadActions owner) {
+        return queryDownloads("latest", "", () -> {
+            List<com.shaft.gui.driver.BrowserDownload> files = downloadedFiles(owner, requireDownloadsSupport("latest"));
+            if (files.isEmpty()) {
+                throw new NoSuchElementException("No completed browser downloads are available.");
+            }
+            return files.getLast();
+        });
+    }
+
+    void clearDownloadedFilesNamespace() {
+        queryDownloads("clear", "", () -> {
+            requireDownloadsSupport("clear").deleteDownloadableFiles();
+            return null;
+        });
+    }
+
+    private HasDownloads requireDownloadsSupport(String operation) {
+        WebDriver driver = driverFactoryHelper == null ? null : driverFactoryHelper.getDriver();
+        boolean closed = driver instanceof RemoteWebDriver remote && remote.getSessionId() == null;
+        if (driver instanceof AppiumDriver || closed || !(driver instanceof HasDownloads downloads)
+                || !downloads.isDownloadsEnabled()) {
+            throw new UnsupportedOperationException("Browser downloads " + operation
+                    + " requires a live Selenium session with se:downloadsEnabled=true.");
+        }
+        return downloads;
+    }
+
+    private <T> T queryDownloads(String operation, String locator, Supplier<T> action) {
+        WebDriver driver = driverFactoryHelper == null ? null : driverFactoryHelper.getDriver();
+        var event = TraceEventRecorder.start("downloads", operation, locator, driver);
+        try {
+            T result = action.get();
+            TraceEventRecorder.finish(event, "passed", "downloads " + operation + " completed.", null,
+                    Map.of("backend", "SELENIUM_WEBDRIVER"), List.of());
+            return result;
+        } catch (RuntimeException exception) {
+            TraceEventRecorder.finish(event, "failed", "downloads " + operation + " failed.", exception,
+                    Map.of("backend", "SELENIUM_WEBDRIVER"), List.of());
+            throw exception;
+        }
+    }
+
+    private record DownloadIdentity(String name, long creationTime, long lastModifiedTime, long size) {
+        static DownloadIdentity from(HasDownloads.DownloadedFile file) {
+            return new DownloadIdentity(file.getName(), file.getCreationTime(), file.getLastModifiedTime(), file.getSize());
+        }
+    }
+
+    private static List<HasDownloads.DownloadedFile> newDownloads(List<HasDownloads.DownloadedFile> current,
+                                                                   Map<DownloadIdentity, Long> baseline) {
+        Map<DownloadIdentity, Long> remainingBaseline = new HashMap<>(baseline);
+        List<HasDownloads.DownloadedFile> additions = new ArrayList<>();
+        for (HasDownloads.DownloadedFile file : current) {
+            DownloadIdentity identity = DownloadIdentity.from(file);
+            long remaining = remainingBaseline.getOrDefault(identity, 0L);
+            if (remaining > 0) {
+                if (remaining == 1) {
+                    remainingBaseline.remove(identity);
+                } else {
+                    remainingBaseline.put(identity, remaining - 1);
+                }
+            } else {
+                additions.add(file);
+            }
+        }
+        return additions;
+    }
+
+    void requireContextSupport(String operation) {
+        WebDriver driver = driverFactoryHelper == null ? null : driverFactoryHelper.getDriver();
+        boolean closedRemoteSession = driver instanceof RemoteWebDriver remoteDriver && remoteDriver.getSessionId() == null;
+        if (!(driver instanceof SupportsContextSwitching) || closedRemoteSession) {
+            throw new UnsupportedOperationException("Appium context " + operation
+                    + " is not supported by the live Selenium/Appium session.");
+        }
+    }
+
+    boolean isCurrentAlertPresent() {
+        WebDriver driver = driverFactoryHelper == null ? null : driverFactoryHelper.getDriver();
+        boolean closedRemoteSession = driver instanceof RemoteWebDriver remoteDriver && remoteDriver.getSessionId() == null;
+        if (driver == null || closedRemoteSession) {
+            throw new UnsupportedOperationException("Dialog inspection requires a live Selenium/Appium session.");
+        }
+        try {
+            driver.switchTo().alert();
+            return true;
+        } catch (NoAlertPresentException ignored) {
+            return false;
+        }
+    }
+
+    void performNamespace(String category, String operation, Runnable action) {
+        queryNamespace(category, operation, () -> {
+            action.run();
+            return null;
+        });
+    }
+
+    <T> T queryNamespace(String category, String operation, Supplier<T> action) {
+        return queryNamespace(category, operation, "", action);
+    }
+
+    <T> T queryNamespace(String category, String operation, String locator, Supplier<T> action) {
+        WebDriver driver = driverFactoryHelper == null ? null : driverFactoryHelper.getDriver();
+        var event = TraceEventRecorder.start(category, operation, locator, driver);
+        try {
+            T result = TraceEventRecorder.withoutNestedEvents(action);
+            TraceEventRecorder.finish(event, "passed", category + " " + operation + " completed.", null,
+                    Map.of(), List.of());
+            return result;
+        } catch (RuntimeException exception) {
+            TraceEventRecorder.finish(event, "failed", category + " " + operation + " failed.", exception,
+                    Map.of(), List.of());
+            throw exception;
+        }
+    }
+
+    void saveStorageStateNamespace(String filePath) {
+        queryNamespace("storage", "save-state", filePath, () -> {
+            requireStorageSupport("save state");
+            saveStorageState(filePath);
+            return null;
+        });
+    }
+
+    void loadStorageStateNamespace(String filePath) {
+        queryNamespace("storage", "load-state", filePath, () -> {
+            requireStorageSupport("load state");
+            loadStorageState(filePath);
+            return null;
+        });
+    }
+
+    String getStorageValue(String scope, String key) {
+        return queryNamespace("storage", scope + "/get", key, () -> {
+            requireStorageKey(key);
+            Object value = storageExecutor("read " + scope).executeScript(
+                    "return window[arguments[0]].getItem(arguments[1]);", scope, key);
+            return value == null ? null : String.valueOf(value);
+        });
+    }
+
+    void setStorageValue(String scope, String key, String value) {
+        performSensitiveStorageWrite(scope + "/set", key, value, () -> {
+            requireStorageKey(key);
+            Objects.requireNonNull(value, "value");
+            storageExecutor("write " + scope).executeScript(
+                    "window[arguments[0]].setItem(arguments[1], arguments[2]);", scope, key, value);
+        });
+    }
+
+    void removeStorageValue(String scope, String key) {
+        queryNamespace("storage", scope + "/remove", key, () -> {
+            requireStorageKey(key);
+            storageExecutor("remove from " + scope).executeScript(
+                    "window[arguments[0]].removeItem(arguments[1]);", scope, key);
+            return null;
+        });
+    }
+
+    void clearStorage(String scope) {
+        queryNamespace("storage", scope + "/clear", "", () -> {
+            storageExecutor("clear " + scope).executeScript("window[arguments[0]].clear();", scope);
+            return null;
+        });
+    }
+
+    private JavascriptExecutor storageExecutor(String operation) {
+        WebDriver driver = driverFactoryHelper == null ? null : driverFactoryHelper.getDriver();
+        boolean closedRemoteSession = driver instanceof RemoteWebDriver remoteDriver && remoteDriver.getSessionId() == null;
+        boolean appiumWebContext = true;
+        if (driver instanceof AppiumDriver) {
+            appiumWebContext = isAppiumWebStorageContext(driver);
+        }
+        if (!(driver instanceof JavascriptExecutor executor) || closedRemoteSession || !appiumWebContext) {
+            throw new UnsupportedOperationException("Browser storage " + operation
+                    + " requires a live JavaScript-capable Selenium or Appium web-context session.");
+        }
+        return executor;
+    }
+
+    private boolean isAppiumWebStorageContext(WebDriver driver) {
+        try {
+            if (driver instanceof SupportsContextSwitching contexts) {
+                String context = contexts.getContext();
+                String normalized = context == null ? "" : context.toUpperCase(Locale.ROOT);
+                return normalized.contains("WEB") || normalized.contains("CHROMIUM");
+            }
+        } catch (RuntimeException ignored) {
+            // Fail closed when the provider cannot report the active context.
+        }
+        return false;
+    }
+
+    private void requireStorageSupport(String operation) {
+        storageExecutor(operation);
+    }
+
+    private void requireStorageKey(String key) {
+        Objects.requireNonNull(key, "key");
+    }
+
+    private void performSensitiveStorageWrite(String operation, String key, String value, Runnable action) {
+        WebDriver driver = driverFactoryHelper == null ? null : driverFactoryHelper.getDriver();
+        var event = TraceEventRecorder.start("storage", operation, key, driver);
+        try {
+            TraceEventRecorder.withoutNestedEvents(() -> {
+                action.run();
+                return null;
+            });
+            TraceEventRecorder.finish(event, "passed", "storage " + operation + " completed.", null,
+                    Map.of(), List.of());
+        } catch (RuntimeException exception) {
+            FailureTraceReporter.registerSensitiveValue(value);
+            TraceEventRecorder.finish(event, "failed", "storage " + operation + " failed.",
+                    exception, Map.of(), List.of());
+            throw exception;
+        }
+    }
+
+    List<BrowserConsoleMessage> consoleMessages(String operation, boolean errorsOnly) {
+        return queryNamespace("console", operation, () -> {
+            WebDriver driver = requireLiveConsoleDriver(operation);
+            List<BrowserObservabilityRecorder.ConsoleSnapshotEntry> entries;
+            if (BidiConsoleLogSource.isHealthy(driver)) {
+                entries = BidiConsoleLogSource.snapshot(driver);
+            } else if (BrowserObservabilityRecorder.tryCollectConsole(driver)) {
+                entries = BrowserObservabilityRecorder.snapshotConsole();
+            } else {
+                throw unsupportedConsole(operation);
+            }
+            return entries.stream()
+                    .map(entry -> new BrowserConsoleMessage(entry.source(), entry.level(), entry.message(),
+                            entry.timestamp()))
+                    .filter(message -> !errorsOnly || message.isError())
+                    .toList();
+        });
+    }
+
+    void clearConsoleNamespace() {
+        queryNamespace("console", "clear", () -> {
+            WebDriver driver = requireLiveConsoleDriver("clear");
+            boolean bidiSupported = BidiConsoleLogSource.isHealthy(driver);
+            boolean legacySupported = BrowserObservabilityRecorder.tryCollectConsole(driver);
+            BrowserObservabilityRecorder.clearConsole();
+            if (bidiSupported) {
+                BidiConsoleLogSource.clear(driver);
+            }
+            if (!bidiSupported && !legacySupported) {
+                throw unsupportedConsole("clear");
+            }
+            return null;
+        });
+    }
+
+    private WebDriver requireLiveConsoleDriver(String operation) {
+        WebDriver driver = driverFactoryHelper == null ? null : driverFactoryHelper.getDriver();
+        boolean closedRemoteSession = driver instanceof RemoteWebDriver remoteDriver && remoteDriver.getSessionId() == null;
+        if (driver == null || closedRemoteSession) {
+            throw unsupportedConsole(operation);
+        }
+        return driver;
+    }
+
+    private UnsupportedOperationException unsupportedConsole(String operation) {
+        return new UnsupportedOperationException("Browser console " + operation
+                + " is not supported by the live Selenium/Appium session.");
+    }
+
+    Object evaluateScriptNamespace(boolean asynchronous, boolean hasArgument, String script, Object argument) {
+        Objects.requireNonNull(script, "script");
+        String operation = asynchronous ? "evaluate-async" : "evaluate";
+        WebDriver driver = driverFactoryHelper == null ? null : driverFactoryHelper.getDriver();
+        var event = TraceEventRecorder.start("script", operation, "", driver);
+        try {
+            Object result = TraceEventRecorder.withoutNestedEvents(() -> {
+                JavascriptExecutor executor = scriptExecutor(operation);
+                if (asynchronous) {
+                    return hasArgument ? executor.executeAsyncScript(script, argument)
+                            : executor.executeAsyncScript(script);
+                }
+                return hasArgument ? executor.executeScript(script, argument) : executor.executeScript(script);
+            });
+            TraceEventRecorder.finish(event, "passed", "script " + operation + " completed.", null,
+                    Map.of(), List.of());
+            return result;
+        } catch (RuntimeException exception) {
+            FailureTraceReporter.registerSensitiveThrowable(exception);
+            if (hasArgument) {
+                FailureTraceReporter.registerSensitiveValues(argument);
+            }
+            TraceEventRecorder.finish(event, "failed", "script " + operation + " failed.", exception,
+                    Map.of(), List.of());
+            throw exception;
+        }
+    }
+
+    private JavascriptExecutor scriptExecutor(String operation) {
+        WebDriver driver = driverFactoryHelper == null ? null : driverFactoryHelper.getDriver();
+        boolean closedRemoteSession = driver instanceof RemoteWebDriver remoteDriver && remoteDriver.getSessionId() == null;
+        boolean supportedContext = !(driver instanceof AppiumDriver) || isAppiumWebStorageContext(driver);
+        if (!(driver instanceof JavascriptExecutor executor) || closedRemoteSession || !supportedContext) {
+            throw new UnsupportedOperationException("Browser script " + operation
+                    + " requires a live JavaScript-capable Selenium or Appium web-context session.");
+        }
+        return executor;
+    }
+
+    void registerBasicAuthenticationNamespace(String origin, String username, String password) {
+        queryAuthentication("register-basic", authenticationOriginTraceLocator(origin), username, password, driver -> {
+            registerBasicAuthentication(driver, origin, username, password);
+            return null;
+        });
+    }
+
+    void navigateWithBasicAuthenticationNamespace(String url, String username, String password) {
+        Objects.requireNonNull(url, "url");
+        queryAuthentication("navigate-basic", authenticationTraceLocator(url), username, password, driver -> {
+            URI target = URI.create(url);
+            if (target.getRawUserInfo() != null) {
+                throw new IllegalArgumentException("Authentication navigation URL must not embed credentials.");
+            }
+            String origin = PermissionOrigin.normalize(target.getScheme() + "://" + target.getRawAuthority());
+            registerBasicAuthentication(driver, origin, username, password);
+            navigateToURL(url);
+            return null;
+        });
+    }
+
+    private static String authenticationTraceLocator(String url) {
+        try {
+            URI target = URI.create(url);
+            if (target.getRawUserInfo() != null) {
+                return "<credential-bearing-url>";
+            }
+            return PermissionOrigin.normalize(target.getScheme() + "://" + target.getRawAuthority());
+        } catch (RuntimeException ignored) {
+            return "<invalid-url>";
+        }
+    }
+
+    private static String authenticationOriginTraceLocator(String origin) {
+        if (origin == null) {
+            return "<current-origin>";
+        }
+        try {
+            URI target = URI.create(origin);
+            if (target.getRawUserInfo() != null) {
+                return "<credential-bearing-origin>";
+            }
+            return PermissionOrigin.normalize(origin);
+        } catch (RuntimeException ignored) {
+            return "<invalid-origin>";
+        }
+    }
+
+    void clearAuthenticationNamespace() {
+        queryAuthentication("clear", null, "", "", driver -> {
+            throw new UnsupportedOperationException("Selenium HasAuthentication does not provide an unregister operation; recreate the driver session to clear handlers.");
+        });
+    }
+
+    private <T> T queryAuthentication(String operation, String locator, String username, String password,
+                                      java.util.function.Function<WebDriver, T> action) {
+        WebDriver driver = driverFactoryHelper == null ? null : driverFactoryHelper.getDriver();
+        var event = TraceEventRecorder.start("authentication", operation, locator == null ? "" : locator, driver);
+        try {
+            Objects.requireNonNull(username, "username");
+            Objects.requireNonNull(password, "password");
+            if (username.contains(":")) {
+                throw new IllegalArgumentException("HTTP Basic usernames must not contain ':'.");
+            }
+            FailureTraceReporter.registerSensitiveSourceValue(username);
+            FailureTraceReporter.registerSensitiveSourceValue(password);
+            WebDriver supported = authenticationDriver(operation);
+            T result = TraceEventRecorder.withoutNestedEvents(() -> action.apply(supported));
+            TraceEventRecorder.finish(event, "passed", "authentication " + operation + " completed.", null,
+                    Map.of(), List.of());
+            return result;
+        } catch (RuntimeException exception) {
+            FailureTraceReporter.registerSensitiveThrowable(exception);
+            FailureTraceReporter.registerSensitiveValues(username);
+            FailureTraceReporter.registerSensitiveValues(password);
+            TraceEventRecorder.finish(event, "failed", "authentication " + operation + " failed.", exception,
+                    Map.of(), List.of());
+            throw exception;
+        }
+    }
+
+    private WebDriver authenticationDriver(String operation) {
+        WebDriver driver = driverFactoryHelper == null ? null : driverFactoryHelper.getDriver();
+        boolean closed = driver instanceof RemoteWebDriver remote && remote.getSessionId() == null;
+        boolean devToolsLive = driver instanceof HasDevTools hasDevTools && hasDevTools.maybeGetDevTools().isPresent();
+        if (driver instanceof AppiumDriver || closed || !(driver instanceof HasAuthentication) || !devToolsLive) {
+            throw new UnsupportedOperationException("Browser authentication " + operation
+                    + " requires a live Selenium session with effective CDP-backed HasAuthentication support.");
+        }
+        return driver;
+    }
+
+    private void registerBasicAuthentication(WebDriver driver, String origin, String username, String password) {
+        String candidateOrigin = origin;
+        if (candidateOrigin == null) {
+            URI current = URI.create(driver.getCurrentUrl());
+            candidateOrigin = current.getScheme() + "://" + current.getRawAuthority();
+        }
+        String normalizedOrigin = PermissionOrigin.normalize(candidateOrigin);
+        Predicate<URI> predicate = uri -> {
+            try {
+                return normalizedOrigin.equals(PermissionOrigin.normalize(uri.getScheme() + "://" + uri.getRawAuthority()));
+            } catch (RuntimeException ignored) {
+                return false;
+            }
+        };
+        ((HasAuthentication) driver).register(predicate, UsernameAndPassword.of(username, password));
+    }
+
+    void setPermissionsNamespace(String stateName, String origin, String... permissionNames) {
+        WebDriver driver = driverFactoryHelper == null ? null : driverFactoryHelper.getDriver();
+        var event = TraceEventRecorder.start("permissions", stateName, origin == null ? "" : origin, driver);
+        try {
+            List<String> permissions = validatedPermissionNames(permissionNames);
+            if (origin == null) {
+                throw new UnsupportedOperationException("Selenium BiDi permission changes require an explicit origin; use grantFor(origin, ...).");
+            }
+            String validatedOrigin = PermissionOrigin.normalize(origin);
+            PermissionState state = switch (stateName) {
+                case "grant" -> PermissionState.GRANTED;
+                case "deny" -> PermissionState.DENIED;
+                case "prompt" -> PermissionState.PROMPT;
+                default -> throw new IllegalArgumentException("Unknown permission state: " + stateName);
+            };
+            org.openqa.selenium.bidi.module.Permission permission = bidiPermissions(driver, stateName);
+            TraceEventRecorder.withoutNestedEvents(() -> BidiPermissionState.exclusively(driver, changes -> {
+                permissions.forEach(name -> {
+                    permission.setPermission(Map.of("name", name), state, validatedOrigin);
+                    BidiPermissionState.Change change = new BidiPermissionState.Change(validatedOrigin, name);
+                    if (state == PermissionState.PROMPT) {
+                        changes.remove(change);
+                    } else {
+                        changes.add(change);
+                    }
+                });
+                return null;
+            }));
+            TraceEventRecorder.finish(event, "passed", "permissions " + stateName + " completed.", null,
+                    Map.of("permissionCount", Integer.toString(permissions.size())), List.of());
+        } catch (RuntimeException exception) {
+            TraceEventRecorder.finish(event, "failed", "permissions " + stateName + " failed.", exception,
+                    Map.of(), List.of());
+            throw exception;
+        }
+    }
+
+    void clearPermissionsNamespace() {
+        WebDriver driver = driverFactoryHelper == null ? null : driverFactoryHelper.getDriver();
+        var event = TraceEventRecorder.start("permissions", "clear", "", driver);
+        try {
+            org.openqa.selenium.bidi.module.Permission permission = bidiPermissions(driver, "clear");
+            int restored = TraceEventRecorder.withoutNestedEvents(() ->
+                    BidiPermissionState.exclusively(driver, changes -> {
+                List<BidiPermissionState.Change> snapshot = List.copyOf(changes);
+                snapshot.forEach(change -> {
+                    permission.setPermission(Map.of("name", change.permission()), PermissionState.PROMPT, change.origin());
+                    changes.remove(change);
+                });
+                return snapshot.size();
+            }));
+            TraceEventRecorder.finish(event, "passed", "permissions clear completed.", null,
+                    Map.of("permissionCount", Integer.toString(restored)), List.of());
+        } catch (RuntimeException exception) {
+            TraceEventRecorder.finish(event, "failed", "permissions clear failed.", exception, Map.of(), List.of());
+            throw exception;
+        }
+    }
+
+    @SuppressWarnings("removal")
+    private org.openqa.selenium.bidi.module.Permission bidiPermissions(WebDriver driver, String operation) {
+        boolean closedRemoteSession = driver instanceof RemoteWebDriver remoteDriver && remoteDriver.getSessionId() == null;
+        Capabilities capabilities = driver instanceof HasCapabilities hasCapabilities
+                ? hasCapabilities.getCapabilities() : null;
+        Object webSocketUrl = capabilities == null ? null : capabilities.getCapability("webSocketUrl");
+        boolean negotiated = driver instanceof HasBiDi hasBiDi
+                && hasBiDi.maybeGetBiDi().isPresent()
+                && webSocketUrl instanceof String url && !url.isBlank();
+        if (driver instanceof AppiumDriver || closedRemoteSession || !negotiated) {
+            throw new UnsupportedOperationException("Browser permissions " + operation
+                    + " requires a live Selenium session with negotiated WebDriver BiDi permission support.");
+        }
+        return new org.openqa.selenium.bidi.module.Permission(driver);
+    }
+
+    private static List<String> validatedPermissionNames(String... permissionNames) {
+        if (permissionNames == null || permissionNames.length == 0) {
+            throw new IllegalArgumentException("At least one permission name is required.");
+        }
+        return Arrays.stream(permissionNames)
+                .map(name -> Objects.requireNonNull(name, "permission name").trim())
+                .peek(name -> {
+                    if (name.isEmpty()) {
+                        throw new IllegalArgumentException("Permission names must not be blank.");
+                    }
+                }).toList();
+    }
+
+    String currentContextNamespace() {
+        return queryContext("current", "", contextDriver -> contextDriver.getContext());
+    }
+
+    List<String> contextHandlesNamespace() {
+        return queryContext("handles", "", contextDriver -> new ArrayList<>(contextDriver.getContextHandles()));
+    }
+
+    void switchContextNamespace(String requestedContext) {
+        queryContext("switch-to", requestedContext, contextDriver -> {
+            contextDriver.context(requestedContext);
+            return contextDriver.getContext();
+        });
+    }
+
+    private <T> T queryContext(String operation, String requestedContext,
+                               java.util.function.Function<SupportsContextSwitching, T> action) {
+        WebDriver driver = driverFactoryHelper == null ? null : driverFactoryHelper.getDriver();
+        var event = TraceEventRecorder.start("context", operation, requestedContext, driver);
+        String before = currentMobileContext();
+        try {
+            requireContextSupport(operation);
+            T result = action.apply((SupportsContextSwitching) driver);
+            Map<String, String> metadata = new LinkedHashMap<>(MobileTraceMetadata.mobileMetadata(driver, false));
+            metadata.put("requestedContext", requestedContext);
+            metadata.put("contextBefore", before);
+            metadata.put("contextAfter", currentMobileContext());
+            metadata.put("result", String.valueOf(result));
+            TraceEventRecorder.finish(event, "passed", "Context " + operation + " completed.", null,
+                    metadata, List.of());
+            return result;
+        } catch (RuntimeException exception) {
+            Map<String, String> metadata = new LinkedHashMap<>(MobileTraceMetadata.mobileMetadata(driver, true));
+            metadata.put("requestedContext", requestedContext);
+            metadata.put("contextBefore", before);
+            metadata.put("contextAfter", currentMobileContext());
+            TraceEventRecorder.finish(event, "failed", "Context " + operation + " failed.", exception,
+                    metadata, List.of());
+            throw exception;
+        }
+    }
+
+    void requireNetworkNamespaceSupport(String operation) {
+        WebDriver driver = driverFactoryHelper == null ? null : driverFactoryHelper.getDriver();
+        boolean closedRemoteSession = driver instanceof RemoteWebDriver remoteDriver && remoteDriver.getSessionId() == null;
+        boolean liveDevTools = driver instanceof HasDevTools hasDevTools && hasDevTools.maybeGetDevTools().isPresent();
+        if (!liveDevTools || closedRemoteSession) {
+            var exception = new UnsupportedOperationException("Network " + operation
+                    + " is not supported by the live Selenium/Appium session. "
+                    + "Use a Selenium driver with DevTools support and query capabilities() before invoking it.");
+            throw exception;
+        }
+    }
+
+    private void requireNetworkObservation(String operation) {
+        requireNetworkNamespaceSupport(operation);
+        if (!driverFactoryHelper.startBrowserNetworkObservation()) {
+            var exception = new UnsupportedOperationException("Network " + operation
+                    + " could not start on the live Selenium session.");
+            throw exception;
+        }
+    }
+
+    void startNetworkContractRecording(String contractFilePath, String... urlContains) {
+        initializeNetworkContract("contract recording",
+                () -> HttpContractRecorder.startRecording(contractFilePath, urlContains));
+        browserActionsHelper.passAction(driverFactoryHelper.getDriver(), "Started HTTP contract recording.");
+    }
+
+    void startNetworkContractAssertion(String contractFilePath, String... urlContains) {
+        initializeNetworkContract("contract assertion",
+                () -> HttpContractRecorder.startAssertMode(contractFilePath, urlContains));
+        browserActionsHelper.passAction(driverFactoryHelper.getDriver(), "Started HTTP contract assertion mode.");
+    }
+
+    void startNetworkContractVerification(String contractFilePath, String... urlContains) {
+        initializeNetworkContract("contract verification",
+                () -> HttpContractRecorder.startVerifyMode(contractFilePath, urlContains));
+        browserActionsHelper.passAction(driverFactoryHelper.getDriver(), "Started HTTP contract verification mode.");
+    }
+
+    private void initializeNetworkContract(String operation, Runnable initializer) {
+        requireNetworkObservation(operation);
+        try {
+            initializer.run();
+        } catch (RuntimeException exception) {
+            HttpContractRecorder.clear();
+            driverFactoryHelper.stopBrowserNetworkObservation();
+            throw exception;
+        }
+    }
+
+    void performNetworkAction(String operation, Runnable action) {
+        WebDriver driver = driverFactoryHelper == null ? null : driverFactoryHelper.getDriver();
+        var event = TraceEventRecorder.start("network", operation, "", driver);
+        try {
+            requireNetworkNamespaceSupport(operation);
+            action.run();
+            TraceEventRecorder.finish(event, "passed", "Network " + operation + " completed.", null,
+                    Map.of(), List.of());
+        } catch (RuntimeException exception) {
+            TraceEventRecorder.finish(event, "failed", "Network " + operation + " failed.", exception,
+                    Map.of(), List.of());
+            throw exception;
+        }
+    }
+
+    NetworkInterceptionRequestBuilder<BrowserActions> networkInterceptRequest() {
+        try {
+            requireNetworkNamespaceSupport("interception");
+        } catch (RuntimeException exception) {
+            WebDriver driver = driverFactoryHelper == null ? null : driverFactoryHelper.getDriver();
+            var event = TraceEventRecorder.start("network", "intercept-request", "", driver);
+            TraceEventRecorder.finish(event, "failed", "Network intercept-request failed.", exception,
+                    Map.of(), List.of());
+            throw exception;
+        }
+        return new NetworkInterceptionRequestBuilder<>(this, (rule, message) -> {
+            performNetworkAction("intercept-request", () -> registerNetworkInterceptionRule(rule, message));
+            return this;
+        });
     }
 
     /**
@@ -758,8 +1644,12 @@ public class BrowserActions extends FluentWebDriverAction implements com.shaft.g
      */
     @Override
     public BrowserActions startContractRecording(String contractFilePath, String... urlContains) {
+        if (!driverFactoryHelper.startBrowserNetworkObservation()) {
+            browserActionsHelper.passAction(driverFactoryHelper.getDriver(),
+                    "HTTP contract recording is unsupported by this driver.");
+            return this;
+        }
         HttpContractRecorder.startRecording(contractFilePath, urlContains);
-        driverFactoryHelper.startBrowserNetworkObservation();
         browserActionsHelper.passAction(driverFactoryHelper.getDriver(), "Started HTTP contract recording.");
         return this;
     }
@@ -773,8 +1663,12 @@ public class BrowserActions extends FluentWebDriverAction implements com.shaft.g
      */
     @Override
     public BrowserActions assertContract(String contractFilePath, String... urlContains) {
+        if (!driverFactoryHelper.startBrowserNetworkObservation()) {
+            browserActionsHelper.passAction(driverFactoryHelper.getDriver(),
+                    "HTTP contract assertion is unsupported by this driver.");
+            return this;
+        }
         HttpContractRecorder.startAssertMode(contractFilePath, urlContains);
-        driverFactoryHelper.startBrowserNetworkObservation();
         browserActionsHelper.passAction(driverFactoryHelper.getDriver(), "Started HTTP contract assertion mode.");
         return this;
     }
@@ -788,8 +1682,12 @@ public class BrowserActions extends FluentWebDriverAction implements com.shaft.g
      */
     @Override
     public BrowserActions verifyContract(String contractFilePath, String... urlContains) {
+        if (!driverFactoryHelper.startBrowserNetworkObservation()) {
+            browserActionsHelper.passAction(driverFactoryHelper.getDriver(),
+                    "HTTP contract verification is unsupported by this driver.");
+            return this;
+        }
         HttpContractRecorder.startVerifyMode(contractFilePath, urlContains);
-        driverFactoryHelper.startBrowserNetworkObservation();
         browserActionsHelper.passAction(driverFactoryHelper.getDriver(), "Started HTTP contract verification mode.");
         return this;
     }
@@ -1504,10 +2402,8 @@ public class BrowserActions extends FluentWebDriverAction implements com.shaft.g
     @Override
     public String getContext() {
         String context = "";
-        if (driverFactoryHelper.getDriver() instanceof AndroidDriver androidDriver) {
-            context = androidDriver.getContext();
-        } else if (driverFactoryHelper.getDriver() instanceof IOSDriver iosDriver) {
-            context = iosDriver.getContext();
+        if (driverFactoryHelper.getDriver() instanceof SupportsContextSwitching contextDriver) {
+            context = contextDriver.getContext();
         } else {
             elementActionsHelper.failAction(driverFactoryHelper.getDriver(), null);
         }
@@ -1526,10 +2422,8 @@ public class BrowserActions extends FluentWebDriverAction implements com.shaft.g
     public BrowserActions setContext(String context) {
         String contextBefore = currentMobileContext();
         try {
-            if (driverFactoryHelper.getDriver() instanceof AndroidDriver androidDriver) {
-                androidDriver.context(context);
-            } else if (driverFactoryHelper.getDriver() instanceof IOSDriver iosDriver) {
-                iosDriver.context(context);
+            if (driverFactoryHelper.getDriver() instanceof SupportsContextSwitching contextDriver) {
+                contextDriver.context(context);
             } else {
                 elementActionsHelper.failAction(driverFactoryHelper.getDriver(), context, null);
             }
@@ -1564,10 +2458,8 @@ public class BrowserActions extends FluentWebDriverAction implements com.shaft.g
     @Override
     public List<String> getContextHandles() {
         List<String> windowHandles = new ArrayList<>();
-        if (driverFactoryHelper.getDriver() instanceof AndroidDriver androidDriver) {
-            windowHandles.addAll(androidDriver.getContextHandles());
-        } else if (driverFactoryHelper.getDriver() instanceof IOSDriver iosDriver) {
-            windowHandles.addAll(iosDriver.getContextHandles());
+        if (driverFactoryHelper.getDriver() instanceof SupportsContextSwitching contextDriver) {
+            windowHandles.addAll(contextDriver.getContextHandles());
         } else {
             elementActionsHelper.failAction(driverFactoryHelper.getDriver(), null);
         }
@@ -1577,11 +2469,8 @@ public class BrowserActions extends FluentWebDriverAction implements com.shaft.g
 
     private String currentMobileContext() {
         try {
-            if (driverFactoryHelper.getDriver() instanceof AndroidDriver androidDriver) {
-                return androidDriver.getContext();
-            }
-            if (driverFactoryHelper.getDriver() instanceof IOSDriver iosDriver) {
-                return iosDriver.getContext();
+            if (driverFactoryHelper.getDriver() instanceof SupportsContextSwitching contextDriver) {
+                return contextDriver.getContext();
             }
             return "unsupported by active driver";
         } catch (RuntimeException ignored) {

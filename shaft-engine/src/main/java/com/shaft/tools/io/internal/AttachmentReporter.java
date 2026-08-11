@@ -14,6 +14,8 @@ import java.nio.file.Path;
 import java.util.Calendar;
 import java.util.LinkedHashMap;
 import java.util.Locale;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.BiConsumer;
 import java.util.regex.Pattern;
 
@@ -31,6 +33,7 @@ import java.util.regex.Pattern;
 public class AttachmentReporter {
     private static final LinkedHashMap<String, BiConsumer<String, ByteArrayOutputStream>> attachmentHandlers = new LinkedHashMap<>();
     private static final LinkedHashMap<String, AttachmentFormat> attachmentFormats = new LinkedHashMap<>();
+    private static final Set<Path> REPORT_PORTAL_DEFERRED_FILES = ConcurrentHashMap.newKeySet();
     private static final String ALLURE_HTML_FIT_STYLE = """
             <style id="shaft-allure-html-fit">
               html, body {
@@ -241,10 +244,43 @@ public class AttachmentReporter {
             ReportContext.recordAttachment(attachmentDescription, attachmentFormat.contentType(),
                     attachmentFormat.fileExtension(), "", java.nio.file.Files.size(contentPath));
             if (TestNGListener.isReportPortalEnabled()) {
-                ReportPortal.emitLog(attachmentDescription, "INFO", Calendar.getInstance().getTime(), contentPath.toFile());
+                Path reportPortalCopy = null;
+                try {
+                    reportPortalCopy = java.nio.file.Files.createTempFile("shaft-reportportal-",
+                            attachmentFormat.fileExtension());
+                    REPORT_PORTAL_DEFERRED_FILES.add(reportPortalCopy);
+                    reportPortalCopy.toFile().deleteOnExit();
+                    java.nio.file.Files.copy(contentPath, reportPortalCopy,
+                            java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+                    ReportPortal.emitLog(attachmentDescription, "INFO", Calendar.getInstance().getTime(),
+                            reportPortalCopy.toFile());
+                } catch (Exception exception) {
+                    cleanupReportPortalFile(reportPortalCopy);
+                    throw exception;
+                }
             }
         } catch (Exception e) {
             ReportManagerHelper.logDiscrete(e);
+        }
+    }
+
+    /** Deletes file-backed copies after ReportPortal's launch-finishing boundary has drained logs. */
+    public static void cleanupReportPortalDeferredFiles() {
+        for (Path path : java.util.List.copyOf(REPORT_PORTAL_DEFERRED_FILES)) {
+            cleanupReportPortalFile(path);
+        }
+    }
+
+    private static void cleanupReportPortalFile(Path path) {
+        if (path == null) {
+            return;
+        }
+        try {
+            java.nio.file.Files.deleteIfExists(path);
+            REPORT_PORTAL_DEFERRED_FILES.remove(path);
+        } catch (Exception exception) {
+            path.toFile().deleteOnExit();
+            ReportManagerHelper.logDiscrete(exception);
         }
     }
 

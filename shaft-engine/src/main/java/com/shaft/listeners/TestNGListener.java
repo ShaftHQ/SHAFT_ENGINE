@@ -22,7 +22,9 @@ import org.testng.internal.IResultListener2;
 import org.testng.xml.XmlSuite;
 
 import java.lang.reflect.Constructor;
+import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.lang.reflect.Proxy;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -181,27 +183,56 @@ public class TestNGListener implements IAlterSuiteListener, IAnnotationTransform
 
     @Override
     public void onConfigurationFailure(ITestResult testResult) {
-        if (testResult.getThrowable() != null) {
-            TestNGListenerHelper.setPendingConfigFailure(testResult.getThrowable());
+        try {
+            if (testResult.getThrowable() != null && canSuppressFollowingTest(testResult.getMethod())) {
+                TestNGListenerHelper.setPendingConfigFailure(testResult.getThrowable());
+            }
+            if (this.isReportPortalEnabledForListener) {
+                ITestResult reportPortalResult = reportPortalSafeResult(testResult);
+                this.reportPortalTestNGService.sendReportPortalMsg(reportPortalResult);
+                this.reportPortalTestNGService.finishTestMethod(ItemStatus.FAILED, reportPortalResult);
+            }
+        } finally {
+            ReportContext.clearPreservingSensitiveEvidence();
         }
-        if (this.isReportPortalEnabledForListener) this.reportPortalTestNGService.sendReportPortalMsg(testResult);
-        if (this.isReportPortalEnabledForListener) this.reportPortalTestNGService.finishTestMethod(ItemStatus.FAILED, testResult);
+    }
+
+    private static boolean canSuppressFollowingTest(ITestNGMethod method) {
+        return method == null || !(method.isAfterMethodConfiguration()
+                || method.isAfterClassConfiguration()
+                || method.isAfterTestConfiguration()
+                || method.isAfterSuiteConfiguration()
+                || method.isAfterGroupsConfiguration());
     }
 
     @Override
     public void onConfigurationSuccess(ITestResult testResult) {
-        if (this.isReportPortalEnabledForListener) this.reportPortalTestNGService.finishTestMethod(ItemStatus.PASSED, testResult);
+        try {
+            if (this.isReportPortalEnabledForListener) this.reportPortalTestNGService.finishTestMethod(ItemStatus.PASSED, testResult);
+        } finally {
+            ReportContext.clearPreservingSensitiveEvidence();
+        }
     }
 
     @Override
     public void onConfigurationSkip(ITestResult testResult) {
-        if (this.isReportPortalEnabledForListener) this.reportPortalTestNGService.startConfiguration(testResult);
-        if (this.isReportPortalEnabledForListener) this.reportPortalTestNGService.finishTestMethod(ItemStatus.SKIPPED, testResult);
+        try {
+            if (this.isReportPortalEnabledForListener) this.reportPortalTestNGService.startConfiguration(testResult);
+            if (this.isReportPortalEnabledForListener) this.reportPortalTestNGService.finishTestMethod(ItemStatus.SKIPPED, testResult);
+        } finally {
+            ReportContext.clearPreservingSensitiveEvidence();
+        }
     }
 
     @Override
     public void onTestFailedButWithinSuccessPercentage(ITestResult result) {
-        if (this.isReportPortalEnabledForListener) this.reportPortalTestNGService.finishTestMethod(ItemStatus.FAILED, result);
+        try {
+            if (this.isReportPortalEnabledForListener) {
+                this.reportPortalTestNGService.finishTestMethod(ItemStatus.FAILED, reportPortalSafeResult(result));
+            }
+        } finally {
+            ReportContext.clearPreservingSensitiveEvidence();
+        }
     }
 
     /**
@@ -339,7 +370,6 @@ public class TestNGListener implements IAlterSuiteListener, IAnnotationTransform
             activeTestClass.remove();
             TestNGListenerHelper.cleanup();
         }
-        ReportContext.clear();
     }
 
     /**
@@ -369,6 +399,7 @@ public class TestNGListener implements IAlterSuiteListener, IAnnotationTransform
                 rethrow(engineTearDownFailure);
             }
         } finally {
+            AttachmentReporter.cleanupReportPortalDeferredFiles();
             resetTrackedResultState();
             resetThreadLocalLifecycleState(true);
         }
@@ -466,37 +497,98 @@ public class TestNGListener implements IAlterSuiteListener, IAnnotationTransform
 
     @Override
     public void onTestSuccess(ITestResult testResult) {
-        passedTests.add(testResult.getMethod());
-        ExecutionSummaryReport.casesDetailsIncrement(TestNGListenerHelper.getTmsLinkAnnotationValue(testResult), testResult.getMethod().getQualifiedName().replace("." + testResult.getMethod().getMethodName(), ""),
-                testResult.getMethod().getMethodName(), testResult.getMethod().getDescription(), "",
-                ExecutionSummaryReport.StatusIcon.PASSED.getValue() + ExecutionSummaryReport.Status.PASSED.name(), TestNGListenerHelper.getIssueAnnotationValue(testResult));
-        if (this.isReportPortalEnabledForListener) this.reportPortalTestNGService.finishTestMethod(ItemStatus.PASSED, testResult);
+        try {
+            passedTests.add(testResult.getMethod());
+            ExecutionSummaryReport.casesDetailsIncrement(TestNGListenerHelper.getTmsLinkAnnotationValue(testResult), testResult.getMethod().getQualifiedName().replace("." + testResult.getMethod().getMethodName(), ""),
+                    testResult.getMethod().getMethodName(), testResult.getMethod().getDescription(), "",
+                    ExecutionSummaryReport.StatusIcon.PASSED.getValue() + ExecutionSummaryReport.Status.PASSED.name(), TestNGListenerHelper.getIssueAnnotationValue(testResult));
+            if (this.isReportPortalEnabledForListener) this.reportPortalTestNGService.finishTestMethod(ItemStatus.PASSED, testResult);
+        } finally {
+            ReportContext.clearPreservingSensitiveEvidence();
+        }
     }
 
     @Override
     public void onTestFailure(ITestResult testResult) {
-        failedTests.add(testResult.getMethod());
-        ExecutionSummaryReport.casesDetailsIncrement(TestNGListenerHelper.getTmsLinkAnnotationValue(testResult), testResult.getMethod().getQualifiedName().replace("." + testResult.getMethod().getMethodName(), ""),
-                testResult.getMethod().getMethodName(), testResult.getMethod().getDescription(), testResult.getThrowable().getMessage(),
-                ExecutionSummaryReport.StatusIcon.FAILED.getValue() + ExecutionSummaryReport.Status.FAILED.name(), TestNGListenerHelper.getIssueAnnotationValue(testResult));
-        if (this.isReportPortalEnabledForListener) this.reportPortalTestNGService.sendReportPortalMsg(testResult);
-        if (this.isReportPortalEnabledForListener) this.reportPortalTestNGService.finishTestMethod(ItemStatus.FAILED, testResult);
+        try {
+            failedTests.add(testResult.getMethod());
+            ExecutionSummaryReport.casesDetailsIncrement(TestNGListenerHelper.getTmsLinkAnnotationValue(testResult), testResult.getMethod().getQualifiedName().replace("." + testResult.getMethod().getMethodName(), ""),
+                    testResult.getMethod().getMethodName(), testResult.getMethod().getDescription(),
+                    FailureTraceReporter.redactInvocationText(testResult.getThrowable(), testResult.getThrowable().getMessage()),
+                    ExecutionSummaryReport.StatusIcon.FAILED.getValue() + ExecutionSummaryReport.Status.FAILED.name(), TestNGListenerHelper.getIssueAnnotationValue(testResult));
+            if (this.isReportPortalEnabledForListener) {
+                ITestResult reportPortalResult = reportPortalSafeResult(testResult);
+                this.reportPortalTestNGService.sendReportPortalMsg(reportPortalResult);
+                this.reportPortalTestNGService.finishTestMethod(ItemStatus.FAILED, reportPortalResult);
+            }
+        } finally {
+            ReportContext.clearPreservingSensitiveEvidence();
+        }
     }
 
     @Override
     public void onTestSkipped(ITestResult testResult) {
-        skippedTests.add(testResult.getMethod());
-        // TestNG's TestInvoker forces the status to SKIP (and sets wasRetried=true) for every failed
-        // attempt that RetryAnalyzer chooses to retry; only the terminal attempt keeps its real
-        // FAILURE/SUCCESS status and fires onTestFailure/onTestSuccess. Recording a report row for
-        // one of these retry-suppressed attempts is what makes deterministic failures render as a
-        // misleading multi-run PASS/PASS/failure shape (#3810) instead of a single final outcome.
-        if (!testResult.wasRetried()) {
-            String throwableMessage = testResult.getThrowable() != null ? testResult.getThrowable().getMessage() : "";
-            ExecutionSummaryReport.casesDetailsIncrement(TestNGListenerHelper.getTmsLinkAnnotationValue(testResult), testResult.getMethod().getQualifiedName().replace("." + testResult.getMethod().getMethodName(), ""),
-                    testResult.getMethod().getMethodName(), testResult.getMethod().getDescription(), throwableMessage,
-                    ExecutionSummaryReport.StatusIcon.SKIPPED.getValue() + ExecutionSummaryReport.Status.SKIPPED.name(), TestNGListenerHelper.getIssueAnnotationValue(testResult));
+        try {
+            skippedTests.add(testResult.getMethod());
+            // TestNG's TestInvoker forces the status to SKIP (and sets wasRetried=true) for every failed
+            // attempt that RetryAnalyzer chooses to retry; only the terminal attempt keeps its real
+            // FAILURE/SUCCESS status and fires onTestFailure/onTestSuccess. Recording a report row for
+            // one of these retry-suppressed attempts is what makes deterministic failures render as a
+            // misleading multi-run PASS/PASS/failure shape (#3810) instead of a single final outcome.
+            if (!testResult.wasRetried()) {
+                String throwableMessage = testResult.getThrowable() != null
+                        ? FailureTraceReporter.redactInvocationText(testResult.getThrowable(), testResult.getThrowable().getMessage())
+                        : "";
+                ExecutionSummaryReport.casesDetailsIncrement(TestNGListenerHelper.getTmsLinkAnnotationValue(testResult), testResult.getMethod().getQualifiedName().replace("." + testResult.getMethod().getMethodName(), ""),
+                        testResult.getMethod().getMethodName(), testResult.getMethod().getDescription(), throwableMessage,
+                        ExecutionSummaryReport.StatusIcon.SKIPPED.getValue() + ExecutionSummaryReport.Status.SKIPPED.name(), TestNGListenerHelper.getIssueAnnotationValue(testResult));
+            }
+            if (this.isReportPortalEnabledForListener) {
+                this.reportPortalTestNGService.finishTestMethod(ItemStatus.SKIPPED, reportPortalSafeResult(testResult));
+            }
+        } finally {
+            ReportContext.clearPreservingSensitiveEvidence();
         }
-        if (this.isReportPortalEnabledForListener) this.reportPortalTestNGService.finishTestMethod(ItemStatus.SKIPPED, testResult);
+    }
+
+    private static ITestResult reportPortalSafeResult(ITestResult result) {
+        Throwable original = result == null ? null : result.getThrowable();
+        if (original == null) {
+            return result;
+        }
+        String safeMessage = FailureTraceReporter.redactInvocationText(original, original.getMessage());
+        String originalStack = ReportManagerHelper.formatStackTraceToLogEntry(original);
+        String safeStack = FailureTraceReporter.redactInvocationText(original, originalStack);
+        if (java.util.Objects.equals(safeMessage, original.getMessage())
+                && java.util.Objects.equals(safeStack, originalStack)) {
+            return result;
+        }
+        Throwable safeThrowable = new ReportPortalSafeThrowable(original, safeMessage);
+        return (ITestResult) Proxy.newProxyInstance(ITestResult.class.getClassLoader(),
+                new Class<?>[]{ITestResult.class}, (proxy, method, arguments) -> {
+                    if (method.getName().equals("getThrowable") && method.getParameterCount() == 0) {
+                        return safeThrowable;
+                    }
+                    try {
+                        return method.invoke(result, arguments);
+                    } catch (InvocationTargetException exception) {
+                        throw exception.getCause();
+                    }
+                });
+    }
+
+    private static final class ReportPortalSafeThrowable extends Throwable {
+        private final String originalType;
+
+        private ReportPortalSafeThrowable(Throwable original, String safeMessage) {
+            super(safeMessage);
+            originalType = original.getClass().getName();
+            setStackTrace(original.getStackTrace());
+        }
+
+        @Override
+        public String toString() {
+            return originalType + (getMessage() == null || getMessage().isBlank() ? "" : ": " + getMessage());
+        }
     }
 }

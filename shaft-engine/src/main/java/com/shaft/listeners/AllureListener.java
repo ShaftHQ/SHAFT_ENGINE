@@ -4,6 +4,7 @@ import com.shaft.driver.internal.DriverFactory.DriverFactoryHelper;
 import com.shaft.listeners.internal.ExecutionFailureContext;
 import com.shaft.listeners.internal.TestNGListenerHelper;
 import com.shaft.tools.io.internal.ReportManagerHelper;
+import com.shaft.tools.io.internal.FailureTraceReporter;
 import io.qameta.allure.Allure;
 import io.qameta.allure.AllureLifecycle;
 import io.qameta.allure.listener.ContainerLifecycleListener;
@@ -202,6 +203,7 @@ public class AllureListener implements StepLifecycleListener, FixtureLifecycleLi
      */
     @Override
     public void beforeFixtureStop(FixtureResult result) {
+        redactStatusDetails(result);
         TestNGListenerHelper.attachConfigurationMethods();
     }
 
@@ -263,8 +265,11 @@ public class AllureListener implements StepLifecycleListener, FixtureLifecycleLi
      */
     @Override
     public void beforeTestStop(TestResult result) {
+        redactStatusDetails(result);
         if (Status.SKIPPED.equals(result.getStatus())) {
-            Throwable configFailure = ExecutionFailureContext.getAndClearPendingConfigFailure();
+            ExecutionFailureContext.PendingConfigFailure pendingFailure =
+                    ExecutionFailureContext.getAndClearPendingConfigFailureEvidence();
+            Throwable configFailure = pendingFailure == null ? null : pendingFailure.throwable();
             boolean isKillSwitch = DriverFactoryHelper.isKillSwitch();
             boolean isRealConfigFailure = configFailure != null
                     && !(configFailure instanceof SkipException)
@@ -277,8 +282,8 @@ public class AllureListener implements StepLifecycleListener, FixtureLifecycleLi
                 String message;
                 String trace;
                 if (isRealConfigFailure) {
-                    message = configFailure.getMessage();
-                    trace = ReportManagerHelper.formatStackTraceToLogEntry(configFailure);
+                    message = pendingFailure.message();
+                    trace = pendingFailure.trace();
                 } else {
                     message = "Test execution halted: a previous driver initialisation failure activated the kill switch.";
                     trace = message;
@@ -297,6 +302,24 @@ public class AllureListener implements StepLifecycleListener, FixtureLifecycleLi
             }
         }
         TestLifecycleListener.super.beforeTestStop(result);
+    }
+
+    private static void redactStatusDetails(TestResult result) {
+        StatusDetails details = result.getStatusDetails();
+        if (details == null) {
+            return;
+        }
+        details.setMessage(FailureTraceReporter.redactInvocationText(details.getMessage()));
+        details.setTrace(FailureTraceReporter.redactInvocationText(details.getTrace()));
+    }
+
+    private static void redactStatusDetails(FixtureResult result) {
+        StatusDetails details = result.getStatusDetails();
+        if (details == null) {
+            return;
+        }
+        details.setMessage(FailureTraceReporter.redactInvocationText(details.getMessage()));
+        details.setTrace(FailureTraceReporter.redactInvocationText(details.getTrace()));
     }
 
     //After The @test stops

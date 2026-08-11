@@ -18,12 +18,14 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Comparator;
 import java.util.Date;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Stream;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mockStatic;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 
 /**
@@ -131,6 +133,36 @@ public class ReportManagerHelperAttachmentIoUnitTest {
                 System.clearProperty("java.io.tmpdir");
             }
             deleteRecursively(isolated);
+        }
+    }
+
+    @Test
+    public void fileBackedReportPortalAttachmentShouldOwnAStableDeferredUploadCopy() throws Exception {
+        Path source = Files.createTempFile("shaft-rp-source-", ".zip");
+        Files.writeString(source, "immutable trace", StandardCharsets.UTF_8);
+        AtomicReference<File> deferredFile = new AtomicReference<>();
+        try (MockedStatic<TestNGListener> tl = mockStatic(TestNGListener.class);
+             MockedStatic<ReportPortal> rp = mockStatic(ReportPortal.class)) {
+            tl.when(TestNGListener::isReportPortalEnabled).thenReturn(true);
+            rp.when(() -> ReportPortal.emitLog(anyString(), anyString(), any(Date.class), any(File.class)))
+                    .thenAnswer(invocation -> {
+                        deferredFile.set(invocation.getArgument(3));
+                        return null;
+                    });
+
+            AttachmentReporter.attachBasedOnFileType("zip", "shaft-trace.zip", source, "SHAFT Trace");
+            Files.delete(source);
+
+            assertFalse(source.toFile().exists());
+            assertTrue(deferredFile.get().isFile(), "Deferred ReportPortal upload must not depend on caller path.");
+            assertEquals(Files.readString(deferredFile.get().toPath(), StandardCharsets.UTF_8), "immutable trace");
+            AttachmentReporter.cleanupReportPortalDeferredFiles();
+            assertFalse(deferredFile.get().exists(), "Launch-boundary cleanup should reclaim deferred upload copies.");
+        } finally {
+            Files.deleteIfExists(source);
+            if (deferredFile.get() != null) {
+                Files.deleteIfExists(deferredFile.get().toPath());
+            }
         }
     }
 }

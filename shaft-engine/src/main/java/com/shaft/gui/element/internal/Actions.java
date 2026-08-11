@@ -1556,7 +1556,7 @@ public class Actions extends ElementActions {
                     traceMetadata(elementName, context, status), screenshotSummary(screenshot, action),
                     Status.PASSED.equals(status) ? Map.of() : actionability);
             if (exception != null) {
-                throw new RuntimeException(createFailureMessageWithCausedBy(exception), exception);
+                throw new ActionExecutionException(createFailureMessageWithCausedBy(exception), exception);
             }
             return;
         }
@@ -1611,7 +1611,7 @@ public class Actions extends ElementActions {
                     details.setTrace(mergeStatusTrace(details, exception));
                     update.setStatusDetails(details);
                 });
-                reportedException = new RuntimeException(createFailureMessageWithCausedBy(exception), exception);
+                reportedException = new ActionExecutionException(createFailureMessageWithCausedBy(exception), exception);
             }
             TraceEventRecorder.finish(event, "failed", traceMessage, exception,
                     traceMetadata(elementName, context, status), screenshotSummary(screenshot, action), actionability);
@@ -1635,6 +1635,20 @@ public class Actions extends ElementActions {
             return stepName;
         }
         return actionName + " \"" + elementName + "\"";
+    }
+
+    /**
+     * Internal compatibility wrapper used by retained element APIs to preserve the native provider failure.
+     */
+    public static final class ActionExecutionException extends RuntimeException {
+        ActionExecutionException(String message, Throwable originalFailure) {
+            super(message, originalFailure);
+        }
+
+        /** Returns the provider failure that caused the retained action to fail. */
+        public Throwable originalFailure() {
+            return getCause();
+        }
     }
 
     private static boolean shouldAppendElementNameToTypedStep(String action) {

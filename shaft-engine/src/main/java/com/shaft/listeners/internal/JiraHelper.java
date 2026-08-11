@@ -3,6 +3,7 @@ package com.shaft.listeners.internal;
 import com.shaft.driver.SHAFT;
 import com.shaft.tools.internal.tms.XrayIntegrationHelper;
 import com.shaft.tools.io.internal.ReportManagerHelper;
+import com.shaft.tools.io.internal.FailureTraceReporter;
 import io.qameta.allure.*;
 import org.testng.IInvokedMethod;
 import org.testng.ITestNGMethod;
@@ -68,7 +69,8 @@ public class JiraHelper {
         if (!iTestResult.isSuccess()
                 && SHAFT.Properties.jira.isEnabled()
                 && SHAFT.Properties.jira.reportBugs()) {
-            String bugID = createIssue(attachments, ReportManagerHelper.getTestMethodName(), logText);
+            String bugID = createIssue(attachments, ReportManagerHelper.getTestMethodName(),
+                    FailureTraceReporter.redactInvocationText(logText));
             if (bugID != null
                     && iTestNGMethod.isTest() && iTestNGMethod.getConstructorOrMethod().getMethod().isAnnotationPresent(TmsLink.class))
                 link2Tickets(bugID, iTestNGMethod.getConstructorOrMethod().getMethod().getAnnotation(TmsLink.class).value());
@@ -87,7 +89,8 @@ public class JiraHelper {
                 && info.throwable() != null
                 && SHAFT.Properties.jira.isEnabled()
                 && SHAFT.Properties.jira.reportBugs()) {
-            String bugID = createIssue(attachments, ReportManagerHelper.getTestMethodName(), logText);
+            String bugID = createIssue(attachments, ReportManagerHelper.getTestMethodName(),
+                    FailureTraceReporter.redactInvocationText(logText));
             if (bugID != null && info.method() != null && info.method().isAnnotationPresent(TmsLink.class)) {
                 link2Tickets(bugID, info.method().getAnnotation(TmsLink.class).value());
             }

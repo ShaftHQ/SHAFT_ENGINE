@@ -63,12 +63,16 @@ public class JunitListener implements LauncherSessionListener {
                 @Override
                 public void executionSkipped(TestIdentifier testIdentifier, String reason) {
                     if (testIdentifier.isTest()) {
-                        TestExecutionInfo info = toTestExecutionInfo(testIdentifier, new org.opentest4j.TestAbortedException(reason));
-                        ReportContext.start(info);
-                        ReportContext.setStatus(Status.SKIPPED);
-                        afterInvocation(info);
-                        onTestSkipped(testIdentifier, reason, info);
-                        ReportContext.clear();
+                        try {
+                            TestExecutionInfo info = toTestExecutionInfo(testIdentifier,
+                                    new org.opentest4j.TestAbortedException(reason));
+                            ReportContext.start(info);
+                            ReportContext.setStatus(Status.SKIPPED);
+                            afterInvocation(info);
+                            onTestSkipped(testIdentifier, reason, info);
+                        } finally {
+                            ReportContext.clearPreservingSensitiveEvidence();
+                        }
                     }
                 }
 
@@ -88,32 +92,35 @@ public class JunitListener implements LauncherSessionListener {
                     if (!testIdentifier.isTest()) {
                         return;
                     }
-                    Throwable throwable = resolveThrowable(testExecutionResult);
-                    TestExecutionInfo info = toTestExecutionInfo(testIdentifier, throwable);
-                    ReportContext.update(info);
-                    ReportContext.setStatus(toAllureStatus(testExecutionResult));
-                    switch (testExecutionResult.getStatus()) {
-                        case SUCCESSFUL -> {
-                            AssertionError verificationError = ValidationsHelper.getVerificationErrorToForceFail();
-                            if (verificationError != null) {
-                                ValidationsHelper.attachVerificationSummary();
-                                ValidationsHelper.resetVerificationStateAfterFailing();
-                                TestExecutionInfo failedInfo = toTestExecutionInfo(testIdentifier, verificationError);
-                                ReportContext.update(failedInfo);
-                                ReportContext.setStatus(Status.FAILED);
-                                afterInvocation(failedInfo);
-                                onTestFailure(testIdentifier, verificationError, failedInfo);
-                            } else {
+                    try {
+                        Throwable throwable = resolveThrowable(testExecutionResult);
+                        TestExecutionInfo info = toTestExecutionInfo(testIdentifier, throwable);
+                        ReportContext.update(info);
+                        ReportContext.setStatus(toAllureStatus(testExecutionResult));
+                        switch (testExecutionResult.getStatus()) {
+                            case SUCCESSFUL -> {
+                                AssertionError verificationError = ValidationsHelper.getVerificationErrorToForceFail();
+                                if (verificationError != null) {
+                                    ValidationsHelper.attachVerificationSummary();
+                                    ValidationsHelper.resetVerificationStateAfterFailing();
+                                    TestExecutionInfo failedInfo = toTestExecutionInfo(testIdentifier, verificationError);
+                                    ReportContext.update(failedInfo);
+                                    ReportContext.setStatus(Status.FAILED);
+                                    afterInvocation(failedInfo);
+                                    onTestFailure(testIdentifier, verificationError, failedInfo);
+                                } else {
+                                    afterInvocation(info);
+                                    onTestSuccess(testIdentifier, info);
+                                }
+                            }
+                            case FAILED, ABORTED -> {
                                 afterInvocation(info);
-                                onTestSuccess(testIdentifier, info);
+                                onTestFailure(testIdentifier, throwable, info);
                             }
                         }
-                        case FAILED, ABORTED -> {
-                            afterInvocation(info);
-                            onTestFailure(testIdentifier, throwable, info);
-                        }
+                    } finally {
+                        ReportContext.clearPreservingSensitiveEvidence();
                     }
-                    ReportContext.clear();
                 }
             });
         }

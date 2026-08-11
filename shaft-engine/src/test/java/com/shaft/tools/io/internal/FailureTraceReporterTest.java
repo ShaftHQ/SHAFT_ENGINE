@@ -6,12 +6,14 @@ import com.shaft.gui.browser.BrowserActions;
 import com.shaft.gui.element.TouchActions;
 import com.shaft.gui.browser.internal.BrowserNetworkInterceptor;
 import com.shaft.gui.internal.locator.LocatorHealthReporter;
+import com.shaft.gui.playwright.internal.PlaywrightTraceManager;
 import com.shaft.listeners.internal.TestExecutionInfo;
 import com.shaft.properties.internal.Properties;
 import io.appium.java_client.android.AndroidDriver;
 import io.qameta.allure.Allure;
 import io.qameta.allure.model.Attachment;
 import org.mockito.MockedConstruction;
+import org.mockito.MockedStatic;
 import org.mockito.Mockito;
 import org.openqa.selenium.By;
 import org.openqa.selenium.Dimension;
@@ -30,6 +32,8 @@ import org.openqa.selenium.remote.http.HttpRequest;
 import org.openqa.selenium.remote.http.HttpResponse;
 import org.testng.Assert;
 import org.testng.annotations.Test;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
 
 import java.lang.reflect.Method;
 import java.nio.charset.StandardCharsets;
@@ -42,10 +46,13 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.Executors;
 import java.util.zip.ZipFile;
 
 @Test(singleThreaded = true)
 public class FailureTraceReporterTest {
+    private static final ObjectMapper JSON = new ObjectMapper();
 
     @Test(description = "Failure mode should attach trace artifacts only for failed tests")
     public void failureModeShouldAttachTraceArtifactsOnlyForFailures() throws Exception {
@@ -247,6 +254,12 @@ public class FailureTraceReporterTest {
             Assert.assertTrue(json.contains("\"id\": \"action-1\""), json);
             Assert.assertTrue(json.contains("\"screenshot\": \""
                     + Base64.getEncoder().encodeToString(png) + "\""), json);
+            JsonNode session = JSON.readTree(json).path("session");
+            JsonNode screenshot = findArtifact(session, "screenshot-action-1");
+            Assert.assertEquals(screenshot.path("path").asText(), "screenshots/action-1.png");
+            Assert.assertFalse(screenshot.path("omitted").asBoolean());
+            Assert.assertEquals(session.path("events").get(0).path("artifactIds").get(0).asText(),
+                    "screenshot-action-1");
         } finally {
             TraceEventRecorder.clear();
             Properties.clearForCurrentThread();
@@ -814,6 +827,15 @@ public class FailureTraceReporterTest {
                     "The retained failed attempt bundle must survive a later passing retry.");
             Assert.assertTrue(Files.exists(traceDirectory.resolve("shaft-trace.zip")),
                     "The root archive should always reflect the latest attempt.");
+            try (ZipFile failed = new ZipFile(traceDirectory.resolve("shaft-trace-attempt-1.zip").toFile());
+                 ZipFile latest = new ZipFile(traceDirectory.resolve("shaft-trace.zip").toFile())) {
+                String failedJson = readZipEntry(failed, "shaft-trace.json");
+                String latestJson = readZipEntry(latest, "shaft-trace.json");
+                Assert.assertTrue(failedJson.contains("attempt one failed"), failedJson);
+                Assert.assertFalse(failedJson.contains("attempt two passed"), failedJson);
+                Assert.assertTrue(latestJson.contains("attempt two passed"), latestJson);
+                Assert.assertFalse(latestJson.contains("attempt one failed"), latestJson);
+            }
 
             String index = Files.readString(traceDirectory.resolve("index.json"), StandardCharsets.UTF_8);
             Assert.assertTrue(index.contains("\"attempt\": \"2\""), index);
@@ -827,6 +849,139 @@ public class FailureTraceReporterTest {
             SHAFT.Properties.flags.set().retryMaximumNumberOfAttempts(originalRetries);
             Properties.clearForCurrentThread();
         }
+    }
+
+    @Test(description = "Trace JSON should publish v2 session/events while retaining legacy action fields")
+    public void traceJsonShouldExposeBackendNeutralV2AndLegacyCompatibilityFields() throws Exception {
+        SHAFT.Properties.reporting.set().traceEnabled(true);
+        TraceEventRecorder.record("element", "click", "passed", "id=pay", null, "clicked", null,
+                Map.of("context", "web"), List.of());
+
+        String json = FailureTraceReporter.renderTraceJson(info("v2SchemaScenario", failure()), "log", List.of());
+
+        JsonNode root = JSON.readTree(json);
+        Assert.assertEquals(root.path("schemaVersion").asText(), "1.0");
+        JsonNode session = root.path("session");
+        Assert.assertEquals(session.path("schemaVersion").asText(), "2.0");
+        Assert.assertEquals(session.path("backend").asText(), "UNKNOWN");
+        Assert.assertEquals(session.path("attempt").asInt(), 1);
+        JsonNode event = session.path("events").get(0);
+        Assert.assertTrue(event.path("id").asText().endsWith("/action-1"), event.toPrettyString());
+        Assert.assertEquals(event.path("backend").asText(), "UNKNOWN");
+        Assert.assertEquals(event.path("category").asText(), "element");
+        Assert.assertEquals(event.path("name").asText(), "click");
+        Assert.assertEquals(event.path("status").asText(), "PASSED");
+        Assert.assertFalse(event.path("startedAt").asText().isBlank());
+        Assert.assertTrue(event.path("durationMs").asLong() >= 0);
+        Assert.assertTrue(event.has("source"));
+        Assert.assertEquals(event.path("target").asText(), "id=pay");
+        Assert.assertEquals(event.path("message").asText(), "clicked");
+        Assert.assertEquals(event.path("metadata").path("context").asText(), "web");
+        Assert.assertEquals(session.path("artifacts").get(0).path("id").asText(), "network");
+
+        Assert.assertEquals(legacyActionNames(root), List.of("click"));
+        Assert.assertEquals(root.path("actions").get(0).path("id").asText(), "action-1");
+    }
+
+    private static List<String> legacyActionNames(JsonNode root) {
+        if (!"1.0".equals(root.path("schemaVersion").asText()) || !root.path("actions").isArray()) {
+            throw new IllegalArgumentException("Unsupported legacy trace document");
+        }
+        List<String> names = new ArrayList<>();
+        root.path("actions").forEach(action -> names.add(action.path("name").asText()));
+        return names;
+    }
+
+    @Test(description = "Parallel same-id publication should keep the highest completed attempt and unique invocation paths")
+    public void parallelSameIdPublicationShouldNotCrossWireArchives() throws Exception {
+        TestExecutionInfo info = info("parallelPublicationScenario", failure());
+        Path directory = FailureTraceReporter.traceDirectory(info);
+        Path first = FailureTraceReporter.completedArchivePath(info, 1);
+        Path second = FailureTraceReporter.completedArchivePath(info, 2);
+        Path root = directory.resolve("shaft-trace.zip");
+        Assert.assertNotEquals(first, second);
+        Files.createDirectories(directory);
+        Files.writeString(first, "first invocation", StandardCharsets.UTF_8);
+        Files.writeString(second, "second invocation", StandardCharsets.UTF_8);
+        CountDownLatch ready = new CountDownLatch(2);
+        CountDownLatch start = new CountDownLatch(1);
+        try (var executor = Executors.newFixedThreadPool(2)) {
+            var publishFirst = executor.submit(() -> {
+                ready.countDown();
+                start.await();
+                return FailureTraceReporter.publishLatest("parallel-publication-proof", 1, first, root);
+            });
+            var publishSecond = executor.submit(() -> {
+                ready.countDown();
+                start.await();
+                return FailureTraceReporter.publishLatest("parallel-publication-proof", 2, second, root);
+            });
+            ready.await();
+            start.countDown();
+            publishFirst.get();
+            Assert.assertTrue(publishSecond.get());
+        } finally {
+            Assert.assertEquals(Files.readString(root, StandardCharsets.UTF_8), "second invocation");
+            deleteDirectory(directory);
+        }
+    }
+
+    @Test(description = "A late lower attempt should extend history without replacing latest root metadata")
+    public void reverseCompletionShouldKeepLatestRootAndCompleteOrderedHistory() throws Exception {
+        int originalRetries = SHAFT.Properties.flags.retryMaximumNumberOfAttempts();
+        TestExecutionInfo info = info("reverseCompletionScenario", failure());
+        Path directory = FailureTraceReporter.traceDirectory(info);
+        Path first = directory.resolve("first-completed.zip");
+        Path second = directory.resolve("second-completed.zip");
+        try {
+            deleteDirectory(directory);
+            Files.createDirectories(directory);
+            Files.writeString(first, "first invocation", StandardCharsets.UTF_8);
+            Files.writeString(second, "second invocation", StandardCharsets.UTF_8);
+            SHAFT.Properties.reporting.set().traceEnabled(true).traceMode("retry").traceRetainFailedAttempts(true);
+            SHAFT.Properties.flags.set().retryMaximumNumberOfAttempts(2);
+
+            FailureTraceReporter.persistTraceArtifacts(info, second, Map.of(), 2, List.of());
+            FailureTraceReporter.persistTraceArtifacts(info, first, Map.of(), 1, List.of());
+
+            Assert.assertEquals(Files.readString(directory.resolve("shaft-trace.zip"), StandardCharsets.UTF_8),
+                    "second invocation");
+            String index = Files.readString(directory.resolve("index.json"), StandardCharsets.UTF_8);
+            Assert.assertTrue(index.contains("\"attempt\": \"2\""), index);
+            Assert.assertTrue(index.contains("\"attempt\": 1"), index);
+            Assert.assertTrue(index.contains("\"attempt\": 2"), index);
+            Assert.assertTrue(index.indexOf("\"attempt\": 1") < index.indexOf("\"attempt\": 2"), index);
+        } finally {
+            deleteDirectory(directory);
+            SHAFT.Properties.flags.set().retryMaximumNumberOfAttempts(originalRetries);
+            Properties.clearForCurrentThread();
+        }
+    }
+
+    @Test(description = "Lossy path sanitization should not collapse distinct stable test ids")
+    public void sanitizedAndTruncatedTestIdsShouldRemainCollisionResistant() throws Exception {
+        Method method = FailureTraceReporterTest.class.getDeclaredMethod("failingScenario");
+        TestExecutionInfo slash = new TestExecutionInfo("customer/test", "customer.LoginTest", "one", "one",
+                "trace test", method, failure(), false);
+        TestExecutionInfo colon = new TestExecutionInfo("customer:test", "customer.LoginTest", "two", "two",
+                "trace test", method, failure(), false);
+        String longPrefix = "x".repeat(130);
+        TestExecutionInfo longOne = new TestExecutionInfo(longPrefix + "one", "customer.LoginTest", "one", "one",
+                "trace test", method, failure(), false);
+        TestExecutionInfo longTwo = new TestExecutionInfo(longPrefix + "two", "customer.LoginTest", "two", "two",
+                "trace test", method, failure(), false);
+
+        Assert.assertNotEquals(FailureTraceReporter.safeTestId(slash), FailureTraceReporter.safeTestId(colon));
+        Assert.assertNotEquals(FailureTraceReporter.safeTestId(longOne), FailureTraceReporter.safeTestId(longTwo));
+        Assert.assertTrue(FailureTraceReporter.safeTestId(longOne).length() <= 120);
+        TestExecutionInfo dot = new TestExecutionInfo("..", "customer.LoginTest", "dot", "dot",
+                "trace test", method, failure(), false);
+        TestExecutionInfo reserved = new TestExecutionInfo("CON", "customer.LoginTest", "reserved", "reserved",
+                "trace test", method, failure(), false);
+        Assert.assertNotEquals(FailureTraceReporter.safeTestId(dot), "..");
+        Assert.assertNotEquals(FailureTraceReporter.safeTestId(reserved), "CON");
+        Path base = Path.of("target", "shaft-traces").toAbsolutePath().normalize();
+        Assert.assertTrue(FailureTraceReporter.traceDirectory(dot).toAbsolutePath().normalize().startsWith(base));
     }
 
     @Test(description = "Disabling attempt retention should skip persisting attempt-indexed archives for failed retries")
@@ -887,6 +1042,18 @@ public class FailureTraceReporterTest {
                     new RuntimeException("boom"), Map.of(), List.of());
 
             // Now shrink the cap so the already-buffered 2MB screenshot exceeds it at persist time.
+            SHAFT.Properties.reporting.set().traceMaxArtifactMb(1);
+            String v2Json = FailureTraceReporter.renderTraceJson(failingInfo, "failed", List.of());
+            Assert.assertTrue(findArtifact(JSON.readTree(v2Json).path("session"), "screenshot-action-1")
+                    .path("omitted").asBoolean());
+
+            // Recreate the action because rendering drains the recorder, then exercise persisted index/ZIP behavior.
+            TraceEventRecorder.clear();
+            SHAFT.Properties.reporting.set().traceMaxArtifactMb(50);
+            event = TraceEventRecorder.start("element", "CLICK", By.id("pay"), null);
+            TraceEventRecorder.recordScreenshot(event, oversizedPng);
+            TraceEventRecorder.finish(event, "failed", "Click failed",
+                    new RuntimeException("boom"), Map.of(), List.of());
             SHAFT.Properties.reporting.set().traceMaxArtifactMb(1);
             FailureTraceReporter.attachOnFailure(failingInfo, "failed", List.of());
 
@@ -978,5 +1145,51 @@ public class FailureTraceReporterTest {
         try (var input = zip.getInputStream(zip.getEntry(entryName))) {
             return new String(input.readAllBytes(), StandardCharsets.UTF_8);
         }
+    }
+
+    @Test(description = "An advertised but missing native Playwright trace should remain explicit everywhere")
+    public void missingNativeTraceShouldAgreeAcrossSchemaViewerZipAndIndex() throws Exception {
+        TestExecutionInfo failingInfo = info("missingNativeTraceScenario", failure());
+        Path traceDirectory = FailureTraceReporter.traceDirectory(failingInfo);
+        Path missingTrace = Path.of("target", "missing-native-trace.zip");
+        try (MockedStatic<PlaywrightTraceManager> traceManager = Mockito.mockStatic(PlaywrightTraceManager.class)) {
+            deleteDirectory(traceDirectory);
+            Files.deleteIfExists(missingTrace);
+            SHAFT.Properties.reporting.set().traceEnabled(true).traceMode("failure").traceMaxArtifactMb(1);
+            traceManager.when(PlaywrightTraceManager::getLastTracePath).thenReturn(missingTrace);
+
+            FailureTraceReporter.attachOnFailure(failingInfo, "failed", List.of());
+
+            try (ZipFile zip = new ZipFile(traceDirectory.resolve("shaft-trace.zip").toFile())) {
+                String json = readZipEntry(zip, "shaft-trace.json");
+                JsonNode nativeArtifact = findArtifact(JSON.readTree(json).path("session"), "native-trace");
+                Assert.assertTrue(nativeArtifact.path("omitted").asBoolean(), json);
+                Assert.assertTrue(nativeArtifact.path("metadata").path("omissionReason").asText()
+                        .contains("unavailable"), json);
+                Assert.assertTrue(readZipEntry(zip, "missing-native-trace.zip").contains("unavailable"));
+                String html = readZipEntry(zip, "SHAFT Trace Report.html");
+                String truncationPayload = html.substring(
+                        html.indexOf("<pre hidden id=\"trace-truncation\">")
+                                + "<pre hidden id=\"trace-truncation\">".length(),
+                        html.indexOf("</pre>", html.indexOf("<pre hidden id=\"trace-truncation\">")));
+                Assert.assertTrue(truncationPayload.contains("missing-native-trace.zip"), truncationPayload);
+            }
+            String index = Files.readString(traceDirectory.resolve("index.json"), StandardCharsets.UTF_8);
+            Assert.assertTrue(index.contains("missing-native-trace.zip"), index);
+        } finally {
+            TraceEventRecorder.clear();
+            deleteDirectory(traceDirectory);
+            Files.deleteIfExists(missingTrace);
+            Properties.clearForCurrentThread();
+        }
+    }
+
+    private static JsonNode findArtifact(JsonNode session, String id) {
+        for (JsonNode artifact : session.path("artifacts")) {
+            if (id.equals(artifact.path("id").asText())) {
+                return artifact;
+            }
+        }
+        throw new AssertionError("Missing trace artifact reference: " + id + " in " + session.toPrettyString());
     }
 }

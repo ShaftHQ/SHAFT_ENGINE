@@ -1,6 +1,7 @@
 package com.shaft.mcp;
 
 import com.shaft.capture.format.CaptureJsonCodec;
+import com.shaft.capture.generate.CaptureGenerationResult;
 import com.shaft.capture.generate.CaptureGenerationReport;
 import com.shaft.capture.model.BrowserMetadata;
 import com.shaft.capture.model.CaptureEvent;
@@ -23,6 +24,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -598,6 +600,57 @@ class CaptureServiceTest {
                 result.report().replay().status());
         assertTrue(Files.isRegularFile(result.sourcePath()),
                 "compiled-but-unconfirmed generation must still return a usable source file");
+    }
+
+    @Test
+    void replayFailureWithNoPromotedSourceReturnsTheStructuredFailure() throws Exception {
+        Path missingSource = temp.resolve("generated/RecordedFlowTest.java");
+        CaptureGenerationReport report = new CaptureGenerationReport(
+                CaptureGenerationReport.CURRENT_SCHEMA_VERSION,
+                "failed-replay-session",
+                CaptureGenerationReport.Status.FAILED,
+                "generated/RecordedFlowTest.java",
+                "",
+                List.of(),
+                List.of(),
+                List.of(),
+                List.of(),
+                List.of(),
+                List.of("Replay failed before the generated source could be promoted."),
+                new CaptureGenerationReport.Validation(
+                        CaptureGenerationReport.Validation.ValidationStatus.PASSED,
+                        List.of(),
+                        0),
+                new CaptureGenerationReport.Validation(
+                        CaptureGenerationReport.Validation.ValidationStatus.FAILED,
+                        List.of("NoSuchElementException: recorded assertion target was not found"),
+                        0),
+                CaptureGenerationReport.Enrichment.notRequested());
+        CaptureGenerationResult generation = new CaptureGenerationResult(
+                missingSource,
+                temp.resolve("generated/recorded-flow-test.json"),
+                temp.resolve("generated/capture-generation-report.json"),
+                null,
+                report);
+
+        CaptureService service = service();
+        McpCaptureReplayResult result;
+        try {
+            result = assertDoesNotThrow(
+                    () -> service.replayResult(generation, "driver"),
+                    "A failed replay must return its structured result instead of throwing while reading an absent source");
+        } finally {
+            service.close();
+        }
+
+        assertFalse(result.successful());
+        assertEquals(CaptureGenerationReport.Validation.ValidationStatus.FAILED,
+                result.report().replay().status());
+        assertTrue(result.codeBlocks().isEmpty(),
+                "An absent final source cannot be exposed as generated code blocks");
+        assertTrue(result.report().replay().diagnostics().stream()
+                .anyMatch(message -> message.contains("NoSuchElementException")),
+                "The original replay diagnostic must survive the MCP result boundary");
     }
 
     @Test

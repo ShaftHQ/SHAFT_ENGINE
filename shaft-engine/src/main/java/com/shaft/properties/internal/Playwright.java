@@ -75,6 +75,26 @@ public interface Playwright extends EngineProperties<Playwright> {
     @DefaultValue("true")
     boolean acceptDownloads();
 
+    /** @return timezone identifier applied when a new browser context is created, or blank for the browser default */
+    @Key("playwright.timezoneId")
+    @DefaultValue("")
+    String timezoneId();
+
+    /** @return locale applied when a new browser context is created, or blank for the browser default */
+    @Key("playwright.locale")
+    @DefaultValue("")
+    String locale();
+
+    /** @return user agent applied when a new browser context is created, or blank for the browser/device default */
+    @Key("playwright.userAgent")
+    @DefaultValue("")
+    String userAgent();
+
+    /** @return whether JavaScript is enabled in newly created browser contexts */
+    @Key("playwright.javaScriptEnabled")
+    @DefaultValue("true")
+    boolean javaScriptEnabled();
+
     @Key("playwright.tracing.enabled")
     @DefaultValue("false")
     boolean tracingEnabled();
@@ -164,6 +184,26 @@ public interface Playwright extends EngineProperties<Playwright> {
 
         public PlaywrightSetProperty acceptDownloads(boolean value) {
             setProperty("playwright.acceptDownloads", String.valueOf(value));
+            return this;
+        }
+
+        public PlaywrightSetProperty timezoneId(String value) {
+            setProperty("playwright.timezoneId", value);
+            return this;
+        }
+
+        public PlaywrightSetProperty locale(String value) {
+            setProperty("playwright.locale", value);
+            return this;
+        }
+
+        public PlaywrightSetProperty userAgent(String value) {
+            setProperty("playwright.userAgent", value);
+            return this;
+        }
+
+        public PlaywrightSetProperty javaScriptEnabled(boolean value) {
+            setProperty("playwright.javaScriptEnabled", String.valueOf(value));
             return this;
         }
 

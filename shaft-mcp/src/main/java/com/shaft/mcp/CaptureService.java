@@ -1532,7 +1532,7 @@ public class CaptureService {
                 : workspacePolicy.output(value, label).toString();
     }
 
-    private McpCaptureReplayResult replayResult(CaptureGenerationResult result, String driverVariableName) {
+    McpCaptureReplayResult replayResult(CaptureGenerationResult result, String driverVariableName) {
         return replayResult(result, driverVariableName, null, "");
     }
 
@@ -1558,11 +1558,11 @@ public class CaptureService {
 
     /**
      * Whether the generated code itself is worth returning to the caller: generation produced a
-     * source file and it compiled. A replay failure marks the overall result unsuccessful but
-     * must not swallow the generated, compiling code blocks — the failure report tells the user
-     * what to fix, and returning nothing turned every replay hiccup into a silent "no code"
-     * dead end (issue #3409). Generation-level failures (for example the privacy gate) keep
-     * suppressing code blocks because compilation never passed for them.
+     * promoted source file and it compiled. A replay failure marks the overall result unsuccessful;
+     * when a prior source survives rollback it remains usable, while a first-generation failure has
+     * no final source to read and returns the structured failure without code blocks (issue #4719).
+     * Generation-level failures (for example the privacy gate) keep suppressing code blocks because
+     * compilation never passed for them.
      */
     private static boolean generatedCodeUsable(CaptureGenerationResult result) {
         return sourceUsable(result.sourcePath(), result.report());
@@ -1570,9 +1570,9 @@ public class CaptureService {
 
     /**
      * Whether a generated source is worth returning to the caller as copy-paste code blocks:
-     * generation produced a source file and either the report is a confirmed {@code SUCCESS} or
-     * compilation itself passed. A replay failure/skip marks the overall result unsuccessful but
-     * must not swallow generated, compiling code -- the API codegen path
+     * generation produced a regular source file and either the report is a confirmed {@code SUCCESS}
+     * or compilation itself passed. A replay failure/skip marks the overall result unsuccessful but
+     * must not swallow generated, compiling code when the final source exists -- the API codegen path
      * ({@link #generateApi}) hit exactly this gap (issue #4311): it gated {@code codeBlocks} on
      * {@code status() == SUCCESS} alone, so a deliberately replay-skipped {@code UNCONFIRMED}
      * report (#4220) always returned an empty {@code codeBlocks} list even though the generated
@@ -1581,6 +1581,7 @@ public class CaptureService {
      */
     private static boolean sourceUsable(Path sourcePath, CaptureGenerationReport report) {
         return sourcePath != null
+                && Files.isRegularFile(sourcePath)
                 && report != null
                 && (report.status() == CaptureGenerationReport.Status.SUCCESS
                 || report.compilation().status() == CaptureGenerationReport.Validation.ValidationStatus.PASSED);

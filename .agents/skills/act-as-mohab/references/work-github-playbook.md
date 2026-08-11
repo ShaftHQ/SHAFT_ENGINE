@@ -71,15 +71,24 @@ conflicting, and stale; a watcher observes only green and red.
 This repository uses merge commits so a delivered branch remains identifiable
 by ancestry. Squash and rebase merging are disabled; do not substitute them.
 
-1. **Arm** after the review gate: `gh pr merge <n> --auto --merge`.
-2. **Watch** with `py -3 scripts/ci/watch_pr_checks.py --pr <n>`; exit 0 is
+1. **Clear every GitHub comment before arming.** Read and address every open
+   review thread, inline review comment, conversation comment, check annotation,
+   and bot finding (including code-quality and security bots). A green check is
+   not evidence that its comments were handled. Reply or resolve only after the
+   finding is fixed, ruled non-applicable with evidence, or filed as explicitly
+   approved follow-up work. Re-query GitHub after the final push and require zero
+   unhandled comments before continuing.
+2. **Arm** after the review and comment gates: `gh pr merge <n> --auto --merge`.
+3. **Watch** with `py -3 scripts/ci/watch_pr_checks.py --pr <n>`; exit 0 is
    green, 1 is red, 2 is pending, and 3 is an environment error.
-3. **Ask for unseen states** with `gh pr view <n> --json
+4. **Ask for unseen states** with `gh pr view <n> --json
    mergeStateStatus,mergedAt`; `DIRTY` conflicts and `BEHIND` stale heads need
    action even when no event fires.
-4. **Fix** red checks on the branch, or merge `origin/main` for a conflict or
+5. **Fix** red checks on the branch, review comments, or bot findings on the
+   branch, or merge `origin/main` for a conflict or
    stale head, then return to watch. Never force-push away owner-visible history.
-5. **Confirm** remotely that `mergedAt` is non-null; armed is not merged.
+   Any new push restarts the comment gate before auto-merge may remain armed.
+6. **Confirm** remotely that `mergedAt` is non-null; armed is not merged.
 
 ## 8. Report
 

@@ -1,12 +1,23 @@
 package com.shaft.mcp;
 
+import com.shaft.driver.SHAFT;
 import com.shaft.doctor.model.CauseCategory;
+import com.shaft.listeners.internal.TestExecutionInfo;
+import com.shaft.properties.internal.Properties;
+import com.shaft.tools.io.internal.FailureTraceReporter;
+import com.shaft.tools.io.internal.TraceEventRecorder;
+import org.openqa.selenium.By;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
 
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.lang.reflect.Method;
+import java.util.List;
+import java.util.Map;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
@@ -16,7 +27,41 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+@SuppressWarnings("PMD.AvoidAccessibilityAlteration") // Frozen-consumer proof invokes the internal serializer directly.
 class TraceServiceTest {
+    private static final ObjectMapper JSON = new ObjectMapper();
+
+    @Test
+    void frozenV1ConsumerSummarizesNewlyEmittedTraceWithNestedV2Session(@TempDir Path temp) throws Exception {
+        try {
+            SHAFT.Properties.reporting.set().traceEnabled(true).traceMode("failure");
+            TraceEventRecorder.Event event = TraceEventRecorder.start("element", "CLICK", By.id("pay"), null);
+            TraceEventRecorder.finish(event, "failed", "Click failed",
+                    new IllegalStateException("Unable to locate By.id: pay"), Map.of(), List.of());
+            TestExecutionInfo info = new TestExecutionInfo("checkout-pay", "CheckoutTest", "payShouldFail",
+                    "CheckoutTest.payShouldFail", "checkout payment", null,
+                    new IllegalStateException("Unable to locate By.id: pay"), false);
+            Method renderer = FailureTraceReporter.class.getDeclaredMethod("renderTraceJson",
+                    TestExecutionInfo.class, String.class, List.class);
+            renderer.setAccessible(true);
+            String emitted = (String) renderer.invoke(null, info, "Click failed", List.of());
+            Path index = writeTrace(temp, "checkout-pay", emitted);
+
+            var summary = service(temp).traceSummarize(relative(temp, index));
+
+            JsonNode document = JSON.readTree(emitted);
+            assertEquals("1.0", document.path("schemaVersion").asText());
+            assertEquals("2.0", document.path("session").path("schemaVersion").asText());
+            assertEquals("CheckoutTest", summary.testClass());
+            assertEquals("payShouldFail", summary.testMethod());
+            assertEquals("CLICK", summary.failedAction().name());
+            assertEquals("By.id: pay", summary.failedAction().locator());
+        } finally {
+            TraceEventRecorder.clear();
+            Properties.clearForCurrentThread();
+        }
+    }
+
     @Test
     void latestReturnsClearEmptyResultWhenNoTraceIndexesExist(@TempDir Path temp) {
         var latest = service(temp).traceLatest(5);

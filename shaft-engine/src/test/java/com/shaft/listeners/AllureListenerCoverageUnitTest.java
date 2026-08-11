@@ -1,7 +1,10 @@
 package com.shaft.listeners;
 
 import com.shaft.driver.internal.DriverFactory.DriverFactoryHelper;
+import com.shaft.listeners.internal.TestExecutionInfo;
 import com.shaft.listeners.internal.TestNGListenerHelper;
+import com.shaft.tools.io.internal.FailureTraceReporter;
+import com.shaft.tools.io.internal.ReportContext;
 import io.qameta.allure.AllureLifecycle;
 import io.qameta.allure.FileSystemResultsWriter;
 import io.qameta.allure.model.FixtureResult;
@@ -58,6 +61,7 @@ public class AllureListenerCoverageUnitTest {
         setKillSwitch(false);
         TestNGListenerHelper.setPendingConfigFailure(null);
         TestNGListenerHelper.cleanup();
+        ReportContext.clear();
         Reporter.clear();
         lifecycle = null;
         deleteDirectory(allureResultsDirectory);
@@ -226,6 +230,74 @@ public class AllureListenerCoverageUnitTest {
     }
 
     @Test
+    public void beforeTestStopShouldRedactSensitiveOrdinaryFailureStatusDetails() {
+        String sensitiveValue = "opaque-allure-provider-value-2157";
+        FailureTraceReporter.registerSensitiveSourceValue(sensitiveValue);
+        TestResult result = new TestResult().setUuid(UUID.randomUUID().toString()).setName("sensitive failure")
+                .setStatus(Status.FAILED).setStatusDetails(new StatusDetails()
+                .setMessage("Provider echoed " + sensitiveValue)
+                .setTrace("java.lang.IllegalStateException: Provider echoed " + sensitiveValue));
+        lifecycle.scheduleTestCase(result);
+        lifecycle.startTestCase(result.getUuid());
+
+        listener.beforeTestStop(result);
+        lifecycle.stopTestCase(result.getUuid());
+        lifecycle.writeTestCase(result.getUuid());
+
+        assertFalse(result.getStatusDetails().getMessage().contains(sensitiveValue));
+        assertFalse(result.getStatusDetails().getTrace().contains(sensitiveValue));
+        assertResultFilesDoNotContain(sensitiveValue);
+    }
+
+    @Test
+    public void beforeTestStopShouldRedactSensitiveConfigurationFailureAndAttachment() throws Exception {
+        String sensitiveValue = "opaque-allure-config-value-9084";
+        RuntimeException configFailure = new RuntimeException("Provider echoed " + sensitiveValue);
+        FailureTraceReporter.registerSensitiveSourceValue(sensitiveValue);
+        FailureTraceReporter.registerSensitiveThrowable(configFailure);
+        TestNGListenerHelper.setPendingConfigFailure(configFailure);
+        TestResult result = skippedResult("config skip")
+                .setUuid(UUID.randomUUID().toString())
+                .setName("sensitive config failure host");
+        lifecycle.scheduleTestCase(result);
+        lifecycle.startTestCase(result.getUuid());
+
+        try (MockedStatic<DriverFactoryHelper> driverFactoryHelper = Mockito.mockStatic(DriverFactoryHelper.class)) {
+            driverFactoryHelper.when(DriverFactoryHelper::isKillSwitch).thenReturn(false);
+            listener.beforeTestStop(result);
+        } finally {
+            lifecycle.stopTestCase(result.getUuid());
+            lifecycle.writeTestCase(result.getUuid());
+        }
+
+        assertFalse(result.getStatusDetails().getMessage().contains(sensitiveValue));
+        assertFalse(result.getStatusDetails().getTrace().contains(sensitiveValue));
+        assertAttachmentFileDoesNotContain(sensitiveValue);
+    }
+
+    @Test
+    public void skippedTestShouldUseSanitizedConfigurationEvidenceAfterItsReportContextStarts() {
+        String sensitiveValue = "opaque-allure-config-lifecycle-value-4408";
+        RuntimeException configFailure = new RuntimeException("Provider echoed " + sensitiveValue);
+        FailureTraceReporter.registerSensitiveSourceValue(sensitiveValue);
+        FailureTraceReporter.registerSensitiveThrowable(configFailure);
+        TestNGListenerHelper.setPendingConfigFailure(configFailure);
+        ReportContext.start(new TestExecutionInfo("skipped-after-config", getClass().getName(),
+                "skippedTestShouldUseSanitizedConfigurationEvidenceAfterItsReportContextStarts",
+                "skipped after config", "skipped after config", null, configFailure, false));
+        TestResult result = skippedResult("config skip");
+
+        try (MockedStatic<DriverFactoryHelper> driverFactoryHelper = Mockito.mockStatic(DriverFactoryHelper.class)) {
+            driverFactoryHelper.when(DriverFactoryHelper::isKillSwitch).thenReturn(false);
+            listener.beforeTestStop(result);
+        }
+
+        assertEquals(result.getStatus(), Status.BROKEN);
+        assertFalse(result.getStatusDetails().getMessage().contains(sensitiveValue));
+        assertFalse(result.getStatusDetails().getTrace().contains(sensitiveValue));
+    }
+
+    @Test
     public void beforeTestStopShouldPromoteSkippedKillSwitchToBrokenWithStatusDetails() {
         TestResult result = skippedResult("kill switch skip");
 
@@ -261,6 +333,48 @@ public class AllureListenerCoverageUnitTest {
             }
         }
         assertTrue(foundExpectedText, "Expected the stacktrace attachment to contain: " + expectedText);
+    }
+
+    private void assertAttachmentFileDoesNotContain(String forbiddenText) throws IOException {
+        List<Path> attachmentFiles = listFiles(allureResultsDirectory).stream()
+                .filter(path -> path.getFileName().toString().endsWith(".txt"))
+                .toList();
+        assertFalse(attachmentFiles.isEmpty(), "Expected a text attachment in the isolated allure-results directory.");
+        for (Path attachmentFile : attachmentFiles) {
+            assertFalse(Files.readString(attachmentFile, StandardCharsets.UTF_8).contains(forbiddenText));
+        }
+    }
+
+    @Test
+    public void beforeFixtureStopShouldRedactSensitiveConfigurationStatusDetails() {
+        String sensitiveValue = "opaque-allure-fixture-value-7341";
+        FailureTraceReporter.registerSensitiveSourceValue(sensitiveValue);
+        FixtureResult fixture = new FixtureResult().setName("sensitive configuration")
+                .setStatus(Status.BROKEN)
+                .setStatusDetails(new StatusDetails()
+                        .setMessage("Provider echoed " + sensitiveValue)
+                        .setTrace("java.lang.IllegalStateException: Provider echoed " + sensitiveValue));
+
+        try (MockedStatic<TestNGListenerHelper> helper = Mockito.mockStatic(TestNGListenerHelper.class)) {
+            listener.beforeFixtureStop(fixture);
+
+            helper.verify(TestNGListenerHelper::attachConfigurationMethods);
+        }
+
+        assertFalse(fixture.getStatusDetails().getMessage().contains(sensitiveValue));
+        assertFalse(fixture.getStatusDetails().getTrace().contains(sensitiveValue));
+    }
+
+    private void assertResultFilesDoNotContain(String forbiddenText) {
+        try {
+            for (Path resultFile : listFiles(allureResultsDirectory).stream()
+                    .filter(path -> path.getFileName().toString().endsWith("-result.json"))
+                    .toList()) {
+                assertFalse(Files.readString(resultFile, StandardCharsets.UTF_8).contains(forbiddenText));
+            }
+        } catch (IOException exception) {
+            throw new AssertionError("Unable to inspect isolated Allure result JSON.", exception);
+        }
     }
 
     private static List<Path> listFiles(Path directory) throws IOException {

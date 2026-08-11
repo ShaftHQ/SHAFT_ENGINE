@@ -17,10 +17,12 @@ import com.shaft.capture.privacy.ClassifiedValue;
 import com.shaft.capture.storage.CaptureSessionStore;
 import com.shaft.capture.storage.ExternalTestDataWriter;
 
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.EnumSet;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -37,6 +39,7 @@ import java.util.function.Consumer;
  * Converts low-level browser signals into ordered privacy-safe semantic events.
  */
 final class CaptureEventPipeline implements AutoCloseable {
+    private static final String CONTEXT_SCOPED_ACTION_PREFIX = "ctx:";
     private static final Duration CLICK_DEBOUNCE = Duration.ofMillis(300);
     // Same-URL navigations within this window are one navigation delivered twice (racing
     // channels, or BiDi's commit racing the recorder's own explicit OPEN across a slow load).
@@ -61,6 +64,8 @@ final class CaptureEventPipeline implements AutoCloseable {
     private final Consumer<String> warningConsumer;
     private final List<ClassifiedValue> classifiedValues = new ArrayList<>();
     private final Map<String, BrowserSignal> pendingInputs = new LinkedHashMap<>();
+    /** Newest input signal seen per browser action, retained after flush to reject delayed copies. */
+    private final Map<String, BrowserSignal> latestInputs = new LinkedHashMap<>();
     /** Last flushed input value per target, to drop the duplicate change-on-submit re-emission. */
     private final Map<String, String> lastEmittedInputValues = new LinkedHashMap<>();
     private final Map<String, BrowserSignal> pendingClicks = new LinkedHashMap<>();
@@ -150,7 +155,16 @@ final class CaptureEventPipeline implements AutoCloseable {
         try {
             switch (signal.kind()) {
                 case "input" -> {
-                    pendingInputs.put(targetKey(signal), signal);
+                    // BiDi, polling, and the loopback sink can deliver the same input stream out
+                    // of order, including after a newer value was already committed and flushed.
+                    // Retain the ordering watermark for the whole browser action (#4715).
+                    String inputKey = inputTargetKey(signal);
+                    BrowserSignal latest = latestInputs.get(inputKey);
+                    if (latest != null && inputPrecedes(signal, latest)) {
+                        return;
+                    }
+                    latestInputs.put(inputKey, signal);
+                    pendingInputs.put(inputKey, signal);
                     if (signal.dataBoolean("committed")) {
                         // This commit flushes immediately, bypassing flushPendingBefore; an
                         // older buffered navigation must still be appended first so persisted
@@ -158,7 +172,7 @@ final class CaptureEventPipeline implements AutoCloseable {
                         List<BrowserSignal> readyNavigations = new ArrayList<>();
                         collectReady(pendingNavigations, signal.timestamp(), readyNavigations);
                         flushOrdered(readyNavigations);
-                        flushSignal(pendingInputs.remove(targetKey(signal)));
+                        flushSignal(pendingInputs.remove(inputKey));
                     }
                 }
                 case "click" -> pendingClicks.put(targetKey(signal), signal);
@@ -397,7 +411,7 @@ final class CaptureEventPipeline implements AutoCloseable {
      * step syncs across navigations and can be edited or deleted like any other step.
      */
     private void attachOverlayIdentity(BrowserSignal signal, String url) {
-        String clientActionId = privacy.sanitizeText(signal.dataString("clientActionId")).value();
+        String clientActionId = clientActionId(signal);
         if (clientActionId.isBlank()) {
             return;
         }
@@ -476,7 +490,7 @@ final class CaptureEventPipeline implements AutoCloseable {
         if (!oneShotStep) {
             return false;
         }
-        String clientActionId = privacy.sanitizeText(signal.dataString("clientActionId")).value();
+        String clientActionId = clientActionId(signal);
         if (clientActionId.isBlank()) {
             return false;
         }
@@ -507,7 +521,7 @@ final class CaptureEventPipeline implements AutoCloseable {
     }
 
     private void emitInput(BrowserSignal signal) {
-        String clientActionId = privacy.sanitizeText(signal.dataString("clientActionId")).value();
+        String clientActionId = clientActionId(signal);
         if (!clientActionId.isBlank() && deletedClientActionIds.contains(clientActionId)) {
             return;
         }
@@ -515,11 +529,12 @@ final class CaptureEventPipeline implements AutoCloseable {
         String value = signal.dataString("value");
         // Form submission re-fires "change" with the value that was already flushed for this
         // element: appending it again duplicated the type step (issue #3426 B2).
-        String lastEmitted = lastEmittedInputValues.get(targetKey(signal));
+        String inputKey = inputTargetKey(signal);
+        String lastEmitted = lastEmittedInputValues.get(inputKey);
         if (!value.isEmpty() && value.equals(lastEmitted)) {
             return;
         }
-        lastEmittedInputValues.put(targetKey(signal), value);
+        lastEmittedInputValues.put(inputKey, value);
         if (value.isEmpty()) {
             append(new CaptureEvent.ClearEvent(context(signal), target.snapshot()),
                     target.summary(), List.of());
@@ -822,7 +837,7 @@ final class CaptureEventPipeline implements AutoCloseable {
     }
 
     private void updateStep(BrowserSignal signal) {
-        String clientActionId = privacy.sanitizeText(signal.dataString("clientActionId")).value();
+        String clientActionId = clientActionId(signal);
         String description = privacy.sanitizeText(signal.dataString("description")).value();
         if (clientActionId.isBlank() || description.isBlank()) {
             warningConsumer.accept("A browser step edit was ignored because it was incomplete.");
@@ -836,7 +851,7 @@ final class CaptureEventPipeline implements AutoCloseable {
     }
 
     private void deleteStep(BrowserSignal signal) {
-        String clientActionId = privacy.sanitizeText(signal.dataString("clientActionId")).value();
+        String clientActionId = clientActionId(signal);
         if (clientActionId.isBlank()) {
             warningConsumer.accept("A browser step deletion was ignored because it was incomplete.");
             return;
@@ -859,7 +874,7 @@ final class CaptureEventPipeline implements AutoCloseable {
     }
 
     private void reorderStep(BrowserSignal signal) {
-        String clientActionId = privacy.sanitizeText(signal.dataString("clientActionId")).value();
+        String clientActionId = clientActionId(signal);
         String direction = privacy.sanitizeText(signal.dataString("direction")).value().toLowerCase(Locale.ROOT);
         if (clientActionId.isBlank() || (!direction.equals("up") && !direction.equals("down"))) {
             warningConsumer.accept("A browser step reorder was ignored because it was incomplete.");
@@ -924,7 +939,7 @@ final class CaptureEventPipeline implements AutoCloseable {
             SafePage page,
             Map<String, JsonNode> extensions) {
         Map<String, JsonNode> result = new LinkedHashMap<>();
-        String clientActionId = privacy.sanitizeText(signal.dataString("clientActionId")).value();
+        String clientActionId = clientActionId(signal);
         if (!clientActionId.isBlank()) {
             result.put("clientActionId", StringNode.valueOf(clientActionId));
         }
@@ -1064,6 +1079,44 @@ final class CaptureEventPipeline implements AutoCloseable {
     private static String targetKey(BrowserSignal signal) {
         String target = string(signal.target().get("logicalElementId"));
         return target.isBlank() ? signal.kind() + "-" + signal.browsingContextId() : target;
+    }
+
+    private String inputTargetKey(BrowserSignal signal) {
+        String clientActionId = clientActionId(signal);
+        if (!clientActionId.isBlank()) {
+            return "action|" + clientActionId;
+        }
+        String contextScope = resolveBrowsingContextId(signal)
+                + "|" + string(signal.page().get("framePath"));
+        return "target|" + contextScope + "|" + targetKey(signal);
+    }
+
+    /**
+     * Returns the globally unique action id persisted in event metadata. Browser-generated ids are
+     * only unique inside one session-storage snapshot; a newly opened same-origin tab can inherit
+     * that snapshot and reuse an id. Prefixing the resolved browsing context and frame preserves the
+     * global uniqueness required by edit/delete/reorder controls. A server-synced scoped id is
+     * already authoritative and must survive when an overlay sends it back from any tab.
+     */
+    private String clientActionId(BrowserSignal signal) {
+        String rawId = privacy.sanitizeText(signal.dataString("clientActionId")).value();
+        if (rawId.isBlank() || rawId.startsWith(CONTEXT_SCOPED_ACTION_PREFIX)) {
+            return rawId;
+        }
+        String scope = resolveBrowsingContextId(signal)
+                + "|" + string(signal.page().get("framePath"));
+        String encodedScope = Base64.getUrlEncoder().withoutPadding()
+                .encodeToString(scope.getBytes(StandardCharsets.UTF_8));
+        return CONTEXT_SCOPED_ACTION_PREFIX + encodedScope + ":" + rawId;
+    }
+
+    private static boolean inputPrecedes(BrowserSignal candidate, BrowserSignal current) {
+        int candidateSequence = candidate.dataInt("captureSignalSequence", -1);
+        int currentSequence = current.dataInt("captureSignalSequence", -1);
+        if (candidateSequence >= 0 && currentSequence >= 0 && candidateSequence != currentSequence) {
+            return candidateSequence < currentSequence;
+        }
+        return candidate.timestamp().isBefore(current.timestamp());
     }
 
     private static boolean isStandaloneEditingKey(BrowserSignal signal) {

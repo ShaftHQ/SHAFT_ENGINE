@@ -7,28 +7,39 @@ import com.shaft.gui.internal.locator.LocatorHealthReporter;
 import com.shaft.gui.playwright.internal.PlaywrightSessionManager;
 import com.shaft.gui.playwright.internal.PlaywrightTraceManager;
 import com.shaft.listeners.internal.TestExecutionInfo;
+import com.shaft.tools.io.trace.TraceSession;
 import com.shaft.tools.internal.support.ReportHtmlTheme;
 import org.apache.logging.log4j.Level;
 import org.openqa.selenium.WebDriver;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.lang.ref.WeakReference;
+import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.ArrayDeque;
 import java.util.Base64;
+import java.util.Comparator;
+import java.util.Collections;
+import java.util.IdentityHashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.LinkedHashSet;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Pattern;
-import java.util.zip.ZipEntry;
-import java.util.zip.ZipOutputStream;
+import java.util.regex.Matcher;
 
 /**
  * Builds the failure-scoped SHAFT trace viewer artifacts attached to Allure.
@@ -43,12 +54,38 @@ public final class FailureTraceReporter {
             "(?i)((?:password|passwd|pwd|secret|token|access[_-]?key|api[_-]?key)\\s*=\\s*[\"'])[^\"']*([\"'])");
     private static final Pattern SECRET_JSON_PATTERN = Pattern.compile(
             "(?i)(\"(?:password|passwd|pwd|secret|token|access[_-]?key|api[_-]?key)\"\\s*:\\s*\")[^\"]*(\")");
+    private static final Pattern NUMERIC_TOKEN_PATTERN = Pattern.compile(
+            "(?<![\\d.+\\-])([+\\-]?(?:\\d++(?:\\.\\d*+)?|\\.\\d++)(?:[eE][+\\-]?\\d++)?)"
+                    + "(?![\\d.]|[eE][+\\-]?\\d)");
     private static final int SNIPPET_RADIUS = 2;
     private static final int MAX_SOURCE_FILE_CHARACTERS = 100_000;
     private static final ThreadLocal<String> CURRENT_NETWORK_JSON = ThreadLocal.withInitial(() -> "[]");
     private static final ThreadLocal<Map<String, byte[]>> CURRENT_SCREENSHOTS = ThreadLocal.withInitial(Map::of);
+    private static final ThreadLocal<TraceArtifactManifest> CURRENT_ARTIFACT_MANIFEST = new ThreadLocal<>();
+    private static final ThreadLocal<LinkedHashSet<String>> EXACT_SENSITIVE_VALUES =
+            ThreadLocal.withInitial(LinkedHashSet::new);
+    private static final ThreadLocal<LinkedHashSet<String>> SOURCE_SENSITIVE_VALUES =
+            ThreadLocal.withInitial(LinkedHashSet::new);
+    private static final ThreadLocal<Set<Throwable>> SENSITIVE_THROWABLES =
+            ThreadLocal.withInitial(() -> Collections.newSetFromMap(new IdentityHashMap<>()));
+    private static final ThreadLocal<Boolean> SUPPRESS_SENSITIVE_BROWSER_ARTIFACTS =
+            ThreadLocal.withInitial(() -> false);
+    private static final ThreadLocal<Boolean> SENSITIVE_VALUE_OVERFLOW = ThreadLocal.withInitial(() -> false);
+    private static final ThreadLocal<SensitiveBrowserSessionRegistry> PERSISTENT_BROWSER_SENSITIVITY =
+            ThreadLocal.withInitial(SensitiveBrowserSessionRegistry::new);
+    private static final int SENSITIVE_VALUE_TRAVERSAL_LIMIT = 1000;
+    private static final int SENSITIVE_VALUE_DEPTH_LIMIT = 20;
+    private static final int SENSITIVE_VALUE_LIMIT = 128;
+    private static final int SENSITIVE_VALUE_LENGTH_LIMIT = 512;
+    private static final int NUMERIC_TOKEN_LIMIT = 256;
+    private static final int NUMERIC_TOKEN_LENGTH_LIMIT = 128;
+    private static final String SENSITIVE_BOUNDS_OMISSION =
+            "[evidence omitted because sensitive-value bounds were exceeded]";
     private static final ConcurrentMap<String, AtomicInteger> ATTEMPT_COUNTERS = new ConcurrentHashMap<>();
     private static final ConcurrentMap<String, List<AttemptRecord>> ATTEMPT_HISTORY = new ConcurrentHashMap<>();
+    private static final ConcurrentMap<String, Object> TRACE_LOCKS = new ConcurrentHashMap<>();
+    private static final ConcurrentMap<String, Integer> LATEST_PUBLISHED_ATTEMPT = new ConcurrentHashMap<>();
+    private static final ConcurrentMap<String, TraceIndexSnapshot> LATEST_INDEX = new ConcurrentHashMap<>();
 
     private FailureTraceReporter() {
         throw new IllegalStateException("Utility class");
@@ -65,27 +102,40 @@ public final class FailureTraceReporter {
         if (!shouldAttachTrace(info)) {
             return;
         }
+        Path completedArchive = null;
         try {
             stopPlaywrightTraceIfRunning();
-            int attempt = ATTEMPT_COUNTERS.computeIfAbsent(safeTestId(info), id -> new AtomicInteger()).incrementAndGet();
+            String testId = safeTestId(info);
+            int attempt = ATTEMPT_COUNTERS.computeIfAbsent(testId, id -> new AtomicInteger()).incrementAndGet();
             String json = renderTraceJson(info, logText, attachments, attempt);
             Map<String, byte[]> screenshots = CURRENT_SCREENSHOTS.get();
-            List<String> omitted = omittedEntries(json, CURRENT_NETWORK_JSON.get(), screenshots);
+            List<String> omitted = omittedEntries(json, CURRENT_ARTIFACT_MANIFEST.get());
             String html = renderTraceHtml(json, omitted);
-            byte[] zip = renderTraceZip(json, html, CURRENT_NETWORK_JSON.get(), screenshots);
-            persistTraceArtifacts(info, zip, screenshots, attempt, omitted);
             // In-report trace launcher (issue #3534 P2): the viewer HTML is fully self-contained --
             // it embeds the trace JSON (with base64 screenshots and inline DOM snapshots) and reads
             // everything from that embedded data, referencing no sibling files -- so attach it
             // directly for a one-click, in-report open, alongside the zip kept for full-fidelity
             // offline download.
             attach("html", "shaft-trace.html", html.getBytes(StandardCharsets.UTF_8), traceViewerLabel(info, attempt));
-            attach("zip", "shaft-trace.zip", zip, traceAttachmentLabel(info, attempt));
+            completedArchive = completedArchivePath(info, attempt);
+            renderTraceZip(completedArchive, json, html, CURRENT_NETWORK_JSON.get(), screenshots);
+            persistTraceArtifacts(info, completedArchive, screenshots, attempt, omitted);
+            AttachmentReporter.attachBasedOnFileType("zip", "shaft-trace.zip", completedArchive,
+                    traceAttachmentLabel(info, attempt));
         } catch (RuntimeException e) {
             ReportManagerHelper.logDiscrete("Could not attach SHAFT trace report: " + e.getMessage(), Level.WARN);
         } finally {
+            if (completedArchive != null) {
+                try {
+                    Files.deleteIfExists(completedArchive);
+                } catch (IOException e) {
+                    ReportManagerHelper.logDiscrete("Could not remove temporary SHAFT trace archive: " + e.getMessage(),
+                            Level.WARN);
+                }
+            }
             CURRENT_NETWORK_JSON.remove();
             CURRENT_SCREENSHOTS.remove();
+            closeArtifactManifest();
         }
     }
 
@@ -106,20 +156,42 @@ public final class FailureTraceReporter {
     }
 
     static String renderTraceJson(TestExecutionInfo info, String logText, List<String> attachments, int attempt) {
-        SourceContext source = sourceContext(info);
-        Snapshot snapshot = snapshot();
-        List<TraceEventRecorder.ActionEvent> actions = TraceEventRecorder.drain();
-        CURRENT_SCREENSHOTS.set(decodeScreenshots(actions));
-        BrowserObservabilityRecorder.collectConsole(DriverFactoryHelper.getActiveDriver());
-        String observabilityJson = BrowserObservabilityRecorder.drainMetadataJson();
-        String networkJson = BrowserObservabilityRecorder.drainNetworkJson();
-        CURRENT_NETWORK_JSON.set(networkJson);
-        String consoleJson = BrowserObservabilityRecorder.drainConsoleJson();
         Throwable throwable = info == null ? null : info.throwable();
+        SourceContext source = sourceContext(info);
+        boolean suppressBrowserArtifacts = shouldOmitSensitiveBrowserEvidence()
+                || containsSensitiveThrowable(throwable);
+        Snapshot snapshot = suppressBrowserArtifacts
+                ? new Snapshot("omitted-sensitive", "")
+                : snapshot();
+        List<TraceEventRecorder.ActionEvent> actions = TraceEventRecorder.drain();
+        if (suppressBrowserArtifacts) {
+            actions = actions.stream().map(FailureTraceReporter::withoutBrowserEvidence).toList();
+        }
+        CURRENT_SCREENSHOTS.set(decodeScreenshots(actions));
+        if (suppressBrowserArtifacts) {
+            BrowserObservabilityRecorder.clear();
+        } else {
+            BrowserObservabilityRecorder.collectConsole(DriverFactoryHelper.getActiveDriver());
+        }
+        String observabilityJson = suppressBrowserArtifacts
+                ? "{\"warnings\": []}" : BrowserObservabilityRecorder.drainMetadataJson();
+        String networkJson = suppressBrowserArtifacts ? "[]" : BrowserObservabilityRecorder.drainNetworkJson();
+        CURRENT_NETWORK_JSON.set(networkJson);
+        String consoleJson = suppressBrowserArtifacts ? "[]" : BrowserObservabilityRecorder.drainConsoleJson();
+        closeArtifactManifest();
+        int maxBytes = Math.max(1, SHAFT.Properties.reporting.traceMaxArtifactMb()) * 1024 * 1024;
+        String omissionMarker = "Omitted because artifact exceeded shaft.trace.maxArtifactMb="
+                + SHAFT.Properties.reporting.traceMaxArtifactMb();
+        TraceArtifactManifest manifest = TraceArtifactManifest.create(networkJson, CURRENT_SCREENSHOTS.get(),
+                suppressBrowserArtifacts ? null : PlaywrightTraceManager.getLastTracePath(), maxBytes, omissionMarker);
+        CURRENT_ARTIFACT_MANIFEST.set(manifest);
+        TraceSession traceSession = TraceSchemaSerializer.create(safeTestId(info), attempt, actions,
+                manifest.references());
         StringBuilder json = new StringBuilder();
         json.append("{\n");
         field(json, 1, "schemaVersion", "1.0", true);
-        field(json, 1, "generatedAt", Instant.now().toString(), true);
+        field(json, 1, "generatedAt", traceSession.generatedAt().toString(), true);
+        rawObject(json, 1, "session", TraceSchemaSerializer.toJson(traceSession), true);
         appendTestObject(json, info, throwable, attempt);
         objectStart(json, 1, "environment");
         field(json, 2, "shaftVersion", safeProperty(() -> SHAFT.Properties.internal.shaftEngineVersion()), true);
@@ -149,10 +221,21 @@ public final class FailureTraceReporter {
         rawArray(json, 1, "network", networkJson, true);
         rawArray(json, 1, "console", consoleJson, true);
         rawArray(json, 1, "actions", TraceEventRecorder.toJson(actions), true);
-        array(json, 1, "timeline", timeline(logText), true);
+        array(json, 1, "timeline", timeline(throwable, logText), true);
         array(json, 1, "attachments", attachmentEntries(attachments), false);
         json.append("}\n");
         return json.toString();
+    }
+
+    private static TraceEventRecorder.ActionEvent withoutBrowserEvidence(TraceEventRecorder.ActionEvent action) {
+        Map<String, String> safeMetadata = new LinkedHashMap<>();
+        action.metadata().forEach((key, value) -> safeMetadata.put(key, redactSourceText(value)));
+        return new TraceEventRecorder.ActionEvent(action.id(), action.backend(), action.category(), action.name(),
+                action.status(), action.startTime(), action.durationMs(), redactSourceText(action.locator()),
+                redactSourceText(action.url()), action.caller(), redactSourceText(action.message()),
+                action.exceptionType(), redactSourceText(action.exceptionMessage()),
+                action.attachments().stream().map(FailureTraceReporter::redactSourceText).toList(),
+                safeMetadata, Map.of(), "", "", "");
     }
 
     private static void appendTestObject(StringBuilder json, TestExecutionInfo info, Throwable throwable, int attempt) {
@@ -171,8 +254,10 @@ public final class FailureTraceReporter {
     private static void appendExceptionObject(StringBuilder json, Throwable throwable) {
         objectStart(json, 1, "exception");
         field(json, 2, "type", throwable == null ? "" : throwable.getClass().getName(), true);
-        field(json, 2, "message", redact(throwable == null ? "" : throwable.getMessage()), true);
-        field(json, 2, "stacktrace", redact(ReportManagerHelper.formatStackTraceToLogEntry(throwable)), false);
+        field(json, 2, "message", redactThrowableText(throwable,
+                throwable == null ? "" : throwable.getMessage()), true);
+        field(json, 2, "stacktrace", redactThrowableText(throwable,
+                ReportManagerHelper.formatStackTraceToLogEntry(throwable)), false);
         objectEnd(json, 1, true);
     }
 
@@ -253,28 +338,14 @@ public final class FailureTraceReporter {
      * therefore carry an omission marker inside the zip. Surfaced in the viewer and index so
      * truncation is never silent.
      */
-    private static List<String> omittedEntries(String json, String networkJson, Map<String, byte[]> screenshots) {
+    private static List<String> omittedEntries(String json, TraceArtifactManifest manifest) {
         int maxBytes = Math.max(1, SHAFT.Properties.reporting.traceMaxArtifactMb()) * 1024 * 1024;
         List<String> omitted = new ArrayList<>();
         if (json.getBytes(StandardCharsets.UTF_8).length > maxBytes) {
             omitted.add("shaft-trace.json");
         }
-        if (BrowserObservabilityRecorder.networkHarJson(networkJson)
-                .getBytes(StandardCharsets.UTF_8).length > maxBytes) {
-            omitted.add("shaft-network.har");
-        }
-        screenshots.forEach((id, bytes) -> {
-            if (bytes.length > maxBytes) {
-                omitted.add("screenshots/" + id + ".png");
-            }
-        });
-        try {
-            Path playwrightTrace = PlaywrightTraceManager.getLastTracePath();
-            if (playwrightTrace != null && Files.isRegularFile(playwrightTrace) && Files.size(playwrightTrace) > maxBytes) {
-                omitted.add(playwrightTrace.getFileName().toString());
-            }
-        } catch (IOException | RuntimeException ignored) {
-            // Size probing is best-effort; never let it fail trace generation.
+        if (manifest != null) {
+            omitted.addAll(manifest.omittedPaths());
         }
         return omitted;
     }
@@ -680,37 +751,52 @@ public final class FailureTraceReporter {
                 """;
     }
 
-    private static byte[] renderTraceZip(String json, String html, String networkJson, Map<String, byte[]> screenshots) {
+    private static void renderTraceZip(Path target, String json, String html, String networkJson,
+                                       Map<String, byte[]> screenshots) {
         int maxBytes = Math.max(1, SHAFT.Properties.reporting.traceMaxArtifactMb()) * 1024 * 1024;
-        try (ByteArrayOutputStream output = new ByteArrayOutputStream();
-             ZipOutputStream zip = new ZipOutputStream(output)) {
-            addZipEntry(zip, "shaft-trace.json", json.getBytes(StandardCharsets.UTF_8), maxBytes);
-            addZipEntry(zip, "shaft-network.har", BrowserObservabilityRecorder.networkHarJson(networkJson)
-                    .getBytes(StandardCharsets.UTF_8), maxBytes);
-            addZipEntry(zip, "SHAFT Trace Report.html", html.getBytes(StandardCharsets.UTF_8), maxBytes);
-            for (Map.Entry<String, byte[]> entry : screenshots.entrySet()) {
-                addZipEntry(zip, "screenshots/" + entry.getKey() + ".png", entry.getValue(), maxBytes);
-            }
-            Path playwrightTrace = PlaywrightTraceManager.getLastTracePath();
-            if (playwrightTrace != null && Files.isRegularFile(playwrightTrace)) {
-                addZipEntry(zip, playwrightTrace.getFileName().toString(), Files.readAllBytes(playwrightTrace), maxBytes);
-            }
-            zip.finish();
-            return output.toByteArray();
+        String omissionMarker = "Omitted because artifact exceeded shaft.trace.maxArtifactMb="
+                + SHAFT.Properties.reporting.traceMaxArtifactMb();
+        TraceArtifactManifest manifest = CURRENT_ARTIFACT_MANIFEST.get();
+        TraceArchiveWriter.Entry nativeEntry = manifest == null ? null : manifest.nativeEntry();
+        renderTraceZip(target, json, html, networkJson, screenshots, nativeEntry, maxBytes, omissionMarker);
+    }
+
+    static void renderTraceZip(Path target, String json, String html, String networkJson,
+                               Map<String, byte[]> screenshots, Path nativeTrace, int maxBytes,
+                               String omissionMarker) {
+        TraceArchiveWriter.Entry nativeEntry = nativeTrace == null
+                ? null
+                : TraceArchiveWriter.Entry.optionalFile(nativeTrace.getFileName().toString(), nativeTrace);
+        renderTraceZip(target, json, html, networkJson, screenshots, nativeEntry, maxBytes, omissionMarker);
+    }
+
+    private static void renderTraceZip(Path target, String json, String html, String networkJson,
+                                       Map<String, byte[]> screenshots, TraceArchiveWriter.Entry nativeEntry,
+                                       int maxBytes, String omissionMarker) {
+        List<TraceArchiveWriter.Entry> entries = new ArrayList<>();
+        entries.add(TraceArchiveWriter.Entry.text("shaft-trace.json", json));
+        entries.add(TraceArchiveWriter.Entry.text("shaft-network.har",
+                BrowserObservabilityRecorder.networkHarJson(networkJson)));
+        entries.add(TraceArchiveWriter.Entry.text("SHAFT Trace Report.html", html));
+        for (Map.Entry<String, byte[]> entry : screenshots.entrySet()) {
+            entries.add(TraceArchiveWriter.Entry.bytes("screenshots/" + entry.getKey() + ".png", entry.getValue()));
+        }
+        if (nativeEntry != null) {
+            entries.add(nativeEntry);
+        }
+        try {
+            TraceArchiveWriter.write(target, entries, maxBytes, omissionMarker);
         } catch (IOException e) {
             throw new IllegalStateException("Could not create SHAFT trace zip.", e);
         }
     }
 
-    private static void addZipEntry(ZipOutputStream zip, String name, byte[] bytes, int maxBytes) throws IOException {
-        zip.putNextEntry(new ZipEntry(name));
-        if (bytes.length <= maxBytes) {
-            zip.write(bytes);
-        } else {
-            zip.write(("Omitted because artifact exceeded shaft.trace.maxArtifactMb=" + SHAFT.Properties.reporting.traceMaxArtifactMb())
-                    .getBytes(StandardCharsets.UTF_8));
+    private static void closeArtifactManifest() {
+        TraceArtifactManifest manifest = CURRENT_ARTIFACT_MANIFEST.get();
+        if (manifest != null) {
+            manifest.close();
         }
-        zip.closeEntry();
+        CURRENT_ARTIFACT_MANIFEST.remove();
     }
 
     private static void attach(String type, String name, byte[] bytes, String description) {
@@ -723,33 +809,42 @@ public final class FailureTraceReporter {
         AttachmentReporter.attachBasedOnFileType(type, name, output, description);
     }
 
-    private static void persistTraceArtifacts(TestExecutionInfo info, byte[] zip, Map<String, byte[]> screenshots,
-                                              int attempt, List<String> omitted) {
+    static void persistTraceArtifacts(TestExecutionInfo info, Path completedArchive, Map<String, byte[]> screenshots,
+                                      int attempt, List<String> omitted) {
         try {
             Path directory = traceDirectory(info);
             Files.createDirectories(directory);
-            Path zipPath = directory.resolve("shaft-trace.zip");
-            Files.deleteIfExists(directory.resolve("SHAFT Trace Report.html"));
-            Files.deleteIfExists(directory.resolve("shaft-trace.json"));
-            Files.write(zipPath, zip);
             boolean failed = info != null && info.throwable() != null;
             String archiveName = "shaft-trace.zip";
             // Retain failed-attempt bundles under attempt-indexed names so a later passing retry
             // (which rewrites shaft-trace.zip) never erases the flake evidence.
             if (failed && retriesConfigured() && SHAFT.Properties.reporting.traceRetainFailedAttempts()) {
                 archiveName = "shaft-trace-attempt-" + attempt + ".zip";
-                Files.write(directory.resolve(archiveName), zip);
+                TraceArchiveWriter.copy(completedArchive, directory.resolve(archiveName));
             }
-            recordAttempt(info, attempt, failed ? "failed" : "passed", archiveName);
-            if (!screenshots.isEmpty()) {
-                Path screenshotsDirectory = directory.resolve("screenshots");
-                Files.createDirectories(screenshotsDirectory);
-                for (Map.Entry<String, byte[]> entry : screenshots.entrySet()) {
-                    Files.write(screenshotsDirectory.resolve(entry.getKey() + ".png"), entry.getValue());
+            String testId = safeTestId(info);
+            synchronized (TRACE_LOCKS.computeIfAbsent(testId, id -> new Object())) {
+                recordAttempt(info, attempt, failed ? "failed" : "passed", archiveName);
+                if (publishLatest(testId, attempt, completedArchive, directory.resolve("shaft-trace.zip"))) {
+                    LATEST_INDEX.put(testId, new TraceIndexSnapshot(info, !screenshots.isEmpty(), attempt,
+                            List.copyOf(omitted)));
+                    Files.deleteIfExists(directory.resolve("SHAFT Trace Report.html"));
+                    Files.deleteIfExists(directory.resolve("shaft-trace.json"));
+                    if (!screenshots.isEmpty()) {
+                        Path screenshotsDirectory = directory.resolve("screenshots");
+                        Files.createDirectories(screenshotsDirectory);
+                        for (Map.Entry<String, byte[]> entry : screenshots.entrySet()) {
+                            Files.write(screenshotsDirectory.resolve(entry.getKey() + ".png"), entry.getValue());
+                        }
+                    }
+                }
+                TraceIndexSnapshot latest = LATEST_INDEX.get(testId);
+                if (latest != null) {
+                    Files.writeString(directory.resolve("index.json"),
+                            renderTraceIndexJson(latest.info(), directory.resolve("shaft-trace.zip"),
+                                    latest.hasScreenshots(), latest.attempt(), latest.omitted()), StandardCharsets.UTF_8);
                 }
             }
-            Files.writeString(directory.resolve("index.json"),
-                    renderTraceIndexJson(info, zipPath, !screenshots.isEmpty(), attempt, omitted), StandardCharsets.UTF_8);
         } catch (IOException e) {
             ReportManagerHelper.logDiscrete("Could not persist SHAFT trace artifacts: " + e.getMessage(), Level.WARN);
         }
@@ -762,6 +857,22 @@ public final class FailureTraceReporter {
 
     static Path traceDirectory(TestExecutionInfo info) {
         return Path.of("target", "shaft-traces", safeTestId(info));
+    }
+
+    static Path completedArchivePath(TestExecutionInfo info, int attempt) {
+        return traceDirectory(info).resolve(".shaft-trace-" + attempt + "-" + UUID.randomUUID() + ".zip");
+    }
+
+    static boolean publishLatest(String testId, int attempt, Path completedArchive, Path target) throws IOException {
+        synchronized (TRACE_LOCKS.computeIfAbsent(testId, id -> new Object())) {
+            int latestAttempt = LATEST_PUBLISHED_ATTEMPT.getOrDefault(testId, 0);
+            if (attempt < latestAttempt) {
+                return false;
+            }
+            TraceArchiveWriter.copy(completedArchive, target);
+            LATEST_PUBLISHED_ATTEMPT.put(testId, attempt);
+            return true;
+        }
     }
 
     static String safeTestId(TestExecutionInfo info) {
@@ -779,7 +890,29 @@ public final class FailureTraceReporter {
         if (safeId.isBlank()) {
             safeId = "unknown";
         }
-        return safeId.length() <= 120 ? safeId : safeId.substring(0, 120);
+        boolean unsafeComponent = safeId.equals(".") || safeId.equals("..") || safeId.endsWith(".")
+                || isWindowsReservedName(safeId);
+        boolean lossy = !id.isBlank() && (!safeId.equals(id) || safeId.length() > 120 || unsafeComponent);
+        if (!lossy) {
+            return safeId;
+        }
+        String suffix = "-" + shortHash(id);
+        int prefixLength = Math.min(safeId.length(), 120 - suffix.length());
+        return safeId.substring(0, prefixLength) + suffix;
+    }
+
+    private static boolean isWindowsReservedName(String value) {
+        String baseName = value.contains(".") ? value.substring(0, value.indexOf('.')) : value;
+        return baseName.matches("(?i)CON|PRN|AUX|NUL|COM[1-9]|LPT[1-9]");
+    }
+
+    private static String shortHash(String value) {
+        try {
+            byte[] digest = MessageDigest.getInstance("SHA-256").digest(value.getBytes(StandardCharsets.UTF_8));
+            return java.util.HexFormat.of().formatHex(digest, 0, 6);
+        } catch (NoSuchAlgorithmException e) {
+            throw new IllegalStateException("SHA-256 is required by the Java platform.", e);
+        }
     }
 
     private static String renderTraceIndexJson(TestExecutionInfo info, Path zipPath, boolean hasScreenshots,
@@ -812,8 +945,11 @@ public final class FailureTraceReporter {
         List<AttemptRecord> history = ATTEMPT_HISTORY.getOrDefault(testId, List.of());
         indent(json, 1).append("\"attempts\": [");
         synchronized (history) {
-            for (int i = 0; i < history.size(); i++) {
-                AttemptRecord record = history.get(i);
+            List<AttemptRecord> orderedHistory = history.stream()
+                    .sorted(Comparator.comparingInt(AttemptRecord::attempt))
+                    .toList();
+            for (int i = 0; i < orderedHistory.size(); i++) {
+                AttemptRecord record = orderedHistory.get(i);
                 json.append(i > 0 ? "," : "").append("\n");
                 indent(json, 2).append("{\"attempt\": ").append(record.attempt())
                         .append(", \"status\": \"").append(escapeJson(record.status()))
@@ -857,6 +993,9 @@ public final class FailureTraceReporter {
         if (info == null || info.throwable() == null || !SHAFT.Properties.reporting.traceIncludeCodeContext()) {
             return new SourceContext("", "", "", "", "");
         }
+        if (containsSensitiveThrowable(info.throwable())) {
+            return new SourceContext("", "", "", "", "");
+        }
         StackTraceElement frame = relevantFrame(info.throwable());
         if (frame == null) {
             return new SourceContext("", "", "", "", "");
@@ -876,7 +1015,7 @@ public final class FailureTraceReporter {
     private static String fileContent(Path sourceFile) {
         try {
             String content = Files.readString(sourceFile, StandardCharsets.UTF_8);
-            return redact(content.length() > MAX_SOURCE_FILE_CHARACTERS
+            return redactSourceText(content.length() > MAX_SOURCE_FILE_CHARACTERS
                     ? content.substring(0, MAX_SOURCE_FILE_CHARACTERS)
                     : content);
         } catch (IOException | RuntimeException e) {
@@ -936,20 +1075,20 @@ public final class FailureTraceReporter {
                         .append(lines.get(line - 1))
                         .append(System.lineSeparator());
             }
-            return redact(snippet.toString().trim());
+            return redactSourceText(snippet.toString().trim());
         } catch (IOException e) {
             return sourceFile + ":" + lineNumber;
         }
     }
 
-    private static List<String> timeline(String logText) {
+    private static List<String> timeline(Throwable throwable, String logText) {
         if (logText == null || logText.isBlank()) {
             return List.of();
         }
         List<String> timeline = new ArrayList<>();
         for (String line : logText.split("\\R")) {
             if (!line.isBlank()) {
-                timeline.add(redact(line));
+                timeline.add(redactThrowableText(throwable, line));
             }
         }
         return timeline;
@@ -963,7 +1102,8 @@ public final class FailureTraceReporter {
                     .map(FailureTraceReporter::redact)
                     .forEach(entries::add);
         }
-        Path playwrightTrace = PlaywrightTraceManager.getLastTracePath();
+        Path playwrightTrace = shouldOmitSensitiveBrowserEvidence()
+                ? null : PlaywrightTraceManager.getLastTracePath();
         if (playwrightTrace != null) {
             entries.add("Playwright Trace (raw): " + redact(playwrightTrace.toString()));
         }
@@ -978,6 +1118,439 @@ public final class FailureTraceReporter {
         redacted = SECRET_JSON_PATTERN.matcher(redacted).replaceAll("$1********$2");
         redacted = SECRET_ATTRIBUTE_PATTERN.matcher(redacted).replaceAll("$1********$2");
         return SECRET_ASSIGNMENT_PATTERN.matcher(redacted).replaceAll("$1$2********");
+    }
+
+    static String redactThrowableText(String value) {
+        return redactThrowableText(null, value);
+    }
+
+    static String redactThrowableText(Throwable throwable, String value) {
+        if (containsSensitiveThrowable(throwable)) {
+            return "[provider error text omitted because submitted data may be sensitive]";
+        }
+        if (SENSITIVE_VALUE_OVERFLOW.get()) {
+            return SENSITIVE_BOUNDS_OMISSION;
+        }
+        String redacted = redactSensitiveValues(value(value), EXACT_SENSITIVE_VALUES.get(),
+                "[provider error text omitted because it may contain a sensitive storage value]");
+        return redactSourceText(redacted);
+    }
+
+    /** Registers an exact value for current-invocation trace redaction. */
+    public static void registerSensitiveValue(String value) {
+        if (value != null && !value.isEmpty()) {
+            addSensitiveValue(EXACT_SENSITIVE_VALUES.get(), value);
+        }
+    }
+
+    /** Registers a credential that must be removed from later source-code evidence in this invocation. */
+    public static void registerSensitiveSourceValue(String value) {
+        if (value != null && !value.isEmpty()) {
+            addSensitiveValue(SOURCE_SENSITIVE_VALUES.get(), value);
+        }
+    }
+
+    private static void addSensitiveValue(Set<String> values, String value) {
+        if (!addBoundedSensitiveValue(values, value)) {
+            SENSITIVE_VALUE_OVERFLOW.set(true);
+        }
+    }
+
+    private static boolean addBoundedSensitiveValue(Set<String> values, String value) {
+        if (value.length() > SENSITIVE_VALUE_LENGTH_LIMIT) {
+            return false;
+        }
+        List<String> additions = new ArrayList<>();
+        additions.add(value);
+        if ("-0.0".equals(value)) {
+            additions.add("0.0");
+        } else if ("0.0".equals(value)) {
+            additions.add("-0.0");
+        }
+        for (String addition : additions) {
+            if (!values.contains(addition) && values.size() >= SENSITIVE_VALUE_LIMIT) {
+                return false;
+            }
+            values.add(addition);
+        }
+        return true;
+    }
+
+    static String redactSourceText(String value) {
+        SensitiveBrowserSessionRegistry registry = PERSISTENT_BROWSER_SENSITIVITY.get();
+        if (SENSITIVE_VALUE_OVERFLOW.get() || registry.currentOverflowed()) {
+            return SENSITIVE_BOUNDS_OMISSION;
+        }
+        String redacted = redact(value);
+        LinkedHashSet<String> sensitiveValues = new LinkedHashSet<>(SOURCE_SENSITIVE_VALUES.get());
+        sensitiveValues.addAll(registry.currentValues());
+        return redactSensitiveValues(redacted, sensitiveValues,
+                "[source context omitted because it contains a sensitive credential]");
+    }
+
+    private static String redactSensitiveValues(String text, Set<String> sensitiveValues, String shortOmission) {
+        LinkedHashSet<BigDecimal> numericValues = new LinkedHashSet<>();
+        List<String> literalValues = new ArrayList<>();
+        for (String sensitiveValue : sensitiveValues) {
+            BigDecimal numeric = numericValue(sensitiveValue);
+            if (numeric == null) {
+                literalValues.add(sensitiveValue);
+            } else {
+                numericValues.add(normalizeNumericValue(numeric));
+            }
+        }
+        String redacted = numericValues.isEmpty() ? text : redactNumericValues(text, numericValues);
+        if (redacted == null) {
+            return SENSITIVE_BOUNDS_OMISSION;
+        }
+        for (String sensitiveValue : literalValues) {
+            Matcher matcher = sensitiveValuePattern(sensitiveValue).matcher(redacted);
+            if (!matcher.find()) {
+                continue;
+            }
+            if (sensitiveValue.length() < 4) {
+                return shortOmission;
+            }
+            redacted = matcher.replaceAll("********");
+        }
+        return redacted;
+    }
+
+    private static String redactNumericValues(String text, Set<BigDecimal> sensitiveValues) {
+        Matcher matcher = NUMERIC_TOKEN_PATTERN.matcher(text);
+        StringBuilder redacted = new StringBuilder();
+        int candidates = 0;
+        while (matcher.find()) {
+            if (++candidates > NUMERIC_TOKEN_LIMIT || matcher.group(1).length() > NUMERIC_TOKEN_LENGTH_LIMIT) {
+                return null;
+            }
+            BigDecimal candidate = numericValue(matcher.group(1));
+            if (candidate != null && sensitiveValues.contains(normalizeNumericValue(candidate))) {
+                matcher.appendReplacement(redacted, "********");
+            } else {
+                matcher.appendReplacement(redacted, Matcher.quoteReplacement(matcher.group()));
+            }
+        }
+        matcher.appendTail(redacted);
+        return redacted.toString();
+    }
+
+    private static BigDecimal normalizeNumericValue(BigDecimal value) {
+        return value.signum() == 0 ? BigDecimal.ZERO : value.stripTrailingZeros();
+    }
+
+    private static Pattern sensitiveValuePattern(String sensitiveValue) {
+        if (sensitiveValue.length() < 4) {
+            return Pattern.compile("(?<![\\p{Alnum}_])" + Pattern.quote(sensitiveValue)
+                    + "(?![\\p{Alnum}_])");
+        }
+        return Pattern.compile(Pattern.quote(sensitiveValue));
+    }
+
+    private static BigDecimal numericValue(String value) {
+        try {
+            return new BigDecimal(value);
+        } catch (NumberFormatException ignored) {
+            return null;
+        }
+    }
+
+    /** Redacts current-invocation exact and source-sensitive values for downstream failure consumers. */
+    public static String redactInvocationText(String value) {
+        return redactThrowableText(value);
+    }
+
+    /** Redacts one throwable's identity-sensitive text plus current-invocation exact and source values. */
+    public static String redactInvocationText(Throwable throwable, String value) {
+        return redactThrowableText(throwable, value);
+    }
+
+    /** Registers string values recursively reachable from a script or structured argument. */
+    public static void registerSensitiveValues(Object value) {
+        try {
+            registerSensitiveValues(value, Collections.newSetFromMap(new IdentityHashMap<>()),
+                    new int[]{SENSITIVE_VALUE_TRAVERSAL_LIMIT}, 0);
+        } catch (RuntimeException ignored) {
+            // Redaction bookkeeping must never replace the provider exception being reported.
+        }
+    }
+
+    private static void registerSensitiveValues(Object value, Set<Object> visited, int[] remaining, int depth) {
+        if (value == null || remaining[0]-- <= 0 || depth > SENSITIVE_VALUE_DEPTH_LIMIT) {
+            return;
+        }
+        if (value instanceof CharSequence text) {
+            registerSensitiveValue(text.toString());
+            return;
+        }
+        if (!visited.add(value)) {
+            return;
+        }
+        try {
+            if (value instanceof Map<?, ?> map) {
+                for (Map.Entry<?, ?> entry : map.entrySet()) {
+                    registerSensitiveValues(entry.getKey(), visited, remaining, depth + 1);
+                    registerSensitiveValues(entry.getValue(), visited, remaining, depth + 1);
+                    if (remaining[0] <= 0) {
+                        break;
+                    }
+                }
+            } else if (value instanceof Iterable<?> iterable) {
+                for (Object entry : iterable) {
+                    registerSensitiveValues(entry, visited, remaining, depth + 1);
+                    if (remaining[0] <= 0) {
+                        break;
+                    }
+                }
+            } else if (value.getClass().isArray()) {
+                int length = Math.min(java.lang.reflect.Array.getLength(value), Math.max(0, remaining[0]));
+                for (int index = 0; index < length; index++) {
+                    registerSensitiveValues(java.lang.reflect.Array.get(value, index), visited, remaining, depth + 1);
+                }
+            }
+        } catch (RuntimeException ignored) {
+            // Best effort only; callers must retain the original provider failure.
+        }
+    }
+
+    /** Marks one provider failure's text as sensitive while retaining its type and object identity. */
+    public static void registerSensitiveThrowable(Throwable throwable) {
+        if (throwable != null) {
+            SENSITIVE_THROWABLES.get().add(throwable);
+        }
+    }
+
+    /**
+     * Omits browser snapshots and backend-native traces for the rest of this test invocation.
+     * Use when an otherwise successful browser operation submits values that must not enter later evidence.
+     */
+    public static void suppressSensitiveBrowserArtifacts() {
+        SUPPRESS_SENSITIVE_BROWSER_ARTIFACTS.set(true);
+    }
+
+    /** @return whether the current test invocation owns a sensitive browser-artifact boundary */
+    public static boolean shouldSuppressSensitiveBrowserArtifacts() {
+        return SUPPRESS_SENSITIVE_BROWSER_ARTIFACTS.get()
+                || PERSISTENT_BROWSER_SENSITIVITY.get().currentIsSensitive();
+    }
+
+    /** @return whether browser-derived evidence may still contain active or stale sensitive state */
+    public static boolean shouldOmitSensitiveBrowserEvidence() {
+        return SUPPRESS_SENSITIVE_BROWSER_ARTIFACTS.get()
+                || PERSISTENT_BROWSER_SENSITIVITY.get().currentHasSensitiveEvidence();
+    }
+
+    /** Selects the browser/session whose persistent emulation state owns later browser evidence. */
+    public static void activateBrowserEvidenceOwner(Object owner) {
+        PERSISTENT_BROWSER_SENSITIVITY.get().activate(owner);
+    }
+
+    /** Records sensitive browser state until its matching override is cleared or the session closes. */
+    public static void registerPersistentSensitiveBrowserState(Object owner, String channel, Object... values) {
+        activateBrowserEvidenceOwner(owner);
+        if (owner != null) {
+            PERSISTENT_BROWSER_SENSITIVITY.get().current().put(channel, values);
+        }
+    }
+
+    /** Clears one persistent sensitive browser-state channel after its provider override is cleared. */
+    public static void clearPersistentSensitiveBrowserState(Object owner, String channel) {
+        SensitiveBrowserSessionRegistry registry = PERSISTENT_BROWSER_SENSITIVITY.get();
+        registry.activate(owner);
+        PersistentBrowserSensitivity state = registry.current();
+        if (state != null) {
+            state.retire(channel);
+        }
+    }
+
+    /** Clears every persistent sensitive browser-state channel owned by the supplied session. */
+    public static void clearPersistentSensitiveBrowserState(Object owner) {
+        if (owner == null) {
+            PERSISTENT_BROWSER_SENSITIVITY.remove();
+        } else {
+            PERSISTENT_BROWSER_SENSITIVITY.get().remove(owner);
+        }
+    }
+
+    static boolean containsSensitiveThrowable(Throwable root) {
+        if (root == null || SENSITIVE_THROWABLES.get().isEmpty()) {
+            return false;
+        }
+        Set<Throwable> visited = Collections.newSetFromMap(new IdentityHashMap<>());
+        ArrayDeque<Throwable> pending = new ArrayDeque<>();
+        pending.add(root);
+        int remaining = 100;
+        while (!pending.isEmpty() && remaining-- > 0) {
+            Throwable current = pending.removeFirst();
+            if (!visited.add(current)) {
+                continue;
+            }
+            if (SENSITIVE_THROWABLES.get().contains(current)) {
+                return true;
+            }
+            try {
+                if (current.getCause() != null) {
+                    pending.addLast(current.getCause());
+                }
+                for (Throwable suppressed : current.getSuppressed()) {
+                    if (suppressed != null) {
+                        pending.addLast(suppressed);
+                    }
+                }
+            } catch (RuntimeException ignored) {
+                // Throwable graph inspection is best-effort and must not hide the original failure.
+            }
+        }
+        return false;
+    }
+
+    static void clearSensitiveValues() {
+        EXACT_SENSITIVE_VALUES.remove();
+        SOURCE_SENSITIVE_VALUES.remove();
+        SENSITIVE_THROWABLES.remove();
+        SUPPRESS_SENSITIVE_BROWSER_ARTIFACTS.remove();
+        SENSITIVE_VALUE_OVERFLOW.remove();
+        PERSISTENT_BROWSER_SENSITIVITY.remove();
+    }
+
+    static void clearInvocationSensitiveValues() {
+        EXACT_SENSITIVE_VALUES.remove();
+        SOURCE_SENSITIVE_VALUES.remove();
+        SENSITIVE_THROWABLES.remove();
+        SUPPRESS_SENSITIVE_BROWSER_ARTIFACTS.remove();
+        SENSITIVE_VALUE_OVERFLOW.remove();
+    }
+
+    private static final class SensitiveBrowserSessionRegistry {
+        private final List<PersistentBrowserSensitivity> sessions = new ArrayList<>();
+        private WeakReference<Object> activeOwner = new WeakReference<>(null);
+
+        private void activate(Object owner) {
+            if (owner == null) {
+                return;
+            }
+            sessions.removeIf(state -> state.owner() == null);
+            activeOwner = new WeakReference<>(owner);
+            if (sessions.stream().noneMatch(state -> state.owns(owner))) {
+                sessions.add(new PersistentBrowserSensitivity(owner));
+            }
+        }
+
+        private PersistentBrowserSensitivity current() {
+            Object owner = activeOwner.get();
+            return owner == null ? null : sessions.stream().filter(state -> state.owns(owner)).findFirst().orElse(null);
+        }
+
+        private LinkedHashSet<String> currentValues() {
+            PersistentBrowserSensitivity current = current();
+            return current == null ? new LinkedHashSet<>() : current.values();
+        }
+
+        private boolean currentIsSensitive() {
+            PersistentBrowserSensitivity current = current();
+            return current != null && current.isActive();
+        }
+
+        private boolean currentHasSensitiveEvidence() {
+            PersistentBrowserSensitivity current = current();
+            return current != null && (!current.values().isEmpty() || current.overflowed());
+        }
+
+        private boolean currentOverflowed() {
+            PersistentBrowserSensitivity current = current();
+            return current != null && current.overflowed();
+        }
+
+        @SuppressWarnings("PMD.CompareObjectsWithEquals") // Session ownership is identity based.
+        private void remove(Object owner) {
+            sessions.removeIf(state -> state.owns(owner) || state.owner() == null);
+            if (activeOwner.get() == owner) {
+                activeOwner = new WeakReference<>(null);
+            }
+        }
+    }
+
+    private static final class PersistentBrowserSensitivity {
+        private final WeakReference<Object> owner;
+        private final Map<String, LinkedHashSet<String>> channels = new LinkedHashMap<>();
+        private final Map<String, LinkedHashSet<String>> staleChannels = new LinkedHashMap<>();
+        private final Set<String> activeOverflowChannels = new LinkedHashSet<>();
+        private final Set<String> staleOverflowChannels = new LinkedHashSet<>();
+
+        private PersistentBrowserSensitivity(Object owner) {
+            this.owner = new WeakReference<>(owner);
+        }
+
+        private Object owner() {
+            return owner.get();
+        }
+
+        @SuppressWarnings("PMD.CompareObjectsWithEquals") // Session ownership is identity based.
+        private boolean owns(Object candidate) {
+            return candidate != null && owner.get() == candidate;
+        }
+
+        private void put(String channel, Object... submittedValues) {
+            LinkedHashSet<String> previousValues = channels.remove(channel);
+            if (previousValues != null && !previousValues.isEmpty()) {
+                addHistoricalValues(channel, previousValues);
+            }
+            if (activeOverflowChannels.remove(channel)) {
+                staleOverflowChannels.add(channel);
+            }
+
+            LinkedHashSet<String> values = new LinkedHashSet<>();
+            boolean channelOverflowed = false;
+            if (submittedValues != null) {
+                for (Object submittedValue : submittedValues) {
+                    if (submittedValue != null
+                            && !addBoundedSensitiveValue(values, String.valueOf(submittedValue))) {
+                        channelOverflowed = true;
+                    }
+                }
+            }
+            if (!values.isEmpty()) {
+                channels.put(channel, values);
+            }
+            if (channelOverflowed) {
+                activeOverflowChannels.add(channel);
+            }
+        }
+
+        private void retire(String channel) {
+            LinkedHashSet<String> values = channels.remove(channel);
+            if (values != null && !values.isEmpty()) {
+                addHistoricalValues(channel, values);
+            }
+            if (activeOverflowChannels.remove(channel)) {
+                staleOverflowChannels.add(channel);
+            }
+        }
+
+        private void addHistoricalValues(String channel, Set<String> values) {
+            LinkedHashSet<String> history = staleChannels.computeIfAbsent(channel, ignored -> new LinkedHashSet<>());
+            for (String value : values) {
+                if (!addBoundedSensitiveValue(history, value)) {
+                    staleOverflowChannels.add(channel);
+                    break;
+                }
+            }
+        }
+
+        private boolean isActive() {
+            return !channels.isEmpty() || !activeOverflowChannels.isEmpty();
+        }
+
+        private boolean overflowed() {
+            return !activeOverflowChannels.isEmpty() || !staleOverflowChannels.isEmpty();
+        }
+
+        private LinkedHashSet<String> values() {
+            LinkedHashSet<String> values = new LinkedHashSet<>();
+            channels.values().forEach(values::addAll);
+            staleChannels.values().forEach(values::addAll);
+            return values;
+        }
     }
 
     private static void objectStart(StringBuilder json, int indent, String key) {
@@ -1073,6 +1646,10 @@ public final class FailureTraceReporter {
     }
 
     private record AttemptRecord(int attempt, String status, String archive, String generatedAt) {
+    }
+
+    private record TraceIndexSnapshot(TestExecutionInfo info, boolean hasScreenshots, int attempt,
+                                      List<String> omitted) {
     }
 
     private record Snapshot(String type, String content) {
