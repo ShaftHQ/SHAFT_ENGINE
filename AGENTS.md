@@ -49,7 +49,8 @@ act-as-mohab entrypoint.
 - No generated reports, binaries, caches, `target/`, Graphify output, or
   MemPalace runtime indexes in git. Canonical non-secret policy/config stays tracked.
 - Fix small blockers in path. Search before filing every non-blocking adjacent
-  finding as an issue; do not silently expand scope or leave it only in chat.
+  finding as its own standalone issue; receipts and existing issue references
+  are evidence, not substitutes for a new action ticket.
 - Preserve structured data with structured APIs. Keep prose natural; avoid
   repetitive filler and stock AI wording.
 
