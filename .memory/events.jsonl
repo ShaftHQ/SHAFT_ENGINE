@@ -1119,3 +1119,4 @@
 {"actor":"agent","event":"memory.updated","id":"constraint.every-actionable-learning-requires-its-own-standalone-github-issue","timestamp":"2026-08-11T22:21:03+03:00"}
 {"actor":"agent","event":"relation.deleted","relation_id":"rel.constraint-every-actionable-learning-requires-its-own-standalone-github-issue-supersedes-constraint-bug-handling-fix-blockers-inline-consolidate-everything-else-into-one-issue","timestamp":"2026-08-11T22:22:52+03:00"}
 {"actor":"agent","event":"relation.created","relation_id":"rel.standalone-action-issue-supersedes-consolidation","timestamp":"2026-08-11T22:22:52+03:00"}
+{"actor":"agent","event":"memory.updated","id":"constraint.pr-gate-yml-design-constraints-paths-filter-events-and-vacuous-green-traps","timestamp":"2026-08-11T23:38:21+03:00"}
