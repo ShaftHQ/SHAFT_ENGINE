@@ -1100,6 +1100,9 @@
 {"actor":"agent","event":"memory.created","id":"decision.intellij-codex-source-edits-stay-project-scoped-unrestricted-windows-recovery-is-separate","timestamp":"2026-08-10T21:59:42+03:00"}
 {"actor":"agent","event":"memory.created","id":"decision.intellij-assistant-capability-help-derives-from-registries-and-treats-valid-live-mcp-discovery-as-authoritative","timestamp":"2026-08-10T23:54:33+03:00"}
 {"actor":"agent","event":"memory.created","id":"decision.one-intellij-assistant-agent-route-owns-its-mcp-installer-target","timestamp":"2026-08-10T23:54:33+03:00"}
+{"actor":"agent","event":"memory.updated","id":"workflow.run-local-e2e-jobs-in-a-dedicated-workflow","timestamp":"2026-08-11T10:50:35+03:00"}
+{"actor":"agent","event":"memory.created","id":"decision.live-gemini-e2e-uses-a-neutral-provider-chat-prompt-not-codegen","timestamp":"2026-08-11T10:50:49+03:00"}
+{"actor":"agent","event":"memory.updated","id":"workflow.run-local-e2e-jobs-in-a-dedicated-workflow","timestamp":"2026-08-11T10:51:21+03:00"}
 {"actor":"agent","event":"memory.updated","id":"workflow.shaft-docs-repo-shafthq-github-io-merge-policy-deploy-checks-and-build-fragility","timestamp":"2026-08-11T10:24:21+03:00"}
 {"actor":"agent","event":"memory.updated","id":"workflow.shaft-docs-repo-shafthq-github-io-merge-policy-deploy-checks-and-build-fragility","timestamp":"2026-08-11T10:30:04+03:00"}
 {"actor":"agent","event":"memory.marked_stale","id":"gotcha.shafthq-github-io-pr-merges-are-blocked-by-branch-protection-review-required-even-with-all-ci-checks-green-use-gh-pr-merge-admin","reason":"The companion repository now permits merge commits only, enables auto-merge, requires strict Docs Build, and no longer requires the historical squash/admin bypass described here. Superseded by the active docs workflow updated for SHAFT_ENGINE#4705.","timestamp":"2026-08-11T10:30:04+03:00"}

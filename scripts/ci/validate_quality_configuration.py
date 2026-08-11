@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import re
 import sys
 import xml.etree.ElementTree as ET
 from pathlib import Path
@@ -37,6 +38,11 @@ IGNORE_UNRECOGNIZED_VM_OPTIONS = "-XX:+IgnoreUnrecognizedVMOptions"
 FORBIDDEN_OPTIONAL_COVERAGE_SETTINGS = (
     "require-coverage: false",
     "allow-missing-coverage: true",
+)
+UNIT_SCOPE_SENTINEL = "!%regex[.*testPackage.unitTests.*]"
+GRID_ONLY_SCOPE_EXCLUSIONS = (
+    "!%regex[.*playwright.*PlaywrightActionsE2ETest.*]",
+    "!%regex[.*LazyLoadingFixtureLiveTest.*]",
 )
 
 
@@ -94,6 +100,96 @@ def validate_workflow_coverage_policy(root: Path = ROOT) -> list[str]:
     return errors
 
 
+def _global_testing_scope(workflow: str) -> list[str]:
+    match = re.search(r'^\s*GLOBAL_TESTING_SCOPE:\s*"([^"]*)"\s*$', workflow, re.MULTILINE)
+    return [token.strip() for token in match.group(1).split(",")] if match else []
+
+
+def _pr_gate_unit_selectors(workflow: str) -> set[str]:
+    job_match = re.search(
+        r"^  unit-tests:\s*$\n(?P<body>.*?)(?=^  [A-Za-z0-9_-]+:\s*$|\Z)",
+        workflow,
+        re.MULTILINE | re.DOTALL,
+    )
+    if not job_match:
+        return set()
+    step_match = re.search(
+        r"^      - name: Run shaft-engine unit tests\s*$\n(?P<body>.*?)(?=^      - |\Z)",
+        job_match.group("body"),
+        re.MULTILINE | re.DOTALL,
+    )
+    if not step_match:
+        return set()
+    selector_match = re.search(r"^\s*'-Dtest=([^']*)'\s*$", step_match.group("body"), re.MULTILINE)
+    if selector_match:
+        tokens = {token.strip() for token in selector_match.group(1).split(",") if token.strip()}
+        return {token for token in tokens if not token.startswith("!")}
+    return set()
+
+
+def validate_browser_matrix_scope_policy(root: Path = ROOT) -> list[str]:
+    workflows = root / ".github" / "workflows"
+    paths = {
+        name: workflows / name
+        for name in ("e2eTests.yml", "e2eLocalTests.yml", "pr-gate.yml")
+    }
+    missing_paths = [name for name, path in paths.items() if not path.is_file()]
+    if missing_paths:
+        return ["browser-matrix scope policy is missing workflow files: " + ", ".join(missing_paths)]
+
+    grid_scope = _global_testing_scope(paths["e2eTests.yml"].read_text(encoding="utf-8"))
+    if UNIT_SCOPE_SENTINEL not in grid_scope:
+        return ["e2eTests.yml must mark the environment-independent unit-test exclusion trailer"]
+
+    invalid_grid_only = [
+        exclusion for exclusion in GRID_ONLY_SCOPE_EXCLUSIONS if grid_scope.count(exclusion) != 1
+    ]
+    unit_exclusions = grid_scope[grid_scope.index(UNIT_SCOPE_SENTINEL):]
+    expected_local_scope = [
+        exclusion for exclusion in grid_scope if exclusion not in GRID_ONLY_SCOPE_EXCLUSIONS
+    ]
+    local_scope = _global_testing_scope(paths["e2eLocalTests.yml"].read_text(encoding="utf-8"))
+    missing_local = [exclusion for exclusion in expected_local_scope if exclusion not in local_scope]
+    unexpected_local = [exclusion for exclusion in local_scope if exclusion not in expected_local_scope]
+
+    pr_gate = paths["pr-gate.yml"].read_text(encoding="utf-8")
+    pr_gate_unit_selectors = _pr_gate_unit_selectors(pr_gate)
+    missing_pr_gate = []
+    for exclusion in unit_exclusions:
+        owner_selector = (
+            "testPackage/unitTests/*"
+            if exclusion == UNIT_SCOPE_SENTINEL
+            else exclusion.removeprefix("!%regex[.*").removesuffix(".*]")
+        )
+        if owner_selector not in pr_gate_unit_selectors:
+            missing_pr_gate.append(owner_selector)
+
+    errors = []
+    if invalid_grid_only:
+        errors.append(
+            "e2eTests.yml must contain each grid-only exclusion exactly once: "
+            + ", ".join(invalid_grid_only)
+        )
+    if missing_local:
+        errors.append(
+            "e2eLocalTests.yml must exclude PR-gate-owned unit tests: "
+            + ", ".join(missing_local)
+        )
+    if unexpected_local:
+        errors.append(
+            "e2eLocalTests.yml contains exclusions outside the shared local-browser scope: "
+            + ", ".join(unexpected_local)
+        )
+    if not missing_local and not unexpected_local and local_scope != expected_local_scope:
+        errors.append("e2eLocalTests.yml must keep the shared browser exclusions in grid order")
+    if missing_pr_gate:
+        errors.append(
+            "pr-gate.yml must retain unit-test ownership for browser-matrix exclusions: "
+            + ", ".join(missing_pr_gate)
+        )
+    return errors
+
+
 def validate_quality_configuration(root: Path = ROOT) -> list[str]:
     errors: list[str] = []
     root_pom = ET.parse(root / "pom.xml").getroot()
@@ -110,6 +206,7 @@ def validate_quality_configuration(root: Path = ROOT) -> list[str]:
     errors.extend(validate_maven_jvm_configuration(root))
     errors.extend(validate_surefire_jacoco_arg_lines(root))
     errors.extend(validate_workflow_coverage_policy(root))
+    errors.extend(validate_browser_matrix_scope_policy(root))
 
     aggregate_path = root / "report-aggregate" / "pom.xml"
     if not aggregate_path.is_file():

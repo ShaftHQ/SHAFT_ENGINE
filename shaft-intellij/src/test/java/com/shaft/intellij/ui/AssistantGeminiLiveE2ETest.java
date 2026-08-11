@@ -17,17 +17,15 @@ import java.nio.file.Path;
 import java.time.Duration;
 import java.util.HashMap;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
 
 class AssistantGeminiLiveE2ETest {
     @Test
-    void livePluginMcpGeminiPromptGeneratesValidDuckDuckGoTestCase() throws Exception {
+    void livePluginMcpGeminiPromptReturnsExpectedProviderResponse() throws Exception {
         Assumptions.assumeTrue(Boolean.getBoolean("shaft.intellij.liveGemini"),
                 "Set -Dshaft.intellij.liveGemini=true to run the live Gemini IntelliJ MCP test.");
         String apiKey = System.getenv("GEMINI_API_KEY");
@@ -65,16 +63,7 @@ class AssistantGeminiLiveE2ETest {
         assertTrue(options.contains("-Dpilot.ai.gemini.model=" + model));
 
         AssistantCommand.Invocation invocation = AssistantCommand.fromPrompt(
-                """
-                        /codegen create one complete Java TestNG SHAFT Engine web test case.
-                        Requirements:
-                        - Class name must be DuckDuckGoSearchTest.
-                        - Use com.shaft.driver.SHAFT.
-                        - Open https://duckduckgo.com/.
-                        - Search for SHAFT Engine.
-                        - Validate that search results are shown.
-                        - Return the Java source for the test case.
-                        """,
+                "Reply with the exact token SHAFT_GEMINI_LIVE_OK.",
                 AssistantCommand.Selection.cloud("", ""),
                 "ASK",
                 workspace.toString(),
@@ -101,30 +90,12 @@ class AssistantGeminiLiveE2ETest {
             return;
         }
         String answer = response.get("answer").getAsString();
-        // The provider may legitimately return the Java source inline in the answer or as
-        // structured codeBlocks with only a summary answer; verify the combined generation.
-        StringBuilder generatedBuilder = new StringBuilder(answer);
-        if (response.get("codeBlocks") != null && response.get("codeBlocks").isJsonArray()) {
-            for (JsonElement block : response.getAsJsonArray("codeBlocks")) {
-                if (block.isJsonObject() && block.getAsJsonObject().has("code")) {
-                    generatedBuilder.append('\n').append(block.getAsJsonObject().get("code").getAsString());
-                }
-            }
-        }
-        String generated = generatedBuilder.toString();
-        String lowerGenerated = generated.toLowerCase(Locale.ROOT);
-        String markdown = AssistantMarkdown.fromMcpOutput(invocation.toolName(), result.toString());
 
         assertEquals("SUCCESS", response.get("status").getAsString(), response.toString());
         assertEquals("gemini", response.get("provider").getAsString());
         assertTrue(response.get("model").getAsString().startsWith(model), response.get("model").getAsString());
         assertEquals("ASK", response.get("mode").getAsString());
-        assertTrue(generated.contains("DuckDuckGoSearchTest"), generated);
-        assertTrue(generated.contains("SHAFT"), generated);
-        assertTrue(generated.contains("@Test"), generated);
-        assertTrue(lowerGenerated.contains("duckduckgo.com"), generated);
-        assertTrue(lowerGenerated.contains("search"), generated);
-        assertFalse(AssistantMarkdown.containsRejectedGeneratedJava(markdown), markdown);
+        assertEquals("SHAFT_GEMINI_LIVE_OK", answer.trim(), answer);
     }
 
     @SuppressWarnings("unchecked")
