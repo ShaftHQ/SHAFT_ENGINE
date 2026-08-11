@@ -51,7 +51,7 @@ changing that token silently breaks both distribution publishers.
 | `shaft-mcp.yml` | nightly, manual | Public installer matrix, MCP packaging, coverage, and container smoke. |
 | `guided-workflows-live.yml` | nightly, manual | Live IntelliJ guided Web, mobile-emulation, and Doctor flows through real MCP. |
 | `live-tools-nightly.yml` | nightly, manual | Live SHAFT CLI and IntelliJ assistant tool calls that cannot run in the PR gate. |
-| `agent-plugin-acceptance.yml` | weekly, manual | Native client routing evidence and immutable external guardrail-corpus scoring. |
+| `agent-plugin-acceptance.yml` | weekly, manual | Three independent evidence jobs: native-client routing, immutable external guardrail-corpus scoring, and checksum-verified agnix cross-client conformance. |
 | `update-selenium-grid-versions.yml` | weekly, manual | Updates Selenium Grid image references and opens a validated PR. |
 
 The quality validator fails when an active `*.yml` file is missing from this
@@ -70,6 +70,9 @@ table. Remove a row only in the same change that deletes its workflow.
 - `publish-intellij-plugin.yml` and `publish-shaft-mcp.yml` listen for an actual
   published release rather than the Maven workflow conclusion, because an
   already-published version is a successful no-op delivery.
+- The agnix job copies staged plugin content outside canonical roots, validates
+  it with a pinned checksum-verified binary in a no-network, read-only,
+  nonroot container, and fails on new errors.
 - External credentials and infrastructure can make cloud/live lanes report an
   explicit external blocker. Unknown client exits, contract drift, and
   ordinary test failures remain failures.

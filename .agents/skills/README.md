@@ -245,6 +245,24 @@ To deploy the harness to your own user-level agent configuration:
 py -3 scripts/agents/sync_user_harness.py --check
 ```
 
+## Supplemental agnix conformance
+
+The repository-specific validators remain authoritative. Weekly acceptance also
+runs agnix 0.48.0 as supplemental cross-client evidence through
+`scripts/ci/agnix_conformance.py`. Its immutable source, image, three host
+artifact checksums, pinned upstream evaluation archive, efficacy floors, staged
+inputs, scan-width baseline, and two exact false-positive fingerprints live in
+`scripts/ci/agnix_conformance.json`. The runner rejects symlinked inputs, copies
+only declared harness inputs to a disposable directory, verifies the Linux
+artifact and 61-case evaluation corpus, then executes both scans with no network,
+a read-only root, dropped capabilities, no new privileges, UID/GID 65532, and
+`DO_NOT_TRACK=1`. New errors, exact-path/count drift, scan-width drift, or an
+efficacy-floor miss fails closed; warnings remain visible in the uploaded evidence.
+
+Contract and boundary coverage lives in
+`tests/scripts/test_agnix_conformance.py`. No agnix binary, source tree, report,
+or cache is tracked or installed on the host.
+
 Add `--apply` to write it, with backups. Secrets are never synced. It deploys
 only generic user-level Claude host configuration, never repository skills,
 role adapters, or policy.

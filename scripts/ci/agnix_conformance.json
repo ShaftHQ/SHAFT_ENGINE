@@ -1,0 +1,75 @@
+{
+  "schema_version": 1,
+  "source": {
+    "url": "https://github.com/agent-sh/agnix",
+    "revision": "3792c6cfdf2e56ddf205340fb5afe8f272218501",
+    "release_tag": "v0.48.0",
+    "release_commit": "79e7753745f5e77e780fc0663014acbe5e33ee9a",
+    "license": "MIT OR Apache-2.0"
+  },
+  "image": {
+    "reference": "docker.io/library/ubuntu@sha256:561618e2c15bf2397621dd04f96926663a3b5616c189cf7e38db7e82f5c538ea",
+    "id": "sha256:561618e2c15bf2397621dd04f96926663a3b5616c189cf7e38db7e82f5c538ea"
+  },
+  "expected_files_checked": 47,
+  "artifacts": [
+    {
+      "platform": "linux-x86_64",
+      "url": "https://github.com/agent-sh/agnix/releases/download/v0.48.0/agnix-x86_64-unknown-linux-gnu.tar.gz",
+      "sha256": "da8a0fd2389f2fa442721ca1ecf447bc0de64bf629014f11336eaccbfe8aa2e8"
+    },
+    {
+      "platform": "macos-aarch64",
+      "url": "https://github.com/agent-sh/agnix/releases/download/v0.48.0/agnix-aarch64-apple-darwin.tar.gz",
+      "sha256": "d7cc221ffcd040373abb7c3ae82c74c8ef5922a5c9f7aec1236a7f1aeb1f164c"
+    },
+    {
+      "platform": "windows-x86_64",
+      "url": "https://github.com/agent-sh/agnix/releases/download/v0.48.0/agnix-x86_64-pc-windows-msvc.zip",
+      "sha256": "ed68a8588217d53af5678682a41f3365d5745c5e913a4c013cb013c4e1e598f8"
+    }
+  ],
+  "staging_paths": [
+    "AGENTS.md",
+    "CLAUDE.md",
+    ".agents",
+    ".claude/settings.json",
+    ".claude/agents",
+    ".claude/skills",
+    ".codex/config.toml",
+    ".codex/hooks.json",
+    ".codex/agents",
+    ".github/copilot-instructions.md",
+    ".memory/events.jsonl",
+    "scripts/agents"
+  ],
+  "allowlisted_findings": [
+    {
+      "rule": "CC-HK-008",
+      "level": "error",
+      "path": "fixtures/.claude/settings.json",
+      "message": "Script file not found at 'pathlib,runpy;p=next(p/scripts/agents/guard.py' (resolved to '/fixtures/pathlib,runpy;p=next(p/scripts/agents/guard.py')",
+      "expected_count": 5,
+      "reason": "agnix 0.48.0 tokenizes SHAFT's Python -c hook launcher as a script path; repository hook reachability is owned by existing harness tests."
+    },
+    {
+      "rule": "XML-001",
+      "level": "error",
+      "path": "fixtures/.agents/skills/act-as-mohab/references/work-github-playbook.md",
+      "message": "Unclosed XML tag '<n>'",
+      "expected_count": 1,
+      "reason": "The GitHub playbook uses <n> as a documented issue-number metavariable, not XML."
+    }
+  ],
+  "evaluation": {
+    "corpus_url": "https://github.com/agent-sh/agnix/archive/3792c6cfdf2e56ddf205340fb5afe8f272218501.tar.gz",
+    "corpus_sha256": "3105d9b29cbfda7f2f04aa86c16c2fae17def8b243943b61bb2fe89569ef1c4d",
+    "minimum_precision": 0.95,
+    "minimum_recall": 0.95,
+    "required_rule_prefixes": [
+      "CC-",
+      "CDX-",
+      "XP-"
+    ]
+  }
+}
