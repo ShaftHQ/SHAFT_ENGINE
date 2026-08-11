@@ -1,5 +1,9 @@
 # SHAFT routing evaluations
 
+This local contract explains how maintainers regenerate and verify portable
+client fixtures. Users install and verify the skill pack through the
+[official skills guide](https://shafthq.github.io/docs/agentic/skills).
+
 `cases.json` is the reviewed source for all 30 routing cases. Each prompt expects one
 specialist and rejects every sibling recorded in `shaft-skills/quality-review.json`, so the same
 case proves positive routing and the directed negative boundary without naming the
@@ -7,11 +11,14 @@ answer in the prompt.
 
 Refresh and validate the client-native files with:
 
-```text
-python scripts/ci/shaft_skill_routing_eval.py --write
-python scripts/ci/shaft_skill_routing_eval.py
-python -m unittest tests.scripts.test_shaft_skill_routing_eval -v
+```powershell
+py -3 scripts/ci/shaft_skill_routing_eval.py --write
+py -3 scripts/ci/shaft_skill_routing_eval.py
+py -3 -m unittest tests.scripts.test_shaft_skill_routing_eval -v
 ```
+
+On macOS/Linux, replace `py -3` with `python3`. Review generated fixture diffs
+before committing them; `cases.json` remains the single canonical corpus.
 
 `claude/evals.json` follows the official skill-creator `evals.json` fields. Codex uses
 `codex/cases.jsonl` with `codex/output-schema.json`. The scheduled acceptance workflow

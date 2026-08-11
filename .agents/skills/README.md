@@ -24,9 +24,9 @@ flowchart TD
     E["<b>act-as-mohab</b><br/>always loaded"]
     E --> T{"Triage<br/>blast radius x reversibility"}
 
-    T -->|"one file, reversible"| GO["State deliverable + proof.<br/>Go."]
-    T -->|"one module"| C["<b>consult-first</b><br/>points 1-4 and 8"]
-    T -->|"public contract,<br/>hard to reverse"| CF["<b>consult-first</b><br/>full pass"]
+    T -->|"one file, reversible"| GO["<b>consult-first</b><br/>concise complete receipt"]
+    T -->|"one module"| C["<b>consult-first</b><br/>normal full pass"]
+    T -->|"public contract,<br/>hard to reverse"| CF["<b>consult-first</b><br/>executable specification"]
 
     GO --> R
     C --> R
@@ -57,13 +57,9 @@ sequenceDiagram
     A->>E: load entrypoint
     E-->>A: iron laws, triage, red flags
     A->>A: triage in two lines
-    alt trivial and reversible
-        A->>W: proceed at the routed surface
-    else anything larger
-        A->>G: load the gate at the selected depth
-        G-->>A: approach, invariants, the RED check
-        A->>W: proceed at the routed surface
-    end
+    A->>G: load the gate at the selected depth
+    G-->>A: approach, invariants, research receipt, RED check
+    A->>W: proceed at the routed surface
     W-->>A: change plus evidence
     A->>A: independent adversarial review
     A-->>U: outcome, checks run, what was refuted
@@ -120,8 +116,9 @@ step with the first.
 | [act-as-mohab](act-as-mohab/SKILL.md) | The single always-loaded entrypoint and global router. Carries the iron laws, the triage that sizes every task, the always-on working style, and the table that sends each deliverable to exactly one surface. |
 
 The entrypoint reaches the internal [consultation](act-as-mohab/references/consult-first.md)
-and [retrieval](act-as-mohab/references/retrieve-first.md) gates only when its
-triage selects them. They are references, not separately discoverable skills.
+and [retrieval](act-as-mohab/references/retrieve-first.md) gates after every
+triage; the triage result controls depth. They are references, not separately
+discoverable skills.
 
 ### Method references
 
@@ -189,7 +186,7 @@ is, [routing](act-as-mohab/references/routing.md) says.
 
 `shaft-skills/` is a separate, published pack that teaches an agent to *use*
 SHAFT rather than to work on it. Its own router, `shaft-developer`, selects one
-of roughly thirty lifecycle, implementation, and tool specialists. The routing
+of exactly 30 lifecycle, implementation, and tool specialists. The routing
 table hands off to it and does not duplicate its rows.
 
 ## Importing these skills
@@ -247,6 +244,24 @@ To deploy the harness to your own user-level agent configuration:
 ```bash
 py -3 scripts/agents/sync_user_harness.py --check
 ```
+
+## Supplemental agnix conformance
+
+The repository-specific validators remain authoritative. Weekly acceptance also
+runs agnix 0.48.0 as supplemental cross-client evidence through
+`scripts/ci/agnix_conformance.py`. Its immutable source, image, three host
+artifact checksums, pinned upstream evaluation archive, efficacy floors, staged
+inputs, scan-width baseline, and two exact false-positive fingerprints live in
+`scripts/ci/agnix_conformance.json`. The runner rejects symlinked inputs, copies
+only declared harness inputs to a disposable directory, verifies the Linux
+artifact and 61-case evaluation corpus, then executes both scans with no network,
+a read-only root, dropped capabilities, no new privileges, UID/GID 65532, and
+`DO_NOT_TRACK=1`. New errors, exact-path/count drift, scan-width drift, or an
+efficacy-floor miss fails closed; warnings remain visible in the uploaded evidence.
+
+Contract and boundary coverage lives in
+`tests/scripts/test_agnix_conformance.py`. No agnix binary, source tree, report,
+or cache is tracked or installed on the host.
 
 Add `--apply` to write it, with backups. Secrets are never synced. It deploys
 only generic user-level Claude host configuration, never repository skills,

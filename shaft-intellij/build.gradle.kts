@@ -168,6 +168,7 @@ tasks {
     }
 
     test {
+        finalizedBy(jacocoTestReport)
         useJUnitPlatform()
         systemProperty("java.awt.headless", "true")
         systemProperty("shaft.intellij.screenshotDir", System.getProperty("shaft.intellij.screenshotDir", ""))

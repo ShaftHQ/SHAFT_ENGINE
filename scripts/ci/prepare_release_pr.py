@@ -29,7 +29,6 @@ NPM_INTERNAL_VERSIONS = {
     "appiumXcuitestDriverVersion": ("appium-xcuitest-driver", None),
 }
 EXTRA_VERSION_REFERENCES = (
-    Path("modular-era-feature-catalog.md"),
     Path("shaft-intellij/src/test/java/com/shaft/intellij/ui/ShaftPluginScreenshotRendererTest.java"),
 )
 

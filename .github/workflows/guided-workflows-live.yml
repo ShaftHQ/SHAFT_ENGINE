@@ -64,6 +64,14 @@ jobs:
           -Dshaft.intellij.liveWorkflows=true
           "-Dshaft.intellij.liveMcpCommand=${MCP_JAVA} @${MCP_ARGS}"
           "-Dshaft.intellij.workspaceRoot=${GITHUB_WORKSPACE}/build/live-workflows"
+      - name: Upload IntelliJ coverage to Codecov
+        if: always()
+        uses: ./.github/actions/upload-jacoco-coverage
+        with:
+          codecov-token: ${{ secrets.CODECOV_TOKEN }}
+          files: ./shaft-intellij/build/reports/jacoco/test/jacocoTestReport.xml
+          required-files: ./shaft-intellij/build/reports/jacoco/test/jacocoTestReport.xml
+          source-id: guided-workflows-live
       - name: Upload live workflow evidence
         if: always()
         uses: actions/upload-artifact@v7

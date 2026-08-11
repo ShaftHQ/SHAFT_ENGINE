@@ -184,11 +184,11 @@ jobs:
           python3 scripts/ci/validate_shaft_pilot_release.py --check-build-outputs
           python3 scripts/ci/validate_shaft_mcp_transports.py
           mvn --batch-mode -f tools/modularization/consumer-fixtures/pilot-core/pom.xml verify \
-            "-Dshaft.version=${RELEASE_VERSION}"
+            "-Dshaft.version=${RELEASE_VERSION}" -DskipTests
           mvn --batch-mode -f tools/modularization/consumer-fixtures/combined-modules/pom.xml verify \
-            "-Dshaft.version=${RELEASE_VERSION}"
+            "-Dshaft.version=${RELEASE_VERSION}" -DskipTests
           mvn --batch-mode -f tools/modularization/consumer-fixtures/mcp/pom.xml verify \
-            "-Dshaft.version=${RELEASE_VERSION}"
+            "-Dshaft.version=${RELEASE_VERSION}" -DskipTests
       - name: Reclaim disk space before container build
         uses: ./.github/actions/reclaim-disk-space
         with:

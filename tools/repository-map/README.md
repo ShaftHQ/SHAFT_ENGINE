@@ -21,20 +21,27 @@ If `graphify` is not found after the uv install, run `uv tool update-shell` and
 open a new terminal. A plain-pip fallback may likewise require adding its
 Scripts directory to PATH.
 
-## Build
+## Build or refresh
 
-Run from the repository root:
+Run from the **primary checkout**. Create the local code graph once with:
 
 ```powershell
-graphify .
+graphify extract . --code-only
 py -3 tools/repository-map/resolve_graph_out.py --record-current
 ```
 
-The second command binds the completed cache build to the primary checkout's
-exact Git revision. Do not run it from a linked worktree or without a successful
-`graphify .` build.
+After source or configuration changes, refresh it without an LLM call:
 
-On PowerShell, use `graphify .`, not `/graphify .`.
+```powershell
+graphify update .
+py -3 tools/repository-map/resolve_graph_out.py --record-current
+```
+
+The resolver binds a successful graph to the primary checkout's exact Git
+revision. Do not record from a linked worktree or after a failed build.
+
+On PowerShell these are CLI commands; `/graphify` is an agent-chat command and
+is not executable in the shell.
 
 ## Query
 
@@ -60,5 +67,8 @@ Because `graphify-out/` is gitignored, it never exists in a fresh `git worktree`
 
 - Resolve it from any worktree with `python3 tools/repository-map/resolve_graph_out.py` (prints the absolute path under the main checkout root, derived from `git rev-parse --git-common-dir`).
 - Check availability with `python3 tools/repository-map/resolve_graph_out.py --check`: exits `0` and prints the path only when the cache marker matches the revision being inspected. Missing caches report `absent`; unmarked, changed, or revision-mismatched caches report `stale` with the indexed and requested revisions when available. Both degraded modes exit `1` and fall back to `rg` plus Memory.
-- Refresh the cache by rerunning both Build commands from the **primary checkout**; worktree sessions only read it, they do not rebuild or record it. On the primary maintainer machine the nightly maintenance task rebuilds it automatically (see the docs-site maintainers/agent-tooling runbook).
+- Refresh the cache by running `graphify update .` and then the resolver's
+  `--record-current` command from the **primary checkout**; worktree sessions
+  only read it. On the primary maintainer machine the nightly maintenance task
+  rebuilds it automatically (see the docs-site maintainer runbook).
 - The "mandatory entry point" rule is satisfied by running the `--check` resolve, not by building the graph. If the cache is absent, fall back to `rg` and `.memory` instead of blocking the session on a rebuild.
