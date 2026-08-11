@@ -3,6 +3,9 @@ package com.shaft.tools.io.trace;
 import com.shaft.gui.capabilities.AutomationBackend;
 
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.HashSet;
@@ -25,8 +28,12 @@ public record TraceSession(String id, AutomationBackend backend, Instant generat
         AutomationBackend checkedBackend = java.util.Objects.requireNonNull(backend, "backend");
         Instant checkedGeneratedAt = java.util.Objects.requireNonNull(generatedAt, "generatedAt");
         int checkedAttempt = positiveAttempt(attempt);
-        List<TraceEvent> copiedEvents = events == null ? List.of() : List.copyOf(events);
-        List<TraceArtifactReference> copiedArtifacts = artifacts == null ? List.of() : List.copyOf(artifacts);
+        List<TraceEvent> copiedEvents = events == null
+                ? List.of()
+                : Collections.unmodifiableList(new ArrayList<>(List.copyOf(events)));
+        List<TraceArtifactReference> copiedArtifacts = artifacts == null
+                ? List.of()
+                : Collections.unmodifiableList(new ArrayList<>(List.copyOf(artifacts)));
         validateArtifactReferences(copiedEvents, copiedArtifacts);
         this.id = checkedId;
         this.backend = checkedBackend;
@@ -35,7 +42,9 @@ public record TraceSession(String id, AutomationBackend backend, Instant generat
         this.attempt = checkedAttempt;
         this.events = copiedEvents;
         this.artifacts = copiedArtifacts;
-        this.metadata = metadata == null ? Map.of() : Map.copyOf(metadata);
+        this.metadata = metadata == null
+                ? Map.of()
+                : Collections.unmodifiableMap(new HashMap<>(Map.copyOf(metadata)));
     }
 
     private static String requiredId(String id) {

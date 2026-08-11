@@ -58,6 +58,18 @@ public class TraceSessionTest {
 
     @Test
     public void shouldRejectInvalidEventAndArtifactReferences() {
+        Map<String, String> metadataWithNull = new HashMap<>();
+        metadataWithNull.put("key", null);
+        List<String> artifactIdsWithNull = new ArrayList<>();
+        artifactIdsWithNull.add(null);
+        Assert.expectThrows(NullPointerException.class, () -> new TraceArtifactReference("id", "network",
+                "shaft-network.har", "application/json", false, metadataWithNull));
+        Assert.expectThrows(NullPointerException.class, () -> new TraceEvent("event", AutomationBackend.UNKNOWN,
+                "browser", "navigate", TraceEventStatus.PASSED, Instant.now(), 0, "", "", "",
+                metadataWithNull, List.of()));
+        Assert.expectThrows(NullPointerException.class, () -> new TraceEvent("event", AutomationBackend.UNKNOWN,
+                "browser", "navigate", TraceEventStatus.PASSED, Instant.now(), 0, "", "", "", Map.of(),
+                artifactIdsWithNull));
         Assert.expectThrows(IllegalArgumentException.class, () -> new TraceEvent("", AutomationBackend.UNKNOWN,
                 "browser", "navigate", TraceEventStatus.PASSED, Instant.now(), 0, "", "", "", Map.of(),
                 List.of()));

@@ -1,5 +1,7 @@
 package com.shaft.tools.io.trace;
 
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.Map;
 
 /**
@@ -16,7 +18,9 @@ public record TraceArtifactReference(String id, String kind, String path, String
         validateArchivePath(this.path);
         this.mimeType = mimeType == null ? "" : mimeType;
         this.omitted = omitted;
-        this.metadata = metadata == null ? Map.of() : Map.copyOf(metadata);
+        this.metadata = metadata == null
+                ? Map.of()
+                : Collections.unmodifiableMap(new HashMap<>(Map.copyOf(metadata)));
     }
 
     @Override

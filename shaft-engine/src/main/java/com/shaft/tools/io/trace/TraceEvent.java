@@ -3,6 +3,9 @@ package com.shaft.tools.io.trace;
 import com.shaft.gui.capabilities.AutomationBackend;
 
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -31,8 +34,12 @@ public record TraceEvent(String id, AutomationBackend backend, String category, 
         this.source = source == null ? "" : source;
         this.target = target == null ? "" : target;
         this.message = message == null ? "" : message;
-        this.metadata = metadata == null ? Map.of() : Map.copyOf(metadata);
-        this.artifactIds = artifactIds == null ? List.of() : List.copyOf(artifactIds);
+        this.metadata = metadata == null
+                ? Map.of()
+                : Collections.unmodifiableMap(new HashMap<>(Map.copyOf(metadata)));
+        this.artifactIds = artifactIds == null
+                ? List.of()
+                : Collections.unmodifiableList(new ArrayList<>(List.copyOf(artifactIds)));
     }
 
     @Override
