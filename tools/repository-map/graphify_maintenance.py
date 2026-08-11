@@ -4,7 +4,9 @@
 from __future__ import annotations
 
 import argparse
+from contextlib import contextmanager
 import json
+import os
 import shutil
 import subprocess  # nosec B404 - fixed, list-form repository maintenance commands.
 import sys
@@ -94,7 +96,7 @@ def run_audit(root: Path, graph_out: Path) -> dict[str, object]:
     return report
 
 
-def require_primary_checkout(root: Path) -> None:
+def require_primary_checkout(root: Path) -> Path:
     """Fail before mutation unless root is the primary checkout of a Git repository."""
     git = shutil.which("git")
     if git is None:
@@ -118,6 +120,39 @@ def require_primary_checkout(root: Path) -> None:
         common_dir = root / common_dir
     if root.resolve() != top_level.resolve() or root.resolve() != common_dir.resolve().parent:
         raise ValueError("refresh root must be the primary Git checkout, not a linked worktree")
+    return common_dir.resolve()
+
+
+@contextmanager
+def refresh_lock(common_dir: Path):
+    """Hold a nonblocking, crash-released OS lock for the complete refresh."""
+    lock_path = common_dir / "shaft-graphify-refresh.lock"
+    lock_file = lock_path.open("a+b")
+    if lock_file.seek(0, os.SEEK_END) == 0:
+        lock_file.write(b"\0")
+        lock_file.flush()
+    lock_file.seek(0)
+    try:
+        if os.name == "nt":
+            import msvcrt  # pylint: disable=import-outside-toplevel
+
+            msvcrt.locking(lock_file.fileno(), msvcrt.LK_NBLCK, 1)
+        else:
+            import fcntl  # pylint: disable=import-outside-toplevel,import-error
+
+            fcntl.flock(lock_file.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except OSError as error:
+        lock_file.close()
+        raise RuntimeError("Graphify refresh is already running for this repository") from error
+    try:
+        yield
+    finally:
+        lock_file.seek(0)
+        if os.name == "nt":
+            msvcrt.locking(lock_file.fileno(), msvcrt.LK_UNLCK, 1)
+        else:
+            fcntl.flock(lock_file.fileno(), fcntl.LOCK_UN)
+        lock_file.close()
 
 
 def refresh(root: Path, graph_out: Path) -> None:
@@ -127,11 +162,10 @@ def refresh(root: Path, graph_out: Path) -> None:
     requested_output = graph_out if graph_out.is_absolute() else root / graph_out
     if requested_output.resolve() != (root / DEFAULT_GRAPH_OUT).resolve():
         raise ValueError("refresh owns the fixed graphify-out cache; use audit for custom output")
-    require_primary_checkout(root)
+    common_dir = require_primary_checkout(root)
     uv = shutil.which("uv")
     if uv is None:
         raise ValueError("uv is not on PATH")
-    (requested_output / ".shaft-source-revision.json").unlink(missing_ok=True)
     graphify = [
         "uv",
         "tool",
@@ -142,18 +176,20 @@ def refresh(root: Path, graph_out: Path) -> None:
         "graphifyy",
         "graphify",
     ]
-    run_stage(
-        "build",
-        [uv, *graphify[1:], "extract", ".", "--code-only", "--no-cluster"],
-        root,
-    )
-    run_audit(root, graph_out)
-    run_stage("cluster", [uv, *graphify[1:], "cluster-only", "."], root)
-    run_stage(
-        "record",
-        [sys.executable, "tools/repository-map/resolve_graph_out.py", "--record-current"],
-        root,
-    )
+    with refresh_lock(common_dir):
+        (requested_output / ".shaft-source-revision.json").unlink(missing_ok=True)
+        run_stage(
+            "build",
+            [uv, *graphify[1:], "extract", ".", "--code-only", "--no-cluster"],
+            root,
+        )
+        run_audit(root, graph_out)
+        run_stage("cluster", [uv, *graphify[1:], "cluster-only", "."], root)
+        run_stage(
+            "record",
+            [sys.executable, "tools/repository-map/resolve_graph_out.py", "--record-current"],
+            root,
+        )
 
 
 def parser() -> argparse.ArgumentParser:

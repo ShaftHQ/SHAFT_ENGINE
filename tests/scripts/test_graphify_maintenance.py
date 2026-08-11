@@ -134,7 +134,9 @@ class GraphifyMaintenanceTest(unittest.TestCase):
             stages.append(name)
             raise RuntimeError("build failed")
 
-        with mock.patch.object(module, "require_primary_checkout"), mock.patch.object(
+        with mock.patch.object(
+            module, "require_primary_checkout", return_value=self.repository
+        ), mock.patch.object(
             module.shutil, "which", return_value="uv"
         ), mock.patch.object(module, "run_stage", side_effect=fail_build):
             with self.assertRaisesRegex(RuntimeError, "build failed"):
@@ -142,6 +144,27 @@ class GraphifyMaintenanceTest(unittest.TestCase):
 
         self.assertEqual(["build"], stages)
         self.assertFalse(marker.exists())
+        with module.refresh_lock(self.repository):
+            pass
+
+    def test_refresh_lock_contention_stops_before_marker_or_stages(self):
+        module = self.load_module()
+        marker = self.write_default_marker()
+        lock = self.repository / "shaft-graphify-refresh.lock"
+        stages = []
+
+        with module.refresh_lock(self.repository):
+            with mock.patch.object(
+                module, "require_primary_checkout", return_value=self.repository
+            ), mock.patch.object(module.shutil, "which", return_value="uv"), mock.patch.object(
+                module, "run_stage", side_effect=lambda name, command, root: stages.append(name)
+            ):
+                with self.assertRaisesRegex(RuntimeError, "refresh is already running"):
+                    module.refresh(self.repository, Path("graphify-out"))
+
+        self.assertEqual([], stages)
+        self.assertTrue(marker.exists())
+        self.assertTrue(lock.exists())
 
     def test_refresh_rejects_a_custom_output_before_any_stage(self):
         module = self.load_module()
@@ -197,7 +220,9 @@ class GraphifyMaintenanceTest(unittest.TestCase):
         stages = []
         marker = self.write_default_marker()
 
-        with mock.patch.object(module, "require_primary_checkout"), mock.patch.object(
+        with mock.patch.object(
+            module, "require_primary_checkout", return_value=self.repository
+        ), mock.patch.object(
             module.shutil, "which", return_value="uv"
         ), mock.patch.object(
             module, "run_stage", side_effect=lambda name, command, root: stages.append(name)
@@ -218,7 +243,9 @@ class GraphifyMaintenanceTest(unittest.TestCase):
             if name == "cluster":
                 raise RuntimeError("cluster failed")
 
-        with mock.patch.object(module, "require_primary_checkout"), mock.patch.object(
+        with mock.patch.object(
+            module, "require_primary_checkout", return_value=self.repository
+        ), mock.patch.object(
             module.shutil, "which", return_value="uv"
         ), mock.patch.object(
             module, "run_stage", side_effect=fail_cluster
@@ -242,7 +269,9 @@ class GraphifyMaintenanceTest(unittest.TestCase):
             events.append("audit")
             return {}
 
-        with mock.patch.object(module, "require_primary_checkout"), mock.patch.object(
+        with mock.patch.object(
+            module, "require_primary_checkout", return_value=self.repository
+        ), mock.patch.object(
             module.shutil, "which", return_value="uv"
         ), mock.patch.object(
             module, "run_stage", side_effect=record_stage

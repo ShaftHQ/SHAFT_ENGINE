@@ -41,6 +41,8 @@ py -3 tools/repository-map/graphify_maintenance.py audit --root .
 Both commands accept any repository through `--root`. The read-only `audit`
 command also accepts a relative `--graph-out` below that root. Refresh owns the
 fixed `graphify-out` cache so it cannot audit one output and mark another.
+Concurrent refreshes fail fast under a repository-local advisory OS lock, which
+the kernel releases if the maintenance process exits or is killed.
 Zero-node JSON files are reported as expected data-only inputs. Zero-node SQL
 files or any other parser gaps fail the audit.
 The resolver binds a successful graph to the primary checkout's exact Git
