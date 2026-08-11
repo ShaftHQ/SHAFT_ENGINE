@@ -187,60 +187,64 @@ def _state_lock(state: Path, key: str):
         deadline = time.monotonic() + 5.0
         if lock.exists() and (_is_reparse_point(lock) or lock.stat().st_nlink != 1):
             raise ValueError("learning lock file is a link")
-        try:
-            descriptor = os.open(lock, os.O_CREAT | os.O_EXCL | os.O_RDWR, 0o600)
-        except FileExistsError:
-            descriptor = os.open(lock, os.O_RDWR)
-        handle = os.fdopen(descriptor, "r+b")
-        opened = os.fstat(handle.fileno())
-        current = lock.stat(follow_symlinks=False)
-        if (
-            _is_reparse_point(lock)
-            or opened.st_nlink != 1
-            or (opened.st_dev, opened.st_ino) != (current.st_dev, current.st_ino)
-        ):
-            handle.close()
-            raise ValueError("learning lock file is a link or changed identity")
+        descriptor: int | None = None
+        handle = None
         acquired = False
-        while not acquired:
-            try:
-                handle.seek(0)
-                if os.name == "nt":
-                    import msvcrt
-
-                    if lock.stat().st_size == 0:
-                        handle.write(b"0")
-                        handle.flush()
-                        handle.seek(0)
-                    if os.fstat(handle.fileno()).st_nlink != 1:
-                        handle.close()
-                        raise ValueError("learning lock file gained a hard link")
-                    msvcrt.locking(handle.fileno(), msvcrt.LK_NBLCK, 1)
-                else:
-                    import fcntl
-
-                    fcntl.flock(handle.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
-                acquired = True
-            except OSError:
-                if time.monotonic() >= deadline:
-                    handle.close()
-                    raise ValueError("learning state is busy")
-                time.sleep(0.01)
         try:
+            try:
+                descriptor = os.open(lock, os.O_CREAT | os.O_EXCL | os.O_RDWR, 0o600)
+            except FileExistsError:
+                descriptor = os.open(lock, os.O_RDWR)
+            handle = os.fdopen(descriptor, "r+b")
+            descriptor = None  # fdopen owns and closes the descriptor from here.
+            opened = os.fstat(handle.fileno())
+            current = lock.stat(follow_symlinks=False)
+            if (
+                _is_reparse_point(lock)
+                or opened.st_nlink != 1
+                or (opened.st_dev, opened.st_ino) != (current.st_dev, current.st_ino)
+            ):
+                raise ValueError("learning lock file is a link or changed identity")
+            while not acquired:
+                try:
+                    handle.seek(0)
+                    if os.name == "nt":
+                        import msvcrt
+
+                        if lock.stat().st_size == 0:
+                            handle.write(b"0")
+                            handle.flush()
+                            handle.seek(0)
+                        if os.fstat(handle.fileno()).st_nlink != 1:
+                            raise ValueError("learning lock file gained a hard link")
+                        msvcrt.locking(handle.fileno(), msvcrt.LK_NBLCK, 1)
+                    else:
+                        import fcntl
+
+                        fcntl.flock(handle.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+                    acquired = True
+                except OSError:
+                    if time.monotonic() >= deadline:
+                        raise ValueError("learning state is busy")
+                    time.sleep(0.01)
             yield
         finally:
             try:
-                handle.seek(0)
-                if os.name == "nt":
-                    import msvcrt
+                if acquired and handle is not None:
+                    handle.seek(0)
+                    if os.name == "nt":
+                        import msvcrt
 
-                    msvcrt.locking(handle.fileno(), msvcrt.LK_UNLCK, 1)
-                else:
-                    import fcntl
+                        msvcrt.locking(handle.fileno(), msvcrt.LK_UNLCK, 1)
+                    else:
+                        import fcntl
 
-                    fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
+                        fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
             finally:
-                handle.close()
+                if handle is not None:
+                    handle.close()
+                elif descriptor is not None:
+                    os.close(descriptor)
 
 
 def _validate_evidence(
@@ -491,7 +495,7 @@ def _atomic_json(path: Path, value: dict) -> None:
         try:
             os.unlink(temporary_name)
         except OSError:
-            pass
+            pass  # Preserve the original write/replace failure; cleanup is best-effort.
         raise
 
 

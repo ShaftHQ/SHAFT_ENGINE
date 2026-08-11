@@ -838,6 +838,19 @@ class StructuredLearningReceiptTest(unittest.TestCase):
                     pass
             self.assertEqual(outside.read_bytes(), b"")
 
+    def test_lock_handle_closes_when_identity_stat_fails(self):
+        learning_loop = self.controller()
+        with tempfile.TemporaryDirectory() as directory:
+            handle = unittest.mock.MagicMock()
+            handle.fileno.return_value = 123
+            with patch.object(learning_loop.os, "open", return_value=123):
+                with patch.object(learning_loop.os, "fdopen", return_value=handle):
+                    with patch.object(learning_loop.os, "fstat", side_effect=OSError("stat failed")):
+                        with self.assertRaises(OSError):
+                            with learning_loop._state_lock(Path(directory), "demo"):
+                                pass
+            handle.close.assert_called_once_with()
+
     def test_state_subdirectory_link_cannot_escape_the_runtime_root(self):
         learning_loop = self.controller()
         with tempfile.TemporaryDirectory() as directory, tempfile.TemporaryDirectory() as outside:
