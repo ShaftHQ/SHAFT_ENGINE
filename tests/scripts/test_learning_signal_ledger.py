@@ -696,7 +696,7 @@ class StructuredLearningReceiptTest(unittest.TestCase):
 
     def test_runtime_state_never_persists_raw_evidence_bytes(self):
         learning_loop = self.controller()
-        secret = "RAW_TRANSCRIPT_PASSWORD=hunter2"
+        secret = "RAW_TRANSCRIPT_PASSWORD=hunter2"  # nosec B105 - redaction sentinel, not a credential.
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             state = root / "state"
