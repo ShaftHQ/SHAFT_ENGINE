@@ -27,7 +27,7 @@ public final class MobileActions implements MobileActionsContract {
 
     @Override
     public MobileApplicationActionsContract app() {
-        throw unsupported("application lifecycle");
+        return new ApplicationActions(this);
     }
 
     @Override
@@ -81,6 +81,13 @@ public final class MobileActions implements MobileActionsContract {
     }
 
     AppiumDriver driver() {
+        if (driver.getSessionId() == null) {
+            throw new UnsupportedOperationException("Mobile actions require a live Appium session.");
+        }
+        return driver;
+    }
+
+    AppiumDriver traceDriver() {
         return driver;
     }
 

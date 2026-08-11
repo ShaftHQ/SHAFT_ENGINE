@@ -1088,7 +1088,7 @@ public final class FailureTraceReporter {
         List<String> timeline = new ArrayList<>();
         for (String line : logText.split("\\R")) {
             if (!line.isBlank()) {
-                timeline.add(redact(line));
+                timeline.add(redactThrowableText(line));
             }
         }
         return timeline;
