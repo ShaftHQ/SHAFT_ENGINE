@@ -14,11 +14,14 @@ SHAFT 10.3.20260809.
 - Replay: TestNG 1 test, 0 failures, 0 errors. The closing frames show the
   generated test, Page Object, data file, and 100% Allure result.
 
-The Drive file ID and preview were verified after upload. Automated
-organization sharing returned `permission.domain: invalid or not applicable`.
-If the link is not visible to its intended audience, the owner must use
-**Share -> General access -> Anyone with the link -> Viewer** and verify from
-a signed-out window. Upload success alone does not prove public access.
+The Drive file ID and preview were verified after upload. General access is
+**Anyone with the link -> Viewer**. An independent permission read returned
+`type=anyone`, `role=reader`, and `allowFileDiscovery=false`; an unauthenticated
+request returned HTTP 200 with the expected filename. The connector's earlier
+organization-share attempt returned `permission.domain: invalid or not
+applicable`, so the owner completed the general-access change in Drive's UI.
+Upload success alone does not prove public access; verify permission metadata
+and signed-out access separately as this take did.
 
 ## Safety boundary
 
