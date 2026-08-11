@@ -1,3 +1,4 @@
+import ast
 import importlib.util
 import contextlib
 import hashlib
@@ -6,6 +7,7 @@ import json
 import os
 import re
 import subprocess  # nosec B404 -- Windows junction test uses resolved System32 cmd.exe only.
+import sys
 import tempfile
 import unittest
 import zipfile
@@ -169,24 +171,89 @@ class InstallShaftMcpTest(unittest.TestCase):
         # module it imports at module scope must travel with it or the
         # installed validator dies on ImportError. Checked by reading the real
         # import statements rather than by listing them again here.
-        repository_root = Path(__file__).resolve().parents[2]
         shipped = set(MODULE.AGENT_VALIDATION_SCRIPT_FILES)
+        self.assertEqual(self.agent_validation_manifest_missing_imports(shipped), [])
+
+    def test_agent_validation_manifest_guard_detects_parenthesized_import_omission(self):
+        shipped = set(MODULE.AGENT_VALIDATION_SCRIPT_FILES)
+        shipped.remove("scripts/ci/worktree_hygiene.py")
+
+        self.assertIn(
+            "scripts/ci/validate_agent_setup.py imports scripts.ci.worktree_hygiene",
+            self.agent_validation_manifest_missing_imports(shipped),
+        )
+
+    def test_downloaded_agent_validation_bundle_imports_from_isolated_project(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            target = Path(temp_dir)
+            (target / "AGENTS.md").write_text("# Installed guidance\n", encoding="utf-8")
+
+            def install_repository_file(_url, destination, _label, **_kwargs):
+                relative = destination.relative_to(target)
+                destination.parent.mkdir(parents=True, exist_ok=True)
+                destination.write_bytes((REPO_ROOT / relative).read_bytes())
+
+            with mock.patch.object(MODULE, "download_file", side_effect=install_repository_file):
+                MODULE.download_agent_validation_script_files(target)
+
+            self.assertTrue((target / "scripts" / "agents" / "learning_loop.py").is_file())
+            command = (
+                "import sys; "
+                f"sys.path.insert(0, {str(target)!r}); "
+                "import scripts.agents.guard; "
+                "import scripts.ci.validate_agent_setup"
+            )
+            completed = subprocess.run(
+                [sys.executable, "-I", "-c", command],
+                cwd=target,
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            self.assertEqual(0, completed.returncode, completed.stderr)
+
+    @staticmethod
+    def agent_validation_manifest_missing_imports(shipped):
         missing = set()
+        repository_root = Path(__file__).resolve().parents[2]
+
+        def module_file(module):
+            relative = module.replace(".", "/") + ".py"
+            return relative if (repository_root / relative).is_file() else None
+
         for relative in sorted(shipped):
             if not relative.endswith(".py"):
                 continue
-            source = (repository_root / relative).read_text(encoding="utf-8")
-            for module, imported_name in re.findall(
-                    r"(?m)^from (scripts[\w.]*) import ([A-Za-z_]\w*)", source):
-                module_path = module.replace(".", "/")
-                candidates = (
-                    module_path + ".py",
-                    module_path + "/__init__.py",
-                    module_path + "/" + imported_name + ".py",
-                )
-                if not any(candidate in shipped for candidate in candidates):
-                    missing.add(f"{relative} imports {module}.{imported_name}")
-        self.assertEqual(sorted(missing), [])
+            tree = ast.parse((repository_root / relative).read_text(encoding="utf-8"), filename=relative)
+            for node in ast.walk(tree):
+                dependencies = []
+                if isinstance(node, ast.Import):
+                    dependencies.extend(
+                        dependency
+                        for alias in node.names
+                        if alias.name.startswith("scripts.")
+                        and (dependency := module_file(alias.name)) is not None
+                    )
+                elif (isinstance(node, ast.ImportFrom)
+                      and node.level == 0
+                      and node.module
+                      and node.module.startswith("scripts.")):
+                    direct = module_file(node.module)
+                    if direct is not None:
+                        dependencies.append(direct)
+                    else:
+                        dependencies.extend(
+                            dependency
+                            for alias in node.names
+                            if alias.name != "*"
+                            and (dependency := module_file(
+                                node.module + "." + alias.name)) is not None
+                        )
+                for dependency in dependencies:
+                    if dependency not in shipped:
+                        missing.add(
+                            f"{relative} imports {dependency[:-3].replace('/', '.')}")
+        return sorted(missing)
 
     def test_render_client_menu_groups_ai_agents_and_advanced_sections(self):
         lines = MODULE.render_client_menu()
