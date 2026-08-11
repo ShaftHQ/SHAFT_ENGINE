@@ -16,7 +16,9 @@ import com.shaft.gui.driver.MobileRecordingActionsContract;
 import io.appium.java_client.AppiumDriver;
 import io.appium.java_client.PerformsTouchActions;
 import io.appium.java_client.android.ListensToLogcatMessages;
+import io.appium.java_client.android.AuthenticatesByFinger;
 import io.appium.java_client.ios.ListensToSyslogMessages;
+import io.appium.java_client.ios.PerformsTouchID;
 import com.shaft.gui.element.TouchActions;
 
 /** Selenium/Appium implementation of the categorized mobile facade. */
@@ -67,7 +69,13 @@ public final class MobileActions implements MobileActionsContract {
 
     @Override
     public MobileBiometricActionsContract biometrics() {
-        throw unsupported("biometrics");
+        AppiumDriver liveDriver = driver();
+        if (!(liveDriver instanceof AuthenticatesByFinger)
+                && !(liveDriver instanceof PerformsTouchID)) {
+            throw new UnsupportedOperationException(
+                    "The live Appium session does not support biometric simulation.");
+        }
+        return new BiometricActions(this);
     }
 
     @Override

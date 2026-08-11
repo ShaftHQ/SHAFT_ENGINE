@@ -57,7 +57,6 @@ public class MobileNamespaceTest {
                 .collect(Collectors.toSet()), Set.of("[class com.shaft.driver.SHAFT$GUI$WebDriver]"));
 
         for (String contract : Set.of(
-                "MobileBiometricActionsContract",
                 "MobileEvidenceActionsContract",
                 "MobilePerformanceActionsContract",
                 "MobileRecordingActionsContract")) {
@@ -65,6 +64,19 @@ public class MobileNamespaceTest {
             Assert.assertEquals(descriptors("com.shaft.gui.driver." + contract),
                     Set.of("and[]->MobileActionsContract"));
         }
+        Assert.assertEquals(descriptors("com.shaft.gui.driver.MobileBiometricActionsContract"), Set.of(
+                "and[]->MobileActionsContract",
+                "fingerprint[]->MobileFingerprintActionsContract",
+                "touchId[]->MobileTouchIdActionsContract"));
+        Assert.assertEquals(descriptors("com.shaft.gui.driver.MobileFingerprintActionsContract"), Set.of(
+                "and[]->MobileBiometricActionsContract",
+                "authenticate[int]->MobileFingerprintActionsContract"));
+        Assert.assertEquals(descriptors("com.shaft.gui.driver.MobileTouchIdActionsContract"), Set.of(
+                "and[]->MobileBiometricActionsContract",
+                "enroll[]->MobileTouchIdActionsContract",
+                "match[]->MobileTouchIdActionsContract",
+                "reject[]->MobileTouchIdActionsContract",
+                "unenroll[]->MobileTouchIdActionsContract"));
         Assert.assertEquals(descriptors("com.shaft.gui.driver.MobileLogActionsContract"), Set.of(
                 "and[]->MobileActionsContract",
                 "clear[]->MobileLogActionsContract",
