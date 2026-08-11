@@ -1622,6 +1622,11 @@ def _learning_loop_events(hook_input: dict, command: str) -> list[str]:
                 return [f"learning-signal:{item}" for item in completion["incident_hashes"]]
         if operation == "assess":
             receipt_ids = {receipt["receipt_id"]: receipt for receipt in receipts}
+            created_issue_numbers = {
+                event.removeprefix("issue-created:")
+                for event in ledger_events(hook_input)
+                if event.startswith("issue-created:")
+            }
             valid = {
                 candidate["incident_hash"]
                 for candidate in _learning_loop.load_candidates(state)
@@ -1629,6 +1634,8 @@ def _learning_loop_events(hook_input: dict, command: str) -> list[str]:
                 and candidate["receipt_ids"][0] in receipt_ids
                 and receipt_ids[candidate["receipt_ids"][0]]["incident_hash"]
                 == candidate["incident_hash"]
+                and candidate["tracking_issue_url"].rsplit("/", 1)[-1]
+                in created_issue_numbers
             }
             if set(completion["incident_hashes"]).issubset(valid):
                 return [f"learning-assessed:{item}" for item in completion["incident_hashes"]]
@@ -2602,6 +2609,58 @@ def _updates_a_tracked_issue(command: str, cwd: object = None) -> bool:
     return False
 
 
+def _standalone_issue_created_event(
+    command: str, tool_result: object, cwd: object = None
+) -> str | None:
+    """Return an issue-created event only for one successful canonical gh command."""
+    parts, separators = _top_level_shell_parts(command)
+    if separators or len(parts) != 1:
+        return None
+    rest = _tokens_after_head(parts[0], frozenset({"gh"}))
+    if not rest:
+        return None
+    rest, repository = _split_gh_global_flags(rest)
+    lowered = [token.lower() for token in rest]
+    if lowered[:2] != ["issue", "create"] or any(
+        token in {"-h", "--help", "--dry-run"} for token in lowered[2:]
+    ):
+        return None
+    if repository and repository.strip().strip("\"'").lower() != "shafthq/shaft_engine":
+        return None
+    if not isinstance(tool_result, dict) or tool_result.get("isError") is True:
+        return None
+    status = str(tool_result.get("status", "")).strip().lower()
+    exit_present = "exit_code" in tool_result or "exitCode" in tool_result
+    exit_code = tool_result.get("exit_code", tool_result.get("exitCode"))
+    explicitly_successful = (exit_present and exit_code == 0) or status in {
+        "ok",
+        "success",
+        "succeeded",
+        "completed",
+    }
+    if not explicitly_successful or (status and status not in {
+        "ok",
+        "success",
+        "succeeded",
+        "completed",
+    }):
+        return None
+    if any(
+        tool_result.get(field) is not None and tool_result.get(field) != ""
+        for field in ("stderr", "error")
+    ):
+        return None
+    stdout = tool_result.get("stdout", tool_result.get("output"))
+    if not isinstance(stdout, str):
+        return None
+    match = re.fullmatch(
+        r"https://github\.com/ShaftHQ/SHAFT_ENGINE/issues/([1-9][0-9]*)",
+        stdout.strip(),
+        re.IGNORECASE,
+    )
+    return f"issue-created:{match.group(1)}" if match else None
+
+
 def _reviewer_dispatch_event(hook_input: dict, tool_name: str) -> str | None:
     """The ledger event a reviewer dispatch records, or None if this is not one.
 
@@ -2892,6 +2951,11 @@ def run_posttooluse(hook_input: dict) -> int:
         if not result_failed:
             for learning_event in _learning_loop_events(hook_input, command):
                 ledger_record(hook_input, learning_event)
+            issue_event = _standalone_issue_created_event(
+                command, result, _hook_working_directory(hook_input)
+            )
+            if issue_event:
+                ledger_record(hook_input, issue_event)
     for event in _research_preflight_events(
         tool_name, hook_input.get("tool_input"), result
     ):
@@ -3399,13 +3463,13 @@ def check_r16_learning_loop(hook_input: dict) -> str | None:
     if "memory-write" in events or any(event.startswith("learning-none:") for event in events):
         return None
     if guard_blocked:
-        if "issue-update" in events:
-            return None
         return (
             "Learning loop: this session had an observed guard refusal with no route. "
             "Before reporting done, route it once: if the refusal was correct, write the "
             "lesson to native Memory with its evidence; if it was wrong or needs follow-up, "
-            "search for and update the issue. Nothing durable is a valid result -- say so "
+            "record a signal, open a new standalone GitHub issue after duplicate search, and "
+            "assess the receipt with that issue URL. A receipt, bare issue creation, or comment "
+            "on an old issue is evidence, not the complete action route. Nothing durable is a valid result -- say so "
             "and end the turn. This interrupts once per turn: `stop_hook_active` makes the "
             "retry proceed, and it is owed again next turn until it is satisfied."
         )
@@ -4367,12 +4431,12 @@ def run_required_action_self_test() -> int:
         is not None,
     )
     check(
-        "R16 accepts an issue update for an observed guard block",
+        "R16 rejects a bare issue update for an observed guard block",
         _with_stubs(
             {"ledger_events": lambda payload: {"guard-block", "issue-update"}},
             lambda: check_r16_learning_loop({"session_id": "s"}),
         )
-        is None,
+        is not None,
     )
 
     # R17: a reviewed pull request nobody armed.

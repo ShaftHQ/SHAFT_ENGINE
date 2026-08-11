@@ -1,0 +1,10 @@
+{
+  "content_hash": "sha256:24024ac9e4f84fe3009ad367dcf646b1a094b1f908139b2b012aaf6b9a3ffa2b",
+  "created_at": "2026-08-11T22:22:52+03:00",
+  "from": "constraint.every-actionable-learning-requires-its-own-standalone-github-issue",
+  "id": "rel.standalone-action-issue-supersedes-consolidation",
+  "predicate": "supersedes",
+  "status": "active",
+  "to": "constraint.bug-handling-fix-blockers-inline-consolidate-everything-else-into-one-issue",
+  "updated_at": "2026-08-11T22:22:52+03:00"
+}

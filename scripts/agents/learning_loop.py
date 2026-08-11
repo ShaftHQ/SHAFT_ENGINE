@@ -37,6 +37,9 @@ NO_LEARNING_REASONS = frozenset(
 SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 GIT_REF_RE = re.compile(r"^[0-9a-f]{40}$")
 OPERATION_ID_RE = re.compile(r"^[A-Za-z0-9_-]{8,64}$")
+TRACKING_ISSUE_URL_RE = re.compile(
+    r"^https://github\.com/ShaftHQ/SHAFT_ENGINE/issues/[1-9][0-9]*$"
+)
 RECEIPT_KEYS = frozenset(
     {
         "schema_version",
@@ -465,6 +468,7 @@ def _validate_candidate_spec(
     success_predicates: list[str],
     invariants: list[str],
     risk_tier: str,
+    tracking_issue_urls: list[str] | None,
 ) -> None:
     if any(
         not isinstance(value, str) or not value.strip()
@@ -483,6 +487,13 @@ def _validate_candidate_spec(
         raise ValueError("invariants must be nonempty strings")
     if risk_tier not in RISK_TIERS:
         raise ValueError(f"unknown risk tier: {risk_tier}")
+    if not tracking_issue_urls or not all(
+        isinstance(url, str) and TRACKING_ISSUE_URL_RE.fullmatch(url)
+        for url in tracking_issue_urls
+    ):
+        raise ValueError("tracking issue URLs must identify standalone ShaftHQ/SHAFT_ENGINE issues")
+    if len(set(tracking_issue_urls)) != len(tracking_issue_urls):
+        raise ValueError("each actionable incident requires a distinct tracking issue")
 
 
 def _atomic_json(path: Path, value: dict) -> None:
@@ -513,6 +524,7 @@ def _candidate_identity(candidate: dict) -> dict:
             "success_predicate_hashes",
             "invariant_hashes",
             "risk_tier",
+            "tracking_issue_url",
         )
     }
 
@@ -533,14 +545,16 @@ def _valid_candidate(candidate: object) -> bool:
         "success_predicate_hashes",
         "invariant_hashes",
         "risk_tier",
+        "tracking_issue_url",
         "status",
     }
     try:
         return bool(
             set(candidate) == expected
-            and candidate["schema_version"] == 1
+            and candidate["schema_version"] == 2
             and candidate["status"] == "quarantined"
             and candidate["risk_tier"] in RISK_TIERS
+            and TRACKING_ISSUE_URL_RE.fullmatch(candidate["tracking_issue_url"])
             and isinstance(candidate["owner"], str)
             and bool(candidate["owner"].strip())
             and GIT_REF_RE.fullmatch(candidate["baseline_ref"])
@@ -593,6 +607,7 @@ def assess(
     success_predicates: list[str],
     invariants: list[str],
     risk_tier: str,
+    tracking_issue_urls: list[str] | None = None,
 ) -> list[dict]:
     """Create one complete, quarantined candidate for every session incident."""
     _validate_candidate_spec(
@@ -604,15 +619,18 @@ def assess(
         success_predicates=success_predicates,
         invariants=invariants,
         risk_tier=risk_tier,
+        tracking_issue_urls=tracking_issue_urls,
     )
     receipts = load_receipts(Path(state), session_id)
     if not receipts:
         raise ValueError("assessment requires at least one meaningful signal")
-    session_hash = _session_hash(session_id)
+    if len(tracking_issue_urls or []) != len(receipts):
+        raise ValueError("assessment requires one distinct tracking issue per incident")
     candidates: list[dict] = []
-    with _state_lock(Path(state), f"candidate-{session_hash}"):
+    with _state_lock(Path(state), "candidate-tracking-issues"):
         directory = _contained_directory(Path(state), "candidates")
-        for receipt in receipts:
+        existing_candidates = load_candidates(Path(state))
+        for receipt, tracking_issue_url in zip(receipts, tracking_issue_urls or []):
             identity = {
                 "receipt_ids": [receipt["receipt_id"]],
                 "incident_hash": receipt["incident_hash"],
@@ -624,13 +642,34 @@ def assess(
                 "success_predicate_hashes": [_hash_text(item) for item in success_predicates],
                 "invariant_hashes": [_hash_text(item) for item in invariants],
                 "risk_tier": risk_tier,
+                "tracking_issue_url": tracking_issue_url,
             }
             candidate = {
-                "schema_version": 1,
+                "schema_version": 2,
                 "candidate_id": _hash_text(_canonical(identity)),
                 **identity,
                 "status": "quarantined",
             }
+            incident_candidate = next(
+                (
+                    item
+                    for item in existing_candidates
+                    if item["incident_hash"] == receipt["incident_hash"]
+                ),
+                None,
+            )
+            if incident_candidate is not None and incident_candidate != candidate:
+                raise ValueError("incident already bound to a different tracking issue or candidate")
+            issue_candidate = next(
+                (
+                    item
+                    for item in existing_candidates
+                    if item["tracking_issue_url"] == tracking_issue_url
+                ),
+                None,
+            )
+            if issue_candidate is not None and issue_candidate["incident_hash"] != receipt["incident_hash"]:
+                raise ValueError("tracking issue already belongs to a different incident")
             path = directory / f"{candidate['candidate_id']}.json"
             if path.is_file():
                 try:
@@ -642,6 +681,7 @@ def assess(
                 candidates.append(existing)
                 continue
             _atomic_json(path, candidate)
+            existing_candidates.append(candidate)
             candidates.append(candidate)
     return candidates
 
@@ -1207,6 +1247,7 @@ def build_parser() -> argparse.ArgumentParser:
     candidate.add_argument("--success-predicate", action="append", required=True)
     candidate.add_argument("--invariant", action="append", required=True)
     candidate.add_argument("--risk-tier", choices=sorted(RISK_TIERS), required=True)
+    candidate.add_argument("--tracking-issue-url", action="append", required=True)
     none = commands.add_parser("attest-none")
     none.add_argument("--session-id", required=True)
     none.add_argument("--operation-id", required=True)
@@ -1258,6 +1299,7 @@ def main(arguments: list[str] | None = None) -> int:
                 success_predicates=options.success_predicate,
                 invariants=options.invariant,
                 risk_tier=options.risk_tier,
+                tracking_issue_urls=options.tracking_issue_url,
             )
             record_completion(
                 state,

@@ -1,6 +1,6 @@
 {
   "body_path": "memory/constraints/bug-handling-fix-blockers-inline-consolidate-everything-else-into-one-issue.md",
-  "content_hash": "sha256:a7a053fa2f23443afa84ef1a5675424e94ae65fca5f5d5e2ec91d2f1475767fa",
+  "content_hash": "sha256:253c19ea0aa5799a456bf179aaf40a2508cac01e73d20e659084adb320756b70",
   "created_at": "2026-07-08T17:00:20+03:00",
   "evidence": [],
   "id": "constraint.bug-handling-fix-blockers-inline-consolidate-everything-else-into-one-issue",
@@ -14,7 +14,8 @@
     "kind": "agent",
     "task": "Portability audit 2026-07-08: migrate durable policy/gotcha content from non-portable global auto-memory into the repo-tracked .memory/ store so it travels across machines"
   },
-  "status": "active",
+  "status": "superseded",
+  "superseded_by": "constraint.every-actionable-learning-requires-its-own-standalone-github-issue",
   "tags": [
     "workflow",
     "issues",
@@ -22,5 +23,5 @@
   ],
   "title": "Bug-handling: fix blockers inline, consolidate everything else into one issue",
   "type": "constraint",
-  "updated_at": "2026-07-12T10:21:41+03:00"
+  "updated_at": "2026-08-11T22:18:25+03:00"
 }

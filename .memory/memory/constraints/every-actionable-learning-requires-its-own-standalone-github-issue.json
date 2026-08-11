@@ -1,0 +1,40 @@
+{
+  "body_path": "memory/constraints/every-actionable-learning-requires-its-own-standalone-github-issue.md",
+  "content_hash": "sha256:22d5bcf97dff21905640d643638a4b4bcc536c48a55b7bc522d86dcec0342b72",
+  "created_at": "2026-08-11T22:18:25+03:00",
+  "evidence": [
+    {
+      "id": "https://github.com/ShaftHQ/SHAFT_ENGINE/issues/4731",
+      "kind": "task"
+    }
+  ],
+  "facets": {
+    "applies_to": [
+      ".agents/skills/act-as-mohab/SKILL.md",
+      "scripts/agents/learning_loop.py",
+      "scripts/agents/guard.py"
+    ],
+    "category": "concept"
+  },
+  "id": "constraint.every-actionable-learning-requires-its-own-standalone-github-issue",
+  "scope": {
+    "branch": null,
+    "kind": "project",
+    "project": "project.shaft-engine",
+    "task": null
+  },
+  "source": {
+    "kind": "agent",
+    "task": "Make every actionable learning a standalone GitHub issue"
+  },
+  "status": "active",
+  "tags": [
+    "github",
+    "learning-loop",
+    "tracking",
+    "user-correction"
+  ],
+  "title": "Every actionable learning requires its own standalone GitHub issue",
+  "type": "constraint",
+  "updated_at": "2026-08-11T22:21:03+03:00"
+}
