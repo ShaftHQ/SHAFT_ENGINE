@@ -32,6 +32,13 @@ def pr_gate_unit_job(selector_lines: str, step_name: str = "Run shaft-engine uni
     )
 
 
+def missing_coverage_error(workflow: str, job: str) -> str:
+    return (
+        f".github/workflows/{workflow} job {job!r} runs JVM tests without "
+        "upload-jacoco-coverage or post-test-report"
+    )
+
+
 class ValidateQualityConfigurationTest(unittest.TestCase):
     def test_repository_configuration_is_valid(self):
         self.assertEqual(validate_quality_configuration(), [])
@@ -346,6 +353,225 @@ class ValidateQualityConfigurationTest(unittest.TestCase):
                     ".github/workflows/e2eTests.yml must not mark JaCoCo coverage "
                     "optional with 'require-coverage: false'"
                 ],
+            )
+
+    def test_rejects_jvm_test_job_without_jacoco_upload(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            workflows = root / ".github" / "workflows"
+            workflows.mkdir(parents=True)
+            (workflows / "pr-gate.yml").write_text(
+                "jobs:\n"
+                "  java-tests:\n"
+                "    steps:\n"
+                "      - name: Run Java tests\n"
+                "        run: mvn --batch-mode -pl shaft-cli test\n",
+                encoding="utf-8",
+            )
+
+            self.assertEqual(
+                validate_workflow_coverage_policy(root),
+                [missing_coverage_error("pr-gate.yml", "java-tests")],
+            )
+
+    def test_rejects_jvm_test_job_when_only_sibling_job_uploads_coverage(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            workflows = root / ".github" / "workflows"
+            workflows.mkdir(parents=True)
+            (workflows / "coverage.yaml").write_text(
+                "jobs:\n"
+                "  java-tests:\n"
+                "    steps:\n"
+                "      - run: |\n"
+                "          mvn --batch-mode\n"
+                "          -pl shaft-cli test\n"
+                "  unrelated-upload:\n"
+                "    steps:\n"
+                "      - uses: ./.github/actions/upload-jacoco-coverage\n",
+                encoding="utf-8",
+            )
+
+            self.assertEqual(
+                validate_workflow_coverage_policy(root),
+                [missing_coverage_error("coverage.yaml", "java-tests")],
+            )
+
+    def test_accepts_same_job_coverage_actions_and_ignores_skip_tests_setup(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            workflows = root / ".github" / "workflows"
+            workflows.mkdir(parents=True)
+            (workflows / "coverage.yml").write_text(
+                "jobs:\n"
+                "  direct-upload:\n"
+                "    steps:\n"
+                "      - run: mvn -pl shaft-cli test\n"
+                "      - if: always()\n"
+                "        uses: ./.github/actions/upload-jacoco-coverage\n"
+                "  post-test-report:\n"
+                "    steps:\n"
+                "      - run: gradle -p shaft-intellij test\n"
+                "      - if: always()\n"
+                "        uses: ./.github/actions/post-test-report\n"
+                "  setup-only:\n"
+                "    steps:\n"
+                "      - run: mvn -pl shaft-mcp -am install -DskipTests\n",
+                encoding="utf-8",
+            )
+
+            self.assertEqual(validate_workflow_coverage_policy(root), [])
+
+    def test_detects_maven_wrapper_lifecycle_and_explicit_skip_tests_false(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            workflows = root / ".github" / "workflows"
+            workflows.mkdir(parents=True)
+            (workflows / "coverage.yml").write_text(
+                "jobs:\n"
+                "  wrapper-verify:\n"
+                "    steps:\n"
+                "      - run: ./mvnw --batch-mode verify\n"
+                "  tests-enabled:\n"
+                "    steps:\n"
+                "      - run: mvn test -DskipTests=false\n",
+                encoding="utf-8",
+            )
+
+            self.assertEqual(
+                validate_workflow_coverage_policy(root),
+                [
+                    missing_coverage_error("coverage.yml", "wrapper-verify"),
+                    missing_coverage_error("coverage.yml", "tests-enabled"),
+                ],
+            )
+
+    def test_ignores_echoed_commands_and_rejects_disabled_or_fake_coverage_steps(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            workflows = root / ".github" / "workflows"
+            workflows.mkdir(parents=True)
+            (workflows / "coverage.yml").write_text(
+                "jobs:\n"
+                "  echo-only:\n"
+                "    steps:\n"
+                "      - run: echo mvn test\n"
+                "  disabled-upload:\n"
+                "    steps:\n"
+                "      - run: mvn test\n"
+                "      - if: false\n"
+                "        uses: ./.github/actions/upload-jacoco-coverage\n"
+                "  fake-upload:\n"
+                "    steps:\n"
+                "      - run: |\n"
+                "          echo 'uses: ./.github/actions/upload-jacoco-coverage'\n"
+                "          mvn test\n",
+                encoding="utf-8",
+            )
+
+            self.assertEqual(
+                validate_workflow_coverage_policy(root),
+                [
+                    missing_coverage_error("coverage.yml", "disabled-upload"),
+                    missing_coverage_error("coverage.yml", "fake-upload"),
+                ],
+            )
+
+    def test_rejects_coverage_that_cannot_run_after_the_last_test_on_main(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            workflows = root / ".github" / "workflows"
+            workflows.mkdir(parents=True)
+            (workflows / "coverage.yml").write_text(
+                "jobs:\n"
+                "  before-test:\n"
+                "    steps:\n"
+                "      - if: always()\n"
+                "        uses: ./.github/actions/upload-jacoco-coverage\n"
+                "      - run: mvn verify\n"
+                "  wrong-ref:\n"
+                "    steps:\n"
+                "      - run: mvn test\n"
+                "      - if: always() && github.ref == 'refs/heads/not-main'\n"
+                "        uses: ./.github/actions/upload-jacoco-coverage\n"
+                "  success-only:\n"
+                "    steps:\n"
+                "      - run: gradle test\n"
+                "      - uses: ./.github/actions/upload-jacoco-coverage\n"
+                "  constant-false:\n"
+                "    steps:\n"
+                "      - run: mvn test\n"
+                "      - if: always() && false\n"
+                "        uses: ./.github/actions/upload-jacoco-coverage\n"
+                "  pull-request-only:\n"
+                "    steps:\n"
+                "      - run: mvn test\n"
+                "      - if: always() && github.event_name == 'pull_request'\n"
+                "        uses: ./.github/actions/upload-jacoco-coverage\n"
+                "  unmatched-environment:\n"
+                "    steps:\n"
+                "      - run: mvn test\n"
+                "      - if: always() && env.NEVER_SET != ''\n"
+                "        uses: ./.github/actions/upload-jacoco-coverage\n",
+                encoding="utf-8",
+            )
+
+            self.assertEqual(
+                validate_workflow_coverage_policy(root),
+                [
+                    missing_coverage_error("coverage.yml", "before-test"),
+                    missing_coverage_error("coverage.yml", "wrong-ref"),
+                    missing_coverage_error("coverage.yml", "success-only"),
+                    missing_coverage_error("coverage.yml", "constant-false"),
+                    missing_coverage_error("coverage.yml", "pull-request-only"),
+                    missing_coverage_error("coverage.yml", "unmatched-environment"),
+                ],
+            )
+
+    def test_detects_environment_prefixed_jvm_test_command(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            workflows = root / ".github" / "workflows"
+            workflows.mkdir(parents=True)
+            (workflows / "coverage.yml").write_text(
+                "jobs:\n"
+                "  environment-prefix:\n"
+                "    steps:\n"
+                "      - run: FOO=bar JAVA_TOOL_OPTIONS=-Xmx1g mvn test\n",
+                encoding="utf-8",
+            )
+
+            self.assertEqual(
+                validate_workflow_coverage_policy(root),
+                [missing_coverage_error("coverage.yml", "environment-prefix")],
+            )
+
+    def test_detects_jvm_tests_inside_local_composite_action(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            workflows = root / ".github" / "workflows"
+            action = root / ".github" / "actions" / "intellij-verify"
+            workflows.mkdir(parents=True)
+            action.mkdir(parents=True)
+            action.joinpath("action.yml").write_text(
+                "runs:\n"
+                "  using: composite\n"
+                "  steps:\n"
+                "    - shell: bash\n"
+                "      run: bash scripts/ci/build_retry.sh 2 15 gradle -p shaft-intellij check\n",
+                encoding="utf-8",
+            )
+            (workflows / "coverage.yml").write_text(
+                "jobs:\n"
+                "  intellij:\n"
+                "    steps:\n"
+                "      - uses: ./.github/actions/intellij-verify\n",
+                encoding="utf-8",
+            )
+
+            self.assertEqual(
+                validate_workflow_coverage_policy(root),
+                [missing_coverage_error("coverage.yml", "intellij")],
             )
 
     def test_reports_missing_aggregate_module(self):

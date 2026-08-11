@@ -1,41 +1,67 @@
 name: 'Upload JaCoCo Coverage'
-description: 'Generates JaCoCo XML reports from execution data, verifies expected reports exist, then uploads them to Codecov.'
+description: >-
+  Generates every JaCoCo XML report represented by this job's execution data,
+  uploads all reports to Codecov on main, and records non-fatal failures for the
+  shared coverage tracking issue.
 inputs:
   codecov-token:
     description: 'Codecov upload token'
     required: false
     default: ''
   files:
-    description: 'Candidate JaCoCo XML files to upload. When omitted, required-files are used.'
+    description: 'Additional candidate JaCoCo XML files to upload'
     required: false
     default: ''
   required-files:
     description: 'JaCoCo XML files that must exist and be non-empty'
     required: false
     default: ''
+  source-id:
+    description: 'Unique source name for failure evidence; defaults to the job id'
+    required: false
+    default: ''
   allow-missing-coverage:
-    description: 'Whether missing required/matching JaCoCo reports should be treated as non-fatal'
+    description: 'Whether missing required/matching JaCoCo reports should be non-fatal'
     required: false
     default: 'false'
   fail-ci-if-error:
-    description: 'Whether Codecov upload errors should fail the job'
+    description: 'Whether a recorded coverage failure should fail the caller'
     required: false
     default: 'false'
 outputs:
   files:
-    description: 'Existing JaCoCo XML files uploaded to Codecov'
+    description: 'Existing JaCoCo XML files submitted to Codecov'
     value: ${{ steps.resolve.outputs.files }}
   has-files:
     description: 'Whether any JaCoCo XML files were discovered'
     value: ${{ steps.resolve.outputs.has-files }}
+  status:
+    description: 'success, failure, or skipped'
+    value: ${{ steps.summarize.outputs.status }}
+  failure-artifact:
+    description: 'Artifact name containing failure evidence, empty on success/skip'
+    value: ${{ steps.summarize.outputs.artifact-name }}
 runs:
   using: 'composite'
   steps:
-    - name: Generate JaCoCo XML reports
-      if: always()
+    - name: Check trusted coverage ref
+      id: gate
       shell: bash
       run: |
-        set -euo pipefail
+        if [ "$GITHUB_REF" = "refs/heads/main" ]; then
+          echo "enabled=true" >> "$GITHUB_OUTPUT"
+        else
+          echo "enabled=false" >> "$GITHUB_OUTPUT"
+          echo "Coverage upload skipped for non-main ref: $GITHUB_REF"
+        fi
+
+    - name: Generate every Maven JaCoCo XML report
+      id: generate
+      if: steps.gate.outputs.enabled == 'true'
+      continue-on-error: true
+      shell: bash
+      run: |
+        set -uo pipefail
 
         normalize_paths() {
           local value="$1"
@@ -45,119 +71,193 @@ runs:
           value="${value//,/ }"
           value="${value//;/ }"
           for item in $value; do
-            item="${item//\\//}"
-            printf '%s\n' "$item"
+            printf '%s\n' "${item//\\//}"
           done
         }
 
-        coverage_targets="${{ inputs.required-files }}"
-        if [ -z "$(normalize_paths "$coverage_targets" | tr -d '[:space:]')" ]; then
-          coverage_targets="${{ inputs.files }}"
-        fi
-
-        while IFS= read -r coverage_file; do
-          [ -z "$coverage_file" ] && continue
+        module_list="${RUNNER_TEMP:-/tmp}/jacoco-modules-${GITHUB_RUN_ID}-${GITHUB_JOB}.txt"
+        : > "$module_list"
+        find . -type f -path '*/target/jacoco.exec' -size +0c -print 2>/dev/null |
+          while IFS= read -r exec_file; do
+            printf '%s\n' "${exec_file%/target/jacoco.exec}" >> "$module_list"
+          done
+        {
+          normalize_paths "${{ inputs.required-files }}"
+          normalize_paths "${{ inputs.files }}"
+        } | while IFS= read -r coverage_file; do
           case "$coverage_file" in
             */target/jacoco/jacoco.xml)
-              module_dir="${coverage_file%/target/jacoco/jacoco.xml}"
-              ;;
-            *)
-              echo "::notice::Cannot infer Maven module for JaCoCo report: $coverage_file"
-              continue
+              printf '%s\n' "${coverage_file%/target/jacoco/jacoco.xml}" >> "$module_list"
               ;;
           esac
+        done
 
-          [ -n "$module_dir" ] || module_dir="."
+        failed=false
+        while IFS= read -r module_dir; do
+          [ -n "$module_dir" ] || continue
+          [ -n "${module_dir#./}" ] || module_dir="."
           jacoco_exec="${module_dir}/target/jacoco.exec"
           pom_file="${module_dir}/pom.xml"
-
           if [ -s "$jacoco_exec" ] && [ -f "$pom_file" ]; then
-            echo "Generating JaCoCo XML report for ${module_dir} from ${jacoco_exec}"
-            mvn --batch-mode -f "$pom_file" jacoco:report@default-report -DskipTests -Dgpg.skip
-          else
-            echo "::notice::Cannot generate $coverage_file; missing $jacoco_exec or $pom_file"
-          fi
-        done < <(normalize_paths "$coverage_targets")
-
-    - name: Resolve JaCoCo XML files
-      id: resolve
-      shell: bash
-      run: |
-        set -euo pipefail
-
-        allow_missing_coverage="${{ inputs.allow-missing-coverage }}"
-        echo "has-files=false" >> "$GITHUB_OUTPUT"
-
-        normalize_paths() {
-          local value="$1"
-          value="${value//$'\r'/ }"
-          value="${value//$'\n'/ }"
-          value="${value//$'\t'/ }"
-          value="${value//,/ }"
-          value="${value//;/ }"
-          for item in $value; do
-            item="${item//\\//}"
-            printf '%s\n' "$item"
-          done
-        }
-
-        required_missing=false
-        while IFS= read -r required_file; do
-          [ -z "$required_file" ] && continue
-          if [ ! -s "$required_file" ]; then
-            if [ "$allow_missing_coverage" = "true" ]; then
-              echo "::notice::Expected JaCoCo XML report was not generated (skipped): $required_file"
-            else
-              echo "::error::Expected JaCoCo XML report was not generated: $required_file"
-              required_missing=true
+            echo "Generating JaCoCo XML for ${module_dir} from ${jacoco_exec}"
+            if ! mvn --batch-mode -f "$pom_file" jacoco:report@default-report \
+              -DskipTests -Dgpg.skip; then
+              echo "::error::Failed to generate JaCoCo XML for ${module_dir}"
+              failed=true
             fi
           fi
-        done < <(normalize_paths "${{ inputs.required-files }}")
-
-        if [ "$required_missing" = true ]; then
-          if [ "$allow_missing_coverage" = "true" ]; then
-            echo "::notice::Coverage files are optional for this module; continuing without required JaCoCo validation."
-          else
-            exit 1
-          fi
-        fi
-
-        candidate_files="${{ inputs.files }}"
-        if [ -z "$(normalize_paths "$candidate_files" | tr -d '[:space:]')" ]; then
-          candidate_files="${{ inputs.required-files }}"
-        fi
-
-        existing_files=()
-        while IFS= read -r candidate_file; do
-          [ -z "$candidate_file" ] && continue
-          if [ -s "$candidate_file" ]; then
-            existing_files+=("$candidate_file")
-          else
-            echo "::notice::Skipping missing JaCoCo XML report: $candidate_file"
-          fi
-        done < <(normalize_paths "$candidate_files")
-
-        if [ "${#existing_files[@]}" -eq 0 ]; then
-          if [ "$allow_missing_coverage" = "true" ]; then
-            echo "::notice::No JaCoCo XML reports were found for Codecov upload."
-            echo "files=" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-          echo "::error::No JaCoCo XML reports were found for Codecov upload."
+        done < <(sort -u "$module_list")
+        if [ "$failed" = true ]; then
           exit 1
         fi
 
-        joined_files=$(IFS=,; echo "${existing_files[*]}")
-        echo "files=${joined_files}" >> "$GITHUB_OUTPUT"
-        echo "has-files=true" >> "$GITHUB_OUTPUT"
-        echo "Uploading JaCoCo XML reports: ${joined_files}"
+    - name: Resolve every JaCoCo XML report
+      id: resolve
+      if: steps.gate.outputs.enabled == 'true'
+      continue-on-error: true
+      shell: bash
+      run: |
+        set -uo pipefail
+
+        normalize_paths() {
+          local value="$1"
+          value="${value//$'\r'/ }"
+          value="${value//$'\n'/ }"
+          value="${value//$'\t'/ }"
+          value="${value//,/ }"
+          value="${value//;/ }"
+          for item in $value; do
+            printf '%s\n' "${item//\\//}"
+          done
+        }
+
+        echo "has-files=false" >> "$GITHUB_OUTPUT"
+        candidates="${RUNNER_TEMP:-/tmp}/jacoco-candidates-${GITHUB_RUN_ID}-${GITHUB_JOB}.txt"
+        : > "$candidates"
+        normalize_paths "${{ inputs.files }}" >> "$candidates"
+        normalize_paths "${{ inputs.required-files }}" >> "$candidates"
+        find . -type f \( -path '*/target/jacoco/jacoco.xml' -o \
+          -path '*/build/reports/jacoco/*/*.xml' \) -size +0c -print 2>/dev/null >> "$candidates"
+
+        required_missing=false
+        while IFS= read -r required_file; do
+          [ -n "$required_file" ] || continue
+          if [ ! -s "$required_file" ]; then
+            echo "::error::Expected JaCoCo XML report was not generated: $required_file"
+            required_missing=true
+          fi
+        done < <(normalize_paths "${{ inputs.required-files }}")
+
+        while IFS= read -r exec_file; do
+          [ -n "$exec_file" ] || continue
+          report_file="${exec_file%/target/jacoco.exec}/target/jacoco/jacoco.xml"
+          if [ ! -s "$report_file" ]; then
+            echo "::error::Execution data has no matching JaCoCo XML report: $exec_file"
+            required_missing=true
+          fi
+        done < <(find . -type f -path '*/target/jacoco.exec' -size +0c -print 2>/dev/null)
+
+        existing_files=()
+        while IFS= read -r candidate_file; do
+          [ -n "$candidate_file" ] || continue
+          if [ -s "$candidate_file" ]; then
+            existing_files+=("$candidate_file")
+          fi
+        done < <(sort -u "$candidates")
+
+        if [ "${#existing_files[@]}" -gt 0 ]; then
+          joined_files=$(IFS=,; echo "${existing_files[*]}")
+          echo "files=${joined_files}" >> "$GITHUB_OUTPUT"
+          echo "has-files=true" >> "$GITHUB_OUTPUT"
+          echo "Resolved JaCoCo XML reports: ${joined_files}"
+        else
+          echo "files=" >> "$GITHUB_OUTPUT"
+          if [ "${{ inputs.allow-missing-coverage }}" != "true" ]; then
+            echo "::error::No JaCoCo XML reports were found for Codecov upload."
+            required_missing=true
+          fi
+        fi
+
+        if [ "$required_missing" = true ] && [ "${{ inputs.allow-missing-coverage }}" != "true" ]; then
+          exit 1
+        fi
 
     - name: Upload coverage to Codecov
-      if: always() && steps.resolve.outcome == 'success' && steps.resolve.outputs.has-files == 'true'
+      id: codecov
+      if: >-
+        steps.gate.outputs.enabled == 'true' &&
+        steps.resolve.outcome == 'success' &&
+        steps.resolve.outputs.has-files == 'true'
+      continue-on-error: true
       uses: codecov/codecov-action@v7
       with:
         token: ${{ inputs.codecov-token }}
-        fail_ci_if_error: ${{ inputs.fail-ci-if-error }}
+        fail_ci_if_error: true
         disable_search: true
         files: ${{ steps.resolve.outputs.files }}
         verbose: true
+
+    - name: Summarize coverage result
+      id: summarize
+      if: always()
+      shell: bash
+      env:
+        ENABLED: ${{ steps.gate.outputs.enabled }}
+        GENERATE_OUTCOME: ${{ steps.generate.outcome }}
+        RESOLVE_OUTCOME: ${{ steps.resolve.outcome }}
+        CODECOV_OUTCOME: ${{ steps.codecov.outcome }}
+        HAS_FILES: ${{ steps.resolve.outputs.has-files }}
+        RESOLVED_FILES: ${{ steps.resolve.outputs.files }}
+        SOURCE_ID_INPUT: ${{ inputs.source-id }}
+      run: |
+        set -euo pipefail
+        source_id="${SOURCE_ID_INPUT:-$GITHUB_JOB}"
+        safe_source=$(printf '%s' "$source_id" | tr -cs 'A-Za-z0-9._-' '-')
+        artifact_name="codecoverage-failure-${GITHUB_RUN_ID}-${GITHUB_JOB}-${safe_source}"
+        echo "safe-source=$safe_source" >> "$GITHUB_OUTPUT"
+
+        if [ "$ENABLED" != "true" ]; then
+          echo "status=skipped" >> "$GITHUB_OUTPUT"
+          echo "artifact-name=" >> "$GITHUB_OUTPUT"
+          exit 0
+        fi
+
+        status=success
+        failed_phases=()
+        [ "$GENERATE_OUTCOME" != "failure" ] || failed_phases+=(generation)
+        [ "$RESOLVE_OUTCOME" != "failure" ] || failed_phases+=(resolution)
+        if [ "$HAS_FILES" = "true" ] && [ "$CODECOV_OUTCOME" != "success" ]; then
+          failed_phases+=(upload)
+        fi
+        if [ "${#failed_phases[@]}" -gt 0 ]; then
+          status=failure
+          record="${RUNNER_TEMP:-/tmp}/${artifact_name}.txt"
+          {
+            echo "workflow=$GITHUB_WORKFLOW"
+            echo "job=$GITHUB_JOB"
+            echo "source=$source_id"
+            echo "phases=$(IFS=,; echo "${failed_phases[*]}")"
+            echo "reports=$RESOLVED_FILES"
+            echo "run=${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+          } > "$record"
+          echo "record=$record" >> "$GITHUB_OUTPUT"
+          echo "artifact-name=$artifact_name" >> "$GITHUB_OUTPUT"
+        else
+          echo "artifact-name=" >> "$GITHUB_OUTPUT"
+        fi
+        echo "status=$status" >> "$GITHUB_OUTPUT"
+
+    - name: Preserve coverage failure evidence
+      if: steps.summarize.outputs.status == 'failure'
+      continue-on-error: true
+      uses: actions/upload-artifact@v7
+      with:
+        name: ${{ steps.summarize.outputs.artifact-name }}
+        path: ${{ steps.summarize.outputs.record }}
+        archive: false
+        retention-days: 14
+
+    - name: Enforce optional strict mode
+      if: steps.summarize.outputs.status == 'failure' && inputs.fail-ci-if-error == 'true'
+      shell: bash
+      run: exit 1
