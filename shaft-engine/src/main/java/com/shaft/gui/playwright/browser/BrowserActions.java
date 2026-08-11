@@ -99,6 +99,76 @@ public class BrowserActions implements com.shaft.gui.driver.BrowserActionsContra
     }
 
     @Override
+    public DownloadActions downloads() {
+        return new DownloadActions(this);
+    }
+
+    List<com.shaft.gui.driver.BrowserDownload> downloadedFilesNamespace(DownloadActions owner) {
+        return queryDownloads("all", "", () -> {
+            requireLivePermissionContext("downloads all");
+            return downloadedFiles(owner);
+        });
+    }
+
+    private List<com.shaft.gui.driver.BrowserDownload> downloadedFiles(DownloadActions owner) {
+        return session.downloadSnapshot().stream()
+                .map(download -> (com.shaft.gui.driver.BrowserDownload) new PlaywrightBrowserDownload(download, owner, session))
+                .toList();
+    }
+
+    com.shaft.gui.driver.BrowserDownload latestDownloadedFileNamespace(DownloadActions owner) {
+        return queryDownloads("latest", "", () -> {
+            requireLivePermissionContext("downloads latest");
+            List<com.shaft.gui.driver.BrowserDownload> downloads = downloadedFiles(owner);
+            if (downloads.isEmpty()) {
+                throw new java.util.NoSuchElementException("No browser downloads are available in this Playwright session.");
+            }
+            return downloads.getLast();
+        });
+    }
+
+    com.shaft.gui.driver.BrowserDownload waitForDownloadedFileNamespace(DownloadActions owner,
+                                                                         java.util.function.Predicate<com.shaft.gui.driver.BrowserDownload> predicate,
+                                                                         Runnable trigger) {
+        return queryDownloads("wait-for", "", () -> {
+            Objects.requireNonNull(predicate, "predicate");
+            Objects.requireNonNull(trigger, "trigger");
+            requireLiveSession("downloads wait-for");
+            Page.WaitForDownloadOptions options = new Page.WaitForDownloadOptions()
+                    .setPredicate(download -> predicate.test(new PlaywrightBrowserDownload(download, owner, session)));
+            com.microsoft.playwright.Download download = page().waitForDownload(options, trigger);
+            session.trackDownload(download);
+            return new PlaywrightBrowserDownload(download, owner, session);
+        });
+    }
+
+    void clearDownloadedFilesNamespace() {
+        queryDownloads("clear", "", () -> {
+            requireLivePermissionContext("downloads clear");
+            for (com.microsoft.playwright.Download download : session.downloadSnapshot()) {
+                download.delete();
+                session.forgetDownload(download);
+            }
+            return null;
+        });
+    }
+
+    private <T> T queryDownloads(String operation, String locator, Supplier<T> action) {
+        var event = TraceEventRecorder.startForBackend("downloads", operation, locator,
+                AutomationBackend.MICROSOFT_PLAYWRIGHT);
+        try {
+            T result = action.get();
+            TraceEventRecorder.finish(event, "passed", "downloads " + operation + " completed.", null,
+                    Map.of("backend", "MICROSOFT_PLAYWRIGHT"), List.of());
+            return result;
+        } catch (RuntimeException exception) {
+            TraceEventRecorder.finish(event, "failed", "downloads " + operation + " failed.", exception,
+                    Map.of("backend", "MICROSOFT_PLAYWRIGHT"), List.of());
+            throw exception;
+        }
+    }
+
+    @Override
     public PlaywrightBrowserValidationsBuilder assertThat() {
         return new PlaywrightBrowserValidationsBuilder(ValidationEnums.ValidationCategory.HARD_ASSERT, session);
     }

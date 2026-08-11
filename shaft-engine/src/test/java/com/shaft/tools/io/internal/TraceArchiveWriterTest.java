@@ -271,6 +271,87 @@ public class TraceArchiveWriterTest {
     }
 
     @Test
+    public void nonAtomicFallbackShouldBackUpASymlinkEntryWithoutReadingItsReferent() throws Exception {
+        Path directory = Files.createTempDirectory("shaft-trace-writer-symlink-");
+        Path outside = directory.resolve("outside-secret.txt");
+        Path target = directory.resolve("shaft-trace.zip");
+        Files.writeString(outside, "outside-secret", StandardCharsets.UTF_8);
+        try {
+            Files.createSymbolicLink(target, outside);
+        } catch (IOException | UnsupportedOperationException unavailable) {
+            deleteRecursively(directory);
+            throw new org.testng.SkipException("Symbolic links are unavailable on this host", unavailable);
+        }
+        TraceArchiveWriter.MoveStrategy nonAtomicMoves = (source, destination, options) -> {
+            if (List.of(options).contains(StandardCopyOption.ATOMIC_MOVE)) {
+                throw new java.nio.file.AtomicMoveNotSupportedException(source.toString(), destination.toString(),
+                        "forced by test");
+            }
+            if (source.equals(target) && destination.getFileName().toString().contains(".backup-")) {
+                Files.move(source, destination, options);
+                return;
+            }
+            Path backup;
+            try (var paths = Files.list(directory)) {
+                backup = paths.filter(path -> path.getFileName().toString().contains(".backup-"))
+                        .findFirst().orElseThrow();
+            }
+            if (!Files.isSymbolicLink(backup)) {
+                throw new IOException("Fallback materialized the symlink referent instead of preserving the link entry.");
+            }
+            Files.move(source, destination, options);
+        };
+        try {
+            TraceArchiveWriter.write(target, List.of(TraceArchiveWriter.Entry.text("trace.txt", "new trace")),
+                    1024, "omitted", nonAtomicMoves);
+
+            Assert.assertFalse(Files.isSymbolicLink(target));
+            Assert.assertEquals(Files.readString(outside, StandardCharsets.UTF_8), "outside-secret");
+            Assert.assertEquals(backupArchiveCount(directory), 0L);
+        } finally {
+            deleteRecursively(directory);
+        }
+    }
+
+    @Test
+    public void failedNonAtomicSymlinkPublicationShouldRestoreTheLinkEntry() throws Exception {
+        Path directory = Files.createTempDirectory("shaft-trace-writer-symlink-restore-");
+        Path outside = directory.resolve("outside-secret.txt");
+        Path target = directory.resolve("shaft-trace.zip");
+        Files.writeString(outside, "outside-secret", StandardCharsets.UTF_8);
+        try {
+            Files.createSymbolicLink(target, outside);
+        } catch (IOException | UnsupportedOperationException unavailable) {
+            deleteRecursively(directory);
+            throw new org.testng.SkipException("Symbolic links are unavailable on this host", unavailable);
+        }
+        TraceArchiveWriter.MoveStrategy failingPublication = (source, destination, options) -> {
+            if (List.of(options).contains(StandardCopyOption.ATOMIC_MOVE)) {
+                throw new java.nio.file.AtomicMoveNotSupportedException(source.toString(), destination.toString(),
+                        "forced by test");
+            }
+            if (source.equals(target) && destination.getFileName().toString().contains(".backup-")) {
+                Files.move(source, destination, options);
+                return;
+            }
+            Files.writeString(destination, "partial replacement", StandardCharsets.UTF_8);
+            throw new IOException("forced publication failure");
+        };
+        try {
+            Assert.expectThrows(IOException.class, () -> TraceArchiveWriter.write(target,
+                    List.of(TraceArchiveWriter.Entry.text("trace.txt", "new trace")), 1024, "omitted",
+                    failingPublication));
+
+            Assert.assertTrue(Files.isSymbolicLink(target));
+            Assert.assertEquals(Files.readSymbolicLink(target), outside);
+            Assert.assertEquals(Files.readString(outside, StandardCharsets.UTF_8), "outside-secret");
+            Assert.assertEquals(backupArchiveCount(directory), 0L);
+        } finally {
+            deleteRecursively(directory);
+        }
+    }
+
+    @Test
     public void largeIncompressibleArchiveShouldCompleteInAConstrainedHeap() throws Exception {
         Path directory = Files.createTempDirectory("shaft-trace-writer-low-heap-");
         String executable = System.getProperty("os.name", "").toLowerCase().contains("win") ? "java.exe" : "java";

@@ -3,6 +3,7 @@ package com.shaft.gui.playwright.internal;
 import com.microsoft.playwright.Browser;
 import com.microsoft.playwright.BrowserContext;
 import com.microsoft.playwright.Dialog;
+import com.microsoft.playwright.Download;
 import com.microsoft.playwright.Page;
 import com.microsoft.playwright.Playwright;
 import com.shaft.gui.browser.internal.PlaywrightNetworkInterceptor;
@@ -36,7 +37,9 @@ public final class PlaywrightSession implements AutoCloseable {
     private final AtomicReference<String> nextPromptText = new AtomicReference<>("");
     private final Map<Page, String> pageHandles = new IdentityHashMap<>();
     private final Set<Page> observedPages = Collections.newSetFromMap(new IdentityHashMap<>());
+    private final Set<Page> downloadObservedPages = Collections.newSetFromMap(new IdentityHashMap<>());
     private final List<BrowserObservabilityRecorder.ConsoleSnapshotEntry> consoleEvents = new ArrayList<>();
+    private final List<Download> downloads = new ArrayList<>();
     private int nextPageHandleIndex = 1;
 
     PlaywrightSession(Playwright playwright, Browser browser, BrowserContext browserContext, Page page,
@@ -47,8 +50,10 @@ public final class PlaywrightSession implements AutoCloseable {
         this.page = page;
         this.traceManager = traceManager;
         this.networkInterceptor = new PlaywrightNetworkInterceptor(browserContext);
+        registerDownloadContextBridge();
         registerDialogBridge(page);
         registerConsoleBridge(page);
+        registerDownloadBridge(page);
     }
 
     public Playwright playwright() {
@@ -71,6 +76,7 @@ public final class PlaywrightSession implements AutoCloseable {
         this.page = page;
         registerDialogBridge(page);
         registerConsoleBridge(page);
+        registerDownloadBridge(page);
     }
 
     public PlaywrightTraceManager traceManager() {
@@ -121,6 +127,7 @@ public final class PlaywrightSession implements AutoCloseable {
     @Override
     public void close() {
         clearConsole();
+        clearDownloadHandles();
         networkInterceptor.close();
         if (traceManager != null) {
             traceManager.stopAndAttach();
@@ -161,6 +168,23 @@ public final class PlaywrightSession implements AutoCloseable {
         targetPage.onPageError(message -> recordConsole("pageerror", message));
     }
 
+    private synchronized void registerDownloadBridge(Page targetPage) {
+        if (targetPage == null || !downloadObservedPages.add(targetPage)) {
+            return;
+        }
+        targetPage.onDownload(this::trackDownload);
+    }
+
+    private void registerDownloadContextBridge() {
+        if (browserContext == null) {
+            return;
+        }
+        browserContext.onPage(this::registerDownloadBridge);
+        for (Page existingPage : browserContext.pages()) {
+            registerDownloadBridge(existingPage);
+        }
+    }
+
     /** @return immutable console observations owned by this session, oldest first */
     public synchronized List<BrowserObservabilityRecorder.ConsoleSnapshotEntry> consoleSnapshot() {
         return List.copyOf(consoleEvents);
@@ -169,6 +193,28 @@ public final class PlaywrightSession implements AutoCloseable {
     /** Clears only this Playwright session's console observations. */
     public synchronized void clearConsole() {
         consoleEvents.clear();
+    }
+
+    /** @return immutable native download handles owned by this session, oldest first */
+    public synchronized List<Download> downloadSnapshot() {
+        return List.copyOf(downloads);
+    }
+
+    /** Retains one native download handle without duplicating listener and wait-for observations. */
+    public synchronized void trackDownload(Download download) {
+        if (download != null && downloads.stream().noneMatch(existing -> existing == download)) {
+            downloads.add(download);
+        }
+    }
+
+    /** Removes a deleted native download handle from this session. */
+    public synchronized void forgetDownload(Download download) {
+        downloads.removeIf(existing -> existing == download);
+    }
+
+    /** Clears retained handles after their native files have been removed. */
+    public synchronized void clearDownloadHandles() {
+        downloads.clear();
     }
 
     /** Atomically transfers this session's console observations to failure-trace storage. */

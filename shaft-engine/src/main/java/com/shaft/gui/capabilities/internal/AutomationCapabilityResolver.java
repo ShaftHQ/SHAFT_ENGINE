@@ -86,13 +86,13 @@ public final class AutomationCapabilityResolver {
                 .nativeFeature(AutomationFeature.BROWSING_CONTEXTS, "Playwright BrowserContext")
                 .nativeFeature(AutomationFeature.STORAGE, "Playwright storage state")
                 .nativeFeature(AutomationFeature.PERMISSIONS, "Playwright BrowserContext permissions")
+                .nativeFeature(AutomationFeature.DOWNLOADS, "Playwright BrowserContext download lifecycle")
                 .adaptedFeature(AutomationFeature.AUTHENTICATION, "SHAFT HTTP authentication routing")
                 .nativeFeature(AutomationFeature.TRACE, "Playwright BrowserContext trace with SHAFT evidence integration");
         if (session.page() != null && !session.page().isClosed()) {
             builder.nativeFeature(AutomationFeature.BROWSER_AUTOMATION, "Playwright Browser and Page")
                     .nativeFeature(AutomationFeature.CONSOLE_LOGS, "Playwright console and page-error events")
-                    .nativeFeature(AutomationFeature.SCRIPT_EXECUTION, "Playwright evaluate and bindings")
-                    .nativeFeature(AutomationFeature.DOWNLOADS, "Playwright download events");
+                    .nativeFeature(AutomationFeature.SCRIPT_EXECUTION, "Playwright evaluate and bindings");
         }
         return builder.build();
     }
@@ -129,13 +129,25 @@ public final class AutomationCapabilityResolver {
                 builder.nativeFeature(AutomationFeature.AUTHENTICATION, "Selenium CDP-backed HasAuthentication");
             }
         }
-        if (driver instanceof HasDownloads) {
+        if (hasEnabledDownloads(driver)) {
             builder.nativeFeature(AutomationFeature.DOWNLOADS, "W3C WebDriver downloads");
         }
         if (driver instanceof HasVirtualAuthenticator) {
             builder.nativeFeature(AutomationFeature.WEBAUTHN, "W3C WebDriver virtual authenticator");
         }
         return builder.build();
+    }
+
+    private static boolean hasEnabledDownloads(WebDriver driver) {
+        if (!(driver instanceof HasDownloads downloads)
+                || (driver instanceof RemoteWebDriver remote && remote.getSessionId() == null)) {
+            return false;
+        }
+        try {
+            return downloads.isDownloadsEnabled();
+        } catch (RuntimeException ignored) {
+            return false;
+        }
     }
 
     private static AutomationCapabilities appium(AppiumDriver driver, Capabilities capabilities) {

@@ -101,6 +101,14 @@ public interface BrowserActionsContract {
         throw new UnsupportedOperationException("Authentication actions are not supported by this browser facade.");
     }
 
+    /**
+     * Returns managed browser-download actions. The Java default-method collision boundary documented for
+     * {@link #network()} also applies.
+     */
+    default DownloadActionsContract downloads() {
+        throw new UnsupportedOperationException("Download actions are not supported by this browser facade.");
+    }
+
     BrowserActionsContract and();
 
     BrowserAssertions assertThat();

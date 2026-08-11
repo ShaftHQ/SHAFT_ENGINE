@@ -49,12 +49,14 @@ import org.openqa.selenium.remote.http.HttpResponse;
 
 import java.io.ByteArrayInputStream;
 import java.net.URI;
+import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import org.openqa.selenium.support.ui.FluentWait;
 
 /**
  * Provides a fluent API for performing browser-level actions such as navigation, window management,
@@ -156,6 +158,117 @@ public class BrowserActions extends FluentWebDriverAction implements com.shaft.g
     @Override
     public AuthenticationActions authentication() {
         return new AuthenticationActions(this);
+    }
+
+    @Override
+    public DownloadActions downloads() {
+        return new DownloadActions(this);
+    }
+
+    List<com.shaft.gui.driver.BrowserDownload> downloadedFilesNamespace(DownloadActions owner) {
+        return queryDownloads("all", "", () -> downloadedFiles(owner, requireDownloadsSupport("all")));
+    }
+
+    private List<com.shaft.gui.driver.BrowserDownload> downloadedFiles(DownloadActions owner, HasDownloads downloads) {
+        return downloads.getDownloadedFiles().stream()
+                .sorted(Comparator.comparingLong(HasDownloads.DownloadedFile::getCreationTime)
+                        .thenComparingLong(HasDownloads.DownloadedFile::getLastModifiedTime)
+                        .thenComparing(HasDownloads.DownloadedFile::getName))
+                .map(file -> (com.shaft.gui.driver.BrowserDownload) new SeleniumBrowserDownload(file, owner, downloads))
+                .toList();
+    }
+
+    com.shaft.gui.driver.BrowserDownload waitForDownloadedFileNamespace(DownloadActions owner,
+                                                                         Predicate<com.shaft.gui.driver.BrowserDownload> predicate,
+                                                                         Runnable trigger) {
+        return queryDownloads("wait-for", "", () -> {
+            Objects.requireNonNull(predicate, "predicate");
+            Objects.requireNonNull(trigger, "trigger");
+            HasDownloads downloads = requireDownloadsSupport("wait-for");
+            Map<DownloadIdentity, Long> baseline = downloads.getDownloadedFiles().stream()
+                    .collect(java.util.stream.Collectors.groupingBy(DownloadIdentity::from,
+                            LinkedHashMap::new, java.util.stream.Collectors.counting()));
+            trigger.run();
+            return new FluentWait<>(downloads)
+                    .withTimeout(Duration.ofSeconds(SHAFT.Properties.timeouts.browserNavigationTimeout()))
+                    .pollingEvery(Duration.ofMillis(100))
+                    .until(source -> newDownloads(source.getDownloadedFiles(), baseline).stream()
+                            .sorted(Comparator.comparingLong(HasDownloads.DownloadedFile::getCreationTime)
+                                    .thenComparingLong(HasDownloads.DownloadedFile::getLastModifiedTime))
+                            .map(file -> (com.shaft.gui.driver.BrowserDownload) new SeleniumBrowserDownload(file, owner, downloads))
+                            .filter(predicate)
+                            .findFirst()
+                            .orElse(null));
+        });
+    }
+
+    com.shaft.gui.driver.BrowserDownload latestDownloadedFileNamespace(DownloadActions owner) {
+        return queryDownloads("latest", "", () -> {
+            List<com.shaft.gui.driver.BrowserDownload> files = downloadedFiles(owner, requireDownloadsSupport("latest"));
+            if (files.isEmpty()) {
+                throw new java.util.NoSuchElementException("No completed browser downloads are available.");
+            }
+            return files.getLast();
+        });
+    }
+
+    void clearDownloadedFilesNamespace() {
+        queryDownloads("clear", "", () -> {
+            requireDownloadsSupport("clear").deleteDownloadableFiles();
+            return null;
+        });
+    }
+
+    private HasDownloads requireDownloadsSupport(String operation) {
+        WebDriver driver = driverFactoryHelper == null ? null : driverFactoryHelper.getDriver();
+        boolean closed = driver instanceof RemoteWebDriver remote && remote.getSessionId() == null;
+        if (driver instanceof AppiumDriver || closed || !(driver instanceof HasDownloads downloads)
+                || !downloads.isDownloadsEnabled()) {
+            throw new UnsupportedOperationException("Browser downloads " + operation
+                    + " requires a live Selenium session with se:downloadsEnabled=true.");
+        }
+        return downloads;
+    }
+
+    private <T> T queryDownloads(String operation, String locator, Supplier<T> action) {
+        WebDriver driver = driverFactoryHelper == null ? null : driverFactoryHelper.getDriver();
+        var event = TraceEventRecorder.start("downloads", operation, locator, driver);
+        try {
+            T result = action.get();
+            TraceEventRecorder.finish(event, "passed", "downloads " + operation + " completed.", null,
+                    Map.of("backend", "SELENIUM_WEBDRIVER"), List.of());
+            return result;
+        } catch (RuntimeException exception) {
+            TraceEventRecorder.finish(event, "failed", "downloads " + operation + " failed.", exception,
+                    Map.of("backend", "SELENIUM_WEBDRIVER"), List.of());
+            throw exception;
+        }
+    }
+
+    private record DownloadIdentity(String name, long creationTime, long lastModifiedTime, long size) {
+        static DownloadIdentity from(HasDownloads.DownloadedFile file) {
+            return new DownloadIdentity(file.getName(), file.getCreationTime(), file.getLastModifiedTime(), file.getSize());
+        }
+    }
+
+    private static List<HasDownloads.DownloadedFile> newDownloads(List<HasDownloads.DownloadedFile> current,
+                                                                   Map<DownloadIdentity, Long> baseline) {
+        Map<DownloadIdentity, Long> remainingBaseline = new HashMap<>(baseline);
+        List<HasDownloads.DownloadedFile> additions = new ArrayList<>();
+        for (HasDownloads.DownloadedFile file : current) {
+            DownloadIdentity identity = DownloadIdentity.from(file);
+            long remaining = remainingBaseline.getOrDefault(identity, 0L);
+            if (remaining > 0) {
+                if (remaining == 1) {
+                    remainingBaseline.remove(identity);
+                } else {
+                    remainingBaseline.put(identity, remaining - 1);
+                }
+            } else {
+                additions.add(file);
+            }
+        }
+        return additions;
     }
 
     void requireContextSupport(String operation) {

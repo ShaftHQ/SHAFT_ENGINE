@@ -5,6 +5,7 @@ import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.AtomicMoveNotSupportedException;
 import java.nio.file.Files;
+import java.nio.file.LinkOption;
 import java.nio.file.Path;
 import java.nio.file.CopyOption;
 import java.nio.file.StandardCopyOption;
@@ -19,7 +20,7 @@ import java.util.zip.ZipOutputStream;
 /**
  * Writes a bounded SHAFT trace archive without buffering the complete ZIP in memory.
  */
-final class TraceArchiveWriter {
+public final class TraceArchiveWriter {
     private static final int COPY_BUFFER_SIZE = 16 * 1024;
     private static final MoveStrategy DEFAULT_MOVES = Files::move;
     private static final CopyStrategy DEFAULT_COPIES = Files::copy;
@@ -72,8 +73,8 @@ final class TraceArchiveWriter {
         }
     }
 
-    /** Copies a completed archive through the same recoverable publication protocol. */
-    static void copy(Path source, Path target) throws IOException {
+    /** Copies a completed file through the same recoverable publication protocol. */
+    public static void copy(Path source, Path target) throws IOException {
         Objects.requireNonNull(source, "source");
         Objects.requireNonNull(target, "target");
         Path absoluteTarget = target.toAbsolutePath();
@@ -181,7 +182,11 @@ final class TraceArchiveWriter {
 
     private static void recoverableReplace(Path temporary, Path target, MoveStrategy moves, CopyStrategy copies)
             throws IOException {
-        if (!Files.exists(target)) {
+        if (Files.isSymbolicLink(target)) {
+            recoverableReplaceSymbolicLink(temporary, target, moves);
+            return;
+        }
+        if (!Files.exists(target, LinkOption.NOFOLLOW_LINKS)) {
             try {
                 moves.move(temporary, target, StandardCopyOption.REPLACE_EXISTING);
             } catch (IOException | RuntimeException publicationFailure) {
@@ -196,7 +201,7 @@ final class TraceArchiveWriter {
         }
         Path backup = target.resolveSibling(target.getFileName() + ".backup-" + UUID.randomUUID());
         try {
-            copies.copy(target, backup);
+            copies.copy(target, backup, LinkOption.NOFOLLOW_LINKS);
         } catch (IOException backupFailure) {
             cleanup(backup, backupFailure);
             throw backupFailure;
@@ -205,10 +210,48 @@ final class TraceArchiveWriter {
             moves.move(temporary, target, StandardCopyOption.REPLACE_EXISTING);
         } catch (IOException | RuntimeException publicationFailure) {
             try {
-                copies.copy(backup, target, StandardCopyOption.REPLACE_EXISTING);
+                copies.copy(backup, target, StandardCopyOption.REPLACE_EXISTING, LinkOption.NOFOLLOW_LINKS);
             } catch (IOException | RuntimeException restorationFailure) {
                 publicationFailure.addSuppressed(restorationFailure);
                 publicationFailure.addSuppressed(new IOException("Known-good trace backup retained at " + backup));
+                throw publicationFailure;
+            }
+            try {
+                Files.deleteIfExists(backup);
+            } catch (IOException cleanupFailure) {
+                publicationFailure.addSuppressed(cleanupFailure);
+                backup.toFile().deleteOnExit();
+            }
+            throw publicationFailure;
+        }
+        try {
+            Files.deleteIfExists(backup);
+        } catch (IOException ignored) {
+            backup.toFile().deleteOnExit();
+        }
+    }
+
+    private static void recoverableReplaceSymbolicLink(Path temporary, Path target, MoveStrategy moves)
+            throws IOException {
+        Path backup = target.resolveSibling(target.getFileName() + ".backup-" + UUID.randomUUID());
+        try {
+            moves.move(target, backup, StandardCopyOption.REPLACE_EXISTING);
+        } catch (IOException | RuntimeException backupFailure) {
+            if (Files.exists(backup, LinkOption.NOFOLLOW_LINKS)) {
+                backupFailure.addSuppressed(new IOException("Known-good symbolic-link backup retained at " + backup));
+            }
+            throw backupFailure;
+        }
+        try {
+            moves.move(temporary, target, StandardCopyOption.REPLACE_EXISTING);
+        } catch (IOException | RuntimeException publicationFailure) {
+            try {
+                Files.deleteIfExists(target);
+                Files.createSymbolicLink(target, Files.readSymbolicLink(backup));
+            } catch (IOException | RuntimeException restorationFailure) {
+                publicationFailure.addSuppressed(restorationFailure);
+                publicationFailure.addSuppressed(new IOException(
+                        "Known-good symbolic-link backup retained at " + backup));
                 throw publicationFailure;
             }
             try {
