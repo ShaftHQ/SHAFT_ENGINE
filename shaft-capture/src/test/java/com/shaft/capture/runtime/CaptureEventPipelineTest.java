@@ -242,17 +242,31 @@ class CaptureEventPipelineTest {
                 });
 
         pipeline.accept(signalFromContext("input", START.plusMillis(20), "tab-2", usernameTarget(),
-                Map.of("value", "second-tab", "captureSignalSequence", 2, "clientActionId", "ui-1"), Map.of()));
+                Map.of("value", "second-tab", "committed", true,
+                        "captureSignalSequence", 2, "clientActionId", "ui-1"), Map.of()));
         pipeline.accept(signalFromContext("input", START.plusMillis(10), "tab-1", usernameTarget(),
-                Map.of("value", "first-tab", "captureSignalSequence", 1, "clientActionId", "ui-1"), Map.of()));
+                Map.of("value", "first-tab", "committed", true,
+                        "captureSignalSequence", 1, "clientActionId", "ui-1"), Map.of()));
+
+        List<CaptureEvent> typedEvents = store.read().events().stream()
+                .filter(CaptureEvent.TypeEvent.class::isInstance)
+                .toList();
+        assertEquals(2, typedEvents.size());
+        String firstActionId = typedEvents.getFirst().context().extensions().get("clientActionId").asText();
+        String secondActionId = typedEvents.get(1).context().extensions().get("clientActionId").asText();
+        assertFalse(firstActionId.equals(secondActionId),
+                "The persisted action id must remain globally unique for downstream step controls");
+
+        pipeline.accept(signalFromContext("step_delete", START.plusMillis(30), "tab-1", Map.of(),
+                Map.of("clientActionId", firstActionId), Map.of()));
         pipeline.close();
 
-        assertEquals(2, store.read().events().stream()
-                .filter(CaptureEvent.TypeEvent.class::isInstance)
-                .count());
+        assertEquals(1, store.read().events().stream()
+                        .filter(CaptureEvent.TypeEvent.class::isInstance)
+                        .count(),
+                "Deleting one context-scoped action must not delete the colliding action from another tab");
         String dataJson = Files.readString(temp.resolve("capture-data.json"), StandardCharsets.UTF_8);
-        assertTrue(dataJson.contains("\"first-tab\""));
-        assertTrue(dataJson.contains("\"second-tab\""));
+        assertTrue(dataJson.contains("\"first-tab\"") || dataJson.contains("\"second-tab\""));
     }
 
     @Test
@@ -439,7 +453,7 @@ class CaptureEventPipelineTest {
         List<CaptureEvent> events = store.read().events();
         assertEquals(2, events.size());
         assertInstanceOf(CaptureEvent.TypeEvent.class, events.get(0));
-        assertEquals("ui-1", events.get(0).context().extensions().get("clientActionId").asText());
+        assertTrue(events.get(0).context().extensions().get("clientActionId").asText().endsWith(":ui-1"));
         assertInstanceOf(CaptureEvent.KeyboardEvent.class, events.get(1));
         String dataJson = Files.readString(output.getParent().resolve("capture-data.json"),
                 StandardCharsets.UTF_8);
@@ -769,10 +783,10 @@ class CaptureEventPipelineTest {
                 "The click-consequence navigation is suppressed but the user's back traversal "
                         + "must be recorded.");
         assertEquals("https://example.test/a", navigations.get(1).targetUrl());
-        assertEquals("traversal-9",
-                navigations.get(1).context().extensions().get("clientActionId").asText());
+        assertTrue(navigations.get(1).context().extensions().get("clientActionId").asText()
+                .endsWith(":traversal-9"));
         assertTrue(store.steps().stream()
-                        .anyMatch(step -> "traversal-9".equals(step.clientActionId())),
+                        .anyMatch(step -> step.clientActionId().endsWith(":traversal-9")),
                 "The traversal must surface in the server-backed step list.");
     }
 
@@ -800,7 +814,7 @@ class CaptureEventPipelineTest {
         assertEquals(1, events.size(), "The annotation must never append a second open event.");
         CaptureEvent.NavigationEvent navigation =
                 assertInstanceOf(CaptureEvent.NavigationEvent.class, events.getFirst());
-        assertEquals("open-1", navigation.context().extensions().get("clientActionId").asText());
+        assertTrue(navigation.context().extensions().get("clientActionId").asText().endsWith(":open-1"));
         assertEquals("Open https://example.test/home",
                 navigation.context().extensions().get("stepDescription").asText());
         assertEquals(1, store.steps().size());
@@ -893,8 +907,8 @@ class CaptureEventPipelineTest {
                 Map.of("clientActionId", "ui-6", "direction", "up"), Map.of()));
 
         List<CaptureEvent> reordered = store.read().events();
-        assertEquals("ui-6", reordered.get(0).context().extensions().get("clientActionId").asText());
-        assertEquals("ui-5", reordered.get(1).context().extensions().get("clientActionId").asText());
+        assertTrue(reordered.get(0).context().extensions().get("clientActionId").asText().endsWith(":ui-6"));
+        assertTrue(reordered.get(1).context().extensions().get("clientActionId").asText().endsWith(":ui-5"));
         assertEquals(1, reordered.get(0).context().sequence());
         assertEquals(2, reordered.get(1).context().sequence());
     }

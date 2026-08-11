@@ -17,10 +17,12 @@ import com.shaft.capture.privacy.ClassifiedValue;
 import com.shaft.capture.storage.CaptureSessionStore;
 import com.shaft.capture.storage.ExternalTestDataWriter;
 
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.EnumSet;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -37,6 +39,7 @@ import java.util.function.Consumer;
  * Converts low-level browser signals into ordered privacy-safe semantic events.
  */
 final class CaptureEventPipeline implements AutoCloseable {
+    private static final String CONTEXT_SCOPED_ACTION_PREFIX = "ctx:";
     private static final Duration CLICK_DEBOUNCE = Duration.ofMillis(300);
     // Same-URL navigations within this window are one navigation delivered twice (racing
     // channels, or BiDi's commit racing the recorder's own explicit OPEN across a slow load).
@@ -408,7 +411,7 @@ final class CaptureEventPipeline implements AutoCloseable {
      * step syncs across navigations and can be edited or deleted like any other step.
      */
     private void attachOverlayIdentity(BrowserSignal signal, String url) {
-        String clientActionId = privacy.sanitizeText(signal.dataString("clientActionId")).value();
+        String clientActionId = clientActionId(signal);
         if (clientActionId.isBlank()) {
             return;
         }
@@ -487,7 +490,7 @@ final class CaptureEventPipeline implements AutoCloseable {
         if (!oneShotStep) {
             return false;
         }
-        String clientActionId = privacy.sanitizeText(signal.dataString("clientActionId")).value();
+        String clientActionId = clientActionId(signal);
         if (clientActionId.isBlank()) {
             return false;
         }
@@ -518,7 +521,7 @@ final class CaptureEventPipeline implements AutoCloseable {
     }
 
     private void emitInput(BrowserSignal signal) {
-        String clientActionId = privacy.sanitizeText(signal.dataString("clientActionId")).value();
+        String clientActionId = clientActionId(signal);
         if (!clientActionId.isBlank() && deletedClientActionIds.contains(clientActionId)) {
             return;
         }
@@ -834,7 +837,7 @@ final class CaptureEventPipeline implements AutoCloseable {
     }
 
     private void updateStep(BrowserSignal signal) {
-        String clientActionId = privacy.sanitizeText(signal.dataString("clientActionId")).value();
+        String clientActionId = clientActionId(signal);
         String description = privacy.sanitizeText(signal.dataString("description")).value();
         if (clientActionId.isBlank() || description.isBlank()) {
             warningConsumer.accept("A browser step edit was ignored because it was incomplete.");
@@ -848,7 +851,7 @@ final class CaptureEventPipeline implements AutoCloseable {
     }
 
     private void deleteStep(BrowserSignal signal) {
-        String clientActionId = privacy.sanitizeText(signal.dataString("clientActionId")).value();
+        String clientActionId = clientActionId(signal);
         if (clientActionId.isBlank()) {
             warningConsumer.accept("A browser step deletion was ignored because it was incomplete.");
             return;
@@ -871,7 +874,7 @@ final class CaptureEventPipeline implements AutoCloseable {
     }
 
     private void reorderStep(BrowserSignal signal) {
-        String clientActionId = privacy.sanitizeText(signal.dataString("clientActionId")).value();
+        String clientActionId = clientActionId(signal);
         String direction = privacy.sanitizeText(signal.dataString("direction")).value().toLowerCase(Locale.ROOT);
         if (clientActionId.isBlank() || (!direction.equals("up") && !direction.equals("down"))) {
             warningConsumer.accept("A browser step reorder was ignored because it was incomplete.");
@@ -936,7 +939,7 @@ final class CaptureEventPipeline implements AutoCloseable {
             SafePage page,
             Map<String, JsonNode> extensions) {
         Map<String, JsonNode> result = new LinkedHashMap<>();
-        String clientActionId = privacy.sanitizeText(signal.dataString("clientActionId")).value();
+        String clientActionId = clientActionId(signal);
         if (!clientActionId.isBlank()) {
             result.put("clientActionId", StringNode.valueOf(clientActionId));
         }
@@ -1079,17 +1082,32 @@ final class CaptureEventPipeline implements AutoCloseable {
     }
 
     private String inputTargetKey(BrowserSignal signal) {
-        String contextId = signal.browsingContextId();
-        if (BrowserEventSink.LOOPBACK_BROWSING_CONTEXT_ID.equals(contextId)
-                && !currentRealBrowsingContextId.isBlank()) {
-            contextId = currentRealBrowsingContextId;
-        }
-        String contextScope = contextId + "|" + string(signal.page().get("framePath"));
-        String clientActionId = signal.dataString("clientActionId");
+        String clientActionId = clientActionId(signal);
         if (!clientActionId.isBlank()) {
-            return "action|" + contextScope + "|" + clientActionId;
+            return "action|" + clientActionId;
         }
+        String contextScope = resolveBrowsingContextId(signal)
+                + "|" + string(signal.page().get("framePath"));
         return "target|" + contextScope + "|" + targetKey(signal);
+    }
+
+    /**
+     * Returns the globally unique action id persisted in event metadata. Browser-generated ids are
+     * only unique inside one session-storage snapshot; a newly opened same-origin tab can inherit
+     * that snapshot and reuse an id. Prefixing the resolved browsing context and frame preserves the
+     * global uniqueness required by edit/delete/reorder controls. A server-synced scoped id is
+     * already authoritative and must survive when an overlay sends it back from any tab.
+     */
+    private String clientActionId(BrowserSignal signal) {
+        String rawId = privacy.sanitizeText(signal.dataString("clientActionId")).value();
+        if (rawId.isBlank() || rawId.startsWith(CONTEXT_SCOPED_ACTION_PREFIX)) {
+            return rawId;
+        }
+        String scope = resolveBrowsingContextId(signal)
+                + "|" + string(signal.page().get("framePath"));
+        String encodedScope = Base64.getUrlEncoder().withoutPadding()
+                .encodeToString(scope.getBytes(StandardCharsets.UTF_8));
+        return CONTEXT_SCOPED_ACTION_PREFIX + encodedScope + ":" + rawId;
     }
 
     private static boolean inputPrecedes(BrowserSignal candidate, BrowserSignal current) {
