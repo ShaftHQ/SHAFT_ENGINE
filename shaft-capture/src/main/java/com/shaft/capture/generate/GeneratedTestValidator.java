@@ -252,10 +252,7 @@ public class GeneratedTestValidator {
             properties.load(reader);
         }
         String configured = properties.getProperty("headlessExecution", "").trim();
-        if ("false".equalsIgnoreCase(configured)) {
-            return false;
-        }
-        return true;
+        return !"false".equalsIgnoreCase(configured);
     }
 
     private static String attemptDiagnostic(Path replayDirectory) {

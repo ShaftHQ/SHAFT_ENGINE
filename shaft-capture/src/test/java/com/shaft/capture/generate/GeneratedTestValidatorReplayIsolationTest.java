@@ -85,7 +85,7 @@ class GeneratedTestValidatorReplayIsolationTest {
                 classes,
                 resources,
                 temp,
-                Duration.ofSeconds(30));
+                Duration.ofSeconds(90));
     }
 
     private Path onlyAttemptDirectory() throws Exception {

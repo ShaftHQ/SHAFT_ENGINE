@@ -17,7 +17,6 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
-import java.lang.reflect.Method;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Instant;
@@ -637,11 +636,8 @@ class CaptureServiceTest {
         CaptureService service = service();
         McpCaptureReplayResult result;
         try {
-            Method replayResult = CaptureService.class.getDeclaredMethod(
-                    "replayResult", CaptureGenerationResult.class, String.class);
-            replayResult.setAccessible(true);
             result = assertDoesNotThrow(
-                    () -> (McpCaptureReplayResult) replayResult.invoke(service, generation, "driver"),
+                    () -> service.replayResult(generation, "driver"),
                     "A failed replay must return its structured result instead of throwing while reading an absent source");
         } finally {
             service.close();

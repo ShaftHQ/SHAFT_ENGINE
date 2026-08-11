@@ -1532,7 +1532,7 @@ public class CaptureService {
                 : workspacePolicy.output(value, label).toString();
     }
 
-    private McpCaptureReplayResult replayResult(CaptureGenerationResult result, String driverVariableName) {
+    McpCaptureReplayResult replayResult(CaptureGenerationResult result, String driverVariableName) {
         return replayResult(result, driverVariableName, null, "");
     }
 
