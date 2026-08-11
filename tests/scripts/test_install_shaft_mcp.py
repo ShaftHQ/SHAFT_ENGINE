@@ -176,10 +176,16 @@ class InstallShaftMcpTest(unittest.TestCase):
             if not relative.endswith(".py"):
                 continue
             source = (repository_root / relative).read_text(encoding="utf-8")
-            for module in re.findall(r"(?m)^from (scripts[\w.]*) import", source):
-                required = module.replace(".", "/") + ".py"
-                if required not in shipped:
-                    missing.add(f"{relative} imports {module}")
+            for module, imported_name in re.findall(
+                    r"(?m)^from (scripts[\w.]*) import ([A-Za-z_]\w*)", source):
+                module_path = module.replace(".", "/")
+                candidates = (
+                    module_path + ".py",
+                    module_path + "/__init__.py",
+                    module_path + "/" + imported_name + ".py",
+                )
+                if not any(candidate in shipped for candidate in candidates):
+                    missing.add(f"{relative} imports {module}.{imported_name}")
         self.assertEqual(sorted(missing), [])
 
     def test_render_client_menu_groups_ai_agents_and_advanced_sections(self):
