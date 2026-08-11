@@ -511,7 +511,7 @@
       "network": "Standalone linting is local; telemetry is opt-in and disabled in CI and will also be explicitly disabled.",
       "scripts": "Rust CLI and LSP with cross-client rules, machine-readable output, and release binaries.",
       "overlap": "Local validators own repository-specific budgets and reachability; agnix adds broad official-format and cross-client conformance coverage.",
-      "material_kind": "test-target",
+      "material_kind": "tool",
       "stage_results": {
         "provenance_license": {
           "status": "pass",
@@ -522,17 +522,17 @@
           "evidence": "Reviewed supported file types, rule families, release assets, telemetry default-off behavior, and CI interfaces."
         },
         "quarantine_trial": {
-          "status": "not_applicable",
-          "evidence": "Retained only as an external target in this intake PR; executable promotion is issue #4702."
+          "status": "pass",
+          "evidence": "Pinned Ubuntu Docker trial enforced no network, read-only inputs/root, UID 65532:65532, dropped capabilities, no new privileges, resource limits, and explicit telemetry disablement; final replay accepted 47 files with no unexpected errors or count drift."
         },
         "local_evaluation": {
           "status": "pass",
-          "evidence": "Source comparison identifies format coverage outside the current repository-specific validators without claiming a trial result."
+          "evidence": "Pinned upstream evaluation passed 61/61 cases at precision and recall 1.0 with required Claude, Codex, and cross-platform rule families; exact SHAFT false-positive fingerprints are count-gated."
         }
       },
-      "evaluation": "Strong candidate for a pinned read-only promotion after Docker evidence and baseline triage.",
-      "decision": "retain-test-target",
-      "decision_reason": "Retain the conformance contract pending the separate executable promotion gate.",
+      "evaluation": "Pinned v0.48.0 adds useful cross-client conformance while repository-specific validators remain authoritative; its six stable parser false positives are accepted only by exact path, rule, message, and count.",
+      "decision": "adopt-tool",
+      "decision_reason": "Adopt only through the checksum-pinned, telemetry-off, container-only conformance adapter proven in promotion PR #4712.",
       "discovered_via": [
         "https://github.com/hesreallyhim/awesome-claude-code"
       ],
@@ -542,9 +542,29 @@
         "status": "current"
       },
       "vendor_policy_duplication": false,
-      "promotion_pr": null,
+      "promotion_pr": "https://github.com/ShaftHQ/SHAFT_ENGINE/pull/4712",
       "adopted_files": [],
-      "tool": null
+      "tool": {
+        "version": "v0.48.0",
+        "execution": "Checksum-verified release binary executes only inside the pinned Ubuntu image with no network, read-only candidate and fixture mounts, nonroot UID 65532:65532, dropped capabilities, no new privileges, bounded resources, and telemetry disabled.",
+        "artifacts": [
+          {
+            "platform": "linux-x86_64",
+            "url": "https://github.com/agent-sh/agnix/releases/download/v0.48.0/agnix-x86_64-unknown-linux-gnu.tar.gz",
+            "sha256": "da8a0fd2389f2fa442721ca1ecf447bc0de64bf629014f11336eaccbfe8aa2e8"
+          },
+          {
+            "platform": "macos-aarch64",
+            "url": "https://github.com/agent-sh/agnix/releases/download/v0.48.0/agnix-aarch64-apple-darwin.tar.gz",
+            "sha256": "d7cc221ffcd040373abb7c3ae82c74c8ef5922a5c9f7aec1236a7f1aeb1f164c"
+          },
+          {
+            "platform": "windows-x86_64",
+            "url": "https://github.com/agent-sh/agnix/releases/download/v0.48.0/agnix-x86_64-pc-windows-msvc.zip",
+            "sha256": "ed68a8588217d53af5678682a41f3365d5745c5e913a4c013cb013c4e1e598f8"
+          }
+        ]
+      }
     },
     {
       "id": "infrastructure-showcase-routing",
