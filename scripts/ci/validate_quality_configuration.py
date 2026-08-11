@@ -106,10 +106,24 @@ def _global_testing_scope(workflow: str) -> list[str]:
 
 
 def _pr_gate_unit_selectors(workflow: str) -> set[str]:
-    for selector in re.findall(r"^\s*'-Dtest=([^']*)'\s*$", workflow, re.MULTILINE):
-        tokens = {token.strip() for token in selector.split(",") if token.strip()}
-        if "testPackage/unitTests/*" in tokens:
-            return {token for token in tokens if not token.startswith("!")}
+    job_match = re.search(
+        r"^  unit-tests:\s*$\n(?P<body>.*?)(?=^  [A-Za-z0-9_-]+:\s*$|\Z)",
+        workflow,
+        re.MULTILINE | re.DOTALL,
+    )
+    if not job_match:
+        return set()
+    step_match = re.search(
+        r"^      - name: Run shaft-engine unit tests\s*$\n(?P<body>.*?)(?=^      - name:|\Z)",
+        job_match.group("body"),
+        re.MULTILINE | re.DOTALL,
+    )
+    if not step_match:
+        return set()
+    selector_match = re.search(r"^\s*'-Dtest=([^']*)'\s*$", step_match.group("body"), re.MULTILINE)
+    if selector_match:
+        tokens = {token.strip() for token in selector_match.group(1).split(",") if token.strip()}
+        return {token for token in tokens if not token.startswith("!")}
     return set()
 
 
@@ -127,6 +141,9 @@ def validate_browser_matrix_scope_policy(root: Path = ROOT) -> list[str]:
     if UNIT_SCOPE_SENTINEL not in grid_scope:
         return ["e2eTests.yml must mark the environment-independent unit-test exclusion trailer"]
 
+    invalid_grid_only = [
+        exclusion for exclusion in GRID_ONLY_SCOPE_EXCLUSIONS if grid_scope.count(exclusion) != 1
+    ]
     unit_exclusions = grid_scope[grid_scope.index(UNIT_SCOPE_SENTINEL):]
     expected_local_scope = [
         exclusion for exclusion in grid_scope if exclusion not in GRID_ONLY_SCOPE_EXCLUSIONS
@@ -148,6 +165,11 @@ def validate_browser_matrix_scope_policy(root: Path = ROOT) -> list[str]:
             missing_pr_gate.append(owner_selector)
 
     errors = []
+    if invalid_grid_only:
+        errors.append(
+            "e2eTests.yml must contain each grid-only exclusion exactly once: "
+            + ", ".join(invalid_grid_only)
+        )
     if missing_local:
         errors.append(
             "e2eLocalTests.yml must exclude PR-gate-owned unit tests: "
