@@ -21,13 +21,17 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.ArrayDeque;
 import java.util.Base64;
 import java.util.Comparator;
+import java.util.Collections;
+import java.util.IdentityHashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.LinkedHashSet;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
@@ -54,6 +58,10 @@ public final class FailureTraceReporter {
     private static final ThreadLocal<TraceArtifactManifest> CURRENT_ARTIFACT_MANIFEST = new ThreadLocal<>();
     private static final ThreadLocal<LinkedHashSet<String>> EXACT_SENSITIVE_VALUES =
             ThreadLocal.withInitial(LinkedHashSet::new);
+    private static final ThreadLocal<Set<Throwable>> SENSITIVE_THROWABLES =
+            ThreadLocal.withInitial(() -> Collections.newSetFromMap(new IdentityHashMap<>()));
+    private static final int SENSITIVE_VALUE_TRAVERSAL_LIMIT = 1000;
+    private static final int SENSITIVE_VALUE_DEPTH_LIMIT = 20;
     private static final ConcurrentMap<String, AtomicInteger> ATTEMPT_COUNTERS = new ConcurrentHashMap<>();
     private static final ConcurrentMap<String, List<AttemptRecord>> ATTEMPT_HISTORY = new ConcurrentHashMap<>();
     private static final ConcurrentMap<String, Object> TRACE_LOCKS = new ConcurrentHashMap<>();
@@ -206,8 +214,10 @@ public final class FailureTraceReporter {
     private static void appendExceptionObject(StringBuilder json, Throwable throwable) {
         objectStart(json, 1, "exception");
         field(json, 2, "type", throwable == null ? "" : throwable.getClass().getName(), true);
-        field(json, 2, "message", redactThrowableText(throwable == null ? "" : throwable.getMessage()), true);
-        field(json, 2, "stacktrace", redactThrowableText(ReportManagerHelper.formatStackTraceToLogEntry(throwable)), false);
+        field(json, 2, "message", redactThrowableText(throwable,
+                throwable == null ? "" : throwable.getMessage()), true);
+        field(json, 2, "stacktrace", redactThrowableText(throwable,
+                ReportManagerHelper.formatStackTraceToLogEntry(throwable)), false);
         objectEnd(json, 1, true);
     }
 
@@ -943,6 +953,9 @@ public final class FailureTraceReporter {
         if (info == null || info.throwable() == null || !SHAFT.Properties.reporting.traceIncludeCodeContext()) {
             return new SourceContext("", "", "", "", "");
         }
+        if (containsSensitiveThrowable(info.throwable())) {
+            return new SourceContext("", "", "", "", "");
+        }
         StackTraceElement frame = relevantFrame(info.throwable());
         if (frame == null) {
             return new SourceContext("", "", "", "", "");
@@ -1067,6 +1080,13 @@ public final class FailureTraceReporter {
     }
 
     static String redactThrowableText(String value) {
+        return redactThrowableText(null, value);
+    }
+
+    static String redactThrowableText(Throwable throwable, String value) {
+        if (containsSensitiveThrowable(throwable)) {
+            return "[provider error text omitted because submitted script data may be sensitive]";
+        }
         String redacted = value(value);
         for (String sensitiveValue : EXACT_SENSITIVE_VALUES.get()) {
             if (redacted.contains(sensitiveValue)) {
@@ -1086,8 +1106,96 @@ public final class FailureTraceReporter {
         }
     }
 
+    /** Registers string values recursively reachable from a script or structured argument. */
+    public static void registerSensitiveValues(Object value) {
+        try {
+            registerSensitiveValues(value, Collections.newSetFromMap(new IdentityHashMap<>()),
+                    new int[]{SENSITIVE_VALUE_TRAVERSAL_LIMIT}, 0);
+        } catch (RuntimeException ignored) {
+            // Redaction bookkeeping must never replace the provider exception being reported.
+        }
+    }
+
+    private static void registerSensitiveValues(Object value, Set<Object> visited, int[] remaining, int depth) {
+        if (value == null || remaining[0]-- <= 0 || depth > SENSITIVE_VALUE_DEPTH_LIMIT) {
+            return;
+        }
+        if (value instanceof CharSequence text) {
+            registerSensitiveValue(text.toString());
+            return;
+        }
+        if (!visited.add(value)) {
+            return;
+        }
+        try {
+            if (value instanceof Map<?, ?> map) {
+                for (Map.Entry<?, ?> entry : map.entrySet()) {
+                    registerSensitiveValues(entry.getKey(), visited, remaining, depth + 1);
+                    registerSensitiveValues(entry.getValue(), visited, remaining, depth + 1);
+                    if (remaining[0] <= 0) {
+                        break;
+                    }
+                }
+            } else if (value instanceof Iterable<?> iterable) {
+                for (Object entry : iterable) {
+                    registerSensitiveValues(entry, visited, remaining, depth + 1);
+                    if (remaining[0] <= 0) {
+                        break;
+                    }
+                }
+            } else if (value.getClass().isArray()) {
+                int length = Math.min(java.lang.reflect.Array.getLength(value), Math.max(0, remaining[0]));
+                for (int index = 0; index < length; index++) {
+                    registerSensitiveValues(java.lang.reflect.Array.get(value, index), visited, remaining, depth + 1);
+                }
+            }
+        } catch (RuntimeException ignored) {
+            // Best effort only; callers must retain the original provider failure.
+        }
+    }
+
+    /** Marks one provider failure's text as sensitive while retaining its type and object identity. */
+    public static void registerSensitiveThrowable(Throwable throwable) {
+        if (throwable != null) {
+            SENSITIVE_THROWABLES.get().add(throwable);
+        }
+    }
+
+    private static boolean containsSensitiveThrowable(Throwable root) {
+        if (root == null || SENSITIVE_THROWABLES.get().isEmpty()) {
+            return false;
+        }
+        Set<Throwable> visited = Collections.newSetFromMap(new IdentityHashMap<>());
+        ArrayDeque<Throwable> pending = new ArrayDeque<>();
+        pending.add(root);
+        int remaining = 100;
+        while (!pending.isEmpty() && remaining-- > 0) {
+            Throwable current = pending.removeFirst();
+            if (!visited.add(current)) {
+                continue;
+            }
+            if (SENSITIVE_THROWABLES.get().contains(current)) {
+                return true;
+            }
+            try {
+                if (current.getCause() != null) {
+                    pending.addLast(current.getCause());
+                }
+                for (Throwable suppressed : current.getSuppressed()) {
+                    if (suppressed != null) {
+                        pending.addLast(suppressed);
+                    }
+                }
+            } catch (RuntimeException ignored) {
+                // Throwable graph inspection is best-effort and must not hide the original failure.
+            }
+        }
+        return false;
+    }
+
     static void clearSensitiveValues() {
         EXACT_SENSITIVE_VALUES.remove();
+        SENSITIVE_THROWABLES.remove();
     }
 
     private static void objectStart(StringBuilder json, int indent, String key) {

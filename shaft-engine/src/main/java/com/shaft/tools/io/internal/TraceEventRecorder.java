@@ -446,7 +446,8 @@ public final class TraceEventRecorder {
     }
 
     private static String exceptionMessage(Throwable exception) {
-        return exception == null ? "" : FailureTraceReporter.redactThrowableText(value(exception.getMessage()));
+        return exception == null ? "" : FailureTraceReporter.redactThrowableText(
+                exception, value(exception.getMessage()));
     }
 
     private static void field(StringBuilder json, int indent, String key, String value, boolean comma) {

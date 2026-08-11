@@ -81,6 +81,11 @@ public class BrowserActions implements com.shaft.gui.driver.BrowserActionsContra
     }
 
     @Override
+    public ScriptActions script() {
+        return new ScriptActions(this);
+    }
+
+    @Override
     public PlaywrightBrowserValidationsBuilder assertThat() {
         return new PlaywrightBrowserValidationsBuilder(ValidationEnums.ValidationCategory.HARD_ASSERT, session);
     }
@@ -707,6 +712,29 @@ public class BrowserActions implements com.shaft.gui.driver.BrowserActionsContra
             session.clearConsole();
             return null;
         });
+    }
+
+    Object evaluateScriptNamespace(boolean asynchronous, boolean hasArgument, String script, Object argument) {
+        Objects.requireNonNull(script, "script");
+        String operation = asynchronous ? "evaluate-async" : "evaluate";
+        var event = TraceEventRecorder.startForBackend("script", operation, "",
+                AutomationBackend.MICROSOFT_PLAYWRIGHT);
+        try {
+            requireLiveSession(operation);
+            Object result = TraceEventRecorder.withoutNestedEvents(
+                    () -> hasArgument ? page().evaluate(script, argument) : page().evaluate(script));
+            TraceEventRecorder.finish(event, "passed", "script " + operation + " completed.", null,
+                    Map.of("backend", "MICROSOFT_PLAYWRIGHT"), List.of());
+            return result;
+        } catch (RuntimeException exception) {
+            FailureTraceReporter.registerSensitiveThrowable(exception);
+            if (hasArgument) {
+                FailureTraceReporter.registerSensitiveValues(argument);
+            }
+            TraceEventRecorder.finish(event, "failed", "script " + operation + " failed.", exception,
+                    Map.of("backend", "MICROSOFT_PLAYWRIGHT"), List.of());
+            throw exception;
+        }
     }
 
     NetworkInterceptionRequestBuilder<BrowserActions> networkInterceptRequest() {

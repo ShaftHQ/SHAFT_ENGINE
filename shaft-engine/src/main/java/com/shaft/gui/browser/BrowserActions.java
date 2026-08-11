@@ -139,6 +139,11 @@ public class BrowserActions extends FluentWebDriverAction implements com.shaft.g
         return new ConsoleActions(this);
     }
 
+    @Override
+    public ScriptActions script() {
+        return new ScriptActions(this);
+    }
+
     void requireContextSupport(String operation) {
         WebDriver driver = driverFactoryHelper == null ? null : driverFactoryHelper.getDriver();
         boolean closedRemoteSession = driver instanceof RemoteWebDriver remoteDriver && remoteDriver.getSessionId() == null;
@@ -338,6 +343,45 @@ public class BrowserActions extends FluentWebDriverAction implements com.shaft.g
     private UnsupportedOperationException unsupportedConsole(String operation) {
         return new UnsupportedOperationException("Browser console " + operation
                 + " is not supported by the live Selenium/Appium session.");
+    }
+
+    Object evaluateScriptNamespace(boolean asynchronous, boolean hasArgument, String script, Object argument) {
+        Objects.requireNonNull(script, "script");
+        String operation = asynchronous ? "evaluate-async" : "evaluate";
+        WebDriver driver = driverFactoryHelper == null ? null : driverFactoryHelper.getDriver();
+        var event = TraceEventRecorder.start("script", operation, "", driver);
+        try {
+            Object result = TraceEventRecorder.withoutNestedEvents(() -> {
+                JavascriptExecutor executor = scriptExecutor(operation);
+                if (asynchronous) {
+                    return hasArgument ? executor.executeAsyncScript(script, argument)
+                            : executor.executeAsyncScript(script);
+                }
+                return hasArgument ? executor.executeScript(script, argument) : executor.executeScript(script);
+            });
+            TraceEventRecorder.finish(event, "passed", "script " + operation + " completed.", null,
+                    Map.of(), List.of());
+            return result;
+        } catch (RuntimeException exception) {
+            FailureTraceReporter.registerSensitiveThrowable(exception);
+            if (hasArgument) {
+                FailureTraceReporter.registerSensitiveValues(argument);
+            }
+            TraceEventRecorder.finish(event, "failed", "script " + operation + " failed.", exception,
+                    Map.of(), List.of());
+            throw exception;
+        }
+    }
+
+    private JavascriptExecutor scriptExecutor(String operation) {
+        WebDriver driver = driverFactoryHelper == null ? null : driverFactoryHelper.getDriver();
+        boolean closedRemoteSession = driver instanceof RemoteWebDriver remoteDriver && remoteDriver.getSessionId() == null;
+        boolean supportedContext = !(driver instanceof AppiumDriver) || isAppiumWebStorageContext(driver);
+        if (!(driver instanceof JavascriptExecutor executor) || closedRemoteSession || !supportedContext) {
+            throw new UnsupportedOperationException("Browser script " + operation
+                    + " requires a live JavaScript-capable Selenium or Appium web-context session.");
+        }
+        return executor;
     }
 
     String currentContextNamespace() {

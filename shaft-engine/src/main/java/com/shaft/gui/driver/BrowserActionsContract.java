@@ -73,6 +73,16 @@ public interface BrowserActionsContract {
         throw new UnsupportedOperationException("Console actions are not supported by this browser facade.");
     }
 
+    /**
+     * Returns script evaluation actions. The Java default-method collision boundary documented for
+     * {@link #network()} also applies.
+     *
+     * @return script actions facade
+     */
+    default ScriptActionsContract script() {
+        throw new UnsupportedOperationException("Script actions are not supported by this browser facade.");
+    }
+
     BrowserActionsContract and();
 
     BrowserAssertions assertThat();
