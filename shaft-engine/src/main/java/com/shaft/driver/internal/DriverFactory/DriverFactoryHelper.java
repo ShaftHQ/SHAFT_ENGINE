@@ -7,6 +7,7 @@ import com.shaft.driver.SHAFT;
 import com.shaft.gui.browser.BrowserActions;
 import com.shaft.gui.browser.internal.BidiNetworkActivitySource;
 import com.shaft.gui.browser.internal.BidiConsoleLogSource;
+import com.shaft.gui.browser.internal.BidiPermissionState;
 import com.shaft.gui.browser.internal.BrowserNetworkInterceptionRule;
 import com.shaft.gui.browser.internal.BrowserNetworkInterceptor;
 import com.shaft.gui.browser.internal.BrowserStorageStateManager;
@@ -900,6 +901,7 @@ public class DriverFactoryHelper {
                 browserNetworkInterceptor = null;
                 BidiNetworkActivitySource.closeAndRemove(driver);
                 BidiConsoleLogSource.closeAndRemove(driver);
+                BidiPermissionState.clearAndRemove(driver);
                 releaseRemoteGridPreflightPermit();
                 clearThreadLocalDriverState();
                 ReportManager.log("Closed the WebDriver session.");

@@ -13,6 +13,8 @@ import com.shaft.gui.browser.internal.BrowserNetworkProfileManager;
 import com.shaft.gui.browser.internal.BrowserNetworkInterceptionRule;
 import com.shaft.gui.browser.internal.BrowserStorageStateManager;
 import com.shaft.gui.browser.internal.BidiConsoleLogSource;
+import com.shaft.gui.browser.internal.BidiPermissionState;
+import com.shaft.gui.browser.internal.PermissionOrigin;
 import com.shaft.gui.browser.internal.HarReplayRules;
 import com.shaft.gui.browser.internal.JavaScriptWaitManager;
 import com.shaft.gui.browser.internal.ScrollSweepPlanner;
@@ -39,6 +41,8 @@ import io.qameta.allure.Step;
 import org.apache.logging.log4j.Level;
 import org.openqa.selenium.*;
 import org.openqa.selenium.devtools.HasDevTools;
+import org.openqa.selenium.bidi.HasBiDi;
+import org.openqa.selenium.bidi.permissions.PermissionState;
 import org.openqa.selenium.remote.RemoteWebDriver;
 import org.openqa.selenium.remote.http.HttpRequest;
 import org.openqa.selenium.remote.http.HttpResponse;
@@ -142,6 +146,11 @@ public class BrowserActions extends FluentWebDriverAction implements com.shaft.g
     @Override
     public ScriptActions script() {
         return new ScriptActions(this);
+    }
+
+    @Override
+    public PermissionActions permissions() {
+        return new PermissionActions(this);
     }
 
     void requireContextSupport(String operation) {
@@ -382,6 +391,94 @@ public class BrowserActions extends FluentWebDriverAction implements com.shaft.g
                     + " requires a live JavaScript-capable Selenium or Appium web-context session.");
         }
         return executor;
+    }
+
+    void setPermissionsNamespace(String stateName, String origin, String... permissionNames) {
+        WebDriver driver = driverFactoryHelper == null ? null : driverFactoryHelper.getDriver();
+        var event = TraceEventRecorder.start("permissions", stateName, origin == null ? "" : origin, driver);
+        try {
+            List<String> permissions = validatedPermissionNames(permissionNames);
+            if (origin == null) {
+                throw new UnsupportedOperationException("Selenium BiDi permission changes require an explicit origin; use grantFor(origin, ...).");
+            }
+            String validatedOrigin = PermissionOrigin.normalize(origin);
+            PermissionState state = switch (stateName) {
+                case "grant" -> PermissionState.GRANTED;
+                case "deny" -> PermissionState.DENIED;
+                case "prompt" -> PermissionState.PROMPT;
+                default -> throw new IllegalArgumentException("Unknown permission state: " + stateName);
+            };
+            org.openqa.selenium.bidi.module.Permission permission = bidiPermissions(driver, stateName);
+            TraceEventRecorder.withoutNestedEvents(() -> BidiPermissionState.exclusively(driver, changes -> {
+                permissions.forEach(name -> {
+                    permission.setPermission(Map.of("name", name), state, validatedOrigin);
+                    BidiPermissionState.Change change = new BidiPermissionState.Change(validatedOrigin, name);
+                    if (state == PermissionState.PROMPT) {
+                        changes.remove(change);
+                    } else {
+                        changes.add(change);
+                    }
+                });
+                return null;
+            }));
+            TraceEventRecorder.finish(event, "passed", "permissions " + stateName + " completed.", null,
+                    Map.of("permissionCount", Integer.toString(permissions.size())), List.of());
+        } catch (RuntimeException exception) {
+            TraceEventRecorder.finish(event, "failed", "permissions " + stateName + " failed.", exception,
+                    Map.of(), List.of());
+            throw exception;
+        }
+    }
+
+    void clearPermissionsNamespace() {
+        WebDriver driver = driverFactoryHelper == null ? null : driverFactoryHelper.getDriver();
+        var event = TraceEventRecorder.start("permissions", "clear", "", driver);
+        try {
+            org.openqa.selenium.bidi.module.Permission permission = bidiPermissions(driver, "clear");
+            int restored = TraceEventRecorder.withoutNestedEvents(() ->
+                    BidiPermissionState.exclusively(driver, changes -> {
+                List<BidiPermissionState.Change> snapshot = List.copyOf(changes);
+                snapshot.forEach(change -> {
+                    permission.setPermission(Map.of("name", change.permission()), PermissionState.PROMPT, change.origin());
+                    changes.remove(change);
+                });
+                return snapshot.size();
+            }));
+            TraceEventRecorder.finish(event, "passed", "permissions clear completed.", null,
+                    Map.of("permissionCount", Integer.toString(restored)), List.of());
+        } catch (RuntimeException exception) {
+            TraceEventRecorder.finish(event, "failed", "permissions clear failed.", exception, Map.of(), List.of());
+            throw exception;
+        }
+    }
+
+    @SuppressWarnings("removal")
+    private org.openqa.selenium.bidi.module.Permission bidiPermissions(WebDriver driver, String operation) {
+        boolean closedRemoteSession = driver instanceof RemoteWebDriver remoteDriver && remoteDriver.getSessionId() == null;
+        Capabilities capabilities = driver instanceof HasCapabilities hasCapabilities
+                ? hasCapabilities.getCapabilities() : null;
+        Object webSocketUrl = capabilities == null ? null : capabilities.getCapability("webSocketUrl");
+        boolean negotiated = driver instanceof HasBiDi hasBiDi
+                && hasBiDi.maybeGetBiDi().isPresent()
+                && webSocketUrl instanceof String url && !url.isBlank();
+        if (driver instanceof AppiumDriver || closedRemoteSession || !negotiated) {
+            throw new UnsupportedOperationException("Browser permissions " + operation
+                    + " requires a live Selenium session with negotiated WebDriver BiDi permission support.");
+        }
+        return new org.openqa.selenium.bidi.module.Permission(driver);
+    }
+
+    private static List<String> validatedPermissionNames(String... permissionNames) {
+        if (permissionNames == null || permissionNames.length == 0) {
+            throw new IllegalArgumentException("At least one permission name is required.");
+        }
+        return Arrays.stream(permissionNames)
+                .map(name -> Objects.requireNonNull(name, "permission name").trim())
+                .peek(name -> {
+                    if (name.isEmpty()) {
+                        throw new IllegalArgumentException("Permission names must not be blank.");
+                    }
+                }).toList();
     }
 
     String currentContextNamespace() {

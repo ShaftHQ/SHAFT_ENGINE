@@ -221,7 +221,7 @@ public class AutomationCapabilityResolverUnitTest {
     }
 
     @Test
-    public void livePlaywrightSessionWithoutBrowserObjectShouldUseSafeRuntimeMetadata() {
+    public void playwrightSessionWithoutBrowserObjectShouldFailClosed() {
         PlaywrightSession session = mock(PlaywrightSession.class);
         BrowserContext context = mock(BrowserContext.class);
         Page page = mock(Page.class);
@@ -231,9 +231,29 @@ public class AutomationCapabilityResolverUnitTest {
 
         AutomationCapabilities capabilities = AutomationCapabilityResolver.forPlaywright(session);
 
+        Assert.assertEquals(capabilities.backend(), AutomationBackend.UNKNOWN);
+        Assert.assertFalse(capabilities.supports(AutomationFeature.PERMISSIONS));
+    }
+
+    @Test
+    public void livePlaywrightContextWithoutPageShouldExposeOnlyContextLevelFeatures() {
+        PlaywrightSession session = mock(PlaywrightSession.class);
+        Browser browser = mock(Browser.class);
+        BrowserContext context = mock(BrowserContext.class);
+        when(session.browser()).thenReturn(browser);
+        when(session.browserContext()).thenReturn(context);
+        when(browser.isConnected()).thenReturn(true);
+
+        AutomationCapabilities capabilities = AutomationCapabilityResolver.forPlaywright(session);
+
         Assert.assertEquals(capabilities.backend(), AutomationBackend.MICROSOFT_PLAYWRIGHT);
-        Assert.assertEquals(capabilities.runtime(), "Playwright browser");
-        Assert.assertTrue(capabilities.supports(AutomationFeature.BROWSER_AUTOMATION));
+        Assert.assertTrue(capabilities.supports(AutomationFeature.PERMISSIONS));
+        Assert.assertTrue(capabilities.supports(AutomationFeature.STORAGE));
+        Assert.assertFalse(capabilities.supports(AutomationFeature.BROWSER_AUTOMATION));
+        Assert.assertFalse(capabilities.supports(AutomationFeature.SCRIPT_EXECUTION));
+
+        when(context.isClosed()).thenReturn(true);
+        Assert.assertEquals(AutomationCapabilityResolver.forPlaywright(session).backend(), AutomationBackend.UNKNOWN);
     }
 
     @Test

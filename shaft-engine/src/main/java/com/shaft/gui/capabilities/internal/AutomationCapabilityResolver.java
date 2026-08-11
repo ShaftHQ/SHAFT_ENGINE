@@ -65,32 +65,33 @@ public final class AutomationCapabilityResolver {
      * @return immutable fail-closed snapshot
      */
     public static AutomationCapabilities forPlaywright(PlaywrightSession session) {
-        if (session == null || session.page() == null || session.page().isClosed()
-                || session.browserContext() == null) {
-            return AutomationCapabilities.unknown("No live Playwright page and browser context exist.");
+        if (session == null || session.browserContext() == null || session.browserContext().isClosed()) {
+            return AutomationCapabilities.unknown("No live Playwright browser context exists.");
         }
         Browser browser = session.browser();
-        if (browser != null && !browser.isConnected()) {
-            return AutomationCapabilities.unknown("The Playwright browser is disconnected.");
+        if (browser == null || !browser.isConnected()) {
+            return AutomationCapabilities.unknown("No connected Playwright browser exists.");
         }
         String runtime = browser == null || browser.browserType() == null
                 ? "Playwright browser"
                 : browser.browserType().name() + " " + browser.version();
-        return AutomationCapabilities.builder(AutomationBackend.MICROSOFT_PLAYWRIGHT)
+        AutomationCapabilities.Builder builder = AutomationCapabilities.builder(AutomationBackend.MICROSOFT_PLAYWRIGHT)
                 .runtime(runtime)
                 .platform("Playwright browser host")
-                .nativeFeature(AutomationFeature.BROWSER_AUTOMATION, "Playwright Browser and Page")
-                .nativeFeature(AutomationFeature.NATIVE_DRIVER_ACCESS, "Playwright Page")
+                .nativeFeature(AutomationFeature.NATIVE_DRIVER_ACCESS, "Playwright BrowserContext")
                 .nativeFeature(AutomationFeature.NETWORK_OBSERVATION, "Playwright request and response events")
                 .nativeFeature(AutomationFeature.NETWORK_INTERCEPTION, "Playwright routing")
-                .nativeFeature(AutomationFeature.CONSOLE_LOGS, "Playwright console and page-error events")
                 .nativeFeature(AutomationFeature.BROWSING_CONTEXTS, "Playwright BrowserContext")
-                .nativeFeature(AutomationFeature.SCRIPT_EXECUTION, "Playwright evaluate and bindings")
                 .nativeFeature(AutomationFeature.STORAGE, "Playwright storage state")
                 .nativeFeature(AutomationFeature.PERMISSIONS, "Playwright BrowserContext permissions")
-                .nativeFeature(AutomationFeature.DOWNLOADS, "Playwright download events")
-                .nativeFeature(AutomationFeature.TRACE, "Playwright trace with SHAFT evidence integration")
-                .build();
+                .nativeFeature(AutomationFeature.TRACE, "Playwright BrowserContext trace with SHAFT evidence integration");
+        if (session.page() != null && !session.page().isClosed()) {
+            builder.nativeFeature(AutomationFeature.BROWSER_AUTOMATION, "Playwright Browser and Page")
+                    .nativeFeature(AutomationFeature.CONSOLE_LOGS, "Playwright console and page-error events")
+                    .nativeFeature(AutomationFeature.SCRIPT_EXECUTION, "Playwright evaluate and bindings")
+                    .nativeFeature(AutomationFeature.DOWNLOADS, "Playwright download events");
+        }
+        return builder.build();
     }
 
     private static AutomationCapabilities selenium(WebDriver driver, Capabilities capabilities) {

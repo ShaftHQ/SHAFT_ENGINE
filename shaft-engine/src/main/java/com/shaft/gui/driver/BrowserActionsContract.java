@@ -83,6 +83,16 @@ public interface BrowserActionsContract {
         throw new UnsupportedOperationException("Script actions are not supported by this browser facade.");
     }
 
+    /**
+     * Returns browser-context permission controls. The Java default-method collision boundary documented for
+     * {@link #network()} also applies.
+     *
+     * @return permission actions facade
+     */
+    default PermissionActionsContract permissions() {
+        throw new UnsupportedOperationException("Permission actions are not supported by this browser facade.");
+    }
+
     BrowserActionsContract and();
 
     BrowserAssertions assertThat();

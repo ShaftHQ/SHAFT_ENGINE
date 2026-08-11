@@ -11,6 +11,7 @@ import com.shaft.gui.browser.NetworkInterceptionRequestBuilder;
 import com.shaft.gui.browser.internal.BrowserNetworkInterceptionRule;
 import com.shaft.gui.browser.internal.HarReplayRules;
 import com.shaft.gui.browser.internal.PlaywrightStorageStateManager;
+import com.shaft.gui.browser.internal.PermissionOrigin;
 import com.shaft.gui.capabilities.AutomationBackend;
 import com.shaft.gui.driver.BrowserConsoleMessage;
 import com.shaft.gui.playwright.internal.PlaywrightSession;
@@ -83,6 +84,11 @@ public class BrowserActions implements com.shaft.gui.driver.BrowserActionsContra
     @Override
     public ScriptActions script() {
         return new ScriptActions(this);
+    }
+
+    @Override
+    public PermissionActions permissions() {
+        return new PermissionActions(this);
     }
 
     @Override
@@ -735,6 +741,68 @@ public class BrowserActions implements com.shaft.gui.driver.BrowserActionsContra
                     Map.of("backend", "MICROSOFT_PLAYWRIGHT"), List.of());
             throw exception;
         }
+    }
+
+    void setPermissionsNamespace(String stateName, String origin, String... permissionNames) {
+        String locator = origin == null ? "" : origin;
+        queryPermissionNamespace(stateName, locator, () -> {
+            List<String> permissions = validatedPermissionNames(permissionNames);
+            if (!stateName.equals("grant")) {
+                throw new UnsupportedOperationException("Playwright supports granting and clearing permissions, but not explicit "
+                        + stateName + "; use clear() or recreate the browser context.");
+            }
+            if (origin == null) {
+                session.browserContext().grantPermissions(permissions);
+            } else {
+                session.browserContext().grantPermissions(permissions,
+                        new BrowserContext.GrantPermissionsOptions().setOrigin(PermissionOrigin.normalize(origin)));
+            }
+            return null;
+        });
+    }
+
+    void clearPermissionsNamespace() {
+        queryPermissionNamespace("clear", "", () -> {
+            session.browserContext().clearPermissions();
+            return null;
+        });
+    }
+
+    private <T> T queryPermissionNamespace(String operation, String locator, Supplier<T> action) {
+        var event = TraceEventRecorder.startForBackend("permissions", operation, locator,
+                AutomationBackend.MICROSOFT_PLAYWRIGHT);
+        try {
+            requireLivePermissionContext(operation);
+            T result = TraceEventRecorder.withoutNestedEvents(action);
+            TraceEventRecorder.finish(event, "passed", "permissions " + operation + " completed.", null,
+                    Map.of("backend", "MICROSOFT_PLAYWRIGHT"), List.of());
+            return result;
+        } catch (RuntimeException exception) {
+            TraceEventRecorder.finish(event, "failed", "permissions " + operation + " failed.", exception,
+                    Map.of("backend", "MICROSOFT_PLAYWRIGHT"), List.of());
+            throw exception;
+        }
+    }
+
+    private void requireLivePermissionContext(String operation) {
+        if (session == null || session.browserContext() == null || session.browserContext().isClosed()
+                || session.browser() == null || !session.browser().isConnected()) {
+            throw new UnsupportedOperationException("Browser permissions " + operation
+                    + " requires a live Playwright BrowserContext and connected Browser.");
+        }
+    }
+
+    private static List<String> validatedPermissionNames(String... permissionNames) {
+        if (permissionNames == null || permissionNames.length == 0) {
+            throw new IllegalArgumentException("At least one permission name is required.");
+        }
+        return java.util.Arrays.stream(permissionNames)
+                .map(name -> Objects.requireNonNull(name, "permission name").trim())
+                .peek(name -> {
+                    if (name.isEmpty()) {
+                        throw new IllegalArgumentException("Permission names must not be blank.");
+                    }
+                }).toList();
     }
 
     NetworkInterceptionRequestBuilder<BrowserActions> networkInterceptRequest() {
