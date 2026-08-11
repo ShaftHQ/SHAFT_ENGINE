@@ -12,6 +12,7 @@ import com.shaft.gui.capabilities.internal.AutomationCapabilityResolver;
 import com.shaft.gui.playwright.internal.PlaywrightSession;
 import io.appium.java_client.AppiumDriver;
 import io.appium.java_client.android.AndroidDriver;
+import io.appium.java_client.android.HasSupportedPerformanceDataType;
 import io.appium.java_client.android.ListensToLogcatMessages;
 import io.appium.java_client.ios.IOSDriver;
 import io.appium.java_client.ios.ListensToSyslogMessages;
@@ -197,11 +198,21 @@ public class AutomationCapabilityResolverUnitTest {
         Mac2Driver mac = mock(Mac2Driver.class);
         when(mac.getSessionId()).thenReturn(new SessionId("mac-profile"));
         when(mac.getCapabilities()).thenReturn(appiumCapabilities("Mac2", "mac"));
+        AppiumDriver customPerformance = mock(AppiumDriver.class,
+                withSettings().extraInterfaces(HasSupportedPerformanceDataType.class));
+        when(customPerformance.getSessionId()).thenReturn(new SessionId("custom-performance"));
+        when(customPerformance.getCapabilities()).thenReturn(appiumCapabilities("custom", "custom"));
+        AppiumDriver generic = mock(AppiumDriver.class);
+        when(generic.getSessionId()).thenReturn(new SessionId("generic-profile"));
+        when(generic.getCapabilities()).thenReturn(appiumCapabilities("custom", "custom"));
 
         AutomationCapabilities androidCapabilities = AutomationCapabilityResolver.forWebDriver(android);
         AutomationCapabilities iosCapabilities = AutomationCapabilityResolver.forWebDriver(ios);
         AutomationCapabilities windowsCapabilities = AutomationCapabilityResolver.forWebDriver(windows);
         AutomationCapabilities macCapabilities = AutomationCapabilityResolver.forWebDriver(mac);
+        AutomationCapabilities customPerformanceCapabilities =
+                AutomationCapabilityResolver.forWebDriver(customPerformance);
+        AutomationCapabilities genericCapabilities = AutomationCapabilityResolver.forWebDriver(generic);
 
         Assert.assertTrue(androidCapabilities.supports(AutomationFeature.PERFORMANCE_DATA));
         Assert.assertTrue(androidCapabilities.supports(AutomationFeature.DEVICE_CONTROL));
@@ -213,6 +224,8 @@ public class AutomationCapabilityResolverUnitTest {
         Assert.assertTrue(iosCapabilities.supports(AutomationFeature.BIOMETRICS));
         Assert.assertTrue(iosCapabilities.supports(AutomationFeature.DEVICE_LOGS));
         Assert.assertFalse(iosCapabilities.supports(AutomationFeature.PERFORMANCE_DATA));
+        Assert.assertTrue(customPerformanceCapabilities.supports(AutomationFeature.PERFORMANCE_DATA));
+        Assert.assertFalse(genericCapabilities.supports(AutomationFeature.PERFORMANCE_DATA));
         Assert.assertTrue(windowsCapabilities.supports(AutomationFeature.TOUCH_GESTURES));
         Assert.assertTrue(windowsCapabilities.supports(AutomationFeature.FILE_TRANSFER));
         Assert.assertTrue(windowsCapabilities.supports(AutomationFeature.SCREEN_RECORDING));
@@ -220,12 +233,16 @@ public class AutomationCapabilityResolverUnitTest {
         Assert.assertFalse(windowsCapabilities.supports(AutomationFeature.BIOMETRICS));
         Assert.assertFalse(windowsCapabilities.supports(AutomationFeature.DEVICE_CONTROL));
         Assert.assertFalse(windowsCapabilities.supports(AutomationFeature.DEVICE_LOGS));
+        Assert.assertFalse(windowsCapabilities.supports(AutomationFeature.PERFORMANCE_DATA));
         Assert.assertFalse(macCapabilities.supports(AutomationFeature.MOBILE_AUTOMATION));
         Assert.assertFalse(macCapabilities.supports(AutomationFeature.DEVICE_LOGS));
+        Assert.assertFalse(macCapabilities.supports(AutomationFeature.PERFORMANCE_DATA));
 
         when(android.getSessionId()).thenReturn(null);
         Assert.assertFalse(AutomationCapabilityResolver.forWebDriver(android)
                 .supports(AutomationFeature.DEVICE_LOGS));
+        Assert.assertFalse(AutomationCapabilityResolver.forWebDriver(android)
+                .supports(AutomationFeature.PERFORMANCE_DATA));
     }
 
     @Test

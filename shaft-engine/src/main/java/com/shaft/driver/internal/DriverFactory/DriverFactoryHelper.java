@@ -9,6 +9,7 @@ import com.shaft.gui.browser.internal.BidiNetworkActivitySource;
 import com.shaft.gui.browser.internal.BidiConsoleLogSource;
 import com.shaft.gui.browser.internal.BidiPermissionState;
 import com.shaft.gui.mobile.internal.MobileLogSource;
+import com.shaft.gui.mobile.internal.MobilePerformanceState;
 import com.shaft.gui.browser.internal.BrowserEmulationManager;
 import com.shaft.gui.browser.internal.BrowserNetworkInterceptionRule;
 import com.shaft.gui.browser.internal.BrowserNetworkInterceptor;
@@ -905,6 +906,7 @@ public class DriverFactoryHelper {
                 BidiNetworkActivitySource.closeAndRemove(driver);
                 BidiConsoleLogSource.closeAndRemove(driver);
                 MobileLogSource.closeAndRemove(driver);
+                MobilePerformanceState.closeAndRemove(driver);
                 BidiPermissionState.clearAndRemove(driver);
                 BrowserEmulationManager.clearAndRemove(driver);
                 FailureTraceReporter.clearPersistentSensitiveBrowserState(driver);

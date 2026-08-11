@@ -16,6 +16,7 @@ import com.shaft.gui.driver.MobileRecordingActionsContract;
 import io.appium.java_client.AppiumDriver;
 import io.appium.java_client.PerformsTouchActions;
 import io.appium.java_client.android.ListensToLogcatMessages;
+import io.appium.java_client.android.HasSupportedPerformanceDataType;
 import io.appium.java_client.android.AuthenticatesByFinger;
 import io.appium.java_client.ios.ListensToSyslogMessages;
 import io.appium.java_client.ios.PerformsTouchID;
@@ -80,7 +81,12 @@ public final class MobileActions implements MobileActionsContract {
 
     @Override
     public MobilePerformanceActionsContract performance() {
-        throw unsupported("performance data");
+        AppiumDriver liveDriver = driver();
+        if (!(liveDriver instanceof HasSupportedPerformanceDataType)) {
+            throw new UnsupportedOperationException(
+                    "The live Appium session does not support performance data.");
+        }
+        return new PerformanceActions(this);
     }
 
     @Override
