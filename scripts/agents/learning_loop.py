@@ -247,7 +247,7 @@ def _state_lock(state: Path, key: str):
                     os.close(descriptor)
 
 
-def _validate_evidence(
+def _validate_evidence(  # noqa: MC0001  # One fail-closed pass keeps artifact validation atomic.
     evidence: object, evidence_root: Path, state: Path
 ) -> list[dict[str, str]]:
     if not isinstance(evidence, list) or not evidence:
@@ -927,7 +927,7 @@ def _load_json_object(path: Path) -> dict | None:
     return value if isinstance(value, dict) else None
 
 
-def evaluate_candidate(
+def evaluate_candidate(  # noqa: MC0001  # One fail-closed gate keeps evaluation invariants together.
     state: Path,
     *,
     candidate: dict,

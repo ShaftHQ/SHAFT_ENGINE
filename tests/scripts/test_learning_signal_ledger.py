@@ -9,7 +9,7 @@ import importlib.util
 import hashlib
 import json
 import os
-import subprocess
+import subprocess  # nosec B404 - tests launch fixed interpreters with controlled fixtures.
 import sys
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
@@ -584,7 +584,7 @@ class StructuredLearningReceiptTest(unittest.TestCase):
                 "evidence_root=Path(sys.argv[2]))"
             )
             processes = [
-                subprocess.Popen(
+                subprocess.Popen(  # nosec B603 - fixed interpreter and controlled fixture arguments.
                     [sys.executable, "-c", code, str(state), str(evidence_root), evidence[0]["sha256"]],
                     cwd=Path(__file__).resolve().parents[2], stdout=subprocess.PIPE,
                     stderr=subprocess.PIPE, text=True,
@@ -663,7 +663,7 @@ class StructuredLearningReceiptTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             state = Path(directory)
             evidence = self.evidence(
-                state, "event.txt", "event", kind="RAW_TRANSCRIPT_PASSWORD=hunter2"
+                state, "event.txt", "event", kind="RAW_TRANSCRIPT_PASSWORD=hunter2"  # nosec B105 - redaction sentinel, not a credential.
             )
             with self.assertRaisesRegex(ValueError, "evidence kind"):
                 learning_loop.record_signal(
