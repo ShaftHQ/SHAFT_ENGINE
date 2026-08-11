@@ -37,6 +37,21 @@ push; a later push loses the context needed to record it accurately.
    destination.
 3. Write it there, or explicitly record that nothing durable surfaced.
 
+For a meaningful event, record an evidence-consistent `signal`, then `assess`
+it into a quarantined candidate. Behavior changes stay quarantined while
+`evaluate` records a strict improvement comparison on the frozen adherence
+corpus with zero unmeasured rules and no regression. The record is a
+consistency summary, not proof that commands ran or reviewers are authentic.
+Independently derive the live diff, rerun tests, and verify review artifacts.
+Use `promote` to record intent only for the exact evaluated commit after the
+normal pull-request review gate; the normal GitHub workflow must still perform
+and verify the merge. Kernel-tier changes require
+two independent reviewer keys, correctness/reproduction/safety lenses, and two
+independent runs on the same commit and corpus. If a promoted change regresses,
+use `repair-or-revert` to record one repair requirement; recurrence freezes the
+candidate and records a revert requirement. The normal git/GitHub workflow
+performs and verifies the repair or revert.
+
 ## 7. Push, PR, green, merge, compact
 
 - Push the branch and open the agreed PR shape with a description that lists each sub-item and its commit.

@@ -1113,3 +1113,4 @@
 {"actor":"agent","event":"memory.updated","id":"source.project-readme","timestamp":"2026-08-11T13:57:05+03:00"}
 {"actor":"agent","event":"memory.created","id":"decision.github-actions-coverage-uploads-are-main-only-and-fail-open-into-one-manual-tracking-issue","timestamp":"2026-08-11T13:22:17+03:00"}
 {"actor":"agent","event":"memory.created","id":"gotcha.windows-directory-junctions-bypass-path-is-symlink-and-must-be-rejected-as-reparse-points","timestamp":"2026-08-11T13:48:58+03:00"}
+{"actor":"agent","event":"memory.created","id":"gotcha.never-use-os-kill-pid-0-as-a-windows-liveness-probe","timestamp":"2026-08-11T21:26:34+03:00"}

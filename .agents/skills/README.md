@@ -275,6 +275,7 @@ does not know they exist meets them as an interruption instead of a tool.
 | Part | Where it lives | What it does to a session |
 | --- | --- | --- |
 | Lifecycle guard | `scripts/agents/guard.py`, registered by `.claude/settings.json` and `.codex/hooks.json` | Fires on PreToolUse, SessionStart and Stop. It denies a command that breaks a repository rule, injects the session preflight, and can hold the Stop event open. This is the part most likely to interrupt you. |
+| Learning controller | `scripts/agents/learning_loop.py` | Stores redacted, evidence-consistent event receipts outside git; creates quarantined candidates; records evaluation and exact-commit promotion intent; and records repair-once then frozen-revert recovery intent. GitHub/git workflows separately execute and verify those intents. Hashes detect corruption; runtime state is not an authentication boundary against another process running as the same OS user. |
 | Retrieval servers | `.mcp.json`, `.codex/config.toml`, `mempalace.yaml` | Declare the memory, MemPalace and Graphify servers the knowledge table sends you to, and gate memory writes behind a prompt. |
 | Plugin manifest | `.claude-plugin/marketplace.json` | Publishes this repository's skills to a host that installs them as a plugin rather than reading them in place. |
 | PR watcher | `scripts/ci/watch_pr_checks.py` | Polls one PR's checks under a hard poll cap. The PR-merger workflow says when to run it and what its exit codes mean. |
