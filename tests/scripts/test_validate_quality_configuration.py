@@ -224,6 +224,10 @@ class ValidateQualityConfigurationTest(unittest.TestCase):
             + "      - name: Run shaft-engine unit tests\n"
             + "        run: >-\n"
             + "          '-Dtest=testPackage/unitTests/*'\n",
+            "unnamed-disabled-step": pr_gate_unit_job("'-Dtest=testPackage/unitTests/*'")
+            + "      - if: false\n"
+            + "        run: >-\n"
+            + f"          {unrelated_selector}\n",
         }
         for scenario, pr_gate in scenarios.items():
             with self.subTest(scenario=scenario), tempfile.TemporaryDirectory() as temp_dir:

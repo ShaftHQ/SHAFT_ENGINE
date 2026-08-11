@@ -114,7 +114,7 @@ def _pr_gate_unit_selectors(workflow: str) -> set[str]:
     if not job_match:
         return set()
     step_match = re.search(
-        r"^      - name: Run shaft-engine unit tests\s*$\n(?P<body>.*?)(?=^      - name:|\Z)",
+        r"^      - name: Run shaft-engine unit tests\s*$\n(?P<body>.*?)(?=^      - |\Z)",
         job_match.group("body"),
         re.MULTILINE | re.DOTALL,
     )
