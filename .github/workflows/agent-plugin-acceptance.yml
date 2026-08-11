@@ -13,6 +13,30 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  external-guardrail-corpus:
+    name: Pinned external guardrail corpus
+    runs-on: ubuntu-22.04
+    timeout-minutes: 5
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v7
+      - name: Set up Python 3.13
+        uses: actions/setup-python@v7
+        with:
+          python-version: '3.13'
+      - name: Verify and score pinned external guardrail corpus
+        run: >-
+          python scripts/ci/external_guardrail_corpus.py
+          --output external-guardrail-corpus-evidence.json
+      - name: Upload external guardrail evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: external-guardrail-corpus-evidence
+          path: external-guardrail-corpus-evidence.json
+          if-no-files-found: error
+          retention-days: 30
+
   native-client-load:
     name: Claude and Codex live skill load
     runs-on: ubuntu-22.04

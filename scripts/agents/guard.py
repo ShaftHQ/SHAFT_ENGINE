@@ -15,6 +15,8 @@
 #      the local test commands this guard protects.
 #   R2 Never auto-open/serve Allure reports
 #   R3 Never run GUI-opening commands on Windows (AGENTS.md Windows/Codex Safety)
+#   R26 Deny statically certain catastrophic filesystem, raw-device,
+#       process-fork, and remote-pipe command shapes (issue #4704).
 #   R8 Deny mutating `git stash` subcommands (pop/drop/apply/clear/push, and
 #      bare `git stash`) in Bash/PowerShell commands. The stash list lives in
 #      the shared .git dir, common to the main checkout and every
@@ -58,6 +60,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import posixpath
 import re
 import subprocess  # nosec B404 - R10 runs one fixed, read-only git query.
 import sys
@@ -1115,7 +1118,171 @@ def check_r10_nul_corruption(command: str, cwd: str | None = None) -> str | None
 # Dispatcher
 # ---------------------------------------------------------------------------
 
-_CHECKS = (check_r1_maven, check_r2_allure, check_r3_gui_open, check_r8_git_stash, check_r23_shell_multiline_text)
+# ---------------------------------------------------------------------------
+# R26: catastrophic command shapes (external corpus floor, issue #4704)
+# ---------------------------------------------------------------------------
+
+_R26_WRAPPER_OPTIONS_WITH_ARGUMENT = {
+    "env": frozenset({"-u", "--unset", "-c", "--chdir", "-s", "--split-string"}),
+    "sudo": frozenset(
+        {"-c", "--close-from", "-d", "--chdir", "-g", "--group", "-h", "--host",
+         "-p", "--prompt", "-r", "--role", "-t", "--type", "-u", "--user"}
+    ),
+}
+
+
+def _r26_head_and_args(segment: str) -> tuple[str | None, list[str]]:
+    """Resolve one ordinary command head, including common wrappers and sudo."""
+    tokens = _segment_tokens(segment)
+    index = 0
+    while index < len(tokens):
+        token = tokens[index]
+        if _ENV_ASSIGNMENT_RE.match(token):
+            index += 1
+            continue
+        basename = re.split(r"[/\\]", token.strip("\"'"))[-1].lower()
+        if basename in _RUNNER_PREFIX_TOKENS or basename == "timeout":
+            index += 1
+            if index < len(tokens) and re.match(r"^\d+[smhd]?$", tokens[index]):
+                index += 1
+            continue
+        if basename == "sudo":
+            index += 1
+            while index < len(tokens) and tokens[index].startswith("-"):
+                index += 1
+            continue
+        return basename, tokens[index + 1 :]
+    return None, []
+
+
+def _r26_unwrapped_head(segment: str) -> str | None:
+    """Resolve a pipeline command through assignment, command, env, and sudo wrappers."""
+    tokens = _segment_tokens(segment)
+    index = 0
+    while index < len(tokens):
+        token = tokens[index]
+        if _ENV_ASSIGNMENT_RE.match(token):
+            index += 1
+            continue
+        basename = re.split(r"[/\\]", token.strip("\"'"))[-1].lower()
+        if basename == "command":
+            index += 1
+            while index < len(tokens) and tokens[index].startswith("-"):
+                index += 1
+            continue
+        if basename in _RUNNER_PREFIX_TOKENS or basename == "timeout":
+            index += 1
+            while index < len(tokens) and tokens[index].startswith("-"):
+                index += 1
+            if index < len(tokens) and re.match(r"^\d+[smhd]?$", tokens[index]):
+                index += 1
+            continue
+        if basename in {"env", "sudo"}:
+            index += 1
+            options_with_argument = _R26_WRAPPER_OPTIONS_WITH_ARGUMENT[basename]
+            while index < len(tokens):
+                option = tokens[index].lower()
+                if option == "--":
+                    index += 1
+                    break
+                if _ENV_ASSIGNMENT_RE.match(tokens[index]):
+                    index += 1
+                    continue
+                option_name = option.split("=", 1)[0]
+                if not option.startswith("-"):
+                    break
+                index += 1
+                if option_name in options_with_argument and "=" not in option and index < len(tokens):
+                    index += 1
+            continue
+        return basename
+    return None
+
+
+def _r26_has_remote_shell_pipeline(command: str) -> bool:
+    for statement in re.split(r"(?:&&|\|\||;|\r?\n)", command):
+        pipeline = re.split(r"(?<!\|)\|(?!\|)", statement)
+        heads = [_r26_unwrapped_head(stage) for stage in pipeline]
+        for index, head in enumerate(heads):
+            if head in {"curl", "wget", "fetch"} and any(
+                later in {"bash", "zsh", "sh"} for later in heads[index + 1 :]
+            ):
+                return True
+    return False
+
+
+def _r26_catastrophic_target(target: str) -> bool:
+    normalized = re.sub(r"/+", "/", target.strip().replace("\\", "/"))
+    normalized = posixpath.normpath(normalized)
+    if normalized in {"/", "/*"} or re.fullmatch(
+        r"(?:~|\$HOME|\$\{HOME\})(?:/(?:\*|\.\*|\{\*,\.\*\}))?",
+        normalized,
+    ):
+        return True
+    return bool(re.fullmatch(r"/(?:bin|boot|dev|etc|lib|sbin|usr|var)(?:/\*)?/?", normalized))
+
+
+def check_r26_catastrophic_command(command: str) -> str | None:
+    """Block static catastrophic shapes without claiming stateful Git ownership."""
+    sanitized = _sanitize_for_command_head(command)
+    if any(re.match(r"^\s*: ?\(\)\s*\{", segment) for segment in _command_segments(sanitized)):
+        return "R26 (catastrophic command): this looks like a process fork bomb."
+    if _r26_has_remote_shell_pipeline(_sanitize_for_gui_word_check(command)):
+        return (
+            "R26 (remote pipe execution): download remote content, inspect and verify it, "
+            "then run an explicit local file instead of piping the network into a shell."
+        )
+
+    for segment in _command_segments(sanitized):
+        head, arguments = _r26_head_and_args(segment)
+        if head == "rm":
+            recursive = any(
+                argument == "--recursive" or bool(re.fullmatch(r"-[A-Za-z]*r[A-Za-z]*", argument))
+                for argument in arguments
+            )
+            targets = [argument for argument in arguments if argument != "--" and not argument.startswith("-")]
+            if recursive and any(_r26_catastrophic_target(target) for target in targets):
+                return "R26 (catastrophic delete): narrow the recursive delete to a recoverable subdirectory."
+        elif head == "find" and arguments:
+            destructive = "-delete" in arguments or (
+                "-exec" in arguments and any(re.split(r"[/\\]", item)[-1] == "rm" for item in arguments)
+            )
+            if destructive and _r26_catastrophic_target(arguments[0]):
+                return "R26 (catastrophic find): a root or system-path traversal must not delete files."
+        elif head == "dd":
+            if any(
+                re.fullmatch(r"of=/dev/(?:disk|hd|mmcblk|nvme|sd|vd|xvd).+", argument)
+                for argument in arguments
+            ):
+                return "R26 (raw device write): direct writes to block devices are not allowed."
+        elif head and re.fullmatch(r"mkfs(?:\.[a-z0-9]+)?", head) and any(
+            argument.startswith("/dev/") for argument in arguments
+        ):
+            return "R26 (filesystem format): formatting a block device is not allowed."
+        elif head == "chmod":
+            values = [argument for argument in arguments if not argument.startswith("-")]
+            if len(values) >= 2 and re.fullmatch(r"[0-7]*777[0-7]*", values[0]) and _r26_catastrophic_target(values[1]):
+                return "R26 (system permissions): recursive or global mode 777 on a system path is not allowed."
+        elif head in {"eval", "sh", "bash", "zsh"}:
+            rendered_arguments = " ".join(arguments)
+            if re.search(r": ?\(\)\s*\{", rendered_arguments):
+                return "R26 (catastrophic command): this looks like a process fork bomb."
+            if re.search(r"(?:\$\(|<\()\s*(?:curl|wget|fetch)\b", rendered_arguments, re.IGNORECASE):
+                return (
+                    "R26 (remote shell execution): download remote content, inspect and verify it, "
+                    "then run an explicit local file."
+                )
+    return None
+
+
+_CHECKS = (
+    check_r1_maven,
+    check_r2_allure,
+    check_r3_gui_open,
+    check_r26_catastrophic_command,
+    check_r8_git_stash,
+    check_r23_shell_multiline_text,
+)
 
 
 # ---------------------------------------------------------------------------
@@ -3580,6 +3747,8 @@ _SELF_TEST_CASES: list[tuple[str, str, bool]] = [
     ("Start-Process", "Start-Process notepad", True),
     ("cmd /c start", "cmd /c start report.html", True),
     ("start as first word", "start chrome", True),
+    ("catastrophic recursive root delete", "rm -rf /", True),
+    ("scoped recursive build delete", "rm -rf ./build", False),
 
     # --- Additional edge cases ---
     ("maven.test.skip=true satisfies skip", "mvn install -Dmaven.test.skip=true", False),
@@ -3727,6 +3896,7 @@ _SELF_TEST_COVERAGE: dict[str, str] = {
     "check_r1_maven": "command cases",
     "check_r2_allure": "command cases",
     "check_r3_gui_open": "command cases",
+    "check_r26_catastrophic_command": "command cases",
     "check_r8_git_stash": "command cases",
     "check_r23_shell_multiline_text": "command cases",
     "check_r9_worktree_add": "run_r9_worktree_self_test",

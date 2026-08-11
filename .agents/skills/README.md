@@ -266,6 +266,15 @@ does not know they exist meets them as an interruption instead of a tool.
 | Worktree survey | `scripts/ci/worktree_hygiene.py` | Reports which worktrees are safe to remove and which hold work nobody will come back for. |
 | Local gate | `scripts/ci/local_gate.py` | Runs the pull-request gate's checks before you push, so a red run costs a minute instead of a round trip. |
 
+The lifecycle guard's R26 check blocks static catastrophic command shapes: recursive deletes of
+root, home, or system directories; destructive root-level `find`; raw-device writes and formats;
+global mode 777 on system paths; process fork bombs; and piping fetched code into a shell. Its
+weekly external evaluation fetches Compass's 61-row corpus at one immutable commit, verifies the
+SHA-256 before parsing, scores 46 applicable rows, and records explicit reasons for the 15 Git
+rows owned by ChaosEngine's separate stateful authorization rules. The upstream corpus is never
+stored in the repository. Run `tests/scripts/test_guard_external_corpus.py` for the synthetic
+contract, classifier mutations, direct entrypoint, and scheduled-workflow regression coverage.
+
 ## How this stays true
 
 Guidance drifts unless something fails when it does. These are checked on every
