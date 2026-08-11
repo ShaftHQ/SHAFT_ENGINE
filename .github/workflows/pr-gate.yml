@@ -14,14 +14,15 @@ name: PR Gate
 # dorny/paths-filter cannot resolve a diff base outside push/pull_request
 # events, so a workflow_dispatch run would either always fail the changes job
 # or (if gated) skip every leg and pass vacuously. The push trigger covers the
-# main-branch coverage the folded workflows used to provide: on a `push` to a
-# branch that is also the configured `base` (main, here), dorny/paths-filter
-# diffs against the most recent commit on that branch before the push (its
-# documented "long-lived branch" behavior) rather than a PR base -- see the
-# dorny/paths-filter README at the pinned SHA for the exact semantics. The
-# `changes` job carries no `if:`, so it always runs on both event types, and
-# the `dependency-review` job's own conditional makes it report `skipped` (not
-# a failure) on pushes and pull requests with no dependency-bearing diff, which
+# main-branch coverage the folded workflows used to provide. With `base`
+# omitted, dorny/paths-filter defaults it to the repository default branch; on
+# a `push` to main that base is the triggering branch, so the action diffs the
+# event's `before` commit against the pushed head (its documented "long-lived
+# branch" behavior). On pull requests the action's non-empty default token
+# selects the PR-files API, which owns the base comparison. The `changes` job
+# carries no `if:`, so it always runs on both event types, and the
+# `dependency-review` job's own conditional makes it report `skipped` (not a
+# failure) on pushes and pull requests with no dependency-bearing diff, which
 # the summary job's success|skipped leg check already accepts.
 
 on:
@@ -59,12 +60,6 @@ jobs:
         id: filter
         uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3
         with:
-          # Ignored on pull_request (the action always diffs against the PR
-          # base there). On push, base == the triggering branch, which is the
-          # documented "long-lived branch" case: diff against the most recent
-          # commit on main before the push, not the repository default branch
-          # merge-base search.
-          base: main
           filters: |
             docs:
               - "**/*.md"
