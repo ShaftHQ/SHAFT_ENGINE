@@ -11,6 +11,7 @@ import json
 import os
 import subprocess  # nosec B404 - tests launch fixed interpreters with controlled fixtures.
 import sys
+import time
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from unittest.mock import patch
@@ -66,7 +67,8 @@ class LearningWriteOutcomeTest(unittest.TestCase):
             "--owner scripts/agents/guard.py "
             f"--baseline-ref {'e' * 40} --allowed-path scripts/agents/guard.py "
             "--red-command red --success-predicate fixed --invariant portable "
-            "--risk-tier ordinary"
+            "--risk-tier ordinary "
+            "--tracking-issue-url https://github.com/ShaftHQ/SHAFT_ENGINE/issues/4731"
         )
         with tempfile.TemporaryDirectory() as directory:
             state = Path(directory)
@@ -115,6 +117,7 @@ class LearningWriteOutcomeTest(unittest.TestCase):
                         success_predicates=["fixed"],
                         invariants=["portable"],
                         risk_tier="ordinary",
+                        tracking_issue_urls=["https://github.com/ShaftHQ/SHAFT_ENGINE/issues/4731"],
                     )
                     learning_loop.record_completion(
                         state,
@@ -124,6 +127,12 @@ class LearningWriteOutcomeTest(unittest.TestCase):
                         [learning_loop.incident_hash("r16")],
                     )
                     payload["tool_input"] = {"command": assessment}
+                    guard.run_posttooluse(payload)
+                    self.assertIsNotNone(guard.check_r16_learning_loop(payload))
+                    guard.ledger_record(payload, "issue-created:9999")
+                    guard.run_posttooluse(payload)
+                    self.assertIsNotNone(guard.check_r16_learning_loop(payload))
+                    guard.ledger_record(payload, "issue-created:4731")
                     guard.run_posttooluse(payload)
                     self.assertIsNone(guard.check_r16_learning_loop(payload))
 
@@ -227,6 +236,7 @@ class LearningWriteOutcomeTest(unittest.TestCase):
                 success_predicates=["fixed"],
                 invariants=["safe"],
                 risk_tier="ordinary",
+                tracking_issue_urls=["https://github.com/ShaftHQ/SHAFT_ENGINE/issues/4731"],
             )
             payload = {
                 "session_id": "help-bypass",
@@ -240,6 +250,7 @@ class LearningWriteOutcomeTest(unittest.TestCase):
             }
             with patch.dict(guard.os.environ, {"TMPDIR": directory, "TEMP": directory}):
                 with patch.object(learning_loop, "default_state_dir", return_value=state):
+                    guard.ledger_record(payload, "issue-created:4731")
                     guard.run_posttooluse(payload)
                     self.assertFalse(
                         any(
@@ -324,6 +335,7 @@ class LearningWriteOutcomeTest(unittest.TestCase):
                 owner="scripts/agents/guard.py", baseline_ref="e" * 40,
                 allowed_paths=["scripts/agents/guard.py"], red_command="red; then green",
                 success_predicates=["fixed"], invariants=["safe"], risk_tier="ordinary",
+                tracking_issue_urls=["https://github.com/ShaftHQ/SHAFT_ENGINE/issues/4731"],
             )
             learning_loop.record_completion(
                 state, "quoted-separator", "quoted-op", "assess",
@@ -339,9 +351,13 @@ class LearningWriteOutcomeTest(unittest.TestCase):
             }
             with patch.dict(guard.os.environ, {"TMPDIR": directory, "TEMP": directory}):
                 with patch.object(learning_loop, "default_state_dir", return_value=state):
+                    guard.ledger_record(payload, "issue-created:4731")
                     guard.run_posttooluse(payload)
-                    self.assertTrue(any(event.startswith("learning-assessed:")
-                                        for event in guard.ledger_events(payload)))
+                    observed = guard.ledger_events(payload)
+                    self.assertTrue(
+                        any(event.startswith("learning-assessed:") for event in observed),
+                        observed,
+                    )
 
     def test_each_signal_requires_a_later_incident_bound_assessment(self):
         with patch(
@@ -434,6 +450,7 @@ class StructuredLearningReceiptTest(unittest.TestCase):
                 success_predicates=["failed writes do not satisfy R16"],
                 invariants=["successful writes still satisfy R16"],
                 risk_tier="ordinary",
+                tracking_issue_urls=["https://github.com/ShaftHQ/SHAFT_ENGINE/issues/4731"],
             )
 
         self.assertEqual(len(candidates), 1)
@@ -597,34 +614,259 @@ class StructuredLearningReceiptTest(unittest.TestCase):
 
     def test_candidate_identity_covers_the_complete_spec(self):
         learning_loop = self.controller()
-        with tempfile.TemporaryDirectory() as directory:
-            state = Path(directory)
-            evidence = self.evidence(state, "red.txt", "failure")
-            learning_loop.record_signal(
-                state,
-                session_id="s",
-                kind="test_failure",
-                incident_id="candidate-identity",
-                origin="tool",
-                evidence=evidence,
-                evidence_root=state,
-            )
-            common = dict(
-                session_id="s",
-                hypothesis="Fix it.",
-                owner="scripts/agents/guard.py",
-                baseline_ref="e" * 40,
-                allowed_paths=["scripts/agents/guard.py"],
-                red_command="RAW_COMMAND_SECRET",
-                success_predicates=["RAW_PREDICATE_SECRET"],
-                invariants=["RAW_INVARIANT_SECRET"],
-            )
-            ordinary = learning_loop.assess(state, risk_tier="ordinary", **common)[0]
-            kernel = learning_loop.assess(state, risk_tier="kernel", **common)[0]
+        candidates = []
+        for risk_tier in ("ordinary", "kernel"):
+            with tempfile.TemporaryDirectory() as directory:
+                state = Path(directory)
+                evidence = self.evidence(state, "red.txt", "failure")
+                learning_loop.record_signal(
+                    state,
+                    session_id="s",
+                    kind="test_failure",
+                    incident_id="candidate-identity",
+                    origin="tool",
+                    evidence=evidence,
+                    evidence_root=state,
+                )
+                candidates.append(learning_loop.assess(
+                    state, session_id="s", hypothesis="Fix it.",
+                    owner="scripts/agents/guard.py", baseline_ref="e" * 40,
+                    allowed_paths=["scripts/agents/guard.py"],
+                    red_command="RAW_COMMAND_SECRET",
+                    success_predicates=["RAW_PREDICATE_SECRET"],
+                    invariants=["RAW_INVARIANT_SECRET"], risk_tier=risk_tier,
+                    tracking_issue_urls=["https://github.com/ShaftHQ/SHAFT_ENGINE/issues/4731"],
+                )[0])
+        ordinary, kernel = candidates
         self.assertNotEqual(ordinary["candidate_id"], kernel["candidate_id"])
+        self.assertEqual(ordinary["schema_version"], 2)
         self.assertNotIn("RAW_COMMAND_SECRET", str(ordinary))
         self.assertNotIn("RAW_PREDICATE_SECRET", str(ordinary))
         self.assertNotIn("RAW_INVARIANT_SECRET", str(ordinary))
+
+    def test_assessment_requires_one_standalone_tracking_issue_per_incident(self):
+        learning_loop = self.controller()
+        with tempfile.TemporaryDirectory() as directory:
+            state = Path(directory)
+            learning_loop.record_signal(
+                state,
+                session_id="s",
+                kind="user_correction",
+                incident_id="missing-action-issue",
+                origin="user",
+                evidence=self.evidence(state, "red.txt", "failure"),
+                evidence_root=state,
+            )
+            with self.assertRaisesRegex(ValueError, "tracking issue"):
+                learning_loop.assess(
+                    state,
+                    session_id="s",
+                    hypothesis="Fix it.",
+                    owner="scripts/agents/guard.py",
+                    baseline_ref="e" * 40,
+                    allowed_paths=["scripts/agents/guard.py"],
+                    red_command="red",
+                    success_predicates=["fixed"],
+                    invariants=["safe"],
+                    risk_tier="ordinary",
+                )
+
+    def test_assessment_binds_distinct_canonical_issues_and_rejects_tampering(self):
+        learning_loop = self.controller()
+        with tempfile.TemporaryDirectory() as directory:
+            state = Path(directory)
+            for incident, filename in (("first-action", "first.txt"), ("second-action", "second.txt")):
+                learning_loop.record_signal(
+                    state,
+                    session_id="s",
+                    kind="review_finding",
+                    incident_id=incident,
+                    origin="reviewer",
+                    evidence=self.evidence(state, filename, incident),
+                    evidence_root=state,
+                )
+            common = dict(
+                session_id="s",
+                hypothesis="Fix each action.",
+                owner="scripts/agents/guard.py",
+                baseline_ref="e" * 40,
+                allowed_paths=["scripts/agents/guard.py"],
+                red_command="red",
+                success_predicates=["fixed"],
+                invariants=["safe"],
+                risk_tier="ordinary",
+            )
+            issue = "https://github.com/ShaftHQ/SHAFT_ENGINE/issues/4731"
+            with self.assertRaisesRegex(ValueError, "distinct tracking issue"):
+                learning_loop.assess(state, tracking_issue_urls=[issue, issue], **common)
+            with self.assertRaisesRegex(ValueError, "tracking issue URLs"):
+                learning_loop.assess(
+                    state,
+                    tracking_issue_urls=[issue, "https://github.com/ShaftHQ/other/issues/9"],
+                    **common,
+                )
+            candidates = learning_loop.assess(
+                state,
+                tracking_issue_urls=[
+                    issue,
+                    "https://github.com/ShaftHQ/SHAFT_ENGINE/issues/4732",
+                ],
+                **common,
+            )
+            self.assertEqual(
+                {candidate["tracking_issue_url"] for candidate in candidates},
+                {
+                    issue,
+                    "https://github.com/ShaftHQ/SHAFT_ENGINE/issues/4732",
+                },
+            )
+            candidate_path = next((state / "candidates").glob("*.json"))
+            tampered = json.loads(candidate_path.read_text(encoding="utf-8"))
+            tampered["tracking_issue_url"] = "https://github.com/ShaftHQ/SHAFT_ENGINE/issues/9999"
+            candidate_path.write_text(json.dumps(tampered), encoding="utf-8")
+            self.assertEqual(len(learning_loop.load_candidates(state)), 1)
+
+    def test_tracking_issue_mapping_is_global_and_cannot_be_rebound(self):
+        learning_loop = self.controller()
+        with tempfile.TemporaryDirectory() as directory:
+            state = Path(directory)
+            common = dict(
+                hypothesis="Fix it.", owner="scripts/agents/guard.py",
+                baseline_ref="e" * 40, allowed_paths=["scripts/agents/guard.py"],
+                red_command="red", success_predicates=["fixed"], invariants=["safe"],
+                risk_tier="ordinary",
+            )
+            for session, incident, filename in (
+                ("first-session", "first-action", "first.txt"),
+                ("second-session", "second-action", "second.txt"),
+            ):
+                learning_loop.record_signal(
+                    state, session_id=session, kind="review_finding", incident_id=incident,
+                    origin="reviewer", evidence=self.evidence(state, filename, incident),
+                    evidence_root=state,
+                )
+            first_issue = "https://github.com/ShaftHQ/SHAFT_ENGINE/issues/4731"
+            learning_loop.assess(
+                state, session_id="first-session", tracking_issue_urls=[first_issue], **common
+            )
+            with self.assertRaisesRegex(ValueError, "tracking issue already belongs"):
+                learning_loop.assess(
+                    state, session_id="second-session", tracking_issue_urls=[first_issue], **common
+                )
+            with self.assertRaisesRegex(ValueError, "incident already bound"):
+                learning_loop.assess(
+                    state,
+                    session_id="first-session",
+                    tracking_issue_urls=["https://github.com/ShaftHQ/SHAFT_ENGINE/issues/4732"],
+                    **common,
+                )
+
+    def test_concurrent_sessions_cannot_claim_the_same_tracking_issue(self):
+        learning_loop = self.controller()
+        with tempfile.TemporaryDirectory() as directory:
+            state = Path(directory) / "state"
+            state.mkdir()
+            for session, incident, filename in (
+                ("first-session", "first-action", "first.txt"),
+                ("second-session", "second-action", "second.txt"),
+            ):
+                learning_loop.record_signal(
+                    state, session_id=session, kind="review_finding", incident_id=incident,
+                    origin="reviewer", evidence=self.evidence(state, filename, incident),
+                    evidence_root=state,
+                )
+            acquired = Path(directory) / "acquired"
+            release = Path(directory) / "release"
+            contender_ready = Path(directory) / "contender-ready"
+            common_call = (
+                "ll.assess(Path(sys.argv[1]), session_id=sys.argv[2], hypothesis='Fix it.', "
+                "owner='scripts/agents/guard.py', baseline_ref='e'*40, "
+                "allowed_paths=['scripts/agents/guard.py'], red_command='red', "
+                "success_predicates=['fixed'], invariants=['safe'], risk_tier='ordinary', "
+                "tracking_issue_urls=['https://github.com/ShaftHQ/SHAFT_ENGINE/issues/4731'])"
+            )
+            holder_code = (
+                "from pathlib import Path; from contextlib import contextmanager; "
+                "import sys,time; import scripts.agents.learning_loop as ll; "
+                "real=ll._state_lock; "
+                "exec(\"@contextmanager\\ndef held(state,name):\\n with real(state,name):\\n  "
+                "Path(sys.argv[3]).write_text('yes')\\n  while not Path(sys.argv[4]).exists(): "
+                "time.sleep(.01)\\n  yield\"); ll._state_lock=held; "
+                + common_call
+            )
+            contender_code = (
+                "from pathlib import Path; from contextlib import contextmanager; "
+                "import sys; import scripts.agents.learning_loop as ll; real=ll._state_lock; "
+                "exec(\"@contextmanager\\ndef observed(state,name):\\n "
+                "Path(sys.argv[3]).write_text('yes')\\n with real(state,name):\\n  yield\"); "
+                "ll._state_lock=observed; "
+                + common_call
+            )
+            holder = subprocess.Popen(  # nosec B603 - fixed interpreter and controlled fixture arguments.
+                [sys.executable, "-c", holder_code, str(state), "first-session", str(acquired), str(release)],
+                cwd=Path(__file__).resolve().parents[2], stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE, text=True,
+            )
+            deadline = time.monotonic() + 5
+            while not acquired.exists() and holder.poll() is None and time.monotonic() < deadline:
+                time.sleep(0.01)
+            if not acquired.exists():
+                release.write_text("abort", encoding="ascii")
+                output = holder.communicate(timeout=2)
+                self.fail(f"holder never acquired the candidate lock: {output}")
+            contender = subprocess.Popen(  # nosec B603 - fixed interpreter and controlled fixture arguments.
+                [sys.executable, "-c", contender_code, str(state), "second-session", str(contender_ready)],
+                cwd=Path(__file__).resolve().parents[2], stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE, text=True,
+            )
+            deadline = time.monotonic() + 5
+            while (
+                not contender_ready.exists()
+                and contender.poll() is None
+                and time.monotonic() < deadline
+            ):
+                time.sleep(0.01)
+            if not contender_ready.exists():
+                release.write_text("abort", encoding="ascii")
+                holder_output = holder.communicate(timeout=2)
+                contender_output = contender.communicate(timeout=2)
+                self.fail(
+                    "contender never reached the candidate lock: "
+                    f"holder={holder_output}, contender={contender_output}"
+                )
+            with self.assertRaises(subprocess.TimeoutExpired):
+                contender.wait(timeout=0.5)
+            release.write_text("go", encoding="ascii")
+            processes = [holder, contender]
+            results = [process.communicate(timeout=10) + (process.returncode,) for process in processes]
+            self.assertEqual(sorted(result[2] for result in results), [0, 1], results)
+            self.assertTrue(
+                any("tracking issue already belongs" in result[1] for result in results),
+                results,
+            )
+            self.assertEqual(len(learning_loop.load_candidates(state)), 1)
+
+    def test_candidate_loader_rejects_schema_v1_without_other_corruption(self):
+        learning_loop = self.controller()
+        with tempfile.TemporaryDirectory() as directory:
+            state = Path(directory)
+            learning_loop.record_signal(
+                state, session_id="s", kind="tool_failure", incident_id="old-schema",
+                origin="tool", evidence=self.evidence(state, "event.txt", "event"),
+                evidence_root=state,
+            )
+            learning_loop.assess(
+                state, session_id="s", hypothesis="valid", owner="scripts/agents/guard.py",
+                baseline_ref="e" * 40, allowed_paths=["scripts/agents/guard.py"],
+                red_command="red", success_predicates=["fixed"], invariants=["safe"],
+                risk_tier="ordinary",
+                tracking_issue_urls=["https://github.com/ShaftHQ/SHAFT_ENGINE/issues/4731"],
+            )
+            candidate_path = next((state / "candidates").glob("*.json"))
+            candidate = json.loads(candidate_path.read_text(encoding="utf-8"))
+            candidate["schema_version"] = 1
+            candidate_path.write_text(json.dumps(candidate), encoding="utf-8")
+            self.assertEqual(learning_loop.load_candidates(state), [])
 
     def test_candidate_loader_rejects_creator_invalid_field_shapes(self):
         learning_loop = self.controller()
@@ -640,6 +882,7 @@ class StructuredLearningReceiptTest(unittest.TestCase):
                 owner="scripts/agents/guard.py", baseline_ref="e" * 40,
                 allowed_paths=["scripts/agents/guard.py"], red_command="red",
                 success_predicates=["fixed"], invariants=["safe"], risk_tier="ordinary",
+                tracking_issue_urls=["https://github.com/ShaftHQ/SHAFT_ENGINE/issues/4731"],
             )[0]
             candidate.update(
                 owner="", baseline_ref="not-a-ref", allowed_paths=["../escape"],
@@ -648,7 +891,7 @@ class StructuredLearningReceiptTest(unittest.TestCase):
             identity = {key: candidate[key] for key in (
                 "receipt_ids", "incident_hash", "hypothesis_hash", "owner", "baseline_ref",
                 "allowed_paths", "red_command_hash", "success_predicate_hashes",
-                "invariant_hashes", "risk_tier",
+                "invariant_hashes", "risk_tier", "tracking_issue_url",
             )}
             candidate["candidate_id"] = hashlib.sha256(
                 json.dumps(identity, sort_keys=True, separators=(",", ":")).encode("utf-8")
@@ -799,6 +1042,7 @@ class StructuredLearningReceiptTest(unittest.TestCase):
                 success_predicates=["fixed"],
                 invariants=["safe"],
                 risk_tier="ordinary",
+                tracking_issue_urls=["https://github.com/ShaftHQ/SHAFT_ENGINE/issues/4731"],
             )
         self.assertEqual(len(candidates), 1)
 

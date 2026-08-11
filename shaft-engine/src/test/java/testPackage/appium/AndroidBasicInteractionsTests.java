@@ -28,11 +28,11 @@ public class AndroidBasicInteractionsTests extends MobileTest {
     public void performanceDataShouldExposeAProviderSampleAndBoundedHistory() {
         var performance = driver.get().mobile().performance();
 
-        Assert.assertTrue(performance.supportedTypes().contains("cpuinfo"));
-        var sample = performance.sample(PACKAGE, "cpuinfo");
+        Assert.assertTrue(performance.supportedTypes().contains("memoryinfo"));
+        var sample = performance.sample(PACKAGE, "memoryinfo");
 
         Assert.assertEquals(sample.applicationId(), PACKAGE);
-        Assert.assertEquals(sample.dataType(), "cpuinfo");
+        Assert.assertEquals(sample.dataType(), "memoryinfo");
         Assert.assertFalse(sample.columns().isEmpty());
         Assert.assertEquals(performance.history(), java.util.List.of(sample));
     }

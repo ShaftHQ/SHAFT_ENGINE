@@ -33,12 +33,21 @@ push; a later push loses the context needed to record it accurately.
 
 1. Collect durable costs, decisions, structural changes, procedure gaps, and
    deliberately deferred work.
-2. Classify each with the entrypoint's Learning-loop table and use exactly one
-   destination.
-3. Write it there, or explicitly record that nothing durable surfaced.
+2. Classify each knowledge result with the entrypoint's Learning-loop table and
+   use exactly one knowledge destination.
+3. Separately classify actionability. For every problem, follow-up action, or
+   potential improvement needing work, search for duplicates and then open one
+   new standalone GitHub issue for that action. A duplicate hit informs the new
+   issue; it does not replace it.
+4. Link the receipt ID and incident evidence in the issue, then bind that issue's
+   canonical URL during `assess`. A receipt, Memory entry, Graphify flag, or old
+   issue comment is evidence only and never replaces the action ticket.
+5. Write the knowledge result, or explicitly record that nothing durable or
+   actionable surfaced. Do not manufacture an issue for a genuinely no-action result.
 
 For a meaningful event, record an evidence-consistent `signal`, then `assess`
-it into a quarantined candidate. Behavior changes stay quarantined while
+it into a quarantined candidate using one distinct `--tracking-issue-url` per
+incident. Behavior changes stay quarantined while
 `evaluate` records a strict improvement comparison on the frozen adherence
 corpus with zero unmeasured rules and no regression. The record is a
 consistency summary, not proof that commands ran or reviewers are authentic.

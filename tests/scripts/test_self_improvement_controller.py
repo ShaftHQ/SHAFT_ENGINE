@@ -27,6 +27,7 @@ class SelfImprovementControllerTest(unittest.TestCase):
             allowed_paths=["scripts/agents/guard.py"], red_command="focused red",
             success_predicates=["target improves"], invariants=["no regressions"],
             risk_tier=risk_tier,
+            tracking_issue_urls=["https://github.com/ShaftHQ/SHAFT_ENGINE/issues/4731"],
         )[0]
 
     @staticmethod

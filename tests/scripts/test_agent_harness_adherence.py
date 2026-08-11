@@ -294,6 +294,26 @@ class AgentHarnessAdherenceTest(unittest.TestCase):
         self.assertEqual(["long-prohibited-heredoc"], comparison["prohibition_regressions"])
         self.assertFalse(comparison["release_gate_passed"])
 
+    def test_receipt_only_tracking_fails_the_action_issue_gate(self) -> None:
+        corpus = self.load_fixture("corpus.json")
+        baseline_evidence = self.load_fixture("baseline.json")
+        candidate_evidence = deepcopy(baseline_evidence)
+        candidate_evidence["medium-actionable-learning-opens-issue"] = {
+            "actions": ["receipt-only-tracking"],
+            "guard_outcomes": [],
+        }
+
+        comparison = adherence.compare(
+            adherence.evaluate(corpus, baseline_evidence),
+            adherence.evaluate(corpus, candidate_evidence),
+        )
+
+        self.assertFalse(comparison["release_gate_passed"])
+        self.assertIn(
+            "medium-actionable-learning-opens-issue",
+            comparison["prohibition_regressions"],
+        )
+
     def test_comparison_fails_closed_for_incompatible_reports(self) -> None:
         comparator = getattr(adherence, "compare", None)
         self.assertTrue(callable(comparator), "the report comparator must be available")

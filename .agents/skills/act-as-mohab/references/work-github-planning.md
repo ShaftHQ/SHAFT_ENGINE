@@ -56,6 +56,10 @@ remaining work, so the tracker is a current status page. After every checkbox is
 checked, post a final summary comment and close the tracker in the same session.
 Mark only file-disjoint concurrent tracker items `[P]`.
 
+One issue owns one actionable problem or improvement. Do not consolidate separate
+actions into a receipt, tracker comment, umbrella bullet, or existing issue: those
+may link the standalone issue, but they are not its replacement.
+
 ### Example `gh` invocations
 
 ```bash

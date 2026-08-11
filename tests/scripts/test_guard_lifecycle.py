@@ -1155,17 +1155,29 @@ class LearningLoopStopGateTest(unittest.TestCase):
         ):
             self.assertIsNone(guard.check_r16_learning_loop({"session_id": "s"}))
 
-    def test_a_guard_block_requires_a_route_but_allows_issue_or_no_learning(self):
-        """A refusal is observed work even when PreToolUse cannot see command exit."""
+    def test_a_guard_block_requires_a_new_issue_or_no_learning(self):
+        """A receipt or old issue update cannot replace a new actionable ticket."""
         with patch("scripts.agents.guard.ledger_events", return_value=["guard-block"]):
             self.assertIn("refusal", guard.check_r16_learning_loop({"session_id": "s"}))
-        for resolution in ("issue-update", "learning-none:nothing-recurred"):
-            with self.subTest(resolution=resolution):
-                with patch(
-                    "scripts.agents.guard.ledger_events",
-                    return_value=["guard-block", resolution],
-                ):
-                    self.assertIsNone(guard.check_r16_learning_loop({"session_id": "s"}))
+        with patch(
+            "scripts.agents.guard.ledger_events",
+            return_value=["guard-block", "issue-update"],
+        ):
+            reason = guard.check_r16_learning_loop({"session_id": "s"})
+            self.assertIsNotNone(reason)
+            self.assertIn("new standalone GitHub issue", reason)
+        with patch(
+            "scripts.agents.guard.ledger_events",
+            return_value=["guard-block", "issue-created:4731"],
+        ):
+            reason = guard.check_r16_learning_loop({"session_id": "s"})
+            self.assertIsNotNone(reason)
+            self.assertIn("signal", reason)
+        with patch(
+            "scripts.agents.guard.ledger_events",
+            return_value=["guard-block", "learning-none:nothing-recurred"],
+        ):
+            self.assertIsNone(guard.check_r16_learning_loop({"session_id": "s"}))
 
     def test_a_session_that_changed_nothing_is_never_interrupted(self):
         """A read-only session owes no learning; asking would train the block away."""
@@ -1257,6 +1269,60 @@ class LearningWriteObservationTest(unittest.TestCase):
 
     def test_a_denied_command_is_recorded_as_a_guard_block(self):
         self.assertIn("guard-block", self.events_after("Bash", "git stash pop"))
+
+    def test_standalone_issue_creation_is_credited_only_after_a_successful_result(self):
+        with tempfile.TemporaryDirectory() as directory:
+            payload = {
+                "session_id": "action-issue",
+                "cwd": directory,
+                "tool_name": "PowerShell",
+                "tool_input": {"command": "gh issue create --title fix --body receipt"},
+                "tool_response": {
+                    "exit_code": 0,
+                    "stdout": "https://github.com/ShaftHQ/SHAFT_ENGINE/issues/4731",
+                },
+            }
+            with patch.dict(guard.os.environ, {"TMPDIR": directory, "TEMP": directory}):
+                guard.run_pretooluse(payload)
+                self.assertFalse(
+                    any(event.startswith("issue-created:") for event in guard.ledger_events(payload))
+                )
+                guard.run_posttooluse(payload)
+                self.assertIn("issue-created:4731", guard.ledger_events(payload))
+
+                failed = {**payload, "session_id": "failed-action-issue"}
+                failed["tool_response"] = {"exit_code": 1, "stderr": "not created"}
+                guard.run_posttooluse(failed)
+                self.assertFalse(
+                    any(event.startswith("issue-created:") for event in guard.ledger_events(failed))
+                )
+
+                url = "https://github.com/ShaftHQ/SHAFT_ENGINE/issues/4731"
+                rejected = (
+                    ("stderr-url", "gh issue create --title fix --body receipt", {"exit_code": 0, "stderr": f"request failed; prior {url}"}),
+                    ("cancelled", "gh issue create --title fix --body receipt", {"status": "cancelled", "stdout": url}),
+                    ("denied", "gh issue create --title fix --body receipt", {"status": "denied", "stdout": url}),
+                    ("timed-out", "gh issue create --title fix --body receipt", {"status": "timed_out", "stdout": url}),
+                    ("structured-error", "gh issue create --title fix --body receipt", {"status": "success", "stdout": url, "error": {"message": "failed"}}),
+                    ("structured-stderr", "gh issue create --title fix --body receipt", {"status": "success", "stdout": url, "stderr": ["failed"]}),
+                    ("wrapper", f"gh issue create --title fix --body receipt; echo {url}", {"exit_code": 0, "stdout": url}),
+                    ("cross-repo", "gh -R ShaftHQ/other issue create --title fix --body receipt", {"exit_code": 0, "stdout": url}),
+                )
+                for session_id, command, response in rejected:
+                    with self.subTest(session_id=session_id):
+                        candidate = {
+                            **payload,
+                            "session_id": session_id,
+                            "tool_input": {"command": command},
+                            "tool_response": response,
+                        }
+                        guard.run_posttooluse(candidate)
+                        self.assertFalse(
+                            any(
+                                event.startswith("issue-created:")
+                                for event in guard.ledger_events(candidate)
+                            )
+                        )
 
     def test_housekeeping_mutations_do_not_masquerade_as_learning(self):
         for tool_name, command, tool_input in (

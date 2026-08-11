@@ -261,12 +261,18 @@ Before reporting done, run the
 route every learning exactly once. One row per learning; never two, never a
 diary. Before routing, scan the session for failures, traps, and guard blocks:
 if a refusal was correct, capture the lesson; if it was wrong or needs follow-up,
-search for and update the issue.
+open a new standalone GitHub issue after duplicate search.
 
 Meaningful failures, corrections, review findings, and repeated friction first
 become redacted incident receipts through `scripts/agents/learning_loop.py`;
-assess them into quarantined candidates before they can influence behavior.
-Batch related candidates once per session. Ordinary candidates need a strict
+receipts are evidence, never the action queue. Every problem, follow-up action,
+or potential improvement that needs work gets its own new GitHub issue. Put the
+receipt ID and incident evidence in that issue, then pass the canonical issue URL
+to `assess`; one issue URL cannot cover two incident candidates. Informational
+findings with no action may use the normal no-learning or knowledge route without
+manufacturing an issue. Assess linked receipts into quarantined candidates before
+they can influence behavior. Batch related candidates once per session, while
+keeping one standalone issue per action. Ordinary candidates need a strict
 targeted adherence improvement, no regression, passing tests, and independent
 review. Kernel candidates additionally need two independent reviewer keys,
 all three review lenses, and two runs on the same candidate and corpus.
@@ -284,10 +290,12 @@ frozen revert requirement that the GitHub workflow must execute.
 | A relation or impact that spans entities or sessions | MemPalace |
 | A structural change to what calls or depends on what | flag Graphify for refresh |
 | A procedure that misled you, or one you had to invent | fix the guidance file that should have carried it |
-| Adjacent work you deliberately did not do | search first, then an existing or new issue |
+| Any problem, follow-up action, or potential improvement needing work | after duplicate search, open one new standalone GitHub issue for that action; link its receipt as evidence |
 
 Nothing durable is a valid result. Say so rather than manufacturing an entry.
 Re-record nothing already stored: search before writing, and update the existing
-object instead of adding a near-duplicate.
+knowledge object instead of adding a near-duplicate. Knowledge routing and action
+tracking are separate duties: a receipt, Memory entry, Graphify flag, or existing
+issue reference never replaces the required new issue for an action.
 
 Gambaru.
