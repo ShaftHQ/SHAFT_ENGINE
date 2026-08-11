@@ -1,6 +1,6 @@
 {
   "body_path": "memory/workflows/run-local-e2e-jobs-in-a-dedicated-workflow.md",
-  "content_hash": "sha256:e8893f8069771dbbb0f9aeea87ecf9ea7bb54a3a91c59a087a2bf2e0d31cc43c",
+  "content_hash": "sha256:dbd1f0d794b2ec9278a97d4cd08f2bba7675dac92ad5a924f8eb72f768eb3bd3",
   "created_at": "2026-06-17T21:29:23+03:00",
   "evidence": [
     {
@@ -12,7 +12,19 @@
       "kind": "file"
     },
     {
-      "id": "https://github.com/ShaftHQ/SHAFT_ENGINE/actions/runs/27715249474",
+      "id": ".github/workflows/pr-gate.yml",
+      "kind": "file"
+    },
+    {
+      "id": "scripts/ci/validate_quality_configuration.py",
+      "kind": "file"
+    },
+    {
+      "id": "7302e5dbcf015603c3f78208c599db0f27b562c0",
+      "kind": "commit"
+    },
+    {
+      "id": "https://github.com/ShaftHQ/SHAFT_ENGINE/actions/runs/31454276391",
       "kind": "task"
     }
   ],
@@ -47,5 +59,5 @@
   ],
   "title": "Run local E2E jobs in a dedicated workflow",
   "type": "workflow",
-  "updated_at": "2026-06-28T10:31:53+03:00"
+  "updated_at": "2026-08-11T10:50:35+03:00"
 }
