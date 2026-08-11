@@ -2,15 +2,17 @@ package com.shaft.gui.internal.video;
 
 import com.shaft.driver.SHAFT;
 import com.shaft.driver.internal.DriverFactory.DriverFactoryHelper;
+import com.shaft.gui.driver.MobileRecordingOptions;
+import com.shaft.gui.mobile.internal.MobileRecordingState;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.io.internal.ReportManagerHelper;
 import io.appium.java_client.android.AndroidDriver;
 import io.appium.java_client.android.AndroidStartScreenRecordingOptions;
 import io.appium.java_client.ios.IOSDriver;
+import io.appium.java_client.AppiumDriver;
 import io.appium.java_client.ios.IOSStartScreenRecordingOptions;
 import org.apache.commons.io.FileUtils;
 import org.openqa.selenium.WebDriver;
-import org.openqa.selenium.WebDriverException;
 import org.openqa.selenium.remote.RemoteWebDriver;
 
 import java.io.ByteArrayInputStream;
@@ -20,7 +22,6 @@ import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
-import java.util.Base64;
 
 /**
  * Orchestrates SHAFT video recording for desktop browsers and Appium native sessions.
@@ -52,13 +53,26 @@ public class RecordManager {
             videoDriver.set(driver);
             try {
                 if (driver instanceof AndroidDriver androidDriver) {
-                    androidDriver.startRecordingScreen(new AndroidStartScreenRecordingOptions().withVideoSize("540x960").withBitRate(2000000).withTimeLimit(Duration.ofMinutes(30)));
+                    MobileRecordingState.start(androidDriver, MobileRecordingState.Owner.AUTOMATIC,
+                            MobileRecordingOptions.MAX_RESULT_BYTES,
+                            () -> androidDriver.startRecordingScreen(new AndroidStartScreenRecordingOptions()
+                                    .withVideoSize("540x960").withBitRate(2000000)
+                                    .withTimeLimit(Duration.ofMinutes(30))));
                 } else if (driver instanceof IOSDriver iosDriver) {
-                    iosDriver.startRecordingScreen(new IOSStartScreenRecordingOptions().withVideoType("libx264").withVideoQuality(IOSStartScreenRecordingOptions.VideoQuality.MEDIUM).withTimeLimit(Duration.ofMinutes(30)));
+                    MobileRecordingState.start(iosDriver, MobileRecordingState.Owner.AUTOMATIC,
+                            MobileRecordingOptions.MAX_RESULT_BYTES,
+                            () -> iosDriver.startRecordingScreen(new IOSStartScreenRecordingOptions()
+                                    .withVideoType("libx264")
+                                    .withVideoQuality(IOSStartScreenRecordingOptions.VideoQuality.MEDIUM)
+                                    .withTimeLimit(Duration.ofMinutes(30))));
+                } else {
+                    videoDriver.remove();
+                    return;
                 }
                 ReportManager.logDiscrete("Started device screen recording.");
                 isRecordingStarted.set(true);
-            } catch (WebDriverException exception) {
+            } catch (RuntimeException exception) {
+                videoDriver.remove();
                 ReportManager.logDiscrete("Could not start device screen recording.");
             }
         } else if (driver == null || shouldFallbackToDesktopRecorder(driver)) {
@@ -146,24 +160,38 @@ public class RecordManager {
 
         InputStream inputStream = null;
         if (SHAFT.Properties.visuals.videoParamsRecordVideo() && videoDriver.get() != null) {
-            String base64EncodedRecording = "";
+            WebDriver activeDriver = videoDriver.get();
+            boolean retainAutomaticOwnership = false;
             try {
-                if (videoDriver.get() instanceof AndroidDriver androidDriver) {
-                    base64EncodedRecording = androidDriver.stopRecordingScreen();
-                } else if (videoDriver.get() instanceof IOSDriver iosDriver) {
-                    base64EncodedRecording = iosDriver.stopRecordingScreen();
+                if (activeDriver instanceof AndroidDriver androidDriver) {
+                    inputStream = new ByteArrayInputStream(MobileRecordingState.stop(androidDriver,
+                            MobileRecordingState.Owner.AUTOMATIC, androidDriver::stopRecordingScreen));
+                } else if (activeDriver instanceof IOSDriver iosDriver) {
+                    inputStream = new ByteArrayInputStream(MobileRecordingState.stop(iosDriver,
+                            MobileRecordingState.Owner.AUTOMATIC, iosDriver::stopRecordingScreen));
                 }
-            } catch (WebDriverException e) {
+            } catch (RuntimeException e) {
+                if (activeDriver instanceof AppiumDriver appiumDriver) {
+                    retainAutomaticOwnership = MobileRecordingState.isActive(
+                            appiumDriver, MobileRecordingState.Owner.AUTOMATIC);
+                }
                 ReportManager.logDiscrete("Could not stop device screen recording. The command may not be supported on this device.");
                 ReportManagerHelper.logDiscrete(e);
             }
-            if (base64EncodedRecording != null && !base64EncodedRecording.isBlank()) {
-                inputStream = new ByteArrayInputStream(Base64.getDecoder().decode(base64EncodedRecording));
+            if (!retainAutomaticOwnership) {
+                videoDriver.remove();
+                isRecordingStarted.remove();
             }
+        }
+        return inputStream;
+    }
+
+    /** Clears automatic recording handles only when they belong to the driver being torn down. */
+    public static void clearVideoRecordingState(WebDriver driver) {
+        if (videoDriver.get() == driver) {
             videoDriver.remove();
             isRecordingStarted.remove();
         }
-        return inputStream;
     }
 
     private static InputStream getDesktopVideoRecording() {
