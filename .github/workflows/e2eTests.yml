@@ -795,6 +795,14 @@ jobs:
         uses: ./.github/actions/setup-test-env
         with:
           node-version: '20'
+      - name: Fetch provider-compatible iOS sample app
+        run: |
+          app_path="shaft-engine/src/test/resources/testDataFiles/apps/BStackSampleApp.ipa"
+          curl --fail --location --silent --show-error \
+            --output "$app_path" \
+            "https://raw.githubusercontent.com/browserstack/testng-appium-app-browserstack/71e73f10a613a7bb765bde05a1700829a8d5e057/ios/testng-examples/BStackSampleApp.ipa"
+          echo "76a8bb0250f6d8c0a6bb0b71fcddf60515de92f5920d5624f790da1ecdbc87d9  $app_path" \
+            | sha256sum --check --strict
       - name: Run iOS recording acceptance
         continue-on-error: true
         timeout-minutes: 35

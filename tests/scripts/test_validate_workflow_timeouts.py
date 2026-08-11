@@ -2,6 +2,8 @@ import tempfile
 import unittest
 from pathlib import Path
 
+import yaml
+
 from scripts.ci.validate_workflow_timeouts import validate_repository
 
 
@@ -160,3 +162,63 @@ class CliGatePackagingContractTest(unittest.TestCase):
             "mvn --batch-mode -pl shaft-cli package -DskipTests",
             content,
         )
+
+
+class MobileRecordingAcceptanceWorkflowContractTest(unittest.TestCase):
+    WORKFLOW = Path(__file__).resolve().parents[2] / ".github/workflows/e2eTests.yml"
+
+    def test_ios_recording_acceptance_uses_verified_immutable_app_and_exact_guard(self):
+        workflow = yaml.safe_load(self.WORKFLOW.read_text(encoding="utf-8"))
+        steps = workflow["jobs"]["iOS_Recording_BrowserStack"]["steps"]
+        steps_by_name = {step["name"]: step for step in steps}
+        names = [step["name"] for step in steps]
+
+        expected_order = [
+            "Setup Test Environment",
+            "Fetch provider-compatible iOS sample app",
+            "Run iOS recording acceptance",
+            "Verify iOS recording acceptance executed",
+            "Post-Test Report and Check",
+        ]
+        self.assertEqual(
+            [name for name in names if name in expected_order],
+            expected_order,
+        )
+
+        fetch = steps_by_name["Fetch provider-compatible iOS sample app"]["run"]
+        app_path = "shaft-engine/src/test/resources/testDataFiles/apps/BStackSampleApp.ipa"
+        source = (
+            "https://raw.githubusercontent.com/browserstack/"
+            "testng-appium-app-browserstack/"
+            "71e73f10a613a7bb765bde05a1700829a8d5e057/"
+            "ios/testng-examples/BStackSampleApp.ipa"
+        )
+        digest = "76a8bb0250f6d8c0a6bb0b71fcddf60515de92f5920d5624f790da1ecdbc87d9"
+        expected_fetch = (
+            f'app_path="{app_path}"\n'
+            "curl --fail --location --silent --show-error \\\n"
+            '  --output "$app_path" \\\n'
+            f'  "{source}"\n'
+            f'echo "{digest}  $app_path" \\\n'
+            "  | sha256sum --check --strict"
+        )
+        self.assertEqual(expected_fetch, fetch.strip())
+
+        execution = steps_by_name["Run iOS recording acceptance"]["run"]
+        self.assertIn('"-Dshaft.enableNativeIosE2E=true"', execution)
+        self.assertEqual(1, execution.count("-Dtest="))
+        self.assertIn(
+            '"-Dtest=IOSBasicInteractionsTest#screenRecordingShouldReturnAndSaveBoundedMedia"',
+            execution,
+        )
+
+        guard_step = steps_by_name["Verify iOS recording acceptance executed"]
+        self.assertFalse(guard_step.get("continue-on-error", False))
+        guard = guard_step["run"]
+        expected_guard = (
+            "python3 scripts/ci/assert_tests_executed.py "
+            "shaft-engine/target/surefire-reports/"
+            "TEST-testPackage.appium.IOSBasicInteractionsTest.xml "
+            "--min-executed 1"
+        )
+        self.assertEqual(expected_guard, guard.strip())
