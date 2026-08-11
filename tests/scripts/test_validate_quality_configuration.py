@@ -32,6 +32,13 @@ def pr_gate_unit_job(selector_lines: str, step_name: str = "Run shaft-engine uni
     )
 
 
+def missing_coverage_error(workflow: str, job: str) -> str:
+    return (
+        f".github/workflows/{workflow} job {job!r} runs JVM tests without "
+        "upload-jacoco-coverage or post-test-report"
+    )
+
+
 class ValidateQualityConfigurationTest(unittest.TestCase):
     def test_repository_configuration_is_valid(self):
         self.assertEqual(validate_quality_configuration(), [])
@@ -364,10 +371,7 @@ class ValidateQualityConfigurationTest(unittest.TestCase):
 
             self.assertEqual(
                 validate_workflow_coverage_policy(root),
-                [
-                    ".github/workflows/pr-gate.yml job 'java-tests' runs JVM tests "
-                    "without upload-jacoco-coverage or post-test-report"
-                ],
+                [missing_coverage_error("pr-gate.yml", "java-tests")],
             )
 
     def test_rejects_jvm_test_job_when_only_sibling_job_uploads_coverage(self):
@@ -390,10 +394,7 @@ class ValidateQualityConfigurationTest(unittest.TestCase):
 
             self.assertEqual(
                 validate_workflow_coverage_policy(root),
-                [
-                    ".github/workflows/coverage.yaml job 'java-tests' runs JVM tests "
-                    "without upload-jacoco-coverage or post-test-report"
-                ],
+                [missing_coverage_error("coverage.yaml", "java-tests")],
             )
 
     def test_accepts_same_job_coverage_actions_and_ignores_skip_tests_setup(self):
@@ -440,10 +441,8 @@ class ValidateQualityConfigurationTest(unittest.TestCase):
             self.assertEqual(
                 validate_workflow_coverage_policy(root),
                 [
-                    ".github/workflows/coverage.yml job 'wrapper-verify' runs JVM tests "
-                    "without upload-jacoco-coverage or post-test-report",
-                    ".github/workflows/coverage.yml job 'tests-enabled' runs JVM tests "
-                    "without upload-jacoco-coverage or post-test-report",
+                    missing_coverage_error("coverage.yml", "wrapper-verify"),
+                    missing_coverage_error("coverage.yml", "tests-enabled"),
                 ],
             )
 
@@ -473,10 +472,8 @@ class ValidateQualityConfigurationTest(unittest.TestCase):
             self.assertEqual(
                 validate_workflow_coverage_policy(root),
                 [
-                    ".github/workflows/coverage.yml job 'disabled-upload' runs JVM tests "
-                    "without upload-jacoco-coverage or post-test-report",
-                    ".github/workflows/coverage.yml job 'fake-upload' runs JVM tests "
-                    "without upload-jacoco-coverage or post-test-report",
+                    missing_coverage_error("coverage.yml", "disabled-upload"),
+                    missing_coverage_error("coverage.yml", "fake-upload"),
                 ],
             )
 
@@ -522,18 +519,12 @@ class ValidateQualityConfigurationTest(unittest.TestCase):
             self.assertEqual(
                 validate_workflow_coverage_policy(root),
                 [
-                    ".github/workflows/coverage.yml job 'before-test' runs JVM tests "
-                    "without upload-jacoco-coverage or post-test-report",
-                    ".github/workflows/coverage.yml job 'wrong-ref' runs JVM tests "
-                    "without upload-jacoco-coverage or post-test-report",
-                    ".github/workflows/coverage.yml job 'success-only' runs JVM tests "
-                    "without upload-jacoco-coverage or post-test-report",
-                    ".github/workflows/coverage.yml job 'constant-false' runs JVM tests "
-                    "without upload-jacoco-coverage or post-test-report",
-                    ".github/workflows/coverage.yml job 'pull-request-only' runs JVM tests "
-                    "without upload-jacoco-coverage or post-test-report",
-                    ".github/workflows/coverage.yml job 'unmatched-environment' runs JVM tests "
-                    "without upload-jacoco-coverage or post-test-report",
+                    missing_coverage_error("coverage.yml", "before-test"),
+                    missing_coverage_error("coverage.yml", "wrong-ref"),
+                    missing_coverage_error("coverage.yml", "success-only"),
+                    missing_coverage_error("coverage.yml", "constant-false"),
+                    missing_coverage_error("coverage.yml", "pull-request-only"),
+                    missing_coverage_error("coverage.yml", "unmatched-environment"),
                 ],
             )
 
@@ -552,10 +543,7 @@ class ValidateQualityConfigurationTest(unittest.TestCase):
 
             self.assertEqual(
                 validate_workflow_coverage_policy(root),
-                [
-                    ".github/workflows/coverage.yml job 'environment-prefix' runs JVM tests "
-                    "without upload-jacoco-coverage or post-test-report"
-                ],
+                [missing_coverage_error("coverage.yml", "environment-prefix")],
             )
 
     def test_detects_jvm_tests_inside_local_composite_action(self):
@@ -583,10 +571,7 @@ class ValidateQualityConfigurationTest(unittest.TestCase):
 
             self.assertEqual(
                 validate_workflow_coverage_policy(root),
-                [
-                    ".github/workflows/coverage.yml job 'intellij' runs JVM tests "
-                    "without upload-jacoco-coverage or post-test-report"
-                ],
+                [missing_coverage_error("coverage.yml", "intellij")],
             )
 
     def test_reports_missing_aggregate_module(self):
