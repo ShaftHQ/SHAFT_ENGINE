@@ -1,6 +1,6 @@
 {
   "body_path": "memory/gotchas/graphify-refresh-must-reject-negative-windows-process-exits-before-recording-freshness.md",
-  "content_hash": "sha256:52981e8f0cae4707c8e96292df0e669f4ef5f5a748fbf22d62cabfdca1298bde",
+  "content_hash": "sha256:e67be90971d6b1deb0e8ce5a1d76d05732c0ce08fbfe343c1810e5108f8fa1a5",
   "created_at": "2026-08-09T21:56:21+03:00",
   "evidence": [],
   "facets": {
@@ -32,5 +32,5 @@
   ],
   "title": "Graphify refresh must reject negative Windows process exits before recording freshness",
   "type": "gotcha",
-  "updated_at": "2026-08-09T21:56:21+03:00"
+  "updated_at": "2026-08-11T23:45:57+03:00"
 }
