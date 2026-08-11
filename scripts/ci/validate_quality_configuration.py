@@ -100,6 +100,37 @@ def validate_workflow_coverage_policy(root: Path = ROOT) -> list[str]:
     return errors
 
 
+def validate_workflow_readme_inventory(root: Path = ROOT) -> list[str]:
+    workflows = root / ".github" / "workflows"
+    if not workflows.is_dir():
+        return []
+    readme_path = workflows / "README.md"
+    if not readme_path.is_file():
+        return [".github/workflows/README.md is missing"]
+    readme = readme_path.read_text(encoding="utf-8")
+    section = re.search(
+        r"^## Active inventory\s*$\n(?P<body>.*?)(?=^##\s|\Z)",
+        readme,
+        re.MULTILINE | re.DOTALL,
+    )
+    if not section:
+        return [".github/workflows/README.md is missing the Active inventory section"]
+    documented = set(
+        re.findall(r"^\|\s*`([^`]+\.yml)`\s*\|", section.group("body"), re.MULTILINE)
+    )
+    active = {path.name for path in workflows.glob("*.yml")}
+    errors = [
+        f".github/workflows/README.md is missing active workflow: {path.name}"
+        for path in sorted(workflows.glob("*.yml"))
+        if path.name not in documented
+    ]
+    errors.extend(
+        f".github/workflows/README.md inventories nonexistent workflow: {name}"
+        for name in sorted(documented - active)
+    )
+    return errors
+
+
 def _global_testing_scope(workflow: str) -> list[str]:
     match = re.search(r'^\s*GLOBAL_TESTING_SCOPE:\s*"([^"]*)"\s*$', workflow, re.MULTILINE)
     return [token.strip() for token in match.group(1).split(",")] if match else []
@@ -206,6 +237,7 @@ def validate_quality_configuration(root: Path = ROOT) -> list[str]:
     errors.extend(validate_maven_jvm_configuration(root))
     errors.extend(validate_surefire_jacoco_arg_lines(root))
     errors.extend(validate_workflow_coverage_policy(root))
+    errors.extend(validate_workflow_readme_inventory(root))
     errors.extend(validate_browser_matrix_scope_policy(root))
 
     aggregate_path = root / "report-aggregate" / "pom.xml"

@@ -1,5 +1,10 @@
 # Online skill-candidate intake
 
+This repository-local runbook owns the evidence gate for evaluating external
+skill candidates. It remains beside the scanner, fixtures, and policy data;
+the public [SHAFT skills guide](https://shafthq.github.io/docs/agentic/skills)
+owns installation of the first-party pack.
+
 This gate applies before any online skill, script, fixture, or packaging example can enter
 the SHAFT harness. Research never installs a candidate into a canonical skill root. Fetch a
 pinned source into a disposable quarantine outside the repository, record it in
@@ -48,7 +53,14 @@ regression; incomplete evidence; or vendor-specific policy duplication. Every la
 - **retain a test target** — keep a specification or example only as external conformance input.
 - **reject** — record the candidate and the HALT reason; do not silently drop it.
 
-Run `python scripts/ci/shaft_skill_candidate_intake.py` and, when checking upstream currency,
-`python scripts/ci/shaft_skill_candidate_intake.py --check-freshness`. Then run
-`python -m unittest tests.scripts.test_shaft_skill_candidate_intake -v` after changing the
-policy, report, scanner, or promotion rules.
+Run from the repository root:
+
+```powershell
+py -3 scripts/ci/shaft_skill_candidate_intake.py
+py -3 scripts/ci/shaft_skill_candidate_intake.py --check-freshness
+py -3 -m unittest tests.scripts.test_shaft_skill_candidate_intake -v
+```
+
+On macOS/Linux, use `python3` in place of `py -3`. Run the freshness check only
+when online research is authorized; structural validation remains local and
+deterministic.

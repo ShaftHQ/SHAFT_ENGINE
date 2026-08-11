@@ -4,12 +4,14 @@ Use this flow to validate the assistant-driven e2e capture path. This workflow d
 
 ## Build
 
-1. Build and verify the latest local IntelliJ plugin:
+1. Build and verify the latest local IntelliJ plugin from the repository root:
    - `powershell -NoProfile -ExecutionPolicy Bypass -File tools\intellij-plugin-recording\record-onboarding.ps1`
-   - Equivalent: `gradle -p shaft-intellij check buildPlugin verifyPlugin`
+   - Checked-in wrapper equivalent on Windows: `shaft-intellij\gradlew.bat -p shaft-intellij check buildPlugin verifyPlugin`
+   - Checked-in wrapper equivalent on macOS/Linux: `./shaft-intellij/gradlew -p shaft-intellij check buildPlugin verifyPlugin`
    - On Windows, the script creates a missing `%JAVA_HOME%\Packages` directory before Gradle runs and exits with a clear error if `%JAVA_HOME%` is missing, invalid, or unwritable (this avoids local IntelliJ instrumentation failures seen with Microsoft JDK 21).
 2. Launch the recording IDE in an isolated Gradle IntelliJ sandbox:
-   - `gradle -p shaft-intellij runIde --args <repo-root>`
+   - Windows: `shaft-intellij\gradlew.bat -p shaft-intellij runIde --args <repo-root>`
+   - macOS/Linux: `./shaft-intellij/gradlew -p shaft-intellij runIde --args <repo-root>`
    - Fallback: install `shaft-intellij/build/distributions/*.zip` into an isolated IntelliJ sandbox and open `Tools -> SHAFT -> Open SHAFT`.
 
 ## Default UI
@@ -20,12 +22,16 @@ The default assistant route is local. The advanced UI flag is disabled by defaul
 
 ## First-Run Setup
 
-1. Open SHAFT.
-2. Select `Family: CODEX`.
-3. Select `Runtime: CLI`.
-4. Follow the SHAFT MCP user guide to install the MCP integration, then paste the generated stdio command.
-5. Click `Test connection and start chatting`.
-6. Confirm the setup view closes and SHAFT Assistant opens after a successful test.
+1. Open SHAFT and complete **0 Prerequisites**. Use **Recheck** after installing a missing requirement.
+2. Complete **1 Upgrade project** so the project uses the current modular SHAFT coordinates.
+3. In **2 Choose agent**, select the target agent or **SHAFT IntelliJ plugin**. For Codex, select **Codex CLI**.
+4. In **3 Copy setup command**, click **Copy**, then press Enter in the IntelliJ terminal that opens with the generated command pre-typed. Do not paste a hand-built stdio command into the UI.
+5. In **4 Check setup**, run the check and confirm the MCP connection, workspace, and selected agent are detected.
+6. Confirm the separate **Ready** row appears, then choose **Start chatting** to open SHAFT Assistant.
+
+The [official IntelliJ guide](https://shafthq.github.io/docs/agentic/intellij)
+owns the user-facing setup, screenshots, and failure recovery. This runbook
+owns only the repository-local validation scenario.
 
 ## Assistant Browser Control
 

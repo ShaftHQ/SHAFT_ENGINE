@@ -8,6 +8,7 @@ from scripts.ci.validate_quality_configuration import (
     validate_quality_configuration,
     validate_surefire_jacoco_arg_lines,
     validate_workflow_coverage_policy,
+    validate_workflow_readme_inventory,
 )
 
 PLAYWRIGHT_GRID_EXCLUSION = "!%regex[.*playwright.*PlaywrightActionsE2ETest.*]"
@@ -30,6 +31,39 @@ def pr_gate_unit_job(selector_lines: str, step_name: str = "Run shaft-engine uni
         "          mvn --batch-mode -pl shaft-engine test\n"
         f"{indented_selector}\n"
     )
+
+
+class WorkflowReadmeInventoryTest(unittest.TestCase):
+    def test_requires_every_active_workflow_in_local_inventory(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            workflows = root / ".github" / "workflows"
+            workflows.mkdir(parents=True)
+            (workflows / "pr-gate.yml").write_text("name: PR Gate\n", encoding="utf-8")
+            (workflows / "live-tools-nightly.yml").write_text("name: Live tools\n", encoding="utf-8")
+            (workflows / "README.md").write_text(
+                "## Active inventory\n\n"
+                "| File | Trigger |\n"
+                "|---|---|\n"
+                "| `pr-gate.yml` | pull request |\n\n"
+                "`live-tools-nightly.yml` is mentioned outside the table.\n",
+                encoding="utf-8",
+            )
+
+            self.assertEqual(
+                validate_workflow_readme_inventory(root),
+                [".github/workflows/README.md is missing active workflow: live-tools-nightly.yml"],
+            )
+
+            (workflows / "README.md").write_text(
+                "## Active inventory\n\n"
+                "| File | Trigger |\n"
+                "|---|---|\n"
+                "| `pr-gate.yml` | pull request |\n"
+                "| `live-tools-nightly.yml` | nightly |\n",
+                encoding="utf-8",
+            )
+            self.assertEqual(validate_workflow_readme_inventory(root), [])
 
 
 class ValidateQualityConfigurationTest(unittest.TestCase):

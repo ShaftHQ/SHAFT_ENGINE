@@ -1,6 +1,6 @@
 {
   "body_path": "memory/workflows/intellij-ui-prs-need-refreshed-catalog-and-guide-screenshots.md",
-  "content_hash": "sha256:a1102f9aaec5a0641ee3db462eba22dee345ca1ec807e08c103bb1017f285a79",
+  "content_hash": "sha256:48f88dc6f052b5569621f8e00ec1fa02fab866e5cab4baf4c5f71ad96cf9ffb6",
   "created_at": "2026-07-02T19:16:30+03:00",
   "evidence": [
     {
@@ -21,6 +21,11 @@
     }
   ],
   "facets": {
+    "applies_to": [
+      "shaft-intellij/src/test/java/com/shaft/intellij/ui/ShaftPluginScreenshotRendererTest.java",
+      "shaft-engine/src/main/resources/modular-era-feature-catalog",
+      "modular-era-feature-catalog.md"
+    ],
     "category": "testing"
   },
   "id": "workflow.intellij-ui-prs-need-refreshed-catalog-and-guide-screenshots",
@@ -41,7 +46,7 @@
     "docs",
     "user-guide"
   ],
-  "title": "IntelliJ UI PRs need refreshed catalog and guide screenshots",
+  "title": "IntelliJ UI PRs refresh renderer evidence and official guide screenshots",
   "type": "workflow",
-  "updated_at": "2026-07-02T19:16:30+03:00"
+  "updated_at": "2026-08-11T13:45:11+03:00"
 }

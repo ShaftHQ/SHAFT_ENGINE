@@ -24,9 +24,9 @@ flowchart TD
     E["<b>act-as-mohab</b><br/>always loaded"]
     E --> T{"Triage<br/>blast radius x reversibility"}
 
-    T -->|"one file, reversible"| GO["State deliverable + proof.<br/>Go."]
-    T -->|"one module"| C["<b>consult-first</b><br/>points 1-4 and 8"]
-    T -->|"public contract,<br/>hard to reverse"| CF["<b>consult-first</b><br/>full pass"]
+    T -->|"one file, reversible"| GO["<b>consult-first</b><br/>concise complete receipt"]
+    T -->|"one module"| C["<b>consult-first</b><br/>normal full pass"]
+    T -->|"public contract,<br/>hard to reverse"| CF["<b>consult-first</b><br/>executable specification"]
 
     GO --> R
     C --> R
@@ -57,13 +57,9 @@ sequenceDiagram
     A->>E: load entrypoint
     E-->>A: iron laws, triage, red flags
     A->>A: triage in two lines
-    alt trivial and reversible
-        A->>W: proceed at the routed surface
-    else anything larger
-        A->>G: load the gate at the selected depth
-        G-->>A: approach, invariants, the RED check
-        A->>W: proceed at the routed surface
-    end
+    A->>G: load the gate at the selected depth
+    G-->>A: approach, invariants, research receipt, RED check
+    A->>W: proceed at the routed surface
     W-->>A: change plus evidence
     A->>A: independent adversarial review
     A-->>U: outcome, checks run, what was refuted
@@ -120,8 +116,9 @@ step with the first.
 | [act-as-mohab](act-as-mohab/SKILL.md) | The single always-loaded entrypoint and global router. Carries the iron laws, the triage that sizes every task, the always-on working style, and the table that sends each deliverable to exactly one surface. |
 
 The entrypoint reaches the internal [consultation](act-as-mohab/references/consult-first.md)
-and [retrieval](act-as-mohab/references/retrieve-first.md) gates only when its
-triage selects them. They are references, not separately discoverable skills.
+and [retrieval](act-as-mohab/references/retrieve-first.md) gates after every
+triage; the triage result controls depth. They are references, not separately
+discoverable skills.
 
 ### Method references
 
@@ -189,7 +186,7 @@ is, [routing](act-as-mohab/references/routing.md) says.
 
 `shaft-skills/` is a separate, published pack that teaches an agent to *use*
 SHAFT rather than to work on it. Its own router, `shaft-developer`, selects one
-of roughly thirty lifecycle, implementation, and tool specialists. The routing
+of exactly 30 lifecycle, implementation, and tool specialists. The routing
 table hands off to it and does not duplicate its rows.
 
 ## Importing these skills

@@ -4,10 +4,13 @@
 from fnmatch import fnmatch
 import os
 from pathlib import Path
+import re
 import sys
 
 ROOT = Path(__file__).resolve().parents[2]
 DOCS_BASE = "https://shafthq.github.io/docs/"
+RELEASES_URL = "https://github.com/ShaftHQ/SHAFT_ENGINE/releases"
+MARKDOWN_LINK = re.compile(r"(?<!!)\[[^\]]+\]\(([^)\s]+)")
 
 ALLOWED_EXACT = {
     "README.md",
@@ -106,21 +109,34 @@ def validate_repository(root: Path = ROOT) -> list[str]:
                 errors.append(f"non-root README is prohibited: {path}")
 
     readme = (root / "README.md").read_text(encoding="utf-8")
+    readme_links = set(MARKDOWN_LINK.findall(readme))
     if len(readme.splitlines()) > 160:
         errors.append("README.md exceeds the 160-line landing-page budget")
     for route in (
         "start/overview",
+        "start/quick-start",
         "start/installation",
         "start/upgrade",
         "testing/web",
         "testing/mobile",
         "testing/api",
         "agentic/mcp",
+        "agentic/skills",
         "agentic/doctor",
         "agentic/heal",
     ):
-        if f"{DOCS_BASE}{route}" not in readme:
+        if f"{DOCS_BASE}{route}" not in readme_links:
             errors.append(f"README.md is missing canonical route: {route}")
+    if "https://github.com/sponsors/MohabMohie" not in readme_links:
+        errors.append("README.md is missing the GitHub Sponsors call to action")
+
+    catalog_path = root / "modular-era-feature-catalog.md"
+    if catalog_path.is_file():
+        catalog_links = set(MARKDOWN_LINK.findall(catalog_path.read_text(encoding="utf-8")))
+        if RELEASES_URL not in catalog_links:
+            errors.append(
+                "modular-era-feature-catalog.md is missing the canonical release-history link"
+            )
 
     scan_paths = [
         path for path in markdown

@@ -121,6 +121,9 @@ String androidCommandLineToolsVersion();
                 {package["version"] for package in plugin_release["packages"]},
                 {release_version},
             )
+            catalog = (root / "modular-era-feature-catalog.md").read_text(encoding="utf-8")
+            self.assertEqual("Plugin 10.2.20260630\n", catalog)
+            self.assertNotIn(root / "modular-era-feature-catalog.md", changed)
 
     def test_rejects_non_newer_release_date(self):
         with tempfile.TemporaryDirectory() as temp:

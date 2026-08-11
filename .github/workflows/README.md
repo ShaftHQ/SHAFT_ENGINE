@@ -1,169 +1,89 @@
-# GitHub Actions Workflows
+# GitHub Actions workflow map
 
-This directory contains the repository workflows. Use this inventory when deciding
-which workflows to keep, merge, rename, or delete.
+This is the repository-local operating inventory for `.github/workflows/`.
+Public release and architecture guidance belongs in the
+[maintainer guide](https://shafthq.github.io/docs/maintainers/overview); this
+page records volatile trigger and dependency details that must change beside
+the workflow files themselves.
 
-## Relationship Map
+## Delivery relationships
 
 ```mermaid
 flowchart TD
-  PR --> GATE["PR Gate (PR Gate Summary)"]
-  PR --> SEC["Security"]
-  PR --> PILOT["SHAFT Pilot Release Candidate"]
-
-  MAIN --> GATE
-  MAIN --> SEC
-  MAIN --> CD["Maven Central Continuous Delivery"]
-
-  CD --> REL["GitHub Release"]
-  CD --> DOCS["User Guide repository dispatch"]
-  CD --> JAVADOCS["JavaDocs Publisher"]
-  REL --> MCP_PUBLISH["Publish shaft-mcp Distributions"]
-  REL --> IDEA_PUBLISH["Publish IntelliJ Plugin"]
-  MCP_PUBLISH --> MCP_DEPLOY["Deploy shaft-mcp"]
-
-  NIGHTLY["Nightly or manual"] --> E2E["E2E Tests"]
-  NIGHTLY --> LOCAL_E2E["Local E2E Tests"]
-  NIGHTLY --> LT["LambdaTest E2E Tests"]
-  NIGHTLY --> MCP_TEST["shaft-mcp"]
-  NIGHTLY --> GRID["Update Selenium Grid Docker Versions"]
-  NIGHTLY --> PLUGINS["Agent Plugin Live Acceptance"]
-
-  MANUAL["Manual only"] --> RELEASE_PR["Prepare Release Pull Request"]
+  PR[Pull request] --> GATE[PR Gate]
+  PR --> SEC[Security]
+  PR --> CANDIDATE[SHAFT Pilot Release Candidate]
+  MAIN[Push to main] --> CD[Maven Central Continuous Delivery]
+  CD --> RELEASE[GitHub Release]
+  CD --> JAVADOCS[JavaDocs Publisher]
+  CD --> GUIDE[User Guide dispatch]
+  RELEASE --> IDEA[Publish IntelliJ Plugin]
+  RELEASE --> MCP[Publish shaft-mcp Distributions]
+  MCP --> DEPLOY[Deploy shaft-mcp]
+  MANUAL[Manual recovery] --> RECONCILE[Maven Central Release Reconciliation]
 ```
 
-`workflow_run` links use the workflow `name`, not the file name. Renaming
-`Maven Central Continuous Delivery` or `Publish shaft-mcp Distributions` without
-updating downstream workflows will break the release chain. `publish-intellij-plugin.yml`
-and `publish-shaft-mcp.yml` intentionally listen for the `release: published` event instead
-of `mavenCentral_cd.yml`'s `workflow_run` conclusion: that workflow's own run now concludes
-`success` even when it skips a no-op delivery for an already-published version (see
-`check_release_needed` in `mavenCentral_cd.yml`), so only the actual GitHub Release event
-is a reliable "a new version was really delivered" signal for these two.
+`workflow_run` consumers match the upstream workflow `name`, not its filename.
+Renaming **Maven Central Continuous Delivery** or **Publish shaft-mcp
+Distributions** requires updating downstream listeners in the same change.
 
-**The release must be created with a PAT (`BOT_TOKEN`), not the default `GITHUB_TOKEN`.**
-GitHub does not fan a `release` event out to other workflows when the release was created
-using the run's own `GITHUB_TOKEN` (anti-recursion protection); only `workflow_dispatch` and
-`repository_dispatch` are exempt from that rule. `mavenCentral_cd.yml`'s `announce_release`
-job therefore passes `token: ${{ secrets.BOT_TOKEN }}` to `ncipollo/release-action`. If that
-step is ever reverted to `GITHUB_TOKEN`, `publish-intellij-plugin.yml`, `publish-shaft-mcp.yml`,
-and (transitively) `deploy-shaft-mcp.yml` will silently never run again — there is no failure,
-the event simply never fires.
+The release workflow creates GitHub Releases with `BOT_TOKEN`. GitHub does not
+fan out a `release` event created by a workflow's default `GITHUB_TOKEN`, so
+changing that token silently breaks both distribution publishers.
 
-## Workflow Inventory
+## Active inventory
 
-| File | Workflow name | Trigger | What it does | Relationships and delete impact |
-| --- | --- | --- | --- | --- |
-| `pr-gate.yml` | PR Gate | Pull requests, and pushes to `main` (both path-conditioned per leg), no `workflow_dispatch` | The single required status check (`PR Gate Summary`) for this repository (issue #3814). One `changes` job runs `dorny/paths-filter` once, then path-conditioned legs replicate what used to be five standalone workflows: Documentation Boundary Gate, IntelliJ installer verification + plugin build, shaft-cli build/test (ubuntu/windows), SHAFT Capture Browser E2E, and the Template Coupling Gate, plus a `dependency-review` job (moved out of `security.yml`, see below) and a `unit-tests` matrix job (issue #3849) that gives shaft-engine, shaft-pilot-core, shaft-doctor, shaft-ai, shaft-heal, and shaft-mcp PR-time unit-test coverage — previously those modules' tests only ran in nightly E2E/Pilot-release workflows. Every leg also runs when the `infra` filter matches (`.github/workflows/pr-gate.yml` itself changed). | This workflow is now the ONLY trigger source for the folded legs' paths — see "Path-filter fidelity" below. `workflow_dispatch` is intentionally absent: `dorny/paths-filter` cannot resolve a diff base outside `push`/`pull_request` events. The `push` trigger covers `main`-branch coverage by relying on `dorny/paths-filter`'s documented "long-lived branch" behavior (`base: main` while the triggering branch is also `main` diffs against the most recent commit on `main` before the push, not a PR base). |
-| `security.yml` | Security | Pushes to `main` and pull requests, except Markdown-only changes, plus manual | Runs CodeQL Java analysis only. `dependency-review` moved to `pr-gate.yml` in Phase 3 of issue #3814 (B1) — CodeQL stayed here rather than folding in because no org-wide CodeQL default setup is configured for this repository. | Independent security gate. Removing it drops CodeQL coverage; dependency-review coverage now lives in `pr-gate.yml` instead. |
-| `shaft-pilot-release.yml` | SHAFT Pilot Release Candidate | Pull requests touching release-relevant paths, plus manual | Validates release contracts, verifies the IntelliJ IDEA plugin candidate, runs deterministic Pilot module tests, capture browser release tests, packaging checks, clean consumer fixtures, MCP transport checks, and container smoke tests. | PR-side release gate that mirrors large parts of `mavenCentral_cd.yml` before a real release. Its own browser E2E step only runs when the reactor version actually changes (see `detect-shaft-version-change`), so ordinary `shaft-capture` PRs rely on `pr-gate.yml`'s `capture-e2e` leg instead. Out of scope for Phase 3 deletions and composite-action extraction (S1/B2 deferred) — its `-pl` module lists still match the release-contract validators verbatim. |
-| `mavenCentral_cd.yml` | Maven Central Continuous Delivery | Pushes to `main` that touch release-relevant paths, plus manual | Checks whether this reactor version is already on Maven Central and skips delivery cleanly if so; otherwise verifies the IntelliJ IDEA plugin candidate, runs Pilot tests, validates Maven publication outputs, deploys artifacts to Maven Central, verifies public coordinates, verifies the public MCP installer, creates the GitHub release, dispatches the user-guide repo, and optionally announces to Slack. | Root of the release chain. Feeds `publishJavaDocs.yml` via `workflow_run`, the GitHub `release` event consumed by `publish-intellij-plugin.yml` and `publish-shaft-mcp.yml`, and a `shaft-engine-release` dispatch to `ShaftHQ/shafthq.github.io`. Not touched by Phase 3. |
-| `publish-intellij-plugin.yml` | Publish IntelliJ Plugin | Published GitHub release, plus manual | Checks out the exact release tag, validates plugin version/channel metadata, then builds, verifies, signs, and publishes the IntelliJ IDEA plugin to the JetBrains Marketplace Stable channel using repository secrets. | Downstream of the GitHub release created by `mavenCentral_cd.yml`. Keep it while JetBrains Marketplace remains the public IDE plugin distribution path. Distinct from the deleted `intellij-plugin.yml` (PR-side build/verify, now folded into `pr-gate.yml`) — this is the release-side publisher and stays untouched. |
-| `publishJavaDocs.yml` | JavaDocs Publisher | Successful `Maven Central Continuous Delivery` run on `main`, plus manual | Builds aggregated JavaDocs and publishes them to the `javadoc` branch. | Downstream of Maven Central release. Keep only if the `javadoc` branch remains the public JavaDocs publishing path. Idempotent re-runs on a no-op delivery skip are low-risk (a no-diff push to the `javadoc` branch). |
-| `publish-shaft-mcp.yml` | Publish shaft-mcp Distributions | Published GitHub release, plus manual | Builds and pushes `shaft-mcp` OCI images to GHCR and publishes MCP registry metadata. | Downstream of the GitHub release created by `mavenCentral_cd.yml`, and upstream of `deploy-shaft-mcp.yml`. Deleting it also prevents the automatic deploy workflow from running. |
-| `deploy-shaft-mcp.yml` | Deploy shaft-mcp | Successful `Publish shaft-mcp Distributions` run on `main`, plus manual | Triggers Render deployment, deploys to Fly.io when configured, and records the Smithery handoff note. | Final MCP deployment step. It is skipped safely when deployment secrets are absent. |
-| `shaft-mcp.yml` | shaft-mcp | Nightly at 01:00 UTC, plus manual | Tests the public installer script across Ubuntu, macOS, and Windows, then validates, packages, coverage-checks, and container-smokes the `shaft-mcp` module. | Independent nightly MCP health check. It does not feed publish/deploy, but it overlaps release validation for MCP packaging and installer behavior. Its cron must stay `'00 1 * * *'` in lockstep with the local E2E workflows below - `scripts/ci/validate_shaft_mcp_configuration.py` enforces this literally. |
-| `e2eTests.yml` | E2E Tests | Nightly at 01:00 UTC, plus manual | Runs broad hosted E2E coverage: database/API/visual/video tests, Selenium Grid browsers, Playwright browsers/devices, BrowserStack mobile/desktop, Cucumber, and JUnit/Moon tests. | Uses shared test-report actions and produces a consolidated workflow summary. Largest end-to-end regression workflow. |
-| `e2eLocalTests.yml` | Local E2E Tests | Nightly at 01:00 UTC, plus manual | Runs local browser E2E coverage on Windows Edge/Chrome and macOS Safari/Chrome, including a local Edge Cucumber path. | Companion to `e2eTests.yml` for local runner/browser coverage. Uses the same report and summary actions. |
-| `lambdatestTests.yml` | LambdaTest E2E Tests | Nightly at 01:00 UTC, plus manual | Uploads LambdaTest mobile apps, verifies LambdaTest credentials, and runs native Android, native iOS, web app, and desktop web suites. | Serial cloud-provider workflow: later jobs depend on earlier mobile upload jobs. Delete only if LambdaTest coverage is intentionally retired. |
-| `update-selenium-grid-versions.yml` | Update Selenium Grid Docker Versions | Weekly Monday 08:00 UTC, plus manual | Reads SeleniumHQ Docker Compose references, updates SHAFT's Selenium Grid image versions, validates Docker Compose syntax, and opens an automated PR. | Maintenance bot for `shaft-engine/src/main/resources/docker-compose/selenium4.yml`, which is used by Selenium Grid E2E jobs. |
-| `agent-plugin-acceptance.yml` | Agent Plugin Live Acceptance | Weekly Monday 04:15 UTC, plus manual | Runs two independent evidence jobs: one installs the pinned native plugin clients and evaluates all 30 canonical routing cases when credentials exist; the other fetches a 61-row external guardrail corpus at an immutable revision, verifies its SHA-256, and scores the 46 rows applicable to the portable command guard. Both upload structured evidence. | Native calls share a 900-second execution budget inside the 20-minute client job: routing stops after 600 seconds, active setup keeps 120 seconds for cleanup, and cleanup keeps 60 seconds for artifact writing. The guardrail job is a five-minute, token-free HTTPS read with no upstream runtime execution; all 15 excluded Git rows retain an explicit reason in its artifact. Missing credentials, deadline exhaustion, and recognized provider/network outages are external blockers; unrecognized client exits, corpus drift, and score-floor misses are gating failures. |
-| `prepare-release-pr.yml` | Prepare Release Pull Request | Manual only, with release date input | Computes the dated SHAFT release version, updates release metadata and `Internal.java` tool versions, validates static release contracts, and opens an automated PR. | Creates the release PR that later feeds `Maven Central Continuous Delivery` after merge. Its `scripts/ci/prepare_release_pr.py` already rewrites `shaft.version` in every pom.xml under the repo (including the sample example projects), which is why the old post-release `sync-sample-projects-version.yml` workflow was deleted as redundant. |
-| `sharded-merged-report.yml` *(deleted, Phase 3 remainder)* | Sharded Execution + Merged Report Demo | was: Manual only, with an optional `-Dtest=` filter input | was: Dispatch-only demo of the `-Dshaft.shard=N/M` sharding + merged-report pipeline (issue #3347): sharded a TestNG run across a matrix, then assembled and merged the per-shard report. | Deleted (issue #3863, completing B5 of #3814's Phase 3): the user-guide docs update that previously blocked deletion landed in a parallel docs PR. Did not replace or touch `e2eTests.yml`'s existing manual class-filter partitioning; `scripts/ci/assemble_shard_blob.py`/`ShardMergeCli` and their tests are untouched (unrelated to the demo dispatch workflow). No downstream dependents. |
-| `copilot-setup-steps.yml` *(deleted, Phase 3)* | Copilot Setup Steps | was: Manual only | was: Prepared the GitHub Copilot coding-agent environment. | Deleted in Phase 3 of issue #3814 (clean, no dependents, B-verdict GO). |
-| `refresh-agent-instructions.yml` *(deleted, Phase 3)* | Refresh Agent Instructions | was: Manual only, with reason and optional `force_ai` input | was: Audited agent guidance, optionally ran Codex to refresh guidance surfaces. | Deleted in Phase 3 of issue #3814 (B3), with same-PR cleanup: the `refresh_workflow` key and its references were removed from `scripts/ci/agent_guidance_budget.json` (its consuming check, `validate_refresh_workflow`, is a no-op when that key is absent), the `.memory` constraint that gated it was marked stale via `memory remember`, and the orphaned `.github/codex/prompts/refresh-agent-instructions.md` prompt was deleted alongside it. |
-| `docs-boundary-gate.yml` *(deleted, Phase 3)* | Documentation Boundary Gate | was: Pull requests touching Markdown or the boundary validator | Folded into `pr-gate.yml`'s `docs-boundary` leg. |
-| `intellij-plugin.yml` *(deleted, Phase 3)* | IntelliJ Plugin | was: Pull requests and pushes touching `shaft-intellij`, plus manual | Folded into `pr-gate.yml`'s `installer-verify` and `intellij-build` legs. Not to be confused with `publish-intellij-plugin.yml` (release-side, kept). |
-| `shaft-capture-e2e.yml` *(deleted, Phase 3)* | SHAFT Capture Browser E2E | was: Pull requests touching `shaft-capture/**`, plus manual | Folded into `pr-gate.yml`'s `capture-e2e` leg. |
-| `shaft-cli.yml` *(deleted, Phase 3)* | shaft-cli | was: Pull requests and pushes touching `shaft-cli/**` or `pom.xml`, plus manual | Folded into `pr-gate.yml`'s `cli` leg. |
-| `template-coupling.yml` *(deleted, Phase 3)* | Template Coupling Gate | was: Pull requests touching example templates or `shaft-skills/**` | Folded into `pr-gate.yml`'s `template-coupling` leg. |
+| File | Trigger | Responsibility |
+|---|---|---|
+| `pr-gate.yml` | pull request, push to `main` | Required path-aware gate: documentation boundaries, agent guidance, unit tests, installer/plugin checks, CLI, Capture E2E, dependency review, and template coupling. |
+| `security.yml` | pull request, push to `main`, manual | CodeQL Java analysis. |
+| `shaft-pilot-release.yml` | release-relevant pull request, manual | Rehearses the release contract, consumers, IntelliJ candidate, Capture, MCP transports, and container. |
+| `mavenCentral_cd.yml` | release-relevant push to `main`, manual | Validates, signs, publishes, verifies, releases, dispatches the guide, and announces. |
+| `maven-central-reconcile.yml` | manual only | Safely completes a partially published immutable Maven Central version; dry-run defaults on. |
+| `prepare-release-pr.yml` | manual only | Updates the dated reactor and tool versions and opens the release PR. |
+| `publishJavaDocs.yml` | successful Maven Central workflow, manual | Publishes aggregate JavaDocs to the `javadoc` branch. |
+| `publish-intellij-plugin.yml` | published GitHub release, manual | Checks out the release tag, verifies, signs, and publishes the IntelliJ plugin. |
+| `publish-shaft-mcp.yml` | published GitHub release, manual | Publishes MCP images and registry metadata. |
+| `deploy-shaft-mcp.yml` | successful MCP distribution workflow, manual | Deploys configured MCP services and records optional-provider handoffs. |
+| `e2eTests.yml` | nightly, manual | Broad hosted database, API, browser, mobile, visual, video, Cucumber, and JUnit coverage. |
+| `e2eLocalTests.yml` | nightly, manual | Windows and macOS local browser and desktop coverage. |
+| `lambdatestTests.yml` | manual | Serial LambdaTest app upload plus native and desktop suites. |
+| `shaft-mcp.yml` | nightly, manual | Public installer matrix, MCP packaging, coverage, and container smoke. |
+| `guided-workflows-live.yml` | nightly, manual | Live IntelliJ guided Web, mobile-emulation, and Doctor flows through real MCP. |
+| `live-tools-nightly.yml` | nightly, manual | Live SHAFT CLI and IntelliJ assistant tool calls that cannot run in the PR gate. |
+| `agent-plugin-acceptance.yml` | weekly, manual | Native client routing evidence and immutable external guardrail-corpus scoring. |
+| `update-selenium-grid-versions.yml` | weekly, manual | Updates Selenium Grid image references and opens a validated PR. |
 
-## Path-filter fidelity
+The quality validator fails when an active `*.yml` file is missing from this
+table. Remove a row only in the same change that deletes its workflow.
 
-`pr-gate.yml`'s `changes` job is now the only trigger source for the folded
-legs above — there is no standalone workflow left with its own `paths:` block
-for docs, IntelliJ, shaft-cli, capture, or templates. Every path the deleted
-workflows used to list (other than each workflow's own now-nonexistent
-self-path) must stay present in the matching `dorny/paths-filter` filter,
-including `.github/workflows/publish-intellij-plugin.yml` in the `intellij`
-filter and root `pom.xml` in the `cli` filter. When adding a new path that
-should gate one of these legs, add it to `pr-gate.yml`'s filter directly —
-there is no other file to update.
+## Scheduling and trigger contracts
 
-## Shared Composite Actions
+- `e2eTests.yml`, `e2eLocalTests.yml`, and `shaft-mcp.yml` intentionally share
+  the `01:00 UTC` nightly slot; configuration validators enforce the literal
+  MCP schedule.
+- `guided-workflows-live.yml` runs at `02:30 UTC`, followed by
+  `live-tools-nightly.yml` at `03:30 UTC` so resource-heavy live lanes do not
+  collide.
+- `pr-gate.yml` intentionally has no `workflow_dispatch`: its path filter needs
+  a pull-request or push diff and a manual run could pass vacuously.
+- `publish-intellij-plugin.yml` and `publish-shaft-mcp.yml` listen for an actual
+  published release rather than the Maven workflow conclusion, because an
+  already-published version is a successful no-op delivery.
+- External credentials and infrastructure can make cloud/live lanes report an
+  explicit external blocker. Unknown client exits, contract drift, and
+  ordinary test failures remain failures.
 
-| Action | Used by | Purpose |
-| --- | --- | --- |
-| `.github/actions/setup-test-env` | `e2eTests.yml`, `e2eLocalTests.yml`, `lambdatestTests.yml` | Shared Java/Maven/optional Node setup for E2E jobs. |
-| `.github/actions/post-test-report` | `e2eTests.yml`, `e2eLocalTests.yml`, `lambdatestTests.yml` | Uploads JaCoCo coverage, creates Allure artifacts, writes summaries, and fails jobs from Allure/Surefire results. |
-| `.github/actions/consolidate-test-results` | `e2eTests.yml`, `e2eLocalTests.yml`, `lambdatestTests.yml` | Aggregates individual job results into one workflow summary table. |
-| `.github/actions/upload-jacoco-coverage` | `post-test-report`, `mavenCentral_cd.yml`, `shaft-pilot-release.yml`, `shaft-mcp.yml` | Generates required JaCoCo XML reports when needed and uploads coverage to Codecov. |
-| `.github/actions/reclaim-disk-space` | `mavenCentral_cd.yml`, `shaft-pilot-release.yml`, `shaft-mcp.yml` | Frees unused preinstalled runner toolchains and Docker images (optionally also build outputs) so the release container build doesn't run out of disk. |
-| `.github/actions/mcp-container-smoke` | `mavenCentral_cd.yml`, `shaft-pilot-release.yml`, `shaft-mcp.yml` | Builds the shaft-mcp Docker image and verifies it answers the MCP `initialize` handshake before the container is trusted. |
-| `.github/actions/intellij-verify` | `pr-gate.yml`, `mavenCentral_cd.yml`, `shaft-pilot-release.yml`, `publish-intellij-plugin.yml` | Sets up JDK 17 and Gradle 9, then runs the shaft-intellij Gradle build (`check buildPlugin verifyPlugin`) through `scripts/ci/build_retry.sh`, so a transient connect timeout while `:verifyPlugin` resolves the JetBrains Plugin Verifier and its IDE distributions costs one retry instead of the job (issue #4494); when `publish: 'true'`, also validates JetBrains Marketplace secrets and signs/publishes the plugin in a separate, never-retried step (Marketplace versions are single-use). Callers must allow at least 20 `timeout-minutes` for the second attempt. |
-| `.github/actions/capture-browser-e2e` | `pr-gate.yml`, `mavenCentral_cd.yml`, `shaft-pilot-release.yml` | Runs the headless SHAFT Capture browser E2E suite (`ManagedCaptureRecorderBrowserTest`, `CaptureGeneratedReplayBrowserTest`). Callers install the module prerequisites first. |
-| `.github/actions/release-contract-validators` | `shaft-pilot-release.yml`, `prepare-release-pr.yml` | Runs the six SHAFT release-contract validators (reactor versions, modular documentation, documentation boundaries, Maven publication, shaft-mcp configuration, SHAFT Pilot release) in a fixed order. Callers set up Python 3 first. |
-| `.github/actions/mcp-jar-build` | `shaft-mcp.yml`, `mavenCentral_cd.yml` | Installs reactor artifacts (`install-args` input), then copies shaft-mcp's runtime dependencies into its thin-classpath `target/dependency` directory. |
+## Safe editing checklist
 
-`pr-gate.yml`'s `intellij-build` and `capture-e2e` legs use the composites
-above; its other legs (`cli`, `template-coupling`) still have no shared
-composite action (S1/B2 remains deferred for the parts not extracted in the
-Phase 3 remainder, issue #3863).
-
-## Generated PR Workflows
-
-These workflows write branches and PRs instead of only reporting results:
-
-| Workflow | Branch | Typical PR purpose |
-| --- | --- | --- |
-| `Update Selenium Grid Docker Versions` | `auto-update-selenium-grid-versions` | Update Selenium Docker image tags in the bundled Grid compose file. |
-| `Prepare Release Pull Request` | `release/<version>` | Prepare dated SHAFT release metadata. |
-
-## Deletion Checklist
-
-Before deleting or renaming a workflow:
-
-1. Check whether another workflow references its `name` under `workflow_run`.
-2. Check whether it creates a GitHub release, repository dispatch, branch, PR, package, deployment, issue, or artifact consumed elsewhere.
-3. Check whether it is the only caller of a shared composite action or external service.
-4. Remove or update stale path filters in other workflows when deleting release, docs, agent, or CI files.
-5. Grep `scripts/ci/*.py` for the workflow's filename or literal content - `validate_modular_documentation.py`
-   used to hard-require `sync-sample-projects-version.yml` to exist with specific text, which would have broken
-   every future release-candidate/CD run the moment the workflow was deleted without updating the validator.
-6. When adding a new reactor module, add it to `mavenCentral_cd.yml`'s `paths:` filter, the
-   CodeQL `-pl` list in `security.yml`, and — once its tests have run green in CI at least
-   once — the Pilot test `-pl` lists in `shaft-pilot-release.yml` and `mavenCentral_cd.yml`.
-7. If the workflow is referenced from `.memory/` (constraints, gotchas, facts) or a `.github/skills/**`
-   playbook, update or retire that reference in the same PR — see Phase 3 of issue #3814, which marked
-   `constraint.paid-agent-work-audit-gated` stale via `memory remember` rather than leaving it pointing at
-   a deleted file.
-
-### Phase 3 of issue #3814 (this deletion pass)
-
-Deleted, folded into `pr-gate.yml`: `docs-boundary-gate.yml`, `intellij-plugin.yml`,
-`shaft-capture-e2e.yml`, `shaft-cli.yml`, `template-coupling.yml`. Deleted, no fold
-(no longer needed): `copilot-setup-steps.yml` (B-verdict GO), `refresh-agent-instructions.yml`
-(B3, with same-PR cleanup of everything that referenced it). Narrowed, not deleted:
-`security.yml` lost only its `dependency-review` job (B1; CodeQL stays — no org-wide CodeQL
-default setup exists). Explicitly **not** touched at the time: `sharded-merged-report.yml` (B5,
-blocked on user-guide docs), `shaft-pilot-release.yml`, and the release chain
-(`mavenCentral_cd.yml` → `publish-intellij-plugin.yml` / `publish-shaft-mcp.yml` → `deploy-shaft-mcp.yml`
-→ `publishJavaDocs.yml`). Composite-action extraction for `pr-gate.yml`'s legs (S1/B2) was deferred to a
-future phase; this pass was deletion-only so it didn't require rewriting the release-contract validators.
-
-### Phase 3 remainder (issue #3863)
-
-`sharded-merged-report.yml` deleted, completing B5: the user-guide docs update that blocked it
-landed in a parallel docs PR; `scripts/ci/run_sharded_and_merge.py` and its tests are untouched
-(a separate task updates its docstring once the docs URL exists). S1/B2 partially landed: four
-composite actions were extracted — `intellij-verify` (replaces the byte-identical JDK 17 + Gradle 9
-+ `gradle -p shaft-intellij check buildPlugin verifyPlugin[ signPlugin publishPlugin]` block in
-`pr-gate.yml`, `mavenCentral_cd.yml`, `shaft-pilot-release.yml`, and `publish-intellij-plugin.yml`),
-`capture-browser-e2e` (the shared `mvn ... -pl shaft-capture test -DincludeCaptureBrowserE2E ...`
-invocation in `pr-gate.yml`, `mavenCentral_cd.yml`, and `shaft-pilot-release.yml`),
-`release-contract-validators` (the six release validators shared by `shaft-pilot-release.yml` and
-`prepare-release-pr.yml`), and `mcp-jar-build` (the reactor-install + `dependency:copy-dependencies`
-pair shared by `shaft-mcp.yml` and `mavenCentral_cd.yml`; `shaft-pilot-release.yml` keeps its
-split-step shape untouched). `scripts/ci/validate_shaft_pilot_release.py` and
-`scripts/ci/validate_shaft_mcp_configuration.py` were updated in the same change to assert the new
-composite-action references instead of the literal command text that used to live in each workflow.
+1. Search `workflow_run`, `release`, `repository_dispatch`, and workflow-name
+   references before renaming or deleting a file.
+2. Keep `pr-gate.yml` path filters aligned with every input read by each leg;
+   a green job that never triggers is not coverage.
+3. Mirror release-critical Maven module lists and checks between
+   `shaft-pilot-release.yml` and `mavenCentral_cd.yml`.
+4. Run the focused workflow-contract unit tests, then
+   `py -3 scripts/ci/validate_quality_configuration.py` and
+   `py -3 scripts/ci/validate_agent_setup.py --skip-external`.
+5. Never test a real publish, deploy, reconciliation, or cloud lane without
+   explicit authorization and the required infrastructure.

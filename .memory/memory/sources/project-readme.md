@@ -1,3 +1,3 @@
 # Source: README.md
 
-Canonical product overview. SHAFT is a Java automation framework for web, mobile, API, CLI, and database testing, with driver management, synchronization, assertions, configuration, test data, reporting, evidence, and optional modules for cloud execution, capture, diagnostics, healing, MCP, AI, video, and visual checks.
+Canonical product landing page. SHAFT is a Java 25 automation framework for Web, Mobile, API, CLI, and Database testing. The README owns the concise value proposition, generator-first first run, capability map, contribution path, and distinct community-tooling and financial-sponsorship calls to action; the official user guide owns detailed usage.
