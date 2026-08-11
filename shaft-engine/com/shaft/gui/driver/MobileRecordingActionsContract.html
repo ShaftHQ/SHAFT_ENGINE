@@ -48,6 +48,10 @@
 <li><a href="#method-summary" tabindex="0">Method Summary</a></li>
 <li><a href="#method-detail" tabindex="0">Method Details</a>
 <ol class="toc-list">
+<li><a href="#start()" tabindex="0">start()</a></li>
+<li><a href="#start(com.shaft.gui.driver.MobileRecordingOptions)" tabindex="0">start(MobileRecordingOptions)</a></li>
+<li><a href="#stop()" tabindex="0">stop()</a></li>
+<li><a href="#stopAndSave(java.nio.file.Path)" tabindex="0">stopAndSave(Path)</a></li>
 <li><a href="#and()" tabindex="0">and()</a></li>
 </ol>
 </li>
@@ -72,7 +76,7 @@
 <section class="method-summary" id="method-summary">
 <h2>Method Summary</h2>
 <div id="method-summary-table">
-<div class="table-tabs" role="tablist" aria-orientation="horizontal"><button id="method-summary-table-tab0" role="tab" aria-selected="true" aria-controls="method-summary-table.tabpanel" tabindex="0" onkeydown="switchTab(event)" onclick="show('method-summary-table', 'method-summary-table', 3)" class="active-table-tab">All Methods</button><button id="method-summary-table-tab2" role="tab" aria-selected="false" aria-controls="method-summary-table.tabpanel" tabindex="-1" onkeydown="switchTab(event)" onclick="show('method-summary-table', 'method-summary-table-tab2', 3)" class="table-tab">Instance Methods</button><button id="method-summary-table-tab3" role="tab" aria-selected="false" aria-controls="method-summary-table.tabpanel" tabindex="-1" onkeydown="switchTab(event)" onclick="show('method-summary-table', 'method-summary-table-tab3', 3)" class="table-tab">Abstract Methods</button></div>
+<div class="table-tabs" role="tablist" aria-orientation="horizontal"><button id="method-summary-table-tab0" role="tab" aria-selected="true" aria-controls="method-summary-table.tabpanel" tabindex="0" onkeydown="switchTab(event)" onclick="show('method-summary-table', 'method-summary-table', 3)" class="active-table-tab">All Methods</button><button id="method-summary-table-tab2" role="tab" aria-selected="false" aria-controls="method-summary-table.tabpanel" tabindex="-1" onkeydown="switchTab(event)" onclick="show('method-summary-table', 'method-summary-table-tab2', 3)" class="table-tab">Instance Methods</button><button id="method-summary-table-tab3" role="tab" aria-selected="false" aria-controls="method-summary-table.tabpanel" tabindex="-1" onkeydown="switchTab(event)" onclick="show('method-summary-table', 'method-summary-table-tab3', 3)" class="table-tab">Abstract Methods</button><button id="method-summary-table-tab5" role="tab" aria-selected="false" aria-controls="method-summary-table.tabpanel" tabindex="-1" onkeydown="switchTab(event)" onclick="show('method-summary-table', 'method-summary-table-tab5', 3)" class="table-tab">Default Methods</button></div>
 <div id="method-summary-table.tabpanel" role="tabpanel" aria-labelledby="method-summary-table-tab0">
 <div class="summary-table three-column-summary">
 <div class="table-header col-first">Modifier and Type</div>
@@ -81,6 +85,26 @@
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="MobileActionsContract.html" title="interface in com.shaft.gui.driver">MobileActionsContract</a></code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#and()" class="member-name-link">and</a>()</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">&nbsp;</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code>default <a href="MobileRecordingActionsContract.html" title="interface in com.shaft.gui.driver">MobileRecordingActionsContract</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#start()" class="member-name-link">start</a>()</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5">
+<div class="block">Starts a bounded recording with SHAFT defaults.</div>
+</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code>default <a href="MobileRecordingActionsContract.html" title="interface in com.shaft.gui.driver">MobileRecordingActionsContract</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#start(com.shaft.gui.driver.MobileRecordingOptions)" class="member-name-link">start</a><wbr>(<a href="MobileRecordingOptions.html" title="class in com.shaft.gui.driver">MobileRecordingOptions</a>&nbsp;options)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5">
+<div class="block">Starts a bounded recording with explicit provider time and result-size limits.</div>
+</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code>default byte[]</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#stop()" class="member-name-link">stop</a>()</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5">
+<div class="block">Stops the active recording and returns its decoded media bytes.</div>
+</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code>default <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/nio/file/Path.html" title="class or interface in java.nio.file" class="external-link">Path</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#stopAndSave(java.nio.file.Path)" class="member-name-link">stopAndSave</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/nio/file/Path.html" title="class or interface in java.nio.file" class="external-link">Path</a>&nbsp;exactTarget)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5">
+<div class="block">Stops the active recording and safely publishes it to the exact local target.</div>
+</div>
 </div>
 </div>
 </div>
@@ -95,6 +119,42 @@
 <section class="method-details" id="method-detail">
 <h2>Method Details</h2>
 <ul class="member-list">
+<li>
+<section class="detail" id="start()">
+<h3>start</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">default</span>&nbsp;<span class="return-type"><a href="MobileRecordingActionsContract.html" title="interface in com.shaft.gui.driver">MobileRecordingActionsContract</a></span>&nbsp;<span class="element-name">start</span>()</div>
+<div class="block">Starts a bounded recording with SHAFT defaults.</div>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="start(com.shaft.gui.driver.MobileRecordingOptions)">
+<h3>start</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">default</span>&nbsp;<span class="return-type"><a href="MobileRecordingActionsContract.html" title="interface in com.shaft.gui.driver">MobileRecordingActionsContract</a></span>&nbsp;<span class="element-name">start</span><wbr><span class="parameters">(<a href="MobileRecordingOptions.html" title="class in com.shaft.gui.driver">MobileRecordingOptions</a>&nbsp;options)</span></div>
+<div class="block">Starts a bounded recording with explicit provider time and result-size limits.</div>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="stop()">
+<h3>stop</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">default</span>&nbsp;<span class="return-type">byte[]</span>&nbsp;<span class="element-name">stop</span>()</div>
+<div class="block">Stops the active recording and returns its decoded media bytes.</div>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="stopAndSave(java.nio.file.Path)">
+<h3>stopAndSave</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">default</span>&nbsp;<span class="return-type"><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/nio/file/Path.html" title="class or interface in java.nio.file" class="external-link">Path</a></span>&nbsp;<span class="element-name">stopAndSave</span><wbr><span class="parameters">(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/nio/file/Path.html" title="class or interface in java.nio.file" class="external-link">Path</a>&nbsp;exactTarget)</span></div>
+<div class="block">Stops the active recording and safely publishes it to the exact local target.</div>
+</div>
+</section>
+</li>
 <li>
 <section class="detail" id="and()">
 <h3>and</h3>

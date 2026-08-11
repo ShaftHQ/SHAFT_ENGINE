@@ -54,6 +54,7 @@
 <li><a href="#attachVideoRecording()" tabindex="0">attachVideoRecording()</a></li>
 <li><a href="#getVideoRecordingFilePath()" tabindex="0">getVideoRecordingFilePath()</a></li>
 <li><a href="#getVideoRecording()" tabindex="0">getVideoRecording()</a></li>
+<li><a href="#clearVideoRecordingState(org.openqa.selenium.WebDriver)" tabindex="0">clearVideoRecordingState(WebDriver)</a></li>
 </ol>
 </li>
 </ol>
@@ -100,24 +101,29 @@ driver-native so mobile users do not need the optional desktop video implementat
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
 <div class="block">Attaches an existing video recording file to the current report.</div>
 </div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/io/InputStream.html" title="class or interface in java.io" class="external-link">InputStream</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#getVideoRecording()" class="member-name-link">getVideoRecording</a>()</code></div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static void</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#clearVideoRecordingState(org.openqa.selenium.WebDriver)" class="member-name-link">clearVideoRecordingState</a><wbr>(org.openqa.selenium.WebDriver&nbsp;driver)</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
+<div class="block">Clears automatic recording handles only when they belong to the driver being torn down.</div>
+</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/io/InputStream.html" title="class or interface in java.io" class="external-link">InputStream</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#getVideoRecording()" class="member-name-link">getVideoRecording</a>()</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
 <div class="block">Stops the active desktop or Appium-native recording and returns its bytes.</div>
 </div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#getVideoRecordingFilePath()" class="member-name-link">getVideoRecordingFilePath</a>()</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
+<div class="col-first even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#getVideoRecordingFilePath()" class="member-name-link">getVideoRecordingFilePath</a>()</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
 <div class="block">Stops the active recording, writes it to SHAFT's temporary video path, and returns that path.</div>
 </div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static void</code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#startVideoRecording()" class="member-name-link">startVideoRecording</a>()</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static void</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#startVideoRecording()" class="member-name-link">startVideoRecording</a>()</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
 <div class="block">Starts desktop screen recording when video recording is enabled for local non-headless execution.</div>
 </div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static void</code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#startVideoRecording(org.openqa.selenium.WebDriver)" class="member-name-link">startVideoRecording</a><wbr>(org.openqa.selenium.WebDriver&nbsp;driver)</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
+<div class="col-first even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static void</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#startVideoRecording(org.openqa.selenium.WebDriver)" class="member-name-link">startVideoRecording</a><wbr>(org.openqa.selenium.WebDriver&nbsp;driver)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
 <div class="block">Starts Appium-native recording for mobile execution or falls back to desktop recording for local desktop drivers.</div>
 </div>
 </div>
@@ -208,6 +214,15 @@ driver-native so mobile users do not need the optional desktop video implementat
 <dt>Returns:</dt>
 <dd>an input stream for the recording, or <code>null</code> when no recording is active or available</dd>
 </dl>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="clearVideoRecordingState(org.openqa.selenium.WebDriver)">
+<h3>clearVideoRecordingState</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public static</span>&nbsp;<span class="return-type">void</span>&nbsp;<span class="element-name">clearVideoRecordingState</span><wbr><span class="parameters">(org.openqa.selenium.WebDriver&nbsp;driver)</span></div>
+<div class="block">Clears automatic recording handles only when they belong to the driver being torn down.</div>
 </div>
 </section>
 </li>
