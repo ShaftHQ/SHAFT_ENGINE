@@ -75,6 +75,9 @@ table. Remove a row only in the same change that deletes its workflow.
   already-published version is a successful no-op delivery.
 - Coverage-producing jobs upload complete JaCoCo/Gradle XML evidence on `main`.
   Upload failures stay separate from test verdicts and feed the notifier.
+- Agent-plugin native evidence has a 900-second execution budget;
+  routing stops after 600 seconds, setup reserves 120 seconds for cleanup, and cleanup keeps
+  60 seconds for artifact writing.
 - The agnix job copies staged plugin content outside canonical roots, validates
   it with a pinned checksum-verified binary in a no-network, read-only,
   nonroot container, and fails on new errors.
