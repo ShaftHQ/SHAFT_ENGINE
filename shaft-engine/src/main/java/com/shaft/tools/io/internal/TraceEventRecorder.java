@@ -1,6 +1,10 @@
 package com.shaft.tools.io.internal;
 
 import com.shaft.driver.SHAFT;
+import com.shaft.gui.capabilities.AutomationBackend;
+import com.shaft.gui.capabilities.internal.AutomationCapabilityResolver;
+import com.shaft.gui.playwright.internal.PlaywrightSessionManager;
+import io.appium.java_client.AppiumDriver;
 import org.openqa.selenium.By;
 import org.openqa.selenium.WebDriver;
 
@@ -12,15 +16,19 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Supplier;
 
 /**
  * Thread-local Selenium trace event recorder used by failure trace artifacts.
  */
 public final class TraceEventRecorder {
     private static final ThreadLocal<List<ActionEvent>> EVENTS = ThreadLocal.withInitial(ArrayList::new);
+    private static final ThreadLocal<Map<String, AutomationBackend>> EVENT_BACKENDS =
+            ThreadLocal.withInitial(LinkedHashMap::new);
     private static final ThreadLocal<Integer> NEXT_ID = ThreadLocal.withInitial(() -> 0);
     private static final ThreadLocal<Map<String, byte[]>> SCREENSHOTS = ThreadLocal.withInitial(LinkedHashMap::new);
     private static final ThreadLocal<Long> SCREENSHOT_BYTES = ThreadLocal.withInitial(() -> 0L);
+    private static final ThreadLocal<Integer> SUPPRESSION_DEPTH = ThreadLocal.withInitial(() -> 0);
     private static final int MAX_DOM_SNAPSHOT_CHARACTERS = 200_000;
 
     private TraceEventRecorder() {
@@ -50,14 +58,17 @@ public final class TraceEventRecorder {
      * @return started event handle, or a disabled handle when tracing is off
      */
     public static Event start(String category, String name, String locator, WebDriver driver) {
-        if (!isEnabled()) {
+        FailureTraceReporter.activateBrowserEvidenceOwner(driver);
+        if (!isEnabled() || SUPPRESSION_DEPTH.get() > 0) {
             return Event.disabled();
         }
         int index = NEXT_ID.get() + 1;
         NEXT_ID.set(index);
+        String id = "action-" + index;
+        EVENT_BACKENDS.get().put(id, backend(driver));
         return new Event(
                 true,
-                "action-" + index,
+                id,
                 value(category),
                 value(name),
                 Instant.now().toString(),
@@ -67,6 +78,33 @@ public final class TraceEventRecorder {
                 callerFrame(),
                 domSnapshot(driver),
                 driver);
+    }
+
+    /**
+     * Starts a backend-owned action that has no Selenium {@link WebDriver}, such as Playwright.
+     * The explicit action-time identity avoids relying on unrelated thread-local session state.
+     */
+    public static Event startForBackend(String category, String name, String locator, AutomationBackend backend) {
+        Event event = start(category, name, locator, null);
+        if (event.enabled()) {
+            EVENT_BACKENDS.get().put(event.id(), backend == null ? AutomationBackend.UNKNOWN : backend);
+        }
+        return event;
+    }
+
+    /** Executes a nested legacy delegate without recording a duplicate event around its owner action. */
+    public static <T> T withoutNestedEvents(Supplier<T> action) {
+        SUPPRESSION_DEPTH.set(SUPPRESSION_DEPTH.get() + 1);
+        try {
+            return action.get();
+        } finally {
+            int remaining = SUPPRESSION_DEPTH.get() - 1;
+            if (remaining <= 0) {
+                SUPPRESSION_DEPTH.remove();
+            } else {
+                SUPPRESSION_DEPTH.set(remaining);
+            }
+        }
     }
 
     /**
@@ -187,6 +225,7 @@ public final class TraceEventRecorder {
         }
         EVENTS.get().add(new ActionEvent(
                 event.id(),
+                EVENT_BACKENDS.get().getOrDefault(event.id(), AutomationBackend.UNKNOWN),
                 event.category(),
                 event.name(),
                 normalizeStatus(status),
@@ -204,6 +243,7 @@ public final class TraceEventRecorder {
                 event.domSnapshotBefore(),
                 domSnapshot(event.driver()),
                 screenshotBase64(event.id())));
+        EVENT_BACKENDS.get().remove(event.id());
     }
 
     /**
@@ -214,6 +254,7 @@ public final class TraceEventRecorder {
     static List<ActionEvent> drain() {
         List<ActionEvent> snapshot = snapshot();
         EVENTS.get().clear();
+        EVENT_BACKENDS.get().clear();
         NEXT_ID.set(0);
         return snapshot;
     }
@@ -241,10 +282,26 @@ public final class TraceEventRecorder {
      * Clears current thread action events.
      */
     public static void clear() {
+        clearEvents();
+        FailureTraceReporter.clearSensitiveValues();
+    }
+
+    static void clearForNewTest() {
+        clearEvents();
+        FailureTraceReporter.clearInvocationSensitiveValues();
+    }
+
+    static void clearPreservingSensitiveValues() {
+        clearEvents();
+    }
+
+    private static void clearEvents() {
         EVENTS.remove();
+        EVENT_BACKENDS.remove();
         NEXT_ID.remove();
         SCREENSHOTS.remove();
         SCREENSHOT_BYTES.remove();
+        SUPPRESSION_DEPTH.remove();
     }
 
     /**
@@ -322,6 +379,25 @@ public final class TraceEventRecorder {
         }
     }
 
+    private static AutomationBackend backend(WebDriver driver) {
+        try {
+            if (driver != null) {
+                if (driver instanceof AppiumDriver) {
+                    return AutomationBackend.APPIUM;
+                }
+                return AutomationCapabilityResolver.forWebDriver(driver).backend();
+            }
+            var playwright = PlaywrightSessionManager.currentSession();
+            if (playwright != null) {
+                return AutomationCapabilityResolver.forPlaywright(playwright).backend();
+            }
+            return AutomationCapabilityResolver.forWebDriver(
+                    com.shaft.driver.internal.DriverFactory.DriverFactoryHelper.getActiveDriver()).backend();
+        } catch (RuntimeException ignored) {
+            return AutomationBackend.UNKNOWN;
+        }
+    }
+
     /**
      * Best-effort {@code document.documentElement.outerHTML} snapshot for the current thread's
      * active driver, gated by {@code shaft.trace.includeDomSnapshots} and bounded to
@@ -388,7 +464,8 @@ public final class TraceEventRecorder {
     }
 
     private static String exceptionMessage(Throwable exception) {
-        return exception == null ? "" : value(exception.getMessage());
+        return exception == null ? "" : FailureTraceReporter.redactThrowableText(
+                exception, value(exception.getMessage()));
     }
 
     private static void field(StringBuilder json, int indent, String key, String value, boolean comma) {
@@ -549,7 +626,8 @@ public final class TraceEventRecorder {
         }
     }
 
-    record ActionEvent(String id, String category, String name, String status, String startTime, long durationMs,
+    record ActionEvent(String id, AutomationBackend backend, String category, String name, String status,
+                       String startTime, long durationMs,
                        String locator, String url, String caller, String message, String exceptionType,
                        String exceptionMessage, List<String> attachments, Map<String, String> metadata,
                        Map<String, Object> actionability, String domSnapshotBefore, String domSnapshotAfter,

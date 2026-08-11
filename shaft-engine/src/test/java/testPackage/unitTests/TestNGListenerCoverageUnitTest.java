@@ -10,6 +10,7 @@ import com.shaft.listeners.internal.RetryAnalyzer;
 import com.shaft.listeners.internal.TestNGListenerHelper;
 import com.shaft.properties.internal.ThreadLocalPropertiesManager;
 import com.shaft.tools.io.internal.ExecutionSummaryReport;
+import com.shaft.tools.io.internal.FailureTraceReporter;
 import com.shaft.tools.io.internal.IssueReporter;
 import com.shaft.tools.io.internal.ReportManagerHelper;
 import org.mockito.MockedStatic;
@@ -148,6 +149,20 @@ public class TestNGListenerCoverageUnitTest {
 
         Throwable pendingFailure = TestNGListenerHelper.getAndClearPendingConfigFailure();
         assertEquals(pendingFailure, throwable);
+    }
+
+    @Test
+    public void afterMethodFailureShouldNotBecomePendingEvidenceForALaterSkippedTest() throws Exception {
+        RuntimeException teardownFailure = new RuntimeException("after method failed");
+        ITestResult result = createTestResult("afterMethodFailure", teardownFailure);
+        ITestNGMethod method = Mockito.mock(ITestNGMethod.class);
+        Mockito.when(method.isAfterMethodConfiguration()).thenReturn(true);
+        Mockito.when(result.getMethod()).thenReturn(method);
+
+        new TestNGListener().onConfigurationFailure(result);
+
+        assertNull(TestNGListenerHelper.getAndClearPendingConfigFailure(),
+                "Teardown failures must not contaminate a later unrelated skipped test.");
     }
 
     @Test
@@ -487,6 +502,175 @@ public class TestNGListenerCoverageUnitTest {
 
             retryAnalyzer.verify(RetryAnalyzer::activateSupportingEvidenceCaptureForRetryAttempt);
             retryAnalyzer.verify(RetryAnalyzer::restoreSupportingEvidenceCaptureForRetryAttempt);
+        }
+    }
+
+    @Test
+    public void sensitiveFailureStateShouldSurviveAfterInvocationUntilTerminalFailureCallback() throws Exception {
+        String sensitiveValue = "opaque-testng-terminal-value-7193";
+        TestNGListener listener = new TestNGListener();
+        IInvokedMethod invokedMethod = Mockito.mock(IInvokedMethod.class);
+        ITestNGMethod testMethod = createTestMethod("sensitiveTerminalFailure");
+        ITestResult testResult = createTestResult("sensitiveTerminalFailure",
+                new IllegalStateException("Provider echoed " + sensitiveValue));
+        ITestContext testContext = Mockito.mock(ITestContext.class);
+        Mockito.when(invokedMethod.isTestMethod()).thenReturn(true);
+        Mockito.when(invokedMethod.isConfigurationMethod()).thenReturn(false);
+        Mockito.when(invokedMethod.getTestMethod()).thenReturn(testMethod);
+        Mockito.when(testResult.getStatus()).thenReturn(ITestResult.FAILURE);
+        Mockito.when(testResult.isSuccess()).thenReturn(false);
+        TrackedResultState originalState = captureTrackedResultState();
+        FailureTraceReporter.registerSensitiveSourceValue(sensitiveValue);
+        var reportedFailure = new java.util.concurrent.atomic.AtomicReference<String>();
+
+        try (MockedStatic<RetryAnalyzer> retryAnalyzer = Mockito.mockStatic(RetryAnalyzer.class);
+             MockedStatic<TestNGListenerHelper> listenerHelper = Mockito.mockStatic(TestNGListenerHelper.class);
+             MockedStatic<IssueReporter> issueReporter = Mockito.mockStatic(IssueReporter.class);
+             MockedStatic<ReportManagerHelper> reportManager = Mockito.mockStatic(ReportManagerHelper.class);
+             MockedStatic<ExecutionSummaryReport> summary = Mockito.mockStatic(ExecutionSummaryReport.class)) {
+            summary.when(() -> ExecutionSummaryReport.casesDetailsIncrement(Mockito.<String>any(),
+                            Mockito.<String>any(), Mockito.<String>any(), Mockito.<String>any(), Mockito.<String>any(),
+                            Mockito.<String>any(), Mockito.<String>any()))
+                    .thenAnswer(invocation -> {
+                        reportedFailure.set(invocation.getArgument(4));
+                        return null;
+                    });
+            listener.afterInvocation(invokedMethod, testResult, testContext);
+            listener.onTestFailure(testResult);
+
+            Assert.assertNotNull(reportedFailure.get(), "The terminal callback must publish its summary row.");
+            Assert.assertFalse(reportedFailure.get().contains(sensitiveValue),
+                    "The terminal callback must redact invocation-sensitive provider text.");
+            Assert.assertFalse(FailureTraceReporter.redactInvocationText(sensitiveValue).contains(sensitiveValue),
+                    "Sensitivity must survive the terminal callback for later Allure consumers.");
+            com.shaft.tools.io.internal.ReportContext.start(new com.shaft.listeners.internal.TestExecutionInfo(
+                    "next-test", getClass().getName(), "nextTest", "next test", "next test",
+                    null, null, false));
+            assertEquals(FailureTraceReporter.redactInvocationText(sensitiveValue), sensitiveValue,
+                    "The next test boundary must clear invocation-only sensitive state.");
+        } finally {
+            restoreTrackedResultState(originalState);
+            com.shaft.tools.io.internal.ReportContext.clear();
+        }
+    }
+
+    @Test
+    public void sensitiveFailureShouldUseRedactedReportPortalEvidenceWithoutMutatingTheOriginalResult() throws Exception {
+        String sensitiveValue = "opaque-report-portal-value-4826";
+        IllegalStateException providerFailure = new IllegalStateException("Provider echoed " + sensitiveValue);
+        ITestResult testResult = createTestResult("sensitiveReportPortalFailure", providerFailure);
+        TestNGListener listener = new TestNGListener();
+        ITestNGService reportPortalService = Mockito.mock(ITestNGService.class);
+        var sentResult = org.mockito.ArgumentCaptor.forClass(ITestResult.class);
+        var finishedResult = org.mockito.ArgumentCaptor.forClass(ITestResult.class);
+        TrackedResultState originalState = captureTrackedResultState();
+        FailureTraceReporter.registerSensitiveSourceValue(sensitiveValue);
+        setReportPortalService(listener, reportPortalService);
+        setReportPortalEnabled(listener, true);
+
+        try (MockedStatic<ExecutionSummaryReport> ignored = Mockito.mockStatic(ExecutionSummaryReport.class)) {
+            listener.onTestFailure(testResult);
+
+            Mockito.verify(reportPortalService).sendReportPortalMsg(sentResult.capture());
+            Mockito.verify(reportPortalService).finishTestMethod(Mockito.eq(ItemStatus.FAILED), finishedResult.capture());
+            Assert.assertFalse(sentResult.getValue().getThrowable().getMessage().contains(sensitiveValue));
+            Assert.assertFalse(finishedResult.getValue().getThrowable().getMessage().contains(sensitiveValue));
+            Assert.assertSame(testResult.getThrowable(), providerFailure,
+                    "ReportPortal sanitization must not mutate the TestNG result or provider exception.");
+            assertEquals(providerFailure.getMessage(), "Provider echoed " + sensitiveValue);
+        } finally {
+            setReportPortalEnabled(listener, false);
+            restoreTrackedResultState(originalState);
+            com.shaft.tools.io.internal.ReportContext.clear();
+        }
+    }
+
+    @Test
+    public void reportPortalEvidenceShouldRemoveSensitiveTextFromWrappedProviderFailures() throws Exception {
+        String sensitiveValue = "opaque-report-portal-cause-6941";
+        IllegalStateException providerFailure = new IllegalStateException("Provider echoed " + sensitiveValue);
+        AssertionError terminalFailure = new AssertionError("script failed", providerFailure);
+        ITestResult testResult = createTestResult("wrappedSensitiveReportPortalFailure", terminalFailure);
+        TestNGListener listener = new TestNGListener();
+        ITestNGService reportPortalService = Mockito.mock(ITestNGService.class);
+        var sentResult = org.mockito.ArgumentCaptor.forClass(ITestResult.class);
+        TrackedResultState originalState = captureTrackedResultState();
+        FailureTraceReporter.registerSensitiveSourceValue(sensitiveValue);
+        setReportPortalService(listener, reportPortalService);
+        setReportPortalEnabled(listener, true);
+
+        try (MockedStatic<ExecutionSummaryReport> ignored = Mockito.mockStatic(ExecutionSummaryReport.class)) {
+            listener.onTestFailure(testResult);
+
+            Mockito.verify(reportPortalService).sendReportPortalMsg(sentResult.capture());
+            String reportPortalStack = ReportManagerHelper.formatStackTraceToLogEntry(
+                    sentResult.getValue().getThrowable());
+            Assert.assertFalse(reportPortalStack.contains(sensitiveValue));
+            Assert.assertSame(testResult.getThrowable(), terminalFailure);
+            Assert.assertSame(terminalFailure.getCause(), providerFailure);
+        } finally {
+            setReportPortalEnabled(listener, false);
+            restoreTrackedResultState(originalState);
+            com.shaft.tools.io.internal.ReportContext.clear();
+        }
+    }
+
+    @Test
+    public void sensitiveConfigurationFailureShouldUseSafeReportPortalEvidenceAndClearAtItsTerminalCallback() throws Exception {
+        String sensitiveValue = "opaque-config-provider-value-3158";
+        IllegalStateException providerFailure = new IllegalStateException("Provider echoed " + sensitiveValue);
+        ITestResult testResult = createTestResult("sensitiveConfigurationFailure", providerFailure);
+        TestNGListener listener = new TestNGListener();
+        ITestNGService reportPortalService = Mockito.mock(ITestNGService.class);
+        var sentResult = org.mockito.ArgumentCaptor.forClass(ITestResult.class);
+        FailureTraceReporter.registerSensitiveSourceValue(sensitiveValue);
+        setReportPortalService(listener, reportPortalService);
+        setReportPortalEnabled(listener, true);
+
+        try {
+            listener.onConfigurationFailure(testResult);
+
+            Mockito.verify(reportPortalService).sendReportPortalMsg(sentResult.capture());
+            Assert.assertFalse(sentResult.getValue().getThrowable().getMessage().contains(sensitiveValue));
+            Assert.assertSame(TestNGListenerHelper.getAndClearPendingConfigFailure(), providerFailure);
+            Assert.assertFalse(FailureTraceReporter.redactInvocationText(sensitiveValue).contains(sensitiveValue),
+                    "Sensitivity must survive the configuration callback for later Allure consumers.");
+            com.shaft.tools.io.internal.ReportContext.start(new com.shaft.listeners.internal.TestExecutionInfo(
+                    "next-config-test", getClass().getName(), "nextConfigTest", "next test", "next test",
+                    null, null, false));
+            assertEquals(FailureTraceReporter.redactInvocationText(sensitiveValue), sensitiveValue,
+                    "The next test boundary must clear invocation-only configuration state.");
+        } finally {
+            setReportPortalEnabled(listener, false);
+            TestNGListenerHelper.setPendingConfigFailure(null);
+            com.shaft.tools.io.internal.ReportContext.clear();
+        }
+    }
+
+    @Test
+    public void retrySuppressedSkipShouldClearSensitiveStateWithoutPublishingASummaryRow() throws Exception {
+        String sensitiveValue = "opaque-retried-skip-value-8304";
+        ITestResult retrySuppressedAttempt = createTestResult("retriedSensitiveFailure",
+                new IllegalStateException("Provider echoed " + sensitiveValue));
+        Mockito.when(retrySuppressedAttempt.wasRetried()).thenReturn(true);
+        TestNGListener listener = new TestNGListener();
+        TrackedResultState originalState = captureTrackedResultState();
+        FailureTraceReporter.registerSensitiveSourceValue(sensitiveValue);
+
+        try (MockedStatic<ExecutionSummaryReport> summary = Mockito.mockStatic(ExecutionSummaryReport.class)) {
+            listener.onTestSkipped(retrySuppressedAttempt);
+
+            summary.verifyNoInteractions();
+            Assert.assertFalse(FailureTraceReporter.redactInvocationText(sensitiveValue).contains(sensitiveValue),
+                    "Sensitivity must survive retry suppression for later result consumers.");
+            com.shaft.tools.io.internal.ReportContext.start(new com.shaft.listeners.internal.TestExecutionInfo(
+                    "next-retry-test", getClass().getName(), "nextRetryTest", "next test", "next test",
+                    null, null, false));
+            assertEquals(FailureTraceReporter.redactInvocationText(sensitiveValue), sensitiveValue,
+                    "The next attempt boundary must clear invocation-only retry state.");
+        } finally {
+            restoreTrackedResultState(originalState);
+            com.shaft.tools.io.internal.ReportContext.clear();
         }
     }
 

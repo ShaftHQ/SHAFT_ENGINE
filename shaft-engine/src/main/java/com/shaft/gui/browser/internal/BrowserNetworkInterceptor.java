@@ -75,6 +75,16 @@ public class BrowserNetworkInterceptor implements AutoCloseable {
         }
     }
 
+    /** Stops passive observation while preserving registered interception rules. */
+    public synchronized void stopObserving() {
+        observing = false;
+        if (rules.isEmpty()) {
+            closeActiveInterceptor();
+        } else {
+            rebuildInterceptor();
+        }
+    }
+
     /**
      * Reports whether this interceptor has one or more mock/validate rules registered.
      *

@@ -31,7 +31,7 @@ public final class ReportContext {
         currentTest.set(info);
         output.get().clear();
         attachments.get().clear();
-        TraceEventRecorder.clear();
+        TraceEventRecorder.clearForNewTest();
         BrowserObservabilityRecorder.clear();
         logSink.remove();
         status.remove();
@@ -161,6 +161,17 @@ public final class ReportContext {
         output.remove();
         attachments.remove();
         TraceEventRecorder.clear();
+        BrowserObservabilityRecorder.clear();
+        logSink.remove();
+        status.remove();
+    }
+
+    /** Clears one runner result while retaining sensitivity until all downstream reporters consume it. */
+    public static void clearPreservingSensitiveEvidence() {
+        currentTest.remove();
+        output.remove();
+        attachments.remove();
+        TraceEventRecorder.clearPreservingSensitiveValues();
         BrowserObservabilityRecorder.clear();
         logSink.remove();
         status.remove();

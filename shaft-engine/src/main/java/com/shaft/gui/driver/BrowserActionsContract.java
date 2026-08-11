@@ -17,6 +17,106 @@ import java.util.function.Predicate;
  */
 public interface BrowserActionsContract {
 
+    /**
+     * Returns cohesive browser-network observation, mocking, replay, and emulation actions.
+     * Existing implementations that do not declare a competing zero-argument {@code network}
+     * method inherit this fail-closed default. As with every Java interface default-method
+     * addition, a facade that also inherits an unrelated {@code network()} declaration with a
+     * covariant-compatible return must override it to resolve default dispatch. An existing
+     * declaration with an incompatible return type is source-incompatible and cannot be bridged
+     * by an override; that facade must rename one API or stop combining the interfaces.
+     *
+     * @return network actions facade
+     */
+    default NetworkActionsContract network() {
+        throw new UnsupportedOperationException("Network actions are not supported by this browser facade.");
+    }
+
+    /**
+     * Returns concise alert, confirm, and prompt actions. The Java default-method collision
+     * boundary documented for {@link #network()} also applies to this namespace method.
+     */
+    default DialogActionsContract dialog() {
+        throw new UnsupportedOperationException("Dialog actions are not supported by this browser facade.");
+    }
+
+    /**
+     * Returns native/web browsing-context actions. The Java default-method collision boundary
+     * documented for {@link #network()} also applies to this namespace method.
+     */
+    default ContextActionsContract context() {
+        throw new UnsupportedOperationException("Context actions are not supported by this browser facade.");
+    }
+
+    /**
+     * Returns scoped browser storage actions.
+     *
+     * <p>This default preserves compatibility for implementations that do not provide storage actions. The
+     * default-method collision boundary is the same as documented for {@link #network()}.</p>
+     *
+     * @return storage state and key/value actions
+     * @throws UnsupportedOperationException when this facade has no storage implementation
+     */
+    default StorageActionsContract storage() {
+        throw new UnsupportedOperationException("Storage actions are not supported by this browser facade.");
+    }
+
+    /**
+     * Returns bounded browser console observations.
+     *
+     * <p>The default-method collision boundary is the same as documented for {@link #network()}.</p>
+     *
+     * @return console query and clear actions
+     * @throws UnsupportedOperationException when this facade has no console implementation
+     */
+    default ConsoleActionsContract console() {
+        throw new UnsupportedOperationException("Console actions are not supported by this browser facade.");
+    }
+
+    /**
+     * Returns script evaluation actions. The Java default-method collision boundary documented for
+     * {@link #network()} also applies.
+     *
+     * @return script actions facade
+     */
+    default ScriptActionsContract script() {
+        throw new UnsupportedOperationException("Script actions are not supported by this browser facade.");
+    }
+
+    /**
+     * Returns browser-context permission controls. The Java default-method collision boundary documented for
+     * {@link #network()} also applies.
+     *
+     * @return permission actions facade
+     */
+    default PermissionActionsContract permissions() {
+        throw new UnsupportedOperationException("Permission actions are not supported by this browser facade.");
+    }
+
+    /**
+     * Returns session-scoped HTTP authentication actions. The Java default-method collision boundary documented for
+     * {@link #network()} also applies.
+     */
+    default AuthenticationActionsContract authentication() {
+        throw new UnsupportedOperationException("Authentication actions are not supported by this browser facade.");
+    }
+
+    /**
+     * Returns managed browser-download actions. The Java default-method collision boundary documented for
+     * {@link #network()} also applies.
+     */
+    default DownloadActionsContract downloads() {
+        throw new UnsupportedOperationException("Download actions are not supported by this browser facade.");
+    }
+
+    /**
+     * Returns categorized browser environment emulation actions. The Java default-method collision boundary documented
+     * for {@link #network()} also applies.
+     */
+    default EmulationActionsContract emulation() {
+        throw new UnsupportedOperationException("Emulation actions are not supported by this browser facade.");
+    }
+
     BrowserActionsContract and();
 
     BrowserAssertions assertThat();

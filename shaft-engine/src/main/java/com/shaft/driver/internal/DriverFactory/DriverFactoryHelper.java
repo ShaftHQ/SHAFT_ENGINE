@@ -6,6 +6,10 @@ import com.shaft.driver.DriverFactory.DriverType;
 import com.shaft.driver.SHAFT;
 import com.shaft.gui.browser.BrowserActions;
 import com.shaft.gui.browser.internal.BidiNetworkActivitySource;
+import com.shaft.gui.browser.internal.BidiConsoleLogSource;
+import com.shaft.gui.browser.internal.BidiPermissionState;
+import com.shaft.gui.mobile.internal.MobileLogSource;
+import com.shaft.gui.browser.internal.BrowserEmulationManager;
 import com.shaft.gui.browser.internal.BrowserNetworkInterceptionRule;
 import com.shaft.gui.browser.internal.BrowserNetworkInterceptor;
 import com.shaft.gui.browser.internal.BrowserStorageStateManager;
@@ -18,6 +22,7 @@ import com.shaft.properties.internal.ThreadLocalPropertiesManager;
 import com.shaft.tools.internal.support.JavaHelper;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.io.internal.FailureReporter;
+import com.shaft.tools.io.internal.FailureTraceReporter;
 import com.shaft.tools.io.internal.ProgressBarLogger;
 import com.shaft.tools.io.internal.ReportManagerHelper;
 import io.appium.java_client.AppiumDriver;
@@ -35,6 +40,7 @@ import lombok.*;
 import org.apache.logging.log4j.Level;
 import org.openqa.selenium.*;
 import org.openqa.selenium.bidi.BiDiProvider;
+import org.openqa.selenium.bidi.HasBiDi;
 import org.openqa.selenium.chrome.ChromeDriver;
 import org.openqa.selenium.devtools.Command;
 import org.openqa.selenium.devtools.DevTools;
@@ -196,6 +202,13 @@ public class DriverFactoryHelper {
         return getBrowserNetworkInterceptor().startObserving();
     }
 
+    /** Rolls back passive browser-network observation after setup failure. */
+    public void stopBrowserNetworkObservation() {
+        if (browserNetworkInterceptor != null) {
+            browserNetworkInterceptor.stopObserving();
+        }
+    }
+
     /**
      * Hands off sole ownership of {@code driver}'s DevTools network filter away from any
      * {@link BrowserNetworkInterceptor} this helper started for trace/HAR observation, so a caller
@@ -263,8 +276,12 @@ public class DriverFactoryHelper {
         return browserNetworkInterceptor;
     }
 
+    @SuppressWarnings("removal")
     private void startBrowserObservability() {
         try {
+            if (driver instanceof HasBiDi hasBiDi && hasBiDi.maybeGetBiDi().isPresent()) {
+                BidiConsoleLogSource.attach(driver);
+            }
             if (driver != null
                     && SHAFT.Properties.reporting != null
                     && SHAFT.Properties.reporting.traceEnabled()
@@ -272,7 +289,7 @@ public class DriverFactoryHelper {
                 getBrowserNetworkInterceptor().startObserving();
             }
         } catch (RuntimeException e) {
-            ReportManagerHelper.logDiscrete("Could not start browser network trace capture: " + e.getMessage(), Level.WARN);
+            ReportManagerHelper.logDiscrete("Could not start browser observability: " + e.getMessage(), Level.WARN);
         }
     }
 
@@ -886,6 +903,11 @@ public class DriverFactoryHelper {
                 HealingManager.clear(driver);
                 browserNetworkInterceptor = null;
                 BidiNetworkActivitySource.closeAndRemove(driver);
+                BidiConsoleLogSource.closeAndRemove(driver);
+                MobileLogSource.closeAndRemove(driver);
+                BidiPermissionState.clearAndRemove(driver);
+                BrowserEmulationManager.clearAndRemove(driver);
+                FailureTraceReporter.clearPersistentSensitiveBrowserState(driver);
                 releaseRemoteGridPreflightPermit();
                 clearThreadLocalDriverState();
                 ReportManager.log("Closed the WebDriver session.");

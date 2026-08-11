@@ -3,14 +3,25 @@ package com.shaft.gui.playwright.internal;
 import com.microsoft.playwright.Browser;
 import com.microsoft.playwright.BrowserContext;
 import com.microsoft.playwright.Dialog;
+import com.microsoft.playwright.Download;
 import com.microsoft.playwright.Page;
 import com.microsoft.playwright.Playwright;
+import com.microsoft.playwright.options.ColorScheme;
+import com.microsoft.playwright.options.Media;
+import com.microsoft.playwright.options.ReducedMotion;
+import com.microsoft.playwright.options.ViewportSize;
 import com.shaft.gui.browser.internal.PlaywrightNetworkInterceptor;
 import com.shaft.tools.io.ReportManager;
+import com.shaft.tools.io.internal.BrowserObservabilityRecorder;
+import com.shaft.tools.io.internal.FailureTraceReporter;
 import org.apache.logging.log4j.Level;
 
 import java.util.IdentityHashMap;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -18,6 +29,7 @@ import java.util.concurrent.atomic.AtomicReference;
  * Owns a single Playwright runtime session for one SHAFT GUI driver instance.
  */
 public final class PlaywrightSession implements AutoCloseable {
+    private static final int CONSOLE_EVENT_LIMIT = 1000;
     private final Playwright playwright;
     private final Browser browser;
     private final BrowserContext browserContext;
@@ -29,6 +41,12 @@ public final class PlaywrightSession implements AutoCloseable {
     private final AtomicReference<DialogAction> nextDialogAction = new AtomicReference<>();
     private final AtomicReference<String> nextPromptText = new AtomicReference<>("");
     private final Map<Page, String> pageHandles = new IdentityHashMap<>();
+    private final Map<Page, ViewportSize> initialViewports = new IdentityHashMap<>();
+    private final Map<Page, MediaState> mediaStates = new IdentityHashMap<>();
+    private final Set<Page> observedPages = Collections.newSetFromMap(new IdentityHashMap<>());
+    private final Set<Page> downloadObservedPages = Collections.newSetFromMap(new IdentityHashMap<>());
+    private final List<BrowserObservabilityRecorder.ConsoleSnapshotEntry> consoleEvents = new ArrayList<>();
+    private final List<Download> downloads = new ArrayList<>();
     private int nextPageHandleIndex = 1;
 
     PlaywrightSession(Playwright playwright, Browser browser, BrowserContext browserContext, Page page,
@@ -39,7 +57,10 @@ public final class PlaywrightSession implements AutoCloseable {
         this.page = page;
         this.traceManager = traceManager;
         this.networkInterceptor = new PlaywrightNetworkInterceptor(browserContext);
+        registerDownloadContextBridge();
         registerDialogBridge(page);
+        registerConsoleBridge(page);
+        registerDownloadBridge(page);
     }
 
     public Playwright playwright() {
@@ -61,6 +82,8 @@ public final class PlaywrightSession implements AutoCloseable {
     public void setPage(Page page) {
         this.page = page;
         registerDialogBridge(page);
+        registerConsoleBridge(page);
+        registerDownloadBridge(page);
     }
 
     public PlaywrightTraceManager traceManager() {
@@ -110,14 +133,22 @@ public final class PlaywrightSession implements AutoCloseable {
 
     @Override
     public void close() {
-        networkInterceptor.clear();
-        if (traceManager != null) {
-            traceManager.stopAndAttach();
+        try {
+            clearConsole();
+            clearDownloadHandles();
+            initialViewports.clear();
+            mediaStates.clear();
+            networkInterceptor.close();
+            if (traceManager != null) {
+                traceManager.stopAndAttach();
+            }
+            closeQuietly(page);
+            closeQuietly(browserContext);
+            closeQuietly(browser);
+            closeQuietly(playwright);
+        } finally {
+            FailureTraceReporter.clearPersistentSensitiveBrowserState(this);
         }
-        closeQuietly(page);
-        closeQuietly(browserContext);
-        closeQuietly(browser);
-        closeQuietly(playwright);
     }
 
     private void registerDialogBridge(Page targetPage) {
@@ -142,6 +173,142 @@ public final class PlaywrightSession implements AutoCloseable {
         });
     }
 
+    private void registerConsoleBridge(Page targetPage) {
+        if (targetPage == null || !observedPages.add(targetPage)) {
+            return;
+        }
+        targetPage.onConsoleMessage(message -> recordConsole(message.type(), message.text()));
+        targetPage.onPageError(message -> recordConsole("pageerror", message));
+    }
+
+    private synchronized void registerDownloadBridge(Page targetPage) {
+        if (targetPage == null || !downloadObservedPages.add(targetPage)) {
+            return;
+        }
+        targetPage.onDownload(this::trackDownload);
+    }
+
+    private void registerDownloadContextBridge() {
+        if (browserContext == null) {
+            return;
+        }
+        browserContext.onPage(this::registerDownloadBridge);
+        for (Page existingPage : browserContext.pages()) {
+            registerDownloadBridge(existingPage);
+        }
+    }
+
+    /** @return immutable console observations owned by this session, oldest first */
+    public synchronized List<BrowserObservabilityRecorder.ConsoleSnapshotEntry> consoleSnapshot() {
+        return List.copyOf(consoleEvents);
+    }
+
+    /** Clears only this Playwright session's console observations. */
+    public synchronized void clearConsole() {
+        consoleEvents.clear();
+    }
+
+    /** @return immutable native download handles owned by this session, oldest first */
+    public synchronized List<Download> downloadSnapshot() {
+        return List.copyOf(downloads);
+    }
+
+    /** Retains one native download handle without duplicating listener and wait-for observations. */
+    public synchronized void trackDownload(Download download) {
+        if (download != null && downloads.stream().noneMatch(existing -> existing == download)) {
+            downloads.add(download);
+        }
+    }
+
+    /** Removes a deleted native download handle from this session. */
+    public synchronized void forgetDownload(Download download) {
+        downloads.removeIf(existing -> existing == download);
+    }
+
+    /** Clears retained handles after their native files have been removed. */
+    public synchronized void clearDownloadHandles() {
+        downloads.clear();
+    }
+
+    /** Applies a page viewport override while retaining the pre-SHAFT value for a later reset. */
+    public synchronized void setViewport(Page targetPage, int width, int height) {
+        if (!initialViewports.containsKey(targetPage)) {
+            initialViewports.put(targetPage, targetPage.viewportSize());
+        }
+        targetPage.setViewportSize(width, height);
+    }
+
+    /** Restores and forgets the page viewport captured before SHAFT's first override. */
+    public synchronized void clearViewport(Page targetPage) {
+        if (!initialViewports.containsKey(targetPage) || initialViewports.get(targetPage) == null) {
+            throw new UnsupportedOperationException(
+                    "The original Playwright viewport was disabled and cannot be restored on a live page; recreate the context.");
+        }
+        ViewportSize original = initialViewports.get(targetPage);
+        targetPage.setViewportSize(original.width, original.height);
+        initialViewports.remove(targetPage);
+    }
+
+    /** Applies a media type without clearing the page's other SHAFT-owned media overrides. */
+    public synchronized void setMediaType(Page targetPage, Media media) {
+        applyMedia(targetPage, mediaState(targetPage).withMedia(media));
+    }
+
+    /** Applies a color scheme without clearing the page's other SHAFT-owned media overrides. */
+    public synchronized void setColorScheme(Page targetPage, ColorScheme colorScheme) {
+        applyMedia(targetPage, mediaState(targetPage).withColorScheme(colorScheme));
+    }
+
+    /** Applies reduced-motion preference without clearing the page's other SHAFT-owned media overrides. */
+    public synchronized void setReducedMotion(Page targetPage, ReducedMotion reducedMotion) {
+        applyMedia(targetPage, mediaState(targetPage).withReducedMotion(reducedMotion));
+    }
+
+    /** Clears every SHAFT-owned media override for one page. */
+    public synchronized void resetMedia(Page targetPage) {
+        targetPage.emulateMedia(new Page.EmulateMediaOptions());
+        mediaStates.remove(targetPage);
+    }
+
+    private MediaState mediaState(Page targetPage) {
+        return mediaStates.getOrDefault(targetPage, MediaState.EMPTY);
+    }
+
+    private void applyMedia(Page targetPage, MediaState state) {
+        Page.EmulateMediaOptions options = new Page.EmulateMediaOptions();
+        if (state.media() != null) {
+            options.setMedia(state.media());
+        }
+        if (state.colorScheme() != null) {
+            options.setColorScheme(state.colorScheme());
+        }
+        if (state.reducedMotion() != null) {
+            options.setReducedMotion(state.reducedMotion());
+        }
+        targetPage.emulateMedia(options);
+        mediaStates.put(targetPage, state);
+    }
+
+    /** Atomically transfers this session's console observations to failure-trace storage. */
+    public void drainConsoleToRecorder() {
+        List<BrowserObservabilityRecorder.ConsoleSnapshotEntry> snapshot;
+        synchronized (this) {
+            snapshot = List.copyOf(consoleEvents);
+            consoleEvents.clear();
+        }
+        for (BrowserObservabilityRecorder.ConsoleSnapshotEntry entry : snapshot) {
+            BrowserObservabilityRecorder.recordConsole(entry.source(), entry.level(), entry.message(), entry.timestamp());
+        }
+    }
+
+    private synchronized void recordConsole(String level, String message) {
+        if (consoleEvents.size() >= CONSOLE_EVENT_LIMIT) {
+            consoleEvents.removeFirst();
+        }
+        consoleEvents.add(BrowserObservabilityRecorder.consoleEntry(
+                "playwright", level, message, System.currentTimeMillis()));
+    }
+
     private static void closeQuietly(Object resource) {
         if (resource == null) {
             return;
@@ -159,5 +326,21 @@ public final class PlaywrightSession implements AutoCloseable {
         ACCEPT,
         DISMISS,
         PROMPT
+    }
+
+    private record MediaState(Media media, ColorScheme colorScheme, ReducedMotion reducedMotion) {
+        private static final MediaState EMPTY = new MediaState(null, null, null);
+
+        private MediaState withMedia(Media value) {
+            return new MediaState(value, colorScheme, reducedMotion);
+        }
+
+        private MediaState withColorScheme(ColorScheme value) {
+            return new MediaState(media, value, reducedMotion);
+        }
+
+        private MediaState withReducedMotion(ReducedMotion value) {
+            return new MediaState(media, colorScheme, value);
+        }
     }
 }

@@ -148,6 +148,16 @@ public final class PlaywrightSessionFactory {
                 contextOptions.setViewportSize(SHAFT.Properties.web.mobileEmulationWidth(), SHAFT.Properties.web.mobileEmulationHeight());
             }
         }
+        if (!SHAFT.Properties.playwright.timezoneId().isBlank()) {
+            contextOptions.setTimezoneId(SHAFT.Properties.playwright.timezoneId());
+        }
+        if (!SHAFT.Properties.playwright.locale().isBlank()) {
+            contextOptions.setLocale(SHAFT.Properties.playwright.locale());
+        }
+        if (!SHAFT.Properties.playwright.userAgent().isBlank()) {
+            contextOptions.setUserAgent(SHAFT.Properties.playwright.userAgent());
+        }
+        contextOptions.setJavaScriptEnabled(SHAFT.Properties.playwright.javaScriptEnabled());
         return contextOptions;
     }
 

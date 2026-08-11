@@ -7,6 +7,7 @@ import com.shaft.gui.driver.ShaftLocator;
 import com.shaft.listeners.internal.RetryAnalyzer;
 import com.shaft.gui.driver.DriverAssertions;
 import com.shaft.gui.driver.DriverVerifications;
+import com.shaft.gui.capabilities.AutomationCapabilities;
 import com.shaft.validation.internal.WebDriverBrowserValidationsBuilder;
 import com.shaft.validation.internal.WebDriverElementValidationsBuilder;
 import org.openqa.selenium.MutableCapabilities;
@@ -43,12 +44,14 @@ public class GUIInterfaceCompatibilityCoverageUnitTest {
         Method alert = SHAFT.GUI.WebDriver.class.getMethod("alert");
         Method assertThat = SHAFT.GUI.WebDriver.class.getMethod("assertThat");
         Method verifyThat = SHAFT.GUI.WebDriver.class.getMethod("verifyThat");
+        Method capabilities = SHAFT.GUI.WebDriver.class.getDeclaredMethod("capabilities");
 
         Assert.assertTrue(com.shaft.gui.driver.BrowserActionsContract.class.isAssignableFrom(browser.getReturnType()));
         Assert.assertTrue(com.shaft.gui.driver.ElementActionsContract.class.isAssignableFrom(element.getReturnType()));
         Assert.assertTrue(com.shaft.gui.driver.AlertActionsContract.class.isAssignableFrom(alert.getReturnType()));
         Assert.assertTrue(DriverAssertions.class.isAssignableFrom(assertThat.getReturnType()));
         Assert.assertTrue(DriverVerifications.class.isAssignableFrom(verifyThat.getReturnType()));
+        Assert.assertEquals(capabilities.getReturnType(), AutomationCapabilities.class);
 
         Assert.assertNotNull(SHAFT.GUI.WebDriver.class.getMethod("quit"));
         Assert.assertNotNull(SHAFT.GUI.WebDriver.class.getMethod("act", String.class, Object[].class));
@@ -72,6 +75,16 @@ public class GUIInterfaceCompatibilityCoverageUnitTest {
                 com.microsoft.playwright.Page.class);
         Assert.assertEquals(SHAFT.GUI.Playwright.class.getMethod("getNativeContext").getReturnType(),
                 com.microsoft.playwright.BrowserContext.class);
+        Assert.assertEquals(SHAFT.GUI.Playwright.class.getDeclaredMethod("capabilities").getReturnType(),
+                AutomationCapabilities.class);
+    }
+
+    @Test
+    public void genericDriverCapabilityContractShouldRemainBackwardCompatible() throws NoSuchMethodException {
+        Method capabilities = com.shaft.gui.driver.DriverContract.class.getMethod("capabilities");
+
+        Assert.assertTrue(capabilities.isDefault());
+        Assert.assertEquals(capabilities.getReturnType(), AutomationCapabilities.class);
     }
 
     @Test

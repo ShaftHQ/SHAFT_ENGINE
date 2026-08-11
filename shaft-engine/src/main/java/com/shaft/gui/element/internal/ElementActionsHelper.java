@@ -1019,6 +1019,8 @@ public class ElementActionsHelper {
      * @param screenshots optional screenshot attachments
      * @param rootCauseException optional root cause exceptions
      */
+    @SuppressWarnings({"PMD.CompareObjectsWithEquals", "PMD.UnnecessaryFullyQualifiedName"})
+    // Provider failures use identity; equals may be user controlled. The local Actions conflicts with Selenium's type.
     public void failAction(WebDriver driver, String actionName, String testData, By elementLocator, List<List<Object>> screenshots, Throwable... rootCauseException) {
         //TODO: merge all fail actions, make all methods call this one, get elementName where applicable instead of reporting null
         //this condition works if this is the first level of failure, but the first level is usually caught by the calling method
@@ -1034,25 +1036,38 @@ public class ElementActionsHelper {
                         elementName = accessibleName;
                     }
                 }
-            } catch (WebDriverException e) {
+            } catch (RuntimeException evidenceFailure) {
                 //happens on some elements that show unhandled inspector error
                 //this exception is thrown on some older selenium grid instances, I saw it with firefox running over selenoid
-                //ignore
+                // Evidence enrichment must never replace the action/provider failure being reported.
+                if (evidenceFailure != rootCauseException[0]) {
+                    rootCauseException[0].addSuppressed(evidenceFailure);
+                }
             }
         }
 
         String message;
-        if (rootCauseException.length >= 1) {
-            message = reportActionResult(driver, actionName, testData, elementLocator, screenshots, elementName, false, rootCauseException[0]);
-        } else {
-            message = reportActionResult(driver, actionName, testData, null, screenshots, elementName, false);
+        try {
+            if (rootCauseException.length >= 1) {
+                message = reportActionResult(driver, actionName, testData, elementLocator, screenshots, elementName, false, rootCauseException[0]);
+            } else {
+                message = reportActionResult(driver, actionName, testData, null, screenshots, elementName, false);
+            }
+        } catch (RuntimeException reportingFailure) {
+            if (rootCauseException.length < 1) {
+                throw reportingFailure;
+            }
+            RuntimeException actionFailure = new com.shaft.gui.element.internal.Actions.ActionExecutionException(
+                    "Action failed and failure evidence could not be captured.", rootCauseException[0]);
+            actionFailure.addSuppressed(reportingFailure);
+            throw actionFailure;
         }
         // issue #4341: AssertionError must be reserved for genuine assertion failures; a broken/failed
         // action (this method's only role -- see TouchActions/ElementActions/AlertActions/BrowserActions
         // call sites) throws RuntimeException instead, mirroring Actions.report's reportBroken pipeline,
         // with the original exception preserved as the cause.
         if (rootCauseException.length >= 1) {
-            throw new RuntimeException(message, rootCauseException[0]);
+            throw new com.shaft.gui.element.internal.Actions.ActionExecutionException(message, rootCauseException[0]);
         } else {
             throw new RuntimeException(message);
         }
