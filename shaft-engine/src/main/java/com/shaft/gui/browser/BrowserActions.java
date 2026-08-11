@@ -36,8 +36,6 @@ import com.shaft.tools.io.internal.TraceEventRecorder;
 import com.shaft.validation.accessibility.AccessibilityActions;
 import com.shaft.validation.internal.WebDriverBrowserValidationsBuilder;
 import io.appium.java_client.AppiumDriver;
-import io.appium.java_client.android.AndroidDriver;
-import io.appium.java_client.ios.IOSDriver;
 import io.appium.java_client.remote.SupportsContextSwitching;
 import io.qameta.allure.Step;
 import org.apache.logging.log4j.Level;
@@ -53,6 +51,7 @@ import java.io.ByteArrayInputStream;
 import java.net.URI;
 import java.time.Duration;
 import java.util.*;
+import java.util.NoSuchElementException;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
@@ -261,39 +260,64 @@ public class BrowserActions extends FluentWebDriverAction implements com.shaft.g
         WebDriver driver = driverFactoryHelper == null ? null : driverFactoryHelper.getDriver();
         AutomationBackend backend = driver instanceof AppiumDriver
                 ? AutomationBackend.APPIUM : AutomationBackend.SELENIUM_WEBDRIVER;
-        boolean sensitive = sensitiveValues != null && sensitiveValues.length > 0;
-        if (sensitive) {
-            FailureTraceReporter.suppressSensitiveBrowserArtifacts();
-            for (Object value : sensitiveValues) {
-                if (value != null) {
-                    FailureTraceReporter.registerSensitiveSourceValue(String.valueOf(value));
-                }
-            }
-        }
-        var event = sensitive
-                ? TraceEventRecorder.startForBackend("emulation/" + category, operation,
-                locator == null ? "" : locator, backend)
-                : TraceEventRecorder.start("emulation/" + category, operation, locator == null ? "" : locator, driver);
+        boolean sensitive = registerEmulationSensitivity(sensitiveValues);
+        var event = startEmulationEvent(category, operation, locator, driver, backend, sensitive);
         try {
             action.accept(driver);
-            if (sensitive) {
-                FailureTraceReporter.registerPersistentSensitiveBrowserState(driver, operation, sensitiveValues);
-            } else if ("clear-geolocation".equals(operation)) {
-                FailureTraceReporter.clearPersistentSensitiveBrowserState(driver, "geolocation");
-            } else if ("clear-user-agent".equals(operation)) {
-                FailureTraceReporter.clearPersistentSensitiveBrowserState(driver, "user-agent");
-            }
+            updatePersistentEmulationSensitivity(driver, operation, sensitive, sensitiveValues);
             TraceEventRecorder.finish(event, "passed", "emulation " + category + " " + operation + " completed.",
                     null, Map.of("backend", backend.name()), List.of());
         } catch (RuntimeException exception) {
-            if (sensitive) {
-                FailureTraceReporter.registerSensitiveThrowable(exception);
-                FailureTraceReporter.registerSensitiveValues(sensitiveValues);
-            }
+            registerSensitiveEmulationFailure(exception, sensitive, sensitiveValues);
             TraceEventRecorder.finish(event, "failed", "emulation " + category + " " + operation + " failed.",
                     exception, Map.of("backend", backend.name()), List.of());
             throw exception;
         }
+    }
+
+    private static boolean registerEmulationSensitivity(Object... sensitiveValues) {
+        boolean sensitive = sensitiveValues != null && sensitiveValues.length > 0;
+        if (!sensitive) {
+            return false;
+        }
+        FailureTraceReporter.suppressSensitiveBrowserArtifacts();
+        for (Object value : sensitiveValues) {
+            if (value != null) {
+                FailureTraceReporter.registerSensitiveSourceValue(String.valueOf(value));
+            }
+        }
+        return true;
+    }
+
+    private static TraceEventRecorder.Event startEmulationEvent(String category, String operation, String locator,
+                                                                 WebDriver driver, AutomationBackend backend,
+                                                                 boolean sensitive) {
+        String safeLocator = locator == null ? "" : locator;
+        return sensitive
+                ? TraceEventRecorder.startForBackend("emulation/" + category, operation, safeLocator, backend)
+                : TraceEventRecorder.start("emulation/" + category, operation, safeLocator, driver);
+    }
+
+    private static void updatePersistentEmulationSensitivity(WebDriver driver, String operation, boolean sensitive,
+                                                              Object... sensitiveValues) {
+        if (sensitive) {
+            FailureTraceReporter.registerPersistentSensitiveBrowserState(driver, operation, sensitiveValues);
+            return;
+        }
+        if ("clear-geolocation".equals(operation)) {
+            FailureTraceReporter.clearPersistentSensitiveBrowserState(driver, "geolocation");
+        } else if ("clear-user-agent".equals(operation)) {
+            FailureTraceReporter.clearPersistentSensitiveBrowserState(driver, "user-agent");
+        }
+    }
+
+    private static void registerSensitiveEmulationFailure(RuntimeException exception, boolean sensitive,
+                                                           Object... sensitiveValues) {
+        if (!sensitive) {
+            return;
+        }
+        FailureTraceReporter.registerSensitiveThrowable(exception);
+        FailureTraceReporter.registerSensitiveValues(sensitiveValues);
     }
 
     private void activateBrowserEvidenceOwner() {
@@ -342,7 +366,7 @@ public class BrowserActions extends FluentWebDriverAction implements com.shaft.g
         return queryDownloads("latest", "", () -> {
             List<com.shaft.gui.driver.BrowserDownload> files = downloadedFiles(owner, requireDownloadsSupport("latest"));
             if (files.isEmpty()) {
-                throw new java.util.NoSuchElementException("No completed browser downloads are available.");
+                throw new NoSuchElementException("No completed browser downloads are available.");
             }
             return files.getLast();
         });
@@ -901,7 +925,6 @@ public class BrowserActions extends FluentWebDriverAction implements com.shaft.g
     private void requireNetworkObservation(String operation) {
         requireNetworkNamespaceSupport(operation);
         if (!driverFactoryHelper.startBrowserNetworkObservation()) {
-            WebDriver driver = driverFactoryHelper.getDriver();
             var exception = new UnsupportedOperationException("Network " + operation
                     + " could not start on the live Selenium session.");
             throw exception;

@@ -17,6 +17,11 @@ public record TraceArtifactReference(String id, String kind, String path, String
         metadata = metadata == null ? Map.of() : Map.copyOf(metadata);
     }
 
+    @Override
+    public Map<String, String> metadata() {
+        return Map.copyOf(metadata);
+    }
+
     private static String required(String value, String name) {
         if (value == null || value.isBlank()) {
             throw new IllegalArgumentException(name + " must not be blank");

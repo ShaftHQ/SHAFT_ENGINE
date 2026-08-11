@@ -18,6 +18,7 @@ import java.util.List;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
+@SuppressWarnings("PMD.AvoidAccessibilityAlteration") // Direct ThreadLocal seeding proves teardown isolation.
 public class FailureDiagnosticsReporterTest {
 
     @Test(description = "Failed tests should attach one diagnostics zip with sanitized diagnostics JSON")

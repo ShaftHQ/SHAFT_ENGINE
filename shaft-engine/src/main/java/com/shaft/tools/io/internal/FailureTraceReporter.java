@@ -1461,6 +1461,7 @@ public final class FailureTraceReporter {
             return current != null && current.overflowed();
         }
 
+        @SuppressWarnings("PMD.CompareObjectsWithEquals") // Session ownership is identity based.
         private void remove(Object owner) {
             sessions.removeIf(state -> state.owns(owner) || state.owner() == null);
             if (activeOwner.get() == owner) {
@@ -1484,6 +1485,7 @@ public final class FailureTraceReporter {
             return owner.get();
         }
 
+        @SuppressWarnings("PMD.CompareObjectsWithEquals") // Session ownership is identity based.
         private boolean owns(Object candidate) {
             return candidate != null && owner.get() == candidate;
         }
@@ -1501,10 +1503,9 @@ public final class FailureTraceReporter {
             boolean channelOverflowed = false;
             if (submittedValues != null) {
                 for (Object submittedValue : submittedValues) {
-                    if (submittedValue != null) {
-                        if (!addBoundedSensitiveValue(values, String.valueOf(submittedValue))) {
-                            channelOverflowed = true;
-                        }
+                    if (submittedValue != null
+                            && !addBoundedSensitiveValue(values, String.valueOf(submittedValue))) {
+                        channelOverflowed = true;
                     }
                 }
             }

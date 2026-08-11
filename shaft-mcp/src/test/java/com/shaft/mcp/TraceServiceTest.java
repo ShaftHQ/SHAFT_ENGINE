@@ -27,6 +27,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+@SuppressWarnings("PMD.AvoidAccessibilityAlteration") // Frozen-consumer proof invokes the internal serializer directly.
 class TraceServiceTest {
     private static final ObjectMapper JSON = new ObjectMapper();
 

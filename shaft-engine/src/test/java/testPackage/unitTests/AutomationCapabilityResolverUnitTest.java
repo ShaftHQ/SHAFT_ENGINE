@@ -135,6 +135,26 @@ public class AutomationCapabilityResolverUnitTest {
     }
 
     @Test
+    public void appiumBrowserLogsShouldRetainPrecedenceWhenBiDiIsAlsoNegotiated() {
+        AppiumDriver driver = mock(AppiumDriver.class);
+        MutableCapabilities capabilities = appiumCapabilities("custom", "unknown");
+        capabilities.setCapability("webSocketUrl", "ws://bidi.example.test/session");
+        when(driver.getSessionId()).thenReturn(new SessionId("appium-dual-console"));
+        when(driver.getCapabilities()).thenReturn(capabilities);
+        when(driver.maybeGetBiDi()).thenReturn(Optional.of(mock(BiDi.class)));
+        WebDriver.Options options = mock(WebDriver.Options.class);
+        Logs logs = mock(Logs.class);
+        when(driver.manage()).thenReturn(options);
+        when(options.logs()).thenReturn(logs);
+        when(logs.getAvailableLogTypes()).thenReturn(java.util.Set.of("browser"));
+
+        AutomationCapabilities resolved = AutomationCapabilityResolver.forWebDriver(driver);
+
+        Assert.assertEquals(resolved.capability(AutomationFeature.CONSOLE_LOGS).detail(),
+                "Appium browser logs through SHAFT");
+    }
+
+    @Test
     public void appiumStorageCapabilityShouldFollowTheLiveWebContext() {
         AppiumDriver driver = mock(AppiumDriver.class,
                 withSettings().extraInterfaces(SupportsContextSwitching.class));

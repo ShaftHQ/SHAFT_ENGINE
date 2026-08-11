@@ -153,7 +153,7 @@ public class BrowserStateNamespaceTest {
             current.set(invocation.getArgument(0));
             return null;
         }).when(contexts).context(Mockito.anyString());
-        Mockito.when(contexts.getContextHandles()).thenReturn(java.util.Set.of("NATIVE_APP", "WEBVIEW_1"));
+        Mockito.when(contexts.getContextHandles()).thenReturn(Set.of("NATIVE_APP", "WEBVIEW_1"));
         var browser = new com.shaft.gui.browser.BrowserActions(driver, true);
 
         Assert.assertEquals(browser.context().current(), "WEBVIEW_1");

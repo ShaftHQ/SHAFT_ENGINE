@@ -17,6 +17,7 @@ import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 
+@SuppressWarnings("PMD.AvoidAccessibilityAlteration") // Internal delegate injection crosses the real legacy boundary.
 public class MobileGestureNamespaceTraceTest {
     @AfterMethod
     public void clearTrace() {

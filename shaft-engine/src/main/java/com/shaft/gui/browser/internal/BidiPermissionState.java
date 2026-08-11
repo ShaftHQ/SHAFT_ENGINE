@@ -2,7 +2,6 @@ package com.shaft.gui.browser.internal;
 
 import org.openqa.selenium.WebDriver;
 
-import java.util.List;
 import java.util.Collections;
 import java.util.LinkedHashSet;
 import java.util.Map;

@@ -294,7 +294,7 @@ public class BrowserActions implements com.shaft.gui.driver.BrowserActionsContra
     }
 
     com.shaft.gui.driver.BrowserDownload waitForDownloadedFileNamespace(DownloadActions owner,
-                                                                         java.util.function.Predicate<com.shaft.gui.driver.BrowserDownload> predicate,
+                                                                         Predicate<com.shaft.gui.driver.BrowserDownload> predicate,
                                                                          Runnable trigger) {
         return queryDownloads("wait-for", "", () -> {
             Objects.requireNonNull(predicate, "predicate");

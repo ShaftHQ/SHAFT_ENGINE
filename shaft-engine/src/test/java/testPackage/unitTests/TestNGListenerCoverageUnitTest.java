@@ -161,7 +161,7 @@ public class TestNGListenerCoverageUnitTest {
 
         new TestNGListener().onConfigurationFailure(result);
 
-        Assert.assertNull(TestNGListenerHelper.getAndClearPendingConfigFailure(),
+        assertNull(TestNGListenerHelper.getAndClearPendingConfigFailure(),
                 "Teardown failures must not contaminate a later unrelated skipped test.");
     }
 
@@ -546,7 +546,7 @@ public class TestNGListenerCoverageUnitTest {
             com.shaft.tools.io.internal.ReportContext.start(new com.shaft.listeners.internal.TestExecutionInfo(
                     "next-test", getClass().getName(), "nextTest", "next test", "next test",
                     null, null, false));
-            Assert.assertEquals(FailureTraceReporter.redactInvocationText(sensitiveValue), sensitiveValue,
+            assertEquals(FailureTraceReporter.redactInvocationText(sensitiveValue), sensitiveValue,
                     "The next test boundary must clear invocation-only sensitive state.");
         } finally {
             restoreTrackedResultState(originalState);
@@ -577,7 +577,7 @@ public class TestNGListenerCoverageUnitTest {
             Assert.assertFalse(finishedResult.getValue().getThrowable().getMessage().contains(sensitiveValue));
             Assert.assertSame(testResult.getThrowable(), providerFailure,
                     "ReportPortal sanitization must not mutate the TestNG result or provider exception.");
-            Assert.assertEquals(providerFailure.getMessage(), "Provider echoed " + sensitiveValue);
+            assertEquals(providerFailure.getMessage(), "Provider echoed " + sensitiveValue);
         } finally {
             setReportPortalEnabled(listener, false);
             restoreTrackedResultState(originalState);

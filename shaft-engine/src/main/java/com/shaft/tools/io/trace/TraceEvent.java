@@ -30,6 +30,16 @@ public record TraceEvent(String id, AutomationBackend backend, String category, 
         artifactIds = artifactIds == null ? List.of() : List.copyOf(artifactIds);
     }
 
+    @Override
+    public Map<String, String> metadata() {
+        return Map.copyOf(metadata);
+    }
+
+    @Override
+    public List<String> artifactIds() {
+        return List.copyOf(artifactIds);
+    }
+
     private static String required(String value, String name) {
         if (value == null || value.isBlank()) {
             throw new IllegalArgumentException(name + " must not be blank");

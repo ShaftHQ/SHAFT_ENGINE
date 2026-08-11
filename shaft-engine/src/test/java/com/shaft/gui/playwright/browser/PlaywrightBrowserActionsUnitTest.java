@@ -135,8 +135,7 @@ public class PlaywrightBrowserActionsUnitTest {
         Browser browser = mock(Browser.class);
         BrowserContext context = mock(BrowserContext.class);
         Page page = mock(Page.class);
-        com.shaft.gui.browser.internal.PlaywrightNetworkInterceptor interceptor =
-                mock(com.shaft.gui.browser.internal.PlaywrightNetworkInterceptor.class);
+        PlaywrightNetworkInterceptor interceptor = mock(PlaywrightNetworkInterceptor.class);
         when(session.page()).thenReturn(page);
         when(session.browser()).thenReturn(browser);
         when(session.browserContext()).thenReturn(context);

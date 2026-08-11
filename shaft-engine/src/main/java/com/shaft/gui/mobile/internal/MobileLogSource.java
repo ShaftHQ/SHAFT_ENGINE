@@ -205,6 +205,7 @@ public final class MobileLogSource {
         return firstFailure;
     }
 
+    @SuppressWarnings("PMD.CompareObjectsWithEquals") // Suppress only a distinct throwable instance.
     private static void suppressDistinct(RuntimeException original, RuntimeException cleanupFailure) {
         if (cleanupFailure != original) {
             original.addSuppressed(cleanupFailure);

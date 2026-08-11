@@ -1019,6 +1019,8 @@ public class ElementActionsHelper {
      * @param screenshots optional screenshot attachments
      * @param rootCauseException optional root cause exceptions
      */
+    @SuppressWarnings({"PMD.CompareObjectsWithEquals", "PMD.UnnecessaryFullyQualifiedName"})
+    // Provider failures use identity; equals may be user controlled. The local Actions conflicts with Selenium's type.
     public void failAction(WebDriver driver, String actionName, String testData, By elementLocator, List<List<Object>> screenshots, Throwable... rootCauseException) {
         //TODO: merge all fail actions, make all methods call this one, get elementName where applicable instead of reporting null
         //this condition works if this is the first level of failure, but the first level is usually caught by the calling method

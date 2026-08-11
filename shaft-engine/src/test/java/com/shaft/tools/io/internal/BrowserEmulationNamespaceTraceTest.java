@@ -40,6 +40,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.zip.ZipFile;
 
+@SuppressWarnings("PMD.AvoidAccessibilityAlteration") // Private trace-manager construction is an isolation fixture.
 public class BrowserEmulationNamespaceTraceTest {
     @AfterMethod
     public void clearTrace() {
@@ -127,7 +128,7 @@ public class BrowserEmulationNamespaceTraceTest {
 
         RuntimeException thrown = Assert.expectThrows(RuntimeException.class,
                 () -> new com.shaft.gui.browser.BrowserActions(driver, true).emulation().location()
-                        .geolocation(Double.parseDouble(latitude), Double.parseDouble(longitude)));
+                        .geolocation(coordinate(latitude), coordinate(longitude)));
 
         Assert.assertSame(thrown, providerFailure);
         assertSensitiveEmulationFailure("geolocationFailure", providerFailure,
@@ -174,7 +175,7 @@ public class BrowserEmulationNamespaceTraceTest {
 
         RuntimeException thrown = Assert.expectThrows(RuntimeException.class,
                 () -> new com.shaft.gui.browser.BrowserActions(driver, true).emulation().location()
-                        .geolocation(Double.parseDouble(latitude), Double.parseDouble(longitude)));
+                        .geolocation(coordinate(latitude), coordinate(longitude)));
 
         Assert.assertSame(thrown, providerFailure);
         Assert.assertEquals(TraceEventRecorder.snapshot().getFirst().backend(), AutomationBackend.APPIUM);
@@ -199,7 +200,7 @@ public class BrowserEmulationNamespaceTraceTest {
 
         RuntimeException thrown = Assert.expectThrows(RuntimeException.class,
                 () -> new com.shaft.gui.playwright.browser.BrowserActions(session).emulation().location()
-                        .geolocation(Double.parseDouble(latitude), Double.parseDouble(longitude)));
+                        .geolocation(coordinate(latitude), coordinate(longitude)));
 
         Assert.assertSame(thrown, providerFailure);
         Assert.assertEquals(TraceEventRecorder.snapshot().getFirst().backend(),
@@ -217,7 +218,7 @@ public class BrowserEmulationNamespaceTraceTest {
 
         assertSuccessfulSensitiveActionArchive("seleniumSensitiveSuccess", sensitiveValue,
                 () -> new com.shaft.gui.browser.BrowserActions(driver, true).emulation().location()
-                        .geolocation(Double.parseDouble(latitude), Double.parseDouble(longitude)), null);
+                        .geolocation(coordinate(latitude), coordinate(longitude)), null);
     }
 
     @Test
@@ -238,7 +239,7 @@ public class BrowserEmulationNamespaceTraceTest {
 
         assertSuccessfulSensitiveActionArchive("appiumSensitiveSuccess", sensitiveValue,
                 () -> new com.shaft.gui.browser.BrowserActions(driver, true).emulation().location()
-                        .geolocation(Double.parseDouble(latitude), Double.parseDouble(longitude)), null);
+                        .geolocation(coordinate(latitude), coordinate(longitude)), null);
     }
 
     @Test
@@ -262,7 +263,7 @@ public class BrowserEmulationNamespaceTraceTest {
                     .thenReturn(nativeTrace);
             assertSuccessfulSensitiveActionArchive("playwrightSensitiveSuccess", sensitiveValue,
                     () -> new com.shaft.gui.playwright.browser.BrowserActions(session).emulation().location()
-                            .geolocation(Double.parseDouble(latitude), Double.parseDouble(longitude)),
+                            .geolocation(coordinate(latitude), coordinate(longitude)),
                     nativeTrace.getFileName().toString());
         } finally {
             Files.deleteIfExists(nativeTrace);
@@ -279,7 +280,7 @@ public class BrowserEmulationNamespaceTraceTest {
 
         assertSuccessfulSensitiveActionEchoFailure("seleniumEchoFailure", sensitiveValue,
                 () -> new com.shaft.gui.browser.BrowserActions(driver, true).emulation().location()
-                        .geolocation(Double.parseDouble(latitude), Double.parseDouble(longitude)));
+                        .geolocation(coordinate(latitude), coordinate(longitude)));
     }
 
     @Test
@@ -289,7 +290,7 @@ public class BrowserEmulationNamespaceTraceTest {
         BiDi bidi = Mockito.mock(BiDi.class);
         WebDriver driver = liveBiDiDriver(bidi, "ordinary page evidence");
         new com.shaft.gui.browser.BrowserActions(driver, true).emulation().location()
-                .geolocation(Double.parseDouble(latitude), Double.parseDouble(longitude));
+                .geolocation(coordinate(latitude), coordinate(longitude));
         AssertionError unrelatedFailure = new AssertionError("Expected 100.0 but got 50.0");
         TestExecutionInfo execution = new TestExecutionInfo("emulation-short-decimal",
                 getClass().getName(), "defaultGeolocationAccuracyShouldNotEraseUnrelatedDecimalFailureEvidence",
@@ -466,7 +467,7 @@ public class BrowserEmulationNamespaceTraceTest {
         BiDi bidi = Mockito.mock(BiDi.class);
         WebDriver driver = liveBiDiDriver(bidi, "application retained " + firstValue);
         var emulation = new com.shaft.gui.browser.BrowserActions(driver, true).emulation().location();
-        emulation.geolocation(Double.parseDouble(firstLatitude), Double.parseDouble(firstLongitude));
+        emulation.geolocation(coordinate(firstLatitude), coordinate(firstLongitude));
         emulation.clearGeolocation();
         emulation.geolocation(48.85837091, 2.29448132);
         AssertionError unrelatedFailure = new AssertionError("Application rendered " + firstValue);
@@ -488,7 +489,7 @@ public class BrowserEmulationNamespaceTraceTest {
         BiDi bidi = Mockito.mock(BiDi.class);
         WebDriver driver = liveBiDiDriver(bidi, "application retained " + firstLatitude + "," + firstLongitude);
         var emulation = new com.shaft.gui.browser.BrowserActions(driver, true).emulation().location();
-        emulation.geolocation(Double.parseDouble(firstLatitude), Double.parseDouble(firstLongitude));
+        emulation.geolocation(coordinate(firstLatitude), coordinate(firstLongitude));
         emulation.geolocation(51.50072921, -0.12462543);
 
         assertHistoricalSensitiveValueIsRedacted("selenium-direct-replacement", firstLatitude, firstLongitude);
@@ -500,7 +501,7 @@ public class BrowserEmulationNamespaceTraceTest {
         String firstLongitude = "-74.04450042";
         PlaywrightSession session = livePlaywrightSession();
         var emulation = new com.shaft.gui.playwright.browser.BrowserActions(session).emulation().location();
-        emulation.geolocation(Double.parseDouble(firstLatitude), Double.parseDouble(firstLongitude));
+        emulation.geolocation(coordinate(firstLatitude), coordinate(firstLongitude));
         emulation.geolocation(48.85837091, 2.29448132);
 
         assertHistoricalSensitiveValueIsRedacted("playwright-direct-replacement", firstLatitude, firstLongitude);
@@ -521,7 +522,7 @@ public class BrowserEmulationNamespaceTraceTest {
 
         assertSuccessfulSensitiveActionEchoFailure("playwrightEchoFailure", sensitiveValue,
                 () -> new com.shaft.gui.playwright.browser.BrowserActions(session).emulation().location()
-                        .geolocation(Double.parseDouble(latitude), Double.parseDouble(longitude)));
+                        .geolocation(coordinate(latitude), coordinate(longitude)));
     }
 
     @Test
@@ -532,7 +533,7 @@ public class BrowserEmulationNamespaceTraceTest {
         BiDi bidi = Mockito.mock(BiDi.class);
         WebDriver driver = liveBiDiDriver(bidi, "application rendered " + sensitiveValue);
         var emulation = new com.shaft.gui.browser.BrowserActions(driver, true).emulation().location();
-        emulation.geolocation(Double.parseDouble(latitude), Double.parseDouble(longitude));
+        emulation.geolocation(coordinate(latitude), coordinate(longitude));
 
         for (int invocation = 1; invocation <= 2; invocation++) {
             TestExecutionInfo execution = new TestExecutionInfo("before-class-sensitive-" + invocation,
@@ -562,7 +563,7 @@ public class BrowserEmulationNamespaceTraceTest {
         boolean originalDomSnapshots = SHAFT.Properties.reporting.traceIncludeDomSnapshots();
         try {
             SHAFT.Properties.reporting.set().traceIncludeFullPageSnapshots(true).traceIncludeDomSnapshots(true);
-            emulation.geolocation(Double.parseDouble(latitude), Double.parseDouble(longitude));
+            emulation.geolocation(coordinate(latitude), coordinate(longitude));
             TestExecutionInfo execution = new TestExecutionInfo("clear-sensitive-geolocation", getClass().getName(),
                     "clearingGeolocationShouldNotPublishSensitiveDomCapturedByTheClearAction",
                     "clear geolocation", "clear geolocation", null,
@@ -654,7 +655,7 @@ public class BrowserEmulationNamespaceTraceTest {
             SHAFT.Properties.reporting.set().traceEnabled(true).traceMode("failure");
             Assert.expectThrows(RuntimeException.class,
                     () -> new com.shaft.gui.browser.BrowserActions(driver, true).emulation().location()
-                            .geolocation(Double.parseDouble(latitude), Double.parseDouble(longitude)));
+                            .geolocation(coordinate(latitude), coordinate(longitude)));
 
             FailureTraceReporter.attachOnFailure(execution, "diagnostic log", List.of());
             String diagnostics = FailureDiagnosticsReporter.renderDiagnosticsJson(execution, "diagnostic log",
@@ -687,7 +688,7 @@ public class BrowserEmulationNamespaceTraceTest {
         try {
             SHAFT.Properties.jira.set().jiraInteraction(true).reportBugs(true);
             new com.shaft.gui.browser.BrowserActions(driver, true).emulation().location()
-                    .geolocation(Double.parseDouble(latitude), Double.parseDouble(longitude));
+                    .geolocation(coordinate(latitude), coordinate(longitude));
             try (MockedStatic<XrayIntegrationHelper> xray = Mockito.mockStatic(XrayIntegrationHelper.class)) {
                 JiraHelper.reportBugsToJIRA(List.of(), "provider log echoed " + sensitiveValue, execution);
 
@@ -1007,6 +1008,14 @@ public class BrowserEmulationNamespaceTraceTest {
         Mockito.when(browser.isConnected()).thenReturn(true);
         Mockito.when(context.isClosed()).thenReturn(false);
         return session;
+    }
+
+    private static double coordinate(String value) {
+        try {
+            return Double.parseDouble(value);
+        } catch (NumberFormatException exception) {
+            throw new AssertionError("The test fixture must contain a valid coordinate.", exception);
+        }
     }
 
     private static void deleteDirectory(Path directory) throws Exception {

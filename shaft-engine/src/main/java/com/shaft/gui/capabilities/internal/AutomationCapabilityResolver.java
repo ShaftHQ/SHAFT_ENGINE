@@ -88,7 +88,7 @@ public final class AutomationCapabilityResolver {
         if (browser == null || !browser.isConnected()) {
             return AutomationCapabilities.unknown("No connected Playwright browser exists.");
         }
-        String runtime = browser == null || browser.browserType() == null
+        String runtime = browser.browserType() == null
                 ? "Playwright browser"
                 : browser.browserType().name() + " " + browser.version();
         AutomationCapabilities.Builder builder = AutomationCapabilities.builder(AutomationBackend.MICROSOFT_PLAYWRIGHT)
@@ -182,14 +182,21 @@ public final class AutomationCapabilityResolver {
                 .platform(platform(capabilities))
                 .nativeFeature(AutomationFeature.NATIVE_DRIVER_ACCESS, "AppiumDriver")
                 .adaptedFeature(AutomationFeature.TRACE, "SHAFT unified mobile trace");
+        addAppiumAutomationFeatures(builder, driver);
+        addAppiumDeviceFeatures(builder, driver);
+        addAppiumBiDiFeatures(builder, driver);
+        addAppiumObservabilityFeatures(builder, driver);
+        return builder.build();
+    }
+
+    private static void addAppiumAutomationFeatures(AutomationCapabilities.Builder builder, AppiumDriver driver) {
         if (driver instanceof AndroidDriver || driver instanceof IOSDriver) {
             builder.nativeFeature(AutomationFeature.MOBILE_AUTOMATION, "Appium mobile driver extensions");
         }
         if (driver instanceof SupportsContextSwitching) {
             builder.nativeFeature(AutomationFeature.BROWSING_CONTEXTS, "Appium native and web contexts");
         }
-        if (driver instanceof JavascriptExecutor
-                && driver instanceof SupportsContextSwitching contexts
+        if (driver instanceof SupportsContextSwitching contexts
                 && isWebContext(contexts)) {
             builder.nativeFeature(AutomationFeature.SCRIPT_EXECUTION, "JavaScript in the active Appium web context")
                     .nativeFeature(AutomationFeature.STORAGE, "Web Storage in the active Appium web context");
@@ -200,6 +207,9 @@ public final class AutomationCapabilityResolver {
         if (driver instanceof InteractsWithApps || driver instanceof WindowsDriver) {
             builder.nativeFeature(AutomationFeature.APP_LIFECYCLE, "Appium application commands");
         }
+    }
+
+    private static void addAppiumDeviceFeatures(AutomationCapabilities.Builder builder, AppiumDriver driver) {
         if (driver instanceof LocksDevice) {
             builder.nativeFeature(AutomationFeature.DEVICE_CONTROL, "Appium device lock controls");
         }
@@ -212,12 +222,21 @@ public final class AutomationCapabilityResolver {
         if (driver instanceof CanRecordScreen) {
             builder.nativeFeature(AutomationFeature.SCREEN_RECORDING, "Appium screen recording");
         }
+    }
+
+    private static void addAppiumObservabilityFeatures(AutomationCapabilities.Builder builder, AppiumDriver driver) {
         if (driver instanceof ListensToLogcatMessages || driver instanceof ListensToSyslogMessages) {
             builder.nativeFeature(AutomationFeature.DEVICE_LOGS, "Appium continuous device-log broadcast");
         }
         if (driver instanceof AuthenticatesByFinger || driver instanceof PerformsTouchID) {
             builder.nativeFeature(AutomationFeature.BIOMETRICS, "Platform Appium biometric extensions");
         }
+        if (hasBrowserConsoleLogs(driver)) {
+            builder.adaptedFeature(AutomationFeature.CONSOLE_LOGS, "Appium browser logs through SHAFT");
+        }
+    }
+
+    private static void addAppiumBiDiFeatures(AutomationCapabilities.Builder builder, AppiumDriver driver) {
         if (hasNegotiatedBiDi(driver)) {
             builder.nativeFeature(AutomationFeature.BIDI, "W3C WebDriver BiDi")
                     .adaptedFeature(AutomationFeature.NETWORK_OBSERVATION, "Appium BiDi through SHAFT")
@@ -229,10 +248,6 @@ public final class AutomationCapabilityResolver {
                     .nativeFeature(AutomationFeature.USER_AGENT_EMULATION, "W3C WebDriver BiDi emulation")
                     .nativeFeature(AutomationFeature.SCRIPTING_EMULATION, "W3C WebDriver BiDi emulation");
         }
-        if (hasBrowserConsoleLogs(driver)) {
-            builder.adaptedFeature(AutomationFeature.CONSOLE_LOGS, "Appium browser logs through SHAFT");
-        }
-        return builder.build();
     }
 
     private static boolean hasBrowserConsoleLogs(WebDriver driver) {

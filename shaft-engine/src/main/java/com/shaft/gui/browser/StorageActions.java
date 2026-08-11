@@ -1,6 +1,5 @@
 package com.shaft.gui.browser;
 
-import com.shaft.gui.driver.BrowserActionsContract;
 import com.shaft.gui.driver.KeyValueStorageActionsContract;
 import com.shaft.gui.driver.StorageActionsContract;
 import com.shaft.gui.driver.StorageStateActionsContract;

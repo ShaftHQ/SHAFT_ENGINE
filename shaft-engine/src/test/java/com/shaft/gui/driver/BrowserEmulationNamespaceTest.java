@@ -43,6 +43,7 @@ import java.util.Set;
 import java.lang.reflect.Method;
 import java.util.stream.Collectors;
 
+@SuppressWarnings("PMD.AvoidAccessibilityAlteration") // Private constructors are exercised as compatibility fixtures.
 public class BrowserEmulationNamespaceTest {
     @Test
     public void playwrightContextCreationEmulationPropertiesShouldBeDiscoverable() {
@@ -548,8 +549,8 @@ public class BrowserEmulationNamespaceTest {
             }
         };
         return Boolean.TRUE.equals(compiler.getTask(null, null, null,
-                java.util.List.of("-classpath", System.getProperty("java.class.path"),
+                List.of("-classpath", System.getProperty("java.class.path"),
                         "-d", output.toString()), null,
-                java.util.List.of(sourceFile)).call());
+                List.of(sourceFile)).call());
     }
 }

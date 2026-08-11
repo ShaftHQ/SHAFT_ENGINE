@@ -13,20 +13,37 @@ public final class PermissionOrigin {
 
     public static String normalize(String origin) {
         String candidate = Objects.requireNonNull(origin, "origin").trim();
-        URI uri;
+        URI uri = parseUri(candidate);
+        validateOriginUri(uri);
+        HostAndPort parsed = parseAuthority(uri.getRawAuthority());
+        String normalizedHost = normalizeHost(parsed);
+        String normalizedScheme = uri.getScheme().toLowerCase(Locale.ROOT);
+        Integer normalizedPort = isDefaultPort(normalizedScheme, parsed.port()) ? null : parsed.port();
+        String serializedHost = parsed.ipv6() ? "[" + normalizedHost + "]" : normalizedHost;
+        String normalized = normalizedScheme + "://" + serializedHost
+                + (normalizedPort == null ? "" : ":" + normalizedPort);
+        validateNormalizedUri(normalized);
+        return normalized;
+    }
+
+    private static URI parseUri(String candidate) {
         try {
-            uri = URI.create(candidate);
+            return URI.create(candidate);
         } catch (IllegalArgumentException exception) {
             throw invalid(exception);
         }
+    }
+
+    private static void validateOriginUri(URI uri) {
         String authority = uri.getRawAuthority();
         if (!uri.isAbsolute() || uri.getScheme() == null || authority == null || authority.isBlank()
                 || authority.contains("@") || uri.getRawQuery() != null || uri.getRawFragment() != null
                 || (uri.getRawPath() != null && !uri.getRawPath().isEmpty() && !uri.getRawPath().equals("/"))) {
             throw invalid(null);
         }
+    }
 
-        HostAndPort parsed = parseAuthority(authority);
+    private static String normalizeHost(HostAndPort parsed) {
         String normalizedHost;
         try {
             normalizedHost = parsed.ipv6()
@@ -38,11 +55,10 @@ public final class PermissionOrigin {
         if (normalizedHost.isBlank()) {
             throw invalid(null);
         }
-        String normalizedScheme = uri.getScheme().toLowerCase(Locale.ROOT);
-        Integer normalizedPort = isDefaultPort(normalizedScheme, parsed.port()) ? null : parsed.port();
-        String serializedHost = parsed.ipv6() ? "[" + normalizedHost + "]" : normalizedHost;
-        String normalized = normalizedScheme + "://" + serializedHost
-                + (normalizedPort == null ? "" : ":" + normalizedPort);
+        return normalizedHost;
+    }
+
+    private static void validateNormalizedUri(String normalized) {
         try {
             if (URI.create(normalized).getHost() == null) {
                 throw invalid(null);
@@ -50,7 +66,6 @@ public final class PermissionOrigin {
         } catch (IllegalArgumentException exception) {
             throw invalid(exception);
         }
-        return normalized;
     }
 
     private static HostAndPort parseAuthority(String authority) {

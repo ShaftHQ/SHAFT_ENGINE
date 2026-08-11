@@ -45,4 +45,19 @@ public record TraceSession(String id, AutomationBackend backend, Instant generat
         }
         metadata = metadata == null ? Map.of() : Map.copyOf(metadata);
     }
+
+    @Override
+    public List<TraceEvent> events() {
+        return List.copyOf(events);
+    }
+
+    @Override
+    public List<TraceArtifactReference> artifacts() {
+        return List.copyOf(artifacts);
+    }
+
+    @Override
+    public Map<String, String> metadata() {
+        return Map.copyOf(metadata);
+    }
 }
