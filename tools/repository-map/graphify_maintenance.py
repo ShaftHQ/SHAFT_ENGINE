@@ -109,7 +109,7 @@ def require_primary_checkout(root: Path) -> Path:
             capture_output=True,
             text=True,
         )
-    except subprocess.CalledProcessError as error:
+    except (OSError, subprocess.SubprocessError) as error:
         raise ValueError("refresh root is not a primary Git checkout") from error
     lines = completed.stdout.splitlines()
     if len(lines) != 2:

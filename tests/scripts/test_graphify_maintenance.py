@@ -182,13 +182,30 @@ class GraphifyMaintenanceTest(unittest.TestCase):
         module = self.load_module()
         stages = []
 
-        with mock.patch.object(module.shutil, "which", return_value="uv"), mock.patch.object(
+        with mock.patch.object(
             module, "run_stage", side_effect=lambda name, command, root: stages.append(name)
         ):
             with self.assertRaisesRegex(ValueError, "primary Git checkout"):
                 module.refresh(self.repository, Path("graphify-out"))
 
         self.assertEqual([], stages)
+
+    def test_git_executable_disappearing_is_a_fail_closed_preflight_error(self):
+        module = self.load_module()
+        missing_git = self.repository / "missing-git.exe"
+
+        with mock.patch.object(module.shutil, "which", return_value=str(missing_git)):
+            try:
+                module.require_primary_checkout(self.repository)
+            except ValueError as error:
+                raised = error
+            except OSError as error:
+                self.fail(f"preflight leaked platform OSError: {error}")
+            else:
+                self.fail("missing Git executable was accepted")
+
+        self.assertRegex(str(raised), "primary Git checkout")
+        self.assertIsInstance(raised.__cause__, OSError)
 
     def test_refresh_preflight_rejects_a_linked_worktree(self):
         git = shutil.which("git")
