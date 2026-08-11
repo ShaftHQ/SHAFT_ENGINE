@@ -12,7 +12,9 @@ import com.shaft.gui.capabilities.internal.AutomationCapabilityResolver;
 import com.shaft.gui.playwright.internal.PlaywrightSession;
 import io.appium.java_client.AppiumDriver;
 import io.appium.java_client.android.AndroidDriver;
+import io.appium.java_client.android.ListensToLogcatMessages;
 import io.appium.java_client.ios.IOSDriver;
+import io.appium.java_client.ios.ListensToSyslogMessages;
 import io.appium.java_client.mac.Mac2Driver;
 import io.appium.java_client.windows.WindowsDriver;
 import io.appium.java_client.remote.SupportsContextSwitching;
@@ -95,6 +97,24 @@ public class AutomationCapabilityResolverUnitTest {
         Assert.assertFalse(capabilities.supports(AutomationFeature.FILE_TRANSFER));
         Assert.assertFalse(capabilities.supports(AutomationFeature.SCREEN_RECORDING));
         Assert.assertFalse(capabilities.supports(AutomationFeature.STORAGE));
+        Assert.assertFalse(capabilities.supports(AutomationFeature.DEVICE_LOGS));
+    }
+
+    @Test
+    public void customAppiumDriversShouldAdvertiseDeviceLogsFromTheExactListenerInterface() {
+        AppiumDriver logcat = mock(AppiumDriver.class,
+                withSettings().extraInterfaces(ListensToLogcatMessages.class));
+        when(logcat.getSessionId()).thenReturn(new SessionId("custom-logcat"));
+        when(logcat.getCapabilities()).thenReturn(appiumCapabilities("custom", "unknown"));
+        AppiumDriver syslog = mock(AppiumDriver.class,
+                withSettings().extraInterfaces(ListensToSyslogMessages.class));
+        when(syslog.getSessionId()).thenReturn(new SessionId("custom-syslog"));
+        when(syslog.getCapabilities()).thenReturn(appiumCapabilities("custom", "unknown"));
+
+        Assert.assertTrue(AutomationCapabilityResolver.forWebDriver(logcat)
+                .supports(AutomationFeature.DEVICE_LOGS));
+        Assert.assertTrue(AutomationCapabilityResolver.forWebDriver(syslog)
+                .supports(AutomationFeature.DEVICE_LOGS));
     }
 
     @Test
@@ -167,9 +187,11 @@ public class AutomationCapabilityResolverUnitTest {
         Assert.assertTrue(androidCapabilities.supports(AutomationFeature.DEVICE_CONTROL));
         Assert.assertTrue(androidCapabilities.supports(AutomationFeature.MOBILE_AUTOMATION));
         Assert.assertTrue(androidCapabilities.supports(AutomationFeature.BIOMETRICS));
+        Assert.assertTrue(androidCapabilities.supports(AutomationFeature.DEVICE_LOGS));
         Assert.assertTrue(iosCapabilities.supports(AutomationFeature.MOBILE_AUTOMATION));
         Assert.assertTrue(iosCapabilities.supports(AutomationFeature.DEVICE_CONTROL));
         Assert.assertTrue(iosCapabilities.supports(AutomationFeature.BIOMETRICS));
+        Assert.assertTrue(iosCapabilities.supports(AutomationFeature.DEVICE_LOGS));
         Assert.assertFalse(iosCapabilities.supports(AutomationFeature.PERFORMANCE_DATA));
         Assert.assertTrue(windowsCapabilities.supports(AutomationFeature.TOUCH_GESTURES));
         Assert.assertTrue(windowsCapabilities.supports(AutomationFeature.FILE_TRANSFER));
@@ -177,7 +199,13 @@ public class AutomationCapabilityResolverUnitTest {
         Assert.assertFalse(windowsCapabilities.supports(AutomationFeature.MOBILE_AUTOMATION));
         Assert.assertFalse(windowsCapabilities.supports(AutomationFeature.BIOMETRICS));
         Assert.assertFalse(windowsCapabilities.supports(AutomationFeature.DEVICE_CONTROL));
+        Assert.assertFalse(windowsCapabilities.supports(AutomationFeature.DEVICE_LOGS));
         Assert.assertFalse(macCapabilities.supports(AutomationFeature.MOBILE_AUTOMATION));
+        Assert.assertFalse(macCapabilities.supports(AutomationFeature.DEVICE_LOGS));
+
+        when(android.getSessionId()).thenReturn(null);
+        Assert.assertFalse(AutomationCapabilityResolver.forWebDriver(android)
+                .supports(AutomationFeature.DEVICE_LOGS));
     }
 
     @Test

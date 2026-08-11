@@ -18,7 +18,9 @@ import io.appium.java_client.remote.SupportsContextSwitching;
 import io.appium.java_client.screenrecording.CanRecordScreen;
 import io.appium.java_client.windows.WindowsDriver;
 import io.appium.java_client.android.AndroidDriver;
+import io.appium.java_client.android.ListensToLogcatMessages;
 import io.appium.java_client.ios.IOSDriver;
+import io.appium.java_client.ios.ListensToSyslogMessages;
 import org.openqa.selenium.Capabilities;
 import org.openqa.selenium.HasCapabilities;
 import org.openqa.selenium.HasDownloads;
@@ -209,6 +211,9 @@ public final class AutomationCapabilityResolver {
         }
         if (driver instanceof CanRecordScreen) {
             builder.nativeFeature(AutomationFeature.SCREEN_RECORDING, "Appium screen recording");
+        }
+        if (driver instanceof ListensToLogcatMessages || driver instanceof ListensToSyslogMessages) {
+            builder.nativeFeature(AutomationFeature.DEVICE_LOGS, "Appium continuous device-log broadcast");
         }
         if (driver instanceof AuthenticatesByFinger || driver instanceof PerformsTouchID) {
             builder.nativeFeature(AutomationFeature.BIOMETRICS, "Platform Appium biometric extensions");

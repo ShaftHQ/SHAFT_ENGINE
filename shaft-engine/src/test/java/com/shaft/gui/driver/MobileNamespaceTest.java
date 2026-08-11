@@ -4,6 +4,8 @@ import com.shaft.driver.SHAFT;
 import io.appium.java_client.AppiumDriver;
 import io.appium.java_client.android.AndroidBatteryInfo;
 import io.appium.java_client.android.AndroidDriver;
+import io.appium.java_client.android.ListensToLogcatMessages;
+import io.appium.java_client.ios.ListensToSyslogMessages;
 import io.appium.java_client.appmanagement.ApplicationState;
 import io.appium.java_client.windows.WindowsDriver;
 import org.mockito.Mockito;
@@ -18,6 +20,7 @@ import java.lang.reflect.Modifier;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
+import java.time.Instant;
 import java.util.Arrays;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -56,13 +59,30 @@ public class MobileNamespaceTest {
         for (String contract : Set.of(
                 "MobileBiometricActionsContract",
                 "MobileEvidenceActionsContract",
-                "MobileLogActionsContract",
                 "MobilePerformanceActionsContract",
                 "MobileRecordingActionsContract")) {
             Assert.assertNotNull(Class.forName("com.shaft.gui.driver." + contract));
             Assert.assertEquals(descriptors("com.shaft.gui.driver." + contract),
                     Set.of("and[]->MobileActionsContract"));
         }
+        Assert.assertEquals(descriptors("com.shaft.gui.driver.MobileLogActionsContract"), Set.of(
+                "and[]->MobileActionsContract",
+                "clear[]->MobileLogActionsContract",
+                "errors[]->List",
+                "messages[]->List",
+                "start[]->MobileLogActionsContract",
+                "stop[]->MobileLogActionsContract"));
+        Class<?> logContract = Class.forName("com.shaft.gui.driver.MobileLogActionsContract");
+        Assert.assertEquals(logContract.getMethod("messages").getGenericReturnType().getTypeName(),
+                "java.util.List<com.shaft.gui.driver.MobileLogMessage>");
+        Assert.assertEquals(logContract.getMethod("errors").getGenericReturnType().getTypeName(),
+                "java.util.List<com.shaft.gui.driver.MobileLogError>");
+        assertRecord("com.shaft.gui.driver.MobileLogMessage",
+                List.of("capturedAt:java.time.Instant", "source:java.lang.String", "text:java.lang.String"));
+        assertRecord("com.shaft.gui.driver.MobileLogError", List.of(
+                "capturedAt:java.time.Instant", "source:java.lang.String", "type:java.lang.String",
+                "message:java.lang.String"));
+        Assert.assertTrue(enumValues("com.shaft.gui.capabilities.AutomationFeature").contains("DEVICE_LOGS"));
         Assert.assertEquals(descriptors("com.shaft.gui.driver.MobileFileActionsContract"), Set.of(
                 "and[]->MobileActionsContract",
                 "pull[class java.lang.String]->byte[]",
@@ -148,6 +168,24 @@ public class MobileNamespaceTest {
         Assert.assertEquals(enumValues("com.shaft.gui.driver.MobileApplicationState"), Set.of(
                 "NOT_INSTALLED", "NOT_RUNNING", "RUNNING_IN_BACKGROUND_SUSPENDED",
                 "RUNNING_IN_BACKGROUND", "RUNNING_IN_FOREGROUND"));
+    }
+
+    @Test
+    public void mobileLogModelsShouldEnforceTheirPublicNullAndDefaultInvariants() {
+        Instant capturedAt = Instant.parse("2026-08-11T12:00:00Z");
+
+        Assert.assertEquals(new MobileLogMessage(capturedAt, "logcat", null),
+                new MobileLogMessage(capturedAt, "logcat", ""));
+        Assert.expectThrows(NullPointerException.class, () -> new MobileLogMessage(null, "logcat", "message"));
+        Assert.expectThrows(NullPointerException.class, () -> new MobileLogMessage(capturedAt, null, "message"));
+        Assert.assertEquals(new MobileLogError(capturedAt, "syslog", null, null),
+                new MobileLogError(capturedAt, "syslog", Throwable.class.getName(), ""));
+        Assert.assertEquals(new MobileLogError(capturedAt, "syslog", " ", "message").type(),
+                Throwable.class.getName());
+        Assert.expectThrows(NullPointerException.class,
+                () -> new MobileLogError(null, "syslog", "type", "message"));
+        Assert.expectThrows(NullPointerException.class,
+                () -> new MobileLogError(capturedAt, null, "type", "message"));
     }
 
     @Test
@@ -339,6 +377,45 @@ public class MobileNamespaceTest {
         Assert.assertTrue(exception.getMessage().contains("touch gestures"));
     }
 
+    @Test
+    public void mobileLogNamespaceShouldRequireAnExactLiveListenerInterface() throws Exception {
+        AndroidDriver android = Mockito.mock(AndroidDriver.class);
+        SessionId liveSession = new SessionId("android-device-logs");
+        Mockito.when(android.getSessionId()).thenReturn(liveSession, liveSession, (SessionId) null);
+        MobileActionsContract mobile = new SHAFT.GUI.WebDriver(android).mobile();
+
+        MobileLogActionsContract logs;
+        try {
+            logs = mobile.logs();
+        } catch (UnsupportedOperationException missingImplementation) {
+            logs = null;
+        }
+        Assert.assertNotNull(logs);
+        Assert.assertSame(logs.and(), mobile);
+        Assert.expectThrows(UnsupportedOperationException.class, mobile::logs);
+
+        AppiumDriver generic = Mockito.mock(AppiumDriver.class);
+        Mockito.when(generic.getSessionId()).thenReturn(new SessionId("generic-no-device-logs"));
+        Assert.expectThrows(UnsupportedOperationException.class,
+                () -> new SHAFT.GUI.WebDriver(generic).mobile().logs());
+
+        AppiumDriver customLogcat = Mockito.mock(AppiumDriver.class,
+                Mockito.withSettings().extraInterfaces(ListensToLogcatMessages.class));
+        Mockito.when(customLogcat.getSessionId()).thenReturn(new SessionId("custom-logcat-runtime"));
+        MobileActionsContract customLogcatMobile = new SHAFT.GUI.WebDriver(customLogcat).mobile();
+        Assert.assertSame(customLogcatMobile.logs().and(), customLogcatMobile);
+
+        AppiumDriver customSyslog = Mockito.mock(AppiumDriver.class,
+                Mockito.withSettings().extraInterfaces(ListensToSyslogMessages.class));
+        Mockito.when(customSyslog.getSessionId()).thenReturn(new SessionId("custom-syslog-runtime"));
+        MobileActionsContract customSyslogMobile = new SHAFT.GUI.WebDriver(customSyslog).mobile();
+        Assert.assertSame(customSyslogMobile.logs().and(), customSyslogMobile);
+
+        Class<?> implementation = Class.forName("com.shaft.gui.mobile.LogActions");
+        Assert.assertFalse(Modifier.isPublic(implementation.getModifiers()));
+        Assert.assertEquals(implementation.getConstructors().length, 0);
+    }
+
     private static Set<String> descriptors(String className) throws ClassNotFoundException {
         return Arrays.stream(Class.forName(className).getDeclaredMethods())
                 .filter(method -> Modifier.isPublic(method.getModifiers()))
@@ -350,6 +427,19 @@ public class MobileNamespaceTest {
     private static Set<String> enumValues(String className) throws ClassNotFoundException {
         Object[] values = Class.forName(className).getEnumConstants();
         return Arrays.stream(values).map(String::valueOf).collect(Collectors.toSet());
+    }
+
+    private static void assertRecord(String className, List<String> components) throws Exception {
+        Class<?> type = Class.forName(className);
+        Assert.assertTrue(type.isRecord(), className);
+        Assert.assertEquals(Arrays.stream(type.getRecordComponents())
+                .map(component -> component.getName() + ":" + component.getType().getName())
+                .toList(), components);
+        Class<?>[] componentTypes = Arrays.stream(type.getRecordComponents())
+                .map(java.lang.reflect.RecordComponent::getType)
+                .toArray(Class<?>[]::new);
+        Assert.assertEquals(type.getDeclaredConstructors().length, 1);
+        Assert.assertNotNull(type.getDeclaredConstructor(componentTypes));
     }
 
     private static void assertUnsupported(Runnable action) {

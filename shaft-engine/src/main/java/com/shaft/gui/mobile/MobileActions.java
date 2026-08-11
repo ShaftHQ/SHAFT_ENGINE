@@ -15,6 +15,8 @@ import com.shaft.gui.driver.MobilePerformanceActionsContract;
 import com.shaft.gui.driver.MobileRecordingActionsContract;
 import io.appium.java_client.AppiumDriver;
 import io.appium.java_client.PerformsTouchActions;
+import io.appium.java_client.android.ListensToLogcatMessages;
+import io.appium.java_client.ios.ListensToSyslogMessages;
 import com.shaft.gui.element.TouchActions;
 
 /** Selenium/Appium implementation of the categorized mobile facade. */
@@ -54,7 +56,13 @@ public final class MobileActions implements MobileActionsContract {
 
     @Override
     public MobileLogActionsContract logs() {
-        throw unsupported("device logs");
+        AppiumDriver liveDriver = driver();
+        if (!(liveDriver instanceof ListensToLogcatMessages)
+                && !(liveDriver instanceof ListensToSyslogMessages)) {
+            throw new UnsupportedOperationException(
+                    "The live Appium session does not support continuous device logs.");
+        }
+        return new LogActions(this);
     }
 
     @Override

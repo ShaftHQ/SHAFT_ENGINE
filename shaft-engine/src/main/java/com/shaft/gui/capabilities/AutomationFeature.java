@@ -18,6 +18,8 @@ public enum AutomationFeature {
     NETWORK_INTERCEPTION,
     /** Browser console messages or equivalent runtime logs. */
     CONSOLE_LOGS,
+    /** Continuous native-device logcat or syslog observation. */
+    DEVICE_LOGS,
     /** Browser windows, frames, tabs, or mobile native/web contexts. */
     BROWSING_CONTEXTS,
     /** Script evaluation in the current browser context. */
