@@ -128,7 +128,7 @@ public class MobilePerformanceNamespaceTraceTest {
         CountDownLatch concurrentAppendFinished = new CountDownLatch(1);
         SessionId live = new SessionId("public-atomic-clear");
         Mockito.doAnswer(ignored -> {
-            if (Thread.currentThread() == clearingThread
+            if (Thread.currentThread().equals(clearingThread)
                     && clearingThreadLivenessCalls.incrementAndGet() == 2) {
                 splitCallGap.countDown();
                 if (!concurrentAppendFinished.await(10, TimeUnit.SECONDS)) {
