@@ -18,6 +18,33 @@ A subagent's report describes intent, not necessarily its actual work. Before re
 Commit one reviewed sub-item at a time using the repository's normal message
 convention, including its issue number.
 
+### First retained checkpoint: make delivery visible immediately
+
+After the first reviewed implementation commit succeeds and remains at `HEAD`,
+stop behavior work and make that exact checkpoint visible before another
+behavior change or commit:
+
+1. Resolve repository identity from the active worktree, then bind the full
+   `HEAD` SHA and implementation branch. Never infer an issue number from a
+   branch name.
+2. Push the branch and create or discover its open draft or ready PR. PR
+   creation always names `--base` explicitly; stacked and dependent work uses
+   its intended branch base, never an assumed default branch.
+3. Require the PR to cover the exact checkpoint SHA. Persist its canonical
+   `baseRefName`, PR identity, and `closingIssuesReferences`; those closing
+   references, not branch text, supply the issue mapping.
+4. Keep the PR body/checklist and linked tracker current as later commits land.
+
+Read-only work, failed commit attempts, and sessions with no retained
+implementation commit owe no PR. For an already-running session whose first
+checkpoint predates this rule, perform steps 1–3 before resuming behavior. An
+older-head PR does not repair the state: push/update it until its head is exact.
+If the exact PR lacks a closing issue reference, add one. If GitHub is
+unavailable, report that concrete blocker and retry; do not treat unknown as no
+PR or continue accumulating commits. The guard leaves the inspection, push,
+explicit-base PR creation/update, and narrowly defined checkpoint-repair paths
+available while this duty is pending.
+
 ## 5. Docs, catalog, and screenshots — only where real
 
 Update user documentation and the feature catalog only for shipped behavior.
@@ -63,7 +90,9 @@ performs and verifies the repair or revert.
 
 ## 7. Push, PR, green, merge, compact
 
-- Push the branch and open the agreed PR shape with a description that lists each sub-item and its commit.
+- For work not already covered by the first-checkpoint rule, push the branch and
+  open the agreed PR shape. Keep every PR description current with each sub-item
+  and its commit.
 - Verify `closingIssuesReferences` after opening: GitHub matches closing words
   even inside negated or illustrative prose, so partial work says `Related to
   #N`, never a closing keyword adjacent to an issue number. If it lists an issue

@@ -50,7 +50,272 @@ ISOLATED_STOP_RULES = (
     "check_r20_user_harness_drift",
     "check_r21_run_state_not_recorded",
     "check_r24_foreign_worktree_left_behind",
+    "check_r27_checkpoint_pull_request",
 )
+
+
+class CheckpointPullRequestGateTest(unittest.TestCase):
+    """R27: only a retained, reviewed commit starts the exact-head PR gate."""
+
+    def test_failed_commit_attempt_does_not_create_a_commit_event(self):
+        events: list[str] = []
+        payload = {
+            "tool_name": "Bash",
+            "tool_input": {"command": "git commit -m checkpoint"},
+            "session_id": "r27-failed-commit",
+            "cwd": ".",
+        }
+        observed = [*guard.RESEARCH_PREFLIGHT_EVENTS, "test-run", "review:ChaosEngine/r27"]
+        with patch("scripts.agents.guard.ledger_events", return_value=observed):
+            with patch("scripts.agents.guard._current_branch", return_value="ChaosEngine/r27"):
+                with patch("scripts.agents.guard.ledger_record", side_effect=lambda _p, event: events.append(event) or True):
+                    guard.run_pretooluse(payload)
+                    guard.run_posttooluse(
+                        {**payload, "tool_response": {"status": "failed", "exit_code": 1}}
+                    )
+        self.assertNotIn("commit", events)
+
+    @staticmethod
+    def checkpoint(repo="ShaftHQ/SHAFT_ENGINE", branch="ChaosEngine/r27", head="b" * 40):
+        return "checkpoint:" + json.dumps(
+            {"repository": repo, "branch": branch, "head": head},
+            sort_keys=True,
+            separators=(",", ":"),
+        )
+
+    def test_successful_reviewed_retained_commit_records_exact_identity(self):
+        events: list[str] = []
+        before = "a" * 40
+        identity = ("ShaftHQ/SHAFT_ENGINE", "ChaosEngine/r27", "b" * 40)
+        payload = {
+            "tool_name": "PowerShell",
+            "tool_input": {"command": "git commit -m checkpoint"},
+            "tool_response": {"status": "success", "exitCode": 0},
+            "session_id": "r27-success",
+            "cwd": ".",
+        }
+        review = guard._checkpoint_json_event(
+            "review-head", identity[0], identity[1], before
+        )
+        with patch("scripts.agents.guard._checkpoint_identity", return_value=identity):
+            with patch("scripts.agents.guard.ledger_events", return_value=[review]):
+                with patch("scripts.agents.guard.ledger_record", side_effect=lambda _p, event: events.append(event) or True):
+                    guard.run_posttooluse(payload)
+        self.assertIn("commit", events)
+        self.assertIn(self.checkpoint(), events)
+
+    def test_unchanged_head_does_not_create_a_checkpoint(self):
+        head = "b" * 40
+        identity = ("ShaftHQ/SHAFT_ENGINE", "ChaosEngine/r27", head)
+        review = guard._checkpoint_json_event("review-head", *identity)
+        events: list[str] = []
+        payload = {
+            "tool_name": "Bash",
+            "tool_input": {"command": "git commit --allow-empty -m no-change"},
+            "tool_result": {"status": "completed", "exit_code": 0},
+            "session_id": "r27-unchanged",
+            "cwd": ".",
+        }
+        with patch("scripts.agents.guard._checkpoint_identity", return_value=identity):
+            with patch("scripts.agents.guard.ledger_events", return_value=[review]):
+                with patch("scripts.agents.guard.ledger_record", side_effect=lambda _p, event: events.append(event) or True):
+                    guard.run_posttooluse(payload)
+        self.assertFalse(any(event.startswith("checkpoint:") for event in events))
+
+    def test_cross_host_result_alias_is_normalized_before_failure_check(self):
+        normalized = guard.normalize_hook_input(
+            {"toolName": "shell_command", "toolInput": {"command": "git commit -m x"},
+             "toolResponse": {"status": "failed", "exitCode": 1}}
+        )
+        self.assertEqual(normalized["tool_response"]["status"], "failed")
+
+    def test_interrupted_posttooluse_is_not_a_successful_commit(self):
+        events: list[str] = []
+        payload = {
+            "tool_name": "Bash",
+            "tool_input": {"command": "git commit -m interrupted"},
+            "tool_response": {"interrupted": True},
+        }
+        with patch("scripts.agents.guard.ledger_record", side_effect=lambda _p, event: events.append(event) or True):
+            guard.run_posttooluse(payload)
+        self.assertNotIn("commit", events)
+
+    def test_git_executable_and_global_options_are_commit_invocations(self):
+        for command in (
+            "git.exe commit -m x",
+            "git -C . commit -m x",
+            "git -c user.name=checkpoint commit -m x",
+        ):
+            with self.subTest(command=command):
+                self.assertTrue(guard._is_git_commit_command(command))
+
+    def test_shared_repository_resolution_is_capped_by_the_hook_budget(self):
+        with patch("scripts.agents.guard._subprocess_timeout", return_value=0.125):
+            with patch("scripts.agents.guard.subprocess.run", return_value=mock.Mock()) as runner:
+                guard._bounded_repository_context_runner(
+                    ["gh", "repo", "view"], capture_output=True, text=True, check=False
+                )
+        self.assertEqual(runner.call_args.kwargs["timeout"], 0.125)
+
+    def test_no_exact_head_pr_blocks_behavior_but_allows_read_only_and_recovery(self):
+        checkpoint = self.checkpoint()
+        with patch("scripts.agents.guard._checkpoint_identity", return_value=("ShaftHQ/SHAFT_ENGINE", "ChaosEngine/r27", "b" * 40)):
+            with patch("scripts.agents.guard.ledger_events", return_value=[checkpoint]):
+                with patch("scripts.agents.guard._exact_head_pull_request", return_value=("none", None)):
+                    self.assertIn("R27", guard.check_r27_checkpoint_pull_request(
+                        {"tool_input": {"file_path": "shaft-engine/X.java"}}, "Write"
+                    ))
+                    self.assertIsNone(guard.check_r27_checkpoint_pull_request(
+                        {"tool_input": {"command": "git status"}}, "Bash"
+                    ))
+                    self.assertIsNone(guard.check_r27_checkpoint_pull_request(
+                        {"tool_input": {"command": "git push -u origin ChaosEngine/r27"}}, "Bash"
+                    ))
+                    self.assertIn("R27", guard.check_r27_checkpoint_pull_request(
+                        {"tool_input": {"command": "git commit -m next"}}, "Bash"
+                    ))
+                    self.assertIn("R27", guard.check_r27_checkpoint_pull_request(
+                        {"tool_input": {"command": "gh pr view; Set-Content shaft-engine/X.java x"}}, "PowerShell"
+                    ))
+
+    def test_pr_create_recovery_requires_explicit_stacked_base(self):
+        checkpoint = self.checkpoint()
+        identity = ("ShaftHQ/SHAFT_ENGINE", "ChaosEngine/r27", "b" * 40)
+        with patch("scripts.agents.guard._checkpoint_identity", return_value=identity):
+            with patch("scripts.agents.guard.ledger_events", return_value=[checkpoint]):
+                self.assertIn("--base", guard.check_r27_checkpoint_pull_request(
+                    {"tool_input": {"command": "gh pr create --draft"}}, "Bash"
+                ))
+                self.assertIsNone(guard.check_r27_checkpoint_pull_request(
+                    {"tool_input": {"command": "gh pr create --draft --base ChaosEngine/issue-4726-portable-runtime"}}, "Bash"
+                ))
+
+    def test_draft_and_ready_exact_head_prs_persist_issue_and_stacked_base(self):
+        for draft in (True, False):
+            with self.subTest(draft=draft):
+                response = [{
+                    "number": 4800,
+                    "url": "https://github.com/ShaftHQ/SHAFT_ENGINE/pull/4800",
+                    "state": "OPEN",
+                    "isDraft": draft,
+                    "headRefName": "ChaosEngine/r27",
+                    "headRefOid": "b" * 40,
+                    "baseRefName": "ChaosEngine/issue-4726-portable-runtime",
+                    "closingIssuesReferences": [{"number": 4745}],
+                }]
+                completed = mock.Mock(returncode=0, stdout=json.dumps(response))
+                with patch("scripts.agents.guard.shutil.which", return_value="gh"):
+                    with patch("scripts.agents.guard.subprocess.run", return_value=completed):
+                        status, pull_request = guard._exact_head_pull_request(
+                            "ShaftHQ/SHAFT_ENGINE", "ChaosEngine/r27", "b" * 40
+                        )
+                self.assertEqual(status, "exact")
+                self.assertEqual(pull_request["baseRefName"], "ChaosEngine/issue-4726-portable-runtime")
+                self.assertEqual(pull_request["issueNumbers"], [4745])
+
+    def test_wrong_or_old_head_is_not_accepted(self):
+        response = [{
+            "number": 4799, "url": "https://example.invalid/4799", "state": "OPEN",
+            "isDraft": True, "headRefName": "ChaosEngine/r27", "headRefOid": "a" * 40,
+            "baseRefName": "ChaosEngine/issue-4726-portable-runtime",
+            "closingIssuesReferences": [{"number": 4745}],
+        }]
+        with patch("scripts.agents.guard.shutil.which", return_value="gh"):
+            with patch("scripts.agents.guard.subprocess.run", return_value=mock.Mock(returncode=0, stdout=json.dumps(response))):
+                self.assertEqual(
+                    guard._exact_head_pull_request("ShaftHQ/SHAFT_ENGINE", "ChaosEngine/r27", "b" * 40),
+                    ("none", None),
+                )
+
+    def test_github_unavailable_is_distinct_from_no_pr(self):
+        with patch("scripts.agents.guard.shutil.which", return_value="gh"):
+            with patch("scripts.agents.guard.subprocess.run", return_value=mock.Mock(returncode=1, stdout="")):
+                self.assertEqual(
+                    guard._exact_head_pull_request("ShaftHQ/SHAFT_ENGINE", "ChaosEngine/r27", "b" * 40)[0],
+                    "unavailable",
+                )
+
+    def test_exact_head_pr_without_closing_issue_is_unmapped(self):
+        response = [{
+            "number": 4800, "url": "https://example.invalid/4800", "state": "OPEN",
+            "isDraft": True, "headRefName": "ChaosEngine/r27", "headRefOid": "b" * 40,
+            "baseRefName": "ChaosEngine/issue-4726-portable-runtime",
+            "closingIssuesReferences": [],
+        }]
+        with patch("scripts.agents.guard.shutil.which", return_value="gh"):
+            with patch("scripts.agents.guard.subprocess.run", return_value=mock.Mock(returncode=0, stdout=json.dumps(response))):
+                self.assertEqual(
+                    guard._exact_head_pull_request("ShaftHQ/SHAFT_ENGINE", "ChaosEngine/r27", "b" * 40)[0],
+                    "unmapped",
+                )
+
+    def test_exact_mapping_append_failure_fails_closed(self):
+        identity = ("ShaftHQ/SHAFT_ENGINE", "ChaosEngine/r27", "b" * 40)
+        pull_request = {
+            "number": 4800, "url": "https://example.invalid/4800", "isDraft": True,
+            "baseRefName": "ChaosEngine/issue-4726-portable-runtime", "issueNumbers": [4745],
+        }
+        with patch("scripts.agents.guard._checkpoint_identity", return_value=identity):
+            with patch("scripts.agents.guard.ledger_events", return_value=[self.checkpoint()]):
+                with patch("scripts.agents.guard._exact_head_pull_request", return_value=("exact", pull_request)):
+                    with patch("scripts.agents.guard.ledger_record", return_value=False):
+                        reason = guard.check_r27_checkpoint_pull_request(
+                            {"tool_input": {"file_path": "shaft-engine/X.java"}}, "Write"
+                        )
+        self.assertIn("durably appended", reason)
+
+    def test_checkpoint_append_loss_leaves_a_fail_closed_commit_receipt(self):
+        identity = ("ShaftHQ/SHAFT_ENGINE", "ChaosEngine/r27", "b" * 40)
+        review = guard._checkpoint_json_event("review-head", identity[0], identity[1], "a" * 40)
+        recorded: list[str] = []
+
+        def append(_payload, event):
+            if event.startswith("checkpoint:"):
+                return False
+            recorded.append(event)
+            return True
+
+        payload = {
+            "tool_name": "Bash",
+            "tool_input": {"command": "git commit -m checkpoint"},
+            "tool_response": {"status": "success", "exit_code": 0},
+        }
+        with patch("scripts.agents.guard._checkpoint_identity", return_value=identity):
+            with patch("scripts.agents.guard.ledger_events", return_value=[review]):
+                with patch("scripts.agents.guard.ledger_record", side_effect=append):
+                    guard.run_posttooluse(payload)
+        self.assertEqual(recorded, ["commit"])
+        with patch("scripts.agents.guard._checkpoint_identity", return_value=identity):
+            with patch("scripts.agents.guard.ledger_events", return_value=[review, "commit"]):
+                reason = guard.check_r27_checkpoint_pull_request(
+                    {"tool_input": {"file_path": "shaft-engine/X.java"}}, "Write"
+                )
+        self.assertIn("not durably appended", reason)
+
+    def test_no_checkpoint_leaves_read_only_behavior_and_stop_untouched(self):
+        identity = ("ShaftHQ/SHAFT_ENGINE", "ChaosEngine/r27", "b" * 40)
+        with patch("scripts.agents.guard._checkpoint_identity", return_value=identity):
+            with patch("scripts.agents.guard.ledger_events", return_value=[]):
+                self.assertIsNone(guard.check_r27_checkpoint_pull_request(
+                    {"tool_input": {"command": "git status"}}, "Bash"
+                ))
+                self.assertIsNone(guard.check_r27_checkpoint_pull_request({}, stopping=True))
+
+    def test_ordinary_stop_reaches_r27_and_recursive_stop_is_allowed(self):
+        isolate_stop_rules(self, except_for=("check_r27_checkpoint_pull_request",))
+        identity = ("ShaftHQ/SHAFT_ENGINE", "ChaosEngine/r27", "b" * 40)
+        with patch("scripts.agents.guard._checkpoint_identity", return_value=identity):
+            with patch("scripts.agents.guard.ledger_events", return_value=[self.checkpoint()]):
+                with patch("scripts.agents.guard._exact_head_pull_request", return_value=("none", None)):
+                    with patch("scripts.agents.guard._worktree_report", return_value={"worktrees": [{"is_current": True, "state": "clean"}]}):
+                        output = io.StringIO()
+                        with redirect_stdout(output):
+                            guard.run_stop({"session_id": "r27-stop"})
+                        self.assertIn("R27 blocked", output.getvalue())
+                        output = io.StringIO()
+                        with redirect_stdout(output):
+                            guard.run_stop({"session_id": "r27-stop", "stop_hook_active": True})
+                        self.assertEqual(output.getvalue(), "")
 
 
 def isolate_stop_rules(case: unittest.TestCase, except_for: tuple[str, ...] = ()) -> None:
