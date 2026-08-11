@@ -2,10 +2,9 @@
 
 import unittest
 import json
-import subprocess
+import subprocess  # nosec B404 - fixed test doubles only.
 import tempfile
 from pathlib import Path
-from unittest import mock
 
 try:
     from scripts.agents.repository_context import (

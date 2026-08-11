@@ -2,6 +2,7 @@
 
 import json
 import subprocess  # nosec B404 - fixed local runtime test commands.
+import sys
 import tempfile
 import unittest
 import zipfile
@@ -13,6 +14,7 @@ from scripts.ci.assemble_act_as_mohab_plugin import assemble
 
 
 ROOT = Path(__file__).resolve().parents[2]
+PYTHON = str(Path(sys.executable).resolve())
 
 
 class ActAsMohabRuntimeTest(unittest.TestCase):
@@ -36,7 +38,7 @@ class ActAsMohabRuntimeTest(unittest.TestCase):
             )
 
         result = subprocess.run(  # nosec B603
-            ["py", "-3", str(runtime), "--help"],
+            [PYTHON, str(runtime), "--help"],
             cwd=self.base,
             capture_output=True,
             text=True,
@@ -53,8 +55,7 @@ class ActAsMohabRuntimeTest(unittest.TestCase):
 
         context = subprocess.run(  # nosec B603
             [
-                "py",
-                "-3",
+                PYTHON,
                 str(runtime),
                 "repository-context",
                 "--repo",
@@ -269,7 +270,7 @@ class ActAsMohabRuntimeTest(unittest.TestCase):
         ) + "\n"
 
         result = subprocess.run(  # nosec B603
-            ["py", "-3", str(runtime), "mcp"],
+            [PYTHON, str(runtime), "mcp"],
             cwd=self.base,
             input=requests,
             capture_output=True,
@@ -304,7 +305,7 @@ class ActAsMohabRuntimeTest(unittest.TestCase):
             )
         )
         result = subprocess.run(  # nosec B603
-            ["py", "-3", str(runtime), "mcp"], cwd=self.base, input=requests,
+            [PYTHON, str(runtime), "mcp"], cwd=self.base, input=requests,
             capture_output=True, text=True, check=False,
         )
 

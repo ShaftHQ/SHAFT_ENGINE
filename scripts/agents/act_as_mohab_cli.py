@@ -215,9 +215,76 @@ def call_tool(name: str, arguments: dict) -> dict:
 class _McpError(ValueError):
     """A JSON-RPC error with its standard wire code."""
 
-    def __init__(self, code: int, message: str):
+    def __init__(
+        self,
+        code: int,
+        message: str,
+        *,
+        request_id=None,
+        notification: bool = False,
+    ):
         super().__init__(message)
         self.code = code
+        self.request_id = request_id
+        self.notification = notification
+
+
+def _parse_mcp_request(line: str) -> tuple[object, str, dict, bool]:
+    """Parse and validate one JSON-RPC request envelope."""
+    try:
+        request = json.loads(line)
+    except json.JSONDecodeError as error:
+        raise _McpError(-32700, f"parse error: {error}") from error
+    if not isinstance(request, dict):
+        raise _McpError(-32600, "invalid request: expected a JSON object")
+    request_id = request.get("id")
+    method = request.get("method")
+    if request.get("jsonrpc") != "2.0" or not isinstance(method, str):
+        raise _McpError(-32600, "invalid request: jsonrpc must be 2.0 and method a string")
+    if "id" in request and not (
+        request_id is None
+        or isinstance(request_id, str)
+        or (isinstance(request_id, (int, float)) and not isinstance(request_id, bool))
+    ):
+        raise _McpError(-32600, "invalid request: id must be null, a string, or a number")
+    notification = "id" not in request
+    params = request.get("params", {})
+    if params is None:
+        params = {}
+    if not isinstance(params, dict):
+        raise _McpError(
+            -32602,
+            "invalid params: expected an object",
+            request_id=request_id,
+            notification=notification,
+        )
+    return request_id, method, params, notification
+
+
+def _dispatch_mcp_request(method: str, params: dict, request_id) -> object:
+    """Dispatch one validated JSON-RPC request."""
+    if method == "initialize":
+        return {
+            "protocolVersion": params.get("protocolVersion", "2025-06-18"),
+            "capabilities": {"tools": {}},
+            "serverInfo": {"name": "chaosengine", "version": "1"},
+        }
+    if method == "tools/list":
+        return {"tools": _tool_schemas()}
+    if method == "tools/call":
+        arguments = params.get("arguments", {})
+        if arguments is None:
+            arguments = {}
+        if not isinstance(arguments, dict):
+            raise _McpError(
+                -32602,
+                "invalid params: tool arguments must be an object",
+                request_id=request_id,
+            )
+        return call_tool(str(params.get("name") or ""), arguments)
+    if method == "shutdown":
+        return None
+    raise _McpError(-32601, f"method not found: {method}", request_id=request_id)
 
 
 def serve_mcp(stdin=None, stdout=None) -> int:
@@ -225,68 +292,17 @@ def serve_mcp(stdin=None, stdout=None) -> int:
     stdin = sys.stdin if stdin is None else stdin
     stdout = sys.stdout if stdout is None else stdout
     for line in stdin:
-        request_id = None
-        notification = False
         try:
-            try:
-                request = json.loads(line)
-            except json.JSONDecodeError as error:
-                raise _McpError(-32700, f"parse error: {error}") from error
-            if not isinstance(request, dict):
-                raise _McpError(-32600, "invalid request: expected a JSON object")
-            request_id = request.get("id")
-            method = request.get("method")
-            if request.get("jsonrpc") != "2.0" or not isinstance(method, str):
-                raise _McpError(-32600, "invalid request: jsonrpc must be 2.0 and method a string")
-            if "id" in request and not (
-                request_id is None
-                or isinstance(request_id, str)
-                or (
-                    isinstance(request_id, (int, float))
-                    and not isinstance(request_id, bool)
-                )
-            ):
-                request_id = None
-                raise _McpError(
-                    -32600,
-                    "invalid request: id must be null, a string, or a number",
-                )
-            notification = "id" not in request
-            params = request.get("params", {})
-            if params is None:
-                params = {}
-            if not isinstance(params, dict):
-                raise _McpError(-32602, "invalid params: expected an object")
-            # JSON-RPC notifications never receive a response, including
-            # unknown methods.  Validate their envelope first so malformed
-            # scalar input still receives a useful protocol error.
-            if "id" not in request:
-                continue
-            if method == "initialize":
-                result = {
-                    "protocolVersion": params.get("protocolVersion", "2025-06-18"),
-                    "capabilities": {"tools": {}},
-                    "serverInfo": {"name": "chaosengine", "version": "1"},
-                }
-            elif method == "tools/list":
-                result = {"tools": _tool_schemas()}
-            elif method == "tools/call":
-                arguments = params.get("arguments", {})
-                if arguments is None:
-                    arguments = {}
-                if not isinstance(arguments, dict):
-                    raise _McpError(-32602, "invalid params: tool arguments must be an object")
-                result = call_tool(str(params.get("name") or ""), arguments)
-            elif method == "shutdown":
-                result = None
-            else:
-                raise _McpError(-32601, f"method not found: {method}")
-            response = {"jsonrpc": "2.0", "id": request_id, "result": result}
-        except _McpError as error:
+            request_id, method, params, notification = _parse_mcp_request(line)
             if notification:
                 continue
+            result = _dispatch_mcp_request(method, params, request_id)
+            response = {"jsonrpc": "2.0", "id": request_id, "result": result}
+        except _McpError as error:
+            if error.notification:
+                continue
             response = {
-                "jsonrpc": "2.0", "id": request_id,
+                "jsonrpc": "2.0", "id": error.request_id,
                 "error": {"code": error.code, "message": str(error)},
             }
         stdout.write(json.dumps(response, separators=(",", ":")) + "\n")

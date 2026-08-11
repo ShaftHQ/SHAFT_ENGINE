@@ -215,7 +215,7 @@ class InstallShaftMcpTest(unittest.TestCase):
             scaffold = Path(temporary_directory) / "consumer"
 
             def copy_canonical(_url, target, _label, **_kwargs):
-                relative = target.relative_to(scaffold)
+                relative = target.resolve().relative_to(scaffold.resolve())
                 target.parent.mkdir(parents=True, exist_ok=True)
                 target.write_bytes((REPO_ROOT / relative).read_bytes())
 
