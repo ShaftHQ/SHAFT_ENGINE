@@ -80,6 +80,7 @@ public class AutomationCapabilityResolverUnitTest {
     @Test
     public void genericAppiumDriverShouldAdvertiseOnlyCapabilitiesProvenByItsInterfaces() {
         AppiumDriver driver = mock(AppiumDriver.class);
+        when(driver.getSessionId()).thenReturn(new SessionId("generic-appium"));
         when(driver.getCapabilities()).thenReturn(appiumCapabilities("custom", "unknown"));
 
         AutomationCapabilities capabilities = AutomationCapabilityResolver.forWebDriver(driver);
@@ -118,6 +119,7 @@ public class AutomationCapabilityResolverUnitTest {
         AppiumDriver driver = mock(AppiumDriver.class,
                 withSettings().extraInterfaces(SupportsContextSwitching.class));
         SupportsContextSwitching contexts = (SupportsContextSwitching) driver;
+        when(driver.getSessionId()).thenReturn(new SessionId("appium-storage"));
         when(driver.getCapabilities()).thenReturn(appiumCapabilities("UiAutomator2", "android"));
         when(contexts.getContext()).thenReturn("NATIVE_APP", "WEBVIEW_com.example");
 
@@ -129,14 +131,31 @@ public class AutomationCapabilityResolverUnitTest {
     }
 
     @Test
-    public void appiumProfilesShouldFollowPinnedDriverInterfaces() {
+    public void appiumContextCapabilityShouldFollowSessionLiveness() {
         AndroidDriver android = mock(AndroidDriver.class);
         when(android.getCapabilities()).thenReturn(appiumCapabilities("UiAutomator2", "android"));
+
+        Assert.assertFalse(AutomationCapabilityResolver.forWebDriver(android)
+                .supports(AutomationFeature.BROWSING_CONTEXTS));
+
+        when(android.getSessionId()).thenReturn(new SessionId("live-context-capability"));
+        Assert.assertTrue(AutomationCapabilityResolver.forWebDriver(android)
+                .supports(AutomationFeature.BROWSING_CONTEXTS));
+    }
+
+    @Test
+    public void appiumProfilesShouldFollowPinnedDriverInterfaces() {
+        AndroidDriver android = mock(AndroidDriver.class);
+        when(android.getSessionId()).thenReturn(new SessionId("android-profile"));
+        when(android.getCapabilities()).thenReturn(appiumCapabilities("UiAutomator2", "android"));
         IOSDriver ios = mock(IOSDriver.class);
+        when(ios.getSessionId()).thenReturn(new SessionId("ios-profile"));
         when(ios.getCapabilities()).thenReturn(appiumCapabilities("XCUITest", "ios"));
         WindowsDriver windows = mock(WindowsDriver.class);
+        when(windows.getSessionId()).thenReturn(new SessionId("windows-profile"));
         when(windows.getCapabilities()).thenReturn(appiumCapabilities("Windows", "windows"));
         Mac2Driver mac = mock(Mac2Driver.class);
+        when(mac.getSessionId()).thenReturn(new SessionId("mac-profile"));
         when(mac.getCapabilities()).thenReturn(appiumCapabilities("Mac2", "mac"));
 
         AutomationCapabilities androidCapabilities = AutomationCapabilityResolver.forWebDriver(android);

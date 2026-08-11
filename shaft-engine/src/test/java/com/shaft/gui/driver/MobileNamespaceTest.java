@@ -19,6 +19,8 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.util.Arrays;
+import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -53,7 +55,6 @@ public class MobileNamespaceTest {
 
         for (String contract : Set.of(
                 "MobileBiometricActionsContract",
-                "MobileContextActionsContract",
                 "MobileEvidenceActionsContract",
                 "MobileFileActionsContract",
                 "MobileGestureActionsContract",
@@ -64,6 +65,13 @@ public class MobileNamespaceTest {
             Assert.assertEquals(descriptors("com.shaft.gui.driver." + contract),
                     Set.of("and[]->MobileActionsContract"));
         }
+        Assert.assertEquals(descriptors("com.shaft.gui.driver.MobileContextActionsContract"), Set.of(
+                "and[]->MobileActionsContract",
+                "current[]->String",
+                "handles[]->List",
+                "nativeApp[]->MobileContextActionsContract",
+                "switchTo[class java.lang.String]->MobileContextActionsContract",
+                "webView[]->MobileContextActionsContract"));
         Assert.assertEquals(descriptors("com.shaft.gui.driver.MobileDeviceActionsContract"), Set.of(
                 "and[]->MobileActionsContract",
                 "battery[]->MobileBatteryInfo",
@@ -246,6 +254,28 @@ public class MobileNamespaceTest {
 
         Assert.assertEquals(new SHAFT.GUI.WebDriver(driver).mobile().device().battery(),
                 new MobileBatteryInfo(0.5, "unknown"));
+    }
+
+    @Test
+    public void mobileContextShouldExposeExactNativeAndWebViewConveniences() {
+        AndroidDriver driver = Mockito.mock(AndroidDriver.class);
+        Mockito.when(driver.getSessionId()).thenReturn(new SessionId("android-context"));
+        Mockito.when(driver.getContext()).thenReturn("NATIVE_APP");
+        Mockito.when(driver.getContextHandles()).thenReturn(new LinkedHashSet<>(List.of(
+                "NATIVE_APP", "WEBVIEW_com.example", "WEBVIEW_com.other")));
+        MobileActionsContract mobile = new SHAFT.GUI.WebDriver(driver).mobile();
+        MobileContextActionsContract context = mobile.context();
+
+        Assert.assertEquals(context.current(), "NATIVE_APP");
+        Assert.assertEquals(context.handles(), List.of("NATIVE_APP", "WEBVIEW_com.example", "WEBVIEW_com.other"));
+        Assert.assertSame(context.switchTo("WEBVIEW_com.other"), context);
+        Assert.assertSame(context.nativeApp(), context);
+        Assert.assertSame(context.webView(), context);
+        Assert.assertSame(context.and(), mobile);
+
+        Mockito.verify(driver).context("WEBVIEW_com.other");
+        Mockito.verify(driver).context("NATIVE_APP");
+        Mockito.verify(driver).context("WEBVIEW_com.example");
     }
 
     private static Set<String> descriptors(String className) throws ClassNotFoundException {

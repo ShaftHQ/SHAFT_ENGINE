@@ -51,13 +51,25 @@ public final class AutomationCapabilityResolver {
             return AutomationCapabilities.unknown("No active Selenium or Appium driver exists.");
         }
 
+        if (driver instanceof AppiumDriver appiumDriver && !isLiveAppium(appiumDriver)) {
+            return AutomationCapabilities.unknown("No live Appium session exists.");
+        }
+
         Capabilities rawCapabilities = driver instanceof HasCapabilities hasCapabilities
                 ? hasCapabilities.getCapabilities()
                 : null;
-        if (driver instanceof AppiumDriver) {
-            return appium((AppiumDriver) driver, rawCapabilities);
+        if (driver instanceof AppiumDriver appiumDriver) {
+            return appium(appiumDriver, rawCapabilities);
         }
         return selenium(driver, rawCapabilities);
+    }
+
+    private static boolean isLiveAppium(AppiumDriver driver) {
+        try {
+            return driver.getSessionId() != null;
+        } catch (RuntimeException ignored) {
+            return false;
+        }
     }
 
     /**

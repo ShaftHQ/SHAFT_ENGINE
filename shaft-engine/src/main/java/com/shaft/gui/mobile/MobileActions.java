@@ -42,7 +42,7 @@ public final class MobileActions implements MobileActionsContract {
 
     @Override
     public MobileContextActionsContract context() {
-        throw unsupported("contexts");
+        return new ContextActions(this);
     }
 
     @Override

@@ -4,6 +4,7 @@ import com.shaft.driver.SHAFT;
 import com.shaft.gui.capabilities.AutomationBackend;
 import com.shaft.gui.capabilities.internal.AutomationCapabilityResolver;
 import com.shaft.gui.playwright.internal.PlaywrightSessionManager;
+import io.appium.java_client.AppiumDriver;
 import org.openqa.selenium.By;
 import org.openqa.selenium.WebDriver;
 
@@ -381,6 +382,9 @@ public final class TraceEventRecorder {
     private static AutomationBackend backend(WebDriver driver) {
         try {
             if (driver != null) {
+                if (driver instanceof AppiumDriver) {
+                    return AutomationBackend.APPIUM;
+                }
                 return AutomationCapabilityResolver.forWebDriver(driver).backend();
             }
             var playwright = PlaywrightSessionManager.currentSession();
