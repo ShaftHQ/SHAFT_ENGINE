@@ -30,11 +30,13 @@ import org.openqa.selenium.remote.http.HttpResponse;
 
 import java.io.ByteArrayInputStream;
 import java.net.URI;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Locale;
 import java.util.Set;
+import java.util.Base64;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 import java.util.regex.Matcher;
@@ -89,6 +91,11 @@ public class BrowserActions implements com.shaft.gui.driver.BrowserActionsContra
     @Override
     public PermissionActions permissions() {
         return new PermissionActions(this);
+    }
+
+    @Override
+    public AuthenticationActions authentication() {
+        return new AuthenticationActions(this);
     }
 
     @Override
@@ -202,10 +209,12 @@ public class BrowserActions implements com.shaft.gui.driver.BrowserActionsContra
     @Override
     public BrowserActions navigateToURLWithBasicAuthentication(String targetUrl, String username, String password,
                                                               String targetUrlAfterAuthentication) {
-        URI uri = URI.create(targetUrl);
-        String authenticatedUrl = uri.getScheme() + "://" + username + ":" + password + "@" + uri.getAuthority()
-                + uri.getRawPath() + (uri.getRawQuery() == null ? "" : "?" + uri.getRawQuery());
-        return navigateToURL(authenticatedUrl, targetUrlAfterAuthentication);
+        authentication().navigateTo(targetUrl, username, password);
+        if (targetUrlAfterAuthentication != null && !targetUrlAfterAuthentication.isBlank()) {
+            timedPageLoad("playwright.browser.waitForURL", targetUrlAfterAuthentication,
+                    () -> page().waitForURL(targetUrlAfterAuthentication));
+        }
+        return this;
     }
 
     @Override
@@ -738,6 +747,104 @@ public class BrowserActions implements com.shaft.gui.driver.BrowserActionsContra
                 FailureTraceReporter.registerSensitiveValues(argument);
             }
             TraceEventRecorder.finish(event, "failed", "script " + operation + " failed.", exception,
+                    Map.of("backend", "MICROSOFT_PLAYWRIGHT"), List.of());
+            throw exception;
+        }
+    }
+
+    void registerBasicAuthenticationNamespace(String origin, String username, String password) {
+        queryAuthentication("register-basic", authenticationOriginTraceLocator(origin), username, password, () -> {
+            registerBasicAuthentication(origin, username, password);
+            return null;
+        }, origin == null);
+    }
+
+    void navigateWithBasicAuthenticationNamespace(String url, String username, String password) {
+        Objects.requireNonNull(url, "url");
+        queryAuthentication("navigate-basic", authenticationTraceLocator(url), username, password, () -> {
+            URI target = URI.create(url);
+            if (target.getRawUserInfo() != null) {
+                throw new IllegalArgumentException("Authentication navigation URL must not embed credentials.");
+            }
+            String origin = PermissionOrigin.normalize(target.getScheme() + "://" + target.getRawAuthority());
+            registerBasicAuthentication(origin, username, password);
+            page().navigate(url);
+            return null;
+        }, true);
+    }
+
+    private static String authenticationTraceLocator(String url) {
+        try {
+            URI target = URI.create(url);
+            if (target.getRawUserInfo() != null) {
+                return "<credential-bearing-url>";
+            }
+            return PermissionOrigin.normalize(target.getScheme() + "://" + target.getRawAuthority());
+        } catch (RuntimeException ignored) {
+            return "<invalid-url>";
+        }
+    }
+
+    private static String authenticationOriginTraceLocator(String origin) {
+        if (origin == null) {
+            return "<current-origin>";
+        }
+        try {
+            URI target = URI.create(origin);
+            if (target.getRawUserInfo() != null) {
+                return "<credential-bearing-origin>";
+            }
+            return PermissionOrigin.normalize(origin);
+        } catch (RuntimeException ignored) {
+            return "<invalid-origin>";
+        }
+    }
+
+    void clearAuthenticationNamespace() {
+        queryAuthentication("clear", null, "", "", () -> {
+            session.networkInterceptor().clearAuthentication();
+            return null;
+        }, false);
+    }
+
+    private void registerBasicAuthentication(String origin, String username, String password) {
+        String candidateOrigin = origin;
+        if (candidateOrigin == null) {
+            URI current = URI.create(page().url());
+            candidateOrigin = current.getScheme() + "://" + current.getRawAuthority();
+        }
+        String normalizedOrigin = PermissionOrigin.normalize(candidateOrigin);
+        String token = Base64.getEncoder().encodeToString((username + ":" + password)
+                .getBytes(StandardCharsets.UTF_8));
+        session.networkInterceptor().registerBasicAuthentication(normalizedOrigin, "Basic " + token);
+    }
+
+    private <T> T queryAuthentication(String operation, String locator, String username, String password,
+                                      Supplier<T> action, boolean pageRequired) {
+        var event = TraceEventRecorder.startForBackend("authentication", operation, locator == null ? "" : locator,
+                AutomationBackend.MICROSOFT_PLAYWRIGHT);
+        try {
+            Objects.requireNonNull(username, "username");
+            Objects.requireNonNull(password, "password");
+            if (username.contains(":")) {
+                throw new IllegalArgumentException("HTTP Basic usernames must not contain ':'.");
+            }
+            FailureTraceReporter.registerSensitiveSourceValue(username);
+            FailureTraceReporter.registerSensitiveSourceValue(password);
+            if (pageRequired) {
+                requireLiveSession(operation);
+            } else {
+                requireLivePermissionContext(operation);
+            }
+            T result = TraceEventRecorder.withoutNestedEvents(action);
+            TraceEventRecorder.finish(event, "passed", "authentication " + operation + " completed.", null,
+                    Map.of("backend", "MICROSOFT_PLAYWRIGHT"), List.of());
+            return result;
+        } catch (RuntimeException exception) {
+            FailureTraceReporter.registerSensitiveThrowable(exception);
+            FailureTraceReporter.registerSensitiveValues(username);
+            FailureTraceReporter.registerSensitiveValues(password);
+            TraceEventRecorder.finish(event, "failed", "authentication " + operation + " failed.", exception,
                     Map.of("backend", "MICROSOFT_PLAYWRIGHT"), List.of());
             throw exception;
         }

@@ -22,10 +22,12 @@ import io.appium.java_client.ios.IOSDriver;
 import org.openqa.selenium.Capabilities;
 import org.openqa.selenium.HasCapabilities;
 import org.openqa.selenium.HasDownloads;
+import org.openqa.selenium.HasAuthentication;
 import org.openqa.selenium.JavascriptExecutor;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.bidi.HasBiDi;
 import org.openqa.selenium.devtools.HasDevTools;
+import org.openqa.selenium.remote.RemoteWebDriver;
 import org.openqa.selenium.virtualauthenticator.HasVirtualAuthenticator;
 
 import java.util.Locale;
@@ -84,6 +86,7 @@ public final class AutomationCapabilityResolver {
                 .nativeFeature(AutomationFeature.BROWSING_CONTEXTS, "Playwright BrowserContext")
                 .nativeFeature(AutomationFeature.STORAGE, "Playwright storage state")
                 .nativeFeature(AutomationFeature.PERMISSIONS, "Playwright BrowserContext permissions")
+                .adaptedFeature(AutomationFeature.AUTHENTICATION, "SHAFT HTTP authentication routing")
                 .nativeFeature(AutomationFeature.TRACE, "Playwright BrowserContext trace with SHAFT evidence integration");
         if (session.page() != null && !session.page().isClosed()) {
             builder.nativeFeature(AutomationFeature.BROWSER_AUTOMATION, "Playwright Browser and Page")
@@ -121,6 +124,10 @@ public final class AutomationCapabilityResolver {
         }
         if (driver instanceof HasDevTools hasDevTools && hasDevTools.maybeGetDevTools().isPresent()) {
             builder.adaptedFeature(AutomationFeature.NETWORK_INTERCEPTION, "Selenium DevTools through SHAFT");
+            if (driver instanceof HasAuthentication
+                    && (!(driver instanceof RemoteWebDriver remote) || remote.getSessionId() != null)) {
+                builder.nativeFeature(AutomationFeature.AUTHENTICATION, "Selenium CDP-backed HasAuthentication");
+            }
         }
         if (driver instanceof HasDownloads) {
             builder.nativeFeature(AutomationFeature.DOWNLOADS, "W3C WebDriver downloads");

@@ -58,6 +58,8 @@ public final class FailureTraceReporter {
     private static final ThreadLocal<TraceArtifactManifest> CURRENT_ARTIFACT_MANIFEST = new ThreadLocal<>();
     private static final ThreadLocal<LinkedHashSet<String>> EXACT_SENSITIVE_VALUES =
             ThreadLocal.withInitial(LinkedHashSet::new);
+    private static final ThreadLocal<LinkedHashSet<String>> SOURCE_SENSITIVE_VALUES =
+            ThreadLocal.withInitial(LinkedHashSet::new);
     private static final ThreadLocal<Set<Throwable>> SENSITIVE_THROWABLES =
             ThreadLocal.withInitial(() -> Collections.newSetFromMap(new IdentityHashMap<>()));
     private static final int SENSITIVE_VALUE_TRAVERSAL_LIMIT = 1000;
@@ -975,7 +977,7 @@ public final class FailureTraceReporter {
     private static String fileContent(Path sourceFile) {
         try {
             String content = Files.readString(sourceFile, StandardCharsets.UTF_8);
-            return redact(content.length() > MAX_SOURCE_FILE_CHARACTERS
+            return redactSourceText(content.length() > MAX_SOURCE_FILE_CHARACTERS
                     ? content.substring(0, MAX_SOURCE_FILE_CHARACTERS)
                     : content);
         } catch (IOException | RuntimeException e) {
@@ -1035,7 +1037,7 @@ public final class FailureTraceReporter {
                         .append(lines.get(line - 1))
                         .append(System.lineSeparator());
             }
-            return redact(snippet.toString().trim());
+            return redactSourceText(snippet.toString().trim());
         } catch (IOException e) {
             return sourceFile + ":" + lineNumber;
         }
@@ -1104,6 +1106,27 @@ public final class FailureTraceReporter {
         if (value != null && !value.isEmpty()) {
             EXACT_SENSITIVE_VALUES.get().add(value);
         }
+    }
+
+    /** Registers a credential that must be removed from later source-code evidence in this invocation. */
+    public static void registerSensitiveSourceValue(String value) {
+        if (value != null && !value.isEmpty()) {
+            SOURCE_SENSITIVE_VALUES.get().add(value);
+        }
+    }
+
+    private static String redactSourceText(String value) {
+        String redacted = redact(value);
+        for (String sensitiveValue : SOURCE_SENSITIVE_VALUES.get()) {
+            if (!redacted.contains(sensitiveValue)) {
+                continue;
+            }
+            if (sensitiveValue.length() < 4) {
+                return "[source context omitted because it contains a sensitive credential]";
+            }
+            redacted = redacted.replace(sensitiveValue, "********");
+        }
+        return redacted;
     }
 
     /** Registers string values recursively reachable from a script or structured argument. */
@@ -1195,6 +1218,7 @@ public final class FailureTraceReporter {
 
     static void clearSensitiveValues() {
         EXACT_SENSITIVE_VALUES.remove();
+        SOURCE_SENSITIVE_VALUES.remove();
         SENSITIVE_THROWABLES.remove();
     }
 

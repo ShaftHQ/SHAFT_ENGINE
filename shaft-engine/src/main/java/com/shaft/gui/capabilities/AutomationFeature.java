@@ -45,5 +45,7 @@ public enum AutomationFeature {
     /** Screen recording controlled by the automation backend. */
     SCREEN_RECORDING,
     /** W3C virtual-authenticator and passkey operations. */
-    WEBAUTHN
+    WEBAUTHN,
+    /** HTTP authentication registration or request adaptation. */
+    AUTHENTICATION
 }

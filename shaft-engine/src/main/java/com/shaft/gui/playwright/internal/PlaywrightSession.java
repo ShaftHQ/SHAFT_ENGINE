@@ -121,7 +121,7 @@ public final class PlaywrightSession implements AutoCloseable {
     @Override
     public void close() {
         clearConsole();
-        networkInterceptor.clear();
+        networkInterceptor.close();
         if (traceManager != null) {
             traceManager.stopAndAttach();
         }

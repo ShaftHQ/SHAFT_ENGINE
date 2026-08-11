@@ -38,9 +38,11 @@ public final class PermissionOrigin {
         if (normalizedHost.isBlank()) {
             throw invalid(null);
         }
+        String normalizedScheme = uri.getScheme().toLowerCase(Locale.ROOT);
+        Integer normalizedPort = isDefaultPort(normalizedScheme, parsed.port()) ? null : parsed.port();
         String serializedHost = parsed.ipv6() ? "[" + normalizedHost + "]" : normalizedHost;
-        String normalized = uri.getScheme().toLowerCase(Locale.ROOT) + "://" + serializedHost
-                + (parsed.port() == null ? "" : ":" + parsed.port());
+        String normalized = normalizedScheme + "://" + serializedHost
+                + (normalizedPort == null ? "" : ":" + normalizedPort);
         try {
             if (URI.create(normalized).getHost() == null) {
                 throw invalid(null);
@@ -82,6 +84,11 @@ public final class PermissionOrigin {
         } catch (NumberFormatException exception) {
             throw invalid(exception);
         }
+    }
+
+    private static boolean isDefaultPort(String scheme, Integer port) {
+        return port != null && ((port == 80 && (scheme.equals("http") || scheme.equals("ws")))
+                || (port == 443 && (scheme.equals("https") || scheme.equals("wss"))));
     }
 
     private static Integer invalidPort() {

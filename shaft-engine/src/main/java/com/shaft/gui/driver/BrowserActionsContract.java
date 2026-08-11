@@ -93,6 +93,14 @@ public interface BrowserActionsContract {
         throw new UnsupportedOperationException("Permission actions are not supported by this browser facade.");
     }
 
+    /**
+     * Returns session-scoped HTTP authentication actions. The Java default-method collision boundary documented for
+     * {@link #network()} also applies.
+     */
+    default AuthenticationActionsContract authentication() {
+        throw new UnsupportedOperationException("Authentication actions are not supported by this browser facade.");
+    }
+
     BrowserActionsContract and();
 
     BrowserAssertions assertThat();

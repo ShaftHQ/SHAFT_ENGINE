@@ -153,6 +153,11 @@ public class BrowserActions extends FluentWebDriverAction implements com.shaft.g
         return new PermissionActions(this);
     }
 
+    @Override
+    public AuthenticationActions authentication() {
+        return new AuthenticationActions(this);
+    }
+
     void requireContextSupport(String operation) {
         WebDriver driver = driverFactoryHelper == null ? null : driverFactoryHelper.getDriver();
         boolean closedRemoteSession = driver instanceof RemoteWebDriver remoteDriver && remoteDriver.getSessionId() == null;
@@ -391,6 +396,115 @@ public class BrowserActions extends FluentWebDriverAction implements com.shaft.g
                     + " requires a live JavaScript-capable Selenium or Appium web-context session.");
         }
         return executor;
+    }
+
+    void registerBasicAuthenticationNamespace(String origin, String username, String password) {
+        queryAuthentication("register-basic", authenticationOriginTraceLocator(origin), username, password, driver -> {
+            registerBasicAuthentication(driver, origin, username, password);
+            return null;
+        });
+    }
+
+    void navigateWithBasicAuthenticationNamespace(String url, String username, String password) {
+        Objects.requireNonNull(url, "url");
+        queryAuthentication("navigate-basic", authenticationTraceLocator(url), username, password, driver -> {
+            URI target = URI.create(url);
+            if (target.getRawUserInfo() != null) {
+                throw new IllegalArgumentException("Authentication navigation URL must not embed credentials.");
+            }
+            String origin = PermissionOrigin.normalize(target.getScheme() + "://" + target.getRawAuthority());
+            registerBasicAuthentication(driver, origin, username, password);
+            navigateToURL(url);
+            return null;
+        });
+    }
+
+    private static String authenticationTraceLocator(String url) {
+        try {
+            URI target = URI.create(url);
+            if (target.getRawUserInfo() != null) {
+                return "<credential-bearing-url>";
+            }
+            return PermissionOrigin.normalize(target.getScheme() + "://" + target.getRawAuthority());
+        } catch (RuntimeException ignored) {
+            return "<invalid-url>";
+        }
+    }
+
+    private static String authenticationOriginTraceLocator(String origin) {
+        if (origin == null) {
+            return "<current-origin>";
+        }
+        try {
+            URI target = URI.create(origin);
+            if (target.getRawUserInfo() != null) {
+                return "<credential-bearing-origin>";
+            }
+            return PermissionOrigin.normalize(origin);
+        } catch (RuntimeException ignored) {
+            return "<invalid-origin>";
+        }
+    }
+
+    void clearAuthenticationNamespace() {
+        queryAuthentication("clear", null, "", "", driver -> {
+            throw new UnsupportedOperationException("Selenium HasAuthentication does not provide an unregister operation; recreate the driver session to clear handlers.");
+        });
+    }
+
+    private <T> T queryAuthentication(String operation, String locator, String username, String password,
+                                      java.util.function.Function<WebDriver, T> action) {
+        WebDriver driver = driverFactoryHelper == null ? null : driverFactoryHelper.getDriver();
+        var event = TraceEventRecorder.start("authentication", operation, locator == null ? "" : locator, driver);
+        try {
+            Objects.requireNonNull(username, "username");
+            Objects.requireNonNull(password, "password");
+            if (username.contains(":")) {
+                throw new IllegalArgumentException("HTTP Basic usernames must not contain ':'.");
+            }
+            FailureTraceReporter.registerSensitiveSourceValue(username);
+            FailureTraceReporter.registerSensitiveSourceValue(password);
+            WebDriver supported = authenticationDriver(operation);
+            T result = TraceEventRecorder.withoutNestedEvents(() -> action.apply(supported));
+            TraceEventRecorder.finish(event, "passed", "authentication " + operation + " completed.", null,
+                    Map.of(), List.of());
+            return result;
+        } catch (RuntimeException exception) {
+            FailureTraceReporter.registerSensitiveThrowable(exception);
+            FailureTraceReporter.registerSensitiveValues(username);
+            FailureTraceReporter.registerSensitiveValues(password);
+            TraceEventRecorder.finish(event, "failed", "authentication " + operation + " failed.", exception,
+                    Map.of(), List.of());
+            throw exception;
+        }
+    }
+
+    private WebDriver authenticationDriver(String operation) {
+        WebDriver driver = driverFactoryHelper == null ? null : driverFactoryHelper.getDriver();
+        boolean closed = driver instanceof RemoteWebDriver remote && remote.getSessionId() == null;
+        boolean devToolsLive = driver instanceof HasDevTools hasDevTools && hasDevTools.maybeGetDevTools().isPresent();
+        if (driver instanceof AppiumDriver || closed || !(driver instanceof HasAuthentication) || !devToolsLive) {
+            throw new UnsupportedOperationException("Browser authentication " + operation
+                    + " requires a live Selenium session with effective CDP-backed HasAuthentication support.");
+        }
+        return driver;
+    }
+
+    private void registerBasicAuthentication(WebDriver driver, String origin, String username, String password) {
+        String candidateOrigin = origin;
+        if (candidateOrigin == null) {
+            URI current = URI.create(driver.getCurrentUrl());
+            candidateOrigin = current.getScheme() + "://" + current.getRawAuthority();
+        }
+        String normalizedOrigin = PermissionOrigin.normalize(candidateOrigin);
+        Predicate<URI> predicate = uri -> {
+            try {
+                return normalizedOrigin.equals(PermissionOrigin.normalize(uri.getScheme() + "://" + uri.getRawAuthority()));
+            } catch (RuntimeException ignored) {
+                return false;
+            }
+        };
+        ((HasAuthentication) driver).register(predicate, UsernameAndPassword.of(username, password));
     }
 
     void setPermissionsNamespace(String stateName, String origin, String... permissionNames) {

@@ -1,5 +1,6 @@
 package com.shaft.gui.playwright.browser;
 
+import com.microsoft.playwright.Browser;
 import com.microsoft.playwright.BrowserContext;
 import com.microsoft.playwright.Page;
 import com.microsoft.playwright.Route;
@@ -129,26 +130,25 @@ public class PlaywrightBrowserActionsUnitTest {
     }
 
     @Test
-    public void shouldMaskPasswordWhenLoggingBasicAuthenticationUrl() {
+    public void shouldNavigateWithBasicAuthenticationWithoutEmbeddingCredentialsInTheUrl() {
         PlaywrightSession session = mock(PlaywrightSession.class);
+        Browser browser = mock(Browser.class);
+        BrowserContext context = mock(BrowserContext.class);
         Page page = mock(Page.class);
+        com.shaft.gui.browser.internal.PlaywrightNetworkInterceptor interceptor =
+                mock(com.shaft.gui.browser.internal.PlaywrightNetworkInterceptor.class);
         when(session.page()).thenReturn(page);
+        when(session.browser()).thenReturn(browser);
+        when(session.browserContext()).thenReturn(context);
+        when(session.networkInterceptor()).thenReturn(interceptor);
+        when(browser.isConnected()).thenReturn(true);
+        when(page.isClosed()).thenReturn(false);
         BrowserActions actions = new BrowserActions(session);
 
-        List<String> loggedMessages = new ArrayList<>();
-        try (MockedStatic<ReportManager> reportManager = mockStatic(ReportManager.class)) {
-            reportManager.when(() -> ReportManager.log(anyString())).thenAnswer(invocation -> {
-                loggedMessages.add(invocation.getArgument(0));
-                return null;
-            });
+        actions.navigateToURLWithBasicAuthentication(
+                "https://example.com/secure", "user", "secretPass", null);
 
-            actions.navigateToURLWithBasicAuthentication(
-                    "https://example.com/secure", "user", "secretPass", null);
-        }
-
-        verify(page).navigate("https://user:secretPass@example.com/secure");
-        String logged = String.join("\n", loggedMessages);
-        Assert.assertFalse(logged.contains("secretPass"));
-        Assert.assertTrue(logged.contains("••••••••••"));
+        verify(page).navigate("https://example.com/secure");
+        verify(interceptor).registerBasicAuthentication("https://example.com", "Basic dXNlcjpzZWNyZXRQYXNz");
     }
 }
