@@ -94,6 +94,8 @@ jobs:
       - Ubuntu_Playwright_GalaxyS26Ultra
       - Ubuntu_Playwright_IPhone17ProMax
       - Android_Native_BrowserStack
+      - Android_Recording_BrowserStack
+      - iOS_Recording_BrowserStack
       - iOS_Web_SAFARI_BrowserStack
       - Android_Web_Chrome_BrowserStack
       - Android_Flutter_Emulator_E2E
@@ -729,13 +731,93 @@ jobs:
         # first -- the exact verification step #4294 skipped, not to be repeated.
         # The -Dtest selector below still deliberately matches FlutterTest.* (harmless
         # while self-skipping) so re-enabling later is a one-line change again.
-        run: mvn -pl shaft-browserstack -am -e test "-DincludeVisualTestRuntime" "-DdefaultElementIdentificationTimeout=60" "-DretryMaximumNumberOfAttempts=2" "-DexecutionAddress=browserstack" "-DtargetOperatingSystem=android" "-Dmobile_automationName=UIAutomator2" "-DbrowserStack.platformVersion=13.0" "-DbrowserStack.deviceName=Google Pixel 7" "-DbrowserStack.appUrl=" "-DgenerateAllureReportArchive=true" "-Dtest=${{ github.event.inputs.tests != '' && github.event.inputs.tests || '%regex[.*ndroid.*], %regex[.*FlutterTest.*], %regex[.*BrowserStackPropertiesUnitTest.*], %regex[.*BrowserStackHelperUnitTest.*], %regex[.*BrowserStackSdkHelperCoverageUnitTest.*]' }}"
+        run: mvn -pl shaft-browserstack -am -e test "-DincludeVisualTestRuntime" "-DdefaultElementIdentificationTimeout=60" "-DretryMaximumNumberOfAttempts=2" "-DexecutionAddress=browserstack" "-DtargetOperatingSystem=android" "-Dmobile_automationName=UIAutomator2" "-DbrowserStack.platformVersion=13.0" "-DbrowserStack.deviceName=Google Pixel 7" "-DbrowserStack.appUrl=" "-DgenerateAllureReportArchive=true" "-Dsurefire.excludedGroups=allure3-visual-demo,mobile-recording-compatible-provider" "-Dtest=${{ github.event.inputs.tests != '' && github.event.inputs.tests || '%regex[.*ndroid.*], %regex[.*FlutterTest.*], %regex[.*BrowserStackPropertiesUnitTest.*], %regex[.*BrowserStackHelperUnitTest.*], %regex[.*BrowserStackSdkHelperCoverageUnitTest.*]' }}"
       - name: Post-Test Report and Check
         id: post_test_report
         if: always()
         uses: ./.github/actions/post-test-report
         with:
           job-name: Android_Native_BrowserStack
+          codecov-token: ${{ secrets.CODECOV_TOKEN }}
+
+  Android_Recording_BrowserStack:
+    if: github.event_name == 'workflow_dispatch' && contains(format(',{0},', github.event.inputs.jobs), ',Android_Recording_BrowserStack,')
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    outputs:
+      job: ${{ steps.post_test_report.outputs.job }}
+      total: ${{ steps.post_test_report.outputs.total }}
+      passed: ${{ steps.post_test_report.outputs.passed }}
+      failed: ${{ steps.post_test_report.outputs.failed }}
+      broken: ${{ steps.post_test_report.outputs.broken }}
+      skipped: ${{ steps.post_test_report.outputs.skipped }}
+      duration: ${{ steps.post_test_report.outputs.duration }}
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v7
+      - name: Setup Test Environment
+        uses: ./.github/actions/setup-test-env
+        with:
+          node-version: '20'
+      - name: Run Android recording acceptance
+        continue-on-error: true
+        timeout-minutes: 25
+        run: mvn -pl shaft-browserstack -am -e test "-Dallure.automaticallyOpen=false" "-DdefaultElementIdentificationTimeout=60" "-DretryMaximumNumberOfAttempts=0" "-DexecutionAddress=browserstack" "-DtargetOperatingSystem=android" "-Dmobile_automationName=UIAutomator2" "-DbrowserStack.appiumVersion=3.3.0" "-DbrowserStack.platformVersion=13.0" "-DbrowserStack.deviceName=Google Pixel 7" "-DbrowserStack.appUrl=" "-DgenerateAllureReportArchive=true" "-Dtest=AndroidBasicInteractionsTests#screenRecordingShouldPreserveUnsupportedProviderFailureAndResetState"
+      - name: Verify Android recording acceptance executed
+        run: >-
+          python3 scripts/ci/assert_tests_executed.py
+          shaft-engine/target/surefire-reports/TEST-testPackage.appium.AndroidBasicInteractionsTests.xml
+          --min-executed 1
+      - name: Post-Test Report and Check
+        id: post_test_report
+        if: always()
+        uses: ./.github/actions/post-test-report
+        with:
+          job-name: Android_Recording_BrowserStack
+          codecov-token: ${{ secrets.CODECOV_TOKEN }}
+
+  iOS_Recording_BrowserStack:
+    if: github.event_name == 'workflow_dispatch' && contains(format(',{0},', github.event.inputs.jobs), ',iOS_Recording_BrowserStack,')
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    outputs:
+      job: ${{ steps.post_test_report.outputs.job }}
+      total: ${{ steps.post_test_report.outputs.total }}
+      passed: ${{ steps.post_test_report.outputs.passed }}
+      failed: ${{ steps.post_test_report.outputs.failed }}
+      broken: ${{ steps.post_test_report.outputs.broken }}
+      skipped: ${{ steps.post_test_report.outputs.skipped }}
+      duration: ${{ steps.post_test_report.outputs.duration }}
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v7
+      - name: Setup Test Environment
+        uses: ./.github/actions/setup-test-env
+        with:
+          node-version: '20'
+      - name: Fetch provider-compatible iOS sample app
+        run: |
+          app_path="shaft-engine/src/test/resources/testDataFiles/apps/BStackSampleApp.ipa"
+          curl --fail --location --silent --show-error \
+            --output "$app_path" \
+            "https://raw.githubusercontent.com/browserstack/testng-appium-app-browserstack/71e73f10a613a7bb765bde05a1700829a8d5e057/ios/testng-examples/BStackSampleApp.ipa"
+          echo "76a8bb0250f6d8c0a6bb0b71fcddf60515de92f5920d5624f790da1ecdbc87d9  $app_path" \
+            | sha256sum --check --strict
+      - name: Run iOS recording acceptance
+        continue-on-error: true
+        timeout-minutes: 35
+        run: mvn -pl shaft-browserstack -am -e test "-Dallure.automaticallyOpen=false" "-DdefaultElementIdentificationTimeout=60" "-DretryMaximumNumberOfAttempts=0" "-DexecutionAddress=browserstack" "-DtargetOperatingSystem=iOS" "-Dmobile_automationName=XCuiTest" "-DbrowserStack.appiumVersion=3.3.0" "-DbrowserStack.platformVersion=16" "-DbrowserStack.deviceName=iPhone 14" "-DbrowserStack.appUrl=" "-Dshaft.enableNativeIosE2E=true" "-DgenerateAllureReportArchive=true" "-Dtest=IOSBasicInteractionsTest#screenRecordingShouldPreserveUnsupportedProviderFailureAndResetState"
+      - name: Verify iOS recording acceptance executed
+        run: >-
+          python3 scripts/ci/assert_tests_executed.py
+          shaft-engine/target/surefire-reports/TEST-testPackage.appium.IOSBasicInteractionsTest.xml
+          --min-executed 1
+      - name: Post-Test Report and Check
+        id: post_test_report
+        if: always()
+        uses: ./.github/actions/post-test-report
+        with:
+          job-name: iOS_Recording_BrowserStack
           codecov-token: ${{ secrets.CODECOV_TOKEN }}
 
   iOS_Web_SAFARI_BrowserStack:
@@ -1232,7 +1314,7 @@ jobs:
 
   notify_e2e_tests_failure:
     name: Notify on nightly failure
-    needs: [ Ubuntu_Database, Ubuntu_APIs, Ubuntu_Visual_Module, Ubuntu_Desktop_Video_Module, Ubuntu_Firefox_Grid, Ubuntu_Chrome_Grid, Ubuntu_MicrosoftEdge_Grid, Ubuntu_Playwright_Chrome, Ubuntu_Playwright_Edge, Ubuntu_Playwright_WebKit, Ubuntu_Playwright_Firefox, Ubuntu_Playwright_GalaxyS26Ultra, Ubuntu_Playwright_IPhone17ProMax, Android_Native_BrowserStack, iOS_Web_SAFARI_BrowserStack, Android_Web_Chrome_BrowserStack, Android_Flutter_Emulator_E2E, MacOSX_Safari_BrowserStack, Ubuntu_Chrome_Cucumber_Grid, MacOSX_Safari_Cucumber_BrowserStack, Ubuntu_JUnit_E2E ]
+    needs: [ Ubuntu_Database, Ubuntu_APIs, Ubuntu_Visual_Module, Ubuntu_Desktop_Video_Module, Ubuntu_Firefox_Grid, Ubuntu_Chrome_Grid, Ubuntu_MicrosoftEdge_Grid, Ubuntu_Playwright_Chrome, Ubuntu_Playwright_Edge, Ubuntu_Playwright_WebKit, Ubuntu_Playwright_Firefox, Ubuntu_Playwright_GalaxyS26Ultra, Ubuntu_Playwright_IPhone17ProMax, Android_Native_BrowserStack, Android_Recording_BrowserStack, iOS_Recording_BrowserStack, iOS_Web_SAFARI_BrowserStack, Android_Web_Chrome_BrowserStack, Android_Flutter_Emulator_E2E, MacOSX_Safari_BrowserStack, Ubuntu_Chrome_Cucumber_Grid, MacOSX_Safari_Cucumber_BrowserStack, Ubuntu_JUnit_E2E ]
     if: always()
     runs-on: ubuntu-22.04
     timeout-minutes: 5

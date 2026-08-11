@@ -2,14 +2,18 @@ package testPackage.appium;
 
 import com.google.common.collect.ImmutableMap;
 import com.shaft.driver.SHAFT;
+import com.shaft.gui.driver.MobileRecordingOptions;
 import com.shaft.gui.element.TouchActions;
 import io.appium.java_client.AppiumBy;
 import io.appium.java_client.android.AndroidDriver;
 import org.openqa.selenium.By;
+import org.openqa.selenium.WebDriverException;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
 import java.time.Duration;
+import java.nio.file.Files;
+import java.nio.file.Path;
 
 public class AndroidBasicInteractionsTests extends MobileTest {
     private final String PACKAGE = "io.appium.android.apis";
@@ -35,6 +39,44 @@ public class AndroidBasicInteractionsTests extends MobileTest {
         Assert.assertEquals(sample.dataType(), "memoryinfo");
         Assert.assertFalse(sample.columns().isEmpty());
         Assert.assertEquals(performance.history(), java.util.List.of(sample));
+    }
+
+    /** Real-provider acceptance for bounded Android screen recording and exact-target saving. */
+    @Test(groups = {"ApiDemosDebug", "mobile-recording-compatible-provider"})
+    public void screenRecordingShouldReturnAndSaveBoundedMedia() throws Exception {
+        long maxBytes = 32L * 1024 * 1024;
+        var options = new MobileRecordingOptions(Duration.ofSeconds(30), maxBytes);
+        var recording = driver.get().mobile().recording();
+        AndroidDriver nativeDriver = (AndroidDriver) driver.get().getDriver();
+        Path directory = Files.createTempDirectory("shaft-android-recording");
+        Path target = directory.resolve("recording.mp4");
+        try {
+            recording.start(options);
+            nativeDriver.runAppInBackground(Duration.ofSeconds(2));
+            byte[] inline = recording.stop();
+            Assert.assertTrue(inline.length > 0 && inline.length <= maxBytes);
+
+            recording.start(options);
+            nativeDriver.runAppInBackground(Duration.ofSeconds(2));
+            Assert.assertEquals(recording.stopAndSave(target), target.toAbsolutePath().normalize());
+            Assert.assertTrue(Files.size(target) > 0 && Files.size(target) <= maxBytes);
+        } finally {
+            Files.deleteIfExists(target);
+            Files.deleteIfExists(directory);
+        }
+    }
+
+    /** Real-provider proof that BrowserStack rejects Appium recording without corrupting SHAFT's lifecycle. */
+    @Test(groups = {"ApiDemosDebug"})
+    public void screenRecordingShouldPreserveUnsupportedProviderFailureAndResetState() {
+        var recording = driver.get().mobile().recording();
+
+        WebDriverException firstFailure = Assert.expectThrows(WebDriverException.class, recording::start);
+        Assert.assertTrue(firstFailure.getMessage().contains("Command is not supported"));
+        Assert.expectThrows(IllegalStateException.class, () -> recording.stop());
+
+        WebDriverException retryFailure = Assert.expectThrows(WebDriverException.class, recording::start);
+        Assert.assertTrue(retryFailure.getMessage().contains("Command is not supported"));
     }
 
     @Test(groups = {"ApiDemosDebug"})

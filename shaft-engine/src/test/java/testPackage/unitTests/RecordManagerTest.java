@@ -25,6 +25,7 @@ import java.util.Base64;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -59,6 +60,13 @@ public class RecordManagerTest {
 
     private void setVideoRecordingEnabled(boolean value) {
         SHAFT.Properties.visuals.set().videoParamsRecordVideo(value);
+    }
+
+    private void startAutomaticAndroidRecording(AndroidDriver driver) {
+        try (var driverFactoryHelperMock = mockStatic(DriverFactoryHelper.class)) {
+            driverFactoryHelperMock.when(DriverFactoryHelper::isMobileNativeExecution).thenReturn(true);
+            RecordManager.startVideoRecording(driver);
+        }
     }
 
     @AfterClass(alwaysRun = true)
@@ -101,8 +109,7 @@ public class RecordManagerTest {
         AndroidDriver mockDriver = mock(AndroidDriver.class);
         String encoded = Base64.getEncoder().encodeToString("video-bytes".getBytes(StandardCharsets.UTF_8));
         when(mockDriver.stopRecordingScreen()).thenReturn(encoded);
-        getVideoDriverThreadLocal().set(mockDriver);
-        getIsRecordingStartedThreadLocal().set(true);
+        startAutomaticAndroidRecording(mockDriver);
 
         InputStream result = RecordManager.getVideoRecording();
         byte[] bytes = result.readAllBytes();
@@ -119,14 +126,21 @@ public class RecordManagerTest {
         setVideoRecordingEnabled(true);
         AndroidDriver mockDriver = mock(AndroidDriver.class);
         when(mockDriver.stopRecordingScreen())
-                .thenThrow(new WebDriverException("Command is not supported"));
-
-        getVideoDriverThreadLocal().set(mockDriver);
-        getIsRecordingStartedThreadLocal().set(true);
+                .thenThrow(new WebDriverException("Command is not supported"))
+                .thenReturn(Base64.getEncoder().encodeToString("retried-video".getBytes(StandardCharsets.UTF_8)));
+        startAutomaticAndroidRecording(mockDriver);
 
         InputStream result = RecordManager.getVideoRecording();
         SHAFT.Validations.assertThat().object(result).isNull().perform();
-        verify(mockDriver).stopRecordingScreen();
+        verify(mockDriver, times(1)).stopRecordingScreen();
+        SHAFT.Validations.assertThat().object(getVideoDriverThreadLocal().get()).isEqualTo(mockDriver).perform();
+        SHAFT.Validations.assertThat().object(getIsRecordingStartedThreadLocal().get()).isEqualTo(true).perform();
+
+        try (InputStream retried = RecordManager.getVideoRecording()) {
+            SHAFT.Validations.assertThat().object(new String(retried.readAllBytes(), StandardCharsets.UTF_8))
+                    .isEqualTo("retried-video").perform();
+        }
+        verify(mockDriver, times(2)).stopRecordingScreen();
         SHAFT.Validations.assertThat().object(getVideoDriverThreadLocal().get()).isNull().perform();
         SHAFT.Validations.assertThat().object(getIsRecordingStartedThreadLocal().get()).isEqualTo(false).perform();
     }
@@ -175,8 +189,7 @@ public class RecordManagerTest {
         AndroidDriver mockDriver = mock(AndroidDriver.class);
         String encoded = Base64.getEncoder().encodeToString("file-video".getBytes(StandardCharsets.UTF_8));
         when(mockDriver.stopRecordingScreen()).thenReturn(encoded);
-        getVideoDriverThreadLocal().set(mockDriver);
-        getIsRecordingStartedThreadLocal().set(true);
+        startAutomaticAndroidRecording(mockDriver);
 
         String filePath = RecordManager.getVideoRecordingFilePath();
         SHAFT.Validations.assertThat().object(filePath).isEqualTo("target/tempVideoFile/").perform();
