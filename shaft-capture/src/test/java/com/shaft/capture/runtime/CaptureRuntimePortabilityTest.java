@@ -125,6 +125,16 @@ class CaptureRuntimePortabilityTest {
     }
 
     @Test
+    void normalizesCustomTestIdAttributeForHtmlXpathMatching() {
+        CaptureStartOptions options = new CaptureStartOptions(
+                "", "DATA-PW", "", "", "", "", "", false, false,
+                "", "", "", "", "", "", "", "", Duration.ZERO, "", null);
+
+        assertEquals("data-pw", options.testIdAttribute());
+        assertEquals("data-pw", options.testIdAttributes().getFirst());
+    }
+
+    @Test
     void nativeCaptureOptionsDoNotReportMetadataOnlyWarnings(@TempDir Path temp) {
         CaptureStartOptions options = new CaptureStartOptions(
                 "java",

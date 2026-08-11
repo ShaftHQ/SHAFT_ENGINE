@@ -1042,6 +1042,9 @@
   // CaptureGenerator#locatorExpression) so the picker shows exactly what generated code will use.
   const javaStringLiteral = value => String(value || "")
     .replace(/\\/g, "\\\\")
+    .replace(/\r/g, "\\r")
+    .replace(/\n/g, "\\n")
+    .replace(/\t/g, "\\t")
     .replace(/"/g, '\\"');
   const shaftLocatorSyntax = candidate => {
     const expression = String(candidate.expression || "");

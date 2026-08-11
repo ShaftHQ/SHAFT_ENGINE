@@ -1855,6 +1855,51 @@ class ManagedCaptureRecorderBrowserTest {
                 () -> assertEquals("//*[@data-pw=\"unconfigured-result\"]", custom.replayXpath()));
     }
 
+    @Test
+    void selectedTestIdPreviewEscapesJavaControlCharacters(@TempDir Path temp) throws Exception {
+        HttpServer server = localFixture();
+        ManagedCaptureRecorder recorder = new ManagedCaptureRecorder(new CaptureStartRequest(
+                "http://127.0.0.1:" + server.getAddress().getPort() + "/selected-test-id",
+                CaptureBrowser.CHROME,
+                temp.resolve("control-character-test-id.json"),
+                temp.resolve("control-character-test-id-runtime"),
+                true));
+        try {
+            recorder.start();
+            WebDriver driver = recorder.driverForTesting();
+            waitFor(() -> elementPresent(driver, By.id("shaft-capture-assert")));
+            WebElement target = driver.findElement(By.id("stale-result"));
+            ((JavascriptExecutor) driver).executeScript(
+                    "arguments[0].setAttribute('data-testid', arguments[1]);",
+                    target,
+                    "line\r\n\t\"quoted");
+
+            driver.findElement(By.id("shaft-capture-assert")).click();
+            waitFor(() -> elementPresent(driver, assertionChoice("Element")));
+            driver.findElement(assertionChoice("Element")).click();
+            target.click();
+            By selectedTestId = By.xpath("//*[@id='shaft-capture-assertion-panel']"
+                    + "//li[.//span[contains(@class,'locator-meta')"
+                    + " and starts-with(normalize-space(),'TEST_ID')]]"
+                    + "//button[normalize-space()='Use this locator']");
+            waitFor(() -> elementPresent(driver, selectedTestId));
+            WebElement selectedTestIdButton = driver.findElement(selectedTestId);
+            WebElement preview = selectedTestIdButton.findElement(By.xpath("./ancestor::li[1]"))
+                    .findElement(By.cssSelector(".locator-expression"));
+
+            assertEquals(
+                    "By.xpath(\"//*[@data-testid='line\\r\\n\\t\\\"quoted']\")",
+                    ((JavascriptExecutor) driver).executeScript(
+                            "return arguments[0].textContent;",
+                            preview));
+        } finally {
+            if (recorder.status().state() == CaptureStatus.State.ACTIVE) {
+                recorder.interrupt();
+            }
+            server.stop(0);
+        }
+    }
+
     private static com.shaft.capture.generate.CaptureGenerationRequest selectedTestIdReplayRequest(
             Path sessionPath,
             Path output,
