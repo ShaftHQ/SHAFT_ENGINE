@@ -348,6 +348,247 @@ class ValidateQualityConfigurationTest(unittest.TestCase):
                 ],
             )
 
+    def test_rejects_jvm_test_job_without_jacoco_upload(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            workflows = root / ".github" / "workflows"
+            workflows.mkdir(parents=True)
+            (workflows / "pr-gate.yml").write_text(
+                "jobs:\n"
+                "  java-tests:\n"
+                "    steps:\n"
+                "      - name: Run Java tests\n"
+                "        run: mvn --batch-mode -pl shaft-cli test\n",
+                encoding="utf-8",
+            )
+
+            self.assertEqual(
+                validate_workflow_coverage_policy(root),
+                [
+                    ".github/workflows/pr-gate.yml job 'java-tests' runs JVM tests "
+                    "without upload-jacoco-coverage or post-test-report"
+                ],
+            )
+
+    def test_rejects_jvm_test_job_when_only_sibling_job_uploads_coverage(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            workflows = root / ".github" / "workflows"
+            workflows.mkdir(parents=True)
+            (workflows / "coverage.yaml").write_text(
+                "jobs:\n"
+                "  java-tests:\n"
+                "    steps:\n"
+                "      - run: |\n"
+                "          mvn --batch-mode\n"
+                "          -pl shaft-cli test\n"
+                "  unrelated-upload:\n"
+                "    steps:\n"
+                "      - uses: ./.github/actions/upload-jacoco-coverage\n",
+                encoding="utf-8",
+            )
+
+            self.assertEqual(
+                validate_workflow_coverage_policy(root),
+                [
+                    ".github/workflows/coverage.yaml job 'java-tests' runs JVM tests "
+                    "without upload-jacoco-coverage or post-test-report"
+                ],
+            )
+
+    def test_accepts_same_job_coverage_actions_and_ignores_skip_tests_setup(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            workflows = root / ".github" / "workflows"
+            workflows.mkdir(parents=True)
+            (workflows / "coverage.yml").write_text(
+                "jobs:\n"
+                "  direct-upload:\n"
+                "    steps:\n"
+                "      - run: mvn -pl shaft-cli test\n"
+                "      - if: always()\n"
+                "        uses: ./.github/actions/upload-jacoco-coverage\n"
+                "  post-test-report:\n"
+                "    steps:\n"
+                "      - run: gradle -p shaft-intellij test\n"
+                "      - if: always()\n"
+                "        uses: ./.github/actions/post-test-report\n"
+                "  setup-only:\n"
+                "    steps:\n"
+                "      - run: mvn -pl shaft-mcp -am install -DskipTests\n",
+                encoding="utf-8",
+            )
+
+            self.assertEqual(validate_workflow_coverage_policy(root), [])
+
+    def test_detects_maven_wrapper_lifecycle_and_explicit_skip_tests_false(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            workflows = root / ".github" / "workflows"
+            workflows.mkdir(parents=True)
+            (workflows / "coverage.yml").write_text(
+                "jobs:\n"
+                "  wrapper-verify:\n"
+                "    steps:\n"
+                "      - run: ./mvnw --batch-mode verify\n"
+                "  tests-enabled:\n"
+                "    steps:\n"
+                "      - run: mvn test -DskipTests=false\n",
+                encoding="utf-8",
+            )
+
+            self.assertEqual(
+                validate_workflow_coverage_policy(root),
+                [
+                    ".github/workflows/coverage.yml job 'wrapper-verify' runs JVM tests "
+                    "without upload-jacoco-coverage or post-test-report",
+                    ".github/workflows/coverage.yml job 'tests-enabled' runs JVM tests "
+                    "without upload-jacoco-coverage or post-test-report",
+                ],
+            )
+
+    def test_ignores_echoed_commands_and_rejects_disabled_or_fake_coverage_steps(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            workflows = root / ".github" / "workflows"
+            workflows.mkdir(parents=True)
+            (workflows / "coverage.yml").write_text(
+                "jobs:\n"
+                "  echo-only:\n"
+                "    steps:\n"
+                "      - run: echo mvn test\n"
+                "  disabled-upload:\n"
+                "    steps:\n"
+                "      - run: mvn test\n"
+                "      - if: false\n"
+                "        uses: ./.github/actions/upload-jacoco-coverage\n"
+                "  fake-upload:\n"
+                "    steps:\n"
+                "      - run: |\n"
+                "          echo 'uses: ./.github/actions/upload-jacoco-coverage'\n"
+                "          mvn test\n",
+                encoding="utf-8",
+            )
+
+            self.assertEqual(
+                validate_workflow_coverage_policy(root),
+                [
+                    ".github/workflows/coverage.yml job 'disabled-upload' runs JVM tests "
+                    "without upload-jacoco-coverage or post-test-report",
+                    ".github/workflows/coverage.yml job 'fake-upload' runs JVM tests "
+                    "without upload-jacoco-coverage or post-test-report",
+                ],
+            )
+
+    def test_rejects_coverage_that_cannot_run_after_the_last_test_on_main(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            workflows = root / ".github" / "workflows"
+            workflows.mkdir(parents=True)
+            (workflows / "coverage.yml").write_text(
+                "jobs:\n"
+                "  before-test:\n"
+                "    steps:\n"
+                "      - if: always()\n"
+                "        uses: ./.github/actions/upload-jacoco-coverage\n"
+                "      - run: mvn verify\n"
+                "  wrong-ref:\n"
+                "    steps:\n"
+                "      - run: mvn test\n"
+                "      - if: always() && github.ref == 'refs/heads/not-main'\n"
+                "        uses: ./.github/actions/upload-jacoco-coverage\n"
+                "  success-only:\n"
+                "    steps:\n"
+                "      - run: gradle test\n"
+                "      - uses: ./.github/actions/upload-jacoco-coverage\n"
+                "  constant-false:\n"
+                "    steps:\n"
+                "      - run: mvn test\n"
+                "      - if: always() && false\n"
+                "        uses: ./.github/actions/upload-jacoco-coverage\n"
+                "  pull-request-only:\n"
+                "    steps:\n"
+                "      - run: mvn test\n"
+                "      - if: always() && github.event_name == 'pull_request'\n"
+                "        uses: ./.github/actions/upload-jacoco-coverage\n"
+                "  unmatched-environment:\n"
+                "    steps:\n"
+                "      - run: mvn test\n"
+                "      - if: always() && env.NEVER_SET != ''\n"
+                "        uses: ./.github/actions/upload-jacoco-coverage\n",
+                encoding="utf-8",
+            )
+
+            self.assertEqual(
+                validate_workflow_coverage_policy(root),
+                [
+                    ".github/workflows/coverage.yml job 'before-test' runs JVM tests "
+                    "without upload-jacoco-coverage or post-test-report",
+                    ".github/workflows/coverage.yml job 'wrong-ref' runs JVM tests "
+                    "without upload-jacoco-coverage or post-test-report",
+                    ".github/workflows/coverage.yml job 'success-only' runs JVM tests "
+                    "without upload-jacoco-coverage or post-test-report",
+                    ".github/workflows/coverage.yml job 'constant-false' runs JVM tests "
+                    "without upload-jacoco-coverage or post-test-report",
+                    ".github/workflows/coverage.yml job 'pull-request-only' runs JVM tests "
+                    "without upload-jacoco-coverage or post-test-report",
+                    ".github/workflows/coverage.yml job 'unmatched-environment' runs JVM tests "
+                    "without upload-jacoco-coverage or post-test-report",
+                ],
+            )
+
+    def test_detects_environment_prefixed_jvm_test_command(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            workflows = root / ".github" / "workflows"
+            workflows.mkdir(parents=True)
+            (workflows / "coverage.yml").write_text(
+                "jobs:\n"
+                "  environment-prefix:\n"
+                "    steps:\n"
+                "      - run: FOO=bar JAVA_TOOL_OPTIONS=-Xmx1g mvn test\n",
+                encoding="utf-8",
+            )
+
+            self.assertEqual(
+                validate_workflow_coverage_policy(root),
+                [
+                    ".github/workflows/coverage.yml job 'environment-prefix' runs JVM tests "
+                    "without upload-jacoco-coverage or post-test-report"
+                ],
+            )
+
+    def test_detects_jvm_tests_inside_local_composite_action(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            workflows = root / ".github" / "workflows"
+            action = root / ".github" / "actions" / "intellij-verify"
+            workflows.mkdir(parents=True)
+            action.mkdir(parents=True)
+            action.joinpath("action.yml").write_text(
+                "runs:\n"
+                "  using: composite\n"
+                "  steps:\n"
+                "    - shell: bash\n"
+                "      run: bash scripts/ci/build_retry.sh 2 15 gradle -p shaft-intellij check\n",
+                encoding="utf-8",
+            )
+            (workflows / "coverage.yml").write_text(
+                "jobs:\n"
+                "  intellij:\n"
+                "    steps:\n"
+                "      - uses: ./.github/actions/intellij-verify\n",
+                encoding="utf-8",
+            )
+
+            self.assertEqual(
+                validate_workflow_coverage_policy(root),
+                [
+                    ".github/workflows/coverage.yml job 'intellij' runs JVM tests "
+                    "without upload-jacoco-coverage or post-test-report"
+                ],
+            )
+
     def test_reports_missing_aggregate_module(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)

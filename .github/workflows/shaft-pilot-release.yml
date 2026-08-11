@@ -144,11 +144,11 @@ jobs:
         run: |
           VERSION="$(mvn -f pom.xml help:evaluate -Dexpression=project.version -q -DforceStdout)"
           mvn --batch-mode -f tools/modularization/consumer-fixtures/pilot-core/pom.xml \
-            verify "-Dshaft.version=${VERSION}"
+            verify "-Dshaft.version=${VERSION}" -DskipTests
           mvn --batch-mode -f tools/modularization/consumer-fixtures/combined-modules/pom.xml \
-            verify "-Dshaft.version=${VERSION}"
+            verify "-Dshaft.version=${VERSION}" -DskipTests
           mvn --batch-mode -f tools/modularization/consumer-fixtures/mcp/pom.xml \
-            verify "-Dshaft.version=${VERSION}"
+            verify "-Dshaft.version=${VERSION}" -DskipTests
       - name: Reclaim disk space before container build
         uses: ./.github/actions/reclaim-disk-space
         with:

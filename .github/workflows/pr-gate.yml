@@ -451,6 +451,14 @@ jobs:
         uses: actions/checkout@v7
       - name: Build IntelliJ plugin
         uses: ./.github/actions/intellij-verify
+      - name: Upload IntelliJ coverage to Codecov
+        if: always()
+        uses: ./.github/actions/upload-jacoco-coverage
+        with:
+          codecov-token: ${{ secrets.CODECOV_TOKEN }}
+          files: ./shaft-intellij/build/reports/jacoco/test/jacocoTestReport.xml
+          required-files: ./shaft-intellij/build/reports/jacoco/test/jacocoTestReport.xml
+          source-id: pr-gate-intellij-build
       - name: Upload plugin distribution
         uses: actions/upload-artifact@v7
         with:
@@ -496,6 +504,13 @@ jobs:
       # the live-server trio only runs in live-tools-nightly.yml.
       - name: Test shaft-cli
         run: mvn --batch-mode -pl shaft-cli test '-DheadlessExecution=true' '-Dshaft.intellij.liveToolE2E=true'
+      - name: Upload shaft-cli coverage to Codecov
+        if: always()
+        uses: ./.github/actions/upload-jacoco-coverage
+        with:
+          codecov-token: ${{ secrets.CODECOV_TOKEN }}
+          required-files: ./shaft-cli/target/jacoco/jacoco.xml
+          source-id: pr-gate-cli-${{ matrix.os }}
       - name: Run packaged shaft-cli binary
         shell: bash
         run: |
@@ -531,6 +546,13 @@ jobs:
           -am install -DskipTests -Dgpg.skip
       - name: Run headless SHAFT Capture browser E2E tests
         uses: ./.github/actions/capture-browser-e2e
+      - name: Upload SHAFT Capture coverage to Codecov
+        if: always()
+        uses: ./.github/actions/upload-jacoco-coverage
+        with:
+          codecov-token: ${{ secrets.CODECOV_TOKEN }}
+          required-files: ./shaft-capture/target/jacoco/jacoco.xml
+          source-id: pr-gate-capture-e2e
 
   # Path-conditioned unit-test leg (issue #3849): shaft-engine and the Java
   # modules downstream of it reached main with zero PR-time test execution --
@@ -654,6 +676,13 @@ jobs:
           mvn --batch-mode
           -pl ${{ matrix.module }} test
           '-DheadlessExecution=true' '-Dallure.automaticallyOpen=false' -Dgpg.skip
+      - name: Upload module coverage to Codecov
+        if: always()
+        uses: ./.github/actions/upload-jacoco-coverage
+        with:
+          codecov-token: ${{ secrets.CODECOV_TOKEN }}
+          required-files: ./${{ matrix.module }}/target/jacoco/jacoco.xml
+          source-id: pr-gate-unit-${{ matrix.module }}
 
   template-coupling:
     name: Template Coupling Gate
@@ -681,6 +710,13 @@ jobs:
           -Dsurefire.failIfNoSpecifiedTests=false
           -DheadlessExecution=true
           -Dgpg.skip
+      - name: Upload template-coupling coverage to Codecov
+        if: always()
+        uses: ./.github/actions/upload-jacoco-coverage
+        with:
+          codecov-token: ${{ secrets.CODECOV_TOKEN }}
+          required-files: ./shaft-mcp/target/jacoco/jacoco.xml
+          source-id: pr-gate-template-coupling
 
   # Issue #4081: MacOSX_Safari_Local hung after a heap OOM and burned the full
   # 6-hour default job ceiling on a macos-latest runner (10x billing

@@ -39,3 +39,11 @@ jobs:
           certificate-chain: ${{ secrets.JETBRAINS_PLUGIN_CERTIFICATE_CHAIN }}
           private-key: ${{ secrets.JETBRAINS_PLUGIN_PRIVATE_KEY }}
           private-key-password: ${{ secrets.JETBRAINS_PLUGIN_PRIVATE_KEY_PASSWORD }}
+      - name: Upload IntelliJ coverage to Codecov
+        if: always()
+        uses: ./.github/actions/upload-jacoco-coverage
+        with:
+          codecov-token: ${{ secrets.CODECOV_TOKEN }}
+          files: ./shaft-intellij/build/reports/jacoco/test/jacocoTestReport.xml
+          required-files: ./shaft-intellij/build/reports/jacoco/test/jacocoTestReport.xml
+          source-id: publish-intellij-plugin
