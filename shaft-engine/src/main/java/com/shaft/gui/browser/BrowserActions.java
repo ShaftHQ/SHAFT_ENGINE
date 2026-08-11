@@ -33,6 +33,7 @@ import io.qameta.allure.Step;
 import org.apache.logging.log4j.Level;
 import org.openqa.selenium.*;
 import org.openqa.selenium.devtools.HasDevTools;
+import org.openqa.selenium.remote.RemoteWebDriver;
 import org.openqa.selenium.remote.http.HttpRequest;
 import org.openqa.selenium.remote.http.HttpResponse;
 
@@ -103,6 +104,94 @@ public class BrowserActions extends FluentWebDriverAction implements com.shaft.g
     @Override
     public BrowserActions and() {
         return this;
+    }
+
+    /** @return cohesive network observation, mocking, replay, and emulation actions */
+    @Override
+    public NetworkActions network() {
+        return new NetworkActions(this);
+    }
+
+    void requireNetworkNamespaceSupport(String operation) {
+        WebDriver driver = driverFactoryHelper == null ? null : driverFactoryHelper.getDriver();
+        boolean closedRemoteSession = driver instanceof RemoteWebDriver remoteDriver && remoteDriver.getSessionId() == null;
+        boolean liveDevTools = driver instanceof HasDevTools hasDevTools && hasDevTools.maybeGetDevTools().isPresent();
+        if (!liveDevTools || closedRemoteSession) {
+            var exception = new UnsupportedOperationException("Network " + operation
+                    + " is not supported by the live Selenium/Appium session. "
+                    + "Use a Selenium driver with DevTools support and query capabilities() before invoking it.");
+            throw exception;
+        }
+    }
+
+    private void requireNetworkObservation(String operation) {
+        requireNetworkNamespaceSupport(operation);
+        if (!driverFactoryHelper.startBrowserNetworkObservation()) {
+            WebDriver driver = driverFactoryHelper.getDriver();
+            var exception = new UnsupportedOperationException("Network " + operation
+                    + " could not start on the live Selenium session.");
+            throw exception;
+        }
+    }
+
+    void startNetworkContractRecording(String contractFilePath, String... urlContains) {
+        initializeNetworkContract("contract recording",
+                () -> HttpContractRecorder.startRecording(contractFilePath, urlContains));
+        browserActionsHelper.passAction(driverFactoryHelper.getDriver(), "Started HTTP contract recording.");
+    }
+
+    void startNetworkContractAssertion(String contractFilePath, String... urlContains) {
+        initializeNetworkContract("contract assertion",
+                () -> HttpContractRecorder.startAssertMode(contractFilePath, urlContains));
+        browserActionsHelper.passAction(driverFactoryHelper.getDriver(), "Started HTTP contract assertion mode.");
+    }
+
+    void startNetworkContractVerification(String contractFilePath, String... urlContains) {
+        initializeNetworkContract("contract verification",
+                () -> HttpContractRecorder.startVerifyMode(contractFilePath, urlContains));
+        browserActionsHelper.passAction(driverFactoryHelper.getDriver(), "Started HTTP contract verification mode.");
+    }
+
+    private void initializeNetworkContract(String operation, Runnable initializer) {
+        requireNetworkObservation(operation);
+        try {
+            initializer.run();
+        } catch (RuntimeException exception) {
+            HttpContractRecorder.clear();
+            driverFactoryHelper.stopBrowserNetworkObservation();
+            throw exception;
+        }
+    }
+
+    void performNetworkAction(String operation, Runnable action) {
+        WebDriver driver = driverFactoryHelper == null ? null : driverFactoryHelper.getDriver();
+        var event = TraceEventRecorder.start("network", operation, "", driver);
+        try {
+            requireNetworkNamespaceSupport(operation);
+            action.run();
+            TraceEventRecorder.finish(event, "passed", "Network " + operation + " completed.", null,
+                    Map.of(), List.of());
+        } catch (RuntimeException exception) {
+            TraceEventRecorder.finish(event, "failed", "Network " + operation + " failed.", exception,
+                    Map.of(), List.of());
+            throw exception;
+        }
+    }
+
+    NetworkInterceptionRequestBuilder<BrowserActions> networkInterceptRequest() {
+        try {
+            requireNetworkNamespaceSupport("interception");
+        } catch (RuntimeException exception) {
+            WebDriver driver = driverFactoryHelper == null ? null : driverFactoryHelper.getDriver();
+            var event = TraceEventRecorder.start("network", "intercept-request", "", driver);
+            TraceEventRecorder.finish(event, "failed", "Network intercept-request failed.", exception,
+                    Map.of(), List.of());
+            throw exception;
+        }
+        return new NetworkInterceptionRequestBuilder<>(this, (rule, message) -> {
+            performNetworkAction("intercept-request", () -> registerNetworkInterceptionRule(rule, message));
+            return this;
+        });
     }
 
     /**
@@ -758,8 +847,12 @@ public class BrowserActions extends FluentWebDriverAction implements com.shaft.g
      */
     @Override
     public BrowserActions startContractRecording(String contractFilePath, String... urlContains) {
+        if (!driverFactoryHelper.startBrowserNetworkObservation()) {
+            browserActionsHelper.passAction(driverFactoryHelper.getDriver(),
+                    "HTTP contract recording is unsupported by this driver.");
+            return this;
+        }
         HttpContractRecorder.startRecording(contractFilePath, urlContains);
-        driverFactoryHelper.startBrowserNetworkObservation();
         browserActionsHelper.passAction(driverFactoryHelper.getDriver(), "Started HTTP contract recording.");
         return this;
     }
@@ -773,8 +866,12 @@ public class BrowserActions extends FluentWebDriverAction implements com.shaft.g
      */
     @Override
     public BrowserActions assertContract(String contractFilePath, String... urlContains) {
+        if (!driverFactoryHelper.startBrowserNetworkObservation()) {
+            browserActionsHelper.passAction(driverFactoryHelper.getDriver(),
+                    "HTTP contract assertion is unsupported by this driver.");
+            return this;
+        }
         HttpContractRecorder.startAssertMode(contractFilePath, urlContains);
-        driverFactoryHelper.startBrowserNetworkObservation();
         browserActionsHelper.passAction(driverFactoryHelper.getDriver(), "Started HTTP contract assertion mode.");
         return this;
     }
@@ -788,8 +885,12 @@ public class BrowserActions extends FluentWebDriverAction implements com.shaft.g
      */
     @Override
     public BrowserActions verifyContract(String contractFilePath, String... urlContains) {
+        if (!driverFactoryHelper.startBrowserNetworkObservation()) {
+            browserActionsHelper.passAction(driverFactoryHelper.getDriver(),
+                    "HTTP contract verification is unsupported by this driver.");
+            return this;
+        }
         HttpContractRecorder.startVerifyMode(contractFilePath, urlContains);
-        driverFactoryHelper.startBrowserNetworkObservation();
         browserActionsHelper.passAction(driverFactoryHelper.getDriver(), "Started HTTP contract verification mode.");
         return this;
     }

@@ -11,12 +11,14 @@ import com.shaft.gui.browser.NetworkInterceptionRequestBuilder;
 import com.shaft.gui.browser.internal.BrowserNetworkInterceptionRule;
 import com.shaft.gui.browser.internal.HarReplayRules;
 import com.shaft.gui.browser.internal.PlaywrightStorageStateManager;
+import com.shaft.gui.capabilities.AutomationBackend;
 import com.shaft.gui.playwright.internal.PlaywrightSession;
 import com.shaft.gui.playwright.validation.PlaywrightBrowserValidationsBuilder;
 import com.shaft.tools.io.internal.BrowserPerformanceExecutionReport;
 import com.shaft.tools.io.internal.HttpContractRecorder;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.io.internal.ReportManagerHelper;
+import com.shaft.tools.io.internal.TraceEventRecorder;
 import com.shaft.validation.ValidationEnums;
 import com.shaft.validation.accessibility.AccessibilityActions;
 import org.openqa.selenium.WindowType;
@@ -26,6 +28,7 @@ import org.openqa.selenium.remote.http.HttpResponse;
 import java.io.ByteArrayInputStream;
 import java.net.URI;
 import java.util.List;
+import java.util.Map;
 import java.util.Locale;
 import java.util.Set;
 import java.util.function.Predicate;
@@ -45,6 +48,12 @@ public class BrowserActions implements com.shaft.gui.driver.BrowserActionsContra
     @Override
     public BrowserActions and() {
         return this;
+    }
+
+    /** @return cohesive network observation, mocking, and replay actions */
+    @Override
+    public NetworkActions network() {
+        return new NetworkActions(this);
     }
 
     @Override
@@ -224,8 +233,8 @@ public class BrowserActions implements com.shaft.gui.driver.BrowserActionsContra
      */
     @Override
     public BrowserActions startContractRecording(String contractFilePath, String... urlContains) {
-        HttpContractRecorder.startRecording(contractFilePath, urlContains);
         session.networkInterceptor().startObserving();
+        HttpContractRecorder.startRecording(contractFilePath, urlContains);
         ReportManager.log("Started HTTP contract recording.");
         return this;
     }
@@ -239,8 +248,8 @@ public class BrowserActions implements com.shaft.gui.driver.BrowserActionsContra
      */
     @Override
     public BrowserActions assertContract(String contractFilePath, String... urlContains) {
-        HttpContractRecorder.startAssertMode(contractFilePath, urlContains);
         session.networkInterceptor().startObserving();
+        HttpContractRecorder.startAssertMode(contractFilePath, urlContains);
         ReportManager.log("Started HTTP contract assertion mode.");
         return this;
     }
@@ -254,8 +263,8 @@ public class BrowserActions implements com.shaft.gui.driver.BrowserActionsContra
      */
     @Override
     public BrowserActions verifyContract(String contractFilePath, String... urlContains) {
-        HttpContractRecorder.startVerifyMode(contractFilePath, urlContains);
         session.networkInterceptor().startObserving();
+        HttpContractRecorder.startVerifyMode(contractFilePath, urlContains);
         ReportManager.log("Started HTTP contract verification mode.");
         return this;
     }
@@ -551,6 +560,70 @@ public class BrowserActions implements com.shaft.gui.driver.BrowserActionsContra
 
     public BrowserContext getNativeContext() {
         return session.browserContext();
+    }
+
+    void requireLiveNetworkSession(String operation) {
+        if (session == null || session.browserContext() == null || session.page() == null
+                || session.page().isClosed() || session.browser() == null || !session.browser().isConnected()) {
+            throw new UnsupportedOperationException("Network " + operation
+                    + " requires a live Playwright session. Query capabilities() again after session changes.");
+        }
+    }
+
+    void performNetworkAction(String operation, Runnable action) {
+        var event = TraceEventRecorder.startForBackend("network", operation, "", AutomationBackend.MICROSOFT_PLAYWRIGHT);
+        try {
+            requireLiveNetworkSession(operation);
+            timedBrowserAction("playwright.browser.network." + operation, action);
+            TraceEventRecorder.finish(event, "passed", "Playwright network " + operation + " completed.",
+                    null, Map.of("backend", "MICROSOFT_PLAYWRIGHT"), List.of());
+        } catch (RuntimeException exception) {
+            TraceEventRecorder.finish(event, "failed", "Playwright network " + operation + " failed.",
+                    exception, Map.of("backend", "MICROSOFT_PLAYWRIGHT"), List.of());
+            throw exception;
+        }
+    }
+
+    NetworkInterceptionRequestBuilder<BrowserActions> networkInterceptRequest() {
+        try {
+            requireLiveNetworkSession("interception");
+        } catch (RuntimeException exception) {
+            var event = TraceEventRecorder.startForBackend("network", "intercept-request", "",
+                    AutomationBackend.MICROSOFT_PLAYWRIGHT);
+            TraceEventRecorder.finish(event, "failed", "Playwright network intercept-request failed.", exception,
+                    Map.of("backend", "MICROSOFT_PLAYWRIGHT"), List.of());
+            throw exception;
+        }
+        return new NetworkInterceptionRequestBuilder<>(this, (rule, message) -> {
+            performNetworkAction("intercept-request", () -> registerNetworkInterceptionRule(rule, message));
+            return this;
+        });
+    }
+
+    void startNetworkContractRecording(String contractFilePath, String... urlContains) {
+        initializeNetworkContract(() -> HttpContractRecorder.startRecording(contractFilePath, urlContains));
+        ReportManager.log("Started HTTP contract recording.");
+    }
+
+    void startNetworkContractAssertion(String contractFilePath, String... urlContains) {
+        initializeNetworkContract(() -> HttpContractRecorder.startAssertMode(contractFilePath, urlContains));
+        ReportManager.log("Started HTTP contract assertion mode.");
+    }
+
+    void startNetworkContractVerification(String contractFilePath, String... urlContains) {
+        initializeNetworkContract(() -> HttpContractRecorder.startVerifyMode(contractFilePath, urlContains));
+        ReportManager.log("Started HTTP contract verification mode.");
+    }
+
+    private void initializeNetworkContract(Runnable initializer) {
+        session.networkInterceptor().startObserving();
+        try {
+            initializer.run();
+        } catch (RuntimeException exception) {
+            HttpContractRecorder.clear();
+            session.networkInterceptor().stopObserving();
+            throw exception;
+        }
     }
 
     public Page getNativePage() {

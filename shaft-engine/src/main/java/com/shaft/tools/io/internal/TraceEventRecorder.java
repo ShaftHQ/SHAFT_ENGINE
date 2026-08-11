@@ -77,6 +77,18 @@ public final class TraceEventRecorder {
     }
 
     /**
+     * Starts a backend-owned action that has no Selenium {@link WebDriver}, such as Playwright.
+     * The explicit action-time identity avoids relying on unrelated thread-local session state.
+     */
+    public static Event startForBackend(String category, String name, String locator, AutomationBackend backend) {
+        Event event = start(category, name, locator, null);
+        if (event.enabled()) {
+            EVENT_BACKENDS.get().put(event.id(), backend == null ? AutomationBackend.UNKNOWN : backend);
+        }
+        return event;
+    }
+
+    /**
      * Best-effort first non-framework stack frame (the user's test or page-object line) so each
      * traced action can be tied back to the exact source line that triggered it. Blank when every
      * frame belongs to SHAFT, the JDK, or the test runner (e.g. SHAFT's own unit tests).

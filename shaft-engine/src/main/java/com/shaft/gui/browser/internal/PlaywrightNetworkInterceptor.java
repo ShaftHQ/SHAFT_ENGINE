@@ -59,6 +59,14 @@ public class PlaywrightNetworkInterceptor {
         }
     }
 
+    /** Stops passive observation while preserving registered interception rules. */
+    public synchronized void stopObserving() {
+        observing = false;
+        if (rules.isEmpty()) {
+            closeActiveRoute();
+        }
+    }
+
     /**
      * Clears all registered rules and removes the Playwright route handler.
      */

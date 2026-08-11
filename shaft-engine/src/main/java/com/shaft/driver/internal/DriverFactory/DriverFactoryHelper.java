@@ -196,6 +196,13 @@ public class DriverFactoryHelper {
         return getBrowserNetworkInterceptor().startObserving();
     }
 
+    /** Rolls back passive browser-network observation after setup failure. */
+    public void stopBrowserNetworkObservation() {
+        if (browserNetworkInterceptor != null) {
+            browserNetworkInterceptor.stopObserving();
+        }
+    }
+
     /**
      * Hands off sole ownership of {@code driver}'s DevTools network filter away from any
      * {@link BrowserNetworkInterceptor} this helper started for trace/HAR observation, so a caller

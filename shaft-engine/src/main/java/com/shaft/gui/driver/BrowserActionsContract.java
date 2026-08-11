@@ -17,6 +17,21 @@ import java.util.function.Predicate;
  */
 public interface BrowserActionsContract {
 
+    /**
+     * Returns cohesive browser-network observation, mocking, replay, and emulation actions.
+     * Existing implementations that do not declare a competing zero-argument {@code network}
+     * method inherit this fail-closed default. As with every Java interface default-method
+     * addition, a facade that also inherits an unrelated {@code network()} declaration with a
+     * covariant-compatible return must override it to resolve default dispatch. An existing
+     * declaration with an incompatible return type is source-incompatible and cannot be bridged
+     * by an override; that facade must rename one API or stop combining the interfaces.
+     *
+     * @return network actions facade
+     */
+    default NetworkActionsContract network() {
+        throw new UnsupportedOperationException("Network actions are not supported by this browser facade.");
+    }
+
     BrowserActionsContract and();
 
     BrowserAssertions assertThat();
