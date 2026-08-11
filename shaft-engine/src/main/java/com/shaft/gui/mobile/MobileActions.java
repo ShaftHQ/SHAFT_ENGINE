@@ -14,6 +14,8 @@ import com.shaft.gui.driver.MobileLogActionsContract;
 import com.shaft.gui.driver.MobilePerformanceActionsContract;
 import com.shaft.gui.driver.MobileRecordingActionsContract;
 import io.appium.java_client.AppiumDriver;
+import io.appium.java_client.PerformsTouchActions;
+import com.shaft.gui.element.TouchActions;
 
 /** Selenium/Appium implementation of the categorized mobile facade. */
 public final class MobileActions implements MobileActionsContract {
@@ -37,7 +39,7 @@ public final class MobileActions implements MobileActionsContract {
 
     @Override
     public MobileGestureActionsContract gestures() {
-        throw unsupported("gestures");
+        return new GestureActions(this);
     }
 
     @Override
@@ -89,6 +91,14 @@ public final class MobileActions implements MobileActionsContract {
 
     AppiumDriver traceDriver() {
         return driver;
+    }
+
+    TouchActions touchActions() {
+        if (!(driver() instanceof PerformsTouchActions)) {
+            throw new UnsupportedOperationException(
+                    "The live Appium session does not support native touch gestures.");
+        }
+        return owner.touch();
     }
 
     private UnsupportedOperationException unsupported(String category) {

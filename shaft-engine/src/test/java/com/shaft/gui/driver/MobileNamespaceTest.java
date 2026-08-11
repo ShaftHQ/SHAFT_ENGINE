@@ -57,7 +57,6 @@ public class MobileNamespaceTest {
                 "MobileBiometricActionsContract",
                 "MobileEvidenceActionsContract",
                 "MobileFileActionsContract",
-                "MobileGestureActionsContract",
                 "MobileLogActionsContract",
                 "MobilePerformanceActionsContract",
                 "MobileRecordingActionsContract")) {
@@ -65,6 +64,34 @@ public class MobileNamespaceTest {
             Assert.assertEquals(descriptors("com.shaft.gui.driver." + contract),
                     Set.of("and[]->MobileActionsContract"));
         }
+        Assert.assertEquals(descriptors("com.shaft.gui.driver.MobileGestureActionsContract"), Set.of(
+                "and[]->MobileActionsContract",
+                "drag[]->MobileDragActionsContract",
+                "swipe[]->MobileSwipeActionsContract",
+                "tap[]->MobileTapActionsContract",
+                "zoom[]->MobileZoomActionsContract"));
+        Assert.assertEquals(descriptors("com.shaft.gui.driver.MobileTapActionsContract"), Set.of(
+                "and[]->MobileGestureActionsContract",
+                "at[int, int]->MobileTapActionsContract",
+                "doubleOn[class org.openqa.selenium.By]->MobileTapActionsContract",
+                "longPress[class org.openqa.selenium.By]->MobileTapActionsContract",
+                "on[class org.openqa.selenium.By]->MobileTapActionsContract"));
+        Assert.assertEquals(descriptors("com.shaft.gui.driver.MobileSwipeActionsContract"), Set.of(
+                "and[]->MobileGestureActionsContract",
+                "byOffset[class org.openqa.selenium.By, int, int]->MobileSwipeActionsContract",
+                "fromTo[class org.openqa.selenium.By, class org.openqa.selenium.By]->MobileSwipeActionsContract",
+                "fromTo[int, int, int, int, class java.time.Duration]->MobileSwipeActionsContract",
+                "intoView[class org.openqa.selenium.By, class com.shaft.gui.driver.MobileSwipeDirection]->MobileSwipeActionsContract",
+                "toEnd[class com.shaft.gui.driver.MobileSwipeDirection]->MobileSwipeActionsContract"));
+        Assert.assertEquals(descriptors("com.shaft.gui.driver.MobileDragActionsContract"), Set.of(
+                "and[]->MobileGestureActionsContract",
+                "fromTo[class org.openqa.selenium.By, class org.openqa.selenium.By]->MobileDragActionsContract"));
+        Assert.assertEquals(descriptors("com.shaft.gui.driver.MobileZoomActionsContract"), Set.of(
+                "and[]->MobileGestureActionsContract",
+                "in[]->MobileZoomActionsContract",
+                "out[]->MobileZoomActionsContract"));
+        Assert.assertEquals(enumValues("com.shaft.gui.driver.MobileSwipeDirection"),
+                Set.of("UP", "DOWN", "LEFT", "RIGHT"));
         Assert.assertEquals(descriptors("com.shaft.gui.driver.MobileContextActionsContract"), Set.of(
                 "and[]->MobileActionsContract",
                 "current[]->String",
@@ -276,6 +303,32 @@ public class MobileNamespaceTest {
         Mockito.verify(driver).context("WEBVIEW_com.other");
         Mockito.verify(driver).context("NATIVE_APP");
         Mockito.verify(driver).context("WEBVIEW_com.example");
+    }
+
+    @Test
+    public void gestureCategoriesShouldRemainUnderOneMobileNamespace() {
+        AndroidDriver driver = Mockito.mock(AndroidDriver.class);
+        Mockito.when(driver.getSessionId()).thenReturn(new SessionId("android-gestures"));
+        MobileActionsContract mobile = new SHAFT.GUI.WebDriver(driver).mobile();
+
+        MobileGestureActionsContract gestures = mobile.gestures();
+
+        Assert.assertSame(gestures.and(), mobile);
+        Assert.assertSame(gestures.tap().and(), gestures);
+        Assert.assertSame(gestures.swipe().and(), gestures);
+        Assert.assertSame(gestures.drag().and(), gestures);
+        Assert.assertSame(gestures.zoom().and(), gestures);
+    }
+
+    @Test
+    public void gestureNamespaceShouldRequireThePinnedAppiumTouchInterface() {
+        AppiumDriver generic = Mockito.mock(AppiumDriver.class);
+        Mockito.when(generic.getSessionId()).thenReturn(new SessionId("generic-no-touch"));
+
+        UnsupportedOperationException exception = Assert.expectThrows(UnsupportedOperationException.class,
+                () -> new SHAFT.GUI.WebDriver(generic).mobile().gestures());
+
+        Assert.assertTrue(exception.getMessage().contains("touch gestures"));
     }
 
     private static Set<String> descriptors(String className) throws ClassNotFoundException {
