@@ -1,6 +1,6 @@
 {
   "body_path": "memory/gotchas/a-squash-merged-branch-cannot-be-detected-by-commit-identity-or-by-git-cherry-compare-content-over-the-files-the-branch-introduced.md",
-  "content_hash": "sha256:d2bb4af71948ef2eeb954c591a2bf04d6a9211e682c890a30b6a6ff6754fb6d6",
+  "content_hash": "sha256:505fdc975dd26080d6b0de96c09102d4db6ea2469a0948a37716cb7cdaa3ca29",
   "created_at": "2026-08-10T15:22:23+03:00",
   "evidence": [],
   "facets": {
@@ -28,5 +28,5 @@
   ],
   "title": "A squash-merged branch cannot be detected by commit identity or by git cherry; compare content over the files the branch introduced",
   "type": "gotcha",
-  "updated_at": "2026-08-10T15:23:17+03:00"
+  "updated_at": "2026-08-11T10:31:36+03:00"
 }
