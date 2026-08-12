@@ -21,6 +21,23 @@ class GitHubClientTest(unittest.TestCase):
         self.assertIn("--paginate", calls[0])
         self.assertIn("--slurp", calls[0])
 
+    def test_rest_field_projection_is_local_so_gh_never_combines_slurp_and_jq(self):
+        calls = []
+
+        def runner(command, **_kwargs):
+            calls.append(command)
+            pages = [
+                {"check_runs": [{"id": 1}]},
+                {"check_runs": [{"id": 2}]},
+            ]
+            return subprocess.CompletedProcess(command, 0, json.dumps(pages), "")
+
+        client = GitHubClient("consumer/project", runner=runner, executable="gh")
+        result = client.rest_page_result("commits/deadbeef/check-runs", jq=".check_runs")
+
+        self.assertEqual([{"id": 1}, {"id": 2}], result["items"])
+        self.assertNotIn("--jq", calls[0])
+
     def test_transport_timeout_error_and_malformed_page_fail_closed(self):
         cases = (
             lambda command, **kwargs: (_ for _ in ()).throw(subprocess.TimeoutExpired(command, 3)),

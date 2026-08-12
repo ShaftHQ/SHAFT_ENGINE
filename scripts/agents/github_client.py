@@ -67,8 +67,12 @@ class GitHubClient:
             self.executable, "api", f"repos/{self.repository}/{endpoint}",
             "--paginate", "--slurp",
         ]
+        field = None
         if jq:
-            command.extend(("--jq", jq))
+            match = re.fullmatch(r"\.([A-Za-z_][A-Za-z0-9_]*)", jq)
+            if not match:
+                raise ValueError("REST page projection must be one object field")
+            field = match.group(1)
         try:
             result = self.runner(
                 command, cwd=self.root, capture_output=True, text=True,
@@ -82,7 +86,13 @@ class GitHubClient:
             pages = json.loads(result.stdout or "[]")
         except json.JSONDecodeError as error:
             raise GitHubUnavailable(f"GitHub API returned invalid JSON: {error}") from error
-        if not isinstance(pages, list) or any(not isinstance(page, list) for page in pages):
+        if not isinstance(pages, list):
+            raise GitHubUnavailable("GitHub pagination was incomplete or malformed")
+        if field is not None:
+            if any(not isinstance(page, dict) or not isinstance(page.get(field), list) for page in pages):
+                raise GitHubUnavailable("GitHub pagination was incomplete or malformed")
+            pages = [page[field] for page in pages]
+        elif any(not isinstance(page, list) for page in pages):
             raise GitHubUnavailable("GitHub pagination was incomplete or malformed")
         flattened = [item for page in pages for item in page]
         if any(not isinstance(item, dict) for item in flattened):
