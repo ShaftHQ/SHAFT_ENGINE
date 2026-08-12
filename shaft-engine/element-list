@@ -20,9 +20,11 @@ com.shaft.gui.internal.healing
 com.shaft.gui.internal.image
 com.shaft.gui.internal.locator
 com.shaft.gui.internal.natural
+com.shaft.gui.internal.ocr
 com.shaft.gui.internal.video
 com.shaft.gui.mobile
 com.shaft.gui.mobile.internal
+com.shaft.gui.ocr
 com.shaft.gui.playwright.browser
 com.shaft.gui.playwright.element
 com.shaft.gui.playwright.internal

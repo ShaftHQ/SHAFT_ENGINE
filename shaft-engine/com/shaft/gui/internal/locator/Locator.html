@@ -69,6 +69,8 @@
 <li><a href="#hasRole(com.shaft.gui.internal.locator.Role)" tabindex="0">hasRole(Role)</a></li>
 <li><a href="#inputField(java.lang.String)" tabindex="0">inputField(String)</a></li>
 <li><a href="#clickableField(java.lang.String)" tabindex="0">clickableField(String)</a></li>
+<li><a href="#hasOcrText(java.lang.String)" tabindex="0">hasOcrText(String)</a></li>
+<li><a href="#containsOcrText(java.lang.String)" tabindex="0">containsOcrText(String)</a></li>
 </ol>
 </li>
 </ol>
@@ -136,14 +138,24 @@
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static org.openqa.selenium.By</code></div>
 <div class="col-second odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#clickableField(java.lang.String)" class="member-name-link">clickableField</a><wbr>(@NonNull <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;elementName)</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">&nbsp;</div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static org.openqa.selenium.By</code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#cssSelector(java.lang.String)" class="member-name-link">cssSelector</a><wbr>(@NonNull <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;cssSelector)</code></div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static <a href="../../ocr/OcrTarget.html" title="class in com.shaft.gui.ocr">OcrTarget</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#containsOcrText(java.lang.String)" class="member-name-link">containsOcrText</a><wbr>(@NonNull <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;text)</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
+<div class="block">Builds an OCR target that matches part of a recognized visible-text line.</div>
+</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static org.openqa.selenium.By</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#cssSelector(java.lang.String)" class="member-name-link">cssSelector</a><wbr>(@NonNull <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;cssSelector)</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
 <div class="block">Builds a locator by CSS selector.</div>
 </div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static <a href="LocatorBuilder.html" title="class in com.shaft.gui.internal.locator">LocatorBuilder</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#hasAnyTagName()" class="member-name-link">hasAnyTagName</a>()</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">&nbsp;</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static <a href="LocatorBuilder.html" title="class in com.shaft.gui.internal.locator">LocatorBuilder</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#hasAnyTagName()" class="member-name-link">hasAnyTagName</a>()</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">&nbsp;</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static <a href="../../ocr/OcrTarget.html" title="class in com.shaft.gui.ocr">OcrTarget</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#hasOcrText(java.lang.String)" class="member-name-link">hasOcrText</a><wbr>(@NonNull <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;text)</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
+<div class="block">Builds an OCR target that matches a complete recognized visible-text line.</div>
+</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static <a href="LocatorBuilder.html" title="class in com.shaft.gui.internal.locator">LocatorBuilder</a></code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#hasRole(com.shaft.gui.internal.locator.Role)" class="member-name-link">hasRole</a><wbr>(@NonNull <a href="Role.html" title="enum class in com.shaft.gui.internal.locator">Role</a>&nbsp;ariaRole)</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">&nbsp;</div>
@@ -420,6 +432,38 @@
 <div class="member-signature"><span class="annotations">@Beta
 </span><span class="modifiers">public static</span>&nbsp;<span class="return-type">org.openqa.selenium.By</span>&nbsp;<span class="element-name">clickableField</span><wbr><span class="parameters">(@NonNull
  @NonNull <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;elementName)</span></div>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="hasOcrText(java.lang.String)">
+<h3>hasOcrText</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public static</span>&nbsp;<span class="return-type"><a href="../../ocr/OcrTarget.html" title="class in com.shaft.gui.ocr">OcrTarget</a></span>&nbsp;<span class="element-name">hasOcrText</span><wbr><span class="parameters">(@NonNull
+ @NonNull <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;text)</span></div>
+<div class="block">Builds an OCR target that matches a complete recognized visible-text line.</div>
+<dl class="notes">
+<dt>Parameters:</dt>
+<dd><code>text</code> - complete visible text to recognize</dd>
+<dt>Returns:</dt>
+<dd>immutable OCR target</dd>
+</dl>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="containsOcrText(java.lang.String)">
+<h3>containsOcrText</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public static</span>&nbsp;<span class="return-type"><a href="../../ocr/OcrTarget.html" title="class in com.shaft.gui.ocr">OcrTarget</a></span>&nbsp;<span class="element-name">containsOcrText</span><wbr><span class="parameters">(@NonNull
+ @NonNull <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;text)</span></div>
+<div class="block">Builds an OCR target that matches part of a recognized visible-text line.</div>
+<dl class="notes">
+<dt>Parameters:</dt>
+<dd><code>text</code> - partial visible text to recognize</dd>
+<dt>Returns:</dt>
+<dd>immutable OCR target</dd>
+</dl>
 </div>
 </section>
 </li>

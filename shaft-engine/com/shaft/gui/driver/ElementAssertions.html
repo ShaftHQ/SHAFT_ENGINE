@@ -72,6 +72,8 @@
 <li><a href="#isDisabled()" tabindex="0">isDisabled()</a></li>
 <li><a href="#text()" tabindex="0">text()</a></li>
 <li><a href="#textTrimmed()" tabindex="0">textTrimmed()</a></li>
+<li><a href="#ocrText()" tabindex="0">ocrText()</a></li>
+<li><a href="#ocrText(com.shaft.gui.ocr.OcrOptions)" tabindex="0">ocrText(OcrOptions)</a></li>
 <li><a href="#cssProperty(java.lang.String)" tabindex="0">cssProperty(String)</a></li>
 <li><a href="#matchesScreenshot()" tabindex="0">matchesScreenshot()</a></li>
 <li><a href="#matchesScreenshot(com.shaft.validation.VisualComparisonOptions)" tabindex="0">matchesScreenshot(VisualComparisonOptions)</a></li>
@@ -198,6 +200,16 @@
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5">
 <div class="block">Asserts that the element matches its baseline screenshot, using the given diff-budget/mask
 options (see <a href="../../validation/VisualComparisonOptions.html" title="class in com.shaft.validation"><code>VisualComparisonOptions</code></a>).</div>
+</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code>default <a href="../../validation/internal/NativeValidationsBuilder.html" title="class in com.shaft.validation.internal">NativeValidationsBuilder</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#ocrText()" class="member-name-link">ocrText</a>()</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5">
+<div class="block">Recognizes the target element screenshot and starts a native string assertion.</div>
+</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code>default <a href="../../validation/internal/NativeValidationsBuilder.html" title="class in com.shaft.validation.internal">NativeValidationsBuilder</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#ocrText(com.shaft.gui.ocr.OcrOptions)" class="member-name-link">ocrText</a><wbr>(<a href="../ocr/OcrOptions.html" title="class in com.shaft.gui.ocr">OcrOptions</a>&nbsp;options)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5">
+<div class="block">Recognizes the target element screenshot with explicit OCR options.</div>
 </div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="../../validation/internal/NativeValidationsBuilder.html" title="class in com.shaft.validation.internal">NativeValidationsBuilder</a></code></div>
 <div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#property(java.lang.String)" class="member-name-link">property</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;domProperty)</code></div>
@@ -415,6 +427,24 @@ options (see <a href="../../validation/VisualComparisonOptions.html" title="clas
 <h3>textTrimmed</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="return-type"><a href="../../validation/internal/NativeValidationsBuilder.html" title="class in com.shaft.validation.internal">NativeValidationsBuilder</a></span>&nbsp;<span class="element-name">textTrimmed</span>()</div>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="ocrText()">
+<h3>ocrText</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">default</span>&nbsp;<span class="return-type"><a href="../../validation/internal/NativeValidationsBuilder.html" title="class in com.shaft.validation.internal">NativeValidationsBuilder</a></span>&nbsp;<span class="element-name">ocrText</span>()</div>
+<div class="block">Recognizes the target element screenshot and starts a native string assertion.</div>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="ocrText(com.shaft.gui.ocr.OcrOptions)">
+<h3>ocrText</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">default</span>&nbsp;<span class="return-type"><a href="../../validation/internal/NativeValidationsBuilder.html" title="class in com.shaft.validation.internal">NativeValidationsBuilder</a></span>&nbsp;<span class="element-name">ocrText</span><wbr><span class="parameters">(<a href="../ocr/OcrOptions.html" title="class in com.shaft.gui.ocr">OcrOptions</a>&nbsp;options)</span></div>
+<div class="block">Recognizes the target element screenshot with explicit OCR options.</div>
 </div>
 </section>
 </li>

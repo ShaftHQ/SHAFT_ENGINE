@@ -58,6 +58,7 @@
 <li><a href="#elementRectangle()" tabindex="0">elementRectangle()</a></li>
 <li><a href="#elementAccessibleName()" tabindex="0">elementAccessibleName()</a></li>
 <li><a href="#elementRole()" tabindex="0">elementRole()</a></li>
+<li><a href="#ocrText(com.shaft.gui.ocr.OcrOptions)" tabindex="0">ocrText(OcrOptions)</a></li>
 <li><a href="#exists()" tabindex="0">exists()</a></li>
 <li><a href="#doesNotExist()" tabindex="0">doesNotExist()</a></li>
 <li><a href="#matchesReferenceImage()" tabindex="0">matchesReferenceImage()</a></li>
@@ -260,18 +261,23 @@ using partial-subset semantics (see <a href="../../gui/internal/aria/AriaSnapsho
 <a href="../VisualComparisonOptions.html" title="class in com.shaft.validation"><code>VisualComparisonOptions</code></a>).</div>
 </div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="NativeValidationsBuilder.html" title="class in com.shaft.validation.internal">NativeValidationsBuilder</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#property(java.lang.String)" class="member-name-link">property</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;domProperty)</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#ocrText(com.shaft.gui.ocr.OcrOptions)" class="member-name-link">ocrText</a><wbr>(<a href="../../gui/ocr/OcrOptions.html" title="class in com.shaft.gui.ocr">OcrOptions</a>&nbsp;options)</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
-<div class="block">Use this to check against a certain element attribute</div>
+<div class="block">Recognizes the target element screenshot with explicit OCR options.</div>
 </div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="NativeValidationsBuilder.html" title="class in com.shaft.validation.internal">NativeValidationsBuilder</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#text()" class="member-name-link">text</a>()</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#property(java.lang.String)" class="member-name-link">property</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;domProperty)</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
-<div class="block">Use this to check against the provided elements text attribute</div>
+<div class="block">Use this to check against a certain element attribute</div>
 </div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="NativeValidationsBuilder.html" title="class in com.shaft.validation.internal">NativeValidationsBuilder</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#textTrimmed()" class="member-name-link">textTrimmed</a>()</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#text()" class="member-name-link">text</a>()</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Use this to check against the provided elements text attribute</div>
+</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="NativeValidationsBuilder.html" title="class in com.shaft.validation.internal">NativeValidationsBuilder</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#textTrimmed()" class="member-name-link">textTrimmed</a>()</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Use this to check against the provided elements text attribute after it's trimmed (all leading and trailing space removed)</div>
 </div>
 </div>
@@ -280,6 +286,9 @@ using partial-subset semantics (see <a href="../../gui/internal/aria/AriaSnapsho
 <div class="inherited-list">
 <h3 id="methods-inherited-from-class-java.lang.Object">Methods inherited from class&nbsp;<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Object.html#method-summary" title="class or interface in java.lang" class="external-link">Object</a></h3>
 <code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Object.html#equals(java.lang.Object)" title="class or interface in java.lang" class="external-link">equals</a>, <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Object.html#getClass()" title="class or interface in java.lang" class="external-link">getClass</a>, <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Object.html#hashCode()" title="class or interface in java.lang" class="external-link">hashCode</a>, <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Object.html#notify()" title="class or interface in java.lang" class="external-link">notify</a>, <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Object.html#notifyAll()" title="class or interface in java.lang" class="external-link">notifyAll</a>, <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Object.html#toString()" title="class or interface in java.lang" class="external-link">toString</a>, <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Object.html#wait()" title="class or interface in java.lang" class="external-link">wait</a>, <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Object.html#wait(long)" title="class or interface in java.lang" class="external-link">wait</a>, <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Object.html#wait(long,int)" title="class or interface in java.lang" class="external-link">wait</a></code></div>
+<div class="inherited-list">
+<h3 id="methods-inherited-from-class-com.shaft.gui.driver.ElementAssertions">Methods inherited from interface&nbsp;<a href="../../gui/driver/ElementAssertions.html#method-summary" title="interface in com.shaft.gui.driver">ElementAssertions</a></h3>
+<code><a href="../../gui/driver/ElementAssertions.html#ocrText()" title="ocrText()">ocrText</a></code></div>
 </section>
 </li>
 </ul>
@@ -362,6 +371,20 @@ using partial-subset semantics (see <a href="../../gui/internal/aria/AriaSnapsho
 <dl class="notes">
 <dt>Specified by:</dt>
 <dd><code><a href="../../gui/driver/ElementAssertions.html#elementRole()">elementRole</a></code>&nbsp;in interface&nbsp;<code><a href="../../gui/driver/ElementAssertions.html" title="interface in com.shaft.gui.driver">ElementAssertions</a></code></dd>
+</dl>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="ocrText(com.shaft.gui.ocr.OcrOptions)">
+<h3>ocrText</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="NativeValidationsBuilder.html" title="class in com.shaft.validation.internal">NativeValidationsBuilder</a></span>&nbsp;<span class="element-name">ocrText</span><wbr><span class="parameters">(<a href="../../gui/ocr/OcrOptions.html" title="class in com.shaft.gui.ocr">OcrOptions</a>&nbsp;options)</span></div>
+<div class="block"><span class="description-from-type-label">Description copied from interface:&nbsp;<code><a href="../../gui/driver/ElementAssertions.html#ocrText(com.shaft.gui.ocr.OcrOptions)">ElementAssertions</a></code></span></div>
+<div class="block">Recognizes the target element screenshot with explicit OCR options.</div>
+<dl class="notes">
+<dt>Specified by:</dt>
+<dd><code><a href="../../gui/driver/ElementAssertions.html#ocrText(com.shaft.gui.ocr.OcrOptions)">ocrText</a></code>&nbsp;in interface&nbsp;<code><a href="../../gui/driver/ElementAssertions.html" title="interface in com.shaft.gui.driver">ElementAssertions</a></code></dd>
 </dl>
 </div>
 </section>

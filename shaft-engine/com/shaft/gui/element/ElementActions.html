@@ -63,13 +63,16 @@
 <li><a href="#getElementsCount(org.openqa.selenium.By)" tabindex="0">getElementsCount(By)</a></li>
 <li><a href="#executeNativeMobileCommand(java.lang.String,java.util.Map)" tabindex="0">executeNativeMobileCommand(String, Map)</a></li>
 <li><a href="#click(org.openqa.selenium.By)" tabindex="0">click(By)</a></li>
+<li><a href="#click(com.shaft.gui.ocr.OcrTarget)" tabindex="0">click(OcrTarget)</a></li>
 <li><a href="#clickUsingJavascript(org.openqa.selenium.By)" tabindex="0">clickUsingJavascript(By)</a></li>
 <li><a href="#scrollToElement(org.openqa.selenium.By)" tabindex="0">scrollToElement(By)</a></li>
 <li><a href="#clickAndHold(org.openqa.selenium.By)" tabindex="0">clickAndHold(By)</a></li>
 <li><a href="#doubleClick(org.openqa.selenium.By)" tabindex="0">doubleClick(By)</a></li>
+<li><a href="#doubleClick(com.shaft.gui.ocr.OcrTarget)" tabindex="0">doubleClick(OcrTarget)</a></li>
 <li><a href="#dragAndDrop(org.openqa.selenium.By,org.openqa.selenium.By)" tabindex="0">dragAndDrop(By, By)</a></li>
 <li><a href="#dragAndDropByOffset(org.openqa.selenium.By,int,int)" tabindex="0">dragAndDropByOffset(By, int, int)</a></li>
 <li><a href="#hover(org.openqa.selenium.By)" tabindex="0">hover(By)</a></li>
+<li><a href="#hover(com.shaft.gui.ocr.OcrTarget)" tabindex="0">hover(OcrTarget)</a></li>
 <li><a href="#hoverAndClick(java.util.List,org.openqa.selenium.By)" tabindex="0">hoverAndClick(List, By)</a></li>
 <li><a href="#select(org.openqa.selenium.By,java.lang.String)" tabindex="0">select(By, String)</a></li>
 <li><a href="#setValueUsingJavaScript(org.openqa.selenium.By,java.lang.String)" tabindex="0">setValueUsingJavaScript(By, String)</a></li>
@@ -205,19 +208,29 @@ chaining via the <a href="#and()"><code>and()</code></a> connector. Prefer using
 <div class="block">Clears the value of the target element.</div>
 </div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="internal/Actions.html" title="class in com.shaft.gui.element.internal">Actions</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#click(org.openqa.selenium.By)" class="member-name-link">click</a><wbr>(org.openqa.selenium.By&nbsp;elementLocator)</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#click(com.shaft.gui.ocr.OcrTarget)" class="member-name-link">click</a><wbr>(<a href="../ocr/OcrTarget.html" title="class in com.shaft.gui.ocr">OcrTarget</a>&nbsp;target)</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
-<div class="block">Clicks on a certain element using Selenium WebDriver, or JavaScript</div>
+<div class="block">Clicks the center of visible text recognized in the current screenshot.</div>
 </div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="internal/Actions.html" title="class in com.shaft.gui.element.internal">Actions</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#clickAndHold(org.openqa.selenium.By)" class="member-name-link">clickAndHold</a><wbr>(org.openqa.selenium.By&nbsp;elementLocator)</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#click(org.openqa.selenium.By)" class="member-name-link">click</a><wbr>(org.openqa.selenium.By&nbsp;elementLocator)</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
-<div class="block">Waits for the element to be clickable, and then clicks and holds it.</div>
+<div class="block">Clicks on a certain element using Selenium WebDriver, or JavaScript</div>
 </div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="internal/Actions.html" title="class in com.shaft.gui.element.internal">Actions</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#clickUsingJavascript(org.openqa.selenium.By)" class="member-name-link">clickUsingJavascript</a><wbr>(org.openqa.selenium.By&nbsp;elementLocator)</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#clickAndHold(org.openqa.selenium.By)" class="member-name-link">clickAndHold</a><wbr>(org.openqa.selenium.By&nbsp;elementLocator)</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Waits for the element to be clickable, and then clicks and holds it.</div>
+</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="internal/Actions.html" title="class in com.shaft.gui.element.internal">Actions</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#clickUsingJavascript(org.openqa.selenium.By)" class="member-name-link">clickUsingJavascript</a><wbr>(org.openqa.selenium.By&nbsp;elementLocator)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Clicks on certain element using javaScript only</div>
+</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="internal/Actions.html" title="class in com.shaft.gui.element.internal">Actions</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#doubleClick(com.shaft.gui.ocr.OcrTarget)" class="member-name-link">doubleClick</a><wbr>(<a href="../ocr/OcrTarget.html" title="class in com.shaft.gui.ocr">OcrTarget</a>&nbsp;target)</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Double-clicks the center of visible text recognized in the current screenshot.</div>
 </div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="internal/Actions.html" title="class in com.shaft.gui.element.internal">Actions</a></code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#doubleClick(org.openqa.selenium.By)" class="member-name-link">doubleClick</a><wbr>(org.openqa.selenium.By&nbsp;elementLocator)</code></div>
@@ -261,87 +274,92 @@ commands found herein: <a href="http://appium.io/docs/en/commands/mobile-command
 thead which include all the column labels and tbody which includes all table data</div>
 </div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="internal/Actions.html" title="class in com.shaft.gui.element.internal">Actions</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#hover(org.openqa.selenium.By)" class="member-name-link">hover</a><wbr>(org.openqa.selenium.By&nbsp;elementLocator)</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#hover(com.shaft.gui.ocr.OcrTarget)" class="member-name-link">hover</a><wbr>(<a href="../ocr/OcrTarget.html" title="class in com.shaft.gui.ocr">OcrTarget</a>&nbsp;target)</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Moves the pointer to visible text recognized in the current screenshot.</div>
+</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="internal/Actions.html" title="class in com.shaft.gui.element.internal">Actions</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#hover(org.openqa.selenium.By)" class="member-name-link">hover</a><wbr>(org.openqa.selenium.By&nbsp;elementLocator)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Hovers over target element.</div>
 </div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="internal/Actions.html" title="class in com.shaft.gui.element.internal">Actions</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#hoverAndClick(java.util.List,org.openqa.selenium.By)" class="member-name-link">hoverAndClick</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;org.openqa.selenium.By&gt;&nbsp;hoverElementLocators,
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="internal/Actions.html" title="class in com.shaft.gui.element.internal">Actions</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#hoverAndClick(java.util.List,org.openqa.selenium.By)" class="member-name-link">hoverAndClick</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;org.openqa.selenium.By&gt;&nbsp;hoverElementLocators,
  org.openqa.selenium.By&nbsp;clickableElementLocator)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Hovers over the hoverElements in sequence then clicks the clickableElement</div>
 </div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="internal/Actions.html" title="class in com.shaft.gui.element.internal">Actions</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#scrollToElement(org.openqa.selenium.By)" class="member-name-link">scrollToElement</a><wbr>(org.openqa.selenium.By&nbsp;elementLocator)</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="internal/Actions.html" title="class in com.shaft.gui.element.internal">Actions</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#scrollToElement(org.openqa.selenium.By)" class="member-name-link">scrollToElement</a><wbr>(org.openqa.selenium.By&nbsp;elementLocator)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">If the element is outside the viewport, scrolls the bottom of the element to the bottom of the viewport.</div>
 </div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="internal/Actions.html" title="class in com.shaft.gui.element.internal">Actions</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#select(org.openqa.selenium.By,java.lang.String)" class="member-name-link">select</a><wbr>(org.openqa.selenium.By&nbsp;elementLocator,
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="internal/Actions.html" title="class in com.shaft.gui.element.internal">Actions</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#select(org.openqa.selenium.By,java.lang.String)" class="member-name-link">select</a><wbr>(org.openqa.selenium.By&nbsp;elementLocator,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;valueOrVisibleText)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Selects an element from a dropdown list using its displayed text or attribute Value</div>
 </div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="internal/Actions.html" title="class in com.shaft.gui.element.internal">Actions</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#setValueUsingJavaScript(org.openqa.selenium.By,java.lang.String)" class="member-name-link">setValueUsingJavaScript</a><wbr>(org.openqa.selenium.By&nbsp;elementLocator,
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="internal/Actions.html" title="class in com.shaft.gui.element.internal">Actions</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#setValueUsingJavaScript(org.openqa.selenium.By,java.lang.String)" class="member-name-link">setValueUsingJavaScript</a><wbr>(org.openqa.selenium.By&nbsp;elementLocator,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;value)</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Used to SetProperty value for an element (hidden or visible) using javascript</div>
 </div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="internal/Actions.html" title="class in com.shaft.gui.element.internal">Actions</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#submitFormUsingJavaScript(org.openqa.selenium.By)" class="member-name-link">submitFormUsingJavaScript</a><wbr>(org.openqa.selenium.By&nbsp;elementLocator)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="internal/Actions.html" title="class in com.shaft.gui.element.internal">Actions</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#submitFormUsingJavaScript(org.openqa.selenium.By)" class="member-name-link">submitFormUsingJavaScript</a><wbr>(org.openqa.selenium.By&nbsp;elementLocator)</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Used to submit a form using javascript</div>
 </div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="internal/Actions.html" title="class in com.shaft.gui.element.internal">Actions</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#switchToDefaultContent()" class="member-name-link">switchToDefaultContent</a>()</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="internal/Actions.html" title="class in com.shaft.gui.element.internal">Actions</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#switchToDefaultContent()" class="member-name-link">switchToDefaultContent</a>()</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Switches focus to default content, is mainly used in coordination with
 <a href="#switchToIframe(org.openqa.selenium.By)"><code>switchToIframe(By)</code></a> to exit any iFrame layer and go back
 to the main page</div>
 </div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="internal/Actions.html" title="class in com.shaft.gui.element.internal">Actions</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#switchToIframe(org.openqa.selenium.By)" class="member-name-link">switchToIframe</a><wbr>(org.openqa.selenium.By&nbsp;elementLocator)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="internal/Actions.html" title="class in com.shaft.gui.element.internal">Actions</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#switchToIframe(org.openqa.selenium.By)" class="member-name-link">switchToIframe</a><wbr>(org.openqa.selenium.By&nbsp;elementLocator)</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Switches focus to a certain iFrame, is mainly used in coordination with
 <a href="#switchToDefaultContent()"><code>switchToDefaultContent()</code></a> to navigate inside any iFrame
 layer and go back to the main page</div>
 </div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="internal/Actions.html" title="class in com.shaft.gui.element.internal">Actions</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#switchToParentFrame()" class="member-name-link">switchToParentFrame</a>()</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="internal/Actions.html" title="class in com.shaft.gui.element.internal">Actions</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#switchToParentFrame()" class="member-name-link">switchToParentFrame</a>()</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Switches focus from the current iframe to its parent frame.</div>
 </div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="internal/Actions.html" title="class in com.shaft.gui.element.internal">Actions</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#type(org.openqa.selenium.By,java.lang.CharSequence...)" class="member-name-link">type</a><wbr>(org.openqa.selenium.By&nbsp;elementLocator,
- <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/CharSequence.html" title="class or interface in java.lang" class="external-link">CharSequence</a>...&nbsp;text)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
-<div class="block">Types the provided text into the target element, replacing any existing value.</div>
-</div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="internal/Actions.html" title="class in com.shaft.gui.element.internal">Actions</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#typeAppend(org.openqa.selenium.By,java.lang.CharSequence...)" class="member-name-link">typeAppend</a><wbr>(org.openqa.selenium.By&nbsp;elementLocator,
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#type(org.openqa.selenium.By,java.lang.CharSequence...)" class="member-name-link">type</a><wbr>(org.openqa.selenium.By&nbsp;elementLocator,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/CharSequence.html" title="class or interface in java.lang" class="external-link">CharSequence</a>...&nbsp;text)</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Types the provided text into the target element, replacing any existing value.</div>
+</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="internal/Actions.html" title="class in com.shaft.gui.element.internal">Actions</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#typeAppend(org.openqa.selenium.By,java.lang.CharSequence...)" class="member-name-link">typeAppend</a><wbr>(org.openqa.selenium.By&nbsp;elementLocator,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/CharSequence.html" title="class or interface in java.lang" class="external-link">CharSequence</a>...&nbsp;text)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Appends the required string into the target element, regardless of the
 current text value.</div>
 </div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="internal/Actions.html" title="class in com.shaft.gui.element.internal">Actions</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#typeFileLocationForUpload(org.openqa.selenium.By,java.lang.String)" class="member-name-link">typeFileLocationForUpload</a><wbr>(org.openqa.selenium.By&nbsp;elementLocator,
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="internal/Actions.html" title="class in com.shaft.gui.element.internal">Actions</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#typeFileLocationForUpload(org.openqa.selenium.By,java.lang.String)" class="member-name-link">typeFileLocationForUpload</a><wbr>(org.openqa.selenium.By&nbsp;elementLocator,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;filePath)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">ValidationEnums the required file path into an input[type='file'] button, to
 successfully upload the target file.</div>
 </div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="internal/Actions.html" title="class in com.shaft.gui.element.internal">Actions</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#typeSecure(org.openqa.selenium.By,java.lang.CharSequence...)" class="member-name-link">typeSecure</a><wbr>(org.openqa.selenium.By&nbsp;elementLocator,
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="internal/Actions.html" title="class in com.shaft.gui.element.internal">Actions</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#typeSecure(org.openqa.selenium.By,java.lang.CharSequence...)" class="member-name-link">typeSecure</a><wbr>(org.openqa.selenium.By&nbsp;elementLocator,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/CharSequence.html" title="class or interface in java.lang" class="external-link">CharSequence</a>...&nbsp;text)</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Checks if there is any text in an element, clears it, then types the required
 string into the target element.</div>
 </div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="../../validation/internal/WebDriverElementValidationsBuilder.html" title="class in com.shaft.validation.internal">WebDriverElementValidationsBuilder</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#verifyThat(org.openqa.selenium.By)" class="member-name-link">verifyThat</a><wbr>(org.openqa.selenium.By&nbsp;elementLocator)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="../../validation/internal/WebDriverElementValidationsBuilder.html" title="class in com.shaft.validation.internal">WebDriverElementValidationsBuilder</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#verifyThat(org.openqa.selenium.By)" class="member-name-link">verifyThat</a><wbr>(org.openqa.selenium.By&nbsp;elementLocator)</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Starts a soft-assertion (verification) chain on the target element.</div>
 </div>
 </div>
@@ -564,6 +582,20 @@ Note: This method does no validation on the output of the executed JavaScript</d
 </section>
 </li>
 <li>
+<section class="detail" id="click(com.shaft.gui.ocr.OcrTarget)">
+<h3>click</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="internal/Actions.html" title="class in com.shaft.gui.element.internal">Actions</a></span>&nbsp;<span class="element-name">click</span><wbr><span class="parameters">(<a href="../ocr/OcrTarget.html" title="class in com.shaft.gui.ocr">OcrTarget</a>&nbsp;target)</span></div>
+<div class="block"><span class="description-from-type-label">Description copied from interface:&nbsp;<code><a href="../driver/ElementActionsContract.html#click(com.shaft.gui.ocr.OcrTarget)">ElementActionsContract</a></code></span></div>
+<div class="block">Clicks the center of visible text recognized in the current screenshot.</div>
+<dl class="notes">
+<dt>Specified by:</dt>
+<dd><code><a href="../driver/ElementActionsContract.html#click(com.shaft.gui.ocr.OcrTarget)">click</a></code>&nbsp;in interface&nbsp;<code><a href="../driver/ElementActionsContract.html" title="interface in com.shaft.gui.driver">ElementActionsContract</a></code></dd>
+</dl>
+</div>
+</section>
+</li>
+<li>
 <section class="detail" id="clickUsingJavascript(org.openqa.selenium.By)">
 <h3>clickUsingJavascript</h3>
 <div class="horizontal-scroll">
@@ -636,6 +668,20 @@ Note: This method does no validation on the output of the executed JavaScript</d
 </section>
 </li>
 <li>
+<section class="detail" id="doubleClick(com.shaft.gui.ocr.OcrTarget)">
+<h3>doubleClick</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="internal/Actions.html" title="class in com.shaft.gui.element.internal">Actions</a></span>&nbsp;<span class="element-name">doubleClick</span><wbr><span class="parameters">(<a href="../ocr/OcrTarget.html" title="class in com.shaft.gui.ocr">OcrTarget</a>&nbsp;target)</span></div>
+<div class="block"><span class="description-from-type-label">Description copied from interface:&nbsp;<code><a href="../driver/ElementActionsContract.html#doubleClick(com.shaft.gui.ocr.OcrTarget)">ElementActionsContract</a></code></span></div>
+<div class="block">Double-clicks the center of visible text recognized in the current screenshot.</div>
+<dl class="notes">
+<dt>Specified by:</dt>
+<dd><code><a href="../driver/ElementActionsContract.html#doubleClick(com.shaft.gui.ocr.OcrTarget)">doubleClick</a></code>&nbsp;in interface&nbsp;<code><a href="../driver/ElementActionsContract.html" title="interface in com.shaft.gui.driver">ElementActionsContract</a></code></dd>
+</dl>
+</div>
+</section>
+</li>
+<li>
 <section class="detail" id="dragAndDrop(org.openqa.selenium.By,org.openqa.selenium.By)">
 <h3>dragAndDrop</h3>
 <div class="horizontal-scroll">
@@ -700,6 +746,20 @@ reliable result.</div>
                       selector, name ...etc.)</dd>
 <dt>Returns:</dt>
 <dd>a self-reference to be used to chain actions</dd>
+</dl>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="hover(com.shaft.gui.ocr.OcrTarget)">
+<h3>hover</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="internal/Actions.html" title="class in com.shaft.gui.element.internal">Actions</a></span>&nbsp;<span class="element-name">hover</span><wbr><span class="parameters">(<a href="../ocr/OcrTarget.html" title="class in com.shaft.gui.ocr">OcrTarget</a>&nbsp;target)</span></div>
+<div class="block"><span class="description-from-type-label">Description copied from interface:&nbsp;<code><a href="../driver/ElementActionsContract.html#hover(com.shaft.gui.ocr.OcrTarget)">ElementActionsContract</a></code></span></div>
+<div class="block">Moves the pointer to visible text recognized in the current screenshot.</div>
+<dl class="notes">
+<dt>Specified by:</dt>
+<dd><code><a href="../driver/ElementActionsContract.html#hover(com.shaft.gui.ocr.OcrTarget)">hover</a></code>&nbsp;in interface&nbsp;<code><a href="../driver/ElementActionsContract.html" title="interface in com.shaft.gui.driver">ElementActionsContract</a></code></dd>
 </dl>
 </div>
 </section>
