@@ -480,7 +480,10 @@ def main(argv: list[str] | None = None) -> int:
             manifest = json.loads(parsed.manifest.read_text(encoding="utf-8"))
             if not isinstance(manifest, dict):
                 raise ValueError("delivery manifest must be an object")
-            context = resolve_repository_context(explicit_root=parsed.root.resolve(), cwd=parsed.root.resolve())
+            context = resolve_repository_context(
+                explicit_repo=None, pr=None,
+                explicit_root=parsed.root.resolve(), cwd=parsed.root.resolve(),
+            )
             payload = evaluate_delivery(
                 manifest, collect_delivery(manifest, default_root=context.root), inspect_cleanup(manifest),
                 execution_repository=context.repo, execution_head=local_head(context),
