@@ -109,6 +109,8 @@ jobs:
               - 'tools/repository-map/resolve_graph_out.py'
               - 'tools/repository-map/graphify_maintenance.py'
               - 'tools/agent-infra/graphify-refresh.cmd'
+              - 'tools/agent-infra/install-agent-tasks.ps1'
+              - 'tools/agent-infra/shaft_knowledge_refresh.py'
               # Reachability elements: the harness check fails when either
               # moves, so a change to them has to run this gate.
               - 'scripts/ci/watch_pr_checks.py'
@@ -137,6 +139,7 @@ jobs:
               - 'tests/scripts/test_worktree_hygiene.py'
               - 'tests/scripts/test_resolve_graph_out.py'
               - 'tests/scripts/test_graphify_maintenance.py'
+              - 'tests/scripts/test_shaft_knowledge_refresh.py'
               - 'tests/scripts/test_validate_skills.py'
               - 'tests/scripts/test_sync_user_harness.py'
               - 'tests/scripts/test_shaft_skills_content.py'
@@ -349,6 +352,7 @@ jobs:
           tests.scripts.test_worktree_hygiene
           tests.scripts.test_resolve_graph_out
           tests.scripts.test_graphify_maintenance
+          tests.scripts.test_shaft_knowledge_refresh
           tests.scripts.test_build_retry
           tests.scripts.test_extract_allure_failures
           -v

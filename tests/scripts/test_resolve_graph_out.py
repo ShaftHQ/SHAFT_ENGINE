@@ -42,14 +42,43 @@ class ResolveGraphOutTest(unittest.TestCase):
             text=True,
         )
 
-    def resolver(self, *args, cwd=None):
+    def resolver(self, *args, cwd=None, env=None):
         return subprocess.run(  # nosec B603 - current interpreter and repository-owned resolver.
             [sys.executable, str(SCRIPT), *args],
             cwd=cwd or self.primary,
+            env=env,
             check=False,
             capture_output=True,
             text=True,
         )
+
+    def test_absolute_environment_override_selects_external_cache(self):
+        external = self.sandbox / "external-cache"
+        environment = os.environ.copy()
+        environment["SHAFT_GRAPHIFY_OUT"] = str(external)
+
+        completed = self.resolver(env=environment)
+
+        self.assertEqual(0, completed.returncode, completed.stderr)
+        self.assertEqual(str(external.resolve()), completed.stdout.strip())
+
+    def test_relative_environment_override_fails_closed(self):
+        environment = os.environ.copy()
+        environment["SHAFT_GRAPHIFY_OUT"] = "relative/cache"
+
+        completed = self.resolver(env=environment)
+
+        self.assertEqual(1, completed.returncode)
+        self.assertIn("SHAFT_GRAPHIFY_OUT must be absolute", completed.stderr)
+
+    def test_blank_environment_override_fails_closed(self):
+        environment = os.environ.copy()
+        environment["SHAFT_GRAPHIFY_OUT"] = "   "
+
+        completed = self.resolver(env=environment)
+
+        self.assertEqual(1, completed.returncode)
+        self.assertIn("SHAFT_GRAPHIFY_OUT must not be blank", completed.stderr)
 
     def test_non_empty_cache_without_revision_marker_is_stale(self):
         completed = self.resolver("--check")
@@ -130,6 +159,21 @@ class ResolveGraphOutTest(unittest.TestCase):
         self.assertEqual(1, record_attempt.returncode)
         self.assertIn("primary checkout", record_attempt.stderr)
 
+    def test_linked_worktree_cannot_record_into_an_overridden_cache(self):
+        linked = self.sandbox / "linked"
+        self.git("worktree", "add", "-b", "feature", str(linked), cwd=self.primary)
+        overridden = linked / "cache"
+        overridden.mkdir()
+        (overridden / "manifest.json").write_text("{}\n", encoding="utf-8")
+        environment = os.environ.copy()
+        environment["SHAFT_GRAPHIFY_OUT"] = str(overridden)
+
+        completed = self.resolver("--record-current", cwd=linked, env=environment)
+
+        self.assertEqual(1, completed.returncode)
+        self.assertIn("primary checkout", completed.stderr)
+        self.assertFalse((overridden / ".shaft-source-revision.json").exists())
+
     def test_manifest_changed_after_marker_is_stale(self):
         self.assertEqual(0, self.resolver("--record-current").returncode)
         (self.graph_out / "manifest.json").write_text('{"changed": {}}\n', encoding="utf-8")
@@ -154,6 +198,16 @@ class ResolveGraphOutTest(unittest.TestCase):
         self.assertIn("graphify_maintenance.py refresh", readme)
         self.assertIn("before the marker", guidance)
         self.assertIn("primary checkout", readme)
+        self.assertIn(
+            'graphify query "<structural question>" --graph '
+            '(Join-Path $graphOut "graph.json")',
+            guidance,
+        )
+        self.assertIn(
+            'graphify export callflow-html --graph '
+            '(Join-Path $graphOut "graph.json")',
+            readme,
+        )
 
     def test_nightly_refresh_delegates_to_the_canonical_maintenance_owner(self):
         wrapper = (ROOT / "tools/agent-infra/graphify-refresh.cmd").read_text(encoding="utf-8")
@@ -168,9 +222,9 @@ class ResolveGraphOutTest(unittest.TestCase):
 
         self.assertEqual(
             [
-                'py -3 tools\\repository-map\\graphify_maintenance.py refresh --root . > "%USERPROFILE%\\.agent-infra\\logs\\graphify-refresh.log" 2>&1',
+                'py -3 "%~dp0shaft_knowledge_refresh.py" --root "%SHAFT_ROOT%" --sentinel "%SHAFT_SENTINEL%" --validate-only >nul 2>&1',
                 "if errorlevel 1 exit /b 1",
-                "if not errorlevel 0 exit /b 1",
+                'py -3 "%~dp0shaft_knowledge_refresh.py" --root "%SHAFT_ROOT%" --sentinel "%SHAFT_SENTINEL%" > "%SHAFT_LOG%" 2>&1',
             ],
             commands,
         )
@@ -213,7 +267,8 @@ exit /b %GRAPHIFY_REFRESH_EXIT%
                     capture_output=True,
                     text=True,
                 )
-                self.assertNotEqual(0, result.returncode)
+                expected_exit = refresh_exit if refresh_exit >= 0 else 2**32 + refresh_exit
+                self.assertEqual(expected_exit, result.returncode)
                 self.assertFalse(marker.exists())
 
         success_env = base_env.copy()
