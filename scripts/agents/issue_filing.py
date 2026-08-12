@@ -3,10 +3,19 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
+from contextlib import contextmanager
 import hashlib
 import json
+import os
+from pathlib import Path
 import shutil
 import subprocess  # nosec B404 - fixed gh list/create arguments, no shell.
+import tempfile
+import time
+if os.name == "nt":
+    import msvcrt
+else:
+    import fcntl
 from urllib.parse import urlparse
 
 
@@ -50,6 +59,9 @@ def validate_issue_plan(plan: object, taxonomy: object) -> dict:
         reasons.append("exactly one lifecycle label is required")
     if not subsystems:
         reasons.append("at least one proven subsystem or module is required")
+    module_labels = [label for label in subsystems if label.startswith("module:")]
+    if len(module_labels) > 1 and "cross-cutting" not in labels:
+        reasons.append("multiple modules require explicit cross-cutting classification")
     if issue_type and plan.get("template") != taxonomy.get("templates", {}).get(issue_type):
         reasons.append("template does not match primary type")
     body = plan.get("body")
@@ -92,6 +104,13 @@ def receipt_digest(receipt: dict) -> str:
     return hashlib.sha256(json.dumps(stable, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
 
 
+def confirmation_digest(plan: dict, taxonomy: dict, repository: str) -> str:
+    validation = validate_issue_plan(plan, taxonomy)
+    stable_validation = {key: value for key, value in validation.items() if key != "observedAt"}
+    payload = {"repository": repository, "plan": plan, "validation": stable_validation}
+    return receipt_digest(payload)
+
+
 def search_duplicates(repository: str, query: str, *, runner=None, executable: str | None = None) -> dict:
     runner = subprocess.run if runner is None else runner
     gh = executable or shutil.which("gh")
@@ -125,11 +144,52 @@ def prepare_issue_plan(plan: dict, taxonomy: dict, repository: str, **transport)
     return receipt
 
 
+@contextmanager
+def _creation_lock(repository: str, confirmation: str):
+    """Serialize same-host retries; GitHub's issue-create API has no idempotency key."""
+    key = hashlib.sha256(f"{repository}:{confirmation}".encode()).hexdigest()
+    path = Path(tempfile.gettempdir()) / f"act-as-mohab-issue-{key}.lock"
+    handle = path.open("a+b")
+    acquired = False
+    for _ in range(4000):
+        try:
+            if os.name == "nt":
+                handle.seek(0)
+                if handle.read(1) == b"":
+                    handle.seek(0); handle.write(b"0"); handle.flush()
+                handle.seek(0)
+                msvcrt.locking(handle.fileno(), msvcrt.LK_NBLCK, 1)
+            else:
+                fcntl.flock(handle.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+            acquired = True
+            break
+        except OSError:
+            time.sleep(0.05)
+    if not acquired:
+        handle.close()
+        raise ValueError("timed out waiting for concurrent issue creation")
+    try:
+        yield
+    finally:
+        try:
+            if os.name == "nt":
+                handle.seek(0); msvcrt.locking(handle.fileno(), msvcrt.LK_UNLCK, 1)
+            else:
+                fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
+        finally:
+            handle.close()
+
+
 def create_issue(plan: dict, taxonomy: dict, repository: str, confirmation: str, *, runner=None, executable: str | None = None) -> dict:
+    with _creation_lock(repository, confirmation):
+        return _create_issue_locked(plan, taxonomy, repository, confirmation, runner=runner, executable=executable)
+
+
+def _create_issue_locked(plan: dict, taxonomy: dict, repository: str, confirmation: str, *, runner=None, executable: str | None = None) -> dict:
     runner = subprocess.run if runner is None else runner
     gh = executable or shutil.which("gh")
     dry_receipt = validate_issue_plan(plan, taxonomy)
-    if dry_receipt["decision"] != "allow" or receipt_digest(dry_receipt) != confirmation:
+    if dry_receipt["decision"] != "allow" or confirmation_digest(plan, taxonomy, repository) != confirmation:
         raise ValueError("issue creation confirmation does not match the validated dry-run receipt")
     marker = f"<!-- act-as-mohab:{confirmation} -->"
     marker_search = search_duplicates(
@@ -194,13 +254,26 @@ def reconcile_labels(repository: str, taxonomy: dict, *, apply: bool = False, ru
     try:
         open_issues = json.loads(issues.stdout or "[]")
         migration = []
+        applied_migrations = []
         for issue in open_issues:
             names = [item["name"] for item in issue.get("labels", [])]
+            if apply:
+                for drift in [*case_drift, *aliases]:
+                    if drift["existing"] not in names:
+                        continue
+                    result = runner(
+                        [gh, "issue", "edit", str(issue["number"]), "--repo", repository,
+                         "--add-label", drift["canonical"], "--remove-label", drift["existing"]],
+                        capture_output=True, text=True, timeout=30, check=False,
+                    )
+                    if result.returncode:
+                        raise ValueError(result.stderr.strip() or f"cannot migrate issue {issue['number']} label")
+                    applied_migrations.append({"number": issue["number"], **drift})
             if sum(name in taxonomy["primaryTypes"] for name in names) != 1 or sum(name in taxonomy["lifecycle"] for name in names) != 1 or not any(name in taxonomy["subsystems"] for name in names):
                 migration.append({"number": issue["number"], "url": issue["url"], "labels": names})
     except (json.JSONDecodeError, KeyError, TypeError) as error:
         raise ValueError("open issue audit returned invalid JSON") from error
-    return {"schemaVersion": 1, "kind": "label-reconciliation", "repository": repository, "applied": apply, "missing": missing, "caseDrift": case_drift, "aliases": aliases, "migrationAudit": migration}
+    return {"schemaVersion": 1, "kind": "label-reconciliation", "repository": repository, "applied": apply, "missing": missing, "caseDrift": case_drift, "aliases": aliases, "migrationAudit": migration, "appliedMigrations": applied_migrations}
 
 
 def transition_issue(repository: str, number: int, plan: dict, taxonomy: dict, *, runner=None, executable: str | None = None) -> dict:
@@ -217,7 +290,13 @@ def transition_issue(repository: str, number: int, plan: dict, taxonomy: dict, *
         names = [item["name"] for item in json.loads(current.stdout)["labels"]]
     except (json.JSONDecodeError, KeyError, TypeError) as error:
         raise ValueError("issue lifecycle response is invalid") from error
-    old = [label for label in names if label in taxonomy["lifecycle"] and label != receipt["lifecycle"]]
+    aliases = {key.lower(): value for key, value in taxonomy.get("aliases", {}).items()}
+    lifecycle = {label.lower(): label for label in taxonomy["lifecycle"]}
+    old = []
+    for label in names:
+        canonical = aliases.get(label.lower(), lifecycle.get(label.lower()))
+        if canonical in taxonomy["lifecycle"] and label != receipt["lifecycle"]:
+            old.append(label)
     command = [gh, "issue", "edit", str(number), "--repo", repository, "--add-label", receipt["lifecycle"]]
     for label in old:
         command.extend(("--remove-label", label))

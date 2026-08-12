@@ -2470,6 +2470,18 @@ def _validated_pr_audit_receipt(hook_input: dict, target: str) -> bool:
     )
 
 
+def _trusted_executable_token(token: str) -> bool:
+    canonical = shutil.which(Path(token).name)
+    if not canonical:
+        return False
+    supplied = Path(token)
+    resolved = shutil.which(token)
+    return bool(
+        resolved and Path(resolved).resolve() == Path(canonical).resolve()
+        and (supplied.parent == Path(".") or supplied.resolve() == Path(canonical).resolve())
+    )
+
+
 def _successful_pr_audit_event(hook_input: dict, command: str) -> str | None:
     """Bind one successful standalone canonical audit command to its exact receipt."""
     segments = _command_segments(command)
@@ -2484,11 +2496,22 @@ def _successful_pr_audit_event(hook_input: dict, command: str) -> str | None:
         receipt_path = Path(tokens[receipt_index + 1].strip("\"'"))
     except (ValueError, IndexError):
         return None
-    runtime_name = re.split(r"[/\\]", tokens[audit_index - 1].strip("\"'"))[-1].lower() if audit_index else ""
+    runtime_token = tokens[audit_index - 1].strip("\"'") if audit_index else ""
+    runtime_name = re.split(r"[/\\]", runtime_token)[-1].lower()
     head_name = re.split(r"[/\\]", tokens[0].strip("\"'"))[-1].lower() if tokens else ""
+    trusted_head = shutil.which(tokens[0].strip("\"'")) if tokens else None
+    runtime_path = Path(runtime_token)
+    if not runtime_path.is_absolute():
+        runtime_path = Path(_hook_working_directory(hook_input) or ".") / runtime_path
+    allowed_runtimes = {
+        (Path(_harness_root()) / "scripts/agents/act_as_mohab_cli.py").resolve(),
+        (Path(_harness_root()) / "bin/act-as-mohab.pyz").resolve(),
+    }
     if (
         runtime_name not in {"act_as_mohab_cli.py", "act-as-mohab.pyz"}
+        or runtime_path.resolve() not in allowed_runtimes
         or head_name not in {"py", "py.exe", "python", "python.exe", "python3", "python3.exe"}
+        or not trusted_head or not _trusted_executable_token(tokens[0].strip("\"'"))
         or not target.isdigit()
     ):
         return None
@@ -2532,6 +2555,7 @@ def _successful_delivery_event(hook_input: dict, command: str) -> str | None:
     runtime_token = tokens[operation - 1].strip("\"'") if operation else ""
     runtime_name = re.split(r"[/\\]", runtime_token)[-1].lower()
     head_name = re.split(r"[/\\]", tokens[0].strip("\"'"))[-1].lower() if tokens else ""
+    trusted_head = shutil.which(tokens[0].strip("\"'")) if tokens else None
     runtime_path = Path(runtime_token)
     if not runtime_path.is_absolute():
         runtime_path = Path(_hook_working_directory(hook_input) or ".") / runtime_path
@@ -2539,7 +2563,7 @@ def _successful_delivery_event(hook_input: dict, command: str) -> str | None:
         (Path(_harness_root()) / "scripts/agents/act_as_mohab_cli.py").resolve(),
         (Path(_harness_root()) / "bin/act-as-mohab.pyz").resolve(),
     }
-    if runtime_name not in {"act_as_mohab_cli.py", "act-as-mohab.pyz"} or runtime_path.resolve() not in allowed_runtimes or head_name not in {
+    if runtime_name not in {"act_as_mohab_cli.py", "act-as-mohab.pyz"} or runtime_path.resolve() not in allowed_runtimes or not trusted_head or not _trusted_executable_token(tokens[0].strip("\"'")) or head_name not in {
         "py", "py.exe", "python", "python.exe", "python3", "python3.exe"
     }:
         return None
@@ -2582,23 +2606,75 @@ def _successful_delivery_event(hook_input: dict, command: str) -> str | None:
     ):
         return None
     digest = hashlib.sha256(json.dumps(receipt, sort_keys=True).encode("utf-8")).hexdigest()
-    return f"delivery:{identity[0]}:{identity[2]}:{int(time.time())}:{digest}"
+    task_heads = [
+        {"repository": item.get("repository"), "head": item.get("headOid")}
+        for item in pull_requests
+    ]
+    return _checkpoint_json_event(
+        "delivery", identity[0], identity[1], identity[2],
+        observedAt=int(time.time()), digest=digest, taskHeads=task_heads,
+    )
+
+
+def _successful_authority_event(hook_input: dict, command: str) -> str | None:
+    """Record only canonical exact-head merge-authority validation."""
+    segments = _command_segments(command)
+    if len(segments) != 1:
+        return None
+    tokens = _segment_tokens(segments[0])
+    try:
+        operation = tokens.index("merge-authority")
+        receipt_index = tokens.index("--receipt-out", operation + 1)
+        receipt_path = Path(tokens[receipt_index + 1].strip("\"'"))
+    except (ValueError, IndexError):
+        return None
+    runtime_path = Path(tokens[operation - 1].strip("\"'"))
+    head_name = re.split(r"[/\\]", tokens[0].strip("\"'"))[-1].lower() if tokens else ""
+    trusted_head = shutil.which(tokens[0].strip("\"'")) if tokens else None
+    if not runtime_path.is_absolute():
+        runtime_path = Path(_hook_working_directory(hook_input) or ".") / runtime_path
+    allowed = {
+        (Path(_harness_root()) / "scripts/agents/act_as_mohab_cli.py").resolve(),
+        (Path(_harness_root()) / "bin/act-as-mohab.pyz").resolve(),
+    }
+    if runtime_path.resolve() not in allowed or not trusted_head or not _trusted_executable_token(tokens[0].strip("\"'")) or head_name not in {
+        "py", "py.exe", "python", "python.exe", "python3", "python3.exe"
+    }:
+        return None
+    if not receipt_path.is_absolute():
+        receipt_path = Path(_hook_working_directory(hook_input) or ".") / receipt_path
+    try:
+        receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+    identity = _checkpoint_identity(hook_input)
+    if not (
+        identity and isinstance(receipt, dict) and receipt.get("schemaVersion") == 1
+        and receipt.get("kind") == "merge-authority" and receipt.get("decision") == "allow"
+        and receipt.get("reasons") == [] and receipt.get("repository") == identity[0]
+        and receipt.get("headOid") == identity[2] and isinstance(receipt.get("pullRequest"), int)
+    ):
+        return None
+    digest = hashlib.sha256(json.dumps(receipt, sort_keys=True).encode()).hexdigest()
+    return f"merge-authority:{identity[0]}:{receipt['pullRequest']}:{identity[2]}:{digest}"
 
 
 def check_r28_pr_audit_before_arming(
     command: str, tool_name: str, hook_input: dict | None = None
 ) -> str | None:
-    """Require one fresh complete feedback receipt before auto-merge."""
+    """Require one fresh complete feedback receipt before Ready or auto-merge."""
     if tool_name not in ("Bash", "PowerShell") or not command:
         return None
+    environment_repository = _command_scoped_gh_repository(command)
     for segment in _command_segments(command):
         rest = _tokens_after_head(segment, frozenset({"gh"}))
+        repository = None
         if rest:
-            rest, _ = _split_gh_global_flags(rest)
-        if not rest or rest[:2] != ["pr", "merge"]:
+            rest, repository = _split_gh_global_flags(rest)
+        if not rest or rest[:2] not in (["pr", "merge"], ["pr", "ready"]):
             continue
         arguments = rest[2:]
-        auto_merge = any(
+        auto_merge = rest[:2] == ["pr", "ready"] or any(
             item == "--auto"
             or (item.lower().startswith("--auto=") and item.lower()[7:] not in {"false", "0", "f"})
             for item in arguments
@@ -2607,6 +2683,10 @@ def check_r28_pr_audit_before_arming(
             continue
         positional = [item for item in arguments if not item.startswith("-")]
         target = positional[0] if positional else ""
+        identity = _checkpoint_identity(hook_input or {})
+        repository = repository or environment_repository
+        if repository and (identity is None or repository.lower() != identity[0].lower()):
+            return "R28 blocked: the explicit target repository does not match this checkout's audit identity."
         if target.isdigit() and _validated_pr_audit_receipt(hook_input or {}, target):
             continue
         label = f"#{target}" if target else "the explicit pull request"
@@ -2623,20 +2703,26 @@ def check_r29_delivery_complete(hook_input: dict) -> str | None:
     events = ledger_events(hook_input)
     if "commit" not in events:
         return None
-    identity = _checkpoint_identity(hook_input)
-    if identity is not None:
-        prefix = f"delivery:{identity[0]}:{identity[2]}:"
-        now = int(time.time())
-        for event in reversed(events):
-            if not event.startswith(prefix):
-                continue
-            pieces = event.split(":")
-            try:
-                observed = int(pieces[-2])
-            except (ValueError, IndexError):
-                continue
-            if -60 <= now - observed <= 600:
-                return None
+    checkpoints = [
+        payload for payload in (_checkpoint_event_payload(event, "checkpoint") for event in events)
+        if payload
+    ]
+    required = {(item["repository"], item["head"].lower()) for item in checkpoints}
+    now = int(time.time())
+    for event in reversed(events):
+        payload = _checkpoint_event_payload(event, "delivery")
+        if not payload:
+            continue
+        try:
+            observed = int(payload.get("observedAt"))
+            task_heads = {
+                (item["repository"], item["head"].lower())
+                for item in payload.get("taskHeads", []) if isinstance(item, dict)
+            }
+        except (ValueError, TypeError, KeyError, AttributeError):
+            continue
+        if required and required.issubset(task_heads) and -60 <= now - observed <= 600:
+            return None
     return (
         "R29 blocked completion: this session committed work but has no fresh live delivery-status "
         "receipt proving every owned authorized PR has mergedAt, every feedback audit is clear, "
@@ -2644,6 +2730,36 @@ def check_r29_delivery_complete(hook_input: dict) -> str | None:
         "act_as_mohab_cli.py delivery-status --manifest <file> --receipt-out <file>` and keep the "
         "goal incomplete if merge authority is absent."
     )
+
+
+def check_r30_merge_authority_before_arming(command: str, tool_name: str, hook_input: dict | None = None) -> str | None:
+    """Require recorded exact-head authority before any PR merge mutation."""
+    if tool_name not in ("Bash", "PowerShell"):
+        return None
+    identity = _checkpoint_identity(hook_input or {})
+    events = ledger_events(hook_input or {})
+    environment_repository = _command_scoped_gh_repository(command or "")
+    for segment in _command_segments(command or ""):
+        rest = _tokens_after_head(segment, frozenset({"gh"}))
+        repository = None
+        if rest:
+            rest, repository = _split_gh_global_flags(rest)
+        if not rest or rest[:2] != ["pr", "merge"]:
+            continue
+        positional = [item for item in rest[2:] if not item.startswith("-")]
+        target = positional[0] if positional else ""
+        repository = repository or environment_repository
+        if repository and (identity is None or repository.lower() != identity[0].lower()):
+            return "R30 blocked: the explicit target repository does not match this checkout's authority identity."
+        prefix = f"merge-authority:{identity[0]}:{target}:{identity[2]}:" if identity and target.isdigit() else ""
+        if prefix and any(event.startswith(prefix) for event in events):
+            continue
+        return (
+            "R30 blocked: merge authority is not recorded for this exact repository, PR, and HEAD. "
+            "Run the canonical `merge-authority --manifest <file> --pr <number> --head <sha> "
+            "--receipt-out <file>` validation; when authority is absent, do not mutate the PR."
+        )
+    return None
 
 
 # A review counts only when it renders a verdict. `COMMENTED` is what an
@@ -2688,6 +2804,15 @@ def check_r22_dispatch_adapter(hook_input: dict, tool_name: str) -> str | None:
 
 
 _GH_GLOBAL_FLAGS_WITH_ARG = frozenset({"-R", "--repo"})
+
+
+def _command_scoped_gh_repository(command: str) -> str | None:
+    """Return an explicit GH_REPO assignment in Bash or PowerShell syntax."""
+    matches = re.findall(
+        r"(?i)(?:^|[\s;])(?:\$env:)?GH_REPO\s*=\s*(['\"]?)([^\s;'\"]+)\1",
+        command or "",
+    )
+    return matches[-1][1] if matches else None
 
 
 def _split_gh_global_flags(tokens: list[str]) -> tuple[list[str], str | None]:
@@ -3465,6 +3590,8 @@ def run_pretooluse(hook_input: dict, host: str = "portable") -> int:
         if reason is None:
             reason = check_r28_pr_audit_before_arming(command, tool_name, hook_input)
         if reason is None:
+            reason = check_r30_merge_authority_before_arming(command, tool_name, hook_input)
+        if reason is None:
             reason = check_r14_hard_reset(
                 command, tool_name, _hook_working_directory(hook_input)
             )
@@ -3515,6 +3642,9 @@ def run_posttooluse(hook_input: dict) -> int:
             delivery_event = _successful_delivery_event(hook_input, command)
             if delivery_event:
                 ledger_record(hook_input, delivery_event)
+            authority_event = _successful_authority_event(hook_input, command)
+            if authority_event:
+                ledger_record(hook_input, authority_event)
             for learning_event in _learning_loop_events(hook_input, command):
                 ledger_record(hook_input, learning_event)
             issue_event = _standalone_issue_created_event(
@@ -3526,6 +3656,47 @@ def run_posttooluse(hook_input: dict) -> int:
         tool_name, hook_input.get("tool_input"), result
     ):
         ledger_record(hook_input, event)
+    return 0
+
+
+def run_user_prompt_submit(hook_input: dict) -> int:
+    """Persist the latest explicit user merge decision outside the worktree."""
+    prompt = hook_input.get("prompt")
+    identity = _checkpoint_identity(hook_input)
+    cwd = _hook_working_directory(hook_input)
+    if not isinstance(prompt, str) or not prompt.strip() or identity is None or not cwd:
+        return 0
+    lowered = prompt.lower()
+    deny = re.search(
+        r"\b(?:do not|don't|never|without|no)\b[^.!?\n]{0,40}\b(?:auto-?merge|merge)\b",
+        lowered,
+    )
+    allow = None if "?" in lowered else re.search(
+        r"^\s*(?:please\s+)?(?:go ahead (?:and|to)\s+|you (?:may|can|should)\s+|"
+        r"(?:please\s+)?(?:do|now)\s+|(?:arm|enable)\s+auto-)?merge\s+(?:this|the|all|pr\b)",
+        lowered,
+    )
+    decision = "deny" if deny else ("allow" if allow else "neutral")
+    if decision == "neutral":
+        return 0
+    git_path = (_git_output(["rev-parse", "--git-path", "act-as-mohab/user-authority.json"], cwd) or "").strip()
+    if not git_path:
+        return 0
+    target = Path(git_path)
+    if not target.is_absolute():
+        target = Path(cwd) / target
+    receipt = {
+        "schemaVersion": 1, "kind": "user-merge-authority", "repository": identity[0],
+        "decision": decision, "observedAt": datetime.now(UTC).isoformat(),
+        "promptSha256": hashlib.sha256(prompt.encode("utf-8")).hexdigest(),
+    }
+    try:
+        target.parent.mkdir(parents=True, exist_ok=True)
+        temporary = target.with_suffix(f".{os.getpid()}.tmp")
+        temporary.write_text(json.dumps(receipt, sort_keys=True) + "\n", encoding="utf-8")
+        os.replace(temporary, target)
+    except OSError:
+        return 0
     return 0
 
 
@@ -4700,6 +4871,7 @@ _SELF_TEST_COVERAGE: dict[str, str] = {
     "check_r27_checkpoint_pull_request": "run_required_action_self_test",
     "check_r28_pr_audit_before_arming": "run_required_action_self_test",
     "check_r29_delivery_complete": "run_required_action_self_test",
+    "check_r30_merge_authority_before_arming": "run_required_action_self_test",
 }
 
 
@@ -4804,6 +4976,13 @@ _STOP_RULE_RENDERERS = {
             "_exact_head_pull_request": lambda repository, branch, head: ("none", None),
         },
         lambda: check_r27_checkpoint_pull_request({}, stopping=True),
+    ),
+    "check_r29_delivery_complete": lambda: _with_stubs(
+        {
+            "ledger_events": lambda payload: ["commit"],
+            "_checkpoint_identity": lambda payload: None,
+        },
+        lambda: check_r29_delivery_complete({}),
     ),
 }
 
@@ -5201,15 +5380,37 @@ def run_required_action_self_test() -> int:
         ) is not None,
     )
     identity = ("owner/repo", "ChaosEngine/task", "a" * 40)
-    delivery_event = f"delivery:{identity[0]}:{identity[2]}:{int(time.time())}:digest"
+    checkpoint_event = _checkpoint_json_event("checkpoint", *identity)
+    delivery_event = _checkpoint_json_event(
+        "delivery", *identity, observedAt=int(time.time()),
+        taskHeads=[{"repository": identity[0], "head": identity[2]}],
+    )
     check(
         "R29 allows completion after fresh exact-head delivery proof",
         _with_stubs(
             {
-                "ledger_events": lambda payload: ["commit", delivery_event],
+                "ledger_events": lambda payload: ["commit", checkpoint_event, delivery_event],
                 "_checkpoint_identity": lambda payload: identity,
             },
             lambda: check_r29_delivery_complete({}),
+        ) is None,
+    )
+    authority_identity = ("owner/repo", "ChaosEngine/task", "a" * 40)
+    check(
+        "R30 blocks merge without recorded exact-head authority",
+        _with_stubs(
+            {"ledger_events": lambda payload: [], "_checkpoint_identity": lambda payload: authority_identity},
+            lambda: check_r30_merge_authority_before_arming("gh pr merge 1 --auto --merge", "Bash", {}),
+        ) is not None,
+    )
+    check(
+        "R30 allows merge with recorded exact-head authority",
+        _with_stubs(
+            {
+                "ledger_events": lambda payload: [f"merge-authority:{authority_identity[0]}:1:{authority_identity[2]}:digest"],
+                "_checkpoint_identity": lambda payload: authority_identity,
+            },
+            lambda: check_r30_merge_authority_before_arming("gh pr merge 1 --auto --merge", "Bash", {}),
         ) is None,
     )
 
@@ -5614,6 +5815,8 @@ def main(argv: list[str]) -> int:
     event = hook_input.get("hook_event_name") or "PreToolUse"
     if event == "SessionStart":
         return run_session_start(hook_input)
+    if event == "UserPromptSubmit":
+        return run_user_prompt_submit(hook_input)
     if event in {"Stop", "SubagentStop"}:
         return run_stop(hook_input)
     if event == "PreToolUse":

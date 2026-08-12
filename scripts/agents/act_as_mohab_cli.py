@@ -21,16 +21,16 @@ try:
     from scripts.agents.planning_contract import validate_plan
     from scripts.agents.github_client import GitHubClient, GitHubUnavailable
     from scripts.agents.pr_audit import audit_snapshot, collect_pr_snapshot
-    from scripts.agents.delivery_status import collect_delivery, evaluate_delivery, inspect_cleanup
-    from scripts.agents.issue_filing import create_issue, prepare_issue_plan, receipt_digest, reconcile_labels, transition_issue, validate_issue_plan
+    from scripts.agents.delivery_status import collect_delivery, evaluate_delivery, inspect_cleanup, validate_authority
+    from scripts.agents.issue_filing import confirmation_digest, create_issue, prepare_issue_plan, receipt_digest, reconcile_labels, transition_issue, validate_issue_plan
 except ModuleNotFoundError:
     from repository_context import RepositoryContext, RepositoryContextError, resolve_repository_context
     import watch_pr_checks
     from planning_contract import validate_plan
     from github_client import GitHubClient, GitHubUnavailable
     from pr_audit import audit_snapshot, collect_pr_snapshot
-    from delivery_status import collect_delivery, evaluate_delivery, inspect_cleanup
-    from issue_filing import create_issue, prepare_issue_plan, receipt_digest, reconcile_labels, transition_issue, validate_issue_plan
+    from delivery_status import collect_delivery, evaluate_delivery, inspect_cleanup, validate_authority
+    from issue_filing import confirmation_digest, create_issue, prepare_issue_plan, receipt_digest, reconcile_labels, transition_issue, validate_issue_plan
 
 
 EXIT_ENVIRONMENT_ERROR = 3
@@ -186,6 +186,11 @@ def build_parser() -> argparse.ArgumentParser:
     add_context_arguments(transition)
     transition.add_argument("--issue", type=int, required=True)
     transition.add_argument("--input", type=Path, required=True)
+    authority = commands.add_parser("merge-authority", help="validate recorded authority for an exact PR head")
+    add_context_arguments(authority)
+    authority.add_argument("--manifest", type=Path, required=True)
+    authority.add_argument("--head", required=True)
+    authority.add_argument("--receipt-out", type=Path, required=True)
     commands.add_parser("mcp", help="serve the read-only operations over MCP stdio")
     return parser
 
@@ -249,8 +254,8 @@ def _tool_schemas() -> list[dict]:
             "name": "issue_plan",
             "description": "Validate an issue plan and search open and closed duplicates.",
             "inputSchema": {"type": "object", "properties": {
-                **context_properties, "plan": {"type": "object"}, "taxonomy": {"type": "object"}
-            }, "required": ["plan", "taxonomy"], "additionalProperties": False},
+                **context_properties, "plan": {"type": "object"}
+            }, "required": ["plan"], "additionalProperties": False},
         },
     ]
 
@@ -329,13 +334,14 @@ def call_tool(name: str, arguments: dict) -> dict:
             }
         if name == "issue_plan":
             context = context_from_arguments(_namespace(arguments))
-            receipt = prepare_issue_plan(arguments.get("plan"), arguments.get("taxonomy"), context.repo)
-            receipt["sha256"] = receipt_digest(
-                validate_issue_plan(receipt.get("normalizedPlan"), arguments.get("taxonomy"))
+            taxonomy = json.loads((context.root / ".github/issue-taxonomy.json").read_text(encoding="utf-8"))
+            receipt = prepare_issue_plan(arguments.get("plan"), taxonomy, context.repo)
+            receipt["sha256"] = confirmation_digest(
+                receipt.get("normalizedPlan"), taxonomy, context.repo
             )
             return {"content": [{"type": "text", "text": json.dumps(receipt, sort_keys=True)}], "isError": receipt["decision"] != "allow"}
         return {"content": [{"type": "text", "text": f"unknown tool: {name}"}], "isError": True}
-    except (RepositoryContextError, GitHubUnavailable, ValueError) as error:
+    except (RepositoryContextError, GitHubUnavailable, ValueError, TypeError, AttributeError, KeyError) as error:
         return {"content": [{"type": "text", "text": str(error)}], "isError": True}
 
 
@@ -486,6 +492,20 @@ def main(argv: list[str] | None = None) -> int:
             return EXIT_ENVIRONMENT_ERROR
         print(json.dumps(payload, sort_keys=True))
         return 0 if payload["decision"] == "allow" else 1
+    if parsed.command == "merge-authority":
+        try:
+            context = context_from_arguments(parsed)
+            if context.pr_number is None:
+                raise ValueError("merge-authority requires --pr")
+            manifest = json.loads(parsed.manifest.read_text(encoding="utf-8"))
+            payload = validate_authority(manifest, context.repo, context.pr_number, parsed.head, root=context.root)
+            parsed.receipt_out.parent.mkdir(parents=True, exist_ok=True)
+            parsed.receipt_out.write_text(json.dumps(payload, sort_keys=True) + "\n", encoding="utf-8")
+        except (OSError, json.JSONDecodeError, RepositoryContextError, ValueError) as error:
+            print(f"act-as-mohab: merge authority unavailable: {error}", file=sys.stderr)
+            return EXIT_ENVIRONMENT_ERROR
+        print(json.dumps(payload, sort_keys=True))
+        return 0 if payload["decision"] == "allow" else 1
     if parsed.command in {"issue-plan", "issue-create", "issue-labels", "issue-transition"}:
         try:
             context = context_from_arguments(parsed)
@@ -497,8 +517,8 @@ def main(argv: list[str] | None = None) -> int:
                 payload = transition_issue(context.repo, parsed.issue, plan, taxonomy)
             elif parsed.command == "issue-plan":
                 payload = prepare_issue_plan(plan, taxonomy, context.repo)
-                payload["sha256"] = receipt_digest(
-                    validate_issue_plan(payload.get("normalizedPlan"), taxonomy)
+                payload["sha256"] = confirmation_digest(
+                    payload.get("normalizedPlan"), taxonomy, context.repo
                 )
             else:
                 payload = create_issue(

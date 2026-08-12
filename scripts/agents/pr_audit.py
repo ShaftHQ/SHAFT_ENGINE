@@ -6,9 +6,12 @@ from datetime import UTC, datetime
 import hashlib
 import json
 from typing import Any
+from urllib.parse import urlparse
+import re
 
 
 SURFACES = ("threads", "reviews", "conversationComments", "annotations")
+DISPOSITION_MARKER = re.compile(r"<!-- act-as-mohab-disposition:([^\s>]+) -->\s*$")
 THREAD_QUERY = """
 query($owner:String!,$name:String!,$pr:Int!,$endCursor:String) {
   repository(owner:$owner,name:$name) { pullRequest(number:$pr) {
@@ -27,7 +30,7 @@ def _text(value: Any) -> bool:
 
 def _finding(surface: str, item: dict) -> bool:
     if surface == "threads":
-        return item.get("resolved") is not True
+        return _text(item.get("body"))
     if surface == "reviews":
         return item.get("state") != "DISMISSED" and _text(item.get("body"))
     if surface == "annotations":
@@ -35,8 +38,23 @@ def _finding(surface: str, item: dict) -> bool:
     return _text(item.get("body"))
 
 
-def _valid_disposition(value: object) -> bool:
-    if not isinstance(value, dict) or value.get("resolved") is not True or not _text(value.get("replyUrl")):
+def _github_url(value: object) -> bool:
+    if not _text(value):
+        return False
+    parsed = urlparse(value)
+    return parsed.scheme == "https" and parsed.netloc == "github.com"
+
+
+def _github_issue_url(value: object) -> bool:
+    return _github_url(value) and "/issues/" in urlparse(value).path
+
+
+def _valid_disposition(value: object, finding: dict, live_replies: set[tuple[str, str]]) -> bool:
+    if not isinstance(value, dict) or value.get("resolved") is not True or not _github_url(value.get("replyUrl")):
+        return False
+    if (value["replyUrl"], finding["id"]) not in live_replies:
+        return False
+    if finding["surface"] == "threads" and finding.get("liveResolved") is not True:
         return False
     kind = value.get("disposition")
     if kind == "valid":
@@ -44,7 +62,7 @@ def _valid_disposition(value: object) -> bool:
     if kind == "false-positive":
         return _text(value.get("justification"))
     if kind == "approved-follow-up":
-        return _text(value.get("issueUrl")) and _text(value.get("approvalEvidence"))
+        return _github_issue_url(value.get("issueUrl")) and _text(value.get("approvalEvidence"))
     return False
 
 
@@ -53,6 +71,7 @@ def collect_pr_snapshot(client, number: int) -> dict:
     if not isinstance(number, int) or isinstance(number, bool) or number < 1:
         raise ValueError("pull request number must be positive")
     pull = client.get(f"pulls/{number}")
+    pull_author = pull.get("user", {}).get("login") if isinstance(pull.get("user"), dict) else None
     head = pull.get("head", {}).get("sha") if isinstance(pull.get("head"), dict) else None
     if not _text(head):
         raise ValueError("pull request response has no head SHA")
@@ -128,10 +147,12 @@ def collect_pr_snapshot(client, number: int) -> dict:
         "body": item.get("body", ""), "state": str(item.get("state", "")).upper(),
     } for item in reviews_page["items"]]
     conversation = [{
-        "id": f"comment:{item.get('id')}", "url": item.get("html_url"), "body": item.get("body", "")
+        "id": f"comment:{item.get('id')}", "url": item.get("html_url"), "body": item.get("body", ""),
+        "author": item.get("user", {}).get("login") if isinstance(item.get("user"), dict) else None,
     } for item in comments_page["items"]]
     return {
         "repository": client.repository, "number": number, "url": pull.get("html_url"),
+        "author": pull_author,
         "headOid": head, "state": str(pull.get("state", "")).upper(),
         "isDraft": pull.get("draft"), "mergeStateStatus": str(pull.get("mergeable_state", "")).upper(),
         "mergedAt": pull.get("merged_at"), "autoMergeRequest": pull.get("auto_merge"),
@@ -195,7 +216,10 @@ def audit_snapshot(
                 reasons.append(f"invalid {surface} finding")
                 continue
             if _finding(surface, item):
-                findings.append({"id": item["id"], "url": item["url"], "surface": surface})
+                findings.append({
+                    "id": item["id"], "url": item["url"], "surface": surface,
+                    "liveResolved": item.get("resolved") if surface == "threads" else None,
+                })
     checks = snapshot.get("checks")
     if not isinstance(checks, list):
         reasons.append("invalid checks collection")
@@ -207,11 +231,28 @@ def audit_snapshot(
             if check.get("status") != "COMPLETED" or check.get("conclusion") not in {"SUCCESS", "NEUTRAL", "SKIPPED"}:
                 reasons.append(f"check not green: {check.get('name')}")
     dispositions = dispositions if isinstance(dispositions, dict) else {}
+    live_replies = {
+        (item["url"], match.group(1))
+        for item in snapshot.get("conversationComments", [])
+        if isinstance(item, dict) and _github_url(item.get("url")) and _text(item.get("body"))
+        and item.get("author") == snapshot.get("author")
+        for match in [DISPOSITION_MARKER.search(item["body"])]
+        if match and len(item["body"][:match.start()].strip()) >= 12
+    }
+    finding_ids = {finding["id"] for finding in findings}
+    evidenced_reply_urls = {url for url, finding_id in live_replies if finding_id in finding_ids}
+    findings = [
+        finding for finding in findings
+        if not (
+            finding["surface"] == "conversationComments"
+            and finding["url"] in evidenced_reply_urls
+        )
+    ]
     open_findings: list[dict] = []
     for finding in findings:
         disposition = dispositions.get(finding["id"])
         finding["disposition"] = disposition
-        if not _valid_disposition(disposition):
+        if not _valid_disposition(disposition, finding, live_replies):
             open_findings.append(finding)
     if open_findings:
         reasons.append(f"{len(open_findings)} feedback finding(s) remain unexamined, unanswered, or unresolved")

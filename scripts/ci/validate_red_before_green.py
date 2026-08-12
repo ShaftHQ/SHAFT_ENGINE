@@ -124,6 +124,7 @@ def restore_parent_tree(root: Path, revision: str, overlay: Path) -> None:
 def run_parent_code_test(
     root: Path, revision: str, production_path: str, test_path: str, child_test: str,
     class_name: str, method_name: str,
+    production_source: str | None = None,
 ) -> ParentTestOutcome:
     with tempfile.TemporaryDirectory() as temporary:
         overlay = Path(temporary)
@@ -132,6 +133,8 @@ def run_parent_code_test(
         test.parent.mkdir(parents=True, exist_ok=True)
         if not (overlay / production_path).is_file():
             raise ValueError(f"cannot read {production_path} at {revision}^")
+        if production_source is not None:
+            (overlay / production_path).write_text(production_source, encoding="utf-8")
         test.write_text(child_test, encoding="utf-8")
         target = ".".join(part for part in (module_name(test_path), class_name, method_name) if part)
         environment = os.environ | {
@@ -229,18 +232,28 @@ def validate(root: Path, revision: str, production_path: str, test_path: str) ->
     except ValueError:
         parent_test = ""
     child_test = source_at(root, revision, test_path)
+    child_production = source_at(root, revision, production_path)
     added = sorted(test_methods(child_test) - test_methods(parent_test))
     violations: list[str] = []
     for class_name, method_name in added:
         outcome = run_parent_code_test(
             root, revision, production_path, test_path, child_test, class_name, method_name
         )
-        if outcome.kind != "assertion failure":
+        child_outcome = None
+        if outcome.kind == "assertion failure":
+            child_outcome = run_parent_code_test(
+                root, revision, production_path, test_path, child_test, class_name, method_name,
+                production_source=child_production,
+            )
+        if outcome.kind != "assertion failure" or child_outcome.kind != "pass":
             prefix = f"{class_name}." if class_name else ""
-            details = f" ({outcome.details})" if outcome.details else ""
+            reported = outcome if outcome.kind != "assertion failure" else ParentTestOutcome(
+                f"child code {child_outcome.kind}", child_outcome.details
+            )
+            details = f" ({reported.details})" if reported.details else ""
             violations.append(
-                f"{test_path}: {prefix}{method_name} produced {outcome.kind}{details} "
-                f"against {production_path} at {revision}^; expected assertion failure"
+                f"{test_path}: {prefix}{method_name} produced {reported.kind}{details} "
+                f"for {production_path}; expected assertion failure on {revision}^ and pass on {revision}"
             )
     return violations
 

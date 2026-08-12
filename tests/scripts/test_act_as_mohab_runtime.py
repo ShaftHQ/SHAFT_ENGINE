@@ -53,6 +53,7 @@ class ActAsMohabRuntimeTest(unittest.TestCase):
             "repository-context", "watch-pr-checks", "checkpoint-status", "plan-validate",
             "pr-audit", "delivery-status", "issue-plan", "issue-create", "issue-labels",
             "issue-transition", "mcp"
+            , "merge-authority"
         ):
             self.assertIn(command, result.stdout)
 

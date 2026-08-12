@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 from pathlib import Path
+import json
 import shutil
 import subprocess  # nosec B404 - fixed read-only git commands.
 
@@ -17,6 +18,87 @@ except ModuleNotFoundError:
 
 def _text(value) -> bool:
     return isinstance(value, str) and bool(value.strip())
+
+
+def _authority_receipt(root: Path, repository: str) -> dict | None:
+    dot_git = root.resolve() / ".git"
+    try:
+        git_dir = Path(dot_git.read_text(encoding="utf-8").partition("gitdir:")[2].strip()).resolve() if dot_git.is_file() else dot_git.resolve()
+        receipt = json.loads((git_dir / "act-as-mohab/user-authority.json").read_text(encoding="utf-8"))
+        observed = datetime.fromisoformat(str(receipt.get("observedAt")))
+    except (OSError, ValueError, TypeError, json.JSONDecodeError):
+        return None
+    if (
+        receipt.get("schemaVersion") == 1 and receipt.get("kind") == "user-merge-authority"
+        and receipt.get("repository") == repository and receipt.get("decision") in {"allow", "deny", "neutral"}
+        and observed.tzinfo is not None
+    ):
+        return receipt
+    return None
+
+
+def _authority_valid(authority: object, repository: str, root: Path) -> bool:
+    current = _authority_receipt(root, repository)
+    if current and current["decision"] == "deny":
+        return False
+    if current and current["decision"] == "allow":
+        return True
+    if not isinstance(authority, dict) or authority.get("source") != "native-memory":
+        return False
+    repositories = authority.get("repositories")
+    try:
+        recorded = datetime.fromisoformat(str(authority.get("recordedAt")))
+    except ValueError:
+        return False
+    structurally_valid = (
+        recorded.tzinfo is not None and _text(authority.get("locator"))
+        and isinstance(repositories, list) and all(_text(item) for item in repositories)
+        and repository in repositories
+    )
+    if not structurally_valid:
+        return False
+    memory_root = root.resolve() / ".memory"
+    for sidecar in (memory_root / "memory").glob("**/*.json"):
+        try:
+            record = json.loads(sidecar.read_text(encoding="utf-8"))
+            if (
+                record.get("id") != authority["locator"] or record.get("status") != "active"
+                or record.get("type") != "decision" or "merge-authority" not in record.get("tags", [])
+                or authority["recordedAt"] != record.get("updated_at")
+            ):
+                continue
+            body_path = (memory_root / record["body_path"]).resolve()
+            body_path.relative_to(memory_root.resolve())
+            body = body_path.read_text(encoding="utf-8").lower()
+        except (OSError, ValueError, TypeError, KeyError, json.JSONDecodeError):
+            continue
+        repo_name = repository.rsplit("/", 1)[-1].lower().replace("_", "-").replace(".", "-")
+        scope_project = str(record.get("scope", {}).get("project", "")).lower().removeprefix("project.").replace("_", "-").replace(".", "-")
+        normalized_body = body.replace("_", "-").replace(".", " ")
+        record_id = str(record.get("id", "")).lower().replace("_", "-").replace(".", "-")
+        explicitly_standing = "standing merge authorization" in body or "merge autonomously" in body
+        if explicitly_standing and (
+            scope_project == repo_name or repo_name in record_id
+            or repo_name.replace("-", " ") in normalized_body
+            or (repo_name == "shaft-engine" and "shaft-engine" in normalized_body)
+        ):
+            return True
+    return False
+
+
+def validate_authority(manifest: object, repository: str, number: int, head: str, *, root: Path = Path(".")) -> dict:
+    reasons = []
+    owned = manifest.get("ownedPullRequests") if isinstance(manifest, dict) else None
+    match = next((item for item in owned or [] if isinstance(item, dict) and item.get("repository") == repository and item.get("number") == number and item.get("headOid") == head), None)
+    authority = match.get("authorityEvidence") if isinstance(match, dict) else None
+    valid = (
+        isinstance(match, dict) and match.get("mergeAuthorized") is True
+        and isinstance(number, int) and not isinstance(number, bool) and number > 0
+        and _text(head) and _authority_valid(authority, repository, root)
+    )
+    if not valid:
+        reasons.append("merge authority is absent or does not cover the exact repository, PR, and head")
+    return {"schemaVersion": 1, "kind": "merge-authority", "repository": repository, "pullRequest": number, "headOid": head, "observedAt": datetime.now(UTC).isoformat(), "decision": "allow" if not reasons else "block", "reasons": reasons, "authorityEvidence": authority}
 
 
 def evaluate_delivery(
@@ -57,14 +139,7 @@ def evaluate_delivery(
             unavailable = True
             continue
         authority = item.get("authorityEvidence")
-        authority_valid = (
-            isinstance(authority, dict)
-            and authority.get("source") in {"user-instruction", "native-memory"}
-            and _text(authority.get("locator"))
-            and _text(authority.get("recordedAt"))
-            and isinstance(authority.get("repositories"), list)
-            and item["repository"] in authority["repositories"]
-        )
+        authority_valid = _authority_valid(authority, item["repository"], Path(item.get("root") or "."))
         if item.get("mergeAuthorized") is not True or not authority_valid:
             reasons.append(f"merge authority is not recorded for {key}; keep the goal incomplete")
         if status.get("headOid") != item["headOid"]:
@@ -108,6 +183,8 @@ def collect_delivery(manifest: dict, *, default_root: Path) -> list[dict]:
         raise ValueError("delivery manifest must be an object")
     statuses = []
     for owned in manifest.get("ownedPullRequests", []):
+        if not isinstance(owned, dict):
+            raise ValueError("each owned pull request must be an object")
         repository = owned.get("repository")
         number = owned.get("number")
         root = Path(owned.get("root") or default_root)
@@ -143,6 +220,18 @@ def inspect_cleanup(manifest: dict, *, runner=None, executable: str | None = Non
         if not isinstance(target, dict) or not _text(target.get("root")) or not _text(target.get("defaultBranch")):
             raise ValueError("invalid cleanup repository target")
         root = Path(target["root"]).resolve()
+        named_worktree_values = target.get("taskWorktrees")
+        named_branches = target.get("taskBranches")
+        unrelated_values = target.get("unrelatedDirtyWorktrees")
+        if (
+            not isinstance(named_worktree_values, list) or not named_worktree_values
+            or not all(_text(value) for value in named_worktree_values)
+            or not isinstance(named_branches, list) or not named_branches
+            or not all(_text(value) for value in named_branches)
+            or not isinstance(unrelated_values, list)
+            or not all(_text(value) for value in unrelated_values)
+        ):
+            raise ValueError("cleanup scope must explicitly name task worktrees and branches")
         def git_read(*arguments):
             result = runner([git, *arguments], cwd=root, capture_output=True, text=True, timeout=10, check=False)
             if result.returncode:
@@ -157,17 +246,21 @@ def inspect_cleanup(manifest: dict, *, runner=None, executable: str | None = Non
             str(Path(line.removeprefix("worktree ")).resolve()).lower()
             for line in worktree_output.splitlines() if line.startswith("worktree ")
         }
-        named_worktrees = [str(Path(value).resolve()).lower() for value in target.get("taskWorktrees", [])]
+        named_worktrees = [str(Path(value).resolve()).lower() for value in named_worktree_values]
         worktrees_absent = not any(value in present_worktrees for value in named_worktrees)
         branch_output = git_read("branch", "--format=%(refname:short)").splitlines()
-        named_branches = target.get("taskBranches", [])
         branches_absent = not any(value in branch_output for value in named_branches)
-        preserved = []
-        for value in target.get("unrelatedDirtyWorktrees", []):
-            path = Path(value).resolve()
+        unrelated_expected = {str(Path(value).resolve()).lower() for value in unrelated_values}
+        unrelated_live = present_worktrees - {str(root).lower()} - set(named_worktrees)
+        observed_dirty = set()
+        for value in unrelated_live:
+            path = Path(value)
             dirty = runner([git, "status", "--porcelain"], cwd=path, capture_output=True, text=True, timeout=10, check=False)
-            preserved.append(dirty.returncode == 0 and bool(dirty.stdout.strip()))
-        dirty_preserved = all(preserved)
+            if dirty.returncode:
+                raise ValueError(dirty.stderr.strip() or f"cannot inspect unrelated worktree {path}")
+            if dirty.stdout.strip():
+                observed_dirty.add(value)
+        dirty_preserved = observed_dirty == unrelated_expected
         all_synced &= synced
         all_worktrees_absent &= worktrees_absent
         all_branches_absent &= branches_absent

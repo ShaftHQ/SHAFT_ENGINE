@@ -109,6 +109,13 @@ class PlanningContractTest(unittest.TestCase):
         plan["intent"]["answers"] = []
         self.assertEqual([], validate_plan(plan))
 
+    def test_discoverable_question_cannot_be_recorded_as_a_user_question(self):
+        plan = complete_plan()
+        plan["intent"]["questionsAsked"] = ["What is the default branch?"]
+        plan["intent"]["answers"] = ["main"]
+        plan["intent"]["discoverableQuestionsResolvedFromSources"] = []
+        self.assertTrue(any("discoverable" in item.lower() for item in validate_plan(plan)))
+
     def test_mermaid_is_conditional_not_decorative(self):
         plan = complete_plan()
         plan["diagramDecision"] = {

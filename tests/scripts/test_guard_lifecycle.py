@@ -1389,6 +1389,7 @@ class HardResetGateTest(unittest.TestCase):
 
 
 class PullRequestAuditBeforeArmingGateTest(unittest.TestCase):
+    """R28: auto-merge requires a fresh complete exact-head feedback audit."""
     def test_auto_merge_requires_a_clean_head_bound_audit_receipt(self):
         command = "gh pr merge 17 --auto --merge"
         with mock.patch.object(guard, "_validated_pr_audit_receipt", return_value=False):
@@ -1404,6 +1405,59 @@ class PullRequestAuditBeforeArmingGateTest(unittest.TestCase):
     def test_non_merge_commands_and_non_auto_merge_do_not_require_receipt(self):
         for command in ("gh pr view 17", "gh pr merge 17 --merge"):
             self.assertIsNone(guard.check_r28_pr_audit_before_arming(command, "PowerShell", {}))
+
+    def test_ready_and_cross_repository_merge_require_matching_audit(self):
+        identity = ("consumer/project", "ChaosEngine/task", "a" * 40)
+        with mock.patch.object(guard, "_checkpoint_identity", return_value=identity), mock.patch.object(guard, "_validated_pr_audit_receipt", return_value=False):
+            self.assertIn("audit", guard.check_r28_pr_audit_before_arming("gh pr ready 17", "PowerShell", {}))
+        with mock.patch.object(guard, "_checkpoint_identity", return_value=identity), mock.patch.object(guard, "_validated_pr_audit_receipt", return_value=True):
+            self.assertIn("repository", guard.check_r28_pr_audit_before_arming("gh pr merge 17 --repo other/project --auto --merge", "PowerShell", {}))
+
+
+class MergeAuthorityBeforeArmingGateTest(unittest.TestCase):
+    """R30: no PR merge mutation without recorded exact-head user authority."""
+
+    def test_merge_requires_exact_head_authority_event(self):
+        identity = ("consumer/project", "ChaosEngine/task", "a" * 40)
+        command = "gh pr merge 17 --auto --merge"
+        with mock.patch.object(guard, "_checkpoint_identity", return_value=identity), mock.patch.object(guard, "ledger_events", return_value=[]):
+            self.assertIn("authority", guard.check_r30_merge_authority_before_arming(command, "PowerShell", {}))
+        event = f"merge-authority:{identity[0]}:17:{identity[2]}:digest"
+        with mock.patch.object(guard, "_checkpoint_identity", return_value=identity), mock.patch.object(guard, "ledger_events", return_value=[event]):
+            self.assertIsNone(guard.check_r30_merge_authority_before_arming(command, "PowerShell", {}))
+
+        with mock.patch.object(guard, "_checkpoint_identity", return_value=identity), mock.patch.object(guard, "ledger_events", return_value=[event]):
+            self.assertIn("repository", guard.check_r30_merge_authority_before_arming("gh pr merge 17 --repo other/project --auto --merge", "PowerShell", {}))
+
+    def test_gh_repo_environment_cannot_redirect_a_merge(self):
+        identity = ("consumer/project", "ChaosEngine/task", "a" * 40)
+        events = [f"merge-authority:{identity[0]}:17:{identity[2]}:digest"]
+        with mock.patch.object(guard, "_checkpoint_identity", return_value=identity), mock.patch.object(guard, "ledger_events", return_value=events), mock.patch.object(guard, "_validated_pr_audit_receipt", return_value=True):
+            for command in ("GH_REPO=other/project gh pr merge 17 --auto --merge", "$env:GH_REPO='other/project'; gh pr merge 17 --auto --merge"):
+                self.assertIn("repository", guard.check_r28_pr_audit_before_arming(command, "PowerShell", {}))
+                self.assertIn("repository", guard.check_r30_merge_authority_before_arming(command, "PowerShell", {}))
+
+    def test_user_prompt_hook_persists_allow_deny_and_neutral_precedence(self):
+        identity = ("consumer/project", "ChaosEngine/task", "a" * 40)
+        with tempfile.TemporaryDirectory() as temporary:
+            target = Path(temporary) / "authority.json"
+            with mock.patch.object(guard, "_checkpoint_identity", return_value=identity), mock.patch.object(guard, "_hook_working_directory", return_value=temporary), mock.patch.object(guard, "_git_output", return_value=str(target)):
+                for prompt, decision in (("merge this PR", "allow"), ("do not merge this PR", "deny")):
+                    guard.run_user_prompt_submit({"prompt": prompt})
+                    self.assertEqual(decision, json.loads(target.read_text(encoding="utf-8"))["decision"])
+                for prompt in ("fix the test", "fix the merge conflicts"):
+                    guard.run_user_prompt_submit({"prompt": prompt})
+                    self.assertEqual("deny", json.loads(target.read_text(encoding="utf-8"))["decision"])
+                guard.run_user_prompt_submit({"prompt": "no merge until tomorrow"})
+                self.assertEqual("deny", json.loads(target.read_text(encoding="utf-8"))["decision"])
+                for prompt in ("do not arm auto-merge this PR", "please do not enable auto-merge for the PR", "should I merge this PR?"):
+                    guard.run_user_prompt_submit({"prompt": prompt})
+                    self.assertEqual("deny", json.loads(target.read_text(encoding="utf-8"))["decision"])
+
+    def test_executable_token_must_match_the_path_resolved_interpreter(self):
+        with mock.patch.object(guard.shutil, "which", side_effect=lambda value: "C:/Windows/py.exe" if Path(value).name.lower() == "py.exe" else None):
+            self.assertTrue(guard._trusted_executable_token("py.exe"))
+            self.assertFalse(guard._trusted_executable_token("C:/evil/py.exe"))
 
 
 class ReviewBeforeArmingGateTest(unittest.TestCase):
@@ -1769,6 +1823,7 @@ class LearningNoneEscapeTest(unittest.TestCase):
 
 
 class DeliveryCompleteStopGateTest(unittest.TestCase):
+    """R29: Stop requires live mergedAt and scoped-cleanup delivery proof."""
     def test_commit_cannot_complete_without_fresh_live_delivery_receipt(self):
         identity = ("consumer/project", "ChaosEngine/task", "a" * 40)
         with mock.patch.object(guard, "ledger_events", return_value=["commit"]), mock.patch.object(
@@ -1776,11 +1831,29 @@ class DeliveryCompleteStopGateTest(unittest.TestCase):
         ):
             reason = guard.check_r29_delivery_complete({"session_id": "s"})
         self.assertIn("delivery-status", reason)
-        event = f"delivery:{identity[0]}:{identity[2]}:{int(time.time())}:digest"
-        with mock.patch.object(guard, "ledger_events", return_value=["commit", event]), mock.patch.object(
+        checkpoint = guard._checkpoint_json_event("checkpoint", *identity)
+        event = guard._checkpoint_json_event("delivery", identity[0], identity[1], identity[2], observedAt=int(time.time()), taskHeads=[{"repository": identity[0], "head": identity[2]}])
+        with mock.patch.object(guard, "ledger_events", return_value=["commit", checkpoint, event]), mock.patch.object(
             guard, "_checkpoint_identity", return_value=identity
         ):
             self.assertIsNone(guard.check_r29_delivery_complete({"session_id": "s"}))
+
+    def test_cleanup_receipt_can_be_recorded_from_primary_after_task_worktree_removal(self):
+        task = ("consumer/project", "ChaosEngine/task", "a" * 40)
+        primary = ("consumer/project", "main", "b" * 40)
+        checkpoint = guard._checkpoint_json_event("checkpoint", *task)
+        event = guard._checkpoint_json_event("delivery", primary[0], "main", primary[2], observedAt=int(time.time()), taskHeads=[{"repository": task[0], "head": task[2]}])
+        with mock.patch.object(guard, "ledger_events", return_value=["commit", checkpoint, event]), mock.patch.object(
+            guard, "_checkpoint_identity", return_value=task
+        ):
+            self.assertIsNone(guard.check_r29_delivery_complete({"session_id": "s"}))
+
+    def test_unrelated_delivery_event_cannot_complete_this_task(self):
+        task = ("consumer/project", "ChaosEngine/task", "a" * 40)
+        event = guard._checkpoint_json_event("delivery", "other/project", "main", "b" * 40, observedAt=int(time.time()), taskHeads=[{"repository": "other/project", "head": "c" * 40}])
+        checkpoint = guard._checkpoint_json_event("checkpoint", *task)
+        with mock.patch.object(guard, "ledger_events", return_value=["commit", checkpoint, event]), mock.patch.object(guard, "_checkpoint_identity", return_value=task):
+            self.assertIn("delivery", guard.check_r29_delivery_complete({"session_id": "s"}))
 
     def test_read_only_session_owes_no_delivery_receipt(self):
         with mock.patch.object(guard, "ledger_events", return_value=[]):
@@ -2620,6 +2693,7 @@ class StopTestsAreIndependentOfLiveStateTest(unittest.TestCase):
         "LearningLoopStopGateTest",
         "RunStateStopGateTest",
         "ForeignWorktreeStopGateTest",
+        "DeliveryCompleteStopGateTest",
     )
 
     def subjects(self) -> unittest.TestSuite:

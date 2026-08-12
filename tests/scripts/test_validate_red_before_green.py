@@ -129,6 +129,8 @@ class ValidateRedBeforeGreenTest(unittest.TestCase):
             postlude = "\nGuardTest.test_added = unittest.TestSuite()\n"
         elif outcome == "mixed":
             cleanup = "        self.addCleanup(lambda: 1 / 0)\n"
+        elif outcome == "unconditional_failure":
+            statement = "self.fail('unrelated unconditional failure')"
         (root / "tests/scripts/test_guard.py").write_text(
             prelude
             + "from scripts.agents import guard\n"
@@ -189,6 +191,7 @@ class ValidateRedBeforeGreenTest(unittest.TestCase):
             "duplicated_stdout_spoof": "invalid result",
             "spoofed_result_file": "pass",
             "wrong_target": "wrong target",
+            "unconditional_failure": "child code assertion failure",
         }
         for outcome, expected_diagnostic in cases.items():
             with self.subTest(outcome=outcome):

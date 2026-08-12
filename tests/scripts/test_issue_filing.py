@@ -3,10 +3,11 @@
 import copy
 import json
 import subprocess
+import threading
 import unittest
 from pathlib import Path
 
-from scripts.agents.issue_filing import create_issue, prepare_issue_plan, receipt_digest, transition_issue, validate_issue_plan
+from scripts.agents.issue_filing import confirmation_digest, create_issue, prepare_issue_plan, receipt_digest, reconcile_labels, transition_issue, validate_issue_plan
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -67,7 +68,7 @@ class IssueFilingTest(unittest.TestCase):
     def test_confirmed_creation_rechecks_duplicates_and_marker(self):
         item = planned()
         receipt = validate_issue_plan(item, TAXONOMY)
-        confirmation = receipt_digest(receipt)
+        confirmation = confirmation_digest(item, TAXONOMY, "consumer/project")
         calls = []
         def runner(command, **kwargs):
             calls.append(command)
@@ -91,7 +92,7 @@ class IssueFilingTest(unittest.TestCase):
             planned(), TAXONOMY, "consumer/project", runner=empty_search, executable="gh"
         )
         normalized = prepared["normalizedPlan"]
-        confirmation = receipt_digest(validate_issue_plan(normalized, TAXONOMY))
+        confirmation = confirmation_digest(normalized, TAXONOMY, "consumer/project")
         def existing_marker(command, **kwargs):
             query = command[command.index("--search") + 1]
             if "act-as-mohab:" in query:
@@ -104,6 +105,39 @@ class IssueFilingTest(unittest.TestCase):
             runner=existing_marker, executable="gh",
         )
         self.assertTrue(reused["reused"])
+
+    def test_confirmation_binds_repository_and_full_issue_content(self):
+        item = planned()
+        digest = confirmation_digest(item, TAXONOMY, "consumer/project")
+        changed = copy.deepcopy(item); changed["body"] += "\nChanged"
+        self.assertNotEqual(digest, confirmation_digest(changed, TAXONOMY, "consumer/project"))
+        self.assertNotEqual(digest, confirmation_digest(item, TAXONOMY, "consumer/other"))
+
+    def test_concurrent_same_host_creation_is_serialized_and_reused(self):
+        item = planned()
+        confirmation = confirmation_digest(item, TAXONOMY, "consumer/project")
+        created = []
+        lock = threading.Lock()
+        def runner(command, **kwargs):
+            if command[1:3] == ["issue", "create"]:
+                with lock:
+                    created.append(1)
+                return subprocess.CompletedProcess(command, 0, "https://github.com/consumer/project/issues/9\n", "")
+            query = command[command.index("--search") + 1]
+            with lock:
+                exists = bool(created)
+            payload = '[{"url":"https://github.com/consumer/project/issues/9"}]' if "act-as-mohab:" in query and exists else "[]"
+            return subprocess.CompletedProcess(command, 0, payload, "")
+        results = []
+        threads = [threading.Thread(target=lambda: results.append(create_issue(item, TAXONOMY, "consumer/project", confirmation, runner=runner, executable="gh"))) for _ in range(2)]
+        for thread in threads: thread.start()
+        for thread in threads: thread.join()
+        self.assertEqual(1, len(created))
+        self.assertEqual(2, len(results))
+
+    def test_multiple_modules_require_cross_cutting(self):
+        item = planned(); item["labels"] = ["enhancement", "module:shaft-engine", "module:shaft-mcp", "ready"]
+        self.assertEqual("block", validate_issue_plan(item, TAXONOMY)["decision"])
 
     def test_blocked_to_ready_transition_removes_old_lifecycle(self):
         item = planned()
@@ -122,6 +156,34 @@ class IssueFilingTest(unittest.TestCase):
         self.assertIn("ready", edit)
         item = planned(); item["labels"] = ["enhancement", "cross-cutting", "module:shaft-engine", "module:shaft-mcp", "ready"]
         self.assertEqual("allow", validate_issue_plan(item, TAXONOMY)["decision"])
+
+    def test_transition_removes_lifecycle_alias_and_case_drift(self):
+        item = planned()
+        for existing in ("deferred", "BLOCKED"):
+            calls = []
+            def runner(command, **kwargs):
+                calls.append(command)
+                if command[1:3] == ["issue", "view"]:
+                    return subprocess.CompletedProcess(command, 0, json.dumps({"labels": [{"name": existing}]}), "")
+                return subprocess.CompletedProcess(command, 0, "", "")
+            transition_issue("consumer/project", 7, item, TAXONOMY, runner=runner, executable="gh")
+            self.assertIn(existing, calls[-1])
+
+    def test_reconciliation_migrates_alias_when_canonical_label_already_exists(self):
+        calls = []
+        def runner(command, **kwargs):
+            calls.append(command)
+            if command[1:3] == ["label", "list"]:
+                labels = [{"name": name} for name in [*TAXONOMY["primaryTypes"], *TAXONOMY["supplemental"], *TAXONOMY["lifecycle"], *TAXONOMY["subsystems"], "deferred"]]
+                return subprocess.CompletedProcess(command, 0, json.dumps(labels), "")
+            if command[1:3] == ["issue", "list"]:
+                return subprocess.CompletedProcess(command, 0, '[{"number":7,"url":"https://github.com/x/y/issues/7","labels":[{"name":"deferred"}]}]', "")
+            return subprocess.CompletedProcess(command, 0, "", "")
+        receipt = reconcile_labels("consumer/project", TAXONOMY, apply=True, runner=runner, executable="gh")
+        self.assertEqual("deferred", receipt["appliedMigrations"][0]["existing"])
+        edit = next(command for command in calls if command[1:3] == ["issue", "edit"])
+        self.assertIn("blocked", edit)
+        self.assertIn("deferred", edit)
 
 
 if __name__ == "__main__":

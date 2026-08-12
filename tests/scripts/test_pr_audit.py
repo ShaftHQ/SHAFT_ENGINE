@@ -11,6 +11,7 @@ def clean_snapshot() -> dict:
         "repository": "consumer/project",
         "number": 17,
         "url": "https://github.com/consumer/project/pull/17",
+        "author": "owner",
         "headOid": "abc123",
         "state": "OPEN",
         "isDraft": False,
@@ -24,6 +25,15 @@ def clean_snapshot() -> dict:
             for name in ("threads", "reviews", "conversationComments", "annotations")
         },
     }
+
+
+def add_live_reply(snapshot: dict, finding_id: str, suffix: str = "1") -> str:
+    url = f"https://github.com/consumer/project/pull/17#issuecomment-{suffix}"
+    snapshot["conversationComments"].append({
+        "id": f"comment:reply-{suffix}", "url": url, "author": "owner",
+        "body": f"Addressed with verified evidence. <!-- act-as-mohab-disposition:{finding_id} -->",
+    })
+    return url
 
 
 class PullRequestAuditTest(unittest.TestCase):
@@ -106,10 +116,12 @@ class PullRequestAuditTest(unittest.TestCase):
                 disposition = {
                     finding["id"]: {
                         "disposition": "valid",
-                        "replyUrl": "https://example/reply",
+                        "replyUrl": add_live_reply(snapshot, finding["id"]),
                         "resolved": True,
-                    }
+                    },
                 }
+                if surface == "threads":
+                    snapshot[surface][0]["resolved"] = True
                 self.assertEqual(
                     "allow", audit_snapshot(snapshot, disposition, expected_head="abc123")["decision"]
                 )
@@ -129,18 +141,18 @@ class PullRequestAuditTest(unittest.TestCase):
         }]
         false_positive = {"annotation:A1": {"disposition": "false-positive", "resolved": True}}
         self.assertEqual("block", audit_snapshot(snapshot, false_positive)["decision"])
-        false_positive["annotation:A1"].update(
-            replyUrl="https://example/reply", justification="Tool analyzed generated fixture, not runtime code."
-        )
+        false_positive["annotation:A1"].update(replyUrl=add_live_reply(snapshot, "annotation:A1"), justification="Tool analyzed generated fixture, not runtime code.")
         self.assertEqual("allow", audit_snapshot(snapshot, false_positive)["decision"])
 
         follow_up = {"annotation:A1": {
             "disposition": "approved-follow-up", "resolved": True,
-            "replyUrl": "https://example/reply", "issueUrl": "https://github.com/consumer/project/issues/22",
+            "replyUrl": add_live_reply(snapshot, "annotation:A1", "2"), "issueUrl": "https://github.com/consumer/project/issues/22",
         }}
         self.assertEqual("block", audit_snapshot(snapshot, follow_up)["decision"])
         follow_up["annotation:A1"]["approvalEvidence"] = "user instruction 2026-08-12"
         self.assertEqual("allow", audit_snapshot(snapshot, follow_up)["decision"])
+        follow_up["annotation:A1"]["issueUrl"] = "not-an-issue"
+        self.assertEqual("block", audit_snapshot(snapshot, follow_up)["decision"])
 
     def test_stale_head_incomplete_pagination_red_checks_and_malformed_data_fail_closed(self):
         for mutate, expected in (
@@ -162,6 +174,49 @@ class PullRequestAuditTest(unittest.TestCase):
         ]
         old = {"thread:old": {"disposition": "valid", "replyUrl": "https://example/reply", "resolved": True}}
         self.assertEqual(1, audit_snapshot(snapshot, old)["openFindingCount"])
+
+    def test_local_disposition_cannot_resolve_a_live_unresolved_thread(self):
+        snapshot = clean_snapshot()
+        snapshot["threads"] = [{"id": "thread:T", "url": "https://github.com/x/y/pull/1#discussion_r1", "body": "fix", "resolved": False}]
+        disposition = {"thread:T": {"disposition": "valid", "replyUrl": "https://github.com/x/y/pull/1#discussion_r2", "resolved": True}}
+        self.assertEqual("block", audit_snapshot(snapshot, disposition)["decision"])
+
+    def test_resolved_thread_still_requires_a_live_evidenced_disposition(self):
+        snapshot = clean_snapshot()
+        snapshot["threads"] = [{"id": "thread:T", "url": "https://github.com/x/y/pull/1#discussion_r1", "body": "fix this race", "resolved": True}]
+        self.assertEqual("block", audit_snapshot(snapshot, {})["decision"])
+        reply = add_live_reply(snapshot, "thread:T")
+        disposition = {"thread:T": {"disposition": "valid", "replyUrl": reply, "resolved": True}}
+        self.assertEqual("allow", audit_snapshot(snapshot, disposition)["decision"])
+
+    def test_marker_text_does_not_hide_a_substantive_comment_or_empty_reply(self):
+        snapshot = clean_snapshot()
+        snapshot["conversationComments"] = [{"id": "comment:C", "url": "https://github.com/x/y/pull/1#issuecomment-1", "body": "Unfixed security bug <!-- act-as-mohab-disposition:anything -->"}]
+        self.assertEqual("block", audit_snapshot(snapshot, {})["decision"])
+        snapshot = clean_snapshot()
+        snapshot["reviews"] = [{"id": "review:R", "url": "https://github.com/x/y/pull/1#review-1", "body": "fix", "state": "CHANGES_REQUESTED"}]
+        snapshot["conversationComments"] = [{"id": "comment:C", "url": "https://github.com/x/y/pull/1#issuecomment-2", "body": "<!-- act-as-mohab-disposition:review:R -->"}]
+        disposition = {"review:R": {"disposition": "valid", "replyUrl": snapshot["conversationComments"][0]["url"], "resolved": True}}
+        self.assertEqual("block", audit_snapshot(snapshot, disposition)["decision"])
+
+    def test_reply_marker_from_non_author_cannot_clear_finding(self):
+        snapshot = clean_snapshot()
+        snapshot["reviews"] = [{"id": "review:R", "url": "https://github.com/x/y/pull/1#review-1", "body": "fix", "state": "CHANGES_REQUESTED"}]
+        reply = add_live_reply(snapshot, "review:R")
+        snapshot["conversationComments"][-1]["author"] = "attacker"
+        disposition = {"review:R": {"disposition": "valid", "replyUrl": reply, "resolved": True}}
+        self.assertEqual("block", audit_snapshot(snapshot, disposition)["decision"])
+
+    def test_disposition_reply_must_exist_live_and_name_the_exact_finding(self):
+        snapshot = clean_snapshot()
+        snapshot["reviews"] = [{"id": "review:R", "url": "https://github.com/x/y/pull/1#pullrequestreview-1", "body": "fix", "state": "CHANGES_REQUESTED"}]
+        disposition = {"review:R": {"disposition": "valid", "replyUrl": "https://github.com/x/y/pull/1#issuecomment-99", "resolved": True}}
+        self.assertEqual("block", audit_snapshot(snapshot, disposition)["decision"])
+        disposition["review:R"]["replyUrl"] = add_live_reply(snapshot, "review:other")
+        self.assertEqual("block", audit_snapshot(snapshot, disposition)["decision"])
+        snapshot["conversationComments"] = []
+        disposition["review:R"]["replyUrl"] = add_live_reply(snapshot, "review:R", "2")
+        self.assertEqual("allow", audit_snapshot(snapshot, disposition)["decision"])
 
 
 if __name__ == "__main__":

@@ -27,6 +27,14 @@ def _iso_date(value: Any) -> bool:
     return True
 
 
+def _source_discoverable_question(value: str) -> bool:
+    lowered = value.lower()
+    return any(term in lowered for term in (
+        "default branch", "which file", "what file", "current version", "existing test",
+        "which module", "what module", "repository path", "current behavior",
+    ))
+
+
 def validate_plan(plan: object) -> list[str]:
     """Return deterministic violations for one consequential-work plan."""
     if not isinstance(plan, dict):
@@ -63,6 +71,8 @@ def validate_plan(plan: object) -> list[str]:
         valid_answers = isinstance(answers, list) and all(_text(item) for item in answers)
         if not valid_questions:
             violations.append("invalid intent questions")
+        elif any(_source_discoverable_question(item) for item in questions):
+            violations.append("source-discoverable questions must be resolved from repository evidence, not asked of the user")
         if not valid_answers or not valid_questions or len(answers) != len(questions):
             violations.append("missing intent answers corresponding to every question")
         discoverable = intent.get("discoverableQuestionsResolvedFromSources")
