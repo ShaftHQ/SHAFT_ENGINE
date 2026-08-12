@@ -364,6 +364,7 @@ public final class FailureTraceReporter {
                 <head>
                 <meta charset="utf-8">
                 <meta name="viewport" content="width=device-width, initial-scale=1">
+                <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data:; frame-src 'self'; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'">
                 <title>SHAFT Trace Report</title>
                 <style>
                 """ + ReportHtmlTheme.style() + """
@@ -383,6 +384,7 @@ public final class FailureTraceReporter {
                 .timeline-entry.clickable{cursor:pointer}
                 .timeline-entry.clickable:hover{background:rgba(var(--shaft-primary-rgb),.08)}
                 .timeline-entry.selected{background:rgba(var(--shaft-primary-rgb),.14)}
+                .timeline-entry.inwindow,.action.inwindow{background:rgba(var(--shaft-primary-rgb),.08)}
                 .time-cell{white-space:nowrap;font-variant-numeric:tabular-nums;color:var(--shaft-text-muted);min-width:86px}
                 .badge{font-size:.72em;font-weight:700;letter-spacing:.4px;padding:1px 7px;border-radius:10px;background:var(--shaft-surface);border:1px solid var(--shaft-border,#ccc);color:var(--shaft-text-muted);min-width:52px;text-align:center;flex:none}
                 .badge.kind-action{color:var(--shaft-primary);border-color:var(--shaft-primary)}
@@ -393,7 +395,22 @@ public final class FailureTraceReporter {
                 .trace-table tbody tr:hover{background:rgba(var(--shaft-primary-rgb),.08)}
                 .trace-table tr.inwindow{background:rgba(var(--shaft-primary-rgb),.10)}
                 .trace-table tr.failed td{color:var(--shaft-fail)}
+                .trace-navigator{margin-bottom:16px}
+                .range-controls{display:grid;grid-template-columns:auto 1fr auto 1fr auto;gap:8px;align-items:center}
+                .range-controls input{width:100%}
+                .filmstrip{display:flex;gap:8px;overflow-x:auto;padding:8px 2px}
+                .filmstrip button{min-width:132px;max-width:180px;padding:6px;text-align:left;background:var(--shaft-surface);color:var(--shaft-text)}
+                .filmstrip button.selected{border-color:var(--shaft-primary);box-shadow:0 0 0 3px rgba(var(--shaft-primary-rgb),.14)}
+                .filmstrip button:not(.inwindow){opacity:.58}
+                .filmstrip img{display:block;width:100%;height:76px;object-fit:contain;background:#fff;margin-bottom:4px}
+                .filmstrip-missing{display:grid;place-items:center;height:76px;border:1px dashed var(--shaft-border,#ccc);margin-bottom:4px;color:var(--shaft-text-muted)}
+                .comparison-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+                .comparison-grid section{min-width:0}
+                .comparison-grid iframe,.comparison-grid img{width:100%;height:360px;object-fit:contain;border:1px solid var(--shaft-border,#ccc);background:#fff}
+                :focus-visible{outline:3px solid var(--shaft-primary);outline-offset:2px}
+                @media(prefers-reduced-motion:reduce){*{scroll-behavior:auto!important;transition:none!important;animation:none!important}}
                 @media(max-width:900px){.trace-layout{grid-template-columns:1fr}}
+                @media(max-width:700px){.range-controls{grid-template-columns:1fr}.comparison-grid{grid-template-columns:1fr}}
                 </style>
                 </head>
                 <body>
@@ -414,6 +431,20 @@ public final class FailureTraceReporter {
                   <p class="muted" id="truncation-detail"></p>
                 </section>
                 <section class="panel trace-summary" id="trace-summary"></section>
+                <section class="panel trace-navigator" aria-labelledby="trace-navigator-title">
+                  <div class="toolbar">
+                    <h2 id="trace-navigator-title">Trace navigator</h2>
+                    <button type="button" class="secondary" id="show-all-range">Show all</button>
+                  </div>
+                  <div class="range-controls">
+                    <label for="range-start">Range start</label>
+                    <input id="range-start" type="range" min="0" max="1" value="0" step="1">
+                    <output id="range-label" aria-live="polite">Full trace</output>
+                    <input id="range-end" type="range" min="0" max="1" value="1" step="1">
+                    <label for="range-end">Range end</label>
+                  </div>
+                  <div id="trace-filmstrip" class="filmstrip" role="listbox" aria-label="Action screenshot filmstrip"></div>
+                </section>
                 <div class="trace-layout">
                   <aside class="panel">
                     <h2>Actions</h2>
@@ -431,6 +462,7 @@ public final class FailureTraceReporter {
                       <button data-tab="exception">Exception</button>
                       <button data-tab="source">Source</button>
                       <button data-tab="snapshot">Snapshot</button>
+                      <button data-tab="comparison">Comparison</button>
                       <button data-tab="domSnapshot">DOM Snapshot</button>
                       <button data-tab="screenshot">Screenshot</button>
                       <button data-tab="locatorHealth">Locator Health</button>
@@ -468,6 +500,13 @@ public final class FailureTraceReporter {
                            style="max-width:100%;border:1px solid var(--shaft-border,#ccc)">
                       <p id="screenshot-empty" class="muted" hidden>No screenshot captured for this action.</p>
                     </div>
+                    <div id="comparison-panel" hidden>
+                      <div class="comparison-grid">
+                        <section><h3>Before action</h3><iframe id="comparison-before" title="Before action DOM snapshot" sandbox=""></iframe><p id="comparison-before-empty" class="muted" hidden>No before-action snapshot was captured.</p></section>
+                        <section><h3>Action state</h3><img id="comparison-action" alt="Screenshot captured during the selected action"><p id="comparison-action-empty" class="muted" hidden>No action screenshot was captured.</p></section>
+                        <section><h3>After action</h3><iframe id="comparison-after" title="After action DOM snapshot" sandbox=""></iframe><p id="comparison-after-empty" class="muted" hidden>No after-action snapshot was captured.</p></section>
+                      </div>
+                    </div>
                     <div id="network-panel" hidden>
                       <p class="muted" id="network-hint"></p>
                       <table class="trace-table"><thead><tr><th>Time</th><th>Method</th><th>Status</th><th>ms</th><th>URL</th></tr></thead><tbody id="network-rows"></tbody></table>
@@ -495,18 +534,36 @@ public final class FailureTraceReporter {
                 const actionSearch = document.getElementById('action-search');
                 const details = document.getElementById('details');
                 const tabContent = document.getElementById('tab-content');
+                function hashState(){
+                  const raw = String(location.hash || '').replace(/^#/, '');
+                  if (!raw.startsWith('action-')) return {actionId:null, params:new URLSearchParams()};
+                  const separator = raw.indexOf('?');
+                  const encodedId = separator < 0 ? raw.slice(7) : raw.slice(7, separator);
+                  try {
+                    return {actionId:decodeURIComponent(encodedId),
+                      params:new URLSearchParams(separator < 0 ? '' : raw.slice(separator + 1))};
+                  } catch (ignored) {
+                    return {actionId:null, params:new URLSearchParams()};
+                  }
+                }
                 function actionFromHash(){
-                  const match = /^#action-(.+)$/.exec(decodeURIComponent(location.hash || ''));
-                  return match ? actions.find(action => action.id === match[1]) : null;
+                  const state = hashState();
+                  return state.actionId ? actions.find(action => action.id === state.actionId) : null;
                 }
                 let selected = actionFromHash()
                     || [...actions].reverse().find(action => action.status !== 'passed')
                     || actions[0] || null;
-                function selectAction(action){
+                function selectAction(action, selectItsRange = true, historyMode = 'push'){
                   selected = action;
-                  if (action && action.id) {
-                    history.replaceState(null, '', '#action-' + encodeURIComponent(action.id));
+                  if (selectItsRange && action) {
+                    const start = actionStartMs(action);
+                    if (start != null) {
+                      rangeStartMs = start;
+                      rangeEndMs = Math.max(start, start + Math.max(0, action.durationMs || 0));
+                    }
                   }
+                  updateHash(historyMode);
+                  renderNavigator();
                   renderActions();
                   renderDetails();
                 }
@@ -549,16 +606,52 @@ public final class FailureTraceReporter {
                 }
                 const allEntries = timelineEntries();
                 const baseTime = allEntries.reduce((min, entry) => entry.t != null && (min == null || entry.t < min) ? entry.t : min, null);
+                const traceEnd = allEntries.reduce((max, entry) => entry.t == null ? max
+                    : Math.max(max == null ? entry.t : max, entry.t + Math.max(0, entry.durationMs || 0)), baseTime);
+                const traceDuration = Math.max(1, (traceEnd ?? 1) - (baseTime ?? 0));
+                let rangeStartMs = baseTime;
+                let rangeEndMs = traceEnd;
+                const initialHash = hashState();
+                const initialHashRange = initialHash.params;
+                if (baseTime != null && initialHashRange.has('start') && initialHashRange.has('end')) {
+                  const startOffset = Number(initialHashRange.get('start'));
+                  const endOffset = Number(initialHashRange.get('end'));
+                  if (Number.isFinite(startOffset) && Number.isFinite(endOffset)) {
+                    rangeStartMs = baseTime + Math.max(0, Math.min(traceDuration, startOffset));
+                    rangeEndMs = baseTime + Math.max(0, Math.min(traceDuration, endOffset));
+                     if (rangeStartMs > rangeEndMs) [rangeStartMs, rangeEndMs] = [rangeEndMs, rangeStartMs];
+                   }
+                } else if (baseTime != null && initialHash.actionId && selected) {
+                  const start = actionStartMs(selected);
+                  if (start != null) {
+                    rangeStartMs = start;
+                    rangeEndMs = Math.max(start, start + Math.max(0, selected.durationMs || 0));
+                  }
+                }
                 function offsetLabel(t){
                   return t == null || baseTime == null ? '' : '+' + ((t - baseTime) / 1000).toFixed(3) + 's';
                 }
                 function selectedWindow(){
-                  const start = actionStartMs(selected);
-                  if (start == null) return null;
-                  return [start - 250, start + (selected.durationMs || 0) + 1000];
+                  return rangeStartMs == null || rangeEndMs == null ? null : [rangeStartMs, rangeEndMs];
                 }
                 function inWindow(t, range){
                   return range != null && t != null && t >= range[0] && t <= range[1];
+                }
+                function intervalOverlaps(start, durationMs, range){
+                  if (start == null || range == null) return false;
+                  const end = start + Math.max(0, durationMs || 0);
+                  return end >= range[0] && start <= range[1];
+                }
+                function actionInWindow(action, range){
+                  return intervalOverlaps(actionStartMs(action), action.durationMs, range);
+                }
+                function updateHash(mode = 'replace'){
+                  if (mode === 'none' || !selected || !selected.id) return;
+                  const start = baseTime == null || rangeStartMs == null ? 0 : Math.round(rangeStartMs - baseTime);
+                  const end = baseTime == null || rangeEndMs == null ? traceDuration : Math.round(rangeEndMs - baseTime);
+                  const hash = '#action-' + encodeURIComponent(selected.id) + '?start=' + start + '&end=' + end;
+                  if (mode === 'push') history.pushState(null, '', hash);
+                  else history.replaceState(null, '', hash);
                 }
                 function renderSummary(){
                   const test = trace.test || {};
@@ -589,13 +682,71 @@ public final class FailureTraceReporter {
                       `These bundle entries exceeded shaft.trace.maxArtifactMb and were replaced with omission markers: ${truncation.join(', ')}. Raise the cap to capture them in full.`;
                   }
                 }
+                const filmstrip = document.getElementById('trace-filmstrip');
+                const rangeStart = document.getElementById('range-start');
+                const rangeEnd = document.getElementById('range-end');
+                const rangeLabel = document.getElementById('range-label');
+                function applyRangeInputs(historyMode = 'none'){
+                  if (baseTime == null) return;
+                  const startOffset = Math.max(0, Math.min(traceDuration, Number(rangeStart.value)));
+                  const endOffset = Math.max(0, Math.min(traceDuration, Number(rangeEnd.value)));
+                  rangeStartMs = baseTime + Math.min(startOffset, endOffset);
+                  rangeEndMs = baseTime + Math.max(startOffset, endOffset);
+                  updateHash(historyMode);
+                  renderNavigator();
+                  renderActions();
+                  renderDetails();
+                }
+                function renderNavigator(){
+                  const startOffset = baseTime == null || rangeStartMs == null ? 0 : Math.max(0, rangeStartMs - baseTime);
+                  const endOffset = baseTime == null || rangeEndMs == null ? traceDuration : Math.max(0, rangeEndMs - baseTime);
+                  rangeStart.max = String(traceDuration);
+                  rangeEnd.max = String(traceDuration);
+                  rangeStart.value = String(Math.min(startOffset, endOffset));
+                  rangeEnd.value = String(Math.max(startOffset, endOffset));
+                  rangeStart.disabled = baseTime == null;
+                  rangeEnd.disabled = baseTime == null;
+                  rangeLabel.value = baseTime == null ? 'No timed evidence'
+                      : `${offsetLabel(rangeStartMs)} to ${offsetLabel(rangeEndMs)}`;
+                  filmstrip.innerHTML = '';
+                  if (!actions.length) {
+                    filmstrip.textContent = 'No actions were recorded for the filmstrip.';
+                    return;
+                  }
+                  const range = selectedWindow();
+                  actions.forEach(action => {
+                    const button = document.createElement('button');
+                    button.type = 'button';
+                    button.setAttribute('role', 'option');
+                    button.setAttribute('aria-selected', String(Boolean(selected && selected.id === action.id)));
+                    button.tabIndex = selected && selected.id === action.id ? 0 : -1;
+                    button.dataset.actionId = action.id || '';
+                    button.className = `${selected && selected.id === action.id ? 'selected ' : ''}${actionInWindow(action, range) ? 'inwindow' : ''}`.trim();
+                    if (action.screenshot) {
+                      const image = document.createElement('img');
+                      image.alt = '';
+                      image.src = 'data:image/png;base64,' + action.screenshot;
+                      button.appendChild(image);
+                    } else {
+                      const missing = document.createElement('span');
+                      missing.className = 'filmstrip-missing';
+                      missing.textContent = 'No screenshot';
+                      button.appendChild(missing);
+                    }
+                    const label = document.createElement('span');
+                    label.textContent = `${offsetLabel(actionStartMs(action))} ${action.name || 'Action'}`.trim();
+                    button.appendChild(label);
+                    button.addEventListener('click', () => selectAction(action));
+                    filmstrip.appendChild(button);
+                  });
+                }
                 function renderActions(){
                   actionList.innerHTML = '';
                   if(!actions.length){ actionList.textContent = 'No structured actions recorded.'; return; }
                   const query = actionSearch.value.toLowerCase();
                   actions.filter(action => !query || JSON.stringify(action).toLowerCase().includes(query)).forEach(action => {
                     const button = document.createElement('button');
-                    button.className = `action ${action.status}${selected && selected.id === action.id ? ' selected' : ''}`;
+                    button.className = `action ${action.status}${selected && selected.id === action.id ? ' selected' : ''}${actionInWindow(action, selectedWindow()) ? ' inwindow' : ''}`;
                     button.innerHTML = `<strong>${esc(action.name || 'Action')}</strong><div class="muted">${esc(action.category)} - ${esc(action.status)} - ${esc(action.durationMs || 0)}ms${action.screenshot ? ' 📷' : ''}</div>`;
                     button.addEventListener('click', () => selectAction(action));
                     actionList.appendChild(button);
@@ -625,10 +776,14 @@ public final class FailureTraceReporter {
                   if (!allEntries.length) { timelineList.textContent = 'No timeline events were recorded.'; return; }
                   const visibleEntries = allEntries.filter(matchesTimelineFilter);
                   if (!visibleEntries.length) { timelineList.textContent = 'No timeline events match this filter.'; return; }
+                  const range = selectedWindow();
                   visibleEntries.forEach(entry => {
                     const div = document.createElement('div');
                     const isSelected = entry.action && selected && entry.action.id === selected.id;
-                    div.className = `timeline-entry ${entry.status}${entry.action ? ' clickable' : ''}${isSelected ? ' selected' : ''}`;
+                    const overlaps = entry.kind === 'console'
+                        ? inWindow(entry.t, range)
+                        : intervalOverlaps(entry.t, entry.durationMs, range);
+                    div.className = `timeline-entry ${entry.status}${entry.action ? ' clickable' : ''}${isSelected ? ' selected' : ''}${overlaps ? ' inwindow' : ''}`;
                     const duration = entry.durationMs ? ` (${entry.durationMs}ms)` : '';
                     div.innerHTML = `<span class="time-cell">${esc(offsetLabel(entry.t))}</span><span class="badge kind-${entry.kind}">${entry.kind.toUpperCase()}</span><span class="timeline-label">${esc(entry.label)}${esc(duration)}</span>`;
                     if (entry.action) {
@@ -649,7 +804,7 @@ public final class FailureTraceReporter {
                   networkDetail.hidden = true;
                   network.forEach(entry => {
                     const tr = document.createElement('tr');
-                    tr.className = `${networkFailed(entry) ? 'failed' : ''}${inWindow(networkStartMs(entry), range) ? ' inwindow' : ''}`;
+                    tr.className = `${networkFailed(entry) ? 'failed' : ''}${intervalOverlaps(networkStartMs(entry), entry.durationMs, range) ? ' inwindow' : ''}`;
                     tr.innerHTML = `<td class="time-cell">${esc(offsetLabel(networkStartMs(entry)))}</td><td>${esc(entry.method)}</td><td>${esc(entry.status || 'FAILED')}</td><td>${esc(entry.durationMs || 0)}</td><td>${esc(entry.url)}</td>`;
                     tr.addEventListener('click', () => { networkDetail.hidden = false; networkDetail.textContent = JSON.stringify(entry, null, 2); });
                     networkRows.appendChild(tr);
@@ -684,12 +839,24 @@ public final class FailureTraceReporter {
                 }
                 const domSnapshotPanel = document.getElementById('dom-snapshot-panel');
                 const domSnapshotFrame = document.getElementById('dom-snapshot-frame');
+                const snapshotCsp = `<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; img-src data:; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'">`;
+                function snapshotDocument(html){
+                  const parsed = new DOMParser().parseFromString(
+                      html || '<p>No DOM snapshot captured for this action.</p>', 'text/html');
+                  parsed.querySelectorAll('script,style,link,base,meta,iframe,object,embed,video,audio,source,track')
+                      .forEach(element => element.remove());
+                  const resourceAttributes = ['src', 'srcset', 'href', 'xlink:href', 'poster', 'background',
+                    'action', 'formaction', 'ping', 'cite', 'manifest', 'style'];
+                  parsed.querySelectorAll('*').forEach(element =>
+                    resourceAttributes.forEach(attribute => element.removeAttribute(attribute)));
+                  return snapshotCsp + parsed.documentElement.outerHTML;
+                }
                 let selectedDomSide = 'before';
                 function renderDomSnapshot(){
                   const action = selected || {};
                   const html = domSnapshotFrame && (selectedDomSide === 'after' ? action.domSnapshotAfter : action.domSnapshotBefore);
                   if (domSnapshotFrame) {
-                    domSnapshotFrame.srcdoc = html || '<p>No DOM snapshot captured for this action.</p>';
+                    domSnapshotFrame.srcdoc = snapshotDocument(html);
                   }
                   document.querySelectorAll('#dom-snapshot-tabs button').forEach(button =>
                       button.classList.toggle('selected', button.dataset.dom === selectedDomSide));
@@ -706,13 +873,34 @@ public final class FailureTraceReporter {
                     screenshotImage.src = 'data:image/png;base64,' + action.screenshot;
                   }
                 }
+                const comparisonPanel = document.getElementById('comparison-panel');
+                const comparisonBefore = document.getElementById('comparison-before');
+                const comparisonAction = document.getElementById('comparison-action');
+                const comparisonAfter = document.getElementById('comparison-after');
+                function renderComparison(){
+                  const action = selected || {};
+                  const hasBefore = Boolean(action.domSnapshotBefore);
+                  const hasAction = Boolean(action.screenshot);
+                  const hasAfter = Boolean(action.domSnapshotAfter);
+                  comparisonBefore.hidden = !hasBefore;
+                  document.getElementById('comparison-before-empty').hidden = hasBefore;
+                  comparisonBefore.srcdoc = snapshotDocument(hasBefore ? action.domSnapshotBefore : '');
+                  comparisonAction.hidden = !hasAction;
+                  document.getElementById('comparison-action-empty').hidden = hasAction;
+                  comparisonAction.src = hasAction ? 'data:image/png;base64,' + action.screenshot : '';
+                  comparisonAfter.hidden = !hasAfter;
+                  document.getElementById('comparison-after-empty').hidden = hasAfter;
+                  comparisonAfter.srcdoc = snapshotDocument(hasAfter ? action.domSnapshotAfter : '');
+                }
                 function renderTab(tab){
                   const action = selected || {};
-                  const panels = {timeline: timelinePanel, domSnapshot: domSnapshotPanel, screenshot: screenshotPanel, network: networkPanel, console: consolePanel};
+                  const panels = {timeline: timelinePanel, comparison: comparisonPanel, domSnapshot: domSnapshotPanel, screenshot: screenshotPanel, network: networkPanel, console: consolePanel};
                   tabContent.hidden = tab in panels;
                   Object.entries(panels).forEach(([name, panel]) => panel.hidden = name !== tab);
                   if (tab === 'timeline') {
                     renderTimeline();
+                  } else if (tab === 'comparison') {
+                    renderComparison();
                   } else if (tab === 'domSnapshot') {
                     renderDomSnapshot();
                   } else if (tab === 'screenshot') {
@@ -735,6 +923,55 @@ public final class FailureTraceReporter {
                   await navigator.clipboard.writeText(JSON.stringify(trace, null, 2));
                 }
                 actionSearch.addEventListener('input', renderActions);
+                rangeStart.addEventListener('input', () => applyRangeInputs('none'));
+                rangeEnd.addEventListener('input', () => applyRangeInputs('none'));
+                rangeStart.addEventListener('change', () => applyRangeInputs('push'));
+                rangeEnd.addEventListener('change', () => applyRangeInputs('push'));
+                document.getElementById('show-all-range').addEventListener('click', () => {
+                  rangeStartMs = baseTime;
+                  rangeEndMs = traceEnd;
+                  updateHash('push');
+                  renderNavigator();
+                  renderActions();
+                  renderDetails();
+                });
+                filmstrip.addEventListener('keydown', event => {
+                  if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
+                  const options = [...filmstrip.querySelectorAll('button[role="option"]')];
+                  const current = Math.max(0, options.indexOf(document.activeElement));
+                  const next = event.key === 'ArrowRight'
+                      ? Math.min(options.length - 1, current + 1)
+                      : Math.max(0, current - 1);
+                  if (options[next]) {
+                    event.preventDefault();
+                    const nextActionId = options[next].dataset.actionId;
+                    options[next].click();
+                    const renderedOption = [...filmstrip.querySelectorAll('button[role="option"]')]
+                        .find(option => option.dataset.actionId === nextActionId);
+                    if (renderedOption) renderedOption.focus();
+                  }
+                });
+                function restoreLocationState(){
+                  const state = hashState();
+                  const action = state.actionId ? actions.find(candidate => candidate.id === state.actionId) : null;
+                  if (!action) return;
+                  const hasRange = state.params.has('start') && state.params.has('end');
+                  const startOffset = hasRange ? Number(state.params.get('start')) : NaN;
+                  const endOffset = hasRange ? Number(state.params.get('end')) : NaN;
+                  if (baseTime != null && Number.isFinite(startOffset) && Number.isFinite(endOffset)) {
+                    rangeStartMs = baseTime + Math.max(0, Math.min(traceDuration, Math.min(startOffset, endOffset)));
+                    rangeEndMs = baseTime + Math.max(0, Math.min(traceDuration, Math.max(startOffset, endOffset)));
+                  } else {
+                    const start = actionStartMs(action);
+                    if (start != null) {
+                      rangeStartMs = start;
+                      rangeEndMs = Math.max(start, start + Math.max(0, action.durationMs || 0));
+                    }
+                  }
+                  selectAction(action, false, 'none');
+                }
+                window.addEventListener('popstate', restoreLocationState);
+                window.addEventListener('hashchange', restoreLocationState);
                 document.querySelectorAll('#timeline-filters button').forEach(button => button.addEventListener('click', () => {
                   timelineFilter = button.dataset.filter;
                   document.querySelectorAll('#timeline-filters button').forEach(other => other.classList.toggle('selected', other === button));
@@ -743,6 +980,7 @@ public final class FailureTraceReporter {
                 document.querySelectorAll('#action-tabs button').forEach(button => button.addEventListener('click', () => renderTab(button.dataset.tab)));
                 document.querySelectorAll('#dom-snapshot-tabs button').forEach(button => button.addEventListener('click', () => { selectedDomSide = button.dataset.dom; renderDomSnapshot(); }));
                 renderSummary();
+                renderNavigator();
                 renderActions();
                 renderDetails();
                 </script>
