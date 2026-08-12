@@ -835,7 +835,15 @@ public final class FailureTraceReporter {
                   const status = finiteNumber(entry.status);
                   return status == null ? 'Unknown' : status > 0 ? String(status) : 'FAILED';
                 }
-                function networkType(){ return 'HTTP'; }
+                function networkType(entry){ return entry.type ? String(entry.type) : 'HTTP'; }
+                function headerSearchText(headers){
+                  return Object.entries(headers || {}).map(([name, value]) => `${name}: ${value}`).join(' ');
+                }
+                function networkSearchText(entry){
+                  return [entry.url, headerSearchText(entry.requestHeaders),
+                    headerSearchText(entry.responseHeaders), entry.bodyPreview]
+                    .filter(value => value != null).join(' ').toLowerCase();
+                }
                 function networkSize(entry){
                   const request = finiteNumber(entry.requestSizeBytes);
                   const response = finiteNumber(entry.responseSizeBytes);
@@ -891,7 +899,7 @@ public final class FailureTraceReporter {
                       || intervalOverlaps(networkStartMs(entry), entry.durationMs, range))
                     && (!networkMethodFilter.value || String(entry.method || 'UNKNOWN') === networkMethodFilter.value)
                     && (!networkStatusFilter.value || networkStatus(entry) === networkStatusFilter.value)
-                    && (!query || JSON.stringify(entry).toLowerCase().includes(query)))
+                    && (!query || networkSearchText(entry).includes(query)))
                     .sort(compareNetwork);
                   networkResultCount.textContent = `${visible.length} network ${visible.length === 1 ? 'exchange' : 'exchanges'}`;
                   document.getElementById('network-hint').textContent = !network.length
@@ -904,7 +912,7 @@ public final class FailureTraceReporter {
                     tr.className = `${networkFailed(entry) ? 'failed ' : ''}${timed ? 'inwindow' : ''}`.trim();
                     const duration = finiteNumber(entry.durationMs);
                     const size = networkSize(entry);
-                    tr.innerHTML = `<td class="time-cell">${esc(offsetLabel(networkStartMs(entry)))}</td><td>${networkType(entry)}</td><td>${esc(entry.method || 'Unknown')}</td><td>${esc(networkStatus(entry))}</td><td>${duration == null ? 'Unknown' : `${duration}ms`}</td><td>${size == null ? 'Unknown' : `${size} B`}</td><td>${esc(entry.url || 'Unknown')}</td><td><button type="button" class="secondary">View request details</button></td>`;
+                    tr.innerHTML = `<td class="time-cell">${esc(offsetLabel(networkStartMs(entry)))}</td><td>${esc(networkType(entry))}</td><td>${esc(entry.method || 'Unknown')}</td><td>${esc(networkStatus(entry))}</td><td>${duration == null ? 'Unknown' : `${duration}ms`}</td><td>${size == null ? 'Unknown' : `${size} B`}</td><td>${esc(entry.url || 'Unknown')}</td><td><button type="button" class="secondary">View request details</button></td>`;
                     tr.querySelector('button').addEventListener('click', () => {
                       networkDetail.hidden = false;
                       networkDetail.textContent = JSON.stringify(entry, null, 2);
@@ -921,6 +929,9 @@ public final class FailureTraceReporter {
                 const consoleTextFilter = document.getElementById('console-text-filter');
                 const consoleResultCount = document.getElementById('console-result-count');
                 let consoleSort = {key:'time', direction:'ascending'};
+                function consoleSearchText(entry){
+                  return String(entry.message || '').toLowerCase();
+                }
                 function consoleSortValue(entry, key){
                   const value = key === 'time' ? finiteNumber(entry.timestamp)
                     : entry[key] ? String(entry[key]) : null;
@@ -965,7 +976,7 @@ public final class FailureTraceReporter {
                     (finiteNumber(entry.timestamp) == null || inWindow(entry.timestamp, range))
                     && (!consoleSourceFilter.value || String(entry.source || 'Unknown') === consoleSourceFilter.value)
                     && (!consoleLevelFilter.value || String(entry.level || 'Unknown') === consoleLevelFilter.value)
-                    && (!query || JSON.stringify(entry).toLowerCase().includes(query)))
+                    && (!query || consoleSearchText(entry).includes(query)))
                     .sort(compareConsole);
                   consoleResultCount.textContent = `${visible.length} console ${visible.length === 1 ? 'message' : 'messages'}`;
                   document.getElementById('console-hint').textContent = !consoleEvents.length

@@ -75,6 +75,29 @@ public class TraceViewerBrowserAcceptanceTest {
             page.locator("#network-sort-size button").press("Enter");
             Assert.assertEquals(page.locator("#network-rows tr").first().locator("td").nth(5).textContent(), "30 B");
             Assert.assertEquals(page.locator("#network-sort-size").getAttribute("aria-sort"), "descending");
+            page.locator("#network-sort-status button").click();
+            Assert.assertEquals(page.locator("#network-rows tr td:nth-child(4)").allTextContents(),
+                    List.of("200", "503"));
+            page.locator("#network-sort-status button").click();
+            Assert.assertEquals(page.locator("#network-rows tr td:nth-child(4)").allTextContents(),
+                    List.of("503", "200"));
+            page.locator("#network-sort-duration button").click();
+            Assert.assertEquals(page.locator("#network-rows tr td:nth-child(5)").allTextContents(),
+                    List.of("45ms", "200ms"));
+            page.evaluate("""
+                    () => {
+                      network.push({type:'<img id="network-type-injection"> WebSocket', method:'GET',
+                        url:'ws://example.test/socket', status:101,
+                        requestSizeBytes:0, responseSizeBytes:0, durationMs:5, timestamp:traceEnd});
+                      renderNetwork();
+                    }
+                    """);
+            page.locator("#network-sort-type button").click();
+            Assert.assertEquals(page.locator("#network-rows tr td:nth-child(2)").allTextContents(),
+                    List.of("<img id=\"network-type-injection\"> WebSocket", "HTTP", "HTTP"));
+            Assert.assertEquals(page.locator("#network-type-injection").count(), 0,
+                    "Network type must render hostile text without creating markup.");
+            page.evaluate("() => { network.pop(); renderNetwork(); }");
 
             page.locator("#network-method-filter").selectOption("POST");
             Assert.assertEquals(page.locator("#network-result-count").textContent(), "1 network exchange");
@@ -84,8 +107,14 @@ public class TraceViewerBrowserAcceptanceTest {
             Assert.assertEquals(page.locator("#network-rows tr").count(), 1);
             Assert.assertEquals(page.locator("#network-rows tr td").nth(3).textContent(), "503");
             page.locator("#network-status-filter").selectOption("");
+            page.locator("#network-method-filter").selectOption("GET");
+            page.locator("#network-status-filter").selectOption("503");
             page.locator("#network-text-filter").fill("retry later");
             Assert.assertEquals(page.locator("#network-rows tr").count(), 1);
+            page.locator("#network-method-filter").selectOption("POST");
+            Assert.assertEquals(page.locator("#network-rows tr").count(), 0,
+                    "Method, status, text, and range predicates compose with AND semantics.");
+            page.locator("#network-method-filter").selectOption("GET");
             Assert.assertEquals(page.locator("#network-hint").textContent(),
                     "Use View request details to inspect headers and body preview.");
             Assert.assertEquals(page.locator("#network-rows tr button").textContent(), "View request details");
@@ -93,6 +122,24 @@ public class TraceViewerBrowserAcceptanceTest {
             page.locator("#network-rows tr button").press("Enter");
             Assert.assertTrue(page.locator("#network-detail").textContent().contains("request-value"));
             Assert.assertTrue(page.locator("#network-detail").textContent().contains("retry later"));
+            @SuppressWarnings("unchecked")
+            Map<String, Object> networkDetail = (Map<String, Object>) page.evaluate(
+                    "JSON.parse(document.getElementById('network-detail').textContent)");
+            Assert.assertEquals(networkDetail.get("failureReason"), "upstream unavailable");
+            Assert.assertEquals(((Number) networkDetail.get("requestSizeBytes")).intValue(), 5);
+            Assert.assertEquals(((Number) networkDetail.get("responseSizeBytes")).intValue(), 12);
+            Assert.assertTrue(String.valueOf(networkDetail.get("requestHeaders")).contains("network-injection"));
+            Assert.assertTrue(String.valueOf(networkDetail.get("responseHeaders")).contains("response-value"));
+            Assert.assertEquals(page.locator("#network-injection").count(), 0,
+                    "Network detail must render hostile text without creating markup.");
+            page.locator("#network-method-filter").selectOption("");
+            page.locator("#network-status-filter").selectOption("");
+            page.locator("#network-text-filter").fill("503");
+            Assert.assertEquals(page.locator("#network-result-count").textContent(), "0 network exchanges",
+                    "Network text search must not duplicate the dedicated status filter.");
+            page.locator("#network-text-filter").fill("timestamp");
+            Assert.assertEquals(page.locator("#network-result-count").textContent(), "0 network exchanges",
+                    "Search matches advertised values, not JSON property names.");
             page.locator("#network-text-filter").fill("no-such-exchange");
             Assert.assertEquals(page.locator("#network-result-count").textContent(), "0 network exchanges");
             Assert.assertTrue(page.locator("#network-hint").textContent().contains("match"));
@@ -146,6 +193,12 @@ public class TraceViewerBrowserAcceptanceTest {
             Assert.assertEquals(page.locator("#console-rows tr").count(), 1);
             Assert.assertTrue(page.locator("#console-rows tr").textContent().contains("retry scheduled"));
             page.locator("#console-source-filter").selectOption("");
+            page.locator("#console-text-filter").fill("browser");
+            Assert.assertEquals(page.locator("#console-result-count").textContent(), "0 console messages",
+                    "Console text search must not duplicate the dedicated source filter.");
+            page.locator("#console-text-filter").fill("message");
+            Assert.assertEquals(page.locator("#console-result-count").textContent(), "0 console messages",
+                    "Console search matches values, not JSON property names.");
             page.locator("#console-text-filter").fill("no-such-message");
             Assert.assertEquals(page.locator("#console-result-count").textContent(), "0 console messages");
             Assert.assertTrue(page.locator("#console-hint").textContent().contains("match"));
@@ -280,6 +333,17 @@ public class TraceViewerBrowserAcceptanceTest {
                     .getAttribute("class").contains("inwindow"));
 
             page.locator("button[data-tab=network]").click();
+            page.evaluate("""
+                    () => {
+                      network.push({method:'DELETE', url:'https://example.test/out-of-range', status:204,
+                        requestSizeBytes:1, responseSizeBytes:0, durationMs:1, timestamp:traceEnd});
+                      populateNetworkFilters();
+                      renderNetwork();
+                    }
+                    """);
+            Assert.assertEquals(page.locator("#network-result-count").textContent(), "3 network exchanges");
+            Assert.assertEquals(page.locator("#network-rows tr").filter(
+                    new com.microsoft.playwright.Locator.FilterOptions().setHasText("out-of-range")).count(), 0);
             int historyBeforeRangeInput = ((Number) page.evaluate("history.length")).intValue();
             page.evaluate("""
                     () => {
@@ -302,7 +366,14 @@ public class TraceViewerBrowserAcceptanceTest {
             page.locator("#range-end").dispatchEvent("change");
             Assert.assertEquals(((Number) page.evaluate("history.length")).intValue(), historyBeforeRangeInput + 1,
                     "A committed range change must create one history entry.");
+            Assert.assertEquals(page.locator("#network-result-count").textContent(), "3 network exchanges");
+            Assert.assertEquals(page.locator("#network-rows tr").filter(
+                    new com.microsoft.playwright.Locator.FilterOptions().setHasText("out-of-range")).count(), 0,
+                    "A timed exchange outside the selected range must be excluded.");
             Assert.assertTrue(page.locator("#network-rows tr").first().getAttribute("class").contains("inwindow"));
+            page.locator("#network-method-filter").selectOption("DELETE");
+            Assert.assertEquals(page.locator("#network-result-count").textContent(), "0 network exchanges",
+                    "A matching field filter must not bypass the selected time range.");
             Assert.assertTrue(page.locator("#trace-filmstrip button").first().getAttribute("class").contains("inwindow"));
             page.locator("button[data-tab=timeline]").click();
             Assert.assertTrue(page.locator(".timeline-entry").filter(
@@ -319,11 +390,40 @@ public class TraceViewerBrowserAcceptanceTest {
             page.locator("#show-all-range").click();
             Assert.assertEquals(((Number) page.evaluate("history.length")).intValue(), historyBeforeShowAll + 1);
             Assert.assertEquals(page.locator("#trace-filmstrip button.inwindow").count(), 3);
+            page.locator("button[data-tab=network]").click();
+            Assert.assertEquals(page.locator("#network-result-count").textContent(), "1 network exchange");
+            Assert.assertEquals(page.locator("#network-rows tr").filter(
+                    new com.microsoft.playwright.Locator.FilterOptions().setHasText("out-of-range")).count(), 1);
+            page.locator("#network-method-filter").selectOption("");
+            Assert.assertEquals(page.locator("#network-result-count").textContent(), "4 network exchanges");
+            page.locator("button[data-tab=console]").click();
             page.goBack();
             Assert.assertEquals(String.valueOf(page.locator("#range-label").evaluate("element => element.value")),
                     selectedRange);
             page.goForward();
             Assert.assertEquals(page.locator("#trace-filmstrip button.inwindow").count(), 3);
+            page.evaluate("""
+                    () => {
+                      window.__networkBackup = network.splice(0);
+                      window.__consoleBackup = consoleEvents.splice(0);
+                      renderNetwork();
+                      renderConsole();
+                    }
+                    """);
+            page.locator("button[data-tab=network]").click();
+            Assert.assertEquals(page.locator("#network-result-count").textContent(), "0 network exchanges");
+            Assert.assertEquals(page.locator("#network-hint").textContent(), "No network exchanges were recorded.");
+            page.locator("button[data-tab=console]").click();
+            Assert.assertEquals(page.locator("#console-result-count").textContent(), "0 console messages");
+            Assert.assertEquals(page.locator("#console-hint").textContent(), "No console messages were recorded.");
+            page.evaluate("""
+                    () => {
+                      network.push(...window.__networkBackup);
+                      consoleEvents.push(...window.__consoleBackup);
+                      renderNetwork();
+                      renderConsole();
+                    }
+                    """);
             page.screenshot(new Page.ScreenshotOptions().setPath(screenshot).setFullPage(true));
             Assert.assertTrue(pageErrors.isEmpty(), "Page errors: " + pageErrors);
             Assert.assertTrue(externalRequests.isEmpty(), "External requests: " + externalRequests);
@@ -359,7 +459,8 @@ public class TraceViewerBrowserAcceptanceTest {
                     "POST", "https://example.test/payment", 200, Map.of(), Map.of(),
                     200, 10, 20, "", "ok"));
             BrowserObservabilityRecorder.recordNetwork(new BrowserObservabilityRecorder.NetworkObservation(
-                    "GET", "https://example.test/orders", 503, Map.of("x-request", "request-value"),
+                    "GET", "https://example.test/orders", 503,
+                    Map.of("x-request", "request-value <img id=network-injection>"),
                     Map.of("x-response", "response-value"), 45, 5, 12, "upstream unavailable", "retry later"));
             long consoleBaseTime = System.currentTimeMillis();
             BrowserObservabilityRecorder.recordConsole("browser", "ERROR",
