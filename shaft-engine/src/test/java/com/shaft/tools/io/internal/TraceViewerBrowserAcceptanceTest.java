@@ -56,6 +56,61 @@ public class TraceViewerBrowserAcceptanceTest {
             Assert.assertEquals(page.locator("#range-start").inputValue(), "50");
             Assert.assertEquals(page.locator("#range-end").inputValue(), "200");
 
+            page.locator("#show-all-range").click();
+            page.locator("button[data-tab=network]").click();
+            Assert.assertEquals(page.locator("#network-result-count").textContent(), "2 network exchanges");
+            Assert.assertEquals(page.locator("#network-method-filter option").count(), 3);
+            Assert.assertEquals(page.locator("#network-status-filter option").count(), 3);
+            Assert.assertEquals(page.locator("#network-sort-method").getAttribute("aria-sort"), "ascending");
+            Assert.assertEquals(page.locator("#network-rows tr").count(), 2);
+            Assert.assertEquals(page.locator("#network-rows tr").first().locator("td").nth(2).textContent(), "GET");
+            Assert.assertEquals(page.locator("#network-rows tr").first().locator("td").nth(5).textContent(), "17 B");
+            Assert.assertEquals(page.locator("#network-rows tr").nth(1).locator("td").nth(5).textContent(), "30 B");
+
+            page.locator("#network-sort-size button").click();
+            Assert.assertEquals(page.locator("#network-rows tr").first().locator("td").nth(5).textContent(), "17 B");
+            Assert.assertEquals(page.locator("#network-panel th[aria-sort]").count(), 1);
+            Assert.assertEquals(page.locator("#network-sort-size").getAttribute("aria-sort"), "ascending");
+            page.locator("#network-sort-size button").press("Enter");
+            Assert.assertEquals(page.locator("#network-rows tr").first().locator("td").nth(5).textContent(), "30 B");
+            Assert.assertEquals(page.locator("#network-sort-size").getAttribute("aria-sort"), "descending");
+
+            page.locator("#network-method-filter").selectOption("POST");
+            Assert.assertEquals(page.locator("#network-result-count").textContent(), "1 network exchange");
+            Assert.assertEquals(page.locator("#network-rows tr td").nth(2).textContent(), "POST");
+            page.locator("#network-method-filter").selectOption("");
+            page.locator("#network-status-filter").selectOption("503");
+            Assert.assertEquals(page.locator("#network-rows tr").count(), 1);
+            Assert.assertEquals(page.locator("#network-rows tr td").nth(3).textContent(), "503");
+            page.locator("#network-status-filter").selectOption("");
+            page.locator("#network-text-filter").fill("retry later");
+            Assert.assertEquals(page.locator("#network-rows tr").count(), 1);
+            page.locator("#network-rows tr").click();
+            Assert.assertTrue(page.locator("#network-detail").textContent().contains("request-value"));
+            Assert.assertTrue(page.locator("#network-detail").textContent().contains("retry later"));
+            page.locator("#network-text-filter").fill("no-such-exchange");
+            Assert.assertEquals(page.locator("#network-result-count").textContent(), "0 network exchanges");
+            Assert.assertTrue(page.locator("#network-hint").textContent().contains("match"));
+            page.locator("#network-text-filter").fill("");
+            page.evaluate("""
+                    () => {
+                      network.push({method:'PATCH', url:'legacy://untimed', status:0,
+                        requestSizeBytes:4, failureReason:'legacy entry'});
+                      renderNetwork();
+                    }
+                    """);
+            Assert.assertEquals(page.locator("#network-result-count").textContent(), "3 network exchanges");
+            var legacyRow = page.locator("#network-rows tr").filter(
+                    new com.microsoft.playwright.Locator.FilterOptions().setHasText("legacy://untimed"));
+            Assert.assertEquals(legacyRow.count(), 1, "Untimed legacy evidence must remain visible.");
+            Assert.assertEquals(legacyRow.locator("td").nth(4).textContent(), "Unknown");
+            Assert.assertEquals(legacyRow.locator("td").nth(5).textContent(), "Unknown");
+            Assert.assertFalse(String.valueOf(legacyRow.getAttribute("class")).contains("inwindow"));
+            page.locator("#network-sort-time button").click();
+            page.locator("#network-sort-time button").click();
+            Assert.assertEquals(page.locator("#network-rows tr").last().locator("td").last().textContent(),
+                    "legacy://untimed", "Missing sort values stay last in descending order.");
+
             page.navigate(html.toUri() + "#action-action-1");
             Assert.assertTrue(page.locator("#details-title").textContent().contains("CLICK"));
             Assert.assertNotEquals(page.locator("#range-start").inputValue(),
@@ -216,7 +271,12 @@ public class TraceViewerBrowserAcceptanceTest {
             BrowserObservabilityRecorder.recordNetwork(new BrowserObservabilityRecorder.NetworkObservation(
                     "POST", "https://example.test/payment", 200, Map.of(), Map.of(),
                     200, 10, 20, "", "ok"));
+            BrowserObservabilityRecorder.recordNetwork(new BrowserObservabilityRecorder.NetworkObservation(
+                    "GET", "https://example.test/orders", 503, Map.of("x-request", "request-value"),
+                    Map.of("x-response", "response-value"), 45, 5, 12, "upstream unavailable", "retry later"));
             BrowserObservabilityRecorder.recordConsole("browser", "ERROR", "checkout failed",
+                    System.currentTimeMillis());
+            BrowserObservabilityRecorder.recordConsole("driver", "INFO", "retry scheduled",
                     System.currentTimeMillis());
 
             Method marker = TraceViewerBrowserAcceptanceTest.class.getDeclaredMethod("marker");

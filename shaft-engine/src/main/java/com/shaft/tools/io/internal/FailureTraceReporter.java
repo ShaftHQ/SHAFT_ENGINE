@@ -395,6 +395,11 @@ public final class FailureTraceReporter {
                 .trace-table tbody tr:hover{background:rgba(var(--shaft-primary-rgb),.08)}
                 .trace-table tr.inwindow{background:rgba(var(--shaft-primary-rgb),.10)}
                 .trace-table tr.failed td{color:var(--shaft-fail)}
+                .panel-controls{display:flex;gap:8px;align-items:end;flex-wrap:wrap;margin:10px 0}
+                .panel-controls label{display:grid;gap:3px;font-size:.82em;color:var(--shaft-text-muted)}
+                .panel-controls input,.panel-controls select{min-width:130px}
+                .result-count{margin-left:auto;color:var(--shaft-text-muted)}
+                .sort-button{border:0;background:transparent;color:inherit;padding:2px;font:inherit;font-weight:700}
                 .trace-navigator{margin-bottom:16px}
                 .range-controls{display:grid;grid-template-columns:auto 1fr auto 1fr auto;gap:8px;align-items:center}
                 .range-controls input{width:100%}
@@ -509,7 +514,21 @@ public final class FailureTraceReporter {
                     </div>
                     <div id="network-panel" hidden>
                       <p class="muted" id="network-hint"></p>
-                      <table class="trace-table"><thead><tr><th>Time</th><th>Method</th><th>Status</th><th>ms</th><th>URL</th></tr></thead><tbody id="network-rows"></tbody></table>
+                      <div class="panel-controls">
+                        <label>Method<select id="network-method-filter"><option value="">All methods</option></select></label>
+                        <label>Status<select id="network-status-filter"><option value="">All statuses</option></select></label>
+                        <label>Search<input id="network-text-filter" type="search" placeholder="URL, headers, or body"></label>
+                        <output id="network-result-count" class="result-count" aria-live="polite"></output>
+                      </div>
+                      <table class="trace-table"><thead><tr>
+                        <th id="network-sort-time"><button type="button" class="sort-button" data-network-sort="time">Time</button></th>
+                        <th id="network-sort-type"><button type="button" class="sort-button" data-network-sort="type">Type</button></th>
+                        <th id="network-sort-method" aria-sort="ascending"><button type="button" class="sort-button" data-network-sort="method">Method</button></th>
+                        <th id="network-sort-status"><button type="button" class="sort-button" data-network-sort="status">Status</button></th>
+                        <th id="network-sort-duration"><button type="button" class="sort-button" data-network-sort="duration">Duration</button></th>
+                        <th id="network-sort-size"><button type="button" class="sort-button" data-network-sort="size">Size</button></th>
+                        <th>URL</th>
+                      </tr></thead><tbody id="network-rows"></tbody></table>
                       <pre id="network-detail" hidden></pre>
                     </div>
                     <div id="console-panel" hidden>
@@ -795,20 +814,90 @@ public final class FailureTraceReporter {
                 const networkPanel = document.getElementById('network-panel');
                 const networkRows = document.getElementById('network-rows');
                 const networkDetail = document.getElementById('network-detail');
+                const networkMethodFilter = document.getElementById('network-method-filter');
+                const networkStatusFilter = document.getElementById('network-status-filter');
+                const networkTextFilter = document.getElementById('network-text-filter');
+                const networkResultCount = document.getElementById('network-result-count');
+                let networkSort = {key:'method', direction:'ascending'};
+                function finiteNumber(value){ return typeof value === 'number' && Number.isFinite(value) ? value : null; }
+                function networkStatus(entry){
+                  const status = finiteNumber(entry.status);
+                  return status == null ? 'Unknown' : status > 0 ? String(status) : 'FAILED';
+                }
+                function networkType(){ return 'HTTP'; }
+                function networkSize(entry){
+                  const request = finiteNumber(entry.requestSizeBytes);
+                  const response = finiteNumber(entry.responseSizeBytes);
+                  return request == null || response == null ? null : request + response;
+                }
+                function networkSortValue(entry, key){
+                  let value = null;
+                  if (key === 'time') value = finiteNumber(networkStartMs(entry));
+                  if (key === 'type') value = networkType(entry);
+                  if (key === 'method') value = entry.method ? String(entry.method) : null;
+                  if (key === 'status') value = finiteNumber(entry.status);
+                  if (key === 'duration') value = finiteNumber(entry.durationMs);
+                  if (key === 'size') value = networkSize(entry);
+                  return {missing:value == null, value};
+                }
+                function compareNetwork(left, right){
+                  const a = networkSortValue(left.entry, networkSort.key);
+                  const b = networkSortValue(right.entry, networkSort.key);
+                  if (a.missing !== b.missing) return a.missing ? 1 : -1;
+                  if (a.missing) return left.index - right.index;
+                  let comparison = typeof a.value === 'number' && typeof b.value === 'number'
+                    ? a.value - b.value : String(a.value).localeCompare(String(b.value));
+                  if (networkSort.direction === 'descending') comparison = -comparison;
+                  return comparison || left.index - right.index;
+                }
+                function populateNetworkFilters(){
+                  const append = (select, values) => values.forEach(value => {
+                    const option = document.createElement('option');
+                    option.value = value;
+                    option.textContent = value;
+                    select.appendChild(option);
+                  });
+                  append(networkMethodFilter, [...new Set(network.map(entry => String(entry.method || 'UNKNOWN')))].sort());
+                  append(networkStatusFilter, [...new Set(network.map(networkStatus))].sort());
+                }
+                function updateNetworkSortHeaders(){
+                  document.querySelectorAll('[data-network-sort]').forEach(button => {
+                    const header = button.closest('th');
+                    if (button.dataset.networkSort === networkSort.key) {
+                      header.setAttribute('aria-sort', networkSort.direction);
+                    } else {
+                      header.removeAttribute('aria-sort');
+                    }
+                  });
+                }
                 function renderNetwork(){
                   const range = selectedWindow();
-                  document.getElementById('network-hint').textContent = network.length
-                    ? 'Click a request for headers and body preview.' + (range ? ' Highlighted rows overlap the selected action.' : '')
-                    : 'No network exchanges were recorded.';
                   networkRows.innerHTML = '';
                   networkDetail.hidden = true;
-                  network.forEach(entry => {
+                  const query = networkTextFilter.value.trim().toLowerCase();
+                  const visible = network.map((entry, index) => ({entry, index})).filter(({entry}) =>
+                    (finiteNumber(networkStartMs(entry)) == null
+                      || intervalOverlaps(networkStartMs(entry), entry.durationMs, range))
+                    && (!networkMethodFilter.value || String(entry.method || 'UNKNOWN') === networkMethodFilter.value)
+                    && (!networkStatusFilter.value || networkStatus(entry) === networkStatusFilter.value)
+                    && (!query || JSON.stringify(entry).toLowerCase().includes(query)))
+                    .sort(compareNetwork);
+                  networkResultCount.textContent = `${visible.length} network ${visible.length === 1 ? 'exchange' : 'exchanges'}`;
+                  document.getElementById('network-hint').textContent = !network.length
+                    ? 'No network exchanges were recorded.'
+                    : !visible.length ? 'No network exchanges match the selected range and filters.'
+                    : 'Click a request for headers and body preview.';
+                  visible.forEach(({entry}) => {
                     const tr = document.createElement('tr');
-                    tr.className = `${networkFailed(entry) ? 'failed' : ''}${intervalOverlaps(networkStartMs(entry), entry.durationMs, range) ? ' inwindow' : ''}`;
-                    tr.innerHTML = `<td class="time-cell">${esc(offsetLabel(networkStartMs(entry)))}</td><td>${esc(entry.method)}</td><td>${esc(entry.status || 'FAILED')}</td><td>${esc(entry.durationMs || 0)}</td><td>${esc(entry.url)}</td>`;
+                    const timed = finiteNumber(networkStartMs(entry)) != null;
+                    tr.className = `${networkFailed(entry) ? 'failed ' : ''}${timed ? 'inwindow' : ''}`.trim();
+                    const duration = finiteNumber(entry.durationMs);
+                    const size = networkSize(entry);
+                    tr.innerHTML = `<td class="time-cell">${esc(offsetLabel(networkStartMs(entry)))}</td><td>${networkType(entry)}</td><td>${esc(entry.method || 'Unknown')}</td><td>${esc(networkStatus(entry))}</td><td>${duration == null ? 'Unknown' : `${duration}ms`}</td><td>${size == null ? 'Unknown' : `${size} B`}</td><td>${esc(entry.url || 'Unknown')}</td>`;
                     tr.addEventListener('click', () => { networkDetail.hidden = false; networkDetail.textContent = JSON.stringify(entry, null, 2); });
                     networkRows.appendChild(tr);
                   });
+                  updateNetworkSortHeaders();
                 }
                 const consolePanel = document.getElementById('console-panel');
                 const consoleRows = document.getElementById('console-rows');
@@ -977,8 +1066,18 @@ public final class FailureTraceReporter {
                   document.querySelectorAll('#timeline-filters button').forEach(other => other.classList.toggle('selected', other === button));
                   renderTimeline();
                 }));
+                [networkMethodFilter, networkStatusFilter, networkTextFilter]
+                    .forEach(control => control.addEventListener('input', renderNetwork));
+                document.querySelectorAll('[data-network-sort]').forEach(button => button.addEventListener('click', () => {
+                  const key = button.dataset.networkSort;
+                  networkSort = networkSort.key === key
+                    ? {key, direction:networkSort.direction === 'ascending' ? 'descending' : 'ascending'}
+                    : {key, direction:'ascending'};
+                  renderNetwork();
+                }));
                 document.querySelectorAll('#action-tabs button').forEach(button => button.addEventListener('click', () => renderTab(button.dataset.tab)));
                 document.querySelectorAll('#dom-snapshot-tabs button').forEach(button => button.addEventListener('click', () => { selectedDomSide = button.dataset.dom; renderDomSnapshot(); }));
+                populateNetworkFilters();
                 renderSummary();
                 renderNavigator();
                 renderActions();
