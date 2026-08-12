@@ -28,6 +28,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+@SuppressWarnings("PMD.AvoidAccessibilityAlteration") // Private constructor and scalar helpers are invariant fixtures.
 public class MobileEvidenceCollectorTest {
     private static final byte[] PNG = new byte[]{
             (byte) 0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x01};

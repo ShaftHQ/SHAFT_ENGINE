@@ -35,6 +35,7 @@ final class MobileEvidenceCollector {
         throw new IllegalStateException("Utility class");
     }
 
+    @SuppressWarnings("PMD.NPathComplexity") // Fixed capture order keeps context and session continuity explicit.
     static Capture collect(AppiumDriver driver, long maxBytes) {
         Objects.requireNonNull(driver, "driver");
         if (maxBytes < 1) {
@@ -105,6 +106,7 @@ final class MobileEvidenceCollector {
         }
     }
 
+    @SuppressWarnings("PMD.NPathComplexity") // Consent, context, bounds, and provider failures have distinct omissions.
     private static byte[] captureSource(AppiumDriver driver, String context, long maxBytes,
                                         Map<String, String> omissions) {
         if (!knownContext(context)) {
@@ -156,6 +158,7 @@ final class MobileEvidenceCollector {
         return metadata;
     }
 
+    @SuppressWarnings("PMD.NPathComplexity") // Optional metadata providers fail independently by design.
     private static Map<String, String> deviceMetadata(AppiumDriver driver) {
         Map<String, String> metadata = new LinkedHashMap<>();
         Capabilities capabilities = capabilities(driver);

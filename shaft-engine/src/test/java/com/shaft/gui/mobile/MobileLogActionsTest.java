@@ -35,6 +35,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
 
+@SuppressWarnings("PMD.AvoidAccessibilityAlteration") // Private state/monitor access binds teardown linearization.
 public class MobileLogActionsTest {
     @Test
     public void androidCaptureShouldBeCrossThreadBoundedIdempotentClearableAndStoppable() throws Exception {

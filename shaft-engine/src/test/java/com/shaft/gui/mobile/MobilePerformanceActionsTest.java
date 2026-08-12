@@ -35,6 +35,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
+@SuppressWarnings("PMD.AvoidAccessibilityAlteration") // Private state access proves noncreating snapshot behavior.
 public class MobilePerformanceActionsTest {
     @Test
     public void supportedTypesAndSamplesShouldDelegateToTheExactAppiumInterface() {

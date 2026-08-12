@@ -47,6 +47,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
+@SuppressWarnings("PMD.AvoidAccessibilityAlteration") // Private state/lock access binds recording lifecycle races.
 public class MobileRecordingActionsTest {
     @Test
     public void namespaceShouldRequireTheExactLiveProviderInterface() {

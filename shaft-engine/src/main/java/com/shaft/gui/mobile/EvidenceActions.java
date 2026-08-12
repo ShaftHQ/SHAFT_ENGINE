@@ -132,6 +132,7 @@ final class EvidenceActions implements MobileEvidenceActionsContract {
         return mobile;
     }
 
+    @SuppressWarnings("PMD.ExcessiveParameterList") // All fields participate in one bounded archive fit pass.
     private static ArchiveContent fit(long maxBytes, Instant capturedAt, String context,
                                       Map<String, String> applicationMetadata,
                                       Map<String, String> deviceMetadata,
@@ -258,6 +259,7 @@ final class EvidenceActions implements MobileEvidenceActionsContract {
         return redacted.equals(original) ? value : redacted;
     }
 
+    @SuppressWarnings("PMD.NPathComplexity") // Each branch preserves a distinct stable omission reason.
     private static PreparedRecording prepareRecording(AppiumDriver driver, long maxBytes,
                                                        Map<String, String> omissions) {
         Optional<MobileRecordingState.Snapshot> snapshot = MobileRecordingState.snapshotIfPresent(driver);

@@ -48,6 +48,7 @@ import java.util.stream.Collectors;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 
+@SuppressWarnings("PMD.AvoidAccessibilityAlteration") // Private state/lock access binds lifecycle concurrency invariants.
 public class MobileEvidenceActionsTest {
     private static final byte[] PNG = new byte[]{
             (byte) 0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x01};
@@ -77,7 +78,7 @@ public class MobileEvidenceActionsTest {
             Assert.assertTrue(Files.isRegularFile(target));
             Map<String, TraceArtifactReference> artifacts = bundle.artifacts().stream()
                     .collect(Collectors.toMap(TraceArtifactReference::id, Function.identity()));
-            Assert.assertEquals(artifacts.keySet(), java.util.Set.of("screenshot", "source", "recording"));
+            Assert.assertEquals(artifacts.keySet(), Set.of("screenshot", "source", "recording"));
             Assert.assertFalse(artifacts.get("screenshot").omitted());
             Assert.assertFalse(artifacts.get("source").omitted());
             Assert.assertTrue(artifacts.get("recording").omitted());

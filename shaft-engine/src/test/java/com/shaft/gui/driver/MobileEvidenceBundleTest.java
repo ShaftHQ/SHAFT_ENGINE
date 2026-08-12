@@ -198,6 +198,7 @@ public class MobileEvidenceBundleTest {
         Assert.assertFalse(rendered.contains(secret));
     }
 
+    @SuppressWarnings("PMD.ExcessiveParameterList") // Test fixture mirrors the public canonical constructor.
     private static MobileEvidenceBundle bundle(Instant capturedAt, Path archive, String context,
                                                 Map<String, String> applicationMetadata,
                                                 Map<String, String> deviceMetadata,
