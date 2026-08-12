@@ -1,6 +1,7 @@
 package com.shaft.intellij.mcp;
 
 import com.shaft.intellij.settings.ShaftCredentialService;
+import com.shaft.intellij.settings.ProviderCredentialSource;
 import com.shaft.intellij.settings.ShaftSettingsState;
 
 import java.util.ArrayList;
@@ -12,7 +13,7 @@ import java.util.function.Function;
 
 final class ShaftMcpEnvironment {
     private static final List<String> PROVIDER_CREDENTIALS = List.of(
-            "OPENAI_API_KEY", "ANTHROPIC_API_KEY", "GEMINI_API_KEY", "GITHUB_TOKEN",
+            "OPENAI_API_KEY", "ANTHROPIC_API_KEY", "GOOGLE_API_KEY", "GEMINI_API_KEY", "GH_TOKEN", "GITHUB_TOKEN",
             "GITLAB_TOKEN", "HF_TOKEN", "HUGGINGFACE_HUB_TOKEN", "NPM_TOKEN", "OLLAMA_API_KEY", "LMSTUDIO_API_KEY");
     private ShaftMcpEnvironment() {
         throw new IllegalStateException("Utility class");
@@ -23,13 +24,17 @@ final class ShaftMcpEnvironment {
     }
 
     static Map<String, String> forSettings(ShaftSettingsState.Settings settings, Function<String, String> credentialLookup) {
+        return forSettings(settings, credentialLookup, System::getenv);
+    }
+
+    static Map<String, String> forSettings(ShaftSettingsState.Settings settings, Function<String, String> credentialLookup,
+                                           Function<String, String> environmentLookup) {
         String provider = selectedProvider(settings);
         if (isLocalProvider(provider) && !selectedEndpoint(settings).isBlank()
                 && !ShaftSettingsState.validLocalEndpoint(provider, selectedEndpoint(settings))) {
             return Map.of();
         }
-        Map<String, String> environment = providerKeys(settings != null && settings.passProviderApiKeysToMcp, provider,
-                credentialLookup);
+        Map<String, String> environment = providerKeys(settings, provider, credentialLookup, environmentLookup);
         addPilotOptions(environment, settings);
         return environment.isEmpty() ? Map.of() : Map.copyOf(environment);
     }
@@ -44,7 +49,7 @@ final class ShaftMcpEnvironment {
 
     static Map<String, String> childEnvironment(Map<String, String> inherited, Map<String, String> configured) {
         Map<String, String> environment = new LinkedHashMap<>(inherited == null ? Map.of() : inherited);
-        PROVIDER_CREDENTIALS.forEach(environment::remove);
+        environment.keySet().removeIf(key -> PROVIDER_CREDENTIALS.stream().anyMatch(name -> name.equalsIgnoreCase(key)));
         if (configured != null) {
             environment.putAll(configured);
         }
@@ -68,6 +73,21 @@ final class ShaftMcpEnvironment {
         putIfPresent(environment, "GEMINI_API_KEY", credentialLookup.apply("GEMINI_API_KEY"));
         putIfPresent(environment, "GITHUB_TOKEN", credentialLookup.apply("GITHUB_TOKEN"));
         return environment;
+    }
+
+    private static Map<String, String> providerKeys(ShaftSettingsState.Settings settings, String provider,
+                                                     Function<String, String> credentialLookup,
+                                                     Function<String, String> environmentLookup) {
+        if (settings == null || !settings.passProviderApiKeysToMcp) {
+            return new LinkedHashMap<>();
+        }
+        String selectedVariable = settings.providerApiKeyEnvironmentVariable(provider);
+        if (!selectedVariable.isBlank() && ProviderCredentialSource.supports(provider, selectedVariable)) {
+            Map<String, String> environment = new LinkedHashMap<>();
+            putIfPresent(environment, selectedVariable, environmentLookup.apply(selectedVariable));
+            return environment;
+        }
+        return providerKeys(true, provider, credentialLookup);
     }
 
     static String providerKeyName(String provider) {
@@ -105,6 +125,10 @@ final class ShaftMcpEnvironment {
                 options.add("-Dpilot.ai." + provider + ".endpoint=" + endpoint);
             }
             options.add("-Dpilot.ai." + provider + ".apiKeyEnvironmentVariable=" + providerKeyName(provider));
+        } else if (settings != null && ProviderCredentialSource.supports(provider,
+                settings.providerApiKeyEnvironmentVariable(provider))) {
+            options.add("-Dpilot.ai." + provider + ".apiKeyEnvironmentVariable="
+                    + settings.providerApiKeyEnvironmentVariable(provider));
         }
         String existing = environment.getOrDefault("JAVA_TOOL_OPTIONS", System.getenv("JAVA_TOOL_OPTIONS"));
         environment.put("JAVA_TOOL_OPTIONS", (existing == null || existing.isBlank())

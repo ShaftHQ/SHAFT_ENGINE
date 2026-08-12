@@ -2237,6 +2237,42 @@ class ShaftPanelSetupTest {
     }
 
     @Test
+    void setupPanelUsesConfiguredGeminiEnvironmentWithoutCopyingItsValue() throws Exception {
+        java.util.Map<String, String> storedKeys = new java.util.HashMap<>();
+        ShaftSettingsState.Settings settings = unverifiedMcpSettings();
+        ShaftMcpSetupPanel panel = new ShaftMcpSetupPanel(fakeProject(), settings, () -> {
+        }, readyProbe(), fakeKeyStore(storedKeys));
+        setField(panel, "providerEnvironmentLookup",
+                (java.util.function.Function<String, String>) name -> "GOOGLE_API_KEY".equals(name)
+                        ? "never-render-this-secret" : null);
+        setField(panel, "geminiKeyProbe",
+                (java.util.function.Function<char[], com.shaft.intellij.settings.ProviderKeyProbe.Result>) ignored ->
+                        new com.shaft.intellij.settings.ProviderKeyProbe.Result(true, ""));
+
+        JComboBox<?> agent = findByAccessibleName(panel, "Assistant agent", JComboBox.class);
+        selectDisplayValue(agent, "Gemini in IntelliJ");
+        java.lang.reflect.Method update = ShaftMcpSetupPanel.class.getDeclaredMethod("updateCloudControls");
+        update.setAccessible(true);
+        update.invoke(panel);
+        JCheckBox source = findByAccessibleName(panel, "Use configured GOOGLE_API_KEY", JCheckBox.class);
+
+        assertTrue(source.isVisible());
+        source.doClick();
+        Method verify = ShaftMcpSetupPanel.class.getDeclaredMethod(
+                "verifySelectedAgentReadiness", ShaftMcpToolResult.class);
+        verify.setAccessible(true);
+        ShaftMcpToolResult readiness = (ShaftMcpToolResult) verify.invoke(panel,
+                ShaftMcpToolResult.success("GOOGLE_API_KEY is valid."));
+
+        assertAll(
+                () -> assertEquals("GOOGLE_API_KEY", settings.providerApiKeyEnvironmentVariable("gemini")),
+                () -> assertTrue(storedKeys.isEmpty()),
+                () -> assertFalse(containsText(panel, "never-render-this-secret")),
+                () -> assertTrue(containsText(panel, "GOOGLE_API_KEY")),
+                () -> assertTrue(readiness.success()));
+    }
+
+    @Test
     void setupPanelBlocksGeminiConnectionWithoutStoredApiKey() throws Exception {
         ShaftSettingsState.Settings settings = unverifiedMcpSettings();
         ShaftMcpSetupPanel panel = new ShaftMcpSetupPanel(fakeProject(), settings, () -> {

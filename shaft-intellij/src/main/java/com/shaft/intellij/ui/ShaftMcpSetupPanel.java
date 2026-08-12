@@ -19,6 +19,7 @@ import com.shaft.intellij.mcp.ShaftPluginExecutor;
 import com.shaft.intellij.settings.AssistantAgentRoute;
 import com.shaft.intellij.settings.ShaftPluginResetService;
 import com.shaft.intellij.settings.ShaftSettingsState;
+import com.shaft.intellij.settings.ProviderCredentialSource;
 import org.jetbrains.annotations.NotNull;
 
 import javax.swing.JButton;
@@ -140,6 +141,7 @@ final class ShaftMcpSetupPanel extends JPanel implements Disposable {
     private final JComboBox<String> runtime;
     private final JComboBox<AssistantAgentRoute> agentRoute;
     private final javax.swing.JPasswordField geminiApiKey;
+    private final JCheckBox useGeminiEnvironment;
     private final JLabel geminiKeyStatus;
     private final JPanel runtimeRow;
     private final JPanel apiKeyRow;
@@ -234,6 +236,9 @@ final class ShaftMcpSetupPanel extends JPanel implements Disposable {
     private Timer toastTimer;
     private java.util.function.BooleanSupplier confirmReset = this::confirmResetDialog;
     private Runnable resetAction = () -> ShaftPluginResetService.getInstance().resetEverything();
+    private java.util.function.Function<String, String> providerEnvironmentLookup = System::getenv;
+    private java.util.function.Function<char[], com.shaft.intellij.settings.ProviderKeyProbe.Result> geminiKeyProbe =
+            com.shaft.intellij.settings.ProviderKeyProbe::testGemini;
 
     ShaftMcpSetupPanel(@NotNull Project project, @NotNull ShaftSettingsState.Settings settings,
                        @NotNull Runnable connected) {
@@ -334,6 +339,24 @@ final class ShaftMcpSetupPanel extends JPanel implements Disposable {
         geminiApiKey.getAccessibleContext().setAccessibleName("Gemini API key");
         geminiApiKey.getAccessibleContext().setAccessibleDescription(
                 "Google AI Studio API key stored in IntelliJ Password Safe when the setup check passes.");
+        useGeminiEnvironment = new JCheckBox();
+        useGeminiEnvironment.getAccessibleContext().setAccessibleName("Use configured Gemini environment variable");
+        ProviderCredentialSource.Source initialGeminiSource = selectedGeminiEnvironment().orElse(null);
+        if (initialGeminiSource != null) {
+            var source = initialGeminiSource;
+            useGeminiEnvironment.setText(source.label());
+            useGeminiEnvironment.getAccessibleContext().setAccessibleName(source.label());
+            useGeminiEnvironment.getAccessibleContext().setAccessibleDescription(
+                    source.variableName() + " will be read only when launching or validating Gemini.");
+            useGeminiEnvironment.setSelected(source.variableName().equals(
+                    settings.providerApiKeyEnvironmentVariable("gemini")));
+        }
+        useGeminiEnvironment.addActionListener(event -> {
+            settings.setProviderApiKeyEnvironmentVariable("gemini", useGeminiEnvironment.isSelected()
+                    ? detectGeminiEnvironment().map(ProviderCredentialSource.Source::variableName).orElse("")
+                    : "");
+            updateCloudControls();
+        });
         geminiKeyStatus = setupStatusLabel("Gemini API key status");
         installerTarget = new JComboBox<>(INSTALLER_TARGETS);
         ShaftUiLabels.applyFriendlyRenderer(installerTarget);
@@ -570,6 +593,7 @@ final class ShaftMcpSetupPanel extends JPanel implements Disposable {
         runtime.setVisible(false);
         agentControls.add(runtimeRow);
         apiKeyRow = labeledControl("Gemini API key", geminiApiKey);
+        apiKeyRow.add(useGeminiEnvironment);
         apiKeyRow.add(geminiKeyStatus);
         apiKeyRow.setVisible(false);
         agentControls.add(apiKeyRow);
@@ -1023,11 +1047,14 @@ final class ShaftMcpSetupPanel extends JPanel implements Disposable {
         // takes ~10s), so it runs here on the probe's background completion thread — never on the
         // EDT. Selection-derived inputs are captured before leaving the EDT.
         boolean cloudSelected = cloudFamilySelected();
+        String cloudVariable = cloudSelected && useGeminiEnvironment.isSelected()
+                ? settings.providerApiKeyEnvironmentVariable("gemini") : "";
         String selectedClient = settings.defaultAutobotClient;
         String selectedRuntime = settings.assistantRuntime;
         String selectedClientLabel = assistantRuntimeLabel();
         ShaftMcpConnectionProbe.test(command, settings, projectRoot()).whenComplete((result, error) -> {
-            boolean phaseOnePassed = error == null && result != null && result.success() && !cloudSelected;
+            boolean mcpPassed = error == null && result != null && result.success();
+            boolean phaseOnePassed = mcpPassed && !cloudSelected;
             if (phaseOnePassed) {
                 // Incremental feedback only (issue #3551): the deep readiness probe below spawns
                 // the client CLI and blocks on Process.waitFor() for up to ~10s with no streaming
@@ -1037,8 +1064,9 @@ final class ShaftMcpSetupPanel extends JPanel implements Disposable {
                         "SHAFT MCP connected — asking " + selectedClientLabel
                                 + " to verify access (~10s)..."));
             }
-            ShaftMcpToolResult precomputedReadiness =
-                    phaseOnePassed ? deepReadinessProbe.test(selectedClient, selectedRuntime) : null;
+            ShaftMcpToolResult precomputedReadiness = phaseOnePassed
+                    ? deepReadinessProbe.test(selectedClient, selectedRuntime)
+                    : mcpPassed && cloudSelected ? cloudCredentialReadiness(cloudVariable) : null;
             ApplicationManager.getApplication().invokeLater(
                     () -> showTestResult(result, error, precomputedReadiness));
         });
@@ -1196,10 +1224,8 @@ final class ShaftMcpSetupPanel extends JPanel implements Disposable {
      * ShaftMcpConnectionProbe.test(...).whenComplete(...) does -- this hop uses
      * {@link ShaftPluginExecutor}, the same pattern
      * {@code ShaftSettingsConfigurable#runProviderKeyProbe} already established for exactly this
-     * "MCP verified, need our own background hop" shape. The Gemini cloud family's readiness check
-     * only does a fast local Password Safe lookup and touches Swing state
-     * ({@link #verifySelectedAgentReadiness}'s cloud branch), so it runs inline on the EDT instead
-     * of being pushed to the background pool.</p>
+     * "MCP verified, need our own background hop" shape. Environment-backed Gemini validation also
+     * uses this pool because it performs one bounded provider request.</p>
      */
     private void connectAgentClicked() {
         if (!settings.mcpSetupComplete || progress.isVisible()) {
@@ -1207,7 +1233,13 @@ final class ShaftMcpSetupPanel extends JPanel implements Disposable {
         }
         setRunning(true, "Connecting agent (~10s)...");
         if (cloudFamilySelected()) {
-            applyConnectAgentResult(verifySelectedAgentReadiness(null));
+            String cloudVariable = useGeminiEnvironment.isSelected()
+                    ? settings.providerApiKeyEnvironmentVariable("gemini") : "";
+            CompletableFuture.supplyAsync(() -> cloudCredentialReadiness(cloudVariable),
+                            ShaftPluginExecutor.getInstance().executor())
+                    .whenComplete((readiness, error) -> ApplicationManager.getApplication().invokeLater(() ->
+                            applyConnectAgentResult(verifySelectedAgentReadiness(error == null ? readiness
+                                    : ShaftMcpToolResult.failure("Could not validate the provider credential.")))));
             return;
         }
         if (!selectedAgentRoute().cli()) {
@@ -1236,8 +1268,8 @@ final class ShaftMcpSetupPanel extends JPanel implements Disposable {
      * "2 Pick agent"'s own standalone "Check" (issue #4314 fix 2): verifies the currently selected
      * family/runtime is already installed/connected without running the whole step-4 MCP probe.
      * Mirrors {@link #connectAgentClicked()}'s off-EDT dispatch for the non-cloud deep readiness
-     * probe (spawns the client CLI, ~10s -- must never block the EDT); the Gemini cloud route stays
-     * inline since it only does a fast local Password Safe lookup.
+     * probe (spawns the client CLI, ~10s -- must never block the EDT); environment-backed Gemini
+     * validation also runs on the same background executor.
      *
      * <p>Deliberately does <b>not</b> call {@link #applyAgentLaneState}: that method also flips the
      * Ready step's startChatting/startWithoutAgent/connectAgent visibility, which this step-2-only
@@ -1252,7 +1284,13 @@ final class ShaftMcpSetupPanel extends JPanel implements Disposable {
         applySelectionToSettings();
         setRunning(true, "Checking agent (~10s)...");
         if (cloudFamilySelected()) {
-            applyChosenAgentCheckResult(verifySelectedAgentReadiness(null));
+            String cloudVariable = useGeminiEnvironment.isSelected()
+                    ? settings.providerApiKeyEnvironmentVariable("gemini") : "";
+            CompletableFuture.supplyAsync(() -> cloudCredentialReadiness(cloudVariable),
+                            ShaftPluginExecutor.getInstance().executor())
+                    .whenComplete((readiness, error) -> ApplicationManager.getApplication().invokeLater(() ->
+                            applyChosenAgentCheckResult(verifySelectedAgentReadiness(error == null ? readiness
+                                    : ShaftMcpToolResult.failure("Could not validate the provider credential.")))));
             return;
         }
         if (!selectedAgentRoute().cli()) {
@@ -1279,6 +1317,7 @@ final class ShaftMcpSetupPanel extends JPanel implements Disposable {
     private void setRunning(boolean running, String text) {
         updateActionState(running);
         progress.setVisible(running);
+        useGeminiEnvironment.setEnabled(!running);
         installerCommand.setEnabled(!running);
         installerTarget.setEnabled(!running);
         manualInstallerTarget.setEnabled(!running);
@@ -1405,6 +1444,13 @@ final class ShaftMcpSetupPanel extends JPanel implements Disposable {
         AssistantAgentRoute route = selectedAgentRoute();
         route.applyTo(settings);
         if (route.gemini()) {
+            if (!useGeminiEnvironment.isSelected()) {
+                settings.setProviderApiKeyEnvironmentVariable("gemini", "");
+            }
+            if (useGeminiEnvironment.isSelected()) {
+                settings.setProviderApiKeyEnvironmentVariable("gemini", detectGeminiEnvironment()
+                        .map(ProviderCredentialSource.Source::variableName).orElse(""));
+            }
             if (settings.cloudModel == null || settings.cloudModel.isBlank()) {
                 settings.cloudModel = AssistantModelCatalog.defaultCloudModel("gemini");
             }
@@ -1430,12 +1476,45 @@ final class ShaftMcpSetupPanel extends JPanel implements Disposable {
                     : deepReadinessProbe.test(settings.defaultAutobotClient, settings.assistantRuntime);
         }
         applySelectionToSettings();
-        storeEnteredGeminiKey();
+        if (!useGeminiEnvironment.isSelected()) {
+            settings.setProviderApiKeyEnvironmentVariable("gemini", "");
+            storeEnteredGeminiKey();
+        }
         updateCloudControls();
+        if (useGeminiEnvironment.isSelected()) {
+            return precomputedReadiness == null
+                    ? ShaftMcpToolResult.failure("Gemini environment validation did not complete.")
+                    : precomputedReadiness;
+        }
         return cloudKeyStore.hasKey(GEMINI_KEY_NAME)
                 ? ShaftMcpToolResult.success("Gemini API key is stored in IntelliJ Password Safe.")
                 : ShaftMcpToolResult.failure(
                 "No Gemini API key stored. Paste your Google AI Studio API key, then check again.");
+    }
+
+    private ShaftMcpToolResult validateGeminiEnvironment(String variableName) {
+        String value = providerEnvironmentLookup.apply(variableName);
+        if (value == null || value.isBlank()) {
+            return ShaftMcpToolResult.failure(variableName + " is not configured.");
+        }
+        char[] secret = value.toCharArray();
+        try {
+            var result = geminiKeyProbe.apply(secret);
+            return result.success()
+                    ? ShaftMcpToolResult.success(variableName + " is valid.")
+                    : ShaftMcpToolResult.failure("Gemini rejected " + variableName + ": " + result.reason());
+        } finally {
+            java.util.Arrays.fill(secret, '\0');
+        }
+    }
+
+    private ShaftMcpToolResult cloudCredentialReadiness(String selectedVariable) {
+        if (selectedVariable == null || selectedVariable.isBlank()) {
+            return cloudKeyStore.hasKey(GEMINI_KEY_NAME)
+                    ? ShaftMcpToolResult.success("Gemini API key is stored in IntelliJ Password Safe.")
+                    : ShaftMcpToolResult.failure("No Gemini API key stored.");
+        }
+        return validateGeminiEnvironment(selectedVariable);
     }
 
     private void storeEnteredGeminiKey() {
@@ -1462,12 +1541,35 @@ final class ShaftMcpSetupPanel extends JPanel implements Disposable {
         // The CLI recommendation only applies to local agent families.
         recommendedAgent.setVisible(!cloud);
         if (cloud) {
-            String geminiKeyStatusText = cloudKeyStore.hasKey(GEMINI_KEY_NAME)
+            var environmentSource = selectedGeminiEnvironment();
+            environmentSource.ifPresent(source -> {
+                useGeminiEnvironment.setText(source.label());
+                useGeminiEnvironment.getAccessibleContext().setAccessibleName(source.label());
+                useGeminiEnvironment.getAccessibleContext().setAccessibleDescription(
+                        source.variableName() + " will be read only when launching or validating Gemini.");
+            });
+            useGeminiEnvironment.setVisible(environmentSource.isPresent());
+            geminiApiKey.setEnabled(!useGeminiEnvironment.isSelected());
+            String geminiKeyStatusText = useGeminiEnvironment.isSelected() && environmentSource.isPresent()
+                    ? environmentSource.orElseThrow().variableName() + " will be used; its value is not stored."
+                    : cloudKeyStore.hasKey(GEMINI_KEY_NAME)
                     ? "Key stored in Password Safe."
                     : "Paste your Google AI Studio API key.";
             geminiKeyStatus.setText(geminiKeyStatusText);
             geminiKeyStatus.getAccessibleContext().setAccessibleDescription(geminiKeyStatusText);
         }
+    }
+
+    private java.util.Optional<ProviderCredentialSource.Source> detectGeminiEnvironment() {
+        return ProviderCredentialSource.detect("gemini", providerEnvironmentLookup);
+    }
+
+    private java.util.Optional<ProviderCredentialSource.Source> selectedGeminiEnvironment() {
+        String selected = settings.providerApiKeyEnvironmentVariable("gemini");
+        return ProviderCredentialSource.present("gemini", providerEnvironmentLookup).stream()
+                .filter(source -> source.variableName().equals(selected))
+                .findFirst()
+                .or(this::detectGeminiEnvironment);
     }
 
     private static CloudKeyStore passwordSafeKeyStore() {

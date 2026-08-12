@@ -3967,6 +3967,7 @@ final class ShaftAssistantPanel extends JPanel implements Disposable {
         snapshot.assistantProviderType = "CLOUD";
         snapshot.cloudProvider = provider;
         snapshot.cloudModel = settings.cloudModel;
+        snapshot.setProviderApiKeyEnvironmentVariable(provider, settings.providerApiKeyEnvironmentVariable(provider));
         snapshot.ollamaEndpoint = settings.ollamaEndpoint;
         snapshot.lmStudioEndpoint = settings.lmStudioEndpoint;
         snapshot.pilotAiEndpoint = settings.pilotAiEndpoint;
@@ -4466,7 +4467,11 @@ final class ShaftAssistantPanel extends JPanel implements Disposable {
     }
 
     private boolean hasSelectedCloudKey() {
-        return selectedCloudKeySupplier.getAsBoolean();
+        String provider = normalizeLower(String.valueOf(cloudProvider.getSelectedItem()), "gemini");
+        String selectedVariable = settings.providerApiKeyEnvironmentVariable(provider);
+        return com.shaft.intellij.settings.ProviderCredentialSource.supports(provider, selectedVariable)
+                ? System.getenv(selectedVariable) != null && !System.getenv(selectedVariable).isBlank()
+                : selectedCloudKeySupplier.getAsBoolean();
     }
 
     private boolean storedSelectedCloudKey() {

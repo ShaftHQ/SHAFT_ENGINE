@@ -156,6 +156,33 @@ class ShaftSettingsConfigurableTest {
     }
 
     @Test
+    void settingsOffersDetectedProviderEnvironmentWithoutRenderingItsValue() throws Exception {
+        ShaftSettingsState.Settings settings = new ShaftSettingsState.Settings();
+        settings.advancedUiEnabled = true;
+        settings.assistantProviderType = "CLOUD";
+        ShaftSettingsConfigurable configurable = new ShaftSettingsConfigurable(settings, new InMemoryCredentials());
+        Field lookup = ShaftSettingsConfigurable.class.getDeclaredField("providerEnvironmentLookup");
+        lookup.setAccessible(true);
+        lookup.set(configurable, (Function<String, String>) name -> "OPENAI_API_KEY".equals(name)
+                ? "never-render-this-secret" : null);
+
+        JComponent panel = (JComponent) configurable.createComponent();
+        JComboBox<?> provider = findByAccessibleName(panel, "Assistant cloud provider", JComboBox.class);
+        JComboBox<?> source = findByAccessibleName(panel, "Assistant cloud credential source", JComboBox.class);
+        provider.setSelectedItem("openai");
+
+        assertAll(
+                () -> assertTrue(source.isVisible()),
+                () -> assertEquals(2, source.getItemCount()),
+                () -> assertEquals("Use configured OPENAI_API_KEY", source.getItemAt(1)),
+                () -> assertFalse(containsText(panel, "never-render-this-secret")));
+
+        source.setSelectedIndex(1);
+        configurable.apply();
+        assertEquals("OPENAI_API_KEY", settings.providerApiKeyEnvironmentVariable("openai"));
+    }
+
+    @Test
     void settingsSectionHeadersAreVisuallyDistinctFromFieldLabels() {
         ShaftSettingsState.Settings settings = new ShaftSettingsState.Settings();
         settings.advancedUiEnabled = true;

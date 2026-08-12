@@ -13,7 +13,7 @@ import java.time.Duration;
  * never the key value or a response body -- so results are safe to render directly in the UI and
  * never appear in logs.
  */
-final class ProviderKeyProbe {
+public final class ProviderKeyProbe {
     private static final Duration CONNECT_TIMEOUT = Duration.ofSeconds(5);
     private static final Duration REQUEST_TIMEOUT = Duration.ofSeconds(10);
 
@@ -24,7 +24,7 @@ final class ProviderKeyProbe {
     // instance accessor does not collide with the static Result.ok() factory below (a record
     // component and a static method of the same name is a compile error: "invalid accessor
     // method in record Result").
-    record Result(boolean success, String reason) {
+    public record Result(boolean success, String reason) {
         static Result ok() {
             return new Result(true, "");
         }
@@ -53,7 +53,7 @@ final class ProviderKeyProbe {
         return send(request, "Anthropic");
     }
 
-    static Result testGemini(char[] key) {
+    public static Result testGemini(char[] key) {
         String url = "https://generativelanguage.googleapis.com/v1beta/models?key=" + new String(key);
         HttpRequest request = HttpRequest.newBuilder(URI.create(url))
                 .timeout(REQUEST_TIMEOUT)

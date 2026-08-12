@@ -48,6 +48,7 @@ import java.util.function.Supplier;
  * Settings page for SHAFT IntelliJ integration.
  */
 public final class ShaftSettingsConfigurable implements SearchableConfigurable {
+    private java.util.function.Function<String, String> providerEnvironmentLookup = System::getenv;
     private static final String OPENAI_PROVIDER_KEY = "OPENAI_API_KEY";
     private static final String ANTHROPIC_PROVIDER_KEY = "ANTHROPIC_API_KEY";
     private static final String GEMINI_PROVIDER_KEY = "GEMINI_API_KEY";
@@ -100,11 +101,13 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
     private JLabel assistantRuntimeLabel;
     private JLabel cloudProviderLabel;
     private JLabel cloudModelLabel;
+    private JLabel cloudCredentialSourceLabel;
     private JLabel defaultModeLabel;
     private JLabel shaftAiSection;
     private JLabel shaftAiProviderLabel;
     private JLabel shaftAiModelLabel;
     private JLabel shaftAiEndpointLabel;
+    private JLabel pilotCredentialSourceLabel;
     private JLabel providerKeysSection;
     private JLabel shaftAiHelp;
     private JLabel providerKeysHelp;
@@ -121,11 +124,13 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
     private JComboBox<String> assistantRuntime;
     private JComboBox<String> cloudProvider;
     private JBTextField cloudModel;
+    private JComboBox<String> cloudCredentialSource;
     private JComboBox<String> defaultClient;
     private JComboBox<String> defaultMode;
     private JComboBox<String> pilotAiProvider;
     private JBTextField pilotAiModel;
     private JBTextField pilotAiEndpoint;
+    private JComboBox<String> pilotCredentialSource;
     private JBCheckBox passProviderKeys;
     private JBCheckBox advancedUiEnabled;
     private JBCheckBox watchModeEnabled;
@@ -300,10 +305,19 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
         ShaftUiLabels.applyFriendlyRenderer(cloudProvider);
         cloudProvider.getAccessibleContext().setAccessibleName("Assistant cloud provider");
         cloudProvider.getAccessibleContext().setAccessibleDescription("Cloud provider used by Assistant Ask and Plan prompts.");
+        cloudProvider.addActionListener(event -> {
+            String provider = String.valueOf(cloudProvider.getSelectedItem());
+            updateCredentialSources(cloudCredentialSource, provider,
+                    settingsProvider.get().providerApiKeyEnvironmentVariable(provider));
+        });
         cloudModel = new JBTextField();
         cloudModel.getEmptyText().setText("Cloud model, for example gemini-3.5-flash");
         cloudModel.getAccessibleContext().setAccessibleName("Assistant cloud model");
         cloudModel.getAccessibleContext().setAccessibleDescription("Model name passed to the selected cloud provider.");
+        cloudCredentialSource = new JComboBox<>();
+        cloudCredentialSource.getAccessibleContext().setAccessibleName("Assistant cloud credential source");
+        cloudCredentialSource.getAccessibleContext().setAccessibleDescription(
+                "Use a provider-standard environment variable without storing its secret value, or use Password Safe.");
         defaultClient = new JComboBox<>(model("CODEX", "CLAUDE_CODE", "COPILOT_CLI"));
         ShaftUiLabels.applyFriendlyRenderer(defaultClient);
         defaultClient.getAccessibleContext().setAccessibleName("Default assistant provider");
@@ -336,8 +350,14 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
         pilotAiEndpoint.getAccessibleContext().setAccessibleName("SHAFT AI local endpoint");
         pilotAiEndpoint.getAccessibleContext().setAccessibleDescription(
                 "Absolute HTTP(S) endpoint for the selected LM Studio or Ollama provider.");
-        pilotAiProvider.addActionListener(event -> pilotAiEndpoint.setText(
-                settingsProvider.get().localEndpointFor(String.valueOf(pilotAiProvider.getSelectedItem()))));
+        pilotAiProvider.addActionListener(event -> {
+            String provider = String.valueOf(pilotAiProvider.getSelectedItem());
+            pilotAiEndpoint.setText(settingsProvider.get().localEndpointFor(provider));
+            updateCredentialSources(pilotCredentialSource, provider,
+                    settingsProvider.get().providerApiKeyEnvironmentVariable(provider));
+        });
+        pilotCredentialSource = new JComboBox<>();
+        pilotCredentialSource.getAccessibleContext().setAccessibleName("SHAFT AI credential source");
         passProviderKeys = new JBCheckBox("Pass stored provider keys to SHAFT MCP environment");
         passProviderKeys.getAccessibleContext().setAccessibleDescription(
                 "If enabled, SHAFT MCP is started with stored provider keys in process environment.");
@@ -403,10 +423,12 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
         assistantRuntimeLabel = label("Runtime", 'R', assistantRuntime);
         cloudProviderLabel = label("Cloud provider", 'V', cloudProvider);
         cloudModelLabel = label("Cloud model", 'W', cloudModel);
+        cloudCredentialSourceLabel = label("Credential source", 'U', cloudCredentialSource);
         defaultModeLabel = label("Default assistant mode", 'D', defaultMode);
         shaftAiSection = section("Advanced");
         shaftAiProviderLabel = label("Provider for Doctor/Healer AI features", 'P', pilotAiProvider);
         shaftAiEndpointLabel = label("Local endpoint", 'E', pilotAiEndpoint);
+        pilotCredentialSourceLabel = label("Credential source", 'Q', pilotCredentialSource);
         shaftAiModelLabel = label("Model", 'L', pilotAiModel);
         providerKeysSection = section("Credentials");
         shaftAiHelp = help("This provider powers only SHAFT MCP's own AI-assisted tools, such as Doctor/Healer diagnosis, separate and independent from the Assistant's cloud provider selection above.");
@@ -439,6 +461,7 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
                 .addLabeledComponent(assistantRuntimeLabel, assistantRuntime)
                 .addLabeledComponent(cloudProviderLabel, cloudProvider)
                 .addLabeledComponent(cloudModelLabel, cloudModel)
+                .addLabeledComponent(cloudCredentialSourceLabel, cloudCredentialSource)
                 .addLabeledComponent(defaultModeLabel, defaultMode)
                 .addComponent(advancedUiEnabled)
                 .addComponent(help("The Assistant tab is always available. Agent mode still requires explicit source mutation approval per request."))
@@ -447,6 +470,7 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
                 .addLabeledComponent(shaftAiProviderLabel, pilotAiProvider)
                 .addLabeledComponent(shaftAiEndpointLabel, pilotAiEndpoint)
                 .addLabeledComponent(shaftAiModelLabel, pilotAiModel)
+                .addLabeledComponent(pilotCredentialSourceLabel, pilotCredentialSource)
                 .addComponent(shaftAiHelp)
                 .addComponent(providerKeysSection)
                 .addComponent(passProviderKeys)
@@ -479,6 +503,14 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
         String selectedProviderType = advancedSelected
                 ? String.valueOf(assistantProviderType.getSelectedItem()) : selectedRoute.providerType();
         String stateProviderType = normalize(state.assistantProviderType, "LOCAL");
+        String cloudProviderName = String.valueOf(cloudProvider.getSelectedItem());
+        String pilotProviderName = String.valueOf(pilotAiProvider.getSelectedItem());
+        boolean cloudRouteActive = "CLOUD".equalsIgnoreCase(selectedProviderType);
+        boolean cloudSourceModified = cloudRouteActive && !Objects.equals(
+                state.providerApiKeyEnvironmentVariable(cloudProviderName), selectedCloudEnvironmentVariable());
+        boolean pilotSourceModified = (!cloudRouteActive || !pilotProviderName.equals(cloudProviderName))
+                && !Objects.equals(state.providerApiKeyEnvironmentVariable(pilotProviderName),
+                selectedPilotEnvironmentVariable());
         return !Objects.equals(state.mcpCommand, mcpCommand.getText())
                 || state.advancedUiEnabled != advancedSelected
                 || state.watchModeEnabled != watchModeEnabled.isSelected()
@@ -486,9 +518,11 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
                 || !Objects.equals(stateProviderType, selectedProviderType)
                 || !Objects.equals(normalizeLower(state.cloudProvider, "gemini"), cloudProvider.getSelectedItem())
                 || !Objects.equals(state.cloudModel == null ? "" : state.cloudModel, cloudModel.getText())
+                || cloudSourceModified
                 || !Objects.equals(state.defaultAutobotMode, defaultMode.getSelectedItem())
                 || !Objects.equals(state.pilotAiProvider, pilotAiProvider.getSelectedItem())
                 || !Objects.equals(state.pilotAiModel, pilotAiModel.getText())
+                || pilotSourceModified
                 || !Objects.equals(state.localEndpointFor(String.valueOf(pilotAiProvider.getSelectedItem())), pilotAiEndpoint.getText())
                 || state.passProviderApiKeysToMcp != passProviderKeys.isSelected()
                 || openAiClearRequested
@@ -528,9 +562,16 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
                 : selectedAgentRoute().providerType();
         state.cloudProvider = String.valueOf(cloudProvider.getSelectedItem());
         state.cloudModel = cloudModel.getText().trim();
+        boolean cloudRouteActive = "CLOUD".equalsIgnoreCase(state.assistantProviderType);
+        if (cloudRouteActive) {
+            state.setProviderApiKeyEnvironmentVariable(state.cloudProvider, selectedCloudEnvironmentVariable());
+        }
         state.defaultAutobotMode = String.valueOf(defaultMode.getSelectedItem());
         state.pilotAiProvider = provider;
         state.pilotAiModel = pilotAiModel.getText().trim();
+        if (!cloudRouteActive || !provider.equals(state.cloudProvider)) {
+            state.setProviderApiKeyEnvironmentVariable(provider, selectedPilotEnvironmentVariable());
+        }
         saveLocalEndpoint(state, provider, endpoint);
         state.passProviderApiKeysToMcp = passProviderKeys.isSelected();
 
@@ -574,11 +615,15 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
         assistantRuntime.setSelectedItem(normalize(state.assistantRuntime, "CLI"));
         cloudProvider.setSelectedItem(normalizeLower(state.cloudProvider, "gemini"));
         cloudModel.setText(state.cloudModel == null ? "" : state.cloudModel);
+        updateCloudCredentialSources();
+        selectCloudCredentialSource(state.providerApiKeyEnvironmentVariable(state.cloudProvider));
         defaultClient.setSelectedItem(clientFromFamily(resolveFamily(state)));
         defaultMode.setSelectedItem(state.defaultAutobotMode);
         pilotAiProvider.setSelectedItem(state.pilotAiProvider == null || state.pilotAiProvider.isBlank()
                 ? "none" : state.pilotAiProvider);
         pilotAiModel.setText(state.pilotAiModel == null ? "" : state.pilotAiModel);
+        updateCredentialSources(pilotCredentialSource, String.valueOf(pilotAiProvider.getSelectedItem()),
+                state.providerApiKeyEnvironmentVariable(String.valueOf(pilotAiProvider.getSelectedItem())));
         pilotAiEndpoint.setText(state.localEndpointFor(String.valueOf(pilotAiProvider.getSelectedItem())));
         passProviderKeys.setSelected(state.passProviderApiKeysToMcp);
         openAiClearRequested = false;
@@ -622,6 +667,8 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
         assistantRuntime = null;
         cloudProvider = null;
         cloudModel = null;
+        cloudCredentialSource = null;
+        pilotCredentialSource = null;
         defaultClient = null;
         defaultMode = null;
         pilotAiProvider = null;
@@ -902,6 +949,28 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
             return;
         }
         Arrays.fill(liveValue, '\0');
+        String provider = providerForKey(providerKey);
+        String cloudProviderName = String.valueOf(cloudProvider.getSelectedItem());
+        String pilotProviderName = String.valueOf(pilotAiProvider.getSelectedItem());
+        boolean cloudRouteActive = "CLOUD".equalsIgnoreCase(String.valueOf(assistantProviderType.getSelectedItem()));
+        String selectedVariable = cloudRouteActive && provider.equals(cloudProviderName)
+                ? selectedCloudEnvironmentVariable()
+                : provider.equals(pilotProviderName)
+                ? selectedPilotEnvironmentVariable()
+                : settingsProvider.get().providerApiKeyEnvironmentVariable(provider);
+        if (ProviderCredentialSource.supports(provider, selectedVariable)) {
+            String environmentValue = providerEnvironmentLookup.apply(selectedVariable);
+            char[] environmentSecret = environmentValue == null ? new char[0] : environmentValue.toCharArray();
+            if (hasMeaningfulValue(environmentSecret)) {
+                runProviderKeyProbe(button, statusLabel, providerLabel, probeFn, environmentSecret);
+                return;
+            }
+            Arrays.fill(environmentSecret, '\0');
+            button.setEnabled(true);
+            showProviderKeyResult(statusLabel, providerLabel,
+                    ProviderKeyProbe.Result.fail(selectedVariable + " is not configured."));
+            return;
+        }
         credentialsProvider.get().apiKeyAsync(providerKey).thenAccept(stored -> {
             char[] storedValue = stored == null ? new char[0] : stored.toCharArray();
             if (!hasMeaningfulValue(storedValue)) {
@@ -911,6 +980,18 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
             }
             runProviderKeyProbe(button, statusLabel, providerLabel, probeFn, storedValue);
         });
+    }
+
+    private static String providerForKey(String providerKey) {
+        return switch (providerKey) {
+            case OPENAI_PROVIDER_KEY -> "openai";
+            case ANTHROPIC_PROVIDER_KEY -> "anthropic";
+            case GEMINI_PROVIDER_KEY -> "gemini";
+            case GITHUB_PROVIDER_KEY -> "github";
+            case "LMSTUDIO_API_KEY" -> "lmstudio";
+            case "OLLAMA_API_KEY" -> "ollama";
+            default -> "";
+        };
     }
 
     private static void runProviderKeyProbe(JButton button, JLabel statusLabel, String providerLabel,
@@ -1212,9 +1293,16 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
                 : selectedAgentRoute().providerType();
         settings.cloudProvider = String.valueOf(cloudProvider.getSelectedItem());
         settings.cloudModel = cloudModel.getText() == null ? "" : cloudModel.getText().trim();
+        boolean cloudRouteActive = "CLOUD".equalsIgnoreCase(settings.assistantProviderType);
+        if (cloudRouteActive) {
+            settings.setProviderApiKeyEnvironmentVariable(settings.cloudProvider, selectedCloudEnvironmentVariable());
+        }
         settings.defaultAutobotMode = String.valueOf(defaultMode.getSelectedItem());
         settings.pilotAiProvider = String.valueOf(pilotAiProvider.getSelectedItem());
         settings.pilotAiModel = pilotAiModel.getText() == null ? "" : pilotAiModel.getText().trim();
+        if (!cloudRouteActive || !settings.pilotAiProvider.equals(settings.cloudProvider)) {
+            settings.setProviderApiKeyEnvironmentVariable(settings.pilotAiProvider, selectedPilotEnvironmentVariable());
+        }
         saveLocalEndpoint(settings, settings.pilotAiProvider, pilotAiEndpoint.getText() == null ? "" : pilotAiEndpoint.getText());
         settings.passProviderApiKeysToMcp = passProviderKeys.isSelected();
         return settings;
@@ -1230,14 +1318,88 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
         state.assistantRuntime = form.assistantRuntime;
         state.cloudProvider = form.cloudProvider;
         state.cloudModel = form.cloudModel;
+        boolean cloudRouteActive = "CLOUD".equalsIgnoreCase(form.assistantProviderType);
+        if (cloudRouteActive) {
+            state.setProviderApiKeyEnvironmentVariable(form.cloudProvider,
+                    form.providerApiKeyEnvironmentVariable(form.cloudProvider));
+        }
         state.defaultAutobotClient = form.defaultAutobotClient;
         state.defaultAutobotMode = form.defaultAutobotMode;
         state.pilotAiProvider = form.pilotAiProvider;
         state.pilotAiModel = form.pilotAiModel;
+        if (!cloudRouteActive || !form.pilotAiProvider.equals(form.cloudProvider)) {
+            state.setProviderApiKeyEnvironmentVariable(form.pilotAiProvider,
+                    form.providerApiKeyEnvironmentVariable(form.pilotAiProvider));
+        }
         state.ollamaEndpoint = form.ollamaEndpoint;
         state.lmStudioEndpoint = form.lmStudioEndpoint;
         state.passProviderApiKeysToMcp = form.passProviderApiKeysToMcp;
         state.mcpSetupComplete = true;
+    }
+
+    private void updateCloudCredentialSources() {
+        if (cloudCredentialSource == null || cloudProvider == null) {
+            return;
+        }
+        String provider = String.valueOf(cloudProvider.getSelectedItem());
+        cloudCredentialSource.removeAllItems();
+        cloudCredentialSource.addItem("IntelliJ Password Safe");
+        ProviderCredentialSource.present(provider, providerEnvironmentLookup)
+                .forEach(source -> cloudCredentialSource.addItem(source.label()));
+        selectCloudCredentialSource(settingsProvider.get().providerApiKeyEnvironmentVariable(provider));
+    }
+
+    private void updateCredentialSources(JComboBox<String> combo, String provider, String selectedVariable) {
+        if (combo == null) {
+            return;
+        }
+        combo.removeAllItems();
+        combo.addItem("IntelliJ Password Safe");
+        ProviderCredentialSource.present(provider, providerEnvironmentLookup)
+                .forEach(source -> combo.addItem(source.label()));
+        String label = "Use configured " + selectedVariable;
+        for (int index = 0; selectedVariable != null && !selectedVariable.isBlank()
+                && index < combo.getItemCount(); index++) {
+            if (label.equals(combo.getItemAt(index))) {
+                combo.setSelectedIndex(index);
+                return;
+            }
+        }
+        combo.setSelectedIndex(0);
+    }
+
+    private void selectCloudCredentialSource(String variableName) {
+        if (cloudCredentialSource == null || variableName == null || variableName.isBlank()) {
+            if (cloudCredentialSource != null) {
+                cloudCredentialSource.setSelectedIndex(0);
+            }
+            return;
+        }
+        String label = "Use configured " + variableName;
+        for (int index = 0; index < cloudCredentialSource.getItemCount(); index++) {
+            if (label.equals(cloudCredentialSource.getItemAt(index))) {
+                cloudCredentialSource.setSelectedIndex(index);
+                return;
+            }
+        }
+        cloudCredentialSource.setSelectedIndex(0);
+    }
+
+    private String selectedCloudEnvironmentVariable() {
+        if (cloudCredentialSource == null || cloudCredentialSource.getSelectedIndex() <= 0) {
+            return "";
+        }
+        String item = String.valueOf(cloudCredentialSource.getSelectedItem());
+        String prefix = "Use configured ";
+        return item.startsWith(prefix) ? item.substring(prefix.length()) : "";
+    }
+
+    private String selectedPilotEnvironmentVariable() {
+        if (pilotCredentialSource == null || pilotCredentialSource.getSelectedIndex() <= 0) {
+            return "";
+        }
+        String item = String.valueOf(pilotCredentialSource.getSelectedItem());
+        return item.startsWith("Use configured ") ? item.substring("Use configured ".length()) : "";
     }
 
     private AssistantAgentRoute selectedAgentRoute() {
@@ -1298,15 +1460,19 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
         cloudProvider.setVisible(cloud && !showSummary);
         cloudModelLabel.setVisible(cloud && !showSummary);
         cloudModel.setVisible(cloud && !showSummary);
+        cloudCredentialSourceLabel.setVisible(cloud && !showSummary);
+        cloudCredentialSource.setVisible(cloud && !showSummary);
         defaultModeLabel.setVisible(advanced && !showSummary);
         defaultMode.setVisible(advanced && !showSummary);
         setVisible(advanced, shaftAiSection, shaftAiProviderLabel, shaftAiEndpointLabel, shaftAiModelLabel, shaftAiHelp,
+                pilotCredentialSourceLabel,
                 providerKeysSection, providerKeysHelp, providerKeysStorageHelp, openAiKeyLabel,
                 anthropicKeyLabel, geminiKeyLabel, githubKeyLabel, lmStudioKeyLabel, ollamaKeyLabel,
                 openAiKeyStatus, anthropicKeyStatus, geminiKeyStatus, githubKeyStatus, lmStudioKeyStatus, ollamaKeyStatus);
         pilotAiProvider.setVisible(advanced);
         pilotAiModel.setVisible(advanced);
         pilotAiEndpoint.setVisible(advanced);
+        pilotCredentialSource.setVisible(advanced);
         passProviderKeys.setVisible(advanced);
         openAiKey.setVisible(advanced);
         anthropicKey.setVisible(advanced);
