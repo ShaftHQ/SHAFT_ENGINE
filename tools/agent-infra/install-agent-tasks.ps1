@@ -163,7 +163,9 @@ function New-ExclusiveDirectory {
         [ShaftMaintenance.SecureDirectory]::Create($Path, $security.GetSecurityDescriptorBinaryForm())
     }
 }
-function Set-ExclusiveFileAcl([string]$Path) {
+function Set-ExclusiveFileAcl {
+    [CmdletBinding(SupportsShouldProcess)]
+    param([string]$Path)
     $security = [Security.AccessControl.FileSecurity]::new()
     $security.SetAccessRuleProtection($true, $false)
     $security.SetOwner([Security.Principal.SecurityIdentifier]::new($currentSid))
@@ -173,7 +175,9 @@ function Set-ExclusiveFileAcl([string]$Path) {
             [Security.AccessControl.FileSystemRights]::FullControl,
             [Security.AccessControl.AccessControlType]::Allow)) | Out-Null
     }
-    Set-Acl -LiteralPath $Path -AclObject $security
+    if ($PSCmdlet.ShouldProcess($Path, 'Apply protected maintenance ACL')) {
+        Set-Acl -LiteralPath $Path -AclObject $security
+    }
 }
 function Assert-ExclusiveMaintenanceAcl([string]$Path) {
     $aclRoot = (Get-Item -LiteralPath $Path -Force).FullName
