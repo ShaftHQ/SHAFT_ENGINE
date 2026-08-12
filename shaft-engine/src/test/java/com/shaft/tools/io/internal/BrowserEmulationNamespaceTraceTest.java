@@ -30,6 +30,8 @@ import io.appium.java_client.AppiumDriver;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.Test;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
 
 import java.util.Optional;
 import java.util.List;
@@ -42,6 +44,8 @@ import java.util.zip.ZipFile;
 
 @SuppressWarnings("PMD.AvoidAccessibilityAlteration") // Private trace-manager construction is an isolation fixture.
 public class BrowserEmulationNamespaceTraceTest {
+    private static final ObjectMapper JSON = new ObjectMapper();
+
     @AfterMethod
     public void clearTrace() {
         TraceEventRecorder.clear();
@@ -302,7 +306,7 @@ public class BrowserEmulationNamespaceTraceTest {
     }
 
     @Test
-    public void geolocationNumbersShouldRemainSensitiveWhenRenderedWithDirectionAndUnitSuffixes() {
+    public void geolocationNumbersShouldRemainSensitiveWhenRenderedWithDirectionAndUnitSuffixes() throws Exception {
         BiDi bidi = Mockito.mock(BiDi.class);
         WebDriver driver = liveBiDiDriver(bidi, "ordinary page evidence");
         new com.shaft.gui.browser.BrowserActions(driver, true).emulation().location()
@@ -315,10 +319,11 @@ public class BrowserEmulationNamespaceTraceTest {
                 "numeric units", "numeric units", null, unrelatedFailure, false);
 
         String trace = FailureTraceReporter.renderTraceJson(execution, "numeric unit failure", List.of());
+        String exception = JSON.readTree(trace).path("exception").toString();
 
-        Assert.assertFalse(trace.contains("30.0444"), trace);
-        Assert.assertFalse(trace.contains("-74.0445W"), trace);
-        Assert.assertFalse(trace.contains("12.3456m"), trace);
+        Assert.assertFalse(exception.contains("30.0444"), trace);
+        Assert.assertFalse(exception.contains("-74.0445W"), trace);
+        Assert.assertFalse(exception.contains("12.3456m"), trace);
     }
 
     @Test
@@ -874,7 +879,8 @@ public class BrowserEmulationNamespaceTraceTest {
     }
 
     private static void assertSuccessfulSensitiveActionArchive(String method, String secret, Runnable action,
-                                                               String forbiddenNativeEntry) throws Exception {
+                                                               String forbiddenNativeEntry)
+            throws Exception {
         AssertionError unrelatedFailure = new AssertionError("unrelated terminal failure");
         TestExecutionInfo execution = new TestExecutionInfo("emulation-" + method,
                 BrowserEmulationNamespaceTraceTest.class.getName(), method, method,
@@ -930,12 +936,16 @@ public class BrowserEmulationNamespaceTraceTest {
                 }
                 String json = new String(zip.getInputStream(zip.getEntry("shaft-trace.json")).readAllBytes(),
                         StandardCharsets.UTF_8);
-                Assert.assertTrue(json.contains("unrelated terminal failure"), json);
-                Assert.assertTrue(json.contains("\"type\": \"omitted-sensitive\""), json);
-                Assert.assertTrue(json.contains("ordinary action retained"), json);
-                Assert.assertFalse(json.contains("domSnapshotBefore"), json);
-                Assert.assertFalse(json.contains("later console evidence"), json);
-                Assert.assertFalse(json.contains("later network evidence"), json);
+                JsonNode trace = JSON.readTree(json);
+                Assert.assertTrue(trace.path("exception").path("message").asText()
+                        .contains("unrelated terminal failure"), json);
+                Assert.assertEquals(trace.path("snapshot").path("type").asText(), "omitted-sensitive", json);
+                Assert.assertTrue(trace.path("actions").toString().contains("ordinary action retained"), json);
+                for (JsonNode recordedAction : trace.path("actions")) {
+                    Assert.assertFalse(recordedAction.has("domSnapshotBefore"), json);
+                }
+                Assert.assertTrue(trace.path("console").isEmpty(), json);
+                Assert.assertTrue(trace.path("network").isEmpty(), json);
                 if (forbiddenNativeEntry != null) {
                     Assert.assertNull(zip.getEntry(forbiddenNativeEntry));
                 }
