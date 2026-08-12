@@ -16,17 +16,17 @@ public interface Ocr extends EngineProperties<Ocr> {
     boolean downloadEnabled();
 
     @Override
-    default SetProperty set() {
-        return new SetProperty();
+    default OcrPropertyBuilder set() {
+        return new OcrPropertyBuilder();
     }
 
-    final class SetProperty implements EngineProperties.SetProperty {
-        public SetProperty cacheDirectory(String value) {
+    final class OcrPropertyBuilder implements EngineProperties.SetProperty {
+        public OcrPropertyBuilder cacheDirectory(String value) {
             setProperty("shaft.ocr.cacheDirectory", value);
             return this;
         }
 
-        public SetProperty downloadEnabled(boolean value) {
+        public OcrPropertyBuilder downloadEnabled(boolean value) {
             setProperty("shaft.ocr.downloadEnabled", String.valueOf(value));
             return this;
         }
