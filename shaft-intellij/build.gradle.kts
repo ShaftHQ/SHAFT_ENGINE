@@ -1,5 +1,7 @@
 import org.jetbrains.intellij.platform.gradle.IntelliJPlatformType
+import org.jetbrains.intellij.platform.gradle.tasks.RunIdeTask
 import org.jetbrains.intellij.platform.gradle.tasks.VerifyPluginTask
+import org.gradle.process.CommandLineArgumentProvider
 
 plugins {
     java
@@ -31,6 +33,7 @@ dependencies {
     }
     implementation("com.google.code.gson:gson:2.14.0")
     testImplementation("org.junit.jupiter:junit-jupiter:6.1.0")
+    testImplementation(gradleTestKit())
     testRuntimeOnly("junit:junit:4.13.2")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
@@ -143,6 +146,37 @@ intellijPlatform {
 }
 
 tasks {
+    withType<RunIdeTask>().configureEach {
+        jvmArgumentProviders.add(CommandLineArgumentProvider {
+            listOf("-XX:ErrorFile=${sandboxLogDirectory.file("hs_err_pid%p.log").get().asFile.absolutePath}")
+        })
+    }
+
+    val verifyRunIdeCrashLogConfiguration by registering {
+        group = "verification"
+        description = "Verifies that every runIde JVM writes fatal-error logs outside immutable Gradle caches."
+        doLast {
+            val runIdeTasks = withType<RunIdeTask>().toList()
+            check(runIdeTasks.isNotEmpty()) { "No RunIdeTask instances were registered." }
+            runIdeTasks.forEach { runIdeTask ->
+                val expected = "-XX:ErrorFile=${
+                    runIdeTask.sandboxLogDirectory.file("hs_err_pid%p.log").get().asFile.absolutePath
+                }"
+                val configured = runIdeTask.jvmArgumentProviders
+                    .flatMap { it.asArguments().toList() }
+                    .filter { it.startsWith("-XX:ErrorFile=") }
+                check(configured == listOf(expected)) {
+                    "${runIdeTask.path} must have exactly one sandbox-owned fatal-error log argument; " +
+                        "expected '$expected', found $configured"
+                }
+            }
+        }
+    }
+
+    check {
+        dependsOn(verifyRunIdeCrashLogConfiguration)
+    }
+
     withType<JavaCompile>().configureEach {
         options.release.set(17)
         // Deprecated platform APIs must fail the build at compile time, before the plugin
@@ -168,6 +202,7 @@ tasks {
     }
 
     test {
+        inputs.file("build.gradle.kts")
         finalizedBy(jacocoTestReport)
         useJUnitPlatform()
         systemProperty("java.awt.headless", "true")
@@ -182,6 +217,7 @@ tasks {
                 System.getProperty("shaft.intellij.liveShaftVersion", project.version.toString()))
         systemProperty("shaft.intellij.liveMcpCommand", System.getProperty("shaft.intellij.liveMcpCommand", ""))
         systemProperty("shaft.intellij.workspaceRoot", System.getProperty("shaft.intellij.workspaceRoot", ".."))
+        systemProperty("shaft.intellij.gradleUserHome", gradle.gradleUserHomeDir.absolutePath)
         systemProperty("shaft.intellij.mcp.applicationDataRoot",
                 System.getProperty("shaft.intellij.mcp.applicationDataRoot", ""))
         systemProperty("shaft.intellij.mcp.bootstrapRoot",
