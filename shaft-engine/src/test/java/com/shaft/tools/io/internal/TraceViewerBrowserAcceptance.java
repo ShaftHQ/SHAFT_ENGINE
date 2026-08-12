@@ -27,6 +27,7 @@ import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 
 /** Explicit headless acceptance for the generated single-file trace viewer. */
+@SuppressWarnings("PMD.TestClassWithoutTestCases") // The non-Test suffix keeps this Chrome gate explicit, never implicit.
 public class TraceViewerBrowserAcceptance {
     private static final String BLOCKED_RESOURCE = "https://blocked.invalid/private.png";
 
@@ -276,5 +277,6 @@ public class TraceViewerBrowserAcceptance {
 
     @SuppressWarnings("unused")
     private static void marker() {
+        // Reflection-only fixture marker used as the synthetic TestNG source method.
     }
 }
