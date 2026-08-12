@@ -62,10 +62,12 @@ import json
 import os
 import posixpath
 import re
+import shutil
 import subprocess  # nosec B404 - R10 runs one fixed, read-only git query.
 import sys
 import tempfile
 import time
+from pathlib import Path
 from typing import NamedTuple
 from urllib.parse import urlparse
 
@@ -73,6 +75,10 @@ _HARNESS_IMPORT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.a
 if _HARNESS_IMPORT_ROOT not in sys.path:
     sys.path.insert(0, _HARNESS_IMPORT_ROOT)
 from scripts.agents import learning_loop as _learning_loop
+from scripts.agents.repository_context import (
+    RepositoryContextError,
+    resolve_repository_context,
+)
 
 # ---------------------------------------------------------------------------
 # R1: Maven test scoping + headless execution
@@ -1497,6 +1503,8 @@ _FIELD_ALIASES = {
     "toolInput": "tool_input",
     "sessionId": "session_id",
     "agentType": "agent_type",
+    "toolResponse": "tool_response",
+    "toolResult": "tool_result",
 }
 _TOOL_ALIASES = {
     "bash": "Bash",
@@ -2040,6 +2048,15 @@ def _shell_is_mutation(command: str) -> bool:
         if re.search(r"\bmemory\s+(?:remember|delete|supersede|patch)\b", lowered):
             return True
         if re.search(r"\bmempalace\s+(?:add|delete|mine|sync|sweep|update|checkpoint)\b", lowered):
+            return True
+    return False
+
+
+def _is_git_commit_command(command: str) -> bool:
+    """True when a shell command contains an actual git commit invocation."""
+    for segment in _git_segments(command):
+        rest = _tokens_after_head(segment, _GIT_NAMES)
+        if rest is not None and _split_global_options(rest)[0] == "commit":
             return True
     return False
 
@@ -2726,6 +2743,312 @@ def _ledger_records_a_review(hook_input: object, branch: object) -> bool:
     return f"review:{branch}" in set(ledger_events(hook_input))
 
 
+def _checkpoint_json_event(prefix: str, repository: str, branch: str, head: str, **extra) -> str:
+    payload = {"repository": repository, "branch": branch, "head": head, **extra}
+    return prefix + ":" + json.dumps(payload, sort_keys=True, separators=(",", ":"))
+
+
+def _checkpoint_event_payload(event: object, prefix: str) -> dict | None:
+    marker = prefix + ":"
+    if not isinstance(event, str) or not event.startswith(marker):
+        return None
+    try:
+        payload = json.loads(event[len(marker):])
+    except (json.JSONDecodeError, TypeError):
+        return None
+    if not isinstance(payload, dict):
+        return None
+    if not all(isinstance(payload.get(key), str) and payload[key] for key in ("repository", "branch", "head")):
+        return None
+    return payload
+
+
+def _bounded_repository_context_runner(arguments, **kwargs):
+    """Run shared context probes inside the guard's remaining hook budget."""
+    kwargs["timeout"] = _subprocess_timeout()
+    return subprocess.run(arguments, **kwargs)  # nosec B603 - resolver owns fixed argv.
+
+
+def _checkpoint_identity(hook_input: dict) -> tuple[str, str, str] | None:
+    """Return explicit repository, branch and full HEAD without guessing issue/base."""
+    cwd = _hook_working_directory(hook_input)
+    root = _repository_root(cwd)
+    branch = _current_branch(cwd)
+    head = (_git_output(["rev-parse", "HEAD"], cwd) or "").strip()
+    if not root or not branch or not re.fullmatch(r"[0-9a-fA-F]{40}", head):
+        return None
+    try:
+        context = resolve_repository_context(
+            explicit_repo=None,
+            pr=None,
+            explicit_root=Path(root),
+            cwd=Path(root),
+            runner=_bounded_repository_context_runner,
+        )
+    except (RepositoryContextError, OSError, ValueError):
+        return None
+    return context.repo, branch, head.lower()
+
+
+def _review_checkpoint_event(hook_input: dict, review_event: str | None) -> str | None:
+    """Bind an observed reviewer dispatch to its repository, branch and pre-commit HEAD."""
+    if not review_event:
+        return None
+    identity = _checkpoint_identity(hook_input)
+    if identity is None or review_event != f"review:{identity[1]}":
+        return None
+    return _checkpoint_json_event("review-head", *identity)
+
+
+def _record_successful_commit_checkpoint(hook_input: dict) -> None:
+    """Persist a reviewed commit only after successful PostToolUse retained a new HEAD."""
+    identity = _checkpoint_identity(hook_input)
+    if identity is None:
+        return
+    repository, branch, head = identity
+    reviewed_heads = [
+        payload
+        for payload in (
+            _checkpoint_event_payload(event, "review-head")
+            for event in ledger_events(hook_input)
+        )
+        if payload
+        and payload["repository"] == repository
+        and payload["branch"] == branch
+    ]
+    if not reviewed_heads or reviewed_heads[-1]["head"].lower() == head.lower():
+        return
+    ledger_record(hook_input, _checkpoint_json_event("checkpoint", *identity))
+
+
+_CLOSING_KEYWORD_RE = re.compile(
+    r"\b(?:close[sd]?|fix(?:e[sd])?|resolve[sd]?)\b", re.IGNORECASE
+)
+_SAME_REPOSITORY_CLOSING_RE = re.compile(
+    r"\b(?:close[sd]?|fix(?:e[sd])?|resolve[sd]?)\b\s*:?\s*#([1-9][0-9]*)\b",
+    re.IGNORECASE,
+)
+
+
+def _stacked_body_closing_issues(body: object) -> list[int]:
+    """Return explicit unambiguous same-repository closing refs, or none."""
+    if not isinstance(body, str):
+        return []
+    keywords = list(_CLOSING_KEYWORD_RE.finditer(body))
+    matches = list(_SAME_REPOSITORY_CLOSING_RE.finditer(body))
+    if not matches or len(matches) != len(keywords):
+        return []
+    for match in matches:
+        clause_prefix = re.split(r"[.!?\n]", body[:match.start()])[-1]
+        if re.search(r"\b(?:not|never|no)\b|n't", clause_prefix, re.IGNORECASE):
+            return []
+        following = body[match.end():]
+        if re.match(
+            r"\s*(?:/|,|\b(?:or|and)\b)[^.\n]*#",
+            following,
+            re.IGNORECASE,
+        ):
+            return []
+    return sorted({int(match.group(1)) for match in matches})
+
+
+def _repository_default_branch(executable: str, repository: str) -> str | None:
+    """Read the canonical default branch; never guess main or master."""
+    try:
+        completed = subprocess.run(  # nosec B603 - fixed read-only gh query.
+            [executable, "repo", "view", repository, "--json", "defaultBranchRef"],
+            capture_output=True,
+            text=True,
+            timeout=_subprocess_timeout(),
+            check=False,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return None
+    if completed.returncode != 0:
+        return None
+    try:
+        payload = json.loads(completed.stdout)
+        branch = payload["defaultBranchRef"]["name"]
+    except (json.JSONDecodeError, KeyError, TypeError):
+        return None
+    return branch if isinstance(branch, str) and branch else None
+
+
+def _exact_head_pull_request(repository: str, branch: str, head: str) -> tuple[str, dict | None]:
+    """Return exact-head PR state: exact, unmapped, none, or unavailable."""
+    executable = shutil.which("gh")
+    if executable is None:
+        return "unavailable", None
+    fields = "number,url,state,isDraft,headRefName,headRefOid,baseRefName,body,closingIssuesReferences"
+    try:
+        completed = subprocess.run(  # nosec B603 - fixed read-only gh query.
+            [executable, "pr", "list", "--repo", repository, "--head", branch,
+             "--state", "open", "--json", fields],
+            capture_output=True,
+            text=True,
+            timeout=_subprocess_timeout(),
+            check=False,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return "unavailable", None
+    if completed.returncode != 0:
+        return "unavailable", None
+    try:
+        pull_requests = json.loads(completed.stdout)
+    except json.JSONDecodeError:
+        return "unavailable", None
+    if not isinstance(pull_requests, list):
+        return "unavailable", None
+    exact = next(
+        (
+            item for item in pull_requests
+            if isinstance(item, dict)
+            and str(item.get("state", "")).upper() == "OPEN"
+            and item.get("headRefName") == branch
+            and str(item.get("headRefOid", "")).lower() == head.lower()
+        ),
+        None,
+    )
+    if exact is None:
+        return "none", None
+    base = exact.get("baseRefName")
+    issues = exact.get("closingIssuesReferences")
+    if not isinstance(base, str) or not base or not isinstance(issues, list):
+        return "unmapped", exact
+    issue_numbers = sorted(
+        {item.get("number") for item in issues if isinstance(item, dict) and isinstance(item.get("number"), int)}
+    )
+    if not issue_numbers:
+        default_branch = _repository_default_branch(executable, repository)
+        if default_branch is None:
+            return "unavailable", None
+        if base != default_branch:
+            issue_numbers = _stacked_body_closing_issues(exact.get("body"))
+    if not issue_numbers:
+        return "unmapped", exact
+    exact = dict(exact)
+    exact["issueNumbers"] = issue_numbers
+    return "exact", exact
+
+
+def _r27_recovery_command(
+    command: str, *, allow_checkpoint_repair: bool = False
+) -> tuple[bool, str | None]:
+    """Classify one whole command that can repair a blocked checkpoint."""
+    segments, separators = _top_level_shell_parts(_sanitize_for_command_head(command))
+    nonempty = [segment for segment in segments if segment.strip()]
+    if separators or len(nonempty) != 1:
+        return False, None
+    segment = nonempty[0]
+    git = _tokens_after_head(segment, _GIT_NAMES)
+    git_subcommand, _, git_arguments_index = _split_global_options(git or [])
+    if git_subcommand == "push":
+        return True, None
+    if git_subcommand == "commit":
+        options = {token.lower() for token in (git or [])[git_arguments_index:]}
+        if allow_checkpoint_repair and options == {"--amend", "--no-edit"}:
+            return True, None
+        return False, None
+    gh = _tokens_after_head(segment, frozenset({"gh"})) or []
+    if gh[:2] == ["pr", "create"]:
+        has_base = any(token.lower().startswith("--base=") for token in gh[2:]) or any(
+            token.lower() == "--base" and index + 1 < len(gh)
+            for index, token in enumerate(gh[2:], start=2)
+        )
+        if not has_base:
+            return False, "R27 blocked: `gh pr create` requires an explicit `--base`; never infer a default base for stacked work."
+        return True, None
+    if gh[:2] in (["pr", "view"], ["pr", "list"], ["pr", "edit"], ["pr", "comment"], ["issue", "comment"]):
+        return True, None
+    return False, None
+
+
+def check_r27_checkpoint_pull_request(
+    hook_input: dict, tool_name: str | None = None, *, stopping: bool = False
+) -> str | None:
+    """Require the first reviewed retained checkpoint to have an exact-head PR."""
+    identity = _checkpoint_identity(hook_input)
+    if identity is None:
+        return None
+    repository, branch, head = identity
+    events = ledger_events(hook_input)
+    checkpoints = [
+        payload
+        for payload in (
+            _checkpoint_event_payload(event, "checkpoint")
+            for event in events
+        )
+        if payload
+        and payload["repository"] == repository
+        and payload["branch"] == branch
+        and payload["head"].lower() == head.lower()
+    ]
+    reviewed_head_indexes = [
+        index
+        for index, event in enumerate(events)
+        if (payload := _checkpoint_event_payload(event, "review-head"))
+        and payload["repository"] == repository
+        and payload["branch"] == branch
+        and payload["head"].lower() != head.lower()
+    ]
+    uncertified_commit = bool(
+        not checkpoints
+        and reviewed_head_indexes
+        and "commit" in events[reviewed_head_indexes[-1] + 1:]
+    )
+    if not checkpoints and not uncertified_commit:
+        return None
+    if any(
+        payload
+        and payload["repository"] == repository
+        and payload["branch"] == branch
+        and payload["head"].lower() == head.lower()
+        for payload in (_checkpoint_event_payload(event, "checkpoint-pr") for event in events)
+    ):
+        return None
+    if not stopping and tool_name in {"Bash", "PowerShell"}:
+        recovery, recovery_error = _r27_recovery_command(
+            _extract_command(hook_input),
+            allow_checkpoint_repair=uncertified_commit,
+        )
+        if recovery_error:
+            return recovery_error
+        if recovery:
+            return None
+    if not stopping and not _is_implementation_mutation(tool_name or "", hook_input.get("tool_input")):
+        return None
+    if uncertified_commit:
+        return (
+            "R27 blocked: a successful reviewed commit was observed, but its exact "
+            "repository/branch/HEAD checkpoint was not durably appended. Restore the "
+            "session ledger and repeat an explicit reviewed checkpoint commit."
+        )
+    status, pull_request = _exact_head_pull_request(repository, branch, head)
+    if status == "exact" and pull_request is not None:
+        recorded = ledger_record(
+            hook_input,
+            _checkpoint_json_event(
+                "checkpoint-pr", repository, branch, head,
+                pr=pull_request.get("number"),
+                url=pull_request.get("url"),
+                draft=bool(pull_request.get("isDraft")),
+                base=pull_request["baseRefName"],
+                issues=pull_request["issueNumbers"],
+            ),
+        )
+        if recorded:
+            return None
+        return "R27 blocked: the exact-head PR was found, but its checkpoint mapping could not be durably appended; restore the session ledger and retry."
+    if status == "unavailable":
+        return "R27 blocked: GitHub exact-head PR status is unavailable; restore `gh` authentication/network access and retry."
+    if status == "unmapped":
+        return "R27 blocked: the exact-head open PR has no closing issue reference (for example `Closes #4745`); add one and retry."
+    return (
+        "R27 blocked: the reviewed retained checkpoint has no open PR at this exact HEAD. "
+        "Push it, then create a draft or ready PR with an explicit `--base` and a closing issue reference."
+    )
+
+
 def _independent_reviews(reviews: object, author: object) -> list:
     """Reviews by somebody other than the author that render a verdict.
 
@@ -2859,6 +3182,9 @@ def run_pretooluse(hook_input: dict, host: str = "portable") -> int:
     review_event = _reviewer_dispatch_event(hook_input, tool_name)
     if review_event:
         ledger_record(hook_input, review_event)
+        review_checkpoint = _review_checkpoint_event(hook_input, review_event)
+        if review_checkpoint:
+            ledger_record(hook_input, review_checkpoint)
     if tool_name in DISPATCH_TOOLS:
         ledger_record(hook_input, "delegate-dispatch")
 
@@ -2872,6 +3198,11 @@ def run_pretooluse(hook_input: dict, host: str = "portable") -> int:
         return 0
 
     reason = check_r19_fresh_base(hook_input, tool_name)
+    if reason is not None:
+        _record_guard_block_and_deny(hook_input, reason, host)
+        return 0
+
+    reason = check_r27_checkpoint_pull_request(hook_input, tool_name)
     if reason is not None:
         _record_guard_block_and_deny(hook_input, reason, host)
         return 0
@@ -2914,12 +3245,6 @@ def run_pretooluse(hook_input: dict, host: str = "portable") -> int:
         # fresh process with no memory of it.
         if looks_like_a_test_run(command):
             ledger_record(hook_input, "test-run")
-        if any(
-            _tokens_after_head(segment, frozenset({"git"}))[:1] == ["commit"]
-            for segment in _git_segments(command)
-            if _tokens_after_head(segment, frozenset({"git"}))
-        ):
-            ledger_record(hook_input, "commit")
         if _updates_a_tracked_issue(command, _hook_working_directory(hook_input)):
             ledger_record(hook_input, "issue-update")
         return 0
@@ -2936,6 +3261,7 @@ def run_posttooluse(hook_input: dict) -> int:
         isinstance(result, dict)
         and (
             result.get("isError") is True
+            or result.get("interrupted") is True
             or str(result.get("status", "")).lower() in {"error", "failed", "failure"}
             or result.get("exit_code", result.get("exitCode", 0)) not in {0, None}
         )
@@ -2946,6 +3272,9 @@ def run_posttooluse(hook_input: dict) -> int:
         ledger_record(hook_input, "memory-write")
     if tool_name in ("Bash", "PowerShell"):
         command = _extract_command(hook_input)
+        if not result_failed and _is_git_commit_command(command):
+            _record_successful_commit_checkpoint(hook_input)
+            ledger_record(hook_input, "commit")
         if not result_failed and _is_learning_write_command(command):
             ledger_record(hook_input, "memory-write")
         if not result_failed:
@@ -3862,6 +4191,7 @@ def run_stop(hook_input: dict) -> int:
             check_r20_user_harness_drift(hook_input),
             check_r21_run_state_not_recorded(hook_input),
             check_r24_foreign_worktree_left_behind(hook_input, report),
+            check_r27_checkpoint_pull_request(hook_input, stopping=True),
         )
         if item is not None
     ]
@@ -4129,6 +4459,7 @@ _SELF_TEST_COVERAGE: dict[str, str] = {
     "check_r22_dispatch_adapter": "run_required_action_self_test",
     "check_r24_foreign_worktree_left_behind": "run_required_action_self_test",
     "check_r25_research_before_implementation": "run_required_action_self_test",
+    "check_r27_checkpoint_pull_request": "run_required_action_self_test",
 }
 
 
@@ -4223,6 +4554,16 @@ _STOP_RULE_RENDERERS = {
                 }
             ]
         },
+    ),
+    "check_r27_checkpoint_pull_request": lambda: _with_stubs(
+        {
+            "_checkpoint_identity": lambda payload: ("owner/repo", "ChaosEngine/x", "b" * 40),
+            "ledger_events": lambda payload: [
+                _checkpoint_json_event("checkpoint", "owner/repo", "ChaosEngine/x", "b" * 40)
+            ],
+            "_exact_head_pull_request": lambda repository, branch, head: ("none", None),
+        },
+        lambda: check_r27_checkpoint_pull_request({}, stopping=True),
     ),
 }
 

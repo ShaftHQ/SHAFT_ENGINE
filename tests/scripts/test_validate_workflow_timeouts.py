@@ -102,6 +102,14 @@ jobs:
         repository_root = Path(__file__).resolve().parents[2]
         self.assertEqual(validate_repository(repository_root), [])
 
+    def test_agent_guidance_job_allows_expanded_cross_host_history_suite(self):
+        repository_root = Path(__file__).resolve().parents[2]
+        workflow = yaml.safe_load(
+            (repository_root / ".github/workflows/pr-gate.yml").read_text(encoding="utf-8")
+        )
+        timeout = workflow["jobs"]["agent-guidance"].get("timeout-minutes", 0)
+        self.assertGreaterEqual(timeout, 15)
+
 
 if __name__ == "__main__":
     unittest.main()
