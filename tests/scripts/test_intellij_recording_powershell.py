@@ -1,4 +1,5 @@
 import subprocess
+import shutil
 import unittest
 from pathlib import Path
 
@@ -17,6 +18,8 @@ class IntellijRecordingPowerShellTest(unittest.TestCase):
         self.assertTrue(all(line.lstrip().startswith("pwsh ") for line in recording_lines))
 
     def test_capture_fails_before_mutation_on_legacy_powershell(self):
+        if shutil.which("powershell") is None:
+            self.skipTest("Windows PowerShell is available only on Windows runners")
         result = subprocess.run(
             ["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", str(CAPTURE),
              "-OutputPath", str(ROOT / "build" / "must-not-exist.mp4")],
