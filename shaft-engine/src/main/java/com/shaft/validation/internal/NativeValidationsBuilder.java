@@ -4,6 +4,8 @@ import com.shaft.validation.ValidationEnums;
 import org.openqa.selenium.By;
 import org.openqa.selenium.WebDriver;
 
+import java.util.function.Supplier;
+
 public class NativeValidationsBuilder {
     protected final ValidationEnums.ValidationCategory validationCategory;
     protected final String validationMethod;
@@ -22,6 +24,8 @@ public class NativeValidationsBuilder {
     protected String folderRelativePath;
     protected String fileName;
     protected boolean jsonIgnoringOrderComparison;
+    protected Supplier<Object> mobileValueReader;
+    protected String mobileValueName;
 
     public NativeValidationsBuilder(WebDriverElementValidationsBuilder webDriverElementValidationsBuilder) {
         this.validationCategory = webDriverElementValidationsBuilder.validationCategory;
@@ -41,6 +45,17 @@ public class NativeValidationsBuilder {
         this.browserAttribute = webDriverBrowserValidationsBuilder.browserAttribute;
 
         this.reportMessageBuilder = webDriverBrowserValidationsBuilder.reportMessageBuilder;
+    }
+
+    public NativeValidationsBuilder(ValidationEnums.ValidationCategory validationCategory, WebDriver driver,
+                                    Supplier<Object> mobileValueReader, String mobileValueName,
+                                    StringBuilder reportMessageBuilder) {
+        this.validationCategory = validationCategory;
+        this.driver = driver;
+        this.validationMethod = "mobileValueEquals";
+        this.mobileValueReader = mobileValueReader;
+        this.mobileValueName = mobileValueName;
+        this.reportMessageBuilder = reportMessageBuilder;
     }
 
     public NativeValidationsBuilder(ValidationsBuilder validationsBuilder) {

@@ -18,6 +18,7 @@ import org.openqa.selenium.WebDriver;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Supplier;
 
 public class ValidationsExecutor {
     protected final StringBuilder reportMessageBuilder;
@@ -49,6 +50,8 @@ public class ValidationsExecutor {
     private Double maxDiffPixelRatio;
     private List<By> maskLocators;
     private String ariaSnapshotFileName;
+    private Supplier<Object> mobileValueReader;
+    private String mobileValueName;
 
     public ValidationsExecutor(WebDriverElementValidationsBuilder webDriverElementValidationsBuilder) {
         this.validationCategory = webDriverElementValidationsBuilder.validationCategory;
@@ -85,6 +88,8 @@ public class ValidationsExecutor {
         this.actualValue = nativeValidationsBuilder.actualValue;
         this.elementCssProperty = nativeValidationsBuilder.elementCssProperty;
         this.browserAttribute = nativeValidationsBuilder.browserAttribute;
+        this.mobileValueReader = nativeValidationsBuilder.mobileValueReader;
+        this.mobileValueName = nativeValidationsBuilder.mobileValueName;
 
         this.response.set(nativeValidationsBuilder.response);
         this.jsonPath = nativeValidationsBuilder.jsonPath;
@@ -164,7 +169,9 @@ public class ValidationsExecutor {
     }
 
     protected void internalPerform() {
-        JavaScriptWaitManager.waitForLazyLoading(driver.get());
+        if (!"mobileValueEquals".equals(validationMethod)) {
+            JavaScriptWaitManager.waitForLazyLoading(driver.get());
+        }
         boolean generatedCustomReportMessage = false;
         if (customReportMessage.isBlank()) {
             customReportMessage = generatedReportMessage();
@@ -245,6 +252,9 @@ public class ValidationsExecutor {
                             validationComparisonType, validationType);
             case "browserAttributeEquals" ->
                     validationsHelper.validateBrowserAttribute(driver.get(), browserAttribute, String.valueOf(expectedValue), validationComparisonType, validationType);
+            case "mobileValueEquals" ->
+                    validationsHelper.validateMobileValue(driver.get(), mobileValueName, mobileValueReader,
+                            expectedValue, validationComparisonType, validationType);
             case "comparativeRelationBetweenNumbers" ->
                     validationsHelper.validateNumber((Number) expectedValue, (Number) actualValue, numbersComparativeRelation, validationType);
             case "fileExists" ->

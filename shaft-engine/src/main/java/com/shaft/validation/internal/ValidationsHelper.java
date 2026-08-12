@@ -420,6 +420,45 @@ public class ValidationsHelper {
         reportValidationState(validationState.get(), expected, actual, driver, locator, null);
     }
 
+    protected void validateMobileValue(WebDriver driver, String property, Supplier<Object> reader,
+                                       Object expected, ValidationEnums.ValidationComparisonType comparisonType,
+                                       ValidationEnums.ValidationType validationType) {
+        AtomicReference<Object> actual = new AtomicReference<>();
+        AtomicReference<Boolean> validationState = new AtomicReference<>(false);
+        try {
+            new SynchronizationManager(driver).fluentWait(false).until(ignored -> {
+                try {
+                    actual.set(reader.get());
+                } catch (TimeoutException exception) {
+                    throw new ProviderTimeoutException(exception);
+                }
+                validationState.set(performValidation(expected, actual.get(), comparisonType, validationType));
+                return validationState.get();
+            });
+        } catch (ProviderTimeoutException exception) {
+            throw exception.providerException;
+        } catch (TimeoutException ignored) {
+            // Report the last observed value after the configured bounded wait expires.
+        }
+        String comparison = validationType == ValidationEnums.ValidationType.NEGATIVE
+                ? "not " + comparisonType.name()
+                : comparisonType.name();
+        var parameters = new LinkedHashMap<String, String>();
+        parameters.put("Mobile value", property);
+        parameters.putAll(setCommonParameters(expected, actual.get(), comparison));
+        updateAllureParameters(parameters);
+        reportValidationState(validationState.get(), expected, actual.get(), driver, null, null);
+    }
+
+    private static final class ProviderTimeoutException extends RuntimeException {
+        private final TimeoutException providerException;
+
+        private ProviderTimeoutException(TimeoutException providerException) {
+            super(providerException);
+            this.providerException = providerException;
+        }
+    }
+
     protected void validateJsonEqualsIgnoringOrder(Object expected, Object actual,
                                                    ValidationEnums.ValidationType validationType) {
         boolean positiveMatch = isJsonEqualIgnoringOrder(String.valueOf(expected), String.valueOf(actual));
