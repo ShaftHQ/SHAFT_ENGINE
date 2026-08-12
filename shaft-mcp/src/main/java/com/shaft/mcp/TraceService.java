@@ -83,6 +83,7 @@ public class TraceService {
         this.remediationService = remediationService;
     }
 
+
     /**
      * Lists recent persisted SHAFT trace indexes under {@code target/shaft-traces}.
      *
@@ -419,7 +420,7 @@ public class TraceService {
             while ((entry = zip.getNextEntry()) != null) {
                 if ("shaft-trace.json".equals(entry.getName())) {
                     try {
-                        String content = readBoundedUtf8(zip, entry, MAX_TRACE_JSON_BYTES);
+                        String content = readBoundedUtf8(zip, entry, MAX_TRACE_JSON_BYTES, archive.getParent());
                         zip.closeEntry();
                         return new TraceDocument(publicPath, content, JSON.readTree(content));
                     } catch (EntryTooLargeException exception) {
@@ -431,15 +432,20 @@ public class TraceService {
         throw new IllegalArgumentException("Trace archive does not contain shaft-trace.json.");
     }
 
-    private static String readBoundedUtf8(InputStream input, ZipEntry entry, int maxBytes) throws IOException {
+    private static String readBoundedUtf8(InputStream input, ZipEntry entry, int maxBytes, Path stagingDirectory)
+            throws IOException {
         if (entry.getSize() > maxBytes) {
             throw new EntryTooLargeException();
         }
-        byte[] bytes = input.readNBytes(maxBytes + 1);
-        if (bytes.length > maxBytes) {
-            throw new EntryTooLargeException();
+        Path staging = Files.createTempFile(stagingDirectory, ".shaft-trace-json-", ".tmp");
+        try {
+            try (OutputStream output = Files.newOutputStream(staging)) {
+                copyBounded(input, output, maxBytes);
+            }
+            return Files.readString(staging, StandardCharsets.UTF_8);
+        } finally {
+            Files.deleteIfExists(staging);
         }
-        return new String(bytes, StandardCharsets.UTF_8);
     }
 
     private Path archivePath(Path indexPath, JsonNode index) {

@@ -18,6 +18,8 @@ import java.nio.file.Path;
 import java.lang.reflect.Method;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
@@ -391,6 +393,86 @@ class TraceServiceTest {
                 () -> service(temp).traceRead(relative(temp, index), 1000));
 
         assertEquals("Trace JSON exceeds the 64 MiB read limit.", failure.getMessage());
+        try (var files = Files.list(directory)) {
+            assertFalse(files.anyMatch(path -> path.getFileName().toString().contains(".tmp")),
+                    "Rejected JSON must remove private staging files");
+        }
+    }
+
+    @Test
+    void exactViewerExtractionLimitRemainsInclusive(@TempDir Path temp) throws Exception {
+        Path directory = Files.createDirectories(temp.resolve("target/shaft-traces/exact-viewer"));
+        Path archive = directory.resolve("shaft-trace.zip");
+        writeZipWithRepeatedHtml(archive, MAX_VIEWER_BYTES);
+        Path index = writeIndex(temp, directory, archive, "exact-viewer");
+
+        var result = service(temp).traceOpenViewer(relative(temp, index));
+
+        assertTrue(result.extracted());
+        assertEquals(MAX_VIEWER_BYTES, Files.size(temp.resolve(result.viewerPath())));
+    }
+
+    @Test
+    void truncatedViewerArchiveNeverPublishesPartialCanonicalFile(@TempDir Path temp) throws Exception {
+        Path directory = Files.createDirectories(temp.resolve("target/shaft-traces/truncated-viewer"));
+        Path archive = directory.resolve("shaft-trace.zip");
+        writeZipWithRepeatedHtml(archive, 2L * 1024 * 1024);
+        byte[] complete = Files.readAllBytes(archive);
+        Files.write(archive, java.util.Arrays.copyOf(complete, complete.length - 256));
+        Path index = writeIndex(temp, directory, archive, "truncated-viewer");
+
+        var result = service(temp).traceOpenViewer(relative(temp, index));
+
+        assertTrue(result.viewerPath().isBlank());
+        assertEquals(List.of("Trace ZIP could not be read."), result.warnings());
+        assertFalse(Files.exists(directory.resolve("SHAFT Trace Report.html")));
+        try (var files = Files.list(directory)) {
+            assertFalse(files.anyMatch(path -> path.getFileName().toString().contains(".tmp")));
+        }
+    }
+
+    @Test
+    void exactTraceJsonReadLimitRemainsInclusive(@TempDir Path temp) throws Exception {
+        Path directory = Files.createDirectories(temp.resolve("target/shaft-traces/exact-json"));
+        Path archive = directory.resolve("shaft-trace.zip");
+        writeZipWithRepeatedJson(archive, MAX_TRACE_JSON_BYTES);
+        Path index = writeIndex(temp, directory, archive, "exact-json");
+
+        var summary = service(temp).traceSummarize(relative(temp, index));
+
+        assertTrue(summary.testClass().isBlank());
+    }
+
+    @Test
+    void concurrentViewerReaderNeverObservesPartialCanonicalBytes(@TempDir Path temp) throws Exception {
+        Path directory = Files.createDirectories(temp.resolve("target/shaft-traces/concurrent-viewer"));
+        Path archive = directory.resolve("shaft-trace.zip");
+        writeZipWithRepeatedHtml(archive, MAX_VIEWER_BYTES);
+        Path index = writeIndex(temp, directory, archive, "concurrent-viewer");
+        Path viewer = directory.resolve("SHAFT Trace Report.html");
+
+        CompletableFuture<TraceService.McpTraceViewerResult> extraction = CompletableFuture.supplyAsync(
+                () -> service(temp).traceOpenViewer(relative(temp, index)));
+        long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(10);
+        boolean observedStaging = false;
+        while (!extraction.isDone()) {
+            try (var files = Files.list(directory)) {
+                observedStaging |= files.anyMatch(path -> path.getFileName().toString()
+                        .startsWith(".shaft-trace-viewer-"));
+            }
+            if (Files.exists(viewer)) {
+                assertEquals(MAX_VIEWER_BYTES, Files.size(viewer),
+                        "Canonical viewer readers must see only the complete moved file");
+            }
+            if (System.nanoTime() > deadline) {
+                throw new AssertionError("Timed out waiting for viewer extraction");
+            }
+            Thread.onSpinWait();
+        }
+
+        assertTrue(observedStaging, "Test must observe private staging before canonical publication");
+        assertTrue(extraction.get(10, TimeUnit.SECONDS).extracted());
+        assertEquals(MAX_VIEWER_BYTES, Files.size(viewer));
     }
 
     @Test
@@ -803,6 +885,19 @@ class TraceServiceTest {
                     "json": "shaft-trace.json",
                     "network": "shaft-network.har"
                   }
+                }
+                """.formatted(id, relative(root, archive)), StandardCharsets.UTF_8);
+        return index;
+    }
+
+    private static Path writeIndex(Path root, Path directory, Path archive, String id) throws Exception {
+        Path index = directory.resolve("index.json");
+        Files.writeString(index, """
+                {
+                  "testId": "%s",
+                  "generatedAt": "2026-08-12T15:00:00Z",
+                  "archive": "%s",
+                  "entries": {"html": "SHAFT Trace Report.html", "json": "shaft-trace.json"}
                 }
                 """.formatted(id, relative(root, archive)), StandardCharsets.UTF_8);
         return index;
