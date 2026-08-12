@@ -163,6 +163,18 @@ function New-ExclusiveDirectory {
         [ShaftMaintenance.SecureDirectory]::Create($Path, $security.GetSecurityDescriptorBinaryForm())
     }
 }
+function Set-ExclusiveFileAcl([string]$Path) {
+    $security = [Security.AccessControl.FileSecurity]::new()
+    $security.SetAccessRuleProtection($true, $false)
+    $security.SetOwner([Security.Principal.SecurityIdentifier]::new($currentSid))
+    foreach ($sid in $allowedSids) {
+        $security.AddAccessRule([Security.AccessControl.FileSystemAccessRule]::new(
+            [Security.Principal.SecurityIdentifier]::new($sid),
+            [Security.AccessControl.FileSystemRights]::FullControl,
+            [Security.AccessControl.AccessControlType]::Allow)) | Out-Null
+    }
+    Set-Acl -LiteralPath $Path -AclObject $security
+}
 function Assert-ExclusiveMaintenanceAcl([string]$Path) {
     $aclRoot = (Get-Item -LiteralPath $Path -Force).FullName
     foreach ($target in @((Get-Item -LiteralPath $aclRoot -Force)) + @(Get-ChildItem -LiteralPath $aclRoot -Force -Recurse)) {
@@ -220,8 +232,12 @@ function Install-ControllerBundle(
     $staging = "$final.staging-$([guid]::NewGuid().ToString('N'))"
     try {
         New-ExclusiveDirectory -Path $staging
-        Copy-Item -LiteralPath $ControllerSource -Destination (Join-Path $staging 'shaft_knowledge_refresh.py')
-        Copy-Item -LiteralPath $WrapperSource -Destination (Join-Path $staging 'graphify-refresh.cmd')
+        $stagedController = Join-Path $staging 'shaft_knowledge_refresh.py'
+        $stagedWrapper = Join-Path $staging 'graphify-refresh.cmd'
+        Copy-Item -LiteralPath $ControllerSource -Destination $stagedController
+        Copy-Item -LiteralPath $WrapperSource -Destination $stagedWrapper
+        Set-ExclusiveFileAcl -Path $stagedController
+        Set-ExclusiveFileAcl -Path $stagedWrapper
         Assert-ExclusiveMaintenanceAcl $staging
         Assert-ControllerBundle -BundleHome $staging `
             -ExpectedControllerDigest $ExpectedControllerDigest `
