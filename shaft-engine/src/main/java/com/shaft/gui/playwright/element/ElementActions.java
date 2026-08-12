@@ -515,6 +515,7 @@ public class ElementActions implements com.shaft.gui.driver.ElementActionsContra
                 case CLICK -> session.page().mouse().click(point.x(), point.y());
                 case DOUBLE_CLICK -> session.page().mouse().dblclick(point.x(), point.y());
                 case HOVER -> session.page().mouse().move(point.x(), point.y());
+                default -> throw new IllegalStateException("Unsupported OCR pointer gesture: " + gesture);
             }
         });
     }

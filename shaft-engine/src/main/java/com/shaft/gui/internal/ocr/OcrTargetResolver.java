@@ -76,6 +76,14 @@ final class OcrTargetResolver {
             return List.of(new OcrMatch(normalizeWhitespace(line.text()), line.bounds(), line.confidence()));
         }
 
+        WordOffsets offsets = joinWords(words);
+        String comparableWords = target.options().caseSensitive()
+                ? offsets.text()
+                : offsets.text().toLowerCase(Locale.ROOT);
+        return findNarrowedMatches(words, offsets, comparableWords, normalizedExpected, line);
+    }
+
+    private static WordOffsets joinWords(List<OcrTextBlock> words) {
         StringBuilder joined = new StringBuilder();
         List<Integer> starts = new ArrayList<>();
         List<Integer> ends = new ArrayList<>();
@@ -87,32 +95,49 @@ final class OcrTargetResolver {
             joined.append(normalizeWhitespace(word.text()));
             ends.add(joined.length());
         }
-        String comparableWords = target.options().caseSensitive()
-                ? joined.toString()
-                : joined.toString().toLowerCase(Locale.ROOT);
+        return new WordOffsets(joined.toString(), starts, ends);
+    }
+
+    private static List<OcrMatch> findNarrowedMatches(List<OcrTextBlock> words, WordOffsets offsets,
+                                                       String comparableWords, String expected, OcrTextBlock line) {
         List<OcrMatch> narrowed = new ArrayList<>();
         int searchFrom = 0;
-        while (searchFrom <= comparableWords.length() - normalizedExpected.length()) {
-            int matchStart = comparableWords.indexOf(normalizedExpected, searchFrom);
+        while (searchFrom <= comparableWords.length() - expected.length()) {
+            int matchStart = comparableWords.indexOf(expected, searchFrom);
             if (matchStart < 0) {
                 break;
             }
-            int matchEnd = matchStart + normalizedExpected.length();
-            List<OcrTextBlock> selectedWords = new ArrayList<>();
-            for (int index = 0; index < words.size(); index++) {
-                if (starts.get(index) < matchEnd && ends.get(index) > matchStart) {
-                    selectedWords.add(words.get(index));
-                }
-            }
-            OcrRectangle bounds = selectedWords.stream().map(OcrTextBlock::bounds).reduce(OcrRectangle::union).orElse(line.bounds());
-            double confidence = selectedWords.stream().mapToDouble(OcrTextBlock::confidence).min().orElse(line.confidence());
-            String text = String.join(" ", selectedWords.stream().map(OcrTextBlock::text).map(OcrTargetResolver::normalizeWhitespace).toList());
-            narrowed.add(new OcrMatch(text, bounds, confidence));
+            int matchEnd = matchStart + expected.length();
+            narrowed.add(toMatch(selectWords(words, offsets, matchStart, matchEnd), line));
             searchFrom = matchEnd;
         }
         return narrowed.isEmpty()
                 ? List.of(new OcrMatch(normalizeWhitespace(line.text()), line.bounds(), line.confidence()))
                 : List.copyOf(narrowed);
+    }
+
+    private static List<OcrTextBlock> selectWords(List<OcrTextBlock> words, WordOffsets offsets,
+                                                   int matchStart, int matchEnd) {
+        List<OcrTextBlock> selected = new ArrayList<>();
+        for (int index = 0; index < words.size(); index++) {
+            if (offsets.starts().get(index) < matchEnd && offsets.ends().get(index) > matchStart) {
+                selected.add(words.get(index));
+            }
+        }
+        return selected;
+    }
+
+    private static OcrMatch toMatch(List<OcrTextBlock> selectedWords, OcrTextBlock line) {
+        OcrRectangle bounds = selectedWords.stream().map(OcrTextBlock::bounds)
+                .reduce(OcrRectangle::union).orElse(line.bounds());
+        double confidence = selectedWords.stream().mapToDouble(OcrTextBlock::confidence)
+                .min().orElse(line.confidence());
+        String text = String.join(" ", selectedWords.stream().map(OcrTextBlock::text)
+                .map(OcrTargetResolver::normalizeWhitespace).toList());
+        return new OcrMatch(text, bounds, confidence);
+    }
+
+    private record WordOffsets(String text, List<Integer> starts, List<Integer> ends) {
     }
 
     private static boolean containedBy(OcrRectangle child, OcrRectangle parent) {

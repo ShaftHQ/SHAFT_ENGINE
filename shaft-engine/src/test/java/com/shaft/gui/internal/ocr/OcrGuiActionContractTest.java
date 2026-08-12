@@ -13,7 +13,6 @@ import com.shaft.gui.ocr.OcrTextBlock;
 import com.shaft.gui.playwright.internal.PlaywrightSession;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
-import org.openqa.selenium.Dimension;
 import org.openqa.selenium.OutputType;
 import org.openqa.selenium.JavascriptExecutor;
 import org.openqa.selenium.TakesScreenshot;

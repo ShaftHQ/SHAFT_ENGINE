@@ -36,39 +36,55 @@ final class JavaCppTesseractBackend implements TesseractBackend {
                         + "' from " + tessdataDirectory + ".");
             }
             api.SetPageSegMode(pageSegmentationMode(options));
-            try (org.bytedeco.leptonica.PIX pix = org.bytedeco.leptonica.global.leptonica
-                    .pixReadMemPng(processedImage, processedImage.length)) {
-                if (pix == null || pix.isNull()) {
-                    throw new IllegalArgumentException("Tesseract could not decode the OCR image as PNG.");
-                }
-                api.SetImage(pix);
-                if (options.region() != null) {
-                    if (options.region().right() > imageWidth(pix) || options.region().bottom() > imageHeight(pix)) {
-                        throw new IllegalArgumentException("OCR region " + options.region()
-                                + " exceeds the decoded image bounds " + imageWidth(pix) + "x" + imageHeight(pix) + ".");
-                    }
-                    api.SetRectangle(options.region().x(), options.region().y(), options.region().width(), options.region().height());
-                }
-                if (api.Recognize(null) != 0) {
-                    throw new IllegalStateException("Tesseract failed to recognize the OCR image.");
-                }
-                String fullText;
-                try (BytePointer text = api.GetUTF8Text()) {
-                    fullText = text == null || text.isNull() ? "" : normalize(text.getString());
-                }
-                List<OcrTextBlock> blocks = new ArrayList<>();
-                try (ResultIterator iterator = api.GetIterator()) {
-                    if (iterator != null && !iterator.isNull()) {
-                        collect(iterator, RIL_TEXTLINE, OcrBlockLevel.LINE, blocks);
-                        iterator.Begin();
-                        collect(iterator, RIL_WORD, OcrBlockLevel.WORD, blocks);
-                    }
-                }
-                return new OcrResult(fullText, blocks);
-            } finally {
-                api.End();
+            return recognizeConfigured(api, processedImage, options);
+        }
+    }
+
+    private static OcrResult recognizeConfigured(TessBaseAPI api, byte[] image, OcrOptions options) {
+        try (org.bytedeco.leptonica.PIX pix = org.bytedeco.leptonica.global.leptonica
+                .pixReadMemPng(image, image.length)) {
+            requireDecoded(pix);
+            api.SetImage(pix);
+            applyRegion(api, pix, options.region());
+            if (api.Recognize(null) != 0) {
+                throw new IllegalStateException("Tesseract failed to recognize the OCR image.");
+            }
+            return readResult(api);
+        } finally {
+            api.End();
+        }
+    }
+
+    private static void requireDecoded(org.bytedeco.leptonica.PIX pix) {
+        if (pix == null || pix.isNull()) {
+            throw new IllegalArgumentException("Tesseract could not decode the OCR image as PNG.");
+        }
+    }
+
+    private static void applyRegion(TessBaseAPI api, org.bytedeco.leptonica.PIX pix, OcrRectangle region) {
+        if (region == null) {
+            return;
+        }
+        if (region.right() > imageWidth(pix) || region.bottom() > imageHeight(pix)) {
+            throw new IllegalArgumentException("OCR region " + region + " exceeds the decoded image bounds "
+                    + imageWidth(pix) + "x" + imageHeight(pix) + ".");
+        }
+        api.SetRectangle(region.x(), region.y(), region.width(), region.height());
+    }
+
+    private static OcrResult readResult(TessBaseAPI api) {
+        String fullText;
+        try (BytePointer text = api.GetUTF8Text()) {
+            fullText = text == null || text.isNull() ? "" : normalize(text.getString());
+        }
+        List<OcrTextBlock> blocks = new ArrayList<>();
+        try (ResultIterator iterator = api.GetIterator()) {
+            if (iterator != null && !iterator.isNull()) {
+                collect(iterator, RIL_TEXTLINE, OcrBlockLevel.LINE, blocks);
+                collect(iterator, RIL_WORD, OcrBlockLevel.WORD, blocks);
             }
         }
+        return new OcrResult(fullText, blocks);
     }
 
     private static int imageWidth(org.bytedeco.leptonica.PIX pix) {
