@@ -826,7 +826,15 @@ def collect_worktree_metrics(root: Path = ROOT, *, run_external: bool = True) ->
     # collectors and can gain an external check without a signature change.
     del run_external
     report = collect_worktree_report(root)
-    return {"worktrees": report, "worktree_advisories": format_advisories(report)}
+    return {
+        "worktrees": report,
+        "worktree_advisories": format_advisories(
+            report,
+            check_pull_requests_command=(
+                "py -3 scripts/ci/worktree_hygiene.py --check-pull-requests"
+            ),
+        ),
+    }
 
 
 def validate_repository(
