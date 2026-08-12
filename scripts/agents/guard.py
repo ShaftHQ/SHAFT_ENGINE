@@ -2517,6 +2517,74 @@ def _successful_pr_audit_event(hook_input: dict, command: str) -> str | None:
     return f"pr-audit:{identity[0]}:{target}:{identity[2]}:{digest}"
 
 
+def _successful_delivery_event(hook_input: dict, command: str) -> str | None:
+    """Record only one successful canonical delivery-status allow receipt."""
+    segments = _command_segments(command)
+    if len(segments) != 1:
+        return None
+    tokens = _segment_tokens(segments[0])
+    try:
+        operation = tokens.index("delivery-status")
+        receipt_index = tokens.index("--receipt-out", operation + 1)
+        receipt_path = Path(tokens[receipt_index + 1].strip("\"'"))
+    except (ValueError, IndexError):
+        return None
+    runtime_token = tokens[operation - 1].strip("\"'") if operation else ""
+    runtime_name = re.split(r"[/\\]", runtime_token)[-1].lower()
+    head_name = re.split(r"[/\\]", tokens[0].strip("\"'"))[-1].lower() if tokens else ""
+    runtime_path = Path(runtime_token)
+    if not runtime_path.is_absolute():
+        runtime_path = Path(_hook_working_directory(hook_input) or ".") / runtime_path
+    allowed_runtimes = {
+        (Path(_harness_root()) / "scripts/agents/act_as_mohab_cli.py").resolve(),
+        (Path(_harness_root()) / "bin/act-as-mohab.pyz").resolve(),
+    }
+    if runtime_name not in {"act_as_mohab_cli.py", "act-as-mohab.pyz"} or runtime_path.resolve() not in allowed_runtimes or head_name not in {
+        "py", "py.exe", "python", "python.exe", "python3", "python3.exe"
+    }:
+        return None
+    if not receipt_path.is_absolute():
+        receipt_path = Path(_hook_working_directory(hook_input) or ".") / receipt_path
+    identity = _checkpoint_identity(hook_input)
+    try:
+        receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+    pull_requests = receipt.get("pullRequests") if isinstance(receipt, dict) else None
+    cleanup = receipt.get("cleanup") if isinstance(receipt, dict) else None
+    try:
+        observed = datetime.fromisoformat(str(receipt.get("observedAt")))
+        receipt_age = (datetime.now(UTC) - observed.astimezone(UTC)).total_seconds()
+    except (AttributeError, TypeError, ValueError):
+        return None
+    if (
+        identity is None
+        or not isinstance(receipt, dict)
+        or receipt.get("schemaVersion") != 1
+        or receipt.get("kind") != "delivery-status"
+        or receipt.get("repository") != identity[0]
+        or receipt.get("headOid") != identity[2]
+        or receipt.get("decision") != "allow"
+        or receipt.get("reasons") != []
+        or not isinstance(pull_requests, list)
+        or not pull_requests
+        or receipt.get("mergedCount") != len(pull_requests)
+        or any(
+            not isinstance(item.get("mergedAt"), str) or not item["mergedAt"].strip()
+            for item in pull_requests if isinstance(item, dict)
+        )
+        or any(not isinstance(item, dict) for item in pull_requests)
+        or not isinstance(cleanup, dict)
+        or any(cleanup.get(field) is not True for field in (
+            "primarySynced", "taskWorktreesAbsent", "taskBranchesAbsent", "unrelatedDirtyPreserved"
+        ))
+        or not -60 <= receipt_age <= 600
+    ):
+        return None
+    digest = hashlib.sha256(json.dumps(receipt, sort_keys=True).encode("utf-8")).hexdigest()
+    return f"delivery:{identity[0]}:{identity[2]}:{int(time.time())}:{digest}"
+
+
 def check_r28_pr_audit_before_arming(
     command: str, tool_name: str, hook_input: dict | None = None
 ) -> str | None:
@@ -2548,6 +2616,34 @@ def check_r28_pr_audit_before_arming(
             "--dispositions <file> --receipt-out <git-path>`, address every finding, and retry."
         )
     return None
+
+
+def check_r29_delivery_complete(hook_input: dict) -> str | None:
+    """Block completion until live owned-PR delivery and cleanup are certified."""
+    events = ledger_events(hook_input)
+    if "commit" not in events:
+        return None
+    identity = _checkpoint_identity(hook_input)
+    if identity is not None:
+        prefix = f"delivery:{identity[0]}:{identity[2]}:"
+        now = int(time.time())
+        for event in reversed(events):
+            if not event.startswith(prefix):
+                continue
+            pieces = event.split(":")
+            try:
+                observed = int(pieces[-2])
+            except (ValueError, IndexError):
+                continue
+            if -60 <= now - observed <= 600:
+                return None
+    return (
+        "R29 blocked completion: this session committed work but has no fresh live delivery-status "
+        "receipt proving every owned authorized PR has mergedAt, every feedback audit is clear, "
+        "and scoped cleanup preserved unrelated dirty work. Run `py -3 scripts/agents/"
+        "act_as_mohab_cli.py delivery-status --manifest <file> --receipt-out <file>` and keep the "
+        "goal incomplete if merge authority is absent."
+    )
 
 
 # A review counts only when it renders a verdict. `COMMENTED` is what an
@@ -3416,6 +3512,9 @@ def run_posttooluse(hook_input: dict) -> int:
             audit_event = _successful_pr_audit_event(hook_input, command)
             if audit_event:
                 ledger_record(hook_input, audit_event)
+            delivery_event = _successful_delivery_event(hook_input, command)
+            if delivery_event:
+                ledger_record(hook_input, delivery_event)
             for learning_event in _learning_loop_events(hook_input, command):
                 ledger_record(hook_input, learning_event)
             issue_event = _standalone_issue_created_event(
@@ -4330,6 +4429,7 @@ def run_stop(hook_input: dict) -> int:
             check_r21_run_state_not_recorded(hook_input),
             check_r24_foreign_worktree_left_behind(hook_input, report),
             check_r27_checkpoint_pull_request(hook_input, stopping=True),
+            check_r29_delivery_complete(hook_input),
         )
         if item is not None
     ]
@@ -4599,6 +4699,7 @@ _SELF_TEST_COVERAGE: dict[str, str] = {
     "check_r25_research_before_implementation": "run_required_action_self_test",
     "check_r27_checkpoint_pull_request": "run_required_action_self_test",
     "check_r28_pr_audit_before_arming": "run_required_action_self_test",
+    "check_r29_delivery_complete": "run_required_action_self_test",
 }
 
 
@@ -5091,6 +5192,25 @@ def run_required_action_self_test() -> int:
             },
         )
         is None,
+    )
+    check(
+        "R29 blocks completion after a commit without delivery proof",
+        _with_stubs(
+            {"ledger_events": lambda payload: ["commit"], "_checkpoint_identity": lambda payload: None},
+            lambda: check_r29_delivery_complete({}),
+        ) is not None,
+    )
+    identity = ("owner/repo", "ChaosEngine/task", "a" * 40)
+    delivery_event = f"delivery:{identity[0]}:{identity[2]}:{int(time.time())}:digest"
+    check(
+        "R29 allows completion after fresh exact-head delivery proof",
+        _with_stubs(
+            {
+                "ledger_events": lambda payload: ["commit", delivery_event],
+                "_checkpoint_identity": lambda payload: identity,
+            },
+            lambda: check_r29_delivery_complete({}),
+        ) is None,
     )
 
     print(f"\nRequired-action self-test summary: {len(failures)} failed.")

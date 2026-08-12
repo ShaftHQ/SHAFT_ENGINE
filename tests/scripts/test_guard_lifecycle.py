@@ -51,6 +51,7 @@ ISOLATED_STOP_RULES = (
     "check_r21_run_state_not_recorded",
     "check_r24_foreign_worktree_left_behind",
     "check_r27_checkpoint_pull_request",
+    "check_r29_delivery_complete",
 )
 
 
@@ -1765,6 +1766,25 @@ class LearningNoneEscapeTest(unittest.TestCase):
                     f"--reason-code {reason}"
                 )
                 self.assertFalse(any(event.startswith("learning-none:") for event in events))
+
+
+class DeliveryCompleteStopGateTest(unittest.TestCase):
+    def test_commit_cannot_complete_without_fresh_live_delivery_receipt(self):
+        identity = ("consumer/project", "ChaosEngine/task", "a" * 40)
+        with mock.patch.object(guard, "ledger_events", return_value=["commit"]), mock.patch.object(
+            guard, "_checkpoint_identity", return_value=identity
+        ):
+            reason = guard.check_r29_delivery_complete({"session_id": "s"})
+        self.assertIn("delivery-status", reason)
+        event = f"delivery:{identity[0]}:{identity[2]}:{int(time.time())}:digest"
+        with mock.patch.object(guard, "ledger_events", return_value=["commit", event]), mock.patch.object(
+            guard, "_checkpoint_identity", return_value=identity
+        ):
+            self.assertIsNone(guard.check_r29_delivery_complete({"session_id": "s"}))
+
+    def test_read_only_session_owes_no_delivery_receipt(self):
+        with mock.patch.object(guard, "ledger_events", return_value=[]):
+            self.assertIsNone(guard.check_r29_delivery_complete({}))
 
 
 class UnarmedPullRequestStopGateTest(unittest.TestCase):

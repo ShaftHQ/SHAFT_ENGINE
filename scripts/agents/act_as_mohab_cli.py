@@ -21,12 +21,14 @@ try:
     from scripts.agents.planning_contract import validate_plan
     from scripts.agents.github_client import GitHubClient, GitHubUnavailable
     from scripts.agents.pr_audit import audit_snapshot, collect_pr_snapshot
+    from scripts.agents.delivery_status import collect_delivery, evaluate_delivery, inspect_cleanup
 except ModuleNotFoundError:
     from repository_context import RepositoryContext, RepositoryContextError, resolve_repository_context
     import watch_pr_checks
     from planning_contract import validate_plan
     from github_client import GitHubClient, GitHubUnavailable
     from pr_audit import audit_snapshot, collect_pr_snapshot
+    from delivery_status import collect_delivery, evaluate_delivery, inspect_cleanup
 
 
 EXIT_ENVIRONMENT_ERROR = 3
@@ -137,6 +139,16 @@ def checkpoint_status(
     return {**context_payload(context), "head": head, "pullRequest": exact}
 
 
+def local_head(context: RepositoryContext) -> str:
+    result = subprocess.run(
+        ["git", "rev-parse", "HEAD"], cwd=context.root, capture_output=True, text=True,
+        timeout=10, check=False,
+    )
+    if result.returncode or not result.stdout.strip():
+        raise RepositoryContextError(result.stderr.strip() or "cannot resolve local HEAD")
+    return result.stdout.strip()
+
+
 def build_parser() -> argparse.ArgumentParser:
     """Build the portable command parser."""
     parser = argparse.ArgumentParser(description=__doc__)
@@ -154,6 +166,10 @@ def build_parser() -> argparse.ArgumentParser:
     audit.add_argument("--dispositions", type=Path, required=True)
     audit.add_argument("--expected-head")
     audit.add_argument("--receipt-out", type=Path, required=True)
+    delivery = commands.add_parser("delivery-status", help="verify owned PR merge and cleanup")
+    delivery.add_argument("--manifest", type=Path, required=True)
+    delivery.add_argument("--root", type=Path, default=Path.cwd())
+    delivery.add_argument("--receipt-out", type=Path, required=True)
     commands.add_parser("mcp", help="serve the read-only operations over MCP stdio")
     return parser
 
@@ -202,6 +218,15 @@ def _tool_schemas() -> list[dict]:
                 },
                 "required": ["pr", "dispositions"],
                 "additionalProperties": False,
+            },
+        },
+        {
+            "name": "delivery_status",
+            "description": "Verify all owned pull requests are live-merged and scoped cleanup is complete.",
+            "inputSchema": {
+                "type": "object", "properties": {
+                    "manifest": {"type": "object"}, "root": {"type": "string"},
+                }, "required": ["manifest"], "additionalProperties": False,
             },
         },
     ]
@@ -261,6 +286,19 @@ def call_tool(name: str, arguments: dict) -> dict:
             payload = audit_snapshot(
                 snapshot, arguments.get("dispositions"),
                 expected_head=arguments.get("expectedHead"),
+            )
+            return {
+                "content": [{"type": "text", "text": json.dumps(payload, sort_keys=True)}],
+                "isError": payload["decision"] != "allow",
+            }
+        if name == "delivery_status":
+            manifest = arguments.get("manifest")
+            if not isinstance(manifest, dict):
+                raise RepositoryContextError("delivery manifest must be an object")
+            context = context_from_arguments(_namespace({"root": arguments.get("root")}))
+            payload = evaluate_delivery(
+                manifest, collect_delivery(manifest, default_root=context.root), inspect_cleanup(manifest),
+                execution_repository=context.repo, execution_head=local_head(context),
             )
             return {
                 "content": [{"type": "text", "text": json.dumps(payload, sort_keys=True)}],
@@ -399,6 +437,23 @@ def main(argv: list[str] | None = None) -> int:
             return EXIT_ENVIRONMENT_ERROR
         parsed.receipt_out.parent.mkdir(parents=True, exist_ok=True)
         parsed.receipt_out.write_text(json.dumps(payload, sort_keys=True) + "\n", encoding="utf-8")
+        print(json.dumps(payload, sort_keys=True))
+        return 0 if payload["decision"] == "allow" else 1
+    if parsed.command == "delivery-status":
+        try:
+            manifest = json.loads(parsed.manifest.read_text(encoding="utf-8"))
+            if not isinstance(manifest, dict):
+                raise ValueError("delivery manifest must be an object")
+            context = resolve_repository_context(explicit_root=parsed.root.resolve(), cwd=parsed.root.resolve())
+            payload = evaluate_delivery(
+                manifest, collect_delivery(manifest, default_root=context.root), inspect_cleanup(manifest),
+                execution_repository=context.repo, execution_head=local_head(context),
+            )
+            parsed.receipt_out.parent.mkdir(parents=True, exist_ok=True)
+            parsed.receipt_out.write_text(json.dumps(payload, sort_keys=True) + "\n", encoding="utf-8")
+        except (OSError, json.JSONDecodeError, RepositoryContextError, GitHubUnavailable, ValueError) as error:
+            print(f"act-as-mohab: delivery status unavailable: {error}", file=sys.stderr)
+            return EXIT_ENVIRONMENT_ERROR
         print(json.dumps(payload, sort_keys=True))
         return 0 if payload["decision"] == "allow" else 1
     try:

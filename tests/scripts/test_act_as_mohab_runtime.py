@@ -35,7 +35,7 @@ class ActAsMohabRuntimeTest(unittest.TestCase):
             self.assertEqual(
                 sorted(archive.namelist()),
                 [
-                    "__main__.py", "act_as_mohab_cli.py", "github_client.py",
+                    "__main__.py", "act_as_mohab_cli.py", "delivery_status.py", "github_client.py",
                     "planning_contract.py", "pr_audit.py", "repository_context.py",
                     "watch_pr_checks.py",
                 ],
@@ -51,7 +51,7 @@ class ActAsMohabRuntimeTest(unittest.TestCase):
         self.assertEqual(0, result.returncode, result.stderr)
         for command in (
             "repository-context", "watch-pr-checks", "checkpoint-status", "plan-validate",
-            "pr-audit", "mcp"
+            "pr-audit", "delivery-status", "mcp"
         ):
             self.assertIn(command, result.stdout)
 
@@ -118,6 +118,7 @@ class ActAsMohabRuntimeTest(unittest.TestCase):
             {
                 "repository_context", "watch_pr_checks", "checkpoint_status", "plan_validate",
                 "pr_audit",
+                "delivery_status",
             },
             tools,
         )
