@@ -247,6 +247,34 @@ class PlaywrightTraceArchiveLoaderTest {
         Assert.assertTrue(traceEntries.contains("0-trace.network"));
         Assert.assertTrue(resources.stream().anyMatch(name -> name.endsWith(".html")));
         Assert.assertTrue(resources.stream().anyMatch(name -> name.endsWith(".jpeg")));
+        Class<?> adapter = Class.forName("com.shaft.tools.io.internal.PlaywrightTraceOfflineAdapter");
+        Method snapshots = adapter.getDeclaredMethod("snapshotDocument", loaded.getClass(), String.class);
+        snapshots.setAccessible(true);
+        String officialSnapshot = (String) snapshots.invoke(null, loaded, "after@call@166");
+        Assert.assertTrue(officialSnapshot.contains("buy some cheese"),
+                "The pinned sample's backward node references must reconstruct the action snapshot.");
+        Assert.assertTrue(officialSnapshot.contains("<style>"),
+                "The pinned sample's relative stylesheet resources must resolve offline.");
+    }
+
+    @Test
+    void snapshotRendererRejectsCyclicReferences() throws Exception {
+        Path archive = Files.createTempFile("playwright-trace-cycle", ".zip");
+        try {
+            writeArchive(archive, Map.of("test.trace", "{\"version\":8,\"type\":\"context-options\"}\n"
+                    + "{\"type\":\"frame-snapshot\",\"snapshot\":{\"snapshotName\":\"cycle\","
+                    + "\"pageId\":\"p\",\"frameId\":\"f\",\"frameUrl\":\"https://example.test/\","
+                    + "\"html\":[\"HTML\",{},[[0,0]]],\"timestamp\":1,\"resourceOverrides\":[],\"isMainFrame\":true}}\n"));
+            Object loaded = load(archive);
+            Class<?> adapter = Class.forName("com.shaft.tools.io.internal.PlaywrightTraceOfflineAdapter");
+            Method render = adapter.getDeclaredMethod("snapshotDocument", loaded.getClass(), String.class);
+            render.setAccessible(true);
+            InvocationTargetException failure = Assert.expectThrows(InvocationTargetException.class,
+                    () -> render.invoke(null, loaded, "cycle"));
+            Assert.assertTrue(failure.getCause() instanceof IllegalArgumentException);
+        } finally {
+            Files.deleteIfExists(archive);
+        }
     }
 
     private static Object load(Path archive) throws Exception {

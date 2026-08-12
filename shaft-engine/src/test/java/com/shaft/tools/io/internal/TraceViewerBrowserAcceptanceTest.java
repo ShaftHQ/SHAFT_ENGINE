@@ -29,11 +29,113 @@ import java.util.List;
 import java.util.Map;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
+import java.util.zip.ZipOutputStream;
 
 /** Explicit headless acceptance for the generated single-file trace viewer. */
 public class TraceViewerBrowserAcceptanceTest {
     private static final String BLOCKED_RESOURCE = "https://blocked.invalid/private.png";
     private static final ObjectMapper JSON = new ObjectMapper();
+
+    @Test(groups = "trace-viewer-browser-acceptance")
+    public void realPlaywrightSnapshotRecordsShouldRenderWithOfflineResourcesAndInertScripts() throws Exception {
+        Path archive = Files.createTempFile("playwright-snapshot-record", ".zip");
+        Path html = Files.createTempFile("playwright-snapshot-record", ".html");
+        try {
+            try (ZipOutputStream output = new ZipOutputStream(Files.newOutputStream(archive))) {
+                zipEntry(output, "test.trace", "{\"version\":8,\"type\":\"context-options\",\"origin\":\"testRunner\"}\n");
+                zipEntry(output, "0-trace.trace", """
+                        {"version":8,"type":"context-options","origin":"library","contextId":"context@1"}
+                        {"type":"frame-snapshot","snapshot":{"callId":"call@0","snapshotName":"child-before","pageId":"page@1","frameId":"child@1","frameUrl":"https://wrong.test/","html":["HTML",{},["BODY",{},["P",{},"wrong frame"]]],"viewport":{"width":200,"height":100},"timestamp":5,"wallTime":5,"collectionTime":1,"resourceOverrides":[],"isMainFrame":false}}
+                        {"type":"frame-snapshot","snapshot":{"callId":"call@old","snapshotName":"old","pageId":"page@1","frameId":"frame@1","frameUrl":"https://example.test/app/","html":["HTML",{},["BODY",{},["IMG",{"id":"referenced-image","src":"pixel.png"}]]],"timestamp":8,"resourceOverrides":[],"isMainFrame":true}}
+                        {"type":"frame-snapshot","snapshot":{"callId":"call@1","snapshotName":"before@call@1","pageId":"page@1","frameId":"frame@1","frameUrl":"https://example.test/app/","doctype":"html","html":["HTML",{},["HEAD",{},["META",{"http-equiv":"refresh","content":"0;url=https://blocked.invalid/refresh"}]],["BODY",{},["STYLE",{},"#snapshot-proof > span{color:rgb(1,2,3)}"],["MAIN",{"id":"snapshot-proof"},["SPAN",{},"offline snapshot rendered ✓ café العربية"]],["LINK",{"rel":"stylesheet","href":"site.css"}],["A",{"id":"snapshot-link","href":"captured.html"},"captured link"],["IMG",{"id":"snapshot-image","src":"pixel.png","srcset":"https://blocked.invalid/leak.png 2x"}],[[1,0]],["SCRIPT",{},"parent.__capturedScriptRan=true"]]],"viewport":{"width":800,"height":600},"timestamp":20,"wallTime":20,"collectionTime":1,"resourceOverrides":[],"isMainFrame":true}}
+                        """);
+                zipEntry(output, "0-trace.network", """
+                        {"type":"resource-snapshot","snapshot":{"_frameref":"frame@1","_monotonicTime":10,"request":{"method":"GET","url":"https://example.test/app/site.css"},"response":{"status":200,"statusText":"OK","headers":[],"content":{"mimeType":"text/css","_sha1":"style.css"}}}}
+                        {"type":"resource-snapshot","snapshot":{"_frameref":"frame@1","_monotonicTime":7,"request":{"method":"GET","url":"https://example.test/app/pixel.png"},"response":{"status":200,"statusText":"OK","headers":[],"content":{"mimeType":"image/png","_sha1":"old-pixel.png"}}}}
+                        {"type":"resource-snapshot","snapshot":{"_frameref":"frame@1","_monotonicTime":11,"request":{"method":"GET","url":"https://example.test/app/pixel.png"},"response":{"status":200,"statusText":"OK","headers":[],"content":{"mimeType":"image/png","_sha1":"pixel.png"}}}}
+                        {"type":"resource-snapshot","snapshot":{"_frameref":"frame@1","_monotonicTime":12,"request":{"method":"GET","url":"https://example.test/app/imported.css"},"response":{"status":200,"statusText":"OK","headers":[],"content":{"mimeType":"text/css","_sha1":"imported.css"}}}}
+                        {"type":"resource-snapshot","snapshot":{"_frameref":"frame@1","_monotonicTime":12.5,"request":{"method":"GET","url":"https://example.test/app/supported.css"},"response":{"status":200,"statusText":"OK","headers":[],"content":{"mimeType":"text/css","_sha1":"supported.css"}}}}
+                        {"type":"resource-snapshot","snapshot":{"_frameref":"frame@1","_monotonicTime":13,"request":{"method":"GET","url":"https://example.test/app/captured.html"},"response":{"status":200,"statusText":"OK","headers":[],"content":{"mimeType":"text/html","_sha1":"captured.html"}}}}
+                        {"type":"resource-snapshot","snapshot":{"_frameref":"frame@1","_monotonicTime":30,"request":{"method":"GET","url":"https://example.test/app/site.css"},"response":{"status":200,"statusText":"OK","headers":[],"content":{"mimeType":"text/css","_sha1":"future.css"}}}}
+                        """);
+                zipEntry(output, "resources/style.css", "@import url(imported.css) print;"
+                        + "@import \"supported.css\" supports(selector(:has(*)));"
+                        + "#snapshot-proof{background-color:rgb(4,5,6);background-image:url('pixel.png')}"
+                        + "</style><meta http-equiv=refresh content=\"0;url=https://blocked.invalid/css-refresh\">");
+                zipEntry(output, "resources/imported.css", "#snapshot-link{color:rgb(7,8,9)}");
+                zipEntry(output, "resources/supported.css", "#snapshot-link{background-color:rgb(10,11,12)}");
+                zipEntry(output, "resources/captured.html", "<img src=https://blocked.invalid/navigated>");
+                zipEntry(output, "resources/old-pixel.png", "not a png");
+                zipEntry(output, "resources/future.css", "#snapshot-proof{display:none}");
+                output.putNextEntry(new ZipEntry("resources/pixel.png"));
+                output.write(Base64.getDecoder().decode(
+                        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII="));
+                output.closeEntry();
+            }
+            Object loaded = PlaywrightTraceArchiveLoader.load(archive);
+            Class<?> adapter;
+            try {
+                adapter = Class.forName("com.shaft.tools.io.internal.PlaywrightTraceOfflineAdapter");
+            } catch (ClassNotFoundException exception) {
+                throw new AssertionError("The real Playwright frame-snapshot offline adapter is missing.", exception);
+            }
+            Method render = adapter.getDeclaredMethod("render", loaded.getClass(), String.class);
+            render.setAccessible(true);
+            Method snapshotDocument = adapter.getDeclaredMethod("snapshotDocument", loaded.getClass(), String.class);
+            snapshotDocument.setAccessible(true);
+            String renderedDocument = (String) snapshotDocument.invoke(null, loaded, "before@call@1");
+            Assert.assertTrue(renderedDocument.contains("#snapshot-proof > span{color:rgb(1,2,3)}"),
+                    renderedDocument);
+            Assert.assertTrue(renderedDocument.contains("data:image/png;base64,"), renderedDocument);
+            Assert.assertTrue(renderedDocument.contains("background-image:url(data:image/png;base64,"), renderedDocument);
+            Assert.assertFalse(renderedDocument.toLowerCase().contains("</style><meta"), renderedDocument);
+            Assert.assertFalse(renderedDocument.contains("display:none"), renderedDocument);
+            Files.writeString(html, (String) render.invoke(null, loaded, "before@call@1"));
+
+            List<String> externalRequests = new ArrayList<>();
+            try (Playwright playwright = Playwright.create();
+                 Browser browser = playwright.chromium().launch(new BrowserType.LaunchOptions()
+                         .setExecutablePath(chromeExecutable()).setHeadless(true))) {
+                Page page = browser.newPage();
+                page.onRequest(request -> {
+                    if (!request.url().startsWith("file:") && !request.url().startsWith("data:"))
+                        externalRequests.add(request.url());
+                });
+                page.navigate(html.toUri().toString());
+                var frame = page.frameLocator("#playwright-snapshot");
+                Assert.assertEquals(frame.locator("#snapshot-proof").textContent(),
+                        "offline snapshot rendered ✓ café العربية");
+                Assert.assertEquals(frame.locator("#snapshot-proof span").evaluate("e => getComputedStyle(e).color"),
+                        "rgb(1, 2, 3)");
+                Assert.assertEquals(frame.locator("#snapshot-proof")
+                        .evaluate("e => getComputedStyle(e).backgroundColor"), "rgb(4, 5, 6)");
+                Assert.assertTrue(((String) frame.locator("#snapshot-proof")
+                        .evaluate("e => getComputedStyle(e).backgroundImage")).startsWith("url(\"data:image/png;base64,"));
+                Assert.assertEquals(frame.locator("#snapshot-link").evaluate("e => getComputedStyle(e).color"),
+                        "rgb(0, 0, 238)");
+                Assert.assertEquals(frame.locator("#snapshot-link")
+                        .evaluate("e => getComputedStyle(e).backgroundColor"), "rgb(10, 11, 12)");
+                frame.locator("#snapshot-link").click();
+                Assert.assertEquals(frame.locator("#snapshot-proof").textContent(),
+                        "offline snapshot rendered ✓ café العربية");
+                Assert.assertEquals(frame.locator("#snapshot-image")
+                        .evaluate("e => e.complete && e.naturalWidth === 1"), true);
+                Assert.assertEquals(frame.locator("#referenced-image")
+                        .evaluate("e => e.complete && e.naturalWidth === 1"), true);
+                Assert.assertEquals(page.evaluate("() => Boolean(window.__capturedScriptRan)"), false);
+                Assert.assertTrue(externalRequests.isEmpty(), "Offline adapter requested: " + externalRequests);
+            }
+        } finally {
+            Files.deleteIfExists(archive);
+            Files.deleteIfExists(html);
+        }
+    }
+
+    private static void zipEntry(ZipOutputStream output, String name, String value) throws IOException {
+        output.putNextEntry(new ZipEntry(name));
+        output.write(value.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+        output.closeEntry();
+    }
 
     @Test(groups = "trace-viewer-browser-acceptance")
     public void generatedViewerShouldRemainOfflineAndShareNavigableRangeState() throws Exception {

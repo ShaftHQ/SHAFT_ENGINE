@@ -237,5 +237,10 @@ final class PlaywrightTraceArchiveLoader {
             byte[] bytes = entries.get(name);
             return bytes == null ? null : bytes.clone();
         }
+
+        int entrySize(String name) {
+            byte[] bytes = entries.get(name);
+            return bytes == null ? -1 : bytes.length;
+        }
     }
 }
