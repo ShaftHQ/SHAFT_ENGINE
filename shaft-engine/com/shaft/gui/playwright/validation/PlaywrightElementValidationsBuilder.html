@@ -51,10 +51,15 @@
 <ol class="toc-list">
 <li><a href="#%3Cinit%3E(com.shaft.validation.ValidationEnums.ValidationCategory,com.shaft.gui.playwright.internal.PlaywrightSession,com.microsoft.playwright.Locator)" tabindex="0">PlaywrightElementValidationsBuilder(ValidationEnums.ValidationCategory, PlaywrightSession, Locator)</a></li>
 <li><a href="#%3Cinit%3E(com.shaft.validation.ValidationEnums.ValidationCategory,com.shaft.gui.playwright.internal.PlaywrightSession,com.microsoft.playwright.Locator,java.lang.String)" tabindex="0">PlaywrightElementValidationsBuilder(ValidationEnums.ValidationCategory, PlaywrightSession, Locator, String)</a></li>
+<li><a href="#%3Cinit%3E(com.shaft.validation.ValidationEnums.ValidationCategory,com.shaft.gui.playwright.internal.PlaywrightSession,com.shaft.gui.driver.ElementTarget)" tabindex="0">PlaywrightElementValidationsBuilder(ValidationEnums.ValidationCategory, PlaywrightSession, ElementTarget)</a></li>
 </ol>
 </li>
 <li><a href="#method-detail" tabindex="0">Method Details</a>
 <ol class="toc-list">
+<li><a href="#elementCount()" tabindex="0">elementCount()</a></li>
+<li><a href="#elementRectangle()" tabindex="0">elementRectangle()</a></li>
+<li><a href="#elementAccessibleName()" tabindex="0">elementAccessibleName()</a></li>
+<li><a href="#elementRole()" tabindex="0">elementRole()</a></li>
 <li><a href="#exists()" tabindex="0">exists()</a></li>
 <li><a href="#doesNotExist()" tabindex="0">doesNotExist()</a></li>
 <li><a href="#matchesReferenceImage()" tabindex="0">matchesReferenceImage()</a></li>
@@ -122,6 +127,10 @@ implements <a href="../../driver/ElementAssertions.html" title="interface in com
  com.microsoft.playwright.Locator&nbsp;locator,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;locatorDescription)</code></div>
 <div class="col-last odd-row-color">&nbsp;</div>
+<div class="col-constructor-name even-row-color"><code><a href="#%3Cinit%3E(com.shaft.validation.ValidationEnums.ValidationCategory,com.shaft.gui.playwright.internal.PlaywrightSession,com.shaft.gui.driver.ElementTarget)" class="member-name-link">PlaywrightElementValidationsBuilder</a><wbr>(<a href="../../../validation/ValidationEnums.ValidationCategory.html" title="enum class in com.shaft.validation">ValidationEnums.ValidationCategory</a>&nbsp;validationCategory,
+ <a href="../internal/PlaywrightSession.html" title="class in com.shaft.gui.playwright.internal">PlaywrightSession</a>&nbsp;session,
+ <a href="../../driver/ElementTarget.html" title="class in com.shaft.gui.driver">ElementTarget</a>&nbsp;elementTarget)</code></div>
+<div class="col-last even-row-color">&nbsp;</div>
 </div>
 </section>
 </li>
@@ -157,6 +166,26 @@ implements <a href="../../driver/ElementAssertions.html" title="interface in com
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="../../../validation/internal/NativeValidationsBuilder.html" title="class in com.shaft.validation.internal">NativeValidationsBuilder</a></code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#domProperty(java.lang.String)" class="member-name-link">domProperty</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;domProperty)</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="../../../validation/internal/NativeValidationsBuilder.html" title="class in com.shaft.validation.internal">NativeValidationsBuilder</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#elementAccessibleName()" class="member-name-link">elementAccessibleName</a>()</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Starts a comparison against the element's computed accessible name.</div>
+</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="../../../validation/internal/NativeValidationsBuilder.html" title="class in com.shaft.validation.internal">NativeValidationsBuilder</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#elementCount()" class="member-name-link">elementCount</a>()</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Starts a comparison against the number of elements resolved by this target.</div>
+</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="../../../validation/internal/NativeValidationsBuilder.html" title="class in com.shaft.validation.internal">NativeValidationsBuilder</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#elementRectangle()" class="member-name-link">elementRectangle</a>()</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Starts a comparison against the element's backend-neutral rectangle.</div>
+</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="../../../validation/internal/NativeValidationsBuilder.html" title="class in com.shaft.validation.internal">NativeValidationsBuilder</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#elementRole()" class="member-name-link">elementRole</a>()</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Starts a comparison against the element's computed accessibility role.</div>
+</div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="../../../validation/internal/ValidationsExecutor.html" title="class in com.shaft.validation.internal">ValidationsExecutor</a></code></div>
 <div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#exists()" class="member-name-link">exists</a>()</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
@@ -253,6 +282,16 @@ options (see <a href="../../../validation/VisualComparisonOptions.html" title="c
 </div>
 </section>
 </li>
+<li>
+<section class="detail" id="&lt;init&gt;(com.shaft.validation.ValidationEnums.ValidationCategory,com.shaft.gui.playwright.internal.PlaywrightSession,com.shaft.gui.driver.ElementTarget)">
+<h3>PlaywrightElementValidationsBuilder</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="element-name">PlaywrightElementValidationsBuilder</span><wbr><span class="parameters">(<a href="../../../validation/ValidationEnums.ValidationCategory.html" title="enum class in com.shaft.validation">ValidationEnums.ValidationCategory</a>&nbsp;validationCategory,
+ <a href="../internal/PlaywrightSession.html" title="class in com.shaft.gui.playwright.internal">PlaywrightSession</a>&nbsp;session,
+ <a href="../../driver/ElementTarget.html" title="class in com.shaft.gui.driver">ElementTarget</a>&nbsp;elementTarget)</span></div>
+</div>
+</section>
+</li>
 </ul>
 </section>
 </li>
@@ -261,6 +300,62 @@ options (see <a href="../../../validation/VisualComparisonOptions.html" title="c
 <section class="method-details" id="method-detail">
 <h2>Method Details</h2>
 <ul class="member-list">
+<li>
+<section class="detail" id="elementCount()">
+<h3>elementCount</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="../../../validation/internal/NativeValidationsBuilder.html" title="class in com.shaft.validation.internal">NativeValidationsBuilder</a></span>&nbsp;<span class="element-name">elementCount</span>()</div>
+<div class="block"><span class="description-from-type-label">Description copied from interface:&nbsp;<code><a href="../../driver/ElementAssertions.html#elementCount()">ElementAssertions</a></code></span></div>
+<div class="block">Starts a comparison against the number of elements resolved by this target.</div>
+<dl class="notes">
+<dt>Specified by:</dt>
+<dd><code><a href="../../driver/ElementAssertions.html#elementCount()">elementCount</a></code>&nbsp;in interface&nbsp;<code><a href="../../driver/ElementAssertions.html" title="interface in com.shaft.gui.driver">ElementAssertions</a></code></dd>
+</dl>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="elementRectangle()">
+<h3>elementRectangle</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="../../../validation/internal/NativeValidationsBuilder.html" title="class in com.shaft.validation.internal">NativeValidationsBuilder</a></span>&nbsp;<span class="element-name">elementRectangle</span>()</div>
+<div class="block"><span class="description-from-type-label">Description copied from interface:&nbsp;<code><a href="../../driver/ElementAssertions.html#elementRectangle()">ElementAssertions</a></code></span></div>
+<div class="block">Starts a comparison against the element's backend-neutral rectangle.</div>
+<dl class="notes">
+<dt>Specified by:</dt>
+<dd><code><a href="../../driver/ElementAssertions.html#elementRectangle()">elementRectangle</a></code>&nbsp;in interface&nbsp;<code><a href="../../driver/ElementAssertions.html" title="interface in com.shaft.gui.driver">ElementAssertions</a></code></dd>
+</dl>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="elementAccessibleName()">
+<h3>elementAccessibleName</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="../../../validation/internal/NativeValidationsBuilder.html" title="class in com.shaft.validation.internal">NativeValidationsBuilder</a></span>&nbsp;<span class="element-name">elementAccessibleName</span>()</div>
+<div class="block"><span class="description-from-type-label">Description copied from interface:&nbsp;<code><a href="../../driver/ElementAssertions.html#elementAccessibleName()">ElementAssertions</a></code></span></div>
+<div class="block">Starts a comparison against the element's computed accessible name.</div>
+<dl class="notes">
+<dt>Specified by:</dt>
+<dd><code><a href="../../driver/ElementAssertions.html#elementAccessibleName()">elementAccessibleName</a></code>&nbsp;in interface&nbsp;<code><a href="../../driver/ElementAssertions.html" title="interface in com.shaft.gui.driver">ElementAssertions</a></code></dd>
+</dl>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="elementRole()">
+<h3>elementRole</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="../../../validation/internal/NativeValidationsBuilder.html" title="class in com.shaft.validation.internal">NativeValidationsBuilder</a></span>&nbsp;<span class="element-name">elementRole</span>()</div>
+<div class="block"><span class="description-from-type-label">Description copied from interface:&nbsp;<code><a href="../../driver/ElementAssertions.html#elementRole()">ElementAssertions</a></code></span></div>
+<div class="block">Starts a comparison against the element's computed accessibility role.</div>
+<dl class="notes">
+<dt>Specified by:</dt>
+<dd><code><a href="../../driver/ElementAssertions.html#elementRole()">elementRole</a></code>&nbsp;in interface&nbsp;<code><a href="../../driver/ElementAssertions.html" title="interface in com.shaft.gui.driver">ElementAssertions</a></code></dd>
+</dl>
+</div>
+</section>
+</li>
 <li>
 <section class="detail" id="exists()">
 <h3>exists</h3>

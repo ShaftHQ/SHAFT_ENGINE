@@ -48,6 +48,10 @@
 <li><a href="#method-summary" tabindex="0">Method Summary</a></li>
 <li><a href="#method-detail" tabindex="0">Method Details</a>
 <ol class="toc-list">
+<li><a href="#elementCount()" tabindex="0">elementCount()</a></li>
+<li><a href="#elementRectangle()" tabindex="0">elementRectangle()</a></li>
+<li><a href="#elementAccessibleName()" tabindex="0">elementAccessibleName()</a></li>
+<li><a href="#elementRole()" tabindex="0">elementRole()</a></li>
 <li><a href="#exists()" tabindex="0">exists()</a></li>
 <li><a href="#doesNotExist()" tabindex="0">doesNotExist()</a></li>
 <li><a href="#matchesReferenceImage()" tabindex="0">matchesReferenceImage()</a></li>
@@ -126,6 +130,26 @@
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="../../validation/internal/NativeValidationsBuilder.html" title="class in com.shaft.validation.internal">NativeValidationsBuilder</a></code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#domProperty(java.lang.String)" class="member-name-link">domProperty</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;domProperty)</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">&nbsp;</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code>default <a href="../../validation/internal/NativeValidationsBuilder.html" title="class in com.shaft.validation.internal">NativeValidationsBuilder</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#elementAccessibleName()" class="member-name-link">elementAccessibleName</a>()</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5">
+<div class="block">Starts a comparison against the element's computed accessible name.</div>
+</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code>default <a href="../../validation/internal/NativeValidationsBuilder.html" title="class in com.shaft.validation.internal">NativeValidationsBuilder</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#elementCount()" class="member-name-link">elementCount</a>()</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5">
+<div class="block">Starts a comparison against the number of elements resolved by this target.</div>
+</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code>default <a href="../../validation/internal/NativeValidationsBuilder.html" title="class in com.shaft.validation.internal">NativeValidationsBuilder</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#elementRectangle()" class="member-name-link">elementRectangle</a>()</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5">
+<div class="block">Starts a comparison against the element's backend-neutral rectangle.</div>
+</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code>default <a href="../../validation/internal/NativeValidationsBuilder.html" title="class in com.shaft.validation.internal">NativeValidationsBuilder</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#elementRole()" class="member-name-link">elementRole</a>()</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5">
+<div class="block">Starts a comparison against the element's computed accessibility role.</div>
+</div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="../../validation/internal/ValidationsExecutor.html" title="class in com.shaft.validation.internal">ValidationsExecutor</a></code></div>
 <div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#exists()" class="member-name-link">exists</a>()</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">&nbsp;</div>
@@ -198,6 +222,42 @@ options (see <a href="../../validation/VisualComparisonOptions.html" title="clas
 <section class="method-details" id="method-detail">
 <h2>Method Details</h2>
 <ul class="member-list">
+<li>
+<section class="detail" id="elementCount()">
+<h3>elementCount</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">default</span>&nbsp;<span class="return-type"><a href="../../validation/internal/NativeValidationsBuilder.html" title="class in com.shaft.validation.internal">NativeValidationsBuilder</a></span>&nbsp;<span class="element-name">elementCount</span>()</div>
+<div class="block">Starts a comparison against the number of elements resolved by this target.</div>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="elementRectangle()">
+<h3>elementRectangle</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">default</span>&nbsp;<span class="return-type"><a href="../../validation/internal/NativeValidationsBuilder.html" title="class in com.shaft.validation.internal">NativeValidationsBuilder</a></span>&nbsp;<span class="element-name">elementRectangle</span>()</div>
+<div class="block">Starts a comparison against the element's backend-neutral rectangle.</div>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="elementAccessibleName()">
+<h3>elementAccessibleName</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">default</span>&nbsp;<span class="return-type"><a href="../../validation/internal/NativeValidationsBuilder.html" title="class in com.shaft.validation.internal">NativeValidationsBuilder</a></span>&nbsp;<span class="element-name">elementAccessibleName</span>()</div>
+<div class="block">Starts a comparison against the element's computed accessible name.</div>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="elementRole()">
+<h3>elementRole</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">default</span>&nbsp;<span class="return-type"><a href="../../validation/internal/NativeValidationsBuilder.html" title="class in com.shaft.validation.internal">NativeValidationsBuilder</a></span>&nbsp;<span class="element-name">elementRole</span>()</div>
+<div class="block">Starts a comparison against the element's computed accessibility role.</div>
+</div>
+</section>
+</li>
 <li>
 <section class="detail" id="exists()">
 <h3>exists</h3>

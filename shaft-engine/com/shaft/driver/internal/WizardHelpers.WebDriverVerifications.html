@@ -58,6 +58,7 @@
 <li><a href="#browser()" tabindex="0">browser()</a></li>
 <li><a href="#element(org.openqa.selenium.By)" tabindex="0">element(By)</a></li>
 <li><a href="#object(java.lang.Object)" tabindex="0">object(Object)</a></li>
+<li><a href="#mobileValues()" tabindex="0">mobileValues()</a></li>
 </ol>
 </li>
 </ol>
@@ -118,9 +119,14 @@ implements <a href="../../gui/driver/DriverVerifications.html" title="interface 
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="../../validation/internal/WebDriverElementValidationsBuilder.html" title="class in com.shaft.validation.internal">WebDriverElementValidationsBuilder</a></code></div>
 <div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#element(org.openqa.selenium.By)" class="member-name-link">element</a><wbr>(org.openqa.selenium.By&nbsp;locator)</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="../../validation/internal/NativeValidationsBuilder.html" title="class in com.shaft.validation.internal">NativeValidationsBuilder</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#object(java.lang.Object)" class="member-name-link">object</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Object.html" title="class or interface in java.lang" class="external-link">Object</a>&nbsp;accessible)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="../../validation/internal/WebDriverMobileValidationsBuilder.html" title="class in com.shaft.validation.internal">WebDriverMobileValidationsBuilder</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#mobileValues()" class="member-name-link">mobileValues</a>()</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Starts soft verifications against focused values from the current mobile session.</div>
+</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="../../validation/internal/NativeValidationsBuilder.html" title="class in com.shaft.validation.internal">NativeValidationsBuilder</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#object(java.lang.Object)" class="member-name-link">object</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Object.html" title="class or interface in java.lang" class="external-link">Object</a>&nbsp;accessible)</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
 </div>
 </div>
 </div>
@@ -129,7 +135,7 @@ implements <a href="../../gui/driver/DriverVerifications.html" title="interface 
 <code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Object.html#equals(java.lang.Object)" title="class or interface in java.lang" class="external-link">equals</a>, <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Object.html#getClass()" title="class or interface in java.lang" class="external-link">getClass</a>, <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Object.html#hashCode()" title="class or interface in java.lang" class="external-link">hashCode</a>, <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Object.html#notify()" title="class or interface in java.lang" class="external-link">notify</a>, <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Object.html#notifyAll()" title="class or interface in java.lang" class="external-link">notifyAll</a>, <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Object.html#toString()" title="class or interface in java.lang" class="external-link">toString</a>, <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Object.html#wait()" title="class or interface in java.lang" class="external-link">wait</a>, <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Object.html#wait(long)" title="class or interface in java.lang" class="external-link">wait</a>, <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Object.html#wait(long,int)" title="class or interface in java.lang" class="external-link">wait</a></code></div>
 <div class="inherited-list">
 <h3 id="methods-inherited-from-class-com.shaft.gui.driver.DriverVerifications">Methods inherited from interface&nbsp;<a href="../../gui/driver/DriverVerifications.html#method-summary" title="interface in com.shaft.gui.driver">DriverVerifications</a></h3>
-<code><a href="../../gui/driver/DriverVerifications.html#element(com.shaft.gui.driver.ShaftLocator)" title="element(ShaftLocator)">element</a></code></div>
+<code><a href="../../gui/driver/DriverVerifications.html#element(com.shaft.gui.driver.ElementTarget)" title="element(ElementTarget)">element</a>, <a href="../../gui/driver/DriverVerifications.html#element(com.shaft.gui.driver.ShaftLocator)" title="element(ShaftLocator)">element</a></code></div>
 </section>
 </li>
 </ul>
@@ -189,6 +195,22 @@ implements <a href="../../gui/driver/DriverVerifications.html" title="interface 
 <dl class="notes">
 <dt>Specified by:</dt>
 <dd><code><a href="../../gui/driver/DriverVerifications.html#object(java.lang.Object)">object</a></code>&nbsp;in interface&nbsp;<code><a href="../../gui/driver/DriverVerifications.html" title="interface in com.shaft.gui.driver">DriverVerifications</a></code></dd>
+</dl>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="mobileValues()">
+<h3>mobileValues</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="../../validation/internal/WebDriverMobileValidationsBuilder.html" title="class in com.shaft.validation.internal">WebDriverMobileValidationsBuilder</a></span>&nbsp;<span class="element-name">mobileValues</span>()</div>
+<div class="block"><span class="description-from-type-label">Description copied from interface:&nbsp;<code><a href="../../gui/driver/DriverVerifications.html#mobileValues()">DriverVerifications</a></code></span></div>
+<div class="block">Starts soft verifications against focused values from the current mobile session.</div>
+<dl class="notes">
+<dt>Specified by:</dt>
+<dd><code><a href="../../gui/driver/DriverVerifications.html#mobileValues()">mobileValues</a></code>&nbsp;in interface&nbsp;<code><a href="../../gui/driver/DriverVerifications.html" title="interface in com.shaft.gui.driver">DriverVerifications</a></code></dd>
+<dt>Returns:</dt>
+<dd>mobile-session verification starters</dd>
 </dl>
 </div>
 </section>

@@ -54,6 +54,14 @@
 </li>
 <li><a href="#method-detail" tabindex="0">Method Details</a>
 <ol class="toc-list">
+<li><a href="#statusCodeValue()" tabindex="0">statusCodeValue()</a></li>
+<li><a href="#headerValue(java.lang.String)" tabindex="0">headerValue(String)</a></li>
+<li><a href="#cookieValue(java.lang.String)" tabindex="0">cookieValue(String)</a></li>
+<li><a href="#bodyValue()" tabindex="0">bodyValue()</a></li>
+<li><a href="#jsonValue(java.lang.String)" tabindex="0">jsonValue(String)</a></li>
+<li><a href="#jsonValues(java.lang.String)" tabindex="0">jsonValues(String)</a></li>
+<li><a href="#responseTimeMillis()" tabindex="0">responseTimeMillis()</a></li>
+<li><a href="#matchesContract(java.lang.String)" tabindex="0">matchesContract(String)</a></li>
 <li><a href="#isEqualToFileContent(java.lang.String)" tabindex="0">isEqualToFileContent(String)</a></li>
 <li><a href="#isEqualToFileContentIgnoringOrder(java.lang.String)" tabindex="0">isEqualToFileContentIgnoringOrder(String)</a></li>
 <li><a href="#doesNotEqualFileContent(java.lang.String)" tabindex="0">doesNotEqualFileContent(String)</a></li>
@@ -116,10 +124,20 @@
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="JSONValidationsBuilder.html" title="class in com.shaft.validation.internal">JSONValidationsBuilder</a></code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#body()" class="member-name-link">body</a>()</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="ValidationsExecutor.html" title="class in com.shaft.validation.internal">ValidationsExecutor</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#containsFileContent(java.lang.String)" class="member-name-link">containsFileContent</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;fileRelativePath)</code></div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="NativeValidationsBuilder.html" title="class in com.shaft.validation.internal">NativeValidationsBuilder</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#bodyValue()" class="member-name-link">bodyValue</a>()</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Returns the completed response body as a scalar validation value.</div>
+</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="ValidationsExecutor.html" title="class in com.shaft.validation.internal">ValidationsExecutor</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#containsFileContent(java.lang.String)" class="member-name-link">containsFileContent</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;fileRelativePath)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Use this to check if the content of the provided actual response object contains the expected file content</div>
+</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="NativeValidationsBuilder.html" title="class in com.shaft.validation.internal">NativeValidationsBuilder</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#cookieValue(java.lang.String)" class="member-name-link">cookieValue</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;name)</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Returns the named completed-response cookie as a scalar validation value.</div>
 </div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="ValidationsExecutor.html" title="class in com.shaft.validation.internal">ValidationsExecutor</a></code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#doesNotContainFileContent(java.lang.String)" class="member-name-link">doesNotContainFileContent</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;fileRelativePath)</code></div>
@@ -151,20 +169,50 @@
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Use this to extract a certain value from the provided actual response object as list and check every item against it</div>
 </div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="ValidationsExecutor.html" title="class in com.shaft.validation.internal">ValidationsExecutor</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#isEqualToFileContent(java.lang.String)" class="member-name-link">isEqualToFileContent</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;fileRelativePath)</code></div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="NativeValidationsBuilder.html" title="class in com.shaft.validation.internal">NativeValidationsBuilder</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#headerValue(java.lang.String)" class="member-name-link">headerValue</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;name)</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
-<div class="block">Use this to check if the content of the provided actual response object is equal to the expected file content</div>
+<div class="block">Returns the named completed-response header as a scalar validation value.</div>
 </div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="ValidationsExecutor.html" title="class in com.shaft.validation.internal">ValidationsExecutor</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#isEqualToFileContentIgnoringOrder(java.lang.String)" class="member-name-link">isEqualToFileContentIgnoringOrder</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;fileRelativePath)</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#isEqualToFileContent(java.lang.String)" class="member-name-link">isEqualToFileContent</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;fileRelativePath)</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Use this to check if the content of the provided actual response object is equal to the expected file content</div>
+</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="ValidationsExecutor.html" title="class in com.shaft.validation.internal">ValidationsExecutor</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#isEqualToFileContentIgnoringOrder(java.lang.String)" class="member-name-link">isEqualToFileContentIgnoringOrder</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;fileRelativePath)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Use this to check if the content of the provided actual response object is equal to the expected file content (Ignoring Order)</div>
+</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="NativeValidationsBuilder.html" title="class in com.shaft.validation.internal">NativeValidationsBuilder</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#jsonValue(java.lang.String)" class="member-name-link">jsonValue</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;path)</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Returns one JSONPath result from the completed response.</div>
+</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="NativeValidationsBuilder.html" title="class in com.shaft.validation.internal">NativeValidationsBuilder</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#jsonValues(java.lang.String)" class="member-name-link">jsonValues</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;path)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Returns a JSONPath list result from the completed response.</div>
+</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="ValidationsExecutor.html" title="class in com.shaft.validation.internal">ValidationsExecutor</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#matchesContract(java.lang.String)" class="member-name-link">matchesContract</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;fileRelativePath)</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Validates the completed response against an order-insensitive JSON contract file.</div>
 </div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="ValidationsExecutor.html" title="class in com.shaft.validation.internal">ValidationsExecutor</a></code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#matchesSchema(java.lang.String)" class="member-name-link">matchesSchema</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;fileRelativePath)</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Use this to check if the content of the provided actual response object matches the schema for the expected file content</div>
+</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="NumberValidationsBuilder.html" title="class in com.shaft.validation.internal">NumberValidationsBuilder</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#responseTimeMillis()" class="member-name-link">responseTimeMillis</a>()</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Returns the completed response time in milliseconds.</div>
+</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="NumberValidationsBuilder.html" title="class in com.shaft.validation.internal">NumberValidationsBuilder</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#statusCodeValue()" class="member-name-link">statusCodeValue</a>()</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Returns the completed response status code as a numeric validation value.</div>
 </div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="NumberValidationsBuilder.html" title="class in com.shaft.validation.internal">NumberValidationsBuilder</a></code></div>
 <div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#time()" class="member-name-link">time</a>()</code></div>
@@ -204,6 +252,78 @@
 <section class="method-details" id="method-detail">
 <h2>Method Details</h2>
 <ul class="member-list">
+<li>
+<section class="detail" id="statusCodeValue()">
+<h3>statusCodeValue</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="NumberValidationsBuilder.html" title="class in com.shaft.validation.internal">NumberValidationsBuilder</a></span>&nbsp;<span class="element-name">statusCodeValue</span>()</div>
+<div class="block">Returns the completed response status code as a numeric validation value.</div>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="headerValue(java.lang.String)">
+<h3>headerValue</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="NativeValidationsBuilder.html" title="class in com.shaft.validation.internal">NativeValidationsBuilder</a></span>&nbsp;<span class="element-name">headerValue</span><wbr><span class="parameters">(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;name)</span></div>
+<div class="block">Returns the named completed-response header as a scalar validation value.</div>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="cookieValue(java.lang.String)">
+<h3>cookieValue</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="NativeValidationsBuilder.html" title="class in com.shaft.validation.internal">NativeValidationsBuilder</a></span>&nbsp;<span class="element-name">cookieValue</span><wbr><span class="parameters">(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;name)</span></div>
+<div class="block">Returns the named completed-response cookie as a scalar validation value.</div>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="bodyValue()">
+<h3>bodyValue</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="NativeValidationsBuilder.html" title="class in com.shaft.validation.internal">NativeValidationsBuilder</a></span>&nbsp;<span class="element-name">bodyValue</span>()</div>
+<div class="block">Returns the completed response body as a scalar validation value.</div>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="jsonValue(java.lang.String)">
+<h3>jsonValue</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="NativeValidationsBuilder.html" title="class in com.shaft.validation.internal">NativeValidationsBuilder</a></span>&nbsp;<span class="element-name">jsonValue</span><wbr><span class="parameters">(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;path)</span></div>
+<div class="block">Returns one JSONPath result from the completed response.</div>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="jsonValues(java.lang.String)">
+<h3>jsonValues</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="NativeValidationsBuilder.html" title="class in com.shaft.validation.internal">NativeValidationsBuilder</a></span>&nbsp;<span class="element-name">jsonValues</span><wbr><span class="parameters">(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;path)</span></div>
+<div class="block">Returns a JSONPath list result from the completed response.</div>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="responseTimeMillis()">
+<h3>responseTimeMillis</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="NumberValidationsBuilder.html" title="class in com.shaft.validation.internal">NumberValidationsBuilder</a></span>&nbsp;<span class="element-name">responseTimeMillis</span>()</div>
+<div class="block">Returns the completed response time in milliseconds.</div>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="matchesContract(java.lang.String)">
+<h3>matchesContract</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="ValidationsExecutor.html" title="class in com.shaft.validation.internal">ValidationsExecutor</a></span>&nbsp;<span class="element-name">matchesContract</span><wbr><span class="parameters">(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;fileRelativePath)</span></div>
+<div class="block">Validates the completed response against an order-insensitive JSON contract file.</div>
+</div>
+</section>
+</li>
 <li>
 <section class="detail" id="isEqualToFileContent(java.lang.String)">
 <h3>isEqualToFileContent</h3>

@@ -53,6 +53,17 @@
 <li><a href="#title()" tabindex="0">title()</a></li>
 <li><a href="#alertText()" tabindex="0">alertText()</a></li>
 <li><a href="#text()" tabindex="0">text()</a></li>
+<li><a href="#pageSourceValue()" tabindex="0">pageSourceValue()</a></li>
+<li><a href="#windowHandleValue()" tabindex="0">windowHandleValue()</a></li>
+<li><a href="#windowPositionValue()" tabindex="0">windowPositionValue()</a></li>
+<li><a href="#windowSizeValue()" tabindex="0">windowSizeValue()</a></li>
+<li><a href="#browsingContextCountValue()" tabindex="0">browsingContextCountValue()</a></li>
+<li><a href="#dialogPresentValue()" tabindex="0">dialogPresentValue()</a></li>
+<li><a href="#downloadCountValue()" tabindex="0">downloadCountValue()</a></li>
+<li><a href="#networkObservationCountValue()" tabindex="0">networkObservationCountValue()</a></li>
+<li><a href="#consoleMessageCountValue()" tabindex="0">consoleMessageCountValue()</a></li>
+<li><a href="#consoleErrorCountValue()" tabindex="0">consoleErrorCountValue()</a></li>
+<li><a href="#featureSupportedValue(com.shaft.gui.capabilities.AutomationFeature)" tabindex="0">featureSupportedValue(AutomationFeature)</a></li>
 <li><a href="#matchesScreenshot()" tabindex="0">matchesScreenshot()</a></li>
 <li><a href="#matchesScreenshot(com.shaft.validation.VisualComparisonOptions)" tabindex="0">matchesScreenshot(VisualComparisonOptions)</a></li>
 </ol>
@@ -96,6 +107,36 @@
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="../../validation/internal/NativeValidationsBuilder.html" title="class in com.shaft.validation.internal">NativeValidationsBuilder</a></code></div>
 <div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#attribute(java.lang.String)" class="member-name-link">attribute</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;browserAttribute)</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">&nbsp;</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code>default <a href="../../validation/internal/NativeValidationsBuilder.html" title="class in com.shaft.validation.internal">NativeValidationsBuilder</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#browsingContextCountValue()" class="member-name-link">browsingContextCountValue</a>()</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5">
+<div class="block">Starts an assertion against the number of open browsing contexts in the current session.</div>
+</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code>default <a href="../../validation/internal/NativeValidationsBuilder.html" title="class in com.shaft.validation.internal">NativeValidationsBuilder</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#consoleErrorCountValue()" class="member-name-link">consoleErrorCountValue</a>()</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5">
+<div class="block">Starts an assertion against the number of retained browser-console errors.</div>
+</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code>default <a href="../../validation/internal/NativeValidationsBuilder.html" title="class in com.shaft.validation.internal">NativeValidationsBuilder</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#consoleMessageCountValue()" class="member-name-link">consoleMessageCountValue</a>()</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5">
+<div class="block">Starts an assertion against the number of retained browser-console messages.</div>
+</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code>default <a href="../../validation/internal/NativeValidationsBuilder.html" title="class in com.shaft.validation.internal">NativeValidationsBuilder</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#dialogPresentValue()" class="member-name-link">dialogPresentValue</a>()</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5">
+<div class="block">Starts an assertion against whether a current or observed browser dialog is present.</div>
+</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code>default <a href="../../validation/internal/NativeValidationsBuilder.html" title="class in com.shaft.validation.internal">NativeValidationsBuilder</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#downloadCountValue()" class="member-name-link">downloadCountValue</a>()</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5">
+<div class="block">Starts an assertion against the number of completed or observed downloads.</div>
+</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code>default <a href="../../validation/internal/NativeValidationsBuilder.html" title="class in com.shaft.validation.internal">NativeValidationsBuilder</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#featureSupportedValue(com.shaft.gui.capabilities.AutomationFeature)" class="member-name-link">featureSupportedValue</a><wbr>(<a href="../capabilities/AutomationFeature.html" title="enum class in com.shaft.gui.capabilities">AutomationFeature</a>&nbsp;feature)</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5">
+<div class="block">Starts an assertion against support proven for one feature by the current live session.</div>
+</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code>default <a href="../../validation/internal/ValidationsExecutor.html" title="class in com.shaft.validation.internal">ValidationsExecutor</a></code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#matchesScreenshot()" class="member-name-link">matchesScreenshot</a>()</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5">
@@ -107,6 +148,14 @@
 <div class="block">Asserts that the current page matches its baseline full-page screenshot, using the given
 diff-budget/mask options (see <a href="../../validation/VisualComparisonOptions.html" title="class in com.shaft.validation"><code>VisualComparisonOptions</code></a>).</div>
 </div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code>default <a href="../../validation/internal/NativeValidationsBuilder.html" title="class in com.shaft.validation.internal">NativeValidationsBuilder</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#networkObservationCountValue()" class="member-name-link">networkObservationCountValue</a>()</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5">
+<div class="block">Starts an assertion against the number of retained browser-network observations.</div>
+</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code>default <a href="../../validation/internal/NativeValidationsBuilder.html" title="class in com.shaft.validation.internal">NativeValidationsBuilder</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#pageSourceValue()" class="member-name-link">pageSourceValue</a>()</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5">&nbsp;</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="../../validation/internal/NativeValidationsBuilder.html" title="class in com.shaft.validation.internal">NativeValidationsBuilder</a></code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#text()" class="member-name-link">text</a>()</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">&nbsp;</div>
@@ -116,6 +165,15 @@ diff-budget/mask options (see <a href="../../validation/VisualComparisonOptions.
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="../../validation/internal/NativeValidationsBuilder.html" title="class in com.shaft.validation.internal">NativeValidationsBuilder</a></code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#url()" class="member-name-link">url</a>()</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">&nbsp;</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code>default <a href="../../validation/internal/NativeValidationsBuilder.html" title="class in com.shaft.validation.internal">NativeValidationsBuilder</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#windowHandleValue()" class="member-name-link">windowHandleValue</a>()</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5">&nbsp;</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code>default <a href="../../validation/internal/NativeValidationsBuilder.html" title="class in com.shaft.validation.internal">NativeValidationsBuilder</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#windowPositionValue()" class="member-name-link">windowPositionValue</a>()</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5">&nbsp;</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code>default <a href="../../validation/internal/NativeValidationsBuilder.html" title="class in com.shaft.validation.internal">NativeValidationsBuilder</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#windowSizeValue()" class="member-name-link">windowSizeValue</a>()</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5">&nbsp;</div>
 </div>
 </div>
 </div>
@@ -172,6 +230,109 @@ diff-budget/mask options (see <a href="../../validation/VisualComparisonOptions.
 <h3>text</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="return-type"><a href="../../validation/internal/NativeValidationsBuilder.html" title="class in com.shaft.validation.internal">NativeValidationsBuilder</a></span>&nbsp;<span class="element-name">text</span>()</div>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="pageSourceValue()">
+<h3>pageSourceValue</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">default</span>&nbsp;<span class="return-type"><a href="../../validation/internal/NativeValidationsBuilder.html" title="class in com.shaft.validation.internal">NativeValidationsBuilder</a></span>&nbsp;<span class="element-name">pageSourceValue</span>()</div>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="windowHandleValue()">
+<h3>windowHandleValue</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">default</span>&nbsp;<span class="return-type"><a href="../../validation/internal/NativeValidationsBuilder.html" title="class in com.shaft.validation.internal">NativeValidationsBuilder</a></span>&nbsp;<span class="element-name">windowHandleValue</span>()</div>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="windowPositionValue()">
+<h3>windowPositionValue</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">default</span>&nbsp;<span class="return-type"><a href="../../validation/internal/NativeValidationsBuilder.html" title="class in com.shaft.validation.internal">NativeValidationsBuilder</a></span>&nbsp;<span class="element-name">windowPositionValue</span>()</div>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="windowSizeValue()">
+<h3>windowSizeValue</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">default</span>&nbsp;<span class="return-type"><a href="../../validation/internal/NativeValidationsBuilder.html" title="class in com.shaft.validation.internal">NativeValidationsBuilder</a></span>&nbsp;<span class="element-name">windowSizeValue</span>()</div>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="browsingContextCountValue()">
+<h3>browsingContextCountValue</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">default</span>&nbsp;<span class="return-type"><a href="../../validation/internal/NativeValidationsBuilder.html" title="class in com.shaft.validation.internal">NativeValidationsBuilder</a></span>&nbsp;<span class="element-name">browsingContextCountValue</span>()</div>
+<div class="block">Starts an assertion against the number of open browsing contexts in the current session.</div>
+<dl class="notes">
+<dt>Returns:</dt>
+<dd>a native validation builder for browsing-context count comparisons</dd>
+</dl>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="dialogPresentValue()">
+<h3>dialogPresentValue</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">default</span>&nbsp;<span class="return-type"><a href="../../validation/internal/NativeValidationsBuilder.html" title="class in com.shaft.validation.internal">NativeValidationsBuilder</a></span>&nbsp;<span class="element-name">dialogPresentValue</span>()</div>
+<div class="block">Starts an assertion against whether a current or observed browser dialog is present.</div>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="downloadCountValue()">
+<h3>downloadCountValue</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">default</span>&nbsp;<span class="return-type"><a href="../../validation/internal/NativeValidationsBuilder.html" title="class in com.shaft.validation.internal">NativeValidationsBuilder</a></span>&nbsp;<span class="element-name">downloadCountValue</span>()</div>
+<div class="block">Starts an assertion against the number of completed or observed downloads.</div>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="networkObservationCountValue()">
+<h3>networkObservationCountValue</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">default</span>&nbsp;<span class="return-type"><a href="../../validation/internal/NativeValidationsBuilder.html" title="class in com.shaft.validation.internal">NativeValidationsBuilder</a></span>&nbsp;<span class="element-name">networkObservationCountValue</span>()</div>
+<div class="block">Starts an assertion against the number of retained browser-network observations.</div>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="consoleMessageCountValue()">
+<h3>consoleMessageCountValue</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">default</span>&nbsp;<span class="return-type"><a href="../../validation/internal/NativeValidationsBuilder.html" title="class in com.shaft.validation.internal">NativeValidationsBuilder</a></span>&nbsp;<span class="element-name">consoleMessageCountValue</span>()</div>
+<div class="block">Starts an assertion against the number of retained browser-console messages.</div>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="consoleErrorCountValue()">
+<h3>consoleErrorCountValue</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">default</span>&nbsp;<span class="return-type"><a href="../../validation/internal/NativeValidationsBuilder.html" title="class in com.shaft.validation.internal">NativeValidationsBuilder</a></span>&nbsp;<span class="element-name">consoleErrorCountValue</span>()</div>
+<div class="block">Starts an assertion against the number of retained browser-console errors.</div>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="featureSupportedValue(com.shaft.gui.capabilities.AutomationFeature)">
+<h3>featureSupportedValue</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">default</span>&nbsp;<span class="return-type"><a href="../../validation/internal/NativeValidationsBuilder.html" title="class in com.shaft.validation.internal">NativeValidationsBuilder</a></span>&nbsp;<span class="element-name">featureSupportedValue</span><wbr><span class="parameters">(<a href="../capabilities/AutomationFeature.html" title="enum class in com.shaft.gui.capabilities">AutomationFeature</a>&nbsp;feature)</span></div>
+<div class="block">Starts an assertion against support proven for one feature by the current live session.</div>
+<dl class="notes">
+<dt>Parameters:</dt>
+<dd><code>feature</code> - stable feature identifier</dd>
+</dl>
 </div>
 </section>
 </li>

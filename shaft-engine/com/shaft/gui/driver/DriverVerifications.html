@@ -51,7 +51,9 @@
 <li><a href="#browser()" tabindex="0">browser()</a></li>
 <li><a href="#element(org.openqa.selenium.By)" tabindex="0">element(By)</a></li>
 <li><a href="#element(com.shaft.gui.driver.ShaftLocator)" tabindex="0">element(ShaftLocator)</a></li>
+<li><a href="#element(com.shaft.gui.driver.ElementTarget)" tabindex="0">element(ElementTarget)</a></li>
 <li><a href="#object(java.lang.Object)" tabindex="0">object(Object)</a></li>
+<li><a href="#mobileValues()" tabindex="0">mobileValues()</a></li>
 </ol>
 </li>
 </ol>
@@ -89,11 +91,21 @@
 <div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#browser()" class="member-name-link">browser</a>()</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">&nbsp;</div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code>default <a href="ElementAssertions.html" title="interface in com.shaft.gui.driver">ElementAssertions</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#element(com.shaft.gui.driver.ShaftLocator)" class="member-name-link">element</a><wbr>(<a href="ShaftLocator.html" title="class in com.shaft.gui.driver">ShaftLocator</a>&nbsp;elementLocator)</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5">&nbsp;</div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="ElementAssertions.html" title="interface in com.shaft.gui.driver">ElementAssertions</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#element(org.openqa.selenium.By)" class="member-name-link">element</a><wbr>(org.openqa.selenium.By&nbsp;elementLocator)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">&nbsp;</div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#element(com.shaft.gui.driver.ElementTarget)" class="member-name-link">element</a><wbr>(<a href="ElementTarget.html" title="class in com.shaft.gui.driver">ElementTarget</a>&nbsp;elementTarget)</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5">
+<div class="block">Starts soft verifications against a lazily composed portable element target.</div>
+</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code>default <a href="ElementAssertions.html" title="interface in com.shaft.gui.driver">ElementAssertions</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#element(com.shaft.gui.driver.ShaftLocator)" class="member-name-link">element</a><wbr>(<a href="ShaftLocator.html" title="class in com.shaft.gui.driver">ShaftLocator</a>&nbsp;elementLocator)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5">&nbsp;</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="ElementAssertions.html" title="interface in com.shaft.gui.driver">ElementAssertions</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#element(org.openqa.selenium.By)" class="member-name-link">element</a><wbr>(org.openqa.selenium.By&nbsp;elementLocator)</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">&nbsp;</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code>default <a href="MobileAssertions.html" title="interface in com.shaft.gui.driver">MobileAssertions</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#mobileValues()" class="member-name-link">mobileValues</a>()</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5">
+<div class="block">Starts soft verifications against focused values from the current mobile session.</div>
+</div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="../../validation/internal/NativeValidationsBuilder.html" title="class in com.shaft.validation.internal">NativeValidationsBuilder</a></code></div>
 <div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#object(java.lang.Object)" class="member-name-link">object</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Object.html" title="class or interface in java.lang" class="external-link">Object</a>&nbsp;actual)</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">&nbsp;</div>
@@ -136,10 +148,38 @@
 </section>
 </li>
 <li>
+<section class="detail" id="element(com.shaft.gui.driver.ElementTarget)">
+<h3>element</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">default</span>&nbsp;<span class="return-type"><a href="ElementAssertions.html" title="interface in com.shaft.gui.driver">ElementAssertions</a></span>&nbsp;<span class="element-name">element</span><wbr><span class="parameters">(<a href="ElementTarget.html" title="class in com.shaft.gui.driver">ElementTarget</a>&nbsp;elementTarget)</span></div>
+<div class="block">Starts soft verifications against a lazily composed portable element target.</div>
+<dl class="notes">
+<dt>Parameters:</dt>
+<dd><code>elementTarget</code> - portable element target</dd>
+<dt>Returns:</dt>
+<dd>element verifications facade</dd>
+</dl>
+</div>
+</section>
+</li>
+<li>
 <section class="detail" id="object(java.lang.Object)">
 <h3>object</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="return-type"><a href="../../validation/internal/NativeValidationsBuilder.html" title="class in com.shaft.validation.internal">NativeValidationsBuilder</a></span>&nbsp;<span class="element-name">object</span><wbr><span class="parameters">(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Object.html" title="class or interface in java.lang" class="external-link">Object</a>&nbsp;actual)</span></div>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="mobileValues()">
+<h3>mobileValues</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">default</span>&nbsp;<span class="return-type"><a href="MobileAssertions.html" title="interface in com.shaft.gui.driver">MobileAssertions</a></span>&nbsp;<span class="element-name">mobileValues</span>()</div>
+<div class="block">Starts soft verifications against focused values from the current mobile session.</div>
+<dl class="notes">
+<dt>Returns:</dt>
+<dd>mobile-session verification starters</dd>
+</dl>
 </div>
 </section>
 </li>
