@@ -30,31 +30,34 @@
     "shaft-mcp/.github/copilot-instructions.md": {
       "max_chars": 1500
     },
-    ".agents/skills/act-as-mohab/references/**/*.md": {
+    "chaos-engine/profiles/shaft/references/**/*.md": {
+      "max_bytes": 16384
+    },
+    "chaos-engine/references/*.md": {
       "max_bytes": 16384
     }
   },
   "host_contexts": {
     "codex": [
       "AGENTS.md",
-      ".agents/skills/act-as-mohab/SKILL.md"
+      ".agents/skills/chaos-engine/SKILL.md"
     ],
     "claude": [
       "AGENTS.md",
       "CLAUDE.md",
-      ".agents/skills/act-as-mohab/SKILL.md"
+      ".agents/skills/chaos-engine/SKILL.md"
     ],
     "grok": [
       "AGENTS.md",
       "CLAUDE.md",
-      ".agents/skills/act-as-mohab/SKILL.md"
+      ".agents/skills/chaos-engine/SKILL.md"
     ],
     "copilot": [
       "AGENTS.md",
       ".github/copilot-instructions.md",
       ".github/instructions/framework-source.instructions.md",
       ".github/instructions/java-tests.instructions.md",
-      ".agents/skills/act-as-mohab/SKILL.md"
+      ".agents/skills/chaos-engine/SKILL.md"
     ]
   },
   "host_skill_metadata_globs": {
@@ -75,7 +78,7 @@
     ]
   },
   "routing_bridges": {
-    "source": ".agents/skills/act-as-mohab/references/routing.md",
+    "source": "chaos-engine/profiles/shaft/references/routing.md",
     "skill_roots": [
       ".agents/skills",
       ".claude/skills",
@@ -91,7 +94,9 @@
     ".agents/skills/README.md",
     ".agents/skills/*/SKILL.md",
     ".agents/skills/*/agents/openai.yaml",
-    ".agents/skills/act-as-mohab/references/**/*.md",
+    "chaos-engine/skills/chaos-engine/SKILL.md",
+    "chaos-engine/references/*.md",
+    "chaos-engine/profiles/shaft/**/*.md",
     ".claude/agents/*.md",
     ".claude/skills/*/SKILL.md",
     ".github/copilot-instructions.md",
@@ -104,7 +109,9 @@
     "CLAUDE.md",
     ".agents/skills/README.md",
     ".agents/skills/*/SKILL.md",
-    ".agents/skills/act-as-mohab/references/**/*.md",
+    "chaos-engine/skills/chaos-engine/SKILL.md",
+    "chaos-engine/references/*.md",
+    "chaos-engine/profiles/shaft/**/*.md",
     ".claude/agents/*.md",
     ".claude/skills/*/SKILL.md",
     ".github/copilot-instructions.md",
@@ -114,10 +121,12 @@
   ],
   "expected_skill_names": {
     ".agents/skills": [
-      "act-as-mohab"
+      "act-as-mohab",
+      "chaos-engine"
     ],
     ".claude/skills": [
-      "act-as-mohab"
+      "act-as-mohab",
+      "chaos-engine"
     ],
     ".github/skills": [
       "agent-guidance-boundary-guard",
@@ -147,15 +156,21 @@
     ".github/skills": {
       "max_description_chars": 220,
       "max_skill_md_bytes": 4096
+    },
+    "chaos-engine/skills": {
+      "max_description_chars": 220,
+      "max_skill_md_bytes": 20000,
+      "max_skill_md_lines": 500
     }
   },
   "harness_reachability": {
     "notes": "Owner directive behind #4485: an agent that loads the entrypoint must reach the whole harness from it, so every tracked harness element is reachable or carries a stated exemption. Two reachability mechanisms cover both halves. Inside deployable_root every element is a real markdown link -- a backtick mention does not count there, per #4489. Outside it, elements are named as exact path tokens in a link-reachable file and each token must resolve -- which keeps the rule from failing open when a path moves (#4481). A wildcard cannot fail because it re-derives itself from the tree it checks; wildcards remain legal prose but satisfy nothing.",
-    "entrypoint": ".agents/skills/act-as-mohab/SKILL.md",
-    "deployable_root": ".agents/skills",
+    "entrypoint": ".agents/skills/chaos-engine/SKILL.md",
+    "deployable_root": "chaos-engine",
     "boundary": "The union of every boundary anyone has drawn for this, because narrowing one silently is the failure this whole check exists to stop. #4485 measured 71 files: guidance, adapters, roles, hooks and the checks that police them. A second pass added the enforcement tests, scripts/ci/local_gate.py and .claude-plugin/marketplace.json. An adversarial review then refuted two exclusions and both are now in. .github/skills/** is agent guidance: its SKILL.md files are redirects structurally identical to the .claude/skills ones that were already counted, expected_skill_names checks their presence rather than their reachability, and pr-gate.yml already lists .github/skills/** under its agent_guidance path filter -- the repository had classified them before this check did. .github/workflows/pr-gate.yml is in as an exact path rather than the earlier agent|skill|guard regex over the workflow directory: that regex matched no file, and the one workflow it needed to match is the one that decides whether this check runs at all. A boundary drawn so that the thing running the gate falls outside the gate is convenient rather than honest.",
     "element_globs": [
       ".agents/**",
+      "chaos-engine/**",
       ".claude-plugin/*.json",
       ".claude/agents/*.md",
       ".claude/settings.json",
@@ -189,6 +204,7 @@
       "scripts/ci/worktree_hygiene.py",
       "tools/repository-map/resolve_graph_out.py",
       "tests/scripts/test_agent_*.py",
+      "tests/scripts/test_chaos_engine_portable_core.py",
       "tests/scripts/test_assemble_act_as_mohab_plugin.py",
       "tests/scripts/test_repository_context.py",
       "tests/scripts/test_watch_pr_checks.py",
@@ -212,7 +228,9 @@
     "CONTRIBUTING.md",
     ".agents/skills/README.md",
     ".agents/skills/*/SKILL.md",
-    ".agents/skills/act-as-mohab/references/**/*.md",
+    "chaos-engine/skills/chaos-engine/SKILL.md",
+    "chaos-engine/references/*.md",
+    "chaos-engine/profiles/shaft/**/*.md",
     ".claude/agents/*.md",
     ".claude/skills/*/SKILL.md",
     ".github/copilot-instructions.md",
@@ -228,7 +246,8 @@
   "skills_roots": [
     ".agents/skills",
     ".claude/skills",
-    ".github/skills"
+    ".github/skills",
+    "chaos-engine/skills"
   ],
   "duplicate_paragraph_min_chars": 180,
   "forbidden_patterns": [

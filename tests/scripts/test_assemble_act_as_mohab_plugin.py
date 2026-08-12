@@ -21,7 +21,7 @@ from scripts.ci.validate_agent_plugins import validate_package
 
 
 ROOT = Path(__file__).resolve().parents[2]
-CANONICAL_SKILLS = ROOT / ".agents/skills"
+CANONICAL_ROOT = ROOT / "chaos-engine"
 MARKDOWN_LINK = re.compile(r"\]\(([^)#?]+)")
 ENGINE_VERSION = ET.parse(ROOT / "pom.xml").getroot().findtext(
     "{http://maven.apache.org/POM/4.0.0}version"
@@ -37,15 +37,21 @@ class AssembleActAsMohabPluginTest(unittest.TestCase):
         self.temporary_directory.cleanup()
 
     def create_source_repository(self, source_root: Path) -> Path:
-        source_skills = source_root / ".agents/skills"
-        for skill in ("act-as-mohab",):
-            target = source_skills / skill / "SKILL.md"
-            target.parent.mkdir(parents=True, exist_ok=True)
-            target.write_text(
-                "---\nname: " + skill + "\ndescription: Use when testing assembly.\n---\n",
-                encoding="utf-8",
-            )
-        (source_skills / "act-as-mohab/references").mkdir()
+        canonical_root = source_root / "chaos-engine"
+        target = canonical_root / "skills/chaos-engine/SKILL.md"
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text(
+            "---\nname: chaos-engine\ndescription: Use when testing assembly.\n---\n"
+            "\n[references](../../references/roles.md)\n",
+            encoding="utf-8",
+        )
+        references = canonical_root / "references"
+        references.mkdir()
+        (references / "roles.md").write_text("# Roles\n", encoding="utf-8")
+        profile = canonical_root / "profiles/shaft"
+        profile.mkdir(parents=True)
+        (profile / "entrypoint.md").write_text("# Test profile\n", encoding="utf-8")
+        (profile / "profile.json").write_text('{"schemaVersion":1}\n', encoding="utf-8")
         (source_root / "LICENSE").write_text("test license\n", encoding="utf-8")
         changelog = source_root / "agent-plugins/act-as-mohab/CHANGELOG.md"
         changelog.parent.mkdir(parents=True)
@@ -72,11 +78,11 @@ class AssembleActAsMohabPluginTest(unittest.TestCase):
         )
         subprocess.run([git_executable(), "init", "--quiet"], cwd=source_root, check=True)  # nosec B603
         subprocess.run(
-            [git_executable(), "add", ".agents/skills", "LICENSE", "agent-plugins", "scripts/agents"],
+            [git_executable(), "add", "chaos-engine", "LICENSE", "agent-plugins", "scripts/agents"],
             cwd=source_root,
             check=True,
         )  # nosec B603
-        return source_skills
+        return canonical_root
 
     def test_discovery_content_is_bound_to_engine_version(self):
         release = json.loads((ROOT / "agent-plugins/release.json").read_text(encoding="utf-8"))
@@ -96,7 +102,7 @@ class AssembleActAsMohabPluginTest(unittest.TestCase):
             path.name for path in (self.package_root / "skills").iterdir()
             if (path / "SKILL.md").is_file()
         }
-        self.assertEqual(packaged_skills, {"act-as-mohab"})
+        self.assertEqual(packaged_skills, {"act-as-mohab", "chaos-engine"})
         for relative in ("plugin.json", ".claude-plugin/plugin.json", ".codex-plugin/plugin.json"):
             manifest = json.loads((self.package_root / relative).read_text(encoding="utf-8"))
             self.assertEqual(manifest["version"], version)
@@ -118,17 +124,19 @@ class AssembleActAsMohabPluginTest(unittest.TestCase):
                 "license": "MIT",
             },
         )
-        for skill in ("act-as-mohab",):
-            self.assertEqual(
-                (self.package_root / "skills" / skill / "SKILL.md").read_bytes(),
-                (CANONICAL_SKILLS / skill / "SKILL.md").read_bytes(),
-            )
+        packaged_core = (self.package_root / "skills/chaos-engine/SKILL.md").read_text(encoding="utf-8")
+        canonical_core = (CANONICAL_ROOT / "skills/chaos-engine/SKILL.md").read_text(encoding="utf-8")
+        self.assertTrue(packaged_core.startswith(canonical_core.rstrip()))
+        self.assertIn("../../profiles/shaft/entrypoint.md", packaged_core)
+        alias = (self.package_root / "skills/act-as-mohab/SKILL.md").read_text(encoding="utf-8")
+        self.assertIn("../chaos-engine/SKILL.md", alias)
+        self.assertIn("../../profiles/shaft/entrypoint.md", alias)
         self.assertFalse((self.package_root / "skills/consult-first").exists())
         self.assertFalse((self.package_root / "skills/retrieve-first").exists())
-        canonical_references = CANONICAL_SKILLS / "act-as-mohab/references"
+        canonical_references = CANONICAL_ROOT / "references"
         for source in sorted(tracked_source_files(ROOT)):
             if source.is_relative_to(canonical_references) and source.suffix in {".md", ".LICENSE"}:
-                target = self.package_root / "skills/act-as-mohab/references" / source.relative_to(canonical_references)
+                target = self.package_root / "references" / source.relative_to(canonical_references)
                 self.assertEqual(target.read_bytes(), source.read_bytes(), target)
         self.assertFalse((self.package_root / "skills/act-as-mohab/agents").exists())
 
@@ -259,8 +267,8 @@ class AssembleActAsMohabPluginTest(unittest.TestCase):
 
     def test_assembly_skips_a_symlinked_source_file(self):
         source_root = self.package_root.parent / "source"
-        source_skills = self.create_source_repository(source_root)
-        source_references = source_skills / "act-as-mohab/references"
+        canonical_root = self.create_source_repository(source_root)
+        source_references = canonical_root / "references"
         outside = self.package_root.parent / "outside.md"
         outside.write_text("host secret", encoding="utf-8")
         (source_references / "session-token.json").write_text("host secret", encoding="utf-8")
@@ -271,25 +279,25 @@ class AssembleActAsMohabPluginTest(unittest.TestCase):
 
         assemble(source_root, self.package_root)
 
-        self.assertFalse((self.package_root / "skills/act-as-mohab/references/leak.md").exists())
-        self.assertFalse((self.package_root / "skills/act-as-mohab/references/session-token.json").exists())
+        self.assertFalse((self.package_root / "references/leak.md").exists())
+        self.assertFalse((self.package_root / "references/session-token.json").exists())
 
     def test_assembly_ignores_untracked_markdown_source_files(self):
         source_root = self.package_root.parent / "source"
-        source_skills = self.create_source_repository(source_root)
-        notes = source_skills / "act-as-mohab/references/session-notes.md"
+        canonical_root = self.create_source_repository(source_root)
+        notes = canonical_root / "references/session-notes.md"
         notes.write_text("host secret", encoding="utf-8")
 
         assemble(source_root, self.package_root)
 
-        self.assertFalse((self.package_root / "skills/act-as-mohab/references/session-notes.md").exists())
+        self.assertFalse((self.package_root / "references/session-notes.md").exists())
 
     def test_assembly_rejects_a_symlinked_canonical_skill(self):
         source_root = self.package_root.parent / "source"
-        source_skills = self.create_source_repository(source_root)
+        canonical_root = self.create_source_repository(source_root)
         outside = self.package_root.parent / "outside.md"
         outside.write_text("host secret", encoding="utf-8")
-        skill_path = source_skills / "act-as-mohab/SKILL.md"
+        skill_path = canonical_root / "skills/chaos-engine/SKILL.md"
         skill_path.unlink()
         try:
             skill_path.symlink_to(outside)
@@ -316,13 +324,12 @@ class AssembleActAsMohabPluginTest(unittest.TestCase):
 
     def test_assembly_rejects_a_symlinked_canonical_skill_directory(self):
         source_root = self.package_root.parent / "source"
-        source_skills = self.create_source_repository(source_root)
+        canonical_root = self.create_source_repository(source_root)
         outside = self.package_root.parent / "outside"
         outside.mkdir()
         (outside / "SKILL.md").write_text("host secret", encoding="utf-8")
-        skill_directory = source_skills / "act-as-mohab"
+        skill_directory = canonical_root / "skills/chaos-engine"
         (skill_directory / "SKILL.md").unlink()
-        (skill_directory / "references").rmdir()
         skill_directory.rmdir()
         try:
             skill_directory.symlink_to(outside, target_is_directory=True)
@@ -334,8 +341,9 @@ class AssembleActAsMohabPluginTest(unittest.TestCase):
 
     def test_assembly_rejects_a_symlinked_reference_directory(self):
         source_root = self.package_root.parent / "source"
-        source_skills = self.create_source_repository(source_root)
-        references = source_skills / "act-as-mohab/references"
+        canonical_root = self.create_source_repository(source_root)
+        references = canonical_root / "references"
+        (references / "roles.md").unlink()
         references.rmdir()
         outside = self.package_root.parent / "outside"
         outside.mkdir()
@@ -350,8 +358,8 @@ class AssembleActAsMohabPluginTest(unittest.TestCase):
 
     def test_assembly_rejects_output_inside_its_canonical_sources(self):
         source_root = self.package_root.parent / "source"
-        source_skills = self.create_source_repository(source_root)
-        output = source_skills / "act-as-mohab/references/assembled-output"
+        canonical_root = self.create_source_repository(source_root)
+        output = canonical_root / "references/assembled-output"
 
         with self.assertRaises(ValueError):
             assemble(source_root, output)

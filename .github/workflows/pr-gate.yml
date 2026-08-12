@@ -83,6 +83,7 @@ jobs:
               - '.github/workflows/README.md'
               - '.github/workflows/mavenCentral_cd.yml'
               - 'agent-plugins/**'
+              - 'chaos-engine/**'
               - 'shaft-skills/**'
               - 'agent-plugins/**'
               - '.claude-plugin/marketplace.json'
@@ -317,6 +318,7 @@ jobs:
           tests.scripts.test_agent_harness_portability
           tests.scripts.test_agent_harness_adherence
           tests.scripts.test_agent_harness_reachability
+          tests.scripts.test_chaos_engine_portable_core
           tests.scripts.test_guard_nul_corruption
           tests.scripts.test_guard_memory_worktree
           tests.scripts.test_guard_lifecycle

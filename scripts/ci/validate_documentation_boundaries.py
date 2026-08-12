@@ -43,6 +43,7 @@ ALLOWED_GLOBS = (
     ".github/instructions/*.instructions.md",
     ".github/ISSUE_TEMPLATE/*.md",
     ".github/skills/**/*.md",
+    "chaos-engine/**/*.md",
     ".memory/memory/*.md",
     ".memory/memory/**/*.md",
     "skills/*/SKILL.md",

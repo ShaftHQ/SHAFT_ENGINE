@@ -1,0 +1,22 @@
+# SHAFT project profile
+
+Load the [canonical ChaosEngine entrypoint](../../skills/chaos-engine/SKILL.md)
+first. This profile adds only repository-specific facts and permissions.
+
+- Repository: `ShaftHQ/SHAFT_ENGINE`; default branch: `main`.
+- Task branches use `ChaosEngine/*` and start from fetched `origin/main`.
+- The companion public-documentation repository is
+  `ShaftHQ/shafthq.github.io` on `master`; discover its local root or use an
+  explicitly configured root, never a fixed sibling path.
+- Maven modules and SHAFT product behavior route through the playbooks and
+  mastery chapters under [references](references/routing.md).
+
+## Standing artifact sharing authorization
+
+The standing authorization applies to artifacts produced for SHAFT repository
+tasks: they may be uploaded to Google Drive and set to **Anyone with the link —
+Viewer** without asking again, in present and future sessions. It covers only
+the intended task artifacts. It does not cover unrelated Drive content,
+folder-wide permission changes, editor access, or secret-bearing artifacts.
+Verify the intended artifact and resulting permission after each upload; if
+either scope or secret safety is uncertain, stop before publishing.

@@ -749,8 +749,8 @@ Use #4649 and #4650 as mandatory regression prompts when relevant. Cover each ap
         self.temporary_directory = tempfile.TemporaryDirectory()
         self.addCleanup(self.temporary_directory.cleanup)
         self.root = Path(self.temporary_directory.name)
-        consult = self.root / ".agents/skills/act-as-mohab/references/consult-first.md"
-        planning = self.root / ".agents/skills/act-as-mohab/references/work-github-planning.md"
+        consult = self.root / "chaos-engine/references/consult-first.md"
+        planning = self.root / "chaos-engine/references/work-github-planning.md"
         consult.parent.mkdir(parents=True)
         consult.write_text(self.CONSULT, encoding="utf-8")
         planning.write_text(self.PLANNING, encoding="utf-8")
@@ -765,7 +765,7 @@ Use #4649 and #4650 as mandatory regression prompts when relevant. Cover each ap
         splitter = getattr(guidance_validator, "split_markdown_table_row", None)
         self.assertIsNotNone(splitter, "escaped-pipe-aware table parser is missing")
         self.assertEqual(splitter(r"| proof | `py -3 x.py \| Select-String PASS` |"), ("proof", "`py -3 x.py | Select-String PASS`"))
-        path = self.root / ".agents/skills/act-as-mohab/references/consult-first.md"
+        path = self.root / "chaos-engine/references/consult-first.md"
         acceptance_table = (
             "| Criterion or invariant | Positive proof | Negative or mutation proof | Command |\n"
             "| --- | --- | --- | --- |\n"
@@ -778,7 +778,7 @@ Use #4649 and #4650 as mandatory regression prompts when relevant. Cover each ap
         self.assertEqual(self._issues(), [])
 
     def test_fenced_contract_is_not_operative_guidance(self):
-        path = self.root / ".agents/skills/act-as-mohab/references/consult-first.md"
+        path = self.root / "chaos-engine/references/consult-first.md"
         fenced = self.CONSULT.replace(
             "For cross-cutting or hard-to-reverse work",
             "```markdown\nFor cross-cutting or hard-to-reverse work",
@@ -788,7 +788,7 @@ Use #4649 and #4650 as mandatory regression prompts when relevant. Cover each ap
         self.assertTrue(self._issues(), "a code sample is not operative guidance")
 
     def test_duplicate_table_fails_exactly_one_table_contract(self):
-        path = self.root / ".agents/skills/act-as-mohab/references/consult-first.md"
+        path = self.root / "chaos-engine/references/consult-first.md"
         acceptance_table = (
             "| Criterion or invariant | Positive proof | Negative or mutation proof | Command |\n"
             "| --- | --- | --- | --- |\n"
@@ -824,7 +824,7 @@ Use #4649 and #4650 as mandatory regression prompts when relevant. Cover each ap
         )
 
     def test_mandatory_clauses_cannot_be_borrowed_from_after_the_matrices(self):
-        path = self.root / ".agents/skills/act-as-mohab/references/consult-first.md"
+        path = self.root / "chaos-engine/references/consult-first.md"
         clause = "Every acceptance criterion and invariant must map to positive and negative proof."
         moved_after_tables = self.CONSULT.replace(clause + "\n", "", 1) + clause + "\n"
         path.write_text(moved_after_tables, encoding="utf-8")
@@ -885,7 +885,7 @@ Use #4649 and #4650 as mandatory regression prompts when relevant. Cover each ap
                 self.assertFalse(checker(value))
 
     def test_schema_flattening_removed_cells_placeholders_and_guesses_fail(self):
-        path = self.root / ".agents/skills/act-as-mohab/references/consult-first.md"
+        path = self.root / "chaos-engine/references/consult-first.md"
         acceptance_table = (
             "| Criterion or invariant | Positive proof | Negative or mutation proof | Command |\n"
             "| --- | --- | --- | --- |\n"
@@ -903,8 +903,8 @@ Use #4649 and #4650 as mandatory regression prompts when relevant. Cover each ap
                 self.assertTrue(self._issues())
 
     def test_mandatory_trigger_mapping_omission_and_ordering_weakening_fail(self):
-        consult = self.root / ".agents/skills/act-as-mohab/references/consult-first.md"
-        planning = self.root / ".agents/skills/act-as-mohab/references/work-github-planning.md"
+        consult = self.root / "chaos-engine/references/consult-first.md"
+        planning = self.root / "chaos-engine/references/work-github-planning.md"
         mutations = (
             (consult, "or hard-to-reverse", "and hard-to-reverse"),
             (consult, "are mandatory", "are suggested"),
@@ -930,7 +930,7 @@ Use #4649 and #4650 as mandatory regression prompts when relevant. Cover each ap
                 self.assertTrue(self._issues())
 
     def test_every_matrix_dimension_is_exhaustive(self):
-        path = self.root / ".agents/skills/act-as-mohab/references/consult-first.md"
+        path = self.root / "chaos-engine/references/consult-first.md"
         dimensions = (
             "every caller/site",
             "every state/transition/failure mode",
@@ -946,7 +946,7 @@ Use #4649 and #4650 as mandatory regression prompts when relevant. Cover each ap
                     self.assertTrue(self._issues())
 
     def test_each_regression_scenario_is_independently_load_bearing(self):
-        path = self.root / ".agents/skills/act-as-mohab/references/consult-first.md"
+        path = self.root / "chaos-engine/references/consult-first.md"
         scenarios = (
             "Effective working-directory/path resolution.",
             "Interpreter/version/conditional dependency marker.",
@@ -962,7 +962,7 @@ Use #4649 and #4650 as mandatory regression prompts when relevant. Cover each ap
                     self.assertTrue(self._issues())
 
     def test_regression_prompt_cannot_be_weakened_from_mandatory(self):
-        path = self.root / ".agents/skills/act-as-mohab/references/consult-first.md"
+        path = self.root / "chaos-engine/references/consult-first.md"
         path.write_text(
             self.CONSULT.replace("mandatory regression prompts", "optional regression prompts", 1),
             encoding="utf-8",

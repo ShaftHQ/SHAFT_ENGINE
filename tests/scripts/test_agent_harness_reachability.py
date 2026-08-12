@@ -104,6 +104,7 @@ from pathlib import Path
 from scripts.ci.harness_reachability import (
     glob_regex,
     harness_report,
+    link_walk,
     load_config,
     path_tokens,
     tracked_files,
@@ -119,7 +120,7 @@ BUDGET = ROOT / "scripts/ci/agent_guidance_budget.json"
 # from the boundary was invisible. Equality makes shrinking the boundary a
 # deliberate two-line edit that shows up in review, which is the only place the
 # question "why is the harness smaller today" gets asked.
-EXPECTED_ELEMENT_COUNT = 162
+EXPECTED_ELEMENT_COUNT = 170
 
 ATX_HEADING = re.compile(r"(?m)^#{1,6}\s+(.+?)\s*$")
 
@@ -282,7 +283,7 @@ class HarnessReachabilityTest(unittest.TestCase):
         self.assertEqual(len(report["elements"]), EXPECTED_ELEMENT_COUNT)
         self.assertEqual(report["wildcard_only"], [])
 
-    def test_the_deployable_root_names_a_real_subtree_holding_the_entrypoint(self):
+    def test_the_deployable_root_names_a_real_subtree_reached_from_the_adapter(self):
         """One JSON string decides whether "links, not mentions" means anything.
 
         `deployable_root` selects which elements must be reached by a real
@@ -295,17 +296,21 @@ class HarnessReachabilityTest(unittest.TestCase):
         configuration.
 
         Pinned three ways, because each catches a different edit: it exists,
-        it is a directory, and it actually contains the entrypoint. A typo
-        fails the first, a file path fails the second, and a real-but-wrong
-        subtree such as `.claude` fails the third.
+        it is a directory, and the repository adapter reaches a real skill in
+        it. A typo fails the first, a file path fails the second, and a
+        real-but-wrong subtree such as `.claude` fails the third.
         """
         config = load_config(ROOT)
         deployable = ROOT / config["deployable_root"]
         self.assertTrue(deployable.exists(), config["deployable_root"])
         self.assertTrue(deployable.is_dir(), config["deployable_root"])
+        reached, broken = link_walk(ROOT, config["entrypoint"])
+        self.assertEqual(broken, [])
+        portable_entrypoint = "chaos-engine/skills/chaos-engine/SKILL.md"
+        self.assertIn(portable_entrypoint, reached)
         self.assertTrue(
-            config["entrypoint"].startswith(config["deployable_root"].rstrip("/") + "/"),
-            "the deployable root must contain the entrypoint it is measured from",
+            portable_entrypoint.startswith(config["deployable_root"].rstrip("/") + "/"),
+            "the repository adapter must reach an entrypoint inside the deployable root",
         )
 
     def test_every_harness_test_module_is_run_by_the_pull_request_gate(self):
@@ -700,9 +705,9 @@ class HarnessReachabilityTest(unittest.TestCase):
 class EntrypointDutyTest(unittest.TestCase):
     """The content half of #4485: duties the entrypoint must state, unqualified."""
 
-    ENTRYPOINT = ROOT / ".agents/skills/act-as-mohab/SKILL.md"
-    PLAYBOOK = ROOT / ".agents/skills/act-as-mohab/references/work-github-playbook.md"
-    PLANNING_PLAYBOOK = ROOT / ".agents/skills/act-as-mohab/references/work-github-planning.md"
+    ENTRYPOINT = ROOT / "chaos-engine/skills/chaos-engine/SKILL.md"
+    PLAYBOOK = ROOT / "chaos-engine/references/work-github-playbook.md"
+    PLANNING_PLAYBOOK = ROOT / "chaos-engine/references/work-github-planning.md"
 
     def test_the_github_playbook_links_its_planning_and_tracking_half(self):
         """#4504: split before a future edit turns the file cap into an emergency."""
@@ -811,7 +816,7 @@ class EntrypointDutyTest(unittest.TestCase):
         ):
             with self.subTest(workflow=workflow):
                 self.assertIn(workflow, content, f"the entrypoint must name the {workflow}")
-                link = f"references/work-github-playbook.md#{anchor}"
+                link = f"../../references/work-github-playbook.md#{anchor}"
                 self.assertIn(link, content, f"the entrypoint must link {link}")
                 self.assertIn(anchor, slugs, f"{anchor} names no heading in the playbook")
 

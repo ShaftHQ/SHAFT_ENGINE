@@ -1,4 +1,4 @@
-"""Assemble the portable act-as-mohab Agent Plugin from canonical sources."""
+"""Assemble the portable ChaosEngine Agent Plugin from canonical sources."""
 
 import argparse
 import json
@@ -14,8 +14,7 @@ except ModuleNotFoundError:
 
 
 SCHEMA_URL = "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json"
-SKILLS = ("act-as-mohab",)
-PORTABLE_REFERENCE_SUFFIXES = {".md", ".LICENSE"}
+PORTABLE_SOURCE_SUFFIXES = {".md", ".LICENSE", ".json", ".yaml", ".yml"}
 RELEASE_FILES = (
     (Path("LICENSE"), Path("LICENSE")),
     (Path("agent-plugins/act-as-mohab/CHANGELOG.md"), Path("CHANGELOG.md")),
@@ -32,6 +31,24 @@ RUNTIME_SOURCES = (
     Path("scripts/agents/watch_pr_checks.py"),
 )
 RUNTIME_MAIN = b"from act_as_mohab_cli import main\nraise SystemExit(main())\n"
+COMPATIBILITY_ALIAS = """---
+name: act-as-mohab
+description: Compatibility alias for ChaosEngine.
+---
+
+# Compatibility alias
+
+Follow the [canonical ChaosEngine entrypoint](../chaos-engine/SKILL.md), then
+load the [bundled project profile](../../profiles/shaft/entrypoint.md).
+"""
+PACKAGE_PROFILE_SELECTION = """
+
+## Bundled project profile
+
+This standalone distribution bundles exactly one profile. Load the
+[bundled project profile](../../profiles/shaft/entrypoint.md) before
+task-specific work.
+"""
 
 
 def git_executable() -> str:
@@ -60,7 +77,7 @@ def tracked_source_files(repository_root: Path) -> set[Path]:
             "ls-files",
             "-z",
             "--",
-            ".agents/skills/act-as-mohab",
+            "chaos-engine",
         ],
         cwd=repository_root,
         check=True,
@@ -78,7 +95,7 @@ def copy_tree(source: Path, destination: Path, allowed_files: set[Path]) -> None
     source = require_contained(source.parent, source, "canonical reference directory")
     for path in sorted(path for path in allowed_files if path.is_relative_to(source)):
         path = require_contained(source, path, "canonical reference")
-        if path.suffix not in PORTABLE_REFERENCE_SUFFIXES:
+        if path.suffix not in PORTABLE_SOURCE_SUFFIXES:
             continue
         target = destination / path.relative_to(source)
         target.parent.mkdir(parents=True, exist_ok=True)
@@ -134,9 +151,9 @@ def assemble(repository_root: Path, package_root: Path, version: str | None = No
     repository_root = Path(repository_root).resolve()
     version = release_version(repository_root, "act-as-mohab", version)
     package_root = Path(package_root)
-    canonical_skills = repository_root / ".agents/skills"
+    canonical_root = repository_root / "chaos-engine"
     try:
-        package_root.resolve(strict=False).relative_to(canonical_skills.resolve())
+        package_root.resolve(strict=False).relative_to(canonical_root.resolve())
     except ValueError:
         pass
     else:
@@ -208,26 +225,23 @@ def assemble(repository_root: Path, package_root: Path, version: str | None = No
         '{"name":"act-as-mohab","source":{"source":"local","path":"./"}}]}\n',
         encoding="utf-8",
     )
-    for skill in SKILLS:
-        source = canonical_skills / skill
-        destination = package_root / "skills" / skill
-        destination.mkdir(parents=True, exist_ok=True)
-        source = require_contained(canonical_skills, source, f"canonical skill directory {skill}")
-        skill_file = source / "SKILL.md"
-        if skill_file not in allowed_files:
-            raise ValueError(f"canonical skill must be tracked: {skill}")
-        skill_file = require_contained(canonical_skills, skill_file, f"canonical skill {skill}")
-        shutil.copyfile(skill_file, destination / "SKILL.md")
-    copy_tree(
-        canonical_skills / "act-as-mohab/references",
-        package_root / "skills/act-as-mohab/references",
-        allowed_files,
+    canonical_skill = canonical_root / "skills/chaos-engine/SKILL.md"
+    if canonical_skill not in allowed_files:
+        raise ValueError("canonical skill must be tracked: chaos-engine")
+    copy_tree(canonical_root, package_root, allowed_files)
+    packaged_skill = package_root / "skills/chaos-engine/SKILL.md"
+    packaged_skill.write_text(
+        packaged_skill.read_text(encoding="utf-8").rstrip() + PACKAGE_PROFILE_SELECTION,
+        encoding="utf-8",
     )
+    compatibility = package_root / "skills/act-as-mohab"
+    compatibility.mkdir(parents=True)
+    (compatibility / "SKILL.md").write_text(COMPATIBILITY_ALIAS, encoding="utf-8")
     copy_release_files(repository_root, package_root)
     build_runtime(repository_root, package_root)
     (package_root / "skills/README.md").write_text(
-        "# Act as Mohab portable skills\n\n"
-        "This package contains the maintainer workflow entrypoint and its internal references.\n",
+        "# ChaosEngine portable skills\n\n"
+        "This package contains the canonical ChaosEngine entrypoint, project profiles, and references.\n",
         encoding="utf-8",
     )
 
