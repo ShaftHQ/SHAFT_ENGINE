@@ -102,6 +102,7 @@ public class MobileEvidenceNamespaceTraceTest {
             String report = FailureTraceReporter.renderTraceJson(info(thrown),
                     "later echo " + privatePath, List.of("attachment " + privatePath));
             Assert.assertFalse(report.contains(privatePath), report);
+            Assert.assertFalse(report.contains(privatePath.replace("\\", "\\\\")), report);
         } finally {
             Files.deleteIfExists(target);
             Files.deleteIfExists(directory);
