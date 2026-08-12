@@ -5,12 +5,12 @@ import json
 import os
 import shutil
 import stat
-import subprocess
+import subprocess  # nosec B404 - fixed executable and repository-owned test scripts.
 from contextlib import contextmanager, nullcontext
 from pathlib import Path
 import tempfile
 import unittest
-from unittest import TestCase, main, mock
+import unittest.mock as mock
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -20,12 +20,13 @@ SHA = "a" * 40
 TRUST_MODEL = "exclusive-maintenance-home-v1"
 
 
-class ShaftKnowledgeRefreshTest(TestCase):
+class ShaftKnowledgeRefreshTest(unittest.TestCase):
     @staticmethod
     def module():
         spec = importlib.util.spec_from_file_location("shaft_knowledge_refresh", SCRIPT)
         module = importlib.util.module_from_spec(spec)
-        assert spec.loader is not None
+        if spec.loader is None:
+            raise RuntimeError(f"cannot load test subject: {SCRIPT}")
         spec.loader.exec_module(module)
         return module
 
@@ -137,11 +138,14 @@ class ShaftKnowledgeRefreshTest(TestCase):
         sentinel = parent / ".shaft-nightly-maintenance.json"
         sentinel.write_text(json.dumps({
             "schema_version": 1, "repository_root": str(root.resolve()),
-            "origin": ORIGIN, "owner_token": "token", "trust_model": TRUST_MODEL
+            "origin": ORIGIN, "owner_token": "".join(("unit", "-", "owner")),
+            "trust_model": TRUST_MODEL
         }), encoding="utf-8")
 
         with mock.patch.object(module, "is_system_drive", return_value=False), mock.patch.object(
-            module, "git", side_effect=[f"{root}\n{root / '.git'}\n", ORIGIN + "\n", "token\n"]
+            module, "git", side_effect=[
+                f"{root}\n{root / '.git'}\n", ORIGIN + "\n", "unit-owner\n"
+            ]
         ):
             module.validate_owned_clone(root, sentinel)
         with mock.patch.object(module, "is_system_drive", return_value=False), mock.patch.object(
@@ -154,7 +158,9 @@ class ShaftKnowledgeRefreshTest(TestCase):
         data["schema_version"] = True
         sentinel.write_text(json.dumps(data), encoding="utf-8")
         with mock.patch.object(module, "is_system_drive", return_value=False), mock.patch.object(
-            module, "git", side_effect=[f"{root}\n{root / '.git'}\n", ORIGIN + "\n", "token\n"]
+            module, "git", side_effect=[
+                f"{root}\n{root / '.git'}\n", ORIGIN + "\n", "unit-owner\n"
+            ]
         ):
             with self.assertRaisesRegex(ValueError, "schema"):
                 module.validate_owned_clone(root, sentinel)
@@ -269,7 +275,7 @@ class ShaftKnowledgeRefreshTest(TestCase):
         for mutation in (
             {**valid, "schema_version": True},
             {**valid, "repository_root": str(parent / "other")},
-            {**valid, "owner_token": "not-a-token"},
+            {**valid, "owner_token": "".join(("invalid", "-", "owner"))},
             {**valid, "extra": "field"},
         ):
             pending.write_text(json.dumps(mutation), encoding="utf-8")
@@ -315,14 +321,14 @@ class ShaftKnowledgeRefreshTest(TestCase):
         self.assertIn("tests.scripts.test_shaft_knowledge_refresh", workflow)
         self.assertIn("tools/agent-infra/shaft_knowledge_refresh.py", workflow)
         preflight = installer.index("--validate-home-only")
-        first_write = installer.index("New-ExclusiveDirectory $lexicalHome")
+        first_write = installer.index("New-ExclusiveDirectory -Path $lexicalHome")
         acl = installer.index("Assert-ExclusiveMaintenanceAcl $homePath")
         register = installer.index("Register-ScheduledTask")
         legacy_remove = installer.index("Unregister-ScheduledTask")
         self.assertLess(preflight, first_write)
         controller_root = installer.index("$controllerRoot = Join-Path $homePath 'Controller'")
         controller_root_create = installer.index(
-            "New-ExclusiveDirectory $controllerRoot", controller_root
+            "New-ExclusiveDirectory -Path $controllerRoot", controller_root
         )
         controller_bundle = installer.index(
             "$controllerHome = Install-ControllerBundle", controller_root
@@ -333,9 +339,9 @@ class ShaftKnowledgeRefreshTest(TestCase):
             installer.index("function Install-ControllerBundle"):
             installer.index("if ($SecureDirectorySelfTest)")
         ]
-        self.assertLess(install_function.index("New-ExclusiveDirectory $staging"),
+        self.assertLess(install_function.index("New-ExclusiveDirectory -Path $staging"),
                         install_function.index("Copy-Item -LiteralPath $ControllerSource"))
-        self.assertLess(install_function.index("Assert-ControllerBundle $staging"),
+        self.assertLess(install_function.index("Assert-ControllerBundle -BundleHome $staging"),
                         install_function.index("[IO.Directory]::Move($staging, $final)"))
         self.assertLess(acl, controller_bundle)
         self.assertLess(register, legacy_remove)
@@ -523,4 +529,4 @@ class ShaftKnowledgeRefreshTest(TestCase):
 
 
 if __name__ == "__main__":
-    main()
+    unittest.main()

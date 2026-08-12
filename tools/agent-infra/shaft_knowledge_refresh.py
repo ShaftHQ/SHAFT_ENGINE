@@ -216,7 +216,12 @@ def validate_owned_clone(requested_root: Path, requested_sentinel: Path) -> tupl
         raise ValueError("maintenance sentinel has unexpected fields")
     token = data.get("owner_token")
     expected = {"origin": ORIGIN, "trust_model": TRUST_MODEL}
-    if type(data.get("schema_version")) is not int or data["schema_version"] != 1:
+    schema_version = data.get("schema_version")
+    if (
+        not isinstance(schema_version, int)
+        or isinstance(schema_version, bool)
+        or schema_version != 1
+    ):
         raise ValueError("maintenance sentinel schema is invalid")
     recorded_root = data.get("repository_root")
     same_root = isinstance(recorded_root, str) and os.path.normcase(recorded_root) == os.path.normcase(str(root))
@@ -251,7 +256,12 @@ def validate_pending_receipt(pending: Path, requested_root: Path) -> dict[str, o
     }
     if not isinstance(data, dict) or set(data) != expected_fields:
         raise ValueError("pending install receipt has unexpected fields")
-    if type(data["schema_version"]) is not int or data["schema_version"] != 1:
+    schema_version = data["schema_version"]
+    if (
+        not isinstance(schema_version, int)
+        or isinstance(schema_version, bool)
+        or schema_version != 1
+    ):
         raise ValueError("pending install receipt schema is invalid")
     recorded_root = data.get("repository_root")
     same_root = isinstance(recorded_root, str) and os.path.normcase(recorded_root) == os.path.normcase(str(root))

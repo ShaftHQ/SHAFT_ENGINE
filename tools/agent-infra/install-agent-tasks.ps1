@@ -111,7 +111,8 @@ if ($AclPredicateSelfTest) {
     }
     $owner = if ($AclPredicateSelfTest -eq 'wrong-owner') { 'S-1-1-0' } else { $sid }
     $isProtected = $AclPredicateSelfTest -ne 'unprotected'
-    [bool](Test-ExclusiveRuleSet $owner $sid $rules $allowed $isProtected)
+    [bool](Test-ExclusiveRuleSet -OwnerSid $owner -ExpectedOwnerSid $sid -Rules $rules `
+        -AllowedSids $allowed -IsProtected $isProtected)
     exit 0
 }
 
@@ -140,7 +141,7 @@ if ($LASTEXITCODE -ne 0) { throw 'Maintenance-home preflight failed before the f
 
 $currentSid = [Security.Principal.WindowsIdentity]::GetCurrent().User.Value
 $allowedSids = @($currentSid, 'S-1-5-18', 'S-1-5-32-544')
-function New-ExclusiveDirectorySecurity {
+function Get-ExclusiveDirectorySecurity {
     $security = [Security.AccessControl.DirectorySecurity]::new()
     $security.SetAccessRuleProtection($true, $false)
     $security.SetOwner([Security.Principal.SecurityIdentifier]::new($currentSid))
@@ -154,9 +155,13 @@ function New-ExclusiveDirectorySecurity {
     }
     return $security
 }
-function New-ExclusiveDirectory([string]$Path) {
-    $security = New-ExclusiveDirectorySecurity
-    [ShaftMaintenance.SecureDirectory]::Create($Path, $security.GetSecurityDescriptorBinaryForm())
+function New-ExclusiveDirectory {
+    [CmdletBinding(SupportsShouldProcess)]
+    param([string]$Path)
+    if ($PSCmdlet.ShouldProcess($Path, 'Create directory with protected maintenance ACL')) {
+        $security = Get-ExclusiveDirectorySecurity
+        [ShaftMaintenance.SecureDirectory]::Create($Path, $security.GetSecurityDescriptorBinaryForm())
+    }
 }
 function Assert-ExclusiveMaintenanceAcl([string]$Path) {
     $aclRoot = (Get-Item -LiteralPath $Path -Force).FullName
@@ -165,7 +170,8 @@ function Assert-ExclusiveMaintenanceAcl([string]$Path) {
         $rules = @($acl.GetAccessRules($true, $true, [Security.Principal.SecurityIdentifier]))
         $owner = $acl.GetOwner([Security.Principal.SecurityIdentifier]).Value
         $protectionIsValid = $target.FullName -ne $aclRoot -or $acl.AreAccessRulesProtected
-        if (-not (Test-ExclusiveRuleSet $owner $currentSid $rules $allowedSids $protectionIsValid)) {
+        if (-not (Test-ExclusiveRuleSet -OwnerSid $owner -ExpectedOwnerSid $currentSid `
+                -Rules $rules -AllowedSids $allowedSids -IsProtected $protectionIsValid)) {
             throw "Maintenance ACL verification failed: $($target.FullName)"
         }
     }
@@ -206,28 +212,36 @@ function Install-ControllerBundle(
         Remove-Item -LiteralPath $orphan.FullName -Recurse -Force
     }
     if (Test-Path -LiteralPath $final) {
-        Assert-ControllerBundle $final $ExpectedControllerDigest $ExpectedWrapperDigest
+        Assert-ControllerBundle -BundleHome $final `
+            -ExpectedControllerDigest $ExpectedControllerDigest `
+            -ExpectedWrapperDigest $ExpectedWrapperDigest
         return $final
     }
     $staging = "$final.staging-$([guid]::NewGuid().ToString('N'))"
     try {
-        New-ExclusiveDirectory $staging
+        New-ExclusiveDirectory -Path $staging
         Copy-Item -LiteralPath $ControllerSource -Destination (Join-Path $staging 'shaft_knowledge_refresh.py')
         Copy-Item -LiteralPath $WrapperSource -Destination (Join-Path $staging 'graphify-refresh.cmd')
         Assert-ExclusiveMaintenanceAcl $staging
-        Assert-ControllerBundle $staging $ExpectedControllerDigest $ExpectedWrapperDigest
+        Assert-ControllerBundle -BundleHome $staging `
+            -ExpectedControllerDigest $ExpectedControllerDigest `
+            -ExpectedWrapperDigest $ExpectedWrapperDigest
         try {
             [IO.Directory]::Move($staging, $final)
         } catch [IO.IOException] {
             if (-not (Test-Path -LiteralPath $final -PathType Container)) { throw }
-            Assert-ControllerBundle $final $ExpectedControllerDigest $ExpectedWrapperDigest
+            Assert-ControllerBundle -BundleHome $final `
+                -ExpectedControllerDigest $ExpectedControllerDigest `
+                -ExpectedWrapperDigest $ExpectedWrapperDigest
         }
     } finally {
         if (Test-Path -LiteralPath $staging) {
             Remove-Item -LiteralPath $staging -Recurse -Force
         }
     }
-    Assert-ControllerBundle $final $ExpectedControllerDigest $ExpectedWrapperDigest
+    Assert-ControllerBundle -BundleHome $final `
+        -ExpectedControllerDigest $ExpectedControllerDigest `
+        -ExpectedWrapperDigest $ExpectedWrapperDigest
     return $final
 }
 
@@ -254,7 +268,7 @@ function Invoke-WithInstallerLock([string]$MaintenanceHome, [scriptblock]$Action
 }
 
 if ($SecureDirectorySelfTest) {
-    New-ExclusiveDirectory $SecureDirectorySelfTest
+    New-ExclusiveDirectory -Path $SecureDirectorySelfTest
     Assert-ExclusiveMaintenanceAcl $SecureDirectorySelfTest
     $true
     exit 0
@@ -262,20 +276,22 @@ if ($SecureDirectorySelfTest) {
 
 if ($BundlePromotionSelfTest) {
     $controllerRoot = Join-Path $BundlePromotionSelfTest 'Controller'
-    New-ExclusiveDirectory $controllerRoot
+    New-ExclusiveDirectory -Path $controllerRoot
     $controllerDigest = (Get-FileHash -Algorithm SHA256 $sourceController).Hash
     $wrapperDigest = (Get-FileHash -Algorithm SHA256 $sourceWrapper).Hash
     $bundleHash = Get-ControllerBundleHash $controllerDigest $wrapperDigest
     $orphan = Join-Path $controllerRoot "$bundleHash.staging-orphan"
-    New-ExclusiveDirectory $orphan
-    $bundle = Install-ControllerBundle $controllerRoot $bundleHash $sourceController $sourceWrapper $controllerDigest $wrapperDigest
+    New-ExclusiveDirectory -Path $orphan
+    $bundle = Install-ControllerBundle -ControllerRoot $controllerRoot -BundleHash $bundleHash `
+        -ControllerSource $sourceController -WrapperSource $sourceWrapper `
+        -ExpectedControllerDigest $controllerDigest -ExpectedWrapperDigest $wrapperDigest
     [bool](Test-Path -LiteralPath (Join-Path $bundle 'graphify-refresh.cmd') -PathType Leaf)
     exit 0
 }
 
 if ($InstallerLockSelfTest) {
     if (-not (Test-Path -LiteralPath $InstallerLockSelfTest)) {
-        New-ExclusiveDirectory $InstallerLockSelfTest
+        New-ExclusiveDirectory -Path $InstallerLockSelfTest
     } else {
         Assert-ExclusiveMaintenanceAcl $InstallerLockSelfTest
     }
@@ -292,7 +308,7 @@ if ($InstallerLockSelfTest) {
 }
 
 if ($InstallerLockFailureSelfTest) {
-    New-ExclusiveDirectory $InstallerLockFailureSelfTest
+    New-ExclusiveDirectory -Path $InstallerLockFailureSelfTest
     try {
         Invoke-WithInstallerLock $InstallerLockFailureSelfTest { throw 'injected failure' }
     } catch {
@@ -304,7 +320,7 @@ if ($InstallerLockFailureSelfTest) {
 }
 
 if (-not (Test-Path -LiteralPath $lexicalHome)) {
-    New-ExclusiveDirectory $lexicalHome
+    New-ExclusiveDirectory -Path $lexicalHome
 } else {
     Assert-ExclusiveMaintenanceAcl $lexicalHome
 }
@@ -325,11 +341,13 @@ $wrapperDigest = (Get-FileHash -Algorithm SHA256 $sourceWrapper).Hash
 $controllerHash = Get-ControllerBundleHash $controllerDigest $wrapperDigest
 $controllerRoot = Join-Path $homePath 'Controller'
 if (-not (Test-Path -LiteralPath $controllerRoot)) {
-    New-ExclusiveDirectory $controllerRoot
+    New-ExclusiveDirectory -Path $controllerRoot
 }
 Assert-ExclusiveMaintenanceAcl $homePath
 $controllerHome = Join-Path $controllerRoot $controllerHash
-$controllerHome = Install-ControllerBundle $controllerRoot $controllerHash $sourceController $sourceWrapper $controllerDigest $wrapperDigest
+$controllerHome = Install-ControllerBundle -ControllerRoot $controllerRoot `
+    -BundleHash $controllerHash -ControllerSource $sourceController -WrapperSource $sourceWrapper `
+    -ExpectedControllerDigest $controllerDigest -ExpectedWrapperDigest $wrapperDigest
 Assert-ExclusiveMaintenanceAcl $homePath
 $installedController = Join-Path $controllerHome 'shaft_knowledge_refresh.py'
 $installedWrapper = Join-Path $controllerHome 'graphify-refresh.cmd'
