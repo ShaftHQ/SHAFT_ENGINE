@@ -7,8 +7,6 @@ import org.testng.SkipException;
 import org.testng.annotations.Test;
 
 import java.io.IOException;
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -30,16 +28,16 @@ class PlaywrightTraceArchiveLoaderTest {
                     "resources/page@1.jpeg", "offline screenshot",
                     "resources/abc.html", "<main>offline snapshot</main>"));
 
-            Object loaded = load(archive);
-            Assert.assertEquals(invoke(loaded, "traceEntryNames"),
+            PlaywrightTraceArchiveLoader.LoadedArchive loaded = load(archive);
+            Assert.assertEquals(loaded.traceEntryNames(),
                     java.util.List.of("0-trace.network", "0-trace.stacks", "0-trace.trace", "test.trace"));
-            Assert.assertEquals(invoke(loaded, "resourceEntryNames"),
+            Assert.assertEquals(loaded.resourceEntryNames(),
                     java.util.List.of("resources/abc.html", "resources/page@1.jpeg"));
-            Assert.assertEquals(new String((byte[]) invoke(loaded, "entry", "resources/abc.html"),
+            Assert.assertEquals(new String(loaded.entry("resources/abc.html"),
                     StandardCharsets.UTF_8), "<main>offline snapshot</main>");
-            byte[] mutableCopy = (byte[]) invoke(loaded, "entry", "resources/abc.html");
+            byte[] mutableCopy = loaded.entry("resources/abc.html");
             mutableCopy[0] = 'X';
-            Assert.assertEquals(new String((byte[]) invoke(loaded, "entry", "resources/abc.html"),
+            Assert.assertEquals(new String(loaded.entry("resources/abc.html"),
                     StandardCharsets.UTF_8), "<main>offline snapshot</main>");
         } finally {
             Files.deleteIfExists(archive);
@@ -195,8 +193,8 @@ class PlaywrightTraceArchiveLoaderTest {
 
             writeArchive(unicodeSeparator, Map.of("test.trace",
                     "{\"version\":8,\"type\":\"context-options\",\"title\":\"left right\"}\n"));
-            Object loaded = load(unicodeSeparator);
-            Assert.assertEquals(invoke(loaded, "traceEntryNames"), java.util.List.of("test.trace"));
+            PlaywrightTraceArchiveLoader.LoadedArchive loaded = load(unicodeSeparator);
+            Assert.assertEquals(loaded.traceEntryNames(), java.util.List.of("test.trace"));
         } finally {
             Files.deleteIfExists(invalidUtf8);
             Files.deleteIfExists(unicodeSeparator);
@@ -237,20 +235,15 @@ class PlaywrightTraceArchiveLoaderTest {
         Assert.assertEquals(Files.size(samplePath), 167_630L);
         Assert.assertEquals(sha256(Files.readAllBytes(samplePath)),
                 "76a2cbb0451bda1b799c3cc3a8270874d33e246976a5dbd4ec7be8fae8234f24");
-        Object loaded = load(samplePath);
-        @SuppressWarnings("unchecked")
-        java.util.List<String> traceEntries = (java.util.List<String>) invoke(loaded, "traceEntryNames");
-        @SuppressWarnings("unchecked")
-        java.util.List<String> resources = (java.util.List<String>) invoke(loaded, "resourceEntryNames");
+        PlaywrightTraceArchiveLoader.LoadedArchive loaded = load(samplePath);
+        java.util.List<String> traceEntries = loaded.traceEntryNames();
+        java.util.List<String> resources = loaded.resourceEntryNames();
         Assert.assertTrue(traceEntries.contains("test.trace"));
         Assert.assertTrue(traceEntries.contains("0-trace.trace"));
         Assert.assertTrue(traceEntries.contains("0-trace.network"));
         Assert.assertTrue(resources.stream().anyMatch(name -> name.endsWith(".html")));
         Assert.assertTrue(resources.stream().anyMatch(name -> name.endsWith(".jpeg")));
-        Class<?> adapter = Class.forName("com.shaft.tools.io.internal.PlaywrightTraceOfflineAdapter");
-        Method snapshots = adapter.getDeclaredMethod("snapshotDocument", loaded.getClass(), String.class);
-        snapshots.setAccessible(true);
-        String officialSnapshot = (String) snapshots.invoke(null, loaded, "after@call@166");
+        String officialSnapshot = PlaywrightTraceOfflineAdapter.snapshotDocument(loaded, "after@call@166");
         Assert.assertTrue(officialSnapshot.contains("buy some cheese"),
                 "The pinned sample's backward node references must reconstruct the action snapshot.");
         Assert.assertTrue(officialSnapshot.contains("<style>"),
@@ -265,72 +258,29 @@ class PlaywrightTraceArchiveLoaderTest {
                     + "{\"type\":\"frame-snapshot\",\"snapshot\":{\"snapshotName\":\"cycle\","
                     + "\"pageId\":\"p\",\"frameId\":\"f\",\"frameUrl\":\"https://example.test/\","
                     + "\"html\":[\"HTML\",{},[[0,0]]],\"timestamp\":1,\"resourceOverrides\":[],\"isMainFrame\":true}}\n"));
-            Object loaded = load(archive);
-            Class<?> adapter = Class.forName("com.shaft.tools.io.internal.PlaywrightTraceOfflineAdapter");
-            Method render = adapter.getDeclaredMethod("snapshotDocument", loaded.getClass(), String.class);
-            render.setAccessible(true);
-            InvocationTargetException failure = Assert.expectThrows(InvocationTargetException.class,
-                    () -> render.invoke(null, loaded, "cycle"));
-            Assert.assertTrue(failure.getCause() instanceof IllegalArgumentException);
+            PlaywrightTraceArchiveLoader.LoadedArchive loaded = load(archive);
+            Assert.expectThrows(IllegalArgumentException.class,
+                    () -> PlaywrightTraceOfflineAdapter.snapshotDocument(loaded, "cycle"));
         } finally {
             Files.deleteIfExists(archive);
         }
     }
 
-    private static Object load(Path archive) throws Exception {
-        try {
-            Class<?> loader = Class.forName("com.shaft.tools.io.internal.PlaywrightTraceArchiveLoader");
-            Method load = loader.getDeclaredMethod("load", Path.class);
-            load.setAccessible(true);
-            return load.invoke(null, archive);
-        } catch (ClassNotFoundException exception) {
-            throw new AssertionError("The bounded offline Playwright trace archive loader is missing.", exception);
-        } catch (InvocationTargetException exception) {
-            if (exception.getCause() instanceof Exception cause) {
-                throw cause;
-            }
-            throw exception;
-        }
+    private static PlaywrightTraceArchiveLoader.LoadedArchive load(Path archive) throws Exception {
+        return PlaywrightTraceArchiveLoader.load(archive);
     }
 
-    private static Object load(Path archive, int maximumEntryBytes, int maximumArchiveBytes,
-                               int maximumEntries) throws Exception {
-        Class<?> loader = Class.forName("com.shaft.tools.io.internal.PlaywrightTraceArchiveLoader");
-        try {
-            Method load = loader.getDeclaredMethod("load", Path.class, int.class, int.class, int.class);
-            load.setAccessible(true);
-            return load.invoke(null, archive, maximumEntryBytes, maximumArchiveBytes, maximumEntries);
-        } catch (NoSuchMethodException exception) {
-            throw new AssertionError("The loader has no reproducible aggregate-budget seam.", exception);
-        } catch (InvocationTargetException exception) {
-            if (exception.getCause() instanceof Exception cause) {
-                throw cause;
-            }
-            throw exception;
-        }
+    private static PlaywrightTraceArchiveLoader.LoadedArchive load(Path archive, int maximumEntryBytes,
+                                                                   int maximumArchiveBytes,
+                                                                   int maximumEntries) throws Exception {
+        return PlaywrightTraceArchiveLoader.load(archive, maximumEntryBytes, maximumArchiveBytes, maximumEntries);
     }
 
-    private static Object load(Path archive, int maximumEntryBytes, int maximumArchiveBytes,
-                               int maximumEntries, int maximumArchiveFileBytes) throws Exception {
-        Class<?> loader = Class.forName("com.shaft.tools.io.internal.PlaywrightTraceArchiveLoader");
-        try {
-            Method load = loader.getDeclaredMethod("load", Path.class, int.class, int.class, int.class, int.class);
-            load.setAccessible(true);
-            return load.invoke(null, archive, maximumEntryBytes, maximumArchiveBytes, maximumEntries,
-                    maximumArchiveFileBytes);
-        } catch (InvocationTargetException exception) {
-            if (exception.getCause() instanceof Exception cause) {
-                throw cause;
-            }
-            throw exception;
-        }
-    }
-
-    private static Object invoke(Object target, String methodName, Object... arguments) throws Exception {
-        Class<?>[] parameterTypes = java.util.Arrays.stream(arguments).map(Object::getClass).toArray(Class<?>[]::new);
-        Method method = target.getClass().getDeclaredMethod(methodName, parameterTypes);
-        method.setAccessible(true);
-        return method.invoke(target, arguments);
+    private static PlaywrightTraceArchiveLoader.LoadedArchive load(Path archive, int maximumEntryBytes,
+                                                                   int maximumArchiveBytes, int maximumEntries,
+                                                                   int maximumArchiveFileBytes) throws Exception {
+        return PlaywrightTraceArchiveLoader.load(archive, maximumEntryBytes, maximumArchiveBytes, maximumEntries,
+                maximumArchiveFileBytes);
     }
 
     private static void writeArchive(Path target, Map<String, String> entries) throws IOException {

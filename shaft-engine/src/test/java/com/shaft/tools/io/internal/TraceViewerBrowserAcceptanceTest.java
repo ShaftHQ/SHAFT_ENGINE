@@ -72,25 +72,15 @@ public class TraceViewerBrowserAcceptanceTest {
                         "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII="));
                 output.closeEntry();
             }
-            Object loaded = PlaywrightTraceArchiveLoader.load(archive);
-            Class<?> adapter;
-            try {
-                adapter = Class.forName("com.shaft.tools.io.internal.PlaywrightTraceOfflineAdapter");
-            } catch (ClassNotFoundException exception) {
-                throw new AssertionError("The real Playwright frame-snapshot offline adapter is missing.", exception);
-            }
-            Method render = adapter.getDeclaredMethod("render", loaded.getClass(), String.class);
-            render.setAccessible(true);
-            Method snapshotDocument = adapter.getDeclaredMethod("snapshotDocument", loaded.getClass(), String.class);
-            snapshotDocument.setAccessible(true);
-            String renderedDocument = (String) snapshotDocument.invoke(null, loaded, "before@call@1");
+            PlaywrightTraceArchiveLoader.LoadedArchive loaded = PlaywrightTraceArchiveLoader.load(archive);
+            String renderedDocument = PlaywrightTraceOfflineAdapter.snapshotDocument(loaded, "before@call@1");
             Assert.assertTrue(renderedDocument.contains("#snapshot-proof > span{color:rgb(1,2,3)}"),
                     renderedDocument);
             Assert.assertTrue(renderedDocument.contains("data:image/png;base64,"), renderedDocument);
             Assert.assertTrue(renderedDocument.contains("background-image:url(data:image/png;base64,"), renderedDocument);
             Assert.assertFalse(renderedDocument.toLowerCase().contains("</style><meta"), renderedDocument);
             Assert.assertFalse(renderedDocument.contains("display:none"), renderedDocument);
-            Files.writeString(html, (String) render.invoke(null, loaded, "before@call@1"));
+            Files.writeString(html, PlaywrightTraceOfflineAdapter.render(loaded, "before@call@1"));
 
             List<String> externalRequests = new ArrayList<>();
             try (Playwright playwright = Playwright.create();

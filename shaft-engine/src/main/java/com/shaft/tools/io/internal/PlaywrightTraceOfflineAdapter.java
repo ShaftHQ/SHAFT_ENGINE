@@ -131,6 +131,7 @@ final class PlaywrightTraceOfflineAdapter {
         return records;
     }
 
+    @SuppressWarnings("PMD.NPathComplexity")
     private static void renderNode(JsonNode node, SnapshotContext structureContext,
                                    SnapshotContext resourceContext, Model model, RenderBudget output, int depth) {
         output.visit(depth);
@@ -237,6 +238,7 @@ final class PlaywrightTraceOfflineAdapter {
         return selected;
     }
 
+    @SuppressWarnings("PMD.NPathComplexity")
     private static Resource selectResource(Model model, SnapshotContext context, String url) {
         String overrideSha1 = overrideSha1(context, url);
         ResourceRecord sameFrame = null;
@@ -339,6 +341,7 @@ final class PlaywrightTraceOfflineAdapter {
         return "";
     }
 
+    @SuppressWarnings("PMD.NPathComplexity")
     private static int openImportConditions(String condition, CssBuffer output) {
         int blocks = 0;
         String remaining = condition.trim();
@@ -387,28 +390,30 @@ final class PlaywrightTraceOfflineAdapter {
     private static String overrideSha1(SnapshotContext context, String url) {
         SnapshotContext current = context;
         for (int guard = 0; guard < context.history().size(); guard++) {
-            boolean followedReference = false;
-            for (JsonNode override : current.snapshot().path("resourceOverrides")) {
-                if (!url.equals(override.path("url").asText())) {
-                    continue;
-                }
-                if (!override.path("sha1").asText().isBlank()) {
-                    return override.path("sha1").asText();
-                }
-                int ref = override.path("ref").asInt();
-                int target = current.index() - ref;
-                if (ref <= 0 || target < 0) {
-                    return "";
-                }
-                current = current.history().get(target);
-                followedReference = true;
-                break;
-            }
-            if (!followedReference) {
+            JsonNode override = resourceOverride(current, url);
+            if (override == null) {
                 return "";
             }
+            if (!override.path("sha1").asText().isBlank()) {
+                return override.path("sha1").asText();
+            }
+            int ref = override.path("ref").asInt();
+            int target = current.index() - ref;
+            if (ref <= 0 || target < 0) {
+                return "";
+            }
+            current = current.history().get(target);
         }
         return "";
+    }
+
+    private static JsonNode resourceOverride(SnapshotContext context, String url) {
+        for (JsonNode override : context.snapshot().path("resourceOverrides")) {
+            if (url.equals(override.path("url").asText())) {
+                return override;
+            }
+        }
+        return null;
     }
 
     private static String resolveUrl(String base, String value) {

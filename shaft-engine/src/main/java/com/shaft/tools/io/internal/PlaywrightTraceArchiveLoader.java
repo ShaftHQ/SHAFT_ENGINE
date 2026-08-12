@@ -42,6 +42,7 @@ final class PlaywrightTraceArchiveLoader {
         return load(archive, maximumEntryBytes, maximumArchiveBytes, maximumEntries, MAX_ARCHIVE_FILE_BYTES);
     }
 
+    @SuppressWarnings("PMD.NPathComplexity")
     static LoadedArchive load(Path archive, int maximumEntryBytes, int maximumArchiveBytes, int maximumEntries,
                               int maximumArchiveFileBytes) throws IOException {
         if (maximumEntryBytes < 1 || maximumArchiveBytes < 1 || maximumEntries < 1 || maximumArchiveFileBytes < 1) {
@@ -116,6 +117,7 @@ final class PlaywrightTraceArchiveLoader {
         return name;
     }
 
+    @SuppressWarnings("PMD.NPathComplexity")
     private static void validateTraceData(Map<String, byte[]> entries) throws IOException {
         Set<String> references = new HashSet<>();
         boolean contextOptions = false;
