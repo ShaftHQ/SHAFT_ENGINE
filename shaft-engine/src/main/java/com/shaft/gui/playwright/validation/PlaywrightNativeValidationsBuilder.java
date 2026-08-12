@@ -7,9 +7,12 @@ import com.shaft.validation.internal.NativeValidationsBuilder;
 import com.shaft.validation.internal.ValidationsBuilder;
 import com.shaft.validation.internal.ValidationsExecutor;
 
+import java.util.Objects;
+import java.util.function.Supplier;
+
 final class PlaywrightNativeValidationsBuilder extends NativeValidationsBuilder {
     private final PlaywrightSession session;
-    private final Locator playwrightLocator;
+    private final Supplier<Locator> playwrightLocator;
     private final String playwrightLocatorDescription;
     private final String playwrightElementAttribute;
     private final String playwrightElementCssProperty;
@@ -26,9 +29,22 @@ final class PlaywrightNativeValidationsBuilder extends NativeValidationsBuilder 
                                        String elementCssProperty,
                                        String browserAttribute,
                                        StringBuilder reportMessageBuilder) {
+        this(validationCategory, session, () -> playwrightLocator, playwrightLocatorDescription, validationMethod,
+                elementAttribute, elementCssProperty, browserAttribute, reportMessageBuilder);
+    }
+
+    PlaywrightNativeValidationsBuilder(ValidationEnums.ValidationCategory validationCategory,
+                                       PlaywrightSession session,
+                                       Supplier<Locator> playwrightLocator,
+                                       String playwrightLocatorDescription,
+                                       String validationMethod,
+                                       String elementAttribute,
+                                       String elementCssProperty,
+                                       String browserAttribute,
+                                       StringBuilder reportMessageBuilder) {
         super(new SeedBuilder(validationCategory, validationMethod, reportMessageBuilder));
         this.session = session;
-        this.playwrightLocator = playwrightLocator;
+        this.playwrightLocator = Objects.requireNonNull(playwrightLocator, "playwrightLocator");
         this.playwrightLocatorDescription = playwrightLocatorDescription;
         this.playwrightElementAttribute = elementAttribute;
         this.playwrightElementCssProperty = elementCssProperty;
@@ -74,7 +90,7 @@ final class PlaywrightNativeValidationsBuilder extends NativeValidationsBuilder 
     }
 
     Locator playwrightLocator() {
-        return playwrightLocator;
+        return playwrightLocator.get();
     }
 
     String playwrightLocatorDescription() {

@@ -4,6 +4,7 @@ import com.microsoft.playwright.Locator;
 import com.microsoft.playwright.options.BoundingBox;
 import com.google.common.annotations.Beta;
 import com.shaft.gui.driver.ElementAssertions;
+import com.shaft.gui.driver.ElementTarget;
 import com.shaft.gui.driver.ShaftLocator;
 import com.shaft.gui.internal.aria.AriaSnapshotHelper;
 import com.shaft.gui.internal.locator.CompositeLocator;
@@ -42,8 +43,13 @@ public class ElementActions implements com.shaft.gui.driver.ElementActionsContra
 
     @Override
     public ElementAssertions assertThat(ShaftLocator elementLocator) {
-        return new PlaywrightElementValidationsBuilder(ValidationEnums.ValidationCategory.HARD_ASSERT, session,
-                elementLocator.toPlaywrightLocator(session.page()), elementLocator.toString());
+        return assertThat(ElementTarget.located(elementLocator));
+    }
+
+    @Override
+    public ElementAssertions assertThat(ElementTarget elementTarget) {
+        return new PlaywrightElementValidationsBuilder(
+                ValidationEnums.ValidationCategory.HARD_ASSERT, session, elementTarget);
     }
 
     public ElementAssertions assertThat(Locator elementLocator) {
@@ -58,8 +64,13 @@ public class ElementActions implements com.shaft.gui.driver.ElementActionsContra
 
     @Override
     public ElementAssertions verifyThat(ShaftLocator elementLocator) {
-        return new PlaywrightElementValidationsBuilder(ValidationEnums.ValidationCategory.SOFT_ASSERT, session,
-                elementLocator.toPlaywrightLocator(session.page()), elementLocator.toString());
+        return verifyThat(ElementTarget.located(elementLocator));
+    }
+
+    @Override
+    public ElementAssertions verifyThat(ElementTarget elementTarget) {
+        return new PlaywrightElementValidationsBuilder(
+                ValidationEnums.ValidationCategory.SOFT_ASSERT, session, elementTarget);
     }
 
     public ElementAssertions verifyThat(Locator elementLocator) {

@@ -15,5 +15,15 @@ public interface DriverVerifications {
         return element(elementLocator.toBy());
     }
 
+    /**
+     * Starts soft verifications against a lazily composed portable element target.
+     *
+     * @param elementTarget portable element target
+     * @return element verifications facade
+     */
+    default ElementAssertions element(ElementTarget elementTarget) {
+        return element(elementTarget.toBy());
+    }
+
     NativeValidationsBuilder object(Object actual);
 }

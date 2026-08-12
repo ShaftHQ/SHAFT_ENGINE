@@ -2,16 +2,20 @@ package com.shaft.gui.playwright.validation;
 
 import com.microsoft.playwright.Locator;
 import com.shaft.gui.driver.ElementAssertions;
+import com.shaft.gui.driver.ElementTarget;
 import com.shaft.gui.playwright.internal.PlaywrightSession;
 import com.shaft.validation.ValidationEnums;
 import com.shaft.validation.VisualComparisonOptions;
 import com.shaft.validation.internal.NativeValidationsBuilder;
 import com.shaft.validation.internal.ValidationsExecutor;
 
+import java.util.Objects;
+
 public class PlaywrightElementValidationsBuilder implements ElementAssertions {
     private final ValidationEnums.ValidationCategory validationCategory;
     private final PlaywrightSession session;
     private final Locator locator;
+    private final ElementTarget elementTarget;
     private final String locatorDescription;
     private final StringBuilder reportMessageBuilder = new StringBuilder("the element ");
 
@@ -28,7 +32,18 @@ public class PlaywrightElementValidationsBuilder implements ElementAssertions {
         this.validationCategory = validationCategory;
         this.session = session;
         this.locator = locator;
+        this.elementTarget = null;
         this.locatorDescription = locatorDescription;
+    }
+
+    public PlaywrightElementValidationsBuilder(ValidationEnums.ValidationCategory validationCategory,
+                                               PlaywrightSession session,
+                                               ElementTarget elementTarget) {
+        this.validationCategory = validationCategory;
+        this.session = session;
+        this.locator = null;
+        this.elementTarget = Objects.requireNonNull(elementTarget, "elementTarget");
+        this.locatorDescription = String.valueOf(elementTarget);
     }
 
     @Override
@@ -175,7 +190,7 @@ public class PlaywrightElementValidationsBuilder implements ElementAssertions {
     public ValidationsExecutor matchesScreenshot(VisualComparisonOptions options) {
         appendShaftElementNameIfAvailable();
         reportMessageBuilder.append("matches the visual regression baseline screenshot.");
-        var builder = new PlaywrightVisualValidationsBuilder(validationCategory, session, locator, locatorDescription, false, reportMessageBuilder);
+        var builder = new PlaywrightVisualValidationsBuilder(validationCategory, session, resolvedLocator(), locatorDescription, false, reportMessageBuilder);
         builder.applyOptions(options);
         if (options instanceof PlaywrightVisualComparisonOptions playwrightOptions) {
             builder.mask(playwrightOptions.getPlaywrightMaskLocators().toArray(new Locator[0]));
@@ -184,8 +199,19 @@ public class PlaywrightElementValidationsBuilder implements ElementAssertions {
     }
 
     private PlaywrightNativeValidationsBuilder builder(String validationMethod, String elementAttribute, String elementCssProperty) {
-        return new PlaywrightNativeValidationsBuilder(validationCategory, session, locator, locatorDescription, validationMethod,
+        return new PlaywrightNativeValidationsBuilder(validationCategory, session, this::resolvedLocator, locatorDescription, validationMethod,
                 elementAttribute, elementCssProperty, null, reportMessageBuilder);
+    }
+
+    private Locator resolvedLocator() {
+        if (elementTarget == null) {
+            return locator;
+        }
+        var currentPage = Objects.requireNonNull(session.page(), "page");
+        if (currentPage.isClosed()) {
+            throw new IllegalStateException("Playwright page is closed.");
+        }
+        return elementTarget.toPlaywrightLocator(currentPage);
     }
 
     private ValidationsExecutor visualValidation(ValidationEnums.ValidationType validationType,
