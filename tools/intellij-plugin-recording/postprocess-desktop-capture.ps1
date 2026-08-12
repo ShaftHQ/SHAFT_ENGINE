@@ -9,6 +9,10 @@ param(
 
 $ErrorActionPreference = 'Stop'
 
+if ($PSVersionTable.PSVersion.Major -lt 7) {
+    throw 'postprocess-desktop-capture.ps1 requires PowerShell 7 or newer. Run it with pwsh.'
+}
+
 $ffmpeg = Get-Command ffmpeg -ErrorAction Stop
 $ffprobe = Get-Command ffprobe -ErrorAction Stop
 $resolvedInput = (Resolve-Path -LiteralPath $InputPath).Path

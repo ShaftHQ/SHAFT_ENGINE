@@ -47,19 +47,17 @@ jobs:
           } > shaft-mcp/target/shaft-mcp-live.args
           echo "MCP_JAVA=$JAVA_HOME/bin/java" >> "$GITHUB_ENV"
           echo "MCP_ARGS=$PWD/shaft-mcp/target/shaft-mcp-live.args" >> "$GITHUB_ENV"
-      - name: Set up JDK 17 (Gradle)
+      - name: Set up JDK 25 (Gradle)
         uses: actions/setup-java@v5.7.0
         with:
-          java-version: '17'
+          java-version: '25'
           distribution: 'zulu'
           check-latest: true
-      - name: Set up Gradle 9
+      - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v6.3.0
-        with:
-          gradle-version: '9.0.0'
       - name: Run live guided workflows through the plugin panel
         run: >-
-          gradle -p shaft-intellij test
+          bash shaft-intellij/gradlew -p shaft-intellij test
           --tests com.shaft.intellij.ui.GuidedWorkflowLiveE2ETest
           -Dshaft.intellij.liveWorkflows=true
           "-Dshaft.intellij.liveMcpCommand=${MCP_JAVA} @${MCP_ARGS}"

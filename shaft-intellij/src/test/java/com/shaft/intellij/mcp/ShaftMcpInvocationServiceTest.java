@@ -104,14 +104,7 @@ class ShaftMcpInvocationServiceTest {
     }
 
     private static List<String> echoToolCommand() {
-        return List.of(javaExecutable(), "-cp", System.getProperty("java.class.path"),
-                FakeMcpServer.class.getName(), "echoTool");
-    }
-
-    private static String javaExecutable() {
-        String javaHome = System.getProperty("java.home");
-        boolean windows = System.getProperty("os.name").toLowerCase(Locale.ROOT).contains("win");
-        return Paths.get(javaHome, "bin", windows ? "java.exe" : "java").toString();
+        return McpTestJavaProcess.command(FakeMcpServer.class, "echoTool");
     }
 
     private final class RecordingFactory implements ShaftMcpInvocationService.ShaftMcpClientFactory {

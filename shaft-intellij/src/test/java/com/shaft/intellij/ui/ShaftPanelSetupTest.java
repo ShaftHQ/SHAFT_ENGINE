@@ -2124,12 +2124,21 @@ class ShaftPanelSetupTest {
         ShaftSettingsState.Settings settings = unverifiedMcpSettings();
         ShaftMcpSetupPanel panel = new ShaftMcpSetupPanel(fakeProject(), settings, () -> {
         }, readyProbe(), keyStore);
+        setField(panel, "providerEnvironmentLookup",
+                (java.util.function.Function<String, String>) ignored -> null);
+        ((JCheckBox) getField(panel, "useGeminiEnvironment")).setSelected(false);
         JComboBox<?> agent = findByAccessibleName(panel, "Assistant agent", JComboBox.class);
         selectDisplayValue(agent, "Gemini in IntelliJ");
+        ((JCheckBox) getField(panel, "useGeminiEnvironment")).setSelected(false);
         JPanel chooseRow = (JPanel) getField(panel, "chooseRow");
         JLabel chooseState = (JLabel) getField(panel, "chooseState");
 
         clickAccessible(chooseRow, "Check agent connection");
+        long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5);
+        while (!settings.agentLaneReady && System.nanoTime() < deadline) {
+            pumpEdt();
+            Thread.onSpinWait();
+        }
 
         assertAll(
                 () -> assertTrue(settings.agentLaneReady),
@@ -2234,6 +2243,108 @@ class ShaftPanelSetupTest {
                 () -> assertTrue(containsText(panel, "Ready to chat. Verified Gemini in IntelliJ.")),
                 () -> assertTrue(findByAccessibleName(panel, "Start chatting with SHAFT Assistant", JButton.class)
                         .isVisible()));
+    }
+
+    @Test
+    void connectAgentWithPasswordSafeGeminiKeyTransitionsTheReadyStep() throws Exception {
+        java.util.Map<String, String> storedKeys = new java.util.HashMap<>();
+        storedKeys.put("GEMINI_API_KEY", "stored-secret");
+        ShaftSettingsState.Settings settings = connectedMcpSettings();
+        settings.assistantProviderType = "CLOUD";
+        settings.cloudProvider = "gemini";
+        ShaftMcpSetupPanel panel = new ShaftMcpSetupPanel(fakeProject(), settings, () -> {
+        }, readyProbe(), fakeKeyStore(storedKeys));
+        setField(panel, "providerEnvironmentLookup",
+                (java.util.function.Function<String, String>) ignored -> null);
+        JComboBox<?> agent = findByAccessibleName(panel, "Assistant agent", JComboBox.class);
+        selectDisplayValue(agent, "Gemini in IntelliJ");
+        ((JCheckBox) getField(panel, "useGeminiEnvironment")).setSelected(false);
+        showTestResult(panel, ShaftMcpToolResult.success("Probe OK"));
+        JButton connectAgent = findByAccessibleName(panel, "Connect SHAFT agent", JButton.class);
+        settings.agentLaneReady = false;
+        invokeApplyConnectAgentResult(panel, ShaftMcpToolResult.failure("retry required"));
+        assertTrue(connectAgent.isVisible());
+
+        connectAgent.doClick();
+
+        assertAll(
+                () -> assertTrue(settings.agentLaneReady),
+                () -> assertTrue(findByAccessibleName(panel, "Start chatting with SHAFT Assistant", JButton.class)
+                        .isVisible()),
+                () -> assertFalse(connectAgent.isVisible()));
+    }
+
+    @Test
+    void setupPanelUsesConfiguredGeminiEnvironmentWithoutCopyingItsValue() throws Exception {
+        java.util.Map<String, String> storedKeys = new java.util.HashMap<>();
+        ShaftSettingsState.Settings settings = unverifiedMcpSettings();
+        ShaftMcpSetupPanel panel = new ShaftMcpSetupPanel(fakeProject(), settings, () -> {
+        }, readyProbe(), fakeKeyStore(storedKeys));
+        setField(panel, "providerEnvironmentLookup",
+                (java.util.function.Function<String, String>) name -> "GOOGLE_API_KEY".equals(name)
+                        ? "never-render-this-secret" : null);
+        java.util.concurrent.atomic.AtomicReference<String> probedSecret = new java.util.concurrent.atomic.AtomicReference<>();
+        setField(panel, "geminiKeyProbe",
+                (java.util.function.Function<char[], com.shaft.intellij.settings.ProviderKeyProbe.Result>) secret -> {
+                    probedSecret.set(new String(secret));
+                    return new com.shaft.intellij.settings.ProviderKeyProbe.Result(true, "");
+                });
+
+        JComboBox<?> agent = findByAccessibleName(panel, "Assistant agent", JComboBox.class);
+        selectDisplayValue(agent, "Gemini in IntelliJ");
+        java.lang.reflect.Method update = ShaftMcpSetupPanel.class.getDeclaredMethod("updateCloudControls");
+        update.setAccessible(true);
+        update.invoke(panel);
+        JCheckBox source = findByAccessibleName(panel, "Use configured GOOGLE_API_KEY", JCheckBox.class);
+
+        assertTrue(source.isVisible());
+        source.doClick();
+        Method verify = ShaftMcpSetupPanel.class.getDeclaredMethod(
+                "verifySelectedAgentReadiness", ShaftMcpToolResult.class);
+        verify.setAccessible(true);
+        Method credentialReadiness = ShaftMcpSetupPanel.class.getDeclaredMethod(
+                "cloudCredentialReadiness", String.class);
+        credentialReadiness.setAccessible(true);
+        ShaftMcpToolResult validated = (ShaftMcpToolResult) credentialReadiness.invoke(panel, "GOOGLE_API_KEY");
+        ShaftMcpToolResult readiness = (ShaftMcpToolResult) verify.invoke(panel, validated);
+
+        assertAll(
+                () -> assertEquals("GOOGLE_API_KEY", settings.providerApiKeyEnvironmentVariable("gemini")),
+                () -> assertEquals("never-render-this-secret", probedSecret.get()),
+                () -> assertTrue(storedKeys.isEmpty()),
+                () -> assertFalse(containsText(panel, "never-render-this-secret")),
+                () -> assertTrue(containsText(panel, "GOOGLE_API_KEY")),
+                () -> assertTrue(readiness.success()));
+    }
+
+    @Test
+    void setupPanelPreservesDisplayedGeminiAliasWhenBothAliasesAreConfigured() throws Exception {
+        ShaftSettingsState.Settings settings = unverifiedMcpSettings();
+        settings.setProviderApiKeyEnvironmentVariable("gemini", "GEMINI_API_KEY");
+        ShaftMcpSetupPanel panel = new ShaftMcpSetupPanel(fakeProject(), settings, () -> {
+        }, readyProbe(), fakeKeyStore(new java.util.HashMap<>()));
+        setField(panel, "providerEnvironmentLookup",
+                (java.util.function.Function<String, String>) name -> switch (name) {
+                    case "GOOGLE_API_KEY" -> "preferred-secret";
+                    case "GEMINI_API_KEY" -> "persisted-secret";
+                    default -> null;
+                });
+
+        JComboBox<?> agent = findByAccessibleName(panel, "Assistant agent", JComboBox.class);
+        selectDisplayValue(agent, "Gemini in IntelliJ");
+        Method update = ShaftMcpSetupPanel.class.getDeclaredMethod("updateCloudControls");
+        update.setAccessible(true);
+        update.invoke(panel);
+        JCheckBox source = findByAccessibleName(panel, "Use configured GEMINI_API_KEY", JCheckBox.class);
+        if (!source.isSelected()) {
+            source.setSelected(true);
+        }
+
+        Method apply = ShaftMcpSetupPanel.class.getDeclaredMethod("applySelectionToSettings");
+        apply.setAccessible(true);
+        apply.invoke(panel);
+
+        assertEquals("GEMINI_API_KEY", settings.providerApiKeyEnvironmentVariable("gemini"));
     }
 
     @Test

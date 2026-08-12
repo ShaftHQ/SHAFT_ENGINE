@@ -1120,4 +1120,10 @@
 {"actor":"agent","event":"memory.updated","id":"constraint.every-actionable-learning-requires-its-own-standalone-github-issue","timestamp":"2026-08-11T22:21:03+03:00"}
 {"actor":"agent","event":"relation.deleted","relation_id":"rel.constraint-every-actionable-learning-requires-its-own-standalone-github-issue-supersedes-constraint-bug-handling-fix-blockers-inline-consolidate-everything-else-into-one-issue","timestamp":"2026-08-11T22:22:52+03:00"}
 {"actor":"agent","event":"relation.created","relation_id":"rel.standalone-action-issue-supersedes-consolidation","timestamp":"2026-08-11T22:22:52+03:00"}
+{"actor":"agent","event":"memory.updated","id":"constraint.pr-gate-yml-design-constraints-paths-filter-events-and-vacuous-green-traps","timestamp":"2026-08-11T23:38:21+03:00"}
+{"actor":"agent","event":"memory.updated","id":"gotcha.graphify-refresh-must-reject-negative-windows-process-exits-before-recording-freshness","timestamp":"2026-08-11T23:45:57+03:00"}
 {"actor":"agent","event":"memory.updated","id":"gotcha.backend-owned-trace-events-must-not-resolve-an-active-webdriver-when-no-driver-is-supplied","timestamp":"2026-08-12T04:44:20+03:00"}
+{"actor":"agent","event":"memory.updated","id":"gotcha.intellij-plugin-gradle9-jdk21-screenshots","timestamp":"2026-08-12T10:52:07+03:00"}
+{"actor":"agent","event":"memory.updated","id":"workflow.running-the-live-guided-workflow-plugin-e2e-harness-guidedworkflowlivee2etest","timestamp":"2026-08-12T10:52:07+03:00"}
+{"actor":"agent","event":"memory.updated","id":"gotcha.gradle-daemon-jvm-criteria-gradle-daemon-jvm-properties-takes-precedence-over-java-home-and-dorg-gradle-java-home","timestamp":"2026-08-12T10:52:07+03:00"}
+{"actor":"agent","event":"memory.updated","id":"gotcha.intellij-marketplace-release-gotchas-single-use-versions-verifyplugin-strictness-manual-gallery","timestamp":"2026-08-12T10:52:07+03:00"}

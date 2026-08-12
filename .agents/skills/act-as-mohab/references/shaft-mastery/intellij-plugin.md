@@ -1,22 +1,20 @@
 # IntelliJ Platform Plugin Development (shaft-intellij)
 
 ## Build reality
-Gradle 9+ with JDK 21 as the build runtime (not Gradle 8.x, not JDK 25;
-source/target compatibility is 17). UI evidence comes from
+Use the checked-in Gradle 9.3+ wrapper with JDK 25 as the build runtime;
+source/target compatibility remains 17 for IntelliJ Platform compatibility.
+UI evidence comes from
 `ShaftPluginScreenshotRendererTest -Dshaft.intellij.screenshotDir=...` —
 visible UI changes must regenerate screenshots for the PR.
 
-`shaft-intellij/settings.gradle.kts` enforces the JDK-25-crashes-the-daemon
-constraint directly (issue #3784): it fails fast with an actionable message
-if the Gradle Daemon JVM is newer than JDK 21, instead of letting JDK 25
-crash the daemon (`EXCEPTION_ACCESS_VIOLATION` in G1 GC on Windows). A hard
-Gradle Daemon JVM criteria/toolchain pin to exactly JDK 21 was considered
-and rejected: that mechanism takes precedence over `JAVA_HOME` and
-`-Dorg.gradle.java.home` (Gradle docs), which would have forced CI's
-`pr-gate.yml` `intellij-build` job — JDK 17 only, via the
-`.github/actions/intellij-verify` composite's system-installed `gradle`, not
-the wrapper — onto a JDK 21 it never installs. The guard leaves JDK 17-21
-alone and only rejects newer, unverified JDKs.
+Issue #3784 recorded one Windows OpenJDK 25.0.1 G1 crash and introduced a
+temporary JDK 21 ceiling. That build already used Gradle 9.3, so the wrapper
+version does not explain the crash. Issue #4779 raised the ceiling to JDK 25
+only after
+repeated fresh Windows JDK 25 builds passed and the supported Gradle/JDK
+combination was reconfirmed; newer daemon JDKs remain rejected. CI must invoke
+`shaft-intellij/gradlew` so its runtime support stays coupled to the checked-in
+wrapper instead of a separately pinned system Gradle.
 
 ## Threading & UI rules
 - EDT-only for Swing mutation; use `invokeLater`/`Application.invokeLater`

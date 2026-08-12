@@ -162,6 +162,26 @@ class AutobotServiceTest {
     }
 
     @Test
+    void providerStatusUsesTheConfiguredCredentialAlias() {
+        System.setProperty("pilot.ai.gemini.apiKeyEnvironmentVariable", "GOOGLE_API_KEY");
+        try {
+            AutobotService service = new AutobotService(
+                    McpWorkspacePolicy.of(workspace),
+                    new LocalAgentService(client -> true, new CapturingRunner()),
+                    request -> { throw new AssertionError("Cloud provider should not be invoked for status"); },
+                    name -> "GOOGLE_API_KEY".equals(name) ? "secret-value" : "");
+
+            AutobotProviderStatus status = service.providerStatus("gemini", "gemini-3.5-flash");
+
+            assertTrue(status.apiKeyPresent());
+            assertEquals("GOOGLE_API_KEY", status.apiKeyEnvironmentVariable());
+            assertFalse(status.toString().contains("secret-value"));
+        } finally {
+            System.clearProperty("pilot.ai.gemini.apiKeyEnvironmentVariable");
+        }
+    }
+
+    @Test
     void providerStatusWarnsWhenKeyOrModelMissing() {
         AutobotService service = new AutobotService(
                 McpWorkspacePolicy.of(workspace),

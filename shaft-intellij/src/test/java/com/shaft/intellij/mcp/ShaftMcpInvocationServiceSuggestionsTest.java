@@ -85,19 +85,8 @@ class ShaftMcpInvocationServiceSuggestionsTest {
     private static ShaftSettingsState.Settings multiToolListSettings() {
         ShaftSettingsState.Settings settings = new ShaftSettingsState.Settings();
         settings.mcpSetupComplete = true;
-        settings.mcpCommand = quote(javaExecutable()) + " -cp " + quote(System.getProperty("java.class.path"))
-                + " " + MultiToolListServer.class.getName();
+        settings.mcpCommand = McpTestJavaProcess.commandLine(MultiToolListServer.class);
         return settings;
-    }
-
-    private static String javaExecutable() {
-        String javaHome = System.getProperty("java.home");
-        boolean windows = System.getProperty("os.name").toLowerCase(Locale.ROOT).contains("win");
-        return java.nio.file.Paths.get(javaHome, "bin", windows ? "java.exe" : "java").toString();
-    }
-
-    private static String quote(String value) {
-        return "\"" + value.replace("\"", "\\\"") + "\"";
     }
 
     private static Project fakeProject() {

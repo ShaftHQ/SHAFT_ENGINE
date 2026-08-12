@@ -1,35 +1,23 @@
 {
   "body_path": "memory/gotchas/intellij-plugin-gradle9-jdk21-screenshots.md",
-  "content_hash": "sha256:e19c1483c824a0760cdb6e425a3bfbbab27f202b795669497da475b77b603101",
+  "content_hash": "sha256:2209d6c211ffd98853cf83b5388c4501041e497f59061376537cabb8bc40a432",
   "created_at": "2026-07-02T00:00:00Z",
   "evidence": [
     {
-      "id": "AGENTS.md",
+      "id": "shaft-intellij/settings.gradle.kts",
       "kind": "file"
     },
     {
-      "id": "shaft-intellij/build.gradle.kts",
+      "id": "shaft-intellij/gradle/wrapper/gradle-wrapper.properties",
       "kind": "file"
     },
     {
-      "id": "shaft-intellij/src/test/java/com/shaft/intellij/ui/ShaftPluginScreenshotRendererTest.java",
+      "id": ".github/actions/intellij-verify/action.yml",
       "kind": "file"
     },
     {
-      "id": "8054a8be34",
-      "kind": "commit"
-    },
-    {
-      "id": "2014866",
-      "kind": "commit"
-    },
-    {
-      "id": "gradle-9.0.0",
-      "kind": "source"
-    },
-    {
-      "id": "Temurin-21.0.11",
-      "kind": "source"
+      "id": "issue #4779",
+      "kind": "task"
     }
   ],
   "facets": {
@@ -58,7 +46,7 @@
     "screenshots",
     "codex"
   ],
-  "title": "Use Gradle 9 and JDK 21 for IntelliJ plugin screenshot tests",
+  "title": "Use the Gradle wrapper and JDK 25 for IntelliJ plugin builds and screenshots",
   "type": "gotcha",
-  "updated_at": "2026-07-08T16:02:23+03:00"
+  "updated_at": "2026-08-12T10:52:07+03:00"
 }

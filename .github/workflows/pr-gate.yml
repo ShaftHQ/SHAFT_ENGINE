@@ -14,14 +14,15 @@ name: PR Gate
 # dorny/paths-filter cannot resolve a diff base outside push/pull_request
 # events, so a workflow_dispatch run would either always fail the changes job
 # or (if gated) skip every leg and pass vacuously. The push trigger covers the
-# main-branch coverage the folded workflows used to provide: on a `push` to a
-# branch that is also the configured `base` (main, here), dorny/paths-filter
-# diffs against the most recent commit on that branch before the push (its
-# documented "long-lived branch" behavior) rather than a PR base -- see the
-# dorny/paths-filter README at the pinned SHA for the exact semantics. The
-# `changes` job carries no `if:`, so it always runs on both event types, and
-# the `dependency-review` job's own conditional makes it report `skipped` (not
-# a failure) on pushes and pull requests with no dependency-bearing diff, which
+# main-branch coverage the folded workflows used to provide. With `base`
+# omitted, dorny/paths-filter defaults it to the repository default branch; on
+# a `push` to main that base is the triggering branch, so the action diffs the
+# event's `before` commit against the pushed head (its documented "long-lived
+# branch" behavior). On pull requests the action's non-empty default token
+# selects the PR-files API, which owns the base comparison. The `changes` job
+# carries no `if:`, so it always runs on both event types, and the
+# `dependency-review` job's own conditional makes it report `skipped` (not a
+# failure) on pushes and pull requests with no dependency-bearing diff, which
 # the summary job's success|skipped leg check already accepts.
 
 on:
@@ -59,12 +60,6 @@ jobs:
         id: filter
         uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3
         with:
-          # Ignored on pull_request (the action always diffs against the PR
-          # base there). On push, base == the triggering branch, which is the
-          # documented "long-lived branch" case: diff against the most recent
-          # commit on main before the push, not the repository default branch
-          # merge-base search.
-          base: main
           filters: |
             docs:
               - "**/*.md"
@@ -112,6 +107,7 @@ jobs:
               - 'scripts/ci/worktree_hygiene.py'
               - 'tools/repository-map/README.md'
               - 'tools/repository-map/resolve_graph_out.py'
+              - 'tools/repository-map/graphify_maintenance.py'
               - 'tools/agent-infra/graphify-refresh.cmd'
               # Reachability elements: the harness check fails when either
               # moves, so a change to them has to run this gate.
@@ -131,10 +127,16 @@ jobs:
               - 'tests/scripts/test_validate_agent_guidance.py'
               - 'tests/scripts/test_validate_agent_plugins.py'
               - 'tests/scripts/test_assemble_act_as_mohab_plugin.py'
+              - 'tests/scripts/test_repository_context.py'
+              - 'tests/scripts/test_watch_pr_checks.py'
+              - 'tests/scripts/test_act_as_mohab_runtime.py'
               - 'tests/scripts/test_assemble_shaft_skills_plugin.py'
               - 'tests/scripts/test_validate_agent_setup.py'
+              - 'tests/scripts/test_intellij_recording_powershell.py'
+              - 'tools/intellij-plugin-recording/**'
               - 'tests/scripts/test_worktree_hygiene.py'
               - 'tests/scripts/test_resolve_graph_out.py'
+              - 'tests/scripts/test_graphify_maintenance.py'
               - 'tests/scripts/test_validate_skills.py'
               - 'tests/scripts/test_sync_user_harness.py'
               - 'tests/scripts/test_shaft_skills_content.py'
@@ -286,7 +288,7 @@ jobs:
     needs: changes
     if: needs.changes.outputs.agent_guidance == 'true' || needs.changes.outputs.infra == 'true'
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 10
+    timeout-minutes: 15
     strategy:
       fail-fast: false
       matrix:
@@ -325,8 +327,12 @@ jobs:
           tests.scripts.test_agent_plugin_release
           tests.scripts.test_agent_plugin_client_smoke
           tests.scripts.test_assemble_act_as_mohab_plugin
+          tests.scripts.test_repository_context
+          tests.scripts.test_watch_pr_checks
+          tests.scripts.test_act_as_mohab_runtime
           tests.scripts.test_assemble_shaft_skills_plugin
           tests.scripts.test_validate_agent_setup
+          tests.scripts.test_intellij_recording_powershell
           tests.scripts.test_validate_skills
           tests.scripts.test_sync_user_harness
           tests.scripts.test_shaft_skills_content
@@ -337,6 +343,7 @@ jobs:
           tests.scripts.test_agnix_conformance
           tests.scripts.test_worktree_hygiene
           tests.scripts.test_resolve_graph_out
+          tests.scripts.test_graphify_maintenance
           tests.scripts.test_build_retry
           tests.scripts.test_extract_allure_failures
           -v
@@ -393,12 +400,17 @@ jobs:
         run: >-
           python scripts/ci/agent_plugin_client_smoke.py --mode smoke
           --output agent-plugin-client-evidence.json
+      - name: Collect act-as-mohab package and runtime evidence
+        run: >-
+          python scripts/ci/agent_plugin_client_smoke.py --mode smoke
+          --package act-as-mohab
+          --output agent-plugin-client-evidence-act-as-mohab.json
       - name: Upload native client smoke evidence
         if: always()
         uses: actions/upload-artifact@v7
         with:
           name: agent-plugin-client-smoke-${{ runner.os }}
-          path: agent-plugin-client-evidence.json
+          path: agent-plugin-client-evidence*.json
           if-no-files-found: error
           retention-days: 14
       - name: Run the portable PreToolUse guard self-test

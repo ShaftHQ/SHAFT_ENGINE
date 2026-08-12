@@ -592,7 +592,7 @@ class ValidateQualityConfigurationTest(unittest.TestCase):
                 "  using: composite\n"
                 "  steps:\n"
                 "    - shell: bash\n"
-                "      run: bash scripts/ci/build_retry.sh 2 15 gradle -p shaft-intellij check\n",
+                "      run: bash scripts/ci/build_retry.sh 2 15 bash shaft-intellij/gradlew -p shaft-intellij check\n",
                 encoding="utf-8",
             )
             (workflows / "coverage.yml").write_text(

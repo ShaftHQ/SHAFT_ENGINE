@@ -106,6 +106,13 @@ public final class ShaftSettingsState implements PersistentStateComponent<ShaftS
         public String assistantRuntime = "CLI";
         public String cloudProvider = "gemini";
         public String cloudModel = "gemini-3.5-flash";
+        /** Provider-standard variable names; blank means IntelliJ Password Safe. Values are never persisted. */
+        public String openAiApiKeyEnvironmentVariable = "";
+        public String anthropicApiKeyEnvironmentVariable = "";
+        public String geminiApiKeyEnvironmentVariable = "";
+        public String githubApiKeyEnvironmentVariable = "";
+        public String ollamaApiKeyEnvironmentVariable = "";
+        public String lmStudioApiKeyEnvironmentVariable = "";
         public String localModel = "";
         public String assistantEffort = "DEFAULT";
         public String defaultAutobotClient = "CODEX";
@@ -165,6 +172,31 @@ public final class ShaftSettingsState implements PersistentStateComponent<ShaftS
                         ? (pilotAiEndpoint == null ? "" : pilotAiEndpoint) : ollamaEndpoint;
             }
             return "";
+        }
+
+        public String providerApiKeyEnvironmentVariable(String provider) {
+            return switch (provider == null ? "" : provider.trim().toLowerCase(java.util.Locale.ROOT)) {
+                case "openai" -> openAiApiKeyEnvironmentVariable;
+                case "anthropic" -> anthropicApiKeyEnvironmentVariable;
+                case "gemini" -> geminiApiKeyEnvironmentVariable;
+                case "github" -> githubApiKeyEnvironmentVariable;
+                case "ollama" -> ollamaApiKeyEnvironmentVariable;
+                case "lmstudio" -> lmStudioApiKeyEnvironmentVariable;
+                default -> "";
+            };
+        }
+
+        public void setProviderApiKeyEnvironmentVariable(String provider, String variableName) {
+            String value = variableName == null ? "" : variableName.trim();
+            switch (provider == null ? "" : provider.trim().toLowerCase(java.util.Locale.ROOT)) {
+                case "openai" -> openAiApiKeyEnvironmentVariable = value;
+                case "anthropic" -> anthropicApiKeyEnvironmentVariable = value;
+                case "gemini" -> geminiApiKeyEnvironmentVariable = value;
+                case "github" -> githubApiKeyEnvironmentVariable = value;
+                case "ollama" -> ollamaApiKeyEnvironmentVariable = value;
+                case "lmstudio" -> lmStudioApiKeyEnvironmentVariable = value;
+                default -> { }
+            }
         }
     }
 }

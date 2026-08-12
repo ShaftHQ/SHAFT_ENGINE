@@ -1,11 +1,19 @@
 {
   "body_path": "memory/gotchas/intellij-marketplace-release-gotchas-single-use-versions-verifyplugin-strictness-manual-gallery.md",
-  "content_hash": "sha256:22f72ca67e6049466ab612bdee9e1ef63142546e0870829adc519b6aa49c9d46",
+  "content_hash": "sha256:60ac393065d7f59480479e4afc6b16eb01107be21af17c4c6faee0b9c24d8d4a",
   "created_at": "2026-07-15T10:08:58+03:00",
   "evidence": [
     {
-      "id": "4168192fa5062fec7bf35280d17819a99c75740c",
-      "kind": "commit"
+      "id": "shaft-intellij/build.gradle.kts",
+      "kind": "file"
+    },
+    {
+      "id": ".github/actions/intellij-verify/action.yml",
+      "kind": "file"
+    },
+    {
+      "id": "issue #4779",
+      "kind": "task"
     }
   ],
   "facets": {
@@ -31,5 +39,5 @@
   ],
   "title": "IntelliJ Marketplace release gotchas (single-use versions, verifyPlugin strictness, manual gallery)",
   "type": "gotcha",
-  "updated_at": "2026-07-29T16:45:37+03:00"
+  "updated_at": "2026-08-12T10:52:07+03:00"
 }

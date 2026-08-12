@@ -102,6 +102,22 @@ jobs:
         repository_root = Path(__file__).resolve().parents[2]
         self.assertEqual(validate_repository(repository_root), [])
 
+    def test_agent_guidance_job_allows_expanded_cross_host_history_suite(self):
+        repository_root = Path(__file__).resolve().parents[2]
+        workflow = yaml.safe_load(
+            (repository_root / ".github/workflows/pr-gate.yml").read_text(encoding="utf-8")
+        )
+        timeout = workflow["jobs"]["agent-guidance"].get("timeout-minutes", 0)
+        self.assertGreaterEqual(timeout, 15)
+
+    def test_local_safari_job_allows_observed_nightly_runtime_headroom(self):
+        repository_root = Path(__file__).resolve().parents[2]
+        workflow = yaml.safe_load(
+            (repository_root / ".github/workflows/e2eLocalTests.yml").read_text(encoding="utf-8")
+        )
+        timeout = workflow["jobs"]["MacOSX_Safari_Local"].get("timeout-minutes", 0)
+        self.assertEqual(timeout, 120)
+
 
 if __name__ == "__main__":
     unittest.main()
@@ -163,6 +179,35 @@ class CliGatePackagingContractTest(unittest.TestCase):
         self.assertNotIn(
             "mvn --batch-mode -pl shaft-cli package -DskipTests",
             content,
+        )
+
+
+class PathFilterComparisonContractTest(unittest.TestCase):
+    """#4743: keep event-native path comparisons free of ignored inputs."""
+
+    WORKFLOW = Path(__file__).resolve().parents[2] / ".github/workflows/pr-gate.yml"
+
+    def test_filter_uses_event_native_base_with_a_non_empty_token(self):
+        workflow = yaml.safe_load(self.WORKFLOW.read_text(encoding="utf-8"))
+        steps = workflow["jobs"]["changes"]["steps"]
+        filter_steps = [step for step in steps if step.get("id") == "filter"]
+        self.assertEqual(
+            len(filter_steps),
+            1,
+            "jobs.changes must have exactly one path-filter owner with id=filter",
+        )
+
+        inputs = filter_steps[0]["with"]
+        self.assertNotIn(
+            "base",
+            inputs,
+            "pull-request API comparison ignores base when the token is non-empty",
+        )
+        token = inputs.get("token", "${{ github.token }}")
+        self.assertIsInstance(token, str)
+        self.assertTrue(
+            token.strip(),
+            "an empty token switches pull requests from the API to git diff",
         )
 
 
