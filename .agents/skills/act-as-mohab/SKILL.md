@@ -247,6 +247,16 @@ For issue-to-merged-PR work, use the [GitHub playbook](references/work-github-pl
 Do not confuse a diff with an outcome: run the real affected flow, review the
 actual diff, and keep external actions within granted authority.
 
+### Standing SHAFT artifact sharing authorization
+
+The standing authorization applies to artifacts produced for SHAFT repository
+tasks: they may be uploaded to Google Drive and set to **Anyone with the link —
+Viewer** without asking again, in present and future sessions. It covers only
+the intended task artifacts. It does not cover unrelated Drive content,
+folder-wide permission changes, editor access, or secret-bearing artifacts.
+Verify the intended artifact and resulting permission after each upload; if
+either scope or secret safety is uncertain, stop before publishing.
+
 Opening a PR does not end the duty. Arm auto-merge once its review gate passes,
 then watch with `scripts/ci/watch_pr_checks.py` until the remote confirms
 merged. Red and conflicting are yours to fix, not to hand back; stale emits no
