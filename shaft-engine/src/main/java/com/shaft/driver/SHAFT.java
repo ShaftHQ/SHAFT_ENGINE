@@ -545,6 +545,11 @@ public class SHAFT {
                     return this;
                 }
 
+                public SikuliActions click(com.shaft.gui.ocr.OcrTarget target) {
+                    invoke(delegate, "click", new Class<?>[]{com.shaft.gui.ocr.OcrTarget.class}, target);
+                    return this;
+                }
+
                 /**
                  * Types text into the target image region.
                  *
@@ -659,6 +664,11 @@ public class SHAFT {
                     return this;
                 }
 
+                public SikuliActions hover(com.shaft.gui.ocr.OcrTarget target) {
+                    invoke(delegate, "hover", new Class<?>[]{com.shaft.gui.ocr.OcrTarget.class}, target);
+                    return this;
+                }
+
                 /**
                  * Double-clicks the target image.
                  *
@@ -678,6 +688,11 @@ public class SHAFT {
                  */
                 public SikuliActions doubleClick(byte[] targetElement) {
                     invoke(delegate, "doubleClick", new Class<?>[]{byte[].class}, targetElement);
+                    return this;
+                }
+
+                public SikuliActions doubleClick(com.shaft.gui.ocr.OcrTarget target) {
+                    invoke(delegate, "doubleClick", new Class<?>[]{com.shaft.gui.ocr.OcrTarget.class}, target);
                     return this;
                 }
 

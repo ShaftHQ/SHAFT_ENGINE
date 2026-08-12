@@ -2,6 +2,7 @@ package com.shaft.gui.driver;
 
 import com.google.common.annotations.Beta;
 import com.shaft.gui.internal.locator.SmartLocators;
+import com.shaft.gui.ocr.OcrTarget;
 import org.openqa.selenium.By;
 
 import java.util.List;
@@ -56,6 +57,11 @@ public interface ElementActionsContract {
 
     ElementActionsContract click(By elementLocator);
 
+    /** Clicks the center of visible text recognized in the current screenshot. */
+    default ElementActionsContract click(OcrTarget target) {
+        throw new UnsupportedOperationException("OCR click is not supported by this element actions implementation.");
+    }
+
     /**
      * Clicks a clickable element resolved by visible text, label, or accessible name.
      *
@@ -91,6 +97,11 @@ public interface ElementActionsContract {
 
     ElementActionsContract doubleClick(By elementLocator);
 
+    /** Double-clicks the center of visible text recognized in the current screenshot. */
+    default ElementActionsContract doubleClick(OcrTarget target) {
+        throw new UnsupportedOperationException("OCR double-click is not supported by this element actions implementation.");
+    }
+
     default ElementActionsContract doubleClick(ShaftLocator elementLocator) {
         return doubleClick(elementLocator.toBy());
     }
@@ -108,6 +119,11 @@ public interface ElementActionsContract {
     }
 
     ElementActionsContract hover(By elementLocator);
+
+    /** Moves the pointer to visible text recognized in the current screenshot. */
+    default ElementActionsContract hover(OcrTarget target) {
+        throw new UnsupportedOperationException("OCR hover is not supported by this element actions implementation.");
+    }
 
     default ElementActionsContract hover(ShaftLocator elementLocator) {
         return hover(elementLocator.toBy());

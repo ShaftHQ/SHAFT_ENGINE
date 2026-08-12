@@ -2,6 +2,7 @@ package com.shaft.gui.internal.locator;
 
 import lombok.NonNull;
 import io.appium.java_client.AppiumBy;
+import com.shaft.gui.ocr.OcrTarget;
 import org.openqa.selenium.Beta;
 import org.openqa.selenium.By;
 
@@ -128,5 +129,25 @@ public class Locator {
     @Beta
     public static By clickableField(@NonNull String elementName) {
         return SmartLocators.clickableField(elementName);
+    }
+
+    /**
+     * Builds an OCR target that matches a complete recognized visible-text line.
+     *
+     * @param text complete visible text to recognize
+     * @return immutable OCR target
+     */
+    public static OcrTarget hasOcrText(@NonNull String text) {
+        return OcrTarget.exact(text);
+    }
+
+    /**
+     * Builds an OCR target that matches part of a recognized visible-text line.
+     *
+     * @param text partial visible text to recognize
+     * @return immutable OCR target
+     */
+    public static OcrTarget containsOcrText(@NonNull String text) {
+        return OcrTarget.containing(text);
     }
 }

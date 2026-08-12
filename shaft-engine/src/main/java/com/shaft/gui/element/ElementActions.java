@@ -5,6 +5,8 @@ import com.shaft.driver.internal.FluentWebDriverAction;
 import com.shaft.driver.internal.WizardHelpers;
 import com.shaft.gui.element.internal.Actions;
 import com.shaft.gui.internal.aria.AriaSnapshotHelper;
+import com.shaft.gui.internal.ocr.OcrWebDriverPointerActions;
+import com.shaft.gui.ocr.OcrTarget;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.validation.internal.WebDriverElementValidationsBuilder;
 import org.openqa.selenium.*;
@@ -142,6 +144,12 @@ public class ElementActions extends FluentWebDriverAction implements com.shaft.g
         return new Actions(driverFactoryHelper).click(elementLocator);
     }
 
+    @Override
+    public Actions click(OcrTarget target) {
+        OcrWebDriverPointerActions.click(driverFactoryHelper.getDriver(), target);
+        return new Actions(driverFactoryHelper);
+    }
+
     /**
      * Clicks on certain element using javaScript only
      *
@@ -190,6 +198,12 @@ public class ElementActions extends FluentWebDriverAction implements com.shaft.g
         return new Actions(driverFactoryHelper).doubleClick(elementLocator);
     }
 
+    @Override
+    public Actions doubleClick(OcrTarget target) {
+        OcrWebDriverPointerActions.doubleClick(driverFactoryHelper.getDriver(), target);
+        return new Actions(driverFactoryHelper);
+    }
+
     /**
      * Drags the source element and drops it onto the destination element
      *
@@ -236,6 +250,12 @@ public class ElementActions extends FluentWebDriverAction implements com.shaft.g
     @Override
     public Actions hover(By elementLocator) {
         return new Actions(driverFactoryHelper).hover(elementLocator);
+    }
+
+    @Override
+    public Actions hover(OcrTarget target) {
+        OcrWebDriverPointerActions.hover(driverFactoryHelper.getDriver(), target);
+        return new Actions(driverFactoryHelper);
     }
 
     /**

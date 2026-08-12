@@ -73,6 +73,11 @@
         </dependency>
         <dependency>
             <groupId>${project.groupId}</groupId>
+            <artifactId>shaft-ocr</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>${project.groupId}</groupId>
             <artifactId>shaft-sikulix</artifactId>
             <version>${project.version}</version>
         </dependency>

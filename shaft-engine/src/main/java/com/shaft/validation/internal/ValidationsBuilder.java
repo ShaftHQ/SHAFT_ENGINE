@@ -4,6 +4,10 @@ import com.shaft.validation.ValidationEnums;
 import org.openqa.selenium.By;
 import org.openqa.selenium.WebDriver;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+
 @SuppressWarnings("unused")
 public class ValidationsBuilder {
     protected final ValidationEnums.ValidationCategory validationCategory;
@@ -79,6 +83,20 @@ public class ValidationsBuilder {
     public FileValidationsBuilder file(String folderRelativePath, String fileName) {
         reportMessageBuilder.append("the file \"").append(folderRelativePath).append(fileName).append("\" ");
         return new FileValidationsBuilder(validationCategory, folderRelativePath, fileName, reportMessageBuilder);
+    }
+
+    /** Starts OCR assertions against an encoded image. */
+    public OcrImageValidationsBuilder image(byte[] image) {
+        return new OcrImageValidationsBuilder(validationCategory, image);
+    }
+
+    /** Starts OCR assertions against an image file. */
+    public OcrImageValidationsBuilder image(Path image) {
+        try {
+            return image(Files.readAllBytes(image));
+        } catch (IOException exception) {
+            throw new IllegalArgumentException("Could not read OCR image: " + image, exception);
+        }
     }
 
     /**

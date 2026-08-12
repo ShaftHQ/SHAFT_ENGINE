@@ -4,6 +4,7 @@ import com.shaft.validation.ValidationEnums;
 import com.shaft.validation.VisualComparisonOptions;
 import com.shaft.validation.internal.NativeValidationsBuilder;
 import com.shaft.validation.internal.ValidationsExecutor;
+import com.shaft.gui.ocr.OcrOptions;
 
 /**
  * Public contract for element-level hard/soft validation starters.
@@ -68,6 +69,16 @@ public interface ElementAssertions {
     NativeValidationsBuilder text();
 
     NativeValidationsBuilder textTrimmed();
+
+    /** Recognizes the target element screenshot and starts a native string assertion. */
+    default NativeValidationsBuilder ocrText() {
+        return ocrText(OcrOptions.defaults());
+    }
+
+    /** Recognizes the target element screenshot with explicit OCR options. */
+    default NativeValidationsBuilder ocrText(OcrOptions options) {
+        throw unsupported("ocrText");
+    }
 
     NativeValidationsBuilder cssProperty(String elementCssProperty);
 
