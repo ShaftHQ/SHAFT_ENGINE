@@ -1128,3 +1128,5 @@
 {"actor":"agent","event":"memory.updated","id":"gotcha.gradle-daemon-jvm-criteria-gradle-daemon-jvm-properties-takes-precedence-over-java-home-and-dorg-gradle-java-home","timestamp":"2026-08-12T10:52:07+03:00"}
 {"actor":"agent","event":"memory.updated","id":"gotcha.intellij-marketplace-release-gotchas-single-use-versions-verifyplugin-strictness-manual-gallery","timestamp":"2026-08-12T10:52:07+03:00"}
 {"actor":"agent","event":"memory.created","id":"gotcha.intellij-instrumented-gradle-testkit-tests-must-bind-the-gradle-runtime-and-reuse-the-outer-gradle-home","timestamp":"2026-08-12T14:01:11+03:00"}
+{"actor":"agent","event":"memory.created","id":"gotcha.local-appium-uiautomator2-acceptance-requires-android-sdk-build-tools-with-aapt2","timestamp":"2026-08-12T21:18:07+03:00"}
+{"actor":"agent","event":"memory.created","id":"gotcha.unscoped-shaft-reactor-tests-can-enter-browserstack-backed-mobile-fixtures","timestamp":"2026-08-12T21:18:07+03:00"}

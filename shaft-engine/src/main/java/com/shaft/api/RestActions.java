@@ -541,7 +541,10 @@ public class RestActions {
                 JSONArray jsonArray = JsonPath.compile(jsonPath).read(new JSONObject(jsonObject), confOrgJsonProvider);
                 JavaType listType = JACKSON_MAPPER.getTypeFactory().constructCollectionType(List.class, Object.class);
                 jsonList = JACKSON_MAPPER.readValue(Objects.requireNonNull(jsonArray).toString(), listType);
-            } catch (JSONException | JacksonException rootCauseException) {
+            } catch (JSONException rootCauseException) {
+                ReportManager.log(ERROR_FAILED_TO_PARSE_JSON, Level.ERROR);
+                failAction(jsonPath, rootCauseException);
+            } catch (JacksonException rootCauseException) {
                 ReportManager.log(ERROR_FAILED_TO_PARSE_JSON, Level.ERROR);
                 failAction(jsonPath, rootCauseException);
             }

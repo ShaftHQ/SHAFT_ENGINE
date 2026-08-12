@@ -1,0 +1,44 @@
+{
+  "body_path": "memory/gotchas/local-appium-uiautomator2-acceptance-requires-android-sdk-build-tools-with-aapt2.md",
+  "content_hash": "sha256:9c9a46637bd02799559478e525609eaa7ea936f7314424f59bacec1dbb85d45e",
+  "created_at": "2026-08-12T21:18:07+03:00",
+  "evidence": [
+    {
+      "id": "https://github.com/ShaftHQ/SHAFT_ENGINE/issues/4751#issuecomment-5270131142",
+      "kind": "source"
+    },
+    {
+      "id": "3d5c0dee29a8ea8bd7ce0a4d8a8d9d53ea7b7b81",
+      "kind": "commit"
+    }
+  ],
+  "facets": {
+    "applies_to": [
+      "shaft-engine/src/test/java/testPackage/appium/MobileTest.java",
+      "shaft-engine/src/test/java/testPackage/appium/AndroidBasicInteractionsTests.java"
+    ],
+    "category": "gotcha"
+  },
+  "id": "gotcha.local-appium-uiautomator2-acceptance-requires-android-sdk-build-tools-with-aapt2",
+  "scope": {
+    "branch": null,
+    "kind": "project",
+    "project": "project.shaft-engine",
+    "task": null
+  },
+  "source": {
+    "kind": "agent",
+    "task": "Record two non-duplicate completion gotchas from issue #4727 delivery."
+  },
+  "status": "active",
+  "tags": [
+    "appium",
+    "android",
+    "uiautomator2",
+    "aapt2",
+    "acceptance"
+  ],
+  "title": "Local Appium UiAutomator2 acceptance requires Android SDK build-tools with aapt2",
+  "type": "gotcha",
+  "updated_at": "2026-08-12T21:18:07+03:00"
+}

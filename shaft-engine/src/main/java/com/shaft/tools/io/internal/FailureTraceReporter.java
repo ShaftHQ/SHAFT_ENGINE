@@ -8,6 +8,7 @@ import com.shaft.gui.playwright.internal.PlaywrightSessionManager;
 import com.shaft.gui.playwright.internal.PlaywrightTraceManager;
 import com.shaft.listeners.internal.TestExecutionInfo;
 import com.shaft.tools.io.trace.TraceSession;
+import com.shaft.tools.io.trace.TraceArtifactReference;
 import com.shaft.tools.internal.support.ReportHtmlTheme;
 import org.apache.logging.log4j.Level;
 import org.openqa.selenium.WebDriver;
@@ -375,6 +376,7 @@ public final class FailureTraceReporter {
                 .tabs{display:flex;gap:8px;flex-wrap:wrap;margin:14px 0}
                 .tabs button{background:var(--shaft-surface);color:var(--shaft-primary)}
                 .tabs button.selected{background:var(--shaft-primary);color:var(--shaft-on-dark)}
+                #mobile-category-filter button[aria-pressed="true"]{background:var(--shaft-primary);color:var(--shaft-on-dark);box-shadow:0 0 0 3px rgba(var(--shaft-primary-rgb),.2)}
                 dl{display:grid;grid-template-columns:130px 1fr;gap:6px 12px}
                 dt{font-weight:700;color:var(--shaft-text-muted)}dd{margin:0;overflow-wrap:anywhere}
                 #timeline-list{max-height:560px;overflow:auto;border:1px solid var(--shaft-border,#ccc);border-radius:6px}
@@ -391,10 +393,14 @@ public final class FailureTraceReporter {
                 .timeline-label{overflow-wrap:anywhere}
                 .trace-table{width:100%;border-collapse:collapse;font-size:.86em}
                 .trace-table th,.trace-table td{padding:4px 8px;border-bottom:1px solid var(--shaft-border,#eee);text-align:left;vertical-align:top;overflow-wrap:anywhere}
-                .trace-table tbody tr{cursor:pointer}
                 .trace-table tbody tr:hover{background:rgba(var(--shaft-primary-rgb),.08)}
                 .trace-table tr.inwindow{background:rgba(var(--shaft-primary-rgb),.10)}
                 .trace-table tr.failed td{color:var(--shaft-fail)}
+                .panel-controls{display:flex;gap:8px;align-items:end;flex-wrap:wrap;margin:10px 0}
+                .panel-controls label{display:grid;gap:3px;font-size:.82em;color:var(--shaft-text-muted)}
+                .panel-controls input,.panel-controls select{min-width:130px}
+                .result-count{margin-left:auto;color:var(--shaft-text-muted)}
+                .sort-button{border:0;background:transparent;color:inherit;padding:2px;font:inherit;font-weight:700}
                 .trace-navigator{margin-bottom:16px}
                 .range-controls{display:grid;grid-template-columns:auto 1fr auto 1fr auto;gap:8px;align-items:center}
                 .range-controls input{width:100%}
@@ -466,9 +472,11 @@ public final class FailureTraceReporter {
                       <button data-tab="domSnapshot">DOM Snapshot</button>
                       <button data-tab="screenshot">Screenshot</button>
                       <button data-tab="locatorHealth">Locator Health</button>
-                      <button data-tab="network">Network</button>
-                      <button data-tab="console">Console</button>
-                      <button data-tab="browserObservability">Observability</button>
+                       <button data-tab="network">Network</button>
+                       <button data-tab="console">Console</button>
+                       <button data-tab="mobile">Mobile</button>
+                       <button data-tab="artifacts">Artifacts</button>
+                       <button data-tab="browserObservability">Observability</button>
                       <button data-tab="environment">Environment</button>
                       <button data-tab="attachments">Attachments</button>
                       <button data-tab="log">Test Log</button>
@@ -509,14 +517,66 @@ public final class FailureTraceReporter {
                     </div>
                     <div id="network-panel" hidden>
                       <p class="muted" id="network-hint"></p>
-                      <table class="trace-table"><thead><tr><th>Time</th><th>Method</th><th>Status</th><th>ms</th><th>URL</th></tr></thead><tbody id="network-rows"></tbody></table>
+                      <div class="panel-controls">
+                        <label>Method<select id="network-method-filter"><option value="">All methods</option></select></label>
+                        <label>Status<select id="network-status-filter"><option value="">All statuses</option></select></label>
+                        <label>Search<input id="network-text-filter" type="search" placeholder="URL, headers, or body"></label>
+                        <output id="network-result-count" class="result-count" aria-live="polite"></output>
+                      </div>
+                      <table class="trace-table"><thead><tr>
+                        <th id="network-sort-time"><button type="button" class="sort-button" data-network-sort="time">Time</button></th>
+                        <th id="network-sort-type"><button type="button" class="sort-button" data-network-sort="type">Type</button></th>
+                        <th id="network-sort-method" aria-sort="ascending"><button type="button" class="sort-button" data-network-sort="method">Method</button></th>
+                        <th id="network-sort-status"><button type="button" class="sort-button" data-network-sort="status">Status</button></th>
+                        <th id="network-sort-duration"><button type="button" class="sort-button" data-network-sort="duration">Duration</button></th>
+                        <th id="network-sort-size"><button type="button" class="sort-button" data-network-sort="size">Size</button></th>
+                        <th>URL</th><th>Details</th>
+                      </tr></thead><tbody id="network-rows"></tbody></table>
                       <pre id="network-detail" hidden></pre>
                     </div>
                     <div id="console-panel" hidden>
                       <p class="muted" id="console-hint"></p>
-                      <table class="trace-table"><thead><tr><th>Time</th><th>Level</th><th>Message</th></tr></thead><tbody id="console-rows"></tbody></table>
-                    </div>
-                  </section>
+                      <div class="panel-controls">
+                        <label>Source<select id="console-source-filter"><option value="">All sources</option></select></label>
+                        <label>Level<select id="console-level-filter"><option value="">All levels</option></select></label>
+                        <label>Search<input id="console-text-filter" type="search" placeholder="Search console messages"></label>
+                        <output id="console-result-count" class="result-count" aria-live="polite"></output>
+                      </div>
+                      <table class="trace-table"><thead><tr>
+                        <th id="console-sort-time" aria-sort="ascending"><button type="button" class="sort-button" data-console-sort="time">Time</button></th>
+                        <th id="console-sort-source"><button type="button" class="sort-button" data-console-sort="source">Source</button></th>
+                        <th id="console-sort-level"><button type="button" class="sort-button" data-console-sort="level">Level</button></th>
+                        <th id="console-sort-message"><button type="button" class="sort-button" data-console-sort="message">Message</button></th><th>Details</th>
+                      </tr></thead><tbody id="console-rows"></tbody></table>
+                     <pre id="console-detail" hidden></pre>
+                   </div>
+                   <div id="mobile-panel" hidden>
+                     <p class="muted" id="mobile-hint"></p>
+                     <div class="toolbar" id="mobile-category-filter" role="group" aria-label="Mobile action category">
+                       <button type="button" class="selected" data-mobile-category="all" aria-pressed="true">All</button>
+                       <button type="button" data-mobile-category="mobile/app" aria-pressed="false">App</button>
+                       <button type="button" data-mobile-category="mobile/context" aria-pressed="false">Context</button>
+                       <button type="button" data-mobile-category="mobile/device" aria-pressed="false">Device</button>
+                       <button type="button" data-mobile-category="mobile/logs" aria-pressed="false">Logs</button>
+                       <button type="button" data-mobile-category="mobile/performance" aria-pressed="false">Performance</button>
+                       <button type="button" data-mobile-category="mobile/recording" aria-pressed="false">Recording</button>
+                       <button type="button" data-mobile-category="mobile/evidence" aria-pressed="false">Evidence</button>
+                       <output id="mobile-result-count" class="result-count" aria-live="polite"></output>
+                     </div>
+                     <table class="trace-table"><thead><tr>
+                       <th>Time</th><th>Area</th><th>Operation</th><th>Status</th><th>Summary</th><th>Details</th>
+                     </tr></thead><tbody id="mobile-rows"></tbody></table>
+                     <pre id="mobile-detail" hidden></pre>
+                   </div>
+                   <div id="artifact-panel" hidden>
+                     <p class="muted" id="artifact-hint"></p>
+                     <p class="muted" id="native-trace-handoff" hidden></p>
+                     <output id="artifact-result-count" class="result-count" aria-live="polite"></output>
+                     <table class="trace-table"><thead><tr>
+                       <th>Path</th><th>Kind</th><th>Media type</th><th>Status</th><th>Details</th>
+                     </tr></thead><tbody id="artifact-rows"></tbody></table>
+                   </div>
+                 </section>
                 </div>
                 </main>
                 </div>
@@ -530,6 +590,8 @@ public final class FailureTraceReporter {
                 const actions = Array.isArray(trace.actions) ? trace.actions : [];
                 const network = Array.isArray(trace.network) ? trace.network : [];
                 const consoleEvents = Array.isArray(trace.console) ? trace.console : [];
+                const artifacts = Array.isArray(trace.session && trace.session.artifacts)
+                    ? trace.session.artifacts : [];
                 const actionList = document.getElementById('action-list');
                 const actionSearch = document.getElementById('action-search');
                 const details = document.getElementById('details');
@@ -678,8 +740,16 @@ public final class FailureTraceReporter {
                     </div>`;
                   if (truncation.length) {
                     document.getElementById('truncation-banner').hidden = false;
+                    const artifactReasons = new Map(artifacts.filter(artifact => artifact.omitted)
+                      .map(artifact => [artifact.path, artifact.metadata && artifact.metadata.omissionReason]));
+                    const omittedDetails = truncation.map(path => artifactReasons.get(path)
+                      ? `${path}: ${artifactReasons.get(path)}`
+                      : `${path}: exceeded shaft.trace.maxArtifactMb and was replaced with an omission marker`);
                     document.getElementById('truncation-detail').textContent =
-                      `These bundle entries exceeded shaft.trace.maxArtifactMb and were replaced with omission markers: ${truncation.join(', ')}. Raise the cap to capture them in full.`;
+                      `Some bundle entries were omitted: ${omittedDetails.join('; ')}.`;
+                  } else {
+                    document.getElementById('truncation-banner').hidden = true;
+                    document.getElementById('truncation-detail').textContent = '';
                   }
                 }
                 const filmstrip = document.getElementById('trace-filmstrip');
@@ -795,35 +865,249 @@ public final class FailureTraceReporter {
                 const networkPanel = document.getElementById('network-panel');
                 const networkRows = document.getElementById('network-rows');
                 const networkDetail = document.getElementById('network-detail');
+                const networkMethodFilter = document.getElementById('network-method-filter');
+                const networkStatusFilter = document.getElementById('network-status-filter');
+                const networkTextFilter = document.getElementById('network-text-filter');
+                const networkResultCount = document.getElementById('network-result-count');
+                let networkSort = {key:'method', direction:'ascending'};
+                function finiteNumber(value){ return typeof value === 'number' && Number.isFinite(value) ? value : null; }
+                function networkStatus(entry){
+                  const status = finiteNumber(entry.status);
+                  return status == null ? 'Unknown' : status > 0 ? String(status) : 'FAILED';
+                }
+                function networkType(entry){ return entry.type ? String(entry.type) : 'HTTP'; }
+                function headerSearchText(headers){
+                  return Object.entries(headers || {}).map(([name, value]) => `${name}: ${value}`).join(' ');
+                }
+                function networkSearchText(entry){
+                  return [entry.url, headerSearchText(entry.requestHeaders),
+                    headerSearchText(entry.responseHeaders), entry.bodyPreview]
+                    .filter(value => value != null).join(' ').toLowerCase();
+                }
+                function networkSize(entry){
+                  const request = finiteNumber(entry.requestSizeBytes);
+                  const response = finiteNumber(entry.responseSizeBytes);
+                  return request == null || response == null ? null : request + response;
+                }
+                function networkSortValue(entry, key){
+                  let value = null;
+                  if (key === 'time') value = finiteNumber(networkStartMs(entry));
+                  if (key === 'type') value = networkType(entry);
+                  if (key === 'method') value = entry.method ? String(entry.method) : null;
+                  if (key === 'status') value = finiteNumber(entry.status);
+                  if (key === 'duration') value = finiteNumber(entry.durationMs);
+                  if (key === 'size') value = networkSize(entry);
+                  return {missing:value == null, value};
+                }
+                function compareNetwork(left, right){
+                  const a = networkSortValue(left.entry, networkSort.key);
+                  const b = networkSortValue(right.entry, networkSort.key);
+                  if (a.missing !== b.missing) return a.missing ? 1 : -1;
+                  if (a.missing) return left.index - right.index;
+                  let comparison = typeof a.value === 'number' && typeof b.value === 'number'
+                    ? a.value - b.value : String(a.value).localeCompare(String(b.value));
+                  if (networkSort.direction === 'descending') comparison = -comparison;
+                  return comparison || left.index - right.index;
+                }
+                function populateNetworkFilters(){
+                  const append = (select, values) => values.forEach(value => {
+                    const option = document.createElement('option');
+                    option.value = value;
+                    option.textContent = value;
+                    select.appendChild(option);
+                  });
+                  append(networkMethodFilter, [...new Set(network.map(entry => String(entry.method || 'UNKNOWN')))].sort());
+                  append(networkStatusFilter, [...new Set(network.map(networkStatus))].sort());
+                }
+                function updateNetworkSortHeaders(){
+                  document.querySelectorAll('[data-network-sort]').forEach(button => {
+                    const header = button.closest('th');
+                    if (button.dataset.networkSort === networkSort.key) {
+                      header.setAttribute('aria-sort', networkSort.direction);
+                    } else {
+                      header.removeAttribute('aria-sort');
+                    }
+                  });
+                }
                 function renderNetwork(){
                   const range = selectedWindow();
-                  document.getElementById('network-hint').textContent = network.length
-                    ? 'Click a request for headers and body preview.' + (range ? ' Highlighted rows overlap the selected action.' : '')
-                    : 'No network exchanges were recorded.';
                   networkRows.innerHTML = '';
                   networkDetail.hidden = true;
-                  network.forEach(entry => {
+                  const query = networkTextFilter.value.trim().toLowerCase();
+                  const visible = network.map((entry, index) => ({entry, index})).filter(({entry}) =>
+                    (finiteNumber(networkStartMs(entry)) == null
+                      || intervalOverlaps(networkStartMs(entry), entry.durationMs, range))
+                    && (!networkMethodFilter.value || String(entry.method || 'UNKNOWN') === networkMethodFilter.value)
+                    && (!networkStatusFilter.value || networkStatus(entry) === networkStatusFilter.value)
+                    && (!query || networkSearchText(entry).includes(query)))
+                    .sort(compareNetwork);
+                  networkResultCount.textContent = `${visible.length} network ${visible.length === 1 ? 'exchange' : 'exchanges'}`;
+                  document.getElementById('network-hint').textContent = !network.length
+                    ? 'No network exchanges were recorded.'
+                    : !visible.length ? 'No network exchanges match the selected range and filters.'
+                    : 'Use View request details to inspect headers and body preview.';
+                  visible.forEach(({entry}) => {
                     const tr = document.createElement('tr');
-                    tr.className = `${networkFailed(entry) ? 'failed' : ''}${intervalOverlaps(networkStartMs(entry), entry.durationMs, range) ? ' inwindow' : ''}`;
-                    tr.innerHTML = `<td class="time-cell">${esc(offsetLabel(networkStartMs(entry)))}</td><td>${esc(entry.method)}</td><td>${esc(entry.status || 'FAILED')}</td><td>${esc(entry.durationMs || 0)}</td><td>${esc(entry.url)}</td>`;
-                    tr.addEventListener('click', () => { networkDetail.hidden = false; networkDetail.textContent = JSON.stringify(entry, null, 2); });
+                    const timed = finiteNumber(networkStartMs(entry)) != null;
+                    tr.className = `${networkFailed(entry) ? 'failed ' : ''}${timed ? 'inwindow' : ''}`.trim();
+                    const duration = finiteNumber(entry.durationMs);
+                    const size = networkSize(entry);
+                    tr.innerHTML = `<td class="time-cell">${esc(offsetLabel(networkStartMs(entry)))}</td><td>${esc(networkType(entry))}</td><td>${esc(entry.method || 'Unknown')}</td><td>${esc(networkStatus(entry))}</td><td>${duration == null ? 'Unknown' : `${duration}ms`}</td><td>${size == null ? 'Unknown' : `${size} B`}</td><td>${esc(entry.url || 'Unknown')}</td><td><button type="button" class="secondary">View request details</button></td>`;
+                    tr.querySelector('button').addEventListener('click', () => {
+                      networkDetail.hidden = false;
+                      networkDetail.textContent = JSON.stringify(entry, null, 2);
+                    });
                     networkRows.appendChild(tr);
                   });
+                  updateNetworkSortHeaders();
                 }
                 const consolePanel = document.getElementById('console-panel');
                 const consoleRows = document.getElementById('console-rows');
+                const consoleDetail = document.getElementById('console-detail');
+                const consoleSourceFilter = document.getElementById('console-source-filter');
+                const consoleLevelFilter = document.getElementById('console-level-filter');
+                const consoleTextFilter = document.getElementById('console-text-filter');
+                const consoleResultCount = document.getElementById('console-result-count');
+                let consoleSort = {key:'time', direction:'ascending'};
+                function consoleSearchText(entry){
+                  return String(entry.message || '').toLowerCase();
+                }
+                function consoleSortValue(entry, key){
+                  const value = key === 'time' ? finiteNumber(entry.timestamp)
+                    : entry[key] ? String(entry[key]) : null;
+                  return {missing:value == null, value};
+                }
+                function compareConsole(left, right){
+                  const a = consoleSortValue(left.entry, consoleSort.key);
+                  const b = consoleSortValue(right.entry, consoleSort.key);
+                  if (a.missing !== b.missing) return a.missing ? 1 : -1;
+                  if (a.missing) return left.index - right.index;
+                  let comparison = typeof a.value === 'number' && typeof b.value === 'number'
+                    ? a.value - b.value : String(a.value).localeCompare(String(b.value));
+                  if (consoleSort.direction === 'descending') comparison = -comparison;
+                  return comparison || left.index - right.index;
+                }
+                function populateConsoleFilters(){
+                  const append = (select, values) => values.forEach(value => {
+                    const option = document.createElement('option');
+                    option.value = value;
+                    option.textContent = value;
+                    select.appendChild(option);
+                  });
+                  append(consoleSourceFilter, [...new Set(consoleEvents.map(entry => String(entry.source || 'Unknown')))].sort());
+                  append(consoleLevelFilter, [...new Set(consoleEvents.map(entry => String(entry.level || 'Unknown')))].sort());
+                }
+                function updateConsoleSortHeaders(){
+                  document.querySelectorAll('[data-console-sort]').forEach(button => {
+                    const header = button.closest('th');
+                    if (button.dataset.consoleSort === consoleSort.key) {
+                      header.setAttribute('aria-sort', consoleSort.direction);
+                    } else {
+                      header.removeAttribute('aria-sort');
+                    }
+                  });
+                }
                 function renderConsole(){
                   const range = selectedWindow();
-                  document.getElementById('console-hint').textContent = consoleEvents.length
-                    ? (range ? 'Highlighted rows overlap the selected action.' : '')
-                    : 'No console messages were recorded.';
                   consoleRows.innerHTML = '';
-                  consoleEvents.forEach(entry => {
+                  consoleDetail.hidden = true;
+                  const query = consoleTextFilter.value.trim().toLowerCase();
+                  const visible = consoleEvents.map((entry, index) => ({entry, index})).filter(({entry}) =>
+                    (finiteNumber(entry.timestamp) == null || inWindow(entry.timestamp, range))
+                    && (!consoleSourceFilter.value || String(entry.source || 'Unknown') === consoleSourceFilter.value)
+                    && (!consoleLevelFilter.value || String(entry.level || 'Unknown') === consoleLevelFilter.value)
+                    && (!query || consoleSearchText(entry).includes(query)))
+                    .sort(compareConsole);
+                  consoleResultCount.textContent = `${visible.length} console ${visible.length === 1 ? 'message' : 'messages'}`;
+                  document.getElementById('console-hint').textContent = !consoleEvents.length
+                    ? 'No console messages were recorded.'
+                    : !visible.length ? 'No console messages match the selected range and filters.'
+                    : 'Use View message details to inspect the structured message.';
+                  visible.forEach(({entry}) => {
                     const tr = document.createElement('tr');
-                    tr.className = `${consoleFailed(entry) ? 'failed' : ''}${inWindow(entry.timestamp, range) ? ' inwindow' : ''}`;
-                    tr.innerHTML = `<td class="time-cell">${esc(offsetLabel(entry.timestamp))}</td><td>${esc(entry.level)}</td><td>${esc(entry.message)}</td>`;
+                    const timed = finiteNumber(entry.timestamp) != null;
+                    tr.className = `${consoleFailed(entry) ? 'failed ' : ''}${timed ? 'inwindow' : ''}`.trim();
+                    tr.innerHTML = `<td class="time-cell">${timed ? esc(offsetLabel(entry.timestamp)) : 'Unknown'}</td><td>${esc(entry.source || 'Unknown')}</td><td>${esc(entry.level || 'Unknown')}</td><td>${esc(entry.message || 'Unknown')}</td><td><button type="button" class="secondary">View message details</button></td>`;
+                    tr.querySelector('button').addEventListener('click', () => {
+                      consoleDetail.hidden = false;
+                      consoleDetail.textContent = JSON.stringify(entry, null, 2);
+                    });
                     consoleRows.appendChild(tr);
                   });
+                  updateConsoleSortHeaders();
+                }
+                const mobileActions = () => actions.filter(action =>
+                    String(action.category || '').startsWith('mobile/'));
+                const mobileRows = document.getElementById('mobile-rows');
+                const mobileDetail = document.getElementById('mobile-detail');
+                const mobileResultCount = document.getElementById('mobile-result-count');
+                let mobileCategory = 'all';
+                const mobileLabels = {
+                  'mobile/app':'App', 'mobile/context':'Context', 'mobile/device':'Device',
+                  'mobile/logs':'Logs', 'mobile/performance':'Performance',
+                  'mobile/recording':'Recording', 'mobile/evidence':'Evidence'
+                };
+                function mobileLabel(action){
+                  return mobileLabels[String(action.category || '')] || 'Other';
+                }
+                function mobileSummary(action){
+                  const entries = Object.entries(action.metadata || {});
+                  return entries.length ? entries.map(([key, value]) => `${key}=${value}`).join(', ') : 'No metadata';
+                }
+                function renderMobile(){
+                  mobileRows.innerHTML = '';
+                  mobileDetail.hidden = true;
+                  mobileDetail.textContent = '';
+                  const all = mobileActions();
+                  const range = selectedWindow();
+                  const visible = all.filter(action =>
+                    (actionStartMs(action) == null || actionInWindow(action, range))
+                    && (mobileCategory === 'all' || action.category === mobileCategory));
+                  mobileResultCount.textContent = `${visible.length} mobile ${visible.length === 1 ? 'action' : 'actions'}`;
+                  document.getElementById('mobile-hint').textContent = !all.length
+                    ? 'No mobile actions were recorded.'
+                    : !visible.length ? 'No mobile actions match the selected range and category.'
+                    : 'Inspect captured mobile operations and safe scalar metadata.';
+                  visible.forEach(action => {
+                    const tr = document.createElement('tr');
+                    const timed = actionStartMs(action) != null;
+                    tr.className = `${statusClass(action.status)}${timed ? ' inwindow' : ''}`;
+                    tr.innerHTML = `<td class="time-cell">${timed ? esc(offsetLabel(actionStartMs(action))) : 'Unknown'}</td><td>${esc(mobileLabel(action))}</td><td>${esc(action.name || 'Unknown')}</td><td>${esc(action.status || 'Unknown')}</td><td>${esc(mobileSummary(action))}</td><td><button type="button" class="secondary">Inspect action</button></td>`;
+                    tr.querySelector('button').addEventListener('click', () => {
+                      selectAction(action, false);
+                      mobileDetail.hidden = false;
+                      mobileDetail.textContent = JSON.stringify(action, null, 2);
+                    });
+                    mobileRows.appendChild(tr);
+                  });
+                  document.querySelectorAll('#mobile-category-filter button').forEach(button => {
+                    const selectedCategory = button.dataset.mobileCategory === mobileCategory;
+                    button.classList.toggle('selected', selectedCategory);
+                    button.setAttribute('aria-pressed', String(selectedCategory));
+                  });
+                }
+                const artifactRows = document.getElementById('artifact-rows');
+                const artifactResultCount = document.getElementById('artifact-result-count');
+                const nativeTraceHandoff = document.getElementById('native-trace-handoff');
+                function renderArtifacts(){
+                  artifactRows.innerHTML = '';
+                  artifactResultCount.textContent = `${artifacts.length} trace ${artifacts.length === 1 ? 'artifact' : 'artifacts'}`;
+                  document.getElementById('artifact-hint').textContent = artifacts.length
+                    ? 'Artifact paths are relative to the downloaded SHAFT trace ZIP.'
+                    : 'No artifact graph was recorded for this trace.';
+                  artifacts.forEach(artifact => {
+                    const tr = document.createElement('tr');
+                    const status = artifact.omitted ? 'Omitted' : 'Available';
+                    const reason = artifact.omitted && artifact.metadata
+                      ? artifact.metadata.omissionReason || 'No omission reason was recorded.' : '';
+                    tr.innerHTML = `<td>${esc(artifact.path || 'Unknown')}</td><td>${esc(artifact.kind || 'Unknown')}</td><td>${esc(artifact.mimeType || 'Unknown')}</td><td>${status}</td><td>${esc(reason)}</td>`;
+                    artifactRows.appendChild(tr);
+                  });
+                  const nativeTrace = artifacts.find(artifact => artifact.kind === 'native-trace');
+                  nativeTraceHandoff.hidden = !nativeTrace;
+                  nativeTraceHandoff.textContent = !nativeTrace ? '' : nativeTrace.omitted
+                    ? `Native Playwright trace omitted: ${(nativeTrace.metadata && nativeTrace.metadata.omissionReason) || 'No omission reason was recorded.'}`
+                    : `Native Playwright trace is available as ${nativeTrace.path} in the downloaded SHAFT trace ZIP. Extract it, then open it with Playwright show-trace ${nativeTrace.path}.`;
                 }
                 function sourceText(){
                   const source = trace.source || {};
@@ -894,7 +1178,7 @@ public final class FailureTraceReporter {
                 }
                 function renderTab(tab){
                   const action = selected || {};
-                  const panels = {timeline: timelinePanel, comparison: comparisonPanel, domSnapshot: domSnapshotPanel, screenshot: screenshotPanel, network: networkPanel, console: consolePanel};
+                  const panels = {timeline: timelinePanel, comparison: comparisonPanel, domSnapshot: domSnapshotPanel, screenshot: screenshotPanel, network: networkPanel, console: consolePanel, mobile: document.getElementById('mobile-panel'), artifacts: document.getElementById('artifact-panel')};
                   tabContent.hidden = tab in panels;
                   Object.entries(panels).forEach(([name, panel]) => panel.hidden = name !== tab);
                   if (tab === 'timeline') {
@@ -909,6 +1193,10 @@ public final class FailureTraceReporter {
                     renderNetwork();
                   } else if (tab === 'console') {
                     renderConsole();
+                  } else if (tab === 'mobile') {
+                    renderMobile();
+                  } else if (tab === 'artifacts') {
+                    renderArtifacts();
                   } else if (tab === 'source') {
                     tabContent.textContent = sourceText();
                   } else if (tab === 'log') {
@@ -977,8 +1265,32 @@ public final class FailureTraceReporter {
                   document.querySelectorAll('#timeline-filters button').forEach(other => other.classList.toggle('selected', other === button));
                   renderTimeline();
                 }));
+                [networkMethodFilter, networkStatusFilter, networkTextFilter]
+                    .forEach(control => control.addEventListener('input', renderNetwork));
+                document.querySelectorAll('[data-network-sort]').forEach(button => button.addEventListener('click', () => {
+                  const key = button.dataset.networkSort;
+                  networkSort = networkSort.key === key
+                    ? {key, direction:networkSort.direction === 'ascending' ? 'descending' : 'ascending'}
+                    : {key, direction:'ascending'};
+                  renderNetwork();
+                }));
+                [consoleSourceFilter, consoleLevelFilter, consoleTextFilter]
+                    .forEach(control => control.addEventListener('input', renderConsole));
+                document.querySelectorAll('[data-console-sort]').forEach(button => button.addEventListener('click', () => {
+                  const key = button.dataset.consoleSort;
+                  consoleSort = consoleSort.key === key
+                    ? {key, direction:consoleSort.direction === 'ascending' ? 'descending' : 'ascending'}
+                    : {key, direction:'ascending'};
+                  renderConsole();
+                }));
+                document.querySelectorAll('#mobile-category-filter button').forEach(button => button.addEventListener('click', () => {
+                  mobileCategory = button.dataset.mobileCategory;
+                  renderMobile();
+                }));
                 document.querySelectorAll('#action-tabs button').forEach(button => button.addEventListener('click', () => renderTab(button.dataset.tab)));
                 document.querySelectorAll('#dom-snapshot-tabs button').forEach(button => button.addEventListener('click', () => { selectedDomSide = button.dataset.dom; renderDomSnapshot(); }));
+                populateNetworkFilters();
+                populateConsoleFilters();
                 renderSummary();
                 renderNavigator();
                 renderActions();
@@ -1064,8 +1376,10 @@ public final class FailureTraceReporter {
             synchronized (TRACE_LOCKS.computeIfAbsent(testId, id -> new Object())) {
                 recordAttempt(info, attempt, failed ? "failed" : "passed", archiveName);
                 if (publishLatest(testId, attempt, completedArchive, directory.resolve("shaft-trace.zip"))) {
+                    TraceArtifactManifest manifest = CURRENT_ARTIFACT_MANIFEST.get();
+                    List<TraceArtifactReference> artifacts = manifest == null ? List.of() : manifest.references();
                     LATEST_INDEX.put(testId, new TraceIndexSnapshot(info, !screenshots.isEmpty(), attempt,
-                            List.copyOf(omitted)));
+                            List.copyOf(omitted), artifacts));
                     Files.deleteIfExists(directory.resolve("SHAFT Trace Report.html"));
                     Files.deleteIfExists(directory.resolve("shaft-trace.json"));
                     if (!screenshots.isEmpty()) {
@@ -1078,9 +1392,10 @@ public final class FailureTraceReporter {
                 }
                 TraceIndexSnapshot latest = LATEST_INDEX.get(testId);
                 if (latest != null) {
-                    Files.writeString(directory.resolve("index.json"),
-                            renderTraceIndexJson(latest.info(), directory.resolve("shaft-trace.zip"),
-                                    latest.hasScreenshots(), latest.attempt(), latest.omitted()), StandardCharsets.UTF_8);
+                    byte[] index = renderTraceIndexJson(latest.info(), directory.resolve("shaft-trace.zip"),
+                            latest.hasScreenshots(), latest.attempt(), latest.omitted(), latest.artifacts())
+                            .getBytes(StandardCharsets.UTF_8);
+                    TraceArchiveWriter.writeBytes(directory.resolve("index.json"), index);
                 }
             }
         } catch (IOException e) {
@@ -1154,7 +1469,8 @@ public final class FailureTraceReporter {
     }
 
     private static String renderTraceIndexJson(TestExecutionInfo info, Path zipPath, boolean hasScreenshots,
-                                               int attempt, List<String> omitted) {
+                                               int attempt, List<String> omitted,
+                                               List<TraceArtifactReference> artifacts) {
         boolean failed = info != null && info.throwable() != null;
         StringBuilder json = new StringBuilder();
         json.append("{\n");
@@ -1166,6 +1482,7 @@ public final class FailureTraceReporter {
         field(json, 1, "retried", String.valueOf(info != null && info.retried()), true);
         field(json, 1, "traceMode", effectiveTraceMode(), true);
         array(json, 1, "omittedEntries", omitted, true);
+        rawArray(json, 1, "artifacts", TraceSchemaSerializer.artifactsToJson(artifacts), true);
         appendAttemptHistory(json, safeTestId(info));
         objectStart(json, 1, "entries");
         field(json, 2, "html", "SHAFT Trace Report.html", true);
@@ -1339,11 +1656,6 @@ public final class FailureTraceReporter {
                     .filter(attachment -> attachment != null && !attachment.isBlank())
                     .map(FailureTraceReporter::redactInvocationText)
                     .forEach(entries::add);
-        }
-        Path playwrightTrace = shouldOmitSensitiveBrowserEvidence()
-                ? null : PlaywrightTraceManager.getLastTracePath();
-        if (playwrightTrace != null) {
-            entries.add("Playwright Trace (raw): " + redact(playwrightTrace.toString()));
         }
         return entries;
     }
@@ -1887,7 +2199,11 @@ public final class FailureTraceReporter {
     }
 
     private record TraceIndexSnapshot(TestExecutionInfo info, boolean hasScreenshots, int attempt,
-                                      List<String> omitted) {
+                                      List<String> omitted, List<TraceArtifactReference> artifacts) {
+        private TraceIndexSnapshot {
+            omitted = List.copyOf(omitted);
+            artifacts = List.copyOf(artifacts);
+        }
     }
 
     private record Snapshot(String type, String content) {

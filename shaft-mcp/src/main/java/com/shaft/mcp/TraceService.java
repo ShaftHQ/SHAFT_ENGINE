@@ -25,9 +25,12 @@ import org.springframework.stereotype.Service;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.AtomicMoveNotSupportedException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.nio.file.attribute.FileTime;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -55,6 +58,8 @@ public class TraceService {
     private static final int DEFAULT_MAX_CHARACTERS = 20_000;
     private static final int MAX_CHARACTERS = 100_000;
     private static final int MAX_FINDINGS = 10;
+    private static final int MAX_TRACE_JSON_BYTES = 64 * 1024 * 1024;
+    private static final long MAX_VIEWER_BYTES = 64L * 1024 * 1024;
     private static final Pattern AUTHORIZATION_PATTERN = Pattern.compile("(?i)(authorization\\s*[:=]\\s*)(bearer\\s+)?[^\\s,;]+");
     private static final Pattern COOKIE_PATTERN = Pattern.compile("(?i)(cookie|set-cookie)(\\s*[:=]\\s*)[^\\n\\r]+");
     private static final Pattern URL_CREDENTIAL_PATTERN = Pattern.compile("(?i)(://[^:/\\s]+:)[^@/\\s]+(@)");
@@ -77,6 +82,7 @@ public class TraceService {
         this.workspacePolicy = workspacePolicy;
         this.remediationService = remediationService;
     }
+
 
     /**
      * Lists recent persisted SHAFT trace indexes under {@code target/shaft-traces}.
@@ -174,16 +180,61 @@ public class TraceService {
             ZipEntry entry;
             while ((entry = zip.getNextEntry()) != null) {
                 if ("SHAFT Trace Report.html".equals(entry.getName())) {
-                    Files.write(htmlPath, zip.readAllBytes());
-                    return new McpTraceViewerResult("1.0", relative(htmlPath), true, List.of());
+                    try {
+                        extractViewer(zip, entry, htmlPath);
+                        return new McpTraceViewerResult("1.0", relative(htmlPath), true, List.of());
+                    } catch (EntryTooLargeException exception) {
+                        return new McpTraceViewerResult("1.0", "", false,
+                                List.of("Trace viewer exceeds the 64 MiB extraction limit."));
+                    }
                 }
             }
         } catch (IOException exception) {
             return new McpTraceViewerResult("1.0", "", false,
-                    List.of("Trace ZIP could not be read: " + exception.getMessage()));
+                    List.of("Trace ZIP could not be read."));
         }
         return new McpTraceViewerResult("1.0", "", false,
                 List.of("Trace ZIP " + relative(archive) + " does not contain SHAFT Trace Report.html."));
+    }
+
+    private static void extractViewer(ZipInputStream zip, ZipEntry entry, Path htmlPath) throws IOException {
+        if (entry.getSize() > MAX_VIEWER_BYTES) {
+            throw new EntryTooLargeException();
+        }
+        Path staging = Files.createTempFile(htmlPath.getParent(), ".shaft-trace-viewer-", ".tmp");
+        try {
+            try (OutputStream output = Files.newOutputStream(staging)) {
+                copyBounded(zip, output, MAX_VIEWER_BYTES);
+            }
+            zip.closeEntry();
+            moveCompleteFile(staging, htmlPath);
+        } finally {
+            Files.deleteIfExists(staging);
+        }
+    }
+
+    private static void copyBounded(InputStream input, OutputStream output, long maxBytes) throws IOException {
+        byte[] buffer = new byte[16 * 1024];
+        long retained = 0;
+        int read;
+        while ((read = input.read(buffer)) != -1) {
+            if (retained > maxBytes - read) {
+                throw new EntryTooLargeException();
+            }
+            output.write(buffer, 0, read);
+            retained += read;
+        }
+    }
+
+    private static void moveCompleteFile(Path staging, Path target) throws IOException {
+        try {
+            Files.move(staging, target, StandardCopyOption.ATOMIC_MOVE);
+        } catch (AtomicMoveNotSupportedException exception) {
+            Files.move(staging, target);
+        }
+    }
+
+    private static final class EntryTooLargeException extends IOException {
     }
 
     /**
@@ -368,12 +419,33 @@ public class TraceService {
             ZipEntry entry;
             while ((entry = zip.getNextEntry()) != null) {
                 if ("shaft-trace.json".equals(entry.getName())) {
-                    String content = new String(zip.readAllBytes(), StandardCharsets.UTF_8);
-                    return new TraceDocument(publicPath, content, JSON.readTree(content));
+                    try {
+                        String content = readBoundedUtf8(zip, entry, MAX_TRACE_JSON_BYTES, archive.getParent());
+                        zip.closeEntry();
+                        return new TraceDocument(publicPath, content, JSON.readTree(content));
+                    } catch (EntryTooLargeException exception) {
+                        throw new IllegalArgumentException("Trace JSON exceeds the 64 MiB read limit.");
+                    }
                 }
             }
         }
         throw new IllegalArgumentException("Trace archive does not contain shaft-trace.json.");
+    }
+
+    private static String readBoundedUtf8(InputStream input, ZipEntry entry, int maxBytes, Path stagingDirectory)
+            throws IOException {
+        if (entry.getSize() > maxBytes) {
+            throw new EntryTooLargeException();
+        }
+        Path staging = Files.createTempFile(stagingDirectory, ".shaft-trace-json-", ".tmp");
+        try {
+            try (OutputStream output = Files.newOutputStream(staging)) {
+                copyBounded(input, output, maxBytes);
+            }
+            return Files.readString(staging, StandardCharsets.UTF_8);
+        } finally {
+            Files.deleteIfExists(staging);
+        }
     }
 
     private Path archivePath(Path indexPath, JsonNode index) {

@@ -162,6 +162,17 @@ def refresh(root: Path, graph_out: Path) -> None:
     requested_output = graph_out if graph_out.is_absolute() else root / graph_out
     if requested_output.resolve() != (root / DEFAULT_GRAPH_OUT).resolve():
         raise ValueError("refresh owns the fixed graphify-out cache; use audit for custom output")
+    if "SHAFT_GRAPHIFY_OUT" in os.environ:
+        configured = os.environ["SHAFT_GRAPHIFY_OUT"].strip()
+        if not configured:
+            raise ValueError("SHAFT_GRAPHIFY_OUT must not be blank")
+        configured_output = Path(configured).expanduser()
+        if not configured_output.is_absolute():
+            raise ValueError("SHAFT_GRAPHIFY_OUT must be absolute")
+        if configured_output.resolve() != requested_output.resolve():
+            raise ValueError(
+                "SHAFT_GRAPHIFY_OUT must match the refresh checkout graphify-out"
+            )
     common_dir = require_primary_checkout(root)
     uv = shutil.which("uv")
     if uv is None:

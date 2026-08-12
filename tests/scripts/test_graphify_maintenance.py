@@ -2,6 +2,7 @@
 
 import importlib.util
 import json
+import os
 import shutil
 import subprocess  # nosec B404 - tests run fixed repository-owned commands.
 import sys
@@ -177,6 +178,21 @@ class GraphifyMaintenanceTest(TestCase):
 
         self.assertEqual([], stages)
 
+    def test_refresh_rejects_mismatched_environment_override_before_any_stage(self):
+        module = self.load_module()
+        stages = []
+
+        with mock.patch.dict(
+            os.environ,
+            {"SHAFT_GRAPHIFY_OUT": str(self.repository / "alternate-cache")},
+        ), mock.patch.object(
+            module, "run_stage", side_effect=lambda name, command, root: stages.append(name)
+        ):
+            with self.assertRaisesRegex(ValueError, "must match the refresh checkout"):
+                module.refresh(self.repository, Path("graphify-out"))
+
+        self.assertEqual([], stages)
+
     def test_refresh_rejects_a_non_git_root_before_any_stage(self):
         module = self.load_module()
         stages = []
@@ -317,8 +333,12 @@ class GraphifyMaintenanceTest(TestCase):
         wrapper = (ROOT / "tools/agent-infra/graphify-refresh.cmd").read_text(
             encoding="utf-8"
         )
+        updater = (ROOT / "tools/agent-infra/shaft_knowledge_refresh.py").read_text(
+            encoding="utf-8"
+        )
 
-        self.assertIn("tools\\repository-map\\graphify_maintenance.py refresh", wrapper)
+        self.assertIn("%~dp0shaft_knowledge_refresh.py", wrapper)
+        self.assertIn("tools/repository-map/graphify_maintenance.py", updater)
         self.assertNotIn("call graphify", wrapper.lower())
         self.assertNotIn("shafthq.github.io", wrapper.lower())
         self.assertNotIn("C:\\Users\\", wrapper)
