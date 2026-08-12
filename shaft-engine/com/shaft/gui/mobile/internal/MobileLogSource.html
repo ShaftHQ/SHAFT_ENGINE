@@ -45,6 +45,7 @@
 <div class="toc-header">Contents&nbsp;<input type="text" class="filter-input" disabled placeholder="Filter contents (type .)" aria-label="Filter table of contents" autocomplete="off" spellcheck="false"><input type="reset" class="reset-filter" disabled tabindex="-1" value="Reset"></div>
 <ol class="toc-list" tabindex="-1">
 <li><a href="#" tabindex="0">Description</a></li>
+<li><a href="#nested-class-summary" tabindex="0">Nested Class Summary</a></li>
 <li><a href="#method-summary" tabindex="0">Method Summary</a></li>
 <li><a href="#method-detail" tabindex="0">Method Details</a>
 <ol class="toc-list">
@@ -55,6 +56,7 @@
 <li><a href="#clear(io.appium.java_client.AppiumDriver)" tabindex="0">clear(AppiumDriver)</a></li>
 <li><a href="#stop(io.appium.java_client.AppiumDriver)" tabindex="0">stop(AppiumDriver)</a></li>
 <li><a href="#closeAndRemove(org.openqa.selenium.WebDriver)" tabindex="0">closeAndRemove(WebDriver)</a></li>
+<li><a href="#snapshotIfPresent(io.appium.java_client.AppiumDriver)" tabindex="0">snapshotIfPresent(AppiumDriver)</a></li>
 </ol>
 </li>
 </ol>
@@ -77,6 +79,23 @@
 </section>
 <section class="summary">
 <ul class="summary-list">
+<!-- ======== NESTED CLASS SUMMARY ======== -->
+<li>
+<section class="nested-class-summary" id="nested-class-summary">
+<h2>Nested Class Summary</h2>
+<div class="caption"><span>Nested Classes</span></div>
+<div class="summary-table three-column-summary">
+<div class="table-header col-first">Modifier and Type</div>
+<div class="table-header col-second">Class</div>
+<div class="table-header col-last">Description</div>
+<div class="col-first even-row-color"><code>static final record&nbsp;</code></div>
+<div class="col-second even-row-color"><code><a href="MobileLogSource.Snapshot.html" class="type-name-link" title="class in com.shaft.gui.mobile.internal">MobileLogSource.Snapshot</a></code></div>
+<div class="col-last even-row-color">
+<div class="block">Immutable read-only evidence view of the current SHAFT-owned log buffer.</div>
+</div>
+</div>
+</section>
+</li>
 <!-- ========== METHOD SUMMARY =========== -->
 <li>
 <section class="method-summary" id="method-summary">
@@ -105,12 +124,17 @@
 <div class="col-first even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static void</code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#requireSupported(io.appium.java_client.AppiumDriver)" class="member-name-link">requireSupported</a><wbr>(io.appium.java_client.AppiumDriver&nbsp;driver)</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">&nbsp;</div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static void</code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#start(io.appium.java_client.AppiumDriver)" class="member-name-link">start</a><wbr>(io.appium.java_client.AppiumDriver&nbsp;driver)</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">&nbsp;</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/Optional.html" title="class or interface in java.util" class="external-link">Optional</a><wbr>&lt;<a href="MobileLogSource.Snapshot.html" title="class in com.shaft.gui.mobile.internal">MobileLogSource.Snapshot</a>&gt;</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#snapshotIfPresent(io.appium.java_client.AppiumDriver)" class="member-name-link">snapshotIfPresent</a><wbr>(io.appium.java_client.AppiumDriver&nbsp;driver)</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
+<div class="block">Returns one atomic immutable snapshot without creating state or touching the provider.</div>
+</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static void</code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#stop(io.appium.java_client.AppiumDriver)" class="member-name-link">stop</a><wbr>(io.appium.java_client.AppiumDriver&nbsp;driver)</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#start(io.appium.java_client.AppiumDriver)" class="member-name-link">start</a><wbr>(io.appium.java_client.AppiumDriver&nbsp;driver)</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">&nbsp;</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static void</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#stop(io.appium.java_client.AppiumDriver)" class="member-name-link">stop</a><wbr>(io.appium.java_client.AppiumDriver&nbsp;driver)</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">&nbsp;</div>
 </div>
 </div>
 </div>
@@ -182,6 +206,15 @@
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="modifiers">public static</span>&nbsp;<span class="return-type">void</span>&nbsp;<span class="element-name">closeAndRemove</span><wbr><span class="parameters">(org.openqa.selenium.WebDriver&nbsp;driver)</span></div>
 <div class="block">Removes SHAFT-owned callbacks and buffered state without issuing commands to a closing session.</div>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="snapshotIfPresent(io.appium.java_client.AppiumDriver)">
+<h3>snapshotIfPresent</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public static</span>&nbsp;<span class="return-type"><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/Optional.html" title="class or interface in java.util" class="external-link">Optional</a>&lt;<a href="MobileLogSource.Snapshot.html" title="class in com.shaft.gui.mobile.internal">MobileLogSource.Snapshot</a>&gt;</span>&nbsp;<span class="element-name">snapshotIfPresent</span><wbr><span class="parameters">(io.appium.java_client.AppiumDriver&nbsp;driver)</span></div>
+<div class="block">Returns one atomic immutable snapshot without creating state or touching the provider.</div>
 </div>
 </section>
 </li>

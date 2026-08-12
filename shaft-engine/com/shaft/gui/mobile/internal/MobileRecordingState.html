@@ -52,6 +52,8 @@
 <li><a href="#start(io.appium.java_client.AppiumDriver,com.shaft.gui.mobile.internal.MobileRecordingState.Owner,long,java.lang.Runnable)" tabindex="0">start(AppiumDriver, MobileRecordingState.Owner, long, Runnable)</a></li>
 <li><a href="#stop(io.appium.java_client.AppiumDriver,com.shaft.gui.mobile.internal.MobileRecordingState.Owner,java.util.function.Supplier)" tabindex="0">stop(AppiumDriver, MobileRecordingState.Owner, Supplier)</a></li>
 <li><a href="#isActive(io.appium.java_client.AppiumDriver,com.shaft.gui.mobile.internal.MobileRecordingState.Owner)" tabindex="0">isActive(AppiumDriver, MobileRecordingState.Owner)</a></li>
+<li><a href="#retainSavedRecording(io.appium.java_client.AppiumDriver,java.nio.file.Path,byte%5B%5D)" tabindex="0">retainSavedRecording(AppiumDriver, Path, byte[])</a></li>
+<li><a href="#snapshotIfPresent(io.appium.java_client.AppiumDriver)" tabindex="0">snapshotIfPresent(AppiumDriver)</a></li>
 <li><a href="#closeAndRemove(org.openqa.selenium.WebDriver)" tabindex="0">closeAndRemove(WebDriver)</a></li>
 </ol>
 </li>
@@ -87,6 +89,16 @@
 <div class="col-first even-row-color"><code>static enum&nbsp;</code></div>
 <div class="col-second even-row-color"><code><a href="MobileRecordingState.Owner.html" class="type-name-link" title="enum class in com.shaft.gui.mobile.internal">MobileRecordingState.Owner</a></code></div>
 <div class="col-last even-row-color">&nbsp;</div>
+<div class="col-first odd-row-color"><code>static final record&nbsp;</code></div>
+<div class="col-second odd-row-color"><code><a href="MobileRecordingState.SavedRecording.html" class="type-name-link" title="class in com.shaft.gui.mobile.internal">MobileRecordingState.SavedRecording</a></code></div>
+<div class="col-last odd-row-color">
+<div class="block">Immutable descriptor for the latest successfully published recording.</div>
+</div>
+<div class="col-first even-row-color"><code>static final record&nbsp;</code></div>
+<div class="col-second even-row-color"><code><a href="MobileRecordingState.Snapshot.html" class="type-name-link" title="class in com.shaft.gui.mobile.internal">MobileRecordingState.Snapshot</a></code></div>
+<div class="col-last even-row-color">
+<div class="block">Immutable read-only view of recording activity and the latest successful save.</div>
+</div>
 </div>
 </section>
 </li>
@@ -111,6 +123,18 @@
  <a href="MobileRecordingState.Owner.html" title="enum class in com.shaft.gui.mobile.internal">MobileRecordingState.Owner</a>&nbsp;owner)</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
 <div class="block">Reports whether one caller still owns an active provider recording.</div>
+</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static void</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#retainSavedRecording(io.appium.java_client.AppiumDriver,java.nio.file.Path,byte%5B%5D)" class="member-name-link">retainSavedRecording</a><wbr>(io.appium.java_client.AppiumDriver&nbsp;driver,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/nio/file/Path.html" title="class or interface in java.nio.file" class="external-link">Path</a>&nbsp;path,
+ byte[]&nbsp;recording)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
+<div class="block">Retains one bounded descriptor only after caller-owned publication succeeds.</div>
+</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/Optional.html" title="class or interface in java.util" class="external-link">Optional</a><wbr>&lt;<a href="MobileRecordingState.Snapshot.html" title="class in com.shaft.gui.mobile.internal">MobileRecordingState.Snapshot</a>&gt;</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#snapshotIfPresent(io.appium.java_client.AppiumDriver)" class="member-name-link">snapshotIfPresent</a><wbr>(io.appium.java_client.AppiumDriver&nbsp;driver)</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
+<div class="block">Returns one atomic non-creating recording lifecycle snapshot.</div>
 </div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static void</code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#start(io.appium.java_client.AppiumDriver,com.shaft.gui.mobile.internal.MobileRecordingState.Owner,long,java.lang.Runnable)" class="member-name-link">start</a><wbr>(io.appium.java_client.AppiumDriver&nbsp;driver,
@@ -168,6 +192,26 @@
 <div class="member-signature"><span class="modifiers">public static</span>&nbsp;<span class="return-type">boolean</span>&nbsp;<span class="element-name">isActive</span><wbr><span class="parameters">(io.appium.java_client.AppiumDriver&nbsp;driver,
  <a href="MobileRecordingState.Owner.html" title="enum class in com.shaft.gui.mobile.internal">MobileRecordingState.Owner</a>&nbsp;owner)</span></div>
 <div class="block">Reports whether one caller still owns an active provider recording.</div>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="retainSavedRecording(io.appium.java_client.AppiumDriver,java.nio.file.Path,byte[])">
+<h3>retainSavedRecording</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public static</span>&nbsp;<span class="return-type">void</span>&nbsp;<span class="element-name">retainSavedRecording</span><wbr><span class="parameters">(io.appium.java_client.AppiumDriver&nbsp;driver,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/nio/file/Path.html" title="class or interface in java.nio.file" class="external-link">Path</a>&nbsp;path,
+ byte[]&nbsp;recording)</span></div>
+<div class="block">Retains one bounded descriptor only after caller-owned publication succeeds.</div>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="snapshotIfPresent(io.appium.java_client.AppiumDriver)">
+<h3>snapshotIfPresent</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public static</span>&nbsp;<span class="return-type"><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/Optional.html" title="class or interface in java.util" class="external-link">Optional</a>&lt;<a href="MobileRecordingState.Snapshot.html" title="class in com.shaft.gui.mobile.internal">MobileRecordingState.Snapshot</a>&gt;</span>&nbsp;<span class="element-name">snapshotIfPresent</span><wbr><span class="parameters">(io.appium.java_client.AppiumDriver&nbsp;driver)</span></div>
+<div class="block">Returns one atomic non-creating recording lifecycle snapshot.</div>
 </div>
 </section>
 </li>
