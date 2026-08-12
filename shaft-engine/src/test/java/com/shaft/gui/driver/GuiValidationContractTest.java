@@ -5,6 +5,7 @@ import org.testng.annotations.Test;
 import org.openqa.selenium.By;
 import org.openqa.selenium.SearchContext;
 import org.openqa.selenium.WebElement;
+import com.shaft.gui.capabilities.AutomationFeature;
 
 import java.lang.reflect.Modifier;
 import java.lang.reflect.Method;
@@ -99,6 +100,31 @@ public class GuiValidationContractTest {
         assertBrowserDefaultMethod("windowPositionValue");
         assertBrowserDefaultMethod("windowSizeValue");
         assertBrowserDefaultMethod("browsingContextCountValue");
+        assertBrowserDefaultMethod("dialogPresentValue");
+        assertBrowserDefaultMethod("downloadCountValue");
+        assertBrowserDefaultMethod("networkObservationCountValue");
+        assertBrowserDefaultMethod("consoleMessageCountValue");
+        assertBrowserDefaultMethod("consoleErrorCountValue");
+        assertBrowserDefaultMethod("featureSupportedValue", AutomationFeature.class);
+        Assert.assertEquals(publicDescriptors(BrowserAssertions.class), Set.of(
+                "alertText[]->com.shaft.validation.internal.NativeValidationsBuilder",
+                "attribute[java.lang.String]->com.shaft.validation.internal.NativeValidationsBuilder",
+                "browsingContextCountValue[]->com.shaft.validation.internal.NativeValidationsBuilder",
+                "consoleErrorCountValue[]->com.shaft.validation.internal.NativeValidationsBuilder",
+                "consoleMessageCountValue[]->com.shaft.validation.internal.NativeValidationsBuilder",
+                "dialogPresentValue[]->com.shaft.validation.internal.NativeValidationsBuilder",
+                "downloadCountValue[]->com.shaft.validation.internal.NativeValidationsBuilder",
+                "featureSupportedValue[com.shaft.gui.capabilities.AutomationFeature]->com.shaft.validation.internal.NativeValidationsBuilder",
+                "matchesScreenshot[]->com.shaft.validation.internal.ValidationsExecutor",
+                "matchesScreenshot[com.shaft.validation.VisualComparisonOptions]->com.shaft.validation.internal.ValidationsExecutor",
+                "networkObservationCountValue[]->com.shaft.validation.internal.NativeValidationsBuilder",
+                "pageSourceValue[]->com.shaft.validation.internal.NativeValidationsBuilder",
+                "text[]->com.shaft.validation.internal.NativeValidationsBuilder",
+                "title[]->com.shaft.validation.internal.NativeValidationsBuilder",
+                "url[]->com.shaft.validation.internal.NativeValidationsBuilder",
+                "windowHandleValue[]->com.shaft.validation.internal.NativeValidationsBuilder",
+                "windowPositionValue[]->com.shaft.validation.internal.NativeValidationsBuilder",
+                "windowSizeValue[]->com.shaft.validation.internal.NativeValidationsBuilder"));
     }
 
     @Test
@@ -364,8 +390,18 @@ public class GuiValidationContractTest {
             Object oldConsumer = Class.forName("compat.OldBrowserAssertions", true, loader)
                     .getDeclaredConstructor().newInstance();
             for (String method : List.of("pageSourceValue", "windowHandleValue", "windowPositionValue", "windowSizeValue",
-                    "browsingContextCountValue")) {
+                    "browsingContextCountValue", "dialogPresentValue", "downloadCountValue",
+                    "networkObservationCountValue", "consoleMessageCountValue", "consoleErrorCountValue")) {
                 assertBrowserCompatibilityDefaultFailsClosed(oldConsumer, method);
+            }
+            Method feature = BrowserAssertions.class.getMethod("featureSupportedValue", AutomationFeature.class);
+            Assert.assertTrue(feature.isDefault());
+            for (AutomationFeature argument : new AutomationFeature[]{AutomationFeature.PERMISSIONS, null}) {
+                InvocationTargetException thrown = Assert.expectThrows(InvocationTargetException.class,
+                        () -> feature.invoke(oldConsumer, argument));
+                Assert.assertTrue(thrown.getCause() instanceof UnsupportedOperationException);
+                Assert.assertEquals(thrown.getCause().getMessage(),
+                        "featureSupportedValue is not supported by this browser assertions implementation.");
             }
         }
     }
@@ -381,6 +417,12 @@ public class GuiValidationContractTest {
                     public String windowPosition() { return ""; }
                     public String windowSize() { return ""; }
                     public int browsingContextCount() { return 0; }
+                    public boolean dialogPresent() { return false; }
+                    public int downloadCount() { return 0; }
+                    public int networkObservationCount() { return 0; }
+                    public int consoleMessageCount() { return 0; }
+                    public int consoleErrorCount() { return 0; }
+                    public boolean featureSupported(com.shaft.gui.capabilities.AutomationFeature feature) { return false; }
                 }
                 """);
         Assert.assertTrue(Boolean.TRUE.equals(ToolProvider.getSystemJavaCompiler().getTask(null, null, null,
@@ -390,7 +432,7 @@ public class GuiValidationContractTest {
 
     @Test
     public void browserCategoryDefaultCollisionsShouldRequireCompatibleOverrides() throws Exception {
-        for (String method : List.of("pageSourceValue", "browsingContextCountValue")) {
+        for (String method : List.of("pageSourceValue", "browsingContextCountValue", "dialogPresentValue")) {
             Assert.assertFalse(compileBrowserCategoryDefaultCollision("MissingBrowserCategoryOverride" + method, method, false));
             Assert.assertTrue(compileBrowserCategoryDefaultCollision("CompatibleBrowserCategoryOverride" + method, method, true));
         }
@@ -399,6 +441,14 @@ public class GuiValidationContractTest {
                 """));
         Assert.assertFalse(compileBrowserAssertionsConsumer("IncompatibleBrowserContextCountOverride", """
                 public int browsingContextCountValue() { return 0; }
+                """));
+        Assert.assertFalse(compileBrowserAssertionsConsumer("IncompatibleBrowserDialogOverride", """
+                public boolean dialogPresentValue() { return false; }
+                """));
+        Assert.assertFalse(compileBrowserFeatureDefaultCollision("MissingBrowserFeatureOverride", false));
+        Assert.assertTrue(compileBrowserFeatureDefaultCollision("CompatibleBrowserFeatureOverride", true));
+        Assert.assertFalse(compileBrowserAssertionsConsumer("IncompatibleBrowserFeatureOverride", """
+                public boolean featureSupportedValue(com.shaft.gui.capabilities.AutomationFeature feature) { return false; }
                 """));
     }
 
@@ -577,10 +627,10 @@ public class GuiValidationContractTest {
         Assert.assertEquals(method.getReturnType(), com.shaft.validation.internal.NativeValidationsBuilder.class);
     }
 
-    private static void assertBrowserDefaultMethod(String name) {
+    private static void assertBrowserDefaultMethod(String name, Class<?>... parameterTypes) {
         Method method;
         try {
-            method = BrowserAssertions.class.getMethod(name);
+            method = BrowserAssertions.class.getMethod(name, parameterTypes);
         } catch (NoSuchMethodException exception) {
             Assert.fail("Missing compatibility method: BrowserAssertions." + name, exception);
             return;
@@ -806,6 +856,31 @@ public class GuiValidationContractTest {
         SimpleJavaFileObject consumer = source("compat." + className, """
                 package compat;
                 public abstract class %s implements com.shaft.gui.driver.BrowserAssertions, ForeignBrowserCategory {
+                    %s
+                }
+                """.formatted(className, explicitOverride));
+        return Boolean.TRUE.equals(ToolProvider.getSystemJavaCompiler().getTask(null, null, null,
+                List.of("-classpath", System.getProperty("java.class.path"), "-d", output.toString()),
+                null, List.of(foreign, consumer)).call());
+    }
+
+    private static boolean compileBrowserFeatureDefaultCollision(String className, boolean override) throws Exception {
+        Path output = Files.createTempDirectory("shaft-browser-feature-default-collision");
+        SimpleJavaFileObject foreign = source("compat.ForeignBrowserFeature", """
+                package compat;
+                public interface ForeignBrowserFeature {
+                    default com.shaft.validation.internal.NativeValidationsBuilder featureSupportedValue(
+                            com.shaft.gui.capabilities.AutomationFeature feature) { return null; }
+                }
+                """);
+        String explicitOverride = override
+                ? "public com.shaft.validation.internal.NativeValidationsBuilder featureSupportedValue(" +
+                "com.shaft.gui.capabilities.AutomationFeature feature) { return " +
+                "com.shaft.gui.driver.BrowserAssertions.super.featureSupportedValue(feature); }"
+                : "";
+        SimpleJavaFileObject consumer = source("compat." + className, """
+                package compat;
+                public abstract class %s implements com.shaft.gui.driver.BrowserAssertions, ForeignBrowserFeature {
                     %s
                 }
                 """.formatted(className, explicitOverride));
