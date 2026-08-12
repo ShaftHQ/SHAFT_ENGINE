@@ -18,9 +18,19 @@ try:
         resolve_repository_context,
     )
     from scripts.agents import watch_pr_checks
+    from scripts.agents.planning_contract import validate_plan
+    from scripts.agents.github_client import GitHubClient, GitHubUnavailable
+    from scripts.agents.pr_audit import audit_snapshot, collect_pr_snapshot
+    from scripts.agents.delivery_status import collect_delivery, evaluate_delivery, inspect_cleanup, validate_authority
+    from scripts.agents.issue_filing import confirmation_digest, create_issue, prepare_issue_plan, reconcile_labels, transition_issue
 except ModuleNotFoundError:
     from repository_context import RepositoryContext, RepositoryContextError, resolve_repository_context
     import watch_pr_checks
+    from planning_contract import validate_plan
+    from github_client import GitHubClient, GitHubUnavailable
+    from pr_audit import audit_snapshot, collect_pr_snapshot
+    from delivery_status import collect_delivery, evaluate_delivery, inspect_cleanup, validate_authority
+    from issue_filing import confirmation_digest, create_issue, prepare_issue_plan, reconcile_labels, transition_issue
 
 
 EXIT_ENVIRONMENT_ERROR = 3
@@ -131,6 +141,16 @@ def checkpoint_status(
     return {**context_payload(context), "head": head, "pullRequest": exact}
 
 
+def local_head(context: RepositoryContext) -> str:
+    result = subprocess.run(  # nosec B603 B607 - fixed read-only git query.
+        ["git", "rev-parse", "HEAD"], cwd=context.root, capture_output=True, text=True,
+        timeout=10, check=False,
+    )
+    if result.returncode or not result.stdout.strip():
+        raise RepositoryContextError(result.stderr.strip() or "cannot resolve local HEAD")
+    return result.stdout.strip()
+
+
 def build_parser() -> argparse.ArgumentParser:
     """Build the portable command parser."""
     parser = argparse.ArgumentParser(description=__doc__)
@@ -141,6 +161,36 @@ def build_parser() -> argparse.ArgumentParser:
     watch.add_argument("arguments", nargs=argparse.REMAINDER)
     checkpoint = commands.add_parser("checkpoint-status", help="report HEAD and exact-head PR")
     add_context_arguments(checkpoint)
+    plan = commands.add_parser("plan-validate", help="validate an evidence-backed plan")
+    plan.add_argument("input", type=Path)
+    audit = commands.add_parser("pr-audit", help="audit every PR feedback surface")
+    add_context_arguments(audit)
+    audit.add_argument("--dispositions", type=Path, required=True)
+    audit.add_argument("--expected-head")
+    audit.add_argument("--receipt-out", type=Path, required=True)
+    delivery = commands.add_parser("delivery-status", help="verify owned PR merge and cleanup")
+    delivery.add_argument("--manifest", type=Path, required=True)
+    delivery.add_argument("--root", type=Path, default=Path.cwd())
+    delivery.add_argument("--receipt-out", type=Path, required=True)
+    issue_plan = commands.add_parser("issue-plan", help="validate and search a proposed issue")
+    add_context_arguments(issue_plan)
+    issue_plan.add_argument("--input", type=Path, required=True)
+    issue_create = commands.add_parser("issue-create", help="create one confirmed validated issue")
+    add_context_arguments(issue_create)
+    issue_create.add_argument("--input", type=Path, required=True)
+    issue_create.add_argument("--confirm-receipt-sha256", required=True)
+    labels = commands.add_parser("issue-labels", help="dry-run or apply canonical label reconciliation")
+    add_context_arguments(labels)
+    labels.add_argument("--apply", action="store_true")
+    transition = commands.add_parser("issue-transition", help="apply one validated lifecycle transition")
+    add_context_arguments(transition)
+    transition.add_argument("--issue", type=int, required=True)
+    transition.add_argument("--input", type=Path, required=True)
+    authority = commands.add_parser("merge-authority", help="validate recorded authority for an exact PR head")
+    add_context_arguments(authority)
+    authority.add_argument("--manifest", type=Path, required=True)
+    authority.add_argument("--head", required=True)
+    authority.add_argument("--receipt-out", type=Path, required=True)
     commands.add_parser("mcp", help="serve the read-only operations over MCP stdio")
     return parser
 
@@ -166,6 +216,46 @@ def _tool_schemas() -> list[dict]:
             "name": "checkpoint_status",
             "description": "Report local HEAD and an exact-head open pull request.",
             "inputSchema": {"type": "object", "properties": context_properties, "additionalProperties": False},
+        },
+        {
+            "name": "plan_validate",
+            "description": "Validate a thorough evidence-backed implementation plan.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {"plan": {"type": "object"}},
+                "required": ["plan"],
+                "additionalProperties": False,
+            },
+        },
+        {
+            "name": "pr_audit",
+            "description": "Return a paginated, head-bound pull-request feedback audit.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    **context_properties,
+                    "expectedHead": {"type": "string"},
+                    "dispositions": {"type": "object"},
+                },
+                "required": ["pr", "dispositions"],
+                "additionalProperties": False,
+            },
+        },
+        {
+            "name": "delivery_status",
+            "description": "Verify all owned pull requests are live-merged and scoped cleanup is complete.",
+            "inputSchema": {
+                "type": "object", "properties": {
+                    "manifest": {"type": "object"}, "root": {"type": "string"},
+                }, "required": ["manifest"], "additionalProperties": False,
+            },
+        },
+        {
+            "name": "issue_plan",
+            "description": "Validate an issue plan and search open and closed duplicates.",
+            "inputSchema": {"type": "object", "properties": {
+                **context_properties, "plan": {"type": "object"}
+            }, "required": ["plan"], "additionalProperties": False},
         },
     ]
 
@@ -207,8 +297,51 @@ def call_tool(name: str, arguments: dict) -> dict:
                 "content": [{"type": "text", "text": json.dumps(payload, sort_keys=True)}],
                 "isError": exit_code != 0,
             }
+        if name == "plan_validate":
+            violations = validate_plan(arguments.get("plan"))
+            payload = {"valid": not violations, "violations": violations}
+            return {
+                "content": [{"type": "text", "text": json.dumps(payload, sort_keys=True)}],
+                "isError": bool(violations),
+            }
+        if name == "pr_audit":
+            context = context_from_arguments(_namespace(arguments))
+            if context.pr_number is None:
+                raise RepositoryContextError("pr_audit requires an explicit pull request")
+            snapshot = collect_pr_snapshot(
+                GitHubClient(context.repo, root=context.root), context.pr_number
+            )
+            payload = audit_snapshot(
+                snapshot, arguments.get("dispositions"),
+                expected_head=arguments.get("expectedHead"),
+            )
+            return {
+                "content": [{"type": "text", "text": json.dumps(payload, sort_keys=True)}],
+                "isError": payload["decision"] != "allow",
+            }
+        if name == "delivery_status":
+            manifest = arguments.get("manifest")
+            if not isinstance(manifest, dict):
+                raise RepositoryContextError("delivery manifest must be an object")
+            context = context_from_arguments(_namespace({"root": arguments.get("root")}))
+            payload = evaluate_delivery(
+                manifest, collect_delivery(manifest, default_root=context.root), inspect_cleanup(manifest),
+                execution_repository=context.repo, execution_head=local_head(context),
+            )
+            return {
+                "content": [{"type": "text", "text": json.dumps(payload, sort_keys=True)}],
+                "isError": payload["decision"] != "allow",
+            }
+        if name == "issue_plan":
+            context = context_from_arguments(_namespace(arguments))
+            taxonomy = json.loads((context.root / ".github/issue-taxonomy.json").read_text(encoding="utf-8"))
+            receipt = prepare_issue_plan(arguments.get("plan"), taxonomy, context.repo)
+            receipt["sha256"] = confirmation_digest(
+                receipt.get("normalizedPlan"), taxonomy, context.repo
+            )
+            return {"content": [{"type": "text", "text": json.dumps(receipt, sort_keys=True)}], "isError": receipt["decision"] != "allow"}
         return {"content": [{"type": "text", "text": f"unknown tool: {name}"}], "isError": True}
-    except RepositoryContextError as error:
+    except (RepositoryContextError, GitHubUnavailable, ValueError, TypeError, AttributeError, KeyError) as error:
         return {"content": [{"type": "text", "text": str(error)}], "isError": True}
 
 
@@ -318,6 +451,84 @@ def main(argv: list[str] | None = None) -> int:
     if arguments and arguments[0] == "mcp":
         return serve_mcp()
     parsed = build_parser().parse_args(arguments)
+    if parsed.command == "plan-validate":
+        try:
+            plan = json.loads(parsed.input.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError) as error:
+            print(f"act-as-mohab: cannot read plan: {error}", file=sys.stderr)
+            return 1
+        violations = validate_plan(plan)
+        print(json.dumps({"valid": not violations, "violations": violations}, sort_keys=True))
+        return 1 if violations else 0
+    if parsed.command == "pr-audit":
+        try:
+            context = context_from_arguments(parsed)
+            if context.pr_number is None:
+                raise RepositoryContextError("pr-audit requires --pr")
+            dispositions = json.loads(parsed.dispositions.read_text(encoding="utf-8"))
+            snapshot = collect_pr_snapshot(GitHubClient(context.repo, root=context.root), context.pr_number)
+            payload = audit_snapshot(snapshot, dispositions, expected_head=parsed.expected_head)
+        except (OSError, json.JSONDecodeError, RepositoryContextError, GitHubUnavailable, ValueError) as error:
+            print(f"act-as-mohab: PR audit unavailable: {error}", file=sys.stderr)
+            return EXIT_ENVIRONMENT_ERROR
+        parsed.receipt_out.parent.mkdir(parents=True, exist_ok=True)
+        parsed.receipt_out.write_text(json.dumps(payload, sort_keys=True) + "\n", encoding="utf-8")
+        print(json.dumps(payload, sort_keys=True))
+        return 0 if payload["decision"] == "allow" else 1
+    if parsed.command == "delivery-status":
+        try:
+            manifest = json.loads(parsed.manifest.read_text(encoding="utf-8"))
+            if not isinstance(manifest, dict):
+                raise ValueError("delivery manifest must be an object")
+            context = resolve_repository_context(explicit_root=parsed.root.resolve(), cwd=parsed.root.resolve())
+            payload = evaluate_delivery(
+                manifest, collect_delivery(manifest, default_root=context.root), inspect_cleanup(manifest),
+                execution_repository=context.repo, execution_head=local_head(context),
+            )
+            parsed.receipt_out.parent.mkdir(parents=True, exist_ok=True)
+            parsed.receipt_out.write_text(json.dumps(payload, sort_keys=True) + "\n", encoding="utf-8")
+        except (OSError, json.JSONDecodeError, RepositoryContextError, GitHubUnavailable, ValueError) as error:
+            print(f"act-as-mohab: delivery status unavailable: {error}", file=sys.stderr)
+            return EXIT_ENVIRONMENT_ERROR
+        print(json.dumps(payload, sort_keys=True))
+        return 0 if payload["decision"] == "allow" else 1
+    if parsed.command == "merge-authority":
+        try:
+            context = context_from_arguments(parsed)
+            if context.pr_number is None:
+                raise ValueError("merge-authority requires --pr")
+            manifest = json.loads(parsed.manifest.read_text(encoding="utf-8"))
+            payload = validate_authority(manifest, context.repo, context.pr_number, parsed.head, root=context.root)
+            parsed.receipt_out.parent.mkdir(parents=True, exist_ok=True)
+            parsed.receipt_out.write_text(json.dumps(payload, sort_keys=True) + "\n", encoding="utf-8")
+        except (OSError, json.JSONDecodeError, RepositoryContextError, ValueError) as error:
+            print(f"act-as-mohab: merge authority unavailable: {error}", file=sys.stderr)
+            return EXIT_ENVIRONMENT_ERROR
+        print(json.dumps(payload, sort_keys=True))
+        return 0 if payload["decision"] == "allow" else 1
+    if parsed.command in {"issue-plan", "issue-create", "issue-labels", "issue-transition"}:
+        try:
+            context = context_from_arguments(parsed)
+            taxonomy = json.loads((context.root / ".github/issue-taxonomy.json").read_text(encoding="utf-8"))
+            plan = json.loads(parsed.input.read_text(encoding="utf-8")) if parsed.command != "issue-labels" else None
+            if parsed.command == "issue-labels":
+                payload = reconcile_labels(context.repo, taxonomy, apply=parsed.apply)
+            elif parsed.command == "issue-transition":
+                payload = transition_issue(context.repo, parsed.issue, plan, taxonomy)
+            elif parsed.command == "issue-plan":
+                payload = prepare_issue_plan(plan, taxonomy, context.repo)
+                payload["sha256"] = confirmation_digest(
+                    payload.get("normalizedPlan"), taxonomy, context.repo
+                )
+            else:
+                payload = create_issue(
+                    plan, taxonomy, context.repo, parsed.confirm_receipt_sha256
+                )
+        except (OSError, json.JSONDecodeError, RepositoryContextError, ValueError) as error:
+            print(f"act-as-mohab: issue filing failed: {error}", file=sys.stderr)
+            return EXIT_ENVIRONMENT_ERROR
+        print(json.dumps(payload, sort_keys=True))
+        return 0 if payload["decision"] == "allow" else 1
     try:
         context = context_from_arguments(parsed)
         payload = (

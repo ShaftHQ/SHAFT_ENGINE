@@ -34,7 +34,11 @@ class ActAsMohabRuntimeTest(unittest.TestCase):
         with zipfile.ZipFile(runtime) as archive:
             self.assertEqual(
                 sorted(archive.namelist()),
-                ["__main__.py", "act_as_mohab_cli.py", "repository_context.py", "watch_pr_checks.py"],
+                [
+                    "__main__.py", "act_as_mohab_cli.py", "delivery_status.py", "github_client.py",
+                    "issue_filing.py", "planning_contract.py", "pr_audit.py", "repository_context.py",
+                    "watch_pr_checks.py",
+                ],
             )
 
         result = subprocess.run(  # nosec B603
@@ -45,7 +49,12 @@ class ActAsMohabRuntimeTest(unittest.TestCase):
             check=False,
         )
         self.assertEqual(0, result.returncode, result.stderr)
-        for command in ("repository-context", "watch-pr-checks", "checkpoint-status", "mcp"):
+        for command in (
+            "repository-context", "watch-pr-checks", "checkpoint-status", "plan-validate",
+            "pr-audit", "delivery-status", "issue-plan", "issue-create", "issue-labels",
+            "issue-transition", "mcp"
+            , "merge-authority"
+        ):
             self.assertIn(command, result.stdout)
 
     def test_repository_context_and_mcp_run_from_an_unrelated_repository(self):
@@ -107,7 +116,15 @@ class ActAsMohabRuntimeTest(unittest.TestCase):
         responses = [json.loads(line) for line in mcp.stdout.splitlines()]
         self.assertEqual([1, 2, 3], [response["id"] for response in responses])
         tools = {tool["name"] for tool in responses[1]["result"]["tools"]}
-        self.assertEqual({"repository_context", "watch_pr_checks", "checkpoint_status"}, tools)
+        self.assertEqual(
+            {
+                "repository_context", "watch_pr_checks", "checkpoint_status", "plan_validate",
+                "pr_audit",
+                "delivery_status",
+                "issue_plan",
+            },
+            tools,
+        )
         payload = json.loads(responses[2]["result"]["content"][0]["text"])
         self.assertEqual("consumer/project", payload["repo"])
         self.assertEqual(str(consumer.resolve()), payload["root"])

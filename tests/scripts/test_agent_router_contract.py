@@ -842,6 +842,22 @@ class ConsultGateTest(unittest.TestCase):
         self.assertEqual(positions, sorted(positions))
         self.assertRegex(content, r"missing .{0,80} blocks implementation")
 
+    def test_planning_contract_requires_intent_confidence_detail_and_owned_delivery(self):
+        content = compact(ENTRYPOINT)
+        for clause in (
+            "main objective",
+            "success criteria",
+            "ask every material",
+            "high confidence",
+            "thorough",
+            "mermaid",
+            "own implementation",
+            "authorized merge",
+        ):
+            self.assertIn(clause, content)
+        self.assertIn("when dependencies, components, state, or workflows", content)
+        self.assertIn("never ask a question the repository", content)
+
     def test_caveman_preserves_exact_meaning_before_compression(self):
         content = compact(ENTRYPOINT)
         caveman = content.split("### caveman", 1)[1].split("### ponytail", 1)[0]

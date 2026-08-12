@@ -503,7 +503,7 @@ def collect_worktree_report(
     return report
 
 
-def _describe(entry: dict) -> str:
+def _describe(entry: dict, check_pull_requests_command: str = "--check-pull-requests") -> str:
     branch = entry["branch"] or "detached HEAD"
     location = entry["path"]
     uncommitted = entry.get("uncommitted_files")
@@ -513,7 +513,7 @@ def _describe(entry: dict) -> str:
         caveat = (
             "no open pull request" if entry["open_pull_requests"] is not None
             else "open pull requests were not checked -- rerun with "
-            "--check-pull-requests to confirm"
+            f"{check_pull_requests_command} to confirm"
         )
         return (
             f"branch-orphaned: {location} ({branch}): {age} day(s) since its last "
@@ -549,7 +549,7 @@ def _describe(entry: dict) -> str:
         caveat = (
             "" if entry["open_pull_requests"] is not None
             else " (open pull requests were not checked -- rerun with "
-            "--check-pull-requests to confirm)"
+            f"{check_pull_requests_command} to confirm)"
         )
         return (
             f"worktree-abandoned: {location} ({branch}): {held}{caveat}. "
@@ -572,7 +572,7 @@ def _describe(entry: dict) -> str:
         )
     caveat = (
         " Open pull requests were not checked; rerun with "
-        "`--check-pull-requests` before deciding whether it is stale."
+        f"`{check_pull_requests_command}` before deciding whether it is stale."
         if entry["open_pull_requests"] is None and entry["branch"] is not None
         else ""
     )
@@ -583,13 +583,15 @@ def _describe(entry: dict) -> str:
     )
 
 
-def format_advisories(report: list[dict]) -> list[str]:
+def format_advisories(
+    report: list[dict], *, check_pull_requests_command: str = "--check-pull-requests"
+) -> list[str]:
     """One actionable line per worktree that needs attention."""
     advisories = []
     for entry in report:
         if entry["state"] not in ADVISORY_STATES:
             continue
-        advisory = _describe(entry)
+        advisory = _describe(entry, check_pull_requests_command)
         if entry.get("scan_truncated"):
             advisory += (
                 " NUL scan inspected only the first 2000 candidate paths; stage "

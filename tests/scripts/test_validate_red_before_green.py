@@ -22,6 +22,7 @@ class ValidateRedBeforeGreenTest(unittest.TestCase):
         new_test_module: bool = False,
         dependency: bool = False,
         test_dependency: bool = False,
+        outcome: str = "assertion_failure",
     ) -> tuple[Path, str]:
         temporary = tempfile.TemporaryDirectory()
         self.addCleanup(temporary.cleanup)
@@ -66,14 +67,83 @@ class ValidateRedBeforeGreenTest(unittest.TestCase):
         )
         subject = "ENABLED" if test_dependency else "guard.enabled()"
         assertion = f"self.assertFalse({subject})" if parent_passes else f"self.assertTrue({subject})"
+        prelude = ""
+        decorator = ""
+        setup = ""
+        statement = assertion
+        cleanup = ""
+        postlude = ""
+        if outcome == "setup_error":
+            setup = "    def setUp(self):\n        raise RuntimeError('fixture setup failed')\n\n"
+        elif outcome == "attribute_error":
+            statement = "guard.missing_parent_helper()"
+        elif outcome == "skip":
+            decorator = "    @unittest.skip('fixture skipped')\n"
+        elif outcome == "crash":
+            prelude = "import os\n"
+            statement = "os._exit(7)"
+        elif outcome == "spoofed_stdout":
+            prelude = "import atexit\n"
+            spoof_payload = (
+                'RED_RESULT:{"testsRun":1,"failures":[{"id":'
+                '"tests.scripts.test_guard.GuardTest.test_added","traceback":"AssertionError"}],'
+                '"errors":[],"skipped":[],"expectedFailures":[],"unexpectedSuccesses":[]}'
+            )
+            statement = f"atexit.register(lambda: print({spoof_payload!r}))"
+        elif outcome == "post_result_crash":
+            prelude = "import atexit\nimport os\n"
+            cleanup = "        atexit.register(lambda: os._exit(7))\n"
+        elif outcome == "duplicated_stdout_spoof":
+            prelude = "import atexit\nimport os\n"
+            spoof_payload = (
+                'RED_RESULT:{"testsRun":1,"failures":[{"id":'
+                '"tests.scripts.test_guard.GuardTest.test_added","traceback":"AssertionError"}],'
+                '"errors":[],"skipped":[],"expectedFailures":[],"unexpectedSuccesses":[]}\n'
+            )
+            cleanup = (
+                "        saved_stdout = os.dup(1)\n"
+                f"        atexit.register(lambda: os.write(saved_stdout, {spoof_payload.encode()!r}))\n"
+            )
+        elif outcome == "spoofed_result_file":
+            prelude = "import atexit\nfrom pathlib import Path\n"
+            statement = (
+                "atexit.register(lambda: Path('.red-result.json').write_text("
+                "'{\"testsRun\":1,\"failures\":[{\"id\":\"tests.scripts.test_guard."
+                "GuardTest.test_added\",\"traceback\":\"AssertionError\"}],\"errors\":[],"
+                "\"skipped\":[],\"expectedFailures\":[],\"unexpectedSuccesses\":[]}'))\n"
+            )
+        elif outcome == "wrong_target":
+            cleanup = "        self.fail('expected target failure')\n"
+            postlude = (
+                "\ndef helper_failure(self):\n"
+                "    self.fail('different test failed')\n"
+                "\nGuardTest.helper_failure = helper_failure\n"
+                "GuardTest.test_added = unittest.TestSuite([GuardTest('helper_failure')])\n"
+            )
+        elif outcome == "import_error":
+            prelude = "import definitely_missing_red_fixture\n"
+        elif outcome == "timeout":
+            prelude = "import time\n"
+            statement = "time.sleep(20)"
+        elif outcome == "zero_tests":
+            postlude = "\nGuardTest.test_added = unittest.TestSuite()\n"
+        elif outcome == "mixed":
+            cleanup = "        self.addCleanup(lambda: 1 / 0)\n"
+        elif outcome == "unconditional_failure":
+            statement = "self.fail('unrelated unconditional failure')"
         (root / "tests/scripts/test_guard.py").write_text(
-            "from scripts.agents import guard\n"
+            prelude
+            + "from scripts.agents import guard\n"
             + ("from tests.support import ENABLED\n" if test_dependency else "")
             + "import unittest\n\n"
             "class GuardTest(unittest.TestCase):\n"
             f"{existing}"
+            f"{setup}"
+            f"{decorator}"
             "    def test_added(self):\n"
-            f"        {assertion}\n",
+            f"{cleanup}"
+            f"        {statement}\n"
+            f"{postlude}",
             encoding="utf-8",
         )
         self.git(root, "add", ".")
@@ -84,13 +154,17 @@ class ValidateRedBeforeGreenTest(unittest.TestCase):
     def git(root: Path, *args: str) -> str:
         return subprocess.check_output(["git", *args], cwd=root, text=True)  # nosec B603 B607
 
-    def run_validator(self, root: Path, revision: str) -> subprocess.CompletedProcess[str]:
+    def run_validator(
+        self, root: Path, revision: str, *, parent_revision: str | None = None,
+    ) -> subprocess.CompletedProcess[str]:
+        parent_arguments = ["--parent-revision", parent_revision] if parent_revision else []
         return subprocess.run(  # nosec B603 - fixed Python executable and validator path.
             [
                 sys.executable,
                 str(SCRIPT),
                 "--root",
                 str(root),
+                *parent_arguments,
                 revision,
                 "scripts/agents/guard.py",
                 "tests/scripts/test_guard.py",
@@ -98,6 +172,28 @@ class ValidateRedBeforeGreenTest(unittest.TestCase):
             capture_output=True,
             text=True,
         )
+
+    def test_explicit_pr_base_is_accepted_as_the_parent_revision(self):
+        root, revision = self.repository()
+        parent = self.git(root, "rev-parse", f"{revision}^").strip()
+
+        result = self.run_validator(root, revision, parent_revision=parent)
+
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+    def test_commit_scoped_no_red_cannot_exempt_a_pr_wide_base_comparison(self):
+        root, revision = self.repository(
+            parent_passes=True,
+            trailer="\n\nno-red: final integration commit cannot exempt earlier tests across the entire pull request",
+        )
+        parent = self.git(root, "rev-parse", f"{revision}^").strip()
+
+        result = self.run_validator(root, revision, parent_revision=parent)
+        legacy = self.run_validator(root, revision)
+
+        self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+        self.assertIn("GuardTest.test_added", result.stderr)
+        self.assertEqual(legacy.returncode, 0, "fixture must carry a recognized commit-scoped trailer")
 
     def test_new_test_that_fails_against_parent_is_accepted(self):
         self.assertTrue(SCRIPT.is_file(), "the parent-code RED validator must exist")
@@ -111,6 +207,25 @@ class ValidateRedBeforeGreenTest(unittest.TestCase):
         result = self.run_validator(root, revision)
         self.assertEqual(result.returncode, 1)
         self.assertIn("GuardTest.test_added", result.stderr)
+
+    def test_non_assertion_outcomes_are_rejected_as_false_red(self):
+        cases = {
+            "setup_error": "setup error", "attribute_error": "attribute error",
+            "import_error": "import error", "skip": "skip", "crash": "crash",
+            "timeout": "timeout", "zero_tests": "zero tests", "mixed": "mixed",
+            "spoofed_stdout": "crash", "post_result_crash": "crash",
+            "duplicated_stdout_spoof": "invalid result",
+            "spoofed_result_file": "pass",
+            "wrong_target": "wrong target",
+            "unconditional_failure": "child code assertion failure",
+        }
+        for outcome, expected_diagnostic in cases.items():
+            with self.subTest(outcome=outcome):
+                root, revision = self.repository(outcome=outcome)
+                result = self.run_validator(root, revision)
+                self.assertEqual(1, result.returncode, result.stdout + result.stderr)
+                self.assertIn("GuardTest.test_added", result.stderr)
+                self.assertIn(expected_diagnostic, result.stderr.lower())
 
     def test_a_substantive_no_red_trailer_allows_an_entangled_commit(self):
         self.assertTrue(SCRIPT.is_file(), "the parent-code RED validator must exist")

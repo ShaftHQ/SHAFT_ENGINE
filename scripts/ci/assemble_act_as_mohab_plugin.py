@@ -23,6 +23,11 @@ RELEASE_FILES = (
 )
 RUNTIME_SOURCES = (
     Path("scripts/agents/act_as_mohab_cli.py"),
+    Path("scripts/agents/delivery_status.py"),
+    Path("scripts/agents/github_client.py"),
+    Path("scripts/agents/issue_filing.py"),
+    Path("scripts/agents/planning_contract.py"),
+    Path("scripts/agents/pr_audit.py"),
     Path("scripts/agents/repository_context.py"),
     Path("scripts/agents/watch_pr_checks.py"),
 )

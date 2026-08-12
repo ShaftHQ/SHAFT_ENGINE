@@ -264,6 +264,10 @@ approval_mode = "prompt"
         advisories = metrics["worktree_advisories"]
         self.assertEqual(len(advisories), 1)
         self.assertIn("uncommitted", advisories[0])
+        self.assertIn(
+            "py -3 scripts/ci/worktree_hygiene.py --check-pull-requests",
+            advisories[0],
+        )
         self.assertEqual(metrics["worktrees"][0]["state"], "uncommitted")
 
     def test_worktree_metrics_are_empty_outside_a_repository(self):

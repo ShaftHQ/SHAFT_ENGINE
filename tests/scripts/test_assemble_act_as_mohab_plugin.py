@@ -54,7 +54,10 @@ class AssembleActAsMohabPluginTest(unittest.TestCase):
         compatibility.write_text("# Test compatibility\n", encoding="utf-8")
         runtime_sources = source_root / "scripts/agents"
         runtime_sources.mkdir(parents=True)
-        for name in ("act_as_mohab_cli.py", "repository_context.py", "watch_pr_checks.py"):
+        for name in (
+            "act_as_mohab_cli.py", "delivery_status.py", "github_client.py", "issue_filing.py", "planning_contract.py", "pr_audit.py",
+            "repository_context.py", "watch_pr_checks.py",
+        ):
             (runtime_sources / name).write_text("# fixture canonical runtime\n", encoding="utf-8")
         manifest = source_root / "agent-plugins/release.json"
         manifest.write_text(

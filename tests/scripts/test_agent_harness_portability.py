@@ -591,7 +591,14 @@ class AgentHarnessPortabilityTest(unittest.TestCase):
         for hooks in (claude_hooks, codex_hooks):
             self.assertEqual(
                 set(hooks),
-                {"PreToolUse", "PostToolUse", "SessionStart", "Stop", "SubagentStop"},
+                {
+                    "PreToolUse",
+                    "PostToolUse",
+                    "SessionStart",
+                    "Stop",
+                    "SubagentStop",
+                    "UserPromptSubmit",
+                },
             )
             commands = {
                 handler["command"]
