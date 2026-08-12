@@ -375,6 +375,7 @@ public final class FailureTraceReporter {
                 .tabs{display:flex;gap:8px;flex-wrap:wrap;margin:14px 0}
                 .tabs button{background:var(--shaft-surface);color:var(--shaft-primary)}
                 .tabs button.selected{background:var(--shaft-primary);color:var(--shaft-on-dark)}
+                #mobile-category-filter button[aria-pressed="true"]{background:var(--shaft-primary);color:var(--shaft-on-dark);box-shadow:0 0 0 3px rgba(var(--shaft-primary-rgb),.2)}
                 dl{display:grid;grid-template-columns:130px 1fr;gap:6px 12px}
                 dt{font-weight:700;color:var(--shaft-text-muted)}dd{margin:0;overflow-wrap:anywhere}
                 #timeline-list{max-height:560px;overflow:auto;border:1px solid var(--shaft-border,#ccc);border-radius:6px}
@@ -470,9 +471,10 @@ public final class FailureTraceReporter {
                       <button data-tab="domSnapshot">DOM Snapshot</button>
                       <button data-tab="screenshot">Screenshot</button>
                       <button data-tab="locatorHealth">Locator Health</button>
-                      <button data-tab="network">Network</button>
-                      <button data-tab="console">Console</button>
-                      <button data-tab="browserObservability">Observability</button>
+                       <button data-tab="network">Network</button>
+                       <button data-tab="console">Console</button>
+                       <button data-tab="mobile">Mobile</button>
+                       <button data-tab="browserObservability">Observability</button>
                       <button data-tab="environment">Environment</button>
                       <button data-tab="attachments">Attachments</button>
                       <button data-tab="log">Test Log</button>
@@ -544,9 +546,27 @@ public final class FailureTraceReporter {
                         <th id="console-sort-level"><button type="button" class="sort-button" data-console-sort="level">Level</button></th>
                         <th id="console-sort-message"><button type="button" class="sort-button" data-console-sort="message">Message</button></th><th>Details</th>
                       </tr></thead><tbody id="console-rows"></tbody></table>
-                      <pre id="console-detail" hidden></pre>
-                    </div>
-                  </section>
+                     <pre id="console-detail" hidden></pre>
+                   </div>
+                   <div id="mobile-panel" hidden>
+                     <p class="muted" id="mobile-hint"></p>
+                     <div class="toolbar" id="mobile-category-filter" role="group" aria-label="Mobile action category">
+                       <button type="button" class="selected" data-mobile-category="all" aria-pressed="true">All</button>
+                       <button type="button" data-mobile-category="mobile/app" aria-pressed="false">App</button>
+                       <button type="button" data-mobile-category="mobile/context" aria-pressed="false">Context</button>
+                       <button type="button" data-mobile-category="mobile/device" aria-pressed="false">Device</button>
+                       <button type="button" data-mobile-category="mobile/logs" aria-pressed="false">Logs</button>
+                       <button type="button" data-mobile-category="mobile/performance" aria-pressed="false">Performance</button>
+                       <button type="button" data-mobile-category="mobile/recording" aria-pressed="false">Recording</button>
+                       <button type="button" data-mobile-category="mobile/evidence" aria-pressed="false">Evidence</button>
+                       <output id="mobile-result-count" class="result-count" aria-live="polite"></output>
+                     </div>
+                     <table class="trace-table"><thead><tr>
+                       <th>Time</th><th>Area</th><th>Operation</th><th>Status</th><th>Summary</th><th>Details</th>
+                     </tr></thead><tbody id="mobile-rows"></tbody></table>
+                     <pre id="mobile-detail" hidden></pre>
+                   </div>
+                 </section>
                 </div>
                 </main>
                 </div>
@@ -996,6 +1016,56 @@ public final class FailureTraceReporter {
                   });
                   updateConsoleSortHeaders();
                 }
+                const mobileActions = () => actions.filter(action =>
+                    String(action.category || '').startsWith('mobile/'));
+                const mobileRows = document.getElementById('mobile-rows');
+                const mobileDetail = document.getElementById('mobile-detail');
+                const mobileResultCount = document.getElementById('mobile-result-count');
+                let mobileCategory = 'all';
+                const mobileLabels = {
+                  'mobile/app':'App', 'mobile/context':'Context', 'mobile/device':'Device',
+                  'mobile/logs':'Logs', 'mobile/performance':'Performance',
+                  'mobile/recording':'Recording', 'mobile/evidence':'Evidence'
+                };
+                function mobileLabel(action){
+                  return mobileLabels[String(action.category || '')] || 'Other';
+                }
+                function mobileSummary(action){
+                  const entries = Object.entries(action.metadata || {});
+                  return entries.length ? entries.map(([key, value]) => `${key}=${value}`).join(', ') : 'No metadata';
+                }
+                function renderMobile(){
+                  mobileRows.innerHTML = '';
+                  mobileDetail.hidden = true;
+                  mobileDetail.textContent = '';
+                  const all = mobileActions();
+                  const range = selectedWindow();
+                  const visible = all.filter(action =>
+                    (actionStartMs(action) == null || actionInWindow(action, range))
+                    && (mobileCategory === 'all' || action.category === mobileCategory));
+                  mobileResultCount.textContent = `${visible.length} mobile ${visible.length === 1 ? 'action' : 'actions'}`;
+                  document.getElementById('mobile-hint').textContent = !all.length
+                    ? 'No mobile actions were recorded.'
+                    : !visible.length ? 'No mobile actions match the selected range and category.'
+                    : 'Inspect captured mobile operations and safe scalar metadata.';
+                  visible.forEach(action => {
+                    const tr = document.createElement('tr');
+                    const timed = actionStartMs(action) != null;
+                    tr.className = `${statusClass(action.status)}${timed ? ' inwindow' : ''}`;
+                    tr.innerHTML = `<td class="time-cell">${timed ? esc(offsetLabel(actionStartMs(action))) : 'Unknown'}</td><td>${esc(mobileLabel(action))}</td><td>${esc(action.name || 'Unknown')}</td><td>${esc(action.status || 'Unknown')}</td><td>${esc(mobileSummary(action))}</td><td><button type="button" class="secondary">Inspect action</button></td>`;
+                    tr.querySelector('button').addEventListener('click', () => {
+                      selectAction(action, false);
+                      mobileDetail.hidden = false;
+                      mobileDetail.textContent = JSON.stringify(action, null, 2);
+                    });
+                    mobileRows.appendChild(tr);
+                  });
+                  document.querySelectorAll('#mobile-category-filter button').forEach(button => {
+                    const selectedCategory = button.dataset.mobileCategory === mobileCategory;
+                    button.classList.toggle('selected', selectedCategory);
+                    button.setAttribute('aria-pressed', String(selectedCategory));
+                  });
+                }
                 function sourceText(){
                   const source = trace.source || {};
                   const header = `${source.file || source.frame || 'Unknown source'}:${source.line || '?'}`;
@@ -1065,7 +1135,7 @@ public final class FailureTraceReporter {
                 }
                 function renderTab(tab){
                   const action = selected || {};
-                  const panels = {timeline: timelinePanel, comparison: comparisonPanel, domSnapshot: domSnapshotPanel, screenshot: screenshotPanel, network: networkPanel, console: consolePanel};
+                  const panels = {timeline: timelinePanel, comparison: comparisonPanel, domSnapshot: domSnapshotPanel, screenshot: screenshotPanel, network: networkPanel, console: consolePanel, mobile: document.getElementById('mobile-panel')};
                   tabContent.hidden = tab in panels;
                   Object.entries(panels).forEach(([name, panel]) => panel.hidden = name !== tab);
                   if (tab === 'timeline') {
@@ -1080,6 +1150,8 @@ public final class FailureTraceReporter {
                     renderNetwork();
                   } else if (tab === 'console') {
                     renderConsole();
+                  } else if (tab === 'mobile') {
+                    renderMobile();
                   } else if (tab === 'source') {
                     tabContent.textContent = sourceText();
                   } else if (tab === 'log') {
@@ -1165,6 +1237,10 @@ public final class FailureTraceReporter {
                     ? {key, direction:consoleSort.direction === 'ascending' ? 'descending' : 'ascending'}
                     : {key, direction:'ascending'};
                   renderConsole();
+                }));
+                document.querySelectorAll('#mobile-category-filter button').forEach(button => button.addEventListener('click', () => {
+                  mobileCategory = button.dataset.mobileCategory;
+                  renderMobile();
                 }));
                 document.querySelectorAll('#action-tabs button').forEach(button => button.addEventListener('click', () => renderTab(button.dataset.tab)));
                 document.querySelectorAll('#dom-snapshot-tabs button').forEach(button => button.addEventListener('click', () => { selectedDomSide = button.dataset.dom; renderDomSnapshot(); }));
