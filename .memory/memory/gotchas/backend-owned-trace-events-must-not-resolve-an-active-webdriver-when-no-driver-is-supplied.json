@@ -1,0 +1,45 @@
+{
+  "body_path": "memory/gotchas/backend-owned-trace-events-must-not-resolve-an-active-webdriver-when-no-driver-is-supplied.md",
+  "content_hash": "sha256:f7d41d9aabd092825be4dab56c43f33dd3b804f309e11141d73b2c839ca489d5",
+  "created_at": "2026-08-12T04:42:39+03:00",
+  "evidence": [
+    {
+      "id": "9a56130f43db4fa0bd6321d4f9b42e6432c0942f",
+      "kind": "commit"
+    },
+    {
+      "id": "#4757",
+      "kind": "task"
+    }
+  ],
+  "facets": {
+    "applies_to": [
+      "shaft-engine/src/main/java/com/shaft/tools/io/internal/TraceEventRecorder.java",
+      "shaft-engine/src/main/java/com/shaft/gui/mobile/EvidenceActions.java",
+      "shaft-engine/src/test/java/com/shaft/gui/mobile/MobileEvidenceActionsTest.java",
+      "shaft-engine/src/test/java/com/shaft/tools/io/internal/MobileEvidenceNamespaceTraceTest.java"
+    ],
+    "category": "debugging-fact"
+  },
+  "id": "gotcha.backend-owned-trace-events-must-not-resolve-an-active-webdriver-when-no-driver-is-supplied",
+  "scope": {
+    "branch": null,
+    "kind": "project",
+    "project": "project.shaft-engine",
+    "task": null
+  },
+  "source": {
+    "kind": "agent",
+    "task": "Record the durable backend-owned tracing gotcha discovered while implementing mobile evidence capture in #4757."
+  },
+  "status": "active",
+  "tags": [
+    "trace",
+    "mobile-evidence",
+    "provider-boundary",
+    "preflight"
+  ],
+  "title": "Backend-owned trace events must not resolve an active WebDriver when no driver is supplied",
+  "type": "gotcha",
+  "updated_at": "2026-08-12T04:44:20+03:00"
+}

@@ -91,12 +91,17 @@ public final class MobileActions implements MobileActionsContract {
 
     @Override
     public MobileRecordingActionsContract recording() {
-        throw unsupported("screen recording");
+        AppiumDriver liveDriver = driver();
+        if (!(liveDriver instanceof io.appium.java_client.screenrecording.CanRecordScreen)) {
+            throw new UnsupportedOperationException(
+                    "The live Appium session does not support screen recording.");
+        }
+        return new RecordingActions(this);
     }
 
     @Override
     public MobileEvidenceActionsContract evidence() {
-        throw unsupported("evidence capture");
+        return new EvidenceActions(this);
     }
 
     @Override

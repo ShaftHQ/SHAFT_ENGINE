@@ -91,6 +91,8 @@ def infer_repository(
                 if isinstance(repository, str):
                     return validate_repository(repository)
             except (json.JSONDecodeError, KeyError, RepositoryContextError):
+                # A malformed gh response is not authoritative; continue to
+                # the documented git-origin fallback below.
                 pass
 
     git_executable = executable_resolver("git")

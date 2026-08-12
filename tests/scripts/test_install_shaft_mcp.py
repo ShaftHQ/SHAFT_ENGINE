@@ -7,6 +7,7 @@ import json
 import os
 import re
 import subprocess  # nosec B404 -- Windows junction test uses resolved System32 cmd.exe only.
+import sys
 import tempfile
 import unittest
 import zipfile
@@ -65,35 +66,6 @@ def scripted_stdin(answer: str):
 
 
 class InstallShaftMcpTest(unittest.TestCase):
-    def agent_validation_missing_imports(self, shipped=None):
-        repository_root = Path(__file__).resolve().parents[2]
-        shipped = set(MODULE.AGENT_VALIDATION_SCRIPT_FILES if shipped is None else shipped)
-        missing = set()
-        for relative in sorted(shipped):
-            if not relative.endswith(".py"):
-                continue
-            source_path = repository_root / relative
-            tree = ast.parse(source_path.read_text(encoding="utf-8"), filename=relative)
-            for node in ast.walk(tree):
-                required_modules = []
-                if isinstance(node, ast.Import):
-                    required_modules.extend(alias.name for alias in node.names)
-                elif isinstance(node, ast.ImportFrom) and node.module:
-                    for alias in node.names:
-                        child = f"{node.module.replace('.', '/')}/{alias.name}.py"
-                        module = node.module.replace(".", "/") + ".py"
-                        if (repository_root / child).is_file():
-                            required_modules.append(f"{node.module}.{alias.name}")
-                        elif (repository_root / module).is_file():
-                            required_modules.append(node.module)
-                for module in required_modules:
-                    if not module.startswith("scripts."):
-                        continue
-                    required = module.replace(".", "/") + ".py"
-                    if (repository_root / required).is_file() and required not in shipped:
-                        missing.add(f"{relative} imports {module}")
-        return sorted(missing)
-
     def test_banner_is_not_repeated_after_bootstrap_banner(self):
         with temporary_environment(SHAFT_MCP_BOOTSTRAP_BANNER_SHOWN="1"):
             stderr = io.StringIO()
@@ -199,47 +171,89 @@ class InstallShaftMcpTest(unittest.TestCase):
         # module it imports at module scope must travel with it or the
         # installed validator dies on ImportError. Checked by reading the real
         # import statements rather than by listing them again here.
-        self.assertEqual(self.agent_validation_missing_imports(), [])
-
-    def test_agent_validation_manifest_detects_an_omitted_aliased_child_module(self):
         shipped = set(MODULE.AGENT_VALIDATION_SCRIPT_FILES)
-        shipped.remove("scripts/agents/learning_loop.py")
+        self.assertEqual(self.agent_validation_manifest_missing_imports(shipped), [])
+
+    def test_agent_validation_manifest_guard_detects_parenthesized_import_omission(self):
+        shipped = set(MODULE.AGENT_VALIDATION_SCRIPT_FILES)
+        shipped.remove("scripts/ci/worktree_hygiene.py")
 
         self.assertIn(
-            "scripts/agents/guard.py imports scripts.agents.learning_loop",
-            self.agent_validation_missing_imports(shipped),
+            "scripts/ci/validate_agent_setup.py imports scripts.ci.worktree_hygiene",
+            self.agent_validation_manifest_missing_imports(shipped),
         )
 
-    def test_installed_agent_validation_scaffold_imports_and_runs_without_checkout(self):
-        with tempfile.TemporaryDirectory() as temporary_directory:
-            scaffold = Path(temporary_directory) / "consumer"
+    def test_downloaded_agent_validation_bundle_imports_from_isolated_project(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            target = Path(temp_dir).resolve()
+            (target / "AGENTS.md").write_text("# Installed guidance\n", encoding="utf-8")
 
-            def copy_canonical(_url, target, _label, **_kwargs):
-                relative = target.resolve().relative_to(scaffold.resolve())
-                target.parent.mkdir(parents=True, exist_ok=True)
-                target.write_bytes((REPO_ROOT / relative).read_bytes())
+            def install_repository_file(_url, destination, _label, **_kwargs):
+                relative = destination.relative_to(target)
+                destination.parent.mkdir(parents=True, exist_ok=True)
+                destination.write_bytes((REPO_ROOT / relative).read_bytes())
 
-            with mock.patch.object(MODULE, "download_file", side_effect=copy_canonical):
-                MODULE.download_agent_validation_script_files(scaffold)
+            with mock.patch.object(MODULE, "download_file", side_effect=install_repository_file):
+                MODULE.download_agent_validation_script_files(target)
 
-            environment = dict(os.environ)
-            environment.pop("PYTHONPATH", None)
-            environment["PYTHONNOUSERSITE"] = "1"
-            result = subprocess.run(  # nosec B603 - current interpreter and fixed smoke code.
-                [
-                    MODULE.sys.executable,
-                    "scripts/agents/guard.py",
-                ],
-                cwd=scaffold,
-                env=environment,
-                input="",
+            self.assertTrue((target / "scripts" / "agents" / "learning_loop.py").is_file())
+            command = (
+                "import sys; "
+                f"sys.path.insert(0, {str(target)!r}); "
+                "import scripts.agents.guard; "
+                "import scripts.ci.validate_agent_setup"
+            )
+            completed = subprocess.run(  # nosec B603 - fixed interpreter and generated local import script.
+                [sys.executable, "-I", "-S", "-c", command],
+                cwd=target,
                 capture_output=True,
                 text=True,
                 check=False,
             )
+            self.assertEqual(0, completed.returncode, completed.stderr)
 
-            self.assertEqual(0, result.returncode, result.stderr or result.stdout)
-            self.assertNotIn(str(REPO_ROOT), result.stderr + result.stdout)
+    @staticmethod
+    def agent_validation_manifest_missing_imports(shipped):
+        missing = set()
+        repository_root = Path(__file__).resolve().parents[2]
+
+        def module_file(module):
+            relative = module.replace(".", "/") + ".py"
+            return relative if (repository_root / relative).is_file() else None
+
+        for relative in sorted(shipped):
+            if not relative.endswith(".py"):
+                continue
+            tree = ast.parse((repository_root / relative).read_text(encoding="utf-8"), filename=relative)
+            for node in ast.walk(tree):
+                dependencies = []
+                if isinstance(node, ast.Import):
+                    dependencies.extend(
+                        dependency
+                        for alias in node.names
+                        if alias.name.startswith("scripts.")
+                        and (dependency := module_file(alias.name)) is not None
+                    )
+                elif (isinstance(node, ast.ImportFrom)
+                      and node.level == 0
+                      and node.module
+                      and node.module.startswith("scripts.")):
+                    direct = module_file(node.module)
+                    if direct is not None:
+                        dependencies.append(direct)
+                    else:
+                        dependencies.extend(
+                            dependency
+                            for alias in node.names
+                            if alias.name != "*"
+                            and (dependency := module_file(
+                                node.module + "." + alias.name)) is not None
+                        )
+                for dependency in dependencies:
+                    if dependency not in shipped:
+                        missing.add(
+                            f"{relative} imports {dependency[:-3].replace('/', '.')}")
+        return sorted(missing)
 
     def test_render_client_menu_groups_ai_agents_and_advanced_sections(self):
         lines = MODULE.render_client_menu()
