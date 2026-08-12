@@ -3,7 +3,7 @@
 import importlib.util
 import json
 import shutil
-import subprocess
+import subprocess  # nosec B404 - tests run fixed repository-owned commands.
 import sys
 import tempfile
 from pathlib import Path
