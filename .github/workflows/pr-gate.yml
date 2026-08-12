@@ -326,6 +326,11 @@ jobs:
           tests.scripts.test_agent_plugin_client_smoke
           tests.scripts.test_assemble_act_as_mohab_plugin
           tests.scripts.test_repository_context
+          tests.scripts.test_github_client
+          tests.scripts.test_pr_audit
+          tests.scripts.test_delivery_status
+          tests.scripts.test_issue_filing
+          tests.scripts.test_planning_contract
           tests.scripts.test_watch_pr_checks
           tests.scripts.test_act_as_mohab_runtime
           tests.scripts.test_assemble_shaft_skills_plugin
