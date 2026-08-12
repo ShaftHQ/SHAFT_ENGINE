@@ -369,15 +369,13 @@ jobs:
             git rev-parse "$bootstrap^" > "$paths_file"
             IFS= read -r BASE_SHA < "$paths_file"
           fi
-          git rev-list --reverse "$BASE_SHA..$HEAD_SHA" -- scripts/agents/guard.py ':(glob)tests/scripts/test_guard*.py' > "$history_file"
-          while IFS= read -r revision; do
-            [[ -z "$revision" ]] && continue
-            git diff --diff-filter=AMR --name-only "$revision^" "$revision" -- ':(glob)tests/scripts/test_guard*.py' > "$paths_file"
-            while IFS= read -r test_path; do
-              [[ -z "$test_path" ]] && continue
-              python scripts/ci/validate_red_before_green.py "$revision" scripts/agents/guard.py "$test_path"
-            done < "$paths_file"
-          done < "$history_file"
+          git diff --diff-filter=AMR --name-only "$BASE_SHA" "$HEAD_SHA" -- ':(glob)tests/scripts/test_guard*.py' > "$paths_file"
+          while IFS= read -r test_path; do
+            [[ -z "$test_path" ]] && continue
+            python scripts/ci/validate_red_before_green.py \
+              --parent-revision "$BASE_SHA" \
+              "$HEAD_SHA" scripts/agents/guard.py "$test_path"
+          done < "$paths_file"
       - name: Report orphaned guard docstring claims
         if: github.event_name == 'pull_request'
         shell: bash

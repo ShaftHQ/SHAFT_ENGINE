@@ -108,15 +108,15 @@ def module_name(path: str) -> str:
     return ".".join(Path(path).with_suffix("").parts)
 
 
-def restore_parent_tree(root: Path, revision: str, overlay: Path) -> None:
+def restore_parent_tree(root: Path, parent_revision: str, overlay: Path) -> None:
     archive = subprocess.run(
-        ["git", "archive", f"{revision}^"],
+        ["git", "archive", parent_revision],
         cwd=root,
         capture_output=True,
         check=False,
     )  # nosec B603 B607 - fixed read-only git command.
     if archive.returncode:
-        raise ValueError(f"cannot archive parent tree at {revision}^")
+        raise ValueError(f"cannot archive parent tree at {parent_revision}")
     with tarfile.open(fileobj=io.BytesIO(archive.stdout)) as contents:
         contents.extractall(overlay, filter="data")
 
@@ -125,11 +125,12 @@ def run_parent_code_test(
     root: Path, revision: str, production_path: str, test_path: str, child_test: str,
     class_name: str, method_name: str,
     production_source: str | None = None,
+    parent_revision: str | None = None,
 ) -> ParentTestOutcome:
     with tempfile.TemporaryDirectory() as temporary:
         overlay = Path(temporary)
         test = overlay / test_path
-        restore_parent_tree(root, revision, overlay)
+        restore_parent_tree(root, parent_revision or f"{revision}^", overlay)
         test.parent.mkdir(parents=True, exist_ok=True)
         if not (overlay / production_path).is_file():
             raise ValueError(f"cannot read {production_path} at {revision}^")
@@ -224,11 +225,14 @@ def run_parent_code_test(
         return ParentTestOutcome("pass")
 
 
-def validate(root: Path, revision: str, production_path: str, test_path: str) -> list[str]:
-    if no_red_reason(root, revision):
+def validate(
+    root: Path, revision: str, production_path: str, test_path: str,
+    *, parent_revision: str | None = None,
+) -> list[str]:
+    if parent_revision is None and no_red_reason(root, revision):
         return []
     try:
-        parent_test = source_at(root, f"{revision}^", test_path)
+        parent_test = source_at(root, parent_revision or f"{revision}^", test_path)
     except ValueError:
         parent_test = ""
     child_test = source_at(root, revision, test_path)
@@ -237,13 +241,15 @@ def validate(root: Path, revision: str, production_path: str, test_path: str) ->
     violations: list[str] = []
     for class_name, method_name in added:
         outcome = run_parent_code_test(
-            root, revision, production_path, test_path, child_test, class_name, method_name
+            root, revision, production_path, test_path, child_test, class_name, method_name,
+            parent_revision=parent_revision,
         )
         child_outcome = None
         if outcome.kind == "assertion failure":
             child_outcome = run_parent_code_test(
                 root, revision, production_path, test_path, child_test, class_name, method_name,
                 production_source=child_production,
+                parent_revision=parent_revision,
             )
         if outcome.kind != "assertion failure" or child_outcome.kind != "pass":
             prefix = f"{class_name}." if class_name else ""
@@ -261,12 +267,16 @@ def validate(root: Path, revision: str, production_path: str, test_path: str) ->
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--root", type=Path, default=Path.cwd())
+    parser.add_argument("--parent-revision", help="explicit PR base revision; defaults to revision^")
     parser.add_argument("revision")
     parser.add_argument("production_path")
     parser.add_argument("test_path")
     args = parser.parse_args()
     try:
-        violations = validate(args.root.resolve(), args.revision, args.production_path, args.test_path)
+        violations = validate(
+            args.root.resolve(), args.revision, args.production_path, args.test_path,
+            parent_revision=args.parent_revision,
+        )
     except ValueError as error:
         print(f"red-before-green unavailable: {error}", file=sys.stderr)
         return 2

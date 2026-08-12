@@ -1390,21 +1390,31 @@ class HardResetGateTest(unittest.TestCase):
 
 class PullRequestAuditBeforeArmingGateTest(unittest.TestCase):
     """R28: auto-merge requires a fresh complete exact-head feedback audit."""
+    def setUp(self):
+        self.assertTrue(
+            callable(getattr(guard, "check_r28_pr_audit_before_arming", None)),
+            "auto-merge audit gate is missing",
+        )
+
     def test_auto_merge_requires_a_clean_head_bound_audit_receipt(self):
+        rule = getattr(guard, "check_r28_pr_audit_before_arming", None)
+        self.assertIsNotNone(rule, "auto-merge audit gate is missing")
         command = "gh pr merge 17 --auto --merge"
         with mock.patch.object(guard, "_validated_pr_audit_receipt", return_value=False):
-            reason = guard.check_r28_pr_audit_before_arming(command, "PowerShell", {"cwd": "."})
+            reason = rule(command, "PowerShell", {"cwd": "."})
         self.assertIn("pr-audit", reason)
         self.assertIn("#17", reason)
 
         with mock.patch.object(guard, "_validated_pr_audit_receipt", return_value=True):
             self.assertIsNone(
-                guard.check_r28_pr_audit_before_arming(command, "PowerShell", {"cwd": "."})
+                rule(command, "PowerShell", {"cwd": "."})
             )
 
     def test_non_merge_commands_and_non_auto_merge_do_not_require_receipt(self):
+        rule = getattr(guard, "check_r28_pr_audit_before_arming", None)
+        self.assertIsNotNone(rule, "auto-merge audit gate is missing")
         for command in ("gh pr view 17", "gh pr merge 17 --merge"):
-            self.assertIsNone(guard.check_r28_pr_audit_before_arming(command, "PowerShell", {}))
+            self.assertIsNone(rule(command, "PowerShell", {}))
 
     def test_ready_and_cross_repository_merge_require_matching_audit(self):
         identity = ("consumer/project", "ChaosEngine/task", "a" * 40)
@@ -1416,6 +1426,14 @@ class PullRequestAuditBeforeArmingGateTest(unittest.TestCase):
 
 class MergeAuthorityBeforeArmingGateTest(unittest.TestCase):
     """R30: no PR merge mutation without recorded exact-head user authority."""
+
+    def setUp(self):
+        for name in (
+            "check_r30_merge_authority_before_arming",
+            "run_user_prompt_submit",
+            "_trusted_executable_token",
+        ):
+            self.assertTrue(callable(getattr(guard, name, None)), f"{name} is missing")
 
     def test_merge_requires_exact_head_authority_event(self):
         identity = ("consumer/project", "ChaosEngine/task", "a" * 40)
@@ -1824,6 +1842,10 @@ class LearningNoneEscapeTest(unittest.TestCase):
 
 class DeliveryCompleteStopGateTest(unittest.TestCase):
     """R29: Stop requires live mergedAt and scoped-cleanup delivery proof."""
+    def setUp(self):
+        for name in ("check_r29_delivery_complete", "_checkpoint_json_event"):
+            self.assertTrue(callable(getattr(guard, name, None)), f"{name} is missing")
+
     def test_commit_cannot_complete_without_fresh_live_delivery_receipt(self):
         identity = ("consumer/project", "ChaosEngine/task", "a" * 40)
         with mock.patch.object(guard, "ledger_events", return_value=["commit"]), mock.patch.object(

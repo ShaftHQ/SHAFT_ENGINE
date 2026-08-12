@@ -154,13 +154,17 @@ class ValidateRedBeforeGreenTest(unittest.TestCase):
     def git(root: Path, *args: str) -> str:
         return subprocess.check_output(["git", *args], cwd=root, text=True)  # nosec B603 B607
 
-    def run_validator(self, root: Path, revision: str) -> subprocess.CompletedProcess[str]:
+    def run_validator(
+        self, root: Path, revision: str, *, parent_revision: str | None = None,
+    ) -> subprocess.CompletedProcess[str]:
+        parent_arguments = ["--parent-revision", parent_revision] if parent_revision else []
         return subprocess.run(  # nosec B603 - fixed Python executable and validator path.
             [
                 sys.executable,
                 str(SCRIPT),
                 "--root",
                 str(root),
+                *parent_arguments,
                 revision,
                 "scripts/agents/guard.py",
                 "tests/scripts/test_guard.py",
@@ -168,6 +172,28 @@ class ValidateRedBeforeGreenTest(unittest.TestCase):
             capture_output=True,
             text=True,
         )
+
+    def test_explicit_pr_base_is_accepted_as_the_parent_revision(self):
+        root, revision = self.repository()
+        parent = self.git(root, "rev-parse", f"{revision}^").strip()
+
+        result = self.run_validator(root, revision, parent_revision=parent)
+
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+    def test_commit_scoped_no_red_cannot_exempt_a_pr_wide_base_comparison(self):
+        root, revision = self.repository(
+            parent_passes=True,
+            trailer="\n\nno-red: final integration commit cannot exempt earlier tests across the entire pull request",
+        )
+        parent = self.git(root, "rev-parse", f"{revision}^").strip()
+
+        result = self.run_validator(root, revision, parent_revision=parent)
+        legacy = self.run_validator(root, revision)
+
+        self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+        self.assertIn("GuardTest.test_added", result.stderr)
+        self.assertEqual(legacy.returncode, 0, "fixture must carry a recognized commit-scoped trailer")
 
     def test_new_test_that_fails_against_parent_is_accepted(self):
         self.assertTrue(SCRIPT.is_file(), "the parent-code RED validator must exist")
