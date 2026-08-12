@@ -68,6 +68,14 @@ class ValidateDocumentationBoundariesTest(unittest.TestCase):
 
         self.assertEqual(validate_repository(self.root), [])
 
+    def test_allows_portable_chaos_engine_guidance_and_profile_catalog(self):
+        self.write("chaos-engine/skills/chaos-engine/SKILL.md", "# ChaosEngine\n")
+        self.write("chaos-engine/profiles/README.md", "# Project profiles\n")
+        self.write("chaos-engine/RESEARCH.md", "# Adoption matrix\n")
+        self.write("chaos-engine/INSTALL.md", "# Install\n")
+
+        self.assertEqual(validate_repository(self.root), [])
+
     def test_allows_installable_shaft_skills(self):
         self.write("shaft-skills/evaluation-prompts.md", "# Evaluation Prompts\n")
         self.write("shaft-skills/writing-shaft-tests/SKILL.md", "# Writing SHAFT Tests\n")

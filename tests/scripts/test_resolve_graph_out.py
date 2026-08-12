@@ -186,7 +186,7 @@ class ResolveGraphOutTest(unittest.TestCase):
     def test_pr_gate_and_guidance_use_the_freshness_check(self):
         workflow = (ROOT / ".github/workflows/pr-gate.yml").read_text(encoding="utf-8")
         guidance = (
-            ROOT / ".agents/skills/act-as-mohab/references/graphify.md"
+            ROOT / "chaos-engine/references/graphify.md"
         ).read_text(encoding="utf-8")
         readme = (ROOT / "tools/repository-map/README.md").read_text(encoding="utf-8")
 

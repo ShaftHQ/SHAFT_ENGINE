@@ -1002,8 +1002,8 @@ def _validate_executable_spec_tables(section: str, path: str) -> list[dict[str, 
 
 def validate_executable_spec_guidance(root: Path) -> list[dict[str, str]]:
     """Validate #4656's source-controlled structural planning contract."""
-    consult_relative = ".agents/skills/act-as-mohab/references/consult-first.md"
-    planning_relative = ".agents/skills/act-as-mohab/references/work-github-planning.md"
+    consult_relative = "chaos-engine/references/consult-first.md"
+    planning_relative = "chaos-engine/references/work-github-planning.md"
     consult_path = root / consult_relative
     planning_path = root / planning_relative
     if not consult_path.exists():

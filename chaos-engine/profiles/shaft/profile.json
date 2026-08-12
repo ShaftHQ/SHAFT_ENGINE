@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "name": "shaft",
+  "entrypoint": "./entrypoint.md",
+  "repository": "ShaftHQ/SHAFT_ENGINE",
+  "defaultBranch": "main",
+  "taskBranchPrefix": "ChaosEngine/",
+  "companionRepositories": [
+    {
+      "purpose": "public-documentation",
+      "repository": "ShaftHQ/shafthq.github.io",
+      "defaultBranch": "master"
+    }
+  ]
+}

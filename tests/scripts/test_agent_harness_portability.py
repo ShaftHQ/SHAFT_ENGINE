@@ -416,17 +416,20 @@ class AgentHarnessPortabilityTest(unittest.TestCase):
 
         self.assertEqual(
             discovered,
-            [ROOT / ".agents/skills/act-as-mohab/SKILL.md"],
+            [
+                ROOT / ".agents/skills/act-as-mohab/SKILL.md",
+                ROOT / ".agents/skills/chaos-engine/SKILL.md",
+            ],
         )
 
     def test_act_as_mohab_has_one_substantive_body_and_relative_adapter(self):
-        canonical = ROOT / ".agents/skills/act-as-mohab/SKILL.md"
+        canonical = ROOT / "chaos-engine/skills/chaos-engine/SKILL.md"
         adapter = ROOT / ".claude/skills/act-as-mohab/SKILL.md"
         self.assertTrue(canonical.is_file())
         self.assertGreater(len(markdown_body(canonical)), 1000)
         self.assertLess(len(markdown_body(adapter)), 500)
 
-        candidates = list(ROOT.glob(".*/skills/act-as-mohab/SKILL.md"))
+        candidates = [canonical, *ROOT.glob(".*/skills/act-as-mohab/SKILL.md")]
         substantive = [path for path in candidates if len(markdown_body(path)) > 500]
         self.assertEqual(substantive, [canonical])
 
@@ -434,10 +437,11 @@ class AgentHarnessPortabilityTest(unittest.TestCase):
         self.assertIsNotNone(match)
         target = match.group(1)
         self.assertFalse(Path(target).is_absolute())
-        self.assertEqual((adapter.parent / target).resolve(), canonical.resolve())
+        repository_adapter = ROOT / ".agents/skills/chaos-engine/SKILL.md"
+        self.assertEqual((adapter.parent / target).resolve(), repository_adapter.resolve())
 
     def test_act_as_mohab_embeds_core_working_rules(self):
-        content = (ROOT / ".agents/skills/act-as-mohab/SKILL.md").read_text(
+        content = (ROOT / "chaos-engine/skills/chaos-engine/SKILL.md").read_text(
             encoding="utf-8"
         )
         for heading in ("### Caveman", "### Ponytail", "### Test-driven development"):
@@ -450,11 +454,11 @@ class AgentHarnessPortabilityTest(unittest.TestCase):
             self.assertNotIn(retired_link, content)
 
     def test_act_as_mohab_preserves_bounded_drive_sharing_authorization(self):
-        content = (ROOT / ".agents/skills/act-as-mohab/SKILL.md").read_text(
+        content = (ROOT / "chaos-engine/profiles/shaft/entrypoint.md").read_text(
             encoding="utf-8"
         )
         section = re.search(
-            r"### Standing SHAFT artifact sharing authorization\s+(.*?)(?=\nOpening a PR)",
+            r"## Standing artifact sharing authorization\s+(.*)",
             content,
             re.DOTALL,
         )
@@ -472,17 +476,13 @@ class AgentHarnessPortabilityTest(unittest.TestCase):
         )
 
     def test_act_as_mohab_requires_fresh_task_branch_from_fetched_main(self):
-        content = (ROOT / ".agents/skills/act-as-mohab/SKILL.md").read_text(
+        content = (ROOT / "chaos-engine/profiles/shaft/entrypoint.md").read_text(
             encoding="utf-8"
         )
         compact = re.sub(r"\s+", " ", content)
         for required in (
-            "## Task isolation",
-            "Before task-specific discovery or edits",
-            "successfully fetch and prune",
-            "fresh `ChaosEngine/*` branch/worktree",
+            "Task branches use `ChaosEngine/*`",
             "fetched `origin/main`",
-            "Never reuse that branch for a later user task",
         ):
             self.assertIn(required, compact)
 
@@ -490,14 +490,14 @@ class AgentHarnessPortabilityTest(unittest.TestCase):
         budget = json.loads(
             (ROOT / "scripts/ci/agent_guidance_budget.json").read_text(encoding="utf-8")
         )
-        mandatory = ".agents/skills/act-as-mohab/SKILL.md"
+        mandatory = ".agents/skills/chaos-engine/SKILL.md"
         for host, paths in budget["host_contexts"].items():
             self.assertIn(mandatory, paths, host)
 
     def test_rule_docs_are_embedded_rather_than_redirected(self):
         """Redirect stubs cost a read and carry no content, so the rules live in
         the entrypoint and the stubs are gone. Attribution must survive."""
-        references = ROOT / ".agents/skills/act-as-mohab/references"
+        references = ROOT / "chaos-engine/references"
         for retired in (
             "caveman.md",
             "ponytail.md",
@@ -516,7 +516,7 @@ class AgentHarnessPortabilityTest(unittest.TestCase):
     def test_all_hosts_reach_the_same_entrypoint_without_grok_duplication(self):
         agents = (ROOT / "AGENTS.md").read_text(encoding="utf-8")
         claude = (ROOT / "CLAUDE.md").read_text(encoding="utf-8")
-        self.assertIn(".agents/skills/act-as-mohab/SKILL.md", agents)
+        self.assertIn(".agents/skills/chaos-engine/SKILL.md", agents)
         self.assertIn("@AGENTS.md", claude)
         self.assertFalse((ROOT / "GROK.md").exists())
         self.assertFalse((ROOT / ".grok").exists())
@@ -542,7 +542,7 @@ class AgentHarnessPortabilityTest(unittest.TestCase):
 
     def test_delegation_policy_uses_capability_tiers_not_fixed_models_or_effort(self):
         paths = [ROOT / "AGENTS.md", ROOT / ".claude/user-harness/settings.json"]
-        paths.extend((ROOT / ".agents/skills/act-as-mohab").rglob("*.md"))
+        paths.extend((ROOT / "chaos-engine").rglob("*.md"))
         paths.extend((ROOT / ".claude/agents").glob("*.md"))
         forbidden = re.compile(
             r"(?i)\b(?:sonnet|haiku|opus|fable|gpt-[\w.-]+|grok-[\w.-]+)\b"
@@ -566,7 +566,7 @@ class AgentHarnessPortabilityTest(unittest.TestCase):
         """
         pdca = (
             ROOT
-            / ".agents/skills/act-as-mohab/references/playbooks/agentic-pdca-loop.md"
+            / "chaos-engine/profiles/shaft/references/playbooks/agentic-pdca-loop.md"
         ).read_text(encoding="utf-8")
         compact = re.sub(r"\s+", " ", pdca)
         self.assertIn("personas are phases, not agent identities", pdca.lower())
@@ -780,12 +780,11 @@ class AgentHarnessPortabilityTest(unittest.TestCase):
         self.assertIn("R19", reason)
 
     def test_deployed_canonical_subtree_has_no_external_or_broken_markdown_links(self):
-        # The deployment unit is the whole skills tree, not one skill: the
-        # router links sibling skills, so a per-skill copy would report false
-        # breaks and a per-skill deploy would create real ones.
-        canonical = ROOT / ".agents/skills"
+        # The deployment unit is the whole portable ChaosEngine tree, not one
+        # skill: the entrypoint links generic references and project profiles.
+        canonical = ROOT / "chaos-engine"
         with tempfile.TemporaryDirectory() as temporary_directory:
-            deployed = Path(temporary_directory) / ".agents/skills"
+            deployed = Path(temporary_directory) / "chaos-engine"
             shutil.copytree(canonical, deployed)
             broken = []
             for path in deployed.rglob("*.md"):

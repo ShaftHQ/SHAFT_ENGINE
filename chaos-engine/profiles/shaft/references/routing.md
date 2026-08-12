@@ -10,12 +10,12 @@ know. Infer the row from what they asked for.
 ## Always, before any row
 
 Take the depth the entrypoint's triage already selected, loading
-[consult-first](consult-first.md) only when that triage sends you
+[consult-first](../../../references/consult-first.md) only when that triage sends you
 there. Apply the entrypoint's Caveman, Ponytail, and TDD rules; use
-[delegation](delegation.md) before dispatch and [roles](roles.md) for role
+[delegation](../../../references/delegation.md) before dispatch and [roles](../../../references/roles.md) for role
 boundaries. When the change involves a mock, a method a production class gains
 only for a test, or an argument for writing the code first, add
-[TDD failure modes](tdd-failure-modes.md).
+[TDD failure modes](../../../references/tdd-failure-modes.md).
 
 ## Knowledge before discovery
 
@@ -26,7 +26,7 @@ before broad manual discovery, not all of them by reflex.
 | --- | --- | --- |
 | Has this constraint or gotcha already bitten us? | native Memory | Required before any non-trivial change, and before filing an issue. |
 | What happened around this before, and what does it touch? | MemPalace | The change spans entities, sessions, or a history you were not part of. |
-| What calls or depends on this? | [Graphify](graphify.md) | Blast radius is unknown, or you are about to change a shared symbol. |
+| What calls or depends on this? | [Graphify](../../../references/graphify.md) | Blast radius is unknown, or you are about to change a shared symbol. |
 | What does the code do right now? | targeted `rg` and exact reads | Always. This is the only source that settles a disagreement. |
 
 The native store is source-controlled, and its contract travels with it:
@@ -64,9 +64,9 @@ failure this table exists to prevent.
 | Externally documented behavior that changed | [public docs](playbooks/public-behavior-docs-synchronizer.md) |
 | Any visible SHAFT interface, visual QA, UX copy, accessibility | [UI design](playbooks/shaft-ui-design.md) |
 | Marketing or promotional material | [marketing](playbooks/shaft-marketing-ad-producer.md) |
-| One issue through a merged PR | [GitHub playbook](work-github-playbook.md) |
-| Reviewing a diff for behavior that no check would catch | [verification-gap lens](verification-gap-lens.md) |
-| Holding main thread at session start | [orchestrator bootstrap](orchestrator-bootstrap.md) |
+| One issue through a merged PR | [GitHub playbook](../../../references/work-github-playbook.md) |
+| Reviewing a diff for behavior that no check would catch | [verification-gap lens](../../../references/verification-gap-lens.md) |
+| Holding main thread at session start | [orchestrator bootstrap](../../../references/orchestrator-bootstrap.md) |
 | A repository CI script or guard under `scripts/`, outside agent guidance | [agent guidance](playbooks/agent-guidance-boundary-guard.md), then the guard's own test |
 | In-repo Markdown for humans, such as README or CONTRIBUTING | [public docs](playbooks/public-behavior-docs-synchronizer.md) |
 | The `.memory` store itself: entries, relations, or hygiene | [agent guidance](playbooks/agent-guidance-boundary-guard.md) |

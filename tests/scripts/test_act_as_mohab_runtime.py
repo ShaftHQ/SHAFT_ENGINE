@@ -1,5 +1,7 @@
 """End-to-end portable ChaosEngine runtime contract tests (#4746)."""
 
+import contextlib
+import io
 import json
 import subprocess  # nosec B404 - fixed local runtime test commands.
 import sys
@@ -29,6 +31,37 @@ class ActAsMohabRuntimeTest(unittest.TestCase):
     def assemble_runtime(self) -> Path:
         assemble(ROOT, self.package_root)
         return self.package_root / "bin/act-as-mohab.pyz"
+
+    def test_issue_labels_returns_success_after_reconciliation(self):
+        context = RepositoryContext("consumer/project", ROOT, None)
+        payload = {"kind": "label-reconciliation", "applied": True}
+        stdout = io.StringIO()
+        with (
+            mock.patch.object(act_as_mohab_cli, "context_from_arguments", return_value=context),
+            mock.patch.object(act_as_mohab_cli, "reconcile_labels", return_value=payload),
+            contextlib.redirect_stdout(stdout),
+        ):
+            result = act_as_mohab_cli.main(["issue-labels", "--apply"])
+
+        self.assertEqual(0, result)
+        self.assertEqual(payload, json.loads(stdout.getvalue()))
+
+    def test_issue_labels_maps_github_unavailability_to_environment_error(self):
+        context = RepositoryContext("consumer/project", ROOT, None)
+        stderr = io.StringIO()
+        with (
+            mock.patch.object(act_as_mohab_cli, "context_from_arguments", return_value=context),
+            mock.patch.object(
+                act_as_mohab_cli,
+                "reconcile_labels",
+                side_effect=act_as_mohab_cli.GitHubUnavailable("offline"),
+            ),
+            contextlib.redirect_stderr(stderr),
+        ):
+            result = act_as_mohab_cli.main(["issue-labels", "--apply"])
+
+        self.assertEqual(act_as_mohab_cli.EXIT_ENVIRONMENT_ERROR, result)
+        self.assertIn("issue filing failed: offline", stderr.getvalue())
 
     def test_delivery_status_passes_complete_repository_context_arguments(self):
         manifest = self.base / "manifest.json"

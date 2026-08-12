@@ -26,17 +26,18 @@ from scripts.ci.validate_agent_guidance import (
 )
 
 ROOT = Path(__file__).resolve().parents[2]
-CANONICAL_SKILLS = ROOT / ".agents/skills"
+CANONICAL_SKILLS = ROOT / "chaos-engine/skills"
 CLAUDE_SKILLS = ROOT / ".claude/skills"
 CLAUDE_AGENTS = ROOT / ".claude/agents"
 CODEX_AGENTS = ROOT / ".codex/agents"
-ENTRYPOINT = CANONICAL_SKILLS / "act-as-mohab/SKILL.md"
-REFERENCES = CANONICAL_SKILLS / "act-as-mohab/references"
+ENTRYPOINT = CANONICAL_SKILLS / "chaos-engine/SKILL.md"
+REFERENCES = ROOT / "chaos-engine/profiles/shaft/references"
 ROUTING = REFERENCES / "routing.md"
-ROLES = REFERENCES / "roles.md"
-DELEGATION = REFERENCES / "delegation.md"
-LENS = REFERENCES / "verification-gap-lens.md"
-CONSULT = REFERENCES / "consult-first.md"
+CORE_REFERENCES = ROOT / "chaos-engine/references"
+ROLES = CORE_REFERENCES / "roles.md"
+DELEGATION = CORE_REFERENCES / "delegation.md"
+LENS = CORE_REFERENCES / "verification-gap-lens.md"
+CONSULT = CORE_REFERENCES / "consult-first.md"
 BUDGET = ROOT / "scripts/ci/agent_guidance_budget.json"
 
 # agentskills.io/specification: keep SKILL.md under 500 lines so a host never
@@ -950,8 +951,12 @@ class RouterTableTest(unittest.TestCase):
 
     def test_entrypoint_reaches_routing_roles_and_delegation(self):
         content = ENTRYPOINT.read_text(encoding="utf-8")
-        for surface in ("routing.md", "delegation.md", "roles.md"):
+        for surface in ("delegation.md", "roles.md"):
             self.assertIn(surface, content, f"entrypoint does not reach {surface}")
+        adapter = (ROOT / ".agents/skills/chaos-engine/SKILL.md").read_text(encoding="utf-8")
+        self.assertIn("profiles/shaft/entrypoint.md", adapter)
+        profile = (ROOT / "chaos-engine/profiles/shaft/entrypoint.md").read_text(encoding="utf-8")
+        self.assertIn("references/routing.md", profile)
 
     def test_retired_indirection_files_are_gone(self):
         for retired in (
@@ -973,7 +978,7 @@ class RouterTableTest(unittest.TestCase):
             "ponytail.LICENSE",
             "test-driven-development.LICENSE",
         ):
-            self.assertTrue((REFERENCES / licence).is_file(), f"missing {licence}")
+            self.assertTrue((CORE_REFERENCES / licence).is_file(), f"missing {licence}")
 
     def test_no_guidance_file_still_links_a_retired_indirection_file(self):
         retired = re.compile(
@@ -1090,17 +1095,17 @@ class HostParityTest(unittest.TestCase):
     def test_both_hosts_expose_the_same_skill_set(self):
         canonical = {path.parent.name for path in CANONICAL_SKILLS.glob("*/SKILL.md")}
         claude = {path.parent.name for path in CLAUDE_SKILLS.glob("*/SKILL.md")}
-        self.assertEqual(canonical, claude)
+        self.assertEqual(canonical, {"chaos-engine"})
+        self.assertEqual(claude, {"chaos-engine", "act-as-mohab"})
 
     def test_claude_skills_are_redirects_to_the_canonical_body(self):
         for adapter in sorted(CLAUDE_SKILLS.glob("*/SKILL.md")):
             with self.subTest(skill=adapter.parent.name):
                 targets = local_links(adapter)
                 self.assertTrue(targets, "adapter must link its canonical body")
-                self.assertEqual(
-                    (adapter.parent / targets[0]).resolve(),
-                    (CANONICAL_SKILLS / adapter.parent.name / "SKILL.md").resolve(),
-                )
+                resolved = (adapter.parent / targets[0]).resolve()
+                expected = ROOT / ".agents/skills/chaos-engine/SKILL.md"
+                self.assertEqual(resolved, expected.resolve())
 
     def role_headings(self) -> set[str]:
         return {
@@ -1139,19 +1144,19 @@ class HostParityTest(unittest.TestCase):
         """#4570 A5: a delegate misses SessionStart, so its adapter path owns retrieval."""
         clause = (
             "When this entrypoint was loaded through a role adapter, load "
-            "[retrieve-first](references/retrieve-first.md) before task-specific discovery, "
+            "[retrieve-first](../../references/retrieve-first.md) before task-specific discovery, "
             "including one-file reversible work."
         )
         entrypoint = ENTRYPOINT.read_text(encoding="utf-8")
         self.assertIn(re.sub(r"\s+", " ", clause), re.sub(r"\s+", " ", entrypoint))
         for adapter in sorted(CLAUDE_AGENTS.glob("*.md")):
             with self.subTest(adapter=adapter):
-                self.assertIn("act-as-mohab/SKILL.md", adapter.read_text(encoding="utf-8"))
+                self.assertIn("chaos-engine/SKILL.md", adapter.read_text(encoding="utf-8"))
         tomllib = __import__("tomllib")
         for adapter in sorted(CODEX_AGENTS.glob("*.toml")):
             with self.subTest(adapter=adapter):
                 instructions = tomllib.loads(adapter.read_text(encoding="utf-8"))["developer_instructions"]
-                self.assertIn("act-as-mohab/SKILL.md", instructions)
+                self.assertIn("chaos-engine/SKILL.md", instructions)
 
     def test_codex_role_adapters_use_the_documented_schema(self):
         tomllib = __import__("tomllib")
@@ -1166,7 +1171,7 @@ class HostParityTest(unittest.TestCase):
                 self.assertEqual(parsed["name"], adapter.stem, "name is the source of truth")
                 instructions = parsed["developer_instructions"]
                 self.assertNotIn("\r", instructions, "carriage return leaked into the string")
-                self.assertIn("act-as-mohab/SKILL.md", instructions)
+                self.assertIn("chaos-engine/SKILL.md", instructions)
                 self.assertIn("roles.md", instructions)
                 named = [role for role in headings if role in instructions.lower()]
                 self.assertTrue(named, "adapter must name a portable role")
@@ -1220,7 +1225,7 @@ class HostParityTest(unittest.TestCase):
         budget = json.loads(BUDGET.read_text(encoding="utf-8"))
         for host, paths in budget["host_contexts"].items():
             with self.subTest(host=host):
-                self.assertIn(".agents/skills/act-as-mohab/SKILL.md", paths)
+                self.assertIn(".agents/skills/chaos-engine/SKILL.md", paths)
 
 
 class CiGateIsBlockingTest(unittest.TestCase):
@@ -1384,7 +1389,8 @@ class NoDuplicationTest(unittest.TestCase):
         "CLAUDE.md",
         ".agents/skills/README.md",
         ".agents/skills/*/SKILL.md",
-        ".agents/skills/act-as-mohab/references/**/*.md",
+        "chaos-engine/references/**/*.md",
+        "chaos-engine/profiles/shaft/references/**/*.md",
         ".claude/skills/*/SKILL.md",
         ".claude/agents/*.md",
         ".github/skills/*/SKILL.md",
@@ -1431,18 +1437,18 @@ class NoDuplicationTest(unittest.TestCase):
         read for a duplicated line.
         """
         self.assertIn(
-            (CANONICAL_SKILLS / "README.md").resolve(),
+            (ROOT / ".agents/skills/README.md").resolve(),
             {path.resolve() for path in self.guidance_files()},
         )
 
     def test_every_reference_file_is_routed_or_linked(self):
         """A reference nothing points at is guidance no agent will ever read."""
-        reachable = set()
-        for skill in CANONICAL_SKILLS.glob("*/SKILL.md"):
-            reachable.update(read_chain_depth(skill))
+        adapter = ROOT / ".agents/skills/chaos-engine/SKILL.md"
+        reachable = set(read_chain_depth(adapter))
         orphaned = [
             path.relative_to(ROOT).as_posix()
-            for path in REFERENCES.rglob("*.md")
+            for root in (CORE_REFERENCES, REFERENCES)
+            for path in root.rglob("*.md")
             if path.resolve() not in reachable
         ]
         self.assertEqual(orphaned, [], "reference file is not reachable from any skill")
@@ -1455,7 +1461,7 @@ class SkillsMapTest(unittest.TestCase):
     it as the whole system and never learns what it left out.
     """
 
-    MAP = CANONICAL_SKILLS / "README.md"
+    MAP = ROOT / ".agents/skills/README.md"
 
     def test_the_map_exists_and_is_linked_from_the_contribution_guide(self):
         self.assertTrue(self.MAP.is_file())
@@ -1466,13 +1472,14 @@ class SkillsMapTest(unittest.TestCase):
         content = self.MAP.read_text(encoding="utf-8")
         surfaces = [
             *CANONICAL_SKILLS.glob("*/SKILL.md"),
+            *CORE_REFERENCES.glob("*.md"),
             *(REFERENCES / "playbooks").glob("*.md"),
             *(REFERENCES / "shaft-mastery").glob("*.md"),
             *(path for path in REFERENCES.glob("*.md")),
         ]
         missing = []
         for path in sorted(surfaces):
-            target = path.relative_to(CANONICAL_SKILLS).as_posix()
+            target = (Path("../..") / path.relative_to(ROOT)).as_posix()
             if target not in content:
                 missing.append(target)
         self.assertEqual(missing, [], "skills map omits a surface")
@@ -1530,7 +1537,7 @@ class SkillsMapTest(unittest.TestCase):
 
     def test_the_map_tells_agents_to_load_the_entrypoint_rather_than_itself(self):
         content = compact(self.MAP)
-        self.assertIn("act-as-mohab/skill.md", content)
+        self.assertIn("chaos-engine/skill.md", content)
         self.assertRegex(content, r"do not work from this file|map, not the territory")
 
 
@@ -1663,7 +1670,8 @@ class SoloOrOrchestrateTest(unittest.TestCase):
         "CLAUDE.md",
         ".agents/skills/README.md",
         ".agents/skills/*/SKILL.md",
-        ".agents/skills/act-as-mohab/references/**/*.md",
+        "chaos-engine/references/**/*.md",
+        "chaos-engine/profiles/shaft/references/**/*.md",
         ".claude/agents/*.md",
         ".claude/skills/*/SKILL.md",
         ".claude/user-harness/*.md",

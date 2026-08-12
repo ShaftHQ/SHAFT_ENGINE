@@ -133,7 +133,7 @@ by ancestry. Squash and rebase merging are disabled; do not substitute them.
    mergeStateStatus,mergedAt`; `DIRTY` conflicts and `BEHIND` stale heads need
    action even when no event fires.
 5. **Fix** red checks on the branch, review comments, or bot findings on the
-   branch, or merge `origin/main` for a conflict or
+   branch, or merge the fetched configured upstream default branch for a conflict or
    stale head, then return to watch. Never force-push away owner-visible history.
    Any new push restarts the comment gate before auto-merge may remain armed.
 6. **Confirm** remotely that `mergedAt` is non-null; armed is not merged.
