@@ -1236,7 +1236,7 @@ final class ShaftMcpSetupPanel extends JPanel implements Disposable {
             String cloudVariable = useGeminiEnvironment.isSelected()
                     ? settings.providerApiKeyEnvironmentVariable("gemini") : "";
             if (cloudVariable.isBlank()) {
-                applyChosenAgentCheckResult(verifySelectedAgentReadiness(cloudCredentialReadiness("")));
+                applyConnectAgentResult(verifySelectedAgentReadiness(cloudCredentialReadiness("")));
                 return;
             }
             CompletableFuture.supplyAsync(() -> cloudCredentialReadiness(cloudVariable),
