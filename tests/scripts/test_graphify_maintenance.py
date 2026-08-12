@@ -6,16 +6,15 @@ import shutil
 import subprocess
 import sys
 import tempfile
-import unittest
 from pathlib import Path
-from unittest import mock
+from unittest import TestCase, main, mock
 
 
 ROOT = Path(__file__).resolve().parents[2]
 SCRIPT = ROOT / "tools/repository-map/graphify_maintenance.py"
 
 
-class GraphifyMaintenanceTest(unittest.TestCase):
+class GraphifyMaintenanceTest(TestCase):
     def setUp(self):
         self.temporary = tempfile.TemporaryDirectory()
         self.addCleanup(self.temporary.cleanup)
@@ -326,4 +325,4 @@ class GraphifyMaintenanceTest(unittest.TestCase):
 
 
 if __name__ == "__main__":
-    unittest.main()
+    main()
