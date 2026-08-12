@@ -1099,7 +1099,7 @@ public final class FailureTraceReporter {
         if (attachments != null) {
             attachments.stream()
                     .filter(attachment -> attachment != null && !attachment.isBlank())
-                    .map(FailureTraceReporter::redact)
+                    .map(FailureTraceReporter::redactInvocationText)
                     .forEach(entries::add);
         }
         Path playwrightTrace = shouldOmitSensitiveBrowserEvidence()

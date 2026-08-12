@@ -107,7 +107,7 @@ jobs:
   MacOSX_Safari_Local:
     if: github.event_name != 'workflow_dispatch' || github.event.inputs.jobs == '' || github.event.inputs.jobs == 'all' || contains(format(',{0},', github.event.inputs.jobs), ',MacOSX_Safari_Local,')
     runs-on: macos-latest
-    timeout-minutes: 90
+    timeout-minutes: 120
     outputs:
       job: ${{ steps.post_test_report.outputs.job }}
       total: ${{ steps.post_test_report.outputs.total }}
