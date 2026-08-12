@@ -19,10 +19,14 @@ try:
     )
     from scripts.agents import watch_pr_checks
     from scripts.agents.planning_contract import validate_plan
+    from scripts.agents.github_client import GitHubClient, GitHubUnavailable
+    from scripts.agents.pr_audit import audit_snapshot, collect_pr_snapshot
 except ModuleNotFoundError:
     from repository_context import RepositoryContext, RepositoryContextError, resolve_repository_context
     import watch_pr_checks
     from planning_contract import validate_plan
+    from github_client import GitHubClient, GitHubUnavailable
+    from pr_audit import audit_snapshot, collect_pr_snapshot
 
 
 EXIT_ENVIRONMENT_ERROR = 3
@@ -145,6 +149,11 @@ def build_parser() -> argparse.ArgumentParser:
     add_context_arguments(checkpoint)
     plan = commands.add_parser("plan-validate", help="validate an evidence-backed plan")
     plan.add_argument("input", type=Path)
+    audit = commands.add_parser("pr-audit", help="audit every PR feedback surface")
+    add_context_arguments(audit)
+    audit.add_argument("--dispositions", type=Path, required=True)
+    audit.add_argument("--expected-head")
+    audit.add_argument("--receipt-out", type=Path, required=True)
     commands.add_parser("mcp", help="serve the read-only operations over MCP stdio")
     return parser
 
@@ -178,6 +187,20 @@ def _tool_schemas() -> list[dict]:
                 "type": "object",
                 "properties": {"plan": {"type": "object"}},
                 "required": ["plan"],
+                "additionalProperties": False,
+            },
+        },
+        {
+            "name": "pr_audit",
+            "description": "Return a paginated, head-bound pull-request feedback audit.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    **context_properties,
+                    "expectedHead": {"type": "string"},
+                    "dispositions": {"type": "object"},
+                },
+                "required": ["pr", "dispositions"],
                 "additionalProperties": False,
             },
         },
@@ -228,8 +251,23 @@ def call_tool(name: str, arguments: dict) -> dict:
                 "content": [{"type": "text", "text": json.dumps(payload, sort_keys=True)}],
                 "isError": bool(violations),
             }
+        if name == "pr_audit":
+            context = context_from_arguments(_namespace(arguments))
+            if context.pr_number is None:
+                raise RepositoryContextError("pr_audit requires an explicit pull request")
+            snapshot = collect_pr_snapshot(
+                GitHubClient(context.repo, root=context.root), context.pr_number
+            )
+            payload = audit_snapshot(
+                snapshot, arguments.get("dispositions"),
+                expected_head=arguments.get("expectedHead"),
+            )
+            return {
+                "content": [{"type": "text", "text": json.dumps(payload, sort_keys=True)}],
+                "isError": payload["decision"] != "allow",
+            }
         return {"content": [{"type": "text", "text": f"unknown tool: {name}"}], "isError": True}
-    except RepositoryContextError as error:
+    except (RepositoryContextError, GitHubUnavailable, ValueError) as error:
         return {"content": [{"type": "text", "text": str(error)}], "isError": True}
 
 
@@ -348,6 +386,21 @@ def main(argv: list[str] | None = None) -> int:
         violations = validate_plan(plan)
         print(json.dumps({"valid": not violations, "violations": violations}, sort_keys=True))
         return 1 if violations else 0
+    if parsed.command == "pr-audit":
+        try:
+            context = context_from_arguments(parsed)
+            if context.pr_number is None:
+                raise RepositoryContextError("pr-audit requires --pr")
+            dispositions = json.loads(parsed.dispositions.read_text(encoding="utf-8"))
+            snapshot = collect_pr_snapshot(GitHubClient(context.repo, root=context.root), context.pr_number)
+            payload = audit_snapshot(snapshot, dispositions, expected_head=parsed.expected_head)
+        except (OSError, json.JSONDecodeError, RepositoryContextError, GitHubUnavailable, ValueError) as error:
+            print(f"act-as-mohab: PR audit unavailable: {error}", file=sys.stderr)
+            return EXIT_ENVIRONMENT_ERROR
+        parsed.receipt_out.parent.mkdir(parents=True, exist_ok=True)
+        parsed.receipt_out.write_text(json.dumps(payload, sort_keys=True) + "\n", encoding="utf-8")
+        print(json.dumps(payload, sort_keys=True))
+        return 0 if payload["decision"] == "allow" else 1
     try:
         context = context_from_arguments(parsed)
         payload = (

@@ -67,6 +67,7 @@ import subprocess  # nosec B404 - R10 runs one fixed, read-only git query.
 import sys
 import tempfile
 import time
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import NamedTuple
 from urllib.parse import urlparse
@@ -2417,6 +2418,138 @@ def check_r15_review_before_arming(
     return None
 
 
+def _validated_pr_audit_receipt(hook_input: dict, target: str) -> bool:
+    """True only for this repository, PR, and exact local HEAD's clean audit."""
+    identity = _checkpoint_identity(hook_input)
+    cwd = _hook_working_directory(hook_input)
+    if identity is None or not cwd or not target.isdigit():
+        return False
+    git_path = (_git_output(
+        ["rev-parse", "--git-path", f"act-as-mohab/pr-audit-{target}.json"], cwd
+    ) or "").strip()
+    if not git_path:
+        return False
+    receipt_path = Path(git_path)
+    if not receipt_path.is_absolute():
+        receipt_path = Path(cwd) / receipt_path
+    try:
+        receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return False
+    pagination = receipt.get("pagination") if isinstance(receipt, dict) else None
+    try:
+        observed = datetime.fromisoformat(str(receipt.get("observedAt")))
+        if observed.tzinfo is None:
+            return False
+        age_seconds = (datetime.now(UTC) - observed.astimezone(UTC)).total_seconds()
+    except (TypeError, ValueError):
+        return False
+    digest = hashlib.sha256(
+        (json.dumps(receipt, sort_keys=True, separators=(",", ":")) + "\n").encode("utf-8")
+    ).hexdigest()
+    event = f"pr-audit:{identity[0]}:{target}:{identity[2]}:{digest}"
+    return bool(
+        isinstance(receipt, dict)
+        and receipt.get("schemaVersion") == 1
+        and receipt.get("kind") == "pull-request-audit"
+        and receipt.get("repository") == identity[0]
+        and receipt.get("pullRequest") == int(target)
+        and receipt.get("headOid") == identity[2]
+        and receipt.get("decision") == "allow"
+        and receipt.get("openFindingCount") == 0
+        and receipt.get("reasons") == []
+        and isinstance(receipt.get("findings"), list)
+        and -60 <= age_seconds <= 300
+        and event in ledger_events(hook_input)
+        and isinstance(pagination, dict)
+        and all(
+            isinstance(pagination.get(surface), dict)
+            and pagination[surface].get("complete") is True
+            for surface in ("threads", "reviews", "conversationComments", "annotations")
+        )
+    )
+
+
+def _successful_pr_audit_event(hook_input: dict, command: str) -> str | None:
+    """Bind one successful standalone canonical audit command to its exact receipt."""
+    segments = _command_segments(command)
+    if len(segments) != 1:
+        return None
+    tokens = _segment_tokens(segments[0])
+    try:
+        audit_index = tokens.index("pr-audit")
+        pr_index = tokens.index("--pr", audit_index + 1)
+        receipt_index = tokens.index("--receipt-out", audit_index + 1)
+        target = tokens[pr_index + 1]
+        receipt_path = Path(tokens[receipt_index + 1].strip("\"'"))
+    except (ValueError, IndexError):
+        return None
+    runtime_name = re.split(r"[/\\]", tokens[audit_index - 1].strip("\"'"))[-1].lower() if audit_index else ""
+    head_name = re.split(r"[/\\]", tokens[0].strip("\"'"))[-1].lower() if tokens else ""
+    if (
+        runtime_name not in {"act_as_mohab_cli.py", "act-as-mohab.pyz"}
+        or head_name not in {"py", "py.exe", "python", "python.exe", "python3", "python3.exe"}
+        or not target.isdigit()
+    ):
+        return None
+    if not receipt_path.is_absolute():
+        receipt_path = Path(_hook_working_directory(hook_input) or ".") / receipt_path
+    if not receipt_path.is_file():
+        return None
+    identity = _checkpoint_identity(hook_input)
+    if identity is None:
+        return None
+    try:
+        receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+    if not (
+        isinstance(receipt, dict)
+        and receipt.get("decision") == "allow"
+        and receipt.get("repository") == identity[0]
+        and receipt.get("pullRequest") == int(target)
+        and receipt.get("headOid") == identity[2]
+    ):
+        return None
+    digest = hashlib.sha256(
+        (json.dumps(receipt, sort_keys=True, separators=(",", ":")) + "\n").encode("utf-8")
+    ).hexdigest()
+    return f"pr-audit:{identity[0]}:{target}:{identity[2]}:{digest}"
+
+
+def check_r28_pr_audit_before_arming(
+    command: str, tool_name: str, hook_input: dict | None = None
+) -> str | None:
+    """Require one fresh complete feedback receipt before auto-merge."""
+    if tool_name not in ("Bash", "PowerShell") or not command:
+        return None
+    for segment in _command_segments(command):
+        rest = _tokens_after_head(segment, frozenset({"gh"}))
+        if rest:
+            rest, _ = _split_gh_global_flags(rest)
+        if not rest or rest[:2] != ["pr", "merge"]:
+            continue
+        arguments = rest[2:]
+        auto_merge = any(
+            item == "--auto"
+            or (item.lower().startswith("--auto=") and item.lower()[7:] not in {"false", "0", "f"})
+            for item in arguments
+        )
+        if not auto_merge:
+            continue
+        positional = [item for item in arguments if not item.startswith("-")]
+        target = positional[0] if positional else ""
+        if target.isdigit() and _validated_pr_audit_receipt(hook_input or {}, target):
+            continue
+        label = f"#{target}" if target else "the explicit pull request"
+        return (
+            f"R28 blocked: {label} has no clean feedback receipt bound to this repository and HEAD. "
+            f"Run `py -3 scripts/agents/act_as_mohab_cli.py pr-audit --pr {target or '<number>'} "
+            "--dispositions <file> --receipt-out <git-path>`, address every finding, and retry."
+        )
+    return None
+
+
 # A review counts only when it renders a verdict. `COMMENTED` is what an
 # automated code-quality bot posts, and counting it meant R15 -- the gate whose
 # whole purpose is that somebody independent read the diff -- was satisfiable by
@@ -3234,6 +3367,8 @@ def run_pretooluse(hook_input: dict, host: str = "portable") -> int:
         if reason is None:
             reason = check_r15_review_before_arming(command, tool_name, hook_input)
         if reason is None:
+            reason = check_r28_pr_audit_before_arming(command, tool_name, hook_input)
+        if reason is None:
             reason = check_r14_hard_reset(
                 command, tool_name, _hook_working_directory(hook_input)
             )
@@ -3278,6 +3413,9 @@ def run_posttooluse(hook_input: dict) -> int:
         if not result_failed and _is_learning_write_command(command):
             ledger_record(hook_input, "memory-write")
         if not result_failed:
+            audit_event = _successful_pr_audit_event(hook_input, command)
+            if audit_event:
+                ledger_record(hook_input, audit_event)
             for learning_event in _learning_loop_events(hook_input, command):
                 ledger_record(hook_input, learning_event)
             issue_event = _standalone_issue_created_event(
@@ -4460,6 +4598,7 @@ _SELF_TEST_COVERAGE: dict[str, str] = {
     "check_r24_foreign_worktree_left_behind": "run_required_action_self_test",
     "check_r25_research_before_implementation": "run_required_action_self_test",
     "check_r27_checkpoint_pull_request": "run_required_action_self_test",
+    "check_r28_pr_audit_before_arming": "run_required_action_self_test",
 }
 
 
@@ -4708,6 +4847,26 @@ def run_required_action_self_test() -> int:
         _with_stubs(
             {"_independent_review_count": lambda target, cwd=None: 1},
             lambda: check_r15_review_before_arming("gh pr merge 1 --auto --merge", "Bash"),
+        )
+        is None,
+    )
+    check(
+        "R28 blocks arming without a clean exact-head feedback audit",
+        _with_stubs(
+            {"_validated_pr_audit_receipt": lambda payload, target: False},
+            lambda: check_r28_pr_audit_before_arming(
+                "gh pr merge 1 --auto --merge", "Bash", {}
+            ),
+        )
+        is not None,
+    )
+    check(
+        "R28 allows arming with a clean exact-head feedback audit",
+        _with_stubs(
+            {"_validated_pr_audit_receipt": lambda payload, target: True},
+            lambda: check_r28_pr_audit_before_arming(
+                "gh pr merge 1 --auto --merge", "Bash", {}
+            ),
         )
         is None,
     )

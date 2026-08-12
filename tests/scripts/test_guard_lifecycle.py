@@ -1387,6 +1387,24 @@ class HardResetGateTest(unittest.TestCase):
             )
 
 
+class PullRequestAuditBeforeArmingGateTest(unittest.TestCase):
+    def test_auto_merge_requires_a_clean_head_bound_audit_receipt(self):
+        command = "gh pr merge 17 --auto --merge"
+        with mock.patch.object(guard, "_validated_pr_audit_receipt", return_value=False):
+            reason = guard.check_r28_pr_audit_before_arming(command, "PowerShell", {"cwd": "."})
+        self.assertIn("pr-audit", reason)
+        self.assertIn("#17", reason)
+
+        with mock.patch.object(guard, "_validated_pr_audit_receipt", return_value=True):
+            self.assertIsNone(
+                guard.check_r28_pr_audit_before_arming(command, "PowerShell", {"cwd": "."})
+            )
+
+    def test_non_merge_commands_and_non_auto_merge_do_not_require_receipt(self):
+        for command in ("gh pr view 17", "gh pr merge 17 --merge"):
+            self.assertIsNone(guard.check_r28_pr_audit_before_arming(command, "PowerShell", {}))
+
+
 class ReviewBeforeArmingGateTest(unittest.TestCase):
     """R15 / iron law 6: no arming before an independent adversarial review.
 
