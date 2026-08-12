@@ -205,6 +205,7 @@
       "tools/repository-map/resolve_graph_out.py",
       "tests/scripts/test_agent_*.py",
       "tests/scripts/test_chaos_engine_portable_core.py",
+      "tests/scripts/test_chaos_engine_installer.py",
       "tests/scripts/test_assemble_act_as_mohab_plugin.py",
       "tests/scripts/test_repository_context.py",
       "tests/scripts/test_watch_pr_checks.py",

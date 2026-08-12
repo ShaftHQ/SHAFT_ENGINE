@@ -42,7 +42,10 @@ class ChaosEnginePortableCoreTest(unittest.TestCase):
         sources = sorted(
             path
             for path in CORE.rglob("*")
-            if path.is_file() and "profiles" not in path.relative_to(CORE).parts
+            if path.is_file()
+            and "profiles" not in path.relative_to(CORE).parts
+            and "__pycache__" not in path.relative_to(CORE).parts
+            and path.suffix != ".pyc"
         )
         self.assertTrue(sources, "portable core sources must exist")
         for path in sources:

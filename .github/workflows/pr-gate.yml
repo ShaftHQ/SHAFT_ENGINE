@@ -319,6 +319,8 @@ jobs:
           tests.scripts.test_agent_harness_adherence
           tests.scripts.test_agent_harness_reachability
           tests.scripts.test_chaos_engine_portable_core
+          # Source: tests/scripts/test_chaos_engine_installer.py
+          tests.scripts.test_chaos_engine_installer
           tests.scripts.test_guard_nul_corruption
           tests.scripts.test_guard_memory_worktree
           tests.scripts.test_guard_lifecycle

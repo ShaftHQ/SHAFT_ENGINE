@@ -113,6 +113,10 @@ core never assumes a repository, default branch, local root, or companion
 project. A standalone distribution that bundles exactly one profile selects
 that profile automatically and must link it from its discoverable skill.
 
+The repository-local [installer](../../install.py) owns verified install,
+status, update, rollback, and uninstall transactions for this portable tree.
+Its contract is enforced by `tests/scripts/test_chaos_engine_installer.py`.
+
 ## Task isolation
 
 Before task-specific discovery or edits, main thread must successfully fetch
