@@ -321,7 +321,10 @@ jobs:
           tests.scripts.test_chaos_engine_portable_core
           # Source: tests/scripts/test_chaos_engine_installer.py
           tests.scripts.test_chaos_engine_installer
+          # Source: tests/scripts/test_chaos_engine_dependencies.py
           tests.scripts.test_chaos_engine_dependencies
+          # Source: tests/scripts/test_chaos_engine_hosts.py
+          tests.scripts.test_chaos_engine_hosts
           tests.scripts.test_guard_nul_corruption
           tests.scripts.test_guard_memory_worktree
           tests.scripts.test_guard_lifecycle

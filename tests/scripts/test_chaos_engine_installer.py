@@ -166,6 +166,11 @@ class ChaosEngineInstallerTest(unittest.TestCase):
             )
             self.assertFalse(installed.joinpath("__pycache__").exists())
             self.assertEqual("healthy", MODULE.status(project)["status"])
+            self.assertTrue(project.joinpath(".agents/skills/chaos-engine/SKILL.md").is_file())
+            self.assertTrue(project.joinpath(".claude/skills/chaos-engine/SKILL.md").is_file())
+            self.assertTrue(project.joinpath(".gemini/skills/chaos-engine/SKILL.md").is_file())
+            self.assertTrue(project.joinpath(".github/skills/chaos-engine/SKILL.md").is_file())
+            self.assertIn("chaosengine-memory", project.joinpath(".mcp.json").read_text())
 
     def test_status_reports_dependency_freshness_without_mutating_it(self):
         dependency_module = load_module(SOURCE / "dependencies.py")
@@ -189,6 +194,21 @@ class ChaosEngineInstallerTest(unittest.TestCase):
             self.assertEqual("stale", result["dependencies"]["freshness"])
             self.assertEqual(before, tree_digest(project / ".chaos-engine-runtime"))
 
+    def test_status_rejects_missing_host_adapter(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary) / "consumer"
+            project.mkdir()
+            MODULE.install_with_dependencies(
+                project,
+                SOURCE,
+                TEST_COMMIT,
+                provisioner=lambda *_args, **_kwargs: None,
+            )
+            project.joinpath(".agents/skills/chaos-engine/SKILL.md").unlink()
+
+            with self.assertRaisesRegex(ValueError, "host adapter drift"):
+                MODULE.status_with_dependencies(project)
+
     def test_dependency_failure_compensates_only_a_core_published_by_this_call(self):
         with tempfile.TemporaryDirectory() as temporary:
             project = Path(temporary) / "consumer"
@@ -207,6 +227,228 @@ class ChaosEngineInstallerTest(unittest.TestCase):
             with self.assertRaisesRegex(RuntimeError, "offline"):
                 MODULE.install_with_dependencies(project, SOURCE, TEST_COMMIT, provisioner=fail)
             self.assertEqual(TEST_COMMIT, MODULE.status(project)["commit"])
+
+    def test_failed_update_restores_the_previous_host_generation(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            project = root / "consumer"
+            project.mkdir()
+            MODULE.install_with_dependencies(
+                project,
+                SOURCE,
+                TEST_COMMIT,
+                provisioner=lambda *_args, **_kwargs: None,
+            )
+            before_receipt = project.joinpath(".chaos-engine-hosts.json").read_bytes()
+            before_adapter = project.joinpath(
+                ".agents/skills/chaos-engine/SKILL.md"
+            ).read_bytes()
+            changed_source = copy_source(root / "changed")
+            hosts = changed_source / "hosts.py"
+            hosts.write_text(
+                hosts.read_text(encoding="utf-8").replace(
+                    "Load the canonical installed ChaosEngine before every task.",
+                    "UPDATED host generation.",
+                ),
+                encoding="utf-8",
+            )
+
+            with self.assertRaisesRegex(RuntimeError, "offline"):
+                MODULE.install_with_dependencies(
+                    project,
+                    changed_source,
+                    "2" * 40,
+                    provisioner=lambda *_args, **_kwargs: (_ for _ in ()).throw(
+                        RuntimeError("offline")
+                    ),
+                )
+
+            self.assertEqual(TEST_COMMIT, MODULE.status(project)["commit"])
+            self.assertEqual(before_receipt, project.joinpath(".chaos-engine-hosts.json").read_bytes())
+            self.assertEqual(
+                before_adapter,
+                project.joinpath(".agents/skills/chaos-engine/SKILL.md").read_bytes(),
+            )
+
+    def test_failed_host_compensation_does_not_skip_core_rollback(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            project = root / "consumer"
+            project.mkdir()
+            MODULE.install_with_dependencies(
+                project,
+                SOURCE,
+                TEST_COMMIT,
+                provisioner=lambda *_args, **_kwargs: None,
+            )
+            changed_source = copy_source(root / "changed")
+            hosts = changed_source / "hosts.py"
+            hosts.write_text(
+                hosts.read_text(encoding="utf-8").replace(
+                    "Load the canonical installed ChaosEngine before every task.",
+                    "UPDATED host generation.",
+                ),
+                encoding="utf-8",
+            )
+
+            def fail_after_host_update(*_args, **_kwargs):
+                project.joinpath("AGENTS.md").write_text("concurrent edit\n", encoding="utf-8")
+                raise RuntimeError("offline")
+
+            with self.assertRaisesRegex(ValueError, "host adapter drift"):
+                MODULE.install_with_dependencies(
+                    project,
+                    changed_source,
+                    "2" * 40,
+                    provisioner=fail_after_host_update,
+                )
+
+            self.assertEqual(TEST_COMMIT, MODULE.status(project)["commit"])
+
+    def test_public_rollback_restores_the_matching_host_generation(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            project = root / "consumer"
+            project.mkdir()
+            MODULE.install_with_dependencies(
+                project, SOURCE, TEST_COMMIT, provisioner=lambda *_args, **_kwargs: None
+            )
+            old_adapter = project.joinpath(".agents/skills/chaos-engine/SKILL.md").read_bytes()
+            changed_source = copy_source(root / "changed")
+            hosts = changed_source / "hosts.py"
+            hosts.write_text(
+                hosts.read_text(encoding="utf-8").replace(
+                    "Load the canonical installed ChaosEngine before every task.",
+                    "UPDATED host generation.",
+                ),
+                encoding="utf-8",
+            )
+            MODULE.install_with_dependencies(
+                project, changed_source, "2" * 40, provisioner=lambda *_args, **_kwargs: None
+            )
+
+            MODULE.rollback(project, provisioner=lambda *_args, **_kwargs: None)
+
+            self.assertEqual(TEST_COMMIT, MODULE.status_with_dependencies(project)["commit"])
+            self.assertEqual(
+                old_adapter,
+                project.joinpath(".agents/skills/chaos-engine/SKILL.md").read_bytes(),
+            )
+
+    def test_public_rollback_resumes_the_recorded_target_generation_after_core_swap(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            project = root / "consumer"
+            project.mkdir()
+            MODULE.install_with_dependencies(
+                project, SOURCE, TEST_COMMIT, provisioner=lambda *_args, **_kwargs: None
+            )
+            changed_source = copy_source(root / "changed")
+            hosts = changed_source / "hosts.py"
+            hosts.write_text(
+                hosts.read_text(encoding="utf-8").replace(
+                    "Load the canonical installed ChaosEngine before every task.",
+                    "UPDATED host generation.",
+                ),
+                encoding="utf-8",
+            )
+            MODULE.install_with_dependencies(
+                project, changed_source, "2" * 40, provisioner=lambda *_args, **_kwargs: None
+            )
+            MODULE.write_cross_rollback_journal(project, TEST_COMMIT, "2" * 40)
+            MODULE.rollback(project, _locked=True)
+
+            MODULE.rollback(project, provisioner=lambda *_args, **_kwargs: None)
+
+            self.assertEqual(TEST_COMMIT, MODULE.status_with_dependencies(project)["commit"])
+            self.assertFalse(project.joinpath(MODULE.CROSS_ROLLBACK_JOURNAL_NAME).exists())
+
+    def test_status_reports_recovery_during_cross_resource_rollback(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            project = root / "consumer"
+            project.mkdir()
+            MODULE.install_with_dependencies(
+                project, SOURCE, TEST_COMMIT, provisioner=lambda *_args, **_kwargs: None
+            )
+            changed_source = copy_source(root / "changed")
+            MODULE.install_with_dependencies(
+                project, changed_source, "2" * 40, provisioner=lambda *_args, **_kwargs: None
+            )
+            MODULE.write_cross_rollback_journal(project, TEST_COMMIT, "2" * 40)
+            MODULE.rollback(project, _locked=True)
+
+            result = MODULE.status_with_dependencies(project)
+
+            self.assertEqual("recovery-required", result["status"])
+            self.assertEqual("recovery-required", result["hosts"]["status"])
+
+    def test_cross_rollback_journal_scratch_recovers_and_swapped_intent_is_rejected(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            project = root / "consumer"
+            project.mkdir()
+            MODULE.install_with_dependencies(
+                project, SOURCE, TEST_COMMIT, provisioner=lambda *_args, **_kwargs: None
+            )
+            changed_source = copy_source(root / "changed")
+            MODULE.install_with_dependencies(
+                project, changed_source, "2" * 40, provisioner=lambda *_args, **_kwargs: None
+            )
+            journal = MODULE.write_cross_rollback_journal(project, TEST_COMMIT, "2" * 40)
+            journal.write_bytes(journal.read_bytes()[:17])
+            recovered = MODULE.read_cross_rollback_journal(project)
+            self.assertEqual(TEST_COMMIT, recovered["desiredCommit"])
+            self.assertTrue(journal.exists())
+
+            value = json.loads(journal.read_text(encoding="utf-8"))
+            value["desiredCommit"], value["priorCommit"] = value["priorCommit"], value["desiredCommit"]
+            body = {key: item for key, item in value.items() if key != "integritySha256"}
+            value["integritySha256"] = hashlib.sha256(
+                json.dumps(body, sort_keys=True, separators=(",", ":")).encode()
+            ).hexdigest()
+            journal.write_text(json.dumps(value), encoding="utf-8")
+
+            with self.assertRaisesRegex(ValueError, "not authenticated"):
+                MODULE.rollback(project, provisioner=lambda *_args, **_kwargs: None)
+
+    def test_completed_rollback_with_only_receipt_intent_finishes_cleanup(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            project = root / "consumer"
+            project.mkdir()
+            MODULE.install_with_dependencies(
+                project, SOURCE, TEST_COMMIT, provisioner=lambda *_args, **_kwargs: None
+            )
+            changed = copy_source(root / "changed")
+            MODULE.install_with_dependencies(
+                project, changed, "2" * 40, provisioner=lambda *_args, **_kwargs: None
+            )
+            MODULE.write_cross_rollback_journal(project, TEST_COMMIT, "2" * 40)
+            MODULE.rollback(project, _locked=True)
+            hosts = MODULE.load_installed_controller(project / ".chaos-engine", "hosts")
+            hosts.install(project, core_commit=TEST_COMMIT)
+            transaction = project / MODULE.CROSS_ROLLBACK_JOURNAL_NAME
+            transaction.joinpath("journal.json").unlink()
+            transaction.rmdir()
+
+            MODULE.rollback(project, provisioner=lambda *_args, **_kwargs: None)
+
+            self.assertEqual(TEST_COMMIT, MODULE.status_with_dependencies(project)["commit"])
+
+    def test_cross_rollback_journal_does_not_require_hard_links(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary) / "consumer"
+            project.mkdir()
+            MODULE.install_with_dependencies(
+                project, SOURCE, TEST_COMMIT, provisioner=lambda *_args, **_kwargs: None
+            )
+            hosts = MODULE.load_installed_controller(project / ".chaos-engine", "hosts")
+            hosts.set_rollback_intent(project, "2" * 40, TEST_COMMIT)
+            with mock.patch.object(MODULE.os, "link", side_effect=OSError("unsupported")):
+                journal = MODULE.write_cross_rollback_journal(project, "2" * 40, TEST_COMMIT)
+
+            self.assertTrue(journal.is_file())
 
     def test_dependency_failure_does_not_delete_a_concurrent_core_update(self):
         with tempfile.TemporaryDirectory() as temporary:
@@ -244,6 +486,31 @@ class ChaosEngineInstallerTest(unittest.TestCase):
 
             self.assertFalse(project.joinpath(".chaos-engine").exists())
             self.assertFalse(project.joinpath(".chaos-engine-runtime").exists())
+
+    def test_default_uninstall_restores_host_files_and_configs(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary) / "consumer"
+            project.mkdir()
+            project.joinpath("AGENTS.md").write_bytes(b"user instructions\r\n")
+            project.joinpath(".mcp.json").write_text(
+                json.dumps({"mcpServers": {"other": {"command": "other"}}}) + "\n",
+                encoding="utf-8",
+            )
+            before_agents = project.joinpath("AGENTS.md").read_bytes()
+            before_mcp = project.joinpath(".mcp.json").read_bytes()
+
+            MODULE.install_with_dependencies(
+                project,
+                SOURCE,
+                TEST_COMMIT,
+                provisioner=lambda *_args, **_kwargs: None,
+            )
+            MODULE.uninstall_with_dependencies(project)
+
+            self.assertEqual(before_agents, project.joinpath("AGENTS.md").read_bytes())
+            self.assertEqual(before_mcp, project.joinpath(".mcp.json").read_bytes())
+            self.assertFalse(project.joinpath(".chaos-engine-hosts.json").exists())
+            self.assertFalse(project.joinpath(".agents/skills/chaos-engine/SKILL.md").exists())
 
     def test_core_uninstall_collision_is_preflighted_before_runtime_removal(self):
         dependency_module = load_module(SOURCE / "dependencies.py")
@@ -302,6 +569,28 @@ class ChaosEngineInstallerTest(unittest.TestCase):
             self.assertTrue(project.joinpath(".chaos-engine-runtime").exists())
             self.assertFalse(project.joinpath(".chaos-engine-runtime.removing").exists())
 
+    def test_dependency_cancel_failure_does_not_skip_host_cancel(self):
+        dependency_module = load_module(SOURCE / "dependencies.py")
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary) / "consumer"
+            project.mkdir()
+
+            def provision(runtime, specification):
+                return dependency_module.repair(
+                    runtime, specification, runner=ChaosEngineDependenciesRunner(runtime)
+                )
+
+            MODULE.install_with_dependencies(project, SOURCE, TEST_COMMIT, provisioner=provision)
+            real_controller = MODULE.load_dependency_controller(project / ".chaos-engine")
+            real_controller.cancel_remove = mock.Mock(side_effect=RuntimeError("cancel failed"))
+            with mock.patch.object(MODULE, "load_dependency_controller", return_value=real_controller):
+                with mock.patch.object(MODULE, "uninstall", side_effect=RuntimeError("core failed")):
+                    with self.assertRaises(Exception):
+                        MODULE.uninstall_with_dependencies(project)
+
+            host = MODULE.load_installed_controller(project / ".chaos-engine", "hosts")
+            self.assertEqual("healthy", host.verify(project, core_commit=TEST_COMMIT)["status"])
+
     def test_absent_core_retry_finishes_owned_runtime_and_tombstone(self):
         dependency_module = load_module(SOURCE / "dependencies.py")
         with tempfile.TemporaryDirectory() as temporary:
@@ -353,6 +642,29 @@ class ChaosEngineInstallerTest(unittest.TestCase):
                 MODULE.uninstall_with_dependencies(project)
 
             self.assertTrue(runtime.exists())
+
+    def test_absent_core_with_unprepared_hosts_fails_before_runtime_removal(self):
+        dependency_module = load_module(SOURCE / "dependencies.py")
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary) / "consumer"
+            project.mkdir()
+            runtime = project / ".chaos-engine-runtime"
+
+            def provision(path, specification):
+                return dependency_module.repair(
+                    path,
+                    specification,
+                    runner=ChaosEngineDependenciesRunner(path),
+                )
+
+            MODULE.install_with_dependencies(project, SOURCE, TEST_COMMIT, provisioner=provision)
+            shutil.rmtree(project / ".chaos-engine")
+
+            with self.assertRaisesRegex(ValueError, "host removal"):
+                MODULE.uninstall_with_dependencies(project)
+
+            self.assertTrue(runtime.exists())
+            self.assertTrue(project.joinpath(".chaos-engine-hosts.json").exists())
 
     def test_source_and_project_trees_must_be_disjoint(self):
         with tempfile.TemporaryDirectory() as temporary:

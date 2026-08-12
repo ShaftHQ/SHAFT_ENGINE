@@ -9,6 +9,7 @@ import hashlib
 import json
 import os
 import re
+import secrets
 import shutil
 import sys
 import tempfile
@@ -31,6 +32,7 @@ UNINSTALL_ARCHIVE_NAME = ".chaos-engine-uninstall-recovery.zip"
 UNINSTALL_CURRENT_NAME = ".chaos-engine-uninstall-current"
 UNINSTALL_OLD_BACKUP_NAME = ".chaos-engine-uninstall-old-backup"
 DEPENDENCY_LOCK_MAGIC = b"chaos-engine-dependencies-lock-v1\n"
+CROSS_ROLLBACK_JOURNAL_NAME = ".chaos-engine-cross-rollback"
 
 
 def file_sha256(path: Path) -> str:
@@ -94,10 +96,13 @@ def load_manifest(target: Path) -> dict[str, object]:
         raise ValueError("ChaosEngine manifest schema is unsupported")
     source = manifest.get("source")
     files = manifest.get("files")
+    host_token = manifest.get("hostToken")
     if (
         not isinstance(source, dict)
         or COMMIT_PATTERN.fullmatch(str(source.get("commit", ""))) is None
         or not isinstance(files, dict)
+        or not isinstance(host_token, str)
+        or re.fullmatch(r"[0-9a-f]{64}", host_token) is None
         or any(not isinstance(path, str) or not isinstance(digest, str) for path, digest in files.items())
     ):
         raise ValueError("ChaosEngine manifest has an invalid ownership record")
@@ -256,6 +261,100 @@ def write_journal(project: Path, operation: str, commit: str) -> Path:
             raise ValueError(f"transaction journal scratch path collision: {temporary}")
     temporary.replace(journal)
     return journal
+
+
+def write_cross_rollback_journal(project: Path, desired_commit: str, prior_commit: str) -> Path:
+    if COMMIT_PATTERN.fullmatch(desired_commit) is None or COMMIT_PATTERN.fullmatch(prior_commit) is None:
+        raise ValueError("rollback commits are invalid")
+    transaction = project / CROSS_ROLLBACK_JOURNAL_NAME
+    journal = transaction / "journal.json"
+    reject_link_or_reparse(transaction)
+    if transaction.exists():
+        raise ValueError(f"cross-resource rollback transaction collision: {transaction}")
+    target = project / INSTALL_DIRECTORY
+    if target.exists():
+        load_installed_controller(target, "hosts").set_rollback_intent(
+            project, desired_commit, prior_commit
+        )
+    body: dict[str, object] = {
+        "schemaVersion": 1,
+        "desiredCommit": desired_commit,
+        "priorCommit": prior_commit,
+    }
+    body["integritySha256"] = hashlib.sha256(
+        json.dumps(body, sort_keys=True, separators=(",", ":")).encode()
+    ).hexdigest()
+    payload = (json.dumps(body, sort_keys=True) + "\n").encode()
+    controller = load_installed_controller(target, "hosts")
+    transaction.mkdir()
+    descriptor = os.open(
+        journal,
+        os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_BINARY", 0),
+        0o600,
+    )
+    with os.fdopen(descriptor, "wb") as stream:
+        stream.write(payload)
+        stream.flush()
+        os.fsync(stream.fileno())
+    return journal
+
+
+def read_cross_rollback_journal(project: Path) -> dict[str, str] | None:
+    transaction = project / CROSS_ROLLBACK_JOURNAL_NAME
+    journal = transaction / "journal.json"
+    reject_link_or_reparse(transaction)
+    if not transaction.exists():
+        return None
+    if not transaction.is_dir():
+        raise ValueError("cross-resource rollback transaction is invalid")
+    for child in transaction.iterdir():
+        reject_link_or_reparse(child)
+        if child.name != "journal.json":
+            raise ValueError("cross-resource rollback transaction contains unknown state")
+    target = project / INSTALL_DIRECTORY
+    if not target.exists():
+        raise ValueError("cross-resource rollback journal has no installed controller")
+    receipt, _ = load_installed_controller(target, "hosts").read_receipt(project)
+    intent = receipt.get("rollbackIntent")
+    if not journal.exists():
+        if not isinstance(intent, dict):
+            raise ValueError("cross-resource rollback transaction has no authenticated intent")
+        body: dict[str, object] = {"schemaVersion": 1, **intent}
+        body["integritySha256"] = hashlib.sha256(
+            json.dumps(body, sort_keys=True, separators=(",", ":")).encode()
+        ).hexdigest()
+        journal.write_text(json.dumps(body, sort_keys=True) + "\n", encoding="utf-8")
+    try:
+        value = json.loads(journal.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as error:
+        if not isinstance(intent, dict):
+            raise ValueError("cross-resource rollback journal is invalid") from error
+        body = {"schemaVersion": 1, **intent}
+        body["integritySha256"] = hashlib.sha256(
+            json.dumps(body, sort_keys=True, separators=(",", ":")).encode()
+        ).hexdigest()
+        journal.write_text(json.dumps(body, sort_keys=True) + "\n", encoding="utf-8")
+        value = body
+    integrity = value.get("integritySha256") if isinstance(value, dict) else None
+    body = {key: item for key, item in value.items() if key != "integritySha256"} if isinstance(value, dict) else {}
+    if (
+        not isinstance(value, dict)
+        or value.get("schemaVersion") != 1
+        or COMMIT_PATTERN.fullmatch(str(value.get("desiredCommit", ""))) is None
+        or COMMIT_PATTERN.fullmatch(str(value.get("priorCommit", ""))) is None
+        or integrity
+        != hashlib.sha256(json.dumps(body, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
+    ):
+        raise ValueError("cross-resource rollback journal is invalid")
+    if receipt.get("rollbackIntent") != {
+        "desiredCommit": str(value["desiredCommit"]),
+        "priorCommit": str(value["priorCommit"]),
+    }:
+        raise ValueError("cross-resource rollback journal intent is not authenticated")
+    return {
+        "desiredCommit": str(value["desiredCommit"]),
+        "priorCommit": str(value["priorCommit"]),
+    }
 
 
 def publish_staged_tree(stage: Path, target: Path, displaced: Path) -> None:
@@ -425,6 +524,8 @@ def install(project: Path, source: Path, commit: str, _locked: bool = False) -> 
     old_backup = project / OLD_BACKUP_NAME
     with (nullcontext() if _locked else project_lock(project)):
         _recover_transaction(project)
+        if read_cross_rollback_journal(project) is not None:
+            raise ValueError("rollback recovery is required before install")
         if target.exists():
             current = verify_install(target)
             current_commit = current["source"]["commit"]  # type: ignore[index]
@@ -446,6 +547,9 @@ def install(project: Path, source: Path, commit: str, _locked: bool = False) -> 
                 "schemaVersion": SCHEMA_VERSION,
                 "source": {"commit": commit, "kind": "local"},
                 "files": ownership,
+                "hostToken": (
+                    str(current["hostToken"]) if target.exists() else secrets.token_hex(32)
+                ),
             }
             (stage / MANIFEST_NAME).write_text(
                 json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8"
@@ -478,11 +582,82 @@ def status(project: Path) -> dict[str, str]:
         return {"status": state, "commit": str(manifest["source"]["commit"])}  # type: ignore[index]
 
 
-def rollback(project: Path, _locked: bool = False) -> Path:
+def rollback(project: Path, _locked: bool = False, provisioner=None) -> Path:
     project = project.resolve()
     target = project / INSTALL_DIRECTORY
     backup = project / BACKUP_NAME
     swap = project / f"{INSTALL_DIRECTORY}-rollback"
+    if not _locked:
+        with project_lock(project):
+            _recover_transaction(project)
+            pending = read_cross_rollback_journal(project)
+            receipt_controller = None
+            receipt_value = None
+            if target.exists():
+                receipt_controller = load_installed_controller(target, "hosts")
+                host_receipt_path = project / ".chaos-engine-hosts.json"
+                if host_receipt_path.exists() or is_link_or_reparse(host_receipt_path):
+                    receipt_value, _ = receipt_controller.read_receipt(project)
+                    if pending is None and receipt_value.get("rollbackIntent") is not None:
+                        pending = receipt_value["rollbackIntent"]
+            if pending is None and (not target.exists() or not backup.exists()):
+                return rollback(project, _locked=True)
+            verify_install(target)
+            verify_install(backup)
+            host_receipt = project / ".chaos-engine-hosts.json"
+            if not host_receipt.exists() and not is_link_or_reparse(host_receipt):
+                return rollback(project, _locked=True)
+            if pending is None:
+                current_commit = str(verify_install(target)["source"]["commit"])
+                previous_commit = str(verify_install(backup)["source"]["commit"])
+                write_cross_rollback_journal(project, previous_commit, current_commit)
+                pending = {"desiredCommit": previous_commit, "priorCommit": current_commit}
+            desired_commit = pending["desiredCommit"]
+            prior_commit = pending["priorCommit"]
+            target_commit = str(verify_install(target)["source"]["commit"])
+            backup_commit = str(verify_install(backup)["source"]["commit"])
+            if {target_commit, backup_commit} != {desired_commit, prior_commit}:
+                raise ValueError("rollback trees do not match the recorded generations")
+            host_controller = load_installed_controller(target, "hosts")
+            host_receipt_value, _ = host_controller.read_receipt(project)
+            host_commit = host_receipt_value.get("coreCommit")
+            intent = host_receipt_value.get("rollbackIntent")
+            if intent is None and target_commit == prior_commit and host_commit == prior_commit:
+                host_controller.set_rollback_intent(project, desired_commit, prior_commit)
+                host_receipt_value, _ = host_controller.read_receipt(project)
+                intent = host_receipt_value.get("rollbackIntent")
+            if intent != pending:
+                raise ValueError("rollback state does not match the recorded phase")
+            valid_phase = (
+                target_commit == prior_commit and backup_commit == desired_commit and host_commit == prior_commit
+            ) or (
+                target_commit == desired_commit
+                and backup_commit == prior_commit
+                and host_commit in {prior_commit, desired_commit}
+            )
+            if not valid_phase:
+                raise ValueError("rollback state does not match the recorded phase")
+            if target_commit != desired_commit:
+                rollback(project, _locked=True)
+            try:
+                previous_hosts = load_installed_controller(target, "hosts")
+                previous_hosts.install(project, core_commit=desired_commit)
+                previous_dependencies = load_dependency_controller(target)
+                repair = provisioner or previous_dependencies.repair
+                repair(
+                    project / ".chaos-engine-runtime",
+                    previous_dependencies.load_specification(target / "dependencies.json"),
+                )
+            except BaseException:
+                raise
+            transaction_path = project / CROSS_ROLLBACK_JOURNAL_NAME
+            journal_path = transaction_path / "journal.json"
+            if journal_path.exists():
+                journal_path.unlink()
+            if transaction_path.exists():
+                transaction_path.rmdir()
+            previous_hosts.clear_rollback_intent(project, desired_commit, prior_commit)
+            return target
     with (nullcontext() if _locked else project_lock(project)):
         _recover_transaction(project)
         if not target.exists() and backup.exists():
@@ -571,13 +746,21 @@ def preflight_uninstall(project: Path) -> None:
     require_absent(project / UNINSTALL_OLD_BACKUP_NAME, "uninstall old-backup path")
 
 
-def load_dependency_controller(installed_root: Path):
-    path = installed_root / "dependencies.py"
-    module = types.ModuleType("chaos_engine_installed_dependencies")
+def load_installed_controller(installed_root: Path, name: str):
+    path = installed_root / f"{name}.py"
+    module = types.ModuleType(f"chaos_engine_installed_{name}")
     module.__file__ = str(path)
     source = path.read_text(encoding="utf-8")
     exec(compile(source, str(path), "exec"), module.__dict__)
     return module
+
+
+def load_source_controller(name: str):
+    return load_installed_controller(Path(__file__).resolve().parent, name)
+
+
+def load_dependency_controller(installed_root: Path):
+    return load_installed_controller(installed_root, "dependencies")
 
 
 def install_with_dependencies(
@@ -588,23 +771,55 @@ def install_with_dependencies(
 ) -> Path:
     project = project.resolve()
     with project_lock(project):
+        if read_cross_rollback_journal(project) is not None:
+            raise ValueError("rollback recovery is required before install")
         current = project / INSTALL_DIRECTORY
         old_commit = None
+        host_snapshot = None
         if current.exists():
             old_commit = str(verify_install(current)["source"]["commit"])
+            old_host_controller = load_installed_controller(current, "hosts")
+            host_receipt_path = project / old_host_controller.RECEIPT_NAME
+            if host_receipt_path.exists() or is_link_or_reparse(host_receipt_path):
+                host_snapshot = old_host_controller.snapshot(project)
         target = install(project, source, commit, _locked=True)
+        host_controller = load_installed_controller(target, "hosts")
+        host_receipt = project / host_controller.RECEIPT_NAME
+        host_existed = host_receipt.exists() or is_link_or_reparse(host_receipt)
+        host_created = False
         try:
+            host_controller.install(project, core_commit=commit)
+            host_created = not host_existed
             controller = load_dependency_controller(target)
             provision = provisioner or controller.repair
             provision(
                 project / ".chaos-engine-runtime",
                 controller.load_specification(target / "dependencies.json"),
             )
-        except BaseException:
-            if old_commit is None:
-                uninstall(project, expected_commit=commit, _locked=True)
-            elif old_commit != commit and (project / BACKUP_NAME).exists():
-                rollback(project, _locked=True)
+        except BaseException as error:
+            compensation_errors: list[BaseException] = []
+            if host_snapshot is not None:
+                try:
+                    host_controller.restore_snapshot(project, host_snapshot)
+                except BaseException as cleanup_error:
+                    compensation_errors.append(cleanup_error)
+            elif host_created:
+                try:
+                    host_controller.uninstall(project)
+                except BaseException as cleanup_error:
+                    compensation_errors.append(cleanup_error)
+            try:
+                if old_commit is None:
+                    uninstall(project, expected_commit=commit, _locked=True)
+                elif old_commit != commit and (project / BACKUP_NAME).exists():
+                    rollback(project, _locked=True)
+            except BaseException as cleanup_error:
+                compensation_errors.append(cleanup_error)
+            if compensation_errors:
+                if len(compensation_errors) == 1:
+                    raise compensation_errors[0] from error
+                details = "; ".join(str(item) for item in compensation_errors)
+                raise RuntimeError(f"ChaosEngine compensation failures: {details}") from error
             raise
         return target
 
@@ -616,11 +831,28 @@ def status_with_dependencies(project: Path) -> dict[str, object]:
         with dependency_runtime_lock(runtime):
             target = project / INSTALL_DIRECTORY
             manifest = verify_install(target)
-            state = "recovery-required" if (project / JOURNAL_NAME).exists() else "healthy"
+            state = (
+                "recovery-required"
+                if (project / JOURNAL_NAME).exists()
+                or (project / CROSS_ROLLBACK_JOURNAL_NAME).exists()
+                else "healthy"
+            )
             result: dict[str, object] = {
                 "status": state,
                 "commit": str(manifest["source"]["commit"]),  # type: ignore[index]
             }
+            host_controller = load_installed_controller(target, "hosts")
+            pending_rollback = read_cross_rollback_journal(project)
+            if pending_rollback is not None:
+                result["hosts"] = host_controller.verify(project)
+                result["hosts"]["status"] = "recovery-required"  # type: ignore[index]
+            else:
+                result["hosts"] = host_controller.verify(
+                    project,
+                    core_commit=str(manifest["source"]["commit"]),  # type: ignore[index]
+                )
+            if result["hosts"]["status"] != "healthy":  # type: ignore[index]
+                result["status"] = "recovery-required"
             removing = project / ".chaos-engine-runtime.removing"
             backup = project / ".chaos-engine-runtime.backup"
             building = project / ".chaos-engine-runtime.building"
@@ -645,6 +877,8 @@ def uninstall_with_dependencies(project: Path) -> None:
     project = project.resolve()
     with project_lock(project):
         _recover_transaction(project)
+        if read_cross_rollback_journal(project) is not None:
+            raise ValueError("rollback recovery is required before uninstall")
         target = project / INSTALL_DIRECTORY
         runtime = project / ".chaos-engine-runtime"
         removing = project / ".chaos-engine-runtime.removing"
@@ -653,31 +887,59 @@ def uninstall_with_dependencies(project: Path) -> None:
         if any(path.exists() or is_link_or_reparse(path) for path in (backup, building)):
             raise ValueError("dependency recovery is required before uninstall")
         if not target.exists():
+            host_receipt = project / ".chaos-engine-hosts.json"
+            host_controller = None
+            if host_receipt.exists() or is_link_or_reparse(host_receipt):
+                host_controller = load_source_controller("hosts")
+                receipt, _ = host_controller.read_receipt(project)
+                if receipt["phase"] != "removing":
+                    raise ValueError("host removal is not prepared for absent-core recovery")
             with dependency_runtime_lock(runtime):
                 if removing.exists():
                     finalize_dependency_tombstone(removing)
                 if runtime.exists():
                     finalize_dependency_tombstone(runtime)
+            if host_controller is not None:
+                host_controller.finalize_uninstall(project)
             uninstall(project, _locked=True)
             return
         verify_install(target)
         controller = load_dependency_controller(target)
+        host_controller = load_installed_controller(target, "hosts")
         specification = controller.load_specification(target / "dependencies.json")
         preflight_uninstall(project)
         manifest = verify_install(target)
         commit = str(manifest["source"]["commit"])
         prepared = False
-        if runtime.exists() or is_link_or_reparse(runtime):
-            controller.prepare_remove(runtime, specification)
-            prepared = True
+        host_prepared = False
         try:
+            host_controller.prepare_uninstall(project)
+            host_prepared = True
+            if runtime.exists() or is_link_or_reparse(runtime):
+                controller.prepare_remove(runtime, specification)
+                prepared = True
             uninstall(project, expected_commit=commit, _locked=True)
-        except BaseException:
+        except BaseException as error:
+            compensation_errors: list[BaseException] = []
             if prepared:
-                controller.cancel_remove(runtime)
+                try:
+                    controller.cancel_remove(runtime)
+                except BaseException as cleanup_error:
+                    compensation_errors.append(cleanup_error)
+            if host_prepared:
+                try:
+                    host_controller.cancel_uninstall(project)
+                except BaseException as cleanup_error:
+                    compensation_errors.append(cleanup_error)
+            if compensation_errors:
+                if len(compensation_errors) == 1:
+                    raise compensation_errors[0] from error
+                details = "; ".join(str(item) for item in compensation_errors)
+                raise RuntimeError(f"ChaosEngine uninstall compensation failures: {details}") from error
             raise
         if prepared or removing.exists():
             controller.finalize_remove(runtime, specification)
+        host_controller.finalize_uninstall(project)
 
 
 def finalize_dependency_tombstone(removing: Path) -> None:

@@ -119,6 +119,9 @@ Its contract is enforced by `tests/scripts/test_chaos_engine_installer.py`.
 The [dependency doctor](../../dependencies.py) installs the tracked
 [tool set](../../dependencies.json) into a project-local runtime; its contract
 is enforced by `tests/scripts/test_chaos_engine_dependencies.py`.
+The [host adapter installer](../../hosts.py) wires supported coding agents to
+the canonical skill and the relocatable [local tool launcher](../../tool.py);
+its contract is enforced by `tests/scripts/test_chaos_engine_hosts.py`.
 
 ## Task isolation
 
