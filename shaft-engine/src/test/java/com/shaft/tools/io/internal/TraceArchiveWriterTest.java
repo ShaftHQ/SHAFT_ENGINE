@@ -384,9 +384,15 @@ public class TraceArchiveWriterTest {
                 + Path.of(TraceArchiveWriter.class.getProtectionDomain().getCodeSource().getLocation().toURI())
                 + File.pathSeparator
                 + System.getProperty("surefire.test.class.path", System.getProperty("java.class.path"));
+        Path arguments = directory.resolve("low-heap-probe.args");
         try {
-            Process process = new ProcessBuilder(java.toString(), "-Xmx20m", "-cp", classpath,
-                    "com.shaft.tools.io.internal.TraceArchiveWriterLowHeapProbe", directory.toString())
+            Files.writeString(arguments, String.join(System.lineSeparator(),
+                    "-Xmx20m",
+                    "-cp",
+                    quoteJavaArgument(classpath),
+                    "com.shaft.tools.io.internal.TraceArchiveWriterLowHeapProbe",
+                    quoteJavaArgument(directory.toString())), StandardCharsets.UTF_8);
+            Process process = new ProcessBuilder(java.toString(), "@" + arguments)
                     .redirectErrorStream(true)
                     .start();
             String output = new String(process.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
@@ -394,6 +400,10 @@ public class TraceArchiveWriterTest {
         } finally {
             deleteRecursively(directory);
         }
+    }
+
+    private static String quoteJavaArgument(String argument) {
+        return '"' + argument.replace("\\", "\\\\").replace("\"", "\\\"") + '"';
     }
 
     private static long temporaryArchiveCount(Path directory) throws IOException {
