@@ -22,6 +22,10 @@ except ImportError:
     LOAD_PROMPT = None
     LOAD_PROOF_TERMS = None
     collect_evidence = None
+try:
+    from scripts.ci.agent_plugin_client_smoke import collect_runtime_launch_evidence
+except ImportError:
+    collect_runtime_launch_evidence = None
 
 
 class AgentPluginClientSmokeTest(unittest.TestCase):
@@ -717,7 +721,40 @@ class AgentPluginClientSmokeTest(unittest.TestCase):
         self.assertIn("Codex CLI 0.146.0", compatibility)
         self.assertIn("tests.scripts.test_agent_plugin_client_smoke", pr_gate)
         self.assertIn("python scripts/ci/agent_plugin_client_smoke.py --mode smoke", pr_gate)
+        self.assertIn("--package act-as-mohab", pr_gate)
         self.assertIn("tests.scripts.test_shaft_skill_routing_eval", pr_gate)
+
+    def test_act_as_mohab_is_discovered_installed_and_launched_from_package_config(self):
+        from scripts.ci.assemble_act_as_mohab_plugin import assemble as assemble_act_as_mohab
+
+        package_root = Path(self.temporary_directory.name) / "act-as-mohab"
+        assemble_act_as_mohab(Path(__file__).resolve().parents[2], package_root)
+        runner = FakeRunner()
+        runner.package_name = "act-as-mohab"
+        runner.installed_plugin = {"id": "act-as-mohab@act-as-mohab", "enabled": True}
+        runner.available_plugin = {"name": "act-as-mohab"}
+
+        evidence = collect_evidence(package_root, runner=runner)
+        self.assertEqual("act-as-mohab", evidence["package"])
+        self.assertEqual(
+            {"pass"},
+            {
+                row["verdict"]
+                for row in evidence["results"]
+                if row["evidence_level"] in {"marketplace_discovery", "install_enable"}
+            },
+        )
+        selectors = {part for command in runner.commands for part in command}
+        self.assertIn("act-as-mohab@act-as-mohab", selectors)
+
+        self.assertTrue(callable(collect_runtime_launch_evidence))
+        launch = collect_runtime_launch_evidence(package_root)
+        self.assertEqual("pass", launch["verdict"])
+        self.assertEqual("runtime_launch", launch["evidence_level"])
+        root = Path(__file__).resolve().parents[2]
+        pr_gate = (root / ".github/workflows/pr-gate.yml").read_text(encoding="utf-8")
+        live = (root / ".github/workflows/agent-plugin-acceptance.yml").read_text(encoding="utf-8")
+        workflow_readme = (root / ".github/workflows/README.md").read_text(encoding="utf-8")
         self.assertIn("python scripts/ci/shaft_skill_routing_eval.py", pr_gate)
         guidance_filter = pr_gate.split("            agent_guidance:\n", 1)[1].split(
             "              # Reachability elements:", 1
@@ -769,6 +806,7 @@ class FakeRunner:
         self.warning = ""
         self.installed_plugin = {"id": "shaft-skills@shaft-skills", "enabled": True}
         self.available_plugin = {"name": "shaft-skills"}
+        self.package_name = "shaft-skills"
         self.versions = {"claude": "claude 2.1.223", "codex": "codex-cli 0.146.0"}
         self.preexisting = False
         self.marketplace_added = {"claude": False, "codex": False}
@@ -805,7 +843,7 @@ class FakeRunner:
         if command[-1:] == ("--version",):
             return subprocess.CompletedProcess(command, 0, stdout=self.versions[client], stderr="")
         if command[1:4] == ("plugin", "marketplace", "list"):
-            entries = [{"name": "shaft-skills"}] if self.preexisting or self.marketplace_added[client] else []
+            entries = [{"name": self.package_name}] if self.preexisting or self.marketplace_added[client] else []
             output = json.dumps({"marketplaces": entries})
         elif command[1:3] == ("plugin", "list") and "--json" in command:
             if "--available" in command:

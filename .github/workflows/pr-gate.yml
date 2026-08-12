@@ -131,6 +131,9 @@ jobs:
               - 'tests/scripts/test_validate_agent_guidance.py'
               - 'tests/scripts/test_validate_agent_plugins.py'
               - 'tests/scripts/test_assemble_act_as_mohab_plugin.py'
+              - 'tests/scripts/test_repository_context.py'
+              - 'tests/scripts/test_watch_pr_checks.py'
+              - 'tests/scripts/test_act_as_mohab_runtime.py'
               - 'tests/scripts/test_assemble_shaft_skills_plugin.py'
               - 'tests/scripts/test_validate_agent_setup.py'
               - 'tests/scripts/test_worktree_hygiene.py'
@@ -325,6 +328,9 @@ jobs:
           tests.scripts.test_agent_plugin_release
           tests.scripts.test_agent_plugin_client_smoke
           tests.scripts.test_assemble_act_as_mohab_plugin
+          tests.scripts.test_repository_context
+          tests.scripts.test_watch_pr_checks
+          tests.scripts.test_act_as_mohab_runtime
           tests.scripts.test_assemble_shaft_skills_plugin
           tests.scripts.test_validate_agent_setup
           tests.scripts.test_validate_skills
@@ -393,12 +399,17 @@ jobs:
         run: >-
           python scripts/ci/agent_plugin_client_smoke.py --mode smoke
           --output agent-plugin-client-evidence.json
+      - name: Collect act-as-mohab package and runtime evidence
+        run: >-
+          python scripts/ci/agent_plugin_client_smoke.py --mode smoke
+          --package act-as-mohab
+          --output agent-plugin-client-evidence-act-as-mohab.json
       - name: Upload native client smoke evidence
         if: always()
         uses: actions/upload-artifact@v7
         with:
           name: agent-plugin-client-smoke-${{ runner.os }}
-          path: agent-plugin-client-evidence.json
+          path: agent-plugin-client-evidence*.json
           if-no-files-found: error
           retention-days: 14
       - name: Run the portable PreToolUse guard self-test
