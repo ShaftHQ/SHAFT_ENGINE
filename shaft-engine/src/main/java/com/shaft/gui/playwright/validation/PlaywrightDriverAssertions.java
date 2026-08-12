@@ -3,6 +3,7 @@ package com.shaft.gui.playwright.validation;
 import com.shaft.gui.driver.BrowserAssertions;
 import com.shaft.gui.driver.DriverAssertions;
 import com.shaft.gui.driver.ElementAssertions;
+import com.shaft.gui.driver.ElementTarget;
 import com.shaft.gui.driver.ShaftLocator;
 import com.shaft.gui.playwright.internal.PlaywrightSession;
 import com.shaft.validation.ValidationEnums;
@@ -29,8 +30,13 @@ public class PlaywrightDriverAssertions implements DriverAssertions {
 
     @Override
     public ElementAssertions element(ShaftLocator elementLocator) {
-        return new PlaywrightElementValidationsBuilder(ValidationEnums.ValidationCategory.HARD_ASSERT,
-                session, elementLocator.toPlaywrightLocator(session.page()), elementLocator.toString());
+        return element(ElementTarget.located(elementLocator));
+    }
+
+    @Override
+    public ElementAssertions element(ElementTarget elementTarget) {
+        return new PlaywrightElementValidationsBuilder(
+                ValidationEnums.ValidationCategory.HARD_ASSERT, session, elementTarget);
     }
 
     public ElementAssertions element(com.microsoft.playwright.Locator elementLocator) {

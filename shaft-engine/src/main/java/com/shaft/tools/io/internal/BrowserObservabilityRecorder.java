@@ -2,6 +2,7 @@ package com.shaft.tools.io.internal;
 
 import com.shaft.driver.SHAFT;
 import com.shaft.gui.browser.internal.BidiConsoleLogSource;
+import com.shaft.gui.browser.internal.LegacyConsoleLogSource;
 import com.shaft.gui.playwright.internal.PlaywrightSessionManager;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.logging.LogEntry;
@@ -138,9 +139,16 @@ public final class BrowserObservabilityRecorder {
             }
             List<LogEntry> entries = new ArrayList<>(logs.get("browser").getAll());
             entries.sort(Comparator.comparingLong(LogEntry::getTimestamp));
+            List<ConsoleSnapshotEntry> retained = new ArrayList<>(Math.min(entries.size(), CONSOLE_EVENT_LIMIT));
             for (LogEntry entry : entries) {
                 recordConsole("browser", entry.getLevel().getName(), entry.getMessage(), entry.getTimestamp());
+                if (retained.size() >= CONSOLE_EVENT_LIMIT) {
+                    retained.removeFirst();
+                }
+                retained.add(consoleEntry("browser", entry.getLevel().getName(), entry.getMessage(),
+                        entry.getTimestamp()));
             }
+            LegacyConsoleLogSource.retain(driver, retained);
             return true;
         } catch (RuntimeException e) {
             return false;

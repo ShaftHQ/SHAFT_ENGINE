@@ -7,13 +7,18 @@ import com.shaft.validation.internal.NativeValidationsBuilder;
 import com.shaft.validation.internal.ValidationsBuilder;
 import com.shaft.validation.internal.ValidationsExecutor;
 
+import java.util.Objects;
+import java.util.function.Supplier;
+
 final class PlaywrightNativeValidationsBuilder extends NativeValidationsBuilder {
     private final PlaywrightSession session;
-    private final Locator playwrightLocator;
+    private final Supplier<Locator> playwrightLocator;
     private final String playwrightLocatorDescription;
     private final String playwrightElementAttribute;
     private final String playwrightElementCssProperty;
     private final String playwrightBrowserAttribute;
+    private final Supplier<Object> browserValueReader;
+    private final String browserValueName;
     private ValidationEnums.VisualValidationEngine visualValidationEngine;
     private String ariaSnapshotFileName;
 
@@ -26,16 +31,45 @@ final class PlaywrightNativeValidationsBuilder extends NativeValidationsBuilder 
                                        String elementCssProperty,
                                        String browserAttribute,
                                        StringBuilder reportMessageBuilder) {
+        this(validationCategory, session, () -> playwrightLocator, playwrightLocatorDescription, validationMethod,
+                elementAttribute, elementCssProperty, browserAttribute, reportMessageBuilder);
+    }
+
+    PlaywrightNativeValidationsBuilder(ValidationEnums.ValidationCategory validationCategory,
+                                       PlaywrightSession session,
+                                       Supplier<Locator> playwrightLocator,
+                                       String playwrightLocatorDescription,
+                                       String validationMethod,
+                                       String elementAttribute,
+                                       String elementCssProperty,
+                                       String browserAttribute,
+                                       StringBuilder reportMessageBuilder) {
         super(new SeedBuilder(validationCategory, validationMethod, reportMessageBuilder));
         this.session = session;
-        this.playwrightLocator = playwrightLocator;
+        this.playwrightLocator = Objects.requireNonNull(playwrightLocator, "playwrightLocator");
         this.playwrightLocatorDescription = playwrightLocatorDescription;
         this.playwrightElementAttribute = elementAttribute;
         this.playwrightElementCssProperty = elementCssProperty;
         this.playwrightBrowserAttribute = browserAttribute;
+        this.browserValueReader = null;
+        this.browserValueName = null;
         this.elementAttribute = elementAttribute;
         this.elementCssProperty = elementCssProperty;
         this.browserAttribute = browserAttribute;
+    }
+
+    PlaywrightNativeValidationsBuilder(ValidationEnums.ValidationCategory validationCategory,
+                                       PlaywrightSession session, Supplier<Object> browserValueReader,
+                                       String browserValueName, StringBuilder reportMessageBuilder) {
+        super(new SeedBuilder(validationCategory, "browserValueEquals", reportMessageBuilder));
+        this.session = session;
+        this.playwrightLocator = () -> null;
+        this.playwrightLocatorDescription = null;
+        this.playwrightElementAttribute = null;
+        this.playwrightElementCssProperty = null;
+        this.playwrightBrowserAttribute = null;
+        this.browserValueReader = Objects.requireNonNull(browserValueReader, "browserValueReader");
+        this.browserValueName = Objects.requireNonNull(browserValueName, "browserValueName");
     }
 
     @Override
@@ -74,7 +108,7 @@ final class PlaywrightNativeValidationsBuilder extends NativeValidationsBuilder 
     }
 
     Locator playwrightLocator() {
-        return playwrightLocator;
+        return playwrightLocator.get();
     }
 
     String playwrightLocatorDescription() {
@@ -91,6 +125,14 @@ final class PlaywrightNativeValidationsBuilder extends NativeValidationsBuilder 
 
     String playwrightBrowserAttribute() {
         return playwrightBrowserAttribute;
+    }
+
+    Supplier<Object> browserValueReader() {
+        return browserValueReader;
+    }
+
+    String browserValueName() {
+        return browserValueName;
     }
 
     ValidationEnums.ValidationCategory validationCategory() {

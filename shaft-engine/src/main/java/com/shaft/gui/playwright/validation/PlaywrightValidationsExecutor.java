@@ -2,11 +2,14 @@ package com.shaft.gui.playwright.validation;
 
 import com.microsoft.playwright.Locator;
 import com.microsoft.playwright.Page;
+import com.microsoft.playwright.BrowserContext;
+import com.microsoft.playwright.TimeoutError;
 import com.microsoft.playwright.assertions.LocatorAssertions;
 import com.microsoft.playwright.assertions.PageAssertions;
 import com.microsoft.playwright.assertions.PlaywrightAssertions;
 import com.shaft.cli.FileActions;
 import com.shaft.driver.SHAFT;
+import com.shaft.gui.driver.ElementRectangle;
 import com.shaft.gui.internal.aria.AriaSnapshotHelper;
 import com.shaft.gui.internal.image.ImageProcessingActions;
 import com.shaft.gui.internal.image.ScreenshotManager;
@@ -33,6 +36,12 @@ import java.util.Base64;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Objects;
+import java.math.BigDecimal;
+import java.math.BigInteger;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.BooleanSupplier;
 import java.util.function.Supplier;
 import java.util.regex.Pattern;
 
@@ -48,6 +57,8 @@ final class PlaywrightValidationsExecutor extends ValidationsExecutor {
     private final String elementAttribute;
     private final String elementCssProperty;
     private final String browserAttribute;
+    private final Supplier<Object> browserValueReader;
+    private final String browserValueName;
     private final ValidationEnums.ValidationComparisonType validationComparisonType;
     private final Object expectedValue;
     private final StringBuilder reportMessageBuilder;
@@ -72,6 +83,8 @@ final class PlaywrightValidationsExecutor extends ValidationsExecutor {
         this.elementAttribute = builder.playwrightElementAttribute();
         this.elementCssProperty = builder.playwrightElementCssProperty();
         this.browserAttribute = builder.playwrightBrowserAttribute();
+        this.browserValueReader = builder.browserValueReader();
+        this.browserValueName = builder.browserValueName();
         this.reportMessageBuilder = builder.reportMessageBuilder();
         this.maxDiffPixels = null;
         this.maxDiffPixelRatio = null;
@@ -93,6 +106,8 @@ final class PlaywrightValidationsExecutor extends ValidationsExecutor {
         this.elementAttribute = null;
         this.elementCssProperty = null;
         this.browserAttribute = null;
+        this.browserValueReader = null;
+        this.browserValueName = null;
         this.reportMessageBuilder = builder.reportMessageBuilder();
         this.maxDiffPixels = builder.maxDiffPixelsValue();
         this.maxDiffPixelRatio = builder.maxDiffPixelRatioValue();
@@ -115,7 +130,7 @@ final class PlaywrightValidationsExecutor extends ValidationsExecutor {
     public void internalPerform() {
         boolean generatedCustomReportMessage = false;
         if (customReportMessage.isBlank()) {
-            customReportMessage = reportMessageBuilder.toString();
+            customReportMessage = generatedReportMessage();
             generatedCustomReportMessage = true;
         }
         validationCategoryString = validationCategory == ValidationEnums.ValidationCategory.HARD_ASSERT ? "Assert" : "Verify";
@@ -134,6 +149,16 @@ final class PlaywrightValidationsExecutor extends ValidationsExecutor {
                 customReportMessage = "";
             }
         }
+    }
+
+    private String generatedReportMessage() {
+        if ("browserAttributeEquals".equals(validationMethod)
+                && browserAttribute != null
+                && List.of("pagesource", "windowsource", "source")
+                .contains(browserAttribute.toLowerCase(Locale.ROOT))) {
+            return "the browser page source payload matches the requested comparison.";
+        }
+        return reportMessageBuilder.toString();
     }
 
     @Step(" {this.validationCategoryString} that {this.customReportMessage}")
@@ -160,6 +185,12 @@ final class PlaywrightValidationsExecutor extends ValidationsExecutor {
         if (assertion != null) {
             return runPlaywrightAssertion(assertion, actualSupplier, reportedExpected);
         }
+        if (isFocusedElementValue()) {
+            return pollFocusedElementValue(actualSupplier, reportedExpected);
+        }
+        if (isFocusedBrowserValue()) {
+            return pollFocusedBrowserValue(reportedExpected);
+        }
         Object actual = safelyRead(actualSupplier);
         return new Outcome(compare(reportedExpected, actual), reportedExpected, actual,
                 commonParameters(reportedExpected, actual), List.of());
@@ -175,6 +206,14 @@ final class PlaywrightValidationsExecutor extends ValidationsExecutor {
             case "elementAttributeEquals", "elementDomAttributeEquals" -> elementAttributeAssertion();
             case "elementDomPropertyEquals", "elementPropertyEquals" -> elementPropertyAssertion();
             case "elementCssPropertyEquals" -> elementCssAssertion();
+            case "elementCountEquals" -> exactNativeCountExpectation()
+                    .map(count -> (Runnable) () -> locatorAssertions().hasCount(count))
+                    .orElse(null);
+            case "elementAccessibleNameEquals" -> validationType == ValidationEnums.ValidationType.POSITIVE
+                    && validationComparisonType == ValidationEnums.ValidationComparisonType.EQUALS
+                    && expectedValue instanceof String expectedName
+                    ? () -> locatorAssertions().hasAccessibleName(expectedName)
+                    : null;
             case "browserAttributeEquals" -> browserAssertion();
             default -> null;
         };
@@ -415,7 +454,12 @@ final class PlaywrightValidationsExecutor extends ValidationsExecutor {
             case "elementCssPropertyEquals" ->
                     locator.evaluate("(element, property) => getComputedStyle(element).getPropertyValue(property)",
                             elementCssProperty);
+            case "elementCountEquals" -> locator.count();
+            case "elementRectangleEquals" -> readElementRectangle();
+            case "elementAccessibleNameEquals" -> readAriaField(true);
+            case "elementRoleEquals" -> readAriaField(false);
             case "browserAttributeEquals" -> readBrowserAttribute();
+            case "browserValueEquals" -> browserValueReader.get();
             default -> null;
         };
     }
@@ -431,8 +475,179 @@ final class PlaywrightValidationsExecutor extends ValidationsExecutor {
         return locator.getAttribute(elementAttribute);
     }
 
+    private java.util.Optional<Integer> exactNativeCountExpectation() {
+        if (validationType != ValidationEnums.ValidationType.POSITIVE
+                || validationComparisonType != ValidationEnums.ValidationComparisonType.EQUALS
+                || !(expectedValue instanceof Number number)) {
+            return java.util.Optional.empty();
+        }
+        try {
+            int count = switch (number) {
+                case Byte value -> value.intValue();
+                case Short value -> value.intValue();
+                case Integer value -> value;
+                case Long value -> Math.toIntExact(value);
+                case BigInteger value -> value.intValueExact();
+                case BigDecimal value -> value.intValueExact();
+                case Float value when Float.isFinite(value) && value == Math.rint(value) -> Math.toIntExact(value.longValue());
+                case Double value when Double.isFinite(value) && value == Math.rint(value) -> Math.toIntExact(value.longValue());
+                default -> throw new ArithmeticException("Unsupported count representation.");
+            };
+            return count < 0 ? java.util.Optional.empty() : java.util.Optional.of(count);
+        } catch (ArithmeticException exception) {
+            return java.util.Optional.empty();
+        }
+    }
+
+    private boolean isFocusedElementValue() {
+        return List.of("elementCountEquals", "elementRectangleEquals", "elementAccessibleNameEquals", "elementRoleEquals")
+                .contains(validationMethod);
+    }
+
+    private Outcome pollFocusedElementValue(Supplier<Object> actualSupplier, Object reportedExpected) {
+        AtomicReference<Object> actual = new AtomicReference<>();
+        AtomicReference<RuntimeException> failure = new AtomicReference<>();
+        AtomicBoolean matched = new AtomicBoolean();
+        try {
+            locator.page().waitForCondition(() -> {
+                try {
+                    actual.set(actualSupplier.get());
+                    failure.set(null);
+                    matched.set(compare(reportedExpected, actual.get()));
+                    return matched.get();
+                } catch (RuntimeException exception) {
+                    failure.set(exception);
+                    return false;
+                }
+            });
+        } catch (RuntimeException exception) {
+            ReportManagerHelper.logDiscrete(exception);
+        }
+        if (!matched.get()) {
+            if (failure.get() != null) {
+                ReportManagerHelper.logDiscrete(failure.get());
+            }
+            return new Outcome(false, reportedExpected, null,
+                    commonParameters(reportedExpected, null), List.of());
+        }
+        Object reportedActual = actual.get();
+        return new Outcome(compare(reportedExpected, reportedActual), reportedExpected, reportedActual,
+                commonParameters(reportedExpected, reportedActual), List.of());
+    }
+
+    private boolean isFocusedBrowserValue() {
+        if ("browserValueEquals".equals(validationMethod)) {
+            return true;
+        }
+        if (!"browserAttributeEquals".equals(validationMethod) || browserAttribute == null) {
+            return false;
+        }
+        return List.of("pagesource", "windowsource", "source", "windowhandle", "pagehandle", "handle",
+                        "windowposition", "pageposition", "position", "windowsize", "pagesize", "size",
+                        "browsingcontextcount", "windowcount", "pagecount")
+                .contains(browserAttribute.toLowerCase(Locale.ROOT));
+    }
+
+    private Outcome pollFocusedBrowserValue(Object reportedExpected) {
+        boolean contextCount = isBrowsingContextCount();
+        boolean contextOwnedValue = "browserValueEquals".equals(validationMethod);
+        Object comparisonExpected = contextCount ? String.valueOf(reportedExpected) : reportedExpected;
+        Page page = null;
+        BrowserContext context = null;
+        if (contextCount || contextOwnedValue) {
+            context = session.browserContext();
+            if (context == null || context.isClosed()) {
+                throw new UnsupportedOperationException("Browser validations require a live Playwright browser context.");
+            }
+        } else {
+            page = session.page();
+            if (page == null || page.isClosed()) {
+                throw new UnsupportedOperationException("Browser validations require a live Playwright page.");
+            }
+        }
+        Page activePage = page;
+        BrowserContext activeContext = context;
+        AtomicReference<Object> actual = new AtomicReference<>();
+        AtomicReference<RuntimeException> failure = new AtomicReference<>();
+        AtomicReference<RuntimeException> waitFailure = new AtomicReference<>();
+        AtomicBoolean matched = new AtomicBoolean();
+        BooleanSupplier condition = () -> {
+            try {
+                actual.set(contextOwnedValue ? browserValueReader.get() : readBrowserAttribute(activePage));
+                failure.set(null);
+                matched.set(compare(comparisonExpected, actual.get()));
+                return matched.get();
+            } catch (RuntimeException exception) {
+                failure.set(exception);
+                if (exception instanceof UnsupportedOperationException) {
+                    throw exception;
+                }
+                return false;
+            }
+        };
+        try {
+            if (contextCount || contextOwnedValue) {
+                Objects.requireNonNull(activeContext).waitForCondition(condition);
+            } else {
+                Objects.requireNonNull(activePage).waitForCondition(condition);
+            }
+        } catch (RuntimeException exception) {
+            waitFailure.set(exception);
+            ReportManagerHelper.logDiscrete(exception);
+        }
+        if (!matched.get()) {
+            if (contextOwnedValue && failure.get() != null) {
+                throw failure.get();
+            }
+            if (contextOwnedValue && waitFailure.get() != null
+                    && !(waitFailure.get() instanceof TimeoutError)) {
+                throw waitFailure.get();
+            }
+            if (failure.get() != null) {
+                ReportManagerHelper.logDiscrete(failure.get());
+            }
+            Object safeExpected = reportedBrowserValue(comparisonExpected);
+            return new Outcome(false, safeExpected, null,
+                    commonParameters(safeExpected, null), List.of(), page);
+        }
+        Object reportedActual = actual.get();
+        Object safeExpected = reportedBrowserValue(comparisonExpected);
+        Object safeActual = reportedBrowserValue(reportedActual);
+        return new Outcome(compare(comparisonExpected, reportedActual), safeExpected, safeActual,
+                commonParameters(safeExpected, safeActual), List.of(), page);
+    }
+
+    private boolean isBrowsingContextCount() {
+        return browserAttribute != null && List.of("browsingcontextcount", "windowcount", "pagecount")
+                .contains(browserAttribute.toLowerCase(Locale.ROOT));
+    }
+
+    private Object reportedBrowserValue(Object value) {
+        if (browserAttribute == null || !List.of("pagesource", "windowsource", "source")
+                .contains(browserAttribute.toLowerCase(Locale.ROOT))) {
+            return value;
+        }
+        return value == null ? null : "page source payload (" + String.valueOf(value).length() + " characters)";
+    }
+
+    private ElementRectangle readElementRectangle() {
+        var box = locator.boundingBox();
+        return box == null ? null : new ElementRectangle(box.x, box.y, box.width, box.height);
+    }
+
+    private String readAriaField(boolean name) {
+        var nodes = AriaSnapshotHelper.parse(locator.ariaSnapshot());
+        if (nodes.isEmpty()) {
+            return "";
+        }
+        return name ? nodes.getFirst().name() : nodes.getFirst().role();
+    }
+
     private Object readBrowserAttribute() {
-        Page page = session.page();
+        return readBrowserAttribute(session.page());
+    }
+
+    private Object readBrowserAttribute(Page page) {
         return switch (browserAttribute.toLowerCase(Locale.ROOT)) {
             case "currenturl", "pageurl", "windowurl", "url" -> page.url();
             case "pagesource", "windowsource", "source" -> page.content();
@@ -446,8 +661,12 @@ final class PlaywrightValidationsExecutor extends ValidationsExecutor {
             case "devicepixelratio", "device-scale-factor", "devicescalefactor" ->
                     page.evaluate("() => window.devicePixelRatio");
             case "windowhandle", "pagehandle", "handle" -> session.pageHandle(page);
+            case "windowposition", "pageposition", "position" ->
+                    page.evaluate("() => `(${window.screenX}, ${window.screenY})`");
             case "windowsize", "pagesize", "size" ->
-                    page.evaluate("() => `${window.innerWidth}x${window.innerHeight}`");
+                    page.evaluate("() => `(${window.outerWidth}, ${window.outerHeight})`");
+            case "browsingcontextcount", "windowcount", "pagecount" ->
+                    String.valueOf(session.browserContext().pages().size());
             default -> page.evaluate("(attribute) => document.documentElement.getAttribute(attribute)", browserAttribute);
         };
     }
@@ -515,6 +734,7 @@ final class PlaywrightValidationsExecutor extends ValidationsExecutor {
             case "elementEnabled" -> parameters.put("State", "enabled");
             case "elementCssPropertyEquals" -> parameters.put("CSS Property", elementCssProperty);
             case "browserAttributeEquals" -> parameters.put("Attribute", browserAttribute);
+            case "browserValueEquals" -> parameters.put("Browser value", browserValueName);
             case "elementMatches" -> {
                 parameters.put("Should match", String.valueOf(expected));
                 parameters.put("Visual engine", visualValidationEngine.name());
@@ -566,9 +786,14 @@ final class PlaywrightValidationsExecutor extends ValidationsExecutor {
 
     private List<List<Object>> attachments(Outcome outcome) {
         List<List<Object>> attachments = new ArrayList<>(outcome.attachments());
-        if (!outcome.visualComparisonAttached() && shouldAttachScreenshot(outcome.passed())) {
+        boolean attachScreenshot = !outcome.visualComparisonAttached() && shouldAttachScreenshot(outcome.passed());
+        boolean attachPageSnapshot = shouldAttachPageSnapshot(outcome.passed());
+        Page evidencePage = attachScreenshot || attachPageSnapshot
+                ? outcome.evidencePage() == null ? session.page() : outcome.evidencePage()
+                : null;
+        if (attachScreenshot) {
             try {
-                byte[] screenshot = session.page().screenshot(new Page.ScreenshotOptions().setFullPage(true));
+                byte[] screenshot = evidencePage.screenshot(new Page.ScreenshotOptions().setFullPage(true));
                 List<Object> screenshotAttachment = new ScreenshotManager()
                         .prepareImageForReport(screenshot, validationCategoryString);
                 if (screenshotAttachment != null && !screenshotAttachment.isEmpty()) {
@@ -578,9 +803,9 @@ final class PlaywrightValidationsExecutor extends ValidationsExecutor {
                 ReportManagerHelper.logDiscrete(e);
             }
         }
-        if (shouldAttachPageSnapshot(outcome.passed())) {
+        if (attachPageSnapshot) {
             try {
-                attachments.add(List.of(validationCategoryString, "page HTML", session.page().content()));
+                attachments.add(List.of(validationCategoryString, "page HTML", evidencePage.content()));
             } catch (RuntimeException e) {
                 ReportManagerHelper.logDiscrete(e);
             }
@@ -597,11 +822,12 @@ final class PlaywrightValidationsExecutor extends ValidationsExecutor {
     }
 
     private boolean shouldAttachPageSnapshot(boolean passed) {
-        if (!passed) {
-            return true;
-        }
         String policy = SHAFT.Properties.visuals.whenToTakePageSourceSnapshot().toLowerCase(Locale.ROOT);
-        return List.of("always", "validationpointsonly").contains(policy);
+        return switch (policy) {
+            case "never" -> false;
+            case "always", "validationpointsonly" -> true;
+            default -> !passed;
+        };
     }
 
     private record Outcome(boolean passed,
@@ -609,10 +835,21 @@ final class PlaywrightValidationsExecutor extends ValidationsExecutor {
                            Object actual,
                            LinkedHashMap<String, String> parameters,
                            List<List<Object>> attachments,
-                           boolean visualComparisonAttached) {
+                           boolean visualComparisonAttached,
+                           Page evidencePage) {
         private Outcome(boolean passed, Object expected, Object actual, LinkedHashMap<String, String> parameters,
                         List<List<Object>> attachments) {
-            this(passed, expected, actual, parameters, attachments, false);
+            this(passed, expected, actual, parameters, attachments, false, null);
+        }
+
+        private Outcome(boolean passed, Object expected, Object actual, LinkedHashMap<String, String> parameters,
+                        List<List<Object>> attachments, boolean visualComparisonAttached) {
+            this(passed, expected, actual, parameters, attachments, visualComparisonAttached, null);
+        }
+
+        private Outcome(boolean passed, Object expected, Object actual, LinkedHashMap<String, String> parameters,
+                        List<List<Object>> attachments, Page evidencePage) {
+            this(passed, expected, actual, parameters, attachments, false, evidencePage);
         }
     }
 

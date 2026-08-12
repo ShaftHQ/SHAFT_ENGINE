@@ -26,6 +26,26 @@ public interface ElementActionsContract {
         return verifyThat(elementLocator.toBy());
     }
 
+    /**
+     * Starts hard assertions against a lazily composed portable element target.
+     *
+     * @param elementTarget portable element target
+     * @return element assertions facade
+     */
+    default ElementAssertions assertThat(ElementTarget elementTarget) {
+        return assertThat(elementTarget.toBy());
+    }
+
+    /**
+     * Starts soft verifications against a lazily composed portable element target.
+     *
+     * @param elementTarget portable element target
+     * @return element verifications facade
+     */
+    default ElementAssertions verifyThat(ElementTarget elementTarget) {
+        return verifyThat(elementTarget.toBy());
+    }
+
     int getElementsCount(By elementLocator);
 
     default int getElementsCount(ShaftLocator elementLocator) {

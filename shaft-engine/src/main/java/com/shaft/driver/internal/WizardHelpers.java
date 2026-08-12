@@ -1,6 +1,7 @@
 package com.shaft.driver.internal;
 
 import com.shaft.driver.internal.DriverFactory.DriverFactoryHelper;
+import com.shaft.validation.ValidationEnums;
 import com.shaft.validation.internal.*;
 import org.openqa.selenium.By;
 
@@ -8,13 +9,16 @@ public class WizardHelpers {
     static DriverFactoryHelper helper;
 
     public static class WebDriverAssertions implements com.shaft.gui.driver.DriverAssertions {
+        private final DriverFactoryHelper instanceHelper;
+
         public WebDriverAssertions(DriverFactoryHelper helper) {
             WizardHelpers.helper = helper;
+            this.instanceHelper = helper;
         }
 
         @Override
         public WebDriverBrowserValidationsBuilder browser() {
-            return com.shaft.validation.Validations.assertThat().browser(helper.getDriver());
+            return com.shaft.validation.Validations.assertThat().browser(instanceHelper.getDriver());
         }
 
         @Override
@@ -26,17 +30,25 @@ public class WizardHelpers {
         public NativeValidationsBuilder object(Object object) {
             return com.shaft.validation.Validations.assertThat().object(object);
         }
+
+        @Override
+        public WebDriverMobileValidationsBuilder mobileValues() {
+            return new WebDriverMobileValidationsBuilder(ValidationEnums.ValidationCategory.HARD_ASSERT,
+                    instanceHelper.getDriver(), new StringBuilder("the mobile session "));
+        }
     }
 
     public static class WebDriverVerifications implements com.shaft.gui.driver.DriverVerifications {
+        private final DriverFactoryHelper instanceHelper;
 
         public WebDriverVerifications(DriverFactoryHelper helper) {
             WizardHelpers.helper = helper;
+            this.instanceHelper = helper;
         }
 
         @Override
         public WebDriverBrowserValidationsBuilder browser() {
-            return com.shaft.validation.Validations.verifyThat().browser(helper.getDriver());
+            return com.shaft.validation.Validations.verifyThat().browser(instanceHelper.getDriver());
         }
 
         @Override
@@ -47,6 +59,12 @@ public class WizardHelpers {
         @Override
         public NativeValidationsBuilder object(Object accessible) {
             return com.shaft.validation.Validations.verifyThat().object(accessible);
+        }
+
+        @Override
+        public WebDriverMobileValidationsBuilder mobileValues() {
+            return new WebDriverMobileValidationsBuilder(ValidationEnums.ValidationCategory.SOFT_ASSERT,
+                    instanceHelper.getDriver(), new StringBuilder("the mobile session "));
         }
     }
 

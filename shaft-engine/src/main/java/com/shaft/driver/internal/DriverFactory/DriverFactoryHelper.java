@@ -7,6 +7,7 @@ import com.shaft.driver.SHAFT;
 import com.shaft.gui.browser.BrowserActions;
 import com.shaft.gui.browser.internal.BidiNetworkActivitySource;
 import com.shaft.gui.browser.internal.BidiConsoleLogSource;
+import com.shaft.gui.browser.internal.LegacyConsoleLogSource;
 import com.shaft.gui.browser.internal.BidiPermissionState;
 import com.shaft.gui.mobile.internal.MobileLogSource;
 import com.shaft.gui.mobile.internal.MobilePerformanceState;
@@ -884,7 +885,9 @@ public class DriverFactoryHelper {
             }
             try {
                 attachWebDriverLogs(driver);
-                closeBrowserNetworkInterceptor();
+                if (browserNetworkInterceptor != null && browserNetworkInterceptor.owns(driver)) {
+                    closeBrowserNetworkInterceptor();
+                }
                 //if dockerized wdm.quit the relevant one
                 if (SHAFT.Properties.platform.executionAddress().toLowerCase().contains("dockerized")) {
                     var pathToRecording = webDriverManager.get().getDockerRecordingPath(driver);
@@ -905,9 +908,14 @@ public class DriverFactoryHelper {
                 ReportManagerHelper.logDiscrete(e);
             } finally {
                 HealingManager.clear(driver);
-                browserNetworkInterceptor = null;
+                if (browserNetworkInterceptor != null && browserNetworkInterceptor.owns(driver)) {
+                    closeBrowserNetworkInterceptor();
+                    browserNetworkInterceptor = null;
+                }
+                BrowserNetworkInterceptor.closeAndRemove(driver);
                 BidiNetworkActivitySource.closeAndRemove(driver);
                 BidiConsoleLogSource.closeAndRemove(driver);
+                LegacyConsoleLogSource.closeAndRemove(driver);
                 MobileLogSource.closeAndRemove(driver);
                 MobilePerformanceState.closeAndRemove(driver);
                 MobileRecordingState.closeAndRemove(driver);

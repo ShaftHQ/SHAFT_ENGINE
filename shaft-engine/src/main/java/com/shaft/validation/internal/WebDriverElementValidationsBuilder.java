@@ -19,6 +19,26 @@ public class WebDriverElementValidationsBuilder implements com.shaft.gui.driver.
     protected String elementCssProperty;
     protected String ariaSnapshotFileName;
 
+    @Override
+    public NativeValidationsBuilder elementCount() {
+        return focusedValue("elementCountEquals", "match count ");
+    }
+
+    @Override
+    public NativeValidationsBuilder elementRectangle() {
+        return focusedValue("elementRectangleEquals", "rectangle ");
+    }
+
+    @Override
+    public NativeValidationsBuilder elementAccessibleName() {
+        return focusedValue("elementAccessibleNameEquals", "accessible name ");
+    }
+
+    @Override
+    public NativeValidationsBuilder elementRole() {
+        return focusedValue("elementRoleEquals", "accessibility role ");
+    }
+
     public WebDriverElementValidationsBuilder(ValidationEnums.ValidationCategory validationCategory, WebDriver driver, By locator, StringBuilder reportMessageBuilder) {
         this.validationCategory = validationCategory;
         this.driver = driver;
@@ -386,6 +406,12 @@ public class WebDriverElementValidationsBuilder implements com.shaft.gui.driver.
         this.validationMethod = "elementCssPropertyEquals";
         this.elementCssProperty = elementCssProperty;
         reportMessageBuilder.append("CSS property \"").append(elementCssProperty).append("\" ");
+        return new NativeValidationsBuilder(this);
+    }
+
+    private NativeValidationsBuilder focusedValue(String method, String message) {
+        this.validationMethod = method;
+        reportMessageBuilder.append(message);
         return new NativeValidationsBuilder(this);
     }
 

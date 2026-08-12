@@ -1,12 +1,21 @@
 package com.shaft.gui.playwright.validation;
 
 import com.microsoft.playwright.Locator;
+import com.shaft.gui.capabilities.AutomationCapabilities;
+import com.shaft.gui.capabilities.AutomationFeature;
+import com.shaft.gui.capabilities.internal.AutomationCapabilityResolver;
 import com.shaft.gui.driver.BrowserAssertions;
+import com.shaft.gui.driver.BrowserConsoleMessage;
+import com.shaft.gui.browser.internal.PlaywrightNetworkInterceptor;
 import com.shaft.gui.playwright.internal.PlaywrightSession;
+import com.shaft.tools.io.internal.BrowserObservabilityRecorder;
 import com.shaft.validation.ValidationEnums;
 import com.shaft.validation.VisualComparisonOptions;
 import com.shaft.validation.internal.NativeValidationsBuilder;
 import com.shaft.validation.internal.ValidationsExecutor;
+
+import java.util.Objects;
+import java.util.function.Supplier;
 
 public class PlaywrightBrowserValidationsBuilder implements BrowserAssertions {
     private final ValidationEnums.ValidationCategory validationCategory;
@@ -54,6 +63,106 @@ public class PlaywrightBrowserValidationsBuilder implements BrowserAssertions {
     }
 
     @Override
+    public NativeValidationsBuilder pageSourceValue() {
+        reportMessageBuilder.append("page source ");
+        return builder("pagesource");
+    }
+
+    @Override
+    public NativeValidationsBuilder windowHandleValue() {
+        reportMessageBuilder.append("window handle ");
+        return builder("windowhandle");
+    }
+
+    @Override
+    public NativeValidationsBuilder windowPositionValue() {
+        reportMessageBuilder.append("window position ");
+        return builder("windowposition");
+    }
+
+    @Override
+    public NativeValidationsBuilder windowSizeValue() {
+        reportMessageBuilder.append("window size ");
+        return builder("windowsize");
+    }
+
+    @Override
+    public NativeValidationsBuilder browsingContextCountValue() {
+        reportMessageBuilder.append("browsing context count ");
+        return builder("browsingcontextcount");
+    }
+
+    @Override
+    public NativeValidationsBuilder dialogPresentValue() {
+        return value("dialog observed state", () -> {
+            requireFeature(AutomationFeature.BROWSER_AUTOMATION);
+            return session.isDialogSeen();
+        });
+    }
+
+    @Override
+    public NativeValidationsBuilder downloadCountValue() {
+        return value("download count", () -> {
+            requireFeature(AutomationFeature.DOWNLOADS);
+            return session.downloadSnapshot().size();
+        });
+    }
+
+    @Override
+    public NativeValidationsBuilder networkObservationCountValue() {
+        return value("network observation count", () -> {
+            requireFeature(AutomationFeature.NETWORK_OBSERVATION);
+            PlaywrightNetworkInterceptor interceptor = session.networkInterceptor();
+            if (interceptor == null) {
+                throw new UnsupportedOperationException(
+                        "No retained network-observation state exists for the live Playwright session.");
+            }
+            return interceptor.observationCount();
+        });
+    }
+
+    @Override
+    public NativeValidationsBuilder consoleMessageCountValue() {
+        return value("console message count", () -> consoleSnapshot().size());
+    }
+
+    @Override
+    public NativeValidationsBuilder consoleErrorCountValue() {
+        return value("console error count", () -> consoleSnapshot().stream()
+                .filter(entry -> new BrowserConsoleMessage(entry.source(), entry.level(), entry.message(),
+                        entry.timestamp()).isError())
+                .count());
+    }
+
+    @Override
+    public NativeValidationsBuilder featureSupportedValue(AutomationFeature feature) {
+        AutomationFeature required = Objects.requireNonNull(feature, "feature");
+        return value("feature support for " + required.name(), () -> capabilities().supports(required));
+    }
+
+    private NativeValidationsBuilder value(String name, Supplier<Object> reader) {
+        return new PlaywrightNativeValidationsBuilder(validationCategory, session, reader, name,
+                new StringBuilder("the browser ").append(name).append(' '));
+    }
+
+    private java.util.List<BrowserObservabilityRecorder.ConsoleSnapshotEntry> consoleSnapshot() {
+        requireFeature(AutomationFeature.CONSOLE_LOGS);
+        return session.consoleSnapshot();
+    }
+
+    private AutomationCapabilities capabilities() {
+        AutomationCapabilities capabilities = AutomationCapabilityResolver.forPlaywright(session);
+        if (capabilities.backend() == com.shaft.gui.capabilities.AutomationBackend.UNKNOWN) {
+            throw new UnsupportedOperationException("Browser validations require a live Playwright session.");
+        }
+        return capabilities;
+    }
+
+    private void requireFeature(AutomationFeature feature) {
+        capabilities().require(feature);
+    }
+
+    @Override
     public ValidationsExecutor matchesScreenshot() {
         return matchesScreenshot(null);
     }
@@ -70,7 +179,7 @@ public class PlaywrightBrowserValidationsBuilder implements BrowserAssertions {
     }
 
     private NativeValidationsBuilder builder(String browserAttribute) {
-        return new PlaywrightNativeValidationsBuilder(validationCategory, session, null, null, "browserAttributeEquals",
+        return new PlaywrightNativeValidationsBuilder(validationCategory, session, (Locator) null, null, "browserAttributeEquals",
                 null, null, browserAttribute, reportMessageBuilder);
     }
 }

@@ -12,17 +12,26 @@ import org.openqa.selenium.remote.http.Filter;
 import org.openqa.selenium.remote.http.HttpResponse;
 
 import java.util.List;
+import java.util.OptionalInt;
+import java.util.Map;
+import java.util.HashMap;
+import java.lang.ref.ReferenceQueue;
+import java.lang.ref.WeakReference;
 import java.util.concurrent.CopyOnWriteArrayList;
 
 /**
  * Owns browser network interception rules for one WebDriver session.
  */
 public class BrowserNetworkInterceptor implements AutoCloseable {
+    private static final ReferenceQueue<WebDriver> STALE_DRIVERS = new ReferenceQueue<>();
+    private static final Map<IdentityWeakReference, Entry> COUNTERS = new HashMap<>();
     private final WebDriver driver;
     private final InterceptorFactory interceptorFactory;
     private final List<BrowserNetworkInterceptionRule> rules = new CopyOnWriteArrayList<>();
     private AutoCloseable activeInterceptor;
     private boolean observing;
+    private boolean closed;
+    private final Counter counter = new Counter();
 
     /**
      * Creates a browser network interceptor backed by Selenium DevTools.
@@ -36,6 +45,54 @@ public class BrowserNetworkInterceptor implements AutoCloseable {
     BrowserNetworkInterceptor(WebDriver driver, InterceptorFactory interceptorFactory) {
         this.driver = driver;
         this.interceptorFactory = interceptorFactory;
+        counter.owner(this);
+        synchronized (COUNTERS) {
+            expungeStaleDrivers();
+            Entry existing = COUNTERS.get(new IdentityWeakReference(driver));
+            if (existing != null && existing.closed) {
+                closed = true;
+            } else {
+                COUNTERS.put(new IdentityWeakReference(driver, STALE_DRIVERS), new Entry(counter));
+            }
+        }
+    }
+
+    /** Returns the retained count only when this exact driver has an installed interceptor owner. */
+    public static OptionalInt observationCountIfPresent(WebDriver driver) {
+        synchronized (COUNTERS) {
+            expungeStaleDrivers();
+            Entry match = COUNTERS.get(new IdentityWeakReference(driver));
+            return match == null || match.closed || match.counter == null || !match.counter.active()
+                    ? OptionalInt.empty() : OptionalInt.of(match.counter.value());
+        }
+    }
+
+    /** Removes retained observations for this exact driver during terminal teardown. */
+    public static void closeAndRemove(WebDriver driver) {
+        if (driver == null) {
+            return;
+        }
+        Counter removed;
+        synchronized (COUNTERS) {
+            expungeStaleDrivers();
+            IdentityWeakReference lookup = new IdentityWeakReference(driver);
+            Entry entry = COUNTERS.get(lookup);
+            if (entry == null) {
+                entry = new Entry(null);
+                COUNTERS.put(new IdentityWeakReference(driver, STALE_DRIVERS), entry);
+            }
+            entry.closed = true;
+            removed = entry.counter;
+            entry.counter = null;
+        }
+        if (removed != null) {
+            removed.closeOwner();
+        }
+    }
+
+    /** @return whether this interceptor belongs to the exact driver instance */
+    public boolean owns(WebDriver candidate) {
+        return driver == candidate;
     }
 
     /**
@@ -44,6 +101,7 @@ public class BrowserNetworkInterceptor implements AutoCloseable {
      * @param rule rule to add
      */
     public synchronized void addRule(BrowserNetworkInterceptionRule rule) {
+        requireOpen();
         if (!(driver instanceof HasDevTools)) {
             throw new IllegalArgumentException("Network Interceptor is not supported by the current driver type.");
         }
@@ -57,6 +115,7 @@ public class BrowserNetworkInterceptor implements AutoCloseable {
      * @return {@code true} when observation started
      */
     public synchronized boolean startObserving() {
+        requireOpen();
         if (!(driver instanceof HasDevTools)) {
             BrowserObservabilityRecorder.recordWarning("network",
                     "Network capture is not supported by this driver.");
@@ -144,18 +203,35 @@ public class BrowserNetworkInterceptor implements AutoCloseable {
      */
     @Override
     public synchronized void close() {
+        closed = true;
         rules.clear();
         observing = false;
         closeActiveInterceptor();
+        synchronized (COUNTERS) {
+            expungeStaleDrivers();
+            Entry entry = COUNTERS.get(new IdentityWeakReference(driver));
+            if (entry != null && !entry.closed && entry.counter == counter) {
+                COUNTERS.remove(new IdentityWeakReference(driver));
+            }
+        }
     }
 
     private void rebuildInterceptor() {
+        requireOpen();
         closeActiveInterceptor();
         activeInterceptor = interceptorFactory.create(driver, createFilter());
+        counter.activate();
+    }
+
+    private void requireOpen() {
+        if (closed) {
+            throw new UnsupportedOperationException("Browser network observation is closed for this driver session.");
+        }
     }
 
     private Filter createFilter() {
         return next -> request -> {
+            counter.increment();
             BrowserObservabilityRecorder.NetworkExchange exchange = BrowserObservabilityRecorder.startNetwork(request);
             BrowserNetworkInterceptionRule rule = findMatchingRule(request);
             try {
@@ -217,5 +293,80 @@ public class BrowserNetworkInterceptor implements AutoCloseable {
     @FunctionalInterface
     interface InterceptorFactory {
         AutoCloseable create(WebDriver driver, Filter filter);
+    }
+
+    private static void expungeStaleDrivers() {
+        IdentityWeakReference stale;
+        while ((stale = (IdentityWeakReference) STALE_DRIVERS.poll()) != null) {
+            COUNTERS.remove(stale);
+        }
+    }
+
+    private static final class Counter {
+        private int value;
+        private boolean active;
+        private WeakReference<BrowserNetworkInterceptor> owner;
+
+        private synchronized void owner(BrowserNetworkInterceptor interceptor) {
+            owner = new WeakReference<>(interceptor);
+        }
+
+        private synchronized void increment() {
+            value++;
+        }
+
+        private synchronized void activate() {
+            active = true;
+        }
+
+        private synchronized boolean active() {
+            return active;
+        }
+
+        private synchronized int value() {
+            return value;
+        }
+
+        private void closeOwner() {
+            BrowserNetworkInterceptor interceptor;
+            synchronized (this) {
+                interceptor = owner == null ? null : owner.get();
+            }
+            if (interceptor != null) {
+                interceptor.close();
+            }
+        }
+    }
+
+    private static final class Entry {
+        private Counter counter;
+        private boolean closed;
+
+        private Entry(Counter counter) {
+            this.counter = counter;
+        }
+    }
+
+    private static final class IdentityWeakReference extends WeakReference<WebDriver> {
+        private final int identityHash;
+
+        private IdentityWeakReference(WebDriver driver) {
+            super(driver);
+            identityHash = System.identityHashCode(driver);
+        }
+
+        private IdentityWeakReference(WebDriver driver, ReferenceQueue<WebDriver> queue) {
+            super(driver, queue);
+            identityHash = System.identityHashCode(driver);
+        }
+
+        @Override public int hashCode() { return identityHash; }
+
+        @Override public boolean equals(Object other) {
+            if (this == other) return true;
+            if (!(other instanceof IdentityWeakReference reference)) return false;
+            WebDriver referent = get();
+            return referent != null && referent == reference.get();
+        }
     }
 }

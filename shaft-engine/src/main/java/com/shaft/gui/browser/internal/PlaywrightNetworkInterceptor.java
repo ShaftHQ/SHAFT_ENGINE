@@ -29,6 +29,17 @@ public class PlaywrightNetworkInterceptor {
     private final List<BasicAuthenticationPolicy> authenticationPolicies = new CopyOnWriteArrayList<>();
     private AutoCloseable activeRoute;
     private boolean observing;
+    private int observationCount;
+    private boolean observationStatePresent;
+
+    /** @return number of requests retained by this browser-context owner */
+    public synchronized int observationCount() {
+        if (!observationStatePresent) {
+            throw new UnsupportedOperationException(
+                    "No retained network-observation state exists for the live Playwright session.");
+        }
+        return observationCount;
+    }
 
     /**
      * Creates a Playwright network interceptor backed by BrowserContext routing.
@@ -47,7 +58,7 @@ public class PlaywrightNetworkInterceptor {
     public synchronized void addRule(BrowserNetworkInterceptionRule rule) {
         rules.add(rule);
         if (activeRoute == null) {
-            activeRoute = browserContext.route(ALL_REQUESTS, this::handle);
+            activateRoute();
         }
     }
 
@@ -55,10 +66,10 @@ public class PlaywrightNetworkInterceptor {
      * Starts passive network observation for contract recording or validation.
      */
     public synchronized void startObserving() {
-        observing = true;
         if (activeRoute == null) {
-            activeRoute = browserContext.route(ALL_REQUESTS, this::handle);
+            activateRoute();
         }
+        observing = true;
     }
 
     /** Stops passive observation while preserving registered interception rules. */
@@ -85,7 +96,7 @@ public class PlaywrightNetworkInterceptor {
         authenticationPolicies.removeIf(policy -> java.util.Objects.equals(policy.origin(), origin));
         authenticationPolicies.add(new BasicAuthenticationPolicy(origin, authorizationHeader));
         if (activeRoute == null) {
-            activeRoute = browserContext.route(ALL_REQUESTS, this::handle);
+            activateRoute();
         }
     }
 
@@ -105,7 +116,15 @@ public class PlaywrightNetworkInterceptor {
         closeActiveRoute();
     }
 
+    private void activateRoute() {
+        activeRoute = browserContext.route(ALL_REQUESTS, this::handle);
+        observationStatePresent = true;
+    }
+
     private void handle(Route route) {
+        synchronized (this) {
+            observationCount++;
+        }
         HttpRequest request = toSeleniumRequest(route.request());
         BrowserNetworkInterceptionRule rule = findMatchingRule(request);
         String authorization = authorizationFor(route.request().url());

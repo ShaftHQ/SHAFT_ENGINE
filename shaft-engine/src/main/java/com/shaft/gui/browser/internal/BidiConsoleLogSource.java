@@ -7,15 +7,19 @@ import org.openqa.selenium.bidi.module.LogInspector;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.ConcurrentHashMap;
+import java.lang.ref.ReferenceQueue;
+import java.lang.ref.WeakReference;
+import java.util.HashMap;
+import java.util.Map;
 
 /** Session-scoped Selenium BiDi console and JavaScript-error bridge. */
 public final class BidiConsoleLogSource implements AutoCloseable {
     private static final int EVENT_LIMIT = 1000;
-    private static final ConcurrentHashMap<WebDriver, BidiConsoleLogSource> CACHE = new ConcurrentHashMap<>();
+    private static final ReferenceQueue<WebDriver> STALE_DRIVERS = new ReferenceQueue<>();
+    private static final Map<IdentityWeakReference, Entry> CACHE = new HashMap<>();
     private final List<BrowserObservabilityRecorder.ConsoleSnapshotEntry> events = new ArrayList<>();
     private LogInspector inspector;
-    private boolean healthy;
+    private volatile boolean healthy;
 
     BidiConsoleLogSource() {
         healthy = true;
@@ -33,29 +37,62 @@ public final class BidiConsoleLogSource implements AutoCloseable {
     }
 
     static void install(WebDriver driver, BidiConsoleLogSource source) {
-        CACHE.put(driver, source);
+        boolean accepted;
+        synchronized (CACHE) {
+            expungeStaleDrivers();
+            Entry entry = CACHE.computeIfAbsent(new IdentityWeakReference(driver, STALE_DRIVERS), ignored -> new Entry());
+            accepted = !entry.closed;
+            if (accepted) {
+                entry.source = source;
+            }
+        }
+        if (!accepted) {
+            source.close();
+        }
     }
 
     /** Attaches once per session and reports whether BiDi log observation is active. */
     public static boolean attach(WebDriver driver) {
-        return driver != null && CACHE.computeIfAbsent(driver, BidiConsoleLogSource::new).healthy;
+        if (driver == null) {
+            return false;
+        }
+        synchronized (CACHE) {
+            expungeStaleDrivers();
+            IdentityWeakReference lookup = new IdentityWeakReference(driver);
+            Entry existing = CACHE.get(lookup);
+            if (existing != null) {
+                return !existing.closed && existing.source != null && existing.source.healthy;
+            }
+            CACHE.put(new IdentityWeakReference(driver, STALE_DRIVERS), new Entry());
+        }
+        BidiConsoleLogSource created = new BidiConsoleLogSource(driver);
+        synchronized (CACHE) {
+            expungeStaleDrivers();
+            Entry entry = CACHE.get(new IdentityWeakReference(driver));
+            if (entry != null && !entry.closed && entry.source == null) {
+                entry.source = created;
+                return created.healthy;
+            }
+            created.close();
+            return entry != null && !entry.closed && entry.source != null && entry.source.healthy;
+        }
     }
 
     /** @return whether a session-scoped listener is already active */
     public static boolean isHealthy(WebDriver driver) {
-        BidiConsoleLogSource source = driver == null ? null : CACHE.get(driver);
+        BidiConsoleLogSource source = source(driver);
         return source != null && source.healthy;
     }
 
     /** @return immutable session console snapshot, oldest first */
     public static List<BrowserObservabilityRecorder.ConsoleSnapshotEntry> snapshot(WebDriver driver) {
-        BidiConsoleLogSource source = driver == null ? null : CACHE.get(driver);
+        BidiConsoleLogSource source = source(driver);
         return source == null ? List.of() : source.snapshot();
     }
 
     /** Clears buffered session console events. */
     public static void clear(WebDriver driver) {
-        BidiConsoleLogSource source = driver == null ? null : CACHE.get(driver);
+        BidiConsoleLogSource source = source(driver);
         if (source != null) {
             source.clearEvents();
         }
@@ -63,7 +100,7 @@ public final class BidiConsoleLogSource implements AutoCloseable {
 
     /** Moves buffered BiDi events onto the current reporter thread for trace serialization. */
     public static void drainToRecorder(WebDriver driver) {
-        BidiConsoleLogSource source = driver == null ? null : CACHE.get(driver);
+        BidiConsoleLogSource source = source(driver);
         if (source == null) {
             return;
         }
@@ -74,9 +111,67 @@ public final class BidiConsoleLogSource implements AutoCloseable {
 
     /** Removes SHAFT's BiDi log listeners during driver teardown. */
     public static void closeAndRemove(WebDriver driver) {
-        BidiConsoleLogSource source = driver == null ? null : CACHE.remove(driver);
+        BidiConsoleLogSource source;
+        synchronized (CACHE) {
+            if (driver == null) {
+                return;
+            }
+            expungeStaleDrivers();
+            IdentityWeakReference lookup = new IdentityWeakReference(driver);
+            Entry entry = CACHE.get(lookup);
+            if (entry == null) {
+                entry = new Entry();
+                CACHE.put(new IdentityWeakReference(driver, STALE_DRIVERS), entry);
+            }
+            entry.closed = true;
+            source = entry.source;
+            entry.source = null;
+        }
         if (source != null) {
             source.close();
+        }
+    }
+
+    private static BidiConsoleLogSource source(WebDriver driver) {
+        synchronized (CACHE) {
+            expungeStaleDrivers();
+            Entry entry = driver == null ? null : CACHE.get(new IdentityWeakReference(driver));
+            return entry == null || entry.closed ? null : entry.source;
+        }
+    }
+
+    private static void expungeStaleDrivers() {
+        IdentityWeakReference stale;
+        while ((stale = (IdentityWeakReference) STALE_DRIVERS.poll()) != null) {
+            CACHE.remove(stale);
+        }
+    }
+
+    private static final class Entry {
+        private BidiConsoleLogSource source;
+        private boolean closed;
+    }
+
+    private static final class IdentityWeakReference extends WeakReference<WebDriver> {
+        private final int identityHash;
+
+        private IdentityWeakReference(WebDriver driver) {
+            super(driver);
+            identityHash = System.identityHashCode(driver);
+        }
+
+        private IdentityWeakReference(WebDriver driver, ReferenceQueue<WebDriver> queue) {
+            super(driver, queue);
+            identityHash = System.identityHashCode(driver);
+        }
+
+        @Override public int hashCode() { return identityHash; }
+
+        @Override public boolean equals(Object other) {
+            if (this == other) return true;
+            if (!(other instanceof IdentityWeakReference reference)) return false;
+            WebDriver referent = get();
+            return referent != null && referent == reference.get();
         }
     }
 
@@ -87,6 +182,9 @@ public final class BidiConsoleLogSource implements AutoCloseable {
     }
 
     synchronized void record(String level, String text, long timestamp) {
+        if (!healthy) {
+            return;
+        }
         if (events.size() >= EVENT_LIMIT) {
             events.removeFirst();
         }
@@ -109,15 +207,18 @@ public final class BidiConsoleLogSource implements AutoCloseable {
 
     @Override
     public void close() {
-        healthy = false;
-        clearEvents();
-        if (inspector != null) {
+        LogInspector currentInspector;
+        synchronized (this) {
+            healthy = false;
+            events.clear();
+            currentInspector = inspector;
+            inspector = null;
+        }
+        if (currentInspector != null) {
             try {
-                inspector.close();
+                currentInspector.close();
             } catch (RuntimeException ignored) {
                 // The driver may already be closed.
-            } finally {
-                inspector = null;
             }
         }
     }

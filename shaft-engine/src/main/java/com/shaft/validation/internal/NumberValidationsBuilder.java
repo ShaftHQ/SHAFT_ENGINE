@@ -30,6 +30,19 @@ public class NumberValidationsBuilder {
         this.reportMessageBuilder = restValidationsBuilder.reportMessageBuilder;
     }
 
+    static NumberValidationsBuilder responseValue(ValidationEnums.ValidationCategory category, Object response,
+                                                   String validationMethod, StringBuilder reportMessageBuilder) {
+        return new NumberValidationsBuilder(category, response, validationMethod, reportMessageBuilder);
+    }
+
+    private NumberValidationsBuilder(ValidationEnums.ValidationCategory category, Object response,
+                                     String validationMethod, StringBuilder reportMessageBuilder) {
+        this.validationCategory = category;
+        this.response = response;
+        this.validationMethod = validationMethod;
+        this.reportMessageBuilder = reportMessageBuilder;
+    }
+
     /**
      * Use this to check that the actual number is equal to the expected value
      *

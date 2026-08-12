@@ -9,6 +9,26 @@ import com.shaft.validation.internal.ValidationsExecutor;
  * Public contract for element-level hard/soft validation starters.
  */
 public interface ElementAssertions {
+    /** Starts a comparison against the number of elements resolved by this target. */
+    default NativeValidationsBuilder elementCount() {
+        throw unsupported("elementCount");
+    }
+
+    /** Starts a comparison against the element's backend-neutral rectangle. */
+    default NativeValidationsBuilder elementRectangle() {
+        throw unsupported("elementRectangle");
+    }
+
+    /** Starts a comparison against the element's computed accessible name. */
+    default NativeValidationsBuilder elementAccessibleName() {
+        throw unsupported("elementAccessibleName");
+    }
+
+    /** Starts a comparison against the element's computed accessibility role. */
+    default NativeValidationsBuilder elementRole() {
+        throw unsupported("elementRole");
+    }
+
     ValidationsExecutor exists();
 
     ValidationsExecutor doesNotExist();
@@ -81,4 +101,9 @@ public interface ElementAssertions {
     default ValidationsExecutor matchesAriaSnapshot(String snapshotFileName) {
         throw new UnsupportedOperationException("matchesAriaSnapshot is not supported by this element assertions implementation.");
     }
+
+    private static UnsupportedOperationException unsupported(String operation) {
+        return new UnsupportedOperationException(operation + " is not supported by this element assertions implementation.");
+    }
+
 }

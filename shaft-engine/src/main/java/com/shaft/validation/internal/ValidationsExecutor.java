@@ -4,6 +4,7 @@ import com.shaft.api.RestActions;
 import com.shaft.cli.FileActions;
 import com.shaft.cli.TerminalActions;
 import com.shaft.gui.browser.internal.JavaScriptWaitManager;
+import com.shaft.gui.driver.ElementRectangle;
 import com.shaft.tools.io.PdfFileManager;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.io.internal.FlakeProfiler;
@@ -17,6 +18,7 @@ import org.openqa.selenium.WebDriver;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Supplier;
 
 public class ValidationsExecutor {
     protected final StringBuilder reportMessageBuilder;
@@ -48,6 +50,12 @@ public class ValidationsExecutor {
     private Double maxDiffPixelRatio;
     private List<By> maskLocators;
     private String ariaSnapshotFileName;
+    private Supplier<Object> mobileValueReader;
+    private String mobileValueName;
+    private Supplier<Object> browserValueReader;
+    private String browserValueName;
+    private Supplier<Object> apiValueReader;
+    private String apiValueDescription;
 
     public ValidationsExecutor(WebDriverElementValidationsBuilder webDriverElementValidationsBuilder) {
         this.validationCategory = webDriverElementValidationsBuilder.validationCategory;
@@ -84,6 +92,12 @@ public class ValidationsExecutor {
         this.actualValue = nativeValidationsBuilder.actualValue;
         this.elementCssProperty = nativeValidationsBuilder.elementCssProperty;
         this.browserAttribute = nativeValidationsBuilder.browserAttribute;
+        this.mobileValueReader = nativeValidationsBuilder.mobileValueReader;
+        this.mobileValueName = nativeValidationsBuilder.mobileValueName;
+        this.browserValueReader = nativeValidationsBuilder.browserValueReader;
+        this.browserValueName = nativeValidationsBuilder.browserValueName;
+        this.apiValueReader = nativeValidationsBuilder.apiValueReader;
+        this.apiValueDescription = nativeValidationsBuilder.apiValueDescription;
 
         this.response.set(nativeValidationsBuilder.response);
         this.jsonPath = nativeValidationsBuilder.jsonPath;
@@ -163,10 +177,12 @@ public class ValidationsExecutor {
     }
 
     protected void internalPerform() {
-        JavaScriptWaitManager.waitForLazyLoading(driver.get());
+        if (driver.get() != null && !List.of("mobileValueEquals", "browserValueEquals").contains(validationMethod)) {
+            JavaScriptWaitManager.waitForLazyLoading(driver.get());
+        }
         boolean generatedCustomReportMessage = false;
         if (customReportMessage.isBlank()) {
-            customReportMessage = reportMessageBuilder.toString();
+            customReportMessage = generatedReportMessage();
             generatedCustomReportMessage = true;
         }
         this.validationCategoryString = validationCategory.equals(ValidationEnums.ValidationCategory.HARD_ASSERT) ? "Assert" : "Verify";
@@ -183,6 +199,16 @@ public class ValidationsExecutor {
             driver.remove();
             response.remove();
         }
+    }
+
+    private String generatedReportMessage() {
+        if ("browserAttributeEquals".equals(validationMethod)
+                && browserAttribute != null
+                && List.of("pagesource", "windowsource", "source")
+                .contains(browserAttribute.toLowerCase())) {
+            return "the browser page source payload matches the requested comparison.";
+        }
+        return reportMessageBuilder.toString();
     }
 
     @Step(" {this.validationCategoryString} that {this.customReportMessage}")
@@ -216,8 +242,36 @@ public class ValidationsExecutor {
                     validationsHelper.validateElementDomProperty(driver.get(), locator, elementAttribute, String.valueOf(expectedValue), validationComparisonType, validationType);
             case "elementCssPropertyEquals" ->
                     validationsHelper.validateElementCSSProperty(driver.get(), locator, elementCssProperty, String.valueOf(expectedValue), validationComparisonType, validationType);
+            case "elementCountEquals" ->
+                    validationsHelper.validateElementValue(driver.get(), locator, "match count",
+                            () -> driver.get().findElements(locator).size(), expectedValue, validationComparisonType, validationType);
+            case "elementRectangleEquals" ->
+                    validationsHelper.validateElementValue(driver.get(), locator, "rectangle", () -> {
+                        var rectangle = driver.get().findElement(locator).getRect();
+                        return new ElementRectangle(rectangle.x, rectangle.y, rectangle.width, rectangle.height);
+                    }, expectedValue, validationComparisonType, validationType);
+            case "elementAccessibleNameEquals" ->
+                    validationsHelper.validateElementValue(driver.get(), locator, "accessible name",
+                            () -> driver.get().findElement(locator).getAccessibleName(), expectedValue,
+                            validationComparisonType, validationType);
+            case "elementRoleEquals" ->
+                    validationsHelper.validateElementValue(driver.get(), locator, "accessibility role",
+                            () -> driver.get().findElement(locator).getAriaRole(), expectedValue,
+                            validationComparisonType, validationType);
             case "browserAttributeEquals" ->
                     validationsHelper.validateBrowserAttribute(driver.get(), browserAttribute, String.valueOf(expectedValue), validationComparisonType, validationType);
+            case "mobileValueEquals" ->
+                    validationsHelper.validateMobileValue(driver.get(), mobileValueName, mobileValueReader,
+                            expectedValue, validationComparisonType, validationType);
+            case "browserValueEquals" ->
+                    validationsHelper.validateBrowserValue(driver.get(), browserValueName, browserValueReader,
+                            expectedValue, validationComparisonType, validationType);
+            case "apiValueEquals" ->
+                    validationsHelper.validateApiValue(apiValueDescription, expectedValue, apiValueReader.get(),
+                            validationComparisonType, validationType);
+            case "responseStatusCode" ->
+                    validationsHelper.validateNumber((Number) expectedValue,
+                            ((Response) response.get()).statusCode(), numbersComparativeRelation, validationType);
             case "comparativeRelationBetweenNumbers" ->
                     validationsHelper.validateNumber((Number) expectedValue, (Number) actualValue, numbersComparativeRelation, validationType);
             case "fileExists" ->

@@ -28,6 +28,10 @@ public class WebDriverElementValidationsBuilderCoverageUnitTest {
         assertNativeState(newBuilder().text(), "elementDomAttributeEquals", "text", null);
         assertNativeState(newBuilder().textTrimmed(), "elementDomAttributeEquals", "textTrimmed", null);
         assertNativeState(newBuilder().cssProperty("color"), "elementCssPropertyEquals", null, "color");
+        assertNativeState(newBuilder().elementCount(), "elementCountEquals", null, null);
+        assertNativeState(newBuilder().elementRectangle(), "elementRectangleEquals", null, null);
+        assertNativeState(newBuilder().elementAccessibleName(), "elementAccessibleNameEquals", null, null);
+        assertNativeState(newBuilder().elementRole(), "elementRoleEquals", null, null);
     }
 
     @Test(description = "existence and image methods should configure state before execution")

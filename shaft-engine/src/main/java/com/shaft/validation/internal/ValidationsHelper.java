@@ -48,6 +48,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Supplier;
 
 import static io.restassured.module.jsv.JsonSchemaValidator.matchesJsonSchema;
 
@@ -394,6 +395,116 @@ public class ValidationsHelper {
         reportValidationState(validationState, expected, actual, null, null, null);
     }
 
+    protected void validateApiValue(String description, Object expected, Object actual,
+                                    ValidationEnums.ValidationComparisonType comparisonType,
+                                    ValidationEnums.ValidationType validationType) {
+        boolean validationState = performValidation(expected, actual, comparisonType, validationType);
+        Object reportedExpected = apiValueSummary(expected);
+        Object reportedActual = apiValueSummary(actual);
+        String comparisonTypeString = ValidationEnums.ValidationType.NEGATIVE.name().equals(validationType.name())
+                ? "not " + comparisonType.name() : comparisonType.name();
+        var parameters = new LinkedHashMap<String, String>();
+        parameters.put("API value", description);
+        parameters.putAll(setCommonParameters(reportedExpected, reportedActual, comparisonTypeString));
+        updateAllureParameters(parameters);
+        reportValidationState(validationState, reportedExpected, reportedActual, null, null, null);
+    }
+
+    static String apiValueSummary(Object value) {
+        if (value == null) {
+            return "null API value";
+        }
+        if (value.getClass() == String.class) {
+            return "text API value (" + ((String) value).length() + " characters)";
+        }
+        if (value.getClass().isArray()) {
+            return "array API value (" + java.lang.reflect.Array.getLength(value) + " items)";
+        }
+        if (value instanceof Collection<?>) {
+            return "collection API value";
+        }
+        if (value instanceof Map<?, ?>) {
+            return "map API value";
+        }
+        return "API value (" + value.getClass().getSimpleName() + ")";
+    }
+
+    protected void validateElementValue(WebDriver driver, By locator, String property, Supplier<Object> reader,
+                                        Object expected, ValidationEnums.ValidationComparisonType comparisonType,
+                                        ValidationEnums.ValidationType validationType) {
+        AtomicReference<Object> actual = new AtomicReference<>();
+        AtomicReference<Boolean> validationState = new AtomicReference<>(false);
+        try {
+            new SynchronizationManager(driver).fluentWait(false).until(ignored -> {
+                actual.set(reader.get());
+                validationState.set(performValidation(expected, actual.get(), comparisonType, validationType));
+                return validationState.get();
+            });
+        } catch (TimeoutException ignored) {
+            // Report the last observed value after the configured bounded wait expires.
+        }
+        String comparison = validationType == ValidationEnums.ValidationType.NEGATIVE
+                ? "not " + comparisonType.name()
+                : comparisonType.name();
+        var parameters = new LinkedHashMap<String, String>();
+        parameters.put("Locator", String.valueOf(locator));
+        parameters.put("Element value", property);
+        parameters.putAll(setCommonParameters(expected, actual, comparison));
+        updateAllureParameters(parameters);
+        reportValidationState(validationState.get(), expected, actual, driver, locator, null);
+    }
+
+    protected void validateMobileValue(WebDriver driver, String property, Supplier<Object> reader,
+                                       Object expected, ValidationEnums.ValidationComparisonType comparisonType,
+                                       ValidationEnums.ValidationType validationType) {
+        validateFocusedValue(driver, "Mobile value", property, reader, expected, comparisonType, validationType);
+    }
+
+    protected void validateBrowserValue(WebDriver driver, String property, Supplier<Object> reader,
+                                        Object expected, ValidationEnums.ValidationComparisonType comparisonType,
+                                        ValidationEnums.ValidationType validationType) {
+        validateFocusedValue(driver, "Browser value", property, reader, expected, comparisonType, validationType);
+    }
+
+    private void validateFocusedValue(WebDriver driver, String parameterName, String property, Supplier<Object> reader,
+                                      Object expected, ValidationEnums.ValidationComparisonType comparisonType,
+                                      ValidationEnums.ValidationType validationType) {
+        AtomicReference<Object> actual = new AtomicReference<>();
+        AtomicReference<Boolean> validationState = new AtomicReference<>(false);
+        try {
+            new SynchronizationManager(driver).fluentWait(false).until(ignored -> {
+                try {
+                    actual.set(reader.get());
+                } catch (TimeoutException exception) {
+                    throw new ProviderTimeoutException(exception);
+                }
+                validationState.set(performValidation(expected, actual.get(), comparisonType, validationType));
+                return validationState.get();
+            });
+        } catch (ProviderTimeoutException exception) {
+            throw exception.providerException;
+        } catch (TimeoutException ignored) {
+            // Report the last observed value after the configured bounded wait expires.
+        }
+        String comparison = validationType == ValidationEnums.ValidationType.NEGATIVE
+                ? "not " + comparisonType.name()
+                : comparisonType.name();
+        var parameters = new LinkedHashMap<String, String>();
+        parameters.put(parameterName, property);
+        parameters.putAll(setCommonParameters(expected, actual.get(), comparison));
+        updateAllureParameters(parameters);
+        reportValidationState(validationState.get(), expected, actual.get(), driver, null, null);
+    }
+
+    private static final class ProviderTimeoutException extends RuntimeException {
+        private final TimeoutException providerException;
+
+        private ProviderTimeoutException(TimeoutException providerException) {
+            super(providerException);
+            this.providerException = providerException;
+        }
+    }
+
     protected void validateJsonEqualsIgnoringOrder(Object expected, Object actual,
                                                    ValidationEnums.ValidationType validationType) {
         boolean positiveMatch = isJsonEqualIgnoringOrder(String.valueOf(expected), String.valueOf(actual));
@@ -439,10 +550,13 @@ public class ValidationsHelper {
                     case "textalignment", "pagealignment", "windowalignment" -> getPageTextAlignmentDirection(driver);
                     case "textorientation", "pageorientation", "windoworientation" -> getPageTextOrientationDirection(driver);
                     case "textdisplaystyle", "pagedisplaystyle", "windowdisplaystyle" -> getPageTextDisplayStyleDirection(driver);
-                    case "windowhandle", "pagehndle", "handle" -> new BrowserActions(driver, true).getWindowHandle();
+                    case "windowhandle", "pagehandle", "pagehndle", "handle" ->
+                            new BrowserActions(driver, true).getWindowHandle();
                     case "windowposition", "pageposition", "position" ->
                             new BrowserActions(driver, true).getWindowPosition();
                     case "windowsize", "pagesize", "size" -> new BrowserActions(driver, true).getWindowSize();
+                    case "browsingcontextcount", "windowcount", "pagecount" ->
+                            String.valueOf(driver.getWindowHandles().size());
                     default -> "";
                 });
                 validationState.set(performValidation(expected, actual.get(), comparisonType, validationType));
@@ -453,11 +567,20 @@ public class ValidationsHelper {
         }
         //reporting block
         String comparisonTypeStr = ValidationEnums.ValidationType.NEGATIVE.name().equals(validationType.name()) ? "not " + comparisonType.name() : comparisonType.name();
+        Object reportedExpected = reportedBrowserValue(attribute, expected);
+        Object reportedActual = reportedBrowserValue(attribute, actual.get());
         var parameters = new LinkedHashMap<String, String>();
         parameters.put("Attribute", attribute);
-        parameters.putAll(setCommonParameters(expected, actual, comparisonTypeStr));
+        parameters.putAll(setCommonParameters(reportedExpected, reportedActual, comparisonTypeStr));
         updateAllureParameters(parameters);
-        reportValidationState(validationState.get(), expected, actual, driver, null, null);
+        reportValidationState(validationState.get(), reportedExpected, reportedActual, driver, null, null);
+    }
+
+    private Object reportedBrowserValue(String attribute, Object value) {
+        if (!List.of("pagesource", "windowsource", "source").contains(attribute.toLowerCase())) {
+            return value;
+        }
+        return value == null ? null : "page source payload (" + String.valueOf(value).length() + " characters)";
     }
 
     protected void validateElementDomProperty(WebDriver driver, By locator, String domProperty,
