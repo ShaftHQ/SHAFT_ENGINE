@@ -12,6 +12,10 @@ param(
 
 $ErrorActionPreference = 'Stop'
 
+if ($PSVersionTable.PSVersion.Major -lt 7) {
+    throw 'capture-desktop.ps1 requires PowerShell 7 or newer. Run it with pwsh.'
+}
+
 if ($FrameRate -lt 1 -or $FrameRate -gt 60) {
     throw 'FrameRate must be between 1 and 60.'
 }

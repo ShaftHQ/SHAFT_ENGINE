@@ -57,6 +57,23 @@ class ShaftMcpEnvironmentTest {
     }
 
     @Test
+    void selectedEnvironmentVariableIsForwardedWithoutPasswordSafeFallback() {
+        ShaftSettingsState.Settings settings = new ShaftSettingsState.Settings();
+        settings.assistantProviderType = "CLOUD";
+        settings.cloudProvider = "gemini";
+        settings.passProviderApiKeysToMcp = true;
+        settings.setProviderApiKeyEnvironmentVariable("gemini", "GOOGLE_API_KEY");
+
+        Map<String, String> environment = ShaftMcpEnvironment.forSettings(settings, ignored -> "stored-secret",
+                key -> "GOOGLE_API_KEY".equals(key) ? "environment-secret" : "");
+
+        assertEquals("environment-secret", environment.get("GOOGLE_API_KEY"));
+        assertFalse(environment.containsKey("GEMINI_API_KEY"));
+        assertTrue(environment.get("JAVA_TOOL_OPTIONS")
+                .contains("-Dpilot.ai.gemini.apiKeyEnvironmentVariable=GOOGLE_API_KEY"));
+    }
+
+    @Test
     void localRoutePropagatesOnlyItsEndpointModelAndPasswordSafeToken() {
         ShaftSettingsState.Settings settings = new ShaftSettingsState.Settings();
         settings.assistantProviderType = "LOCAL";
@@ -119,8 +136,8 @@ class ShaftMcpEnvironmentTest {
 
     @Test
     void childEnvironmentStripsInheritedProviderCredentialsUnlessConfigured() {
-        Map<String, String> inherited = Map.of("OPENAI_API_KEY", "host-openai", "GITLAB_TOKEN", "host-gitlab",
-                "HF_TOKEN", "host-hf", "NPM_TOKEN", "host-npm", "PATH", "safe-path");
+        Map<String, String> inherited = Map.of("OPENAI_API_KEY", "host-openai", "Google_Api_Key", "host-google",
+                "GITLAB_TOKEN", "host-gitlab", "HF_TOKEN", "host-hf", "NPM_TOKEN", "host-npm", "PATH", "safe-path");
 
         Map<String, String> withoutOptIn = ShaftMcpEnvironment.childEnvironment(inherited, Map.of());
         Map<String, String> optedIn = ShaftMcpEnvironment.childEnvironment(inherited,

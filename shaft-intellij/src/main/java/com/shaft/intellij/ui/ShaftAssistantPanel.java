@@ -406,6 +406,7 @@ final class ShaftAssistantPanel extends JPanel implements Disposable {
     private String providerModelState = "VALIDATING";
     private boolean providerKeyReplacementRequired;
     private BooleanSupplier selectedCloudKeySupplier = this::storedSelectedCloudKey;
+    private java.util.function.Function<String, String> providerEnvironmentLookup = System::getenv;
     /**
      * Banner strip (setup notice + fresh-project hint) above the chat header. A field, not a
      * constructor-local, purely so {@code ShaftAssistantPanelLayoutTest} can assert its collapsed
@@ -3967,6 +3968,7 @@ final class ShaftAssistantPanel extends JPanel implements Disposable {
         snapshot.assistantProviderType = "CLOUD";
         snapshot.cloudProvider = provider;
         snapshot.cloudModel = settings.cloudModel;
+        snapshot.setProviderApiKeyEnvironmentVariable(provider, settings.providerApiKeyEnvironmentVariable(provider));
         snapshot.ollamaEndpoint = settings.ollamaEndpoint;
         snapshot.lmStudioEndpoint = settings.lmStudioEndpoint;
         snapshot.pilotAiEndpoint = settings.pilotAiEndpoint;
@@ -4408,18 +4410,28 @@ final class ShaftAssistantPanel extends JPanel implements Disposable {
             return;
         }
         boolean stored = !keyName.isBlank() && storedCloudKey(keyName);
+        String selectedVariable = settings.providerApiKeyEnvironmentVariable(normalizeLower(provider, "gemini"));
+        boolean environmentSelected = com.shaft.intellij.settings.ProviderCredentialSource
+                .supports(provider, selectedVariable);
+        String selectedValue = environmentSelected ? providerEnvironmentLookup.apply(selectedVariable) : null;
+        boolean environmentPresent = selectedValue != null && !selectedValue.isBlank();
         String providerLabel = ShaftUiLabels.friendly(provider);
         boolean replace = providerKeyReplacementRequired;
         boolean discoveryMessage = switch (normalize(providerModelState, "FAILED")) {
             case "VALIDATING", "EMPTY", "UNAVAILABLE", "FAILED", "KEY_FORWARDING_DISABLED" -> true;
             default -> false;
         };
-        cloudKeyStatus.setText(discoveryMessage ? providerModelStatus(provider, providerModelState)
+        cloudKeyStatus.setText(environmentSelected && replace
+                ? selectedVariable + " was rejected; update it in your environment."
+                : environmentSelected && !environmentPresent
+                ? selectedVariable + " is selected but is not configured."
+                : discoveryMessage ? providerModelStatus(provider, providerModelState)
+                : environmentSelected ? selectedVariable + " will be used; its value is not stored."
                 : replace ? "Replace invalid " + providerLabel + " key"
                 : stored ? providerLabel + " key stored" : "Enter " + providerLabel + " key");
         cloudKeyStatus.setVisible(true);
-        cloudApiKey.setVisible(!stored || replace);
-        saveCloudApiKey.setVisible(!stored || replace);
+        cloudApiKey.setVisible(!environmentSelected && (!stored || replace));
+        saveCloudApiKey.setVisible(!environmentSelected && (!stored || replace));
     }
 
     private void saveCloudApiKey() {
@@ -4466,6 +4478,12 @@ final class ShaftAssistantPanel extends JPanel implements Disposable {
     }
 
     private boolean hasSelectedCloudKey() {
+        String provider = normalizeLower(String.valueOf(cloudProvider.getSelectedItem()), "gemini");
+        String selectedVariable = settings.providerApiKeyEnvironmentVariable(provider);
+        if (com.shaft.intellij.settings.ProviderCredentialSource.supports(provider, selectedVariable)) {
+            String selectedValue = providerEnvironmentLookup.apply(selectedVariable);
+            return selectedValue != null && !selectedValue.isBlank();
+        }
         return selectedCloudKeySupplier.getAsBoolean();
     }
 

@@ -166,10 +166,8 @@ class ShaftMcpInvocationServiceCacheTest {
     private static ShaftSettingsState.Settings countingServerSettings(Path counterFile) {
         ShaftSettingsState.Settings settings = new ShaftSettingsState.Settings();
         settings.mcpSetupComplete = true;
-        settings.mcpCommand = quote(javaExecutable())
-                + " -D" + CountingToolsListServer.COUNTER_FILE_PROPERTY + "=" + quote(counterFile.toString())
-                + " -cp " + quote(System.getProperty("java.class.path"))
-                + " " + CountingToolsListServer.class.getName();
+        settings.mcpCommand = McpTestJavaProcess.commandLine(CountingToolsListServer.class,
+                List.of("-D" + CountingToolsListServer.COUNTER_FILE_PROPERTY + "=" + counterFile));
         return settings;
     }
 
@@ -186,16 +184,6 @@ class ShaftMcpInvocationServiceCacheTest {
         } catch (IOException exception) {
             throw new UncheckedIOException(exception);
         }
-    }
-
-    private static String javaExecutable() {
-        String javaHome = System.getProperty("java.home");
-        boolean windows = System.getProperty("os.name").toLowerCase(Locale.ROOT).contains("win");
-        return Paths.get(javaHome, "bin", windows ? "java.exe" : "java").toString();
-    }
-
-    private static String quote(String value) {
-        return "\"" + value.replace("\"", "\\\"") + "\"";
     }
 
     /**

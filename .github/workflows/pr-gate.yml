@@ -132,6 +132,8 @@ jobs:
               - 'tests/scripts/test_act_as_mohab_runtime.py'
               - 'tests/scripts/test_assemble_shaft_skills_plugin.py'
               - 'tests/scripts/test_validate_agent_setup.py'
+              - 'tests/scripts/test_intellij_recording_powershell.py'
+              - 'tools/intellij-plugin-recording/**'
               - 'tests/scripts/test_worktree_hygiene.py'
               - 'tests/scripts/test_resolve_graph_out.py'
               - 'tests/scripts/test_graphify_maintenance.py'
@@ -330,6 +332,7 @@ jobs:
           tests.scripts.test_act_as_mohab_runtime
           tests.scripts.test_assemble_shaft_skills_plugin
           tests.scripts.test_validate_agent_setup
+          tests.scripts.test_intellij_recording_powershell
           tests.scripts.test_validate_skills
           tests.scripts.test_sync_user_harness
           tests.scripts.test_shaft_skills_content

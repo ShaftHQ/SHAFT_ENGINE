@@ -123,11 +123,25 @@ def _split_shell_commands(run: str) -> list[list[str]]:
 
 
 def _command_runs_jvm_tests(tokens: list[str]) -> bool:
+    def is_gradle_executable(token: str) -> bool:
+        normalized = token.replace("\\", "/")
+        parts = normalized.split("/")
+        return (
+            token in GRADLE_EXECUTABLES
+            or (
+                len(parts) > 1
+                and not normalized.startswith(("/", "~"))
+                and ":" not in normalized
+                and ".." not in parts
+                and parts[-1] in {"gradlew", "gradlew.bat"}
+            )
+        )
+
     executable_index = next(
         (
             index
             for index, token in enumerate(tokens)
-            if token in MAVEN_EXECUTABLES or token in GRADLE_EXECUTABLES
+            if token in MAVEN_EXECUTABLES or is_gradle_executable(token)
         ),
         None,
     )

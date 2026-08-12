@@ -83,19 +83,17 @@ jobs:
         uses: actions/checkout@v7
       - name: Build shaft-mcp live launcher jar
         uses: ./.github/actions/build-shaft-mcp-live-jar
-      - name: Set up JDK 17 (Gradle)
+      - name: Set up JDK 25 (Gradle)
         uses: actions/setup-java@v5.7.0
         with:
-          java-version: '17'
+          java-version: '25'
           distribution: 'zulu'
           check-latest: true
-      - name: Set up Gradle 9
+      - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v6.3.0
-        with:
-          gradle-version: '9.0.0'
       - name: Run live IntelliJ chat-panel tool tests (Tool + Capture)
         run: >-
-          gradle -p shaft-intellij test
+          bash shaft-intellij/gradlew -p shaft-intellij test
           --tests com.shaft.intellij.ui.ShaftAssistantPanelLiveToolE2ETest
           --tests com.shaft.intellij.ui.ShaftAssistantPanelLiveCaptureToolE2ETest
           -Dshaft.intellij.liveToolE2E=true
@@ -135,19 +133,17 @@ jobs:
         uses: actions/checkout@v7
       - name: Build shaft-mcp live launcher jar
         uses: ./.github/actions/build-shaft-mcp-live-jar
-      - name: Set up JDK 17 (Gradle)
+      - name: Set up JDK 25 (Gradle)
         uses: actions/setup-java@v5.7.0
         with:
-          java-version: '17'
+          java-version: '25'
           distribution: 'zulu'
           check-latest: true
-      - name: Set up Gradle 9
+      - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v6.3.0
-        with:
-          gradle-version: '9.0.0'
       - name: Run live IntelliJ chat-panel tool tests (Diagnostics)
         run: >-
-          gradle -p shaft-intellij test
+          bash shaft-intellij/gradlew -p shaft-intellij test
           --tests com.shaft.intellij.ui.ShaftAssistantPanelLiveDiagnosticsToolE2ETest
           -Dshaft.intellij.liveToolE2E=true
           "-Dshaft.intellij.liveMcpCommand=${MCP_JAVA} @${MCP_ARGS}"
@@ -185,16 +181,14 @@ jobs:
         uses: actions/checkout@v7
       - name: Build shaft-mcp live launcher jar
         uses: ./.github/actions/build-shaft-mcp-live-jar
-      - name: Set up JDK 17 (Gradle)
+      - name: Set up JDK 25 (Gradle)
         uses: actions/setup-java@v5.7.0
         with:
-          java-version: '17'
+          java-version: '25'
           distribution: 'zulu'
           check-latest: true
-      - name: Set up Gradle 9
+      - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v6.3.0
-        with:
-          gradle-version: '9.0.0'
       # ShaftAssistantPanelLiveAuthoringToolE2ETest's two other methods
       # (shaft_guide_search -> shafthq.github.io, test_plan_explore ->
       # example.com) reach third-party hosts; run them in the separate,
@@ -202,7 +196,7 @@ jobs:
       # job -- and, by extension, never flips the notify job's outcome.
       - name: Run authoring live tests (gating)
         run: >-
-          gradle -p shaft-intellij test
+          bash shaft-intellij/gradlew -p shaft-intellij test
           --tests "com.shaft.intellij.ui.ShaftAssistantPanelLiveAuthoringToolE2ETest.shaftProjectServiceCreatesAndInitializesAgentsThroughTheRealChatPanel"
           --tests "com.shaft.intellij.ui.ShaftAssistantPanelLiveAuthoringToolE2ETest.testAutomationServiceLooksUpScenariosAndChecksGuardrailsThroughTheRealChatPanel"
           --tests "com.shaft.intellij.ui.ShaftAssistantPanelLiveAuthoringToolE2ETest.codingPartnerServicePlansAndDiffsThroughTheRealChatPanel"
@@ -225,7 +219,7 @@ jobs:
       - name: Run authoring externally-networked tests (non-gating)
         continue-on-error: true
         run: >-
-          gradle -p shaft-intellij test
+          bash shaft-intellij/gradlew -p shaft-intellij test
           --tests "com.shaft.intellij.ui.ShaftAssistantPanelLiveAuthoringToolE2ETest.guideServiceSearchesTheLiveUserGuideThroughTheRealChatPanel"
           --tests "com.shaft.intellij.ui.ShaftAssistantPanelLiveAuthoringToolE2ETest.plannerServiceExploresARealHeadlessSessionThroughTheRealChatPanel"
           -Dshaft.intellij.liveToolE2E=true
@@ -269,22 +263,20 @@ jobs:
       - name: Build shaft-mcp live launcher jar
         if: env.GEMINI_API_KEY != ''
         uses: ./.github/actions/build-shaft-mcp-live-jar
-      - name: Set up JDK 17 (Gradle)
+      - name: Set up JDK 25 (Gradle)
         if: env.GEMINI_API_KEY != ''
         uses: actions/setup-java@v5.7.0
         with:
-          java-version: '17'
+          java-version: '25'
           distribution: 'zulu'
           check-latest: true
-      - name: Set up Gradle 9
+      - name: Set up Gradle
         if: env.GEMINI_API_KEY != ''
         uses: gradle/actions/setup-gradle@v6.3.0
-        with:
-          gradle-version: '9.0.0'
       - name: Run live Gemini E2E test
         if: env.GEMINI_API_KEY != ''
         run: >-
-          gradle -p shaft-intellij test
+          bash shaft-intellij/gradlew -p shaft-intellij test
           --tests com.shaft.intellij.ui.AssistantGeminiLiveE2ETest
           -Dshaft.intellij.liveGemini=true
           "-Dshaft.intellij.liveMcpCommand=${MCP_JAVA} @${MCP_ARGS}"

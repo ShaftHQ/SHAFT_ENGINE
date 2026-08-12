@@ -389,6 +389,16 @@ public class AutobotService {
     }
 
     private static String keyEnvironmentVariable(String provider) {
+        String configured = switch (provider) {
+            case "openai" -> System.getProperty("pilot.ai.openai.apiKeyEnvironmentVariable", "");
+            case "anthropic" -> System.getProperty("pilot.ai.anthropic.apiKeyEnvironmentVariable", "");
+            case "gemini" -> System.getProperty("pilot.ai.gemini.apiKeyEnvironmentVariable", "");
+            case "github" -> System.getProperty("pilot.ai.github.apiKeyEnvironmentVariable", "");
+            default -> "";
+        };
+        if (!configured.isBlank()) {
+            return configured;
+        }
         return switch (provider) {
             case "openai" -> "OPENAI_API_KEY";
             case "anthropic" -> "ANTHROPIC_API_KEY";
