@@ -2308,6 +2308,34 @@ class ShaftPanelSetupTest {
     }
 
     @Test
+    void modelDiscoveryCheckingStateIsVisibleAndAccessibleUntilCompletion() throws Exception {
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
+        JLabel status = findByAccessibleName(panel, "Local model discovery status", JLabel.class);
+        CompletableFuture<AssistantLocalAgentRunner.ModelDiscovery> discovery = new CompletableFuture<>();
+
+        panel.startLocalModelDiscovery("CODEX", discovery);
+
+        assertAll(
+                () -> assertFalse(discovery.isDone()),
+                () -> assertEquals("Checking model catalog…", status.getText()),
+                () -> assertEquals("Checking model catalog…",
+                        status.getAccessibleContext().getAccessibleDescription()),
+                () -> assertTrue((Boolean) getField(panel, "modelListRefreshing")),
+                () -> assertEquals("CODEX", getField(panel, "modelListRefreshingFamily")));
+
+        discovery.complete(new AssistantLocalAgentRunner.ModelDiscovery(
+                List.of("gpt-5.6-sol"), AssistantLocalAgentRunner.ModelDiscoveryState.AVAILABLE));
+        pumpEdt();
+
+        assertAll(
+                () -> assertEquals("Ready · 1 models + CLI default", status.getText()),
+                () -> assertEquals(status.getText(),
+                        status.getAccessibleContext().getAccessibleDescription()),
+                () -> assertFalse((Boolean) getField(panel, "modelListRefreshing")),
+                () -> assertEquals("", getField(panel, "modelListRefreshingFamily")));
+    }
+
+    @Test
     void assistantModelFailureStatusesRemainAccessibleAndFitNarrowSettings() throws Exception {
         ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
         JLabel status = findByAccessibleName(panel, "Local model discovery status", JLabel.class);

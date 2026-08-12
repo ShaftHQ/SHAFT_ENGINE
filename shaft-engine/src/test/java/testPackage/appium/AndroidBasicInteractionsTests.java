@@ -2,14 +2,19 @@ package testPackage.appium;
 
 import com.google.common.collect.ImmutableMap;
 import com.shaft.driver.SHAFT;
+import com.shaft.gui.driver.MobileRecordingOptions;
 import com.shaft.gui.element.TouchActions;
 import io.appium.java_client.AppiumBy;
 import io.appium.java_client.android.AndroidDriver;
 import org.openqa.selenium.By;
+import org.openqa.selenium.WebDriverException;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
 import java.time.Duration;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.zip.ZipFile;
 
 public class AndroidBasicInteractionsTests extends MobileTest {
     private final String PACKAGE = "io.appium.android.apis";
@@ -35,6 +40,88 @@ public class AndroidBasicInteractionsTests extends MobileTest {
         Assert.assertEquals(sample.dataType(), "memoryinfo");
         Assert.assertFalse(sample.columns().isEmpty());
         Assert.assertEquals(performance.history(), java.util.List.of(sample));
+    }
+
+    /** Real-provider acceptance for bounded Android screen recording and exact-target saving. */
+    @Test(groups = {"ApiDemosDebug", "mobile-recording-compatible-provider"})
+    public void screenRecordingShouldReturnAndSaveBoundedMedia() throws Exception {
+        long maxBytes = 32L * 1024 * 1024;
+        var options = new MobileRecordingOptions(Duration.ofSeconds(30), maxBytes);
+        var recording = driver.get().mobile().recording();
+        AndroidDriver nativeDriver = (AndroidDriver) driver.get().getDriver();
+        Path directory = Files.createTempDirectory("shaft-android-recording");
+        Path target = directory.resolve("recording.mp4");
+        try {
+            recording.start(options);
+            nativeDriver.runAppInBackground(Duration.ofSeconds(2));
+            byte[] inline = recording.stop();
+            Assert.assertTrue(inline.length > 0 && inline.length <= maxBytes);
+
+            recording.start(options);
+            nativeDriver.runAppInBackground(Duration.ofSeconds(2));
+            Assert.assertEquals(recording.stopAndSave(target), target.toAbsolutePath().normalize());
+            Assert.assertTrue(Files.size(target) > 0 && Files.size(target) <= maxBytes);
+        } finally {
+            Files.deleteIfExists(target);
+            Files.deleteIfExists(directory);
+        }
+    }
+
+    /** Real-provider proof that BrowserStack rejects Appium recording without corrupting SHAFT's lifecycle. */
+    @Test(groups = {"ApiDemosDebug"})
+    public void screenRecordingShouldPreserveUnsupportedProviderFailureAndResetState() {
+        var recording = driver.get().mobile().recording();
+
+        WebDriverException firstFailure = Assert.expectThrows(WebDriverException.class, recording::start);
+        Assert.assertTrue(firstFailure.getMessage().contains("Command is not supported"));
+        Assert.expectThrows(IllegalStateException.class, () -> recording.stop());
+
+        WebDriverException retryFailure = Assert.expectThrows(WebDriverException.class, recording::start);
+        Assert.assertTrue(retryFailure.getMessage().contains("Command is not supported"));
+    }
+
+    /** Real-provider acceptance for bounded current-session Evidence archive publication. */
+    @Test(groups = {"ApiDemosDebug", "mobile-evidence-real-provider"})
+    public void mobileEvidenceShouldPublishAResolvedBoundedArchive() throws Exception {
+        Path directory = Files.createTempDirectory("shaft-android-evidence");
+        Path target = directory.resolve("mobile-evidence.zip");
+        int maxArtifactMb = SHAFT.Properties.reporting.traceMaxArtifactMb();
+        boolean screenshots = SHAFT.Properties.reporting.traceIncludeScreenshots();
+        boolean nativeSource = SHAFT.Properties.reporting.traceIncludeNativePageSource();
+        try {
+            SHAFT.Properties.reporting.set()
+                    .traceIncludeScreenshots(true)
+                    .traceIncludeNativePageSource(true);
+            var bundle = driver.get().mobile().evidence().capture(target);
+
+            Assert.assertEquals(bundle.archive(), target.toAbsolutePath().normalize());
+            Assert.assertTrue(Files.size(target) > 0);
+            Assert.assertEquals(bundle.artifacts().size(), 3);
+            var screenshot = bundle.artifacts().stream()
+                    .filter(artifact -> artifact.id().equals("screenshot")).findFirst().orElseThrow();
+            var source = bundle.artifacts().stream()
+                    .filter(artifact -> artifact.id().equals("source")).findFirst().orElseThrow();
+            Assert.assertFalse(screenshot.omitted());
+            Assert.assertFalse(source.omitted());
+            try (ZipFile archive = new ZipFile(target.toFile())) {
+                Assert.assertNotNull(archive.getEntry("mobile-evidence.json"));
+                bundle.artifacts().forEach(artifact -> Assert.assertNotNull(archive.getEntry(artifact.path())));
+                byte[] screenshotBytes = archive.getInputStream(archive.getEntry(screenshot.path())).readAllBytes();
+                Assert.assertTrue(screenshotBytes.length > 8);
+                Assert.assertEquals(java.util.Arrays.copyOf(screenshotBytes, 8),
+                        new byte[]{(byte) 0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A});
+                byte[] sourceBytes = archive.getInputStream(archive.getEntry(source.path())).readAllBytes();
+                Assert.assertTrue(sourceBytes.length > 0);
+                long uncompressedBytes = archive.stream().mapToLong(java.util.zip.ZipEntry::getSize).sum();
+                Assert.assertTrue(uncompressedBytes <= (long) maxArtifactMb * 1024 * 1024);
+            }
+        } finally {
+            SHAFT.Properties.reporting.set()
+                    .traceIncludeScreenshots(screenshots)
+                    .traceIncludeNativePageSource(nativeSource);
+            Files.deleteIfExists(target);
+            Files.deleteIfExists(directory);
+        }
     }
 
     @Test(groups = {"ApiDemosDebug"})

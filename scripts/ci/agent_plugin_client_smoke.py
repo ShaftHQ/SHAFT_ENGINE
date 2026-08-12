@@ -16,6 +16,7 @@ from typing import Callable, Mapping
 
 try:
     from scripts.ci.assemble_shaft_skills_plugin import assemble
+    from scripts.ci.assemble_act_as_mohab_plugin import assemble as assemble_act_as_mohab
     from scripts.ci.shaft_skill_routing_eval import (
         evaluate_results,
         output_schema,
@@ -23,6 +24,7 @@ try:
     )
 except ModuleNotFoundError:  # Direct script execution places scripts/ci on sys.path.
     from assemble_shaft_skills_plugin import assemble
+    from assemble_act_as_mohab_plugin import assemble as assemble_act_as_mohab
     from shaft_skill_routing_eval import evaluate_results, output_schema, package_decision
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -140,7 +142,9 @@ def _warnings(*completed: subprocess.CompletedProcess) -> list[str]:
     return warnings
 
 
-def _contains_package(output: str, require_enabled: bool = False) -> bool:
+def _contains_package(
+    output: str, require_enabled: bool = False, package_name: str = PACKAGE_NAME
+) -> bool:
     try:
         value = json.loads(output)
     except (TypeError, json.JSONDecodeError):
@@ -155,8 +159,8 @@ def _contains_package(output: str, require_enabled: bool = False) -> bool:
             ]
             if identities:
                 matched = any(
-                    identity == PACKAGE_NAME
-                    or identity.startswith(f"{PACKAGE_NAME}@")
+                    identity == package_name
+                    or identity.startswith(f"{package_name}@")
                     for identity in identities
                 )
                 return matched and (
@@ -282,8 +286,8 @@ def _row(
     }
 
 
-def _claude_commands(package_root: Path) -> dict[str, list[list[str]]]:
-    selector = f"{PACKAGE_NAME}@{MARKETPLACE_NAME}"
+def _claude_commands(package_root: Path, package_name: str) -> dict[str, list[list[str]]]:
+    selector = f"{package_name}@{package_name}"
     return {
         "package_validation": [["claude", "plugin", "validate", "--strict", str(package_root)]],
         "marketplace_discovery": [
@@ -297,13 +301,13 @@ def _claude_commands(package_root: Path) -> dict[str, list[list[str]]]:
         "real_load": [["claude", "-p", LOAD_PROMPT, "--output-format", "json"]],
         "cleanup": [
             ["claude", "plugin", "uninstall", selector, "--scope", "project", "--yes"],
-            ["claude", "plugin", "marketplace", "remove", MARKETPLACE_NAME, "--scope", "project"],
+            ["claude", "plugin", "marketplace", "remove", package_name, "--scope", "project"],
         ],
     }
 
 
-def _codex_commands(package_root: Path) -> dict[str, list[list[str]]]:
-    selector = f"{PACKAGE_NAME}@{MARKETPLACE_NAME}"
+def _codex_commands(package_root: Path, package_name: str) -> dict[str, list[list[str]]]:
+    selector = f"{package_name}@{package_name}"
     return {
         "package_validation": [["codex", "plugin", "marketplace", "add", str(package_root), "--json"]],
         "marketplace_discovery": [["codex", "plugin", "list", "--available", "--json"]],
@@ -314,7 +318,7 @@ def _codex_commands(package_root: Path) -> dict[str, list[list[str]]]:
         "real_load": [["codex", "exec", "--json", "-s", "read-only", "--skip-git-repo-check", "-"]],
         "cleanup": [
             ["codex", "plugin", "remove", selector, "--json"],
-            ["codex", "plugin", "marketplace", "remove", MARKETPLACE_NAME, "--json"],
+            ["codex", "plugin", "marketplace", "remove", package_name, "--json"],
         ],
     }
 
@@ -332,6 +336,7 @@ def _client_evidence(  # noqa: MC0001  # One lifecycle owns setup, evidence, and
     active_deadline: float,
     cleanup_deadline: float,
     clock: Callable[[], float],
+    package_name: str,
 ) -> list[dict]:
     def run_active(
         command: list[str],
@@ -360,7 +365,11 @@ def _client_evidence(  # noqa: MC0001  # One lifecycle owns setup, evidence, and
             clock=clock,
         )
 
-    commands = _claude_commands(package_root) if client == "claude" else _codex_commands(package_root)
+    commands = (
+        _claude_commands(package_root, package_name)
+        if client == "claude"
+        else _codex_commands(package_root, package_name)
+    )
     version_command = [client, "--version"]
     version_result = run_active(version_command)
     actual_version = f"{version_result.stdout or ''} {version_result.stderr or ''}".strip()
@@ -382,12 +391,14 @@ def _client_evidence(  # noqa: MC0001  # One lifecycle owns setup, evidence, and
         result.returncode == 0 and _valid_json(result.stdout or "") for result in preflight
     )
     collision = preflight_passed and any(
-        result.returncode == 0 and _contains_package(result.stdout or "") for result in preflight
+        result.returncode == 0 and _contains_package(
+            result.stdout or "", package_name=package_name
+        ) for result in preflight
     )
     if not preflight_passed or collision:
         preflight_failure = next((result for result in preflight if result.returncode), None)
         detail = (
-            "pre-existing shaft-skills client state was found; refusing to mutate user-owned state"
+            f"pre-existing {package_name} client state was found; refusing to mutate user-owned state"
             if collision
             else "client-state preflight failed; refusing to mutate unverified client state: "
             + ((preflight_failure.stderr or preflight_failure.stdout).strip() if preflight_failure else "invalid JSON")
@@ -436,9 +447,14 @@ def _client_evidence(  # noqa: MC0001  # One lifecycle owns setup, evidence, and
                 result.returncode == 0 for result in completed
             )
             if successful and level == "marketplace_discovery":
-                successful = _contains_package(completed[-1].stdout or "")
+                successful = _contains_package(
+                    completed[-1].stdout or "", package_name=package_name
+                )
             if successful and level == "install_enable":
-                successful = _contains_package(completed[-1].stdout or "", require_enabled=True)
+                successful = _contains_package(
+                    completed[-1].stdout or "", require_enabled=True,
+                    package_name=package_name,
+                )
             if not version_matches and level == "package_validation":
                 detail = f"expected pinned client version {CLIENTS[client]['version']}; got {actual_version or 'no output'}"
             elif successful:
@@ -447,7 +463,7 @@ def _client_evidence(  # noqa: MC0001  # One lifecycle owns setup, evidence, and
                 detail = "not run because an earlier unauthenticated evidence level failed"
             else:
                 failure = next((result for result in completed if result.returncode), completed[-1] if completed else None)
-                detail = (failure.stderr or failure.stdout or "client output did not contain shaft-skills").strip()
+                detail = (failure.stderr or failure.stdout or f"client output did not contain {package_name}").strip()
             rows.append(
                 _row(
                     client,
@@ -647,7 +663,7 @@ def _client_evidence(  # noqa: MC0001  # One lifecycle owns setup, evidence, and
         cleanup_verified = all(
             result.returncode == 0
             and _valid_json(result.stdout or "")
-            and not _contains_package(result.stdout or "")
+            and not _contains_package(result.stdout or "", package_name=package_name)
             for result in verification_completed
         )
         if cleanup_completed or verification_completed:
@@ -688,6 +704,7 @@ def collect_evidence(
     if cleanup_reserve_seconds + artifact_reserve_seconds >= execution_budget_seconds:
         raise ValueError("cleanup and artifact reserves must leave time for active checks")
     package_root = Path(package_root).resolve()
+    package_name = package_root.name
     working_directory = package_root.parent / "client-state"
     working_directory.mkdir(exist_ok=True)
     credentials = os.environ if environ is None else environ
@@ -721,11 +738,12 @@ def collect_evidence(
                 active_deadline,
                 cleanup_deadline,
                 clock,
+                package_name,
             )
         )
     evidence = {
         "schema_version": 1,
-        "package": PACKAGE_NAME,
+        "package": package_name,
         "mode": mode,
         "results": results,
     }
@@ -794,9 +812,79 @@ def collect_evidence(
     return redacted
 
 
+def collect_runtime_launch_evidence(package_root: Path) -> dict:
+    """Launch the portable MCP using only its emitted package configuration."""
+    package_root = Path(package_root).resolve()
+    config = json.loads((package_root / ".mcp.json").read_text(encoding="utf-8"))
+    server = config.get("mcpServers", {}).get("chaosengine", {})
+    command = server.get("command")
+    arguments = server.get("args")
+    relative_cwd = server.get("cwd")
+    if (
+        not isinstance(command, str)
+        or not isinstance(arguments, list)
+        or not all(isinstance(argument, str) for argument in arguments)
+        or not isinstance(relative_cwd, str)
+    ):
+        raise ValueError("portable MCP package configuration is malformed")
+    launch_cwd = (package_root / relative_cwd).resolve()
+    if launch_cwd != package_root and package_root not in launch_cwd.parents:
+        raise ValueError("portable MCP cwd escapes the package root")
+    requests = "\n".join(
+        (
+            json.dumps({"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {}}),
+            json.dumps({"jsonrpc": "2.0", "id": 2, "method": "tools/list", "params": {}}),
+            "",
+        )
+    )
+    try:
+        completed = subprocess.run(  # nosec B603 - command is the tracked package contract.
+            [command, *arguments], cwd=launch_cwd, input=requests, text=True,
+            capture_output=True, check=False, timeout=30,
+        )
+    except (OSError, subprocess.TimeoutExpired) as error:
+        return {
+            "client": "portable-runtime",
+            "client_name": "Portable MCP package configuration",
+            "client_version": "stdlib-python",
+            "expected_client_version": "stdlib-python",
+            "evidence_level": "runtime_launch",
+            "verdict": "fail",
+            "commands": [[command, *arguments]],
+            "detail": str(error),
+            "context_warnings": [],
+        }
+    try:
+        responses = [json.loads(line) for line in completed.stdout.splitlines() if line.strip()]
+        names = {
+            tool["name"]
+            for tool in responses[1]["result"]["tools"]
+            if isinstance(tool, dict) and isinstance(tool.get("name"), str)
+        }
+        expected = {"repository_context", "watch_pr_checks", "checkpoint_status"}
+        successful = completed.returncode == 0 and len(responses) == 2 and expected <= names
+    except (json.JSONDecodeError, IndexError, KeyError, TypeError):
+        successful = False
+    return {
+        "client": "portable-runtime",
+        "client_name": "Portable MCP package configuration",
+        "client_version": "stdlib-python",
+        "expected_client_version": "stdlib-python",
+        "evidence_level": "runtime_launch",
+        "verdict": "pass" if successful else "fail",
+        "commands": [[command, *arguments]],
+        "detail": (
+            "package-relative MCP configuration launched and listed portable tools"
+            if successful else (completed.stderr.strip() or "portable MCP launch contract failed")
+        ),
+        "context_warnings": _warnings(completed),
+    }
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--mode", choices=("smoke", "live"), default="smoke")
+    parser.add_argument("--package", choices=("shaft-skills", "act-as-mohab"), default="shaft-skills")
     parser.add_argument("--output", type=Path, default=Path("agent-plugin-client-evidence.json"))
     parser.add_argument("--routing-corpus", type=Path)
     parser.add_argument(
@@ -818,8 +906,8 @@ def main() -> int:
         else None
     )
     with tempfile.TemporaryDirectory(prefix="shaft-plugin-client-smoke-") as temporary_directory:
-        package_root = Path(temporary_directory) / PACKAGE_NAME
-        assemble(ROOT, package_root)
+        package_root = Path(temporary_directory) / arguments.package
+        (assemble if arguments.package == PACKAGE_NAME else assemble_act_as_mohab)(ROOT, package_root)
         evidence = collect_evidence(
             package_root,
             arguments.mode,
@@ -827,6 +915,8 @@ def main() -> int:
             execution_budget_seconds=arguments.execution_budget_seconds,
             routing_budget_seconds=arguments.routing_budget_seconds,
         )
+        if arguments.package == "act-as-mohab":
+            evidence["results"].append(collect_runtime_launch_evidence(package_root))
     arguments.output.write_text(json.dumps(evidence, indent=2) + "\n", encoding="utf-8")
     for row in evidence["results"]:
         print(f"{row['client']}: {row['evidence_level']}: {row['verdict']}: {row['detail']}")

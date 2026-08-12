@@ -1,8 +1,10 @@
 """Assemble the portable act-as-mohab Agent Plugin from canonical sources."""
 
 import argparse
+import json
 import shutil
 import subprocess
+import zipfile
 from pathlib import Path
 
 try:
@@ -19,6 +21,12 @@ RELEASE_FILES = (
     (Path("agent-plugins/act-as-mohab/CHANGELOG.md"), Path("CHANGELOG.md")),
     (Path("agent-plugins/act-as-mohab/COMPATIBILITY.md"), Path("COMPATIBILITY.md")),
 )
+RUNTIME_SOURCES = (
+    Path("scripts/agents/act_as_mohab_cli.py"),
+    Path("scripts/agents/repository_context.py"),
+    Path("scripts/agents/watch_pr_checks.py"),
+)
+RUNTIME_MAIN = b"from act_as_mohab_cli import main\nraise SystemExit(main())\n"
 
 
 def git_executable() -> str:
@@ -99,6 +107,23 @@ def copy_release_files(repository_root: Path, package_root: Path) -> None:
         shutil.copyfile(tracked_release_file(repository_root, relative), package_root / target)
 
 
+def build_runtime(repository_root: Path, package_root: Path) -> None:
+    """Build the deterministic stdlib zipapp from tracked canonical modules."""
+    destination = package_root / "bin/act-as-mohab.pyz"
+    destination.parent.mkdir()
+    entries = [("__main__.py", RUNTIME_MAIN)]
+    for relative in RUNTIME_SOURCES:
+        source = tracked_release_file(repository_root, relative)
+        entries.append((source.name, source.read_bytes().replace(b"\r\n", b"\n")))
+    with zipfile.ZipFile(destination, "w", compression=zipfile.ZIP_STORED) as archive:
+        for name, content in sorted(entries):
+            entry = zipfile.ZipInfo(name, (1980, 1, 1, 0, 0, 0))
+            entry.create_system = 3
+            entry.external_attr = 0o100644 << 16
+            entry.compress_type = zipfile.ZIP_STORED
+            archive.writestr(entry, content)
+
+
 def assemble(repository_root: Path, package_root: Path, version: str | None = None) -> None:
     """Create a new portable package from the canonical skill sources."""
     repository_root = Path(repository_root).resolve()
@@ -136,7 +161,39 @@ def assemble(repository_root: Path, package_root: Path, version: str | None = No
     (codex_adapter / "plugin.json").write_text(
         f'{{"name":"act-as-mohab","version":"{version}",'
         '"description":"Maintainer workflow and harness skills for SHAFT.",'
-        '"skills":"./skills/"}\n',
+        '"author":{"name":"ShaftHQ","url":"https://github.com/ShaftHQ"},'
+        '"repository":"https://github.com/ShaftHQ/SHAFT_ENGINE","license":"MIT",'
+        '"skills":"./skills/","mcpServers":"./.mcp.json",'
+        '"interface":{"displayName":"Act as Mohab",'
+        '"shortDescription":"Portable ChaosEngine maintainer workflow",'
+        '"longDescription":"Repository-aware maintainer guidance and bounded delivery operations.",'
+        '"developerName":"ShaftHQ","category":"Developer Tools",'
+        '"capabilities":["Repository context","Pull request checks","MCP"],'
+        '"defaultPrompt":["Resolve the current repository context."]}}\n',
+        encoding="utf-8",
+    )
+    (claude_adapter / "marketplace.json").write_text(
+        f'{{"name":"act-as-mohab","owner":{{"name":"ShaftHQ"}},'
+        '"description":"Portable ChaosEngine maintainer workflow.","plugins":['
+        f'{{"name":"act-as-mohab","source":"./",'
+        f'"description":"Maintainer workflow and harness skills for SHAFT.",'
+        f'"version":"{version}"}}]}}\n',
+        encoding="utf-8",
+    )
+    (package_root / ".mcp.json").write_text(
+        json.dumps(
+            {
+                "mcpServers": {
+                "chaosengine": {
+                    "command": "python",
+                    "args": ["./bin/act-as-mohab.pyz", "mcp"],
+                    "cwd": ".",
+                }
+                }
+            },
+            separators=(",", ":"),
+        )
+        + "\n",
         encoding="utf-8",
     )
     codex_marketplace = package_root / ".agents/plugins"
@@ -162,6 +219,7 @@ def assemble(repository_root: Path, package_root: Path, version: str | None = No
         allowed_files,
     )
     copy_release_files(repository_root, package_root)
+    build_runtime(repository_root, package_root)
     (package_root / "skills/README.md").write_text(
         "# Act as Mohab portable skills\n\n"
         "This package contains the maintainer workflow entrypoint and its internal references.\n",

@@ -12,6 +12,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 
 /** Session-identity-keyed bounded storage for Appium performance samples. */
 public final class MobilePerformanceState {
@@ -39,6 +40,20 @@ public final class MobilePerformanceState {
         synchronized (state) {
             requireOpen(state);
             return List.copyOf(state.samples);
+        }
+    }
+
+    /** Returns an immutable history snapshot without creating per-driver state. */
+    public static Optional<List<MobilePerformanceSample>> historyIfPresent(AppiumDriver driver) {
+        State state = existingState(Objects.requireNonNull(driver, "Appium driver"));
+        if (state == null) {
+            return Optional.empty();
+        }
+        synchronized (state) {
+            if (state.closed) {
+                return Optional.empty();
+            }
+            return Optional.of(List.copyOf(state.samples));
         }
     }
 
@@ -90,6 +105,13 @@ public final class MobilePerformanceState {
             State created = new State();
             STATES.put(new IdentityWeakReference(driver, STALE_DRIVERS), created);
             return created;
+        }
+    }
+
+    private static State existingState(AppiumDriver driver) {
+        synchronized (STATES) {
+            expungeStaleDrivers();
+            return STATES.get(new IdentityWeakReference(driver));
         }
     }
 

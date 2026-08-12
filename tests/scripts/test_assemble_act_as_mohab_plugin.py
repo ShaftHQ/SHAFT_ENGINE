@@ -52,6 +52,10 @@ class AssembleActAsMohabPluginTest(unittest.TestCase):
         changelog.write_text("# Test changelog\n", encoding="utf-8")
         compatibility = source_root / "agent-plugins/act-as-mohab/COMPATIBILITY.md"
         compatibility.write_text("# Test compatibility\n", encoding="utf-8")
+        runtime_sources = source_root / "scripts/agents"
+        runtime_sources.mkdir(parents=True)
+        for name in ("act_as_mohab_cli.py", "repository_context.py", "watch_pr_checks.py"):
+            (runtime_sources / name).write_text("# fixture canonical runtime\n", encoding="utf-8")
         manifest = source_root / "agent-plugins/release.json"
         manifest.write_text(
             '{"packages":[{"name":"act-as-mohab","version":"1.0.0"},'
@@ -65,7 +69,7 @@ class AssembleActAsMohabPluginTest(unittest.TestCase):
         )
         subprocess.run([git_executable(), "init", "--quiet"], cwd=source_root, check=True)  # nosec B603
         subprocess.run(
-            [git_executable(), "add", ".agents/skills", "LICENSE", "agent-plugins"],
+            [git_executable(), "add", ".agents/skills", "LICENSE", "agent-plugins", "scripts/agents"],
             cwd=source_root,
             check=True,
         )  # nosec B603
@@ -136,6 +140,13 @@ class AssembleActAsMohabPluginTest(unittest.TestCase):
         self.assertEqual(manifest["version"], ENGINE_VERSION)
         self.assertIn("maintainer", manifest["description"].lower())
         self.assertEqual(manifest.get("author", {}).get("name"), "ShaftHQ")
+        marketplace = json.loads(
+            (self.package_root / ".claude-plugin/marketplace.json").read_text(
+                encoding="utf-8"
+            )
+        )
+        self.assertEqual(marketplace["name"], "act-as-mohab")
+        self.assertEqual(marketplace["plugins"][0]["source"], "./")
 
     def test_assembly_includes_a_codex_discovery_manifest(self):
         assemble(ROOT, self.package_root)
@@ -147,6 +158,25 @@ class AssembleActAsMohabPluginTest(unittest.TestCase):
         self.assertEqual(manifest["name"], "act-as-mohab")
         self.assertEqual(manifest["version"], ENGINE_VERSION)
         self.assertEqual(manifest["skills"], "./skills/")
+        self.assertEqual(manifest["mcpServers"], "./.mcp.json")
+
+    def test_assembly_includes_the_relative_mcp_runtime_contract(self):
+        assemble(ROOT, self.package_root)
+
+        mcp = json.loads((self.package_root / ".mcp.json").read_text(encoding="utf-8"))
+        self.assertEqual(
+            mcp,
+            {
+                "mcpServers": {
+                    "chaosengine": {
+                        "command": "python",
+                        "args": ["./bin/act-as-mohab.pyz", "mcp"],
+                        "cwd": ".",
+                    }
+                }
+            },
+        )
+        self.assertTrue((self.package_root / "bin/act-as-mohab.pyz").is_file())
 
     def test_assembly_includes_a_codex_marketplace_entry(self):
         assemble(ROOT, self.package_root)

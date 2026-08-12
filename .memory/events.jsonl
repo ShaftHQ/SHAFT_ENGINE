@@ -1113,6 +1113,7 @@
 {"actor":"agent","event":"memory.updated","id":"source.project-readme","timestamp":"2026-08-11T13:57:05+03:00"}
 {"actor":"agent","event":"memory.created","id":"decision.github-actions-coverage-uploads-are-main-only-and-fail-open-into-one-manual-tracking-issue","timestamp":"2026-08-11T13:22:17+03:00"}
 {"actor":"agent","event":"memory.created","id":"gotcha.windows-directory-junctions-bypass-path-is-symlink-and-must-be-rejected-as-reparse-points","timestamp":"2026-08-11T13:48:58+03:00"}
+{"actor":"agent","event":"memory.created","id":"gotcha.backend-owned-trace-events-must-not-resolve-an-active-webdriver-when-no-driver-is-supplied","timestamp":"2026-08-12T04:42:39+03:00"}
 {"actor":"agent","event":"memory.created","id":"constraint.every-actionable-learning-requires-its-own-standalone-github-issue","timestamp":"2026-08-11T22:18:25+03:00"}
 {"actor":"agent","event":"memory.superseded","id":"constraint.bug-handling-fix-blockers-inline-consolidate-everything-else-into-one-issue","reason":"The user's explicit 2026-08-11 correction requires one new standalone issue per actionable item and forbids consolidating multiple actions into one issue or receipt.","timestamp":"2026-08-11T22:18:25+03:00"}
 {"actor":"agent","event":"memory.created","id":"gotcha.never-use-os-kill-pid-0-as-a-windows-liveness-probe","timestamp":"2026-08-11T21:26:34+03:00"}
@@ -1120,3 +1121,4 @@
 {"actor":"agent","event":"relation.deleted","relation_id":"rel.constraint-every-actionable-learning-requires-its-own-standalone-github-issue-supersedes-constraint-bug-handling-fix-blockers-inline-consolidate-everything-else-into-one-issue","timestamp":"2026-08-11T22:22:52+03:00"}
 {"actor":"agent","event":"relation.created","relation_id":"rel.standalone-action-issue-supersedes-consolidation","timestamp":"2026-08-11T22:22:52+03:00"}
 {"actor":"agent","event":"memory.updated","id":"gotcha.graphify-refresh-must-reject-negative-windows-process-exits-before-recording-freshness","timestamp":"2026-08-11T23:45:57+03:00"}
+{"actor":"agent","event":"memory.updated","id":"gotcha.backend-owned-trace-events-must-not-resolve-an-active-webdriver-when-no-driver-is-supplied","timestamp":"2026-08-12T04:44:20+03:00"}
