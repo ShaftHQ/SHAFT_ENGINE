@@ -15,13 +15,15 @@ import sys
 import tempfile
 import types
 import zipfile
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 
 
 INSTALL_DIRECTORY = ".chaos-engine"
 MANIFEST_NAME = "manifest.json"
 SCHEMA_VERSION = 1
 COMMIT_PATTERN = re.compile(r"[0-9a-f]{40}")
+REPOSITORY_PATTERN = re.compile(r"[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+")
+BRANCH_PATTERN = re.compile(r"[^\x00-\x20\x7f~^:?*\\\[\]]+")
 LOCK_NAME = ".chaos-engine.lock"
 BACKUP_NAME = ".chaos-engine.backup"
 JOURNAL_NAME = ".chaos-engine.transaction.json"
@@ -37,6 +39,50 @@ CROSS_ROLLBACK_JOURNAL_NAME = ".chaos-engine-cross-rollback"
 
 def file_sha256(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def valid_branch(branch: str) -> bool:
+    parts = branch.split("/")
+    return (
+        BRANCH_PATTERN.fullmatch(branch) is not None
+        and not branch.startswith("-")
+        and not branch.startswith("/")
+        and not branch.endswith(("/", "."))
+        and "//" not in branch
+        and ".." not in branch
+        and "@{" not in branch
+        and branch != "HEAD"
+        and all(part and not part.startswith(".") and not part.endswith(".lock") for part in parts)
+    )
+
+
+def normalize_source_record(source: object) -> dict[str, str]:
+    if not isinstance(source, dict) or not all(
+        isinstance(key, str) and isinstance(value, str) for key, value in source.items()
+    ):
+        raise ValueError("ChaosEngine source record is invalid")
+    if (
+        set(source) == {"commit", "kind"}
+        and source.get("kind") == "local"
+        and COMMIT_PATTERN.fullmatch(source.get("commit", "")) is not None
+    ):
+        return dict(source)
+    repository = source.get("repository", "")
+    branch = source.get("branch", "")
+    components = repository.split("/")
+    if not (
+        set(source) == {"commit", "kind", "repository", "branch"}
+        and source.get("kind") == "git"
+        and COMMIT_PATTERN.fullmatch(source.get("commit", "")) is not None
+        and REPOSITORY_PATTERN.fullmatch(repository) is not None
+        and len(components) == 2
+        and all(component not in {".", ".."} for component in components)
+        and valid_branch(branch)
+    ):
+        raise ValueError("ChaosEngine source record is invalid")
+    result = dict(source)
+    result["repository"] = repository.casefold()
+    return result
 
 
 def is_link_or_reparse(path: Path) -> bool:
@@ -97,15 +143,18 @@ def load_manifest(target: Path) -> dict[str, object]:
     source = manifest.get("source")
     files = manifest.get("files")
     host_token = manifest.get("hostToken")
+    try:
+        normalized_source = normalize_source_record(source)
+    except ValueError as error:
+        raise ValueError("ChaosEngine manifest has an invalid ownership record") from error
     if (
-        not isinstance(source, dict)
-        or COMMIT_PATTERN.fullmatch(str(source.get("commit", ""))) is None
-        or not isinstance(files, dict)
+        not isinstance(files, dict)
         or not isinstance(host_token, str)
         or re.fullmatch(r"[0-9a-f]{64}", host_token) is None
         or any(not isinstance(path, str) or not isinstance(digest, str) for path, digest in files.items())
     ):
         raise ValueError("ChaosEngine manifest has an invalid ownership record")
+    manifest["source"] = normalized_source
     return manifest
 
 
@@ -505,7 +554,13 @@ def recover_transaction(project: Path) -> None:
         _recover_transaction(project)
 
 
-def install(project: Path, source: Path, commit: str, _locked: bool = False) -> Path:
+def install(
+    project: Path,
+    source: Path,
+    commit: str,
+    _locked: bool = False,
+    source_record: dict[str, str] | None = None,
+) -> Path:
     project = project.resolve()
     reject_link_or_reparse(source.absolute())
     source = source.resolve()
@@ -513,6 +568,11 @@ def install(project: Path, source: Path, commit: str, _locked: bool = False) -> 
         raise ValueError(f"project is not a directory: {project}")
     if COMMIT_PATTERN.fullmatch(commit) is None:
         raise ValueError("commit must be a lowercase 40-hex revision")
+    desired_source = normalize_source_record({"commit": commit, "kind": "local"})
+    if source_record is not None:
+        desired_source = normalize_source_record(source_record)
+        if desired_source.get("commit") != commit or desired_source.get("kind") != "git":
+            raise ValueError("ChaosEngine source record is invalid")
     if source == project or source.is_relative_to(project) or project.is_relative_to(source):
         raise ValueError("ChaosEngine source and project trees must be disjoint")
 
@@ -532,7 +592,10 @@ def install(project: Path, source: Path, commit: str, _locked: bool = False) -> 
             if current_commit == commit:
                 if current["files"] != ownership:
                     raise ValueError("same commit resolved to a different ChaosEngine payload")
-                return target
+                if current["source"] == desired_source:
+                    return target
+                if current["source"].get("kind") != "local":  # type: ignore[union-attr]
+                    raise ValueError("same commit resolved from different ChaosEngine provenance")
         if backup.exists():
             require_absent(old_backup, "obsolete backup path")
         stage = Path(tempfile.mkdtemp(prefix=f"{INSTALL_DIRECTORY}-stage-", dir=project))
@@ -545,7 +608,7 @@ def install(project: Path, source: Path, commit: str, _locked: bool = False) -> 
             verify_staged_payload(stage, ownership)
             manifest = {
                 "schemaVersion": SCHEMA_VERSION,
-                "source": {"commit": commit, "kind": "local"},
+                "source": desired_source,
                 "files": ownership,
                 "hostToken": (
                     str(current["hostToken"]) if target.exists() else secrets.token_hex(32)
@@ -768,6 +831,7 @@ def install_with_dependencies(
     source: Path,
     commit: str,
     provisioner=None,
+    source_record: dict[str, str] | None = None,
 ) -> Path:
     project = project.resolve()
     with project_lock(project):
@@ -775,14 +839,23 @@ def install_with_dependencies(
             raise ValueError("rollback recovery is required before install")
         current = project / INSTALL_DIRECTORY
         old_commit = None
+        old_manifest = None
         host_snapshot = None
         if current.exists():
-            old_commit = str(verify_install(current)["source"]["commit"])
+            old_manifest = verify_install(current)
+            old_commit = str(old_manifest["source"]["commit"])
             old_host_controller = load_installed_controller(current, "hosts")
             host_receipt_path = project / old_host_controller.RECEIPT_NAME
             if host_receipt_path.exists() or is_link_or_reparse(host_receipt_path):
                 host_snapshot = old_host_controller.snapshot(project)
-        target = install(project, source, commit, _locked=True)
+        target = install(
+            project,
+            source,
+            commit,
+            _locked=True,
+            source_record=source_record,
+        )
+        core_changed = old_manifest is None or verify_install(target) != old_manifest
         host_controller = load_installed_controller(target, "hosts")
         host_receipt = project / host_controller.RECEIPT_NAME
         host_existed = host_receipt.exists() or is_link_or_reparse(host_receipt)
@@ -811,7 +884,7 @@ def install_with_dependencies(
             try:
                 if old_commit is None:
                     uninstall(project, expected_commit=commit, _locked=True)
-                elif old_commit != commit and (project / BACKUP_NAME).exists():
+                elif core_changed and (project / BACKUP_NAME).exists():
                     rollback(project, _locked=True)
             except BaseException as cleanup_error:
                 compensation_errors.append(cleanup_error)

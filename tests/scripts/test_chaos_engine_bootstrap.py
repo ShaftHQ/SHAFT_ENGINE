@@ -1,0 +1,359 @@
+"""Latest-main ChaosEngine bootstrap acceptance tests (#4798)."""
+
+from __future__ import annotations
+
+import importlib.util
+import io
+import json
+import subprocess
+import tempfile
+import unittest
+import zipfile
+from pathlib import Path
+from unittest import mock
+from types import SimpleNamespace
+
+
+ROOT = Path(__file__).resolve().parents[2]
+BOOTSTRAP = ROOT / "chaos-engine/bootstrap.py"
+COMMIT_ONE = "1" * 40
+COMMIT_TWO = "2" * 40
+
+
+def load():
+    specification = importlib.util.spec_from_file_location("chaos_engine_bootstrap", BOOTSTRAP)
+    assert specification and specification.loader
+    module = importlib.util.module_from_spec(specification)
+    specification.loader.exec_module(module)
+    return module
+
+
+def archive(commit: str, marker: str) -> bytes:
+    stream = io.BytesIO()
+    with zipfile.ZipFile(stream, "w") as output:
+        prefix = f"SHAFT_ENGINE-{commit[:7]}/chaos-engine/"
+        for path in (ROOT / "chaos-engine").rglob("*"):
+            if path.is_file() and "__pycache__" not in path.parts and path.suffix != ".pyc":
+                output.writestr(prefix + path.relative_to(ROOT / "chaos-engine").as_posix(), path.read_bytes())
+        if marker:
+            output.writestr(prefix + "bootstrap-marker.txt", marker)
+    return stream.getvalue()
+
+
+class Response(io.BytesIO):
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *_args):
+        self.close()
+
+
+class ChaosEngineBootstrapTest(unittest.TestCase):
+    def opener(self, commits: list[tuple[str, str]]):
+        calls: list[str] = []
+
+        def open_url(request, timeout=0):
+            url = request.full_url if hasattr(request, "full_url") else str(request)
+            calls.append(url)
+            commit, marker = commits[0]
+            if "/commits/" in url:
+                return Response(json.dumps({"sha": commit}).encode())
+            self.assertIn(commit, url)
+            return Response(archive(commit, marker))
+
+        return open_url, calls
+
+    def test_clean_install_update_and_offline_failure_preserve_last_known_good(self):
+        module = load()
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary) / "project"
+            project.mkdir()
+            open_one, calls = self.opener([(COMMIT_ONE, "one")])
+
+            first = module.install_latest(
+                project,
+                repository="ShaftHQ/SHAFT_ENGINE",
+                branch="main",
+                skip_tools=True,
+                opener=open_one,
+            )
+
+            self.assertEqual(COMMIT_ONE, first["commit"])
+            manifest = json.loads((project / ".chaos-engine/manifest.json").read_text(encoding="utf-8"))
+            self.assertEqual(
+                {"kind": "git", "repository": "shafthq/shaft_engine", "branch": "main", "commit": COMMIT_ONE},
+                manifest["source"],
+            )
+            self.assertTrue(any("api.github.com/repos/ShaftHQ/SHAFT_ENGINE/commits/main" in call for call in calls))
+
+            open_two, _ = self.opener([(COMMIT_TWO, "two")])
+            updated = module.install_latest(
+                project,
+                repository="ShaftHQ/SHAFT_ENGINE",
+                branch="main",
+                skip_tools=True,
+                opener=open_two,
+            )
+            self.assertEqual(COMMIT_TWO, updated["commit"])
+
+            before = (project / ".chaos-engine/manifest.json").read_bytes()
+            with self.assertRaisesRegex(RuntimeError, "resolve latest ChaosEngine"):
+                module.install_latest(
+                    project,
+                    repository="ShaftHQ/SHAFT_ENGINE",
+                    branch="main",
+                    skip_tools=True,
+                    opener=mock.Mock(side_effect=OSError("offline")),
+                )
+            self.assertEqual(before, (project / ".chaos-engine/manifest.json").read_bytes())
+
+    def test_public_default_path_installs_healthy_hosts_and_local_tools(self):
+        module = load()
+        dependency = importlib.util.spec_from_file_location(
+            "bootstrap_dependency", ROOT / "chaos-engine/dependencies.py"
+        )
+        assert dependency and dependency.loader
+        dependency_module = importlib.util.module_from_spec(dependency)
+        dependency.loader.exec_module(dependency_module)
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary) / "project"
+            project.mkdir()
+            opener, _ = self.opener([(COMMIT_ONE, "full")])
+
+            def provisioner(runtime, specification):
+                def runner(command, environment):
+                    del environment
+                    executable = Path(command[0])
+                    if not executable.exists() and executable.is_relative_to(runtime.parent):
+                        executable.parent.mkdir(parents=True, exist_ok=True)
+                        executable.write_text("tool\n", encoding="utf-8")
+                    return SimpleNamespace(stdout="tool 1.0\n", stderr="")
+
+                return dependency_module.repair(runtime, specification, runner=runner)
+
+            result = module.install_latest(
+                project,
+                repository="Example/Project",
+                branch="main",
+                opener=opener,
+                provisioner=provisioner,
+            )
+
+            installed = module.load_installer(project / ".chaos-engine")
+            status = installed.status_with_dependencies(project)
+            self.assertEqual(COMMIT_ONE, result["commit"])
+            self.assertEqual("healthy", status["status"])
+            self.assertEqual("healthy", status["hosts"]["status"])
+            self.assertEqual("healthy", status["dependencies"]["status"])
+            self.assertTrue(project.joinpath(".agents/skills/chaos-engine/SKILL.md").is_file())
+            self.assertTrue(project.joinpath(".mcp.json").is_file())
+
+            same, _ = self.opener([(COMMIT_ONE, "full")])
+            repeated = module.install_latest(
+                project,
+                repository="example/project",
+                branch="main",
+                opener=same,
+                provisioner=provisioner,
+            )
+            self.assertEqual(COMMIT_ONE, repeated["commit"])
+
+    def test_existing_local_install_adopts_git_provenance_through_staged_update(self):
+        module = load()
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary) / "project"
+            project.mkdir()
+            installer = module.load_installer(ROOT / "chaos-engine")
+            installer.install(project, ROOT / "chaos-engine", COMMIT_ONE)
+            before = json.loads(
+                (project / ".chaos-engine/manifest.json").read_text(encoding="utf-8")
+            )
+            self.assertEqual("local", before["source"]["kind"])
+            opener, _ = self.opener([(COMMIT_ONE, "")])
+
+            result = module.install_latest(
+                project,
+                repository="Example/Project",
+                branch="main",
+                skip_tools=True,
+                opener=opener,
+            )
+
+            self.assertEqual(COMMIT_ONE, result["commit"])
+            current = json.loads(
+                (project / ".chaos-engine/manifest.json").read_text(encoding="utf-8")
+            )
+            backup = json.loads(
+                (project / ".chaos-engine.backup/manifest.json").read_text(encoding="utf-8")
+            )
+            self.assertEqual("git", current["source"]["kind"])
+            self.assertEqual("example/project", current["source"]["repository"])
+            self.assertEqual(before, backup)
+
+    def test_failed_full_migration_restores_the_prior_local_manifest(self):
+        module = load()
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary) / "project"
+            project.mkdir()
+            installer = module.load_installer(ROOT / "chaos-engine")
+            installer.install(project, ROOT / "chaos-engine", COMMIT_ONE)
+            manifest_path = project / ".chaos-engine/manifest.json"
+            before = manifest_path.read_bytes()
+            opener, _ = self.opener([(COMMIT_ONE, "")])
+
+            with self.assertRaisesRegex(RuntimeError, "offline"):
+                module.install_latest(
+                    project,
+                    repository="Example/Project",
+                    branch="main",
+                    opener=opener,
+                    provisioner=lambda *_args: (_ for _ in ()).throw(RuntimeError("offline")),
+                )
+
+            self.assertEqual(before, manifest_path.read_bytes())
+
+    def test_github_other_git_and_non_git_project_roots_use_the_same_flow(self):
+        module = load()
+        for kind in ("github", "other-git", "non-git"):
+            with self.subTest(kind=kind), tempfile.TemporaryDirectory() as temporary:
+                project = Path(temporary) / "project"
+                project.mkdir()
+                if kind != "non-git":
+                    subprocess.run(["git", "init", "--quiet"], cwd=project, check=True)
+                    remote = (
+                        "https://github.com/example/project.git"
+                        if kind == "github"
+                        else "https://git.example/project.git"
+                    )
+                    subprocess.run(["git", "remote", "add", "origin", remote], cwd=project, check=True)
+                opener, _ = self.opener([(COMMIT_ONE, kind)])
+
+                result = module.install_latest(
+                    project,
+                    repository="ShaftHQ/SHAFT_ENGINE",
+                    branch="main",
+                    skip_tools=True,
+                    opener=opener,
+                )
+
+                self.assertEqual(COMMIT_ONE, result["commit"])
+                self.assertTrue((project / ".chaos-engine/skills/chaos-engine/SKILL.md").is_file())
+
+    def test_omitted_branch_uses_the_configured_upstream_default(self):
+        module = load()
+        responses = iter(
+            (
+                Response(json.dumps({"default_branch": "trunk"}).encode()),
+                Response(json.dumps({"sha": COMMIT_ONE}).encode()),
+            )
+        )
+        calls: list[str] = []
+
+        def opener(request, **_kwargs):
+            calls.append(request.full_url)
+            return next(responses)
+
+        commit, branch = module.resolve_latest("example/project", None, opener=opener)
+
+        self.assertEqual((COMMIT_ONE, "trunk"), (commit, branch))
+        self.assertEqual("https://api.github.com/repos/example/project", calls[0])
+        self.assertTrue(calls[1].endswith("/commits/trunk"))
+
+    def test_repository_dot_segments_are_rejected_before_network(self):
+        module = load()
+        for repository in ("../repo", "owner/..", "./repo", "owner/."):
+            with self.subTest(repository=repository):
+                opener = mock.Mock()
+                with self.assertRaisesRegex(ValueError, "owner/repository"):
+                    module.resolve_latest(repository, "main", opener=opener)
+                opener.assert_not_called()
+
+    def test_manifest_owner_rejects_unresolvable_git_provenance(self):
+        module = load()
+        installer = module.load_installer(ROOT / "chaos-engine")
+        invalid = (
+            {"kind": "git", "repository": "owner/..", "branch": "main", "commit": COMMIT_ONE},
+            {"kind": "git", "repository": "not a repo", "branch": "../main", "commit": COMMIT_ONE},
+        )
+        for source_record in invalid:
+            with self.subTest(source_record=source_record), tempfile.TemporaryDirectory() as temporary:
+                project = Path(temporary)
+                with self.assertRaisesRegex(ValueError, "source record"):
+                    installer.install(
+                        project,
+                        ROOT / "chaos-engine",
+                        COMMIT_ONE,
+                        source_record=source_record,
+                    )
+                self.assertFalse((project / ".chaos-engine").exists())
+
+    def test_git_invalid_branches_are_rejected_by_bootstrap_and_manifest_owner(self):
+        module = load()
+        installer = module.load_installer(ROOT / "chaos-engine")
+        for branch in (
+            "/main",
+            "main/",
+            "main//child",
+            "main.",
+            "main.lock",
+            "HEAD",
+            "main\x7fhidden",
+        ):
+            with self.subTest(branch=branch), tempfile.TemporaryDirectory() as temporary:
+                opener = mock.Mock()
+                with self.assertRaisesRegex(ValueError, "branch is invalid"):
+                    module.resolve_latest("example/project", branch, opener=opener)
+                opener.assert_not_called()
+                with self.assertRaisesRegex(ValueError, "source record"):
+                    installer.install(
+                        Path(temporary),
+                        ROOT / "chaos-engine",
+                        COMMIT_ONE,
+                        source_record={
+                            "kind": "git",
+                            "repository": "example/project",
+                            "branch": branch,
+                            "commit": COMMIT_ONE,
+                        },
+                    )
+
+        opener = mock.Mock(return_value=Response(json.dumps({"sha": COMMIT_ONE}).encode()))
+        self.assertEqual((COMMIT_ONE, "@"), module.resolve_latest("example/project", "@", opener=opener))
+
+    def test_archive_escape_and_unexpected_layout_are_rejected_before_install(self):
+        module = load()
+        for name in ("../escape.txt", "unexpected/file.txt"):
+            with self.subTest(name=name), tempfile.TemporaryDirectory() as temporary:
+                stream = io.BytesIO()
+                with zipfile.ZipFile(stream, "w") as output:
+                    output.writestr(name, "bad")
+                responses = iter(
+                    (Response(json.dumps({"sha": COMMIT_ONE}).encode()), Response(stream.getvalue()))
+                )
+
+                with self.assertRaisesRegex(ValueError, "archive"):
+                    module.install_latest(
+                        Path(temporary),
+                        repository="ShaftHQ/SHAFT_ENGINE",
+                        branch="main",
+                        skip_tools=True,
+                        opener=lambda *_args, **_kwargs: next(responses),
+                    )
+
+                self.assertFalse((Path(temporary) / ".chaos-engine").exists())
+
+    def test_bootstrap_is_reachable_and_runs_in_three_os_ci(self):
+        skill = (ROOT / "chaos-engine/skills/chaos-engine/SKILL.md").read_text(encoding="utf-8")
+        workflow = (ROOT / ".github/workflows/pr-gate.yml").read_text(encoding="utf-8")
+        budget = json.loads((ROOT / "scripts/ci/agent_guidance_budget.json").read_text(encoding="utf-8"))
+
+        self.assertIn("../../bootstrap.py", skill)
+        self.assertIn("tests/scripts/test_chaos_engine_bootstrap.py", skill)
+        self.assertIn("tests.scripts.test_chaos_engine_bootstrap", workflow)
+        for os_name in ("ubuntu-22.04", "macos-15", "windows-2025"):
+            self.assertIn(os_name, workflow)
+        self.assertIn("tests/scripts/test_chaos_engine_bootstrap.py", budget["harness_reachability"]["element_globs"])
+
+
+if __name__ == "__main__":
+    unittest.main()

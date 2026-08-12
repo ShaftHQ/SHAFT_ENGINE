@@ -72,6 +72,7 @@ class ValidateDocumentationBoundariesTest(unittest.TestCase):
         self.write("chaos-engine/skills/chaos-engine/SKILL.md", "# ChaosEngine\n")
         self.write("chaos-engine/profiles/README.md", "# Project profiles\n")
         self.write("chaos-engine/RESEARCH.md", "# Adoption matrix\n")
+        self.write("chaos-engine/INSTALL.md", "# Install\n")
 
         self.assertEqual(validate_repository(self.root), [])
 

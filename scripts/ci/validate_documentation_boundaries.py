@@ -33,6 +33,7 @@ ALLOWED_EXACT = {
     "shaft-mcp/.github/copilot-instructions.md",
     "tools/repository-map/README.md",
     "chaos-engine/RESEARCH.md",
+    "chaos-engine/INSTALL.md",
 }
 ALLOWED_GLOBS = (
     ".agents/skills/**/*.md",

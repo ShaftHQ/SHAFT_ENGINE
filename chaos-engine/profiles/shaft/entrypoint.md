@@ -8,6 +8,10 @@ first. This profile adds only repository-specific facts and permissions.
 - The companion public-documentation repository is
   `ShaftHQ/shafthq.github.io` on `master`; discover its local root or use an
   explicitly configured root, never a fixed sibling path.
+- Install or upgrade this profile from its configured upstream with the single
+  agent command in [INSTALL](../../INSTALL.md), supplying
+  `--repository ShaftHQ/SHAFT_ENGINE --branch main` and fetching the bootstrap
+  from `https://raw.githubusercontent.com/ShaftHQ/SHAFT_ENGINE/main/chaos-engine/bootstrap.py`.
 - Maven modules and SHAFT product behavior route through the playbooks and
   mastery chapters under [references](references/routing.md).
 
