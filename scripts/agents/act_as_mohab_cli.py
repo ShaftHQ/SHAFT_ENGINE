@@ -527,10 +527,18 @@ def main(argv: list[str] | None = None) -> int:
                 payload = create_issue(
                     plan, taxonomy, context.repo, parsed.confirm_receipt_sha256
                 )
-        except (OSError, json.JSONDecodeError, RepositoryContextError, ValueError) as error:
+        except (
+            OSError,
+            json.JSONDecodeError,
+            RepositoryContextError,
+            GitHubUnavailable,
+            ValueError,
+        ) as error:
             print(f"act-as-mohab: issue filing failed: {error}", file=sys.stderr)
             return EXIT_ENVIRONMENT_ERROR
         print(json.dumps(payload, sort_keys=True))
+        if parsed.command == "issue-labels":
+            return 0
         return 0 if payload["decision"] == "allow" else 1
     try:
         context = context_from_arguments(parsed)
