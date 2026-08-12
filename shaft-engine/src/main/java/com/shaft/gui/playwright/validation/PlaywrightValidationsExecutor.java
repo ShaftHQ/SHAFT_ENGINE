@@ -36,6 +36,7 @@ import java.util.Base64;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Objects;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.util.concurrent.atomic.AtomicReference;
@@ -551,18 +552,28 @@ final class PlaywrightValidationsExecutor extends ValidationsExecutor {
         boolean contextCount = isBrowsingContextCount();
         boolean contextOwnedValue = "browserValueEquals".equals(validationMethod);
         Object comparisonExpected = contextCount ? String.valueOf(reportedExpected) : reportedExpected;
-        Page page = contextCount || contextOwnedValue ? null : session.page();
-        BrowserContext context = contextCount || contextOwnedValue ? session.browserContext() : null;
-        if ((contextCount || contextOwnedValue) && (context == null || context.isClosed())) {
-            throw new UnsupportedOperationException("Browser validations require a live Playwright browser context.");
+        Page page = null;
+        BrowserContext context = null;
+        if (contextCount || contextOwnedValue) {
+            context = session.browserContext();
+            if (context == null || context.isClosed()) {
+                throw new UnsupportedOperationException("Browser validations require a live Playwright browser context.");
+            }
+        } else {
+            page = session.page();
+            if (page == null || page.isClosed()) {
+                throw new UnsupportedOperationException("Browser validations require a live Playwright page.");
+            }
         }
+        Page activePage = page;
+        BrowserContext activeContext = context;
         AtomicReference<Object> actual = new AtomicReference<>();
         AtomicReference<RuntimeException> failure = new AtomicReference<>();
         AtomicReference<RuntimeException> waitFailure = new AtomicReference<>();
         AtomicBoolean matched = new AtomicBoolean();
         BooleanSupplier condition = () -> {
             try {
-                actual.set(contextOwnedValue ? browserValueReader.get() : readBrowserAttribute(page));
+                actual.set(contextOwnedValue ? browserValueReader.get() : readBrowserAttribute(activePage));
                 failure.set(null);
                 matched.set(compare(comparisonExpected, actual.get()));
                 return matched.get();
@@ -576,9 +587,9 @@ final class PlaywrightValidationsExecutor extends ValidationsExecutor {
         };
         try {
             if (contextCount || contextOwnedValue) {
-                context.waitForCondition(condition);
+                Objects.requireNonNull(activeContext).waitForCondition(condition);
             } else {
-                page.waitForCondition(condition);
+                Objects.requireNonNull(activePage).waitForCondition(condition);
             }
         } catch (RuntimeException exception) {
             waitFailure.set(exception);

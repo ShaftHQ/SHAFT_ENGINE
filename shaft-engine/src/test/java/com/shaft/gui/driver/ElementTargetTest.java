@@ -103,6 +103,17 @@ public class ElementTargetTest {
     }
 
     @Test
+    public void renderingShouldBeStableAndMustNotExposeLocatorPayloads() {
+        ElementTarget target = nth(descendant(
+                located(ShaftLocator.css("#private-root")),
+                ShaftLocator.css("[data-secret='private-value']")), 2);
+
+        Assert.assertEquals(target.toString(), "ElementTarget[steps=3]");
+        Assert.assertFalse(target.toString().contains("private-root"));
+        Assert.assertFalse(target.toString().contains("private-value"));
+    }
+
+    @Test
     public void seleniumIndexShouldUseTheFlattenedMatchesAndReturnEmptyWhenOutOfRange() {
         SearchContext driver = mock(SearchContext.class);
         WebElement firstRoot = mock(WebElement.class);

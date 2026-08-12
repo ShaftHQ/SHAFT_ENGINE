@@ -215,6 +215,21 @@ public class BidiConsoleLogSourceTest {
     }
 
     @Test
+    public void callbackAfterCloseShouldNotRepopulateTheTerminalSource() {
+        WebDriver closedDriver = Mockito.mock(WebDriver.class);
+        WebDriver inspectionDriver = Mockito.mock(WebDriver.class);
+        BidiConsoleLogSource source = new BidiConsoleLogSource();
+        BidiConsoleLogSource.install(closedDriver, source);
+
+        BidiConsoleLogSource.closeAndRemove(closedDriver);
+        source.record("error", "late-sensitive-event", 42);
+        BidiConsoleLogSource.install(inspectionDriver, source);
+
+        Assert.assertTrue(BidiConsoleLogSource.snapshot(inspectionDriver).isEmpty());
+        BidiConsoleLogSource.closeAndRemove(inspectionDriver);
+    }
+
+    @Test
     public void concurrentProductionAndDrainShouldNotLoseMessages() throws Exception {
         WebDriver driver = Mockito.mock(WebDriver.class);
         BidiConsoleLogSource source = new BidiConsoleLogSource();

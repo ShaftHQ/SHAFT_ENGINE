@@ -19,7 +19,7 @@ public final class BidiConsoleLogSource implements AutoCloseable {
     private static final Map<IdentityWeakReference, Entry> CACHE = new HashMap<>();
     private final List<BrowserObservabilityRecorder.ConsoleSnapshotEntry> events = new ArrayList<>();
     private LogInspector inspector;
-    private boolean healthy;
+    private volatile boolean healthy;
 
     BidiConsoleLogSource() {
         healthy = true;
@@ -182,6 +182,9 @@ public final class BidiConsoleLogSource implements AutoCloseable {
     }
 
     synchronized void record(String level, String text, long timestamp) {
+        if (!healthy) {
+            return;
+        }
         if (events.size() >= EVENT_LIMIT) {
             events.removeFirst();
         }
@@ -204,15 +207,18 @@ public final class BidiConsoleLogSource implements AutoCloseable {
 
     @Override
     public void close() {
-        healthy = false;
-        clearEvents();
-        if (inspector != null) {
+        LogInspector currentInspector;
+        synchronized (this) {
+            healthy = false;
+            events.clear();
+            currentInspector = inspector;
+            inspector = null;
+        }
+        if (currentInspector != null) {
             try {
-                inspector.close();
+                currentInspector.close();
             } catch (RuntimeException ignored) {
                 // The driver may already be closed.
-            } finally {
-                inspector = null;
             }
         }
     }

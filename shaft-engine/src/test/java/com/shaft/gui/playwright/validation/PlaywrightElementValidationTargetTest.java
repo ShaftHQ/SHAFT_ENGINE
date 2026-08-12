@@ -11,6 +11,8 @@ import com.shaft.gui.driver.ElementTarget;
 import com.shaft.gui.driver.ShaftLocator;
 import com.shaft.gui.playwright.element.ElementActions;
 import com.shaft.gui.playwright.internal.PlaywrightSession;
+import com.shaft.gui.internal.image.ImageProcessingActions;
+import com.shaft.gui.internal.image.VisualProcessingProvider;
 import com.shaft.driver.SHAFT;
 import com.shaft.validation.internal.NativeValidationsBuilder;
 import com.shaft.validation.internal.ValidationsHelper;
@@ -29,6 +31,7 @@ import java.util.function.Function;
 import java.lang.reflect.Field;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.never;
@@ -167,7 +170,14 @@ public class PlaywrightElementValidationTargetTest {
         ElementAssertions assertions = new PlaywrightDriverAssertions(session)
                 .element(ElementTarget.located(ShaftLocator.css("#save")));
 
-        Assert.expectThrows(NullPointerException.class, assertions::matchesScreenshot);
+        try (MockedStatic<ImageProcessingActions> images = mockStatic(ImageProcessingActions.class)) {
+            images.when(() -> ImageProcessingActions.getReferenceImage(anyString())).thenReturn(null);
+            images.when(() -> ImageProcessingActions.compareScreenshotAgainstBaseline(
+                            anyString(), any(byte[].class), any(), any(), any()))
+                    .thenReturn(new VisualProcessingProvider.ScreenshotComparisonResult(
+                            true, new byte[0], 0, 0.0));
+            Assert.expectThrows(NullPointerException.class, assertions::matchesScreenshot);
+        }
         verify(currentPage).locator(any(String.class));
         verify(currentLocator).screenshot();
     }

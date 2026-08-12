@@ -109,6 +109,11 @@ public final class ElementTarget {
         return new ElementTarget(composed);
     }
 
+    @Override
+    public String toString() {
+        return "ElementTarget[steps=" + steps.size() + "]";
+    }
+
     private sealed interface Step permits LocatorStep, IndexStep {
     }
 
