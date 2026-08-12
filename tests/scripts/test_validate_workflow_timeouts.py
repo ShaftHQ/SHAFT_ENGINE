@@ -110,6 +110,14 @@ jobs:
         timeout = workflow["jobs"]["agent-guidance"].get("timeout-minutes", 0)
         self.assertGreaterEqual(timeout, 15)
 
+    def test_local_safari_job_allows_observed_nightly_runtime_headroom(self):
+        repository_root = Path(__file__).resolve().parents[2]
+        workflow = yaml.safe_load(
+            (repository_root / ".github/workflows/e2eLocalTests.yml").read_text(encoding="utf-8")
+        )
+        timeout = workflow["jobs"]["MacOSX_Safari_Local"].get("timeout-minutes", 0)
+        self.assertEqual(timeout, 120)
+
 
 if __name__ == "__main__":
     unittest.main()
