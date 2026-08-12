@@ -47,6 +47,7 @@ public class TraceArtifactManifestTest {
             var nativeArtifact = manifest.references().stream().filter(item -> item.id().equals("native-trace"))
                     .findFirst().orElseThrow();
             Assert.assertTrue(nativeArtifact.omitted());
+            Assert.assertEquals(nativeArtifact.metadata().get("omissionReason"), "bounded omission");
             Assert.assertEquals(new String(manifest.nativeEntry().open().readAllBytes(), StandardCharsets.UTF_8),
                     "bounded omission");
         } finally {
@@ -113,6 +114,10 @@ public class TraceArtifactManifestTest {
                 "bounded omission", failing)) {
             Assert.assertEquals(stagedNativeFiles(), before);
             Assert.assertEquals(manifest.omittedPaths(), java.util.List.of("playwright-trace.zip"));
+            Assert.assertEquals(manifest.references().stream()
+                            .filter(item -> item.id().equals("native-trace")).findFirst().orElseThrow()
+                            .metadata().get("omissionReason"),
+                    "Omitted because SHAFT could not read the native Playwright trace.");
             Assert.assertTrue(new String(manifest.nativeEntry().open().readAllBytes(), StandardCharsets.UTF_8)
                     .contains("could not read"));
         }

@@ -51,6 +51,11 @@ final class TraceSchemaSerializer {
         return JSON.writeValueAsString(json);
     }
 
+    static String artifactsToJson(List<TraceArtifactReference> artifacts) {
+        List<TraceArtifactReference> safeArtifacts = artifacts == null ? List.of() : List.copyOf(artifacts);
+        return JSON.writeValueAsString(safeArtifacts.stream().map(TraceSchemaSerializer::artifactMap).toList());
+    }
+
     private static TraceEvent event(String sessionId, Instant generatedAt, TraceEventRecorder.ActionEvent action,
                                     List<TraceArtifactReference> artifacts) {
         Map<String, String> metadata = new LinkedHashMap<>(action.metadata());

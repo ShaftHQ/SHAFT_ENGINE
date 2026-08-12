@@ -5,13 +5,17 @@ import com.microsoft.playwright.BrowserType;
 import com.microsoft.playwright.Page;
 import com.microsoft.playwright.Playwright;
 import com.shaft.driver.SHAFT;
+import com.shaft.gui.playwright.internal.PlaywrightTraceManager;
 import com.shaft.listeners.internal.TestExecutionInfo;
 import com.shaft.properties.internal.Properties;
+import org.mockito.MockedStatic;
 import org.mockito.Mockito;
 import org.openqa.selenium.JavascriptExecutor;
 import org.openqa.selenium.WebDriver;
 import org.testng.Assert;
 import org.testng.annotations.Test;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -29,12 +33,27 @@ import java.util.zip.ZipFile;
 /** Explicit headless acceptance for the generated single-file trace viewer. */
 public class TraceViewerBrowserAcceptanceTest {
     private static final String BLOCKED_RESOURCE = "https://blocked.invalid/private.png";
+    private static final ObjectMapper JSON = new ObjectMapper();
 
     @Test(groups = "trace-viewer-browser-acceptance")
     public void generatedViewerShouldRemainOfflineAndShareNavigableRangeState() throws Exception {
         Path chrome = chromeExecutable();
         ViewerFixture fixture = generateViewerFixture();
         Path html = fixture.html();
+        try (ZipFile zip = new ZipFile(fixture.archive().toFile())) {
+            Assert.assertEquals(readZipEntry(zip, "trace-viewer-native.zip"), "bounded native trace fixture");
+            JsonNode traceJson = JSON.readTree(readZipEntry(zip, "shaft-trace.json"));
+            JsonNode schemaArtifacts = traceJson.path("session").path("artifacts");
+            JsonNode indexArtifacts = JSON.readTree(Files.readString(fixture.index())).path("artifacts");
+            Assert.assertEquals(indexArtifacts, schemaArtifacts,
+                    "Available artifact references must remain identical in the schema and canonical index.");
+            for (JsonNode attachment : traceJson.path("attachments")) {
+                Assert.assertFalse(attachment.asText().contains(fixture.nativeTrace().toString()),
+                        "The trace schema must not expose the native trace's host filesystem path.");
+            }
+            Assert.assertFalse(traceJson.path("attachments").toString().contains("Playwright Trace (raw)"),
+                    "The artifact graph is the sole owner of native trace handoff metadata.");
+        }
         Path screenshot = Path.of(System.getProperty("shaft.trace.viewer.screenshot",
                 "target/trace-viewer-browser-acceptance.png")).toAbsolutePath().normalize();
         Files.createDirectories(screenshot.getParent());
@@ -513,7 +532,88 @@ public class TraceViewerBrowserAcceptanceTest {
             Assert.assertEquals(page.locator("#mobile-result-count").textContent(), "0 mobile actions");
             Assert.assertEquals(page.locator("#mobile-hint").textContent(), "No mobile actions were recorded.");
             page.evaluate("() => { actions.push(...window.__mobileBackup); renderMobile(); }");
+            page.locator("button[data-tab=artifacts]").focus();
+            page.locator("button[data-tab=artifacts]").press("Enter");
+            Assert.assertEquals(page.locator("button[data-tab=artifacts]")
+                    .evaluate("button => button === document.activeElement"), true);
+            Assert.assertEquals(page.locator("#artifact-result-count").textContent(), "4 trace artifacts");
+            Assert.assertEquals(page.locator("#artifact-rows tr").count(), 4);
+            Assert.assertEquals(page.locator("#artifact-rows tr td:nth-child(1)").allTextContents(),
+                    List.of("shaft-network.har", "screenshots/action-1.png", "screenshots/action-2.png",
+                            "trace-viewer-native.zip"));
+            Assert.assertEquals(page.locator("#artifact-rows tr td:nth-child(2)").allTextContents(),
+                    List.of("network", "screenshot", "screenshot", "native-trace"));
+            Assert.assertEquals(page.locator("#artifact-rows tr td:nth-child(3)").allTextContents(),
+                    List.of("application/json", "image/png", "image/png", "application/zip"));
+            Assert.assertEquals(page.locator("#artifact-rows tr td:nth-child(4)").allTextContents(),
+                    List.of("Available", "Available", "Available", "Available"));
+            Assert.assertTrue(page.locator("#native-trace-handoff").textContent().contains("show-trace"));
+            Assert.assertTrue(page.locator("#native-trace-handoff").textContent().contains("trace-viewer-native.zip"));
+            page.evaluate("""
+                    () => {
+                      const nativeTrace = artifacts.find(artifact => artifact.kind === 'native-trace');
+                      window.__nativeArtifact = structuredClone(nativeTrace);
+                      nativeTrace.omitted = true;
+                      nativeTrace.metadata = {omissionReason:'Omitted because SHAFT could not read the native Playwright trace.'};
+                      truncation.push(nativeTrace.path);
+                      renderArtifacts();
+                      renderSummary();
+                    }
+                    """);
+            Assert.assertEquals(page.locator("#artifact-rows tr").last().locator("td").nth(3).textContent(), "Omitted");
+            Assert.assertTrue(page.locator("#truncation-detail").textContent().contains("could not read"));
+            Assert.assertEquals(page.locator("#native-trace-handoff").textContent(),
+                    "Native Playwright trace omitted: Omitted because SHAFT could not read the native Playwright trace.");
+            page.evaluate("""
+                    () => {
+                      const nativeTrace = artifacts.find(artifact => artifact.kind === 'native-trace');
+                      nativeTrace.omitted = true;
+                      nativeTrace.path = '<img id="artifact-path-injection">.zip';
+                      nativeTrace.kind = '<img id="artifact-injection"> native-trace';
+                      nativeTrace.mimeType = '<img id="artifact-mime-injection">';
+                      nativeTrace.metadata = {omissionReason:'<img id="artifact-reason-injection">'};
+                      truncation.pop();
+                      renderArtifacts();
+                      renderSummary();
+                    }
+                    """);
+            Assert.assertTrue(page.locator("#truncation-banner").isHidden());
+            Assert.assertEquals(page.locator("#truncation-detail").textContent(), "");
+            Assert.assertEquals(page.locator("#artifact-injection").count(), 0);
+            Assert.assertEquals(page.locator("#artifact-path-injection").count(), 0);
+            Assert.assertEquals(page.locator("#artifact-mime-injection").count(), 0);
+            Assert.assertEquals(page.locator("#artifact-reason-injection").count(), 0);
+            Assert.assertTrue(page.locator("#artifact-rows tr").last().textContent().contains("artifact-injection"));
+            Assert.assertTrue(page.locator("#artifact-rows tr").last().textContent()
+                    .contains("artifact-reason-injection"));
+            page.evaluate("() => { window.__artifactBackup = artifacts.splice(0); renderArtifacts(); }");
+            Assert.assertEquals(page.locator("#artifact-result-count").textContent(), "0 trace artifacts");
+            Assert.assertEquals(page.locator("#artifact-hint").textContent(),
+                    "No artifact graph was recorded for this trace.");
+            Assert.assertTrue(page.locator("#native-trace-handoff").isHidden());
+            Assert.assertEquals(page.locator("#native-trace-handoff").textContent(), "");
+            page.evaluate("""
+                    () => {
+                      artifacts.push(...window.__artifactBackup);
+                      artifacts[artifacts.length - 1] = window.__nativeArtifact;
+                      renderArtifacts();
+                      renderSummary();
+                    }
+                    """);
+            Assert.assertTrue(page.locator("#native-trace-handoff").textContent().contains("is available"));
+            Assert.assertTrue(page.locator("#truncation-banner").isHidden());
             page.screenshot(new Page.ScreenshotOptions().setPath(screenshot).setFullPage(true));
+            page.navigate(fixture.legacyHtml().toUri().toString());
+            page.locator("button[data-tab=artifacts]").click();
+            Assert.assertEquals(page.locator("#artifact-result-count").textContent(), "0 trace artifacts");
+            Assert.assertEquals(page.locator("#artifact-hint").textContent(),
+                    "No artifact graph was recorded for this trace.");
+            Assert.assertEquals(page.locator("button[data-tab=timeline]").count(), 1,
+                    "A session-less v1 trace must retain the legacy viewer panels.");
+            page.locator("button[data-tab=timeline]").click();
+            Assert.assertTrue(page.locator("#timeline-list .timeline-entry").count() > 0,
+                    "The session-less v1 trace must retain usable legacy timeline content.");
+            Assert.assertTrue(page.locator("#timeline-list").textContent().contains("CLICK"));
             Assert.assertTrue(pageErrors.isEmpty(), "Page errors: " + pageErrors);
             Assert.assertTrue(externalRequests.isEmpty(), "External requests: " + externalRequests);
         } finally {
@@ -530,7 +630,11 @@ public class TraceViewerBrowserAcceptanceTest {
                 .thenReturn(snapshot("before one"), snapshot("after one"), snapshot("before two"), snapshot("after two"));
         byte[] png = Base64.getDecoder().decode(
                 "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=");
-        try {
+        Path nativeTrace = Path.of("target", "trace-viewer-native.zip").toAbsolutePath().normalize();
+        Files.createDirectories(nativeTrace.getParent());
+        Files.writeString(nativeTrace, "bounded native trace fixture");
+        try (MockedStatic<PlaywrightTraceManager> traceManager = Mockito.mockStatic(PlaywrightTraceManager.class)) {
+            traceManager.when(PlaywrightTraceManager::getLastTracePath).thenReturn(nativeTrace);
             SHAFT.Properties.reporting.set().traceEnabled(true).traceMode("failure")
                     .traceIncludeDomSnapshots(true).traceIncludeScreenshots(true)
                     .traceIncludeNetwork(true).traceIncludeConsole(true);
@@ -568,10 +672,13 @@ public class TraceViewerBrowserAcceptanceTest {
             Path archive = FailureTraceReporter.traceDirectory(info).resolve("shaft-trace.zip");
             Path html = Path.of("target", "trace-viewer-browser-acceptance.html").toAbsolutePath().normalize();
             extract(archive, "SHAFT Trace Report.html", html);
-            return new ViewerFixture(html, consoleBaseTime);
+            Path legacyHtml = legacyViewer(html);
+            return new ViewerFixture(html, consoleBaseTime, archive,
+                    FailureTraceReporter.traceDirectory(info).resolve("index.json"), nativeTrace, legacyHtml);
         } finally {
             TraceEventRecorder.clear();
             BrowserObservabilityRecorder.clear();
+            Files.deleteIfExists(nativeTrace);
             Properties.clearForCurrentThread();
         }
     }
@@ -580,7 +687,34 @@ public class TraceViewerBrowserAcceptanceTest {
         return "<html><body><main>" + label + "</main><img src=\"" + BLOCKED_RESOURCE + "\"></body></html>";
     }
 
-    private record ViewerFixture(Path html, long consoleBaseTime) {
+    private record ViewerFixture(Path html, long consoleBaseTime, Path archive, Path index, Path nativeTrace,
+                                 Path legacyHtml) {
+    }
+
+    private static Path legacyViewer(Path currentHtml) throws Exception {
+        String html = Files.readString(currentHtml);
+        String marker = "<pre hidden id=\"trace-data\">";
+        int payloadStart = html.indexOf(marker) + marker.length();
+        int payloadEnd = html.indexOf("</pre>", payloadStart);
+        String encoded = html.substring(payloadStart, payloadEnd);
+        String decoded = encoded.replace("&lt;", "<").replace("&gt;", ">").replace("&amp;", "&");
+        JsonNode legacy = JSON.readTree(decoded);
+        ((tools.jackson.databind.node.ObjectNode) legacy).remove("session");
+        String legacyJson = JSON.writeValueAsString(legacy)
+                .replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;");
+        Path target = currentHtml.resolveSibling("trace-viewer-browser-acceptance-v1.html");
+        Files.writeString(target, html.substring(0, payloadStart) + legacyJson + html.substring(payloadEnd));
+        return target;
+    }
+
+    private static String readZipEntry(ZipFile zip, String entryName) throws IOException {
+        ZipEntry entry = zip.getEntry(entryName);
+        if (entry == null) {
+            throw new IOException("Trace archive is missing " + entryName);
+        }
+        try (InputStream input = zip.getInputStream(entry)) {
+            return new String(input.readAllBytes(), java.nio.charset.StandardCharsets.UTF_8);
+        }
     }
 
     private static void extract(Path archive, String entryName, Path target) throws IOException {
@@ -616,6 +750,7 @@ public class TraceViewerBrowserAcceptanceTest {
                 }
             }
         }
+        Files.deleteIfExists(Path.of("target", "trace-viewer-browser-acceptance-v1.html"));
     }
 
     @SuppressWarnings("unused")
