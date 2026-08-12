@@ -127,14 +127,10 @@ public class MobileEvidenceActionsTest {
                     .traceIncludeScreenshots(false)
                     .traceIncludeNativePageSource(false);
             MobileLogSource.start(driver);
-            @SuppressWarnings("unchecked")
-            CopyOnWriteArrayList<Consumer<String>> messageHandlers =
-                    (CopyOnWriteArrayList<Consumer<String>>) ((ListensToLogcatMessages) driver)
-                            .getLogcatClient().getMessageHandlers();
-            @SuppressWarnings("unchecked")
-            CopyOnWriteArrayList<Consumer<Throwable>> errorHandlers =
-                    (CopyOnWriteArrayList<Consumer<Throwable>>) ((ListensToLogcatMessages) driver)
-                            .getLogcatClient().getErrorHandlers();
+            List<Consumer<String>> messageHandlers = ((ListensToLogcatMessages) driver)
+                    .getLogcatClient().getMessageHandlers();
+            List<Consumer<Throwable>> errorHandlers = ((ListensToLogcatMessages) driver)
+                    .getLogcatClient().getErrorHandlers();
             messageHandlers.getFirst().accept("secret-log-value");
             errorHandlers.getFirst().accept(new IllegalStateException("secret-error-value"));
 
