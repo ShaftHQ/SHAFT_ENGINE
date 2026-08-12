@@ -91,6 +91,67 @@ public class GuiValidationContractTest {
     }
 
     @Test
+    public void focusedBrowserCoreCategoriesShouldBeCompatibilityDefaults() {
+        assertBrowserDefaultMethod("pageSourceValue");
+        assertBrowserDefaultMethod("windowHandleValue");
+        assertBrowserDefaultMethod("windowPositionValue");
+        assertBrowserDefaultMethod("windowSizeValue");
+    }
+
+    @Test
+    public void frozenOldBrowserAssertionsShouldReceiveFailClosedCoreCategoryDefaults() throws Exception {
+        Path output = Files.createTempDirectory("shaft-browser-assertions-old-consumer");
+        var compiler = ToolProvider.getSystemJavaCompiler();
+        List<SimpleJavaFileObject> sources = List.of(
+                source("com.shaft.gui.driver.BrowserAssertions", """
+                        package com.shaft.gui.driver;
+                        public interface BrowserAssertions {}
+                        """),
+                source("compat.OldBrowserAssertions", """
+                        package compat;
+                        public final class OldBrowserAssertions implements com.shaft.gui.driver.BrowserAssertions {}
+                        """));
+        Assert.assertTrue(Boolean.TRUE.equals(compiler.getTask(null, null, null,
+                List.of("-classpath", System.getProperty("java.class.path"), "-d", output.toString()),
+                null, sources).call()));
+
+        try (URLClassLoader loader = new URLClassLoader(new java.net.URL[]{output.toUri().toURL()},
+                GuiValidationContractTest.class.getClassLoader())) {
+            Object oldConsumer = Class.forName("compat.OldBrowserAssertions", true, loader)
+                    .getDeclaredConstructor().newInstance();
+            for (String method : List.of("pageSourceValue", "windowHandleValue", "windowPositionValue", "windowSizeValue")) {
+                assertBrowserCompatibilityDefaultFailsClosed(oldConsumer, method);
+            }
+        }
+    }
+
+    @Test
+    public void naturalLegacyBrowserAccessorsShouldRemainSourceCompatible() throws Exception {
+        Path output = Files.createTempDirectory("shaft-browser-assertions-collision");
+        SimpleJavaFileObject consumer = source("compat.NaturalBrowserAccessors", """
+                package compat;
+                public abstract class NaturalBrowserAccessors implements com.shaft.gui.driver.BrowserAssertions {
+                    public String pageSource() { return ""; }
+                    public String windowHandle() { return ""; }
+                    public String windowPosition() { return ""; }
+                    public String windowSize() { return ""; }
+                }
+                """);
+        Assert.assertTrue(Boolean.TRUE.equals(ToolProvider.getSystemJavaCompiler().getTask(null, null, null,
+                List.of("-classpath", System.getProperty("java.class.path"), "-d", output.toString()),
+                null, List.of(consumer)).call()));
+    }
+
+    @Test
+    public void browserCategoryDefaultCollisionsShouldRequireCompatibleOverrides() throws Exception {
+        Assert.assertFalse(compileBrowserCategoryDefaultCollision("MissingBrowserCategoryOverride", false));
+        Assert.assertTrue(compileBrowserCategoryDefaultCollision("CompatibleBrowserCategoryOverride", true));
+        Assert.assertFalse(compileBrowserAssertionsConsumer("IncompatibleBrowserCategoryOverride", """
+                public String pageSourceValue() { return ""; }
+                """));
+    }
+
+    @Test
     public void frozenOldElementAssertionsShouldReceiveFailClosedCategoryDefaults() throws Exception {
         Path output = Files.createTempDirectory("shaft-element-assertions-old-consumer");
         var compiler = ToolProvider.getSystemJavaCompiler();
@@ -265,6 +326,27 @@ public class GuiValidationContractTest {
         Assert.assertEquals(method.getReturnType(), com.shaft.validation.internal.NativeValidationsBuilder.class);
     }
 
+    private static void assertBrowserDefaultMethod(String name) {
+        Method method;
+        try {
+            method = BrowserAssertions.class.getMethod(name);
+        } catch (NoSuchMethodException exception) {
+            Assert.fail("Missing compatibility method: BrowserAssertions." + name, exception);
+            return;
+        }
+        Assert.assertTrue(method.isDefault(), "BrowserAssertions." + name + " must be a default method.");
+        Assert.assertEquals(method.getReturnType(), com.shaft.validation.internal.NativeValidationsBuilder.class);
+    }
+
+    private static void assertBrowserCompatibilityDefaultFailsClosed(Object oldConsumer, String methodName) throws Exception {
+        Method method = BrowserAssertions.class.getMethod(methodName);
+        InvocationTargetException thrown = Assert.expectThrows(InvocationTargetException.class,
+                () -> method.invoke(oldConsumer));
+        Assert.assertTrue(thrown.getCause() instanceof UnsupportedOperationException);
+        Assert.assertEquals(thrown.getCause().getMessage(),
+                methodName + " is not supported by this browser assertions implementation.");
+    }
+
     private static void assertForwardedTarget(By forwarded) {
         SearchContext context = mock(SearchContext.class);
         WebElement expected = mock(WebElement.class);
@@ -295,6 +377,42 @@ public class GuiValidationContractTest {
         return Boolean.TRUE.equals(ToolProvider.getSystemJavaCompiler().getTask(null, null, null,
                 List.of("-classpath", System.getProperty("java.class.path"), "-d", output.toString()),
                 null, List.of(consumer)).call());
+    }
+
+    private static boolean compileBrowserAssertionsConsumer(String className, String methods) throws Exception {
+        Path output = Files.createTempDirectory("shaft-browser-assertions-collision");
+        SimpleJavaFileObject consumer = source("compat." + className, """
+                package compat;
+                public abstract class %s implements com.shaft.gui.driver.BrowserAssertions {
+                    %s
+                }
+                """.formatted(className, methods));
+        return Boolean.TRUE.equals(ToolProvider.getSystemJavaCompiler().getTask(null, null, null,
+                List.of("-classpath", System.getProperty("java.class.path"), "-d", output.toString()),
+                null, List.of(consumer)).call());
+    }
+
+    private static boolean compileBrowserCategoryDefaultCollision(String className, boolean override) throws Exception {
+        Path output = Files.createTempDirectory("shaft-browser-category-default-collision");
+        SimpleJavaFileObject foreign = source("compat.ForeignBrowserCategory", """
+                package compat;
+                public interface ForeignBrowserCategory {
+                    default com.shaft.validation.internal.NativeValidationsBuilder pageSourceValue() { return null; }
+                }
+                """);
+        String explicitOverride = override
+                ? "public com.shaft.validation.internal.NativeValidationsBuilder pageSourceValue() { "
+                + "return com.shaft.gui.driver.BrowserAssertions.super.pageSourceValue(); }"
+                : "";
+        SimpleJavaFileObject consumer = source("compat." + className, """
+                package compat;
+                public abstract class %s implements com.shaft.gui.driver.BrowserAssertions, ForeignBrowserCategory {
+                    %s
+                }
+                """.formatted(className, explicitOverride));
+        return Boolean.TRUE.equals(ToolProvider.getSystemJavaCompiler().getTask(null, null, null,
+                List.of("-classpath", System.getProperty("java.class.path"), "-d", output.toString()),
+                null, List.of(foreign, consumer)).call());
     }
 
     private static boolean compileCategoryDefaultCollision(String className, boolean override) throws Exception {

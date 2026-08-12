@@ -54,6 +54,30 @@ public class PlaywrightBrowserValidationsBuilder implements BrowserAssertions {
     }
 
     @Override
+    public NativeValidationsBuilder pageSourceValue() {
+        reportMessageBuilder.append("page source ");
+        return builder("pagesource");
+    }
+
+    @Override
+    public NativeValidationsBuilder windowHandleValue() {
+        reportMessageBuilder.append("window handle ");
+        return builder("windowhandle");
+    }
+
+    @Override
+    public NativeValidationsBuilder windowPositionValue() {
+        reportMessageBuilder.append("window position ");
+        return builder("windowposition");
+    }
+
+    @Override
+    public NativeValidationsBuilder windowSizeValue() {
+        reportMessageBuilder.append("window size ");
+        return builder("windowsize");
+    }
+
+    @Override
     public ValidationsExecutor matchesScreenshot() {
         return matchesScreenshot(null);
     }

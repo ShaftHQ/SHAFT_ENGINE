@@ -120,7 +120,7 @@ final class PlaywrightValidationsExecutor extends ValidationsExecutor {
     public void internalPerform() {
         boolean generatedCustomReportMessage = false;
         if (customReportMessage.isBlank()) {
-            customReportMessage = reportMessageBuilder.toString();
+            customReportMessage = generatedReportMessage();
             generatedCustomReportMessage = true;
         }
         validationCategoryString = validationCategory == ValidationEnums.ValidationCategory.HARD_ASSERT ? "Assert" : "Verify";
@@ -139,6 +139,16 @@ final class PlaywrightValidationsExecutor extends ValidationsExecutor {
                 customReportMessage = "";
             }
         }
+    }
+
+    private String generatedReportMessage() {
+        if ("browserAttributeEquals".equals(validationMethod)
+                && browserAttribute != null
+                && List.of("pagesource", "windowsource", "source")
+                .contains(browserAttribute.toLowerCase(Locale.ROOT))) {
+            return "the browser page source payload matches the requested comparison.";
+        }
+        return reportMessageBuilder.toString();
     }
 
     @Step(" {this.validationCategoryString} that {this.customReportMessage}")
@@ -167,6 +177,9 @@ final class PlaywrightValidationsExecutor extends ValidationsExecutor {
         }
         if (isFocusedElementValue()) {
             return pollFocusedElementValue(actualSupplier, reportedExpected);
+        }
+        if (isFocusedBrowserValue()) {
+            return pollFocusedBrowserValue(reportedExpected);
         }
         Object actual = safelyRead(actualSupplier);
         return new Outcome(compare(reportedExpected, actual), reportedExpected, actual,
@@ -511,6 +524,58 @@ final class PlaywrightValidationsExecutor extends ValidationsExecutor {
                 commonParameters(reportedExpected, reportedActual), List.of());
     }
 
+    private boolean isFocusedBrowserValue() {
+        if (!"browserAttributeEquals".equals(validationMethod) || browserAttribute == null) {
+            return false;
+        }
+        return List.of("pagesource", "windowsource", "source", "windowhandle", "pagehandle", "handle",
+                        "windowposition", "pageposition", "position", "windowsize", "pagesize", "size")
+                .contains(browserAttribute.toLowerCase(Locale.ROOT));
+    }
+
+    private Outcome pollFocusedBrowserValue(Object reportedExpected) {
+        Page page = session.page();
+        AtomicReference<Object> actual = new AtomicReference<>();
+        AtomicReference<RuntimeException> failure = new AtomicReference<>();
+        AtomicBoolean matched = new AtomicBoolean();
+        try {
+            page.waitForCondition(() -> {
+                try {
+                    actual.set(readBrowserAttribute(page));
+                    failure.set(null);
+                    matched.set(compare(reportedExpected, actual.get()));
+                    return matched.get();
+                } catch (RuntimeException exception) {
+                    failure.set(exception);
+                    return false;
+                }
+            });
+        } catch (RuntimeException exception) {
+            ReportManagerHelper.logDiscrete(exception);
+        }
+        if (!matched.get()) {
+            if (failure.get() != null) {
+                ReportManagerHelper.logDiscrete(failure.get());
+            }
+            Object safeExpected = reportedBrowserValue(reportedExpected);
+            return new Outcome(false, safeExpected, null,
+                    commonParameters(safeExpected, null), List.of(), page);
+        }
+        Object reportedActual = actual.get();
+        Object safeExpected = reportedBrowserValue(reportedExpected);
+        Object safeActual = reportedBrowserValue(reportedActual);
+        return new Outcome(compare(reportedExpected, reportedActual), safeExpected, safeActual,
+                commonParameters(safeExpected, safeActual), List.of(), page);
+    }
+
+    private Object reportedBrowserValue(Object value) {
+        if (!List.of("pagesource", "windowsource", "source")
+                .contains(browserAttribute.toLowerCase(Locale.ROOT))) {
+            return value;
+        }
+        return value == null ? null : "page source payload (" + String.valueOf(value).length() + " characters)";
+    }
+
     private ElementRectangle readElementRectangle() {
         var box = locator.boundingBox();
         return box == null ? null : new ElementRectangle(box.x, box.y, box.width, box.height);
@@ -525,7 +590,10 @@ final class PlaywrightValidationsExecutor extends ValidationsExecutor {
     }
 
     private Object readBrowserAttribute() {
-        Page page = session.page();
+        return readBrowserAttribute(session.page());
+    }
+
+    private Object readBrowserAttribute(Page page) {
         return switch (browserAttribute.toLowerCase(Locale.ROOT)) {
             case "currenturl", "pageurl", "windowurl", "url" -> page.url();
             case "pagesource", "windowsource", "source" -> page.content();
@@ -539,8 +607,10 @@ final class PlaywrightValidationsExecutor extends ValidationsExecutor {
             case "devicepixelratio", "device-scale-factor", "devicescalefactor" ->
                     page.evaluate("() => window.devicePixelRatio");
             case "windowhandle", "pagehandle", "handle" -> session.pageHandle(page);
+            case "windowposition", "pageposition", "position" ->
+                    page.evaluate("() => `(${window.screenX}, ${window.screenY})`");
             case "windowsize", "pagesize", "size" ->
-                    page.evaluate("() => `${window.innerWidth}x${window.innerHeight}`");
+                    page.evaluate("() => `(${window.outerWidth}, ${window.outerHeight})`");
             default -> page.evaluate("(attribute) => document.documentElement.getAttribute(attribute)", browserAttribute);
         };
     }
@@ -659,9 +729,14 @@ final class PlaywrightValidationsExecutor extends ValidationsExecutor {
 
     private List<List<Object>> attachments(Outcome outcome) {
         List<List<Object>> attachments = new ArrayList<>(outcome.attachments());
-        if (!outcome.visualComparisonAttached() && shouldAttachScreenshot(outcome.passed())) {
+        boolean attachScreenshot = !outcome.visualComparisonAttached() && shouldAttachScreenshot(outcome.passed());
+        boolean attachPageSnapshot = shouldAttachPageSnapshot(outcome.passed());
+        Page evidencePage = attachScreenshot || attachPageSnapshot
+                ? outcome.evidencePage() == null ? session.page() : outcome.evidencePage()
+                : null;
+        if (attachScreenshot) {
             try {
-                byte[] screenshot = session.page().screenshot(new Page.ScreenshotOptions().setFullPage(true));
+                byte[] screenshot = evidencePage.screenshot(new Page.ScreenshotOptions().setFullPage(true));
                 List<Object> screenshotAttachment = new ScreenshotManager()
                         .prepareImageForReport(screenshot, validationCategoryString);
                 if (screenshotAttachment != null && !screenshotAttachment.isEmpty()) {
@@ -671,9 +746,9 @@ final class PlaywrightValidationsExecutor extends ValidationsExecutor {
                 ReportManagerHelper.logDiscrete(e);
             }
         }
-        if (shouldAttachPageSnapshot(outcome.passed())) {
+        if (attachPageSnapshot) {
             try {
-                attachments.add(List.of(validationCategoryString, "page HTML", session.page().content()));
+                attachments.add(List.of(validationCategoryString, "page HTML", evidencePage.content()));
             } catch (RuntimeException e) {
                 ReportManagerHelper.logDiscrete(e);
             }
@@ -690,11 +765,12 @@ final class PlaywrightValidationsExecutor extends ValidationsExecutor {
     }
 
     private boolean shouldAttachPageSnapshot(boolean passed) {
-        if (!passed) {
-            return true;
-        }
         String policy = SHAFT.Properties.visuals.whenToTakePageSourceSnapshot().toLowerCase(Locale.ROOT);
-        return List.of("always", "validationpointsonly").contains(policy);
+        return switch (policy) {
+            case "never" -> false;
+            case "always", "validationpointsonly" -> true;
+            default -> !passed;
+        };
     }
 
     private record Outcome(boolean passed,
@@ -702,10 +778,21 @@ final class PlaywrightValidationsExecutor extends ValidationsExecutor {
                            Object actual,
                            LinkedHashMap<String, String> parameters,
                            List<List<Object>> attachments,
-                           boolean visualComparisonAttached) {
+                           boolean visualComparisonAttached,
+                           Page evidencePage) {
         private Outcome(boolean passed, Object expected, Object actual, LinkedHashMap<String, String> parameters,
                         List<List<Object>> attachments) {
-            this(passed, expected, actual, parameters, attachments, false);
+            this(passed, expected, actual, parameters, attachments, false, null);
+        }
+
+        private Outcome(boolean passed, Object expected, Object actual, LinkedHashMap<String, String> parameters,
+                        List<List<Object>> attachments, boolean visualComparisonAttached) {
+            this(passed, expected, actual, parameters, attachments, visualComparisonAttached, null);
+        }
+
+        private Outcome(boolean passed, Object expected, Object actual, LinkedHashMap<String, String> parameters,
+                        List<List<Object>> attachments, Page evidencePage) {
+            this(passed, expected, actual, parameters, attachments, false, evidencePage);
         }
     }
 

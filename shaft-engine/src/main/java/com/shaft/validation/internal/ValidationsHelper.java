@@ -465,7 +465,8 @@ public class ValidationsHelper {
                     case "textalignment", "pagealignment", "windowalignment" -> getPageTextAlignmentDirection(driver);
                     case "textorientation", "pageorientation", "windoworientation" -> getPageTextOrientationDirection(driver);
                     case "textdisplaystyle", "pagedisplaystyle", "windowdisplaystyle" -> getPageTextDisplayStyleDirection(driver);
-                    case "windowhandle", "pagehndle", "handle" -> new BrowserActions(driver, true).getWindowHandle();
+                    case "windowhandle", "pagehandle", "pagehndle", "handle" ->
+                            new BrowserActions(driver, true).getWindowHandle();
                     case "windowposition", "pageposition", "position" ->
                             new BrowserActions(driver, true).getWindowPosition();
                     case "windowsize", "pagesize", "size" -> new BrowserActions(driver, true).getWindowSize();
@@ -479,11 +480,20 @@ public class ValidationsHelper {
         }
         //reporting block
         String comparisonTypeStr = ValidationEnums.ValidationType.NEGATIVE.name().equals(validationType.name()) ? "not " + comparisonType.name() : comparisonType.name();
+        Object reportedExpected = reportedBrowserValue(attribute, expected);
+        Object reportedActual = reportedBrowserValue(attribute, actual.get());
         var parameters = new LinkedHashMap<String, String>();
         parameters.put("Attribute", attribute);
-        parameters.putAll(setCommonParameters(expected, actual, comparisonTypeStr));
+        parameters.putAll(setCommonParameters(reportedExpected, reportedActual, comparisonTypeStr));
         updateAllureParameters(parameters);
-        reportValidationState(validationState.get(), expected, actual, driver, null, null);
+        reportValidationState(validationState.get(), reportedExpected, reportedActual, driver, null, null);
+    }
+
+    private Object reportedBrowserValue(String attribute, Object value) {
+        if (!List.of("pagesource", "windowsource", "source").contains(attribute.toLowerCase())) {
+            return value;
+        }
+        return value == null ? null : "page source payload (" + String.valueOf(value).length() + " characters)";
     }
 
     protected void validateElementDomProperty(WebDriver driver, By locator, String domProperty,

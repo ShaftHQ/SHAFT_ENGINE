@@ -85,6 +85,33 @@ public class WebDriverBrowserValidationsBuilder implements com.shaft.gui.driver.
         return new NativeValidationsBuilder(this);
     }
 
+    @Override
+    public NativeValidationsBuilder pageSourceValue() {
+        return attributeValue("pagesource", "page source ");
+    }
+
+    @Override
+    public NativeValidationsBuilder windowHandleValue() {
+        return attributeValue("windowhandle", "window handle ");
+    }
+
+    @Override
+    public NativeValidationsBuilder windowPositionValue() {
+        return attributeValue("windowposition", "window position ");
+    }
+
+    @Override
+    public NativeValidationsBuilder windowSizeValue() {
+        return attributeValue("windowsize", "window size ");
+    }
+
+    private NativeValidationsBuilder attributeValue(String attribute, String description) {
+        this.validationMethod = "browserAttributeEquals";
+        this.browserAttribute = attribute;
+        reportMessageBuilder.append(description);
+        return new NativeValidationsBuilder(this);
+    }
+
     /**
      * Use this to check that the current page matches its visual-regression baseline screenshot
      * (full-page pixel diff via OpenCV). On the first test run this method takes a full-page screenshot

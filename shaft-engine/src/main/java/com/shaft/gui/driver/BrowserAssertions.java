@@ -25,6 +25,22 @@ public interface BrowserAssertions {
 
     NativeValidationsBuilder text();
 
+    default NativeValidationsBuilder pageSourceValue() {
+        throw new UnsupportedOperationException("pageSourceValue is not supported by this browser assertions implementation.");
+    }
+
+    default NativeValidationsBuilder windowHandleValue() {
+        throw new UnsupportedOperationException("windowHandleValue is not supported by this browser assertions implementation.");
+    }
+
+    default NativeValidationsBuilder windowPositionValue() {
+        throw new UnsupportedOperationException("windowPositionValue is not supported by this browser assertions implementation.");
+    }
+
+    default NativeValidationsBuilder windowSizeValue() {
+        throw new UnsupportedOperationException("windowSizeValue is not supported by this browser assertions implementation.");
+    }
+
     /**
      * Asserts that the current page matches its baseline full-page screenshot. Executes immediately,
      * like every other assertion.

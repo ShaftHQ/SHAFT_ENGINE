@@ -167,7 +167,7 @@ public class ValidationsExecutor {
         JavaScriptWaitManager.waitForLazyLoading(driver.get());
         boolean generatedCustomReportMessage = false;
         if (customReportMessage.isBlank()) {
-            customReportMessage = reportMessageBuilder.toString();
+            customReportMessage = generatedReportMessage();
             generatedCustomReportMessage = true;
         }
         this.validationCategoryString = validationCategory.equals(ValidationEnums.ValidationCategory.HARD_ASSERT) ? "Assert" : "Verify";
@@ -184,6 +184,16 @@ public class ValidationsExecutor {
             driver.remove();
             response.remove();
         }
+    }
+
+    private String generatedReportMessage() {
+        if ("browserAttributeEquals".equals(validationMethod)
+                && browserAttribute != null
+                && List.of("pagesource", "windowsource", "source")
+                .contains(browserAttribute.toLowerCase())) {
+            return "the browser page source payload matches the requested comparison.";
+        }
+        return reportMessageBuilder.toString();
     }
 
     @Step(" {this.validationCategoryString} that {this.customReportMessage}")
