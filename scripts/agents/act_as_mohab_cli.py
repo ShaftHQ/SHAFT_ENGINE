@@ -22,6 +22,7 @@ try:
     from scripts.agents.github_client import GitHubClient, GitHubUnavailable
     from scripts.agents.pr_audit import audit_snapshot, collect_pr_snapshot
     from scripts.agents.delivery_status import collect_delivery, evaluate_delivery, inspect_cleanup
+    from scripts.agents.issue_filing import create_issue, prepare_issue_plan, receipt_digest, reconcile_labels, transition_issue, validate_issue_plan
 except ModuleNotFoundError:
     from repository_context import RepositoryContext, RepositoryContextError, resolve_repository_context
     import watch_pr_checks
@@ -29,6 +30,7 @@ except ModuleNotFoundError:
     from github_client import GitHubClient, GitHubUnavailable
     from pr_audit import audit_snapshot, collect_pr_snapshot
     from delivery_status import collect_delivery, evaluate_delivery, inspect_cleanup
+    from issue_filing import create_issue, prepare_issue_plan, receipt_digest, reconcile_labels, transition_issue, validate_issue_plan
 
 
 EXIT_ENVIRONMENT_ERROR = 3
@@ -170,6 +172,20 @@ def build_parser() -> argparse.ArgumentParser:
     delivery.add_argument("--manifest", type=Path, required=True)
     delivery.add_argument("--root", type=Path, default=Path.cwd())
     delivery.add_argument("--receipt-out", type=Path, required=True)
+    issue_plan = commands.add_parser("issue-plan", help="validate and search a proposed issue")
+    add_context_arguments(issue_plan)
+    issue_plan.add_argument("--input", type=Path, required=True)
+    issue_create = commands.add_parser("issue-create", help="create one confirmed validated issue")
+    add_context_arguments(issue_create)
+    issue_create.add_argument("--input", type=Path, required=True)
+    issue_create.add_argument("--confirm-receipt-sha256", required=True)
+    labels = commands.add_parser("issue-labels", help="dry-run or apply canonical label reconciliation")
+    add_context_arguments(labels)
+    labels.add_argument("--apply", action="store_true")
+    transition = commands.add_parser("issue-transition", help="apply one validated lifecycle transition")
+    add_context_arguments(transition)
+    transition.add_argument("--issue", type=int, required=True)
+    transition.add_argument("--input", type=Path, required=True)
     commands.add_parser("mcp", help="serve the read-only operations over MCP stdio")
     return parser
 
@@ -228,6 +244,13 @@ def _tool_schemas() -> list[dict]:
                     "manifest": {"type": "object"}, "root": {"type": "string"},
                 }, "required": ["manifest"], "additionalProperties": False,
             },
+        },
+        {
+            "name": "issue_plan",
+            "description": "Validate an issue plan and search open and closed duplicates.",
+            "inputSchema": {"type": "object", "properties": {
+                **context_properties, "plan": {"type": "object"}, "taxonomy": {"type": "object"}
+            }, "required": ["plan", "taxonomy"], "additionalProperties": False},
         },
     ]
 
@@ -304,6 +327,13 @@ def call_tool(name: str, arguments: dict) -> dict:
                 "content": [{"type": "text", "text": json.dumps(payload, sort_keys=True)}],
                 "isError": payload["decision"] != "allow",
             }
+        if name == "issue_plan":
+            context = context_from_arguments(_namespace(arguments))
+            receipt = prepare_issue_plan(arguments.get("plan"), arguments.get("taxonomy"), context.repo)
+            receipt["sha256"] = receipt_digest(
+                validate_issue_plan(receipt.get("normalizedPlan"), arguments.get("taxonomy"))
+            )
+            return {"content": [{"type": "text", "text": json.dumps(receipt, sort_keys=True)}], "isError": receipt["decision"] != "allow"}
         return {"content": [{"type": "text", "text": f"unknown tool: {name}"}], "isError": True}
     except (RepositoryContextError, GitHubUnavailable, ValueError) as error:
         return {"content": [{"type": "text", "text": str(error)}], "isError": True}
@@ -453,6 +483,29 @@ def main(argv: list[str] | None = None) -> int:
             parsed.receipt_out.write_text(json.dumps(payload, sort_keys=True) + "\n", encoding="utf-8")
         except (OSError, json.JSONDecodeError, RepositoryContextError, GitHubUnavailable, ValueError) as error:
             print(f"act-as-mohab: delivery status unavailable: {error}", file=sys.stderr)
+            return EXIT_ENVIRONMENT_ERROR
+        print(json.dumps(payload, sort_keys=True))
+        return 0 if payload["decision"] == "allow" else 1
+    if parsed.command in {"issue-plan", "issue-create", "issue-labels", "issue-transition"}:
+        try:
+            context = context_from_arguments(parsed)
+            taxonomy = json.loads((context.root / ".github/issue-taxonomy.json").read_text(encoding="utf-8"))
+            plan = json.loads(parsed.input.read_text(encoding="utf-8")) if parsed.command != "issue-labels" else None
+            if parsed.command == "issue-labels":
+                payload = reconcile_labels(context.repo, taxonomy, apply=parsed.apply)
+            elif parsed.command == "issue-transition":
+                payload = transition_issue(context.repo, parsed.issue, plan, taxonomy)
+            elif parsed.command == "issue-plan":
+                payload = prepare_issue_plan(plan, taxonomy, context.repo)
+                payload["sha256"] = receipt_digest(
+                    validate_issue_plan(payload.get("normalizedPlan"), taxonomy)
+                )
+            else:
+                payload = create_issue(
+                    plan, taxonomy, context.repo, parsed.confirm_receipt_sha256
+                )
+        except (OSError, json.JSONDecodeError, RepositoryContextError, ValueError) as error:
+            print(f"act-as-mohab: issue filing failed: {error}", file=sys.stderr)
             return EXIT_ENVIRONMENT_ERROR
         print(json.dumps(payload, sort_keys=True))
         return 0 if payload["decision"] == "allow" else 1
