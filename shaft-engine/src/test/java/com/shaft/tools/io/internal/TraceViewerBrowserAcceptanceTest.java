@@ -33,7 +33,8 @@ public class TraceViewerBrowserAcceptanceTest {
     @Test(groups = "trace-viewer-browser-acceptance")
     public void generatedViewerShouldRemainOfflineAndShareNavigableRangeState() throws Exception {
         Path chrome = chromeExecutable();
-        Path html = generateViewerFixture();
+        ViewerFixture fixture = generateViewerFixture();
+        Path html = fixture.html();
         Path screenshot = Path.of(System.getProperty("shaft.trace.viewer.screenshot",
                 "target/trace-viewer-browser-acceptance.png")).toAbsolutePath().normalize();
         Files.createDirectories(screenshot.getParent());
@@ -55,6 +56,198 @@ public class TraceViewerBrowserAcceptanceTest {
             Assert.assertTrue(page.locator("#details-title").textContent().contains("CLICK"));
             Assert.assertEquals(page.locator("#range-start").inputValue(), "50");
             Assert.assertEquals(page.locator("#range-end").inputValue(), "200");
+
+            page.locator("#show-all-range").click();
+            page.locator("button[data-tab=network]").click();
+            Assert.assertEquals(page.locator("#network-result-count").textContent(), "2 network exchanges");
+            Assert.assertEquals(page.locator("#network-method-filter option").count(), 3);
+            Assert.assertEquals(page.locator("#network-status-filter option").count(), 3);
+            Assert.assertEquals(page.locator("#network-sort-method").getAttribute("aria-sort"), "ascending");
+            Assert.assertEquals(page.locator("#network-rows tr").count(), 2);
+            Assert.assertEquals(page.locator("#network-rows tr").first().locator("td").nth(2).textContent(), "GET");
+            Assert.assertEquals(page.locator("#network-rows tr").first().locator("td").nth(5).textContent(), "17 B");
+            Assert.assertEquals(page.locator("#network-rows tr").nth(1).locator("td").nth(5).textContent(), "30 B");
+
+            page.locator("#network-sort-size button").click();
+            Assert.assertEquals(page.locator("#network-rows tr").first().locator("td").nth(5).textContent(), "17 B");
+            Assert.assertEquals(page.locator("#network-panel th[aria-sort]").count(), 1);
+            Assert.assertEquals(page.locator("#network-sort-size").getAttribute("aria-sort"), "ascending");
+            page.locator("#network-sort-size button").press("Enter");
+            Assert.assertEquals(page.locator("#network-rows tr").first().locator("td").nth(5).textContent(), "30 B");
+            Assert.assertEquals(page.locator("#network-sort-size").getAttribute("aria-sort"), "descending");
+            page.locator("#network-sort-status button").click();
+            Assert.assertEquals(page.locator("#network-rows tr td:nth-child(4)").allTextContents(),
+                    List.of("200", "503"));
+            page.locator("#network-sort-status button").click();
+            Assert.assertEquals(page.locator("#network-rows tr td:nth-child(4)").allTextContents(),
+                    List.of("503", "200"));
+            page.locator("#network-sort-duration button").click();
+            Assert.assertEquals(page.locator("#network-rows tr td:nth-child(5)").allTextContents(),
+                    List.of("45ms", "200ms"));
+            page.evaluate("""
+                    () => {
+                      network.push({type:'<img id="network-type-injection"> WebSocket', method:'GET',
+                        url:'ws://example.test/socket', status:101,
+                        requestSizeBytes:0, responseSizeBytes:0, durationMs:5, timestamp:traceEnd});
+                      renderNetwork();
+                    }
+                    """);
+            page.locator("#network-sort-type button").click();
+            Assert.assertEquals(page.locator("#network-rows tr td:nth-child(2)").allTextContents(),
+                    List.of("<img id=\"network-type-injection\"> WebSocket", "HTTP", "HTTP"));
+            Assert.assertEquals(page.locator("#network-type-injection").count(), 0,
+                    "Network type must render hostile text without creating markup.");
+            page.evaluate("() => { network.pop(); renderNetwork(); }");
+
+            page.locator("#network-method-filter").selectOption("POST");
+            Assert.assertEquals(page.locator("#network-result-count").textContent(), "1 network exchange");
+            Assert.assertEquals(page.locator("#network-rows tr td").nth(2).textContent(), "POST");
+            page.locator("#network-method-filter").selectOption("");
+            page.locator("#network-status-filter").selectOption("503");
+            Assert.assertEquals(page.locator("#network-rows tr").count(), 1);
+            Assert.assertEquals(page.locator("#network-rows tr td").nth(3).textContent(), "503");
+            page.locator("#network-status-filter").selectOption("");
+            page.locator("#network-method-filter").selectOption("GET");
+            page.locator("#network-status-filter").selectOption("503");
+            page.locator("#network-text-filter").fill("retry later");
+            Assert.assertEquals(page.locator("#network-rows tr").count(), 1);
+            page.locator("#network-method-filter").selectOption("POST");
+            Assert.assertEquals(page.locator("#network-rows tr").count(), 0,
+                    "Method, status, text, and range predicates compose with AND semantics.");
+            page.locator("#network-method-filter").selectOption("GET");
+            Assert.assertEquals(page.locator("#network-hint").textContent(),
+                    "Use View request details to inspect headers and body preview.");
+            Assert.assertEquals(page.locator("#network-rows tr button").textContent(), "View request details");
+            page.locator("#network-rows tr button").focus();
+            page.locator("#network-rows tr button").press("Enter");
+            Assert.assertTrue(page.locator("#network-detail").textContent().contains("request-value"));
+            Assert.assertTrue(page.locator("#network-detail").textContent().contains("retry later"));
+            @SuppressWarnings("unchecked")
+            Map<String, Object> networkDetail = (Map<String, Object>) page.evaluate(
+                    "JSON.parse(document.getElementById('network-detail').textContent)");
+            Assert.assertEquals(networkDetail.get("failureReason"), "upstream unavailable");
+            Assert.assertEquals(((Number) networkDetail.get("requestSizeBytes")).intValue(), 5);
+            Assert.assertEquals(((Number) networkDetail.get("responseSizeBytes")).intValue(), 12);
+            Assert.assertTrue(String.valueOf(networkDetail.get("requestHeaders")).contains("network-injection"));
+            Assert.assertTrue(String.valueOf(networkDetail.get("responseHeaders")).contains("response-value"));
+            Assert.assertEquals(page.locator("#network-injection").count(), 0,
+                    "Network detail must render hostile text without creating markup.");
+            page.locator("#network-method-filter").selectOption("");
+            page.locator("#network-status-filter").selectOption("");
+            page.locator("#network-text-filter").fill("503");
+            Assert.assertEquals(page.locator("#network-result-count").textContent(), "0 network exchanges",
+                    "Network text search must not duplicate the dedicated status filter.");
+            page.locator("#network-text-filter").fill("timestamp");
+            Assert.assertEquals(page.locator("#network-result-count").textContent(), "0 network exchanges",
+                    "Search matches advertised values, not JSON property names.");
+            page.locator("#network-text-filter").fill("no-such-exchange");
+            Assert.assertEquals(page.locator("#network-result-count").textContent(), "0 network exchanges");
+            Assert.assertTrue(page.locator("#network-hint").textContent().contains("match"));
+            page.locator("#network-text-filter").fill("");
+            page.evaluate("""
+                    () => {
+                      network.push({method:'PATCH', url:'legacy://untimed', status:0,
+                        requestSizeBytes:4, failureReason:'legacy entry'});
+                      renderNetwork();
+                    }
+                    """);
+            Assert.assertEquals(page.locator("#network-result-count").textContent(), "3 network exchanges");
+            var legacyRow = page.locator("#network-rows tr").filter(
+                    new com.microsoft.playwright.Locator.FilterOptions().setHasText("legacy://untimed"));
+            Assert.assertEquals(legacyRow.count(), 1, "Untimed legacy evidence must remain visible.");
+            Assert.assertEquals(legacyRow.locator("td").nth(4).textContent(), "Unknown");
+            Assert.assertEquals(legacyRow.locator("td").nth(5).textContent(), "Unknown");
+            Assert.assertFalse(String.valueOf(legacyRow.getAttribute("class")).contains("inwindow"));
+            page.locator("#network-sort-time button").click();
+            page.locator("#network-sort-time button").click();
+            Assert.assertEquals(page.locator("#network-rows tr").last().locator("td").nth(6).textContent(),
+                    "legacy://untimed", "Missing sort values stay last in descending order.");
+
+            page.locator("button[data-tab=console]").click();
+            Assert.assertEquals(page.locator("#console-result-count").textContent(), "3 console messages");
+            Assert.assertEquals(page.locator("#console-source-filter option").count(), 4);
+            Assert.assertEquals(page.locator("#console-level-filter option").count(), 3);
+            Assert.assertEquals(page.locator("#console-sort-time").getAttribute("aria-sort"), "ascending");
+            page.locator("#console-level-filter").selectOption("ERROR");
+            Assert.assertEquals(page.locator("#console-rows tr").count(), 1);
+            Assert.assertTrue(page.locator("#console-rows tr").textContent().contains("checkout failed"));
+            Assert.assertEquals(page.locator("#console-hint").textContent(),
+                    "Use View message details to inspect the structured message.");
+            Assert.assertEquals(page.locator("#console-rows tr button").textContent(), "View message details");
+            page.locator("#console-rows tr button").focus();
+            page.locator("#console-rows tr button").press("Space");
+            Assert.assertFalse(page.locator("#console-detail").isHidden());
+            Assert.assertTrue(page.locator("#console-detail").textContent().contains("browser"));
+            Assert.assertTrue(page.locator("#console-detail").textContent().contains("<img id=console-injection>"));
+            Assert.assertEquals(page.locator("#console-injection").count(), 0,
+                    "Console detail must render hostile text without creating markup.");
+            @SuppressWarnings("unchecked")
+            Map<String, Object> consoleDetail = (Map<String, Object>) page.evaluate(
+                    "JSON.parse(document.getElementById('console-detail').textContent)");
+            Assert.assertEquals(consoleDetail.get("source"), "browser");
+            Assert.assertEquals(consoleDetail.get("level"), "ERROR");
+            Assert.assertEquals(consoleDetail.get("message"), "<img id=console-injection> checkout failed");
+            Assert.assertEquals(((Number) consoleDetail.get("timestamp")).longValue(), fixture.consoleBaseTime());
+            page.locator("#console-level-filter").selectOption("");
+            page.locator("#console-source-filter").selectOption("driver");
+            Assert.assertEquals(page.locator("#console-rows tr").count(), 1);
+            Assert.assertTrue(page.locator("#console-rows tr").textContent().contains("retry scheduled"));
+            page.locator("#console-source-filter").selectOption("");
+            page.locator("#console-text-filter").fill("browser");
+            Assert.assertEquals(page.locator("#console-result-count").textContent(), "0 console messages",
+                    "Console text search must not duplicate the dedicated source filter.");
+            page.locator("#console-text-filter").fill("message");
+            Assert.assertEquals(page.locator("#console-result-count").textContent(), "0 console messages",
+                    "Console search matches values, not JSON property names.");
+            page.locator("#console-text-filter").fill("no-such-message");
+            Assert.assertEquals(page.locator("#console-result-count").textContent(), "0 console messages");
+            Assert.assertTrue(page.locator("#console-hint").textContent().contains("match"));
+            page.locator("#console-text-filter").fill("");
+            page.locator("#console-sort-level button").press("Enter");
+            Assert.assertEquals(page.locator("#console-panel th[aria-sort]").count(), 1);
+            Assert.assertEquals(page.locator("#console-sort-level").getAttribute("aria-sort"), "ascending");
+            Assert.assertEquals(page.locator("#console-rows tr").first().locator("td").nth(2).textContent(),
+                    "ERROR");
+            page.locator("#console-sort-level button").click();
+            Assert.assertEquals(page.locator("#console-sort-level").getAttribute("aria-sort"), "descending");
+            Assert.assertEquals(page.locator("#console-rows tr td:nth-child(4)").allTextContents(),
+                    List.of("retry scheduled", "alpha scheduled", "<img id=console-injection> checkout failed"));
+            page.locator("#console-sort-source button").click();
+            Assert.assertEquals(page.locator("#console-rows tr td:nth-child(2)").allTextContents(),
+                    List.of("browser", "driver", "worker"));
+            page.locator("#console-sort-message button").click();
+            Assert.assertEquals(page.locator("#console-panel th[aria-sort]").count(), 1);
+            Assert.assertEquals(page.locator("#console-rows tr td:nth-child(4)").allTextContents(),
+                    List.of("<img id=console-injection> checkout failed", "alpha scheduled", "retry scheduled"));
+            page.evaluate("""
+                    () => {
+                      consoleEvents.push({});
+                      consoleSourceFilter.innerHTML = '<option value="">All sources</option>';
+                      consoleLevelFilter.innerHTML = '<option value="">All levels</option>';
+                      populateConsoleFilters();
+                      renderConsole();
+                    }
+                    """);
+            Assert.assertEquals(page.locator("#console-result-count").textContent(), "4 console messages");
+            page.locator("#console-source-filter").selectOption("Unknown");
+            Assert.assertEquals(page.locator("#console-rows tr").count(), 1);
+            page.locator("#console-source-filter").selectOption("");
+            page.locator("#console-level-filter").selectOption("Unknown");
+            Assert.assertEquals(page.locator("#console-rows tr").count(), 1);
+            page.locator("#console-level-filter").selectOption("");
+            var legacyConsoleRow = page.locator("#console-rows tr").filter(
+                    new com.microsoft.playwright.Locator.FilterOptions().setHasText("Unknown"));
+            Assert.assertEquals(legacyConsoleRow.count(), 1);
+            Assert.assertEquals(legacyConsoleRow.locator("td").allTextContents(),
+                    List.of("Unknown", "Unknown", "Unknown", "Unknown", "View message details"));
+            Assert.assertFalse(String.valueOf(legacyConsoleRow.getAttribute("class")).contains("inwindow"));
+            page.locator("#console-sort-time button").click();
+            page.locator("#console-sort-time button").click();
+            Assert.assertEquals(page.locator("#console-rows tr td:nth-child(4)").allTextContents().subList(0, 3),
+                    List.of("alpha scheduled", "<img id=console-injection> checkout failed", "retry scheduled"),
+                    "Equal timestamps retain their original order when sorting descending.");
+            Assert.assertEquals(page.locator("#console-rows tr").last().locator("td").allTextContents(),
+                    List.of("Unknown", "Unknown", "Unknown", "Unknown", "View message details"));
 
             page.navigate(html.toUri() + "#action-action-1");
             Assert.assertTrue(page.locator("#details-title").textContent().contains("CLICK"));
@@ -140,6 +333,17 @@ public class TraceViewerBrowserAcceptanceTest {
                     .getAttribute("class").contains("inwindow"));
 
             page.locator("button[data-tab=network]").click();
+            page.evaluate("""
+                    () => {
+                      network.push({method:'DELETE', url:'https://example.test/out-of-range', status:204,
+                        requestSizeBytes:1, responseSizeBytes:0, durationMs:1, timestamp:traceEnd});
+                      populateNetworkFilters();
+                      renderNetwork();
+                    }
+                    """);
+            Assert.assertEquals(page.locator("#network-result-count").textContent(), "3 network exchanges");
+            Assert.assertEquals(page.locator("#network-rows tr").filter(
+                    new com.microsoft.playwright.Locator.FilterOptions().setHasText("out-of-range")).count(), 0);
             int historyBeforeRangeInput = ((Number) page.evaluate("history.length")).intValue();
             page.evaluate("""
                     () => {
@@ -162,26 +366,64 @@ public class TraceViewerBrowserAcceptanceTest {
             page.locator("#range-end").dispatchEvent("change");
             Assert.assertEquals(((Number) page.evaluate("history.length")).intValue(), historyBeforeRangeInput + 1,
                     "A committed range change must create one history entry.");
+            Assert.assertEquals(page.locator("#network-result-count").textContent(), "3 network exchanges");
+            Assert.assertEquals(page.locator("#network-rows tr").filter(
+                    new com.microsoft.playwright.Locator.FilterOptions().setHasText("out-of-range")).count(), 0,
+                    "A timed exchange outside the selected range must be excluded.");
             Assert.assertTrue(page.locator("#network-rows tr").first().getAttribute("class").contains("inwindow"));
+            page.locator("#network-method-filter").selectOption("DELETE");
+            Assert.assertEquals(page.locator("#network-result-count").textContent(), "0 network exchanges",
+                    "A matching field filter must not bypass the selected time range.");
             Assert.assertTrue(page.locator("#trace-filmstrip button").first().getAttribute("class").contains("inwindow"));
             page.locator("button[data-tab=timeline]").click();
             Assert.assertTrue(page.locator(".timeline-entry").filter(
                     new com.microsoft.playwright.Locator.FilterOptions().setHasText("POST")).first()
                     .getAttribute("class").contains("inwindow"));
             page.locator("button[data-tab=console]").click();
-            Assert.assertFalse(page.locator("#console-rows tr").first().getAttribute("class").contains("inwindow"),
-                    "Console messages remain point events and must not inherit interval overlap.");
+            Assert.assertEquals(page.locator("#console-result-count").textContent(), "1 console message",
+                    "Timed console messages remain point events; untimed legacy evidence remains visible.");
+            Assert.assertEquals(page.locator("#console-rows tr td").allTextContents(),
+                    List.of("Unknown", "Unknown", "Unknown", "Unknown", "View message details"));
 
             String selectedRange = String.valueOf(page.locator("#range-label").evaluate("element => element.value"));
             int historyBeforeShowAll = ((Number) page.evaluate("history.length")).intValue();
             page.locator("#show-all-range").click();
             Assert.assertEquals(((Number) page.evaluate("history.length")).intValue(), historyBeforeShowAll + 1);
             Assert.assertEquals(page.locator("#trace-filmstrip button.inwindow").count(), 3);
+            page.locator("button[data-tab=network]").click();
+            Assert.assertEquals(page.locator("#network-result-count").textContent(), "1 network exchange");
+            Assert.assertEquals(page.locator("#network-rows tr").filter(
+                    new com.microsoft.playwright.Locator.FilterOptions().setHasText("out-of-range")).count(), 1);
+            page.locator("#network-method-filter").selectOption("");
+            Assert.assertEquals(page.locator("#network-result-count").textContent(), "4 network exchanges");
+            page.locator("button[data-tab=console]").click();
             page.goBack();
             Assert.assertEquals(String.valueOf(page.locator("#range-label").evaluate("element => element.value")),
                     selectedRange);
             page.goForward();
             Assert.assertEquals(page.locator("#trace-filmstrip button.inwindow").count(), 3);
+            page.evaluate("""
+                    () => {
+                      window.__networkBackup = network.splice(0);
+                      window.__consoleBackup = consoleEvents.splice(0);
+                      renderNetwork();
+                      renderConsole();
+                    }
+                    """);
+            page.locator("button[data-tab=network]").click();
+            Assert.assertEquals(page.locator("#network-result-count").textContent(), "0 network exchanges");
+            Assert.assertEquals(page.locator("#network-hint").textContent(), "No network exchanges were recorded.");
+            page.locator("button[data-tab=console]").click();
+            Assert.assertEquals(page.locator("#console-result-count").textContent(), "0 console messages");
+            Assert.assertEquals(page.locator("#console-hint").textContent(), "No console messages were recorded.");
+            page.evaluate("""
+                    () => {
+                      network.push(...window.__networkBackup);
+                      consoleEvents.push(...window.__consoleBackup);
+                      renderNetwork();
+                      renderConsole();
+                    }
+                    """);
             page.screenshot(new Page.ScreenshotOptions().setPath(screenshot).setFullPage(true));
             Assert.assertTrue(pageErrors.isEmpty(), "Page errors: " + pageErrors);
             Assert.assertTrue(externalRequests.isEmpty(), "External requests: " + externalRequests);
@@ -191,7 +433,7 @@ public class TraceViewerBrowserAcceptanceTest {
         Assert.assertTrue(Files.size(screenshot) > 10_000, "Rendered screenshot should contain the populated viewer.");
     }
 
-    private static Path generateViewerFixture() throws Exception {
+    private static ViewerFixture generateViewerFixture() throws Exception {
         WebDriver driver = Mockito.mock(WebDriver.class,
                 Mockito.withSettings().extraInterfaces(JavascriptExecutor.class));
         Mockito.when(driver.getCurrentUrl()).thenReturn("https://example.test/checkout");
@@ -216,8 +458,18 @@ public class TraceViewerBrowserAcceptanceTest {
             BrowserObservabilityRecorder.recordNetwork(new BrowserObservabilityRecorder.NetworkObservation(
                     "POST", "https://example.test/payment", 200, Map.of(), Map.of(),
                     200, 10, 20, "", "ok"));
-            BrowserObservabilityRecorder.recordConsole("browser", "ERROR", "checkout failed",
-                    System.currentTimeMillis());
+            BrowserObservabilityRecorder.recordNetwork(new BrowserObservabilityRecorder.NetworkObservation(
+                    "GET", "https://example.test/orders", 503,
+                    Map.of("x-request", "request-value <img id=network-injection>"),
+                    Map.of("x-response", "response-value"), 45, 5, 12, "upstream unavailable", "retry later"));
+            long consoleBaseTime = System.currentTimeMillis();
+            BrowserObservabilityRecorder.recordConsole("browser", "ERROR",
+                    "<img id=console-injection> checkout failed",
+                    consoleBaseTime);
+            BrowserObservabilityRecorder.recordConsole("driver", "INFO", "retry scheduled",
+                    consoleBaseTime);
+            BrowserObservabilityRecorder.recordConsole("worker", "INFO", "alpha scheduled",
+                    consoleBaseTime + 1);
 
             Method marker = TraceViewerBrowserAcceptanceTest.class.getDeclaredMethod("marker");
             TestExecutionInfo info = new TestExecutionInfo("trace-viewer-browser-acceptance", "customer.CheckoutTest",
@@ -227,7 +479,7 @@ public class TraceViewerBrowserAcceptanceTest {
             Path archive = FailureTraceReporter.traceDirectory(info).resolve("shaft-trace.zip");
             Path html = Path.of("target", "trace-viewer-browser-acceptance.html").toAbsolutePath().normalize();
             extract(archive, "SHAFT Trace Report.html", html);
-            return html;
+            return new ViewerFixture(html, consoleBaseTime);
         } finally {
             TraceEventRecorder.clear();
             BrowserObservabilityRecorder.clear();
@@ -237,6 +489,9 @@ public class TraceViewerBrowserAcceptanceTest {
 
     private static String snapshot(String label) {
         return "<html><body><main>" + label + "</main><img src=\"" + BLOCKED_RESOURCE + "\"></body></html>";
+    }
+
+    private record ViewerFixture(Path html, long consoleBaseTime) {
     }
 
     private static void extract(Path archive, String entryName, Path target) throws IOException {

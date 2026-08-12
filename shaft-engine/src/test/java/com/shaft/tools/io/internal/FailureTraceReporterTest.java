@@ -117,6 +117,12 @@ public class FailureTraceReporterTest {
                 Assert.assertTrue(html.contains("data-tab=\"environment\""), html);
                 Assert.assertTrue(html.contains("network-panel"), html);
                 Assert.assertTrue(html.contains("console-panel"), html);
+                Assert.assertTrue(html.contains("id=\"network-result-count\""), html);
+                Assert.assertTrue(html.contains("data-network-sort=\"size\""), html);
+                Assert.assertTrue(html.contains("id=\"network-method-filter\""), html);
+                Assert.assertTrue(html.contains("id=\"console-result-count\""), html);
+                Assert.assertTrue(html.contains("data-console-sort=\"message\""), html);
+                Assert.assertTrue(html.contains("id=\"console-level-filter\""), html);
                 Assert.assertTrue(html.contains("data-tab=\"log\""), html);
                 String tracedJson = readZipEntry(zip, "shaft-trace.json");
                 Assert.assertTrue(tracedJson.contains("\"environment\""), tracedJson);
