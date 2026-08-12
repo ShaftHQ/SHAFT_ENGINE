@@ -1448,7 +1448,7 @@ final class ShaftMcpSetupPanel extends JPanel implements Disposable {
                 settings.setProviderApiKeyEnvironmentVariable("gemini", "");
             }
             if (useGeminiEnvironment.isSelected()) {
-                settings.setProviderApiKeyEnvironmentVariable("gemini", detectGeminiEnvironment()
+                settings.setProviderApiKeyEnvironmentVariable("gemini", selectedGeminiEnvironment()
                         .map(ProviderCredentialSource.Source::variableName).orElse(""));
             }
             if (settings.cloudModel == null || settings.cloudModel.isBlank()) {

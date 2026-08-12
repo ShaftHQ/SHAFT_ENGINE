@@ -49,6 +49,106 @@ import static org.junit.jupiter.api.Assertions.assertAll;
 class ShaftAssistantPanelLayoutTest {
 
     @Test
+    void environmentBackedCloudRouteNamesItsSourceAndHidesManualKeyEntry() throws Exception {
+        ShaftSettingsState.Settings settings = readySettingsForExistingProject();
+        settings.assistantProviderType = "CLOUD";
+        settings.cloudProvider = "openai";
+        settings.passProviderApiKeysToMcp = true;
+        settings.setProviderApiKeyEnvironmentVariable("openai", "OPENAI_API_KEY");
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, settings, new ShaftAssistantChatState());
+        setField(panel, "providerEnvironmentLookup",
+                (java.util.function.Function<String, String>) name -> "OPENAI_API_KEY".equals(name)
+                        ? "never-render-this-secret" : null);
+        ((javax.swing.JComboBox<?>) fieldOf(panel, "cloudProvider")).setSelectedItem("openai");
+        java.lang.reflect.Method update = ShaftAssistantPanel.class.getDeclaredMethod("updateCloudKeyStatus");
+        update.setAccessible(true);
+        update.invoke(panel);
+
+        JLabel status = (JLabel) fieldOf(panel, "cloudKeyStatus");
+        javax.swing.JPasswordField key = (javax.swing.JPasswordField) fieldOf(panel, "cloudApiKey");
+        JButton save = (JButton) fieldOf(panel, "saveCloudApiKey");
+
+        assertAll(
+                () -> assertTrue(status.getText().contains("OPENAI_API_KEY")),
+                () -> assertFalse(status.getText().contains("never-render-this-secret")),
+                () -> assertFalse(key.isVisible()),
+                () -> assertFalse(save.isVisible()));
+    }
+
+    @Test
+    void missingSelectedEnvironmentCredentialDoesNotFallBackToPasswordSafe() throws Exception {
+        ShaftSettingsState.Settings settings = readySettingsForExistingProject();
+        settings.assistantProviderType = "CLOUD";
+        settings.cloudProvider = "openai";
+        settings.passProviderApiKeysToMcp = true;
+        settings.setProviderApiKeyEnvironmentVariable("openai", "OPENAI_API_KEY");
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, settings, new ShaftAssistantChatState());
+        setField(panel, "providerEnvironmentLookup",
+                (java.util.function.Function<String, String>) ignored -> null);
+        setField(panel, "selectedCloudKeySupplier", (java.util.function.BooleanSupplier) () -> true);
+        ((javax.swing.JComboBox<?>) fieldOf(panel, "cloudProvider")).setSelectedItem("openai");
+
+        java.lang.reflect.Method hasKey = ShaftAssistantPanel.class.getDeclaredMethod("hasSelectedCloudKey");
+        hasKey.setAccessible(true);
+        java.lang.reflect.Method update = ShaftAssistantPanel.class.getDeclaredMethod("updateCloudKeyStatus");
+        update.setAccessible(true);
+        update.invoke(panel);
+        JLabel status = (JLabel) fieldOf(panel, "cloudKeyStatus");
+
+        assertAll(
+                () -> assertFalse((boolean) hasKey.invoke(panel)),
+                () -> assertTrue(status.getText().contains("OPENAI_API_KEY")),
+                () -> assertTrue(status.getText().contains("not configured")),
+                () -> assertFalse(status.getText().contains("key stored")));
+    }
+
+    @Test
+    void rejectedEnvironmentCredentialNamesTheVariableAndRecoveryOwner() throws Exception {
+        ShaftSettingsState.Settings settings = readySettingsForExistingProject();
+        settings.assistantProviderType = "CLOUD";
+        settings.cloudProvider = "openai";
+        settings.passProviderApiKeysToMcp = true;
+        settings.setProviderApiKeyEnvironmentVariable("openai", "OPENAI_API_KEY");
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, settings, new ShaftAssistantChatState());
+        setField(panel, "providerEnvironmentLookup",
+                (java.util.function.Function<String, String>) ignored -> "rejected-secret");
+        ((javax.swing.JComboBox<?>) fieldOf(panel, "cloudProvider")).setSelectedItem("openai");
+        setField(panel, "providerKeyReplacementRequired", true);
+        java.lang.reflect.Method update = ShaftAssistantPanel.class.getDeclaredMethod("updateCloudKeyStatus");
+        update.setAccessible(true);
+        update.invoke(panel);
+
+        JLabel status = (JLabel) fieldOf(panel, "cloudKeyStatus");
+        assertAll(
+                () -> assertTrue(status.getText().contains("OPENAI_API_KEY was rejected")),
+                () -> assertTrue(status.getText().contains("environment")),
+                () -> assertFalse(status.getText().contains("rejected-secret")));
+    }
+
+    @Test
+    void presentEnvironmentCredentialReportsForwardingDisabledWhenForwardingIsOff() throws Exception {
+        ShaftSettingsState.Settings settings = readySettingsForExistingProject();
+        settings.assistantProviderType = "CLOUD";
+        settings.cloudProvider = "openai";
+        settings.passProviderApiKeysToMcp = false;
+        settings.setProviderApiKeyEnvironmentVariable("openai", "OPENAI_API_KEY");
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, settings, new ShaftAssistantChatState());
+        setField(panel, "providerEnvironmentLookup",
+                (java.util.function.Function<String, String>) ignored -> "present-secret");
+        ((javax.swing.JComboBox<?>) fieldOf(panel, "cloudProvider")).setSelectedItem("openai");
+        setField(panel, "providerModelState", "KEY_FORWARDING_DISABLED");
+        java.lang.reflect.Method update = ShaftAssistantPanel.class.getDeclaredMethod("updateCloudKeyStatus");
+        update.setAccessible(true);
+        update.invoke(panel);
+
+        String status = ((JLabel) fieldOf(panel, "cloudKeyStatus")).getText();
+        assertAll(
+                () -> assertTrue(status.toLowerCase(java.util.Locale.ROOT).contains("forwarding")),
+                () -> assertFalse(status.contains("not configured")),
+                () -> assertFalse(status.contains("present-secret")));
+    }
+
+    @Test
     void providerModelSelectorStartsDisabledUntilProviderDiscoveryReturns() throws ReflectiveOperationException {
         ShaftSettingsState.Settings settings = readySettingsForExistingProject();
         settings.assistantProviderType = "CLOUD";
