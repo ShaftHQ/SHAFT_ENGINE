@@ -423,6 +423,18 @@ public class ValidationsHelper {
     protected void validateMobileValue(WebDriver driver, String property, Supplier<Object> reader,
                                        Object expected, ValidationEnums.ValidationComparisonType comparisonType,
                                        ValidationEnums.ValidationType validationType) {
+        validateFocusedValue(driver, "Mobile value", property, reader, expected, comparisonType, validationType);
+    }
+
+    protected void validateBrowserValue(WebDriver driver, String property, Supplier<Object> reader,
+                                        Object expected, ValidationEnums.ValidationComparisonType comparisonType,
+                                        ValidationEnums.ValidationType validationType) {
+        validateFocusedValue(driver, "Browser value", property, reader, expected, comparisonType, validationType);
+    }
+
+    private void validateFocusedValue(WebDriver driver, String parameterName, String property, Supplier<Object> reader,
+                                      Object expected, ValidationEnums.ValidationComparisonType comparisonType,
+                                      ValidationEnums.ValidationType validationType) {
         AtomicReference<Object> actual = new AtomicReference<>();
         AtomicReference<Boolean> validationState = new AtomicReference<>(false);
         try {
@@ -444,7 +456,7 @@ public class ValidationsHelper {
                 ? "not " + comparisonType.name()
                 : comparisonType.name();
         var parameters = new LinkedHashMap<String, String>();
-        parameters.put("Mobile value", property);
+        parameters.put(parameterName, property);
         parameters.putAll(setCommonParameters(expected, actual.get(), comparison));
         updateAllureParameters(parameters);
         reportValidationState(validationState.get(), expected, actual.get(), driver, null, null);

@@ -17,6 +17,8 @@ final class PlaywrightNativeValidationsBuilder extends NativeValidationsBuilder 
     private final String playwrightElementAttribute;
     private final String playwrightElementCssProperty;
     private final String playwrightBrowserAttribute;
+    private final Supplier<Object> browserValueReader;
+    private final String browserValueName;
     private ValidationEnums.VisualValidationEngine visualValidationEngine;
     private String ariaSnapshotFileName;
 
@@ -49,9 +51,25 @@ final class PlaywrightNativeValidationsBuilder extends NativeValidationsBuilder 
         this.playwrightElementAttribute = elementAttribute;
         this.playwrightElementCssProperty = elementCssProperty;
         this.playwrightBrowserAttribute = browserAttribute;
+        this.browserValueReader = null;
+        this.browserValueName = null;
         this.elementAttribute = elementAttribute;
         this.elementCssProperty = elementCssProperty;
         this.browserAttribute = browserAttribute;
+    }
+
+    PlaywrightNativeValidationsBuilder(ValidationEnums.ValidationCategory validationCategory,
+                                       PlaywrightSession session, Supplier<Object> browserValueReader,
+                                       String browserValueName, StringBuilder reportMessageBuilder) {
+        super(new SeedBuilder(validationCategory, "browserValueEquals", reportMessageBuilder));
+        this.session = session;
+        this.playwrightLocator = () -> null;
+        this.playwrightLocatorDescription = null;
+        this.playwrightElementAttribute = null;
+        this.playwrightElementCssProperty = null;
+        this.playwrightBrowserAttribute = null;
+        this.browserValueReader = Objects.requireNonNull(browserValueReader, "browserValueReader");
+        this.browserValueName = Objects.requireNonNull(browserValueName, "browserValueName");
     }
 
     @Override
@@ -107,6 +125,14 @@ final class PlaywrightNativeValidationsBuilder extends NativeValidationsBuilder 
 
     String playwrightBrowserAttribute() {
         return playwrightBrowserAttribute;
+    }
+
+    Supplier<Object> browserValueReader() {
+        return browserValueReader;
+    }
+
+    String browserValueName() {
+        return browserValueName;
     }
 
     ValidationEnums.ValidationCategory validationCategory() {

@@ -4,6 +4,8 @@ import com.microsoft.playwright.Browser;
 import com.shaft.gui.capabilities.AutomationBackend;
 import com.shaft.gui.capabilities.AutomationCapabilities;
 import com.shaft.gui.capabilities.AutomationFeature;
+import com.shaft.gui.browser.internal.BidiConsoleLogSource;
+import com.shaft.gui.browser.internal.BrowserNetworkInterceptor;
 import com.shaft.gui.playwright.internal.PlaywrightSession;
 import io.appium.java_client.AppiumDriver;
 import io.appium.java_client.InteractsWithApps;
@@ -128,15 +130,21 @@ public final class AutomationCapabilityResolver {
         if (driver instanceof JavascriptExecutor) {
             builder.nativeFeature(AutomationFeature.SCRIPT_EXECUTION, "W3C WebDriver script execution");
         }
-        if (hasBrowserConsoleLogs(driver)) {
-            builder.adaptedFeature(AutomationFeature.CONSOLE_LOGS, "Selenium browser logs through SHAFT");
+        if (BidiConsoleLogSource.isHealthy(driver)) {
+            builder.adaptedFeature(AutomationFeature.CONSOLE_LOGS,
+                    "Selenium session-bound BiDi events through SHAFT");
+        } else if (hasBrowserConsoleLogs(driver)) {
+            builder.adaptedFeature(AutomationFeature.CONSOLE_LOGS,
+                    "Selenium browser logs through SHAFT");
+        }
+        if (BrowserNetworkInterceptor.observationCountIfPresent(driver).isPresent()) {
+            builder.adaptedFeature(AutomationFeature.NETWORK_OBSERVATION,
+                    "Selenium session-bound DevTools observations through SHAFT");
         }
 
         boolean bidiAdvertised = hasNegotiatedBiDi(driver);
         if (bidiAdvertised) {
             builder.nativeFeature(AutomationFeature.BIDI, "W3C WebDriver BiDi")
-                    .adaptedFeature(AutomationFeature.NETWORK_OBSERVATION, "Selenium BiDi through SHAFT")
-                    .adaptedFeature(AutomationFeature.CONSOLE_LOGS, "Selenium BiDi through SHAFT")
                     .adaptedFeature(AutomationFeature.PERMISSIONS, "Selenium BiDi through SHAFT")
                     .nativeFeature(AutomationFeature.SCREEN_EMULATION, "W3C WebDriver BiDi emulation")
                     .nativeFeature(AutomationFeature.GEOLOCATION_EMULATION, "W3C WebDriver BiDi emulation")
@@ -231,16 +239,22 @@ public final class AutomationCapabilityResolver {
         if (driver instanceof AuthenticatesByFinger || driver instanceof PerformsTouchID) {
             builder.nativeFeature(AutomationFeature.BIOMETRICS, "Platform Appium biometric extensions");
         }
-        if (hasBrowserConsoleLogs(driver)) {
-            builder.adaptedFeature(AutomationFeature.CONSOLE_LOGS, "Appium browser logs through SHAFT");
+        if (BidiConsoleLogSource.isHealthy(driver)) {
+            builder.adaptedFeature(AutomationFeature.CONSOLE_LOGS,
+                    "Appium session-bound BiDi events through SHAFT");
+        } else if (hasBrowserConsoleLogs(driver)) {
+            builder.adaptedFeature(AutomationFeature.CONSOLE_LOGS,
+                    "Appium browser logs through SHAFT");
+        }
+        if (BrowserNetworkInterceptor.observationCountIfPresent(driver).isPresent()) {
+            builder.adaptedFeature(AutomationFeature.NETWORK_OBSERVATION,
+                    "Appium session-bound DevTools observations through SHAFT");
         }
     }
 
     private static void addAppiumBiDiFeatures(AutomationCapabilities.Builder builder, AppiumDriver driver) {
         if (hasNegotiatedBiDi(driver)) {
             builder.nativeFeature(AutomationFeature.BIDI, "W3C WebDriver BiDi")
-                    .adaptedFeature(AutomationFeature.NETWORK_OBSERVATION, "Appium BiDi through SHAFT")
-                    .adaptedFeature(AutomationFeature.CONSOLE_LOGS, "Appium BiDi through SHAFT")
                     .nativeFeature(AutomationFeature.SCREEN_EMULATION, "W3C WebDriver BiDi emulation")
                     .nativeFeature(AutomationFeature.GEOLOCATION_EMULATION, "W3C WebDriver BiDi emulation")
                     .nativeFeature(AutomationFeature.TIMEZONE_EMULATION, "W3C WebDriver BiDi emulation")

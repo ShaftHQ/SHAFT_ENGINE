@@ -18,7 +18,7 @@ public class WizardHelpers {
 
         @Override
         public WebDriverBrowserValidationsBuilder browser() {
-            return com.shaft.validation.Validations.assertThat().browser(helper.getDriver());
+            return com.shaft.validation.Validations.assertThat().browser(instanceHelper.getDriver());
         }
 
         @Override
@@ -48,7 +48,7 @@ public class WizardHelpers {
 
         @Override
         public WebDriverBrowserValidationsBuilder browser() {
-            return com.shaft.validation.Validations.verifyThat().browser(helper.getDriver());
+            return com.shaft.validation.Validations.verifyThat().browser(instanceHelper.getDriver());
         }
 
         @Override

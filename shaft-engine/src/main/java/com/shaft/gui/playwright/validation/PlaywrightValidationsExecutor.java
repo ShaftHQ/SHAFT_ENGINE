@@ -2,6 +2,8 @@ package com.shaft.gui.playwright.validation;
 
 import com.microsoft.playwright.Locator;
 import com.microsoft.playwright.Page;
+import com.microsoft.playwright.BrowserContext;
+import com.microsoft.playwright.TimeoutError;
 import com.microsoft.playwright.assertions.LocatorAssertions;
 import com.microsoft.playwright.assertions.PageAssertions;
 import com.microsoft.playwright.assertions.PlaywrightAssertions;
@@ -54,6 +56,8 @@ final class PlaywrightValidationsExecutor extends ValidationsExecutor {
     private final String elementAttribute;
     private final String elementCssProperty;
     private final String browserAttribute;
+    private final Supplier<Object> browserValueReader;
+    private final String browserValueName;
     private final ValidationEnums.ValidationComparisonType validationComparisonType;
     private final Object expectedValue;
     private final StringBuilder reportMessageBuilder;
@@ -78,6 +82,8 @@ final class PlaywrightValidationsExecutor extends ValidationsExecutor {
         this.elementAttribute = builder.playwrightElementAttribute();
         this.elementCssProperty = builder.playwrightElementCssProperty();
         this.browserAttribute = builder.playwrightBrowserAttribute();
+        this.browserValueReader = builder.browserValueReader();
+        this.browserValueName = builder.browserValueName();
         this.reportMessageBuilder = builder.reportMessageBuilder();
         this.maxDiffPixels = null;
         this.maxDiffPixelRatio = null;
@@ -99,6 +105,8 @@ final class PlaywrightValidationsExecutor extends ValidationsExecutor {
         this.elementAttribute = null;
         this.elementCssProperty = null;
         this.browserAttribute = null;
+        this.browserValueReader = null;
+        this.browserValueName = null;
         this.reportMessageBuilder = builder.reportMessageBuilder();
         this.maxDiffPixels = builder.maxDiffPixelsValue();
         this.maxDiffPixelRatio = builder.maxDiffPixelRatioValue();
@@ -450,6 +458,7 @@ final class PlaywrightValidationsExecutor extends ValidationsExecutor {
             case "elementAccessibleNameEquals" -> readAriaField(true);
             case "elementRoleEquals" -> readAriaField(false);
             case "browserAttributeEquals" -> readBrowserAttribute();
+            case "browserValueEquals" -> browserValueReader.get();
             default -> null;
         };
     }
@@ -526,6 +535,9 @@ final class PlaywrightValidationsExecutor extends ValidationsExecutor {
     }
 
     private boolean isFocusedBrowserValue() {
+        if ("browserValueEquals".equals(validationMethod)) {
+            return true;
+        }
         if (!"browserAttributeEquals".equals(validationMethod) || browserAttribute == null) {
             return false;
         }
@@ -537,32 +549,49 @@ final class PlaywrightValidationsExecutor extends ValidationsExecutor {
 
     private Outcome pollFocusedBrowserValue(Object reportedExpected) {
         boolean contextCount = isBrowsingContextCount();
+        boolean contextOwnedValue = "browserValueEquals".equals(validationMethod);
         Object comparisonExpected = contextCount ? String.valueOf(reportedExpected) : reportedExpected;
-        Page page = contextCount ? null : session.page();
+        Page page = contextCount || contextOwnedValue ? null : session.page();
+        BrowserContext context = contextCount || contextOwnedValue ? session.browserContext() : null;
+        if ((contextCount || contextOwnedValue) && (context == null || context.isClosed())) {
+            throw new UnsupportedOperationException("Browser validations require a live Playwright browser context.");
+        }
         AtomicReference<Object> actual = new AtomicReference<>();
         AtomicReference<RuntimeException> failure = new AtomicReference<>();
+        AtomicReference<RuntimeException> waitFailure = new AtomicReference<>();
         AtomicBoolean matched = new AtomicBoolean();
         BooleanSupplier condition = () -> {
             try {
-                actual.set(readBrowserAttribute(page));
+                actual.set(contextOwnedValue ? browserValueReader.get() : readBrowserAttribute(page));
                 failure.set(null);
                 matched.set(compare(comparisonExpected, actual.get()));
                 return matched.get();
             } catch (RuntimeException exception) {
                 failure.set(exception);
+                if (exception instanceof UnsupportedOperationException) {
+                    throw exception;
+                }
                 return false;
             }
         };
         try {
-            if (contextCount) {
-                session.browserContext().waitForCondition(condition);
+            if (contextCount || contextOwnedValue) {
+                context.waitForCondition(condition);
             } else {
                 page.waitForCondition(condition);
             }
         } catch (RuntimeException exception) {
+            waitFailure.set(exception);
             ReportManagerHelper.logDiscrete(exception);
         }
         if (!matched.get()) {
+            if (contextOwnedValue && failure.get() != null) {
+                throw failure.get();
+            }
+            if (contextOwnedValue && waitFailure.get() != null
+                    && !(waitFailure.get() instanceof TimeoutError)) {
+                throw waitFailure.get();
+            }
             if (failure.get() != null) {
                 ReportManagerHelper.logDiscrete(failure.get());
             }
@@ -583,7 +612,7 @@ final class PlaywrightValidationsExecutor extends ValidationsExecutor {
     }
 
     private Object reportedBrowserValue(Object value) {
-        if (!List.of("pagesource", "windowsource", "source")
+        if (browserAttribute == null || !List.of("pagesource", "windowsource", "source")
                 .contains(browserAttribute.toLowerCase(Locale.ROOT))) {
             return value;
         }
@@ -694,6 +723,7 @@ final class PlaywrightValidationsExecutor extends ValidationsExecutor {
             case "elementEnabled" -> parameters.put("State", "enabled");
             case "elementCssPropertyEquals" -> parameters.put("CSS Property", elementCssProperty);
             case "browserAttributeEquals" -> parameters.put("Attribute", browserAttribute);
+            case "browserValueEquals" -> parameters.put("Browser value", browserValueName);
             case "elementMatches" -> {
                 parameters.put("Should match", String.valueOf(expected));
                 parameters.put("Visual engine", visualValidationEngine.name());

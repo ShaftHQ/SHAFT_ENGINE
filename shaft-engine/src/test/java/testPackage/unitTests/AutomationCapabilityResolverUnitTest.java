@@ -73,8 +73,8 @@ public class AutomationCapabilityResolverUnitTest {
             SHAFT.Properties.platform.set().enableBiDi(false);
             AutomationCapabilities negotiatedCapabilities = AutomationCapabilityResolver.forWebDriver(driver);
             Assert.assertTrue(negotiatedCapabilities.supports(AutomationFeature.BIDI));
-            Assert.assertTrue(negotiatedCapabilities.supports(AutomationFeature.NETWORK_OBSERVATION));
-            Assert.assertTrue(negotiatedCapabilities.supports(AutomationFeature.CONSOLE_LOGS));
+            Assert.assertFalse(negotiatedCapabilities.supports(AutomationFeature.NETWORK_OBSERVATION));
+            Assert.assertFalse(negotiatedCapabilities.supports(AutomationFeature.CONSOLE_LOGS));
         } finally {
             SHAFT.Properties.platform.set().enableBiDi(originalBiDi);
             SHAFT.Properties.clearForCurrentThread();
@@ -152,8 +152,8 @@ public class AutomationCapabilityResolverUnitTest {
 
         AutomationCapabilities resolved = AutomationCapabilityResolver.forWebDriver(driver);
 
-        Assert.assertEquals(resolved.capability(AutomationFeature.CONSOLE_LOGS).detail(),
-                "Appium browser logs through SHAFT");
+        Assert.assertTrue(resolved.supports(AutomationFeature.CONSOLE_LOGS));
+        Assert.assertFalse(resolved.supports(AutomationFeature.NETWORK_OBSERVATION));
     }
 
     @Test

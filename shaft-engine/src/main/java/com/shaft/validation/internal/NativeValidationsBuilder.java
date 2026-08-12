@@ -26,6 +26,8 @@ public class NativeValidationsBuilder {
     protected boolean jsonIgnoringOrderComparison;
     protected Supplier<Object> mobileValueReader;
     protected String mobileValueName;
+    protected Supplier<Object> browserValueReader;
+    protected String browserValueName;
 
     public NativeValidationsBuilder(WebDriverElementValidationsBuilder webDriverElementValidationsBuilder) {
         this.validationCategory = webDriverElementValidationsBuilder.validationCategory;
@@ -55,6 +57,24 @@ public class NativeValidationsBuilder {
         this.validationMethod = "mobileValueEquals";
         this.mobileValueReader = mobileValueReader;
         this.mobileValueName = mobileValueName;
+        this.reportMessageBuilder = reportMessageBuilder;
+    }
+
+    static NativeValidationsBuilder browserValue(ValidationEnums.ValidationCategory validationCategory,
+                                                  WebDriver driver, Supplier<Object> reader, String name,
+                                                  StringBuilder reportMessageBuilder) {
+        NativeValidationsBuilder builder = new NativeValidationsBuilder(
+                validationCategory, "browserValueEquals", reportMessageBuilder);
+        builder.driver = driver;
+        builder.browserValueReader = reader;
+        builder.browserValueName = name;
+        return builder;
+    }
+
+    private NativeValidationsBuilder(ValidationEnums.ValidationCategory validationCategory, String validationMethod,
+                                     StringBuilder reportMessageBuilder) {
+        this.validationCategory = validationCategory;
+        this.validationMethod = validationMethod;
         this.reportMessageBuilder = reportMessageBuilder;
     }
 

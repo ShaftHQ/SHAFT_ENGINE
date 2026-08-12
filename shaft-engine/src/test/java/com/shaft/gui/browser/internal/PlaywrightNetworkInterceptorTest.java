@@ -23,6 +23,18 @@ import static org.mockito.Mockito.when;
 
 public class PlaywrightNetworkInterceptorTest {
     @Test
+    public void observationCountShouldFailClosedUntilRouteInstallationSucceeds() {
+        BrowserContext context = mock(BrowserContext.class);
+        IllegalStateException sentinel = new IllegalStateException("route-install-failed");
+        when(context.route(eq("**/*"), any())).thenThrow(sentinel);
+        PlaywrightNetworkInterceptor interceptor = new PlaywrightNetworkInterceptor(context);
+
+        Assert.expectThrows(UnsupportedOperationException.class, interceptor::observationCount);
+        Assert.assertSame(Assert.expectThrows(IllegalStateException.class, interceptor::startObserving), sentinel);
+        Assert.expectThrows(UnsupportedOperationException.class, interceptor::observationCount);
+    }
+
+    @Test
     public void shouldFulfillMatchingMockedResponsesAndClearRoute() throws Exception {
         BrowserContext context = mock(BrowserContext.class);
         AtomicReference<Consumer<Route>> handler = new AtomicReference<>();
@@ -43,6 +55,7 @@ public class PlaywrightNetworkInterceptorTest {
 
         Route route = route("GET", "https://example.test/api/users", null);
         handler.get().accept(route);
+        Assert.assertEquals(interceptor.observationCount(), 1);
 
         var optionsCaptor = org.mockito.ArgumentCaptor.forClass(Route.FulfillOptions.class);
         verify(route).fulfill(optionsCaptor.capture());

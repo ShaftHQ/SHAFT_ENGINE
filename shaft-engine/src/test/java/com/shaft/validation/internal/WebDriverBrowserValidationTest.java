@@ -5,8 +5,15 @@ import com.shaft.driver.internal.DriverFactory.DriverFactoryHelper;
 import com.shaft.driver.internal.WizardHelpers;
 import com.shaft.driver.SHAFT;
 import com.shaft.gui.browser.BrowserActions;
+import com.shaft.gui.browser.internal.BidiConsoleLogSource;
+import com.shaft.gui.browser.internal.BrowserNetworkInterceptor;
+import com.shaft.gui.capabilities.AutomationBackend;
+import com.shaft.gui.capabilities.AutomationCapabilities;
+import com.shaft.gui.capabilities.AutomationFeature;
+import com.shaft.gui.capabilities.internal.AutomationCapabilityResolver;
 import com.shaft.gui.internal.image.ScreenshotManager;
 import com.shaft.tools.io.ReportManager;
+import com.shaft.tools.io.internal.BrowserObservabilityRecorder;
 import com.shaft.validation.ValidationEnums;
 import io.qameta.allure.Allure;
 import io.qameta.allure.AllureLifecycle;
@@ -15,7 +22,9 @@ import org.mockito.MockedConstruction;
 import org.mockito.MockedStatic;
 import org.mockito.Mockito;
 import org.openqa.selenium.WebDriver;
+import org.openqa.selenium.HasDownloads;
 import org.openqa.selenium.TimeoutException;
+import org.openqa.selenium.remote.RemoteWebDriver;
 import org.openqa.selenium.support.ui.FluentWait;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
@@ -31,8 +40,11 @@ import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.withSettings;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.atLeast;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -46,6 +58,215 @@ public class WebDriverBrowserValidationTest {
     @AfterMethod(alwaysRun = true)
     public void resetValidationState() {
         ValidationsHelper.resetVerificationStateAfterFailing();
+    }
+
+    @Test
+    public void observableBrowserValuesShouldReadOnlyTheirAuthoritativeOwners() {
+        WebDriver driver = mock(WebDriver.class, withSettings().extraInterfaces(HasDownloads.class));
+        WebDriver.TargetLocator targetLocator = mock(WebDriver.TargetLocator.class);
+        when(driver.switchTo()).thenReturn(targetLocator);
+        when(targetLocator.alert()).thenReturn(mock(org.openqa.selenium.Alert.class));
+        HasDownloads downloads = (HasDownloads) driver;
+        when(downloads.getDownloadedFiles()).thenReturn(java.util.List.of(
+                mock(HasDownloads.DownloadedFile.class), mock(HasDownloads.DownloadedFile.class)));
+        AutomationCapabilities capabilities = AutomationCapabilities.builder(AutomationBackend.SELENIUM_WEBDRIVER)
+                .nativeFeature(AutomationFeature.BROWSER_AUTOMATION, "test")
+                .nativeFeature(AutomationFeature.DOWNLOADS, "test")
+                .adaptedFeature(AutomationFeature.NETWORK_OBSERVATION, "test")
+                .adaptedFeature(AutomationFeature.CONSOLE_LOGS, "test")
+                .build();
+        var console = java.util.List.of(
+                new BrowserObservabilityRecorder.ConsoleSnapshotEntry("console", "info", "private-message", 1),
+                new BrowserObservabilityRecorder.ConsoleSnapshotEntry("console", "debug", "private-debug", 2),
+                new BrowserObservabilityRecorder.ConsoleSnapshotEntry("console", "warn", "private-warning", 3),
+                new BrowserObservabilityRecorder.ConsoleSnapshotEntry("console", "error", "private-error", 4));
+        try (MockedConstruction<SynchronizationManager> ignored = waitApplying(driver, 1);
+             MockedStatic<AutomationCapabilityResolver> resolver = Mockito.mockStatic(AutomationCapabilityResolver.class);
+             MockedStatic<BrowserNetworkInterceptor> network = Mockito.mockStatic(BrowserNetworkInterceptor.class);
+             MockedStatic<BidiConsoleLogSource> bidi = Mockito.mockStatic(BidiConsoleLogSource.class);
+             MockedStatic<Allure> allure = Mockito.mockStatic(Allure.class);
+             MockedStatic<ReportManager> report = Mockito.mockStatic(ReportManager.class)) {
+            AllureLifecycle lifecycle = mock(AllureLifecycle.class);
+            java.util.List<java.util.List<io.qameta.allure.model.Parameter>> parameterSnapshots =
+                    captureAllStepParameterUpdates(lifecycle);
+            allure.when(Allure::getLifecycle).thenReturn(lifecycle);
+            resolver.when(() -> AutomationCapabilityResolver.forWebDriver(driver)).thenReturn(capabilities);
+            network.when(() -> BrowserNetworkInterceptor.observationCountIfPresent(driver))
+                    .thenReturn(java.util.OptionalInt.of(3));
+            bidi.when(() -> BidiConsoleLogSource.isHealthy(driver)).thenReturn(true);
+            bidi.when(() -> BidiConsoleLogSource.snapshot(driver)).thenReturn(console);
+            var assertions = new WebDriverBrowserValidationsBuilder(ValidationEnums.ValidationCategory.HARD_ASSERT,
+                    driver, new StringBuilder("the browser "));
+            assertions.dialogPresentValue().isEqualTo(true);
+            assertions.downloadCountValue().isEqualTo(2);
+            assertions.networkObservationCountValue().isEqualTo(3);
+            assertions.consoleMessageCountValue().isEqualTo(4);
+            assertions.consoleErrorCountValue().isEqualTo(1);
+            assertions.featureSupportedValue(AutomationFeature.MEDIA_EMULATION).isEqualTo(false);
+
+            resolver.verify(() -> AutomationCapabilityResolver.forWebDriver(driver), org.mockito.Mockito.atLeast(6));
+            network.verify(() -> BrowserNetworkInterceptor.observationCountIfPresent(driver), times(1));
+            bidi.verify(() -> BidiConsoleLogSource.snapshot(driver), times(2));
+            Assert.assertTrue(parameterSnapshots.size() >= 6);
+            Assert.assertTrue(parameterSnapshots.stream().flatMap(java.util.Collection::stream).noneMatch(parameter ->
+                    String.valueOf(parameter.getValue()).contains("private-")));
+            report.verify(() -> ReportManager.logDiscrete(argThat(message -> message.contains("private-"))), never());
+            report.verify(() -> ReportManager.logDiscrete(argThat(message -> message.contains("private-")),
+                    any(org.apache.logging.log4j.Level.class)), never());
+        }
+
+        verify(targetLocator).alert();
+        verify(downloads).getDownloadedFiles();
+    }
+
+    @Test
+    public void observableBrowserPlansShouldStayLazyFailClosedAndPreserveProviderTimeoutIdentity() {
+        WebDriver driver = mock(WebDriver.class);
+        AutomationCapabilities capabilities = AutomationCapabilities.builder(AutomationBackend.SELENIUM_WEBDRIVER)
+                .nativeFeature(AutomationFeature.BROWSER_AUTOMATION, "test")
+                .adaptedFeature(AutomationFeature.NETWORK_OBSERVATION, "test")
+                .adaptedFeature(AutomationFeature.CONSOLE_LOGS, "test")
+                .build();
+        TimeoutException sentinel = new TimeoutException("provider-timeout-sentinel");
+        WebDriver.TargetLocator targetLocator = mock(WebDriver.TargetLocator.class);
+        when(driver.switchTo()).thenReturn(targetLocator);
+        when(targetLocator.alert()).thenThrow(sentinel);
+        try (MockedConstruction<SynchronizationManager> ignored = waitApplying(driver, 1);
+             MockedStatic<AutomationCapabilityResolver> resolver = Mockito.mockStatic(AutomationCapabilityResolver.class);
+             MockedStatic<BrowserNetworkInterceptor> network = Mockito.mockStatic(BrowserNetworkInterceptor.class);
+             MockedStatic<BidiConsoleLogSource> bidi = Mockito.mockStatic(BidiConsoleLogSource.class)) {
+            resolver.when(() -> AutomationCapabilityResolver.forWebDriver(driver)).thenReturn(capabilities);
+            var assertions = new WebDriverBrowserValidationsBuilder(ValidationEnums.ValidationCategory.HARD_ASSERT,
+                    driver, new StringBuilder("the browser "));
+            var dialogPlan = assertions.dialogPresentValue();
+            assertions.downloadCountValue();
+            var networkPlan = assertions.networkObservationCountValue();
+            assertions.consoleMessageCountValue();
+            assertions.consoleErrorCountValue();
+            assertions.featureSupportedValue(AutomationFeature.MEDIA_EMULATION);
+            resolver.verifyNoInteractions();
+            network.verifyNoInteractions();
+            bidi.verifyNoInteractions();
+
+            Assert.assertSame(Assert.expectThrows(TimeoutException.class, () -> dialogPlan.isEqualTo(true)), sentinel);
+            UnsupportedOperationException missingState = Assert.expectThrows(UnsupportedOperationException.class,
+                    () -> networkPlan.isEqualTo(0));
+            Assert.assertTrue(missingState.getMessage().contains("No retained network-observation state"));
+            UnsupportedOperationException missingConsole = Assert.expectThrows(UnsupportedOperationException.class,
+                    () -> assertions.consoleMessageCountValue().isEqualTo(0));
+            Assert.assertTrue(missingConsole.getMessage().contains("No session-bound console-observation state"));
+            Assert.expectThrows(UnsupportedOperationException.class,
+                    () -> assertions.downloadCountValue().isEqualTo(0));
+            Assert.expectThrows(NullPointerException.class,
+                    () -> assertions.featureSupportedValue(null));
+        }
+    }
+
+    @Test
+    public void observableBrowserValuesShouldRetryAndRejectClosedSessionsBeforeCapabilityResolution() {
+        WebDriver driver = mock(WebDriver.class);
+        WebDriver.TargetLocator targetLocator = mock(WebDriver.TargetLocator.class);
+        when(driver.switchTo()).thenReturn(targetLocator);
+        when(targetLocator.alert()).thenThrow(new org.openqa.selenium.NoAlertPresentException("not yet"))
+                .thenReturn(mock(org.openqa.selenium.Alert.class));
+        AutomationCapabilities capabilities = AutomationCapabilities.builder(AutomationBackend.SELENIUM_WEBDRIVER)
+                .nativeFeature(AutomationFeature.BROWSER_AUTOMATION, "test").build();
+        try (MockedConstruction<SynchronizationManager> ignored = waitApplying(driver, 2);
+             MockedStatic<AutomationCapabilityResolver> resolver = Mockito.mockStatic(AutomationCapabilityResolver.class)) {
+            resolver.when(() -> AutomationCapabilityResolver.forWebDriver(driver)).thenReturn(capabilities);
+            new WebDriverBrowserValidationsBuilder(ValidationEnums.ValidationCategory.HARD_ASSERT,
+                    driver, new StringBuilder("the browser ")).dialogPresentValue().isEqualTo(true);
+        }
+        verify(targetLocator, times(2)).alert();
+
+        RemoteWebDriver closed = mock(RemoteWebDriver.class);
+        when(closed.getSessionId()).thenReturn(null);
+        try (MockedConstruction<SynchronizationManager> ignored = waitApplying(closed, 1);
+             MockedStatic<AutomationCapabilityResolver> resolver = Mockito.mockStatic(AutomationCapabilityResolver.class)) {
+            Assert.expectThrows(UnsupportedOperationException.class,
+                    () -> new WebDriverBrowserValidationsBuilder(ValidationEnums.ValidationCategory.HARD_ASSERT,
+                            closed, new StringBuilder("the browser "))
+                            .featureSupportedValue(AutomationFeature.BROWSER_AUTOMATION).isEqualTo(true));
+            resolver.verifyNoInteractions();
+        }
+    }
+
+    @Test
+    public void observableDialogAndConsoleShouldRejectMissingCapabilitiesBeforeTheirOwners() {
+        WebDriver driver = mock(WebDriver.class);
+        WebDriver.TargetLocator target = mock(WebDriver.TargetLocator.class);
+        when(driver.switchTo()).thenReturn(target);
+        AutomationCapabilities unsupported = AutomationCapabilities
+                .builder(AutomationBackend.SELENIUM_WEBDRIVER).build();
+        try (MockedConstruction<SynchronizationManager> ignored = waitApplying(driver, 1);
+             MockedStatic<AutomationCapabilityResolver> resolver = Mockito.mockStatic(AutomationCapabilityResolver.class);
+             MockedStatic<BidiConsoleLogSource> bidi = Mockito.mockStatic(BidiConsoleLogSource.class)) {
+            resolver.when(() -> AutomationCapabilityResolver.forWebDriver(driver)).thenReturn(unsupported);
+            var assertions = new WebDriverBrowserValidationsBuilder(ValidationEnums.ValidationCategory.HARD_ASSERT,
+                    driver, new StringBuilder("the browser "));
+            Assert.expectThrows(UnsupportedOperationException.class,
+                    () -> assertions.dialogPresentValue().isEqualTo(false));
+            verify(target, never()).alert();
+            Assert.expectThrows(UnsupportedOperationException.class,
+                    () -> assertions.consoleMessageCountValue().isEqualTo(0));
+            bidi.verifyNoInteractions();
+        }
+    }
+
+    @Test
+    public void everyPublicWebDriverBrowserRootShouldRouteObservableFeatureSupportWithHardAndSoftSemantics() {
+        WebDriver driver = mock(WebDriver.class);
+        DriverFactoryHelper helper = mock(DriverFactoryHelper.class);
+        when(helper.getDriver()).thenReturn(driver);
+        var browser = new BrowserActions(helper);
+        AutomationCapabilities capabilities = AutomationCapabilities.builder(AutomationBackend.SELENIUM_WEBDRIVER)
+                .nativeFeature(AutomationFeature.BROWSER_AUTOMATION, "test").build();
+        try (MockedConstruction<SynchronizationManager> ignored = waitApplying(driver, 1);
+             MockedConstruction<ScreenshotManager> screenshots = Mockito.mockConstruction(ScreenshotManager.class,
+                     (manager, context) -> when(manager.takeScreenshot(any(), any(), anyString(), anyBoolean()))
+                             .thenReturn(java.util.List.of("screenshot", "image/png", new byte[]{1})));
+             MockedStatic<AutomationCapabilityResolver> resolver = Mockito.mockStatic(AutomationCapabilityResolver.class)) {
+            resolver.when(() -> AutomationCapabilityResolver.forWebDriver(driver)).thenReturn(capabilities);
+            new WizardHelpers.WebDriverAssertions(helper).browser()
+                    .featureSupportedValue(AutomationFeature.MEDIA_EMULATION).isEqualTo(false);
+            new WizardHelpers.WebDriverVerifications(helper).browser()
+                    .featureSupportedValue(AutomationFeature.MEDIA_EMULATION).isEqualTo(false);
+            browser.assertThat().featureSupportedValue(AutomationFeature.MEDIA_EMULATION).isEqualTo(false);
+            browser.verifyThat().featureSupportedValue(AutomationFeature.MEDIA_EMULATION).isEqualTo(false);
+
+            assertHardFailure(() -> browser.assertThat()
+                    .featureSupportedValue(AutomationFeature.MEDIA_EMULATION).isEqualTo(true));
+            assertSoftFailure(() -> browser.verifyThat()
+                    .featureSupportedValue(AutomationFeature.MEDIA_EMULATION).isEqualTo(true));
+            assertHardFailure(() -> new WizardHelpers.WebDriverAssertions(helper).browser()
+                    .featureSupportedValue(AutomationFeature.MEDIA_EMULATION).isEqualTo(true));
+            assertSoftFailure(() -> new WizardHelpers.WebDriverVerifications(helper).browser()
+                    .featureSupportedValue(AutomationFeature.MEDIA_EMULATION).isEqualTo(true));
+        }
+    }
+
+    @Test
+    public void retainedWizardBrowserRootsShouldStayBoundToTheirOriginalDriver() {
+        WebDriver first = mock(WebDriver.class);
+        WebDriver second = mock(WebDriver.class);
+        DriverFactoryHelper firstHelper = mock(DriverFactoryHelper.class);
+        DriverFactoryHelper secondHelper = mock(DriverFactoryHelper.class);
+        when(firstHelper.getDriver()).thenReturn(first);
+        when(secondHelper.getDriver()).thenReturn(second);
+        var retainedAssertions = new WizardHelpers.WebDriverAssertions(firstHelper);
+        var retainedVerifications = new WizardHelpers.WebDriverVerifications(firstHelper);
+        new WizardHelpers.WebDriverAssertions(secondHelper);
+        new WizardHelpers.WebDriverVerifications(secondHelper);
+        AutomationCapabilities firstCapabilities = AutomationCapabilities
+                .builder(AutomationBackend.SELENIUM_WEBDRIVER).build();
+        try (MockedConstruction<SynchronizationManager> ignored = waitApplying(first, 1);
+             MockedStatic<AutomationCapabilityResolver> resolver = Mockito.mockStatic(AutomationCapabilityResolver.class)) {
+            resolver.when(() -> AutomationCapabilityResolver.forWebDriver(first)).thenReturn(firstCapabilities);
+            retainedAssertions.browser().featureSupportedValue(AutomationFeature.MEDIA_EMULATION).isEqualTo(false);
+            retainedVerifications.browser().featureSupportedValue(AutomationFeature.MEDIA_EMULATION).isEqualTo(false);
+            resolver.verify(() -> AutomationCapabilityResolver.forWebDriver(first), atLeast(2));
+            resolver.verify(() -> AutomationCapabilityResolver.forWebDriver(second), never());
+        }
     }
 
     @Test
@@ -355,5 +576,19 @@ public class WebDriverBrowserValidationTest {
             return null;
         }).when(lifecycle).updateStep(any(Consumer.class));
         return step;
+    }
+
+    @SuppressWarnings("unchecked")
+    private static java.util.List<java.util.List<io.qameta.allure.model.Parameter>>
+    captureAllStepParameterUpdates(AllureLifecycle lifecycle) {
+        java.util.List<java.util.List<io.qameta.allure.model.Parameter>> snapshots = new java.util.ArrayList<>();
+        StepResult step = new StepResult();
+        doAnswer(invocation -> {
+            Consumer<StepResult> consumer = invocation.getArgument(0);
+            consumer.accept(step);
+            snapshots.add(java.util.List.copyOf(step.getParameters()));
+            return null;
+        }).when(lifecycle).updateStep(any(Consumer.class));
+        return snapshots;
     }
 }

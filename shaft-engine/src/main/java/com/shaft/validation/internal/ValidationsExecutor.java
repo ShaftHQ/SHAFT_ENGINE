@@ -52,6 +52,8 @@ public class ValidationsExecutor {
     private String ariaSnapshotFileName;
     private Supplier<Object> mobileValueReader;
     private String mobileValueName;
+    private Supplier<Object> browserValueReader;
+    private String browserValueName;
 
     public ValidationsExecutor(WebDriverElementValidationsBuilder webDriverElementValidationsBuilder) {
         this.validationCategory = webDriverElementValidationsBuilder.validationCategory;
@@ -90,6 +92,8 @@ public class ValidationsExecutor {
         this.browserAttribute = nativeValidationsBuilder.browserAttribute;
         this.mobileValueReader = nativeValidationsBuilder.mobileValueReader;
         this.mobileValueName = nativeValidationsBuilder.mobileValueName;
+        this.browserValueReader = nativeValidationsBuilder.browserValueReader;
+        this.browserValueName = nativeValidationsBuilder.browserValueName;
 
         this.response.set(nativeValidationsBuilder.response);
         this.jsonPath = nativeValidationsBuilder.jsonPath;
@@ -169,7 +173,7 @@ public class ValidationsExecutor {
     }
 
     protected void internalPerform() {
-        if (!"mobileValueEquals".equals(validationMethod)) {
+        if (!List.of("mobileValueEquals", "browserValueEquals").contains(validationMethod)) {
             JavaScriptWaitManager.waitForLazyLoading(driver.get());
         }
         boolean generatedCustomReportMessage = false;
@@ -254,6 +258,9 @@ public class ValidationsExecutor {
                     validationsHelper.validateBrowserAttribute(driver.get(), browserAttribute, String.valueOf(expectedValue), validationComparisonType, validationType);
             case "mobileValueEquals" ->
                     validationsHelper.validateMobileValue(driver.get(), mobileValueName, mobileValueReader,
+                            expectedValue, validationComparisonType, validationType);
+            case "browserValueEquals" ->
+                    validationsHelper.validateBrowserValue(driver.get(), browserValueName, browserValueReader,
                             expectedValue, validationComparisonType, validationType);
             case "comparativeRelationBetweenNumbers" ->
                     validationsHelper.validateNumber((Number) expectedValue, (Number) actualValue, numbersComparativeRelation, validationType);
