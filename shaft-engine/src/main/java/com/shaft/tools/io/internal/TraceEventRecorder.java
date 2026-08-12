@@ -85,11 +85,16 @@ public final class TraceEventRecorder {
      * The explicit action-time identity avoids relying on unrelated thread-local session state.
      */
     public static Event startForBackend(String category, String name, String locator, AutomationBackend backend) {
-        Event event = start(category, name, locator, null);
-        if (event.enabled()) {
-            EVENT_BACKENDS.get().put(event.id(), backend == null ? AutomationBackend.UNKNOWN : backend);
+        FailureTraceReporter.activateBrowserEvidenceOwner(null);
+        if (!isEnabled() || SUPPRESSION_DEPTH.get() > 0) {
+            return Event.disabled();
         }
-        return event;
+        int index = NEXT_ID.get() + 1;
+        NEXT_ID.set(index);
+        String id = "action-" + index;
+        EVENT_BACKENDS.get().put(id, backend == null ? AutomationBackend.UNKNOWN : backend);
+        return new Event(true, id, value(category), value(name), Instant.now().toString(),
+                System.nanoTime(), value(locator), "", callerFrame(), "", null);
     }
 
     /** Executes a nested legacy delegate without recording a duplicate event around its owner action. */

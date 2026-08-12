@@ -7,11 +7,13 @@ import com.shaft.gui.driver.MobileEvidenceBundle;
 import com.shaft.gui.driver.MobileLogError;
 import com.shaft.gui.driver.MobileLogMessage;
 import com.shaft.gui.driver.MobilePerformanceSample;
+import com.shaft.gui.capabilities.AutomationBackend;
 import com.shaft.gui.mobile.internal.MobileLogSource;
 import com.shaft.gui.mobile.internal.MobileEvidenceState;
 import com.shaft.gui.mobile.internal.MobilePerformanceState;
 import com.shaft.gui.mobile.internal.MobileRecordingState;
 import com.shaft.tools.io.internal.FailureTraceReporter;
+import com.shaft.tools.io.internal.TraceEventRecorder;
 import com.shaft.tools.io.trace.TraceArtifactReference;
 import io.appium.java_client.AppiumDriver;
 import io.appium.java_client.android.HasSupportedPerformanceDataType;
@@ -57,6 +59,27 @@ final class EvidenceActions implements MobileEvidenceActionsContract {
     @Override
     public MobileEvidenceBundle capture(Path exactTarget) {
         registerSensitivePath(exactTarget);
+        TraceEventRecorder.Event event = TraceEventRecorder.startForBackend(
+                "mobile/evidence", "capture", "<evidence-bundle>", AutomationBackend.APPIUM);
+        try {
+            MobileEvidenceBundle bundle = captureRaw(exactTarget);
+            TraceEventRecorder.finish(event, "passed", "Mobile evidence capture completed.", null,
+                    Map.of("artifactCount", Integer.toString(bundle.artifacts().size()),
+                            "omissionCount", Integer.toString(bundle.omissions().size()),
+                            "logMessageCount", Integer.toString(bundle.logMessages().size()),
+                            "logErrorCount", Integer.toString(bundle.logErrors().size()),
+                            "performanceSampleCount", Integer.toString(bundle.performanceSamples().size())),
+                    List.of());
+            return bundle;
+        } catch (RuntimeException exception) {
+            FailureTraceReporter.registerSensitiveThrowable(exception);
+            TraceEventRecorder.finish(event, "failed", "Mobile evidence capture failed.", exception,
+                    Map.of(), List.of());
+            throw exception;
+        }
+    }
+
+    private MobileEvidenceBundle captureRaw(Path exactTarget) {
         Path target = validateTarget(exactTarget);
         registerSensitivePath(target);
         AppiumDriver driver = mobile.driver();
