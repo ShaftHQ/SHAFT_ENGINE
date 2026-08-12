@@ -278,6 +278,54 @@ public class ImageProcessingActionsCoverageUnitTest {
     }
 
     @Test
+    public void compareAgainstBaselineExactOpenCvShouldRejectBaselineContainedInsideLargerActualImage() {
+        By locator = By.id("open-cv-exact-containment-regression");
+        String hash = ImageProcessingActions.formatElementLocatorToImagePath(locator);
+        byte[] reference = createPng(20, 20, Color.GRAY);
+        FILE_ACTIONS.writeToFile(tempDir.resolve(hash + ".png").toString(), reference);
+
+        BufferedImage largerActual = new BufferedImage(40, 40, BufferedImage.TYPE_INT_RGB);
+        Graphics2D graphics = largerActual.createGraphics();
+        graphics.setColor(Color.WHITE);
+        graphics.fillRect(0, 0, 40, 40);
+        graphics.setColor(Color.GRAY);
+        graphics.fillRect(10, 10, 20, 20);
+        graphics.dispose();
+
+        Assert.assertFalse(ImageProcessingActions.compareAgainstBaseline(mock(WebDriver.class), locator,
+                        encodePng(largerActual), ImageProcessingActions.VisualValidationEngine.EXACT_OPENCV),
+                "EXACT_OPENCV must compare the complete image instead of accepting template containment.");
+    }
+
+    @Test
+    public void compareAgainstBaselineExactOpenCvShouldRejectOneChangedPixelAtEqualDimensions() {
+        By locator = By.id("open-cv-exact-one-pixel-regression");
+        String hash = ImageProcessingActions.formatElementLocatorToImagePath(locator);
+        byte[] reference = createPng(20, 20, Color.GRAY);
+        FILE_ACTIONS.writeToFile(tempDir.resolve(hash + ".png").toString(), reference);
+
+        BufferedImage actual = createImage(20, 20, Color.GRAY);
+        actual.setRGB(10, 10, Color.RED.getRGB());
+
+        Assert.assertFalse(ImageProcessingActions.compareAgainstBaseline(mock(WebDriver.class), locator,
+                encodePng(actual), ImageProcessingActions.VisualValidationEngine.EXACT_OPENCV));
+    }
+
+    @Test
+    public void compareAgainstBaselineExactOpenCvShouldRejectOneChangedAlphaValue() {
+        By locator = By.id("open-cv-exact-alpha-regression");
+        String hash = ImageProcessingActions.formatElementLocatorToImagePath(locator);
+        BufferedImage reference = createArgbImage(20, 20, new Color(20, 40, 60, 255));
+        FILE_ACTIONS.writeToFile(tempDir.resolve(hash + ".png").toString(), encodePng(reference));
+
+        BufferedImage actual = createArgbImage(20, 20, new Color(20, 40, 60, 255));
+        actual.setRGB(10, 10, new Color(20, 40, 60, 128).getRGB());
+
+        Assert.assertFalse(ImageProcessingActions.compareAgainstBaseline(mock(WebDriver.class), locator,
+                encodePng(actual), ImageProcessingActions.VisualValidationEngine.EXACT_OPENCV));
+    }
+
+    @Test
     public void compareAgainstBaselineExactShutterbugShouldCreateMissingReference() {
         By locator = By.id("new-shutterbug-baseline");
         byte[] screenshot = createPng(12, 12, Color.ORANGE);
@@ -591,6 +639,15 @@ public class ImageProcessingActionsCoverageUnitTest {
 
     private static BufferedImage createImage(int width, int height, Color color) {
         BufferedImage image = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
+        Graphics2D graphics = image.createGraphics();
+        graphics.setColor(color);
+        graphics.fillRect(0, 0, width, height);
+        graphics.dispose();
+        return image;
+    }
+
+    private static BufferedImage createArgbImage(int width, int height, Color color) {
+        BufferedImage image = new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB);
         Graphics2D graphics = image.createGraphics();
         graphics.setColor(color);
         graphics.fillRect(0, 0, width, height);

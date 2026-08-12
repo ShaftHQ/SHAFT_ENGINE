@@ -390,7 +390,44 @@ public class OpenCvVisualProcessingProvider implements VisualProcessingProvider 
             saveReferenceImage(referenceImagePath, elementScreenshot);
             return true;
         }
-        return !findImageWithinCurrentPage(referenceImagePath, elementScreenshot).isEmpty();
+        if (elementScreenshot == null || elementScreenshot.length == 0) {
+            return false;
+        }
+        byte[] referenceBytes;
+        try {
+            referenceBytes = Files.readAllBytes(Paths.get(referenceImagePath));
+        } catch (IOException exception) {
+            ReportManagerHelper.logDiscrete(exception);
+            return false;
+        }
+        Mat reference = null;
+        Mat actual = null;
+        try {
+            reference = decodeImage(referenceBytes, Imgcodecs.IMREAD_UNCHANGED);
+            actual = decodeImage(elementScreenshot, Imgcodecs.IMREAD_UNCHANGED);
+            return !reference.empty()
+                    && !actual.empty()
+                    && reference.rows() == actual.rows()
+                    && reference.cols() == actual.cols()
+                    && reference.type() == actual.type()
+                    && Core.norm(reference, actual, Core.NORM_INF) == 0;
+        } finally {
+            if (reference != null) {
+                reference.release();
+            }
+            if (actual != null) {
+                actual.release();
+            }
+        }
+    }
+
+    private static Mat decodeImage(byte[] imageBytes, int mode) {
+        MatOfByte buffer = new MatOfByte(imageBytes);
+        try {
+            return Imgcodecs.imdecode(buffer, mode);
+        } finally {
+            buffer.release();
+        }
     }
 
     private boolean compareUsingEyes(byte[] elementScreenshot,
