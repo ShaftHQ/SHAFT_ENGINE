@@ -333,8 +333,12 @@ class GraphifyMaintenanceTest(TestCase):
         wrapper = (ROOT / "tools/agent-infra/graphify-refresh.cmd").read_text(
             encoding="utf-8"
         )
+        updater = (ROOT / "tools/agent-infra/shaft_knowledge_refresh.py").read_text(
+            encoding="utf-8"
+        )
 
-        self.assertIn("tools\\repository-map\\graphify_maintenance.py refresh", wrapper)
+        self.assertIn("%~dp0shaft_knowledge_refresh.py", wrapper)
+        self.assertIn("tools/repository-map/graphify_maintenance.py", updater)
         self.assertNotIn("call graphify", wrapper.lower())
         self.assertNotIn("shafthq.github.io", wrapper.lower())
         self.assertNotIn("C:\\Users\\", wrapper)

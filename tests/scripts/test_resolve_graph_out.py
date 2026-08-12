@@ -222,9 +222,9 @@ class ResolveGraphOutTest(unittest.TestCase):
 
         self.assertEqual(
             [
-                'py -3 tools\\repository-map\\graphify_maintenance.py refresh --root . > "%USERPROFILE%\\.agent-infra\\logs\\graphify-refresh.log" 2>&1',
+                'py -3 "%~dp0shaft_knowledge_refresh.py" --root "%SHAFT_ROOT%" --sentinel "%SHAFT_SENTINEL%" --validate-only >nul 2>&1',
                 "if errorlevel 1 exit /b 1",
-                "if not errorlevel 0 exit /b 1",
+                'py -3 "%~dp0shaft_knowledge_refresh.py" --root "%SHAFT_ROOT%" --sentinel "%SHAFT_SENTINEL%" > "%SHAFT_LOG%" 2>&1',
             ],
             commands,
         )
@@ -267,7 +267,8 @@ exit /b %GRAPHIFY_REFRESH_EXIT%
                     capture_output=True,
                     text=True,
                 )
-                self.assertNotEqual(0, result.returncode)
+                expected_exit = refresh_exit if refresh_exit >= 0 else 2**32 + refresh_exit
+                self.assertEqual(expected_exit, result.returncode)
                 self.assertFalse(marker.exists())
 
         success_env = base_env.copy()
