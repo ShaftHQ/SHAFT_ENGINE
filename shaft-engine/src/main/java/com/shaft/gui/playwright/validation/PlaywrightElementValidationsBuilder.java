@@ -19,6 +19,26 @@ public class PlaywrightElementValidationsBuilder implements ElementAssertions {
     private final String locatorDescription;
     private final StringBuilder reportMessageBuilder = new StringBuilder("the element ");
 
+    @Override
+    public NativeValidationsBuilder elementCount() {
+        return focusedValue("elementCountEquals", "match count ");
+    }
+
+    @Override
+    public NativeValidationsBuilder elementRectangle() {
+        return focusedValue("elementRectangleEquals", "rectangle ");
+    }
+
+    @Override
+    public NativeValidationsBuilder elementAccessibleName() {
+        return focusedValue("elementAccessibleNameEquals", "accessible name ");
+    }
+
+    @Override
+    public NativeValidationsBuilder elementRole() {
+        return focusedValue("elementRoleEquals", "accessibility role ");
+    }
+
     public PlaywrightElementValidationsBuilder(ValidationEnums.ValidationCategory validationCategory,
                                                PlaywrightSession session,
                                                Locator locator) {
@@ -201,6 +221,11 @@ public class PlaywrightElementValidationsBuilder implements ElementAssertions {
     private PlaywrightNativeValidationsBuilder builder(String validationMethod, String elementAttribute, String elementCssProperty) {
         return new PlaywrightNativeValidationsBuilder(validationCategory, session, this::resolvedLocator, locatorDescription, validationMethod,
                 elementAttribute, elementCssProperty, null, reportMessageBuilder);
+    }
+
+    private NativeValidationsBuilder focusedValue(String method, String message) {
+        reportMessageBuilder.append(message);
+        return builder(method, null, null);
     }
 
     private Locator resolvedLocator() {

@@ -7,6 +7,7 @@ import com.microsoft.playwright.assertions.PageAssertions;
 import com.microsoft.playwright.assertions.PlaywrightAssertions;
 import com.shaft.cli.FileActions;
 import com.shaft.driver.SHAFT;
+import com.shaft.gui.driver.ElementRectangle;
 import com.shaft.gui.internal.aria.AriaSnapshotHelper;
 import com.shaft.gui.internal.image.ImageProcessingActions;
 import com.shaft.gui.internal.image.ScreenshotManager;
@@ -33,6 +34,10 @@ import java.util.Base64;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
+import java.math.BigDecimal;
+import java.math.BigInteger;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Supplier;
 import java.util.regex.Pattern;
 
@@ -160,6 +165,9 @@ final class PlaywrightValidationsExecutor extends ValidationsExecutor {
         if (assertion != null) {
             return runPlaywrightAssertion(assertion, actualSupplier, reportedExpected);
         }
+        if (isFocusedElementValue()) {
+            return pollFocusedElementValue(actualSupplier, reportedExpected);
+        }
         Object actual = safelyRead(actualSupplier);
         return new Outcome(compare(reportedExpected, actual), reportedExpected, actual,
                 commonParameters(reportedExpected, actual), List.of());
@@ -175,6 +183,14 @@ final class PlaywrightValidationsExecutor extends ValidationsExecutor {
             case "elementAttributeEquals", "elementDomAttributeEquals" -> elementAttributeAssertion();
             case "elementDomPropertyEquals", "elementPropertyEquals" -> elementPropertyAssertion();
             case "elementCssPropertyEquals" -> elementCssAssertion();
+            case "elementCountEquals" -> exactNativeCountExpectation()
+                    .map(count -> (Runnable) () -> locatorAssertions().hasCount(count))
+                    .orElse(null);
+            case "elementAccessibleNameEquals" -> validationType == ValidationEnums.ValidationType.POSITIVE
+                    && validationComparisonType == ValidationEnums.ValidationComparisonType.EQUALS
+                    && expectedValue instanceof String expectedName
+                    ? () -> locatorAssertions().hasAccessibleName(expectedName)
+                    : null;
             case "browserAttributeEquals" -> browserAssertion();
             default -> null;
         };
@@ -415,6 +431,10 @@ final class PlaywrightValidationsExecutor extends ValidationsExecutor {
             case "elementCssPropertyEquals" ->
                     locator.evaluate("(element, property) => getComputedStyle(element).getPropertyValue(property)",
                             elementCssProperty);
+            case "elementCountEquals" -> locator.count();
+            case "elementRectangleEquals" -> readElementRectangle();
+            case "elementAccessibleNameEquals" -> readAriaField(true);
+            case "elementRoleEquals" -> readAriaField(false);
             case "browserAttributeEquals" -> readBrowserAttribute();
             default -> null;
         };
@@ -429,6 +449,79 @@ final class PlaywrightValidationsExecutor extends ValidationsExecutor {
             return text == null ? null : text.trim();
         }
         return locator.getAttribute(elementAttribute);
+    }
+
+    private java.util.Optional<Integer> exactNativeCountExpectation() {
+        if (validationType != ValidationEnums.ValidationType.POSITIVE
+                || validationComparisonType != ValidationEnums.ValidationComparisonType.EQUALS
+                || !(expectedValue instanceof Number number)) {
+            return java.util.Optional.empty();
+        }
+        try {
+            int count = switch (number) {
+                case Byte value -> value.intValue();
+                case Short value -> value.intValue();
+                case Integer value -> value;
+                case Long value -> Math.toIntExact(value);
+                case BigInteger value -> value.intValueExact();
+                case BigDecimal value -> value.intValueExact();
+                case Float value when Float.isFinite(value) && value == Math.rint(value) -> Math.toIntExact(value.longValue());
+                case Double value when Double.isFinite(value) && value == Math.rint(value) -> Math.toIntExact(value.longValue());
+                default -> throw new ArithmeticException("Unsupported count representation.");
+            };
+            return count < 0 ? java.util.Optional.empty() : java.util.Optional.of(count);
+        } catch (ArithmeticException exception) {
+            return java.util.Optional.empty();
+        }
+    }
+
+    private boolean isFocusedElementValue() {
+        return List.of("elementCountEquals", "elementRectangleEquals", "elementAccessibleNameEquals", "elementRoleEquals")
+                .contains(validationMethod);
+    }
+
+    private Outcome pollFocusedElementValue(Supplier<Object> actualSupplier, Object reportedExpected) {
+        AtomicReference<Object> actual = new AtomicReference<>();
+        AtomicReference<RuntimeException> failure = new AtomicReference<>();
+        AtomicBoolean matched = new AtomicBoolean();
+        try {
+            locator.page().waitForCondition(() -> {
+                try {
+                    actual.set(actualSupplier.get());
+                    failure.set(null);
+                    matched.set(compare(reportedExpected, actual.get()));
+                    return matched.get();
+                } catch (RuntimeException exception) {
+                    failure.set(exception);
+                    return false;
+                }
+            });
+        } catch (RuntimeException exception) {
+            ReportManagerHelper.logDiscrete(exception);
+        }
+        if (!matched.get()) {
+            if (failure.get() != null) {
+                ReportManagerHelper.logDiscrete(failure.get());
+            }
+            return new Outcome(false, reportedExpected, null,
+                    commonParameters(reportedExpected, null), List.of());
+        }
+        Object reportedActual = actual.get();
+        return new Outcome(compare(reportedExpected, reportedActual), reportedExpected, reportedActual,
+                commonParameters(reportedExpected, reportedActual), List.of());
+    }
+
+    private ElementRectangle readElementRectangle() {
+        var box = locator.boundingBox();
+        return box == null ? null : new ElementRectangle(box.x, box.y, box.width, box.height);
+    }
+
+    private String readAriaField(boolean name) {
+        var nodes = AriaSnapshotHelper.parse(locator.ariaSnapshot());
+        if (nodes.isEmpty()) {
+            return "";
+        }
+        return name ? nodes.getFirst().name() : nodes.getFirst().role();
     }
 
     private Object readBrowserAttribute() {

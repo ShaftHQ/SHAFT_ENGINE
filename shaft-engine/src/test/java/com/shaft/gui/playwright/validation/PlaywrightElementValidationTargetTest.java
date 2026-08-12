@@ -4,19 +4,27 @@ import com.microsoft.playwright.Locator;
 import com.microsoft.playwright.Page;
 import com.microsoft.playwright.assertions.LocatorAssertions;
 import com.microsoft.playwright.assertions.PlaywrightAssertions;
+import com.microsoft.playwright.options.BoundingBox;
 import com.shaft.gui.driver.ElementAssertions;
+import com.shaft.gui.driver.ElementRectangle;
 import com.shaft.gui.driver.ElementTarget;
 import com.shaft.gui.driver.ShaftLocator;
 import com.shaft.gui.playwright.element.ElementActions;
 import com.shaft.gui.playwright.internal.PlaywrightSession;
+import com.shaft.driver.SHAFT;
 import com.shaft.validation.internal.NativeValidationsBuilder;
+import com.shaft.validation.internal.ValidationsHelper;
 import com.shaft.validation.ValidationEnums;
 import org.mockito.MockedStatic;
 import org.openqa.selenium.By;
 import org.testng.Assert;
 import org.testng.annotations.Test;
+import org.testng.annotations.AfterMethod;
 
 import java.util.concurrent.atomic.AtomicReference;
+import java.math.BigDecimal;
+import java.math.BigInteger;
+import java.util.function.BooleanSupplier;
 import java.util.function.Function;
 import java.lang.reflect.Field;
 
@@ -24,11 +32,19 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.when;
 
 @SuppressWarnings("PMD.AvoidAccessibilityAlteration")
 public class PlaywrightElementValidationTargetTest {
+    @AfterMethod(alwaysRun = true)
+    public void resetVerificationState() {
+        ValidationsHelper.resetVerificationStateAfterFailing();
+    }
+
     @Test
     public void everyPortableStarterShouldResolveAgainstThePageCurrentAtTerminalExecution() {
         assertLazyTarget(starter -> new PlaywrightDriverAssertions(starter.session()).element(starter.target()));
@@ -170,6 +186,192 @@ public class PlaywrightElementValidationTargetTest {
                 ValidationEnums.ValidationCategory.SOFT_ASSERT);
     }
 
+    @Test
+    public void everyPlaywrightStarterShouldExecuteFocusedCategories() {
+        assertFocusedStarter(starter -> new PlaywrightDriverAssertions(starter.session()).element(starter.target()));
+        assertFocusedStarter(starter -> new PlaywrightDriverVerifications(starter.session()).element(starter.target()));
+        assertFocusedStarter(starter -> new ElementActions(starter.session()).assertThat(starter.target()));
+        assertFocusedStarter(starter -> new ElementActions(starter.session()).verifyThat(starter.target()));
+    }
+
+    @Test
+    public void focusedElementCategoriesShouldUseCurrentProviderValues() {
+        PlaywrightSession session = mock(PlaywrightSession.class);
+        Page page = mock(Page.class);
+        Locator locator = mock(Locator.class);
+        LocatorAssertions locatorAssertions = mock(LocatorAssertions.class);
+        when(session.page()).thenReturn(page);
+        when(page.locator("#save")).thenReturn(locator);
+        when(locator.page()).thenReturn(page);
+        when(locator.count()).thenReturn(2);
+        when(locator.boundingBox()).thenReturn(boundingBox(1.5, 2.5, 30.5, 40.5));
+        when(locator.ariaSnapshot()).thenReturn("- button \"Save\"");
+        doAnswer(invocation -> {
+            BooleanSupplier condition = invocation.getArgument(0);
+            condition.getAsBoolean();
+            return null;
+        }).when(page).waitForCondition(any(BooleanSupplier.class));
+        ElementAssertions assertions = new PlaywrightDriverAssertions(session)
+                .element(ElementTarget.located(ShaftLocator.css("#save")));
+
+        try (MockedStatic<PlaywrightAssertions> playwrightAssertions = mockStatic(PlaywrightAssertions.class)) {
+            playwrightAssertions.when(() -> PlaywrightAssertions.assertThat(locator)).thenReturn(locatorAssertions);
+            assertions.elementCount().isEqualTo(2);
+            assertions.elementRectangle().isEqualTo(new ElementRectangle(1.5, 2.5, 30.5, 40.5));
+            assertions.elementAccessibleName().isEqualTo("Save");
+            assertions.elementRole().isEqualTo("button");
+        }
+
+        verify(locatorAssertions).hasCount(2);
+        verify(locatorAssertions).hasAccessibleName("Save");
+        verify(locator).boundingBox();
+        verify(locator, times(2)).ariaSnapshot();
+    }
+
+    @Test
+    public void focusedCategoriesShouldNotCoerceUnsupportedComparisonsIntoNativeEquality() {
+        PlaywrightSession session = mock(PlaywrightSession.class);
+        Page page = mock(Page.class);
+        Locator locator = mock(Locator.class);
+        LocatorAssertions locatorAssertions = mock(LocatorAssertions.class);
+        when(session.page()).thenReturn(page);
+        when(page.locator("#save")).thenReturn(locator);
+        when(locator.page()).thenReturn(page);
+        when(locator.count()).thenReturn(2);
+        when(locator.ariaSnapshot()).thenReturn("- button \"Save\"");
+        when(locatorAssertions.not()).thenReturn(locatorAssertions);
+        doAnswer(invocation -> {
+            BooleanSupplier condition = invocation.getArgument(0);
+            condition.getAsBoolean();
+            return null;
+        }).when(page).waitForCondition(any(BooleanSupplier.class));
+        ElementAssertions assertions = new PlaywrightDriverAssertions(session)
+                .element(ElementTarget.located(ShaftLocator.css("#save")));
+
+        try (MockedStatic<PlaywrightAssertions> playwrightAssertions = mockStatic(PlaywrightAssertions.class)) {
+            playwrightAssertions.when(() -> PlaywrightAssertions.assertThat(locator)).thenReturn(locatorAssertions);
+            Assert.expectThrows(AssertionError.class, () -> assertions.elementCount().isEqualTo(2.9));
+            Assert.expectThrows(AssertionError.class, () -> assertions.elementCount().isEqualTo(Long.MAX_VALUE));
+            Assert.expectThrows(AssertionError.class, () -> assertions.elementCount().doesNotEqual(2));
+            assertions.elementCount().doesNotEqual(3);
+            assertions.elementAccessibleName().contains("ave");
+            assertions.elementAccessibleName().matchesRegex("S.*e");
+            assertions.elementAccessibleName().equalsIgnoringCaseSensitivity("save");
+            Assert.expectThrows(AssertionError.class,
+                    () -> assertions.elementAccessibleName().doesNotEqual("Save"));
+            assertions.elementAccessibleName().doesNotEqual("Cancel");
+        }
+
+        verify(locatorAssertions, never()).hasCount(2);
+        verify(locatorAssertions, never()).hasCount(-1);
+        verify(locatorAssertions, never()).hasAccessibleName("ave");
+        verify(locatorAssertions, never()).hasAccessibleName("S.*e");
+        verify(locatorAssertions, never()).hasAccessibleName("save");
+    }
+
+    @Test
+    public void nativeCountShouldAcceptEveryExactlyRepresentableNumberType() {
+        PlaywrightSession session = mock(PlaywrightSession.class);
+        Page page = mock(Page.class);
+        Locator locator = mock(Locator.class);
+        LocatorAssertions locatorAssertions = mock(LocatorAssertions.class);
+        when(session.page()).thenReturn(page);
+        when(page.locator("#save")).thenReturn(locator);
+        when(locator.count()).thenReturn(2);
+        ElementAssertions assertions = new PlaywrightDriverAssertions(session)
+                .element(ElementTarget.located(ShaftLocator.css("#save")));
+
+        try (MockedStatic<PlaywrightAssertions> playwrightAssertions = mockStatic(PlaywrightAssertions.class)) {
+            playwrightAssertions.when(() -> PlaywrightAssertions.assertThat(locator)).thenReturn(locatorAssertions);
+            for (Number expected : java.util.List.of((byte) 2, (short) 2, 2, 2L,
+                    BigInteger.TWO, BigDecimal.valueOf(2), 2F, 2D)) {
+                assertions.elementCount().isEqualTo(expected);
+            }
+        }
+
+        verify(locatorAssertions, times(8)).hasCount(2);
+    }
+
+    @Test
+    public void focusedFallbackValuesShouldRetryUntilTheComparisonMatches() {
+        PlaywrightSession session = mock(PlaywrightSession.class);
+        Page page = mock(Page.class);
+        Locator locator = mock(Locator.class);
+        when(session.page()).thenReturn(page);
+        when(page.locator("#save")).thenReturn(locator);
+        when(locator.page()).thenReturn(page);
+        when(locator.boundingBox()).thenReturn(null, boundingBox(1, 2, 3, 4));
+        when(locator.ariaSnapshot()).thenReturn("- link \"Save\"", "- button \"Save\"");
+        doAnswer(invocation -> {
+            BooleanSupplier condition = invocation.getArgument(0);
+            Assert.assertFalse(condition.getAsBoolean());
+            Assert.assertTrue(condition.getAsBoolean());
+            return null;
+        }).when(page).waitForCondition(any(BooleanSupplier.class));
+        ElementAssertions assertions = new PlaywrightDriverAssertions(session)
+                .element(ElementTarget.located(ShaftLocator.css("#save")));
+
+        assertions.elementRectangle().isEqualTo(new ElementRectangle(1, 2, 3, 4));
+        assertions.elementRole().isEqualTo("button");
+
+        verify(locator, times(2)).boundingBox();
+        verify(locator, times(2)).ariaSnapshot();
+        verify(page, times(2)).waitForCondition(any(BooleanSupplier.class));
+    }
+
+    @Test
+    public void focusedFallbackShouldNeverCompareProviderExceptionMessagesAsValues() {
+        SHAFT.Properties.visuals.set().screenshotParamsWhenToTakeAScreenshot("Never");
+        SHAFT.Properties.visuals.set().whenToTakePageSourceSnapshot("Never");
+        PlaywrightSession session = mock(PlaywrightSession.class);
+        Locator locator = mock(Locator.class);
+        Page locatorPage = mock(Page.class);
+        when(locator.page()).thenReturn(locatorPage);
+        when(locator.ariaSnapshot()).thenThrow(new IllegalStateException("button"));
+        doAnswer(invocation -> {
+            BooleanSupplier condition = invocation.getArgument(0);
+            condition.getAsBoolean();
+            throw new IllegalStateException("poll ended");
+        }).when(locatorPage).waitForCondition(any(BooleanSupplier.class));
+        ElementAssertions assertions = new PlaywrightDriverAssertions(session).element(locator);
+
+        Assert.expectThrows(AssertionError.class, () -> assertions.elementRole().isEqualTo("button"));
+
+        verify(locatorPage).waitForCondition(any(BooleanSupplier.class));
+    }
+
+    @Test
+    public void focusedFallbackWithoutAnObservationShouldFailEvenWhenExpectedIsNull() {
+        PlaywrightSession session = mock(PlaywrightSession.class);
+        Locator locator = mock(Locator.class);
+        Page locatorPage = mock(Page.class);
+        when(locator.page()).thenReturn(locatorPage);
+        doThrow(new IllegalStateException("closed")).when(locatorPage)
+                .waitForCondition(any(BooleanSupplier.class));
+
+        Assert.expectThrows(AssertionError.class,
+                () -> new PlaywrightDriverAssertions(session).element(locator).elementRole().isEqualTo(null));
+    }
+
+    @Test
+    public void focusedCategoryFailureShouldThrowOnlyForHardStarters() {
+        PlaywrightSession session = mock(PlaywrightSession.class);
+        Locator locator = mock(Locator.class);
+        LocatorAssertions locatorAssertions = mock(LocatorAssertions.class);
+        try (MockedStatic<PlaywrightAssertions> playwrightAssertions = mockStatic(PlaywrightAssertions.class)) {
+            playwrightAssertions.when(() -> PlaywrightAssertions.assertThat(locator)).thenReturn(locatorAssertions);
+            doThrow(new AssertionError("wrong count")).when(locatorAssertions).hasCount(2);
+
+            Assert.expectThrows(AssertionError.class,
+                    () -> new PlaywrightDriverAssertions(session).element(locator).elementCount().isEqualTo(2));
+            Assert.assertNull(ValidationsHelper.getVerificationErrorToForceFail());
+
+            new PlaywrightDriverVerifications(session).element(locator).elementCount().isEqualTo(2);
+            Assert.assertNotNull(ValidationsHelper.getVerificationErrorToForceFail());
+            ValidationsHelper.resetVerificationStateAfterFailing();
+        }
+    }
+
     private static void assertLazyTarget(Function<Starter, ElementAssertions> createAssertions) {
         PlaywrightSession session = mock(PlaywrightSession.class);
         Page initialPage = mock(Page.class);
@@ -201,6 +403,24 @@ public class PlaywrightElementValidationTargetTest {
         verify(currentPage).locator("#save");
         verify(currentPage, never()).locator("[id=\"save\"]");
         verify(locatorAssertions).isAttached();
+    }
+
+    private static void assertFocusedStarter(Function<Starter, ElementAssertions> createAssertions) {
+        PlaywrightSession session = mock(PlaywrightSession.class);
+        Page page = mock(Page.class);
+        Locator locator = mock(Locator.class);
+        LocatorAssertions locatorAssertions = mock(LocatorAssertions.class);
+        when(session.page()).thenReturn(page);
+        when(page.locator("#save")).thenReturn(locator);
+        when(locator.count()).thenReturn(1);
+        ElementTarget target = ElementTarget.located(ShaftLocator.css("#save"));
+
+        try (MockedStatic<PlaywrightAssertions> playwrightAssertions = mockStatic(PlaywrightAssertions.class)) {
+            playwrightAssertions.when(() -> PlaywrightAssertions.assertThat(locator)).thenReturn(locatorAssertions);
+            createAssertions.apply(new Starter(session, target)).elementCount().isEqualTo(1);
+        }
+
+        verify(locatorAssertions).hasCount(1);
     }
 
     private static void assertLazyExistingStarter(String expectedSelector,
@@ -263,6 +483,15 @@ public class PlaywrightElementValidationTargetTest {
     }
 
     private record NativeStarter(PlaywrightSession session, Locator locator) {
+    }
+
+    private static BoundingBox boundingBox(double x, double y, double width, double height) {
+        BoundingBox box = new BoundingBox();
+        box.x = x;
+        box.y = y;
+        box.width = width;
+        box.height = height;
+        return box;
     }
 
     private static Object category(ElementAssertions assertions) throws Exception {

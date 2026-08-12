@@ -6,6 +6,7 @@ import com.shaft.gui.browser.internal.BrowserActionsHelper;
 import com.shaft.gui.browser.internal.JavaScriptWaitManager;
 import com.shaft.gui.internal.image.ImageProcessingActions;
 import com.shaft.gui.internal.image.ScreenshotManager;
+import com.shaft.gui.driver.ElementRectangle;
 import com.shaft.properties.internal.Properties;
 import com.shaft.tools.io.internal.FlakeProfiler;
 import com.shaft.tools.io.internal.ReportManagerHelper;
@@ -19,6 +20,9 @@ import org.openqa.selenium.By;
 import org.openqa.selenium.JavascriptExecutor;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.WebElement;
+import org.openqa.selenium.Rectangle;
+import org.openqa.selenium.TakesScreenshot;
+import org.openqa.selenium.OutputType;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.Test;
@@ -31,6 +35,8 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.atLeast;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 public class ValidationsHelperNewPatternCoverageUnitTest {
@@ -50,6 +56,47 @@ public class ValidationsHelperNewPatternCoverageUnitTest {
         hardAssertHelper.validateNumber(10, 10, ValidationEnums.NumbersComparativeRelation.EQUALS,
                 ValidationEnums.ValidationType.POSITIVE);
 
+    }
+
+    @Test(description = "Focused WebDriver categories should retain bounded retry and hard/soft execution")
+    public void focusedWebDriverCategoriesShouldRetryAndExecuteHardAndSoft() {
+        By locator = By.id("eventual");
+        WebDriver driver = mock(WebDriver.class, Mockito.withSettings().extraInterfaces(TakesScreenshot.class));
+        WebElement element = mock(WebElement.class);
+        SHAFT.Properties.reporting.set().captureElementName(false);
+        SHAFT.Properties.flags.set().forceCheckElementLocatorIsUnique(false);
+        SHAFT.Properties.visuals.set().createAnimatedGif(false);
+        SHAFT.Properties.visuals.set().screenshotParamsWhenToTakeAScreenshot("Never");
+        SHAFT.Properties.visuals.set().whenToTakePageSourceSnapshot("Never");
+        when(driver.findElements(locator)).thenReturn(List.of(), List.of(element));
+        when(((TakesScreenshot) driver).getScreenshotAs(OutputType.BYTES)).thenReturn(new byte[]{1});
+
+        new WebDriverElementValidationsBuilder(ValidationEnums.ValidationCategory.HARD_ASSERT, driver, locator,
+                new StringBuilder()).elementCount().isEqualTo(1);
+        new WebDriverElementValidationsBuilder(ValidationEnums.ValidationCategory.SOFT_ASSERT, driver, locator,
+                new StringBuilder()).elementCount().isEqualTo(1);
+
+        verify(driver, atLeast(3)).findElements(locator);
+
+        when(driver.findElements(locator)).thenReturn(List.of());
+        SHAFT.Properties.timeouts.set().defaultElementIdentificationTimeout(0.01);
+        try (MockedConstruction<ScreenshotManager> ignored = Mockito.mockConstruction(ScreenshotManager.class,
+                (mock, context) -> when(mock.takeScreenshot(any(), any(), anyString(), any(Boolean.class)))
+                        .thenReturn(List.of()))) {
+            boolean hardFailed = false;
+            try {
+                new WebDriverElementValidationsBuilder(ValidationEnums.ValidationCategory.HARD_ASSERT,
+                        driver, locator, new StringBuilder()).elementCount().isEqualTo(1);
+            } catch (RuntimeException | AssertionError expected) {
+                hardFailed = true;
+            }
+            Assert.assertTrue(hardFailed, "A hard focused validation must fail immediately.");
+            Assert.assertNull(ValidationsHelper.getVerificationErrorToForceFail());
+            new WebDriverElementValidationsBuilder(ValidationEnums.ValidationCategory.SOFT_ASSERT,
+                    driver, locator, new StringBuilder()).elementCount().isEqualTo(1);
+            Assert.assertNotNull(ValidationsHelper.getVerificationErrorToForceFail());
+            ValidationsHelper.resetVerificationStateAfterFailing();
+        }
     }
 
     @Test(description = "Covers browser/element validation branches with mocked dependencies")
@@ -73,6 +120,9 @@ public class ValidationsHelperNewPatternCoverageUnitTest {
         when(element.getDomAttribute("data-id")).thenReturn("domAttrValue");
         when(element.getDomProperty("value")).thenReturn("domPropValue");
         when(element.getCssValue("color")).thenReturn("cssValue");
+        when(element.getRect()).thenReturn(new Rectangle(1, 2, 30, 40));
+        when(element.getAccessibleName()).thenReturn("Save");
+        when(element.getAriaRole()).thenReturn("button");
         when(element.getTagName()).thenReturn("select");
         when(element.findElements(any(By.class))).thenReturn(List.of(option));
         when(option.isSelected()).thenReturn(true);
@@ -153,6 +203,14 @@ public class ValidationsHelperNewPatternCoverageUnitTest {
             helper.validateElementCSSProperty(driver, locator, "color", "cssValue",
                     ValidationEnums.ValidationComparisonType.EQUALS, ValidationEnums.ValidationType.POSITIVE);
             helper.validateElementExists(driver, locator, ValidationEnums.ValidationType.POSITIVE);
+            new WebDriverElementValidationsBuilder(ValidationEnums.ValidationCategory.HARD_ASSERT, driver, locator,
+                    new StringBuilder()).elementCount().isEqualTo(1);
+            new WebDriverElementValidationsBuilder(ValidationEnums.ValidationCategory.HARD_ASSERT, driver, locator,
+                    new StringBuilder()).elementRectangle().isEqualTo(new ElementRectangle(1, 2, 40, 30));
+            new WebDriverElementValidationsBuilder(ValidationEnums.ValidationCategory.HARD_ASSERT, driver, locator,
+                    new StringBuilder()).elementAccessibleName().isEqualTo("Save");
+            new WebDriverElementValidationsBuilder(ValidationEnums.ValidationCategory.HARD_ASSERT, driver, locator,
+                    new StringBuilder()).elementRole().isEqualTo("button");
             helper.validateElementMatches(driver, locator, ValidationEnums.VisualValidationEngine.EXACT_OPENCV,
                     ValidationEnums.ValidationType.POSITIVE);
         }

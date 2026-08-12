@@ -4,6 +4,7 @@ import com.shaft.api.RestActions;
 import com.shaft.cli.FileActions;
 import com.shaft.cli.TerminalActions;
 import com.shaft.gui.browser.internal.JavaScriptWaitManager;
+import com.shaft.gui.driver.ElementRectangle;
 import com.shaft.tools.io.PdfFileManager;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.io.internal.FlakeProfiler;
@@ -216,6 +217,22 @@ public class ValidationsExecutor {
                     validationsHelper.validateElementDomProperty(driver.get(), locator, elementAttribute, String.valueOf(expectedValue), validationComparisonType, validationType);
             case "elementCssPropertyEquals" ->
                     validationsHelper.validateElementCSSProperty(driver.get(), locator, elementCssProperty, String.valueOf(expectedValue), validationComparisonType, validationType);
+            case "elementCountEquals" ->
+                    validationsHelper.validateElementValue(driver.get(), locator, "match count",
+                            () -> driver.get().findElements(locator).size(), expectedValue, validationComparisonType, validationType);
+            case "elementRectangleEquals" ->
+                    validationsHelper.validateElementValue(driver.get(), locator, "rectangle", () -> {
+                        var rectangle = driver.get().findElement(locator).getRect();
+                        return new ElementRectangle(rectangle.x, rectangle.y, rectangle.width, rectangle.height);
+                    }, expectedValue, validationComparisonType, validationType);
+            case "elementAccessibleNameEquals" ->
+                    validationsHelper.validateElementValue(driver.get(), locator, "accessible name",
+                            () -> driver.get().findElement(locator).getAccessibleName(), expectedValue,
+                            validationComparisonType, validationType);
+            case "elementRoleEquals" ->
+                    validationsHelper.validateElementValue(driver.get(), locator, "accessibility role",
+                            () -> driver.get().findElement(locator).getAriaRole(), expectedValue,
+                            validationComparisonType, validationType);
             case "browserAttributeEquals" ->
                     validationsHelper.validateBrowserAttribute(driver.get(), browserAttribute, String.valueOf(expectedValue), validationComparisonType, validationType);
             case "comparativeRelationBetweenNumbers" ->

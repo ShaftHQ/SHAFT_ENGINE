@@ -37,6 +37,44 @@ public class GuiValidationContractTest {
     }
 
     @Test
+    public void elementRectangleShouldBeAPublicImmutableBackendNeutralValue() throws Exception {
+        Class<?> rectangle = Class.forName("com.shaft.gui.driver.ElementRectangle");
+        Assert.assertTrue(rectangle.isRecord());
+        Assert.assertTrue(Modifier.isPublic(rectangle.getModifiers()));
+        Assert.assertEquals(List.of(rectangle.getRecordComponents()).stream().map(component -> component.getName()).toList(),
+                List.of("x", "y", "width", "height"));
+        for (var component : rectangle.getRecordComponents()) {
+            Assert.assertEquals(component.getType(), double.class);
+        }
+        var constructor = rectangle.getConstructor(double.class, double.class, double.class, double.class);
+        Object value = constructor.newInstance(1.5, 2.5, 3.5, 4.5);
+        Assert.assertEquals(rectangle.getMethod("x").invoke(value), 1.5d);
+        Assert.assertEquals(rectangle.getMethod("y").invoke(value), 2.5d);
+        Assert.assertEquals(rectangle.getMethod("width").invoke(value), 3.5d);
+        Assert.assertEquals(rectangle.getMethod("height").invoke(value), 4.5d);
+        Object boundaryValue = constructor.newInstance(-1.5, -2.5, 0, 0);
+        Assert.assertEquals(rectangle.getMethod("x").invoke(boundaryValue), -1.5d);
+        Assert.assertEquals(rectangle.getMethod("y").invoke(boundaryValue), -2.5d);
+        Assert.assertEquals(rectangle.getMethod("width").invoke(boundaryValue), 0d);
+        Assert.assertEquals(rectangle.getMethod("height").invoke(boundaryValue), 0d);
+        for (double[] invalid : List.of(
+                new double[]{Double.NaN, 0, 1, 1},
+                new double[]{Double.NEGATIVE_INFINITY, 0, 1, 1},
+                new double[]{0, Double.POSITIVE_INFINITY, 1, 1},
+                new double[]{0, Double.NaN, 1, 1},
+                new double[]{0, 0, Double.NaN, 1},
+                new double[]{0, 0, Double.POSITIVE_INFINITY, 1},
+                new double[]{0, 0, 1, Double.NaN},
+                new double[]{0, 0, 1, Double.NEGATIVE_INFINITY},
+                new double[]{0, 0, -1, 1},
+                new double[]{0, 0, 1, -1})) {
+            InvocationTargetException thrown = Assert.expectThrows(InvocationTargetException.class,
+                    () -> constructor.newInstance(invalid[0], invalid[1], invalid[2], invalid[3]));
+            Assert.assertTrue(thrown.getCause() instanceof IllegalArgumentException);
+        }
+    }
+
+    @Test
     public void elementTargetOverloadsShouldBeCompatibilityDefaults() {
         assertDefaultMethod(DriverAssertions.class, "element", ElementTarget.class);
         assertDefaultMethod(DriverVerifications.class, "element", ElementTarget.class);

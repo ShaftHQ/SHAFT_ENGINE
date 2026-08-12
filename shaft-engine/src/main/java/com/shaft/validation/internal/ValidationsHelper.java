@@ -48,6 +48,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Supplier;
 
 import static io.restassured.module.jsv.JsonSchemaValidator.matchesJsonSchema;
 
@@ -392,6 +393,31 @@ public class ValidationsHelper {
         //end of reporting block
         boolean validationState = performValidation(expected, actual, comparisonType, validationType);
         reportValidationState(validationState, expected, actual, null, null, null);
+    }
+
+    protected void validateElementValue(WebDriver driver, By locator, String property, Supplier<Object> reader,
+                                        Object expected, ValidationEnums.ValidationComparisonType comparisonType,
+                                        ValidationEnums.ValidationType validationType) {
+        AtomicReference<Object> actual = new AtomicReference<>();
+        AtomicReference<Boolean> validationState = new AtomicReference<>(false);
+        try {
+            new SynchronizationManager(driver).fluentWait(false).until(ignored -> {
+                actual.set(reader.get());
+                validationState.set(performValidation(expected, actual.get(), comparisonType, validationType));
+                return validationState.get();
+            });
+        } catch (TimeoutException ignored) {
+            // Report the last observed value after the configured bounded wait expires.
+        }
+        String comparison = validationType == ValidationEnums.ValidationType.NEGATIVE
+                ? "not " + comparisonType.name()
+                : comparisonType.name();
+        var parameters = new LinkedHashMap<String, String>();
+        parameters.put("Locator", String.valueOf(locator));
+        parameters.put("Element value", property);
+        parameters.putAll(setCommonParameters(expected, actual, comparison));
+        updateAllureParameters(parameters);
+        reportValidationState(validationState.get(), expected, actual, driver, locator, null);
     }
 
     protected void validateJsonEqualsIgnoringOrder(Object expected, Object actual,
