@@ -283,7 +283,7 @@ class ShaftKnowledgeRefreshTest(TestCase):
         for value in (
             "git clone", "shaft.maintenanceOwner", ".shaft-nightly-maintenance.json",
             "SHAFT-Nightly-Knowledge-Refresh", "-AllowStartIfOnBatteries",
-            "-StartWhenAvailable", "Unregister-ScheduledTask -TaskName 'graphify-refresh'",
+            "-StartWhenAvailable", "$legacyTasks[0] | Unregister-ScheduledTask",
             "--validate-only",
             "-c shaft.maintenanceOwner=",
             "Recovering installer-owned clone",
@@ -339,6 +339,12 @@ class ShaftKnowledgeRefreshTest(TestCase):
                         install_function.index("[IO.Directory]::Move($staging, $final)"))
         self.assertLess(acl, controller_bundle)
         self.assertLess(register, legacy_remove)
+        self.assertIn("$legacyTasks = @(Get-ScheduledTask -ErrorAction Stop", installer)
+        self.assertIn("$legacyTasks.Count -gt 1", installer)
+        self.assertIn(
+            "$legacyTasks[0] | Unregister-ScheduledTask -Confirm:$false -ErrorAction Stop",
+            installer,
+        )
         lock = installer.index("Invoke-WithInstallerLock $homePath {")
         logs = installer.index("New-Item -ItemType Directory -Force $logs")
         self.assertLess(lock, logs)

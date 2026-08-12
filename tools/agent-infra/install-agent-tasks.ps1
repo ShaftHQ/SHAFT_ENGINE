@@ -390,6 +390,12 @@ $trigger = New-ScheduledTaskTrigger -Daily -At '05:00'
 $settings = New-ScheduledTaskSettingsSet -StartWhenAvailable -RunOnlyIfNetworkAvailable -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -MultipleInstances IgnoreNew -ExecutionTimeLimit (New-TimeSpan -Hours 3) -RestartCount 3 -RestartInterval (New-TimeSpan -Minutes 15)
 $principal = New-ScheduledTaskPrincipal -UserId ([Security.Principal.WindowsIdentity]::GetCurrent().Name) -LogonType Interactive -RunLevel Limited
 Register-ScheduledTask -TaskName $taskName -Action $action -Trigger $trigger -Settings $settings -Principal $principal -Description 'Refresh SHAFT Graphify and MemPalace from verified origin/main when Mohab is logged in.' -Force | Out-Null
-if (Get-ScheduledTask -TaskName 'graphify-refresh' -ErrorAction SilentlyContinue) { Unregister-ScheduledTask -TaskName 'graphify-refresh' -Confirm:$false }
+$legacyTasks = @(Get-ScheduledTask -ErrorAction Stop | Where-Object {
+    $_.TaskName -eq 'graphify-refresh' -and $_.TaskPath -eq '\'
+})
+if ($legacyTasks.Count -gt 1) { throw 'Multiple root legacy graphify-refresh tasks were returned.' }
+if ($legacyTasks.Count -eq 1) {
+    $legacyTasks[0] | Unregister-ScheduledTask -Confirm:$false -ErrorAction Stop
+}
 Write-Output "Registered $taskName using versioned protected controller $installedController."
 }
