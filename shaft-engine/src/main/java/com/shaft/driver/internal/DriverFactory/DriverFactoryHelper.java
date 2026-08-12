@@ -11,6 +11,7 @@ import com.shaft.gui.browser.internal.BidiPermissionState;
 import com.shaft.gui.mobile.internal.MobileLogSource;
 import com.shaft.gui.mobile.internal.MobilePerformanceState;
 import com.shaft.gui.mobile.internal.MobileRecordingState;
+import com.shaft.gui.mobile.internal.MobileEvidenceState;
 import com.shaft.gui.browser.internal.BrowserEmulationManager;
 import com.shaft.gui.browser.internal.BrowserNetworkInterceptionRule;
 import com.shaft.gui.browser.internal.BrowserNetworkInterceptor;
@@ -877,6 +878,7 @@ public class DriverFactoryHelper {
     @Step("Close Driver Session")
     public void closeDriver(WebDriver driver) {
         if (driver != null) {
+            MobileEvidenceState.closeAndRemove(driver);
             if (SHAFT.Properties.visuals.videoParamsScope().equals("DriverSession")) {
                 RecordManager.attachVideoRecording();
             }
