@@ -174,6 +174,35 @@ class CliGatePackagingContractTest(unittest.TestCase):
         )
 
 
+class PathFilterComparisonContractTest(unittest.TestCase):
+    """#4743: keep event-native path comparisons free of ignored inputs."""
+
+    WORKFLOW = Path(__file__).resolve().parents[2] / ".github/workflows/pr-gate.yml"
+
+    def test_filter_uses_event_native_base_with_a_non_empty_token(self):
+        workflow = yaml.safe_load(self.WORKFLOW.read_text(encoding="utf-8"))
+        steps = workflow["jobs"]["changes"]["steps"]
+        filter_steps = [step for step in steps if step.get("id") == "filter"]
+        self.assertEqual(
+            len(filter_steps),
+            1,
+            "jobs.changes must have exactly one path-filter owner with id=filter",
+        )
+
+        inputs = filter_steps[0]["with"]
+        self.assertNotIn(
+            "base",
+            inputs,
+            "pull-request API comparison ignores base when the token is non-empty",
+        )
+        token = inputs.get("token", "${{ github.token }}")
+        self.assertIsInstance(token, str)
+        self.assertTrue(
+            token.strip(),
+            "an empty token switches pull requests from the API to git diff",
+        )
+
+
 class MobileRecordingAcceptanceWorkflowContractTest(unittest.TestCase):
     WORKFLOW = Path(__file__).resolve().parents[2] / ".github/workflows/e2eTests.yml"
     ANDROID_TEST = (
