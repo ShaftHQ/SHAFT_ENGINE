@@ -1,0 +1,35 @@
+{
+  "schemaVersion": "1.0",
+  "name": "Microsoft Playwright Trace Viewer",
+  "version": "1.62.0",
+  "tag": "v1.62.0",
+  "commit": "e3950d9c140d007bd52853b45813c6274b24e36f",
+  "repository": "https://github.com/microsoft/playwright",
+  "sourcePath": "packages/trace-viewer",
+  "license": "Apache-2.0",
+  "licenseUrl": "https://github.com/microsoft/playwright/blob/v1.62.0/LICENSE",
+  "licenseResource": "META-INF/shaft/licenses/playwright-1.62.0-LICENSE.txt",
+  "noticeResource": "META-INF/shaft/licenses/playwright-1.62.0-NOTICE.txt",
+  "intendedIntegrationBoundary": [
+    "packages/trace-viewer",
+    "packages/isomorphic/trace"
+  ],
+  "bundledUpstreamMaterial": [],
+  "requiredDriverAssets": [
+    {
+      "path": "driver/package/lib/vite/traceViewer/index.html",
+      "size": 2363,
+      "sha256": "e2218af9284b6e1c2ec3b547320857778a323fd1473d90620153e967223c5721"
+    },
+    {
+      "path": "driver/package/lib/vite/traceViewer/snapshot.html",
+      "size": 389,
+      "sha256": "c608c8899c95c5a74d3f556e20146c3d852b9df85ae2854c659a7cc773c9b727"
+    },
+    {
+      "path": "driver/package/lib/vite/traceViewer/sw.bundle.js",
+      "size": 93459,
+      "sha256": "cfd6662a71914516efe90a5a6f3da2bbe5db6e442939b868ca465f765d33723f"
+    }
+  ]
+}
