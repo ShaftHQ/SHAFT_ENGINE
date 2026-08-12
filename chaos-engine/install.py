@@ -9,6 +9,7 @@ import hashlib
 import json
 import os
 import re
+import runpy
 import secrets
 import shutil
 import sys
@@ -815,13 +816,7 @@ def preflight_uninstall(project: Path) -> None:
 
 def load_installed_controller(installed_root: Path, name: str):
     path = installed_root / f"{name}.py"
-    module = types.ModuleType(f"chaos_engine_installed_{name}")
-    module.__file__ = str(path)
-    source = path.read_text(encoding="utf-8")
-    exec(  # nosec B102 - executes only a manifest-verified installed controller.
-        compile(source, str(path), "exec"), module.__dict__
-    )
-    return module
+    return types.SimpleNamespace(**runpy.run_path(str(path)))
 
 
 def load_source_controller(name: str):

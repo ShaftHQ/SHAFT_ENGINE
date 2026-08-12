@@ -7,6 +7,7 @@ import argparse
 import json
 import os
 import re
+import runpy
 import shutil
 import sys
 import tempfile
@@ -138,12 +139,7 @@ def extract_source(archive: bytes, destination: Path) -> Path:
 
 def load_installer(source: Path):
     path = source / "install.py"
-    module = types.ModuleType("chaos_engine_installer")
-    module.__file__ = str(path)
-    exec(  # nosec B102 - executes the verified installer from the resolved archive.
-        compile(path.read_bytes(), str(path), "exec"), module.__dict__
-    )
-    return module
+    return types.SimpleNamespace(**runpy.run_path(str(path)))
 
 
 def install_latest(
