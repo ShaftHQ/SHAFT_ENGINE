@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import importlib.util
 import json
-import subprocess
+import subprocess  # nosec B404 - tests spawn fixed interpreters for lock fixtures.
 import sys
 import tempfile
 import threading
@@ -19,7 +19,8 @@ LEARNING = ROOT / "chaos-engine/learning.py"
 
 def load():
     specification = importlib.util.spec_from_file_location("chaos_engine_learning", LEARNING)
-    assert specification and specification.loader
+    if specification is None or specification.loader is None:
+        raise RuntimeError("learning controller test module could not be loaded")
     module = importlib.util.module_from_spec(specification)
     specification.loader.exec_module(module)
     return module
@@ -252,7 +253,7 @@ class ChaosEngineLearningTest(unittest.TestCase):
                     "m.queue_learning(__import__('pathlib').Path(sys.argv[2]),json.loads(sys.argv[3]),'example/chaos-engine')"
                 )
                 processes.append(
-                    subprocess.Popen(
+                    subprocess.Popen(  # nosec B603 - fixed interpreter and controlled fixture.
                         [sys.executable, "-c", code, str(LEARNING), str(state), json.dumps(candidate)],
                         stdout=subprocess.PIPE,
                         stderr=subprocess.PIPE,

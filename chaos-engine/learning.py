@@ -9,7 +9,7 @@ import hashlib
 import json
 import os
 import re
-import subprocess
+import subprocess  # nosec B404 - fixed list-form GitHub CLI calls, never a shell.
 import sys
 import tempfile
 import threading
@@ -237,7 +237,8 @@ def queue_learning(state: Path, candidate: dict[str, object], upstream: str) -> 
     with learning_lock(state):
         document = queue_document(state)
         items = document["items"]
-        assert isinstance(items, list)
+        if not isinstance(items, list):
+            raise ValueError("ChaosEngine learning queue is invalid")
         for item in items:
             if isinstance(item, dict) and item.get("id") == learning_id:
                 return item
@@ -277,7 +278,8 @@ def submit_learning(state: Path, learning_id: str, *, confirmed: bool, runner=su
 def _submit_learning_locked(state: Path, learning_id: str, *, runner=subprocess.run) -> dict[str, object]:
     document = queue_document(state)
     items = document["items"]
-    assert isinstance(items, list)
+    if not isinstance(items, list):
+        raise ValueError("ChaosEngine learning queue is invalid")
     item = next(
         (value for value in items if isinstance(value, dict) and value.get("id") == learning_id),
         None,

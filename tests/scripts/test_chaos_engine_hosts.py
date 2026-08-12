@@ -19,7 +19,8 @@ TOOL = ROOT / "chaos-engine/tool.py"
 
 def load(path: Path, name: str):
     specification = importlib.util.spec_from_file_location(name, path)
-    assert specification and specification.loader
+    if specification is None or specification.loader is None:
+        raise RuntimeError("host controller test module could not be loaded")
     module = importlib.util.module_from_spec(specification)
     specification.loader.exec_module(module)
     return module

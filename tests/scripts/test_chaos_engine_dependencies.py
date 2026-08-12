@@ -20,7 +20,8 @@ SPECIFICATION = ROOT / "chaos-engine/dependencies.json"
 
 def load_controller():
     spec = importlib.util.spec_from_file_location("chaos_engine_dependencies", CONTROLLER)
-    assert spec and spec.loader
+    if spec is None or spec.loader is None:
+        raise RuntimeError("dependency controller test module could not be loaded")
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module

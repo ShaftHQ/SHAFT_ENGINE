@@ -6,7 +6,7 @@ import hashlib
 import importlib.util
 import json
 import shutil
-import subprocess
+import subprocess  # nosec B404 - tests run the fixed local installer only.
 import sys
 import tempfile
 import unittest
@@ -22,14 +22,16 @@ SOURCE = ROOT / "chaos-engine"
 TEST_COMMIT = "1" * 40
 
 SPEC = importlib.util.spec_from_file_location("chaos_engine_installer", INSTALLER)
-assert SPEC and SPEC.loader
+if SPEC is None or SPEC.loader is None:
+    raise RuntimeError("installer test module could not be loaded")
 MODULE = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(MODULE)
 
 
 def load_module(path: Path):
     spec = importlib.util.spec_from_file_location("chaos_engine_test_dependency", path)
-    assert spec and spec.loader
+    if spec is None or spec.loader is None:
+        raise RuntimeError("installed controller test module could not be loaded")
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module
@@ -71,7 +73,7 @@ class ChaosEngineInstallerTest(unittest.TestCase):
             project = Path(temporary) / "consumer project"
             project.mkdir()
 
-            completed = subprocess.run(
+            completed = subprocess.run(  # nosec B603 - fixed interpreter and repository installer.
                 [
                     sys.executable,
                     str(INSTALLER),
@@ -411,6 +413,26 @@ class ChaosEngineInstallerTest(unittest.TestCase):
 
             with self.assertRaisesRegex(ValueError, "not authenticated"):
                 MODULE.rollback(project, provisioner=lambda *_args, **_kwargs: None)
+
+    def test_cross_rollback_recovery_never_executes_a_drifted_controller(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary) / "consumer"
+            project.mkdir()
+            MODULE.install_with_dependencies(
+                project, SOURCE, TEST_COMMIT, provisioner=lambda *_args, **_kwargs: None
+            )
+            MODULE.write_cross_rollback_journal(project, TEST_COMMIT, "2" * 40)
+            marker = project / "controller-executed.txt"
+            hosts = project / MODULE.INSTALL_DIRECTORY / "hosts.py"
+            hosts.write_text(
+                f"from pathlib import Path\nPath({str(marker)!r}).write_text('executed')\n",
+                encoding="utf-8",
+            )
+
+            with self.assertRaisesRegex(ValueError, "ownership drift"):
+                MODULE.read_cross_rollback_journal(project)
+
+            self.assertFalse(marker.exists())
 
     def test_completed_rollback_with_only_receipt_intent_finishes_cleanup(self):
         with tempfile.TemporaryDirectory() as temporary:

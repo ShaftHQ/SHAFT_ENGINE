@@ -299,7 +299,7 @@ def relative_command(runtime: Path, command: list[str]) -> list[str]:
     return result
 
 
-def repair(
+def repair(  # noqa: MC0001 - one locked transaction keeps recovery and publication atomic.
     runtime: Path,
     specification: dict[str, object],
     runner=run_command,

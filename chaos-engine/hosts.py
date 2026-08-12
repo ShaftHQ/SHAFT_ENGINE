@@ -493,7 +493,9 @@ def receipt_bytes(receipt: dict[str, object], project: Path | None = None) -> by
     return (json.dumps(body, indent=2, sort_keys=True) + "\n").encode()
 
 
-def atomic_write(project: Path, path: Path, content: bytes, expected: bytes | None) -> None:
+def atomic_write(  # noqa: MC0001 - one descriptor-bound transaction protects user files.
+    project: Path, path: Path, content: bytes, expected: bytes | None
+) -> None:
     validate_path(project, path)
     scratch = path.with_name(f".{path.name}.chaos-engine-old")
     temporary = path.with_name(f".{path.name}.chaos-engine-new")
@@ -664,8 +666,9 @@ def read_receipt(project: Path) -> tuple[dict[str, object], bytes]:
         raise ValueError("ChaosEngine host receipt routes are invalid")
     decode_images(value.get("before"), nullable=True)
     decode_images(value.get("after"), nullable=False)
-    receipt_directories(value)
-    directory_marker(project, value, receipt_directories(value)[0]) if receipt_directories(value) else None
+    directories = receipt_directories(value)
+    if directories:
+        directory_marker(project, value, directories[0])
     intent = value.get("rollbackIntent")
     if intent is not None and (
         not isinstance(intent, dict)
@@ -676,7 +679,7 @@ def read_receipt(project: Path) -> tuple[dict[str, object], bytes]:
     return value, raw
 
 
-def reconcile(
+def reconcile(  # noqa: MC0001 - one ordered pass retains rollback images for every host.
     project: Path,
     desired: dict[str, bytes | None],
     allowed: tuple[dict[str, bytes | None], ...],

@@ -3,9 +3,9 @@
 import argparse
 import json
 import shutil
-import subprocess
+import subprocess  # nosec B404 - fixed local Git command, no shell.
 import zipfile
-import xml.etree.ElementTree as ET
+import xml.etree.ElementTree as ET  # nosec B405
 from pathlib import Path
 
 SCHEMA_URL = "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json"
@@ -145,7 +145,7 @@ def assemble(repository_root: Path, package_root: Path, version: str | None = No
     """Create a new portable package from the canonical skill sources."""
     repository_root = Path(repository_root).resolve()
     engine_version = (
-        ET.parse(repository_root / "pom.xml")
+        ET.parse(repository_root / "pom.xml")  # nosec B314
         .getroot()
         .findtext("{http://maven.apache.org/POM/4.0.0}version", default="")
         .strip()

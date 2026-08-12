@@ -140,7 +140,9 @@ def load_installer(source: Path):
     path = source / "install.py"
     module = types.ModuleType("chaos_engine_installer")
     module.__file__ = str(path)
-    exec(compile(path.read_bytes(), str(path), "exec"), module.__dict__)
+    exec(  # nosec B102 - executes the verified installer from the resolved archive.
+        compile(path.read_bytes(), str(path), "exec"), module.__dict__
+    )
     return module
 
 

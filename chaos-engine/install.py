@@ -15,7 +15,7 @@ import sys
 import tempfile
 import types
 import zipfile
-from pathlib import Path, PurePosixPath
+from pathlib import Path
 
 
 INSTALL_DIRECTORY = ".chaos-engine"
@@ -334,7 +334,6 @@ def write_cross_rollback_journal(project: Path, desired_commit: str, prior_commi
         json.dumps(body, sort_keys=True, separators=(",", ":")).encode()
     ).hexdigest()
     payload = (json.dumps(body, sort_keys=True) + "\n").encode()
-    controller = load_installed_controller(target, "hosts")
     transaction.mkdir()
     descriptor = os.open(
         journal,
@@ -363,6 +362,7 @@ def read_cross_rollback_journal(project: Path) -> dict[str, str] | None:
     target = project / INSTALL_DIRECTORY
     if not target.exists():
         raise ValueError("cross-resource rollback journal has no installed controller")
+    verify_install(target)
     receipt, _ = load_installed_controller(target, "hosts").read_receipt(project)
     intent = receipt.get("rollbackIntent")
     if not journal.exists():
@@ -455,7 +455,9 @@ def restore_archive(archive: Path, target: Path) -> None:
             shutil.rmtree(stage)
 
 
-def _recover_transaction(project: Path) -> None:
+def _recover_transaction(  # noqa: MC0001 - one auditable recovery state machine.
+    project: Path,
+) -> None:
     journal = project / JOURNAL_NAME
     if not journal.exists():
         return
@@ -554,7 +556,7 @@ def recover_transaction(project: Path) -> None:
         _recover_transaction(project)
 
 
-def install(
+def install(  # noqa: MC0001 - publication and compensation form one transaction.
     project: Path,
     source: Path,
     commit: str,
@@ -645,7 +647,9 @@ def status(project: Path) -> dict[str, str]:
         return {"status": state, "commit": str(manifest["source"]["commit"])}  # type: ignore[index]
 
 
-def rollback(project: Path, _locked: bool = False, provisioner=None) -> Path:
+def rollback(  # noqa: MC0001 - cross-resource rollback is one journaled state machine.
+    project: Path, _locked: bool = False, provisioner=None
+) -> Path:
     project = project.resolve()
     target = project / INSTALL_DIRECTORY
     backup = project / BACKUP_NAME
@@ -814,7 +818,9 @@ def load_installed_controller(installed_root: Path, name: str):
     module = types.ModuleType(f"chaos_engine_installed_{name}")
     module.__file__ = str(path)
     source = path.read_text(encoding="utf-8")
-    exec(compile(source, str(path), "exec"), module.__dict__)
+    exec(  # nosec B102 - executes only a manifest-verified installed controller.
+        compile(source, str(path), "exec"), module.__dict__
+    )
     return module
 
 
@@ -826,7 +832,7 @@ def load_dependency_controller(installed_root: Path):
     return load_installed_controller(installed_root, "dependencies")
 
 
-def install_with_dependencies(
+def install_with_dependencies(  # noqa: MC0001 - owned resources share one compensation boundary.
     project: Path,
     source: Path,
     commit: str,
@@ -946,7 +952,9 @@ def status_with_dependencies(project: Path) -> dict[str, object]:
             return result
 
 
-def uninstall_with_dependencies(project: Path) -> None:
+def uninstall_with_dependencies(  # noqa: MC0001 - coordinated host, runtime, and core teardown.
+    project: Path,
+) -> None:
     project = project.resolve()
     with project_lock(project):
         _recover_transaction(project)

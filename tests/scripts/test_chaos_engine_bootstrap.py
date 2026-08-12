@@ -5,7 +5,7 @@ from __future__ import annotations
 import importlib.util
 import io
 import json
-import subprocess
+import subprocess  # nosec B404 - tests run fixed local Git commands only.
 import tempfile
 import unittest
 import zipfile
@@ -22,7 +22,8 @@ COMMIT_TWO = "2" * 40
 
 def load():
     specification = importlib.util.spec_from_file_location("chaos_engine_bootstrap", BOOTSTRAP)
-    assert specification and specification.loader
+    if specification is None or specification.loader is None:
+        raise RuntimeError("bootstrap test module could not be loaded")
     module = importlib.util.module_from_spec(specification)
     specification.loader.exec_module(module)
     return module
@@ -112,7 +113,8 @@ class ChaosEngineBootstrapTest(unittest.TestCase):
         dependency = importlib.util.spec_from_file_location(
             "bootstrap_dependency", ROOT / "chaos-engine/dependencies.py"
         )
-        assert dependency and dependency.loader
+        if dependency is None or dependency.loader is None:
+            raise RuntimeError("dependency test module could not be loaded")
         dependency_module = importlib.util.module_from_spec(dependency)
         dependency.loader.exec_module(dependency_module)
         with tempfile.TemporaryDirectory() as temporary:
@@ -219,13 +221,17 @@ class ChaosEngineBootstrapTest(unittest.TestCase):
                 project = Path(temporary) / "project"
                 project.mkdir()
                 if kind != "non-git":
-                    subprocess.run(["git", "init", "--quiet"], cwd=project, check=True)
+                    subprocess.run(  # nosec B603 B607 - fixed local Git fixture command.
+                        ["git", "init", "--quiet"], cwd=project, check=True
+                    )
                     remote = (
                         "https://github.com/example/project.git"
                         if kind == "github"
                         else "https://git.example/project.git"
                     )
-                    subprocess.run(["git", "remote", "add", "origin", remote], cwd=project, check=True)
+                    subprocess.run(  # nosec B603 B607 - fixed local Git fixture command.
+                        ["git", "remote", "add", "origin", remote], cwd=project, check=True
+                    )
                 opener, _ = self.opener([(COMMIT_ONE, kind)])
 
                 result = module.install_latest(
