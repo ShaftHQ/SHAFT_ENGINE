@@ -22,8 +22,7 @@ class ShaftMcpConnectionProbeTest {
     void connectionProbeReportsEffectiveProjectWorkspace() throws Exception {
         Path project = temporary.resolve("project").toAbsolutePath().normalize();
         Files.createDirectories(project);
-        String command = quote(javaExecutable()) + " -cp " + quote(System.getProperty("java.class.path"))
-                + " " + FakeMcpServer.class.getName() + " stdoutNoiseThenToolsList";
+        String command = McpTestJavaProcess.commandLine(FakeMcpServer.class, "stdoutNoiseThenToolsList");
 
         ShaftMcpToolResult result = ShaftMcpConnectionProbe.test(
                 command,
@@ -40,13 +39,4 @@ class ShaftMcpConnectionProbeTest {
                 () -> assertFalse(output.contains("ShaftHQ/shaft-mcp/work")));
     }
 
-    private static String javaExecutable() {
-        String javaHome = System.getProperty("java.home");
-        boolean windows = System.getProperty("os.name").toLowerCase(Locale.ROOT).contains("win");
-        return Paths.get(javaHome, "bin", windows ? "java.exe" : "java").toString();
-    }
-
-    private static String quote(String value) {
-        return "\"" + value.replace("\"", "\\\"") + "\"";
-    }
 }

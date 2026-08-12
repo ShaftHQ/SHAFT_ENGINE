@@ -179,16 +179,9 @@ class ShaftMcpStdioClientTest {
     }
 
     private static <T> T withClient(String mode, ClientAction<T> action) throws Exception {
-        List<String> command = List.of(javaExecutable(), "-cp", System.getProperty("java.class.path"),
-                FakeMcpServer.class.getName(), mode);
+        List<String> command = McpTestJavaProcess.command(FakeMcpServer.class, mode);
         try (ShaftMcpStdioClient client = new ShaftMcpStdioClient(command, Path.of("."), Map.of())) {
             return action.call(client);
         }
-    }
-
-    private static String javaExecutable() {
-        String javaHome = System.getProperty("java.home");
-        boolean windows = System.getProperty("os.name").toLowerCase(Locale.ROOT).contains("win");
-        return Paths.get(javaHome, "bin", windows ? "java.exe" : "java").toString();
     }
 }

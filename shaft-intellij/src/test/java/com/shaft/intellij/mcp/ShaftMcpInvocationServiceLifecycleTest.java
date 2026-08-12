@@ -264,15 +264,13 @@ class ShaftMcpInvocationServiceLifecycleTest {
     }
 
     private static List<String> fakeServerCommand(String mode) {
-        return List.of(javaExecutable(), "-cp", System.getProperty("java.class.path"),
-                FakeMcpServer.class.getName(), mode);
+        return McpTestJavaProcess.command(FakeMcpServer.class, mode);
     }
 
     private static ShaftSettingsState.Settings settingsForMode(String mode) {
         ShaftSettingsState.Settings settings = new ShaftSettingsState.Settings();
         settings.mcpSetupComplete = true;
-        settings.mcpCommand = quote(javaExecutable()) + " -cp " + quote(System.getProperty("java.class.path"))
-                + " " + FakeMcpServer.class.getName() + " " + mode;
+        settings.mcpCommand = McpTestJavaProcess.commandLine(FakeMcpServer.class, mode);
         return settings;
     }
 
@@ -281,16 +279,6 @@ class ShaftMcpInvocationServiceLifecycleTest {
         settings.mcpSetupComplete = false;
         settings.mcpCommand = "";
         return settings;
-    }
-
-    private static String javaExecutable() {
-        String javaHome = System.getProperty("java.home");
-        boolean windows = System.getProperty("os.name").toLowerCase(Locale.ROOT).contains("win");
-        return java.nio.file.Paths.get(javaHome, "bin", windows ? "java.exe" : "java").toString();
-    }
-
-    private static String quote(String value) {
-        return "\"" + value.replace("\"", "\\\"") + "\"";
     }
 
     /**
