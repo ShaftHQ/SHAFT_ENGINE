@@ -67,7 +67,6 @@ class IssueFilingTest(unittest.TestCase):
 
     def test_confirmed_creation_rechecks_duplicates_and_marker(self):
         item = planned()
-        receipt = validate_issue_plan(item, TAXONOMY)
         confirmation = confirmation_digest(item, TAXONOMY, "consumer/project")
         calls = []
         def runner(command, **kwargs):

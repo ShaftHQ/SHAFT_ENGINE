@@ -22,7 +22,7 @@ try:
     from scripts.agents.github_client import GitHubClient, GitHubUnavailable
     from scripts.agents.pr_audit import audit_snapshot, collect_pr_snapshot
     from scripts.agents.delivery_status import collect_delivery, evaluate_delivery, inspect_cleanup, validate_authority
-    from scripts.agents.issue_filing import confirmation_digest, create_issue, prepare_issue_plan, receipt_digest, reconcile_labels, transition_issue, validate_issue_plan
+    from scripts.agents.issue_filing import confirmation_digest, create_issue, prepare_issue_plan, reconcile_labels, transition_issue
 except ModuleNotFoundError:
     from repository_context import RepositoryContext, RepositoryContextError, resolve_repository_context
     import watch_pr_checks
@@ -30,7 +30,7 @@ except ModuleNotFoundError:
     from github_client import GitHubClient, GitHubUnavailable
     from pr_audit import audit_snapshot, collect_pr_snapshot
     from delivery_status import collect_delivery, evaluate_delivery, inspect_cleanup, validate_authority
-    from issue_filing import confirmation_digest, create_issue, prepare_issue_plan, receipt_digest, reconcile_labels, transition_issue, validate_issue_plan
+    from issue_filing import confirmation_digest, create_issue, prepare_issue_plan, reconcile_labels, transition_issue
 
 
 EXIT_ENVIRONMENT_ERROR = 3

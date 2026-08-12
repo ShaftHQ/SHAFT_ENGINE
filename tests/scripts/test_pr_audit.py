@@ -1,6 +1,5 @@
 """Pull-request audit receipt contract tests (#4769)."""
 
-import copy
 import unittest
 
 from scripts.agents.pr_audit import audit_snapshot, collect_pr_snapshot
