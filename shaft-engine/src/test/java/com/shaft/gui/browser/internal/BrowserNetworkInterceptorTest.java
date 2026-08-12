@@ -19,9 +19,6 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.withSettings;
-
 public class BrowserNetworkInterceptorTest {
     @Test
     public void failedObservationStartShouldNotPublishZeroState() {
@@ -93,14 +90,14 @@ final class EqualWebDriver implements WebDriver, HasDevTools {
     @Override public boolean equals(Object other) { return other instanceof EqualWebDriver; }
     @Override public int hashCode() { return 7; }
     @Override public Optional<DevTools> maybeGetDevTools() { return Optional.empty(); }
-    @Override public void get(String url) { }
+    @Override public void get(String url) { /* No navigation is needed for this identity fixture. */ }
     @Override public String getCurrentUrl() { return ""; }
     @Override public String getTitle() { return ""; }
     @Override public List<WebElement> findElements(By by) { return List.of(); }
     @Override public WebElement findElement(By by) { throw new UnsupportedOperationException(); }
     @Override public String getPageSource() { return ""; }
-    @Override public void close() { }
-    @Override public void quit() { }
+    @Override public void close() { /* Teardown is modeled by the interceptor registry. */ }
+    @Override public void quit() { /* Teardown is modeled by the interceptor registry. */ }
     @Override public Set<String> getWindowHandles() { return Set.of(); }
     @Override public String getWindowHandle() { return ""; }
     @Override public TargetLocator switchTo() { throw new UnsupportedOperationException(); }

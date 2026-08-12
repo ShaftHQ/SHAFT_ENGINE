@@ -104,7 +104,7 @@ public class WebDriverBrowserValidationTest {
             assertions.consoleErrorCountValue().isEqualTo(1);
             assertions.featureSupportedValue(AutomationFeature.MEDIA_EMULATION).isEqualTo(false);
 
-            resolver.verify(() -> AutomationCapabilityResolver.forWebDriver(driver), org.mockito.Mockito.atLeast(6));
+            resolver.verify(() -> AutomationCapabilityResolver.forWebDriver(driver), atLeast(6));
             network.verify(() -> BrowserNetworkInterceptor.observationCountIfPresent(driver), times(1));
             bidi.verify(() -> BidiConsoleLogSource.snapshot(driver), times(2));
             Assert.assertTrue(parameterSnapshots.size() >= 6);
@@ -570,7 +570,7 @@ public class WebDriverBrowserValidationTest {
     @SuppressWarnings("unchecked")
     private static StepResult captureStepUpdates(AllureLifecycle lifecycle) {
         StepResult step = new StepResult();
-        Mockito.doAnswer(invocation -> {
+        doAnswer(invocation -> {
             Consumer<StepResult> consumer = invocation.getArgument(0);
             consumer.accept(step);
             return null;

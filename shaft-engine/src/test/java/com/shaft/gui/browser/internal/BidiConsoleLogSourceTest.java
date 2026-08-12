@@ -1,6 +1,7 @@
 package com.shaft.gui.browser.internal;
 
 import com.shaft.driver.internal.DriverFactory.DriverFactoryHelper;
+import com.shaft.tools.io.internal.BrowserObservabilityRecorder;
 import org.mockito.Mockito;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.bidi.BiDi;
@@ -12,6 +13,7 @@ import org.openqa.selenium.logging.Logs;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 import java.util.logging.Level;
@@ -75,8 +77,7 @@ public class BidiConsoleLogSourceTest {
     @Test
     public void legacySnapshotsShouldRejectLateRetentionAndKeepOnlyNewestBoundedEntries() {
         WebDriver driver = Mockito.mock(WebDriver.class);
-        java.util.List<com.shaft.tools.io.internal.BrowserObservabilityRecorder.ConsoleSnapshotEntry> entries =
-                new java.util.ArrayList<>();
+        List<BrowserObservabilityRecorder.ConsoleSnapshotEntry> entries = new ArrayList<>();
         for (int index = 0; index < 1005; index++) {
             entries.add(com.shaft.tools.io.internal.BrowserObservabilityRecorder.consoleEntry(
                     "browser", "info", "event-" + index, index));

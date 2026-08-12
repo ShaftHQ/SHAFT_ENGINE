@@ -680,6 +680,7 @@ public class WebDriverMobileValidationTest {
     }
 
     @Test
+    @SuppressWarnings("PMD.AvoidAccessibilityAlteration") // Binds private redaction registry behavior.
     public void applicationIdentifierShouldPopulateBothPrivacyRegistries() throws Exception {
         String secret = "isolated.private.application.identifier";
         AppiumDriver driver = mock(AppiumDriver.class,
@@ -736,6 +737,7 @@ public class WebDriverMobileValidationTest {
         }
     }
 
+    @SuppressWarnings("PMD.AvoidAccessibilityAlteration") // Resets private redaction state between assertions.
     private static void clearSensitiveRegistry(String name) throws Exception {
         Field field = FailureTraceReporter.class.getDeclaredField(name);
         field.setAccessible(true);

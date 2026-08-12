@@ -420,10 +420,10 @@ public class ValidationsHelper {
         if (value.getClass().isArray()) {
             return "array API value (" + java.lang.reflect.Array.getLength(value) + " items)";
         }
-        if (value instanceof java.util.Collection<?>) {
+        if (value instanceof Collection<?>) {
             return "collection API value";
         }
-        if (value instanceof java.util.Map<?, ?>) {
+        if (value instanceof Map<?, ?>) {
             return "map API value";
         }
         return "API value (" + value.getClass().getSimpleName() + ")";

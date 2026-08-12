@@ -243,7 +243,7 @@ public class GuiValidationContractTest {
     @Test
     public void partialMobileAssertionsImplementationsShouldFailClosedForEveryValue() throws Exception {
         Class<?> mobileAssertions = Class.forName("com.shaft.gui.driver.MobileAssertions");
-        Object partial = org.mockito.Mockito.mock(mobileAssertions, org.mockito.Mockito.CALLS_REAL_METHODS);
+        Object partial = mock(mobileAssertions, org.mockito.Mockito.CALLS_REAL_METHODS);
 
         for (String methodName : List.of("currentContextValue", "contextCountValue", "deviceLockedValue",
                 "deviceOrientationValue", "deviceTimeValue", "batteryValue")) {

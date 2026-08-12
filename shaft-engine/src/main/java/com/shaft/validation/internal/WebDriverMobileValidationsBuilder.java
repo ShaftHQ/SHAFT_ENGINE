@@ -224,9 +224,7 @@ public final class WebDriverMobileValidationsBuilder implements MobileAssertions
             FailureTraceReporter.registerSensitiveSourceValue(appId);
             FailureTraceReporter.registerSensitiveValue(appId);
         }
-        if (appId == null) {
-            throw new NullPointerException("The application identifier must not be null.");
-        }
+        Objects.requireNonNull(appId, "The application identifier must not be null.");
         if (appId.isBlank()) {
             throw new IllegalArgumentException("The application identifier must not be blank.");
         }
