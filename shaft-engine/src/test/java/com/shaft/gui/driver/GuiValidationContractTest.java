@@ -14,6 +14,8 @@ import java.net.URLClassLoader;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
 import javax.tools.SimpleJavaFileObject;
 import javax.tools.ToolProvider;
 
@@ -97,6 +99,156 @@ public class GuiValidationContractTest {
         assertBrowserDefaultMethod("windowPositionValue");
         assertBrowserDefaultMethod("windowSizeValue");
         assertBrowserDefaultMethod("browsingContextCountValue");
+    }
+
+    @Test
+    public void focusedMobileContextAppAndDeviceCategoriesShouldBeCompatibilityDefaults() throws Exception {
+        Class<?> mobileAssertions;
+        try {
+            mobileAssertions = Class.forName("com.shaft.gui.driver.MobileAssertions");
+        } catch (ClassNotFoundException exception) {
+            Assert.fail("MobileAssertions public contract is missing.", exception);
+            return;
+        }
+
+        Assert.assertTrue(Modifier.isPublic(mobileAssertions.getModifiers()));
+        Assert.assertTrue(mobileAssertions.isInterface());
+        assertMobileRootDefault(DriverAssertions.class, mobileAssertions);
+        assertMobileRootDefault(DriverVerifications.class, mobileAssertions);
+        assertMobileValueDefault(mobileAssertions, "currentContextValue");
+        assertMobileValueDefault(mobileAssertions, "contextCountValue");
+        assertMobileValueDefault(mobileAssertions, "appInstalledValue", String.class);
+        assertMobileValueDefault(mobileAssertions, "appStateValue", String.class);
+        assertMobileValueDefault(mobileAssertions, "deviceLockedValue");
+        assertMobileValueDefault(mobileAssertions, "deviceOrientationValue");
+        assertMobileValueDefault(mobileAssertions, "deviceTimeValue");
+        assertMobileValueDefault(mobileAssertions, "batteryValue");
+        Assert.assertEquals(publicDescriptors(mobileAssertions), Set.of(
+                "appInstalledValue[java.lang.String]->com.shaft.validation.internal.NativeValidationsBuilder",
+                "appStateValue[java.lang.String]->com.shaft.validation.internal.NativeValidationsBuilder",
+                "batteryValue[]->com.shaft.validation.internal.NativeValidationsBuilder",
+                "contextCountValue[]->com.shaft.validation.internal.NativeValidationsBuilder",
+                "currentContextValue[]->com.shaft.validation.internal.NativeValidationsBuilder",
+                "deviceLockedValue[]->com.shaft.validation.internal.NativeValidationsBuilder",
+                "deviceOrientationValue[]->com.shaft.validation.internal.NativeValidationsBuilder",
+                "deviceTimeValue[]->com.shaft.validation.internal.NativeValidationsBuilder"));
+        assertSingleMobileRootDescriptor(DriverAssertions.class, mobileAssertions);
+        assertSingleMobileRootDescriptor(DriverVerifications.class, mobileAssertions);
+    }
+
+    @Test
+    public void frozenOldDriverValidationConsumersShouldReceiveFailClosedMobileDefaults() throws Exception {
+        Path output = Files.createTempDirectory("shaft-mobile-validation-old-consumer");
+        var compiler = ToolProvider.getSystemJavaCompiler();
+        List<SimpleJavaFileObject> sources = List.of(
+                source("com.shaft.gui.driver.DriverAssertions", """
+                        package com.shaft.gui.driver;
+                        import org.openqa.selenium.By;
+                        import com.shaft.validation.internal.NativeValidationsBuilder;
+                        public interface DriverAssertions {
+                            BrowserAssertions browser();
+                            ElementAssertions element(By locator);
+                            NativeValidationsBuilder object(Object value);
+                        }
+                        """),
+                source("com.shaft.gui.driver.DriverVerifications", """
+                        package com.shaft.gui.driver;
+                        import org.openqa.selenium.By;
+                        import com.shaft.validation.internal.NativeValidationsBuilder;
+                        public interface DriverVerifications {
+                            BrowserAssertions browser();
+                            ElementAssertions element(By locator);
+                            NativeValidationsBuilder object(Object value);
+                        }
+                        """),
+                source("compat.OldMobileAssertions", """
+                        package compat;
+                        import com.shaft.gui.driver.*;
+                        import com.shaft.validation.internal.NativeValidationsBuilder;
+                        import org.openqa.selenium.By;
+                        public final class OldMobileAssertions implements DriverAssertions {
+                            public BrowserAssertions browser() { return null; }
+                            public ElementAssertions element(By locator) { return null; }
+                            public NativeValidationsBuilder object(Object value) { return null; }
+                        }
+                        """),
+                source("compat.OldMobileVerifications", """
+                        package compat;
+                        import com.shaft.gui.driver.*;
+                        import com.shaft.validation.internal.NativeValidationsBuilder;
+                        import org.openqa.selenium.By;
+                        public final class OldMobileVerifications implements DriverVerifications {
+                            public BrowserAssertions browser() { return null; }
+                            public ElementAssertions element(By locator) { return null; }
+                            public NativeValidationsBuilder object(Object value) { return null; }
+                        }
+                        """));
+        Assert.assertTrue(Boolean.TRUE.equals(compiler.getTask(null, null, null,
+                List.of("-classpath", System.getProperty("java.class.path"), "-d", output.toString()),
+                null, sources).call()));
+
+        try (URLClassLoader loader = new URLClassLoader(new java.net.URL[]{output.toUri().toURL()},
+                GuiValidationContractTest.class.getClassLoader())) {
+            Object oldAssertions = Class.forName("compat.OldMobileAssertions", true, loader)
+                    .getDeclaredConstructor().newInstance();
+            Object oldVerifications = Class.forName("compat.OldMobileVerifications", true, loader)
+                    .getDeclaredConstructor().newInstance();
+            assertMobileRootFailsClosed(oldAssertions);
+            assertMobileRootFailsClosed(oldVerifications);
+        }
+    }
+
+    @Test
+    public void partialMobileAssertionsImplementationsShouldFailClosedForEveryValue() throws Exception {
+        Class<?> mobileAssertions = Class.forName("com.shaft.gui.driver.MobileAssertions");
+        Object partial = org.mockito.Mockito.mock(mobileAssertions, org.mockito.Mockito.CALLS_REAL_METHODS);
+
+        for (String methodName : List.of("currentContextValue", "contextCountValue", "deviceLockedValue",
+                "deviceOrientationValue", "deviceTimeValue", "batteryValue")) {
+            assertMobileValueFailsClosed(mobileAssertions, partial, methodName);
+        }
+        assertMobileValueFailsClosed(mobileAssertions, partial, "appInstalledValue", "com.example.app");
+        assertMobileValueFailsClosed(mobileAssertions, partial, "appStateValue", "com.example.app");
+    }
+
+    @Test
+    public void naturalLegacyMobileAccessorsShouldRemainSourceCompatible() throws Exception {
+        Assert.assertTrue(compileDriverValidationConsumer("NaturalMobileAssertionsAccessor", "DriverAssertions", """
+                public boolean mobile() { return true; }
+                """));
+        Assert.assertTrue(compileDriverValidationConsumer("NaturalMobileVerificationsAccessor", "DriverVerifications", """
+                public boolean mobile() { return true; }
+                """));
+        Assert.assertTrue(compileMobileAssertionsConsumer("NaturalMobileValueAccessors", """
+                public String currentContext() { return ""; }
+                public int contextCount() { return 0; }
+                public boolean appInstalled(String appId) { return false; }
+                public com.shaft.gui.driver.MobileApplicationState appState(String appId) {
+                    return com.shaft.gui.driver.MobileApplicationState.NOT_RUNNING;
+                }
+                public boolean deviceLocked() { return false; }
+                public org.openqa.selenium.ScreenOrientation deviceOrientation() {
+                    return org.openqa.selenium.ScreenOrientation.PORTRAIT;
+                }
+                public String deviceTime() { return ""; }
+                public com.shaft.gui.driver.MobileBatteryInfo battery() {
+                    return new com.shaft.gui.driver.MobileBatteryInfo(0, "unknown");
+                }
+                """));
+    }
+
+    @Test
+    public void mobileValidationDefaultCollisionsShouldRequireCompatibleOverrides() throws Exception {
+        Assert.assertFalse(compileMobileRootDefaultCollision("MissingMobileRootOverride", false));
+        Assert.assertTrue(compileMobileRootDefaultCollision("CompatibleMobileRootOverride", true));
+        Assert.assertFalse(compileDriverValidationConsumer("IncompatibleMobileRootOverride", "DriverAssertions", """
+                public String mobileValues() { return ""; }
+                """));
+        Assert.assertFalse(compileMobileValueDefaultCollision("MissingMobileValueOverride", false));
+        Assert.assertTrue(compileMobileValueDefaultCollision("CompatibleMobileValueOverride", true));
+        Assert.assertFalse(compileMobileAssertionsConsumer("IncompatibleMobileValueOverride", """
+                public String currentContextValue() { return ""; }
+                """));
     }
 
     @Test
@@ -346,6 +498,59 @@ public class GuiValidationContractTest {
         Assert.assertEquals(method.getReturnType(), com.shaft.validation.internal.NativeValidationsBuilder.class);
     }
 
+    private static void assertMobileRootDefault(Class<?> owner, Class<?> mobileAssertions) throws Exception {
+        Method method = owner.getMethod("mobileValues");
+        Assert.assertTrue(method.isDefault(), owner.getSimpleName() + ".mobileValues must be a default method.");
+        Assert.assertEquals(method.getReturnType(), mobileAssertions);
+    }
+
+    private static void assertSingleMobileRootDescriptor(Class<?> owner, Class<?> mobileAssertions) {
+        List<Method> roots = List.of(owner.getDeclaredMethods()).stream()
+                .filter(method -> Modifier.isPublic(method.getModifiers()))
+                .filter(method -> method.getName().equals("mobileValues"))
+                .toList();
+        Assert.assertEquals(roots.size(), 1);
+        Assert.assertEquals(roots.getFirst().getParameterCount(), 0);
+        Assert.assertEquals(roots.getFirst().getReturnType(), mobileAssertions);
+        Assert.assertTrue(roots.getFirst().isDefault());
+    }
+
+    private static Set<String> publicDescriptors(Class<?> owner) {
+        return List.of(owner.getDeclaredMethods()).stream()
+                .filter(method -> Modifier.isPublic(method.getModifiers()))
+                .map(method -> method.getName() + List.of(method.getParameterTypes()).stream()
+                        .map(Class::getName)
+                        .toList() + "->" + method.getReturnType().getName())
+                .collect(Collectors.toSet());
+    }
+
+    private static void assertMobileValueDefault(Class<?> owner, String name, Class<?>... parameterTypes)
+            throws Exception {
+        Method method = owner.getMethod(name, parameterTypes);
+        Assert.assertTrue(method.isDefault(), "MobileAssertions." + name + " must be a default method.");
+        Assert.assertEquals(method.getReturnType(), com.shaft.validation.internal.NativeValidationsBuilder.class);
+    }
+
+    private static void assertMobileRootFailsClosed(Object consumer) throws Exception {
+        Method method = consumer.getClass().getMethod("mobileValues");
+        InvocationTargetException thrown = Assert.expectThrows(InvocationTargetException.class,
+                () -> method.invoke(consumer));
+        Assert.assertTrue(thrown.getCause() instanceof UnsupportedOperationException);
+        Assert.assertEquals(thrown.getCause().getMessage(),
+                "mobileValues is not supported by this driver validation implementation.");
+    }
+
+    private static void assertMobileValueFailsClosed(Class<?> owner, Object consumer, String methodName,
+                                                     Object... arguments) throws Exception {
+        Class<?>[] parameterTypes = arguments.length == 0 ? new Class<?>[0] : new Class<?>[]{String.class};
+        Method method = owner.getMethod(methodName, parameterTypes);
+        InvocationTargetException thrown = Assert.expectThrows(InvocationTargetException.class,
+                () -> method.invoke(consumer, arguments));
+        Assert.assertTrue(thrown.getCause() instanceof UnsupportedOperationException);
+        Assert.assertEquals(thrown.getCause().getMessage(),
+                methodName + " is not supported by this mobile assertions implementation.");
+    }
+
     private static void assertBrowserCompatibilityDefaultFailsClosed(Object oldConsumer, String methodName) throws Exception {
         Method method = BrowserAssertions.class.getMethod(methodName);
         InvocationTargetException thrown = Assert.expectThrows(InvocationTargetException.class,
@@ -398,6 +603,82 @@ public class GuiValidationContractTest {
         return Boolean.TRUE.equals(ToolProvider.getSystemJavaCompiler().getTask(null, null, null,
                 List.of("-classpath", System.getProperty("java.class.path"), "-d", output.toString()),
                 null, List.of(consumer)).call());
+    }
+
+    private static boolean compileDriverValidationConsumer(String className, String contract, String methods)
+            throws Exception {
+        Path output = Files.createTempDirectory("shaft-driver-mobile-validation-collision");
+        SimpleJavaFileObject consumer = source("compat." + className, """
+                package compat;
+                import com.shaft.gui.driver.*;
+                import com.shaft.validation.internal.NativeValidationsBuilder;
+                import org.openqa.selenium.By;
+                public abstract class %s implements %s {
+                    %s
+                }
+                """.formatted(className, contract, methods));
+        return Boolean.TRUE.equals(ToolProvider.getSystemJavaCompiler().getTask(null, null, null,
+                List.of("-classpath", System.getProperty("java.class.path"), "-d", output.toString()),
+                null, List.of(consumer)).call());
+    }
+
+    private static boolean compileMobileAssertionsConsumer(String className, String methods) throws Exception {
+        Path output = Files.createTempDirectory("shaft-mobile-assertions-collision");
+        SimpleJavaFileObject consumer = source("compat." + className, """
+                package compat;
+                public abstract class %s implements com.shaft.gui.driver.MobileAssertions {
+                    %s
+                }
+                """.formatted(className, methods));
+        return Boolean.TRUE.equals(ToolProvider.getSystemJavaCompiler().getTask(null, null, null,
+                List.of("-classpath", System.getProperty("java.class.path"), "-d", output.toString()),
+                null, List.of(consumer)).call());
+    }
+
+    private static boolean compileMobileRootDefaultCollision(String className, boolean override) throws Exception {
+        Path output = Files.createTempDirectory("shaft-mobile-root-default-collision");
+        SimpleJavaFileObject foreign = source("compat.ForeignMobileRoot", """
+                package compat;
+                public interface ForeignMobileRoot {
+                    default com.shaft.gui.driver.MobileAssertions mobileValues() { return null; }
+                }
+                """);
+        String explicitOverride = override
+                ? "public com.shaft.gui.driver.MobileAssertions mobileValues() { "
+                + "return com.shaft.gui.driver.DriverAssertions.super.mobileValues(); }"
+                : "";
+        SimpleJavaFileObject consumer = source("compat." + className, """
+                package compat;
+                public abstract class %s implements com.shaft.gui.driver.DriverAssertions, ForeignMobileRoot {
+                    %s
+                }
+                """.formatted(className, explicitOverride));
+        return Boolean.TRUE.equals(ToolProvider.getSystemJavaCompiler().getTask(null, null, null,
+                List.of("-classpath", System.getProperty("java.class.path"), "-d", output.toString()),
+                null, List.of(foreign, consumer)).call());
+    }
+
+    private static boolean compileMobileValueDefaultCollision(String className, boolean override) throws Exception {
+        Path output = Files.createTempDirectory("shaft-mobile-value-default-collision");
+        SimpleJavaFileObject foreign = source("compat.ForeignMobileValue", """
+                package compat;
+                public interface ForeignMobileValue {
+                    default com.shaft.validation.internal.NativeValidationsBuilder currentContextValue() { return null; }
+                }
+                """);
+        String explicitOverride = override
+                ? "public com.shaft.validation.internal.NativeValidationsBuilder currentContextValue() { "
+                + "return com.shaft.gui.driver.MobileAssertions.super.currentContextValue(); }"
+                : "";
+        SimpleJavaFileObject consumer = source("compat." + className, """
+                package compat;
+                public abstract class %s implements com.shaft.gui.driver.MobileAssertions, ForeignMobileValue {
+                    %s
+                }
+                """.formatted(className, explicitOverride));
+        return Boolean.TRUE.equals(ToolProvider.getSystemJavaCompiler().getTask(null, null, null,
+                List.of("-classpath", System.getProperty("java.class.path"), "-d", output.toString()),
+                null, List.of(foreign, consumer)).call());
     }
 
     private static boolean compileBrowserCategoryDefaultCollision(String className, String methodName,

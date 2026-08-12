@@ -26,4 +26,14 @@ public interface DriverVerifications {
     }
 
     NativeValidationsBuilder object(Object actual);
+
+    /**
+     * Starts soft verifications against focused values from the current mobile session.
+     *
+     * @return mobile-session verification starters
+     */
+    default MobileAssertions mobileValues() {
+        throw new UnsupportedOperationException(
+                "mobileValues is not supported by this driver validation implementation.");
+    }
 }

@@ -26,4 +26,14 @@ public interface DriverAssertions {
     }
 
     NativeValidationsBuilder object(Object object);
+
+    /**
+     * Starts hard assertions against focused values from the current mobile session.
+     *
+     * @return mobile-session assertion starters
+     */
+    default MobileAssertions mobileValues() {
+        throw new UnsupportedOperationException(
+                "mobileValues is not supported by this driver validation implementation.");
+    }
 }
