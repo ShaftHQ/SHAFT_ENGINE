@@ -66,7 +66,7 @@ def _valid_disposition(value: object, finding: dict, live_replies: set[tuple[str
     return False
 
 
-def collect_pr_snapshot(client, number: int) -> dict:  # noqa: C901
+def collect_pr_snapshot(client, number: int) -> dict:  # noqa: MC0001
     """Collect every relevant GitHub surface with explicit pagination."""
     if not isinstance(number, int) or isinstance(number, bool) or number < 1:
         raise ValueError("pull request number must be positive")
@@ -169,13 +169,13 @@ def collect_pr_snapshot(client, number: int) -> dict:  # noqa: C901
     }
 
 
-def audit_snapshot(
+def audit_snapshot(  # noqa: MC0001
     snapshot: object,
     dispositions: object,
     *,
     expected_head: str | None = None,
     observed_at: str | None = None,
-) -> dict:  # noqa: C901
+) -> dict:
     """Validate a fully paginated GitHub snapshot and classify every finding."""
     reasons: list[str] = []
     findings: list[dict] = []

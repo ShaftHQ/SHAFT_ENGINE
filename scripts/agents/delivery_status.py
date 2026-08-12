@@ -101,10 +101,10 @@ def validate_authority(manifest: object, repository: str, number: int, head: str
     return {"schemaVersion": 1, "kind": "merge-authority", "repository": repository, "pullRequest": number, "headOid": head, "observedAt": datetime.now(UTC).isoformat(), "decision": "allow" if not reasons else "block", "reasons": reasons, "authorityEvidence": authority}
 
 
-def evaluate_delivery(
+def evaluate_delivery(  # noqa: MC0001
     manifest: object, statuses: object, cleanup_observation: object,
     *, execution_repository: str | None = None, execution_head: str | None = None,
-) -> dict:  # noqa: C901
+) -> dict:
     reasons: list[str] = []
     unavailable = False
     owned = manifest.get("ownedPullRequests") if isinstance(manifest, dict) else None
