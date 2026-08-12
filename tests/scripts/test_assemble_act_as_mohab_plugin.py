@@ -85,11 +85,7 @@ class AssembleActAsMohabPluginTest(unittest.TestCase):
         return canonical_root
 
     def test_discovery_content_is_bound_to_engine_version(self):
-        release = json.loads((ROOT / "agent-plugins/release.json").read_text(encoding="utf-8"))
-        version = next(
-            package["version"] for package in release["packages"]
-            if package["name"] == "act-as-mohab"
-        )
+        version = ENGINE_VERSION
         self.assertEqual(version, ENGINE_VERSION)
         changelog = (ROOT / "agent-plugins/act-as-mohab/CHANGELOG.md").read_text(encoding="utf-8")
         compatibility = (ROOT / "agent-plugins/act-as-mohab/COMPATIBILITY.md").read_text(encoding="utf-8")

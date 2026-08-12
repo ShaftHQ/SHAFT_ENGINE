@@ -71,6 +71,7 @@ class ValidateDocumentationBoundariesTest(unittest.TestCase):
     def test_allows_portable_chaos_engine_guidance_and_profile_catalog(self):
         self.write("chaos-engine/skills/chaos-engine/SKILL.md", "# ChaosEngine\n")
         self.write("chaos-engine/profiles/README.md", "# Project profiles\n")
+        self.write("chaos-engine/RESEARCH.md", "# Adoption matrix\n")
 
         self.assertEqual(validate_repository(self.root), [])
 

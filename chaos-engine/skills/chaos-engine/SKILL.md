@@ -78,6 +78,9 @@ guidance, persisted-data, and external-system mutation wait for the repaired
 source and a complete receipt. Never substitute a stale index, recollection, or
 generic summary for the named live query. Reuse established solutions and
 standards before inventing a local one.
+The dated [adoption matrix](../../RESEARCH.md) records the portable harness
+baseline; revalidate a row when its relevant discovery, schema, or install
+contract changes.
 
 ### Planning quality and ownership
 
@@ -302,24 +305,24 @@ if a refusal was correct, capture the lesson; if it was wrong or needs follow-up
 open a new standalone GitHub issue after duplicate search.
 
 Meaningful failures, corrections, review findings, and repeated friction first
-become redacted incident receipts through `scripts/agents/learning_loop.py`;
-receipts are evidence, never the action queue. Every problem, follow-up action,
-or potential improvement that needs work gets its own new GitHub issue. Put the
-receipt ID and incident evidence in that issue, then pass the canonical issue URL
-to `assess`; one issue URL cannot cover two incident candidates. Informational
-findings with no action may use the normal no-learning or knowledge route without
-manufacturing an issue. Assess linked receipts into quarantined candidates before
-they can influence behavior. Batch related candidates once per session, while
-keeping one standalone issue per action. Ordinary candidates need a strict
-targeted adherence improvement, no regression, passing tests, and independent
-review. Kernel candidates additionally need two independent reviewer keys,
-all three review lenses, and two runs on the same candidate and corpus.
-`evaluate`, `promote`, and `repair-or-revert` write local consistency and
-intent records only; they do not run tests, authenticate reviewers, mutate
-git, or operate a pull request. Derive the diff and test evidence from the live
-checkout, then use the normal review and GitHub workflow to perform and verify
-the intended action. On regression, attempt one repair; recurrence records a
-frozen revert requirement that the GitHub workflow must execute.
+become minimal structured candidates through the installed
+[learning controller](../../learning.py) using `.chaos-engine/learning.py queue`.
+Its privacy, confirmation, deduplication, and offline-queue contract is enforced
+by `tests/scripts/test_chaos_engine_learning.py`; the dated adoption matrix is
+enforced by `tests/scripts/test_chaos_engine_research.py`.
+Its privacy gate rejects secrets, paths, repository identity, prompts,
+transcripts, logs, URLs, email, and source excerpts before any local state or
+network call. The local queue is digest-deduplicated. Do not weaken or bypass
+that schema to preserve more detail.
+
+An actionable reusable candidate stays local unless the user accepts the
+displayed estimated token cost. Only then may `.chaos-engine/learning.py submit
+--yes` search the configured upstream and create one minimal issue. Privacy,
+authentication, or network uncertainty leaves the item queued. Never create a
+PR, change guidance, or merge automatically. An issue is input to the normal
+quarantine, RED/GREEN, independent-review, repair, and revert controls; it is
+not permission to self-modify. Informational findings with no action may use
+the normal no-learning or knowledge route without manufacturing an issue.
 
 | What surfaced | Where it goes |
 | --- | --- |

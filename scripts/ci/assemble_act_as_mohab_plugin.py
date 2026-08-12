@@ -5,16 +5,11 @@ import json
 import shutil
 import subprocess
 import zipfile
+import xml.etree.ElementTree as ET
 from pathlib import Path
 
-try:
-    from scripts.ci.agent_plugin_release import release_version
-except ModuleNotFoundError:
-    from agent_plugin_release import release_version
-
-
 SCHEMA_URL = "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json"
-PORTABLE_SOURCE_SUFFIXES = {".md", ".LICENSE", ".json", ".yaml", ".yml"}
+PORTABLE_SOURCE_SUFFIXES = {".md", ".LICENSE", ".json", ".yaml", ".yml", ".py"}
 RELEASE_FILES = (
     (Path("LICENSE"), Path("LICENSE")),
     (Path("agent-plugins/act-as-mohab/CHANGELOG.md"), Path("CHANGELOG.md")),
@@ -149,7 +144,15 @@ def build_runtime(repository_root: Path, package_root: Path) -> None:
 def assemble(repository_root: Path, package_root: Path, version: str | None = None) -> None:
     """Create a new portable package from the canonical skill sources."""
     repository_root = Path(repository_root).resolve()
-    version = release_version(repository_root, "act-as-mohab", version)
+    engine_version = (
+        ET.parse(repository_root / "pom.xml")
+        .getroot()
+        .findtext("{http://maven.apache.org/POM/4.0.0}version", default="")
+        .strip()
+    )
+    if version is not None and version != engine_version:
+        raise ValueError(f"act-as-mohab version must match the repository: {engine_version}")
+    version = engine_version
     package_root = Path(package_root)
     canonical_root = repository_root / "chaos-engine"
     try:

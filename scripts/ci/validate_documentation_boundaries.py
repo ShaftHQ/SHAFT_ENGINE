@@ -32,6 +32,7 @@ ALLOWED_EXACT = {
     ".github/workflows/README.md",
     "shaft-mcp/.github/copilot-instructions.md",
     "tools/repository-map/README.md",
+    "chaos-engine/RESEARCH.md",
 }
 ALLOWED_GLOBS = (
     ".agents/skills/**/*.md",

@@ -193,7 +193,7 @@
         ".codex-plugin",
         ".agents/plugins"
       ],
-      "revision": "baf3ca1710ef394f4bd409443abc7dcd0b493c82",
+      "revision": "00be373fec26109c3087728188f6a45554c47617",
       "version": null,
       "official_source": true,
       "license": "CC-BY-4.0",
@@ -209,7 +209,7 @@
         },
         "static_review": {
           "status": "pass",
-          "evidence": "Reviewed only manifest paths; no Azure content, scripts, dependency, or candidate file was copied."
+          "evidence": "Rechecked the selected manifest paths at 00be373fec26109c3087728188f6a45554c47617; they did not change from the prior review. No Azure content, script, dependency, or candidate file was copied."
         },
         "quarantine_trial": {
           "status": "not_applicable",
@@ -229,7 +229,7 @@
       "freshness": {
         "checked_at": "2026-08-11",
         "upstream_head": "00be373fec26109c3087728188f6a45554c47617",
-        "status": "outdated"
+        "status": "current"
       },
       "vendor_policy_duplication": false,
       "promotion_pr": null,
@@ -243,7 +243,7 @@
       "source_paths": [
         "skills"
       ],
-      "revision": "baf3ca1710ef394f4bd409443abc7dcd0b493c82",
+      "revision": "00be373fec26109c3087728188f6a45554c47617",
       "version": null,
       "official_source": true,
       "license": "CC-BY-4.0",
@@ -259,7 +259,7 @@
         },
         "static_review": {
           "status": "halt",
-          "evidence": "Scope review found provider-specific policy duplication and no narrow SHAFT task that warrants importing the catalog."
+          "evidence": "Rechecked the changed skills at 00be373fec26109c3087728188f6a45554c47617; the update remains provider-specific policy content with no narrow SHAFT task that warrants importing the catalog."
         },
         "quarantine_trial": {
           "status": "not_run",
@@ -279,7 +279,7 @@
       "freshness": {
         "checked_at": "2026-08-11",
         "upstream_head": "00be373fec26109c3087728188f6a45554c47617",
-        "status": "outdated"
+        "status": "current"
       },
       "vendor_policy_duplication": true,
       "promotion_pr": null,

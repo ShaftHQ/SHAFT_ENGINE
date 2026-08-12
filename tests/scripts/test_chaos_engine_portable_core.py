@@ -35,7 +35,7 @@ class ChaosEnginePortableCoreTest(unittest.TestCase):
             "ShaftHQ": re.compile(r"ShaftHQ", re.IGNORECASE),
             "SHAFT_ENGINE": re.compile(r"SHAFT_ENGINE", re.IGNORECASE),
             "user guide": re.compile(r"shafthq\.github\.io", re.IGNORECASE),
-            "Windows absolute path": re.compile(r"[A-Za-z]:[\\/]"),
+            "Windows absolute path": re.compile(r"(?<![A-Za-z0-9+.-])[A-Za-z]:[\\/]"),
             "POSIX absolute path": POSIX_ABSOLUTE_PATH,
             "hard-coded default branch": re.compile(r"origin/main", re.IGNORECASE),
         }
@@ -61,6 +61,9 @@ class ChaosEnginePortableCoreTest(unittest.TestCase):
         self.assertIsNone(POSIX_ABSOLUTE_PATH.search("[role](../../references/roles.md)"))
         self.assertIsNone(POSIX_ABSOLUTE_PATH.search("run ./bin/act-as-mohab.pyz"))
         self.assertIsNone(POSIX_ABSOLUTE_PATH.search("/caveman full"))
+        windows_absolute = re.compile(r"(?<![A-Za-z0-9+.-])[A-Za-z]:[\\/]")
+        self.assertRegex(r"cache at C:\\private\\agent-cache", windows_absolute)
+        self.assertIsNone(windows_absolute.search("https://example.com/tool"))
 
     def test_shaft_behavior_is_selected_by_a_project_profile(self):
         profile = json.loads(SHAFT_PROFILE.read_text(encoding="utf-8"))
