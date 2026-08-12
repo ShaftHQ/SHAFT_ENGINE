@@ -27,11 +27,10 @@ import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 
 /** Explicit headless acceptance for the generated single-file trace viewer. */
-@SuppressWarnings("PMD.TestClassWithoutTestCases") // The non-Test suffix keeps this Chrome gate explicit, never implicit.
-public class TraceViewerBrowserAcceptance {
+public class TraceViewerBrowserAcceptanceTest {
     private static final String BLOCKED_RESOURCE = "https://blocked.invalid/private.png";
 
-    @Test
+    @Test(groups = "trace-viewer-browser-acceptance")
     public void generatedViewerShouldRemainOfflineAndShareNavigableRangeState() throws Exception {
         Path chrome = chromeExecutable();
         Path html = generateViewerFixture();
@@ -220,7 +219,7 @@ public class TraceViewerBrowserAcceptance {
             BrowserObservabilityRecorder.recordConsole("browser", "ERROR", "checkout failed",
                     System.currentTimeMillis());
 
-            Method marker = TraceViewerBrowserAcceptance.class.getDeclaredMethod("marker");
+            Method marker = TraceViewerBrowserAcceptanceTest.class.getDeclaredMethod("marker");
             TestExecutionInfo info = new TestExecutionInfo("trace-viewer-browser-acceptance", "customer.CheckoutTest",
                     "traceViewer", "traceViewer", "trace viewer acceptance", marker,
                     new AssertionError("checkout failed"), false);
