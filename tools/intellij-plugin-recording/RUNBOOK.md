@@ -46,7 +46,7 @@ approved by #4299.
 
 ## Prerequisites
 
-- JDK 21 for the `shaft-intellij` Gradle daemon.
+- JDK 25 for the `shaft-intellij` Gradle daemon.
 - Maven, Chrome, `ffmpeg`, and `ffprobe` with Windows `gdigrab`.
 - A configured SHAFT Assistant provider key. Enter it only in the masked IDE
   field and clear the clipboard afterward.
@@ -63,10 +63,10 @@ repository and must be reset before every take.
 
 ## 2. Build and launch the sandbox
 
-Select any installed JDK 21 as `JAVA_HOME`, then use the repository wrapper:
+Select any installed JDK 25 as `JAVA_HOME`, then use the repository wrapper:
 
 ```powershell
-$env:JAVA_HOME = '<absolute path to a JDK 21 installation>'
+$env:JAVA_HOME = '<absolute path to a JDK 25 installation>'
 shaft-intellij\gradlew.bat -p shaft-intellij check buildPlugin verifyPlugin
 shaft-intellij\gradlew.bat -p shaft-intellij runIde
 ```

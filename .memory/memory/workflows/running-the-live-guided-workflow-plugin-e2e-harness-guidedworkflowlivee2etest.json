@@ -1,14 +1,18 @@
 {
   "body_path": "memory/workflows/running-the-live-guided-workflow-plugin-e2e-harness-guidedworkflowlivee2etest.md",
-  "content_hash": "sha256:713615e338c0600c6488f2b0021a49c739dc2c534f94b1534b9f17ee3e5a835c",
+  "content_hash": "sha256:aa2ef7f38fef499ed90ebca3c8994718fcc72fcb7a43b9f95de1b2e5f8384f5a",
   "created_at": "2026-07-10T20:52:30+03:00",
   "evidence": [
+    {
+      "id": ".github/workflows/guided-workflows-live.yml",
+      "kind": "file"
+    },
     {
       "id": "shaft-intellij/src/test/java/com/shaft/intellij/ui/GuidedWorkflowLiveE2ETest.java",
       "kind": "file"
     },
     {
-      "id": "PR #3421",
+      "id": "issue #4779",
       "kind": "task"
     }
   ],
@@ -35,5 +39,5 @@
   ],
   "title": "Running the live guided-workflow plugin E2E harness (GuidedWorkflowLiveE2ETest)",
   "type": "workflow",
-  "updated_at": "2026-07-10T20:52:30+03:00"
+  "updated_at": "2026-08-12T10:52:07+03:00"
 }

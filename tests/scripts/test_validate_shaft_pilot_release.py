@@ -159,7 +159,7 @@ platformVersion=2024.3
           steps:
             - name: Run Gradle build
               shell: bash
-              run: gradle -p shaft-intellij check buildPlugin verifyPlugin
+              run: bash shaft-intellij/gradlew -p shaft-intellij check buildPlugin verifyPlugin
         """,
     )
     _write_text(

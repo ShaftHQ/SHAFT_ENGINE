@@ -231,7 +231,7 @@ def validate_static(root: Path = ROOT) -> list[str]:
     pilot_release_workflow = (root / ".github/workflows/shaft-pilot-release.yml").read_text(
         encoding="utf-8"
     )
-    intellij_command = "gradle -p shaft-intellij check buildPlugin verifyPlugin"
+    intellij_command = "bash shaft-intellij/gradlew -p shaft-intellij check buildPlugin verifyPlugin"
     intellij_verify_action = root / ".github/actions/intellij-verify/action.yml"
     if not intellij_verify_action.is_file() or intellij_command not in intellij_verify_action.read_text(
         encoding="utf-8"
