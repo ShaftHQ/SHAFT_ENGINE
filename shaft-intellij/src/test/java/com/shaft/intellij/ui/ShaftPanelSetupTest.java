@@ -2261,6 +2261,9 @@ class ShaftPanelSetupTest {
         ((JCheckBox) getField(panel, "useGeminiEnvironment")).setSelected(false);
         showTestResult(panel, ShaftMcpToolResult.success("Probe OK"));
         JButton connectAgent = findByAccessibleName(panel, "Connect SHAFT agent", JButton.class);
+        settings.agentLaneReady = false;
+        invokeApplyConnectAgentResult(panel, ShaftMcpToolResult.failure("retry required"));
+        assertTrue(connectAgent.isVisible());
 
         connectAgent.doClick();
 
