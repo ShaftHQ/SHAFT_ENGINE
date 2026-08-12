@@ -79,7 +79,7 @@ public class BidiConsoleLogSourceTest {
         WebDriver driver = Mockito.mock(WebDriver.class);
         List<BrowserObservabilityRecorder.ConsoleSnapshotEntry> entries = new ArrayList<>();
         for (int index = 0; index < 1005; index++) {
-            entries.add(com.shaft.tools.io.internal.BrowserObservabilityRecorder.consoleEntry(
+            entries.add(BrowserObservabilityRecorder.consoleEntry(
                     "browser", "info", "event-" + index, index));
         }
         LegacyConsoleLogSource.retain(driver, entries);
@@ -103,8 +103,8 @@ public class BidiConsoleLogSourceTest {
         Mockito.when(driver.manage()).thenReturn(options);
         Mockito.when(options.logs()).thenReturn(logs);
         Mockito.when(logs.getAvailableLogTypes()).thenReturn(Set.of("browser"));
-        List<LogEntry> firstBatch = new java.util.ArrayList<>();
-        List<LogEntry> secondBatch = new java.util.ArrayList<>();
+        List<LogEntry> firstBatch = new ArrayList<>();
+        List<LogEntry> secondBatch = new ArrayList<>();
         for (int index = 0; index < 900; index++) {
             firstBatch.add(new LogEntry(Level.INFO, index, "event-" + index));
         }
@@ -114,24 +114,24 @@ public class BidiConsoleLogSourceTest {
         Mockito.when(logs.get("browser"))
                 .thenReturn(new LogEntries(firstBatch), new LogEntries(secondBatch));
 
-        Assert.assertTrue(com.shaft.tools.io.internal.BrowserObservabilityRecorder.tryCollectConsole(driver));
-        Assert.assertTrue(com.shaft.tools.io.internal.BrowserObservabilityRecorder.tryCollectConsole(driver));
+        Assert.assertTrue(BrowserObservabilityRecorder.tryCollectConsole(driver));
+        Assert.assertTrue(BrowserObservabilityRecorder.tryCollectConsole(driver));
 
         var snapshot = LegacyConsoleLogSource.snapshotIfPresent(driver).orElseThrow();
         Assert.assertEquals(snapshot.size(), 1000);
         Assert.assertEquals(snapshot.getFirst().message(), "event-100");
         Assert.assertEquals(snapshot.getLast().message(), "event-1099");
         LegacyConsoleLogSource.closeAndRemove(driver);
-        com.shaft.tools.io.internal.BrowserObservabilityRecorder.clearConsole();
+        BrowserObservabilityRecorder.clearConsole();
     }
 
     @Test
     public void legacySnapshotsShouldIsolateEqualButDistinctDriversThroughRealTeardown() {
         WebDriver first = new EqualWebDriver();
         WebDriver second = new EqualWebDriver();
-        var firstEntry = com.shaft.tools.io.internal.BrowserObservabilityRecorder.consoleEntry(
+        var firstEntry = BrowserObservabilityRecorder.consoleEntry(
                 "browser", "info", "first-legacy", 1);
-        var secondEntry = com.shaft.tools.io.internal.BrowserObservabilityRecorder.consoleEntry(
+        var secondEntry = BrowserObservabilityRecorder.consoleEntry(
                 "browser", "error", "second-legacy", 2);
         LegacyConsoleLogSource.retain(first, List.of(firstEntry));
         LegacyConsoleLogSource.retain(second, List.of(secondEntry));
@@ -166,8 +166,8 @@ public class BidiConsoleLogSourceTest {
         Mockito.when(secondLogs.get("browser")).thenReturn(new LogEntries(List.of(
                 new LogEntry(Level.SEVERE, 2, "second-legacy"))));
 
-        Assert.assertTrue(com.shaft.tools.io.internal.BrowserObservabilityRecorder.tryCollectConsole(first));
-        Assert.assertTrue(com.shaft.tools.io.internal.BrowserObservabilityRecorder.tryCollectConsole(second));
+        Assert.assertTrue(BrowserObservabilityRecorder.tryCollectConsole(first));
+        Assert.assertTrue(BrowserObservabilityRecorder.tryCollectConsole(second));
         Assert.assertEquals(LegacyConsoleLogSource.snapshotIfPresent(first).orElseThrow().getFirst().message(),
                 "first-legacy");
         Assert.assertEquals(LegacyConsoleLogSource.snapshotIfPresent(second).orElseThrow().getFirst().message(),
@@ -176,7 +176,7 @@ public class BidiConsoleLogSourceTest {
         Assert.assertTrue(LegacyConsoleLogSource.snapshotIfPresent(first).isEmpty());
         Assert.assertEquals(LegacyConsoleLogSource.snapshotIfPresent(second).orElseThrow().size(), 1);
         LegacyConsoleLogSource.closeAndRemove(second);
-        com.shaft.tools.io.internal.BrowserObservabilityRecorder.clearConsole();
+        BrowserObservabilityRecorder.clearConsole();
     }
 
     @Test
@@ -251,8 +251,8 @@ public class BidiConsoleLogSourceTest {
         }
         BidiConsoleLogSource.drainToRecorder(driver);
 
-        Assert.assertEquals(com.shaft.tools.io.internal.BrowserObservabilityRecorder.snapshotConsole().size(), eventCount);
-        com.shaft.tools.io.internal.BrowserObservabilityRecorder.clearConsole();
+        Assert.assertEquals(BrowserObservabilityRecorder.snapshotConsole().size(), eventCount);
+        BrowserObservabilityRecorder.clearConsole();
         BidiConsoleLogSource.closeAndRemove(driver);
     }
 }
