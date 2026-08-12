@@ -115,6 +115,26 @@ class CaptureRuntimePortabilityTest {
     }
 
     @Test
+    void rejectsTestIdAttributeThatRequiresAnXpathNamespaceResolver() {
+        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class,
+                () -> new CaptureStartOptions(
+                        "", "svg:test-id", "", "", "", "", "", false, false,
+                        "", "", "", "", "", "", "", "", Duration.ZERO, "", null));
+
+        assertTrue(exception.getMessage().contains("test id attribute"));
+    }
+
+    @Test
+    void normalizesCustomTestIdAttributeForHtmlXpathMatching() {
+        CaptureStartOptions options = new CaptureStartOptions(
+                "", "DATA-PW", "", "", "", "", "", false, false,
+                "", "", "", "", "", "", "", "", Duration.ZERO, "", null);
+
+        assertEquals("data-pw", options.testIdAttribute());
+        assertEquals("data-pw", options.testIdAttributes().getFirst());
+    }
+
+    @Test
     void nativeCaptureOptionsDoNotReportMetadataOnlyWarnings(@TempDir Path temp) {
         CaptureStartOptions options = new CaptureStartOptions(
                 "java",

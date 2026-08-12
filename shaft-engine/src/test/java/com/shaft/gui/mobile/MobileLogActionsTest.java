@@ -4,22 +4,38 @@ import com.shaft.driver.SHAFT;
 import com.shaft.driver.internal.DriverFactory.DriverFactoryHelper;
 import com.shaft.gui.driver.MobileLogActionsContract;
 import com.shaft.gui.driver.MobileLogMessage;
+import com.shaft.gui.mobile.internal.MobileLogSource;
+import io.appium.java_client.AppiumDriver;
 import io.appium.java_client.android.AndroidDriver;
+import io.appium.java_client.android.ListensToLogcatMessages;
 import io.appium.java_client.ios.IOSDriver;
 import io.appium.java_client.ws.StringWebSocketClient;
 import org.mockito.Mockito;
 import org.openqa.selenium.remote.HttpCommandExecutor;
 import org.openqa.selenium.remote.SessionId;
+import org.openqa.selenium.Capabilities;
+import org.openqa.selenium.ImmutableCapabilities;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
 import java.net.URI;
+import java.lang.ref.Reference;
+import java.lang.reflect.Field;
+import java.lang.reflect.Method;
+import java.util.Deque;
 import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
+import java.util.function.Predicate;
 
+@SuppressWarnings("PMD.AvoidAccessibilityAlteration") // Private state/monitor access binds teardown linearization.
 public class MobileLogActionsTest {
     @Test
     public void androidCaptureShouldBeCrossThreadBoundedIdempotentClearableAndStoppable() throws Exception {
@@ -246,6 +262,142 @@ public class MobileLogActionsTest {
         Mockito.verify(first.driver(), Mockito.never()).executeScript("mobile: stopLogsBroadcast");
     }
 
+    @Test
+    public void evidenceSnapshotShouldBeNonCreatingImmutableAndIsolatedByDriverIdentity() throws Exception {
+        Method snapshotMethod = java.util.Arrays.stream(MobileLogSource.class.getMethods())
+                .filter(method -> method.getName().equals("snapshotIfPresent")
+                        && java.util.Arrays.equals(method.getParameterTypes(), new Class<?>[]{AppiumDriver.class}))
+                .findFirst().orElse(null);
+        Assert.assertNotNull(snapshotMethod, "Evidence needs a non-creating log snapshot.");
+
+        AppiumDriver absent = Mockito.mock(AppiumDriver.class);
+        Assert.assertFalse(hasState(absent));
+        Assert.assertEquals(snapshotMethod.invoke(null, absent), Optional.empty());
+        Assert.assertFalse(hasState(absent), "Evidence reads must not create per-driver log state.");
+        Mockito.verifyNoInteractions(absent);
+        Assert.expectThrows(NullPointerException.class, () -> MobileLogSource.snapshotIfPresent(null));
+
+        BlockingMessageHandlers blockingMessages = new BlockingMessageHandlers();
+        EqualLogDriver first = new EqualLogDriver("evidence-log-first", blockingMessages);
+        EqualLogDriver second = new EqualLogDriver("evidence-log-second");
+        MobileLogActionsContract firstLogs = new SHAFT.GUI.WebDriver(first).mobile().logs().start();
+        MobileLogActionsContract secondLogs = new SHAFT.GUI.WebDriver(second).mobile().logs().start();
+        Consumer<String> lateMessage = first.messageHandlers.getFirst();
+        Consumer<Throwable> lateError = first.errorHandlers.getFirst();
+        lateMessage.accept("first");
+        lateError.accept(new IllegalStateException("first-error"));
+        second.messageHandlers.getFirst().accept("second");
+        second.errorHandlers.getFirst().accept(new IllegalStateException("second-error"));
+
+        Object firstSnapshot = ((Optional<?>) snapshotMethod.invoke(null, first)).orElseThrow();
+        Object secondSnapshot = ((Optional<?>) snapshotMethod.invoke(null, second)).orElseThrow();
+        List<?> firstMessages = (List<?>) firstSnapshot.getClass().getMethod("messages").invoke(firstSnapshot);
+        List<?> firstErrors = (List<?>) firstSnapshot.getClass().getMethod("errors").invoke(firstSnapshot);
+        List<?> secondMessages = (List<?>) secondSnapshot.getClass().getMethod("messages").invoke(secondSnapshot);
+
+        Assert.assertEquals(((MobileLogMessage) firstMessages.getFirst()).text(), "first");
+        Assert.assertEquals(((com.shaft.gui.driver.MobileLogError) firstErrors.getFirst()).message(), "first-error");
+        Assert.assertEquals(((MobileLogMessage) secondMessages.getFirst()).text(), "second");
+        Assert.expectThrows(UnsupportedOperationException.class, firstMessages::clear);
+        Assert.expectThrows(UnsupportedOperationException.class, firstErrors::clear);
+        Assert.assertTrue((Boolean) firstSnapshot.getClass().getMethod("started").invoke(firstSnapshot));
+        Assert.assertEquals(first.messageHandlers.size(), 1);
+        Assert.assertEquals(second.messageHandlers.size(), 1);
+
+        firstLogs.stop();
+        Object stoppedSnapshot = ((Optional<?>) snapshotMethod.invoke(null, first)).orElseThrow();
+        Assert.assertFalse((Boolean) stoppedSnapshot.getClass().getMethod("started").invoke(stoppedSnapshot));
+        Assert.assertEquals(((List<?>) stoppedSnapshot.getClass().getMethod("messages").invoke(stoppedSnapshot)).size(), 1);
+        Assert.assertEquals(((List<?>) stoppedSnapshot.getClass().getMethod("errors").invoke(stoppedSnapshot)).size(), 1);
+
+        blockingMessages.arm();
+        try (var executor = Executors.newFixedThreadPool(2)) {
+            var closing = executor.submit(() -> new DriverFactoryHelper().closeDriver(first));
+            Assert.assertTrue(blockingMessages.removeEntered.await(10, TimeUnit.SECONDS));
+            CountDownLatch snapshotStarted = new CountDownLatch(1);
+            AtomicReference<Thread> snapshotThread = new AtomicReference<>();
+            var racingSnapshot = executor.submit(() -> {
+                snapshotThread.set(Thread.currentThread());
+                snapshotStarted.countDown();
+                return snapshotMethod.invoke(null, first);
+            });
+            Assert.assertTrue(snapshotStarted.await(10, TimeUnit.SECONDS));
+            long blockedDeadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(10);
+            while (snapshotThread.get().getState() != Thread.State.BLOCKED
+                    && System.nanoTime() < blockedDeadline) {
+                Thread.onSpinWait();
+            }
+            Assert.assertEquals(snapshotThread.get().getState(), Thread.State.BLOCKED,
+                    "Snapshot must block on the same state monitor used by teardown.");
+            blockingMessages.allowRemove.countDown();
+            closing.get(10, TimeUnit.SECONDS);
+            Assert.assertEquals(racingSnapshot.get(10, TimeUnit.SECONDS), Optional.empty());
+        }
+
+        lateMessage.accept("late-message");
+        lateError.accept(new IllegalStateException("late-error"));
+        Assert.assertEquals(snapshotMethod.invoke(null, first), Optional.empty());
+        Assert.assertEquals(bufferedEntryCounts(first), new int[]{0, 0},
+                "Late callbacks must not retain sensitive entries in a closed tombstone.");
+        Assert.expectThrows(UnsupportedOperationException.class, firstLogs::start);
+        Assert.expectThrows(UnsupportedOperationException.class, firstLogs::messages);
+        Assert.expectThrows(UnsupportedOperationException.class, firstLogs::errors);
+        Assert.expectThrows(UnsupportedOperationException.class, firstLogs::clear);
+        Assert.expectThrows(UnsupportedOperationException.class, firstLogs::stop);
+        Assert.assertEquals(((Optional<?>) snapshotMethod.invoke(null, second)).orElseThrow()
+                .getClass().getMethod("messages").invoke(((Optional<?>) snapshotMethod.invoke(null, second)).orElseThrow()),
+                secondLogs.messages());
+
+        EqualLogDriver closedBeforeUse = new EqualLogDriver("evidence-log-closed-before-use");
+        MobileLogActionsContract staleLogs = new SHAFT.GUI.WebDriver(closedBeforeUse).mobile().logs();
+        new DriverFactoryHelper().closeDriver(closedBeforeUse);
+        Assert.expectThrows(UnsupportedOperationException.class, staleLogs::start);
+        Assert.expectThrows(UnsupportedOperationException.class, staleLogs::messages);
+        Assert.expectThrows(UnsupportedOperationException.class, staleLogs::errors);
+        Assert.expectThrows(UnsupportedOperationException.class, staleLogs::clear);
+        Assert.expectThrows(UnsupportedOperationException.class, staleLogs::stop);
+        Assert.assertEquals(snapshotMethod.invoke(null, closedBeforeUse), Optional.empty());
+        Assert.assertTrue(closedBeforeUse.messageHandlers.isEmpty());
+        Assert.assertTrue(closedBeforeUse.errorHandlers.isEmpty());
+
+        Assert.expectThrows(NullPointerException.class,
+                () -> new MobileLogSource.Snapshot(false, null, List.of()));
+        Assert.expectThrows(NullPointerException.class,
+                () -> new MobileLogSource.Snapshot(false, List.of(), null));
+    }
+
+    private static int[] bufferedEntryCounts(AppiumDriver driver) throws Exception {
+        Field statesField = MobileLogSource.class.getDeclaredField("STATES");
+        statesField.setAccessible(true);
+        Map<?, ?> states = (Map<?, ?>) statesField.get(null);
+        synchronized (states) {
+            for (Map.Entry<?, ?> entry : states.entrySet()) {
+                if (entry.getKey() instanceof Reference<?> reference && reference.get() == driver) {
+                    Object state = entry.getValue();
+                    Field messagesField = state.getClass().getDeclaredField("messages");
+                    Field errorsField = state.getClass().getDeclaredField("errors");
+                    messagesField.setAccessible(true);
+                    errorsField.setAccessible(true);
+                    return new int[]{((Deque<?>) messagesField.get(state)).size(),
+                            ((Deque<?>) errorsField.get(state)).size()};
+                }
+            }
+        }
+        throw new AssertionError("Closed log state tombstone was not retained.");
+    }
+
+    private static boolean hasState(AppiumDriver driver) throws Exception {
+        Field statesField = MobileLogSource.class.getDeclaredField("STATES");
+        statesField.setAccessible(true);
+        Map<?, ?> states = (Map<?, ?>) statesField.get(null);
+        synchronized (states) {
+            return states.keySet().stream()
+                    .filter(Reference.class::isInstance)
+                    .map(Reference.class::cast)
+                    .anyMatch(reference -> reference.get() == driver);
+        }
+    }
+
     private static AndroidFixture android(String id, boolean listening) throws Exception {
         AndroidDriver driver = Mockito.mock(AndroidDriver.class);
         StringWebSocketClient client = Mockito.mock(StringWebSocketClient.class);
@@ -296,4 +448,97 @@ public class MobileLogActionsTest {
     private record IOSFixture(IOSDriver driver,
                               CopyOnWriteArrayList<Consumer<String>> messageHandlers,
                               CopyOnWriteArrayList<Consumer<Throwable>> errorHandlers) { }
+
+    private static final class EqualLogDriver extends AppiumDriver implements ListensToLogcatMessages {
+        private final SessionId sessionId;
+        private final StringWebSocketClient client = Mockito.mock(StringWebSocketClient.class);
+        private final CopyOnWriteArrayList<Consumer<String>> messageHandlers;
+        private final CopyOnWriteArrayList<Consumer<Throwable>> errorHandlers = new CopyOnWriteArrayList<>();
+
+        private EqualLogDriver(String id) {
+            this(id, new CopyOnWriteArrayList<>());
+        }
+
+        private EqualLogDriver(String id, CopyOnWriteArrayList<Consumer<String>> messageHandlers) {
+            super(Mockito.mock(HttpCommandExecutor.class), new ImmutableCapabilities());
+            sessionId = new SessionId(id);
+            this.messageHandlers = messageHandlers;
+            Mockito.when(client.isListening()).thenReturn(true);
+            Mockito.when(client.getMessageHandlers()).thenReturn(messageHandlers);
+            Mockito.when(client.getErrorHandlers()).thenReturn(errorHandlers);
+            Mockito.when(client.getConnectionHandlers()).thenReturn(new CopyOnWriteArrayList<>());
+            Mockito.when(client.getDisconnectionHandlers()).thenReturn(new CopyOnWriteArrayList<>());
+        }
+
+        @Override
+        protected void startSession(Capabilities capabilities) {
+            // No remote session is needed for this identity-state regression fixture.
+        }
+
+        @Override
+        public SessionId getSessionId() {
+            return sessionId;
+        }
+
+        @Override
+        public StringWebSocketClient getLogcatClient() {
+            return client;
+        }
+
+        @Override
+        public void addLogcatMessagesListener(Consumer<String> handler) {
+            messageHandlers.add(handler);
+        }
+
+        @Override
+        public void addLogcatErrorsListener(Consumer<Throwable> handler) {
+            errorHandlers.add(handler);
+        }
+
+        @Override
+        public boolean equals(Object other) {
+            return other instanceof EqualLogDriver;
+        }
+
+        @Override
+        public int hashCode() {
+            return 1;
+        }
+
+        @Override
+        public void close() {
+            // Local state tests do not own a remote session.
+        }
+
+        @Override
+        public void quit() {
+            // Local state tests do not own a remote session.
+        }
+    }
+
+    private static final class BlockingMessageHandlers extends CopyOnWriteArrayList<Consumer<String>> {
+        private final CountDownLatch removeEntered = new CountDownLatch(1);
+        private final CountDownLatch allowRemove = new CountDownLatch(1);
+        private volatile boolean armed;
+
+        private void arm() {
+            armed = true;
+        }
+
+        @Override
+        public boolean removeIf(Predicate<? super Consumer<String>> filter) {
+            if (armed) {
+                removeEntered.countDown();
+                try {
+                    if (!allowRemove.await(10, TimeUnit.SECONDS)) {
+                        throw new IllegalStateException("Timed out waiting to release log-handler removal.");
+                    }
+                } catch (InterruptedException exception) {
+                    Thread.currentThread().interrupt();
+                    throw new IllegalStateException(exception);
+                }
+            }
+            return super.removeIf(filter);
+        }
+    }
 }

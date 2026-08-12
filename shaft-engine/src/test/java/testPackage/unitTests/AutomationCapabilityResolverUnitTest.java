@@ -17,6 +17,7 @@ import io.appium.java_client.android.ListensToLogcatMessages;
 import io.appium.java_client.ios.IOSDriver;
 import io.appium.java_client.ios.ListensToSyslogMessages;
 import io.appium.java_client.mac.Mac2Driver;
+import io.appium.java_client.screenrecording.CanRecordScreen;
 import io.appium.java_client.windows.WindowsDriver;
 import io.appium.java_client.remote.SupportsContextSwitching;
 import org.openqa.selenium.HasCapabilities;
@@ -202,6 +203,10 @@ public class AutomationCapabilityResolverUnitTest {
                 withSettings().extraInterfaces(HasSupportedPerformanceDataType.class));
         when(customPerformance.getSessionId()).thenReturn(new SessionId("custom-performance"));
         when(customPerformance.getCapabilities()).thenReturn(appiumCapabilities("custom", "custom"));
+        AppiumDriver customRecording = mock(AppiumDriver.class,
+                withSettings().extraInterfaces(CanRecordScreen.class));
+        when(customRecording.getSessionId()).thenReturn(new SessionId("custom-recording"));
+        when(customRecording.getCapabilities()).thenReturn(appiumCapabilities("custom", "custom"));
         AppiumDriver generic = mock(AppiumDriver.class);
         when(generic.getSessionId()).thenReturn(new SessionId("generic-profile"));
         when(generic.getCapabilities()).thenReturn(appiumCapabilities("custom", "custom"));
@@ -212,9 +217,12 @@ public class AutomationCapabilityResolverUnitTest {
         AutomationCapabilities macCapabilities = AutomationCapabilityResolver.forWebDriver(mac);
         AutomationCapabilities customPerformanceCapabilities =
                 AutomationCapabilityResolver.forWebDriver(customPerformance);
+        AutomationCapabilities customRecordingCapabilities =
+                AutomationCapabilityResolver.forWebDriver(customRecording);
         AutomationCapabilities genericCapabilities = AutomationCapabilityResolver.forWebDriver(generic);
 
         Assert.assertTrue(androidCapabilities.supports(AutomationFeature.PERFORMANCE_DATA));
+        Assert.assertTrue(androidCapabilities.supports(AutomationFeature.SCREEN_RECORDING));
         Assert.assertTrue(androidCapabilities.supports(AutomationFeature.DEVICE_CONTROL));
         Assert.assertTrue(androidCapabilities.supports(AutomationFeature.MOBILE_AUTOMATION));
         Assert.assertTrue(androidCapabilities.supports(AutomationFeature.BIOMETRICS));
@@ -223,9 +231,12 @@ public class AutomationCapabilityResolverUnitTest {
         Assert.assertTrue(iosCapabilities.supports(AutomationFeature.DEVICE_CONTROL));
         Assert.assertTrue(iosCapabilities.supports(AutomationFeature.BIOMETRICS));
         Assert.assertTrue(iosCapabilities.supports(AutomationFeature.DEVICE_LOGS));
+        Assert.assertTrue(iosCapabilities.supports(AutomationFeature.SCREEN_RECORDING));
         Assert.assertFalse(iosCapabilities.supports(AutomationFeature.PERFORMANCE_DATA));
         Assert.assertTrue(customPerformanceCapabilities.supports(AutomationFeature.PERFORMANCE_DATA));
+        Assert.assertTrue(customRecordingCapabilities.supports(AutomationFeature.SCREEN_RECORDING));
         Assert.assertFalse(genericCapabilities.supports(AutomationFeature.PERFORMANCE_DATA));
+        Assert.assertFalse(genericCapabilities.supports(AutomationFeature.SCREEN_RECORDING));
         Assert.assertTrue(windowsCapabilities.supports(AutomationFeature.TOUCH_GESTURES));
         Assert.assertTrue(windowsCapabilities.supports(AutomationFeature.FILE_TRANSFER));
         Assert.assertTrue(windowsCapabilities.supports(AutomationFeature.SCREEN_RECORDING));
@@ -237,12 +248,15 @@ public class AutomationCapabilityResolverUnitTest {
         Assert.assertFalse(macCapabilities.supports(AutomationFeature.MOBILE_AUTOMATION));
         Assert.assertFalse(macCapabilities.supports(AutomationFeature.DEVICE_LOGS));
         Assert.assertFalse(macCapabilities.supports(AutomationFeature.PERFORMANCE_DATA));
+        Assert.assertTrue(macCapabilities.supports(AutomationFeature.SCREEN_RECORDING));
 
         when(android.getSessionId()).thenReturn(null);
         Assert.assertFalse(AutomationCapabilityResolver.forWebDriver(android)
                 .supports(AutomationFeature.DEVICE_LOGS));
         Assert.assertFalse(AutomationCapabilityResolver.forWebDriver(android)
                 .supports(AutomationFeature.PERFORMANCE_DATA));
+        Assert.assertFalse(AutomationCapabilityResolver.forWebDriver(android)
+                .supports(AutomationFeature.SCREEN_RECORDING));
     }
 
     @Test

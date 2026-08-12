@@ -1305,6 +1305,63 @@ class CaptureGeneratorTest {
                         + "rung-2 evidence is present: " + source);
     }
 
+    @Test
+    void selectedStableTestIdOutranksVolatileExactTextFallback() throws Exception {
+        ExternalTestDataReference expected = CaptureFixtures.ordinary();
+        String volatileXpath = "//a[normalize-space(.)=\"ShaftHQ / SHAFT_ENGINE — volatile rendering A\"]";
+        String stableXpath = "//*[@data-testid=\"result-title-a\"]";
+        ElementSnapshot resultTitle = new ElementSnapshot(
+                "result-title",
+                "a",
+                "link",
+                "ShaftHQ / SHAFT_ENGINE — volatile rendering A",
+                "ShaftHQ / SHAFT_ENGINE — volatile rendering A",
+                Map.of("data-testid", "result-title-a"),
+                List.of(
+                        new LocatorCandidate(LocatorCandidate.LocatorStrategy.XPATH,
+                                volatileXpath, 1, true, true,
+                                java.util.Set.of(LocatorCandidate.LocatorSignal.ACCESSIBLE), volatileXpath),
+                        new LocatorCandidate(LocatorCandidate.LocatorStrategy.TEST_ID,
+                                "[data-testid=\"result-title-a\"]", 1, true, true,
+                                java.util.Set.of(
+                                        LocatorCandidate.LocatorSignal.TEST_ATTRIBUTE,
+                                        LocatorCandidate.LocatorSignal.STABLE_ATTRIBUTE,
+                                        LocatorCandidate.LocatorSignal.USER_PROVIDED),
+                                stableXpath)),
+                true,
+                true,
+                false);
+        CaptureSession capture = new CaptureSession(
+                CaptureSession.CURRENT_SCHEMA_VERSION,
+                "selected-test-id-session",
+                CaptureSession.SessionStatus.COMPLETED,
+                CaptureFixtures.STARTED,
+                CaptureFixtures.STARTED.plusSeconds(3),
+                CaptureFixtures.browser(),
+                List.of(
+                        new CaptureEvent.NavigationEvent(CaptureFixtures.context(1),
+                                CaptureEvent.NavigationAction.OPEN, "https://example.test/results"),
+                        new CaptureEvent.VerificationEvent(CaptureFixtures.context(2),
+                                CaptureEvent.VerificationKind.TEXT_CONTAINS,
+                                resultTitle, expected, false)),
+                List.of(),
+                List.of(expected),
+                com.shaft.capture.model.RedactionSummary.empty(),
+                Map.of());
+        Path session = session(capture);
+        writeCaptureData("ShaftHQ");
+
+        CaptureGenerationResult result = new CaptureGenerator()
+                .generate(request(session, temp.resolve("selected-test-id")));
+
+        assertGeneratedUnconfirmed(result);
+        String source = Files.readString(result.sourcePath());
+        assertTrue(source.contains("By.xpath(\"//*[@data-testid=\\\"result-title-a\\\"]\")"),
+                "the selected stable test ID must remain the generated assertion locator: " + source);
+        assertFalse(source.contains(volatileXpath),
+                "the selected stable test ID must not be replaced by volatile exact text: " + source);
+    }
+
     private static CaptureSession cssStrategyReplayXpathSession() {
         ElementSnapshot submitButton = new ElementSnapshot(
                 "submit-button",

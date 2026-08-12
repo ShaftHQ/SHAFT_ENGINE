@@ -75,7 +75,11 @@ public record CaptureStartOptions(
      */
     public CaptureStartOptions {
         targetLanguage = text(targetLanguage);
-        testIdAttribute = text(testIdAttribute);
+        testIdAttribute = text(testIdAttribute).toLowerCase(Locale.ROOT);
+        if (!testIdAttribute.isBlank() && !testIdAttribute.matches("[A-Za-z_][A-Za-z0-9_.-]*")) {
+            throw new IllegalArgumentException(
+                    "Capture test id attribute must be a namespace-free HTML attribute name.");
+        }
         channel = text(channel);
         deviceName = text(deviceName);
         viewportSize = text(viewportSize);

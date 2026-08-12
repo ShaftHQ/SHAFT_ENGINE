@@ -10,19 +10,24 @@ import org.openqa.selenium.remote.HttpCommandExecutor;
 import org.openqa.selenium.WebDriver;
 
 import java.net.URL;
+import java.lang.ref.ReferenceQueue;
+import java.lang.ref.WeakReference;
 import java.time.Instant;
 import java.util.ArrayDeque;
 import java.util.Deque;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.WeakHashMap;
+import java.util.Objects;
+import java.util.Optional;
 import java.util.function.Consumer;
 
 /** Session-keyed bounded Appium logcat/syslog callback storage. */
 public final class MobileLogSource {
     private static final int MAX_ENTRIES = 1_000;
     private static final String STOP_BROADCAST = "mobile: stopLogsBroadcast";
-    private static final Map<AppiumDriver, State> STATES = new WeakHashMap<>();
+    private static final ReferenceQueue<AppiumDriver> STALE_DRIVERS = new ReferenceQueue<>();
+    private static final Map<IdentityWeakReference, State> STATES = new HashMap<>();
 
     private MobileLogSource() {
         throw new IllegalStateException("Utility class");
@@ -36,6 +41,7 @@ public final class MobileLogSource {
         Provider provider = provider(driver);
         State state = state(driver, provider.source());
         synchronized (state) {
+            requireOpen(state);
             if (state.started) {
                 return;
             }
@@ -71,6 +77,7 @@ public final class MobileLogSource {
         Provider provider = provider(driver);
         State state = state(driver, provider.source());
         synchronized (state) {
+            requireOpen(state);
             return List.copyOf(state.messages);
         }
     }
@@ -79,6 +86,7 @@ public final class MobileLogSource {
         Provider provider = provider(driver);
         State state = state(driver, provider.source());
         synchronized (state) {
+            requireOpen(state);
             return List.copyOf(state.errors);
         }
     }
@@ -87,6 +95,7 @@ public final class MobileLogSource {
         Provider provider = provider(driver);
         State state = state(driver, provider.source());
         synchronized (state) {
+            requireOpen(state);
             state.messages.clear();
             state.errors.clear();
         }
@@ -99,6 +108,7 @@ public final class MobileLogSource {
             return;
         }
         synchronized (state) {
+            requireOpen(state);
             if (!state.started) {
                 return;
             }
@@ -121,16 +131,24 @@ public final class MobileLogSource {
         if (!(driver instanceof AppiumDriver appiumDriver)) {
             return;
         }
+        final Provider provider;
+        try {
+            provider = provider(appiumDriver);
+        } catch (UnsupportedOperationException ignored) {
+            return;
+        }
         State state;
         synchronized (STATES) {
-            state = STATES.remove(appiumDriver);
-        }
-        if (state == null) {
-            return;
+            expungeStaleDrivers();
+            IdentityWeakReference lookup = new IdentityWeakReference(appiumDriver);
+            state = STATES.get(lookup);
+            if (state == null) {
+                state = new State(provider.source());
+                STATES.put(new IdentityWeakReference(appiumDriver, STALE_DRIVERS), state);
+            }
         }
         synchronized (state) {
             try {
-                Provider provider = provider(appiumDriver);
                 removeHandlersBestEffort(provider.client(), state);
             } catch (RuntimeException ignored) {
                 // Driver teardown must continue even when the provider client is already unavailable.
@@ -139,18 +157,56 @@ public final class MobileLogSource {
             state.errors.clear();
             state.started = false;
             state.ownsBroadcast = false;
+            state.closed = true;
+        }
+    }
+
+    /** Returns one atomic immutable snapshot without creating state or touching the provider. */
+    public static Optional<Snapshot> snapshotIfPresent(AppiumDriver driver) {
+        State state = existingState(Objects.requireNonNull(driver, "Appium driver"));
+        if (state == null) {
+            return Optional.empty();
+        }
+        synchronized (state) {
+            if (state.closed) {
+                return Optional.empty();
+            }
+            return Optional.of(new Snapshot(state.started, List.copyOf(state.messages), List.copyOf(state.errors)));
         }
     }
 
     private static State state(AppiumDriver driver, String source) {
+        Objects.requireNonNull(driver, "Appium driver");
         synchronized (STATES) {
-            return STATES.computeIfAbsent(driver, ignored -> new State(source));
+            expungeStaleDrivers();
+            IdentityWeakReference lookup = new IdentityWeakReference(driver);
+            State existing = STATES.get(lookup);
+            if (existing != null) {
+                return existing;
+            }
+            State created = new State(source);
+            STATES.put(new IdentityWeakReference(driver, STALE_DRIVERS), created);
+            return created;
         }
     }
 
     private static State existingState(AppiumDriver driver) {
         synchronized (STATES) {
-            return STATES.get(driver);
+            expungeStaleDrivers();
+            return STATES.get(new IdentityWeakReference(driver));
+        }
+    }
+
+    private static void expungeStaleDrivers() {
+        IdentityWeakReference stale;
+        while ((stale = (IdentityWeakReference) STALE_DRIVERS.poll()) != null) {
+            STATES.remove(stale);
+        }
+    }
+
+    private static void requireOpen(State state) {
+        if (state.closed) {
+            throw new UnsupportedOperationException("The Appium device-log session has been closed.");
         }
     }
 
@@ -276,6 +332,7 @@ public final class MobileLogSource {
         private final Consumer<Throwable> errorHandler;
         private boolean started;
         private boolean ownsBroadcast;
+        private boolean closed;
 
         private State(String source) {
             messageHandler = message -> appendMessage(new MobileLogMessage(Instant.now(), source, message));
@@ -284,11 +341,15 @@ public final class MobileLogSource {
         }
 
         private synchronized void appendMessage(MobileLogMessage message) {
-            append(messages, message);
+            if (!closed) {
+                append(messages, message);
+            }
         }
 
         private synchronized void appendError(MobileLogError error) {
-            append(errors, error);
+            if (!closed) {
+                append(errors, error);
+            }
         }
 
         private static <T> void append(Deque<T> entries, T entry) {
@@ -296,6 +357,45 @@ public final class MobileLogSource {
                 entries.removeFirst();
             }
             entries.addLast(entry);
+        }
+    }
+
+    /** Immutable read-only evidence view of the current SHAFT-owned log buffer. */
+    public record Snapshot(boolean started, List<MobileLogMessage> messages, List<MobileLogError> errors) {
+        public Snapshot {
+            messages = List.copyOf(Objects.requireNonNull(messages, "messages"));
+            errors = List.copyOf(Objects.requireNonNull(errors, "errors"));
+        }
+    }
+
+    private static final class IdentityWeakReference extends WeakReference<AppiumDriver> {
+        private final int identityHash;
+
+        private IdentityWeakReference(AppiumDriver driver) {
+            super(driver);
+            identityHash = System.identityHashCode(driver);
+        }
+
+        private IdentityWeakReference(AppiumDriver driver, ReferenceQueue<AppiumDriver> queue) {
+            super(driver, queue);
+            identityHash = System.identityHashCode(driver);
+        }
+
+        @Override
+        public int hashCode() {
+            return identityHash;
+        }
+
+        @Override
+        public boolean equals(Object other) {
+            if (this == other) {
+                return true;
+            }
+            if (!(other instanceof IdentityWeakReference reference)) {
+                return false;
+            }
+            AppiumDriver driver = get();
+            return driver != null && driver == reference.get();
         }
     }
 }
