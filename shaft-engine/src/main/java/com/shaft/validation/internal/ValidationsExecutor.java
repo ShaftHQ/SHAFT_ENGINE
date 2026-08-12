@@ -54,6 +54,8 @@ public class ValidationsExecutor {
     private String mobileValueName;
     private Supplier<Object> browserValueReader;
     private String browserValueName;
+    private Supplier<Object> apiValueReader;
+    private String apiValueDescription;
 
     public ValidationsExecutor(WebDriverElementValidationsBuilder webDriverElementValidationsBuilder) {
         this.validationCategory = webDriverElementValidationsBuilder.validationCategory;
@@ -94,6 +96,8 @@ public class ValidationsExecutor {
         this.mobileValueName = nativeValidationsBuilder.mobileValueName;
         this.browserValueReader = nativeValidationsBuilder.browserValueReader;
         this.browserValueName = nativeValidationsBuilder.browserValueName;
+        this.apiValueReader = nativeValidationsBuilder.apiValueReader;
+        this.apiValueDescription = nativeValidationsBuilder.apiValueDescription;
 
         this.response.set(nativeValidationsBuilder.response);
         this.jsonPath = nativeValidationsBuilder.jsonPath;
@@ -173,7 +177,7 @@ public class ValidationsExecutor {
     }
 
     protected void internalPerform() {
-        if (!List.of("mobileValueEquals", "browserValueEquals").contains(validationMethod)) {
+        if (driver.get() != null && !List.of("mobileValueEquals", "browserValueEquals").contains(validationMethod)) {
             JavaScriptWaitManager.waitForLazyLoading(driver.get());
         }
         boolean generatedCustomReportMessage = false;
@@ -262,6 +266,12 @@ public class ValidationsExecutor {
             case "browserValueEquals" ->
                     validationsHelper.validateBrowserValue(driver.get(), browserValueName, browserValueReader,
                             expectedValue, validationComparisonType, validationType);
+            case "apiValueEquals" ->
+                    validationsHelper.validateApiValue(apiValueDescription, expectedValue, apiValueReader.get(),
+                            validationComparisonType, validationType);
+            case "responseStatusCode" ->
+                    validationsHelper.validateNumber((Number) expectedValue,
+                            ((Response) response.get()).statusCode(), numbersComparativeRelation, validationType);
             case "comparativeRelationBetweenNumbers" ->
                     validationsHelper.validateNumber((Number) expectedValue, (Number) actualValue, numbersComparativeRelation, validationType);
             case "fileExists" ->

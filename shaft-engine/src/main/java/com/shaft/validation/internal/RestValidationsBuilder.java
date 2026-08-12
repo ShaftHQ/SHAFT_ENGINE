@@ -4,6 +4,9 @@ import com.shaft.api.RestActions;
 import com.shaft.cli.FileActions;
 import com.shaft.tools.internal.support.JavaHelper;
 import com.shaft.validation.ValidationEnums;
+import io.restassured.response.Response;
+
+import java.util.Objects;
 
 
 @SuppressWarnings("unused")
@@ -16,6 +19,67 @@ public class RestValidationsBuilder {
     protected String fileAbsolutePath;
     protected RestActions.ComparisonType restComparisonType;
     protected String jsonPath;
+
+    /** Returns the completed response status code as a numeric validation value. */
+    public NumberValidationsBuilder statusCodeValue() {
+        return NumberValidationsBuilder.responseValue(validationCategory, response, "responseStatusCode",
+                message("status code "));
+    }
+
+    /** Returns the named completed-response header as a scalar validation value. */
+    public NativeValidationsBuilder headerValue(String name) {
+        Objects.requireNonNull(name, "Header name must not be null.");
+        return NativeValidationsBuilder.apiValue(validationCategory,
+                "header value", () -> ((Response) response).getHeader(name),
+                message("header value "));
+    }
+
+    /** Returns the named completed-response cookie as a scalar validation value. */
+    public NativeValidationsBuilder cookieValue(String name) {
+        Objects.requireNonNull(name, "Cookie name must not be null.");
+        return NativeValidationsBuilder.apiValue(validationCategory,
+                "cookie value", () -> ((Response) response).getCookie(name),
+                message("cookie value "));
+    }
+
+    /** Returns the completed response body as a scalar validation value. */
+    public NativeValidationsBuilder bodyValue() {
+        return NativeValidationsBuilder.apiValue(validationCategory,
+                "response body", () -> RestActions.getResponseBody((Response) response),
+                message("response body "));
+    }
+
+    /** Returns one JSONPath result from the completed response. */
+    public NativeValidationsBuilder jsonValue(String path) {
+        Objects.requireNonNull(path, "JSON path must not be null.");
+        return NativeValidationsBuilder.apiValue(validationCategory,
+                "JSON value", () -> RestActions.getResponseJSONValue(response, path),
+                message("JSON value "));
+    }
+
+    /** Returns a JSONPath list result from the completed response. */
+    public NativeValidationsBuilder jsonValues(String path) {
+        Objects.requireNonNull(path, "JSON path must not be null.");
+        return NativeValidationsBuilder.apiValue(validationCategory,
+                "JSON value list", () -> RestActions.getResponseJSONValueAsList((Response) response, path),
+                message("JSON value list "));
+    }
+
+    /** Returns the completed response time in milliseconds. */
+    public NumberValidationsBuilder responseTimeMillis() {
+        return NumberValidationsBuilder.responseValue(validationCategory, response, "responseTime",
+                message("response time in milliseconds "));
+    }
+
+    /** Validates the completed response against an order-insensitive JSON contract file. */
+    public ValidationsExecutor matchesContract(String fileRelativePath) {
+        return new RestValidationsBuilder(validationCategory, response, message(""))
+                .isEqualToFileContentIgnoringOrder(fileRelativePath);
+    }
+
+    private StringBuilder message(String suffix) {
+        return new StringBuilder(reportMessageBuilder).append(suffix);
+    }
 
     public RestValidationsBuilder(ValidationEnums.ValidationCategory validationCategory, Object response, StringBuilder reportMessageBuilder) {
         this.validationCategory = validationCategory;

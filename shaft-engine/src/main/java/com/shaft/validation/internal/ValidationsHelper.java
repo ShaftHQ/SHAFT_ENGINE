@@ -395,6 +395,40 @@ public class ValidationsHelper {
         reportValidationState(validationState, expected, actual, null, null, null);
     }
 
+    protected void validateApiValue(String description, Object expected, Object actual,
+                                    ValidationEnums.ValidationComparisonType comparisonType,
+                                    ValidationEnums.ValidationType validationType) {
+        boolean validationState = performValidation(expected, actual, comparisonType, validationType);
+        Object reportedExpected = apiValueSummary(expected);
+        Object reportedActual = apiValueSummary(actual);
+        String comparisonTypeString = ValidationEnums.ValidationType.NEGATIVE.name().equals(validationType.name())
+                ? "not " + comparisonType.name() : comparisonType.name();
+        var parameters = new LinkedHashMap<String, String>();
+        parameters.put("API value", description);
+        parameters.putAll(setCommonParameters(reportedExpected, reportedActual, comparisonTypeString));
+        updateAllureParameters(parameters);
+        reportValidationState(validationState, reportedExpected, reportedActual, null, null, null);
+    }
+
+    static String apiValueSummary(Object value) {
+        if (value == null) {
+            return "null API value";
+        }
+        if (value.getClass() == String.class) {
+            return "text API value (" + ((String) value).length() + " characters)";
+        }
+        if (value.getClass().isArray()) {
+            return "array API value (" + java.lang.reflect.Array.getLength(value) + " items)";
+        }
+        if (value instanceof java.util.Collection<?>) {
+            return "collection API value";
+        }
+        if (value instanceof java.util.Map<?, ?>) {
+            return "map API value";
+        }
+        return "API value (" + value.getClass().getSimpleName() + ")";
+    }
+
     protected void validateElementValue(WebDriver driver, By locator, String property, Supplier<Object> reader,
                                         Object expected, ValidationEnums.ValidationComparisonType comparisonType,
                                         ValidationEnums.ValidationType validationType) {

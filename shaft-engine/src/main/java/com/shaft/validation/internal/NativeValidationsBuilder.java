@@ -28,6 +28,8 @@ public class NativeValidationsBuilder {
     protected String mobileValueName;
     protected Supplier<Object> browserValueReader;
     protected String browserValueName;
+    protected Supplier<Object> apiValueReader;
+    protected String apiValueDescription;
 
     public NativeValidationsBuilder(WebDriverElementValidationsBuilder webDriverElementValidationsBuilder) {
         this.validationCategory = webDriverElementValidationsBuilder.validationCategory;
@@ -68,6 +70,16 @@ public class NativeValidationsBuilder {
         builder.driver = driver;
         builder.browserValueReader = reader;
         builder.browserValueName = name;
+        return builder;
+    }
+
+    static NativeValidationsBuilder apiValue(ValidationEnums.ValidationCategory validationCategory,
+                                              String description, Supplier<Object> reader,
+                                              StringBuilder reportMessageBuilder) {
+        NativeValidationsBuilder builder = new NativeValidationsBuilder(
+                validationCategory, "apiValueEquals", reportMessageBuilder);
+        builder.apiValueReader = reader;
+        builder.apiValueDescription = description;
         return builder;
     }
 
@@ -125,7 +137,7 @@ public class NativeValidationsBuilder {
         this.expectedValue = expectedValue;
         this.validationComparisonType = ValidationEnums.ValidationComparisonType.EQUALS;
         this.validationType = ValidationEnums.ValidationType.POSITIVE;
-        reportMessageBuilder.append("is equal to \"").append(expectedValue).append("\".");
+        reportMessageBuilder.append("is equal to \"").append(reportedValue(expectedValue)).append("\".");
         var executor = createExecutor();
         executor.internalPerform();
         return executor;
@@ -154,7 +166,7 @@ public class NativeValidationsBuilder {
         this.expectedValue = expectedValue;
         this.validationComparisonType = ValidationEnums.ValidationComparisonType.EQUALS;
         this.validationType = ValidationEnums.ValidationType.NEGATIVE;
-        reportMessageBuilder.append("does not equal \"").append(expectedValue).append("\".");
+        reportMessageBuilder.append("does not equal \"").append(reportedValue(expectedValue)).append("\".");
         var executor = createExecutor();
         executor.internalPerform();
         return executor;
@@ -170,7 +182,7 @@ public class NativeValidationsBuilder {
         this.expectedValue = expectedValue;
         this.validationComparisonType = ValidationEnums.ValidationComparisonType.CONTAINS;
         this.validationType = ValidationEnums.ValidationType.POSITIVE;
-        reportMessageBuilder.append("contains \"").append(expectedValue).append("\".");
+        reportMessageBuilder.append("contains \"").append(reportedValue(expectedValue)).append("\".");
         var executor = createExecutor();
         executor.internalPerform();
         return executor;
@@ -186,7 +198,7 @@ public class NativeValidationsBuilder {
         this.expectedValue = expectedValue;
         this.validationComparisonType = ValidationEnums.ValidationComparisonType.CONTAINS;
         this.validationType = ValidationEnums.ValidationType.NEGATIVE;
-        reportMessageBuilder.append("does not contain \"").append(expectedValue).append("\".");
+        reportMessageBuilder.append("does not contain \"").append(reportedValue(expectedValue)).append("\".");
         var executor = createExecutor();
         executor.internalPerform();
         return executor;
@@ -202,7 +214,7 @@ public class NativeValidationsBuilder {
         this.expectedValue = expectedValue;
         this.validationComparisonType = ValidationEnums.ValidationComparisonType.MATCHES;
         this.validationType = ValidationEnums.ValidationType.POSITIVE;
-        reportMessageBuilder.append("matches this regular expression \"").append(expectedValue).append("\".");
+        reportMessageBuilder.append("matches this regular expression \"").append(reportedValue(expectedValue)).append("\".");
         var executor = createExecutor();
         executor.internalPerform();
         return executor;
@@ -218,7 +230,7 @@ public class NativeValidationsBuilder {
         this.expectedValue = expectedValue;
         this.validationComparisonType = ValidationEnums.ValidationComparisonType.MATCHES;
         this.validationType = ValidationEnums.ValidationType.NEGATIVE;
-        reportMessageBuilder.append("does not match this regular expression \"").append(expectedValue).append("\".");
+        reportMessageBuilder.append("does not match this regular expression \"").append(reportedValue(expectedValue)).append("\".");
         var executor = createExecutor();
         executor.internalPerform();
         return executor;
@@ -234,7 +246,7 @@ public class NativeValidationsBuilder {
         this.expectedValue = expectedValue;
         this.validationComparisonType = ValidationEnums.ValidationComparisonType.CASE_INSENSITIVE;
         this.validationType = ValidationEnums.ValidationType.POSITIVE;
-        reportMessageBuilder.append("equals \"").append(expectedValue).append("\", ignoring case sensitivity.");
+        reportMessageBuilder.append("equals \"").append(reportedValue(expectedValue)).append("\", ignoring case sensitivity.");
         var executor = createExecutor();
         executor.internalPerform();
         return executor;
@@ -250,7 +262,7 @@ public class NativeValidationsBuilder {
         this.expectedValue = expectedValue;
         this.validationComparisonType = ValidationEnums.ValidationComparisonType.CASE_INSENSITIVE;
         this.validationType = ValidationEnums.ValidationType.NEGATIVE;
-        reportMessageBuilder.append("does not equal \"").append(expectedValue).append("\", ignoring case sensitivity.");
+        reportMessageBuilder.append("does not equal \"").append(reportedValue(expectedValue)).append("\", ignoring case sensitivity.");
         var executor = createExecutor();
         executor.internalPerform();
         return executor;
@@ -314,6 +326,10 @@ public class NativeValidationsBuilder {
         var executor = createExecutor();
         executor.internalPerform();
         return executor;
+    }
+
+    private Object reportedValue(Object value) {
+        return apiValueReader == null ? value : ValidationsHelper.apiValueSummary(value);
     }
 
     /**

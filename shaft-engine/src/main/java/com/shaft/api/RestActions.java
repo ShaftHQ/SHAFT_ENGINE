@@ -763,8 +763,7 @@ public class RestActions {
             var actualRoot = JACKSON_MAPPER.readTree(response.asString());
             if (actualRoot instanceof ObjectNode) {
                 actualJsonObject = (ObjectNode) actualRoot;
-            } else {
-                // actualRoot is an array
+            } else if (actualRoot instanceof ArrayNode) {
                 actualJsonArray = (ArrayNode) actualRoot;
             }
 
@@ -778,14 +777,11 @@ public class RestActions {
             }
             if (expectedRoot instanceof ObjectNode) {
                 expectedJsonObject = (ObjectNode) expectedRoot;
-                expectedJSONAttachment = Arrays.asList("File Content", "Expected JSON",
-                        PRETTY_GSON.toJson(JsonParser.parseString(expectedJsonObject.toString())));
-            } else {
-                // expectedRoot is an array
+            } else if (expectedRoot instanceof ArrayNode) {
                 expectedJsonArray = (ArrayNode) expectedRoot;
-                expectedJSONAttachment = Arrays.asList("File Content", "Expected JSON",
-                        PRETTY_GSON.toJson(JsonParser.parseString(expectedJsonArray.toString())));
             }
+            expectedJSONAttachment = Arrays.asList("File Content", "Expected JSON",
+                    PRETTY_GSON.toJson(JsonParser.parseString(expectedRoot.toString())));
 
             if (!jsonPathToTargetArray.isEmpty() && expectedJsonArray != null
                     && comparisonType != ComparisonType.CONTAINS) {
@@ -793,15 +789,17 @@ public class RestActions {
                 actualJsonArray = getActualJsonArrayFromJsonPath(response, jsonPathToTargetArray);
             }
 
+            boolean scalarRoots = expectedJsonObject == null && expectedJsonArray == null
+                    && actualJsonObject == null && actualJsonArray == null;
             // handle different combinations of expected and actual (object vs array)
             comparisonResult = switch (comparisonType) {
-                case EQUALS -> compareJSONEquals(expectedJsonObject, expectedJsonArray, actualJsonObject,
-                        actualJsonArray);
+                case EQUALS -> scalarRoots ? Objects.equals(expectedRoot, actualRoot)
+                        : compareJSONEquals(expectedJsonObject, expectedJsonArray, actualJsonObject, actualJsonArray);
                 case CONTAINS -> compareJSONContains(response, expectedJsonObject, expectedJsonArray,
                         actualJsonObject, actualJsonArray, jsonPathToTargetArray);
-                case EQUALS_IGNORING_ORDER ->
-                        compareJSONEqualsIgnoringOrder(expectedJsonObject, expectedJsonArray, actualJsonObject,
-                                actualJsonArray);
+                case EQUALS_IGNORING_ORDER -> scalarRoots ? Objects.equals(expectedRoot, actualRoot)
+                        : compareJSONEqualsIgnoringOrder(expectedJsonObject, expectedJsonArray, actualJsonObject,
+                        actualJsonArray);
             };
         } catch (IOException rootCauseException) {
             failAction("Couldn't find or parse the desired file. \"" + referenceJsonFilePath + "\".", rootCauseException);
@@ -962,10 +960,10 @@ public class RestActions {
         if (expectedJsonObject != null && actualJsonObject != null) {
             // if expected is an object and actual is also an object
             return actualJsonObject.toString().equals(expectedJsonObject.toString());
-        } else {
-            // if expected is an array and actual response is also an array
+        } else if (expectedJsonArray != null && actualJsonArray != null) {
             return actualJsonArray.toString().equals(expectedJsonArray.toString());
         }
+        return false;
     }
 
     private static boolean compareJSONEqualsIgnoringOrder(ObjectNode expectedJsonObject,
@@ -976,18 +974,18 @@ public class RestActions {
             try {
                 JSONAssert.assertEquals(expectedJsonObject.toString(), actualJsonObject.toString(), JSONCompareMode.NON_EXTENSIBLE);
                 return true;
-            } catch (JSONException e) {
+            } catch (JSONException | AssertionError e) {
                 return false;
             }
-        } else {
-            // if expected is an array and actual response is also an array
+        } else if (expectedJsonArray != null && actualJsonArray != null) {
             try {
                 JSONAssert.assertEquals(expectedJsonArray.toString(), actualJsonArray.toString(), JSONCompareMode.NON_EXTENSIBLE);
                 return true;
-            } catch (JSONException e) {
+            } catch (JSONException | AssertionError e) {
                 return false;
             }
         }
+        return false;
     }
 
     @SuppressWarnings("unchecked")
@@ -995,6 +993,10 @@ public class RestActions {
                                                ArrayNode expectedJsonArray, ObjectNode actualJsonObject, ArrayNode actualJsonArray,
                                                String jsonPathToTargetArray)
             throws JSONException, IOException {
+        if ((expectedJsonArray != null && actualJsonArray == null && jsonPathToTargetArray.isEmpty())
+                || (expectedJsonObject != null && actualJsonObject == null)) {
+            return false;
+        }
         if (!jsonPathToTargetArray.isEmpty() && (expectedJsonArray != null)) {
             // if expected is an array and the user provided the path to extract it from the
             // response
