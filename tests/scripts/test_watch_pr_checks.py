@@ -6,8 +6,8 @@ import subprocess  # nosec B404 - fixed test doubles only.
 import sys
 import tempfile
 import unittest
+import unittest.mock
 from pathlib import Path
-from unittest import mock
 
 from scripts.agents import watch_pr_checks
 
@@ -16,7 +16,7 @@ class WatchPrChecksRepositoryContextTest(unittest.TestCase):
     def test_root_defaults_to_the_callers_current_working_directory(self):
         caller = Path("unrelated-consumer-repository")
 
-        with mock.patch.object(watch_pr_checks.Path, "cwd", return_value=caller):
+        with unittest.mock.patch.object(watch_pr_checks.Path, "cwd", return_value=caller):
             arguments = watch_pr_checks.build_parser().parse_args([])
 
         self.assertEqual(caller, arguments.root)
@@ -43,16 +43,16 @@ class WatchPrChecksRepositoryContextTest(unittest.TestCase):
         stdout = io.StringIO()
         stderr = io.StringIO()
         with (
-            mock.patch.object(sys, "argv", ["watch_pr_checks.py", "--pr", "42", "--poll-once"]),
-            mock.patch.object(watch_pr_checks.Path, "cwd", return_value=caller),
-            mock.patch.object(watch_pr_checks, "resolve_gh", return_value="gh"),
-            mock.patch.object(watch_pr_checks, "run_gh", side_effect=run_gh),
-            mock.patch(
+            unittest.mock.patch.object(sys, "argv", ["watch_pr_checks.py", "--pr", "42", "--poll-once"]),
+            unittest.mock.patch.object(watch_pr_checks.Path, "cwd", return_value=caller),
+            unittest.mock.patch.object(watch_pr_checks, "resolve_gh", return_value="gh"),
+            unittest.mock.patch.object(watch_pr_checks, "run_gh", side_effect=run_gh),
+            unittest.mock.patch(
                 "scripts.agents.repository_context.infer_repository",
                 return_value="consumer/project",
             ),
-            mock.patch("sys.stdout", stdout),
-            mock.patch("sys.stderr", stderr),
+            unittest.mock.patch("sys.stdout", stdout),
+            unittest.mock.patch("sys.stderr", stderr),
         ):
             exit_code = watch_pr_checks.main()
 
@@ -83,10 +83,10 @@ class WatchPrChecksRepositoryContextTest(unittest.TestCase):
         error_stdout = io.StringIO()
         error_stderr = io.StringIO()
         with (
-            mock.patch.object(sys, "argv", ["watch_pr_checks.py", "--poll-once"]),
-            mock.patch.object(watch_pr_checks, "resolve_gh", side_effect=watch_pr_checks.CheckWatchError("missing")),
-            mock.patch("sys.stdout", error_stdout),
-            mock.patch("sys.stderr", error_stderr),
+            unittest.mock.patch.object(sys, "argv", ["watch_pr_checks.py", "--poll-once"]),
+            unittest.mock.patch.object(watch_pr_checks, "resolve_gh", side_effect=watch_pr_checks.CheckWatchError("missing")),
+            unittest.mock.patch("sys.stdout", error_stdout),
+            unittest.mock.patch("sys.stderr", error_stderr),
         ):
             self.assertEqual(3, watch_pr_checks.main())
         self.assertEqual("", error_stdout.getvalue())
@@ -95,19 +95,19 @@ class WatchPrChecksRepositoryContextTest(unittest.TestCase):
         pending_stdout = io.StringIO()
         pending_stderr = io.StringIO()
         with (
-            mock.patch.object(
+            unittest.mock.patch.object(
                 sys,
                 "argv",
                 ["watch_pr_checks.py", "--pr", "https://github.com/owner/project/pull/9", "--poll-once"],
             ),
-            mock.patch.object(watch_pr_checks, "resolve_gh", return_value="gh"),
-            mock.patch.object(
+            unittest.mock.patch.object(watch_pr_checks, "resolve_gh", return_value="gh"),
+            unittest.mock.patch.object(
                 watch_pr_checks,
                 "run_gh",
                 return_value=subprocess.CompletedProcess([], 0, stdout="[]", stderr=""),
             ),
-            mock.patch("sys.stdout", pending_stdout),
-            mock.patch("sys.stderr", pending_stderr),
+            unittest.mock.patch("sys.stdout", pending_stdout),
+            unittest.mock.patch("sys.stderr", pending_stderr),
         ):
             self.assertEqual(2, watch_pr_checks.main())
         self.assertEqual("", pending_stdout.getvalue())
@@ -128,14 +128,14 @@ class WatchPrChecksRepositoryContextTest(unittest.TestCase):
         stderr = io.StringIO()
         caught = None
         with (
-            mock.patch.object(
+            unittest.mock.patch.object(
                 sys,
                 "argv",
                 ["watch_pr_checks.py", "--root", str(missing), "--repo", "owner/project", "--poll-once"],
             ),
-            mock.patch.object(watch_pr_checks, "resolve_gh", return_value="gh"),
-            mock.patch("sys.stdout", stdout),
-            mock.patch("sys.stderr", stderr),
+            unittest.mock.patch.object(watch_pr_checks, "resolve_gh", return_value="gh"),
+            unittest.mock.patch("sys.stdout", stdout),
+            unittest.mock.patch("sys.stderr", stderr),
         ):
             try:
                 exit_code = watch_pr_checks.main()
@@ -156,21 +156,21 @@ class WatchPrChecksRepositoryContextTest(unittest.TestCase):
                 stderr = io.StringIO()
                 caught = None
                 with (
-                    mock.patch.object(
+                    unittest.mock.patch.object(
                         sys,
                         "argv",
                         ["watch_pr_checks.py", "--pr", "https://github.com/owner/project/pull/9", "--poll-once"],
                     ),
-                    mock.patch.object(watch_pr_checks, "resolve_gh", return_value="gh"),
-                    mock.patch.object(
+                    unittest.mock.patch.object(watch_pr_checks, "resolve_gh", return_value="gh"),
+                    unittest.mock.patch.object(
                         watch_pr_checks,
                         "run_gh",
                         return_value=subprocess.CompletedProcess(
                             [], 0, stdout=json.dumps(payload), stderr=""
                         ),
                     ),
-                    mock.patch("sys.stdout", stdout),
-                    mock.patch("sys.stderr", stderr),
+                    unittest.mock.patch("sys.stdout", stdout),
+                    unittest.mock.patch("sys.stderr", stderr),
                 ):
                     try:
                         exit_code = watch_pr_checks.main()
