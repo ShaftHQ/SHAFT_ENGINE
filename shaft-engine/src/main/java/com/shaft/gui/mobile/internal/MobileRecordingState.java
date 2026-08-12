@@ -5,10 +5,15 @@ import org.openqa.selenium.WebDriver;
 
 import java.lang.ref.ReferenceQueue;
 import java.lang.ref.WeakReference;
+import java.nio.file.Path;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.Base64;
 import java.util.HashMap;
+import java.util.HexFormat;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.function.Supplier;
 
 /** Weak-identity lifecycle owner shared by explicit and automatic Appium screen recording. */
@@ -86,6 +91,38 @@ public final class MobileRecordingState {
         }
     }
 
+    /** Retains one bounded descriptor only after caller-owned publication succeeds. */
+    public static void retainSavedRecording(AppiumDriver driver, Path path, byte[] recording) {
+        Objects.requireNonNull(driver, "Appium driver");
+        Path normalized = Objects.requireNonNull(path, "recording path").toAbsolutePath().normalize();
+        byte[] requiredRecording = Objects.requireNonNull(recording, "recording bytes");
+        SavedRecording saved = new SavedRecording(normalized, requiredRecording.length, sha256(requiredRecording));
+        State state = existingState(driver);
+        if (state == null) {
+            return;
+        }
+        synchronized (state) {
+            if (state.phase != Phase.CLOSED) {
+                state.savedRecording = saved;
+            }
+        }
+    }
+
+    /** Returns one atomic non-creating recording lifecycle snapshot. */
+    public static Optional<Snapshot> snapshotIfPresent(AppiumDriver driver) {
+        State state = existingState(Objects.requireNonNull(driver, "Appium driver"));
+        if (state == null) {
+            return Optional.empty();
+        }
+        synchronized (state) {
+            if (state.phase == Phase.CLOSED) {
+                return Optional.empty();
+            }
+            return Optional.of(new Snapshot(state.phase != Phase.IDLE,
+                    Optional.ofNullable(state.savedRecording)));
+        }
+    }
+
     /** Marks one driver terminal without issuing a provider command. */
     public static void closeAndRemove(WebDriver driver) {
         if (!(driver instanceof AppiumDriver appiumDriver)) {
@@ -96,6 +133,7 @@ public final class MobileRecordingState {
             state.phase = Phase.CLOSED;
             state.owner = null;
             state.maxBytes = 0;
+            state.savedRecording = null;
         }
     }
 
@@ -146,6 +184,21 @@ public final class MobileRecordingState {
         }
     }
 
+    private static State existingState(AppiumDriver driver) {
+        synchronized (STATES) {
+            expungeStaleDrivers();
+            return STATES.get(new IdentityWeakReference(driver));
+        }
+    }
+
+    private static String sha256(byte[] recording) {
+        try {
+            return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(recording));
+        } catch (NoSuchAlgorithmException exception) {
+            throw new IllegalStateException("SHA-256 is unavailable.", exception);
+        }
+    }
+
     private static void expungeStaleDrivers() {
         IdentityWeakReference stale;
         while ((stale = (IdentityWeakReference) STALE_DRIVERS.poll()) != null) {
@@ -159,6 +212,33 @@ public final class MobileRecordingState {
         private Phase phase = Phase.IDLE;
         private Owner owner;
         private long maxBytes;
+        private SavedRecording savedRecording;
+    }
+
+    /** Immutable descriptor for the latest successfully published recording. */
+    public record SavedRecording(Path path, long sizeBytes, String sha256) {
+        public SavedRecording {
+            path = Objects.requireNonNull(path, "recording path").toAbsolutePath().normalize();
+            if (sizeBytes < 0) {
+                throw new IllegalArgumentException("Recording size must not be negative.");
+            }
+            sha256 = Objects.requireNonNull(sha256, "recording digest");
+            if (!sha256.matches("[0-9a-f]{64}")) {
+                throw new IllegalArgumentException("Recording digest must be lowercase SHA-256 hex.");
+            }
+        }
+
+        @Override
+        public String toString() {
+            return "SavedRecording[sizeBytes=" + sizeBytes + "]";
+        }
+    }
+
+    /** Immutable read-only view of recording activity and the latest successful save. */
+    public record Snapshot(boolean recordingInProgress, Optional<SavedRecording> savedRecording) {
+        public Snapshot {
+            savedRecording = Objects.requireNonNull(savedRecording, "saved recording");
+        }
     }
 
     private static final class IdentityWeakReference extends WeakReference<AppiumDriver> {

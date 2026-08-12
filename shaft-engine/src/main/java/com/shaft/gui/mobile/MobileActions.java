@@ -101,7 +101,7 @@ public final class MobileActions implements MobileActionsContract {
 
     @Override
     public MobileEvidenceActionsContract evidence() {
-        throw unsupported("evidence capture");
+        return new EvidenceActions(this);
     }
 
     @Override

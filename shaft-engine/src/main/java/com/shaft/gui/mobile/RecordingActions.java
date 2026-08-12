@@ -74,6 +74,7 @@ final class RecordingActions implements MobileRecordingActionsContract {
             byte[] recording = stopRaw();
             try {
                 TraceArchiveWriter.writeBytes(target, recording);
+                MobileRecordingState.retainSavedRecording(mobile.driver(), target, recording);
                 return new SavedRecording(target, recording.length);
             } catch (IOException exception) {
                 throw new UncheckedIOException("Could not save the mobile screen recording.", exception);

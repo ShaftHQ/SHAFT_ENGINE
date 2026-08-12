@@ -1,4 +1,5 @@
 import shlex
+import re
 import tempfile
 import unittest
 from pathlib import Path
@@ -273,7 +274,7 @@ class MobileRecordingAcceptanceWorkflowContractTest(unittest.TestCase):
             argument for argument in broad_arguments if argument.startswith("-Dsurefire.excludedGroups=")
         ]
         self.assertEqual(
-            [f"-Dsurefire.excludedGroups=allure3-visual-demo,{compatible_group}"],
+            [f"-Dsurefire.excludedGroups=allure3-visual-demo,{compatible_group},mobile-evidence-real-provider"],
             exclusions,
         )
         positive_methods = [
@@ -319,3 +320,149 @@ class MobileRecordingAcceptanceWorkflowContractTest(unittest.TestCase):
                 "--min-executed 1"
             )
             self.assertEqual(expected_guard, guard_step["run"].strip())
+
+
+class MobileEvidenceAcceptanceWorkflowContractTest(unittest.TestCase):
+    WORKFLOW = Path(__file__).resolve().parents[2] / ".github/workflows/e2eTests.yml"
+    ANDROID_TEST = (
+        Path(__file__).resolve().parents[2]
+        / "shaft-engine/src/test/java/testPackage/appium/AndroidBasicInteractionsTests.java"
+    )
+    IOS_TEST = (
+        Path(__file__).resolve().parents[2]
+        / "shaft-engine/src/test/java/testPackage/appium/IOSBasicInteractionsTest.java"
+    )
+
+    def test_mobile_evidence_acceptance_jobs_are_exact_and_fail_closed(self):
+        workflow = yaml.safe_load(self.WORKFLOW.read_text(encoding="utf-8"))
+        expected_jobs = {
+            "Android_Evidence_BrowserStack": (
+                "Run Android evidence acceptance",
+                "AndroidBasicInteractionsTests#mobileEvidenceShouldPublishAResolvedBoundedArchive",
+                "Verify Android evidence acceptance executed",
+                "TEST-testPackage.appium.AndroidBasicInteractionsTests.xml",
+                False,
+            ),
+            "iOS_Evidence_BrowserStack": (
+                "Run iOS evidence acceptance",
+                "IOSBasicInteractionsTest#mobileEvidenceShouldPublishAResolvedBoundedArchive",
+                "Verify iOS evidence acceptance executed",
+                "TEST-testPackage.appium.IOSBasicInteractionsTest.xml",
+                True,
+            ),
+        }
+        for job_name in expected_jobs:
+            self.assertIn(job_name, workflow["jobs"])
+            self.assertIn(job_name, workflow["jobs"]["Workflow_Summary"]["needs"])
+            self.assertIn(job_name, workflow["jobs"]["notify_e2e_tests_failure"]["needs"])
+
+        compatible_group = "mobile-evidence-real-provider"
+        expected_methods = [
+            (
+                self.ANDROID_TEST,
+                f'@Test(groups = {{"ApiDemosDebug", "{compatible_group}"}})\n',
+            ),
+            (self.IOS_TEST, f'@Test(groups = {{"{compatible_group}"}})\n'),
+        ]
+        for source, annotation in expected_methods:
+            test_source = source.read_text(encoding="utf-8")
+            expected_fragment = annotation.strip()
+            self.assertEqual(
+                1,
+                len(re.findall(
+                    rf"(?m)^    {re.escape(expected_fragment)}\r?\n"
+                    r"^    public void mobileEvidenceShouldPublishAResolvedBoundedArchive\(\)",
+                    test_source,
+                )),
+            )
+
+        for job_name, (run_name, selector, guard_name, report, requires_ios_gate) in expected_jobs.items():
+            job = workflow["jobs"][job_name]
+            self.assertEqual(
+                "github.event_name == 'workflow_dispatch' && "
+                f"contains(format(',{{0}},', github.event.inputs.jobs), ',{job_name},')",
+                job["if"],
+            )
+            steps = job["steps"]
+            run_matches = [step for step in steps if step.get("name") == run_name]
+            self.assertEqual(1, len(run_matches))
+            execution = run_matches[0]["run"]
+            self.assertNotIn("\n", execution)
+            self.assertNotIn("\r", execution)
+            lexer = shlex.shlex(execution, posix=True, punctuation_chars=";&|")
+            lexer.whitespace_split = True
+            lexer.commenters = "#"
+            arguments = list(lexer)
+            expected_arguments = [
+                "mvn", "-pl", "shaft-browserstack", "-am", "-e", "test",
+                "-Dallure.automaticallyOpen=false",
+                "-DdefaultElementIdentificationTimeout=60",
+                "-DretryMaximumNumberOfAttempts=0",
+                "-DexecutionAddress=browserstack",
+                f"-DtargetOperatingSystem={'iOS' if requires_ios_gate else 'android'}",
+                f"-Dmobile_automationName={'XCuiTest' if requires_ios_gate else 'UIAutomator2'}",
+                "-DbrowserStack.appiumVersion=3.3.0",
+                f"-DbrowserStack.platformVersion={'16' if requires_ios_gate else '13.0'}",
+                f"-DbrowserStack.deviceName={'iPhone 14' if requires_ios_gate else 'Google Pixel 7'}",
+                "-DbrowserStack.appUrl=",
+            ]
+            if requires_ios_gate:
+                expected_arguments.append("-Dshaft.enableNativeIosE2E=true")
+            expected_arguments.extend([
+                "-DgenerateAllureReportArchive=true",
+                f"-Dtest={selector}",
+            ])
+            self.assertEqual(expected_arguments, arguments)
+
+            guard_matches = [step for step in steps if step.get("name") == guard_name]
+            self.assertEqual(1, len(guard_matches))
+            guard = guard_matches[0]
+            self.assertFalse(guard.get("continue-on-error", False))
+            self.assertEqual(
+                "python3 scripts/ci/assert_tests_executed.py "
+                f"shaft-engine/target/surefire-reports/{report} --min-executed 1",
+                guard["run"].strip(),
+            )
+            report_matches = [step for step in steps if step.get("name") == "Post-Test Report and Check"]
+            self.assertEqual(1, len(report_matches))
+            report_step = report_matches[0]
+            self.assertEqual("always()", report_step.get("if"))
+            self.assertFalse(report_step.get("continue-on-error", False))
+            self.assertEqual("./.github/actions/post-test-report", report_step.get("uses"))
+            self.assertEqual(job_name, report_step.get("with", {}).get("job-name"))
+
+        ios_steps = workflow["jobs"]["iOS_Evidence_BrowserStack"]["steps"]
+        fetch_matches = [step for step in ios_steps if step.get("name") == "Fetch provider-compatible iOS sample app"]
+        self.assertEqual(1, len(fetch_matches))
+        fetch = fetch_matches[0]["run"].strip()
+        app_path = "shaft-engine/src/test/resources/testDataFiles/apps/BStackSampleApp.ipa"
+        source = (
+            "https://raw.githubusercontent.com/browserstack/testng-appium-app-browserstack/"
+            "71e73f10a613a7bb765bde05a1700829a8d5e057/"
+            "ios/testng-examples/BStackSampleApp.ipa"
+        )
+        digest = "76a8bb0250f6d8c0a6bb0b71fcddf60515de92f5920d5624f790da1ecdbc87d9"
+        self.assertEqual(
+            f'app_path="{app_path}"\n'
+            "curl --fail --location --silent --show-error \\\n"
+            '  --output "$app_path" \\\n'
+            f'  "{source}"\n'
+            f'echo "{digest}  $app_path" \\\n'
+            "  | sha256sum --check --strict",
+            fetch,
+        )
+
+        broad_steps = workflow["jobs"]["Android_Native_BrowserStack"]["steps"]
+        broad_matches = [step for step in broad_steps if step.get("name") == "Run tests"]
+        self.assertEqual(1, len(broad_matches))
+        broad_execution = broad_matches[0]["run"]
+        broad_lexer = shlex.shlex(broad_execution, posix=True, punctuation_chars=";&|")
+        broad_lexer.whitespace_split = True
+        broad_lexer.commenters = "#"
+        broad_arguments = list(broad_lexer)
+        exclusions = [arg for arg in broad_arguments if arg.startswith("-Dsurefire.excludedGroups=")]
+        self.assertEqual(
+            ["-Dsurefire.excludedGroups=allure3-visual-demo,"
+             "mobile-recording-compatible-provider,mobile-evidence-real-provider"],
+            exclusions,
+        )

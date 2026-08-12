@@ -21,6 +21,7 @@ import java.net.URI;
 import java.net.URLClassLoader;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
+import java.lang.reflect.InvocationTargetException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
@@ -60,11 +61,29 @@ public class MobileNamespaceTest {
                 .map(constructor -> Arrays.toString(constructor.getParameterTypes()))
                 .collect(Collectors.toSet()), Set.of("[class com.shaft.driver.SHAFT$GUI$WebDriver]"));
 
-        for (String contract : Set.of("MobileEvidenceActionsContract")) {
-            Assert.assertNotNull(Class.forName("com.shaft.gui.driver." + contract));
-            Assert.assertEquals(descriptors("com.shaft.gui.driver." + contract),
-                    Set.of("and[]->MobileActionsContract"));
-        }
+        Assert.assertEquals(descriptors("com.shaft.gui.driver.MobileEvidenceActionsContract"), Set.of(
+                "and[]->MobileActionsContract",
+                "capture[interface java.nio.file.Path]->MobileEvidenceBundle"));
+        Class<?> evidenceContract = Class.forName("com.shaft.gui.driver.MobileEvidenceActionsContract");
+        Assert.assertTrue(evidenceContract.getMethod("capture", Path.class).isDefault());
+        Class<?> evidenceBundle = classOrNull("com.shaft.gui.driver.MobileEvidenceBundle");
+        Assert.assertNotNull(evidenceBundle, "MobileEvidenceBundle must be a public record");
+        Assert.assertTrue(Modifier.isPublic(evidenceBundle.getModifiers()));
+        assertRecord("com.shaft.gui.driver.MobileEvidenceBundle", List.of(
+                "capturedAt:java.time.Instant", "archive:java.nio.file.Path", "context:java.lang.String",
+                "applicationMetadata:java.util.Map", "deviceMetadata:java.util.Map",
+                "logMessages:java.util.List", "logErrors:java.util.List", "performanceSamples:java.util.List",
+                "artifacts:java.util.List", "omissions:java.util.Map"));
+        Assert.assertEquals(Arrays.stream(evidenceBundle.getRecordComponents())
+                .map(component -> component.getGenericType().getTypeName()).toList(), List.of(
+                "java.time.Instant", "java.nio.file.Path", "java.lang.String",
+                "java.util.Map<java.lang.String, java.lang.String>",
+                "java.util.Map<java.lang.String, java.lang.String>",
+                "java.util.List<com.shaft.gui.driver.MobileLogMessage>",
+                "java.util.List<com.shaft.gui.driver.MobileLogError>",
+                "java.util.List<com.shaft.gui.driver.MobilePerformanceSample>",
+                "java.util.List<com.shaft.tools.io.trace.TraceArtifactReference>",
+                "java.util.Map<java.lang.String, java.lang.String>"));
         Class<?> recordingOptions = classOrNull("com.shaft.gui.driver.MobileRecordingOptions");
         Assert.assertNotNull(recordingOptions, "MobileRecordingOptions must be a public record");
         Assert.assertTrue(Modifier.isPublic(recordingOptions.getModifiers()));
@@ -234,6 +253,63 @@ public class MobileNamespaceTest {
         Assert.expectThrows(UnsupportedOperationException.class, () -> oldConsumer.sample("app", "cpuinfo"));
         Assert.expectThrows(UnsupportedOperationException.class, oldConsumer::history);
         Assert.expectThrows(UnsupportedOperationException.class, oldConsumer::clear);
+    }
+
+    @Test
+    public void existingEvidenceContractImplementationsShouldRemainSourceCompatible() {
+        MobileEvidenceActionsContract oldConsumer = new MobileEvidenceActionsContract() {
+            @Override
+            public MobileActionsContract and() {
+                return null;
+            }
+        };
+
+        Method capture = Arrays.stream(MobileEvidenceActionsContract.class.getMethods())
+                .filter(method -> method.getName().equals("capture")
+                        && Arrays.equals(method.getParameterTypes(), new Class<?>[]{Path.class}))
+                .findFirst().orElse(null);
+        Assert.assertNotNull(capture, "capture(Path) must be a compatibility default");
+        try {
+            capture.invoke(oldConsumer, Path.of("mobile-evidence.zip"));
+            Assert.fail("The compatibility default must fail closed");
+        } catch (InvocationTargetException exception) {
+            Assert.assertTrue(exception.getCause() instanceof UnsupportedOperationException);
+        } catch (IllegalAccessException exception) {
+            throw new AssertionError(exception);
+        }
+    }
+
+    @Test
+    public void evidenceContractShouldLinkAndRunImplementationsCompiledAgainstTheOldInterface() throws Exception {
+        Path output = Files.createTempDirectory("shaft-mobile-evidence-binary-compat");
+        var compiler = ToolProvider.getSystemJavaCompiler();
+        var oldContract = source("com.shaft.gui.driver.MobileEvidenceActionsContract", """
+                package com.shaft.gui.driver;
+                public interface MobileEvidenceActionsContract {
+                    MobileActionsContract and();
+                }
+                """);
+        var oldConsumer = source("compat.OldEvidenceConsumer", """
+                package compat;
+                import com.shaft.gui.driver.MobileActionsContract;
+                import com.shaft.gui.driver.MobileEvidenceActionsContract;
+                public final class OldEvidenceConsumer implements MobileEvidenceActionsContract {
+                    public MobileActionsContract and() { return null; }
+                }
+                """);
+        boolean compiled = Boolean.TRUE.equals(compiler.getTask(null, null, null,
+                List.of("-classpath", System.getProperty("java.class.path"), "-d", output.toString()),
+                null, List.of(oldContract, oldConsumer)).call());
+        Assert.assertTrue(compiled, "The frozen old-contract consumer should compile against its old interface.");
+
+        try (URLClassLoader loader = new URLClassLoader(new java.net.URL[]{output.toUri().toURL()},
+                MobileNamespaceTest.class.getClassLoader())) {
+            MobileEvidenceActionsContract linkedConsumer = (MobileEvidenceActionsContract) Class
+                    .forName("compat.OldEvidenceConsumer", true, loader).getDeclaredConstructor().newInstance();
+
+            Assert.expectThrows(UnsupportedOperationException.class,
+                    () -> linkedConsumer.capture(Path.of("mobile-evidence.zip")));
+        }
     }
 
     @Test
