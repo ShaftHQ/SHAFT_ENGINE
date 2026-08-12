@@ -7,7 +7,19 @@ import com.shaft.driver.internal.WizardHelpers;
 import com.shaft.gui.driver.MobileApplicationState;
 import com.shaft.gui.driver.MobileAssertions;
 import com.shaft.gui.driver.MobileBatteryInfo;
+import com.shaft.gui.driver.MobileEvidenceBundle;
+import com.shaft.gui.driver.MobileLogError;
+import com.shaft.gui.driver.MobileLogMessage;
+import com.shaft.gui.driver.MobilePerformanceSample;
 import com.shaft.gui.browser.internal.JavaScriptWaitManager;
+import com.shaft.gui.mobile.internal.MobileLogSource;
+import com.shaft.gui.mobile.internal.MobilePerformanceState;
+import com.shaft.gui.mobile.internal.MobileRecordingState;
+import com.shaft.tools.io.trace.TraceArtifactReference;
+import com.shaft.tools.io.ReportManager;
+import io.qameta.allure.Allure;
+import io.qameta.allure.AllureLifecycle;
+import io.qameta.allure.model.StepResult;
 import io.appium.java_client.AppiumDriver;
 import io.appium.java_client.InteractsWithApps;
 import io.appium.java_client.HasDeviceTime;
@@ -34,16 +46,24 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.ArrayList;
+import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
+import java.nio.file.Path;
+import java.time.Instant;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
 import java.lang.reflect.Method;
 import java.lang.reflect.Field;
 import java.util.concurrent.CyclicBarrier;
 import java.util.concurrent.Executors;
+import java.util.function.Consumer;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -115,6 +135,266 @@ public class WebDriverMobileValidationTest {
         verify(driver).getOrientation();
         verify(driver).getDeviceTime();
         verify(driver).getBatteryInfo();
+    }
+
+    @Test
+    public void publicRootsShouldReadNonMutatingMobileSnapshotsAndSuppliedEvidence() {
+        AppiumDriver driver = mock(AppiumDriver.class);
+        when(driver.getSessionId()).thenReturn(new SessionId("mobile-validation-snapshots"));
+        Instant capturedAt = Instant.parse("2026-08-12T09:45:00Z");
+        MobileLogSource.Snapshot logs = new MobileLogSource.Snapshot(true,
+                List.of(new MobileLogMessage(capturedAt, "logcat", "private log value"),
+                        new MobileLogMessage(capturedAt, "logcat", "second private log value")),
+                List.of(new MobileLogError(capturedAt, "logcat", "error", "private error value")));
+        MobilePerformanceSample sample = new MobilePerformanceSample(capturedAt, "private.app", "memoryinfo",
+                List.of("private-column"), List.of(List.of("private-cell")));
+        MobileRecordingState.Snapshot recording = new MobileRecordingState.Snapshot(true,
+                Optional.of(new MobileRecordingState.SavedRecording(Path.of("private-recording.mp4"), 17,
+                        "0".repeat(64))));
+        MobileEvidenceBundle evidence = new MobileEvidenceBundle(capturedAt, Path.of("private-evidence.zip"),
+                "NATIVE_APP", Map.of(), Map.of(), List.of(), List.of(), List.of(),
+                List.of(new TraceArtifactReference("screenshot", "screenshot", "artifacts/screenshot.png",
+                                "image/png", false, Map.of()),
+                        new TraceArtifactReference("source", "native-source", "artifacts/source.txt",
+                                "text/plain", true, Map.of())),
+                Map.of("source", "sensitive"));
+
+        try (MockedStatic<MobileLogSource> logState = Mockito.mockStatic(MobileLogSource.class);
+             MockedStatic<MobilePerformanceState> performanceState = Mockito.mockStatic(MobilePerformanceState.class);
+             MockedStatic<MobileRecordingState> recordingState = Mockito.mockStatic(MobileRecordingState.class);
+             MockedConstruction<SynchronizationManager> ignored = waitApplying(driver, 1)) {
+            logState.when(() -> MobileLogSource.snapshotIfPresent(driver)).thenReturn(Optional.of(logs));
+            performanceState.when(() -> MobilePerformanceState.historyIfPresent(driver))
+                    .thenReturn(Optional.of(List.of(sample)));
+            recordingState.when(() -> MobileRecordingState.snapshotIfPresent(driver))
+                    .thenReturn(Optional.of(recording));
+
+            MobileAssertions hard = new WizardHelpers.WebDriverAssertions(helper(driver)).mobileValues();
+            hard.logMessageCountValue().isEqualTo(2);
+            hard.logErrorCountValue().isEqualTo(1);
+            hard.performanceSampleCountValue().isEqualTo(1);
+            hard.recordingInProgressValue().isTrue();
+            hard.retainedRecordingAvailableValue().isTrue();
+            hard.retainedRecordingSizeValue().isEqualTo(17L);
+            hard.evidenceArtifactCountValue(evidence).isEqualTo(2);
+            hard.evidenceOmissionCountValue(evidence).isEqualTo(1);
+
+            new WizardHelpers.WebDriverVerifications(helper(driver)).mobileValues()
+                    .evidenceArtifactCountValue(evidence).isEqualTo(2);
+
+            logState.verify(() -> MobileLogSource.snapshotIfPresent(driver), times(2));
+            performanceState.verify(() -> MobilePerformanceState.historyIfPresent(driver));
+            recordingState.verify(() -> MobileRecordingState.snapshotIfPresent(driver), times(3));
+        }
+    }
+
+    @Test
+    public void snapshotPlansShouldResolveAtTerminalAndFailClosedWhenStateIsAbsent() {
+        AppiumDriver driver = mock(AppiumDriver.class);
+        when(driver.getSessionId()).thenReturn(new SessionId("mobile-validation-lazy-snapshots"));
+        try (MockedStatic<MobileLogSource> logState = Mockito.mockStatic(MobileLogSource.class);
+             MockedStatic<MobilePerformanceState> performanceState = Mockito.mockStatic(MobilePerformanceState.class);
+             MockedStatic<MobileRecordingState> recordingState = Mockito.mockStatic(MobileRecordingState.class);
+             MockedConstruction<SynchronizationManager> ignored = waitApplying(driver, 1)) {
+            MobileAssertions values = new WizardHelpers.WebDriverAssertions(helper(driver)).mobileValues();
+            NativeValidationsBuilder messages = values.logMessageCountValue();
+            NativeValidationsBuilder performance = values.performanceSampleCountValue();
+            NativeValidationsBuilder recording = values.recordingInProgressValue();
+
+            logState.when(() -> MobileLogSource.snapshotIfPresent(driver))
+                    .thenReturn(Optional.of(new MobileLogSource.Snapshot(false, List.of(), List.of())));
+            performanceState.when(() -> MobilePerformanceState.historyIfPresent(driver))
+                    .thenReturn(Optional.of(List.of()));
+            recordingState.when(() -> MobileRecordingState.snapshotIfPresent(driver))
+                    .thenReturn(Optional.of(new MobileRecordingState.Snapshot(false, Optional.empty())));
+            messages.isEqualTo(0);
+            performance.isEqualTo(0);
+            recording.isFalse();
+
+            logState.when(() -> MobileLogSource.snapshotIfPresent(driver)).thenReturn(Optional.empty());
+            performanceState.when(() -> MobilePerformanceState.historyIfPresent(driver)).thenReturn(Optional.empty());
+            recordingState.when(() -> MobileRecordingState.snapshotIfPresent(driver)).thenReturn(Optional.empty());
+            assertUnsupported(() -> values.logMessageCountValue().isEqualTo(0));
+            assertUnsupported(() -> values.performanceSampleCountValue().isEqualTo(0));
+            assertUnsupported(() -> values.recordingInProgressValue().isFalse());
+        }
+    }
+
+    @Test
+    public void missingRetainedRecordingAndNullEvidenceShouldFailBeforeSensitiveDataCanBeReported() {
+        AppiumDriver driver = mock(AppiumDriver.class);
+        when(driver.getSessionId()).thenReturn(new SessionId("mobile-validation-missing-recording"));
+        try (MockedStatic<MobileRecordingState> recordingState = Mockito.mockStatic(MobileRecordingState.class);
+             MockedConstruction<SynchronizationManager> ignored = waitApplying(driver, 1)) {
+            recordingState.when(() -> MobileRecordingState.snapshotIfPresent(driver))
+                    .thenReturn(Optional.of(new MobileRecordingState.Snapshot(false, Optional.empty())));
+            MobileAssertions values = new WizardHelpers.WebDriverAssertions(helper(driver)).mobileValues();
+            values.retainedRecordingAvailableValue().isFalse();
+            assertUnsupported(() -> values.retainedRecordingSizeValue().isEqualTo(0));
+        }
+
+        AppiumDriver untouched = mock(AppiumDriver.class);
+        MobileAssertions values = new WizardHelpers.WebDriverAssertions(helper(untouched)).mobileValues();
+        Assert.expectThrows(NullPointerException.class, () -> values.evidenceArtifactCountValue(null));
+        Assert.expectThrows(NullPointerException.class, () -> values.evidenceOmissionCountValue(null));
+        verify(untouched, never()).getSessionId();
+    }
+
+    @Test
+    public void snapshotPlansShouldExposeOnlyPayloadFreeNamesAndScalars() {
+        String secret = "private-snapshot-payload";
+        AppiumDriver driver = mock(AppiumDriver.class);
+        when(driver.getSessionId()).thenReturn(new SessionId("mobile-validation-payload-free"));
+        MobileLogSource.Snapshot logs = new MobileLogSource.Snapshot(true,
+                List.of(new MobileLogMessage(Instant.now(), "logcat", secret)), List.of());
+        try (MockedStatic<MobileLogSource> logState = Mockito.mockStatic(MobileLogSource.class)) {
+            logState.when(() -> MobileLogSource.snapshotIfPresent(driver)).thenReturn(Optional.of(logs));
+            NativeValidationsBuilder plan = new WizardHelpers.WebDriverAssertions(helper(driver)).mobileValues()
+                    .logMessageCountValue();
+            Assert.assertEquals(plan.mobileValueReader.get(), 1);
+            Assert.assertEquals(plan.mobileValueName, "device log message count");
+            Assert.assertFalse(plan.reportMessageBuilder.toString().contains(secret));
+            Assert.assertFalse(String.valueOf(plan.mobileValueReader.get()).contains(secret));
+        }
+    }
+
+    @Test
+    public void recordingSnapshotValuesShouldRemainDistinctInBothMixedStates() {
+        AppiumDriver driver = mock(AppiumDriver.class);
+        when(driver.getSessionId()).thenReturn(new SessionId("mobile-validation-recording-mixed"));
+        MobileRecordingState.SavedRecording saved = new MobileRecordingState.SavedRecording(
+                Path.of("private-mixed-recording.mp4"), 23, "1".repeat(64));
+        try (MockedStatic<MobileRecordingState> recordingState = Mockito.mockStatic(MobileRecordingState.class);
+             MockedConstruction<SynchronizationManager> ignored = waitApplying(driver, 1)) {
+            MobileAssertions values = new WizardHelpers.WebDriverAssertions(helper(driver)).mobileValues();
+            recordingState.when(() -> MobileRecordingState.snapshotIfPresent(driver))
+                    .thenReturn(Optional.of(new MobileRecordingState.Snapshot(true, Optional.empty())));
+            values.recordingInProgressValue().isTrue();
+            values.retainedRecordingAvailableValue().isFalse();
+
+            recordingState.when(() -> MobileRecordingState.snapshotIfPresent(driver))
+                    .thenReturn(Optional.of(new MobileRecordingState.Snapshot(false, Optional.of(saved))));
+            values.recordingInProgressValue().isFalse();
+            values.retainedRecordingAvailableValue().isTrue();
+            values.retainedRecordingSizeValue().isEqualTo(23L);
+        }
+    }
+
+    @Test
+    public void softRootShouldCreateAllSnapshotPlansAsSoftAndDeferMismatch() {
+        AppiumDriver driver = mock(AppiumDriver.class);
+        when(driver.getSessionId()).thenReturn(new SessionId("mobile-validation-soft-snapshots"));
+        MobileEvidenceBundle evidence = new MobileEvidenceBundle(Instant.now(), Path.of("soft-evidence.zip"),
+                "NATIVE_APP", Map.of(), Map.of(), List.of(), List.of(), List.of(), List.of(), Map.of());
+        try (MockedStatic<MobileLogSource> logs = Mockito.mockStatic(MobileLogSource.class);
+             MockedStatic<MobilePerformanceState> performance = Mockito.mockStatic(MobilePerformanceState.class);
+             MockedStatic<MobileRecordingState> recording = Mockito.mockStatic(MobileRecordingState.class);
+             MockedConstruction<SynchronizationManager> ignored = waitApplying(driver, 1)) {
+            logs.when(() -> MobileLogSource.snapshotIfPresent(driver))
+                    .thenReturn(Optional.of(new MobileLogSource.Snapshot(false, List.of(), List.of())));
+            performance.when(() -> MobilePerformanceState.historyIfPresent(driver)).thenReturn(Optional.of(List.of()));
+            recording.when(() -> MobileRecordingState.snapshotIfPresent(driver))
+                    .thenReturn(Optional.of(new MobileRecordingState.Snapshot(false, Optional.empty())));
+            MobileAssertions values = new WizardHelpers.WebDriverVerifications(helper(driver)).mobileValues();
+            List<NativeValidationsBuilder> plans = List.of(values.logMessageCountValue(), values.logErrorCountValue(),
+                    values.performanceSampleCountValue(), values.recordingInProgressValue(),
+                    values.retainedRecordingAvailableValue(), values.retainedRecordingSizeValue(),
+                    values.evidenceArtifactCountValue(evidence), values.evidenceOmissionCountValue(evidence));
+            plans.forEach(plan -> Assert.assertEquals(plan.validationCategory,
+                    ValidationEnums.ValidationCategory.SOFT_ASSERT));
+            values.logMessageCountValue().isEqualTo(1);
+            Assert.assertNotNull(ValidationsHelper.getVerificationErrorToForceFail());
+        } finally {
+            ValidationsHelper.resetVerificationStateAfterFailing();
+        }
+    }
+
+    @Test
+    public void validEvidenceCountsShouldNotInspectTheDriver() {
+        AppiumDriver untouched = mock(AppiumDriver.class);
+        MobileEvidenceBundle evidence = new MobileEvidenceBundle(Instant.now(), Path.of("isolated-evidence.zip"),
+                "NATIVE_APP", Map.of(), Map.of(), List.of(), List.of(), List.of(),
+                List.of(new TraceArtifactReference("source", "source", "artifacts/source.txt", "text/plain",
+                        true, Map.of())), Map.of("source", "sensitive"));
+        boolean originalTraceEnabled = SHAFT.Properties.reporting.traceEnabled();
+        try {
+            SHAFT.Properties.reporting.set().traceEnabled(false);
+            try (MockedStatic<MobileLogSource> logs = Mockito.mockStatic(MobileLogSource.class);
+                 MockedStatic<MobilePerformanceState> performance = Mockito.mockStatic(MobilePerformanceState.class);
+                 MockedStatic<MobileRecordingState> recording = Mockito.mockStatic(MobileRecordingState.class);
+                 MockedConstruction<SynchronizationManager> ignored = waitApplying(untouched, 1)) {
+                MobileAssertions values = new WizardHelpers.WebDriverAssertions(helper(untouched)).mobileValues();
+                values.evidenceArtifactCountValue(evidence).isEqualTo(1);
+                values.evidenceOmissionCountValue(evidence).isEqualTo(1);
+                logs.verifyNoInteractions();
+                performance.verifyNoInteractions();
+                recording.verifyNoInteractions();
+                Mockito.verifyNoInteractions(untouched);
+            }
+        } finally {
+            SHAFT.Properties.reporting.set().traceEnabled(originalTraceEnabled);
+        }
+    }
+
+    @Test
+    public void everySnapshotCategoryShouldKeepAllPayloadsOutOfReportSinks() {
+        List<String> secrets = List.of("secret-log", "secret-error", "secret-performance-app",
+                "secret-performance-cell", "secret-recording-path", "secret-archive-path",
+                "secret-context", "secret-metadata", "secret-artifact-id", "secret-artifact-kind",
+                "secret-artifact-path", "application/x-secret-media", "secret-artifact-metadata-key",
+                "secret-artifact-metadata-value", "source", "provider-failed");
+        AppiumDriver driver = mock(AppiumDriver.class);
+        when(driver.getSessionId()).thenReturn(new SessionId("mobile-validation-payload-sinks"));
+        Instant now = Instant.now();
+        MobileLogSource.Snapshot logSnapshot = new MobileLogSource.Snapshot(true,
+                List.of(new MobileLogMessage(now, "logcat", secrets.get(0))),
+                List.of(new MobileLogError(now, "logcat", "type", secrets.get(1))));
+        MobilePerformanceSample sample = new MobilePerformanceSample(now, secrets.get(2), "memoryinfo",
+                List.of("value"), List.of(List.of(secrets.get(3))));
+        MobileRecordingState.Snapshot recordingSnapshot = new MobileRecordingState.Snapshot(false,
+                Optional.of(new MobileRecordingState.SavedRecording(Path.of(secrets.get(4) + ".mp4"), 31,
+                        "2".repeat(64))));
+        MobileEvidenceBundle evidence = new MobileEvidenceBundle(now, Path.of(secrets.get(5) + ".zip"),
+                secrets.get(6), Map.of("appPackage", secrets.get(7)), Map.of(), List.of(), List.of(), List.of(),
+                List.of(new TraceArtifactReference(secrets.get(8), secrets.get(9),
+                        "artifacts/" + secrets.get(10) + ".txt", secrets.get(11), false,
+                        Map.of(secrets.get(12), secrets.get(13)))), Map.of(secrets.get(14), secrets.get(15)));
+        try (MockedStatic<MobileLogSource> logs = Mockito.mockStatic(MobileLogSource.class);
+             MockedStatic<MobilePerformanceState> performance = Mockito.mockStatic(MobilePerformanceState.class);
+             MockedStatic<MobileRecordingState> recording = Mockito.mockStatic(MobileRecordingState.class);
+             MockedConstruction<SynchronizationManager> ignored = waitApplying(driver, 1);
+             MockedStatic<Allure> allure = Mockito.mockStatic(Allure.class);
+             MockedStatic<ReportManager> report = Mockito.mockStatic(ReportManager.class)) {
+            logs.when(() -> MobileLogSource.snapshotIfPresent(driver)).thenReturn(Optional.of(logSnapshot));
+            performance.when(() -> MobilePerformanceState.historyIfPresent(driver))
+                    .thenReturn(Optional.of(List.of(sample)));
+            recording.when(() -> MobileRecordingState.snapshotIfPresent(driver))
+                    .thenReturn(Optional.of(recordingSnapshot));
+            AllureLifecycle lifecycle = mock(AllureLifecycle.class);
+            List<List<String>> parameterUpdates = captureParameterUpdates(lifecycle);
+            allure.when(Allure::getLifecycle).thenReturn(lifecycle);
+            MobileAssertions values = new WizardHelpers.WebDriverAssertions(helper(driver)).mobileValues();
+            List<NativeValidationsBuilder> plans = List.of(values.logMessageCountValue(), values.logErrorCountValue(),
+                    values.performanceSampleCountValue(), values.recordingInProgressValue(),
+                    values.retainedRecordingAvailableValue(), values.retainedRecordingSizeValue(),
+                    values.evidenceArtifactCountValue(evidence), values.evidenceOmissionCountValue(evidence));
+            Object[] expected = {1, 1, 1, false, true, 31L, 1, 1};
+            for (int index = 0; index < plans.size(); index++) {
+                Assert.assertTrue(secrets.stream().noneMatch(plans.get(index).mobileValueName::contains));
+                Assert.assertTrue(secrets.stream().noneMatch(plans.get(index).reportMessageBuilder.toString()::contains));
+                plans.get(index).isEqualTo(expected[index]);
+            }
+            Assert.assertTrue(parameterUpdates.stream().flatMap(List::stream)
+                    .noneMatch(value -> secrets.stream().anyMatch(value::contains)));
+            Assert.assertEquals(parameterUpdates.stream()
+                    .filter(parameters -> parameters.stream().anyMatch(value -> value.startsWith("Mobile value=")))
+                    .count(), 8L);
+            for (String secret : secrets) {
+                report.verify(() -> ReportManager.logDiscrete(argThat(message -> message.contains(secret))), never());
+                report.verify(() -> ReportManager.logDiscrete(argThat(message -> message.contains(secret)),
+                        any(org.apache.logging.log4j.Level.class)), never());
+            }
+        }
     }
 
     @Test
@@ -460,6 +740,21 @@ public class WebDriverMobileValidationTest {
         Field field = FailureTraceReporter.class.getDeclaredField(name);
         field.setAccessible(true);
         ((ThreadLocal<?>) field.get(null)).remove();
+    }
+
+    @SuppressWarnings("unchecked")
+    private static List<List<String>> captureParameterUpdates(AllureLifecycle lifecycle) {
+        StepResult step = new StepResult();
+        List<List<String>> updates = new ArrayList<>();
+        Mockito.doAnswer(invocation -> {
+            Consumer<StepResult> consumer = invocation.getArgument(0);
+            consumer.accept(step);
+            updates.add(step.getParameters().stream()
+                    .map(parameter -> parameter.getName() + "=" + parameter.getValue())
+                    .toList());
+            return null;
+        }).when(lifecycle).updateStep(any(Consumer.class));
+        return updates;
     }
 
     private static AppiumDriver contextDriver(String context, String sessionName) {

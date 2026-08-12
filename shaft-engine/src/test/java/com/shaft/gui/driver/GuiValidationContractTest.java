@@ -123,6 +123,14 @@ public class GuiValidationContractTest {
         assertMobileValueDefault(mobileAssertions, "deviceOrientationValue");
         assertMobileValueDefault(mobileAssertions, "deviceTimeValue");
         assertMobileValueDefault(mobileAssertions, "batteryValue");
+        assertMobileValueDefault(mobileAssertions, "logMessageCountValue");
+        assertMobileValueDefault(mobileAssertions, "logErrorCountValue");
+        assertMobileValueDefault(mobileAssertions, "performanceSampleCountValue");
+        assertMobileValueDefault(mobileAssertions, "recordingInProgressValue");
+        assertMobileValueDefault(mobileAssertions, "retainedRecordingAvailableValue");
+        assertMobileValueDefault(mobileAssertions, "retainedRecordingSizeValue");
+        assertMobileValueDefault(mobileAssertions, "evidenceArtifactCountValue", MobileEvidenceBundle.class);
+        assertMobileValueDefault(mobileAssertions, "evidenceOmissionCountValue", MobileEvidenceBundle.class);
         Assert.assertEquals(publicDescriptors(mobileAssertions), Set.of(
                 "appInstalledValue[java.lang.String]->com.shaft.validation.internal.NativeValidationsBuilder",
                 "appStateValue[java.lang.String]->com.shaft.validation.internal.NativeValidationsBuilder",
@@ -131,7 +139,15 @@ public class GuiValidationContractTest {
                 "currentContextValue[]->com.shaft.validation.internal.NativeValidationsBuilder",
                 "deviceLockedValue[]->com.shaft.validation.internal.NativeValidationsBuilder",
                 "deviceOrientationValue[]->com.shaft.validation.internal.NativeValidationsBuilder",
-                "deviceTimeValue[]->com.shaft.validation.internal.NativeValidationsBuilder"));
+                "deviceTimeValue[]->com.shaft.validation.internal.NativeValidationsBuilder",
+                "evidenceArtifactCountValue[com.shaft.gui.driver.MobileEvidenceBundle]->com.shaft.validation.internal.NativeValidationsBuilder",
+                "evidenceOmissionCountValue[com.shaft.gui.driver.MobileEvidenceBundle]->com.shaft.validation.internal.NativeValidationsBuilder",
+                "logErrorCountValue[]->com.shaft.validation.internal.NativeValidationsBuilder",
+                "logMessageCountValue[]->com.shaft.validation.internal.NativeValidationsBuilder",
+                "performanceSampleCountValue[]->com.shaft.validation.internal.NativeValidationsBuilder",
+                "recordingInProgressValue[]->com.shaft.validation.internal.NativeValidationsBuilder",
+                "retainedRecordingAvailableValue[]->com.shaft.validation.internal.NativeValidationsBuilder",
+                "retainedRecordingSizeValue[]->com.shaft.validation.internal.NativeValidationsBuilder"));
         assertSingleMobileRootDescriptor(DriverAssertions.class, mobileAssertions);
         assertSingleMobileRootDescriptor(DriverVerifications.class, mobileAssertions);
     }
@@ -209,6 +225,66 @@ public class GuiValidationContractTest {
         }
         assertMobileValueFailsClosed(mobileAssertions, partial, "appInstalledValue", "com.example.app");
         assertMobileValueFailsClosed(mobileAssertions, partial, "appStateValue", "com.example.app");
+        for (String methodName : List.of("logMessageCountValue", "logErrorCountValue",
+                "performanceSampleCountValue", "recordingInProgressValue",
+                "retainedRecordingAvailableValue", "retainedRecordingSizeValue")) {
+            assertMobileValueFailsClosed(mobileAssertions, partial, methodName);
+        }
+        MobileEvidenceBundle evidence = mock(MobileEvidenceBundle.class);
+        assertMobileValueFailsClosed(mobileAssertions, partial, "evidenceArtifactCountValue", evidence);
+        assertMobileValueFailsClosed(mobileAssertions, partial, "evidenceOmissionCountValue", evidence);
+        assertMobileValueFailsClosed(mobileAssertions, partial, "evidenceArtifactCountValue",
+                new Class<?>[]{MobileEvidenceBundle.class}, new Object[]{null});
+        assertMobileValueFailsClosed(mobileAssertions, partial, "evidenceOmissionCountValue",
+                new Class<?>[]{MobileEvidenceBundle.class}, new Object[]{null});
+    }
+
+    @Test
+    public void frozenPriorMobileAssertionsShouldReceiveFailClosedSnapshotDefaults() throws Exception {
+        Path output = Files.createTempDirectory("shaft-mobile-assertions-old-consumer");
+        var compiler = ToolProvider.getSystemJavaCompiler();
+        List<SimpleJavaFileObject> sources = List.of(
+                source("com.shaft.gui.driver.MobileAssertions", """
+                        package com.shaft.gui.driver;
+                        import com.shaft.validation.internal.NativeValidationsBuilder;
+                        public interface MobileAssertions {
+                            default NativeValidationsBuilder currentContextValue() { return null; }
+                            default NativeValidationsBuilder contextCountValue() { return null; }
+                            default NativeValidationsBuilder appInstalledValue(String appId) { return null; }
+                            default NativeValidationsBuilder appStateValue(String appId) { return null; }
+                            default NativeValidationsBuilder deviceLockedValue() { return null; }
+                            default NativeValidationsBuilder deviceOrientationValue() { return null; }
+                            default NativeValidationsBuilder deviceTimeValue() { return null; }
+                            default NativeValidationsBuilder batteryValue() { return null; }
+                        }
+                        """),
+                source("compat.OldMobileSnapshotAssertions", """
+                        package compat;
+                        public final class OldMobileSnapshotAssertions
+                                implements com.shaft.gui.driver.MobileAssertions {}
+                        """));
+        Assert.assertTrue(Boolean.TRUE.equals(compiler.getTask(null, null, null,
+                List.of("-classpath", System.getProperty("java.class.path"), "-d", output.toString()),
+                null, sources).call()));
+
+        try (URLClassLoader loader = new URLClassLoader(new java.net.URL[]{output.toUri().toURL()},
+                GuiValidationContractTest.class.getClassLoader())) {
+            Object oldConsumer = Class.forName("compat.OldMobileSnapshotAssertions", true, loader)
+                    .getDeclaredConstructor().newInstance();
+            Class<?> currentContract = Class.forName("com.shaft.gui.driver.MobileAssertions");
+            for (String methodName : List.of("logMessageCountValue", "logErrorCountValue",
+                    "performanceSampleCountValue", "recordingInProgressValue",
+                    "retainedRecordingAvailableValue", "retainedRecordingSizeValue")) {
+                assertMobileValueFailsClosed(currentContract, oldConsumer, methodName);
+            }
+            MobileEvidenceBundle evidence = mock(MobileEvidenceBundle.class);
+            assertMobileValueFailsClosed(currentContract, oldConsumer, "evidenceArtifactCountValue", evidence);
+            assertMobileValueFailsClosed(currentContract, oldConsumer, "evidenceOmissionCountValue", evidence);
+            assertMobileValueFailsClosed(currentContract, oldConsumer, "evidenceArtifactCountValue",
+                    new Class<?>[]{MobileEvidenceBundle.class}, new Object[]{null});
+            assertMobileValueFailsClosed(currentContract, oldConsumer, "evidenceOmissionCountValue",
+                    new Class<?>[]{MobileEvidenceBundle.class}, new Object[]{null});
+        }
     }
 
     @Test
@@ -234,6 +310,14 @@ public class GuiValidationContractTest {
                 public com.shaft.gui.driver.MobileBatteryInfo battery() {
                     return new com.shaft.gui.driver.MobileBatteryInfo(0, "unknown");
                 }
+                public int logMessageCount() { return 0; }
+                public int logErrorCount() { return 0; }
+                public int performanceSampleCount() { return 0; }
+                public boolean recordingInProgress() { return false; }
+                public boolean retainedRecordingAvailable() { return false; }
+                public long retainedRecordingSize() { return 0; }
+                public int evidenceArtifactCount(com.shaft.gui.driver.MobileEvidenceBundle bundle) { return 0; }
+                public int evidenceOmissionCount(com.shaft.gui.driver.MobileEvidenceBundle bundle) { return 0; }
                 """));
     }
 
@@ -246,8 +330,15 @@ public class GuiValidationContractTest {
                 """));
         Assert.assertFalse(compileMobileValueDefaultCollision("MissingMobileValueOverride", false));
         Assert.assertTrue(compileMobileValueDefaultCollision("CompatibleMobileValueOverride", true));
+        Assert.assertFalse(compileMobileValueDefaultCollision("MissingMobileSnapshotValueOverride",
+                "logMessageCountValue", false));
+        Assert.assertTrue(compileMobileValueDefaultCollision("CompatibleMobileSnapshotValueOverride",
+                "logMessageCountValue", true));
         Assert.assertFalse(compileMobileAssertionsConsumer("IncompatibleMobileValueOverride", """
                 public String currentContextValue() { return ""; }
+                """));
+        Assert.assertFalse(compileMobileAssertionsConsumer("IncompatibleMobileSnapshotValueOverride", """
+                public int logMessageCountValue() { return 0; }
                 """));
     }
 
@@ -542,7 +633,20 @@ public class GuiValidationContractTest {
 
     private static void assertMobileValueFailsClosed(Class<?> owner, Object consumer, String methodName,
                                                      Object... arguments) throws Exception {
-        Class<?>[] parameterTypes = arguments.length == 0 ? new Class<?>[0] : new Class<?>[]{String.class};
+        Class<?>[] parameterTypes = arguments.length == 0
+                ? new Class<?>[0]
+                : new Class<?>[]{arguments[0] instanceof MobileEvidenceBundle
+                ? MobileEvidenceBundle.class : String.class};
+        Method method = owner.getMethod(methodName, parameterTypes);
+        InvocationTargetException thrown = Assert.expectThrows(InvocationTargetException.class,
+                () -> method.invoke(consumer, arguments));
+        Assert.assertTrue(thrown.getCause() instanceof UnsupportedOperationException);
+        Assert.assertEquals(thrown.getCause().getMessage(),
+                methodName + " is not supported by this mobile assertions implementation.");
+    }
+
+    private static void assertMobileValueFailsClosed(Class<?> owner, Object consumer, String methodName,
+                                                      Class<?>[] parameterTypes, Object[] arguments) throws Exception {
         Method method = owner.getMethod(methodName, parameterTypes);
         InvocationTargetException thrown = Assert.expectThrows(InvocationTargetException.class,
                 () -> method.invoke(consumer, arguments));
@@ -659,16 +763,21 @@ public class GuiValidationContractTest {
     }
 
     private static boolean compileMobileValueDefaultCollision(String className, boolean override) throws Exception {
+        return compileMobileValueDefaultCollision(className, "currentContextValue", override);
+    }
+
+    private static boolean compileMobileValueDefaultCollision(String className, String methodName,
+                                                               boolean override) throws Exception {
         Path output = Files.createTempDirectory("shaft-mobile-value-default-collision");
         SimpleJavaFileObject foreign = source("compat.ForeignMobileValue", """
                 package compat;
                 public interface ForeignMobileValue {
-                    default com.shaft.validation.internal.NativeValidationsBuilder currentContextValue() { return null; }
+                    default com.shaft.validation.internal.NativeValidationsBuilder %s() { return null; }
                 }
-                """);
+                """.formatted(methodName));
         String explicitOverride = override
-                ? "public com.shaft.validation.internal.NativeValidationsBuilder currentContextValue() { "
-                + "return com.shaft.gui.driver.MobileAssertions.super.currentContextValue(); }"
+                ? "public com.shaft.validation.internal.NativeValidationsBuilder " + methodName + "() { "
+                + "return com.shaft.gui.driver.MobileAssertions.super." + methodName + "(); }"
                 : "";
         SimpleJavaFileObject consumer = source("compat." + className, """
                 package compat;

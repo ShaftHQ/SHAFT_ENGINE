@@ -3,6 +3,10 @@ package com.shaft.validation.internal;
 import com.shaft.gui.driver.MobileApplicationState;
 import com.shaft.gui.driver.MobileAssertions;
 import com.shaft.gui.driver.MobileBatteryInfo;
+import com.shaft.gui.driver.MobileEvidenceBundle;
+import com.shaft.gui.mobile.internal.MobileLogSource;
+import com.shaft.gui.mobile.internal.MobilePerformanceState;
+import com.shaft.gui.mobile.internal.MobileRecordingState;
 import com.shaft.tools.io.internal.FailureTraceReporter;
 import com.shaft.validation.ValidationEnums;
 import io.appium.java_client.AppiumDriver;
@@ -111,6 +115,53 @@ public final class WebDriverMobileValidationsBuilder implements MobileAssertions
         });
     }
 
+    @Override
+    public NativeValidationsBuilder logMessageCountValue() {
+        return value("device log message count", () -> logSnapshot().messages().size());
+    }
+
+    @Override
+    public NativeValidationsBuilder logErrorCountValue() {
+        return value("device log error count", () -> logSnapshot().errors().size());
+    }
+
+    @Override
+    public NativeValidationsBuilder performanceSampleCountValue() {
+        return value("performance sample count", () -> MobilePerformanceState
+                .historyIfPresent(liveAppiumDriver())
+                .orElseThrow(() -> unsupported("retained performance history"))
+                .size());
+    }
+
+    @Override
+    public NativeValidationsBuilder recordingInProgressValue() {
+        return value("recording in-progress state", () -> recordingSnapshot().recordingInProgress());
+    }
+
+    @Override
+    public NativeValidationsBuilder retainedRecordingAvailableValue() {
+        return value("retained recording availability", () -> recordingSnapshot().savedRecording().isPresent());
+    }
+
+    @Override
+    public NativeValidationsBuilder retainedRecordingSizeValue() {
+        return value("retained recording byte size", () -> recordingSnapshot().savedRecording()
+                .orElseThrow(() -> unsupported("a retained saved recording"))
+                .sizeBytes());
+    }
+
+    @Override
+    public NativeValidationsBuilder evidenceArtifactCountValue(MobileEvidenceBundle bundle) {
+        MobileEvidenceBundle required = Objects.requireNonNull(bundle, "evidence bundle");
+        return value("evidence artifact count", () -> required.artifacts().size());
+    }
+
+    @Override
+    public NativeValidationsBuilder evidenceOmissionCountValue(MobileEvidenceBundle bundle) {
+        MobileEvidenceBundle required = Objects.requireNonNull(bundle, "evidence bundle");
+        return value("evidence omission count", () -> required.omissions().size());
+    }
+
     private NativeValidationsBuilder value(String name, Supplier<Object> reader) {
         return new NativeValidationsBuilder(validationCategory, driver, reader, name,
                 new StringBuilder(reportMessagePrefix).append(name).append(' '));
@@ -121,6 +172,16 @@ public final class WebDriverMobileValidationsBuilder implements MobileAssertions
             return provider;
         }
         throw unsupported("native or web context inspection");
+    }
+
+    private MobileLogSource.Snapshot logSnapshot() {
+        return MobileLogSource.snapshotIfPresent(liveAppiumDriver())
+                .orElseThrow(() -> unsupported("buffered device-log state"));
+    }
+
+    private MobileRecordingState.Snapshot recordingSnapshot() {
+        return MobileRecordingState.snapshotIfPresent(liveAppiumDriver())
+                .orElseThrow(() -> unsupported("screen-recording state"));
     }
 
     private InteractsWithApps apps() {
