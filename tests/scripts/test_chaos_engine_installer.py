@@ -10,10 +10,10 @@ import subprocess  # nosec B404 - tests run the fixed local installer only.
 import sys
 import tempfile
 import unittest
+import unittest.mock as mock
 from datetime import datetime, timezone
 from pathlib import Path
 from types import SimpleNamespace
-from unittest import mock
 
 
 ROOT = Path(__file__).resolve().parents[2]

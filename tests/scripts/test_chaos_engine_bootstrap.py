@@ -8,9 +8,9 @@ import json
 import subprocess  # nosec B404 - tests run fixed local Git commands only.
 import tempfile
 import unittest
+import unittest.mock as mock
 import zipfile
 from pathlib import Path
-from unittest import mock
 from types import SimpleNamespace
 
 

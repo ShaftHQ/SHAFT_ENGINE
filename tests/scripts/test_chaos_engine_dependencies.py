@@ -7,7 +7,7 @@ import json
 import shutil
 import tempfile
 import unittest
-from unittest import mock
+import unittest.mock as mock
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from types import SimpleNamespace

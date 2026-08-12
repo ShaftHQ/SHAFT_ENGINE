@@ -229,12 +229,14 @@ def project_lock(project: Path):
     try:
         yield
     finally:
-        lock_file.seek(0)
-        if os.name == "nt":
-            msvcrt.locking(lock_file.fileno(), msvcrt.LK_UNLCK, 1)
-        else:
-            fcntl.flock(lock_file.fileno(), fcntl.LOCK_UN)
-        lock_file.close()
+        try:
+            lock_file.seek(0)
+            if os.name == "nt":
+                msvcrt.locking(lock_file.fileno(), msvcrt.LK_UNLCK, 1)
+            else:
+                fcntl.flock(lock_file.fileno(), fcntl.LOCK_UN)
+        finally:
+            lock_file.close()
 
 
 @contextmanager
@@ -288,12 +290,14 @@ def dependency_runtime_lock(runtime: Path):
     try:
         yield
     finally:
-        stream.seek(0)
-        if os.name == "nt":
-            msvcrt.locking(stream.fileno(), msvcrt.LK_UNLCK, 1)
-        else:
-            fcntl.flock(stream.fileno(), fcntl.LOCK_UN)
-        stream.close()
+        try:
+            stream.seek(0)
+            if os.name == "nt":
+                msvcrt.locking(stream.fileno(), msvcrt.LK_UNLCK, 1)
+            else:
+                fcntl.flock(stream.fileno(), fcntl.LOCK_UN)
+        finally:
+            stream.close()
 
 
 def write_journal(project: Path, operation: str, commit: str) -> Path:

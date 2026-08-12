@@ -9,8 +9,8 @@ import sys
 import tempfile
 import threading
 import unittest
+import unittest.mock as mock
 from pathlib import Path
-from unittest import mock
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -351,12 +351,12 @@ class ChaosEngineLearningTest(unittest.TestCase):
                     second_write.set()
                 return original(path, document)
 
-            errors: list[BaseException] = []
+            errors: list[Exception] = []
 
             def queue(candidate):
                 try:
                     module.queue_learning(state, candidate, "example/chaos-engine")
-                except BaseException as error:
+                except Exception as error:  # pylint: disable=broad-exception-caught
                     errors.append(error)
 
             with mock.patch.object(module, "write_queue", side_effect=synchronized):
