@@ -19,15 +19,23 @@ import org.openqa.selenium.remote.SessionId;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
+import java.lang.ref.Reference;
+import java.lang.reflect.Field;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.Executors;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 
+@SuppressWarnings("PMD.AvoidAccessibilityAlteration") // Private state access proves noncreating snapshot behavior.
 public class MobilePerformanceActionsTest {
     @Test
     public void supportedTypesAndSamplesShouldDelegateToTheExactAppiumInterface() {
@@ -192,6 +200,72 @@ public class MobilePerformanceActionsTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
+    public void evidenceHistorySnapshotShouldBeNonCreatingImmutableAndIdentityIsolated() throws Exception {
+        Method snapshotMethod = java.util.Arrays.stream(MobilePerformanceState.class.getMethods())
+                .filter(method -> method.getName().equals("historyIfPresent")
+                        && java.util.Arrays.equals(method.getParameterTypes(), new Class<?>[]{AppiumDriver.class}))
+                .findFirst().orElse(null);
+        Assert.assertNotNull(snapshotMethod, "Evidence needs a non-creating performance-history snapshot.");
+
+        AppiumDriver absent = Mockito.mock(AppiumDriver.class);
+        Assert.assertFalse(hasPerformanceState(absent));
+        Assert.assertEquals(snapshotMethod.invoke(null, absent), Optional.empty());
+        Assert.assertFalse(hasPerformanceState(absent), "Evidence reads must not create performance state.");
+        Mockito.verifyNoInteractions(absent);
+        InvocationTargetException nullFailure = Assert.expectThrows(InvocationTargetException.class,
+                () -> snapshotMethod.invoke(null, new Object[]{null}));
+        Assert.assertTrue(nullFailure.getCause() instanceof NullPointerException);
+
+        EqualPerformanceDriver first = new EqualPerformanceDriver("evidence-performance-first", 1);
+        EqualPerformanceDriver second = new EqualPerformanceDriver("evidence-performance-second", 2);
+        MobilePerformanceSample firstSample = new MobilePerformanceSample(
+                java.time.Instant.EPOCH, "first.app", "cpuinfo", List.of("value"), List.of(row(1)));
+        MobilePerformanceSample secondSample = new MobilePerformanceSample(
+                java.time.Instant.EPOCH, "second.app", "cpuinfo", List.of("value"), List.of(row(2)));
+        MobilePerformanceState.append(first, firstSample);
+        MobilePerformanceState.append(second, secondSample);
+
+        List<MobilePerformanceSample> firstSnapshot = (List<MobilePerformanceSample>)
+                ((Optional<?>) snapshotMethod.invoke(null, first)).orElseThrow();
+        List<MobilePerformanceSample> secondSnapshot = (List<MobilePerformanceSample>)
+                ((Optional<?>) snapshotMethod.invoke(null, second)).orElseThrow();
+        Assert.assertEquals(firstSnapshot, List.of(firstSample));
+        Assert.assertEquals(secondSnapshot, List.of(secondSample));
+        Assert.expectThrows(UnsupportedOperationException.class, () -> firstSnapshot.add(secondSample));
+
+        Object firstState = performanceState(first);
+        AtomicReference<Thread> snapshotThread = new AtomicReference<>();
+        try (var executor = Executors.newSingleThreadExecutor()) {
+            Future<?> blockedSnapshot;
+            synchronized (firstState) {
+                blockedSnapshot = executor.submit(() -> {
+                    snapshotThread.set(Thread.currentThread());
+                    return snapshotMethod.invoke(null, first);
+                });
+                long blockedDeadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(10);
+                while ((snapshotThread.get() == null || snapshotThread.get().getState() != Thread.State.BLOCKED)
+                        && System.nanoTime() < blockedDeadline) {
+                    Thread.onSpinWait();
+                }
+                Assert.assertNotNull(snapshotThread.get());
+                Assert.assertEquals(snapshotThread.get().getState(), Thread.State.BLOCKED,
+                        "Evidence snapshots must share the state monitor with append, clear, and teardown.");
+            }
+            Assert.assertEquals(blockedSnapshot.get(10, TimeUnit.SECONDS), Optional.of(List.of(firstSample)));
+        }
+
+        MobilePerformanceState.clear(first);
+        Assert.assertEquals(firstSnapshot, List.of(firstSample));
+        Assert.assertEquals(snapshotMethod.invoke(null, first), Optional.of(List.of()));
+        Assert.assertEquals(snapshotMethod.invoke(null, second), Optional.of(List.of(secondSample)));
+
+        MobilePerformanceState.closeAndRemove(first);
+        Assert.assertEquals(snapshotMethod.invoke(null, first), Optional.empty());
+        Assert.assertEquals(snapshotMethod.invoke(null, second), Optional.of(List.of(secondSample)));
+    }
+
+    @Test
     public void teardownShouldRemoveOnlyTheClosingDriversHistory() {
         AndroidDriver closing = liveAndroid("closing-history");
         AndroidDriver retained = liveAndroid("retained-history");
@@ -325,6 +399,24 @@ public class MobilePerformanceActionsTest {
 
     private static AndroidDriver liveAndroid(String id) {
         return live(AndroidDriver.class, id);
+    }
+
+    private static boolean hasPerformanceState(AppiumDriver driver) throws Exception {
+        return performanceState(driver) != null;
+    }
+
+    private static Object performanceState(AppiumDriver driver) throws Exception {
+        Field statesField = MobilePerformanceState.class.getDeclaredField("STATES");
+        statesField.setAccessible(true);
+        Map<?, ?> states = (Map<?, ?>) statesField.get(null);
+        synchronized (states) {
+            for (Map.Entry<?, ?> entry : states.entrySet()) {
+                if (entry.getKey() instanceof Reference<?> reference && reference.get() == driver) {
+                    return entry.getValue();
+                }
+            }
+            return null;
+        }
     }
 
     private static AppiumDriver liveCustom(String id) {

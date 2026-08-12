@@ -3732,18 +3732,24 @@ final class ShaftAssistantPanel extends JPanel implements Disposable {
         if (family.equals(modelListFamily) || (modelListRefreshing && family.equals(modelListRefreshingFamily))) {
             return;
         }
+        JsonObject arguments = new JsonObject();
+        arguments.addProperty("client", AssistantCommand.Selection.local(family, "CLI").client());
+        CompletableFuture<AssistantLocalAgentRunner.ModelDiscovery> discovery = CompletableFuture.supplyAsync(
+                () -> AssistantLocalAgentRunner.discoverModels(arguments),
+                ShaftPluginExecutor.getInstance().executor());
+        startLocalModelDiscovery(family, discovery);
+    }
+
+    void startLocalModelDiscovery(
+            String family, CompletableFuture<AssistantLocalAgentRunner.ModelDiscovery> discovery) {
         modelListRefreshing = true;
         modelListRefreshingFamily = family;
         setLocalModelStatus("Checking model catalog…");
         long requestGeneration = ++modelListRequestGeneration;
-        JsonObject arguments = new JsonObject();
-        arguments.addProperty("client", AssistantCommand.Selection.local(family, "CLI").client());
-        CompletableFuture.supplyAsync(() -> AssistantLocalAgentRunner.discoverModels(arguments),
-                        ShaftPluginExecutor.getInstance().executor())
-                .whenComplete((models, error) -> runOnEdt(
-                        () -> applyLocalModels(family, error == null ? models
-                                : new AssistantLocalAgentRunner.ModelDiscovery(List.of(),
-                                        AssistantLocalAgentRunner.ModelDiscoveryState.FAILED), requestGeneration)));
+        discovery.whenComplete((models, error) -> runOnEdt(
+                () -> applyLocalModels(family, error == null ? models
+                        : new AssistantLocalAgentRunner.ModelDiscovery(List.of(),
+                                AssistantLocalAgentRunner.ModelDiscoveryState.FAILED), requestGeneration)));
     }
 
     private void applyLocalModels(String family, List<String> models) {
