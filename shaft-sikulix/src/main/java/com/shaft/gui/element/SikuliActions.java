@@ -1,6 +1,10 @@
 package com.shaft.gui.element;
 
 import com.shaft.driver.SHAFT;
+import com.shaft.gui.internal.ocr.OcrCoordinateMapper;
+import com.shaft.gui.internal.ocr.OcrPoint;
+import com.shaft.gui.internal.ocr.OcrProcessingActions;
+import com.shaft.gui.ocr.OcrTarget;
 import com.shaft.sikulix.internal.SikuliNativeLibraryStager;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.io.internal.ReportManagerHelper;
@@ -14,6 +18,7 @@ import org.sikuli.script.Screen;
 import javax.imageio.ImageIO;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.io.ByteArrayOutputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
@@ -165,6 +170,18 @@ public class SikuliActions {
         return this;
     }
 
+    /** Clicks visible text recognized from the current desktop screen. */
+    public SikuliActions click(OcrTarget target) {
+        try {
+            OcrPoint point = resolveOcrPoint(target);
+            screen.click(new org.sikuli.script.Location(point.x(), point.y()));
+            passAction("click OCR text", target.expectedText());
+        } catch (FindFailed exception) {
+            failAction("click OCR text", target.expectedText(), exception);
+        }
+        return this;
+    }
+
     /**
      * Reads text from the target image region.
      *
@@ -225,6 +242,18 @@ public class SikuliActions {
         return this;
     }
 
+    /** Moves the mouse over visible text recognized from the current desktop screen. */
+    public SikuliActions hover(OcrTarget target) {
+        try {
+            OcrPoint point = resolveOcrPoint(target);
+            screen.hover(new org.sikuli.script.Location(point.x(), point.y()));
+            passAction("hover OCR text", target.expectedText());
+        } catch (FindFailed exception) {
+            failAction("hover OCR text", target.expectedText(), exception);
+        }
+        return this;
+    }
+
     /**
      * Double-clicks the target image region.
      *
@@ -254,6 +283,31 @@ public class SikuliActions {
             failAction("doubleClick", formatTextForReport(elementText), rootCauseException);
         }
         return this;
+    }
+
+    /** Double-clicks visible text recognized from the current desktop screen. */
+    public SikuliActions doubleClick(OcrTarget target) {
+        try {
+            OcrPoint point = resolveOcrPoint(target);
+            screen.doubleClick(new org.sikuli.script.Location(point.x(), point.y()));
+            passAction("doubleClick OCR text", target.expectedText());
+        } catch (FindFailed exception) {
+            failAction("doubleClick OCR text", target.expectedText(), exception);
+        }
+        return this;
+    }
+
+    private OcrPoint resolveOcrPoint(OcrTarget target) {
+        var capture = screen.capture();
+        var image = capture.getImage();
+        try {
+            ByteArrayOutputStream output = new ByteArrayOutputStream();
+            ImageIO.write(image, "png", output);
+            return OcrCoordinateMapper.toPointerCenter(OcrProcessingActions.find(output.toByteArray(), target),
+                    image.getWidth(), image.getHeight(), screen.getW(), screen.getH(), screen.getX(), screen.getY());
+        } catch (IOException exception) {
+            throw new IllegalStateException("Could not encode the SikuliX screen for OCR.", exception);
+        }
     }
 
     /**

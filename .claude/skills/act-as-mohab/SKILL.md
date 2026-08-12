@@ -5,5 +5,5 @@ description: Use at every task start; redirects to the canonical portable entryp
 
 # Act as Mohab adapter
 
-Follow the [canonical entrypoint](../../../.agents/skills/act-as-mohab/SKILL.md).
+Enter through the [repository ChaosEngine adapter](../../../.agents/skills/chaos-engine/SKILL.md).
 Do not restate policy here.

@@ -5,6 +5,9 @@ import com.shaft.validation.ValidationEnums;
 import com.shaft.validation.VisualComparisonOptions;
 import org.openqa.selenium.By;
 import org.openqa.selenium.WebDriver;
+import org.openqa.selenium.OutputType;
+import com.shaft.gui.internal.ocr.OcrProcessingActions;
+import com.shaft.gui.ocr.OcrOptions;
 
 @SuppressWarnings("unused")
 public class WebDriverElementValidationsBuilder implements com.shaft.gui.driver.ElementAssertions {
@@ -37,6 +40,14 @@ public class WebDriverElementValidationsBuilder implements com.shaft.gui.driver.
     @Override
     public NativeValidationsBuilder elementRole() {
         return focusedValue("elementRoleEquals", "accessibility role ");
+    }
+
+    @Override
+    public NativeValidationsBuilder ocrText(OcrOptions options) {
+        reportMessageBuilder.append("OCR text ");
+        byte[] screenshot = driver.findElement(locator).getScreenshotAs(OutputType.BYTES);
+        return new ValidationsBuilder(validationCategory)
+                .object(OcrProcessingActions.recognize(screenshot, options).fullText());
     }
 
     public WebDriverElementValidationsBuilder(ValidationEnums.ValidationCategory validationCategory, WebDriver driver, By locator, StringBuilder reportMessageBuilder) {

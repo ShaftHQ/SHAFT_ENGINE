@@ -6,10 +6,10 @@ contributor can skim it to understand the system, and an agent can be pointed
 at it directly.
 
 **If you are an agent:** do not work from this file. It is a map, not the
-territory. Load [act-as-mohab](act-as-mohab/SKILL.md) and follow it.
+territory. Load [ChaosEngine](../../chaos-engine/skills/chaos-engine/SKILL.md) and follow it.
 
 **If you are a contributor:** tell your coding agent to read
-`.agents/skills/act-as-mohab/SKILL.md` before it touches anything. Most agents
+`chaos-engine/skills/chaos-engine/SKILL.md` before it touches anything. Most agents
 find it on their own — see [Importing these skills](#importing-these-skills).
 
 ## The shape of it
@@ -113,10 +113,10 @@ step with the first.
 
 | Skill | What it does |
 | --- | --- |
-| [act-as-mohab](act-as-mohab/SKILL.md) | The single always-loaded entrypoint and global router. Carries the iron laws, the triage that sizes every task, the always-on working style, and the table that sends each deliverable to exactly one surface. |
+| [ChaosEngine](../../chaos-engine/skills/chaos-engine/SKILL.md) | The single always-loaded entrypoint and global router. Carries the iron laws, the triage that sizes every task, the always-on working style, and the table that sends each deliverable to exactly one surface. |
 
-The entrypoint reaches the internal [consultation](act-as-mohab/references/consult-first.md)
-and [retrieval](act-as-mohab/references/retrieve-first.md) gates after every
+The entrypoint reaches the internal [consultation](../../chaos-engine/references/consult-first.md)
+and [retrieval](../../chaos-engine/references/retrieve-first.md) gates after every
 triage; the triage result controls depth. They are references, not separately
 discoverable skills.
 
@@ -124,63 +124,63 @@ discoverable skills.
 
 Never loaded by default. The first four are described by the entrypoint as it
 sends you there; the rest by
-[routing](act-as-mohab/references/routing.md).
+[routing](../../chaos-engine/profiles/shaft/references/routing.md).
 
-- [routing](act-as-mohab/references/routing.md)
-- [delegation](act-as-mohab/references/delegation.md)
-- [roles](act-as-mohab/references/roles.md)
-- [heuristics](act-as-mohab/references/heuristics.md)
-- [orchestrator bootstrap](act-as-mohab/references/orchestrator-bootstrap.md)
-- [verification-gap lens](act-as-mohab/references/verification-gap-lens.md)
-- [work GitHub playbook](act-as-mohab/references/work-github-playbook.md)
-- [work GitHub planning](act-as-mohab/references/work-github-planning.md)
-- [graphify](act-as-mohab/references/graphify.md)
-- [TDD failure modes](act-as-mohab/references/tdd-failure-modes.md)
+- [routing](../../chaos-engine/profiles/shaft/references/routing.md)
+- [delegation](../../chaos-engine/references/delegation.md)
+- [roles](../../chaos-engine/references/roles.md)
+- [heuristics](../../chaos-engine/references/heuristics.md)
+- [orchestrator bootstrap](../../chaos-engine/references/orchestrator-bootstrap.md)
+- [verification-gap lens](../../chaos-engine/references/verification-gap-lens.md)
+- [work GitHub playbook](../../chaos-engine/references/work-github-playbook.md)
+- [work GitHub planning](../../chaos-engine/references/work-github-planning.md)
+- [graphify](../../chaos-engine/references/graphify.md)
+- [TDD failure modes](../../chaos-engine/references/tdd-failure-modes.md)
 
 Caveman, Ponytail and the TDD cycle are not references — they live in the
 entrypoint body, because a rule that governs every task must not cost a second
 read. How the cycle fails is a reference, because it is read while writing one
 test rather than on every task. Only their MIT notices are files:
-[Caveman](act-as-mohab/references/caveman.LICENSE),
-[Ponytail](act-as-mohab/references/ponytail.LICENSE),
-[TDD](act-as-mohab/references/test-driven-development.LICENSE).
+[Caveman](../../chaos-engine/references/caveman.LICENSE),
+[Ponytail](../../chaos-engine/references/ponytail.LICENSE),
+[TDD](../../chaos-engine/references/test-driven-development.LICENSE).
 
 ### Repository playbooks
 
 One per kind of work in this repository. Which deliverable sends you to which
-playbook is stated once, in [routing](act-as-mohab/references/routing.md) — this
+playbook is stated once, in [routing](../../chaos-engine/profiles/shaft/references/routing.md) — this
 list is the inventory, not a second copy of the triggers.
 
-- [agent guidance](act-as-mohab/references/playbooks/agent-guidance-boundary-guard.md)
-- [PDCA](act-as-mohab/references/playbooks/agentic-pdca-loop.md)
-- [framework source](act-as-mohab/references/playbooks/framework-source.md)
-- [Java tests](act-as-mohab/references/playbooks/java-tests.md)
-- [CI failures](act-as-mohab/references/playbooks/ci-failure-investigator.md)
-- [flaky tests](act-as-mohab/references/playbooks/flaky-test-stabilizer.md)
-- [release and dependencies](act-as-mohab/references/playbooks/release-dependency-guard.md)
-- [MCP transport](act-as-mohab/references/playbooks/mcp-transport-contract-auditor.md)
-- [module boundaries](act-as-mohab/references/playbooks/modular-boundary-auditor.md)
-- [reports](act-as-mohab/references/playbooks/allure-extent-report-operator.md)
-- [public docs](act-as-mohab/references/playbooks/public-behavior-docs-synchronizer.md)
-- [UI design](act-as-mohab/references/playbooks/shaft-ui-design.md)
-- [marketing](act-as-mohab/references/playbooks/shaft-marketing-ad-producer.md)
+- [agent guidance](../../chaos-engine/profiles/shaft/references/playbooks/agent-guidance-boundary-guard.md)
+- [PDCA](../../chaos-engine/profiles/shaft/references/playbooks/agentic-pdca-loop.md)
+- [framework source](../../chaos-engine/profiles/shaft/references/playbooks/framework-source.md)
+- [Java tests](../../chaos-engine/profiles/shaft/references/playbooks/java-tests.md)
+- [CI failures](../../chaos-engine/profiles/shaft/references/playbooks/ci-failure-investigator.md)
+- [flaky tests](../../chaos-engine/profiles/shaft/references/playbooks/flaky-test-stabilizer.md)
+- [release and dependencies](../../chaos-engine/profiles/shaft/references/playbooks/release-dependency-guard.md)
+- [MCP transport](../../chaos-engine/profiles/shaft/references/playbooks/mcp-transport-contract-auditor.md)
+- [module boundaries](../../chaos-engine/profiles/shaft/references/playbooks/modular-boundary-auditor.md)
+- [reports](../../chaos-engine/profiles/shaft/references/playbooks/allure-extent-report-operator.md)
+- [public docs](../../chaos-engine/profiles/shaft/references/playbooks/public-behavior-docs-synchronizer.md)
+- [UI design](../../chaos-engine/profiles/shaft/references/playbooks/shaft-ui-design.md)
+- [marketing](../../chaos-engine/profiles/shaft/references/playbooks/shaft-marketing-ad-producer.md)
 
 ### SHAFT mastery chapters
 
 Ten expert domains. Each encodes incident history that is expensive to
 re-derive, so read the one the task touches and skip the rest — which one that
-is, [routing](act-as-mohab/references/routing.md) says.
+is, [routing](../../chaos-engine/profiles/shaft/references/routing.md) says.
 
-- [Selenium BiDi](act-as-mohab/references/shaft-mastery/selenium-bidi.md)
-- [Allure internals](act-as-mohab/references/shaft-mastery/allure-internals.md)
-- [Appium mobile](act-as-mohab/references/shaft-mastery/appium-mobile.md)
-- [Maven release](act-as-mohab/references/shaft-mastery/maven-release.md)
-- [TestNG lifecycle](act-as-mohab/references/shaft-mastery/testng-lifecycle.md)
-- [IntelliJ plugin](act-as-mohab/references/shaft-mastery/intellij-plugin.md)
-- [MCP protocol](act-as-mohab/references/shaft-mastery/mcp-protocol.md)
-- [CI forensics](act-as-mohab/references/shaft-mastery/ci-forensics.md)
-- [Wait strategies](act-as-mohab/references/shaft-mastery/wait-strategies.md)
-- [Locator healing](act-as-mohab/references/shaft-mastery/locator-healing.md)
+- [Selenium BiDi](../../chaos-engine/profiles/shaft/references/shaft-mastery/selenium-bidi.md)
+- [Allure internals](../../chaos-engine/profiles/shaft/references/shaft-mastery/allure-internals.md)
+- [Appium mobile](../../chaos-engine/profiles/shaft/references/shaft-mastery/appium-mobile.md)
+- [Maven release](../../chaos-engine/profiles/shaft/references/shaft-mastery/maven-release.md)
+- [TestNG lifecycle](../../chaos-engine/profiles/shaft/references/shaft-mastery/testng-lifecycle.md)
+- [IntelliJ plugin](../../chaos-engine/profiles/shaft/references/shaft-mastery/intellij-plugin.md)
+- [MCP protocol](../../chaos-engine/profiles/shaft/references/shaft-mastery/mcp-protocol.md)
+- [CI forensics](../../chaos-engine/profiles/shaft/references/shaft-mastery/ci-forensics.md)
+- [Wait strategies](../../chaos-engine/profiles/shaft/references/shaft-mastery/wait-strategies.md)
+- [Locator healing](../../chaos-engine/profiles/shaft/references/shaft-mastery/locator-healing.md)
 
 ### The product pack
 
@@ -196,8 +196,8 @@ the plumbing differs.
 
 | Host | How it finds the entrypoint |
 | --- | --- |
-| Codex | Reads `AGENTS.md`, discovers only [act-as-mohab](act-as-mohab/SKILL.md) natively — with metadata in [openai.yaml](act-as-mohab/agents/openai.yaml) — and loads the role adapters in `.codex/agents/*.toml`. |
-| Claude | Reads `CLAUDE.md`, which imports `AGENTS.md`; `.claude/skills/act-as-mohab/SKILL.md` redirects to the canonical body and `.claude/agents/*.md` carry the roles. |
+| Codex | Reads `AGENTS.md`, discovers the repository [ChaosEngine adapter](chaos-engine/SKILL.md) natively — with [metadata](chaos-engine/agents/openai.yaml) — and loads the role adapters in `.codex/agents/*.toml`. |
+| Claude | Reads `CLAUDE.md`, which imports `AGENTS.md`; `.claude/skills/chaos-engine/SKILL.md` redirects to the canonical body and `.claude/agents/*.md` carry the roles. |
 | Copilot | Reads `.github/copilot-instructions.md`; `.github/skills/*` and `.github/instructions/*` redirect to the same playbooks. |
 | Grok | Reads `AGENTS.md` plus the Claude-compatible adapter. |
 
@@ -216,8 +216,8 @@ file is added, moved or deleted, which is the only way a map stays true.
 
 | Host | Files |
 | --- | --- |
-| Codex | `AGENTS.md`; `.codex/config.toml`; `.codex/hooks.json`; roles `.codex/agents/chaos-engine.toml`, `.codex/agents/coder.toml`, `.codex/agents/helper.toml`, `.codex/agents/reviewer.toml`, `.codex/agents/tester.toml` |
-| Claude | `CLAUDE.md`; `.claude/settings.json`; `.mcp.json`; redirect `.claude/skills/act-as-mohab/SKILL.md`; roles `.claude/agents/chaos-engine.md`, `.claude/agents/coder.md`, `.claude/agents/helper.md`, `.claude/agents/reviewer.md`, `.claude/agents/tester.md` |
+| Codex | `AGENTS.md`; `.agents/skills/chaos-engine/SKILL.md`; `.agents/skills/chaos-engine/agents/openai.yaml`; compatibility alias `.agents/skills/act-as-mohab/SKILL.md` with `.agents/skills/act-as-mohab/agents/openai.yaml`; `.codex/config.toml`; `.codex/hooks.json`; roles `.codex/agents/chaos-engine.toml`, `.codex/agents/coder.toml`, `.codex/agents/helper.toml`, `.codex/agents/reviewer.toml`, `.codex/agents/tester.toml` |
+| Claude | `CLAUDE.md`; `.claude/settings.json`; `.mcp.json`; redirect `.claude/skills/chaos-engine/SKILL.md`; compatibility alias `.claude/skills/act-as-mohab/SKILL.md`; roles `.claude/agents/chaos-engine.md`, `.claude/agents/coder.md`, `.claude/agents/helper.md`, `.claude/agents/reviewer.md`, `.claude/agents/tester.md` |
 | Copilot | `.github/copilot-instructions.md`; scope files `.github/instructions/framework-source.instructions.md`, `.github/instructions/java-tests.instructions.md`; the redirect pack indexed by `.github/skills/README.md` |
 | Your own configuration | `.claude/user-harness/CLAUDE.md`, `.claude/user-harness/README.md`, `.claude/user-harness/settings.json` |
 
@@ -237,7 +237,7 @@ pointer at the canonical body, not a second copy of it:
 
 If your agent does none of that automatically, say this to it:
 
-> Read `.agents/skills/act-as-mohab/SKILL.md` and follow it for this task.
+> Read `chaos-engine/skills/chaos-engine/SKILL.md` and follow it for this task.
 
 To deploy the harness to your own user-level agent configuration:
 
@@ -333,6 +333,7 @@ change it:
 | --- | --- |
 | `tests/scripts/test_agent_router_contract.py` | The router: triage, the routing table, role adapters, budgets, the learning loop. |
 | `tests/scripts/test_agent_harness_portability.py` | One policy body per rule, relative paths, hook parity, memory against guidance. |
+| `tests/scripts/test_chaos_engine_portable_core.py` | Portable core isolation, compatibility aliases, and project-profile selection. |
 | `tests/scripts/test_agent_harness_adherence.py` | Reviewed deterministic episodes, unknown evidence, and fail-closed adherence comparison. |
 | `tests/scripts/test_agent_harness_reachability.py` | That every element on this page is reachable from the entrypoint, and that the duties below stay unqualified. |
 | `tests/scripts/test_validate_agent_guidance.py` | The budget validator itself. |

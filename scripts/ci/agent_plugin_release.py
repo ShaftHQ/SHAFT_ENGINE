@@ -13,7 +13,7 @@ import xml.etree.ElementTree as ET
 from pathlib import Path
 
 
-REQUIRED_PACKAGES = ("act-as-mohab", "shaft-skills")
+REQUIRED_PACKAGES = ("shaft-skills",)
 SEMVER = re.compile(r"^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$")
 RELEASE_MANIFEST = Path("agent-plugins/release.json")
 ROOT = Path(__file__).resolve().parents[2]
@@ -98,7 +98,6 @@ def write_checksum(archive: Path) -> Path:
 
 def build_release_artifacts(repository_root: Path, output_directory: Path) -> list[Path]:
     """Assemble, validate, archive, and checksum every manifest-declared package."""
-    from scripts.ci.assemble_act_as_mohab_plugin import assemble as assemble_act_as_mohab
     from scripts.ci.assemble_shaft_skills_plugin import assemble as assemble_shaft_skills
     from scripts.ci.validate_agent_plugins import validate_package
 
@@ -108,7 +107,6 @@ def build_release_artifacts(repository_root: Path, output_directory: Path) -> li
         raise ValueError(f"release artifact output must not already exist: {output_directory}")
     output_directory.parent.mkdir(parents=True, exist_ok=True)
     assemblers = {
-        "act-as-mohab": assemble_act_as_mohab,
         "shaft-skills": assemble_shaft_skills,
     }
     artifacts: list[Path] = []

@@ -9,18 +9,18 @@ Config wins. Start from requested goal and affected files.
 ## Mandatory entrypoint
 
 Before every task, read and follow
-[act-as-mohab](.agents/skills/act-as-mohab/SKILL.md). It is the single
+[ChaosEngine](.agents/skills/chaos-engine/SKILL.md). It is the single
 provider-agnostic router for intent, capability levels, skills, MCPs, Caveman,
 Ponytail, TDD, PDCA, Memory, MemPalace, Graphify, delegation, and completion.
 Every main thread and delegate loads it; repo playbooks are reached through
 that entrypoint, never as competing policy. Its triage runs before every task
 and decides whether the change also earns
-[consult-first](.agents/skills/act-as-mohab/references/consult-first.md).
+[consult-first](chaos-engine/references/consult-first.md).
 
 Name capability only as most intelligent, default, or mechanical. Never name a
 model or product in tracked guidance.
 
-`CLAUDE.md` and `.claude/skills/act-as-mohab/SKILL.md` are thin adapters.
+`CLAUDE.md` and `.claude/skills/chaos-engine/SKILL.md` are thin adapters.
 Grok uses `AGENTS.md` plus that compatible adapter; do not add duplicate Grok
 guidance. All operational paths in tracked guidance/config stay relative.
 
@@ -34,7 +34,7 @@ per the routed GitHub playbook. `.memory/events.jsonl` alone may report
 `CONFLICTING`; its union merge is authoritative locally (#4137).
 
 Role boundaries and capability-level delegation live only in the mandatory
-act-as-mohab entrypoint.
+ChaosEngine entrypoint.
 
 ## Working rules
 
@@ -70,7 +70,7 @@ PowerShell quote property arguments and tokens containing `{}`, `@`, `;`,
 ## Memory and validation
 
 Current files beat every index. Query native `.memory/`, MemPalace, and
-Graphify through act-as-mohab before broad manual discovery; verify with
+Graphify through ChaosEngine before broad manual discovery; verify with
 targeted `rg`. Store durable decisions/gotchas once with evidence, reuse IDs,
 delete dead entries, and never create diaries.
 

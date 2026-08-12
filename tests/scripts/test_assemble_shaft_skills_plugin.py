@@ -128,8 +128,7 @@ class AssembleShaftSkillsPluginTest(unittest.TestCase):
         compatibility.write_text("# Test compatibility\n", encoding="utf-8")
         manifest = source_root / "agent-plugins/release.json"
         manifest.write_text(
-            '{"packages":[{"name":"act-as-mohab","version":"1.2.3"},'
-            '{"name":"shaft-skills","version":"1.2.3"}]}\n',
+            '{"packages":[{"name":"shaft-skills","version":"1.2.3"}]}\n',
             encoding="utf-8",
         )
         write_test_pom(source_root, "1.2.3")
@@ -212,8 +211,7 @@ class AssembleShaftSkillsPluginTest(unittest.TestCase):
         subprocess.run([git, "init", "--quiet"], cwd=source_root, check=True)  # nosec B603
         manifest = source_root / "agent-plugins/release.json"
         manifest.write_text(
-            '{"packages":[{"name":"act-as-mohab","version":"1.0.0"},'
-            '{"name":"shaft-skills","version":"1.0.0"}]}\n',
+            '{"packages":[{"name":"shaft-skills","version":"1.0.0"}]}\n',
             encoding="utf-8",
         )
         write_test_pom(source_root, "1.0.0")
@@ -240,8 +238,7 @@ class AssembleShaftSkillsPluginTest(unittest.TestCase):
             self.skipTest(f"symlinks unavailable: {error}")
         manifest = source_root / "agent-plugins/release.json"
         manifest.write_text(
-            '{"packages":[{"name":"act-as-mohab","version":"1.0.0"},'
-            '{"name":"shaft-skills","version":"1.0.0"}]}\n',
+            '{"packages":[{"name":"shaft-skills","version":"1.0.0"}]}\n',
             encoding="utf-8",
         )
         write_test_pom(source_root, "1.0.0")

@@ -83,6 +83,7 @@ jobs:
               - '.github/workflows/README.md'
               - '.github/workflows/mavenCentral_cd.yml'
               - 'agent-plugins/**'
+              - 'chaos-engine/**'
               - 'shaft-skills/**'
               - 'agent-plugins/**'
               - '.claude-plugin/marketplace.json'
@@ -320,6 +321,17 @@ jobs:
           tests.scripts.test_agent_harness_portability
           tests.scripts.test_agent_harness_adherence
           tests.scripts.test_agent_harness_reachability
+          tests.scripts.test_chaos_engine_portable_core
+          # Source: tests/scripts/test_chaos_engine_installer.py
+          tests.scripts.test_chaos_engine_installer
+          # Source: tests/scripts/test_chaos_engine_dependencies.py
+          tests.scripts.test_chaos_engine_dependencies
+          # Source: tests/scripts/test_chaos_engine_hosts.py
+          tests.scripts.test_chaos_engine_hosts
+          # Source: tests/scripts/test_chaos_engine_learning.py
+          tests.scripts.test_chaos_engine_learning
+          # Source: tests/scripts/test_chaos_engine_research.py
+          tests.scripts.test_chaos_engine_research
           tests.scripts.test_guard_nul_corruption
           tests.scripts.test_guard_memory_worktree
           tests.scripts.test_guard_lifecycle
@@ -422,6 +434,32 @@ jobs:
           retention-days: 14
       - name: Run the portable PreToolUse guard self-test
         run: python scripts/agents/guard.py --self-test
+
+  chaos-engine-acceptance:
+    name: ChaosEngine acceptance (${{ matrix.os }})
+    needs: changes
+    if: needs.changes.outputs.agent_guidance == 'true' || needs.changes.outputs.infra == 'true'
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-22.04, macos-15, windows-2025]
+    steps:
+      - name: Enable Windows long paths
+        if: runner.os == 'Windows'
+        run: git config --global core.longpaths true
+      - name: Checkout Code
+        uses: actions/checkout@v7
+      - name: Set up Python 3.13
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.13"
+      - name: Run latest-main bootstrap acceptance
+        run: >-
+          python -m unittest
+          tests.scripts.test_chaos_engine_bootstrap
+          -v
 
   # intellij-plugin.yml runs two independent PR jobs today (installer
   # verification across three OSes, and the Gradle plugin build); both are
@@ -938,6 +976,7 @@ jobs:
       - changes
       - docs-boundary
       - agent-guidance
+      - chaos-engine-acceptance
       - installer-verify
       - intellij-build
       - cli
@@ -959,6 +998,7 @@ jobs:
           CHANGES_RESULT: ${{ needs.changes.result }}
           DOCS_RESULT: ${{ needs.docs-boundary.result }}
           AGENT_GUIDANCE_RESULT: ${{ needs.agent-guidance.result }}
+          CHAOS_ENGINE_ACCEPTANCE_RESULT: ${{ needs.chaos-engine-acceptance.result }}
           INTELLIJ_VERIFY_RESULT: ${{ needs.installer-verify.result }}
           INTELLIJ_BUILD_RESULT: ${{ needs.intellij-build.result }}
           CLI_RESULT: ${{ needs.cli.result }}
@@ -980,6 +1020,7 @@ jobs:
             echo "| changes | ${CHANGES_RESULT} |"
             echo "| docs-boundary | ${DOCS_RESULT} |"
             echo "| agent-guidance | ${AGENT_GUIDANCE_RESULT} |"
+            echo "| chaos-engine-acceptance | ${CHAOS_ENGINE_ACCEPTANCE_RESULT} |"
             echo "| installer-verify | ${INTELLIJ_VERIFY_RESULT} |"
             echo "| intellij-build | ${INTELLIJ_BUILD_RESULT} |"
             echo "| cli | ${CLI_RESULT} |"
@@ -1000,7 +1041,7 @@ jobs:
           fi
 
           status=0
-            for result in "${DOCS_RESULT}" "${AGENT_GUIDANCE_RESULT}" "${INTELLIJ_VERIFY_RESULT}" "${INTELLIJ_BUILD_RESULT}" "${CLI_RESULT}" "${CAPTURE_RESULT}" "${UNIT_TESTS_RESULT}" "${TEMPLATES_RESULT}" "${WORKFLOW_TIMEOUTS_RESULT}" "${MODULE_BOUNDARY_RESULT}" "${ORPHANED_SUITE_FILES_RESULT}" "${PR_BODY_AUTOCLOSE_GUARD_RESULT}" "${DEPENDENCY_CHANGES_RESULT}" "${DEPENDENCY_REVIEW_RESULT}"; do
+            for result in "${DOCS_RESULT}" "${AGENT_GUIDANCE_RESULT}" "${CHAOS_ENGINE_ACCEPTANCE_RESULT}" "${INTELLIJ_VERIFY_RESULT}" "${INTELLIJ_BUILD_RESULT}" "${CLI_RESULT}" "${CAPTURE_RESULT}" "${UNIT_TESTS_RESULT}" "${TEMPLATES_RESULT}" "${WORKFLOW_TIMEOUTS_RESULT}" "${MODULE_BOUNDARY_RESULT}" "${ORPHANED_SUITE_FILES_RESULT}" "${PR_BODY_AUTOCLOSE_GUARD_RESULT}" "${DEPENDENCY_CHANGES_RESULT}" "${DEPENDENCY_REVIEW_RESULT}"; do
             case "$result" in
               success|skipped) ;;
               *)

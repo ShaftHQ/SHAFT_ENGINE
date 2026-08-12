@@ -39,7 +39,6 @@ class AgentPluginReleaseTest(unittest.TestCase):
     def test_release_manifest_rejects_any_root_pom_version_mismatch(self):
         root = self.write_manifest(
             {"packages": [
-                {"name": "act-as-mohab", "version": "1.0.0"},
                 {"name": "shaft-skills", "version": "1.0.0"},
             ]},
             pom_version="10.3.20260809",
@@ -51,7 +50,7 @@ class AgentPluginReleaseTest(unittest.TestCase):
     def test_release_manifest_rejects_missing_package(self):
         self.assertTrue(callable(load_release_manifest), "release manifest loader must be available")
         root = self.write_manifest(
-            {"packages": [{"name": "shaft-skills", "version": "1.0.0"}]}
+            {"packages": []}
         )
 
         with self.assertRaisesRegex(ValueError, "declare every package"):
@@ -62,8 +61,7 @@ class AgentPluginReleaseTest(unittest.TestCase):
         root = self.write_manifest(
             {
                 "packages": [
-                    {"name": "act-as-mohab", "version": "preview"},
-                    {"name": "shaft-skills", "version": "1.0.0"},
+                    {"name": "shaft-skills", "version": "preview"},
                 ]
             }
         )
@@ -83,12 +81,12 @@ class AgentPluginReleaseTest(unittest.TestCase):
 
             self.assertEqual([path.name for path in first], [path.name for path in second])
             self.assertEqual(
-                [f"act-as-mohab-{ENGINE_VERSION}.zip", f"act-as-mohab-{ENGINE_VERSION}.zip.sha256", f"shaft-skills-{ENGINE_VERSION}.zip", f"shaft-skills-{ENGINE_VERSION}.zip.sha256"],
+                [f"shaft-skills-{ENGINE_VERSION}.zip", f"shaft-skills-{ENGINE_VERSION}.zip.sha256"],
                 [path.name for path in first],
             )
             for first_path, second_path in zip(first, second):
                 self.assertEqual(first_path.read_bytes(), second_path.read_bytes(), first_path.name)
-            for archive in (first_output / f"act-as-mohab-{ENGINE_VERSION}.zip", first_output / f"shaft-skills-{ENGINE_VERSION}.zip"):
+            for archive in (first_output / f"shaft-skills-{ENGINE_VERSION}.zip",):
                 checksum = archive.with_suffix(archive.suffix + ".sha256").read_bytes()
                 self.assertEqual(
                     checksum,
@@ -118,7 +116,7 @@ class AgentPluginReleaseTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temporary_directory:
             output = Path(temporary_directory) / "assets"
             findings = [{"path": "plugin.json", "message": "invalid test package"}]
-            with mock.patch("scripts.ci.validate_agent_plugins.validate_package", side_effect=[[], findings]):
+            with mock.patch("scripts.ci.validate_agent_plugins.validate_package", side_effect=[findings]):
                 with self.assertRaisesRegex(ValueError, "plugin.json: invalid test package"):
                     build_release_artifacts(repository_root, output)
 

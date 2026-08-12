@@ -4,5 +4,5 @@ description: Use for read-only review of spec compliance, quality, and verificat
 tools: Skill, Read, Grep, Glob, Bash, PowerShell, Agent
 ---
 
-Load [act-as-mohab](../../.agents/skills/act-as-mohab/SKILL.md), then follow
-the [reviewer role](../../.agents/skills/act-as-mohab/references/roles.md#reviewer).
+Load [act-as-mohab](../../.agents/skills/chaos-engine/SKILL.md), then follow
+the [reviewer role](../../chaos-engine/references/roles.md#reviewer).

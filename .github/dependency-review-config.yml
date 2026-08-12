@@ -28,6 +28,7 @@ allow-dependencies-licenses:
   - pkg:maven/io.github.shafthq/shaft-browserstack
   - pkg:maven/io.github.shafthq/shaft-video
   - pkg:maven/io.github.shafthq/shaft-visual
+  - pkg:maven/io.github.shafthq/shaft-ocr
   - pkg:maven/io.github.shafthq/shaft-sikulix
   - pkg:maven/io.github.shafthq/report-aggregate
   - pkg:maven/io.github.shafthq/shaft-bom
