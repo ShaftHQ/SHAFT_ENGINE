@@ -8,6 +8,7 @@ import org.openqa.selenium.WebElement;
 
 import java.lang.reflect.Modifier;
 import java.lang.reflect.Method;
+import java.lang.reflect.InvocationTargetException;
 import java.net.URI;
 import java.net.URLClassLoader;
 import java.nio.file.Files;
@@ -41,6 +42,61 @@ public class GuiValidationContractTest {
         assertDefaultMethod(DriverVerifications.class, "element", ElementTarget.class);
         assertDefaultMethod(ElementActionsContract.class, "assertThat", ElementTarget.class);
         assertDefaultMethod(ElementActionsContract.class, "verifyThat", ElementTarget.class);
+    }
+
+    @Test
+    public void focusedElementCategoriesShouldBeCompatibilityDefaults() {
+        assertDefaultMethod(ElementAssertions.class, "elementCount");
+        assertDefaultMethod(ElementAssertions.class, "elementRectangle");
+        assertDefaultMethod(ElementAssertions.class, "elementAccessibleName");
+        assertDefaultMethod(ElementAssertions.class, "elementRole");
+    }
+
+    @Test
+    public void frozenOldElementAssertionsShouldReceiveFailClosedCategoryDefaults() throws Exception {
+        Path output = Files.createTempDirectory("shaft-element-assertions-old-consumer");
+        var compiler = ToolProvider.getSystemJavaCompiler();
+        List<SimpleJavaFileObject> sources = List.of(
+                source("com.shaft.gui.driver.ElementAssertions", """
+                        package com.shaft.gui.driver;
+                        public interface ElementAssertions {}
+                        """),
+                source("compat.OldElementAssertions", """
+                        package compat;
+                        public final class OldElementAssertions implements com.shaft.gui.driver.ElementAssertions {}
+                        """));
+        Assert.assertTrue(Boolean.TRUE.equals(compiler.getTask(null, null, null,
+                List.of("-classpath", System.getProperty("java.class.path"), "-d", output.toString()),
+                null, sources).call()));
+
+        try (URLClassLoader loader = new URLClassLoader(new java.net.URL[]{output.toUri().toURL()},
+                GuiValidationContractTest.class.getClassLoader())) {
+            Object oldConsumer = Class.forName("compat.OldElementAssertions", true, loader)
+                    .getDeclaredConstructor().newInstance();
+            assertCompatibilityDefaultFailsClosed(oldConsumer, "elementCount");
+            assertCompatibilityDefaultFailsClosed(oldConsumer, "elementRectangle");
+            assertCompatibilityDefaultFailsClosed(oldConsumer, "elementAccessibleName");
+            assertCompatibilityDefaultFailsClosed(oldConsumer, "elementRole");
+        }
+    }
+
+    @Test
+    public void naturalLegacyAccessorsShouldRemainSourceCompatible() throws Exception {
+        Assert.assertTrue(compileElementAssertionsConsumer("NaturalAccessors", """
+                public int count() { return 1; }
+                public org.openqa.selenium.Rectangle rectangle() { return null; }
+                public String accessibleName() { return "name"; }
+                public String role() { return "button"; }
+                """));
+    }
+
+    @Test
+    public void focusedCategoryDefaultCollisionsShouldRequireCompatibleOverrides() throws Exception {
+        Assert.assertFalse(compileCategoryDefaultCollision("MissingCategoryOverride", false));
+        Assert.assertTrue(compileCategoryDefaultCollision("CompatibleCategoryOverride", true));
+        Assert.assertFalse(compileElementAssertionsConsumer("IncompatibleCategoryOverride", """
+                public int elementCount() { return 1; }
+                """));
     }
 
     @Test
@@ -159,6 +215,18 @@ public class GuiValidationContractTest {
         Assert.assertEquals(method.getReturnType(), ElementAssertions.class);
     }
 
+    private static void assertDefaultMethod(Class<?> owner, String name) {
+        Method method;
+        try {
+            method = owner.getMethod(name);
+        } catch (NoSuchMethodException exception) {
+            Assert.fail("Missing compatibility method: " + owner.getSimpleName() + "." + name, exception);
+            return;
+        }
+        Assert.assertTrue(method.isDefault(), owner.getSimpleName() + "." + name + " must be a default method.");
+        Assert.assertEquals(method.getReturnType(), com.shaft.validation.internal.NativeValidationsBuilder.class);
+    }
+
     private static void assertForwardedTarget(By forwarded) {
         SearchContext context = mock(SearchContext.class);
         WebElement expected = mock(WebElement.class);
@@ -167,6 +235,51 @@ public class GuiValidationContractTest {
 
         Assert.assertEquals(forwarded.findElements(context), List.of(expected));
         verify(context).findElements(suppliedLocator);
+    }
+
+    private static void assertCompatibilityDefaultFailsClosed(Object oldConsumer, String methodName) throws Exception {
+        Method method = ElementAssertions.class.getMethod(methodName);
+        InvocationTargetException thrown = Assert.expectThrows(InvocationTargetException.class,
+                () -> method.invoke(oldConsumer));
+        Assert.assertTrue(thrown.getCause() instanceof UnsupportedOperationException);
+        Assert.assertEquals(thrown.getCause().getMessage(),
+                methodName + " is not supported by this element assertions implementation.");
+    }
+
+    private static boolean compileElementAssertionsConsumer(String className, String methods) throws Exception {
+        Path output = Files.createTempDirectory("shaft-element-assertions-collision");
+        SimpleJavaFileObject consumer = source("compat." + className, """
+                package compat;
+                public abstract class %s implements com.shaft.gui.driver.ElementAssertions {
+                    %s
+                }
+                """.formatted(className, methods));
+        return Boolean.TRUE.equals(ToolProvider.getSystemJavaCompiler().getTask(null, null, null,
+                List.of("-classpath", System.getProperty("java.class.path"), "-d", output.toString()),
+                null, List.of(consumer)).call());
+    }
+
+    private static boolean compileCategoryDefaultCollision(String className, boolean override) throws Exception {
+        Path output = Files.createTempDirectory("shaft-element-category-default-collision");
+        SimpleJavaFileObject foreign = source("compat.ForeignCategory", """
+                package compat;
+                public interface ForeignCategory {
+                    default com.shaft.validation.internal.NativeValidationsBuilder elementCount() { return null; }
+                }
+                """);
+        String explicitOverride = override
+                ? "public com.shaft.validation.internal.NativeValidationsBuilder elementCount() { "
+                + "return com.shaft.gui.driver.ElementAssertions.super.elementCount(); }"
+                : "";
+        SimpleJavaFileObject consumer = source("compat." + className, """
+                package compat;
+                public abstract class %s implements com.shaft.gui.driver.ElementAssertions, ForeignCategory {
+                    %s
+                }
+                """.formatted(className, explicitOverride));
+        return Boolean.TRUE.equals(ToolProvider.getSystemJavaCompiler().getTask(null, null, null,
+                List.of("-classpath", System.getProperty("java.class.path"), "-d", output.toString()),
+                null, List.of(foreign, consumer)).call());
     }
 
     private static boolean compileCollision(String className, String returnType, boolean override) throws Exception {
