@@ -38,6 +38,7 @@ import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.BooleanSupplier;
 import java.util.function.Supplier;
 import java.util.regex.Pattern;
 
@@ -529,27 +530,35 @@ final class PlaywrightValidationsExecutor extends ValidationsExecutor {
             return false;
         }
         return List.of("pagesource", "windowsource", "source", "windowhandle", "pagehandle", "handle",
-                        "windowposition", "pageposition", "position", "windowsize", "pagesize", "size")
+                        "windowposition", "pageposition", "position", "windowsize", "pagesize", "size",
+                        "browsingcontextcount", "windowcount", "pagecount")
                 .contains(browserAttribute.toLowerCase(Locale.ROOT));
     }
 
     private Outcome pollFocusedBrowserValue(Object reportedExpected) {
-        Page page = session.page();
+        boolean contextCount = isBrowsingContextCount();
+        Object comparisonExpected = contextCount ? String.valueOf(reportedExpected) : reportedExpected;
+        Page page = contextCount ? null : session.page();
         AtomicReference<Object> actual = new AtomicReference<>();
         AtomicReference<RuntimeException> failure = new AtomicReference<>();
         AtomicBoolean matched = new AtomicBoolean();
+        BooleanSupplier condition = () -> {
+            try {
+                actual.set(readBrowserAttribute(page));
+                failure.set(null);
+                matched.set(compare(comparisonExpected, actual.get()));
+                return matched.get();
+            } catch (RuntimeException exception) {
+                failure.set(exception);
+                return false;
+            }
+        };
         try {
-            page.waitForCondition(() -> {
-                try {
-                    actual.set(readBrowserAttribute(page));
-                    failure.set(null);
-                    matched.set(compare(reportedExpected, actual.get()));
-                    return matched.get();
-                } catch (RuntimeException exception) {
-                    failure.set(exception);
-                    return false;
-                }
-            });
+            if (contextCount) {
+                session.browserContext().waitForCondition(condition);
+            } else {
+                page.waitForCondition(condition);
+            }
         } catch (RuntimeException exception) {
             ReportManagerHelper.logDiscrete(exception);
         }
@@ -557,15 +566,20 @@ final class PlaywrightValidationsExecutor extends ValidationsExecutor {
             if (failure.get() != null) {
                 ReportManagerHelper.logDiscrete(failure.get());
             }
-            Object safeExpected = reportedBrowserValue(reportedExpected);
+            Object safeExpected = reportedBrowserValue(comparisonExpected);
             return new Outcome(false, safeExpected, null,
                     commonParameters(safeExpected, null), List.of(), page);
         }
         Object reportedActual = actual.get();
-        Object safeExpected = reportedBrowserValue(reportedExpected);
+        Object safeExpected = reportedBrowserValue(comparisonExpected);
         Object safeActual = reportedBrowserValue(reportedActual);
-        return new Outcome(compare(reportedExpected, reportedActual), safeExpected, safeActual,
+        return new Outcome(compare(comparisonExpected, reportedActual), safeExpected, safeActual,
                 commonParameters(safeExpected, safeActual), List.of(), page);
+    }
+
+    private boolean isBrowsingContextCount() {
+        return browserAttribute != null && List.of("browsingcontextcount", "windowcount", "pagecount")
+                .contains(browserAttribute.toLowerCase(Locale.ROOT));
     }
 
     private Object reportedBrowserValue(Object value) {
@@ -611,6 +625,8 @@ final class PlaywrightValidationsExecutor extends ValidationsExecutor {
                     page.evaluate("() => `(${window.screenX}, ${window.screenY})`");
             case "windowsize", "pagesize", "size" ->
                     page.evaluate("() => `(${window.outerWidth}, ${window.outerHeight})`");
+            case "browsingcontextcount", "windowcount", "pagecount" ->
+                    String.valueOf(session.browserContext().pages().size());
             default -> page.evaluate("(attribute) => document.documentElement.getAttribute(attribute)", browserAttribute);
         };
     }

@@ -105,6 +105,11 @@ public class WebDriverBrowserValidationsBuilder implements com.shaft.gui.driver.
         return attributeValue("windowsize", "window size ");
     }
 
+    @Override
+    public NativeValidationsBuilder browsingContextCountValue() {
+        return attributeValue("browsingcontextcount", "browsing context count ");
+    }
+
     private NativeValidationsBuilder attributeValue(String attribute, String description) {
         this.validationMethod = "browserAttributeEquals";
         this.browserAttribute = attribute;

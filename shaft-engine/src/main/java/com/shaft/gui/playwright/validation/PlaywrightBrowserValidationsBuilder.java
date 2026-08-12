@@ -78,6 +78,12 @@ public class PlaywrightBrowserValidationsBuilder implements BrowserAssertions {
     }
 
     @Override
+    public NativeValidationsBuilder browsingContextCountValue() {
+        reportMessageBuilder.append("browsing context count ");
+        return builder("browsingcontextcount");
+    }
+
+    @Override
     public ValidationsExecutor matchesScreenshot() {
         return matchesScreenshot(null);
     }

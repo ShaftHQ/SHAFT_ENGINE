@@ -42,6 +42,16 @@ public interface BrowserAssertions {
     }
 
     /**
+     * Starts an assertion against the number of open browsing contexts in the current session.
+     *
+     * @return a native validation builder for browsing-context count comparisons
+     */
+    default NativeValidationsBuilder browsingContextCountValue() {
+        throw new UnsupportedOperationException(
+                "browsingContextCountValue is not supported by this browser assertions implementation.");
+    }
+
+    /**
      * Asserts that the current page matches its baseline full-page screenshot. Executes immediately,
      * like every other assertion.
      *

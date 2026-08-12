@@ -470,6 +470,8 @@ public class ValidationsHelper {
                     case "windowposition", "pageposition", "position" ->
                             new BrowserActions(driver, true).getWindowPosition();
                     case "windowsize", "pagesize", "size" -> new BrowserActions(driver, true).getWindowSize();
+                    case "browsingcontextcount", "windowcount", "pagecount" ->
+                            String.valueOf(driver.getWindowHandles().size());
                     default -> "";
                 });
                 validationState.set(performValidation(expected, actual.get(), comparisonType, validationType));

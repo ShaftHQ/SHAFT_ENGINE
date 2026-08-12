@@ -96,6 +96,7 @@ public class GuiValidationContractTest {
         assertBrowserDefaultMethod("windowHandleValue");
         assertBrowserDefaultMethod("windowPositionValue");
         assertBrowserDefaultMethod("windowSizeValue");
+        assertBrowserDefaultMethod("browsingContextCountValue");
     }
 
     @Test
@@ -119,7 +120,8 @@ public class GuiValidationContractTest {
                 GuiValidationContractTest.class.getClassLoader())) {
             Object oldConsumer = Class.forName("compat.OldBrowserAssertions", true, loader)
                     .getDeclaredConstructor().newInstance();
-            for (String method : List.of("pageSourceValue", "windowHandleValue", "windowPositionValue", "windowSizeValue")) {
+            for (String method : List.of("pageSourceValue", "windowHandleValue", "windowPositionValue", "windowSizeValue",
+                    "browsingContextCountValue")) {
                 assertBrowserCompatibilityDefaultFailsClosed(oldConsumer, method);
             }
         }
@@ -135,6 +137,7 @@ public class GuiValidationContractTest {
                     public String windowHandle() { return ""; }
                     public String windowPosition() { return ""; }
                     public String windowSize() { return ""; }
+                    public int browsingContextCount() { return 0; }
                 }
                 """);
         Assert.assertTrue(Boolean.TRUE.equals(ToolProvider.getSystemJavaCompiler().getTask(null, null, null,
@@ -144,10 +147,15 @@ public class GuiValidationContractTest {
 
     @Test
     public void browserCategoryDefaultCollisionsShouldRequireCompatibleOverrides() throws Exception {
-        Assert.assertFalse(compileBrowserCategoryDefaultCollision("MissingBrowserCategoryOverride", false));
-        Assert.assertTrue(compileBrowserCategoryDefaultCollision("CompatibleBrowserCategoryOverride", true));
+        for (String method : List.of("pageSourceValue", "browsingContextCountValue")) {
+            Assert.assertFalse(compileBrowserCategoryDefaultCollision("MissingBrowserCategoryOverride" + method, method, false));
+            Assert.assertTrue(compileBrowserCategoryDefaultCollision("CompatibleBrowserCategoryOverride" + method, method, true));
+        }
         Assert.assertFalse(compileBrowserAssertionsConsumer("IncompatibleBrowserCategoryOverride", """
                 public String pageSourceValue() { return ""; }
+                """));
+        Assert.assertFalse(compileBrowserAssertionsConsumer("IncompatibleBrowserContextCountOverride", """
+                public int browsingContextCountValue() { return 0; }
                 """));
     }
 
@@ -392,17 +400,18 @@ public class GuiValidationContractTest {
                 null, List.of(consumer)).call());
     }
 
-    private static boolean compileBrowserCategoryDefaultCollision(String className, boolean override) throws Exception {
+    private static boolean compileBrowserCategoryDefaultCollision(String className, String methodName,
+                                                                  boolean override) throws Exception {
         Path output = Files.createTempDirectory("shaft-browser-category-default-collision");
         SimpleJavaFileObject foreign = source("compat.ForeignBrowserCategory", """
                 package compat;
                 public interface ForeignBrowserCategory {
-                    default com.shaft.validation.internal.NativeValidationsBuilder pageSourceValue() { return null; }
+                    default com.shaft.validation.internal.NativeValidationsBuilder %s() { return null; }
                 }
-                """);
+                """.formatted(methodName));
         String explicitOverride = override
-                ? "public com.shaft.validation.internal.NativeValidationsBuilder pageSourceValue() { "
-                + "return com.shaft.gui.driver.BrowserAssertions.super.pageSourceValue(); }"
+                ? "public com.shaft.validation.internal.NativeValidationsBuilder " + methodName + "() { "
+                + "return com.shaft.gui.driver.BrowserAssertions.super." + methodName + "(); }"
                 : "";
         SimpleJavaFileObject consumer = source("compat." + className, """
                 package compat;

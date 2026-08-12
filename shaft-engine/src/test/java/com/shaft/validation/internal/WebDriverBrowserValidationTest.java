@@ -77,6 +77,7 @@ public class WebDriverBrowserValidationTest {
     @Test
     public void focusedBrowserCoreAliasesShouldRouteToTheSameProviderValues() {
         WebDriver driver = mock(WebDriver.class);
+        when(driver.getWindowHandles()).thenReturn(java.util.Set.of("one", "two"));
         try (MockedConstruction<SynchronizationManager> ignored = waitApplying(driver, 1);
              MockedConstruction<ScreenshotManager> screenshots = Mockito.mockConstruction(ScreenshotManager.class,
                      (manager, context) -> when(manager.takeScreenshot(any(), any(), anyString(), anyBoolean()))
@@ -101,6 +102,9 @@ public class WebDriverBrowserValidationTest {
             }
             for (String alias : new String[]{"windowsize", "pagesize", "size"}) {
                 assertions.attribute(alias).isEqualTo("(1200, 800)");
+            }
+            for (String alias : new String[]{"browsingcontextcount", "windowcount", "pagecount"}) {
+                assertions.attribute(alias).isEqualTo(2);
             }
         }
     }
@@ -139,6 +143,33 @@ public class WebDriverBrowserValidationTest {
             verify(browserActions.constructed().get(0)).getWindowPosition();
             verify(browserActions.constructed().get(1)).getWindowPosition();
         }
+    }
+
+    @Test
+    public void browsingContextCountShouldRetryAgainstCurrentWindowHandles() {
+        WebDriver driver = mock(WebDriver.class);
+        when(driver.getWindowHandles()).thenReturn(java.util.Set.of("one"), java.util.Set.of("one", "two"));
+        try (MockedConstruction<SynchronizationManager> ignored = waitApplying(driver, 2)) {
+            new WebDriverBrowserValidationsBuilder(ValidationEnums.ValidationCategory.HARD_ASSERT, driver,
+                    new StringBuilder("the browser ")).browsingContextCountValue().isEqualTo(2);
+        }
+
+        verify(driver, times(2)).getWindowHandles();
+    }
+
+    @Test
+    public void browsingContextCountShouldNormalizeNumericAndStringExpectations() {
+        WebDriver driver = mock(WebDriver.class);
+        when(driver.getWindowHandles()).thenReturn(java.util.Set.of("one", "two"));
+        try (MockedConstruction<SynchronizationManager> ignored = waitApplying(driver, 1)) {
+            var assertions = new WebDriverBrowserValidationsBuilder(ValidationEnums.ValidationCategory.HARD_ASSERT,
+                    driver, new StringBuilder("the browser "));
+            assertions.browsingContextCountValue().isEqualTo(2);
+            assertions.browsingContextCountValue().isEqualTo("2");
+            assertions.browsingContextCountValue().doesNotEqual("1");
+        }
+
+        verify(driver, times(3)).getWindowHandles();
     }
 
     @Test
@@ -200,6 +231,7 @@ public class WebDriverBrowserValidationTest {
     @Test
     public void everyPublicBrowserStarterShouldRouteFocusedCoreCategories() {
         WebDriver driver = mock(WebDriver.class);
+        when(driver.getWindowHandles()).thenReturn(java.util.Set.of("one", "two"));
         DriverFactoryHelper helper = mock(DriverFactoryHelper.class);
         when(helper.getDriver()).thenReturn(driver);
         var browser = new BrowserActions(helper);
@@ -214,11 +246,16 @@ public class WebDriverBrowserValidationTest {
             new WizardHelpers.WebDriverVerifications(helper).browser().pageSourceValue().contains("ready");
             browser.assertThat().pageSourceValue().contains("ready");
             browser.verifyThat().pageSourceValue().contains("ready");
+            new WizardHelpers.WebDriverAssertions(helper).browser().browsingContextCountValue().isEqualTo(2);
+            new WizardHelpers.WebDriverVerifications(helper).browser().browsingContextCountValue().isEqualTo(2);
+            browser.assertThat().browsingContextCountValue().isEqualTo(2);
+            browser.verifyThat().browsingContextCountValue().isEqualTo(2);
 
             Assert.assertEquals(browserActions.constructed().size(), 4);
             for (int index = 0; index < 4; index++) {
                 verify(browserActions.constructed().get(index)).getPageSource();
             }
+            verify(driver, times(4)).getWindowHandles();
         }
     }
 

@@ -1,6 +1,7 @@
 package com.shaft.gui.playwright.validation;
 
 import com.microsoft.playwright.Page;
+import com.microsoft.playwright.BrowserContext;
 import com.shaft.driver.SHAFT;
 import com.shaft.gui.playwright.internal.PlaywrightSession;
 import com.shaft.tools.io.ReportManager;
@@ -16,6 +17,7 @@ import org.testng.annotations.Test;
 import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
@@ -69,12 +71,19 @@ public class PlaywrightBrowserValidationTest {
         when(session.page()).thenReturn(page);
         when(page.content()).thenReturn("source-value");
         when(session.pageHandle(page)).thenReturn("handle-value");
+        BrowserContext context = mock(BrowserContext.class);
+        when(session.browserContext()).thenReturn(context);
+        when(context.pages()).thenReturn(java.util.List.of(page, mock(Page.class)));
         when(page.evaluate(WINDOW_POSITION_SCRIPT)).thenReturn("(10, 20)");
         when(page.evaluate("() => `(${window.outerWidth}, ${window.outerHeight})`")).thenReturn("(1200, 800)");
         doAnswer(invocation -> {
             Assert.assertTrue(invocation.<BooleanSupplier>getArgument(0).getAsBoolean());
             return null;
         }).when(page).waitForCondition(any(BooleanSupplier.class));
+        doAnswer(invocation -> {
+            Assert.assertTrue(invocation.<BooleanSupplier>getArgument(0).getAsBoolean());
+            return null;
+        }).when(context).waitForCondition(any(BooleanSupplier.class));
         var assertions = new PlaywrightDriverAssertions(session).browser();
 
         for (String alias : new String[]{"pagesource", "windowsource", "source"}) {
@@ -88,6 +97,9 @@ public class PlaywrightBrowserValidationTest {
         }
         for (String alias : new String[]{"windowsize", "pagesize", "size"}) {
             assertions.attribute(alias).isEqualTo("(1200, 800)");
+        }
+        for (String alias : new String[]{"browsingcontextcount", "windowcount", "pagecount"}) {
+            assertions.attribute(alias).isEqualTo("2");
         }
     }
 
@@ -107,6 +119,35 @@ public class PlaywrightBrowserValidationTest {
         new PlaywrightDriverAssertions(session).browser().pageSourceValue().contains("ready");
 
         verify(page, times(2)).content();
+    }
+
+    @Test
+    public void browsingContextCountShouldRetryAgainstTheCurrentContext() {
+        PlaywrightSession session = mock(PlaywrightSession.class);
+        Page page = mock(Page.class);
+        BrowserContext context = mock(BrowserContext.class);
+        when(session.page()).thenReturn(page);
+        when(session.browserContext()).thenReturn(context);
+        Page remainingPage = mock(Page.class);
+        when(context.pages()).thenReturn(java.util.List.of(page, remainingPage), java.util.List.of(remainingPage),
+                java.util.List.of(remainingPage));
+        AtomicInteger waits = new AtomicInteger();
+        doAnswer(invocation -> {
+            BooleanSupplier condition = invocation.getArgument(0);
+            if (waits.getAndIncrement() == 0) {
+                Assert.assertFalse(condition.getAsBoolean());
+            }
+            Assert.assertTrue(condition.getAsBoolean());
+            return null;
+        }).when(context).waitForCondition(any(BooleanSupplier.class));
+
+        var assertions = new PlaywrightDriverAssertions(session).browser();
+        assertions.browsingContextCountValue().isEqualTo(1);
+        assertions.browsingContextCountValue().isEqualTo("1");
+        assertions.browsingContextCountValue().doesNotEqual("2");
+
+        verify(context, times(4)).pages();
+        verify(page, never()).waitForCondition(any(BooleanSupplier.class));
     }
 
     @Test
@@ -181,7 +222,6 @@ public class PlaywrightBrowserValidationTest {
             Assert.assertTrue(invocation.<BooleanSupplier>getArgument(0).getAsBoolean());
             return null;
         }).when(page).waitForCondition(any(BooleanSupplier.class));
-
         try (MockedStatic<Allure> allure = org.mockito.Mockito.mockStatic(Allure.class);
              MockedStatic<ReportManager> report = org.mockito.Mockito.mockStatic(ReportManager.class)) {
             AllureLifecycle lifecycle = mock(AllureLifecycle.class);
@@ -236,20 +276,32 @@ public class PlaywrightBrowserValidationTest {
     public void everyPublicBrowserStarterShouldRouteFocusedCoreCategories() {
         PlaywrightSession session = mock(PlaywrightSession.class);
         Page page = mock(Page.class);
+        BrowserContext context = mock(BrowserContext.class);
         when(session.page()).thenReturn(page);
+        when(session.browserContext()).thenReturn(context);
+        when(context.pages()).thenReturn(java.util.List.of(page, mock(Page.class)));
         when(page.content()).thenReturn("<html>ready</html>");
         doAnswer(invocation -> {
             Assert.assertTrue(invocation.<BooleanSupplier>getArgument(0).getAsBoolean());
             return null;
         }).when(page).waitForCondition(any(BooleanSupplier.class));
+        doAnswer(invocation -> {
+            Assert.assertTrue(invocation.<BooleanSupplier>getArgument(0).getAsBoolean());
+            return null;
+        }).when(context).waitForCondition(any(BooleanSupplier.class));
 
         new PlaywrightDriverAssertions(session).browser().pageSourceValue().contains("ready");
         new PlaywrightDriverVerifications(session).browser().pageSourceValue().contains("ready");
         var browser = new com.shaft.gui.playwright.browser.BrowserActions(session);
         browser.assertThat().pageSourceValue().contains("ready");
         browser.verifyThat().pageSourceValue().contains("ready");
+        new PlaywrightDriverAssertions(session).browser().browsingContextCountValue().isEqualTo(2);
+        new PlaywrightDriverVerifications(session).browser().browsingContextCountValue().isEqualTo(2);
+        browser.assertThat().browsingContextCountValue().isEqualTo(2);
+        browser.verifyThat().browsingContextCountValue().isEqualTo(2);
 
         verify(page, times(4)).content();
+        verify(context, times(4)).pages();
     }
 
     @Test
