@@ -1127,3 +1127,4 @@
 {"actor":"agent","event":"memory.updated","id":"workflow.running-the-live-guided-workflow-plugin-e2e-harness-guidedworkflowlivee2etest","timestamp":"2026-08-12T10:52:07+03:00"}
 {"actor":"agent","event":"memory.updated","id":"gotcha.gradle-daemon-jvm-criteria-gradle-daemon-jvm-properties-takes-precedence-over-java-home-and-dorg-gradle-java-home","timestamp":"2026-08-12T10:52:07+03:00"}
 {"actor":"agent","event":"memory.updated","id":"gotcha.intellij-marketplace-release-gotchas-single-use-versions-verifyplugin-strictness-manual-gallery","timestamp":"2026-08-12T10:52:07+03:00"}
+{"actor":"agent","event":"memory.created","id":"gotcha.intellij-instrumented-gradle-testkit-tests-must-bind-the-gradle-runtime-and-reuse-the-outer-gradle-home","timestamp":"2026-08-12T14:01:11+03:00"}
