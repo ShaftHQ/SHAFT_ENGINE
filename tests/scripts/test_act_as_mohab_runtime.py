@@ -7,7 +7,9 @@ import tempfile
 import unittest
 import zipfile
 from pathlib import Path
+from unittest import mock
 
+from scripts.agents import act_as_mohab_cli
 from scripts.agents.act_as_mohab_cli import checkpoint_status
 from scripts.agents.repository_context import RepositoryContext, RepositoryContextError
 from scripts.ci.assemble_act_as_mohab_plugin import assemble
@@ -27,6 +29,35 @@ class ActAsMohabRuntimeTest(unittest.TestCase):
     def assemble_runtime(self) -> Path:
         assemble(ROOT, self.package_root)
         return self.package_root / "bin/act-as-mohab.pyz"
+
+    def test_delivery_status_passes_complete_repository_context_arguments(self):
+        manifest = self.base / "manifest.json"
+        receipt = self.base / "receipt.json"
+        manifest.write_text('{"ownedPullRequests": []}', encoding="utf-8")
+        context = RepositoryContext("consumer/project", self.base, None)
+        allowed = {"decision": "allow"}
+        with (
+            mock.patch.object(
+                act_as_mohab_cli, "resolve_repository_context", autospec=True,
+                return_value=context,
+            ) as resolve,
+            mock.patch.object(act_as_mohab_cli, "collect_delivery", return_value=[]),
+            mock.patch.object(act_as_mohab_cli, "inspect_cleanup", return_value={}),
+            mock.patch.object(act_as_mohab_cli, "evaluate_delivery", return_value=allowed),
+            mock.patch.object(act_as_mohab_cli, "local_head", return_value="abc"),
+        ):
+            try:
+                result = act_as_mohab_cli.main([
+                    "delivery-status", "--manifest", str(manifest),
+                    "--root", str(self.base), "--receipt-out", str(receipt),
+                ])
+            except TypeError as error:
+                self.fail(f"delivery-status omitted required context arguments: {error}")
+
+        self.assertEqual(0, result)
+        resolve.assert_called_once_with(
+            explicit_repo=None, pr=None, explicit_root=self.base.resolve(), cwd=self.base.resolve()
+        )
 
     def test_runtime_exposes_all_public_commands_from_canonical_modules(self):
         runtime = self.assemble_runtime()
