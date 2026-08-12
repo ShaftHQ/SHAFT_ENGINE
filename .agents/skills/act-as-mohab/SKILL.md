@@ -79,6 +79,25 @@ source and a complete receipt. Never substitute a stale index, recollection, or
 generic summary for the named live query. Reuse established solutions and
 standards before inventing a local one.
 
+### Planning quality and ownership
+
+Every substantive plan is thorough and decision-ready. Establish the main
+objective and reasoning, success criteria, audience, included and excluded
+scope, constraints, current state, callers, assumptions, tradeoffs, risks, and
+proof before reducing the work to files or steps. Ask every material question
+needed for high confidence in the user's intent, but never ask a question the
+repository, retrieval stores, or authoritative sources can answer. Record the
+answer, any remaining unknown, and the evidence behind the confidence level.
+
+Every plan refers explicitly to its native Memory, MemPalace, Graphify, and
+dated authoritative online-research receipts. Compare at least two complete
+approaches and steelman the rejected option. Use Mermaid when dependencies,
+components, state, or workflows become materially clearer; otherwise record
+why a diagram would be decorative. Own implementation of the plan: after approval,
+carry it proactively through RED, implementation, independent review, PR
+delivery, authorized merge, and scoped cleanup. Re-ask only for a new HALT
+condition, not for approval already granted.
+
 ## Red flags
 
 These phrases mean you are about to break a law above. When you catch yourself

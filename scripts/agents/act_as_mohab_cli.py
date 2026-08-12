@@ -18,9 +18,11 @@ try:
         resolve_repository_context,
     )
     from scripts.agents import watch_pr_checks
+    from scripts.agents.planning_contract import validate_plan
 except ModuleNotFoundError:
     from repository_context import RepositoryContext, RepositoryContextError, resolve_repository_context
     import watch_pr_checks
+    from planning_contract import validate_plan
 
 
 EXIT_ENVIRONMENT_ERROR = 3
@@ -141,6 +143,8 @@ def build_parser() -> argparse.ArgumentParser:
     watch.add_argument("arguments", nargs=argparse.REMAINDER)
     checkpoint = commands.add_parser("checkpoint-status", help="report HEAD and exact-head PR")
     add_context_arguments(checkpoint)
+    plan = commands.add_parser("plan-validate", help="validate an evidence-backed plan")
+    plan.add_argument("input", type=Path)
     commands.add_parser("mcp", help="serve the read-only operations over MCP stdio")
     return parser
 
@@ -166,6 +170,16 @@ def _tool_schemas() -> list[dict]:
             "name": "checkpoint_status",
             "description": "Report local HEAD and an exact-head open pull request.",
             "inputSchema": {"type": "object", "properties": context_properties, "additionalProperties": False},
+        },
+        {
+            "name": "plan_validate",
+            "description": "Validate a thorough evidence-backed implementation plan.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {"plan": {"type": "object"}},
+                "required": ["plan"],
+                "additionalProperties": False,
+            },
         },
     ]
 
@@ -206,6 +220,13 @@ def call_tool(name: str, arguments: dict) -> dict:
             return {
                 "content": [{"type": "text", "text": json.dumps(payload, sort_keys=True)}],
                 "isError": exit_code != 0,
+            }
+        if name == "plan_validate":
+            violations = validate_plan(arguments.get("plan"))
+            payload = {"valid": not violations, "violations": violations}
+            return {
+                "content": [{"type": "text", "text": json.dumps(payload, sort_keys=True)}],
+                "isError": bool(violations),
             }
         return {"content": [{"type": "text", "text": f"unknown tool: {name}"}], "isError": True}
     except RepositoryContextError as error:
@@ -318,6 +339,15 @@ def main(argv: list[str] | None = None) -> int:
     if arguments and arguments[0] == "mcp":
         return serve_mcp()
     parsed = build_parser().parse_args(arguments)
+    if parsed.command == "plan-validate":
+        try:
+            plan = json.loads(parsed.input.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError) as error:
+            print(f"act-as-mohab: cannot read plan: {error}", file=sys.stderr)
+            return 1
+        violations = validate_plan(plan)
+        print(json.dumps({"valid": not violations, "violations": violations}, sort_keys=True))
+        return 1 if violations else 0
     try:
         context = context_from_arguments(parsed)
         payload = (
