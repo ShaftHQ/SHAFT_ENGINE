@@ -116,6 +116,9 @@ that profile automatically and must link it from its discoverable skill.
 The repository-local [installer](../../install.py) owns verified install,
 status, update, rollback, and uninstall transactions for this portable tree.
 Its contract is enforced by `tests/scripts/test_chaos_engine_installer.py`.
+The [dependency doctor](../../dependencies.py) installs the tracked
+[tool set](../../dependencies.json) into a project-local runtime; its contract
+is enforced by `tests/scripts/test_chaos_engine_dependencies.py`.
 
 ## Task isolation
 

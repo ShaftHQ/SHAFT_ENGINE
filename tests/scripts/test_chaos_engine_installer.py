@@ -10,7 +10,9 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from datetime import datetime, timezone
 from pathlib import Path
+from types import SimpleNamespace
 from unittest import mock
 
 
@@ -23,6 +25,27 @@ SPEC = importlib.util.spec_from_file_location("chaos_engine_installer", INSTALLE
 assert SPEC and SPEC.loader
 MODULE = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(MODULE)
+
+
+def load_module(path: Path):
+    spec = importlib.util.spec_from_file_location("chaos_engine_test_dependency", path)
+    assert spec and spec.loader
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+class ChaosEngineDependenciesRunner:
+    def __init__(self, runtime: Path):
+        self.runtime = runtime
+
+    def __call__(self, command, environment):
+        del environment
+        executable = Path(command[0])
+        if not executable.exists() and executable.is_relative_to(self.runtime.parent):
+            executable.parent.mkdir(parents=True, exist_ok=True)
+            executable.write_text("tool\n", encoding="utf-8")
+        return SimpleNamespace(stdout="tool 1.0\n", stderr="")
 
 
 def sha256(path: Path) -> str:
@@ -59,6 +82,7 @@ class ChaosEngineInstallerTest(unittest.TestCase):
                     str(SOURCE),
                     "--commit",
                     TEST_COMMIT,
+                    "--skip-tools",
                 ],
                 capture_output=True,
                 text=True,
@@ -119,6 +143,216 @@ class ChaosEngineInstallerTest(unittest.TestCase):
                 MODULE.install(second, installed, TEST_COMMIT)
 
             self.assertFalse(second.joinpath(".chaos-engine").exists())
+
+    def test_default_install_provisions_every_dependency_in_a_project_local_runtime(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary) / "consumer"
+            project.mkdir()
+            calls = []
+
+            def provisioner(runtime, specification):
+                calls.append((runtime, specification))
+                return {"schemaVersion": 1}
+
+            installed = MODULE.install_with_dependencies(
+                project, SOURCE, TEST_COMMIT, provisioner=provisioner
+            )
+
+            self.assertEqual(project / ".chaos-engine", installed)
+            self.assertEqual(project / ".chaos-engine-runtime", calls[0][0])
+            self.assertEqual(
+                {"uv", "mempalace", "graphify", "memory"},
+                set(calls[0][1]["tools"]),
+            )
+            self.assertFalse(installed.joinpath("__pycache__").exists())
+            self.assertEqual("healthy", MODULE.status(project)["status"])
+
+    def test_status_reports_dependency_freshness_without_mutating_it(self):
+        dependency_module = load_module(SOURCE / "dependencies.py")
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary) / "consumer"
+            project.mkdir()
+            old = datetime(2026, 8, 10, tzinfo=timezone.utc)
+
+            def provision(runtime, specification):
+                return dependency_module.repair(
+                    runtime,
+                    specification,
+                    runner=ChaosEngineDependenciesRunner(runtime),
+                    now=old,
+                )
+
+            MODULE.install_with_dependencies(project, SOURCE, TEST_COMMIT, provisioner=provision)
+            before = tree_digest(project / ".chaos-engine-runtime")
+            result = MODULE.status_with_dependencies(project)
+
+            self.assertEqual("stale", result["dependencies"]["freshness"])
+            self.assertEqual(before, tree_digest(project / ".chaos-engine-runtime"))
+
+    def test_dependency_failure_compensates_only_a_core_published_by_this_call(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary) / "consumer"
+            project.mkdir()
+
+            def fail(*args):
+                del args
+                raise RuntimeError("offline")
+
+            with self.assertRaisesRegex(RuntimeError, "offline"):
+                MODULE.install_with_dependencies(project, SOURCE, TEST_COMMIT, provisioner=fail)
+            self.assertFalse(project.joinpath(".chaos-engine").exists())
+
+            MODULE.install(project, SOURCE, "1" * 40)
+            MODULE.install(project, SOURCE, TEST_COMMIT)
+            with self.assertRaisesRegex(RuntimeError, "offline"):
+                MODULE.install_with_dependencies(project, SOURCE, TEST_COMMIT, provisioner=fail)
+            self.assertEqual(TEST_COMMIT, MODULE.status(project)["commit"])
+
+    def test_dependency_failure_does_not_delete_a_concurrent_core_update(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            project = root / "consumer"
+            project.mkdir()
+            changed_source = copy_source(root / "changed")
+            changed_source.joinpath("references/roles.md").write_text("changed\n", encoding="utf-8")
+
+            def interleave(runtime, specification):
+                del runtime, specification
+                MODULE.install(project, changed_source, "2" * 40)
+                raise RuntimeError("offline")
+
+            with self.assertRaisesRegex(RuntimeError, "already running"):
+                MODULE.install_with_dependencies(project, SOURCE, TEST_COMMIT, provisioner=interleave)
+
+            self.assertFalse(project.joinpath(".chaos-engine").exists())
+
+    def test_default_uninstall_removes_an_owned_dependency_runtime(self):
+        dependency_module = load_module(SOURCE / "dependencies.py")
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary) / "consumer"
+            project.mkdir()
+
+            def provision(runtime, specification):
+                return dependency_module.repair(
+                    runtime,
+                    specification,
+                    runner=ChaosEngineDependenciesRunner(runtime),
+                )
+
+            MODULE.install_with_dependencies(project, SOURCE, TEST_COMMIT, provisioner=provision)
+            MODULE.uninstall_with_dependencies(project)
+
+            self.assertFalse(project.joinpath(".chaos-engine").exists())
+            self.assertFalse(project.joinpath(".chaos-engine-runtime").exists())
+
+    def test_core_uninstall_collision_is_preflighted_before_runtime_removal(self):
+        dependency_module = load_module(SOURCE / "dependencies.py")
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary) / "consumer"
+            project.mkdir()
+
+            def provision(runtime, specification):
+                return dependency_module.repair(
+                    runtime, specification, runner=ChaosEngineDependenciesRunner(runtime)
+                )
+
+            MODULE.install_with_dependencies(project, SOURCE, TEST_COMMIT, provisioner=provision)
+            (project / MODULE.UNINSTALL_ARCHIVE_NAME).write_text("mine", encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "archive"):
+                MODULE.uninstall_with_dependencies(project)
+
+            self.assertTrue(project.joinpath(".chaos-engine").exists())
+            self.assertTrue(project.joinpath(".chaos-engine-runtime").exists())
+
+    def test_uninstall_never_executes_a_drifted_dependency_controller(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary) / "consumer"
+            project.mkdir()
+            installed = MODULE.install(project, SOURCE, TEST_COMMIT)
+            sentinel = project / "executed.txt"
+            controller = installed / "dependencies.py"
+            controller.write_text(
+                controller.read_text(encoding="utf-8")
+                + f"\nfrom pathlib import Path\nPath({str(sentinel)!r}).write_text('executed')\n",
+                encoding="utf-8",
+            )
+
+            with self.assertRaisesRegex(ValueError, "ownership drift"):
+                MODULE.uninstall_with_dependencies(project)
+
+            self.assertFalse(sentinel.exists())
+
+    def test_late_core_uninstall_failure_restores_prepared_runtime(self):
+        dependency_module = load_module(SOURCE / "dependencies.py")
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary) / "consumer"
+            project.mkdir()
+
+            def provision(runtime, specification):
+                return dependency_module.repair(
+                    runtime, specification, runner=ChaosEngineDependenciesRunner(runtime)
+                )
+
+            MODULE.install_with_dependencies(project, SOURCE, TEST_COMMIT, provisioner=provision)
+            with mock.patch.object(MODULE, "uninstall", side_effect=RuntimeError("changed")):
+                with self.assertRaisesRegex(RuntimeError, "changed"):
+                    MODULE.uninstall_with_dependencies(project)
+
+            self.assertTrue(project.joinpath(".chaos-engine").exists())
+            self.assertTrue(project.joinpath(".chaos-engine-runtime").exists())
+            self.assertFalse(project.joinpath(".chaos-engine-runtime.removing").exists())
+
+    def test_absent_core_retry_finishes_owned_runtime_and_tombstone(self):
+        dependency_module = load_module(SOURCE / "dependencies.py")
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary) / "consumer"
+            project.mkdir()
+            specification = dependency_module.load_specification(SOURCE / "dependencies.json")
+            runtime = project / ".chaos-engine-runtime"
+            dependency_module.repair(
+                runtime, specification, runner=ChaosEngineDependenciesRunner(runtime)
+            )
+            removing = project / ".chaos-engine-runtime.removing"
+            shutil.copytree(runtime, removing)
+
+            MODULE.uninstall_with_dependencies(project)
+
+            self.assertFalse(runtime.exists())
+            self.assertFalse(removing.exists())
+
+    def test_absent_core_retry_respects_the_dependency_runtime_lock(self):
+        dependency_module = load_module(SOURCE / "dependencies.py")
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary) / "consumer"
+            project.mkdir()
+            specification = dependency_module.load_specification(SOURCE / "dependencies.json")
+            runtime = project / ".chaos-engine-runtime"
+            dependency_module.repair(
+                runtime, specification, runner=ChaosEngineDependenciesRunner(runtime)
+            )
+
+            with dependency_module.runtime_lock(runtime):
+                with self.assertRaisesRegex(RuntimeError, "already running"):
+                    MODULE.uninstall_with_dependencies(project)
+
+            self.assertTrue(runtime.exists())
+
+    def test_absent_core_invalid_journal_fails_before_runtime_removal(self):
+        dependency_module = load_module(SOURCE / "dependencies.py")
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary) / "consumer"
+            project.mkdir()
+            specification = dependency_module.load_specification(SOURCE / "dependencies.json")
+            runtime = project / ".chaos-engine-runtime"
+            dependency_module.repair(
+                runtime, specification, runner=ChaosEngineDependenciesRunner(runtime)
+            )
+            (project / MODULE.JOURNAL_NAME).write_text("{invalid", encoding="utf-8")
+
+            with self.assertRaisesRegex(ValueError, "journal"):
+                MODULE.uninstall_with_dependencies(project)
+
+            self.assertTrue(runtime.exists())
 
     def test_source_and_project_trees_must_be_disjoint(self):
         with tempfile.TemporaryDirectory() as temporary:

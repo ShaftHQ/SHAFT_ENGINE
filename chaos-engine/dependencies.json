@@ -1,0 +1,9 @@
+{
+  "schemaVersion": 1,
+  "tools": {
+    "uv": {"package": "uv"},
+    "mempalace": {"package": "mempalace@latest", "commands": ["mempalace", "mempalace-mcp"]},
+    "graphify": {"package": "graphifyy@latest", "with": ["tree-sitter-sql"], "commands": ["graphify"]},
+    "memory": {"package": "@aictx/memory@0.1.55", "commands": ["memory", "memory-mcp"]}
+  }
+}
