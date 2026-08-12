@@ -47,6 +47,7 @@ approved by #4299.
 ## Prerequisites
 
 - JDK 25 for the `shaft-intellij` Gradle daemon.
+- PowerShell 7 (`pwsh`) for every checked-in recording command.
 - Maven, Chrome, `ffmpeg`, and `ffprobe` with Windows `gdigrab`.
 - A configured SHAFT Assistant provider key. Enter it only in the masked IDE
   field and clear the clipboard afterward.
@@ -54,7 +55,7 @@ approved by #4299.
 ## 1. Reset the external demo
 
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File tools\intellij-plugin-recording\reset-demo-project.ps1
+pwsh -NoProfile -File tools\intellij-plugin-recording\reset-demo-project.ps1
 ```
 
 The default target is
@@ -98,7 +99,7 @@ Both baseline and upgraded Maven compilation must pass before recording.
 ```powershell
 $videoDir = "$env:USERPROFILE\shaft-demo-workspace\issue-4299-video"
 $main = "$videoDir\main.mp4"
-powershell -NoProfile -ExecutionPolicy Bypass -File tools\intellij-plugin-recording\capture-desktop.ps1 -OutputPath $main -FrameRate 15 -MaximumDurationSeconds 900
+pwsh -NoProfile -File tools\intellij-plugin-recording\capture-desktop.ps1 -OutputPath $main -FrameRate 15 -MaximumDurationSeconds 900
 ```
 
 The script prints a stop-file path. Creating it sends `q` to ffmpeg so the
@@ -160,7 +161,7 @@ New-Item -ItemType File -Path "$main.stop" -Force
 If the main capture contains every accepted step, process it directly:
 
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File tools\intellij-plugin-recording\postprocess-desktop-capture.ps1 -InputPath $main -OutputPath "$videoDir\final.mp4"
+pwsh -NoProfile -File tools\intellij-plugin-recording\postprocess-desktop-capture.ps1 -InputPath $main -OutputPath "$videoDir\final.mp4"
 ```
 
 The reference take instead kept the accepted long setup and added three short
@@ -171,13 +172,13 @@ after the named proof is visible:
 
 ```powershell
 $success = "$videoDir\success-15fps.mp4"
-powershell -NoProfile -ExecutionPolicy Bypass -File tools\intellij-plugin-recording\capture-desktop.ps1 -OutputPath $success -FrameRate 15 -MaximumDurationSeconds 120
+pwsh -NoProfile -File tools\intellij-plugin-recording\capture-desktop.ps1 -OutputPath $success -FrameRate 15 -MaximumDurationSeconds 120
 
 $allureProof = "$videoDir\allure-proof.mp4"
-powershell -NoProfile -ExecutionPolicy Bypass -File tools\intellij-plugin-recording\capture-desktop.ps1 -OutputPath $allureProof -FrameRate 15 -MaximumDurationSeconds 120
+pwsh -NoProfile -File tools\intellij-plugin-recording\capture-desktop.ps1 -OutputPath $allureProof -FrameRate 15 -MaximumDurationSeconds 120
 
 $pageObjectProof = "$videoDir\page-object-proof.mp4"
-powershell -NoProfile -ExecutionPolicy Bypass -File tools\intellij-plugin-recording\capture-desktop.ps1 -OutputPath $pageObjectProof -FrameRate 15 -MaximumDurationSeconds 120
+pwsh -NoProfile -File tools\intellij-plugin-recording\capture-desktop.ps1 -OutputPath $pageObjectProof -FrameRate 15 -MaximumDurationSeconds 120
 ```
 
 After finalizing all four files through their printed stop markers, assemble
@@ -197,7 +198,7 @@ $concatLines = $segments | ForEach-Object {
 }
 [System.IO.File]::WriteAllLines($concatFile, $concatLines, [System.Text.UTF8Encoding]::new($false))
 ffmpeg -hide_banner -loglevel warning -f concat -safe 0 -i $concatFile -c copy -n "$videoDir\combined-raw.mp4"
-powershell -NoProfile -ExecutionPolicy Bypass -File tools\intellij-plugin-recording\postprocess-desktop-capture.ps1 -InputPath "$videoDir\combined-raw.mp4" -OutputPath "$videoDir\final.mp4"
+pwsh -NoProfile -File tools\intellij-plugin-recording\postprocess-desktop-capture.ps1 -InputPath "$videoDir\combined-raw.mp4" -OutputPath "$videoDir\final.mp4"
 ```
 
 The postprocessor refuses in-place/overwrite operations, preserves raw media,
