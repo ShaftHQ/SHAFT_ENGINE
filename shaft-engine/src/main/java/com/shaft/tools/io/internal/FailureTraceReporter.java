@@ -533,7 +533,19 @@ public final class FailureTraceReporter {
                     </div>
                     <div id="console-panel" hidden>
                       <p class="muted" id="console-hint"></p>
-                      <table class="trace-table"><thead><tr><th>Time</th><th>Level</th><th>Message</th></tr></thead><tbody id="console-rows"></tbody></table>
+                      <div class="panel-controls">
+                        <label>Source<select id="console-source-filter"><option value="">All sources</option></select></label>
+                        <label>Level<select id="console-level-filter"><option value="">All levels</option></select></label>
+                        <label>Search<input id="console-text-filter" type="search" placeholder="Search console messages"></label>
+                        <output id="console-result-count" class="result-count" aria-live="polite"></output>
+                      </div>
+                      <table class="trace-table"><thead><tr>
+                        <th id="console-sort-time" aria-sort="ascending"><button type="button" class="sort-button" data-console-sort="time">Time</button></th>
+                        <th id="console-sort-source"><button type="button" class="sort-button" data-console-sort="source">Source</button></th>
+                        <th id="console-sort-level"><button type="button" class="sort-button" data-console-sort="level">Level</button></th>
+                        <th id="console-sort-message"><button type="button" class="sort-button" data-console-sort="message">Message</button></th>
+                      </tr></thead><tbody id="console-rows"></tbody></table>
+                      <pre id="console-detail" hidden></pre>
                     </div>
                   </section>
                 </div>
@@ -901,18 +913,75 @@ public final class FailureTraceReporter {
                 }
                 const consolePanel = document.getElementById('console-panel');
                 const consoleRows = document.getElementById('console-rows');
+                const consoleDetail = document.getElementById('console-detail');
+                const consoleSourceFilter = document.getElementById('console-source-filter');
+                const consoleLevelFilter = document.getElementById('console-level-filter');
+                const consoleTextFilter = document.getElementById('console-text-filter');
+                const consoleResultCount = document.getElementById('console-result-count');
+                let consoleSort = {key:'time', direction:'ascending'};
+                function consoleSortValue(entry, key){
+                  const value = key === 'time' ? finiteNumber(entry.timestamp)
+                    : entry[key] ? String(entry[key]) : null;
+                  return {missing:value == null, value};
+                }
+                function compareConsole(left, right){
+                  const a = consoleSortValue(left.entry, consoleSort.key);
+                  const b = consoleSortValue(right.entry, consoleSort.key);
+                  if (a.missing !== b.missing) return a.missing ? 1 : -1;
+                  if (a.missing) return left.index - right.index;
+                  let comparison = typeof a.value === 'number' && typeof b.value === 'number'
+                    ? a.value - b.value : String(a.value).localeCompare(String(b.value));
+                  if (consoleSort.direction === 'descending') comparison = -comparison;
+                  return comparison || left.index - right.index;
+                }
+                function populateConsoleFilters(){
+                  const append = (select, values) => values.forEach(value => {
+                    const option = document.createElement('option');
+                    option.value = value;
+                    option.textContent = value;
+                    select.appendChild(option);
+                  });
+                  append(consoleSourceFilter, [...new Set(consoleEvents.map(entry => String(entry.source || 'Unknown')))].sort());
+                  append(consoleLevelFilter, [...new Set(consoleEvents.map(entry => String(entry.level || 'Unknown')))].sort());
+                }
+                function updateConsoleSortHeaders(){
+                  document.querySelectorAll('[data-console-sort]').forEach(button => {
+                    const header = button.closest('th');
+                    if (button.dataset.consoleSort === consoleSort.key) {
+                      header.setAttribute('aria-sort', consoleSort.direction);
+                    } else {
+                      header.removeAttribute('aria-sort');
+                    }
+                  });
+                }
                 function renderConsole(){
                   const range = selectedWindow();
-                  document.getElementById('console-hint').textContent = consoleEvents.length
-                    ? (range ? 'Highlighted rows overlap the selected action.' : '')
-                    : 'No console messages were recorded.';
                   consoleRows.innerHTML = '';
-                  consoleEvents.forEach(entry => {
+                  consoleDetail.hidden = true;
+                  const query = consoleTextFilter.value.trim().toLowerCase();
+                  const visible = consoleEvents.map((entry, index) => ({entry, index})).filter(({entry}) =>
+                    (finiteNumber(entry.timestamp) == null || inWindow(entry.timestamp, range))
+                    && (!consoleSourceFilter.value || String(entry.source || 'Unknown') === consoleSourceFilter.value)
+                    && (!consoleLevelFilter.value || String(entry.level || 'Unknown') === consoleLevelFilter.value)
+                    && (!query || JSON.stringify(entry).toLowerCase().includes(query)))
+                    .sort(compareConsole);
+                  consoleResultCount.textContent = `${visible.length} console ${visible.length === 1 ? 'message' : 'messages'}`;
+                  document.getElementById('console-hint').textContent = !consoleEvents.length
+                    ? 'No console messages were recorded.'
+                    : !visible.length ? 'No console messages match the selected range and filters.'
+                    : 'Click a message for its structured details.';
+                  visible.forEach(({entry}) => {
                     const tr = document.createElement('tr');
-                    tr.className = `${consoleFailed(entry) ? 'failed' : ''}${inWindow(entry.timestamp, range) ? ' inwindow' : ''}`;
-                    tr.innerHTML = `<td class="time-cell">${esc(offsetLabel(entry.timestamp))}</td><td>${esc(entry.level)}</td><td>${esc(entry.message)}</td>`;
+                    const timed = finiteNumber(entry.timestamp) != null;
+                    tr.className = `${consoleFailed(entry) ? 'failed ' : ''}${timed ? 'inwindow' : ''}`.trim();
+                    tr.innerHTML = `<td class="time-cell">${timed ? esc(offsetLabel(entry.timestamp)) : 'Unknown'}</td><td>${esc(entry.source || 'Unknown')}</td><td>${esc(entry.level || 'Unknown')}</td><td>${esc(entry.message || 'Unknown')}</td>`;
+                    tr.addEventListener('click', () => {
+                      consoleDetail.hidden = false;
+                      consoleDetail.textContent = JSON.stringify(entry, null, 2);
+                    });
                     consoleRows.appendChild(tr);
                   });
+                  updateConsoleSortHeaders();
                 }
                 function sourceText(){
                   const source = trace.source || {};
@@ -1075,9 +1144,19 @@ public final class FailureTraceReporter {
                     : {key, direction:'ascending'};
                   renderNetwork();
                 }));
+                [consoleSourceFilter, consoleLevelFilter, consoleTextFilter]
+                    .forEach(control => control.addEventListener('input', renderConsole));
+                document.querySelectorAll('[data-console-sort]').forEach(button => button.addEventListener('click', () => {
+                  const key = button.dataset.consoleSort;
+                  consoleSort = consoleSort.key === key
+                    ? {key, direction:consoleSort.direction === 'ascending' ? 'descending' : 'ascending'}
+                    : {key, direction:'ascending'};
+                  renderConsole();
+                }));
                 document.querySelectorAll('#action-tabs button').forEach(button => button.addEventListener('click', () => renderTab(button.dataset.tab)));
                 document.querySelectorAll('#dom-snapshot-tabs button').forEach(button => button.addEventListener('click', () => { selectedDomSide = button.dataset.dom; renderDomSnapshot(); }));
                 populateNetworkFilters();
+                populateConsoleFilters();
                 renderSummary();
                 renderNavigator();
                 renderActions();

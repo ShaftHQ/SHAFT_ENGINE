@@ -29,6 +29,7 @@ import java.util.zip.ZipFile;
 /** Explicit headless acceptance for the generated single-file trace viewer. */
 public class TraceViewerBrowserAcceptanceTest {
     private static final String BLOCKED_RESOURCE = "https://blocked.invalid/private.png";
+    private static final long CONSOLE_BASE_TIME = 1_786_540_000_000L;
 
     @Test(groups = "trace-viewer-browser-acceptance")
     public void generatedViewerShouldRemainOfflineAndShareNavigableRangeState() throws Exception {
@@ -110,6 +111,82 @@ public class TraceViewerBrowserAcceptanceTest {
             page.locator("#network-sort-time button").click();
             Assert.assertEquals(page.locator("#network-rows tr").last().locator("td").last().textContent(),
                     "legacy://untimed", "Missing sort values stay last in descending order.");
+
+            page.locator("button[data-tab=console]").click();
+            Assert.assertEquals(page.locator("#console-result-count").textContent(), "3 console messages");
+            Assert.assertEquals(page.locator("#console-source-filter option").count(), 4);
+            Assert.assertEquals(page.locator("#console-level-filter option").count(), 3);
+            Assert.assertEquals(page.locator("#console-sort-time").getAttribute("aria-sort"), "ascending");
+            page.locator("#console-level-filter").selectOption("ERROR");
+            Assert.assertEquals(page.locator("#console-rows tr").count(), 1);
+            Assert.assertTrue(page.locator("#console-rows tr").textContent().contains("checkout failed"));
+            page.locator("#console-rows tr").click();
+            Assert.assertFalse(page.locator("#console-detail").isHidden());
+            Assert.assertTrue(page.locator("#console-detail").textContent().contains("browser"));
+            Assert.assertTrue(page.locator("#console-detail").textContent().contains("<img id=console-injection>"));
+            Assert.assertEquals(page.locator("#console-injection").count(), 0,
+                    "Console detail must render hostile text without creating markup.");
+            @SuppressWarnings("unchecked")
+            Map<String, Object> consoleDetail = (Map<String, Object>) page.evaluate(
+                    "JSON.parse(document.getElementById('console-detail').textContent)");
+            Assert.assertEquals(consoleDetail.get("source"), "browser");
+            Assert.assertEquals(consoleDetail.get("level"), "ERROR");
+            Assert.assertEquals(consoleDetail.get("message"), "<img id=console-injection> checkout failed");
+            Assert.assertEquals(((Number) consoleDetail.get("timestamp")).longValue(), CONSOLE_BASE_TIME);
+            page.locator("#console-level-filter").selectOption("");
+            page.locator("#console-source-filter").selectOption("driver");
+            Assert.assertEquals(page.locator("#console-rows tr").count(), 1);
+            Assert.assertTrue(page.locator("#console-rows tr").textContent().contains("retry scheduled"));
+            page.locator("#console-source-filter").selectOption("");
+            page.locator("#console-text-filter").fill("no-such-message");
+            Assert.assertEquals(page.locator("#console-result-count").textContent(), "0 console messages");
+            Assert.assertTrue(page.locator("#console-hint").textContent().contains("match"));
+            page.locator("#console-text-filter").fill("");
+            page.locator("#console-sort-level button").press("Enter");
+            Assert.assertEquals(page.locator("#console-panel th[aria-sort]").count(), 1);
+            Assert.assertEquals(page.locator("#console-sort-level").getAttribute("aria-sort"), "ascending");
+            Assert.assertEquals(page.locator("#console-rows tr").first().locator("td").nth(2).textContent(),
+                    "ERROR");
+            page.locator("#console-sort-level button").click();
+            Assert.assertEquals(page.locator("#console-sort-level").getAttribute("aria-sort"), "descending");
+            Assert.assertEquals(page.locator("#console-rows tr td:nth-child(4)").allTextContents(),
+                    List.of("retry scheduled", "alpha scheduled", "<img id=console-injection> checkout failed"));
+            page.locator("#console-sort-source button").click();
+            Assert.assertEquals(page.locator("#console-rows tr td:nth-child(2)").allTextContents(),
+                    List.of("browser", "driver", "worker"));
+            page.locator("#console-sort-message button").click();
+            Assert.assertEquals(page.locator("#console-panel th[aria-sort]").count(), 1);
+            Assert.assertEquals(page.locator("#console-rows tr td:nth-child(4)").allTextContents(),
+                    List.of("<img id=console-injection> checkout failed", "alpha scheduled", "retry scheduled"));
+            page.evaluate("""
+                    () => {
+                      consoleEvents.push({});
+                      consoleSourceFilter.innerHTML = '<option value="">All sources</option>';
+                      consoleLevelFilter.innerHTML = '<option value="">All levels</option>';
+                      populateConsoleFilters();
+                      renderConsole();
+                    }
+                    """);
+            Assert.assertEquals(page.locator("#console-result-count").textContent(), "4 console messages");
+            page.locator("#console-source-filter").selectOption("Unknown");
+            Assert.assertEquals(page.locator("#console-rows tr").count(), 1);
+            page.locator("#console-source-filter").selectOption("");
+            page.locator("#console-level-filter").selectOption("Unknown");
+            Assert.assertEquals(page.locator("#console-rows tr").count(), 1);
+            page.locator("#console-level-filter").selectOption("");
+            var legacyConsoleRow = page.locator("#console-rows tr").filter(
+                    new com.microsoft.playwright.Locator.FilterOptions().setHasText("Unknown"));
+            Assert.assertEquals(legacyConsoleRow.count(), 1);
+            Assert.assertEquals(legacyConsoleRow.locator("td").allTextContents(),
+                    List.of("Unknown", "Unknown", "Unknown", "Unknown"));
+            Assert.assertFalse(String.valueOf(legacyConsoleRow.getAttribute("class")).contains("inwindow"));
+            page.locator("#console-sort-time button").click();
+            page.locator("#console-sort-time button").click();
+            Assert.assertEquals(page.locator("#console-rows tr td:nth-child(4)").allTextContents().subList(0, 3),
+                    List.of("alpha scheduled", "<img id=console-injection> checkout failed", "retry scheduled"),
+                    "Equal timestamps retain their original order when sorting descending.");
+            Assert.assertEquals(page.locator("#console-rows tr").last().locator("td").allTextContents(),
+                    List.of("Unknown", "Unknown", "Unknown", "Unknown"));
 
             page.navigate(html.toUri() + "#action-action-1");
             Assert.assertTrue(page.locator("#details-title").textContent().contains("CLICK"));
@@ -224,8 +301,10 @@ public class TraceViewerBrowserAcceptanceTest {
                     new com.microsoft.playwright.Locator.FilterOptions().setHasText("POST")).first()
                     .getAttribute("class").contains("inwindow"));
             page.locator("button[data-tab=console]").click();
-            Assert.assertFalse(page.locator("#console-rows tr").first().getAttribute("class").contains("inwindow"),
-                    "Console messages remain point events and must not inherit interval overlap.");
+            Assert.assertEquals(page.locator("#console-result-count").textContent(), "1 console message",
+                    "Timed console messages remain point events; untimed legacy evidence remains visible.");
+            Assert.assertEquals(page.locator("#console-rows tr td").allTextContents(),
+                    List.of("Unknown", "Unknown", "Unknown", "Unknown"));
 
             String selectedRange = String.valueOf(page.locator("#range-label").evaluate("element => element.value"));
             int historyBeforeShowAll = ((Number) page.evaluate("history.length")).intValue();
@@ -274,10 +353,13 @@ public class TraceViewerBrowserAcceptanceTest {
             BrowserObservabilityRecorder.recordNetwork(new BrowserObservabilityRecorder.NetworkObservation(
                     "GET", "https://example.test/orders", 503, Map.of("x-request", "request-value"),
                     Map.of("x-response", "response-value"), 45, 5, 12, "upstream unavailable", "retry later"));
-            BrowserObservabilityRecorder.recordConsole("browser", "ERROR", "checkout failed",
-                    System.currentTimeMillis());
+            BrowserObservabilityRecorder.recordConsole("browser", "ERROR",
+                    "<img id=console-injection> checkout failed",
+                    CONSOLE_BASE_TIME);
             BrowserObservabilityRecorder.recordConsole("driver", "INFO", "retry scheduled",
-                    System.currentTimeMillis());
+                    CONSOLE_BASE_TIME);
+            BrowserObservabilityRecorder.recordConsole("worker", "INFO", "alpha scheduled",
+                    CONSOLE_BASE_TIME + 1);
 
             Method marker = TraceViewerBrowserAcceptanceTest.class.getDeclaredMethod("marker");
             TestExecutionInfo info = new TestExecutionInfo("trace-viewer-browser-acceptance", "customer.CheckoutTest",
