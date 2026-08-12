@@ -114,7 +114,7 @@ def collect_pr_snapshot(client, number: int) -> dict:
                 "body": last.get("body", ""), "resolved": node.get("isResolved"),
             })
     checks = []
-    annotations = []
+    annotations: dict[str, dict] = {}
     annotation_pages = 0
     for check in checks_page["items"]:
         checks.append({
@@ -134,14 +134,16 @@ def collect_pr_snapshot(client, number: int) -> dict:
                 {
                     "title": annotation.get("title"), "message": annotation.get("message"),
                     "raw_details": annotation.get("raw_details"),
+                    "level": annotation.get("annotation_level"),
                 }, sort_keys=True,
             ).encode("utf-8")).hexdigest()[:12]
-            annotations.append({
-                "id": f"annotation:{check_id}:{path}:{start}:{end}:{fingerprint}",
+            annotation_id = f"annotation:{path}:{start}:{end}:{fingerprint}"
+            annotations[annotation_id] = {
+                "id": annotation_id,
                 "url": annotation.get("blob_href") or pull.get("html_url"),
                 "message": annotation.get("message", ""),
                 "level": annotation.get("annotation_level", ""),
-            })
+            }
     reviews = [{
         "id": f"review:{item.get('id')}", "url": item.get("html_url") or pull.get("html_url"),
         "body": item.get("body", ""), "state": str(item.get("state", "")).upper(),
@@ -157,7 +159,7 @@ def collect_pr_snapshot(client, number: int) -> dict:
         "isDraft": pull.get("draft"), "mergeStateStatus": str(pull.get("mergeable_state", "")).upper(),
         "mergedAt": pull.get("merged_at"), "autoMergeRequest": pull.get("auto_merge"),
         "checks": checks, "threads": threads, "reviews": reviews,
-        "conversationComments": conversation, "annotations": annotations,
+        "conversationComments": conversation, "annotations": list(annotations.values()),
         "pagination": {
             "threads": {"complete": thread_pages["complete"], "pageCount": thread_pages["pageCount"]},
             "reviews": {"complete": reviews_page["complete"], "pageCount": reviews_page["pageCount"]},

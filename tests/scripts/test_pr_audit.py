@@ -54,9 +54,14 @@ class PullRequestAuditTest(unittest.TestCase):
             def rest_page_result(self, endpoint, *, jq=None):
                 self.endpoints.append((endpoint, jq))
                 if endpoint.endswith("check-runs"):
-                    return {"items": [{"id": 9, "name": "unit", "status": "completed", "conclusion": "success"}], "pageCount": 2, "complete": True}
+                    return {"items": [
+                        {"id": 9, "name": "unit", "status": "completed", "conclusion": "success"},
+                        {"id": 10, "name": "integration", "status": "completed", "conclusion": "success"},
+                        {"id": 11, "name": "lint", "status": "completed", "conclusion": "success"},
+                    ], "pageCount": 2, "complete": True}
                 if endpoint.endswith("annotations"):
-                    return {"items": [{"path": "a.py", "start_line": 2, "end_line": 2, "annotation_level": "warning", "message": "warn", "blob_href": "https://example/a"}], "pageCount": 3, "complete": True}
+                    level = "notice" if endpoint == "check-runs/11/annotations" else "warning"
+                    return {"items": [{"path": "a.py", "start_line": 2, "end_line": 2, "annotation_level": level, "message": "warn", "blob_href": "https://example/a"}], "pageCount": 3, "complete": True}
                 return {"items": [], "pageCount": 1, "complete": True}
 
             def graphql_pages(self, query, variables):
@@ -66,9 +71,12 @@ class PullRequestAuditTest(unittest.TestCase):
         client = Client()
         snapshot = collect_pr_snapshot(client, 17)
         self.assertEqual("abc123", snapshot["headOid"])
-        self.assertEqual(3, snapshot["pagination"]["annotations"]["pageCount"])
-        self.assertTrue(snapshot["annotations"][0]["id"].startswith("annotation:9:a.py:2:2:"))
+        self.assertEqual(9, snapshot["pagination"]["annotations"]["pageCount"])
+        self.assertEqual(2, len(snapshot["annotations"]), "only identical matrix findings deduplicate")
+        self.assertTrue(snapshot["annotations"][0]["id"].startswith("annotation:a.py:2:2:"))
         self.assertIn(("check-runs/9/annotations", None), client.endpoints)
+        self.assertIn(("check-runs/10/annotations", None), client.endpoints)
+        self.assertIn(("check-runs/11/annotations", None), client.endpoints)
         self.assertIn("graphql", client.endpoints)
 
     def test_collector_rejects_graphql_errors_and_unfinished_last_page(self):
