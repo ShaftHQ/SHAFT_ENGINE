@@ -924,7 +924,9 @@ final class CaptureEventPipeline implements AutoCloseable {
                 candidate.uniquenessCount(),
                 candidate.visible(),
                 candidate.stable(),
-                signals);
+                signals,
+                candidate.replayXpath(),
+                candidate.roleXpathVerified());
     }
 
     private void append(

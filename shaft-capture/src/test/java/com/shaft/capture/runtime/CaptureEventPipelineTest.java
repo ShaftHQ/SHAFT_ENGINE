@@ -417,7 +417,9 @@ class CaptureEventPipelineTest {
                         "uniquenessCount", 1,
                         "visible", true,
                         "stable", true,
-                        "signals", List.of("GENERATED"))));
+                        "signals", List.of("GENERATED"),
+                        "replayXpath", "//*[@data-testid=\"submit\"]",
+                        "roleXpathVerified", true)));
 
         pipeline.accept(signal("locator_preference", START, target,
                 Map.of("logicalElementId", "submit", "strategy", "CSS", "expression", "form > button"), Map.of()));
@@ -430,6 +432,8 @@ class CaptureEventPipelineTest {
         LocatorCandidate preferred = click.target().locatorCandidates().getFirst();
         assertEquals(LocatorCandidate.LocatorStrategy.CSS, preferred.strategy());
         assertTrue(preferred.signals().contains(LocatorCandidate.LocatorSignal.USER_PROVIDED));
+        assertEquals("//*[@data-testid=\"submit\"]", preferred.replayXpath());
+        assertTrue(preferred.roleXpathVerified());
     }
 
     @Test

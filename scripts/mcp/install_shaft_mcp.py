@@ -66,6 +66,7 @@ RETIRED_SHAFT_SKILL_DIRECTORIES = frozenset((
 # fails when this list falls behind them.
 AGENT_VALIDATION_SCRIPT_FILES = (
     "scripts/agents/guard.py",
+    "scripts/agents/learning_loop.py",
     "scripts/ci/validate_agent_setup.py",
     "scripts/ci/validate_agent_guidance.py",
     "scripts/ci/harness_reachability.py",

@@ -554,6 +554,17 @@
     const {count, includesElement} = evaluateXpath("(" + union + ")", element);
     return count === 1 && includesElement;
   };
+  // A selected TEST_ID cannot clear the native-locator ladder on preference score alone: it needs
+  // the same live-DOM, self-verified XPath evidence as every other rung-2 candidate. Keep the tag
+  // wildcard so a stable authored identity survives equivalent markup changes (for example an
+  // <a> becoming a nested <span>). Invalid custom attribute names, duplicate values, and values
+  // that do not resolve back to this exact element all fail closed with no replay XPath.
+  const computeTestIdReplayXpath = (element, attribute, value) => {
+    if (!/^[A-Za-z_][A-Za-z0-9_.-]*$/.test(attribute)) return "";
+    const xpath = `//*[@${attribute}=${xpathLiteral(value)}]`;
+    const {count, includesElement} = evaluateXpath(xpath, element);
+    return count === 1 && includesElement ? xpath : "";
+  };
   const cssPath = element => {
     const parts = [];
     let current = element;
@@ -637,7 +648,10 @@
       const value = element.getAttribute(attribute);
       if (value) {
         const selector = `[${attribute}="${cssEscape(value)}"]`;
-        add("TEST_ID", selector, selector, !dynamic(value), ["TEST_ATTRIBUTE", "STABLE_ATTRIBUTE"]);
+        const stable = !dynamic(value);
+        const replayXpath = stable ? computeTestIdReplayXpath(element, attribute, value) : "";
+        add("TEST_ID", selector, selector, stable,
+          ["TEST_ATTRIBUTE", "STABLE_ATTRIBUTE"], replayXpath);
       }
     });
     if (element.id) {
@@ -838,6 +852,36 @@
         : [...existing, withUserProvidedSignal(candidate)]
     };
   };
+  const revalidatedTestIdCandidate = (element, candidate) => {
+    if (!candidate || candidate.strategy !== "TEST_ID") return candidate;
+    const fresh = element && element.isConnected
+      ? locators(element).find(item =>
+        item.strategy === candidate.strategy && item.expression === candidate.expression)
+      : null;
+    return fresh || {
+      ...candidate,
+      uniquenessCount: 0,
+      visible: false,
+      stable: false,
+      replayXpath: ""
+    };
+  };
+  const revalidateSelectedTestId = (target, element) => {
+    if (!target) return target;
+    const existing = target.locators || [];
+    const selected = existing.find(candidate =>
+      candidate.strategy === "TEST_ID"
+      && (candidate.signals || []).includes("USER_PROVIDED"));
+    if (!selected) return target;
+    const replacement = withUserProvidedSignal(revalidatedTestIdCandidate(element, selected));
+    return {
+      ...target,
+      locators: existing.map(candidate =>
+        candidate.strategy === selected.strategy && candidate.expression === selected.expression
+          ? replacement
+          : candidate)
+    };
+  };
   const eventElement = event => {
     const path = event.composedPath ? event.composedPath() : [];
     return path.find(item => item && item.nodeType === Node.ELEMENT_NODE) || event.target;
@@ -996,10 +1040,19 @@
       .find(name => element && element.hasAttribute && element.hasAttribute(name)) || "value";
   // Renders the same SHAFT locator syntax CaptureGenerator emits (see
   // CaptureGenerator#locatorExpression) so the picker shows exactly what generated code will use.
+  const javaStringLiteral = value => String(value || "")
+    .replace(/\\/g, "\\\\")
+    .replace(/\r/g, "\\r")
+    .replace(/\n/g, "\\n")
+    .replace(/\t/g, "\\t")
+    .replace(/"/g, '\\"');
   const shaftLocatorSyntax = candidate => {
     const expression = String(candidate.expression || "");
     switch (candidate.strategy) {
       case "TEST_ID":
+        return candidate.replayXpath
+          ? 'By.xpath("' + javaStringLiteral(candidate.replayXpath) + '")'
+          : 'SHAFT.GUI.Locator.cssSelector("' + expression + '")';
       case "CSS":
         return `SHAFT.GUI.Locator.cssSelector("${expression}")`;
       case "ID":
@@ -1232,7 +1285,7 @@
       const summary = negated
         ? "Assert not " + catalogEntry.label.toLowerCase() + " on " + name
         : "Assert " + catalogEntry.label.toLowerCase() + " on " + name;
-      finishAssertion(target, payload, summary);
+      finishAssertion(revalidateSelectedTestId(target, element), payload, summary);
     });
     const actions = cancelAssertionRow(closeAssertionPanel);
     actions.appendChild(confirm);
@@ -1266,7 +1319,10 @@
       choose.type = "button";
       choose.textContent = "Use this locator";
       choose.addEventListener("click", () =>
-        showAssertionCatalogStep(ELEMENT_ASSERTIONS, withLocatorPreference(target, item.candidate), element));
+        showAssertionCatalogStep(
+          ELEMENT_ASSERTIONS,
+          withLocatorPreference(target, revalidatedTestIdCandidate(element, item.candidate)),
+          element));
       row.append(expression, meta, choose);
       list.appendChild(row);
     });

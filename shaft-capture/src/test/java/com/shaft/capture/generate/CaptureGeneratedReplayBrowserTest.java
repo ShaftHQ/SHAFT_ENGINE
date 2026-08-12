@@ -192,4 +192,5 @@ class CaptureGeneratedReplayBrowserTest {
         Files.writeString(temp.resolve("capture-data.json"),
                 JSON.writerWithDefaultPrettyPrinter().writeValueAsString(root), StandardCharsets.UTF_8);
     }
+
 }
