@@ -2246,6 +2246,32 @@ class ShaftPanelSetupTest {
     }
 
     @Test
+    void connectAgentWithPasswordSafeGeminiKeyTransitionsTheReadyStep() throws Exception {
+        java.util.Map<String, String> storedKeys = new java.util.HashMap<>();
+        storedKeys.put("GEMINI_API_KEY", "stored-secret");
+        ShaftSettingsState.Settings settings = connectedMcpSettings();
+        settings.assistantProviderType = "CLOUD";
+        settings.cloudProvider = "gemini";
+        ShaftMcpSetupPanel panel = new ShaftMcpSetupPanel(fakeProject(), settings, () -> {
+        }, readyProbe(), fakeKeyStore(storedKeys));
+        setField(panel, "providerEnvironmentLookup",
+                (java.util.function.Function<String, String>) ignored -> null);
+        JComboBox<?> agent = findByAccessibleName(panel, "Assistant agent", JComboBox.class);
+        selectDisplayValue(agent, "Gemini in IntelliJ");
+        ((JCheckBox) getField(panel, "useGeminiEnvironment")).setSelected(false);
+        showTestResult(panel, ShaftMcpToolResult.success("Probe OK"));
+        JButton connectAgent = findByAccessibleName(panel, "Connect SHAFT agent", JButton.class);
+
+        connectAgent.doClick();
+
+        assertAll(
+                () -> assertTrue(settings.agentLaneReady),
+                () -> assertTrue(findByAccessibleName(panel, "Start chatting with SHAFT Assistant", JButton.class)
+                        .isVisible()),
+                () -> assertFalse(connectAgent.isVisible()));
+    }
+
+    @Test
     void setupPanelUsesConfiguredGeminiEnvironmentWithoutCopyingItsValue() throws Exception {
         java.util.Map<String, String> storedKeys = new java.util.HashMap<>();
         ShaftSettingsState.Settings settings = unverifiedMcpSettings();
