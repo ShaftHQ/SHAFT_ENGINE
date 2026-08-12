@@ -2,6 +2,26 @@
 
 Tracking issue: [#4299](https://github.com/ShaftHQ/SHAFT_ENGINE/issues/4299).
 
+## Accepted replacement take
+
+Recorded on Windows on 2026-08-12 with the sandboxed IntelliJ 2024.3 plugin
+build and JDK 25 tooling.
+
+- Video: [SHAFT-IntelliJ-Assistant-demo-issue-4762.mp4](https://drive.google.com/file/d/1LUzJTrh5lKiNtMMm0-MizBXVU9ryshCA/view)
+- Processed media: 2560 x 1440, H.264/yuv420p, 15 fps, 152.20 seconds,
+  6,614,539 bytes.
+- SHA-256: `CE13CF024E84F13C9CC2C2E9512A23A605A9EEB7821A21A3F6AD81914D347B3E`.
+- The exact Surefire XML records 1 test, 0 failures, 0 errors, and 0 skipped
+  on Java 25.
+- Drive metadata reports `type=anyone`, `role=reader`, and
+  `allowFileDiscovery=false`. A separate unauthenticated request returned HTTP
+  200 and contained the expected filename.
+
+The take shows the Gemini-backed Assistant flow, persisted DuckDuckGo capture,
+generated test, extracted Page Object, external test data, and headed replay.
+Representative and final frames were inspected from the public-safe processed
+artifact before upload.
+
 ## Withdrawn reference take
 
 Executed on Windows on 2026-08-11 with sandboxed IntelliJ 2024.3 and
