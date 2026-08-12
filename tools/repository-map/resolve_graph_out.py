@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import os
 import shutil
 # Only used to run one fixed git command (list-args, no shell) with the
 # executable resolved to an absolute path below.
@@ -20,6 +21,14 @@ MANIFEST_NAME = "manifest.json"
 
 def find_shared_graph_out(cwd: Path) -> Path:
     """Return the shared graphify-out/ path under the main checkout root."""
+    if "SHAFT_GRAPHIFY_OUT" in os.environ:
+        configured = os.environ["SHAFT_GRAPHIFY_OUT"].strip()
+        if not configured:
+            raise RuntimeError("SHAFT_GRAPHIFY_OUT must not be blank")
+        graph_out = Path(configured).expanduser()
+        if not graph_out.is_absolute():
+            raise RuntimeError("SHAFT_GRAPHIFY_OUT must be absolute")
+        return graph_out.resolve()
     git_executable = shutil.which("git")
     if git_executable is None:
         raise RuntimeError("git is not on PATH")
@@ -35,6 +44,29 @@ def find_shared_graph_out(cwd: Path) -> Path:
     if not common_dir.is_absolute():
         common_dir = (cwd / common_dir).resolve()
     return common_dir.parent / "graphify-out"
+
+
+def require_primary_checkout(cwd: Path) -> None:
+    """Reject linked worktrees even when an override points below their root."""
+    git_executable = shutil.which("git")
+    if git_executable is None:
+        raise RuntimeError("git is not on PATH")
+    completed = subprocess.run(  # nosec B603
+        [git_executable, "rev-parse", "--show-toplevel", "--git-common-dir"],
+        cwd=cwd,
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    lines = completed.stdout.splitlines()
+    if len(lines) != 2:
+        raise RuntimeError("cannot resolve the primary Git checkout")
+    top_level = Path(lines[0])
+    common_dir = Path(lines[1])
+    if not common_dir.is_absolute():
+        common_dir = cwd / common_dir
+    if cwd.resolve() != top_level.resolve() or cwd.resolve() != common_dir.resolve().parent:
+        raise RuntimeError("record the Graphify revision only from the primary checkout")
 
 
 def git_revision(cwd: Path) -> str:
@@ -96,6 +128,7 @@ def cache_freshness(cwd: Path, graph_out: Path) -> tuple[bool, str]:
 
 def record_current_cache(cwd: Path, graph_out: Path) -> Path:
     """Bind a completed primary-checkout cache build to its source revision."""
+    require_primary_checkout(cwd)
     if cwd.resolve() != graph_out.parent.resolve():
         raise RuntimeError("record the Graphify revision only from the primary checkout")
     if not (graph_out / MANIFEST_NAME).is_file():
@@ -133,23 +166,23 @@ def main(argv: list[str] | None = None, cwd: Path | None = None) -> int:
     """Run the CLI."""
     args = build_parser().parse_args(argv)
     working_directory = cwd or Path.cwd()
-    graph_out = find_shared_graph_out(working_directory)
-    if args.check:
-        fresh, message = cache_freshness(working_directory, graph_out)
-        if fresh:
-            print(message)
-            return 0
-        print(message, file=sys.stderr)
-        return 1
-    if args.record_current:
-        try:
-            marker_path = record_current_cache(working_directory, graph_out)
-        except (OSError, RuntimeError, subprocess.CalledProcessError) as error:
-            print(str(error), file=sys.stderr)
+    try:
+        graph_out = find_shared_graph_out(working_directory)
+        if args.check:
+            fresh, message = cache_freshness(working_directory, graph_out)
+            if fresh:
+                print(message)
+                return 0
+            print(message, file=sys.stderr)
             return 1
-        print(marker_path)
-        return 0
-    print(graph_out)
+        if args.record_current:
+            marker_path = record_current_cache(working_directory, graph_out)
+            print(marker_path)
+            return 0
+        print(graph_out)
+    except (OSError, RuntimeError, subprocess.CalledProcessError) as error:
+        print(str(error), file=sys.stderr)
+        return 1
     return 0
 
 
