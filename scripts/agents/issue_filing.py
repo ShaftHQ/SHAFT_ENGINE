@@ -40,7 +40,7 @@ def _issue_url(value) -> bool:
     return parsed.scheme == "https" and parsed.netloc == "github.com" and "/issues/" in parsed.path
 
 
-def validate_issue_plan(plan: object, taxonomy: object) -> dict:
+def validate_issue_plan(plan: object, taxonomy: object) -> dict:  # noqa: C901
     reasons: list[str] = []
     if not isinstance(plan, dict) or not isinstance(taxonomy, dict):
         return {"schemaVersion": 1, "kind": "issue-plan", "decision": "unavailable", "reasons": ["invalid plan or taxonomy"]}
@@ -216,7 +216,7 @@ def _create_issue_locked(plan: dict, taxonomy: dict, repository: str, confirmati
     return {**dry_receipt, "issueUrl": completed.stdout.strip(), "idempotencyMarker": marker}
 
 
-def reconcile_labels(repository: str, taxonomy: dict, *, apply: bool = False, runner=None, executable: str | None = None) -> dict:
+def reconcile_labels(repository: str, taxonomy: dict, *, apply: bool = False, runner=None, executable: str | None = None) -> dict:  # noqa: C901
     runner = subprocess.run if runner is None else runner
     gh = executable or shutil.which("gh")
     if not gh:

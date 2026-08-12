@@ -20,6 +20,7 @@ class GitHubUnavailable(RuntimeError):
 
 class GitHubClient:
     def __init__(self, repository: str, *, root: Path | None = None, runner=None, executable: str | None = None):
+        """Create a client bound to one validated repository and executable."""
         if not REPOSITORY.fullmatch(repository):
             raise ValueError("repository must be an explicit owner/name slug")
         self.repository = repository

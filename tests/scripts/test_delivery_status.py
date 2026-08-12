@@ -2,7 +2,7 @@
 
 import copy
 import json
-import subprocess
+import subprocess  # nosec B404 - fixed local test doubles and commands.
 import tempfile
 import unittest
 

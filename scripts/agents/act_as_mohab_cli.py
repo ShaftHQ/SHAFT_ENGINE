@@ -142,7 +142,7 @@ def checkpoint_status(
 
 
 def local_head(context: RepositoryContext) -> str:
-    result = subprocess.run(
+    result = subprocess.run(  # nosec B603 B607 - fixed read-only git query.
         ["git", "rev-parse", "HEAD"], cwd=context.root, capture_output=True, text=True,
         timeout=10, check=False,
     )

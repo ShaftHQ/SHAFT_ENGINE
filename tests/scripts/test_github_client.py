@@ -1,7 +1,7 @@
 """Bounded GitHub CLI transport tests (#4769)."""
 
 import json
-import subprocess
+import subprocess  # nosec B404 - subprocess objects are test fixtures only.
 import unittest
 
 from scripts.agents.github_client import GitHubClient, GitHubUnavailable

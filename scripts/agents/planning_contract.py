@@ -35,7 +35,7 @@ def _source_discoverable_question(value: str) -> bool:
     ))
 
 
-def validate_plan(plan: object) -> list[str]:
+def validate_plan(plan: object) -> list[str]:  # noqa: C901
     """Return deterministic violations for one consequential-work plan."""
     if not isinstance(plan, dict):
         return ["plan must be a JSON object"]

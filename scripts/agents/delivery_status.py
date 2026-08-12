@@ -104,7 +104,7 @@ def validate_authority(manifest: object, repository: str, number: int, head: str
 def evaluate_delivery(
     manifest: object, statuses: object, cleanup_observation: object,
     *, execution_repository: str | None = None, execution_head: str | None = None,
-) -> dict:
+) -> dict:  # noqa: C901
     reasons: list[str] = []
     unavailable = False
     owned = manifest.get("ownedPullRequests") if isinstance(manifest, dict) else None

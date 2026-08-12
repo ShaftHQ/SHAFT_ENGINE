@@ -2,7 +2,7 @@
 
 import copy
 import json
-import subprocess
+import subprocess  # nosec B404 - subprocess objects are test fixtures only.
 import threading
 import unittest
 from pathlib import Path
