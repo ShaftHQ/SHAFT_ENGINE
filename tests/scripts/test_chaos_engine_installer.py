@@ -68,6 +68,16 @@ def tree_digest(root: Path) -> dict[str, str]:
 
 
 class ChaosEngineInstallerTest(unittest.TestCase):
+    def test_project_lock_closes_descriptor_when_stream_creation_fails(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary)
+            with mock.patch.object(MODULE.os, "fdopen", side_effect=OSError("stream failed")):
+                with mock.patch.object(MODULE.os, "close", wraps=MODULE.os.close) as close:
+                    with self.assertRaisesRegex(OSError, "stream failed"):
+                        with MODULE.project_lock(project):
+                            self.fail("lock unexpectedly acquired")
+            close.assert_called_once()
+
     def test_clean_install_is_complete_and_manifest_bound(self):
         with tempfile.TemporaryDirectory() as temporary:
             project = Path(temporary) / "consumer project"

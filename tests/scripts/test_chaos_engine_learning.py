@@ -27,6 +27,17 @@ def load():
 
 
 class ChaosEngineLearningTest(unittest.TestCase):
+    def test_learning_lock_closes_descriptor_when_stream_creation_fails(self):
+        module = load()
+        with tempfile.TemporaryDirectory() as temporary:
+            state = Path(temporary) / "learning"
+            with mock.patch.object(module.os, "fdopen", side_effect=OSError("stream failed")):
+                with mock.patch.object(module.os, "close", wraps=module.os.close) as close:
+                    with self.assertRaisesRegex(OSError, "stream failed"):
+                        with module.learning_lock(state):
+                            self.fail("lock unexpectedly acquired")
+            close.assert_called_once()
+
     def candidate(self) -> dict[str, object]:
         return {
             "category": "reliability",

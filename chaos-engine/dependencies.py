@@ -55,13 +55,16 @@ def runtime_lock(runtime: Path):
         if is_link_or_reparse(lock):
             raise ValueError(f"dependency lock is a link or reparse point: {lock}")
         descriptor = os.open(lock, flags)
-    stream = os.fdopen(descriptor, "r+b", closefd=True)
-    opened = os.fstat(stream.fileno())
-    named = os.stat(lock, follow_symlinks=False)
-    if (opened.st_dev, opened.st_ino) != (named.st_dev, named.st_ino):
-        stream.close()
-        raise ValueError(f"dependency lock collision: {lock}")
     try:
+        stream = os.fdopen(descriptor, "r+b", closefd=True)
+    except BaseException:
+        os.close(descriptor)
+        raise
+    try:
+        opened = os.fstat(stream.fileno())
+        named = os.stat(lock, follow_symlinks=False)
+        if (opened.st_dev, opened.st_ino) != (named.st_dev, named.st_ino):
+            raise ValueError(f"dependency lock collision: {lock}")
         if os.name == "nt":
             import msvcrt
 
@@ -73,6 +76,9 @@ def runtime_lock(runtime: Path):
     except (OSError, BlockingIOError) as error:
         stream.close()
         raise RuntimeError(f"dependency runtime is locked: {runtime}") from error
+    except BaseException:
+        stream.close()
+        raise
     try:
         stream.seek(0)
         existing = stream.read()

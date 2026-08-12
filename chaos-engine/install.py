@@ -189,28 +189,29 @@ def project_lock(project: Path):
     except FileExistsError:
         reject_link_or_reparse(lock_path)
         descriptor = os.open(lock_path, flags)
-    lock_file = os.fdopen(descriptor, "r+b", closefd=True)
-    opened = os.fstat(lock_file.fileno())
-    named = os.stat(lock_path, follow_symlinks=False)
-    if (opened.st_dev, opened.st_ino) != (named.st_dev, named.st_ino):
-        lock_file.close()
-        raise ValueError(f"ChaosEngine lock collision: {lock_path}")
-    if created:
-        lock_file.write(LOCK_MAGIC)
-        lock_file.flush()
-        os.fsync(lock_file.fileno())
-    else:
-        lock_file.seek(0)
-        try:
-            lock_contents = lock_file.read()
-        except PermissionError as error:
-            lock_file.close()
-            raise RuntimeError("another ChaosEngine operation is already running") from error
-        if lock_contents != LOCK_MAGIC:
-            lock_file.close()
-            raise ValueError(f"ChaosEngine lock collision: {lock_path}")
-    lock_file.seek(0)
     try:
+        lock_file = os.fdopen(descriptor, "r+b", closefd=True)
+    except BaseException:
+        os.close(descriptor)
+        raise
+    try:
+        opened = os.fstat(lock_file.fileno())
+        named = os.stat(lock_path, follow_symlinks=False)
+        if (opened.st_dev, opened.st_ino) != (named.st_dev, named.st_ino):
+            raise ValueError(f"ChaosEngine lock collision: {lock_path}")
+        if created:
+            lock_file.write(LOCK_MAGIC)
+            lock_file.flush()
+            os.fsync(lock_file.fileno())
+        else:
+            lock_file.seek(0)
+            try:
+                lock_contents = lock_file.read()
+            except PermissionError as error:
+                raise RuntimeError("another ChaosEngine operation is already running") from error
+            if lock_contents != LOCK_MAGIC:
+                raise ValueError(f"ChaosEngine lock collision: {lock_path}")
+        lock_file.seek(0)
         if os.name == "nt":
             import msvcrt  # pylint: disable=import-outside-toplevel
 
@@ -222,6 +223,9 @@ def project_lock(project: Path):
     except OSError as error:
         lock_file.close()
         raise RuntimeError("another ChaosEngine operation is already running") from error
+    except BaseException:
+        lock_file.close()
+        raise
     try:
         yield
     finally:
@@ -244,28 +248,29 @@ def dependency_runtime_lock(runtime: Path):
     except FileExistsError:
         reject_link_or_reparse(lock_path)
         descriptor = os.open(lock_path, flags)
-    stream = os.fdopen(descriptor, "r+b", closefd=True)
-    opened = os.fstat(stream.fileno())
-    named = os.stat(lock_path, follow_symlinks=False)
-    if (opened.st_dev, opened.st_ino) != (named.st_dev, named.st_ino):
-        stream.close()
-        raise ValueError(f"dependency lock collision: {lock_path}")
-    if created:
-        stream.write(DEPENDENCY_LOCK_MAGIC)
-        stream.flush()
-        os.fsync(stream.fileno())
-    else:
-        stream.seek(0)
-        try:
-            contents = stream.read()
-        except PermissionError as error:
-            stream.close()
-            raise RuntimeError("another dependency runtime operation is already running") from error
-        if contents != DEPENDENCY_LOCK_MAGIC:
-            stream.close()
-            raise ValueError(f"dependency lock collision: {lock_path}")
-    stream.seek(0)
     try:
+        stream = os.fdopen(descriptor, "r+b", closefd=True)
+    except BaseException:
+        os.close(descriptor)
+        raise
+    try:
+        opened = os.fstat(stream.fileno())
+        named = os.stat(lock_path, follow_symlinks=False)
+        if (opened.st_dev, opened.st_ino) != (named.st_dev, named.st_ino):
+            raise ValueError(f"dependency lock collision: {lock_path}")
+        if created:
+            stream.write(DEPENDENCY_LOCK_MAGIC)
+            stream.flush()
+            os.fsync(stream.fileno())
+        else:
+            stream.seek(0)
+            try:
+                contents = stream.read()
+            except PermissionError as error:
+                raise RuntimeError("another dependency runtime operation is already running") from error
+            if contents != DEPENDENCY_LOCK_MAGIC:
+                raise ValueError(f"dependency lock collision: {lock_path}")
+        stream.seek(0)
         if os.name == "nt":
             import msvcrt
 
@@ -277,6 +282,9 @@ def dependency_runtime_lock(runtime: Path):
     except OSError as error:
         stream.close()
         raise RuntimeError("another dependency runtime operation is already running") from error
+    except BaseException:
+        stream.close()
+        raise
     try:
         yield
     finally:

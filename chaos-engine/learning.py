@@ -76,13 +76,16 @@ def _file_learning_lock(state: Path):
         raise ValueError("ChaosEngine learning lock is a link or reparse point")
     flags = os.O_RDWR | os.O_CREAT | getattr(os, "O_BINARY", 0) | getattr(os, "O_NOFOLLOW", 0)
     descriptor = os.open(lock, flags, 0o600)
-    stream = os.fdopen(descriptor, "r+b", closefd=True)
-    opened = os.fstat(stream.fileno())
-    named = os.stat(lock, follow_symlinks=False)
-    if (opened.st_dev, opened.st_ino) != (named.st_dev, named.st_ino):
-        stream.close()
-        raise ValueError("ChaosEngine learning lock collision")
     try:
+        stream = os.fdopen(descriptor, "r+b", closefd=True)
+    except BaseException:
+        os.close(descriptor)
+        raise
+    try:
+        opened = os.fstat(stream.fileno())
+        named = os.stat(lock, follow_symlinks=False)
+        if (opened.st_dev, opened.st_ino) != (named.st_dev, named.st_ino):
+            raise ValueError("ChaosEngine learning lock collision")
         if os.name == "nt":
             import msvcrt
 
@@ -100,6 +103,10 @@ def _file_learning_lock(state: Path):
         named = os.stat(lock, follow_symlinks=False)
         if (opened.st_dev, opened.st_ino) != (named.st_dev, named.st_ino):
             raise ValueError("ChaosEngine learning lock ownership drift detected")
+    except BaseException:
+        stream.close()
+        raise
+    try:
         yield
     finally:
         try:

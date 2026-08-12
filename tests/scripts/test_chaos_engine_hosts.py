@@ -27,6 +27,15 @@ def load(path: Path, name: str):
 
 
 class ChaosEngineHostsTest(unittest.TestCase):
+    def test_validate_path_rejects_a_path_outside_the_project(self):
+        module = load(HOSTS, "chaos_engine_hosts_outside_path")
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            project = root / "consumer"
+            project.mkdir()
+            with self.assertRaisesRegex(ValueError, "escapes the project"):
+                module.validate_path(project, root / "outside.txt")
+
     def test_five_host_adapters_route_to_one_installed_skill(self):
         module = load(HOSTS, "chaos_engine_hosts")
         with tempfile.TemporaryDirectory() as temporary:

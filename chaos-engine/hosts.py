@@ -255,8 +255,11 @@ def validate_path(project: Path, path: Path) -> None:
     while current != project:
         if is_link_or_reparse(current):
             raise ValueError(f"ChaosEngine host path is a link or reparse point: {current}")
-        current = current.parent
-    if current != project or is_link_or_reparse(project):
+        parent = current.parent
+        if parent == current:
+            raise ValueError(f"ChaosEngine host path escapes the project: {path}")
+        current = parent
+    if is_link_or_reparse(project):
         raise ValueError(f"ChaosEngine host path escapes the project: {path}")
 
 

@@ -28,6 +28,17 @@ def load_controller():
 
 
 class ChaosEngineDependenciesTest(unittest.TestCase):
+    def test_runtime_lock_closes_descriptor_when_stream_creation_fails(self):
+        module = load_controller()
+        with tempfile.TemporaryDirectory() as temporary:
+            runtime = Path(temporary) / ".chaos-engine-runtime"
+            with mock.patch.object(module.os, "fdopen", side_effect=OSError("stream failed")):
+                with mock.patch.object(module.os, "close", wraps=module.os.close) as close:
+                    with self.assertRaisesRegex(OSError, "stream failed"):
+                        with module.runtime_lock(runtime):
+                            self.fail("lock unexpectedly acquired")
+            close.assert_called_once()
+
     @staticmethod
     def fake_runner(root: Path):
         def runner(command, environment):
@@ -93,7 +104,7 @@ class ChaosEngineDependenciesTest(unittest.TestCase):
         self.assertEqual(1, receipt["schemaVersion"])
         self.assertEqual(receipt, persisted)
         invoked = {Path(command[0]).stem for command, _ in calls}
-        self.assertTrue({"mempalace", "mempalace-mcp", "graphify", "memory", "memory-mcp"} <= invoked)
+        self.assertLessEqual({"mempalace", "mempalace-mcp", "graphify", "memory", "memory-mcp"}, invoked)
         self.assertTrue(all("UV_TOOL_DIR" in environment for _, environment in calls))
 
     def test_failed_repair_preserves_last_known_good_runtime(self):
@@ -107,7 +118,6 @@ class ChaosEngineDependenciesTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temporary:
             runtime = Path(temporary) / ".chaos-engine-runtime"
             module.repair(runtime, specification, runner=self.fake_runner(runtime))
-            marker = runtime / "last-known-good.txt"
             # An unknown addition is drift, so use an owned entrypoint as the marker.
             marker = Path(module.probe_plan(runtime)["graphify"][0][0])
             before = marker.read_text(encoding="utf-8")
