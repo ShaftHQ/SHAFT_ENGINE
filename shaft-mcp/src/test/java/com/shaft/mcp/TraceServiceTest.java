@@ -30,6 +30,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 @SuppressWarnings("PMD.AvoidAccessibilityAlteration") // Frozen-consumer proof invokes the internal serializer directly.
 class TraceServiceTest {
     private static final ObjectMapper JSON = new ObjectMapper();
+    private static final long MAX_TRACE_JSON_BYTES = 64L * 1024 * 1024;
+    private static final long MAX_VIEWER_BYTES = 64L * 1024 * 1024;
 
     @Test
     void frozenV1ConsumerSummarizesNewlyEmittedTraceWithNestedV2Session(@TempDir Path temp) throws Exception {
@@ -340,6 +342,55 @@ class TraceServiceTest {
 
         assertTrue(result.viewerPath().isBlank());
         assertTrue(result.warnings().stream().anyMatch(w -> w.contains("does not contain")));
+    }
+
+    @Test
+    void traceOpenViewerRejectsOversizedCompressedEntryWithoutPublishingPartialFile(@TempDir Path temp)
+            throws Exception {
+        Path directory = Files.createDirectories(temp.resolve("target/shaft-traces/oversized-viewer"));
+        Path archive = directory.resolve("shaft-trace.zip");
+        writeZipWithRepeatedHtml(archive, MAX_VIEWER_BYTES + 1);
+        Path index = directory.resolve("index.json");
+        Files.writeString(index, """
+                {
+                  "testId": "oversized-viewer",
+                  "generatedAt": "2026-08-12T15:00:00Z",
+                  "archive": "%s",
+                  "entries": {"html": "SHAFT Trace Report.html", "json": "shaft-trace.json"}
+                }
+                """.formatted(relative(temp, archive)), StandardCharsets.UTF_8);
+
+        var result = service(temp).traceOpenViewer(relative(temp, index));
+
+        assertTrue(result.viewerPath().isBlank());
+        assertFalse(result.extracted());
+        assertEquals(List.of("Trace viewer exceeds the 64 MiB extraction limit."), result.warnings());
+        assertFalse(Files.exists(directory.resolve("SHAFT Trace Report.html")));
+        try (var files = Files.list(directory)) {
+            assertFalse(files.anyMatch(path -> path.getFileName().toString().contains(".tmp")),
+                    "Failed extraction must remove private staging files");
+        }
+    }
+
+    @Test
+    void traceReadRejectsOversizedCompressedJsonBeforeParsing(@TempDir Path temp) throws Exception {
+        Path directory = Files.createDirectories(temp.resolve("target/shaft-traces/oversized-json"));
+        Path archive = directory.resolve("shaft-trace.zip");
+        writeZipWithRepeatedJson(archive, MAX_TRACE_JSON_BYTES + 1);
+        Path index = directory.resolve("index.json");
+        Files.writeString(index, """
+                {
+                  "testId": "oversized-json",
+                  "generatedAt": "2026-08-12T15:00:00Z",
+                  "archive": "%s",
+                  "entries": {"json": "shaft-trace.json"}
+                }
+                """.formatted(relative(temp, archive)), StandardCharsets.UTF_8);
+
+        IllegalArgumentException failure = assertThrows(IllegalArgumentException.class,
+                () -> service(temp).traceRead(relative(temp, index), 1000));
+
+        assertEquals("Trace JSON exceeds the 64 MiB read limit.", failure.getMessage());
     }
 
     @Test
@@ -772,6 +823,44 @@ class TraceServiceTest {
             zip.closeEntry();
             zip.putNextEntry(new ZipEntry("SHAFT Trace Report.html"));
             zip.write(html.getBytes(StandardCharsets.UTF_8));
+            zip.closeEntry();
+        }
+    }
+
+    private static void writeZipWithRepeatedHtml(Path archive, long htmlBytes) throws Exception {
+        byte[] block = new byte[8192];
+        java.util.Arrays.fill(block, (byte) 'x');
+        try (ZipOutputStream zip = new ZipOutputStream(Files.newOutputStream(archive))) {
+            zip.putNextEntry(new ZipEntry("shaft-trace.json"));
+            zip.write(traceJson("\"actions\": [], \"network\": [], \"console\": []")
+                    .getBytes(StandardCharsets.UTF_8));
+            zip.closeEntry();
+            zip.putNextEntry(new ZipEntry("SHAFT Trace Report.html"));
+            long remaining = htmlBytes;
+            while (remaining > 0) {
+                int count = (int) Math.min(block.length, remaining);
+                zip.write(block, 0, count);
+                remaining -= count;
+            }
+            zip.closeEntry();
+        }
+    }
+
+    private static void writeZipWithRepeatedJson(Path archive, long jsonBytes) throws Exception {
+        byte[] prefix = "{\"padding\":\"".getBytes(StandardCharsets.UTF_8);
+        byte[] suffix = "\"}".getBytes(StandardCharsets.UTF_8);
+        byte[] block = new byte[8192];
+        java.util.Arrays.fill(block, (byte) 'x');
+        long paddingBytes = jsonBytes - prefix.length - suffix.length;
+        try (ZipOutputStream zip = new ZipOutputStream(Files.newOutputStream(archive))) {
+            zip.putNextEntry(new ZipEntry("shaft-trace.json"));
+            zip.write(prefix);
+            while (paddingBytes > 0) {
+                int count = (int) Math.min(block.length, paddingBytes);
+                zip.write(block, 0, count);
+                paddingBytes -= count;
+            }
+            zip.write(suffix);
             zip.closeEntry();
         }
     }
