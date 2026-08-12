@@ -2,6 +2,7 @@
 
 import importlib.util
 import json
+import os
 import shutil
 import subprocess  # nosec B404 - tests run fixed repository-owned commands.
 import sys
@@ -174,6 +175,21 @@ class GraphifyMaintenanceTest(TestCase):
         ):
             with self.assertRaisesRegex(ValueError, "fixed graphify-out"):
                 module.refresh(self.repository, Path("cache/map"))
+
+        self.assertEqual([], stages)
+
+    def test_refresh_rejects_mismatched_environment_override_before_any_stage(self):
+        module = self.load_module()
+        stages = []
+
+        with mock.patch.dict(
+            os.environ,
+            {"SHAFT_GRAPHIFY_OUT": str(self.repository / "alternate-cache")},
+        ), mock.patch.object(
+            module, "run_stage", side_effect=lambda name, command, root: stages.append(name)
+        ):
+            with self.assertRaisesRegex(ValueError, "must match the refresh checkout"):
+                module.refresh(self.repository, Path("graphify-out"))
 
         self.assertEqual([], stages)
 
