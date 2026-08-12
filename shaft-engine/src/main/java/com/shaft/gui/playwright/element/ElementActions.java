@@ -7,6 +7,10 @@ import com.shaft.gui.driver.ElementAssertions;
 import com.shaft.gui.driver.ElementTarget;
 import com.shaft.gui.driver.ShaftLocator;
 import com.shaft.gui.internal.aria.AriaSnapshotHelper;
+import com.shaft.gui.internal.ocr.OcrCoordinateMapper;
+import com.shaft.gui.internal.ocr.OcrPoint;
+import com.shaft.gui.internal.ocr.OcrProcessingActions;
+import com.shaft.gui.ocr.OcrTarget;
 import com.shaft.gui.internal.locator.CompositeLocator;
 import com.shaft.gui.internal.locator.SmartLocators;
 import com.shaft.gui.playwright.internal.PlaywrightSession;
@@ -18,6 +22,8 @@ import com.shaft.validation.ValidationEnums;
 import org.openqa.selenium.By;
 
 import java.io.ByteArrayInputStream;
+import javax.imageio.ImageIO;
+import java.io.IOException;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -107,6 +113,11 @@ public class ElementActions implements com.shaft.gui.driver.ElementActionsContra
         return click(resolve(elementLocator));
     }
 
+    @Override
+    public ElementActions click(OcrTarget target) {
+        return ocrPointerAction(target, OcrPointerGesture.CLICK);
+    }
+
     /**
      * Clicks a clickable element resolved by visible text, label, or accessible name.
      *
@@ -183,6 +194,11 @@ public class ElementActions implements com.shaft.gui.driver.ElementActionsContra
         return doubleClick(resolve(elementLocator));
     }
 
+    @Override
+    public ElementActions doubleClick(OcrTarget target) {
+        return ocrPointerAction(target, OcrPointerGesture.DOUBLE_CLICK);
+    }
+
     public ElementActions doubleClick(Locator elementLocator) {
         return timed("playwright.element.doubleClick", elementLocator::dblclick);
     }
@@ -231,6 +247,11 @@ public class ElementActions implements com.shaft.gui.driver.ElementActionsContra
     @Override
     public ElementActions hover(ShaftLocator elementLocator) {
         return hover(resolve(elementLocator));
+    }
+
+    @Override
+    public ElementActions hover(OcrTarget target) {
+        return ocrPointerAction(target, OcrPointerGesture.HOVER);
     }
 
     public ElementActions hover(Locator elementLocator) {
@@ -471,6 +492,37 @@ public class ElementActions implements com.shaft.gui.driver.ElementActionsContra
             return resolve(compositeLocator, locator);
         }
         return ShaftLocator.from(locator).toPlaywrightLocator(session.page());
+    }
+
+    private ElementActions ocrPointerAction(OcrTarget target, OcrPointerGesture gesture) {
+        return timed("playwright.element.ocr." + gesture.name().toLowerCase(), () -> {
+            byte[] screenshot = session.page().screenshot();
+            java.awt.image.BufferedImage image;
+            try {
+                image = ImageIO.read(new ByteArrayInputStream(screenshot));
+            } catch (IOException exception) {
+                throw new IllegalArgumentException("Playwright returned an unreadable OCR screenshot.", exception);
+            }
+            if (image == null) {
+                throw new IllegalArgumentException("Playwright returned an unreadable OCR screenshot.");
+            }
+            var viewport = session.page().viewportSize();
+            int targetWidth = viewport == null ? image.getWidth() : viewport.width;
+            int targetHeight = viewport == null ? image.getHeight() : viewport.height;
+            OcrPoint point = OcrCoordinateMapper.toPointerCenter(OcrProcessingActions.find(screenshot, target),
+                    image.getWidth(), image.getHeight(), targetWidth, targetHeight, 0, 0);
+            switch (gesture) {
+                case CLICK -> session.page().mouse().click(point.x(), point.y());
+                case DOUBLE_CLICK -> session.page().mouse().dblclick(point.x(), point.y());
+                case HOVER -> session.page().mouse().move(point.x(), point.y());
+            }
+        });
+    }
+
+    private enum OcrPointerGesture {
+        CLICK,
+        DOUBLE_CLICK,
+        HOVER
     }
 
     private Locator resolve(CompositeLocator compositeLocator, By originalLocator) {

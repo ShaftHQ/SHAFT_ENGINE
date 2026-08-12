@@ -22,6 +22,7 @@ on:
       - 'shaft-browserstack/**'
       - 'shaft-video/**'
       - 'shaft-visual/**'
+      - 'shaft-ocr/**'
       - 'shaft-sikulix/**'
       - 'shaft-bom/**'
       - 'legacy-shaft-engine/**'

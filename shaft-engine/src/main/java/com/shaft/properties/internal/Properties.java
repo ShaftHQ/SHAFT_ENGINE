@@ -62,6 +62,7 @@ public class Properties {
     static NaturalActions baseNaturalActions;
     static Playwright basePlaywright;
     static Capture baseCapture;
+    static Ocr baseOcr;
 
     // -------------------------------------------------------------------------
     // Thread-local override configs – updated by set() calls on each thread.
@@ -87,6 +88,7 @@ public class Properties {
     static final ThreadLocal<NaturalActions> naturalActionsOverride = new ThreadLocal<>();
     static final ThreadLocal<Playwright> playwrightOverride = new ThreadLocal<>();
     static final ThreadLocal<Capture> captureOverride = new ThreadLocal<>();
+    static final ThreadLocal<Ocr> ocrOverride = new ThreadLocal<>();
 
     // -------------------------------------------------------------------------
     // Public proxy fields – fully API-compatible with the previous static fields.
@@ -116,6 +118,7 @@ public class Properties {
             () -> baseNaturalActions);
     public static final Playwright playwright = createProxy(Playwright.class, playwrightOverride, () -> basePlaywright);
     public static final Capture capture = createProxy(Capture.class, captureOverride, () -> baseCapture);
+    public static final Ocr ocr = createProxy(Ocr.class, ocrOverride, () -> baseOcr);
 
     // Read-only properties – not mutable after initialisation, no proxy needed.
     public static Internal internal;
@@ -247,6 +250,7 @@ public class Properties {
         naturalActionsOverride.remove();
         playwrightOverride.remove();
         captureOverride.remove();
+        ocrOverride.remove();
         synchronized (Properties.class) {
             if (pristineBaseFlags != null) {
                 baseFlags = pristineBaseFlags;

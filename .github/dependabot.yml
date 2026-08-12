@@ -36,6 +36,7 @@ updates:
       - "/shaft-browserstack"
       - "/shaft-video"
       - "/shaft-visual"
+      - "/shaft-ocr"
       - "/shaft-sikulix"
       - "/shaft-mcp"
       - "/shaft-bom"

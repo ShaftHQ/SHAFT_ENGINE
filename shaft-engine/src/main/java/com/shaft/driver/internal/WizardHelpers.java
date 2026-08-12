@@ -85,6 +85,14 @@ public class WizardHelpers {
             return com.shaft.validation.Validations.assertThat().file(folderRelativePath, fileName);
         }
 
+        public OcrImageValidationsBuilder image(byte[] image) {
+            return com.shaft.validation.Validations.assertThat().image(image);
+        }
+
+        public OcrImageValidationsBuilder image(java.nio.file.Path image) {
+            return com.shaft.validation.Validations.assertThat().image(image);
+        }
+
         public ValidationsExecutor forceFail() {
             return com.shaft.validation.Validations.assertThat().forceFail();
         }
@@ -110,6 +118,14 @@ public class WizardHelpers {
 
         public FileValidationsBuilder file(String folderRelativePath, String fileName) {
             return com.shaft.validation.Validations.verifyThat().file(folderRelativePath, fileName);
+        }
+
+        public OcrImageValidationsBuilder image(byte[] image) {
+            return com.shaft.validation.Validations.verifyThat().image(image);
+        }
+
+        public OcrImageValidationsBuilder image(java.nio.file.Path image) {
+            return com.shaft.validation.Validations.verifyThat().image(image);
         }
 
         public ValidationsExecutor forceFail() {

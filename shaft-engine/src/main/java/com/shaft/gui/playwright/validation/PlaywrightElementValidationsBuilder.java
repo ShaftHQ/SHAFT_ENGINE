@@ -4,10 +4,13 @@ import com.microsoft.playwright.Locator;
 import com.shaft.gui.driver.ElementAssertions;
 import com.shaft.gui.driver.ElementTarget;
 import com.shaft.gui.playwright.internal.PlaywrightSession;
+import com.shaft.gui.internal.ocr.OcrProcessingActions;
+import com.shaft.gui.ocr.OcrOptions;
 import com.shaft.validation.ValidationEnums;
 import com.shaft.validation.VisualComparisonOptions;
 import com.shaft.validation.internal.NativeValidationsBuilder;
 import com.shaft.validation.internal.ValidationsExecutor;
+import com.shaft.validation.internal.ValidationsBuilder;
 
 import java.util.Objects;
 
@@ -37,6 +40,13 @@ public class PlaywrightElementValidationsBuilder implements ElementAssertions {
     @Override
     public NativeValidationsBuilder elementRole() {
         return focusedValue("elementRoleEquals", "accessibility role ");
+    }
+
+    @Override
+    public NativeValidationsBuilder ocrText(OcrOptions options) {
+        reportMessageBuilder.append("OCR text ");
+        return new ValidationsBuilder(validationCategory)
+                .object(OcrProcessingActions.recognize(resolvedLocator().screenshot(), options).fullText());
     }
 
     public PlaywrightElementValidationsBuilder(ValidationEnums.ValidationCategory validationCategory,
