@@ -29,12 +29,12 @@ import java.util.zip.ZipFile;
 /** Explicit headless acceptance for the generated single-file trace viewer. */
 public class TraceViewerBrowserAcceptanceTest {
     private static final String BLOCKED_RESOURCE = "https://blocked.invalid/private.png";
-    private static final long CONSOLE_BASE_TIME = 1_786_540_000_000L;
 
     @Test(groups = "trace-viewer-browser-acceptance")
     public void generatedViewerShouldRemainOfflineAndShareNavigableRangeState() throws Exception {
         Path chrome = chromeExecutable();
-        Path html = generateViewerFixture();
+        ViewerFixture fixture = generateViewerFixture();
+        Path html = fixture.html();
         Path screenshot = Path.of(System.getProperty("shaft.trace.viewer.screenshot",
                 "target/trace-viewer-browser-acceptance.png")).toAbsolutePath().normalize();
         Files.createDirectories(screenshot.getParent());
@@ -86,7 +86,11 @@ public class TraceViewerBrowserAcceptanceTest {
             page.locator("#network-status-filter").selectOption("");
             page.locator("#network-text-filter").fill("retry later");
             Assert.assertEquals(page.locator("#network-rows tr").count(), 1);
-            page.locator("#network-rows tr").click();
+            Assert.assertEquals(page.locator("#network-hint").textContent(),
+                    "Use View request details to inspect headers and body preview.");
+            Assert.assertEquals(page.locator("#network-rows tr button").textContent(), "View request details");
+            page.locator("#network-rows tr button").focus();
+            page.locator("#network-rows tr button").press("Enter");
             Assert.assertTrue(page.locator("#network-detail").textContent().contains("request-value"));
             Assert.assertTrue(page.locator("#network-detail").textContent().contains("retry later"));
             page.locator("#network-text-filter").fill("no-such-exchange");
@@ -109,7 +113,7 @@ public class TraceViewerBrowserAcceptanceTest {
             Assert.assertFalse(String.valueOf(legacyRow.getAttribute("class")).contains("inwindow"));
             page.locator("#network-sort-time button").click();
             page.locator("#network-sort-time button").click();
-            Assert.assertEquals(page.locator("#network-rows tr").last().locator("td").last().textContent(),
+            Assert.assertEquals(page.locator("#network-rows tr").last().locator("td").nth(6).textContent(),
                     "legacy://untimed", "Missing sort values stay last in descending order.");
 
             page.locator("button[data-tab=console]").click();
@@ -120,7 +124,11 @@ public class TraceViewerBrowserAcceptanceTest {
             page.locator("#console-level-filter").selectOption("ERROR");
             Assert.assertEquals(page.locator("#console-rows tr").count(), 1);
             Assert.assertTrue(page.locator("#console-rows tr").textContent().contains("checkout failed"));
-            page.locator("#console-rows tr").click();
+            Assert.assertEquals(page.locator("#console-hint").textContent(),
+                    "Use View message details to inspect the structured message.");
+            Assert.assertEquals(page.locator("#console-rows tr button").textContent(), "View message details");
+            page.locator("#console-rows tr button").focus();
+            page.locator("#console-rows tr button").press("Space");
             Assert.assertFalse(page.locator("#console-detail").isHidden());
             Assert.assertTrue(page.locator("#console-detail").textContent().contains("browser"));
             Assert.assertTrue(page.locator("#console-detail").textContent().contains("<img id=console-injection>"));
@@ -132,7 +140,7 @@ public class TraceViewerBrowserAcceptanceTest {
             Assert.assertEquals(consoleDetail.get("source"), "browser");
             Assert.assertEquals(consoleDetail.get("level"), "ERROR");
             Assert.assertEquals(consoleDetail.get("message"), "<img id=console-injection> checkout failed");
-            Assert.assertEquals(((Number) consoleDetail.get("timestamp")).longValue(), CONSOLE_BASE_TIME);
+            Assert.assertEquals(((Number) consoleDetail.get("timestamp")).longValue(), fixture.consoleBaseTime());
             page.locator("#console-level-filter").selectOption("");
             page.locator("#console-source-filter").selectOption("driver");
             Assert.assertEquals(page.locator("#console-rows tr").count(), 1);
@@ -178,7 +186,7 @@ public class TraceViewerBrowserAcceptanceTest {
                     new com.microsoft.playwright.Locator.FilterOptions().setHasText("Unknown"));
             Assert.assertEquals(legacyConsoleRow.count(), 1);
             Assert.assertEquals(legacyConsoleRow.locator("td").allTextContents(),
-                    List.of("Unknown", "Unknown", "Unknown", "Unknown"));
+                    List.of("Unknown", "Unknown", "Unknown", "Unknown", "View message details"));
             Assert.assertFalse(String.valueOf(legacyConsoleRow.getAttribute("class")).contains("inwindow"));
             page.locator("#console-sort-time button").click();
             page.locator("#console-sort-time button").click();
@@ -186,7 +194,7 @@ public class TraceViewerBrowserAcceptanceTest {
                     List.of("alpha scheduled", "<img id=console-injection> checkout failed", "retry scheduled"),
                     "Equal timestamps retain their original order when sorting descending.");
             Assert.assertEquals(page.locator("#console-rows tr").last().locator("td").allTextContents(),
-                    List.of("Unknown", "Unknown", "Unknown", "Unknown"));
+                    List.of("Unknown", "Unknown", "Unknown", "Unknown", "View message details"));
 
             page.navigate(html.toUri() + "#action-action-1");
             Assert.assertTrue(page.locator("#details-title").textContent().contains("CLICK"));
@@ -304,7 +312,7 @@ public class TraceViewerBrowserAcceptanceTest {
             Assert.assertEquals(page.locator("#console-result-count").textContent(), "1 console message",
                     "Timed console messages remain point events; untimed legacy evidence remains visible.");
             Assert.assertEquals(page.locator("#console-rows tr td").allTextContents(),
-                    List.of("Unknown", "Unknown", "Unknown", "Unknown"));
+                    List.of("Unknown", "Unknown", "Unknown", "Unknown", "View message details"));
 
             String selectedRange = String.valueOf(page.locator("#range-label").evaluate("element => element.value"));
             int historyBeforeShowAll = ((Number) page.evaluate("history.length")).intValue();
@@ -325,7 +333,7 @@ public class TraceViewerBrowserAcceptanceTest {
         Assert.assertTrue(Files.size(screenshot) > 10_000, "Rendered screenshot should contain the populated viewer.");
     }
 
-    private static Path generateViewerFixture() throws Exception {
+    private static ViewerFixture generateViewerFixture() throws Exception {
         WebDriver driver = Mockito.mock(WebDriver.class,
                 Mockito.withSettings().extraInterfaces(JavascriptExecutor.class));
         Mockito.when(driver.getCurrentUrl()).thenReturn("https://example.test/checkout");
@@ -353,13 +361,14 @@ public class TraceViewerBrowserAcceptanceTest {
             BrowserObservabilityRecorder.recordNetwork(new BrowserObservabilityRecorder.NetworkObservation(
                     "GET", "https://example.test/orders", 503, Map.of("x-request", "request-value"),
                     Map.of("x-response", "response-value"), 45, 5, 12, "upstream unavailable", "retry later"));
+            long consoleBaseTime = System.currentTimeMillis();
             BrowserObservabilityRecorder.recordConsole("browser", "ERROR",
                     "<img id=console-injection> checkout failed",
-                    CONSOLE_BASE_TIME);
+                    consoleBaseTime);
             BrowserObservabilityRecorder.recordConsole("driver", "INFO", "retry scheduled",
-                    CONSOLE_BASE_TIME);
+                    consoleBaseTime);
             BrowserObservabilityRecorder.recordConsole("worker", "INFO", "alpha scheduled",
-                    CONSOLE_BASE_TIME + 1);
+                    consoleBaseTime + 1);
 
             Method marker = TraceViewerBrowserAcceptanceTest.class.getDeclaredMethod("marker");
             TestExecutionInfo info = new TestExecutionInfo("trace-viewer-browser-acceptance", "customer.CheckoutTest",
@@ -369,7 +378,7 @@ public class TraceViewerBrowserAcceptanceTest {
             Path archive = FailureTraceReporter.traceDirectory(info).resolve("shaft-trace.zip");
             Path html = Path.of("target", "trace-viewer-browser-acceptance.html").toAbsolutePath().normalize();
             extract(archive, "SHAFT Trace Report.html", html);
-            return html;
+            return new ViewerFixture(html, consoleBaseTime);
         } finally {
             TraceEventRecorder.clear();
             BrowserObservabilityRecorder.clear();
@@ -379,6 +388,9 @@ public class TraceViewerBrowserAcceptanceTest {
 
     private static String snapshot(String label) {
         return "<html><body><main>" + label + "</main><img src=\"" + BLOCKED_RESOURCE + "\"></body></html>";
+    }
+
+    private record ViewerFixture(Path html, long consoleBaseTime) {
     }
 
     private static void extract(Path archive, String entryName, Path target) throws IOException {

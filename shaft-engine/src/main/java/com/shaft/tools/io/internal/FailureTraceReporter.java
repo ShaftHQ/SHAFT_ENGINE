@@ -391,7 +391,6 @@ public final class FailureTraceReporter {
                 .timeline-label{overflow-wrap:anywhere}
                 .trace-table{width:100%;border-collapse:collapse;font-size:.86em}
                 .trace-table th,.trace-table td{padding:4px 8px;border-bottom:1px solid var(--shaft-border,#eee);text-align:left;vertical-align:top;overflow-wrap:anywhere}
-                .trace-table tbody tr{cursor:pointer}
                 .trace-table tbody tr:hover{background:rgba(var(--shaft-primary-rgb),.08)}
                 .trace-table tr.inwindow{background:rgba(var(--shaft-primary-rgb),.10)}
                 .trace-table tr.failed td{color:var(--shaft-fail)}
@@ -527,7 +526,7 @@ public final class FailureTraceReporter {
                         <th id="network-sort-status"><button type="button" class="sort-button" data-network-sort="status">Status</button></th>
                         <th id="network-sort-duration"><button type="button" class="sort-button" data-network-sort="duration">Duration</button></th>
                         <th id="network-sort-size"><button type="button" class="sort-button" data-network-sort="size">Size</button></th>
-                        <th>URL</th>
+                        <th>URL</th><th>Details</th>
                       </tr></thead><tbody id="network-rows"></tbody></table>
                       <pre id="network-detail" hidden></pre>
                     </div>
@@ -543,7 +542,7 @@ public final class FailureTraceReporter {
                         <th id="console-sort-time" aria-sort="ascending"><button type="button" class="sort-button" data-console-sort="time">Time</button></th>
                         <th id="console-sort-source"><button type="button" class="sort-button" data-console-sort="source">Source</button></th>
                         <th id="console-sort-level"><button type="button" class="sort-button" data-console-sort="level">Level</button></th>
-                        <th id="console-sort-message"><button type="button" class="sort-button" data-console-sort="message">Message</button></th>
+                        <th id="console-sort-message"><button type="button" class="sort-button" data-console-sort="message">Message</button></th><th>Details</th>
                       </tr></thead><tbody id="console-rows"></tbody></table>
                       <pre id="console-detail" hidden></pre>
                     </div>
@@ -898,15 +897,18 @@ public final class FailureTraceReporter {
                   document.getElementById('network-hint').textContent = !network.length
                     ? 'No network exchanges were recorded.'
                     : !visible.length ? 'No network exchanges match the selected range and filters.'
-                    : 'Click a request for headers and body preview.';
+                    : 'Use View request details to inspect headers and body preview.';
                   visible.forEach(({entry}) => {
                     const tr = document.createElement('tr');
                     const timed = finiteNumber(networkStartMs(entry)) != null;
                     tr.className = `${networkFailed(entry) ? 'failed ' : ''}${timed ? 'inwindow' : ''}`.trim();
                     const duration = finiteNumber(entry.durationMs);
                     const size = networkSize(entry);
-                    tr.innerHTML = `<td class="time-cell">${esc(offsetLabel(networkStartMs(entry)))}</td><td>${networkType(entry)}</td><td>${esc(entry.method || 'Unknown')}</td><td>${esc(networkStatus(entry))}</td><td>${duration == null ? 'Unknown' : `${duration}ms`}</td><td>${size == null ? 'Unknown' : `${size} B`}</td><td>${esc(entry.url || 'Unknown')}</td>`;
-                    tr.addEventListener('click', () => { networkDetail.hidden = false; networkDetail.textContent = JSON.stringify(entry, null, 2); });
+                    tr.innerHTML = `<td class="time-cell">${esc(offsetLabel(networkStartMs(entry)))}</td><td>${networkType(entry)}</td><td>${esc(entry.method || 'Unknown')}</td><td>${esc(networkStatus(entry))}</td><td>${duration == null ? 'Unknown' : `${duration}ms`}</td><td>${size == null ? 'Unknown' : `${size} B`}</td><td>${esc(entry.url || 'Unknown')}</td><td><button type="button" class="secondary">View request details</button></td>`;
+                    tr.querySelector('button').addEventListener('click', () => {
+                      networkDetail.hidden = false;
+                      networkDetail.textContent = JSON.stringify(entry, null, 2);
+                    });
                     networkRows.appendChild(tr);
                   });
                   updateNetworkSortHeaders();
@@ -969,13 +971,13 @@ public final class FailureTraceReporter {
                   document.getElementById('console-hint').textContent = !consoleEvents.length
                     ? 'No console messages were recorded.'
                     : !visible.length ? 'No console messages match the selected range and filters.'
-                    : 'Click a message for its structured details.';
+                    : 'Use View message details to inspect the structured message.';
                   visible.forEach(({entry}) => {
                     const tr = document.createElement('tr');
                     const timed = finiteNumber(entry.timestamp) != null;
                     tr.className = `${consoleFailed(entry) ? 'failed ' : ''}${timed ? 'inwindow' : ''}`.trim();
-                    tr.innerHTML = `<td class="time-cell">${timed ? esc(offsetLabel(entry.timestamp)) : 'Unknown'}</td><td>${esc(entry.source || 'Unknown')}</td><td>${esc(entry.level || 'Unknown')}</td><td>${esc(entry.message || 'Unknown')}</td>`;
-                    tr.addEventListener('click', () => {
+                    tr.innerHTML = `<td class="time-cell">${timed ? esc(offsetLabel(entry.timestamp)) : 'Unknown'}</td><td>${esc(entry.source || 'Unknown')}</td><td>${esc(entry.level || 'Unknown')}</td><td>${esc(entry.message || 'Unknown')}</td><td><button type="button" class="secondary">View message details</button></td>`;
+                    tr.querySelector('button').addEventListener('click', () => {
                       consoleDetail.hidden = false;
                       consoleDetail.textContent = JSON.stringify(entry, null, 2);
                     });
