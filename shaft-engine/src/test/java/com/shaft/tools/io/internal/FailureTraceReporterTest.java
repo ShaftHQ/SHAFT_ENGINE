@@ -978,6 +978,30 @@ public class FailureTraceReporterTest {
         }
     }
 
+    @Test(description = "The canonical trace index should use recoverable atomic publication")
+    public void traceIndexShouldUseRecoverableAtomicPublication() throws Exception {
+        TestExecutionInfo info = info("atomicIndexPublicationScenario", failure());
+        Path directory = FailureTraceReporter.traceDirectory(info);
+        Path completedArchive = directory.resolve("completed.zip");
+        try {
+            deleteDirectory(directory);
+            Files.createDirectories(directory);
+            Files.writeString(completedArchive, "completed invocation", StandardCharsets.UTF_8);
+            try (MockedStatic<TraceArchiveWriter> archiveWriter = Mockito.mockStatic(
+                    TraceArchiveWriter.class, Mockito.CALLS_REAL_METHODS)) {
+                FailureTraceReporter.persistTraceArtifacts(info, completedArchive, Map.of(), 1, List.of());
+
+                Path index = directory.resolve("index.json");
+                archiveWriter.verify(() -> TraceArchiveWriter.writeBytes(
+                        Mockito.eq(index), Mockito.any(byte[].class)));
+                Assert.assertTrue(JSON.readTree(Files.readString(index, StandardCharsets.UTF_8)).isObject());
+            }
+        } finally {
+            deleteDirectory(directory);
+            Properties.clearForCurrentThread();
+        }
+    }
+
     @Test(description = "Lossy path sanitization should not collapse distinct stable test ids")
     public void sanitizedAndTruncatedTestIdsShouldRemainCollisionResistant() throws Exception {
         Method method = FailureTraceReporterTest.class.getDeclaredMethod("failingScenario");
@@ -1064,8 +1088,11 @@ public class FailureTraceReporterTest {
             // Now shrink the cap so the already-buffered 2MB screenshot exceeds it at persist time.
             SHAFT.Properties.reporting.set().traceMaxArtifactMb(1);
             String v2Json = FailureTraceReporter.renderTraceJson(failingInfo, "failed", List.of());
-            Assert.assertTrue(findArtifact(JSON.readTree(v2Json).path("session"), "screenshot-action-1")
-                    .path("omitted").asBoolean());
+            JsonNode screenshotArtifact = findArtifact(JSON.readTree(v2Json).path("session"),
+                    "screenshot-action-1");
+            Assert.assertTrue(screenshotArtifact.path("omitted").asBoolean());
+            Assert.assertEquals(screenshotArtifact.path("metadata").path("omissionReason").asText(),
+                    "Omitted because artifact exceeded shaft.trace.maxArtifactMb=1");
 
             // Recreate the action because rendering drains the recorder, then exercise persisted index/ZIP behavior.
             TraceEventRecorder.clear();
@@ -1172,6 +1199,7 @@ public class FailureTraceReporterTest {
         TestExecutionInfo failingInfo = info("missingNativeTraceScenario", failure());
         Path traceDirectory = FailureTraceReporter.traceDirectory(failingInfo);
         Path missingTrace = Path.of("target", "missing-native-trace.zip");
+        JsonNode schemaArtifacts = null;
         try (MockedStatic<PlaywrightTraceManager> traceManager = Mockito.mockStatic(PlaywrightTraceManager.class)) {
             deleteDirectory(traceDirectory);
             Files.deleteIfExists(missingTrace);
@@ -1182,6 +1210,7 @@ public class FailureTraceReporterTest {
 
             try (ZipFile zip = new ZipFile(traceDirectory.resolve("shaft-trace.zip").toFile())) {
                 String json = readZipEntry(zip, "shaft-trace.json");
+                schemaArtifacts = JSON.readTree(json).path("session").path("artifacts");
                 JsonNode nativeArtifact = findArtifact(JSON.readTree(json).path("session"), "native-trace");
                 Assert.assertTrue(nativeArtifact.path("omitted").asBoolean(), json);
                 Assert.assertTrue(nativeArtifact.path("metadata").path("omissionReason").asText()
@@ -1196,6 +1225,8 @@ public class FailureTraceReporterTest {
             }
             String index = Files.readString(traceDirectory.resolve("index.json"), StandardCharsets.UTF_8);
             Assert.assertTrue(index.contains("missing-native-trace.zip"), index);
+            Assert.assertEquals(JSON.readTree(index).path("artifacts"), schemaArtifacts,
+                    "The persisted index must copy the finalized schema artifact graph exactly.");
         } finally {
             TraceEventRecorder.clear();
             deleteDirectory(traceDirectory);

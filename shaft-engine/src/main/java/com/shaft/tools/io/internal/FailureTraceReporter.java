@@ -8,6 +8,7 @@ import com.shaft.gui.playwright.internal.PlaywrightSessionManager;
 import com.shaft.gui.playwright.internal.PlaywrightTraceManager;
 import com.shaft.listeners.internal.TestExecutionInfo;
 import com.shaft.tools.io.trace.TraceSession;
+import com.shaft.tools.io.trace.TraceArtifactReference;
 import com.shaft.tools.internal.support.ReportHtmlTheme;
 import org.apache.logging.log4j.Level;
 import org.openqa.selenium.WebDriver;
@@ -474,6 +475,7 @@ public final class FailureTraceReporter {
                        <button data-tab="network">Network</button>
                        <button data-tab="console">Console</button>
                        <button data-tab="mobile">Mobile</button>
+                       <button data-tab="artifacts">Artifacts</button>
                        <button data-tab="browserObservability">Observability</button>
                       <button data-tab="environment">Environment</button>
                       <button data-tab="attachments">Attachments</button>
@@ -566,6 +568,14 @@ public final class FailureTraceReporter {
                      </tr></thead><tbody id="mobile-rows"></tbody></table>
                      <pre id="mobile-detail" hidden></pre>
                    </div>
+                   <div id="artifact-panel" hidden>
+                     <p class="muted" id="artifact-hint"></p>
+                     <p class="muted" id="native-trace-handoff" hidden></p>
+                     <output id="artifact-result-count" class="result-count" aria-live="polite"></output>
+                     <table class="trace-table"><thead><tr>
+                       <th>Path</th><th>Kind</th><th>Media type</th><th>Status</th><th>Details</th>
+                     </tr></thead><tbody id="artifact-rows"></tbody></table>
+                   </div>
                  </section>
                 </div>
                 </main>
@@ -580,6 +590,8 @@ public final class FailureTraceReporter {
                 const actions = Array.isArray(trace.actions) ? trace.actions : [];
                 const network = Array.isArray(trace.network) ? trace.network : [];
                 const consoleEvents = Array.isArray(trace.console) ? trace.console : [];
+                const artifacts = Array.isArray(trace.session && trace.session.artifacts)
+                    ? trace.session.artifacts : [];
                 const actionList = document.getElementById('action-list');
                 const actionSearch = document.getElementById('action-search');
                 const details = document.getElementById('details');
@@ -728,8 +740,16 @@ public final class FailureTraceReporter {
                     </div>`;
                   if (truncation.length) {
                     document.getElementById('truncation-banner').hidden = false;
+                    const artifactReasons = new Map(artifacts.filter(artifact => artifact.omitted)
+                      .map(artifact => [artifact.path, artifact.metadata && artifact.metadata.omissionReason]));
+                    const omittedDetails = truncation.map(path => artifactReasons.get(path)
+                      ? `${path}: ${artifactReasons.get(path)}`
+                      : `${path}: exceeded shaft.trace.maxArtifactMb and was replaced with an omission marker`);
                     document.getElementById('truncation-detail').textContent =
-                      `These bundle entries exceeded shaft.trace.maxArtifactMb and were replaced with omission markers: ${truncation.join(', ')}. Raise the cap to capture them in full.`;
+                      `Some bundle entries were omitted: ${omittedDetails.join('; ')}.`;
+                  } else {
+                    document.getElementById('truncation-banner').hidden = true;
+                    document.getElementById('truncation-detail').textContent = '';
                   }
                 }
                 const filmstrip = document.getElementById('trace-filmstrip');
@@ -1066,6 +1086,29 @@ public final class FailureTraceReporter {
                     button.setAttribute('aria-pressed', String(selectedCategory));
                   });
                 }
+                const artifactRows = document.getElementById('artifact-rows');
+                const artifactResultCount = document.getElementById('artifact-result-count');
+                const nativeTraceHandoff = document.getElementById('native-trace-handoff');
+                function renderArtifacts(){
+                  artifactRows.innerHTML = '';
+                  artifactResultCount.textContent = `${artifacts.length} trace ${artifacts.length === 1 ? 'artifact' : 'artifacts'}`;
+                  document.getElementById('artifact-hint').textContent = artifacts.length
+                    ? 'Artifact paths are relative to the downloaded SHAFT trace ZIP.'
+                    : 'No artifact graph was recorded for this trace.';
+                  artifacts.forEach(artifact => {
+                    const tr = document.createElement('tr');
+                    const status = artifact.omitted ? 'Omitted' : 'Available';
+                    const reason = artifact.omitted && artifact.metadata
+                      ? artifact.metadata.omissionReason || 'No omission reason was recorded.' : '';
+                    tr.innerHTML = `<td>${esc(artifact.path || 'Unknown')}</td><td>${esc(artifact.kind || 'Unknown')}</td><td>${esc(artifact.mimeType || 'Unknown')}</td><td>${status}</td><td>${esc(reason)}</td>`;
+                    artifactRows.appendChild(tr);
+                  });
+                  const nativeTrace = artifacts.find(artifact => artifact.kind === 'native-trace');
+                  nativeTraceHandoff.hidden = !nativeTrace;
+                  nativeTraceHandoff.textContent = !nativeTrace ? '' : nativeTrace.omitted
+                    ? `Native Playwright trace omitted: ${(nativeTrace.metadata && nativeTrace.metadata.omissionReason) || 'No omission reason was recorded.'}`
+                    : `Native Playwright trace is available as ${nativeTrace.path} in the downloaded SHAFT trace ZIP. Extract it, then open it with Playwright show-trace ${nativeTrace.path}.`;
+                }
                 function sourceText(){
                   const source = trace.source || {};
                   const header = `${source.file || source.frame || 'Unknown source'}:${source.line || '?'}`;
@@ -1135,7 +1178,7 @@ public final class FailureTraceReporter {
                 }
                 function renderTab(tab){
                   const action = selected || {};
-                  const panels = {timeline: timelinePanel, comparison: comparisonPanel, domSnapshot: domSnapshotPanel, screenshot: screenshotPanel, network: networkPanel, console: consolePanel, mobile: document.getElementById('mobile-panel')};
+                  const panels = {timeline: timelinePanel, comparison: comparisonPanel, domSnapshot: domSnapshotPanel, screenshot: screenshotPanel, network: networkPanel, console: consolePanel, mobile: document.getElementById('mobile-panel'), artifacts: document.getElementById('artifact-panel')};
                   tabContent.hidden = tab in panels;
                   Object.entries(panels).forEach(([name, panel]) => panel.hidden = name !== tab);
                   if (tab === 'timeline') {
@@ -1152,6 +1195,8 @@ public final class FailureTraceReporter {
                     renderConsole();
                   } else if (tab === 'mobile') {
                     renderMobile();
+                  } else if (tab === 'artifacts') {
+                    renderArtifacts();
                   } else if (tab === 'source') {
                     tabContent.textContent = sourceText();
                   } else if (tab === 'log') {
@@ -1331,8 +1376,10 @@ public final class FailureTraceReporter {
             synchronized (TRACE_LOCKS.computeIfAbsent(testId, id -> new Object())) {
                 recordAttempt(info, attempt, failed ? "failed" : "passed", archiveName);
                 if (publishLatest(testId, attempt, completedArchive, directory.resolve("shaft-trace.zip"))) {
+                    TraceArtifactManifest manifest = CURRENT_ARTIFACT_MANIFEST.get();
+                    List<TraceArtifactReference> artifacts = manifest == null ? List.of() : manifest.references();
                     LATEST_INDEX.put(testId, new TraceIndexSnapshot(info, !screenshots.isEmpty(), attempt,
-                            List.copyOf(omitted)));
+                            List.copyOf(omitted), artifacts));
                     Files.deleteIfExists(directory.resolve("SHAFT Trace Report.html"));
                     Files.deleteIfExists(directory.resolve("shaft-trace.json"));
                     if (!screenshots.isEmpty()) {
@@ -1345,9 +1392,10 @@ public final class FailureTraceReporter {
                 }
                 TraceIndexSnapshot latest = LATEST_INDEX.get(testId);
                 if (latest != null) {
-                    Files.writeString(directory.resolve("index.json"),
-                            renderTraceIndexJson(latest.info(), directory.resolve("shaft-trace.zip"),
-                                    latest.hasScreenshots(), latest.attempt(), latest.omitted()), StandardCharsets.UTF_8);
+                    byte[] index = renderTraceIndexJson(latest.info(), directory.resolve("shaft-trace.zip"),
+                            latest.hasScreenshots(), latest.attempt(), latest.omitted(), latest.artifacts())
+                            .getBytes(StandardCharsets.UTF_8);
+                    TraceArchiveWriter.writeBytes(directory.resolve("index.json"), index);
                 }
             }
         } catch (IOException e) {
@@ -1421,7 +1469,8 @@ public final class FailureTraceReporter {
     }
 
     private static String renderTraceIndexJson(TestExecutionInfo info, Path zipPath, boolean hasScreenshots,
-                                               int attempt, List<String> omitted) {
+                                               int attempt, List<String> omitted,
+                                               List<TraceArtifactReference> artifacts) {
         boolean failed = info != null && info.throwable() != null;
         StringBuilder json = new StringBuilder();
         json.append("{\n");
@@ -1433,6 +1482,7 @@ public final class FailureTraceReporter {
         field(json, 1, "retried", String.valueOf(info != null && info.retried()), true);
         field(json, 1, "traceMode", effectiveTraceMode(), true);
         array(json, 1, "omittedEntries", omitted, true);
+        rawArray(json, 1, "artifacts", TraceSchemaSerializer.artifactsToJson(artifacts), true);
         appendAttemptHistory(json, safeTestId(info));
         objectStart(json, 1, "entries");
         field(json, 2, "html", "SHAFT Trace Report.html", true);
@@ -1606,11 +1656,6 @@ public final class FailureTraceReporter {
                     .filter(attachment -> attachment != null && !attachment.isBlank())
                     .map(FailureTraceReporter::redactInvocationText)
                     .forEach(entries::add);
-        }
-        Path playwrightTrace = shouldOmitSensitiveBrowserEvidence()
-                ? null : PlaywrightTraceManager.getLastTracePath();
-        if (playwrightTrace != null) {
-            entries.add("Playwright Trace (raw): " + redact(playwrightTrace.toString()));
         }
         return entries;
     }
@@ -2154,7 +2199,11 @@ public final class FailureTraceReporter {
     }
 
     private record TraceIndexSnapshot(TestExecutionInfo info, boolean hasScreenshots, int attempt,
-                                      List<String> omitted) {
+                                      List<String> omitted, List<TraceArtifactReference> artifacts) {
+        private TraceIndexSnapshot {
+            omitted = List.copyOf(omitted);
+            artifacts = List.copyOf(artifacts);
+        }
     }
 
     private record Snapshot(String type, String content) {
