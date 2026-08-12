@@ -2124,12 +2124,21 @@ class ShaftPanelSetupTest {
         ShaftSettingsState.Settings settings = unverifiedMcpSettings();
         ShaftMcpSetupPanel panel = new ShaftMcpSetupPanel(fakeProject(), settings, () -> {
         }, readyProbe(), keyStore);
+        setField(panel, "providerEnvironmentLookup",
+                (java.util.function.Function<String, String>) ignored -> null);
+        ((JCheckBox) getField(panel, "useGeminiEnvironment")).setSelected(false);
         JComboBox<?> agent = findByAccessibleName(panel, "Assistant agent", JComboBox.class);
         selectDisplayValue(agent, "Gemini in IntelliJ");
+        ((JCheckBox) getField(panel, "useGeminiEnvironment")).setSelected(false);
         JPanel chooseRow = (JPanel) getField(panel, "chooseRow");
         JLabel chooseState = (JLabel) getField(panel, "chooseState");
 
         clickAccessible(chooseRow, "Check agent connection");
+        long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5);
+        while (!settings.agentLaneReady && System.nanoTime() < deadline) {
+            pumpEdt();
+            Thread.onSpinWait();
+        }
 
         assertAll(
                 () -> assertTrue(settings.agentLaneReady),

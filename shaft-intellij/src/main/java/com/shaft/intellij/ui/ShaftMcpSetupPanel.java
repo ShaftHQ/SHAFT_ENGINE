@@ -1235,6 +1235,10 @@ final class ShaftMcpSetupPanel extends JPanel implements Disposable {
         if (cloudFamilySelected()) {
             String cloudVariable = useGeminiEnvironment.isSelected()
                     ? settings.providerApiKeyEnvironmentVariable("gemini") : "";
+            if (cloudVariable.isBlank()) {
+                applyChosenAgentCheckResult(verifySelectedAgentReadiness(cloudCredentialReadiness("")));
+                return;
+            }
             CompletableFuture.supplyAsync(() -> cloudCredentialReadiness(cloudVariable),
                             ShaftPluginExecutor.getInstance().executor())
                     .whenComplete((readiness, error) -> ApplicationManager.getApplication().invokeLater(() ->
@@ -1286,6 +1290,10 @@ final class ShaftMcpSetupPanel extends JPanel implements Disposable {
         if (cloudFamilySelected()) {
             String cloudVariable = useGeminiEnvironment.isSelected()
                     ? settings.providerApiKeyEnvironmentVariable("gemini") : "";
+            if (cloudVariable.isBlank()) {
+                applyChosenAgentCheckResult(verifySelectedAgentReadiness(cloudCredentialReadiness("")));
+                return;
+            }
             CompletableFuture.supplyAsync(() -> cloudCredentialReadiness(cloudVariable),
                             ShaftPluginExecutor.getInstance().executor())
                     .whenComplete((readiness, error) -> ApplicationManager.getApplication().invokeLater(() ->

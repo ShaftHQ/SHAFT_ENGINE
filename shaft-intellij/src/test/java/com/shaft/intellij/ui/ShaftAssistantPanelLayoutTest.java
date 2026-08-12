@@ -60,6 +60,8 @@ class ShaftAssistantPanelLayoutTest {
                 (java.util.function.Function<String, String>) name -> "OPENAI_API_KEY".equals(name)
                         ? "never-render-this-secret" : null);
         ((javax.swing.JComboBox<?>) fieldOf(panel, "cloudProvider")).setSelectedItem("openai");
+        setField(panel, "providerKeyReplacementRequired", false);
+        setField(panel, "providerModelState", "AVAILABLE");
         java.lang.reflect.Method update = ShaftAssistantPanel.class.getDeclaredMethod("updateCloudKeyStatus");
         update.setAccessible(true);
         update.invoke(panel);
