@@ -13,6 +13,10 @@ import com.assertthat.selenium_shutterbug.utils.image.UnableToCompareImagesExcep
 import com.shaft.cli.FileActions;
 import com.shaft.driver.SHAFT;
 import com.shaft.driver.internal.DriverFactory.DriverFactoryHelper;
+import com.shaft.gui.image.ImageMatch;
+import com.shaft.gui.image.ImageMatchingAlgorithm;
+import com.shaft.gui.image.ImageRectangle;
+import com.shaft.gui.image.ImageTarget;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.io.internal.ReportManagerHelper;
 import nu.pattern.OpenCV;
@@ -36,6 +40,9 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Comparator;
+import java.util.Locale;
+import java.util.Map;
 
 /**
  * OpenCV-backed implementation of SHAFT visual processing supplied by the optional
@@ -419,6 +426,168 @@ public class OpenCvVisualProcessingProvider implements VisualProcessingProvider 
                 actual.release();
             }
         }
+    }
+
+    @Override
+    public List<ImageMatch> findImageMatches(ImageTarget target, byte[] currentPageScreenshot) {
+        if (target == null || currentPageScreenshot == null || currentPageScreenshot.length == 0) {
+            return List.of();
+        }
+        Mat screenshot = null;
+        Mat reference = null;
+        Mat searchHeader = null;
+        Mat searchImage = null;
+        try {
+            screenshot = decodeImage(currentPageScreenshot, Imgcodecs.IMREAD_COLOR);
+            reference = decodeImage(target.imageBytes(), Imgcodecs.IMREAD_UNCHANGED);
+            if (screenshot.empty() || reference.empty()) {
+                return List.of();
+            }
+
+            ImageRectangle region = target.searchRegion().orElse(
+                    new ImageRectangle(0, 0, screenshot.cols(), screenshot.rows()));
+            if ((long) region.x() + region.width() > screenshot.cols()
+                    || (long) region.y() + region.height() > screenshot.rows()) {
+                throw new IllegalArgumentException("Image search region lies outside the screenshot bounds.");
+            }
+            searchHeader = screenshot.submat(region.y(), region.y() + region.height(),
+                    region.x(), region.x() + region.width());
+            searchImage = searchHeader.clone();
+            double threshold = target.minimumConfidence().orElseGet(
+                    () -> SHAFT.Properties.visuals.visualMatchingThreshold());
+            List<RichTemplateMatch> candidates = switch (target.matchingMode()) {
+                case AUTO, TEMPLATE -> findTemplateMatches(searchImage, reference, threshold);
+                case FEATURE -> throw new UnsupportedOperationException(
+                        "OpenCV feature matching is not available for this target.");
+            };
+            return suppressOverlappingMatches(candidates).stream()
+                    .sorted(Comparator.comparingInt((RichTemplateMatch match) -> match.bounds().y())
+                            .thenComparingInt(match -> match.bounds().x()))
+                    .map(match -> new ImageMatch(
+                            new ImageRectangle(match.bounds().x() + region.x(), match.bounds().y() + region.y(),
+                                    match.bounds().width(), match.bounds().height()),
+                            Math.max(0, Math.min(1, match.confidence())), match.scale(), match.algorithm(),
+                            Map.of("matcher", "opencv", "mode", target.matchingMode().name().toLowerCase(Locale.ROOT))))
+                    .toList();
+        } finally {
+            if (searchImage != null) searchImage.release();
+            if (searchHeader != null) searchHeader.release();
+            if (screenshot != null) screenshot.release();
+            if (reference != null) reference.release();
+        }
+    }
+
+    private static List<RichTemplateMatch> findTemplateMatches(Mat searchImage, Mat reference, double threshold) {
+        Mat graySearch = toGray(searchImage);
+        List<RichTemplateMatch> matches = new ArrayList<>();
+        try {
+            for (double scale : validScales(reference, searchImage)) {
+                Mat scaledReference = scaleReference(reference, scale);
+                Mat matchReference = new Mat();
+                Mat alphaMask = new Mat();
+                try {
+                    if (scaledReference.channels() == 4) {
+                        Imgproc.cvtColor(scaledReference, matchReference, Imgproc.COLOR_BGRA2BGR);
+                        Core.extractChannel(scaledReference, alphaMask, 3);
+                        Imgproc.threshold(alphaMask, alphaMask, 0, 255, Imgproc.THRESH_BINARY);
+                    } else if (scaledReference.channels() == 3) {
+                        scaledReference.copyTo(matchReference);
+                    } else {
+                        scaledReference.copyTo(matchReference);
+                    }
+                    Mat compatibleSearch = matchReference.channels() == searchImage.channels() ? searchImage : graySearch;
+                    if (matchReference.cols() > compatibleSearch.cols() || matchReference.rows() > compatibleSearch.rows()) {
+                        continue;
+                    }
+                    collectTemplateMatches(compatibleSearch, matchReference, alphaMask, threshold, scale, matches);
+                } finally {
+                    alphaMask.release();
+                    matchReference.release();
+                    if (scaledReference != reference) {
+                        scaledReference.release();
+                    }
+                }
+            }
+            return matches;
+        } finally {
+            graySearch.release();
+        }
+    }
+
+    private static void collectTemplateMatches(Mat image, Mat template, Mat alphaMask, double threshold, double scale,
+                                               List<RichTemplateMatch> matches) {
+        Mat result = new Mat();
+        MatOfDouble mean = new MatOfDouble();
+        MatOfDouble standardDeviation = new MatOfDouble();
+        try {
+            boolean hasAlphaMask = !alphaMask.empty() && Core.countNonZero(alphaMask) < alphaMask.total();
+            Core.meanStdDev(template, mean, standardDeviation);
+            boolean flatTemplate = Arrays.stream(standardDeviation.toArray()).allMatch(value -> value < 0.5);
+            int method = hasAlphaMask ? Imgproc.TM_CCORR_NORMED
+                    : flatTemplate ? Imgproc.TM_SQDIFF : Imgproc.TM_CCOEFF_NORMED;
+            if (hasAlphaMask) {
+                Imgproc.matchTemplate(image, template, result, method, alphaMask);
+            } else {
+                Imgproc.matchTemplate(image, template, result, method);
+            }
+            for (int matchCount = 0; matchCount < 100; matchCount++) {
+                Core.MinMaxLocResult extrema = Core.minMaxLoc(result);
+                boolean squaredDifference = method == Imgproc.TM_SQDIFF;
+                double rawScore = squaredDifference ? extrema.minVal : extrema.maxVal;
+                double maximumSquaredError = (double) template.total() * template.channels() * 255 * 255;
+                double confidence = squaredDifference ? 1 - rawScore / maximumSquaredError : rawScore;
+                Point location = squaredDifference ? extrema.minLoc : extrema.maxLoc;
+                if (!Double.isFinite(confidence) || confidence < threshold) {
+                    break;
+                }
+                int x = (int) Math.round(location.x);
+                int y = (int) Math.round(location.y);
+                matches.add(new RichTemplateMatch(new ImageRectangle(x, y, template.cols(), template.rows()),
+                        confidence, scale, template.channels() > 1 ? ImageMatchingAlgorithm.TEMPLATE_COLOR
+                        : ImageMatchingAlgorithm.TEMPLATE_GRAYSCALE));
+
+                int suppressionLeft = Math.max(0, x - template.cols() / 2);
+                int suppressionTop = Math.max(0, y - template.rows() / 2);
+                int suppressionRight = Math.min(result.cols() - 1, x + template.cols() / 2);
+                int suppressionBottom = Math.min(result.rows() - 1, y + template.rows() / 2);
+                Imgproc.rectangle(result, new Point(suppressionLeft, suppressionTop),
+                        new Point(suppressionRight, suppressionBottom),
+                        new Scalar(squaredDifference ? maximumSquaredError + 1 : -1), -1);
+            }
+        } finally {
+            standardDeviation.release();
+            mean.release();
+            result.release();
+        }
+    }
+
+    private static List<RichTemplateMatch> suppressOverlappingMatches(List<RichTemplateMatch> candidates) {
+        List<RichTemplateMatch> retained = new ArrayList<>();
+        candidates.stream()
+                .sorted(Comparator.comparingDouble(RichTemplateMatch::confidence).reversed()
+                        .thenComparingDouble(match -> Math.abs(1.0 - match.scale())))
+                .forEach(candidate -> {
+                    boolean overlaps = retained.stream().anyMatch(existing -> intersectionOverUnion(
+                            candidate.bounds(), existing.bounds()) >= 0.30);
+                    if (!overlaps) {
+                        retained.add(candidate);
+                    }
+                });
+        return retained;
+    }
+
+    private static double intersectionOverUnion(ImageRectangle first, ImageRectangle second) {
+        int left = Math.max(first.x(), second.x());
+        int top = Math.max(first.y(), second.y());
+        int right = Math.min(first.x() + first.width(), second.x() + second.width());
+        int bottom = Math.min(first.y() + first.height(), second.y() + second.height());
+        long intersection = (long) Math.max(0, right - left) * Math.max(0, bottom - top);
+        long union = (long) first.width() * first.height() + (long) second.width() * second.height() - intersection;
+        return union == 0 ? 0 : (double) intersection / union;
+    }
+
+    private record RichTemplateMatch(ImageRectangle bounds, double confidence, double scale,
+                                     ImageMatchingAlgorithm algorithm) {
     }
 
     private static Mat decodeImage(byte[] imageBytes, int mode) {

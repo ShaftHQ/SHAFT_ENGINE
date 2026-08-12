@@ -1,5 +1,7 @@
 package com.shaft.gui.internal.image;
 
+import com.shaft.gui.image.ImageMatch;
+import com.shaft.gui.image.ImageTarget;
 import com.shaft.tools.io.internal.CheckpointStatus;
 import io.qameta.allure.model.Status;
 import com.google.common.hash.Hashing;
@@ -27,6 +29,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.util.*;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 
 @SuppressWarnings("SpellCheckingInspection")
@@ -166,6 +169,31 @@ public class ImageProcessingActions {
     public static List<Integer> findImageWithinCurrentPage(String referenceImagePath, byte[] currentPageScreenshot) {
         return VisualProcessingProviderRegistry.requireProvider()
                 .findImageWithinCurrentPage(referenceImagePath, currentPageScreenshot);
+    }
+
+    /**
+     * Resolves a typed target in a screenshot. An unspecified occurrence requires a unique match so repeated
+     * controls cannot be clicked nondeterministically.
+     *
+     * @return the selected match, or empty when no requested occurrence is present
+     * @throws IllegalStateException when an occurrence is not specified and more than one match is present
+     */
+    public static Optional<ImageMatch> findImageWithinCurrentPage(ImageTarget target, byte[] currentPageScreenshot) {
+        Objects.requireNonNull(target, "Image target cannot be null.");
+        if (currentPageScreenshot == null || currentPageScreenshot.length == 0) {
+            return Optional.empty();
+        }
+        List<ImageMatch> matches = VisualProcessingProviderRegistry.requireProvider()
+                .findImageMatches(target, currentPageScreenshot);
+        if (target.occurrence().isPresent()) {
+            int occurrence = target.occurrence().getAsInt();
+            return occurrence < matches.size() ? Optional.of(matches.get(occurrence)) : Optional.empty();
+        }
+        if (matches.size() > 1) {
+            throw new IllegalStateException("Image target is ambiguous: " + matches.size()
+                    + " matches met the confidence threshold. Select an occurrence or narrow the search region.");
+        }
+        return matches.stream().findFirst();
     }
 
     private static final ConcurrentHashMap<String, String> locatorHashMapping = new ConcurrentHashMap<>();

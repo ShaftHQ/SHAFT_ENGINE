@@ -21,6 +21,8 @@ public class ImagePublicContractTest {
             Class<?> matchType = Class.forName("com.shaft.gui.image.ImageMatch");
             Class<?> rectangleType = Class.forName("com.shaft.gui.image.ImageRectangle");
             Class<?> modeType = Class.forName("com.shaft.gui.image.ImageMatchingMode");
+            Class<?> providerType = Class.forName("com.shaft.gui.internal.image.VisualProcessingProvider");
+            Class<?> actionsType = Class.forName("com.shaft.gui.internal.image.ImageProcessingActions");
 
             Assert.assertNotNull(targetType.getMethod("fromPath", Path.class));
             Assert.assertNotNull(targetType.getMethod("fromBytes", byte[].class));
@@ -44,6 +46,8 @@ public class ImagePublicContractTest {
             Assert.assertNotNull(matchType.getMethod("scale"));
             Assert.assertNotNull(matchType.getMethod("algorithm"));
             Assert.assertNotNull(matchType.getMethod("diagnostics"));
+            Assert.assertNotNull(providerType.getMethod("findImageMatches", targetType, byte[].class));
+            Assert.assertNotNull(actionsType.getMethod("findImageWithinCurrentPage", targetType, byte[].class));
         } catch (ReflectiveOperationException exception) {
             Assert.fail("Typed image identification contract is missing or incomplete.", exception);
         }
