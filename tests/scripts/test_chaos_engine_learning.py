@@ -406,12 +406,12 @@ class ChaosEngineLearningTest(unittest.TestCase):
                     stderr="",
                 )
 
-            errors: list[BaseException] = []
+            errors: list[Exception] = []
 
             def submit():
                 try:
                     module.submit_learning(state, queued["id"], confirmed=True, runner=runner)
-                except BaseException as error:
+                except Exception as error:  # pylint: disable=broad-exception-caught
                     errors.append(error)
 
             threads = [threading.Thread(target=submit)]

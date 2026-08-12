@@ -301,6 +301,7 @@ def relative_command(runtime: Path, command: list[str]) -> list[str]:
     try:
         result[0] = Path(command[0]).relative_to(runtime).as_posix()
     except ValueError:
+        # External system executables remain absolute; only runtime-owned paths relocate.
         pass
     return result
 
@@ -418,6 +419,7 @@ def repair(  # noqa: MC0001 - one locked transaction keeps recovery and publicat
                 try:
                     remove(runtime, specification, removal_path=removing, already_locked=True)
                 except OSError:
+                    # The verified tombstone is durable recovery state for the next call.
                     pass
             return receipt
 

@@ -589,6 +589,7 @@ def atomic_write(  # noqa: MC0001 - one descriptor-bound transaction protects us
                 try:
                     os.link(scratch, path)
                 except FileExistsError:
+                    # A concurrent publisher now owns the destination; preserve it.
                     pass
                 if read_file(project, path) == moved:
                     scratch.unlink()
@@ -874,7 +875,7 @@ def prepare_uninstall(project: Path) -> dict[str, object]:
     if receipt["phase"] == "installed":
         verify(project, receipt)
         receipt["phase"] = "removing"
-        raw = write_receipt(project, receipt, raw)
+        write_receipt(project, receipt, raw)
     elif receipt["phase"] != "removing":
         raise ValueError("ChaosEngine host installation recovery is required")
     reconcile(project, before, (before, after))
