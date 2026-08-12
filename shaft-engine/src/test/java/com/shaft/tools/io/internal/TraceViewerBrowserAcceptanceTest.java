@@ -424,6 +424,95 @@ public class TraceViewerBrowserAcceptanceTest {
                       renderConsole();
                     }
                     """);
+            page.evaluate("""
+                    () => {
+                      const addMobile = (id, category, name, offset, metadata = {}, locator = '<mobile>') =>
+                        actions.push({id, backend:'APPIUM', category, name, status:'passed', locator,
+                          startTime:new Date(baseTime + offset).toISOString(), durationMs:5, metadata});
+                      addMobile('mobile-app', 'mobile/app', 'activate', 10, {result:'RUNNING_IN_FOREGROUND'});
+                      addMobile('mobile-context', 'mobile/context', 'native', 20,
+                        {contextBefore:'WEBVIEW_1', contextAfter:'NATIVE_APP'});
+                      addMobile('mobile-device', 'mobile/device', 'orientation', 30, {result:'LANDSCAPE'});
+                      addMobile('mobile-logs', 'mobile/logs', 'stop', 40);
+                      addMobile('mobile-performance', 'mobile/performance', 'clear', 50, {clearedCount:'2'});
+                      addMobile('mobile-recording', 'mobile/recording', 'stop-and-save', traceDuration,
+                        {decodedBytes:'64'});
+                      addMobile('mobile-evidence', 'mobile/evidence', 'capture', 60,
+                        {artifactCount:'3', omissionCount:'1', note:'<img id=mobile-injection>'});
+                      const failedEvidence = actions.find(action => action.id === 'mobile-evidence');
+                      failedEvidence.status = 'failed';
+                      failedEvidence.exception = {type:'java.lang.IllegalStateException', message:'capture failed'};
+                      actions.push({id:'mobile-legacy', backend:'APPIUM', category:'mobile/custom',
+                        name:'legacy-action', status:'passed', locator:'<legacy>', metadata:{}});
+                    }
+                    """);
+            page.locator("button[data-tab=mobile]").click();
+            Assert.assertEquals(page.locator("#mobile-category-filter button").allTextContents(),
+                    List.of("All", "App", "Context", "Device", "Logs", "Performance", "Recording", "Evidence"));
+            Assert.assertEquals(page.locator("#mobile-result-count").textContent(), "8 mobile actions");
+            Assert.assertEquals(page.locator("#mobile-rows tr").last().locator("td").first().textContent(), "Unknown");
+            Assert.assertEquals(page.locator("#mobile-injection").count(), 0,
+                    "Mobile metadata must render hostile text without creating markup.");
+            List<List<String>> mobileCategories = List.of(
+                    List.of("mobile/app", "App", "activate"),
+                    List.of("mobile/context", "Context", "native"),
+                    List.of("mobile/device", "Device", "orientation"),
+                    List.of("mobile/logs", "Logs", "stop"),
+                    List.of("mobile/performance", "Performance", "clear"));
+            for (List<String> category : mobileCategories) {
+                page.locator("#mobile-category-filter button[data-mobile-category='" + category.get(0) + "']").click();
+                Assert.assertEquals(page.locator("#mobile-result-count").textContent(), "1 mobile action");
+                Assert.assertEquals(page.locator("#mobile-rows tr td").nth(1).textContent(), category.get(1));
+                Assert.assertEquals(page.locator("#mobile-rows tr td").nth(2).textContent(), category.get(2));
+            }
+            page.locator("#mobile-category-filter button[data-mobile-category='mobile/recording']").click();
+            Assert.assertEquals(page.locator("#mobile-result-count").textContent(), "1 mobile action");
+            page.evaluate("""
+                    () => {
+                      const end = document.getElementById('range-end');
+                      end.value = Math.max(0, traceDuration - 1);
+                      end.dispatchEvent(new Event('input', {bubbles:true}));
+                    }
+                    """);
+            Assert.assertEquals(page.locator("#mobile-result-count").textContent(), "0 mobile actions");
+            Assert.assertEquals(page.locator("#mobile-hint").textContent(),
+                    "No mobile actions match the selected range and category.");
+            page.locator("#show-all-range").click();
+            Assert.assertEquals(page.locator("#mobile-result-count").textContent(), "1 mobile action");
+            page.locator("#mobile-category-filter button[data-mobile-category='mobile/evidence']").click();
+            Assert.assertEquals(page.locator("#mobile-category-filter button[aria-pressed=true]").count(), 1);
+            Assert.assertNotEquals(page.locator("#mobile-category-filter button[aria-pressed=true]")
+                    .evaluate("button => getComputedStyle(button).boxShadow"), "none",
+                    "The active mobile category needs a visible non-color selection cue.");
+            Assert.assertNotEquals(page.locator("#mobile-category-filter button[aria-pressed=true]")
+                            .evaluate("button => getComputedStyle(button).boxShadow"),
+                    page.locator("#mobile-category-filter button[aria-pressed=false]").first()
+                            .evaluate("button => getComputedStyle(button).boxShadow"),
+                    "The active mobile category must remain visibly distinct from inactive categories.");
+            Assert.assertTrue(page.locator("#mobile-rows tr").getAttribute("class").contains("failed"));
+            Assert.assertEquals(page.locator("#mobile-rows tr td").nth(3).textContent(), "failed");
+            page.locator("#mobile-rows tr button").press("Enter");
+            Assert.assertEquals(page.locator("#details-title").textContent(), "Action: capture");
+            Assert.assertTrue(page.url().contains("action-mobile-evidence"));
+            Assert.assertTrue(page.locator("#mobile-detail").textContent().contains("artifactCount"));
+            Assert.assertTrue(page.locator("#mobile-detail").textContent().contains("java.lang.IllegalStateException"));
+            @SuppressWarnings("unchecked")
+            Map<String, Object> mobileDetail = (Map<String, Object>) page.evaluate(
+                    "JSON.parse(document.getElementById('mobile-detail').textContent)");
+            Assert.assertEquals(mobileDetail.get("status"), "failed");
+            page.evaluate("""
+                    () => {
+                      const removed = actions.splice(0);
+                      window.__mobileBackup = removed.filter(action =>
+                        String(action.category || '').startsWith('mobile/'));
+                      actions.push(...removed.filter(action =>
+                        !String(action.category || '').startsWith('mobile/')));
+                      renderMobile();
+                    }
+                    """);
+            Assert.assertEquals(page.locator("#mobile-result-count").textContent(), "0 mobile actions");
+            Assert.assertEquals(page.locator("#mobile-hint").textContent(), "No mobile actions were recorded.");
+            page.evaluate("() => { actions.push(...window.__mobileBackup); renderMobile(); }");
             page.screenshot(new Page.ScreenshotOptions().setPath(screenshot).setFullPage(true));
             Assert.assertTrue(pageErrors.isEmpty(), "Page errors: " + pageErrors);
             Assert.assertTrue(externalRequests.isEmpty(), "External requests: " + externalRequests);
