@@ -461,11 +461,12 @@ public class TraceService {
 
     private McpTraceSummary summarize(TraceDocument trace) {
         JsonNode root = trace.root();
-        JsonNode test = root.path("test");
-        JsonNode source = root.path("source");
+        TraceEvidence evidence = traceEvidence(root);
+        JsonNode test = evidence.test();
+        JsonNode source = evidence.source();
         JsonNode exception = root.path("exception");
-        JsonNode actionNode = failedAction(root.path("actions"));
-        McpTraceActionSummary action = action(actionNode);
+        JsonNode actionNode = failedAction(evidence.actions());
+        McpTraceActionSummary action = action(actionNode, evidence.publicV2());
         String exceptionType = action.exceptionType().isBlank() ? text(exception.path("type")) : action.exceptionType();
         String exceptionMessage = action.exceptionMessage().isBlank()
                 ? text(exception.path("message"))
@@ -493,11 +494,58 @@ public class TraceService {
                 text(source.path("snippet")),
                 actionability,
                 locatorHealth,
-                networkFindings(root.path("network")),
-                consoleFindings(root.path("console")),
+                networkFindings(evidence.network()),
+                consoleFindings(evidence.console()),
                 recommendations(action, exceptionType, exceptionMessage),
                 List.of());
     }
+
+    private TraceEvidence traceEvidence(JsonNode root) {
+        String schemaVersion = text(root.path("schemaVersion"));
+        if (schemaVersion.startsWith("3.")) {
+            JsonNode evidence = root.path("evidence");
+            if (!evidence.path("actions").isArray()) {
+                throw new IllegalArgumentException("Trace v3 evidence.actions must be an array.");
+            }
+            return new TraceEvidence(root.path("test"), evidence.path("actions"),
+                    evidence.path("network"), evidence.path("console"), root.path("source"), false);
+        }
+        if (schemaVersion.startsWith("2.")) {
+            if (!root.path("events").isArray()) {
+                throw new IllegalArgumentException("Trace v2 events must be an array.");
+            }
+            ObjectNode test = JSON.createObjectNode();
+            String testId = text(root.path("testId"));
+            JsonNode primaryAction = failedAction(root.path("events"));
+            test.put("className", "");
+            test.put("methodName", "");
+            test.put("displayName", testId);
+            test.put("status", text(primaryAction.path("status")).toLowerCase(Locale.ROOT));
+            return new TraceEvidence(test, root.path("events"), root.path("network"), root.path("console"),
+                    source(primaryAction), true);
+        }
+        if (!schemaVersion.isBlank() && !schemaVersion.startsWith("1.")) {
+            throw new IllegalArgumentException("Unsupported trace schema major version "
+                    + schemaVersion.split("\\.", 2)[0] + ".");
+        }
+        return new TraceEvidence(root.path("test"), root.path("actions"), root.path("network"),
+                root.path("console"), root.path("source"), false);
+    }
+
+    private ObjectNode source(JsonNode action) {
+        String frame = text(action.path("source"));
+        ObjectNode source = JSON.createObjectNode();
+        source.put("frame", frame);
+        java.util.regex.Matcher matcher = java.util.regex.Pattern.compile("\\(([^():]+):(\\d+)\\)$").matcher(frame);
+        boolean matched = matcher.find();
+        source.put("file", matched ? matcher.group(1) : "");
+        source.put("line", matched ? matcher.group(2) : "");
+        source.put("snippet", "");
+        return source;
+    }
+
+    private record TraceEvidence(JsonNode test, JsonNode actions, JsonNode network, JsonNode console, JsonNode source,
+                                 boolean publicV2) { }
 
     private JsonNode failedAction(JsonNode actions) {
         if (!actions.isArray()) {
@@ -511,18 +559,19 @@ public class TraceService {
         return actions.isEmpty() ? JSON.createObjectNode() : actions.get(0);
     }
 
-    private McpTraceActionSummary action(JsonNode action) {
+    private McpTraceActionSummary action(JsonNode action, boolean publicV2) {
         JsonNode exception = action.path("exception");
+        JsonNode metadata = action.path("metadata");
         return new McpTraceActionSummary(
                 text(action.path("id")),
                 text(action.path("category")),
                 text(action.path("name")),
-                text(action.path("status")),
-                text(action.path("locator")),
-                text(action.path("url")),
+                text(action.path("status")).toLowerCase(Locale.ROOT),
+                publicV2 ? text(action.path("target")) : text(action.path("locator")),
+                publicV2 ? text(metadata.path("url")) : text(action.path("url")),
                 text(action.path("message")),
-                text(exception.path("type")),
-                text(exception.path("message")),
+                publicV2 ? text(metadata.path("exceptionType")) : text(exception.path("type")),
+                publicV2 ? text(metadata.path("exceptionMessage")) : text(exception.path("message")),
                 action.path("durationMs").asLong(0L));
     }
 

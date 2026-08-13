@@ -132,6 +132,71 @@ class TraceServiceTest {
     }
 
     @Test
+    void legacyOuterDirectSessionAndPrivateV3ProduceTheSameSummary(@TempDir Path temp) throws Exception {
+        String action = """
+                {"id":"action-2","category":"element","name":"CLICK","status":"failed",
+                 "durationMs":450,"locator":"By.id: pay","url":"https://shop.example/checkout",
+                 "message":"Click failed","exception":{"type":"NoSuchElementException","message":"missing"}}
+                """;
+        String network = "[{\"url\":\"https://shop.example/api/pay\",\"status\":500,\"method\":\"POST\"}]";
+        String console = "[{\"level\":\"SEVERE\",\"message\":\"Payment widget failed\"}]";
+        Path legacy = writeTrace(temp, "compat-legacy", traceJson(
+                "\"actions\":[" + action + "],\"network\":" + network + ",\"console\":" + console));
+        Path directV2 = writeTrace(temp, "compat-v2", """
+                {"schemaVersion":"2.0","testId":"CheckoutTest.payShouldFail","events":[
+                 {"id":"action-2","category":"element","name":"CLICK","status":"FAILED","durationMs":450,
+                  "source":"example.CheckoutTest.payShouldFail(CheckoutTest.java:42)",
+                  "target":"By.id: pay","message":"Click failed","metadata":{"url":"https://shop.example/checkout",
+                  "exceptionType":"NoSuchElementException","exceptionMessage":"missing"},"unknownEventField":true}],
+                 "network":%s,"console":%s,"unknownFutureField":{"safe":true}}
+                """.formatted(network, console));
+        Path privateV3 = writeTrace(temp, "compat-v3", """
+                {"schemaVersion":"3.0","test":{"className":"CheckoutTest","methodName":"payShouldFail",
+                 "displayName":"CheckoutTest.payShouldFail","status":"failed"},
+                 "evidence":{"actions":[%s],"network":%s,"console":%s},"unknownFutureField":[1,2,3]}
+                """.formatted(action, network, console));
+
+        var expected = service(temp).traceSummarize(relative(temp, legacy));
+        var direct = service(temp).traceSummarize(relative(temp, directV2));
+        var v3 = service(temp).traceSummarize(relative(temp, privateV3));
+
+        assertEquals(expected.failedAction(), direct.failedAction());
+        assertEquals(expected.failedAction(), v3.failedAction());
+        assertEquals(expected.testClass(), v3.testClass());
+        assertEquals(expected.testMethod(), v3.testMethod());
+        assertEquals("", direct.testClass());
+        assertEquals("", direct.testMethod());
+        assertEquals("CheckoutTest.payShouldFail", direct.displayName());
+        assertEquals(expected.displayName(), v3.displayName());
+        assertEquals(expected.status(), direct.status());
+        assertEquals(expected.status(), v3.status());
+        assertEquals(expected.networkFindings(), direct.networkFindings());
+        assertEquals(expected.networkFindings(), v3.networkFindings());
+        assertEquals(expected.consoleFindings(), direct.consoleFindings());
+        assertEquals(expected.consoleFindings(), v3.consoleFindings());
+        assertEquals("CheckoutTest.java", direct.sourceFile());
+        assertEquals(expected.sourceLine(), direct.sourceLine());
+    }
+
+    @Test
+    void unsupportedMajorAndMalformedV3FailClosed(@TempDir Path temp) throws Exception {
+        Path future = writeTrace(temp, "compat-v4", "{\"schemaVersion\":\"4.0\",\"actions\":[]}");
+        Path malformed = writeTrace(temp, "compat-bad-v3", "{\"schemaVersion\":\"3.0\",\"evidence\":{}}");
+        Path malformedV2 = writeTrace(temp, "compat-bad-v2", "{\"schemaVersion\":\"2.0\",\"events\":{}}");
+
+        IllegalArgumentException unsupported = assertThrows(IllegalArgumentException.class,
+                () -> service(temp).traceSummarize(relative(temp, future)));
+        IllegalArgumentException missing = assertThrows(IllegalArgumentException.class,
+                () -> service(temp).traceSummarize(relative(temp, malformed)));
+        IllegalArgumentException missingV2 = assertThrows(IllegalArgumentException.class,
+                () -> service(temp).traceSummarize(relative(temp, malformedV2)));
+
+        assertTrue(unsupported.getMessage().contains("Unsupported trace schema major version 4"));
+        assertTrue(missing.getMessage().contains("v3 evidence.actions"));
+        assertTrue(missingV2.getMessage().contains("v2 events"));
+    }
+
+    @Test
     void doctorAnalyzeTraceReturnsExistingMcpRemediationShape(@TempDir Path temp) throws Exception {
         Path index = writeTrace(temp, "checkout-pay", traceJson("""
                 "actions": [
