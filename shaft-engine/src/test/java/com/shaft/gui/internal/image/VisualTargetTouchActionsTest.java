@@ -1,6 +1,5 @@
 package com.shaft.gui.internal.image;
 
-import com.shaft.driver.internal.FluentWebDriverAction;
 import com.shaft.gui.element.TouchActions;
 import com.shaft.gui.element.internal.ElementActionsHelper;
 import com.shaft.gui.image.ImageMatch;
@@ -26,12 +25,10 @@ import javax.imageio.ImageIO;
 import java.awt.Color;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayOutputStream;
-import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyMap;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doReturn;
@@ -65,7 +62,7 @@ public class VisualTargetTouchActionsTest {
         VisualProcessingProviderRegistry.setProviderForTesting(provider);
         AndroidDriver driver = driver();
         doReturn(true).when(driver).executeScript(eq("mobile: scrollGesture"), anyMap());
-        TouchActions actions = actions(driver);
+        TestTouchActions actions = actions(driver);
         ImageTarget target = ImageTarget.fromBytes(screenshot).matchingMode(ImageMatchingMode.TEMPLATE);
 
         try (MockedConstruction<ScreenshotManager> ignored = mockConstruction(ScreenshotManager.class,
@@ -85,7 +82,7 @@ public class VisualTargetTouchActionsTest {
         SequencedProvider provider = new SequencedProvider(1);
         VisualProcessingProviderRegistry.setProviderForTesting(provider);
         AndroidDriver driver = driver();
-        TouchActions actions = actions(driver);
+        TestTouchActions actions = actions(driver);
         By container = By.id("container");
         container(actions, driver, container, new Rectangle(10, 20, 40, 30));
         ImageTarget target = ImageTarget.fromBytes(screenshot)
@@ -108,7 +105,7 @@ public class VisualTargetTouchActionsTest {
         VisualProcessingProviderRegistry.setProviderForTesting(provider);
         IOSDriver driver = iosDriver();
         doReturn(null).when(driver).executeScript(eq("mobile: scroll"), anyMap());
-        TouchActions actions = actions(driver);
+        TestTouchActions actions = actions(driver);
         ImageTarget target = ImageTarget.fromBytes(screenshot).matchingMode(ImageMatchingMode.TEMPLATE);
 
         try (MockedConstruction<ScreenshotManager> ignored = mockConstruction(ScreenshotManager.class,
@@ -128,7 +125,7 @@ public class VisualTargetTouchActionsTest {
         VisualProcessingProviderRegistry.setProviderForTesting(provider);
         AndroidDriver driver = driver();
         doReturn(true).when(driver).executeScript(eq("mobile: scrollGesture"), anyMap());
-        TouchActions actions = actions(driver);
+        TestTouchActions actions = actions(driver);
         By container = By.id("container");
         container(actions, driver, container, new Rectangle(10, 10, 30, 30));
         ImageTarget target = ImageTarget.fromBytes(first).matchingMode(ImageMatchingMode.TEMPLATE);
@@ -143,19 +140,12 @@ public class VisualTargetTouchActionsTest {
         Assert.assertEquals(provider.targets.size(), 3);
     }
 
-    private static TouchActions actions(WebDriver driver) throws Exception {
-        TouchActions actions = new TouchActions(driver);
-        Field helper = FluentWebDriverAction.class.getDeclaredField("elementActionsHelper");
-        helper.setAccessible(true);
-        helper.set(actions, mock(ElementActionsHelper.class));
-        return actions;
+    private static TestTouchActions actions(WebDriver driver) {
+        return new TestTouchActions(driver, mock(ElementActionsHelper.class));
     }
 
-    private static void container(TouchActions actions, AndroidDriver driver, By locator, Rectangle rectangle)
-            throws Exception {
-        Field helperField = FluentWebDriverAction.class.getDeclaredField("elementActionsHelper");
-        helperField.setAccessible(true);
-        ElementActionsHelper helper = (ElementActionsHelper) helperField.get(actions);
+    private static void container(TestTouchActions actions, AndroidDriver driver, By locator, Rectangle rectangle) {
+        ElementActionsHelper helper = actions.helper();
         RemoteWebElement element = mock(RemoteWebElement.class);
         when(element.getRect()).thenReturn(rectangle);
         when(helper.identifyUniqueElement(driver, locator)).thenReturn(List.of(locator.toString(), element));
@@ -233,6 +223,18 @@ public class VisualTargetTouchActionsTest {
 
         @Override
         public void load() {
+            // No native bootstrap is needed by this deterministic provider.
+        }
+    }
+
+    private static final class TestTouchActions extends TouchActions {
+        private TestTouchActions(WebDriver driver, ElementActionsHelper helper) {
+            super(driver);
+            this.elementActionsHelper = helper;
+        }
+
+        private ElementActionsHelper helper() {
+            return elementActionsHelper;
         }
     }
 }

@@ -8,6 +8,7 @@ import com.shaft.gui.ocr.OcrTarget;
 import com.shaft.properties.internal.Properties;
 import com.shaft.validation.Validations;
 import io.appium.java_client.AppiumBy;
+import io.appium.java_client.ios.IOSDriver;
 import org.openqa.selenium.Platform;
 import org.openqa.selenium.OutputType;
 import org.openqa.selenium.WebDriverException;
@@ -48,7 +49,8 @@ public class IOSBasicInteractionsTest {
                 .tap(ImageTarget.fromBytes(inputScreenshot));
         Assert.assertEquals(driver.get().getDriver().switchTo().activeElement().getAttribute("name"), "Text Input");
 
-        driver.get().touch().tap(AppiumBy.accessibilityId("Text Button"));
+        ((IOSDriver) driver.get().getDriver()).hideKeyboard();
+        Assert.assertNotEquals(driver.get().getDriver().switchTo().activeElement().getAttribute("name"), "Text Input");
         driver.get().touch().tap(OcrTarget.exact("Text Input"));
         Assert.assertEquals(driver.get().getDriver().switchTo().activeElement().getAttribute("name"), "Text Input");
         driver.get().element().type(AppiumBy.accessibilityId("Text Input"), "visual ocr ios" + "\n");
