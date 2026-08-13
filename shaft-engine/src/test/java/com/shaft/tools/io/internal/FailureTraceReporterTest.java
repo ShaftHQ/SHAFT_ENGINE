@@ -35,6 +35,7 @@ import org.testng.annotations.Test;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 
+import java.io.IOException;
 import java.lang.reflect.Method;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -49,10 +50,27 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
 import java.util.zip.ZipFile;
+import java.util.zip.ZipEntry;
 
 @Test(singleThreaded = true)
 public class FailureTraceReporterTest {
     private static final ObjectMapper JSON = new ObjectMapper();
+
+    @Test(description = "Configured artifact MiB values should convert without integer overflow")
+    public void configuredArtifactBudgetShouldUseLongArithmetic() {
+        int original = SHAFT.Properties.reporting.traceMaxArtifactMb();
+        try {
+            SHAFT.Properties.reporting.set().traceMaxArtifactMb(2048);
+            Assert.assertEquals(FailureTraceReporter.configuredMaxArtifactBytes(), 2_147_483_648L);
+            SHAFT.Properties.reporting.set().traceMaxArtifactMb(Integer.MAX_VALUE);
+            Assert.assertEquals(FailureTraceReporter.configuredMaxArtifactBytes(),
+                    Math.multiplyExact((long) Integer.MAX_VALUE, 1024L * 1024L));
+            SHAFT.Properties.reporting.set().traceMaxArtifactMb(-1);
+            Assert.assertEquals(FailureTraceReporter.configuredMaxArtifactBytes(), 1024L * 1024L);
+        } finally {
+            SHAFT.Properties.reporting.set().traceMaxArtifactMb(original);
+        }
+    }
 
     @Test(description = "Failure mode should attach trace artifacts only for failed tests")
     public void failureModeShouldAttachTraceArtifactsOnlyForFailures() throws Exception {
@@ -124,6 +142,7 @@ public class FailureTraceReporterTest {
                 Assert.assertTrue(html.contains("data-console-sort=\"message\""), html);
                 Assert.assertTrue(html.contains("id=\"console-level-filter\""), html);
                 Assert.assertTrue(html.contains("data-tab=\"log\""), html);
+                Assert.assertTrue(html.contains("const evidence = trace && trace.evidence"), html);
                 String tracedJson = readZipEntry(zip, "shaft-trace.json");
                 Assert.assertTrue(tracedJson.contains("\"environment\""), tracedJson);
                 Assert.assertTrue(tracedJson.contains("\"os\""), tracedJson);
@@ -276,7 +295,9 @@ public class FailureTraceReporterTest {
                     + Base64.getEncoder().encodeToString(png) + "\""), json);
             JsonNode session = JSON.readTree(json).path("session");
             JsonNode screenshot = findArtifact(session, "screenshot-action-1");
-            Assert.assertEquals(screenshot.path("path").asText(), "screenshots/action-1.png");
+            Assert.assertTrue(screenshot.path("path").asText().matches("resources/[0-9a-f]{64}\\.png"),
+                    screenshot.toPrettyString());
+            Assert.assertEquals(screenshot.path("metadata").path("sizeBytes").asText(), String.valueOf(png.length));
             Assert.assertFalse(screenshot.path("omitted").asBoolean());
             Assert.assertEquals(session.path("events").get(0).path("artifactIds").get(0).asText(),
                     "screenshot-action-1");
@@ -327,7 +348,11 @@ public class FailureTraceReporterTest {
             Assert.assertEquals(Files.readAllBytes(screenshotFile), png);
 
             try (ZipFile zip = new ZipFile(traceDirectory.resolve("shaft-trace.zip").toFile())) {
-                Assert.assertNotNull(zip.getEntry("screenshots/action-1.png"));
+                JsonNode session = JSON.readTree(zip.getInputStream(zip.getEntry("shaft-trace.json")))
+                        .path("session");
+                String path = findArtifact(session, "screenshot-action-1").path("path").asText();
+                Assert.assertNotNull(zip.getEntry(path));
+                Assert.assertEquals(zip.getInputStream(zip.getEntry(path)).readAllBytes(), png);
             }
 
             String index = Files.readString(traceDirectory.resolve("index.json"), StandardCharsets.UTF_8);
@@ -526,7 +551,7 @@ public class FailureTraceReporterTest {
             Assert.assertTrue(json.contains("\"network\": ["), json);
             Assert.assertTrue(json.contains("\"method\": \"POST\""), json);
             Assert.assertTrue(json.contains("\"status\": 500"), json);
-            Assert.assertTrue(root.path("network").get(0).path("timestamp").asLong(0L) > 0L,
+            Assert.assertTrue(root.path("evidence").path("network").get(0).path("timestamp").asLong(0L) > 0L,
                     "Network events must carry an epoch timestamp for timeline correlation: " + json);
             Assert.assertTrue(json.contains("\"console\": ["), json);
             Assert.assertTrue(json.contains("\"level\": \"SEVERE\""), json);
@@ -871,8 +896,8 @@ public class FailureTraceReporterTest {
         }
     }
 
-    @Test(description = "Trace JSON should publish v2 session/events while retaining legacy action fields")
-    public void traceJsonShouldExposeBackendNeutralV2AndLegacyCompatibilityFields() throws Exception {
+    @Test(description = "Persisted trace JSON should use private v3 evidence without changing the public v2 session")
+    public void persistedTraceShouldUsePrivateV3WithoutChangingPublicV2Contract() throws Exception {
         SHAFT.Properties.reporting.set().traceEnabled(true);
         TraceEventRecorder.record("element", "click", "passed", "id=pay", null, "clicked", null,
                 Map.of("context", "web"), List.of());
@@ -880,7 +905,7 @@ public class FailureTraceReporterTest {
         String json = FailureTraceReporter.renderTraceJson(info("v2SchemaScenario", failure()), "log", List.of());
 
         JsonNode root = JSON.readTree(json);
-        Assert.assertEquals(root.path("schemaVersion").asText(), "1.0");
+        Assert.assertEquals(root.path("schemaVersion").asText(), "3.0");
         JsonNode session = root.path("session");
         Assert.assertEquals(session.path("schemaVersion").asText(), "2.0");
         Assert.assertEquals(session.path("backend").asText(), "UNKNOWN");
@@ -899,17 +924,123 @@ public class FailureTraceReporterTest {
         Assert.assertEquals(event.path("metadata").path("context").asText(), "web");
         Assert.assertEquals(session.path("artifacts").get(0).path("id").asText(), "network");
 
-        Assert.assertEquals(legacyActionNames(root), List.of("click"));
-        Assert.assertEquals(root.path("actions").get(0).path("id").asText(), "action-1");
+        JsonNode evidence = root.path("evidence");
+        Assert.assertTrue(evidence.path("actions").isArray(), root.toPrettyString());
+        Assert.assertTrue(evidence.path("network").isArray(), root.toPrettyString());
+        Assert.assertTrue(evidence.path("console").isArray(), root.toPrettyString());
+        Assert.assertEquals(evidence.path("actions").get(0).path("id").asText(), "action-1");
+        Assert.assertFalse(root.has("actions"), "v3 must have one canonical action location: " + root);
+        Assert.assertFalse(root.has("network"), "v3 must have one canonical network location: " + root);
+        Assert.assertFalse(root.has("console"), "v3 must have one canonical console location: " + root);
+        Assert.assertFalse(root.has("browserObservability"),
+                "v3 must have one canonical observability location: " + root);
+        Assert.assertTrue(evidence.path("browserObservability").path("warnings").isArray(), root.toPrettyString());
     }
 
-    private static List<String> legacyActionNames(JsonNode root) {
-        if (!"1.0".equals(root.path("schemaVersion").asText()) || !root.path("actions").isArray()) {
-            throw new IllegalArgumentException("Unsupported legacy trace document");
+    @Test(description = "Persisted trace archives should enforce the configured aggregate decompressed budget")
+    public void persistedTraceArchiveShouldEnforceAggregateBudget() throws Exception {
+        Path directory = Files.createTempDirectory("shaft-trace-total-budget-");
+        Path target = directory.resolve("shaft-trace.zip");
+        try {
+            List<String> omitted = FailureTraceReporter.renderTraceZip(target, "12345678901234567890",
+                    "abcdefghijklmnopqrst", "[]", Map.of(), (Path) null, 64, "x");
+
+            try (ZipFile zip = new ZipFile(target.toFile())) {
+                Assert.assertNotNull(zip.getEntry("shaft-trace.json"));
+                Assert.assertNotNull(zip.getEntry("shaft-network.har"));
+                Assert.assertNotNull(zip.getEntry("SHAFT Trace Report.html"));
+                long total = zip.stream().mapToLong(ZipEntry::getSize).sum();
+                Assert.assertTrue(total <= 64, "Total decompressed bytes must stay within the session cap: " + total);
+                Assert.assertEquals(new String(zip.getInputStream(zip.getEntry("shaft-trace.json")).readAllBytes(),
+                        StandardCharsets.UTF_8), "12345678901234567890");
+                Assert.assertEquals(new String(zip.getInputStream(zip.getEntry("SHAFT Trace Report.html")).readAllBytes(),
+                        StandardCharsets.UTF_8), "abcdefghijklmnopqrst");
+                Assert.assertTrue(omitted.contains("shaft-network.har"), omitted.toString());
+                Assert.assertTrue(zip.stream().anyMatch(entry -> {
+                    try {
+                        return "x".equals(new String(zip.getInputStream(entry).readAllBytes(), StandardCharsets.UTF_8));
+                    } catch (IOException exception) {
+                        throw new java.io.UncheckedIOException(exception);
+                    }
+                }), "At least one lower-priority entry should carry an explicit omission marker.");
+            }
+        } finally {
+            deleteDirectory(directory);
         }
-        List<String> names = new ArrayList<>();
-        root.path("actions").forEach(action -> names.add(action.path("name").asText()));
-        return names;
+    }
+
+    @Test(description = "Aggregate omissions should remain consistent across the JSON, viewer, and index")
+    public void aggregateOmissionsShouldReconcileEveryPersistedReader() throws Exception {
+        Path directory = Files.createTempDirectory("shaft-trace-reconciled-");
+        Path target = directory.resolve("shaft-trace.zip");
+        String network = "[{\"url\":\"" + "n".repeat(500_000) + "\"}]";
+        TraceArtifactManifest manifest = TraceArtifactManifest.create(network, Map.of(), null,
+                1024 * 1024, "per-entry");
+        String json = """
+                {"schemaVersion":"3.0","session":{"artifacts":[{"id":"network","kind":"network",
+                "path":"shaft-network.har","mimeType":"application/json","omitted":false,"metadata":{}}]},
+                "evidence":{"actions":[],"network":[],"console":[],"browserObservability":{"warnings":[]}}}
+                """;
+        String reason = "aggregate budget";
+        try {
+            FailureTraceReporter.TraceArchiveBundle bundle = FailureTraceReporter.convergeTraceArchive(target,
+                    json, network, Map.of(), manifest, 1024 * 1024, 300_000, reason, List.of());
+            JsonNode archiveJson;
+            String archiveHtml;
+            try (ZipFile zip = new ZipFile(target.toFile())) {
+                archiveJson = JSON.readTree(zip.getInputStream(zip.getEntry("shaft-trace.json")));
+                archiveHtml = new String(zip.getInputStream(zip.getEntry("SHAFT Trace Report.html")).readAllBytes(),
+                        StandardCharsets.UTF_8);
+                Assert.assertEquals(new String(zip.getInputStream(zip.getEntry("shaft-network.har")).readAllBytes(),
+                        StandardCharsets.UTF_8), reason);
+                Assert.assertTrue(zip.stream().mapToLong(ZipEntry::getSize).sum() <= 300_000);
+            }
+            JsonNode artifact = findArtifact(archiveJson.path("session"), "network");
+            Assert.assertTrue(artifact.path("omitted").asBoolean(), archiveJson.toPrettyString());
+            Assert.assertEquals(artifact.path("metadata").path("omissionReason").asText(), reason);
+            Assert.assertTrue(archiveHtml.contains("shaft-network.har"), archiveHtml);
+            Assert.assertTrue(archiveHtml.contains("aggregate budget"), archiveHtml);
+
+            String index = FailureTraceReporter.renderTraceIndexJson(info("aggregateReconciliation", failure()),
+                    target, false, 1, bundle.omitted(), bundle.artifacts());
+            JsonNode indexJson = JSON.readTree(index);
+            Assert.assertEquals(indexJson.path("omittedEntries").get(0).asText(), "shaft-network.har");
+            JsonNode indexedArtifact = findArtifact(indexJson, "network");
+            Assert.assertTrue(indexedArtifact.path("omitted").asBoolean(), index);
+            Assert.assertEquals(indexedArtifact.path("metadata").path("omissionReason").asText(), reason);
+        } finally {
+            manifest.close();
+            deleteDirectory(directory);
+        }
+    }
+
+    @Test(description = "Pre-omitted artifact markers should preserve their manifest reason during convergence")
+    public void perEntryOmissionReasonShouldMatchZipAfterAggregateConvergence() throws Exception {
+        Path directory = Files.createTempDirectory("shaft-trace-pre-omitted-");
+        Path target = directory.resolve("shaft-trace.zip");
+        String network = "[{\"url\":\"" + "n".repeat(512) + "\"}]";
+        String reason = "per-entry budget";
+        TraceArtifactManifest manifest = TraceArtifactManifest.create(network, Map.of(), null, 64, reason);
+        String json = """
+                {"session":{"artifacts":[{"id":"network","kind":"network","path":"shaft-network.har",
+                "mimeType":"application/json","omitted":true,
+                "metadata":{"omissionReason":"per-entry budget"}}]}}
+                """;
+        try {
+            FailureTraceReporter.TraceArchiveBundle bundle = FailureTraceReporter.convergeTraceArchive(target,
+                    json, network, Map.of(), manifest, 1024 * 1024, 3L * 1024 * 1024, "aggregate budget",
+                    List.of("shaft-network.har"));
+            try (ZipFile zip = new ZipFile(target.toFile())) {
+                Assert.assertEquals(new String(zip.getInputStream(zip.getEntry("shaft-network.har")).readAllBytes(),
+                        StandardCharsets.UTF_8), reason);
+            }
+            JsonNode artifact = findArtifact(JSON.readTree(bundle.json()).path("session"), "network");
+            Assert.assertEquals(artifact.path("metadata").path("omissionReason").asText(), reason);
+            Assert.assertTrue(bundle.html().contains(reason), bundle.html());
+        } finally {
+            manifest.close();
+            deleteDirectory(directory);
+        }
     }
 
     @Test(description = "Parallel same-id publication should keep the highest completed attempt and unique invocation paths")
@@ -1106,7 +1237,7 @@ public class FailureTraceReporterTest {
 
             String index = Files.readString(traceDirectory.resolve("index.json"), StandardCharsets.UTF_8);
             Assert.assertTrue(index.contains("\"omittedEntries\": ["), index);
-            Assert.assertTrue(index.contains("screenshots/action-1.png"), index);
+            Assert.assertTrue(index.contains(screenshotArtifact.path("path").asText()), index);
         } finally {
             TraceEventRecorder.clear();
             deleteDirectory(traceDirectory);

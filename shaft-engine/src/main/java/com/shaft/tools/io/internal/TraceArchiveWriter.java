@@ -11,6 +11,7 @@ import java.nio.file.CopyOption;
 import java.nio.file.StandardCopyOption;
 import java.nio.file.StandardOpenOption;
 import java.util.Arrays;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
@@ -34,22 +35,36 @@ public final class TraceArchiveWriter {
      * closed successfully. An existing target is therefore preserved if any entry cannot be read.
      */
     static void write(Path target, List<Entry> entries, long maxEntryBytes, String omissionMarker) throws IOException {
-        write(target, entries, maxEntryBytes, omissionMarker, DEFAULT_MOVES);
+        write(target, entries, maxEntryBytes, Long.MAX_VALUE, omissionMarker);
+    }
+
+    static WriteResult write(Path target, List<Entry> entries, long maxEntryBytes, long maxTotalBytes,
+                             String omissionMarker) throws IOException {
+        return write(target, entries, maxEntryBytes, maxTotalBytes, omissionMarker, DEFAULT_MOVES, DEFAULT_COPIES);
     }
 
     static void write(Path target, List<Entry> entries, long maxEntryBytes, String omissionMarker,
                       MoveStrategy moves) throws IOException {
-        write(target, entries, maxEntryBytes, omissionMarker, moves, DEFAULT_COPIES);
+        write(target, entries, maxEntryBytes, Long.MAX_VALUE, omissionMarker, moves, DEFAULT_COPIES);
     }
 
     static void write(Path target, List<Entry> entries, long maxEntryBytes, String omissionMarker,
                       MoveStrategy moves, CopyStrategy copies) throws IOException {
+        write(target, entries, maxEntryBytes, Long.MAX_VALUE, omissionMarker, moves, copies);
+    }
+
+    @SuppressWarnings("PMD.NPathComplexity")
+    private static WriteResult write(Path target, List<Entry> entries, long maxEntryBytes, long maxTotalBytes,
+                                     String omissionMarker, MoveStrategy moves, CopyStrategy copies) throws IOException {
         Objects.requireNonNull(target, "target");
         Objects.requireNonNull(entries, "entries");
         Objects.requireNonNull(moves, "moves");
         Objects.requireNonNull(copies, "copies");
         if (maxEntryBytes < 1) {
             throw new IllegalArgumentException("maxEntryBytes must be positive");
+        }
+        if (maxTotalBytes < 1) {
+            throw new IllegalArgumentException("maxTotalBytes must be positive");
         }
         Path absoluteTarget = target.toAbsolutePath();
         Path parent = absoluteTarget.getParent();
@@ -59,14 +74,66 @@ public final class TraceArchiveWriter {
         Files.createDirectories(parent);
         Path temporary = parent.resolve(absoluteTarget.getFileName() + ".tmp-" + UUID.randomUUID());
         byte[] omitted = String.valueOf(omissionMarker).getBytes(StandardCharsets.UTF_8);
+        LinkedHashSet<String> entryNames = new LinkedHashSet<>();
+        for (Entry entry : entries) {
+            if (!entryNames.add(entry.name())) {
+                throw new IllegalArgumentException("Duplicate trace archive entry: " + entry.name());
+            }
+        }
+        if (entries.size() > maxTotalBytes / Math.max(1, omitted.length)) {
+            throw new IllegalArgumentException("maxTotalBytes must fit one omission marker per trace entry");
+        }
+        long requiredBytes = 0;
+        int optionalEntries = 0;
+        for (Entry entry : entries) {
+            if (entry.required()) {
+                long size = entry.size();
+                if (size > maxEntryBytes) {
+                    throw new IOException("Required trace entry exceeded its configured bound: " + entry.name());
+                }
+                requiredBytes = Math.addExact(requiredBytes, size);
+            } else {
+                optionalEntries++;
+            }
+        }
+        long minimumBytes = Math.addExact(requiredBytes,
+                Math.multiplyExact((long) optionalEntries, omitted.length));
+        if (minimumBytes > maxTotalBytes) {
+            throw new IOException("Required trace entries exceed the aggregate archive budget.");
+        }
+        LinkedHashSet<String> omittedPaths = new LinkedHashSet<>();
+        long[] futureRequiredBytes = new long[entries.size() + 1];
+        int[] futureOptionalEntries = new int[entries.size() + 1];
+        for (int index = entries.size() - 1; index >= 0; index--) {
+            Entry entry = entries.get(index);
+            futureRequiredBytes[index] = futureRequiredBytes[index + 1];
+            futureOptionalEntries[index] = futureOptionalEntries[index + 1];
+            if (entry.required()) {
+                futureRequiredBytes[index] = Math.addExact(futureRequiredBytes[index], entry.size());
+            } else {
+                futureOptionalEntries[index]++;
+            }
+        }
         try {
             try (ZipOutputStream zip = new ZipOutputStream(Files.newOutputStream(temporary,
                     StandardOpenOption.CREATE_NEW, StandardOpenOption.WRITE))) {
-                for (Entry entry : entries) {
-                    addEntry(zip, entry, maxEntryBytes, omitted);
+                long remaining = maxTotalBytes;
+                for (int index = 0; index < entries.size(); index++) {
+                    Entry entry = entries.get(index);
+                    long futureRequired = futureRequiredBytes[index + 1];
+                    long reservedMarkers = Math.multiplyExact(
+                            (long) futureOptionalEntries[index + 1], omitted.length);
+                    long entryBudget = entry.required() ? maxEntryBytes
+                            : Math.min(maxEntryBytes, remaining - futureRequired - reservedMarkers);
+                    EntryWrite written = addEntry(zip, entry, entryBudget, omitted);
+                    remaining -= written.bytes();
+                    if (written.omitted()) {
+                        omittedPaths.add(entry.name());
+                    }
                 }
             }
             publish(temporary, absoluteTarget, moves, copies);
+            return new WriteResult(List.copyOf(omittedPaths));
         } catch (IOException | RuntimeException exception) {
             cleanup(temporary, exception);
             throw exception;
@@ -113,23 +180,30 @@ public final class TraceArchiveWriter {
         }
     }
 
-    private static void addEntry(ZipOutputStream zip, Entry entry, long maxEntryBytes, byte[] omissionMarker)
+    private static EntryWrite addEntry(ZipOutputStream zip, Entry entry, long maxEntryBytes, byte[] omissionMarker)
             throws IOException {
         Objects.requireNonNull(entry, "entry");
         if (entry.optional()) {
-            addOptionalEntry(zip, entry, maxEntryBytes, omissionMarker);
-            return;
+            return addOptionalEntry(zip, entry, maxEntryBytes, omissionMarker);
         }
-        writeEntry(zip, entry, maxEntryBytes, omissionMarker);
+        return writeEntry(zip, entry, maxEntryBytes, omissionMarker);
     }
 
-    private static void addOptionalEntry(ZipOutputStream zip, Entry entry, long maxEntryBytes,
+    private static EntryWrite addOptionalEntry(ZipOutputStream zip, Entry entry, long maxEntryBytes,
                                          byte[] omissionMarker) throws IOException {
         Path stable = null;
         try {
+            if (entry.source() instanceof OmittedSource omittedSource) {
+                byte[] marker = omittedSource.marker();
+                if (marker.length > maxEntryBytes) {
+                    marker = omissionMarker;
+                }
+                writeMarkerEntry(zip, entry.name(), marker);
+                return new EntryWrite(marker.length, true);
+            }
             if (entry.size() > maxEntryBytes) {
                 writeMarkerEntry(zip, entry.name(), omissionMarker);
-                return;
+                return new EntryWrite(omissionMarker.length, true);
             }
             stable = Files.createTempFile("shaft-trace-optional-", ".tmp");
             try (InputStream input = entry.open(); var output = Files.newOutputStream(stable)) {
@@ -144,9 +218,10 @@ public final class TraceArchiveWriter {
                     output.write(buffer, 0, count);
                 }
             }
-            writeEntry(zip, Entry.file(entry.name(), stable), maxEntryBytes, omissionMarker);
+            return writeEntry(zip, Entry.file(entry.name(), stable), maxEntryBytes, omissionMarker);
         } catch (IOException ignored) {
             writeMarkerEntry(zip, entry.name(), omissionMarker);
+            return new EntryWrite(omissionMarker.length, true);
         } finally {
             if (stable != null) {
                 try {
@@ -167,13 +242,13 @@ public final class TraceArchiveWriter {
         }
     }
 
-    private static void writeEntry(ZipOutputStream zip, Entry entry, long maxEntryBytes, byte[] omissionMarker)
+    private static EntryWrite writeEntry(ZipOutputStream zip, Entry entry, long maxEntryBytes, byte[] omissionMarker)
             throws IOException {
         zip.putNextEntry(new ZipEntry(entry.name()));
         try {
             if (entry.size() > maxEntryBytes) {
                 zip.write(omissionMarker);
-                return;
+                return new EntryWrite(omissionMarker.length, true);
             }
             try (InputStream input = entry.open()) {
                 byte[] buffer = new byte[COPY_BUFFER_SIZE];
@@ -186,6 +261,7 @@ public final class TraceArchiveWriter {
                     }
                     zip.write(buffer, 0, count);
                 }
+                return new EntryWrite(written, false);
             }
         } finally {
             zip.closeEntry();
@@ -302,12 +378,9 @@ public final class TraceArchiveWriter {
     }
 
     /** A lazily opened archive entry backed by either bounded bytes or a filesystem path. */
-    record Entry(String name, byte[] bytes, Path path, Source source, boolean optional) {
+    record Entry(String name, byte[] bytes, Path path, Source source, boolean optional, boolean required) {
         Entry {
-            if (name == null || name.isBlank() || name.startsWith("/") || name.startsWith("\\")
-                    || name.contains("../") || name.contains("..\\")) {
-                throw new IllegalArgumentException("Trace archive entry name must be relative and traversal-free.");
-            }
+            validateEntryName(name);
             int sourceCount = (bytes == null ? 0 : 1) + (path == null ? 0 : 1) + (source == null ? 0 : 1);
             if (sourceCount != 1) {
                 throw new IllegalArgumentException("Trace archive entry needs exactly one content source.");
@@ -320,19 +393,53 @@ public final class TraceArchiveWriter {
         }
 
         static Entry bytes(String name, byte[] bytes) {
-            return new Entry(name, Objects.requireNonNull(bytes, "bytes"), null, null, false);
+            return new Entry(name, Objects.requireNonNull(bytes, "bytes"), null, null, false, false);
+        }
+
+        private static void validateEntryName(String name) {
+            if (name == null || name.isBlank() || name.startsWith("/") || name.startsWith("\\")
+                    || name.contains("\\") || name.contains(":") || name.endsWith("/") || name.contains("//")) {
+                throw new IllegalArgumentException("Trace archive entry name must be a portable archive-relative path.");
+            }
+            for (String segment : name.split("/")) {
+                if (segment.isBlank() || ".".equals(segment) || "..".equals(segment)) {
+                    throw new IllegalArgumentException(
+                            "Trace archive entry name must be a portable archive-relative path.");
+                }
+            }
+        }
+
+        static Entry requiredText(String name, String text) {
+            return new Entry(name, String.valueOf(text).getBytes(StandardCharsets.UTF_8), null, null, false, true);
+        }
+
+        static Entry required(String name, Source source) {
+            return new Entry(name, null, null, Objects.requireNonNull(source, "source"), false, true);
+        }
+
+        static Entry optionalBytes(String name, byte[] bytes) {
+            return new Entry(name, Objects.requireNonNull(bytes, "bytes"), null, null, true, false);
         }
 
         static Entry file(String name, Path path) {
-            return new Entry(name, null, Objects.requireNonNull(path, "path"), null, false);
+            return new Entry(name, null, Objects.requireNonNull(path, "path"), null, false, false);
         }
 
         static Entry optionalFile(String name, Path path) {
-            return new Entry(name, null, Objects.requireNonNull(path, "path"), null, true);
+            return new Entry(name, null, Objects.requireNonNull(path, "path"), null, true, false);
         }
 
         static Entry optional(String name, Source source) {
-            return new Entry(name, null, null, Objects.requireNonNull(source, "source"), true);
+            return new Entry(name, null, null, Objects.requireNonNull(source, "source"), true, false);
+        }
+
+        static Entry omitted(String name) {
+            return omitted(name, "");
+        }
+
+        static Entry omitted(String name, String reason) {
+            return optional(name, new OmittedSource(
+                    String.valueOf(reason).getBytes(StandardCharsets.UTF_8)));
         }
 
         long size() throws IOException {
@@ -350,10 +457,41 @@ public final class TraceArchiveWriter {
         }
     }
 
+    record WriteResult(List<String> omittedPaths) {
+        WriteResult {
+            omittedPaths = List.copyOf(omittedPaths);
+        }
+
+    }
+
+    private record EntryWrite(long bytes, boolean omitted) {
+    }
+
     interface Source {
         long size() throws IOException;
 
         InputStream open() throws IOException;
+    }
+
+    private record OmittedSource(byte[] marker) implements Source {
+        private OmittedSource {
+            marker = Arrays.copyOf(marker, marker.length);
+        }
+
+        @Override
+        public byte[] marker() {
+            return Arrays.copyOf(marker, marker.length);
+        }
+
+        @Override
+        public long size() {
+            return marker.length;
+        }
+
+        @Override
+        public InputStream open() {
+            return new java.io.ByteArrayInputStream(marker);
+        }
     }
 
     @FunctionalInterface

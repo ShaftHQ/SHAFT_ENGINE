@@ -940,12 +940,13 @@ public class BrowserEmulationNamespaceTraceTest {
                 Assert.assertTrue(trace.path("exception").path("message").asText()
                         .contains("unrelated terminal failure"), json);
                 Assert.assertEquals(trace.path("snapshot").path("type").asText(), "omitted-sensitive", json);
-                Assert.assertTrue(trace.path("actions").toString().contains("ordinary action retained"), json);
-                for (JsonNode recordedAction : trace.path("actions")) {
+                JsonNode evidence = trace.path("evidence");
+                Assert.assertTrue(evidence.path("actions").toString().contains("ordinary action retained"), json);
+                for (JsonNode recordedAction : evidence.path("actions")) {
                     Assert.assertFalse(recordedAction.has("domSnapshotBefore"), json);
                 }
-                Assert.assertTrue(trace.path("console").isEmpty(), json);
-                Assert.assertTrue(trace.path("network").isEmpty(), json);
+                Assert.assertTrue(evidence.path("console").isEmpty(), json);
+                Assert.assertTrue(evidence.path("network").isEmpty(), json);
                 if (forbiddenNativeEntry != null) {
                     Assert.assertNull(zip.getEntry(forbiddenNativeEntry));
                 }

@@ -10,12 +10,16 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.util.HexFormat;
 import org.apache.logging.log4j.Level;
 
 /** Finalized evidence-entry plan used by both schema serialization and ZIP publication. */
 final class TraceArtifactManifest implements AutoCloseable {
     private static final int BUFFER_SIZE = 16 * 1024;
-    private final List<TraceArtifactReference> references;
+    private List<TraceArtifactReference> references;
     private final TraceArchiveWriter.Entry nativeEntry;
     private final Path stagedNativeTrace;
     private static final NativeTraceSource FILE_SOURCE = new NativeTraceSource() {
@@ -43,12 +47,12 @@ final class TraceArtifactManifest implements AutoCloseable {
     }
 
     static TraceArtifactManifest create(String networkJson, Map<String, byte[]> screenshots, Path nativeTrace,
-                                        int maxBytes, String omissionMarker) {
+                                        long maxBytes, String omissionMarker) {
         return create(networkJson, screenshots, nativeTrace, maxBytes, omissionMarker, FILE_SOURCE);
     }
 
     static TraceArtifactManifest create(String networkJson, Map<String, byte[]> screenshots, Path nativeTrace,
-                                        int maxBytes, String omissionMarker, NativeTraceSource nativeSource) {
+                                        long maxBytes, String omissionMarker, NativeTraceSource nativeSource) {
         List<TraceArtifactReference> references = new ArrayList<>();
         byte[] networkHar = BrowserObservabilityRecorder.networkHarJson(networkJson)
                 .getBytes(StandardCharsets.UTF_8);
@@ -57,9 +61,13 @@ final class TraceArtifactManifest implements AutoCloseable {
                 "application/json", networkOmitted, omissionMetadata(networkOmitted, omissionMarker)));
         screenshots.forEach((id, bytes) -> {
             boolean omitted = bytes.length > maxBytes;
+            String digest = sha256(bytes);
+            Map<String, String> metadata = new java.util.LinkedHashMap<>(
+                    omissionMetadata(omitted, omissionMarker));
+            metadata.put("sha256", digest);
+            metadata.put("sizeBytes", String.valueOf(bytes.length));
             references.add(new TraceArtifactReference("screenshot-" + id, "screenshot",
-                    "screenshots/" + id + ".png", "image/png", omitted,
-                    omissionMetadata(omitted, omissionMarker)));
+                    "resources/" + digest + ".png", "image/png", omitted, metadata));
         });
 
         NativeArtifact nativeArtifact = stageNative(nativeTrace, maxBytes, omissionMarker, nativeSource);
@@ -83,7 +91,20 @@ final class TraceArtifactManifest implements AutoCloseable {
         return references.stream().filter(TraceArtifactReference::omitted).map(TraceArtifactReference::path).toList();
     }
 
-    private static NativeArtifact stageNative(Path source, int maxBytes, String omissionMarker,
+    void markOmitted(List<String> paths, String reason) {
+        Set<String> omitted = Set.copyOf(paths);
+        references = references.stream().map(reference -> omitted.contains(reference.path()) && !reference.omitted()
+                ? new TraceArtifactReference(reference.id(), reference.kind(), reference.path(), reference.mimeType(),
+                true, withOmissionReason(reference.metadata(), reason)) : reference).toList();
+    }
+
+    private static Map<String, String> withOmissionReason(Map<String, String> metadata, String reason) {
+        Map<String, String> updated = new java.util.LinkedHashMap<>(metadata);
+        updated.put("omissionReason", reason);
+        return Map.copyOf(updated);
+    }
+
+    private static NativeArtifact stageNative(Path source, long maxBytes, String omissionMarker,
                                                NativeTraceSource nativeSource) {
         if (source == null) {
             return new NativeArtifact(null, null, false, "");
@@ -116,7 +137,7 @@ final class TraceArtifactManifest implements AutoCloseable {
                 Files.deleteIfExists(staged);
                 return omittedNative(name, omissionMarker);
             }
-            return new NativeArtifact(TraceArchiveWriter.Entry.file(name, staged), staged, false, "");
+            return new NativeArtifact(TraceArchiveWriter.Entry.optionalFile(name, staged), staged, false, "");
         } catch (IOException ignored) {
             deleteStaged(staged);
             return omittedNative(name, "Omitted because SHAFT could not read the native Playwright trace.");
@@ -130,6 +151,14 @@ final class TraceArtifactManifest implements AutoCloseable {
 
     private static Map<String, String> omissionMetadata(boolean omitted, String reason) {
         return omitted ? Map.of("omissionReason", reason) : Map.of();
+    }
+
+    private static String sha256(byte[] bytes) {
+        try {
+            return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(bytes));
+        } catch (NoSuchAlgorithmException exception) {
+            throw new IllegalStateException("SHA-256 is required by the Java platform.", exception);
+        }
     }
 
     private static void deleteStaged(Path staged) {
