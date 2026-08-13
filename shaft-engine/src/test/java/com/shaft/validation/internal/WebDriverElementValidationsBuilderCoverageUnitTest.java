@@ -42,7 +42,7 @@ public class WebDriverElementValidationsBuilderCoverageUnitTest {
                 ValidationEnums.ValidationType.NEGATIVE, "elementExists", null, null, "does not exist.");
         assertExecutorInvocationState(newBuilder(), WebDriverElementValidationsBuilder::matchesReferenceImage,
                 ValidationEnums.ValidationType.POSITIVE, "elementMatches",
-                ValidationEnums.VisualValidationEngine.EXACT_SHUTTERBUG, null, "matches the reference image.");
+                ValidationEnums.VisualValidationEngine.EXACT_OPENCV, null, "matches the reference image.");
         assertExecutorInvocationState(newBuilder(),
                 builder -> builder.matchesReferenceImage(ValidationEnums.VisualValidationEngine.EXACT_OPENCV),
                 ValidationEnums.ValidationType.POSITIVE, "elementMatches",
