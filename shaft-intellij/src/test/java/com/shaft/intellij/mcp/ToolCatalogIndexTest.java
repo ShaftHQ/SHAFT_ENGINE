@@ -31,6 +31,8 @@ class ToolCatalogIndexTest {
         assertTrue(names.contains("element_click"), "a real, surviving tool must be present");
         assertTrue(names.contains("driver_initialize"), "a real, surviving tool must be present");
         assertTrue(names.contains("autobot_provider_models"), "a real, surviving tool must be present");
+        assertTrue(names.contains("setup_catalog"), "the setup adapter catalog must be present");
+        assertTrue(names.contains("setup_install"), "the setup adapter mutation boundary must be present");
         assertFalse(names.contains("natural_act"), "natural_act was deleted outright (owner mandate)");
         assertFalse(names.contains("mobile_natural_act"), "mobile_natural_act was deleted outright");
         assertFalse(names.contains("playwright_browser_navigate"),
@@ -38,9 +40,9 @@ class ToolCatalogIndexTest {
     }
 
     @Test
-    void toolNamesMatchesTheCanonical91ToolCatalog() {
-        assertEquals(91, ToolCatalogIndex.toolNames().size(),
-                "the bundled index must track the canonical 91-tool catalog; a mismatch means "
+    void toolNamesMatchesTheCanonical100ToolCatalog() {
+        assertEquals(100, ToolCatalogIndex.toolNames().size(),
+                "the bundled index must track the canonical 100-tool catalog; a mismatch means "
                         + "the build-time copy is stale or the resource wasn't regenerated");
     }
 
@@ -62,7 +64,7 @@ class ToolCatalogIndexTest {
 
     @Test
     void intentKeywordsReturnsEmptyForAToolWithNoCuratedKeywordsYet() {
-        // Most of the 91-tool catalog has no curated intentKeywords overlay entries yet (only 8/91
+        // Most of the 100-tool catalog has no curated intentKeywords overlay entries yet (only 8/100
         // are curated as of #3868/#3869) -- must degrade to an empty list, never null or an exception.
         assertEquals(List.of(), ToolCatalogIndex.intentKeywords("element_click"));
     }

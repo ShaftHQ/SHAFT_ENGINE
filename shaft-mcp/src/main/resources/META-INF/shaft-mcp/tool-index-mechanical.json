@@ -1606,6 +1606,106 @@
       "description" : null
     } ]
   }, {
+    "name" : "setup_catalog",
+    "service" : "InfrastructureMcpService",
+    "description" : "returns the deterministic SHAFT setup profiles, targets, and capabilities",
+    "params" : [ ]
+  }, {
+    "name" : "setup_doctor",
+    "service" : "InfrastructureMcpService",
+    "description" : "diagnoses a setup profile without installing, downloading, or starting services",
+    "params" : [ {
+      "name" : "request",
+      "type" : "object",
+      "required" : true,
+      "description" : "setup profile, paths, policy, and components"
+    } ]
+  }, {
+    "name" : "setup_install",
+    "service" : "InfrastructureMcpService",
+    "description" : "installs one reviewed setup plan after exact digest and license approval",
+    "params" : [ {
+      "name" : "acceptedLicenses",
+      "type" : "array",
+      "required" : false,
+      "description" : "explicitly accepted license identifiers"
+    }, {
+      "name" : "approvedDigest",
+      "type" : "string",
+      "required" : true,
+      "description" : "exact plan digest explicitly approved by the caller"
+    }, {
+      "name" : "planJson",
+      "type" : "string",
+      "required" : true,
+      "description" : "exact plan JSON returned by setup_plan"
+    }, {
+      "name" : "request",
+      "type" : "object",
+      "required" : true,
+      "description" : "the same paths and execution policy used to create the plan"
+    } ]
+  }, {
+    "name" : "setup_logs",
+    "service" : "InfrastructureMcpService",
+    "description" : "reports whether the selected setup profile exposes owned service logs",
+    "params" : [ {
+      "name" : "profile",
+      "type" : "string",
+      "required" : true,
+      "description" : "setup profile"
+    } ]
+  }, {
+    "name" : "setup_plan",
+    "service" : "InfrastructureMcpService",
+    "description" : "creates an exact reviewable setup plan and approval digest without mutating the host",
+    "params" : [ {
+      "name" : "request",
+      "type" : "object",
+      "required" : true,
+      "description" : "setup profile, ownership mode, paths, policy, and components"
+    } ]
+  }, {
+    "name" : "setup_start",
+    "service" : "InfrastructureMcpService",
+    "description" : "reports whether the selected setup profile owns a startable managed service",
+    "params" : [ {
+      "name" : "profile",
+      "type" : "string",
+      "required" : true,
+      "description" : "setup profile"
+    } ]
+  }, {
+    "name" : "setup_status",
+    "service" : "InfrastructureMcpService",
+    "description" : "returns actual read-only readiness for a registered setup profile",
+    "params" : [ {
+      "name" : "request",
+      "type" : "object",
+      "required" : true,
+      "description" : "setup profile, paths, policy, and components"
+    } ]
+  }, {
+    "name" : "setup_stop",
+    "service" : "InfrastructureMcpService",
+    "description" : "reports whether the selected setup profile owns a stoppable managed service lease",
+    "params" : [ {
+      "name" : "profile",
+      "type" : "string",
+      "required" : true,
+      "description" : "setup profile"
+    } ]
+  }, {
+    "name" : "setup_verify",
+    "service" : "InfrastructureMcpService",
+    "description" : "verifies exact setup readiness without mutating the host",
+    "params" : [ {
+      "name" : "request",
+      "type" : "object",
+      "required" : true,
+      "description" : "setup profile, paths, policy, and components"
+    } ]
+  }, {
     "name" : "shaft_coding_partner_diff",
     "service" : "CodingPartnerService",
     "description" : "produces a preview-only unified diff that inserts reviewed SHAFT code blocks into an existing Java target at a chosen method or textual anchor; never writes files",

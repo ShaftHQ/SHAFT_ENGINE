@@ -36,11 +36,20 @@ import static org.junit.jupiter.api.Assertions.fail;
  */
 @Tag("external-e2e")
 class ShaftMcpStdioManifestIT {
-    private static final Set<String> REQUIRED_GUIDANCE_TOOL_NAMES = Set.of(
+    private static final Set<String> REQUIRED_TOOL_NAMES = Set.of(
             "shaft_guide_search",
             "test_automation_scenarios",
             "shaft_coding_partner_plan",
-            "test_code_guardrails_check");
+            "test_code_guardrails_check",
+            "setup_catalog",
+            "setup_doctor",
+            "setup_status",
+            "setup_plan",
+            "setup_install",
+            "setup_verify",
+            "setup_start",
+            "setup_stop",
+            "setup_logs");
     private static final Duration STARTUP_TIMEOUT = Duration.ofSeconds(60);
     private static final ObjectMapper JSON = new ObjectMapper();
 
@@ -76,15 +85,22 @@ class ShaftMcpStdioManifestIT {
                 Set<String> toolNames = toolNames(result);
                 writeToolListingEvidence(result);
 
-                Set<String> missing = REQUIRED_GUIDANCE_TOOL_NAMES.stream()
+                Set<String> missing = REQUIRED_TOOL_NAMES.stream()
                         .filter(name -> !toolNames.contains(name))
                         .collect(java.util.stream.Collectors.toSet());
                 assertTrue(missing.isEmpty(),
                         "Packaged shaft-mcp tools/list run from outside the repo (" + launchDirectoryOutsideRepo
                                 + ") is missing guidance/codegen tools: " + missing
                                 + ". Full tools/list result: " + result);
-                assertTrue(toolNames.size() > REQUIRED_GUIDANCE_TOOL_NAMES.size(),
+                assertTrue(toolNames.size() > REQUIRED_TOOL_NAMES.size(),
                         "Expected runtime tools alongside the guidance/codegen tools, found only: " + toolNames);
+
+                send(output, toolCallRequest(3, "setup_catalog", "{}"));
+                JsonNode catalog = readResponseFor(input, ioExecutor, 3, STARTUP_TIMEOUT, process, stderr);
+                String catalogPayload = catalog.toString();
+                assertTrue(catalogPayload.contains("REPORTING"));
+                assertTrue(catalogPayload.contains("OCR"));
+                assertTrue(catalogPayload.contains("LIGHTHOUSE"));
             }
         } finally {
             process.destroyForcibly();
@@ -134,6 +150,11 @@ class ShaftMcpStdioManifestIT {
 
     private static String toolsListRequest(int requestId) {
         return "{\"jsonrpc\":\"2.0\",\"id\":" + requestId + ",\"method\":\"tools/list\"}";
+    }
+
+    private static String toolCallRequest(int requestId, String name, String arguments) {
+        return "{\"jsonrpc\":\"2.0\",\"id\":" + requestId + ",\"method\":\"tools/call\","
+                + "\"params\":{\"name\":\"" + name + "\",\"arguments\":" + arguments + "}}";
     }
 
     private static void send(OutputStream output, String payload) throws IOException {
