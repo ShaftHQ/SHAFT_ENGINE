@@ -15,9 +15,6 @@ import org.apache.pdfbox.Loader;
 import org.apache.pdfbox.io.IOUtils;
 import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.pdmodel.PDPage;
-import org.apache.pdfbox.pdmodel.PDResources;
-import org.apache.pdfbox.pdmodel.graphics.PDXObject;
-import org.apache.pdfbox.pdmodel.graphics.image.PDImageXObject;
 import org.apache.pdfbox.rendering.ImageType;
 import org.apache.pdfbox.rendering.PDFRenderer;
 
@@ -28,10 +25,8 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
-import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -102,41 +97,50 @@ public final class PdfDocumentProcessor {
         double imageCoverage = PdfImageCoverageExtractor.coverage(page);
         boolean needsOcr = nativeCharacters < options.nativeTextMinimumCharacters()
                 || imageCoverage >= options.imageCoverageThreshold();
-        OcrDocumentPageAnalysis ocr = null;
-        if (needsOcr) {
-            PdfRasterBudget.Lease lease = rasterBudget.acquire(Math.multiplyExact(pixels, 4));
-            byte[] rendered;
-            try {
-                rendered = render(renderer, pageIndex, options.renderDpi());
-            } catch (RuntimeException | IOException exception) {
-                lease.close();
-                throw exception;
-            }
-            var analysis = OcrProcessingActions.documentPageAnalysisTask(rendered, options.ocrOptions(),
-                    options.detectOrientation(), options.deskew());
-            Future<OcrDocumentPageAnalysis> task = executor.submit(() -> {
-                try (lease) {
-                    return analysis.get();
-                }
-            });
-            try {
-                ocr = task.get(options.pageTimeout().toMillis(), TimeUnit.MILLISECONDS);
-            } catch (TimeoutException exception) {
-                task.cancel(true);
-                lease.close();
-                throw new IllegalStateException("OCR timed out for PDF page " + (pageIndex + 1) + " after "
-                        + options.pageTimeout() + ".", exception);
-            } catch (InterruptedException exception) {
-                Thread.currentThread().interrupt();
-                throw new IllegalStateException("PDF OCR was interrupted for page " + (pageIndex + 1) + ".", exception);
-            } catch (ExecutionException exception) {
-                Throwable cause = exception.getCause();
-                if (cause instanceof RuntimeException runtimeException) {
-                    throw runtimeException;
-                }
-                throw new IllegalStateException("PDF OCR failed for page " + (pageIndex + 1) + ".", cause);
-            }
+        OcrDocumentPageAnalysis ocr = needsOcr
+                ? executeOcr(renderer, executor, pageIndex, pixels, options, rasterBudget) : null;
+        return composePageResult(pageIndex, nativeResult, nativeCharacters, ocr, options);
+    }
+
+    private static OcrDocumentPageAnalysis executeOcr(PDFRenderer renderer, ExecutorService executor, int pageIndex,
+                                                       long pixels, PdfDocumentOptions options,
+                                                       PdfRasterBudget rasterBudget) throws IOException {
+        PdfRasterBudget.Lease lease = rasterBudget.acquire(Math.multiplyExact(pixels, 4));
+        byte[] rendered;
+        try {
+            rendered = render(renderer, pageIndex, options.renderDpi());
+        } catch (RuntimeException | IOException exception) {
+            lease.close();
+            throw exception;
         }
+        var analysis = OcrProcessingActions.documentPageAnalysisTask(rendered, options.ocrOptions(),
+                options.detectOrientation(), options.deskew());
+        Future<OcrDocumentPageAnalysis> task = executor.submit(() -> {
+            try (lease) {
+                return analysis.get();
+            }
+        });
+        try {
+            return task.get(options.pageTimeout().toMillis(), TimeUnit.MILLISECONDS);
+        } catch (TimeoutException exception) {
+            task.cancel(true);
+            lease.close();
+            throw new IllegalStateException("OCR timed out for PDF page " + (pageIndex + 1) + " after "
+                    + options.pageTimeout() + ".", exception);
+        } catch (InterruptedException exception) {
+            Thread.currentThread().interrupt();
+            throw new IllegalStateException("PDF OCR was interrupted for page " + (pageIndex + 1) + ".", exception);
+        } catch (ExecutionException exception) {
+            Throwable cause = exception.getCause();
+            if (cause instanceof RuntimeException runtimeException) {
+                throw runtimeException;
+            }
+            throw new IllegalStateException("PDF OCR failed for page " + (pageIndex + 1) + ".", cause);
+        }
+    }
+
+    private static PdfPageResult composePageResult(int pageIndex, OcrResult nativeResult, int nativeCharacters,
+                                                   OcrDocumentPageAnalysis ocr, PdfDocumentOptions options) {
         PdfTextSource source;
         OcrResult recognition;
         List<String> warnings = new ArrayList<>();
@@ -199,21 +203,6 @@ public final class PdfDocumentProcessor {
         } finally {
             image.flush();
         }
-    }
-
-    private static double imageCoverage(PDPage page, int pageWidth, int pageHeight) throws IOException {
-        PDResources resources = page.getResources();
-        if (resources == null) {
-            return 0;
-        }
-        long imagePixels = 0;
-        for (var name : resources.getXObjectNames()) {
-            PDXObject object = resources.getXObject(name);
-            if (object instanceof PDImageXObject image) {
-                imagePixels += (long) image.getWidth() * image.getHeight();
-            }
-        }
-        return Math.min(1, imagePixels / (double) Math.max(1L, (long) pageWidth * pageHeight));
     }
 
     private static OcrResult merge(OcrResult nativeResult, OcrResult ocrResult) {

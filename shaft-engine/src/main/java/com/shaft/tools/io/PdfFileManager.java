@@ -18,7 +18,6 @@ import org.apache.pdfbox.text.PDFTextStripper;
 
 import java.io.File;
 import java.io.IOException;
-import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.List;
 
