@@ -1,0 +1,100 @@
+<svg
+  xmlns="http://www.w3.org/2000/svg"
+  width="2048"
+  height="1024"
+  viewBox="0 0 2048 1024"
+  role="img"
+  aria-labelledby="title desc"
+>
+  <title id="title">ChaosEngine Quantum Mandate identity specimen</title>
+  <desc id="desc">
+    Light, dark, one-ink, and micro-size proofs of the two-color Quantum Mandate
+    identity.
+  </desc>
+  <rect width="1024" height="512" fill="#F2F7FF" />
+  <rect x="1024" width="1024" height="512" fill="#06080D" />
+  <rect y="512" width="1024" height="512" fill="#F2F7FF" />
+  <rect x="1024" y="512" width="1024" height="512" fill="#06080D" />
+  <g
+    transform="translate(260 24) scale(.45)"
+    data-geometry="quantum-mandate-v3"
+  >
+    <path
+      d="M332 116H600V260H410L282 388V636L410 764H610V908H332L126 702V322Z"
+      fill="#10141C"
+    />
+    <path
+      d="M690 160L812 184 900 272V362H770L690 288ZM690 420H838V500H690ZM690 548H838V628H690ZM690 686H900V778L810 868H690V754H760L806 708H690Z"
+      fill="#10141C"
+    />
+    <path
+      d="M490 456 530 416H590L630 456V516L590 556H530L490 516Z"
+      fill="#FF3B4D"
+    />
+    <path
+      d="M612 82 662 32V344L716 398V610L662 664V944L612 994V640L666 586V422L612 368Z"
+      fill="#10141C"
+    />
+  </g>
+  <g
+    transform="translate(1284 24) scale(.45)"
+    data-geometry="quantum-mandate-v3"
+  >
+    <path
+      d="M332 116H600V260H410L282 388V636L410 764H610V908H332L126 702V322Z"
+      fill="#F2F7FF"
+    />
+    <path
+      d="M690 160L812 184 900 272V362H770L690 288ZM690 420H838V500H690ZM690 548H838V628H690ZM690 686H900V778L810 868H690V754H760L806 708H690Z"
+      fill="#F2F7FF"
+    />
+    <path
+      d="M490 456 530 416H590L630 456V516L590 556H530L490 516Z"
+      fill="#FF3B4D"
+    />
+    <path
+      d="M612 82 662 32V344L716 398V610L662 664V944L612 994V640L666 586V422L612 368Z"
+      fill="#F2F7FF"
+    />
+  </g>
+  <g
+    transform="translate(260 536) scale(.45)"
+    fill="#10141C"
+    data-geometry="quantum-mandate-v3"
+  >
+    <path
+      d="M332 116H600V260H410L282 388V636L410 764H610V908H332L126 702V322Z"
+    />
+    <path
+      d="M690 160L812 184 900 272V362H770L690 288ZM690 420H838V500H690ZM690 548H838V628H690ZM690 686H900V778L810 868H690V754H760L806 708H690Z"
+    />
+    <path d="M490 456 530 416H590L630 456V516L590 556H530L490 516Z" />
+    <path
+      d="M612 82 662 32V344L716 398V610L662 664V944L612 994V640L666 586V422L612 368Z"
+    />
+  </g>
+  <g
+    transform="translate(760 680) scale(14)"
+    data-geometry="quantum-mandate-v3"
+  >
+    <path d="M5 2H9V4H6L4 6V10L6 12H9V14H5L2 11V5Z" fill="#10141C" />
+    <path
+      d="M11 3H13L15 5V6H12L11 5ZM11 7H14V9H11ZM11 10H15V11L13 13H11Z"
+      fill="#10141C"
+    />
+    <rect x="8" y="7" width="2" height="2" fill="#FF3B4D" />
+    <path d="M9 1 10 0V6L11 7V9L10 10V16L9 15V10L10 9V7L9 6Z" fill="#10141C" />
+  </g>
+  <g
+    transform="translate(1340 640) scale(20)"
+    data-geometry="quantum-mandate-v3"
+  >
+    <path d="M5 2H9V4H6L4 6V10L6 12H9V14H5L2 11V5Z" fill="#F2F7FF" />
+    <path
+      d="M11 3H13L15 5V6H12L11 5ZM11 7H14V9H11ZM11 10H15V11L13 13H11Z"
+      fill="#F2F7FF"
+    />
+    <rect x="8" y="7" width="2" height="2" fill="#FF3B4D" />
+    <path d="M9 1 10 0V6L11 7V9L10 10V16L9 15V10L10 9V7L9 6Z" fill="#F2F7FF" />
+  </g>
+</svg>
