@@ -536,7 +536,7 @@ public class TraceService {
         String frame = text(action.path("source"));
         ObjectNode source = JSON.createObjectNode();
         source.put("frame", frame);
-        java.util.regex.Matcher matcher = java.util.regex.Pattern.compile("\\(([^():]+):(\\d+)\\)$").matcher(frame);
+        java.util.regex.Matcher matcher = Pattern.compile("\\(([^():]+):(\\d+)\\)$").matcher(frame);
         boolean matched = matcher.find();
         source.put("file", matched ? matcher.group(1) : "");
         source.put("line", matched ? matcher.group(2) : "");

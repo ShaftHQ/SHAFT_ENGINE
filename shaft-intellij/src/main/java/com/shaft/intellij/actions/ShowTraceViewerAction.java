@@ -142,6 +142,7 @@ public final class ShowTraceViewerAction extends AnAction implements DumbAware {
         }
     }
 
+    @SuppressWarnings("PMD.NPathComplexity")
     private static Path resolveViewerHtml(Path traceDirectory, GeneratedViewerCache cache) throws IOException {
         Path archive = traceDirectory.resolve(TRACE_ZIP_NAME);
         Path loose = traceDirectory.resolve(VIEWER_HTML_NAME);
@@ -211,6 +212,7 @@ public final class ShowTraceViewerAction extends AnAction implements DumbAware {
         }
     }
 
+    @SuppressWarnings("PMD.NPathComplexity")
     private static String safeEntryIdentity(ZipEntry entry) throws IOException {
         String name = entry.getName();
         if (name == null || name.isBlank() || name.startsWith("/") || name.contains("\\") || name.contains(":")) {
@@ -235,6 +237,7 @@ public final class ShowTraceViewerAction extends AnAction implements DumbAware {
         return Normalizer.normalize(candidate, Normalizer.Form.NFC).toLowerCase(Locale.ROOT);
     }
 
+    @SuppressWarnings("PMD.NPathComplexity")
     static void verifyCentralDirectoryEntryCount(Path archive) throws IOException {
         long size = Files.size(archive);
         int tailSize = (int) Math.min(size, 65_557L);
@@ -463,6 +466,7 @@ public final class ShowTraceViewerAction extends AnAction implements DumbAware {
             return Files.createTempFile(directory, prefix, ".tmp");
         }
 
+        @SuppressWarnings("PMD.NPathComplexity")
         synchronized Path publish(Path candidate) throws IOException {
             validateDirectory();
             Path normalizedCandidate = candidate.toAbsolutePath().normalize();

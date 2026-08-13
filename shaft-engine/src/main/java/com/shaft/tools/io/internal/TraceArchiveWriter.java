@@ -53,6 +53,7 @@ public final class TraceArchiveWriter {
         write(target, entries, maxEntryBytes, Long.MAX_VALUE, omissionMarker, moves, copies);
     }
 
+    @SuppressWarnings("PMD.NPathComplexity")
     private static WriteResult write(Path target, List<Entry> entries, long maxEntryBytes, long maxTotalBytes,
                                      String omissionMarker, MoveStrategy moves, CopyStrategy copies) throws IOException {
         Objects.requireNonNull(target, "target");

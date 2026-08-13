@@ -1341,6 +1341,7 @@ public final class FailureTraceReporter {
                 maxBytes, maxBytes, omissionMarker, aggregateOmissionMarker());
     }
 
+    @SuppressWarnings({"PMD.ExcessiveParameterList", "PMD.NPathComplexity"})
     private static List<String> renderTraceZip(Path target, String json, String html, String networkJson,
                                                 Map<String, byte[]> screenshots,
                                                 TraceArchiveWriter.Entry nativeEntry,
@@ -1522,7 +1523,7 @@ public final class FailureTraceReporter {
     }
 
     private static void recordAttempt(TestExecutionInfo info, int attempt, String status, String archiveName) {
-        ATTEMPT_HISTORY.computeIfAbsent(safeTestId(info), id -> java.util.Collections.synchronizedList(new ArrayList<>()))
+        ATTEMPT_HISTORY.computeIfAbsent(safeTestId(info), id -> Collections.synchronizedList(new ArrayList<>()))
                 .add(new AttemptRecord(attempt, status, archiveName, Instant.now().toString()));
     }
 

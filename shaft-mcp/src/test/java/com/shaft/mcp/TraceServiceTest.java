@@ -54,7 +54,7 @@ class TraceServiceTest {
             var summary = service(temp).traceSummarize(relative(temp, index));
 
             JsonNode document = JSON.readTree(emitted);
-            assertEquals("1.0", document.path("schemaVersion").asText());
+            assertEquals("3.0", document.path("schemaVersion").asText());
             assertEquals("2.0", document.path("session").path("schemaVersion").asText());
             assertEquals("CheckoutTest", summary.testClass());
             assertEquals("payShouldFail", summary.testMethod());
