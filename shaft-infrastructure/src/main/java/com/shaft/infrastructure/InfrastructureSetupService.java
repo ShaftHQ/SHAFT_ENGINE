@@ -23,12 +23,22 @@ public final class InfrastructureSetupService {
 
     public static InfrastructureSetupService builtIn(SetupPlatform platform, SetupArchitecture architecture) {
         return new InfrastructureSetupService(new SetupProviderRegistry(List.of(
-                new ReportingSetupProvider(), new OcrSetupProvider())),
+                new ReportingSetupProvider(), new OcrSetupProvider(), new LighthouseSetupProvider())),
                 platform, architecture);
     }
 
     public SetupCatalog catalog() {
         return SetupCatalog.builtIn();
+    }
+
+    /**
+     * Returns whether this coordinator has an executable provider for the profile.
+     *
+     * @param profile profile to query
+     * @return {@code true} when an executable provider is registered
+     */
+    public boolean supports(SetupProfile profile) {
+        return providers.profiles().contains(Objects.requireNonNull(profile, "profile"));
     }
 
     public SetupPlan plan(SetupOptions options) {

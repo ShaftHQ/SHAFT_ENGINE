@@ -104,7 +104,7 @@ public final class SetupCommand implements Runnable {
         @Override
         public Integer call() {
             try {
-                if (profile != SetupProfile.REPORTING && profile != SetupProfile.OCR) {
+                if (!InfrastructureSetupService.builtIn().supports(profile)) {
                     spec.commandLine().getErr().println("No setup provider is available for profile " + profile + '.');
                     return 4;
                 }
@@ -219,7 +219,7 @@ public final class SetupCommand implements Runnable {
         @Override
         public Integer call() {
             try {
-                if (profile != SetupProfile.REPORTING && profile != SetupProfile.OCR) return unsupported(spec, profile);
+                if (!InfrastructureSetupService.builtIn().supports(profile)) return unsupported(spec, profile);
                 if (profile != SetupProfile.OCR && !languages.isEmpty()) {
                     throw new IllegalArgumentException("--language is supported only for profile OCR.");
                 }

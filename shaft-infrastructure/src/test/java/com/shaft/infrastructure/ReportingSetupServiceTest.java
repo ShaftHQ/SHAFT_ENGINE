@@ -197,6 +197,85 @@ class ReportingSetupServiceTest {
     }
 
     @Test
+    void portableNodeOwnerSerializesAcrossProviderInstances(@TempDir Path temp) throws Exception {
+        Path cache = temp.resolve("cache").toAbsolutePath();
+        Path data = temp.resolve("data").toAbsolutePath();
+        ShaftCachePaths paths = new ShaftCachePaths(cache, data, cache.resolve("downloads"),
+                data.resolve("tools"), data.resolve("state"), data.resolve("receipts"));
+        Path nodeArchive = createNodeZip(temp.resolve("node.zip"));
+        java.util.concurrent.atomic.AtomicInteger fetches = new java.util.concurrent.atomic.AtomicInteger();
+        ReportingSetupService.ArtifactFetcher fetcher = action -> {
+            fetches.incrementAndGet();
+            return nodeArchive;
+        };
+        ReportingSetupService.CommandRunner runner = (command, log, timeout) ->
+                new ReportingSetupService.ProcessResult(0, "v24.19.0");
+        ReportingSetupService first = new ReportingSetupService(paths, SetupPlatform.WINDOWS,
+                SetupArchitecture.X64, fetcher, runner, false);
+        ReportingSetupService second = new ReportingSetupService(paths, SetupPlatform.WINDOWS,
+                SetupArchitecture.X64, fetcher, runner, false);
+        SetupAction node = ReportingSetupPlanner.plan(SetupPlatform.WINDOWS, SetupArchitecture.X64,
+                SetupMode.MANAGED).actions().getFirst();
+        var start = new java.util.concurrent.CountDownLatch(1);
+        var pool = java.util.concurrent.Executors.newFixedThreadPool(2);
+        try {
+            var one = pool.submit(() -> { start.await(); first.installNodeAction(node); return null; });
+            var two = pool.submit(() -> { start.await(); second.installNodeAction(node); return null; });
+            start.countDown();
+            one.get(30, java.util.concurrent.TimeUnit.SECONDS);
+            two.get(30, java.util.concurrent.TimeUnit.SECONDS);
+        } finally {
+            pool.shutdownNow();
+        }
+        assertEquals(1, fetches.get());
+        assertEquals(SetupReadiness.READY, first.nodeStatus().readiness());
+    }
+
+    @Test
+    void wrongNodeVersionIsNeverPublished(@TempDir Path temp) throws Exception {
+        Path cache = temp.resolve("cache").toAbsolutePath();
+        Path data = temp.resolve("data").toAbsolutePath();
+        ShaftCachePaths paths = new ShaftCachePaths(cache, data, cache.resolve("downloads"),
+                data.resolve("tools"), data.resolve("state"), data.resolve("receipts"));
+        Path archive = createNodeZip(temp.resolve("node.zip"));
+        ReportingSetupService service = new ReportingSetupService(paths, SetupPlatform.WINDOWS,
+                SetupArchitecture.X64, action -> archive,
+                (command, log, timeout) -> new ReportingSetupService.ProcessResult(0, "v24.19.1"), false);
+        SetupAction node = ReportingSetupPlanner.plan(SetupPlatform.WINDOWS, SetupArchitecture.X64,
+                SetupMode.MANAGED).actions().getFirst();
+
+        IOException failure = assertThrows(IOException.class, () -> service.installNodeAction(node));
+
+        assertTrue(failure.getMessage().contains("unexpected version"));
+        assertTrue(Files.notExists(paths.tools().resolve("node/24.19.0/windows-x64")));
+    }
+
+    @Test
+    void linkedNodeExecutableIsNeverAcceptedAsManaged(@TempDir Path temp) throws Exception {
+        Path cache = temp.resolve("cache").toAbsolutePath();
+        Path data = temp.resolve("data").toAbsolutePath();
+        ShaftCachePaths paths = new ShaftCachePaths(cache, data, cache.resolve("downloads"),
+                data.resolve("tools"), data.resolve("state"), data.resolve("receipts"));
+        Path root = paths.tools().resolve("node/24.19.0/windows-x64");
+        Files.createDirectories(root);
+        Path external = Files.writeString(temp.resolve("external-node.exe"), "external");
+        try {
+            Files.createSymbolicLink(root.resolve("node.exe"), external);
+        } catch (UnsupportedOperationException | IOException unsupported) {
+            org.junit.jupiter.api.Assumptions.abort("Symbolic links unavailable: " + unsupported.getMessage());
+        }
+        ReportingSetupService service = new ReportingSetupService(paths, SetupPlatform.WINDOWS,
+                SetupArchitecture.X64, action -> { throw new AssertionError("Linked Node must not be reused."); },
+                (command, log, timeout) -> { throw new AssertionError("Linked Node must not execute."); }, false);
+
+        assertEquals(SetupReadiness.DEGRADED, service.nodeStatus().readiness());
+        assertThrows(IOException.class, () -> service.installNodeAction(
+                ReportingSetupPlanner.plan(SetupPlatform.WINDOWS, SetupArchitecture.X64,
+                        SetupMode.MANAGED).actions().getFirst()));
+        assertEquals("external", Files.readString(external));
+    }
+
+    @Test
     void realChildProcessIsKilledAndReapedOnTimeout(@TempDir Path temp) {
         Set<Long> before = ProcessHandle.allProcesses().filter(ProcessHandle::isAlive)
                 .map(ProcessHandle::pid).collect(java.util.stream.Collectors.toSet());
@@ -211,6 +290,63 @@ class ReportingSetupServiceTest {
         assertTrue(ProcessHandle.allProcesses().filter(ProcessHandle::isAlive)
                 .noneMatch(handle -> !before.contains(handle.pid()) && handle.info().commandLine()
                         .orElse("").matches("(?is).*(ping\\s+-n\\s+30|sleep\\s+30).*")));
+    }
+
+    @Test
+    void exitedParentCannotLeaveInheritedOutputAndDescendantAlive(@TempDir Path temp) throws Exception {
+        Path pidFile = temp.resolve("descendant.pid");
+        List<String> command = List.of(Path.of(System.getProperty("java.home"), "bin", "java").toString(),
+                "-Xmx32m", "-XX:+UseSerialGC", "-cp", System.getProperty("java.class.path"),
+                OutputHoldingParent.class.getName(),
+                pidFile.toString());
+        long started = System.nanoTime();
+
+        IOException failure = assertThrows(IOException.class, () -> ReportingSetupService.runProcess(
+                command, null, java.time.Duration.ofSeconds(2), temp, temp));
+
+        assertTrue(failure.getMessage().contains("output did not close"));
+        assertTrue(java.time.Duration.ofNanos(System.nanoTime() - started).compareTo(java.time.Duration.ofSeconds(8)) < 0);
+        long pid = Long.parseLong(Files.readString(pidFile));
+        assertTrue(ProcessHandle.of(pid).map(handle -> !handle.isAlive()).orElse(true));
+    }
+
+    public static final class OutputHoldingParent {
+        public static void main(String[] args) throws Exception {
+            List<String> child = SetupPlatform.current() == SetupPlatform.WINDOWS
+                    ? List.of("ping", "-n", "30", "127.0.0.1") : List.of("sleep", "30");
+            Process process = new ProcessBuilder(child).inheritIO().start();
+            Files.writeString(Path.of(args[0]), Long.toString(process.pid()));
+            Thread.sleep(250);
+        }
+    }
+
+    @Test
+    void successfulParentCannotLeaveDetachedDescendantAlive(@TempDir Path temp) throws Exception {
+        Path pidFile = temp.resolve("detached-descendant.pid");
+        List<String> command = List.of(Path.of(System.getProperty("java.home"), "bin", "java").toString(),
+                "-Xmx32m", "-XX:+UseSerialGC", "-cp", System.getProperty("java.class.path"),
+                DetachedChildParent.class.getName(),
+                pidFile.toString());
+
+        ReportingSetupService.ProcessResult result = ReportingSetupService.runProcess(
+                command, null, java.time.Duration.ofSeconds(5), temp, temp);
+
+        assertEquals(0, result.exitCode(), result.output());
+        long pid = Long.parseLong(Files.readString(pidFile));
+        assertTrue(ProcessHandle.of(pid).map(handle -> !handle.isAlive()).orElse(true));
+    }
+
+    public static final class DetachedChildParent {
+        public static void main(String[] args) throws Exception {
+            List<String> child = SetupPlatform.current() == SetupPlatform.WINDOWS
+                    ? List.of("ping", "-n", "30", "127.0.0.1") : List.of("sleep", "30");
+            Process process = new ProcessBuilder(child)
+                    .redirectOutput(ProcessBuilder.Redirect.DISCARD)
+                    .redirectError(ProcessBuilder.Redirect.DISCARD)
+                    .start();
+            Files.writeString(Path.of(args[0]), Long.toString(process.pid()));
+            Thread.sleep(250);
+        }
     }
 
     private static SetupPlan exerciseInstall(Path temp, SetupPlatform platform, Path nodeArchive) throws Exception {
@@ -248,7 +384,7 @@ class ReportingSetupServiceTest {
         return plan;
     }
 
-    private static Path createNodeZip(Path destination) throws IOException {
+    static Path createNodeZip(Path destination) throws IOException {
         try (ZipOutputStream output = new ZipOutputStream(Files.newOutputStream(destination))) {
             for (String entry : List.of("node-v24.19.0-win-x64/node.exe",
                     "node-v24.19.0-win-x64/node_modules/npm/bin/npm-cli.js")) {

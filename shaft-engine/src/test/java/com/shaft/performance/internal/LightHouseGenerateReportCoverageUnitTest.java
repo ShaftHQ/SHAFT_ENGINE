@@ -1,33 +1,56 @@
 package com.shaft.performance.internal;
 
-import com.shaft.cli.FileActions;
-import com.shaft.cli.TerminalActions;
 import com.shaft.driver.SHAFT;
 import com.shaft.properties.internal.Properties;
-import org.mockito.MockedConstruction;
 import org.mockito.MockedStatic;
 import org.mockito.Mockito;
 import org.openqa.selenium.WebDriver;
+import org.openqa.selenium.Capabilities;
+import org.openqa.selenium.remote.RemoteWebDriver;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.Test;
 
 import java.net.MalformedURLException;
 import java.net.URI;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.atomic.AtomicReference;
 
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.doAnswer;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 public class LightHouseGenerateReportCoverageUnitTest {
-    private static final String AMPERSAND_PLACEHOLDER = "N898";
+
+    @Test
+    public void managedCommandKeepsTheUrlAsOneArgumentAndUsesNoGeneratedScript() {
+        var runtime = new com.shaft.infrastructure.LighthouseRuntime(
+                List.of("C:/shaft/node.exe", "C:/shaft/lighthouse/index.js"), Path.of("C:/shaft/cache"));
+        Path output = Path.of("C:/work/lighthouse reports/report.html");
+
+        List<String> command = LightHouseGenerateReport.command(runtime,
+                "https://example.com/search?q=shaft&lang=en", 9999, output);
+
+        Assert.assertEquals(command, List.of("C:/shaft/node.exe", "C:/shaft/lighthouse/index.js",
+                "https://example.com/search?q=shaft&lang=en", "--port=9999", "--preset=desktop",
+                "--output=html", "--output-path=" + output.toAbsolutePath().normalize(),
+                "--only-categories=performance"));
+        Assert.assertFalse(command.stream().anyMatch(value -> value.endsWith("GenerateLHScript.js")));
+    }
+
+    @Test
+    public void debuggerAddressCapabilityWinsOverTheConfiguredFallbackPort() {
+        RemoteWebDriver driver = mock(RemoteWebDriver.class);
+        Capabilities capabilities = mock(Capabilities.class);
+        when(driver.getCapabilities()).thenReturn(capabilities);
+        when(capabilities.getCapability("goog:chromeOptions"))
+                .thenReturn(Map.of("debuggerAddress", "127.0.0.1:9222"));
+
+        Assert.assertEquals(LightHouseGenerateReport.debuggerPort(driver, 8888), 9222);
+    }
 
     @AfterMethod(alwaysRun = true)
     public void tearDown() {
@@ -40,90 +63,106 @@ public class LightHouseGenerateReportCoverageUnitTest {
     public void generateLightHouseReportShouldSkipExecutionWhenFeatureIsDisabled() {
         WebDriver driver = mock(WebDriver.class);
         when(driver.getCurrentUrl()).thenReturn("https://example.com/home");
-        LightHouseGenerateReport reportGenerator = new LightHouseGenerateReport(driver);
+        LightHouseGenerateReport reportGenerator = new LightHouseGenerateReport(driver,
+                options -> { throw new AssertionError("Disabled Lighthouse must not resolve a runtime."); },
+                (command, directory, timeout) -> { throw new AssertionError("Disabled Lighthouse must not run."); },
+                Path.of("lighthouse-reports"));
 
         SHAFT.Properties.performance.set().isEnabled(false);
-
-        try (MockedStatic<FileActions> mockedFileActionsStatic = Mockito.mockStatic(FileActions.class);
-             MockedConstruction<TerminalActions> mockedTerminalActions = Mockito.mockConstruction(TerminalActions.class)) {
-            reportGenerator.generateLightHouseReport();
-
-            mockedFileActionsStatic.verifyNoInteractions();
-            Assert.assertTrue(mockedTerminalActions.constructed().isEmpty());
-        }
+        reportGenerator.generateLightHouseReport();
     }
 
     @Test
-    public void generateLightHouseReportShouldCreateArtifactsAndExecuteCommandsWhenEnabled() {
+    public void generateLightHouseReportUsesManagedRuntimeAndProducesTheReviewedReport() throws Exception {
         WebDriver driver = mock(WebDriver.class);
         when(driver.getCurrentUrl()).thenReturn("https://example.com/search?q=shaft&lang=en");
-        LightHouseGenerateReport reportGenerator = new LightHouseGenerateReport(driver);
-
+        Path reportDirectory = Files.createTempDirectory("shaft-lighthouse-test-");
+        var runtime = new com.shaft.infrastructure.LighthouseRuntime(
+                List.of("C:/shaft/node.exe", "C:/shaft/lighthouse/index.js"), reportDirectory);
+        AtomicReference<List<String>> invoked = new AtomicReference<>();
+        LightHouseGenerateReport reportGenerator = new LightHouseGenerateReport(driver, options -> runtime,
+                (command, workingDirectory, timeout) -> {
+                    invoked.set(command);
+                    Path output = Path.of(command.stream().filter(value -> value.startsWith("--output-path="))
+                            .findFirst().orElseThrow().substring("--output-path=".length()));
+                    Files.writeString(output, "<html>verified report</html>");
+                    return new LightHouseGenerateReport.CommandResult(0, "ok");
+                }, reportDirectory);
         SHAFT.Properties.performance.set().isEnabled(true);
         SHAFT.Properties.performance.set().port(9999);
-        SHAFT.Properties.reporting.set().openLighthouseReportWhileExecution(true);
+        SHAFT.Properties.reporting.set().openLighthouseReportWhileExecution(false);
 
-        try (MockedStatic<FileActions> mockedFileActionsStatic = Mockito.mockStatic(FileActions.class);
-             MockedConstruction<TerminalActions> mockedTerminalActions = Mockito.mockConstruction(TerminalActions.class,
-                     (mock, context) -> when(mock.performTerminalCommand(anyString())).thenReturn("ok"))) {
-            FileActions mockedFileActions = mock(FileActions.class);
-            when(mockedFileActions.readFile(anyString())).thenReturn("<html>report</html>");
-            mockedFileActionsStatic.when(() -> FileActions.getInstance(true)).thenReturn(mockedFileActions);
+        reportGenerator.generateLightHouseReport();
 
-            reportGenerator.generateLightHouseReport();
-
-            verify(mockedFileActions, times(1)).createFolder("lighthouse-reports");
-            verify(mockedFileActions, times(1)).writeToFile(Mockito.eq(""), Mockito.eq("GenerateLHScript.js"), any(List.class));
-            verify(mockedFileActions, times(1)).writeToFile(Mockito.eq(""), Mockito.eq("OpenLHReport.js"), any(List.class));
-            verify(mockedFileActions, times(1)).readFile(Mockito.argThat(path -> path.startsWith("lighthouse-reports/") && path.endsWith(".html")));
-
-            Assert.assertEquals(mockedTerminalActions.constructed().size(), 2);
-            verify(mockedTerminalActions.constructed().getFirst(), times(1))
-                    .performTerminalCommand(Mockito.argThat(command ->
-                            command.contains("node GenerateLHScript.js")
-                                    && command.contains("--port=9999")
-                                    && command.contains(AMPERSAND_PLACEHOLDER)));
-            verify(mockedTerminalActions.constructed().get(1), times(1))
-                    .performTerminalCommand(Mockito.argThat(command -> command.contains("node OpenLHReport.js")));
-        }
+        Assert.assertNotNull(invoked.get());
+        Assert.assertEquals(invoked.get().get(2), "https://example.com/search?q=shaft&lang=en");
+        Assert.assertTrue(invoked.get().contains("--port=9999"));
+        Assert.assertFalse(Files.exists(reportDirectory.resolve("GenerateLHScript.js")));
+        Assert.assertFalse(Files.exists(reportDirectory.resolve("OpenLHReport.js")));
+        Assert.assertEquals(Files.list(reportDirectory).filter(path -> path.toString().endsWith(".html")).count(), 1L);
     }
 
     @Test
-    public void helperMethodsShouldWriteExpectedScriptsAndGenerateReadablePageName() {
+    public void nonzeroExitAndMissingOutputFailInsteadOfReportingSuccess() throws Exception {
+        WebDriver driver = mock(WebDriver.class);
+        when(driver.getCurrentUrl()).thenReturn("https://example.com");
+        Path reportDirectory = Files.createTempDirectory("shaft-lighthouse-failure-");
+        var runtime = new com.shaft.infrastructure.LighthouseRuntime(List.of("node", "lighthouse"), reportDirectory);
+        SHAFT.Properties.performance.set().isEnabled(true);
+
+        var nonzero = new LightHouseGenerateReport(driver, options -> runtime,
+                (command, directory, timeout) -> new LightHouseGenerateReport.CommandResult(7, "boom"),
+                reportDirectory);
+        IllegalStateException exitFailure = Assert.expectThrows(IllegalStateException.class,
+                nonzero::generateLightHouseReport);
+        Assert.assertTrue(exitFailure.getMessage().contains("code 7"));
+
+        var missing = new LightHouseGenerateReport(driver, options -> runtime,
+                (command, directory, timeout) -> new LightHouseGenerateReport.CommandResult(0, "ok"),
+                reportDirectory);
+        IllegalStateException missingFailure = Assert.expectThrows(IllegalStateException.class,
+                missing::generateLightHouseReport);
+        Assert.assertTrue(missingFailure.getMessage().contains("without creating"));
+    }
+
+    @Test
+    public void preexistingReportIsNeverAcceptedAsFreshSuccess() throws Exception {
+        WebDriver driver = mock(WebDriver.class);
+        when(driver.getCurrentUrl()).thenReturn("https://example.com");
+        Path reportDirectory = Files.createTempDirectory("shaft-lighthouse-stale-");
+        Files.writeString(reportDirectory.resolve("fixed.html"), "<html>old</html>");
+        var runtime = new com.shaft.infrastructure.LighthouseRuntime(List.of("node", "lighthouse"), reportDirectory);
+        SHAFT.Properties.performance.set().isEnabled(true);
+        LightHouseGenerateReport generator = new LightHouseGenerateReport(driver, options -> runtime,
+                (command, directory, timeout) -> new LightHouseGenerateReport.CommandResult(0, "ok"),
+                reportDirectory) {
+            @Override public String getPageName() { return "fixed"; }
+        };
+
+        IllegalStateException failure = Assert.expectThrows(IllegalStateException.class,
+                generator::generateLightHouseReport);
+
+        Assert.assertTrue(failure.getMessage().contains("Refusing to overwrite"));
+        Assert.assertEquals(Files.readString(reportDirectory.resolve("fixed.html")), "<html>old</html>");
+    }
+
+    @Test
+    public void deprecatedScriptHelpersFailClosedAndPageNameRemainsReadable() throws Exception {
         WebDriver driver = mock(WebDriver.class);
         when(driver.getCurrentUrl()).thenReturn("https://example.com/path/sub-path");
-        LightHouseGenerateReport reportGenerator = new LightHouseGenerateReport(driver);
-        @SuppressWarnings("unchecked")
-        List<String>[] openScriptContent = new List[1];
-        @SuppressWarnings("unchecked")
-        List<String>[] generateScriptContent = new List[1];
+        Path reportDirectory = Files.createTempDirectory("shaft-lighthouse-helper-");
+        LightHouseGenerateReport reportGenerator = new LightHouseGenerateReport(driver,
+                options -> { throw new AssertionError(); }, (command, directory, timeout) -> { throw new AssertionError(); },
+                reportDirectory);
 
-        try (MockedStatic<FileActions> mockedFileActionsStatic = Mockito.mockStatic(FileActions.class)) {
-            FileActions mockedFileActions = mock(FileActions.class);
-            mockedFileActionsStatic.when(() -> FileActions.getInstance(true)).thenReturn(mockedFileActions);
-            doAnswer(invocation -> {
-                openScriptContent[0] = invocation.getArgument(2);
-                return null;
-            }).when(mockedFileActions).writeToFile(eq(""), eq("OpenLHReport.js"), Mockito.<List<String>>any());
-            doAnswer(invocation -> {
-                generateScriptContent[0] = invocation.getArgument(2);
-                return null;
-            }).when(mockedFileActions).writeToFile(eq(""), eq("GenerateLHScript.js"), Mockito.<List<String>>any());
-
-            reportGenerator.createLighthouseReportFolderInProjectDirectory();
-            reportGenerator.writeReportPathToFilesInProjectDirectory("custom-page");
-            reportGenerator.writeNodeScriptFileInProjectDirectory();
-            String pageName = reportGenerator.getPageName();
-
-            verify(mockedFileActions, times(1)).createFolder("lighthouse-reports");
-            verify(mockedFileActions, times(1)).writeToFile(eq(""), eq("OpenLHReport.js"), Mockito.<List<String>>any());
-            verify(mockedFileActions, times(1)).writeToFile(eq(""), eq("GenerateLHScript.js"), Mockito.<List<String>>any());
-            Assert.assertTrue(openScriptContent[0].get(0).contains("custom-page.html"));
-            Assert.assertTrue(generateScriptContent[0].get(0).contains("desktop-config.js"));
-
-            Assert.assertTrue(pageName.contains("--path-sub-path"));
-            Assert.assertTrue(pageName.startsWith(LocalDate.now().format(java.time.format.DateTimeFormatter.ofPattern("dd-MM-yyyy"))));
-        }
+        reportGenerator.createLighthouseReportFolderInProjectDirectory();
+        Assert.assertTrue(Files.isDirectory(reportDirectory));
+        Assert.expectThrows(UnsupportedOperationException.class,
+                () -> reportGenerator.writeReportPathToFilesInProjectDirectory("custom-page"));
+        Assert.expectThrows(UnsupportedOperationException.class, reportGenerator::writeNodeScriptFileInProjectDirectory);
+        String pageName = reportGenerator.getPageName();
+        Assert.assertTrue(pageName.contains("--path-sub-path"));
+        Assert.assertTrue(pageName.startsWith(LocalDate.now().format(java.time.format.DateTimeFormatter.ofPattern("dd-MM-yyyy"))));
     }
 
     @Test

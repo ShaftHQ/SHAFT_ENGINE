@@ -248,7 +248,9 @@ jobs:
               - 'shaft-ocr/**'
               - 'shaft-cli/pom.xml'
               - '.github/workflows/e2eTests.yml'
+              - '.github/workflows/e2eLocalTests.yml'
               - 'tests/scripts/test_ocr_infrastructure_boundary.py'
+              - 'tests/scripts/test_lighthouse_infrastructure_boundary.py'
             infra:
               - '.github/workflows/pr-gate.yml'
               # Composite actions this gate's jobs call (issue #4440 added
@@ -851,7 +853,8 @@ jobs:
         run: >-
           python3 -m unittest
           tests.scripts.test_pilot_module_boundary
-          tests.scripts.test_ocr_infrastructure_boundary -v
+          tests.scripts.test_ocr_infrastructure_boundary
+          tests.scripts.test_lighthouse_infrastructure_boundary -v
 
   # Issue #4071: a TestNG suite XML file that no pom, workflow, or script
   # references is invisible -- unlike a failing test, nothing reports it, so

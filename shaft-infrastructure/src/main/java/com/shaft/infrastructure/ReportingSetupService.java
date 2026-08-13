@@ -14,17 +14,22 @@ import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.nio.file.attribute.PosixFilePermission;
 import java.time.Duration;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
 /** Managed, release-pinned lifecycle for the REPORTING profile. */
 public final class ReportingSetupService {
     private static final JsonMapper JSON = JsonMapper.builder().build();
+    private static final ConcurrentHashMap<Path, ReentrantLock> NODE_LOCKS = new ConcurrentHashMap<>();
     private final ShaftCachePaths paths;
     private final SetupPlatform platform;
     private final SetupArchitecture architecture;
@@ -61,13 +66,48 @@ public final class ReportingSetupService {
     }
 
     public SetupProfileStatus status() {
-        SetupStatus node = probe(SetupTarget.NODE, nodeExecutable(), "v" + ReportingSetupPlanner.NODE_VERSION);
+        SetupStatus node = nodeStatus();
         SetupStatus allure = probe(SetupTarget.ALLURE, allureEntryPoint(), ReportingSetupPlanner.ALLURE_VERSION);
         SetupReadiness aggregate = node.readiness() == SetupReadiness.DEGRADED
                 || allure.readiness() == SetupReadiness.DEGRADED ? SetupReadiness.DEGRADED
                 : node.readiness() == SetupReadiness.READY && allure.readiness() == SetupReadiness.READY
                 ? SetupReadiness.READY : SetupReadiness.MISSING;
         return new SetupProfileStatus(1, SetupProfile.REPORTING, aggregate, List.of(node, allure));
+    }
+
+    SetupStatus nodeStatus() {
+        return probe(SetupTarget.NODE, nodeExecutable(), "v" + ReportingSetupPlanner.NODE_VERSION);
+    }
+
+    void installNodeAction(SetupAction action) throws IOException {
+        if (action.target() != SetupTarget.NODE) {
+            throw new IllegalArgumentException("Expected a portable Node action.");
+        }
+        VerifiedArtifactStore.requireUnlinkedAncestors(nodeRoot());
+        if (Files.isSymbolicLink(nodeExecutable())) {
+            throw new IOException("Managed portable Node executable must not be a symbolic link: " + nodeExecutable());
+        }
+        if (nodeStatus().readiness() == SetupReadiness.READY) return;
+        withNodeInstallLock(() -> installNode(artifactFetcher.fetch(action), action));
+    }
+
+    private void withNodeInstallLock(IoOperation operation) throws IOException {
+        Path lockPath = paths.state().resolve("node-install.lock").toAbsolutePath().normalize();
+        ReentrantLock jvmLock = NODE_LOCKS.computeIfAbsent(lockPath, ignored -> new ReentrantLock());
+        try {
+            jvmLock.lockInterruptibly();
+            if (nodeStatus().readiness() == SetupReadiness.READY) return;
+            Files.createDirectories(paths.state());
+            try (FileChannel channel = FileChannel.open(lockPath, StandardOpenOption.CREATE, StandardOpenOption.WRITE);
+                 FileLock ignored = channel.lock()) {
+                if (nodeStatus().readiness() != SetupReadiness.READY) operation.run();
+            }
+        } catch (InterruptedException interrupted) {
+            Thread.currentThread().interrupt();
+            throw new IOException("Interrupted while waiting for the portable Node setup lock.", interrupted);
+        } finally {
+            if (jvmLock.isHeldByCurrentThread()) jvmLock.unlock();
+        }
     }
 
     public SetupReceipt install(SetupPlan plan, SetupApproval approval) throws IOException {
@@ -109,7 +149,7 @@ public final class ReportingSetupService {
 
     private void install(SetupAction action) throws IOException {
         switch (action.target()) {
-            case NODE -> installNode(artifactFetcher.fetch(action), action);
+            case NODE -> installNodeAction(action);
             case ALLURE -> installAllure(artifactFetcher.fetch(action), action);
             default -> throw new IllegalArgumentException("Reporting provider cannot install " + action.target());
         }
@@ -122,9 +162,13 @@ public final class ReportingSetupService {
         try {
             if (archive.getFileName().toString().endsWith(".zip")) extractZip(archive, staging);
             else extractTar(archive, staging);
-            requireSuccessful(commandRunner.run(List.of(executable(staging, "node").toString(), "--version"),
-                    null, Duration.ofSeconds(30)),
-                    "Portable Node verification failed");
+            ProcessResult verification = commandRunner.run(List.of(executable(staging, "node").toString(),
+                    "--version"), null, Duration.ofSeconds(30));
+            requireSuccessful(verification, "Portable Node verification failed");
+            if (!("v" + action.version()).equals(verification.output().trim())) {
+                throw new IOException("Portable Node verification returned unexpected version: "
+                        + verification.output().trim());
+            }
             publish(staging, destination);
         } finally {
             deleteTree(staging);
@@ -161,8 +205,11 @@ public final class ReportingSetupService {
     }
 
     private SetupStatus probe(SetupTarget target, Path executable, String expectedVersion) {
-        if (!Files.isRegularFile(executable)) return new SetupStatus(target, SetupReadiness.MISSING, "", "Not installed.");
         try {
+            VerifiedArtifactStore.requireUnlinkedAncestors(executable);
+            if (!Files.isRegularFile(executable, java.nio.file.LinkOption.NOFOLLOW_LINKS)) {
+                return new SetupStatus(target, SetupReadiness.MISSING, "", "Not installed.");
+            }
             ProcessResult result = target == SetupTarget.NODE
                     ? commandRunner.run(List.of(executable.toString(), "--version"), null, Duration.ofSeconds(15))
                     : commandRunner.run(List.of(nodeExecutable().toString(), executable.toString(), "--version"), null,
@@ -183,29 +230,44 @@ public final class ReportingSetupService {
 
     static ProcessResult runProcess(List<String> command, Path log, Duration timeout,
                                     Path cacheRoot, Path nodeRoot) throws IOException {
+        return runProcess(command, log, timeout, cacheRoot, nodeRoot, null);
+    }
+
+    static ProcessResult runProcess(List<String> command, Path log, Duration timeout,
+                                    Path cacheRoot, Path nodeRoot, Path workingDirectory) throws IOException {
         ProcessBuilder builder = new ProcessBuilder(command).redirectErrorStream(true);
+        if (workingDirectory != null) builder.directory(workingDirectory.toFile());
         String nodeBin = Files.isRegularFile(nodeRoot.resolve("node.exe"))
                 ? nodeRoot.toString() : nodeRoot.resolve("bin").toString();
         builder.environment().put("PATH", nodeBin + java.io.File.pathSeparator
                 + builder.environment().getOrDefault("PATH", ""));
         builder.environment().put("npm_config_cache", cacheRoot.resolve("npm").toString());
         Process process = builder.start();
+        long deadlineNanos = System.nanoTime() + timeout.toNanos();
         InputStream input = process.getInputStream();
         var outputFuture = java.util.concurrent.CompletableFuture.supplyAsync(() -> {
             try (input) {
-                return input.readAllBytes();
+                return readBoundedOutput(input);
             } catch (IOException failure) {
                 throw new java.util.concurrent.CompletionException(failure);
             }
         });
+        Set<ObservedProcess> observedDescendants = ConcurrentHashMap.newKeySet();
         try {
-            if (!process.waitFor(timeout.toMillis(), TimeUnit.MILLISECONDS)) {
-                try {
-                    destroyProcessTree(process);
-                } finally {
-                    outputFuture.cancel(true);
+            boolean finished = false;
+            while (!finished) {
+                process.descendants().map(ObservedProcess::capture).forEach(observedDescendants::add);
+                long remaining = deadlineNanos - System.nanoTime();
+                if (remaining <= 0) {
+                    try {
+                        destroyProcessTree(process, observedDescendants);
+                    } finally {
+                        outputFuture.cancel(true);
+                    }
+                    throw new IOException("Process timed out: " + command.getFirst());
                 }
-                throw new IOException("Process timed out: " + command.getFirst());
+                finished = process.waitFor(Math.min(remaining, TimeUnit.MILLISECONDS.toNanos(2)),
+                        TimeUnit.NANOSECONDS);
             }
         } catch (InterruptedException interrupted) {
             try {
@@ -218,19 +280,63 @@ public final class ReportingSetupService {
         }
         String output;
         try {
-            output = new String(outputFuture.join(), java.nio.charset.StandardCharsets.UTF_8);
-        } catch (java.util.concurrent.CompletionException failure) {
-            if (failure.getCause() instanceof IOException io) throw io;
-            throw failure;
+            long remaining = deadlineNanos - System.nanoTime();
+            if (remaining <= 0) throw new java.util.concurrent.TimeoutException();
+            output = new String(outputFuture.get(remaining, TimeUnit.NANOSECONDS),
+                    java.nio.charset.StandardCharsets.UTF_8);
+        } catch (java.util.concurrent.TimeoutException timeoutFailure) {
+            try {
+                destroyProcessTree(process, observedDescendants);
+            } finally {
+                outputFuture.cancel(true);
+            }
+            throw new IOException("Process output did not close before the timeout: " + command.getFirst(),
+                    timeoutFailure);
+        } catch (InterruptedException interrupted) {
+            try {
+                destroyProcessTree(process, observedDescendants);
+            } finally {
+                outputFuture.cancel(true);
+                Thread.currentThread().interrupt();
+            }
+            throw new IOException("Interrupted while reading setup process output.", interrupted);
+        } catch (java.util.concurrent.ExecutionException failure) {
+            IOException outputFailure = failure.getCause() instanceof IOException io
+                    ? io : new IOException("Unable to read setup process output.", failure.getCause());
+            try {
+                destroyProcessTree(process, observedDescendants);
+            } catch (IOException cleanupFailure) {
+                outputFailure.addSuppressed(cleanupFailure);
+            } finally {
+                outputFuture.cancel(true);
+            }
+            throw outputFailure;
         }
+        destroyProcessTree(process, observedDescendants);
         if (log != null) Files.writeString(log, output, java.nio.charset.StandardCharsets.UTF_8,
                 StandardOpenOption.CREATE, StandardOpenOption.APPEND);
         return new ProcessResult(process.exitValue(), output);
     }
 
-    private static void waitForTermination(Process process) throws IOException {
+    private static byte[] readBoundedOutput(InputStream input) throws IOException {
+        int maximum = 1024 * 1024;
+        var output = new java.io.ByteArrayOutputStream(Math.min(maximum, 64 * 1024));
+        byte[] buffer = new byte[16 * 1024];
+        int total = 0;
+        for (int read; (read = input.read(buffer)) >= 0;) {
+            total += read;
+            if (total > maximum) {
+                throw new IOException("Setup process output exceeded the 1 MiB safety limit.");
+            }
+            output.write(buffer, 0, read);
+        }
+        return output.toByteArray();
+    }
+
+    private static void waitForTermination(Process process, long deadlineNanos) throws IOException {
         try {
-            if (!process.waitFor(10, TimeUnit.SECONDS)) {
+            long remaining = deadlineNanos - System.nanoTime();
+            if (remaining <= 0 || !process.waitFor(remaining, TimeUnit.NANOSECONDS)) {
                 throw new IOException("Setup process did not terminate after forced destruction.");
             }
         } catch (InterruptedException interrupted) {
@@ -240,15 +346,25 @@ public final class ReportingSetupService {
     }
 
     private static void destroyProcessTree(Process process) throws IOException {
-        List<ProcessHandle> descendants = process.descendants().toList().reversed();
+        destroyProcessTree(process, Set.of());
+    }
+
+    private static void destroyProcessTree(Process process, Set<ObservedProcess> observed) throws IOException {
+        long deadlineNanos = System.nanoTime() + Duration.ofSeconds(10).toNanos();
+        var current = process.descendants().collect(java.util.stream.Collectors.toSet());
+        var known = new java.util.LinkedHashSet<>(current);
+        observed.stream().filter(ObservedProcess::stillMatches).map(ObservedProcess::handle).forEach(known::add);
+        List<ProcessHandle> descendants = known.stream().toList().reversed();
         descendants.forEach(handle -> {
             if (handle.isAlive()) handle.destroyForcibly();
         });
         process.destroyForcibly();
-        waitForTermination(process);
+        waitForTermination(process, deadlineNanos);
         for (ProcessHandle descendant : descendants) {
             try {
-                descendant.onExit().get(10, TimeUnit.SECONDS);
+                long remaining = deadlineNanos - System.nanoTime();
+                if (remaining <= 0) throw new java.util.concurrent.TimeoutException();
+                descendant.onExit().get(remaining, TimeUnit.NANOSECONDS);
             } catch (java.util.concurrent.TimeoutException timeout) {
                 throw new IOException("Setup descendant process did not terminate: " + descendant.pid(), timeout);
             } catch (java.util.concurrent.ExecutionException failure) {
@@ -257,6 +373,16 @@ public final class ReportingSetupService {
                 Thread.currentThread().interrupt();
                 throw new IOException("Interrupted while waiting for setup descendant termination.", interrupted);
             }
+        }
+    }
+
+    private record ObservedProcess(ProcessHandle handle, Optional<Instant> started) {
+        private static ObservedProcess capture(ProcessHandle handle) {
+            return new ObservedProcess(handle, handle.info().startInstant());
+        }
+
+        private boolean stillMatches() {
+            return handle.isAlive() && started.isPresent() && started.equals(handle.info().startInstant());
         }
     }
 
@@ -327,23 +453,8 @@ public final class ReportingSetupService {
     }
 
     static void publish(Path staging, Path destination, MoveOperation mover) throws IOException {
-        Path quarantine = null;
-        if (Files.exists(destination)) {
-            quarantine = destination.resolveSibling(destination.getFileName() + ".quarantine-" + System.nanoTime());
-            mover.move(destination, quarantine);
-        }
-        try {
-            mover.move(staging, destination);
-        } catch (IOException publishFailure) {
-            if (quarantine != null && Files.exists(quarantine) && Files.notExists(destination)) {
-                try {
-                    mover.move(quarantine, destination);
-                } catch (IOException restoreFailure) {
-                    publishFailure.addSuppressed(restoreFailure);
-                }
-            }
-            throw publishFailure;
-        }
+        Path quarantine = destination.resolveSibling(destination.getFileName() + ".quarantine");
+        VerifiedArtifactStore.replaceWithRollback(staging, destination, quarantine, mover::move);
     }
 
     private static void extractZip(Path archive, Path destination) throws IOException {
@@ -413,6 +524,8 @@ public final class ReportingSetupService {
 
     @FunctionalInterface
     interface ArtifactFetcher { Path fetch(SetupAction action) throws IOException; }
+    @FunctionalInterface
+    private interface IoOperation { void run() throws IOException; }
     @FunctionalInterface
     interface MoveOperation { void move(Path source, Path destination) throws IOException; }
     @FunctionalInterface
