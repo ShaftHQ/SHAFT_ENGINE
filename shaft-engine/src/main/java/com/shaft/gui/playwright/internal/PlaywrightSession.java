@@ -46,6 +46,7 @@ public final class PlaywrightSession implements AutoCloseable {
     private final Set<Page> observedPages = Collections.newSetFromMap(new IdentityHashMap<>());
     private final Set<Page> downloadObservedPages = Collections.newSetFromMap(new IdentityHashMap<>());
     private final List<BrowserObservabilityRecorder.ConsoleSnapshotEntry> consoleEvents = new ArrayList<>();
+    private final BrowserObservabilityRecorder.ObservationBinding observationBinding;
     private final List<Download> downloads = new ArrayList<>();
     private int nextPageHandleIndex = 1;
 
@@ -56,6 +57,7 @@ public final class PlaywrightSession implements AutoCloseable {
         this.browserContext = browserContext;
         this.page = page;
         this.traceManager = traceManager;
+        this.observationBinding = BrowserObservabilityRecorder.captureBinding();
         this.networkInterceptor = new PlaywrightNetworkInterceptor(browserContext);
         registerDownloadContextBridge();
         registerDialogBridge(page);
@@ -291,13 +293,16 @@ public final class PlaywrightSession implements AutoCloseable {
 
     /** Atomically transfers this session's console observations to failure-trace storage. */
     public void drainConsoleToRecorder() {
+        BrowserObservabilityRecorder.ObservationSession owner =
+                BrowserObservabilityRecorder.resolveSession(observationBinding);
         List<BrowserObservabilityRecorder.ConsoleSnapshotEntry> snapshot;
         synchronized (this) {
             snapshot = List.copyOf(consoleEvents);
             consoleEvents.clear();
         }
         for (BrowserObservabilityRecorder.ConsoleSnapshotEntry entry : snapshot) {
-            BrowserObservabilityRecorder.recordConsole(entry.source(), entry.level(), entry.message(), entry.timestamp());
+            BrowserObservabilityRecorder.recordConsole(owner,
+                    entry.source(), entry.level(), entry.message(), entry.timestamp());
         }
     }
 

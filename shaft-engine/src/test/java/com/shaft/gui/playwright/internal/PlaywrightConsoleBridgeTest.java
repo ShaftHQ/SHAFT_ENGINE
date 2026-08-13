@@ -13,6 +13,10 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.Test;
 
 import java.util.function.Consumer;
+import java.util.concurrent.Executors;
+import com.shaft.driver.SHAFT;
+import com.shaft.tools.io.internal.ReportContext;
+import com.shaft.listeners.internal.TestExecutionInfo;
 
 public class PlaywrightConsoleBridgeTest {
     @AfterMethod
@@ -73,6 +77,27 @@ public class PlaywrightConsoleBridgeTest {
         second.close();
     }
 
+    @Test
+    public void asyncDrainShouldFollowReportSessionRolloverInsteadOfExecutorThread() throws Exception {
+        SHAFT.Properties.reporting.set().traceEnabled(true).traceIncludeConsole(true);
+        ReportContext.start(info("setup"));
+        Page page = Mockito.mock(Page.class);
+        PlaywrightSession session = new PlaywrightSession(Mockito.mock(Playwright.class), Mockito.mock(Browser.class),
+                Mockito.mock(BrowserContext.class), page, null);
+        ArgumentCaptor<Consumer<ConsoleMessage>> listener = consumerCaptor();
+        Mockito.verify(page).onConsoleMessage(listener.capture());
+        ReportContext.start(info("test"));
+
+        try (var executor = Executors.newSingleThreadExecutor()) {
+            executor.submit(() -> listener.getValue().accept(message("async-playwright-owner"))).get();
+        }
+        session.drainConsoleToRecorder();
+
+        Assert.assertEquals(BrowserObservabilityRecorder.snapshotConsole().size(), 1);
+        Assert.assertEquals(BrowserObservabilityRecorder.snapshotConsole().getFirst().message(),
+                "async-playwright-owner");
+    }
+
     @SuppressWarnings({"unchecked", "rawtypes"})
     private static <T> ArgumentCaptor<Consumer<T>> consumerCaptor() {
         return ArgumentCaptor.forClass((Class) Consumer.class);
@@ -83,5 +108,10 @@ public class PlaywrightConsoleBridgeTest {
         Mockito.when(message.type()).thenReturn("log");
         Mockito.when(message.text()).thenReturn(text);
         return message;
+    }
+
+    private static TestExecutionInfo info(String method) {
+        return new TestExecutionInfo("playwright-" + method, PlaywrightConsoleBridgeTest.class.getName(),
+                method, method, method, null, null, false);
     }
 }

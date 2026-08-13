@@ -18,6 +18,8 @@ public final class BidiConsoleLogSource implements AutoCloseable {
     private static final ReferenceQueue<WebDriver> STALE_DRIVERS = new ReferenceQueue<>();
     private static final Map<IdentityWeakReference, Entry> CACHE = new HashMap<>();
     private final List<BrowserObservabilityRecorder.ConsoleSnapshotEntry> events = new ArrayList<>();
+    private final BrowserObservabilityRecorder.ObservationBinding observationBinding =
+            BrowserObservabilityRecorder.captureBinding();
     private LogInspector inspector;
     private volatile boolean healthy;
 
@@ -104,8 +106,11 @@ public final class BidiConsoleLogSource implements AutoCloseable {
         if (source == null) {
             return;
         }
+        BrowserObservabilityRecorder.ObservationSession owner =
+                BrowserObservabilityRecorder.resolveSession(source.observationBinding);
         for (BrowserObservabilityRecorder.ConsoleSnapshotEntry entry : source.takeEvents()) {
-            BrowserObservabilityRecorder.recordConsole(entry.source(), entry.level(), entry.message(), entry.timestamp());
+            BrowserObservabilityRecorder.recordConsole(owner,
+                    entry.source(), entry.level(), entry.message(), entry.timestamp());
         }
     }
 

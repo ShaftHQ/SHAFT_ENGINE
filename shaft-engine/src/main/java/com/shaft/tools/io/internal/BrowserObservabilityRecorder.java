@@ -154,16 +154,18 @@ public final class BrowserObservabilityRecorder {
      * @param driver active driver, or {@code null}
      */
     public static void collectConsole(WebDriver driver) {
-        if (!isConsoleEnabled()) {
-            return;
-        }
         if (driver == null && PlaywrightSessionManager.currentSession() != null) {
             PlaywrightSessionManager.currentSession().drainConsoleToRecorder();
             return;
         }
         if (BidiConsoleLogSource.isHealthy(driver)) {
             BidiConsoleLogSource.drainToRecorder(driver);
-        } else if (!tryCollectConsole(driver)) {
+            return;
+        }
+        if (!currentSession().consoleEnabled()) {
+            return;
+        }
+        if (!tryCollectConsole(driver)) {
             recordWarning("console", driver == null
                     ? "Console capture is unavailable because no active driver is registered."
                     : "Browser console logs are not supported by this driver.");
@@ -233,6 +235,12 @@ public final class BrowserObservabilityRecorder {
      */
     public static void recordWarning(String source, String message) {
         recordWarning(currentSession(), source, message);
+    }
+
+    /** Records a console event using a callback binding that follows report-session rollover. */
+    public static void recordConsole(ObservationBinding binding, String source, String level, String message,
+                                     long timestamp) {
+        recordConsole(binding == null ? null : binding.session(), source, level, message, timestamp);
     }
 
     /** Records a warning into an explicitly captured observation session. */
@@ -398,6 +406,11 @@ public final class BrowserObservabilityRecorder {
     public static ObservationBinding captureBinding() {
         currentSession();
         return CURRENT_BINDING.get();
+    }
+
+    /** Resolves one callback binding once so a whole provider batch keeps one immutable owner. */
+    public static ObservationSession resolveSession(ObservationBinding binding) {
+        return binding == null ? null : binding.session();
     }
 
     private static ObservationSession currentSession() {
