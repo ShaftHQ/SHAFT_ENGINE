@@ -7,6 +7,11 @@ import subprocess  # nosec B404 - runs read-only git check-ignore query.
 import sys
 import xml.etree.ElementTree as ET
 
+try:
+    from scripts.ci.readme_contract import validate_readme_contract
+except ModuleNotFoundError:  # Direct script execution adds scripts/ci to sys.path.
+    from readme_contract import validate_readme_contract
+
 ROOT = Path(__file__).resolve().parents[2]
 EXAMPLES = ROOT / "shaft-engine/src/main/resources/examples"
 MCP_FIXTURES = ROOT / "shaft-mcp/src/test/resources/fixtures/shaft-pilot/mcp"
@@ -153,16 +158,6 @@ def main() -> None:
         fail("Internal.shaftEngineVersion must match the reactor version")
 
     canonical_links = {
-        ROOT / "README.md": (
-            f"{DOCS_BASE}/start/installation",
-            f"{DOCS_BASE}/start/upgrade",
-            f"{DOCS_BASE}/agentic/mcp",
-            f"{DOCS_BASE}/agentic/doctor",
-            f"{DOCS_BASE}/agentic/heal",
-            f"{DOCS_BASE}/testing/web",
-            f"{DOCS_BASE}/testing/mobile",
-            f"{DOCS_BASE}/testing/api",
-        ),
         ROOT / ".github/RELEASE_BODY_TEMPLATE.md": (
             f"{DOCS_BASE}/start/upgrade",
             f"{DOCS_BASE}/agentic/pilot",
@@ -208,6 +203,9 @@ def main() -> None:
         fail("doctor-analyze-invocations.json must not request provider credentials")
 
     readme = (ROOT / "README.md").read_text(encoding="utf-8")
+    readme_errors = validate_readme_contract(readme)
+    if readme_errors:
+        fail(readme_errors[0])
     if "maven-central/v/io.github.shafthq/SHAFT_ENGINE" in readme:
         fail("README Maven Central badge still targets the legacy coordinate")
 
