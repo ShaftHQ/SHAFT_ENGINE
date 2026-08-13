@@ -24,6 +24,10 @@
     <dependencies>
         <dependency>
             <groupId>io.github.shafthq</groupId>
+            <artifactId>shaft-infrastructure</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.github.shafthq</groupId>
             <artifactId>shaft-engine</artifactId>
         </dependency>
         <dependency>

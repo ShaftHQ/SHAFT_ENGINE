@@ -216,6 +216,7 @@ jobs:
             # above (used by capture-e2e), and the unit-tests job's `if` condition also
             # checks that filter directly rather than duplicating its paths into javacore.
             javacore:
+              - 'shaft-infrastructure/**'
               - 'shaft-engine/**'
               - 'shaft-pilot-core/**'
               - 'shaft-doctor/**'
@@ -693,7 +694,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        module: [ shaft-engine, shaft-pilot-core, shaft-doctor, shaft-ai, shaft-heal, shaft-mcp, shaft-capture ]
+        module: [ shaft-infrastructure, shaft-engine, shaft-pilot-core, shaft-doctor, shaft-ai, shaft-heal, shaft-mcp, shaft-capture ]
     steps:
       - name: Checkout Code
         uses: actions/checkout@v7

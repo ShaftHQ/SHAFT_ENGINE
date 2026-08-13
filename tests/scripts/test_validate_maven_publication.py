@@ -13,6 +13,34 @@ SPEC.loader.exec_module(MODULE)
 
 
 class MavenPublicationValidationTest(unittest.TestCase):
+    def test_setup_infrastructure_is_a_published_reactor_and_bom_module(self):
+        parent = MODULE._parse(MODULE.ROOT / "pom.xml")
+        modules = {
+            MODULE._text(module, ".")
+            for module in parent.findall("m:modules/m:module", MODULE.NS)
+        }
+        bom = MODULE._parse(MODULE.ROOT / "shaft-bom" / "pom.xml")
+        bom_artifacts = {
+            MODULE._text(dependency, "m:artifactId")
+            for dependency in bom.findall(
+                "m:dependencyManagement/m:dependencies/m:dependency", MODULE.NS
+            )
+        }
+
+        self.assertIn("shaft-infrastructure", modules)
+        self.assertIn("shaft-infrastructure", MODULE.PUBLIC_ARTIFACTS)
+        self.assertIn("shaft-infrastructure", bom_artifacts)
+        for fixture in ("bom", "combined-modules"):
+            fixture_pom = MODULE._parse(
+                MODULE.ROOT / "tools" / "modularization" / "consumer-fixtures" / fixture / "pom.xml"
+            )
+            dependency = next(
+                dependency
+                for dependency in fixture_pom.findall("m:dependencies/m:dependency", MODULE.NS)
+                if MODULE._text(dependency, "m:artifactId") == "shaft-infrastructure"
+            )
+            self.assertIsNone(dependency.find("m:version", MODULE.NS))
+
     def test_repository_publication_contract_is_valid(self):
         self.assertEqual(MODULE.validate_publication(), [])
 

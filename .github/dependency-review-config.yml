@@ -17,6 +17,7 @@ allow-ghsas:
 allow-dependencies-licenses:
   - pkg:maven/io.github.shafthq/shaft-parent
   - pkg:maven/io.github.shafthq/shaft-engine
+  - pkg:maven/io.github.shafthq/shaft-infrastructure
   - pkg:maven/io.github.shafthq/shaft-pilot-core
   - pkg:maven/io.github.shafthq/shaft-capture
   - pkg:maven/io.github.shafthq/shaft-capture-proxy
