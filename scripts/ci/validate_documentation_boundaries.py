@@ -33,12 +33,23 @@ ALLOWED_EXACT = {
     # "*" and so ".agents/skills/**/*.md" requires a second path segment --
     # the same reason ".github/skills/README.md" is listed here.
     ".agents/skills/README.md",
+    ".claude/user-harness/README.md",
     ".github/skills/README.md",
     ".github/workflows/README.md",
+    "agent-plugins/shaft-skills/candidate-intake/README.md",
+    "agent-plugins/shaft-skills/evals/README.md",
     "shaft-mcp/.github/copilot-instructions.md",
+    "tools/intellij-plugin-recording/README.md",
+    "tools/local-ai-poc/README.md",
     "tools/repository-map/README.md",
+    "chaos-engine/README.md",
+    "chaos-engine/profiles/README.md",
     "chaos-engine/RESEARCH.md",
     "chaos-engine/INSTALL.md",
+}
+ALLOWED_NESTED_READMES = {
+    path for path in ALLOWED_EXACT
+    if path != "README.md" and Path(path).name.lower() == "readme.md"
 }
 ALLOWED_GLOBS = (
     ".agents/skills/**/*.md",
@@ -113,7 +124,7 @@ def validate_repository(root: Path = ROOT) -> list[str]:
         if not is_allowed(path):
             errors.append(f"public or unapproved Markdown remains: {path}")
         if path != "README.md" and Path(path).name.lower() == "readme.md":
-            if not is_allowed(path) or path.startswith("docs/"):
+            if path not in ALLOWED_NESTED_READMES:
                 errors.append(f"non-root README is prohibited: {path}")
 
     readme = (root / "README.md").read_text(encoding="utf-8")

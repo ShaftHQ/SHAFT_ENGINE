@@ -767,13 +767,23 @@ jobs:
         shell: bash
         run: >-
           bash scripts/ci/build_retry.sh 2 60
-          mvn -pl shaft-visual,shaft-ocr -am -e install "-DskipTests" "-Dgpg.skip" "-Dcyclonedx.skip"
+          mvn -pl shaft-visual,shaft-ocr,shaft-cli -am -e install "-DskipTests" "-Dgpg.skip" "-Dcyclonedx.skip"
+      - name: Prewarm verified OCR models
+        shell: bash
+        run: |
+          cli_jar="$(find shaft-cli/target -maxdepth 1 -name 'shaft-cli-*[0-9].jar' -print -quit)"
+          plan="$RUNNER_TEMP/shaft-ocr-plan.json"
+          java -jar "$cli_jar" setup plan --profile OCR --mode MANAGED --output "$plan" --json > "$RUNNER_TEMP/shaft-ocr-plan-output.json"
+          digest="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["digest"])' "$plan")"
+          java -jar "$cli_jar" setup install --plan "$plan" --approve "$digest"
+          java -jar "$cli_jar" setup verify --profile OCR
       - name: Run Android screenshot and OCR scrolling acceptance
         continue-on-error: true
         timeout-minutes: 35
         run: >-
           mvn -pl shaft-browserstack -am -e test
           "-DincludeVisualTestRuntime" "-DincludeOcrTestRuntime"
+          "-Dshaft.ocr.downloadEnabled=false"
           "-Dallure.automaticallyOpen=false" "-DdefaultElementIdentificationTimeout=60"
           "-DretryMaximumNumberOfAttempts=0" "-DexecutionAddress=browserstack"
           "-DtargetOperatingSystem=android" "-Dmobile_automationName=UIAutomator2"
@@ -824,13 +834,23 @@ jobs:
         shell: bash
         run: >-
           bash scripts/ci/build_retry.sh 2 60
-          mvn -pl shaft-visual,shaft-ocr -am -e install "-DskipTests" "-Dgpg.skip" "-Dcyclonedx.skip"
+          mvn -pl shaft-visual,shaft-ocr,shaft-cli -am -e install "-DskipTests" "-Dgpg.skip" "-Dcyclonedx.skip"
+      - name: Prewarm verified OCR models
+        shell: bash
+        run: |
+          cli_jar="$(find shaft-cli/target -maxdepth 1 -name 'shaft-cli-*[0-9].jar' -print -quit)"
+          plan="$RUNNER_TEMP/shaft-ocr-plan.json"
+          java -jar "$cli_jar" setup plan --profile OCR --mode MANAGED --output "$plan" --json > "$RUNNER_TEMP/shaft-ocr-plan-output.json"
+          digest="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["digest"])' "$plan")"
+          java -jar "$cli_jar" setup install --plan "$plan" --approve "$digest"
+          java -jar "$cli_jar" setup verify --profile OCR
       - name: Run iOS screenshot and OCR interaction acceptance
         continue-on-error: true
         timeout-minutes: 35
         run: >-
           mvn -pl shaft-browserstack -am -e test
           "-DincludeVisualTestRuntime" "-DincludeOcrTestRuntime"
+          "-Dshaft.ocr.downloadEnabled=false"
           "-Dallure.automaticallyOpen=false" "-DdefaultElementIdentificationTimeout=60"
           "-DretryMaximumNumberOfAttempts=0" "-DexecutionAddress=browserstack"
           "-DtargetOperatingSystem=iOS" "-Dmobile_automationName=XCuiTest"

@@ -14,13 +14,14 @@ import yaml
 ROOT = Path(__file__).resolve().parents[2]
 NS = {"m": "http://maven.apache.org/POM/4.0.0"}
 JAVA_MODULES = {
-    "shaft-engine", "shaft-pilot-core", "shaft-capture", "shaft-capture-proxy", "shaft-doctor",
+    "shaft-infrastructure", "shaft-engine", "shaft-pilot-core", "shaft-capture", "shaft-capture-proxy", "shaft-doctor",
     "shaft-ai", "shaft-heal", "shaft-browserstack", "shaft-video", "shaft-visual", "shaft-ocr", "shaft-sikulix",
     "shaft-mcp",
 }
 DEPENDABOT_DIRECTORIES = {
     "/",
     "/shaft-engine",
+    "/shaft-infrastructure",
     "/shaft-pilot-core",
     "/shaft-capture",
     "/shaft-capture-proxy",
@@ -491,7 +492,7 @@ def validate_quality_configuration(root: Path = ROOT) -> list[str]:
 
     codeql = (root / ".github" / "workflows" / "security.yml").read_text(encoding="utf-8")
     selector = (
-        "-pl shaft-engine,shaft-pilot-core,shaft-capture,shaft-capture-proxy,shaft-doctor,"
+        "-pl shaft-infrastructure,shaft-engine,shaft-pilot-core,shaft-capture,shaft-capture-proxy,shaft-doctor,"
         "shaft-ai,shaft-heal,shaft-browserstack,shaft-video,shaft-visual,shaft-ocr,shaft-sikulix,"
         "shaft-mcp,report-aggregate -am"
     )

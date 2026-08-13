@@ -120,7 +120,7 @@ BUDGET = ROOT / "scripts/ci/agent_guidance_budget.json"
 # from the boundary was invisible. Equality makes shrinking the boundary a
 # deliberate two-line edit that shows up in review, which is the only place the
 # question "why is the harness smaller today" gets asked.
-EXPECTED_ELEMENT_COUNT = 185
+EXPECTED_ELEMENT_COUNT = 200
 
 ATX_HEADING = re.compile(r"(?m)^#{1,6}\s+(.+?)\s*$")
 

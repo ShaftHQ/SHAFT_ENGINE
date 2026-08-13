@@ -27,6 +27,7 @@ updates:
     directories:
       - "/"
       - "/shaft-engine"
+      - "/shaft-infrastructure"
       - "/shaft-pilot-core"
       - "/shaft-capture"
       - "/shaft-capture-proxy"

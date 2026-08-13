@@ -51,6 +51,11 @@
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
+            <dependency>
+                <groupId>org.jspecify</groupId>
+                <artifactId>jspecify</artifactId>
+                <version>${jspecify.version}</version>
+            </dependency>
             <!-- Same failure mode as selenium-bom above: spring-boot-dependencies 4.1.0 manages
                  io.netty:* at 4.2.15.Final (GHSA netty-codec-http/http2/haproxy/compression
                  advisories, alerts #155-#165), which as a child-declared import would beat the
@@ -101,6 +106,11 @@
     </dependencyManagement>
 
     <dependencies>
+        <dependency>
+            <groupId>${project.groupId}</groupId>
+            <artifactId>shaft-infrastructure</artifactId>
+            <version>${project.version}</version>
+        </dependency>
         <dependency>
             <groupId>org.springframework.ai</groupId>
             <artifactId>spring-ai-starter-mcp-server</artifactId>

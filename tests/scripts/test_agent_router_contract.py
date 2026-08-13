@@ -994,6 +994,67 @@ class RouterTableTest(unittest.TestCase):
         self.assertEqual(offenders, [])
 
 
+class DelegateTerminalLifecycleTest(unittest.TestCase):
+    """A finished assignment must not leave a reusable agent running forever."""
+
+    @staticmethod
+    def _section(document: str, heading: str) -> str:
+        match = re.search(
+            rf"(?ms)^## {re.escape(heading)}\s*$\n(.*?)(?=^## |\Z)", document
+        )
+        if match is None:
+            return ""
+        return match.group(1).strip().lower()
+
+    @staticmethod
+    def _bullets(section: str) -> list[str]:
+        return [
+            re.sub(r"\s+", " ", match).strip().lower()
+            for match in re.findall(r"(?ms)^- (.*?)(?=^- |\Z)", section)
+        ]
+
+    def test_main_thread_duties_require_terminal_cleanup_without_reactivation(self):
+        document = DELEGATION.read_text(encoding="utf-8")
+        duties = re.sub(
+            r"\s+", " ", self._section(document, "Main-thread duties")
+        )
+        required_rules = (
+            "close every no-longer-needed agent and its descendants before moving to the next phase",
+            "never use `followup_task` to reactivate a completed or finished assignment",
+            "a new review round gets a new reviewer instance",
+            "preserve the closed relationship as history instead of deleting it",
+            "a final answer with an unneeded live agent is incomplete",
+        )
+        for rule in required_rules:
+            with self.subTest(rule=rule):
+                self.assertIn(rule, duties)
+
+    def test_review_policy_has_one_fail_closed_disposable_mechanism_rule(self):
+        document = DELEGATION.read_text(encoding="utf-8")
+        review = self._section(document, "Independent adversarial review")
+        candidate_rules = [
+            bullet for bullet in self._bullets(review)
+            if bullet.startswith("choose a disposable review mechanism")
+        ]
+        self.assertEqual(len(candidate_rules), 1)
+        rule = candidate_rules[0]
+        required_clauses = (
+            "when the host provides reliable terminal close, use a native reviewer subagent and close it after the verdict",
+            "without reliable terminal close, use an artifact-bounded ephemeral reviewer and pass the exact revision or diff",
+            "clears the automated review gate only when the active host adapter records its successful receipt, bound to that artifact",
+            "until an adapter supports that receipt, obtain an independent pull-request review too",
+        )
+        for clause in required_clauses:
+            with self.subTest(clause=clause):
+                self.assertIn(clause, rule)
+
+        self.assertNotIn(
+            "the host adapter records either dispatch",
+            review,
+            "guidance must not claim receipt support that the active adapter lacks",
+        )
+
+
 class ProgressiveDisclosureTest(unittest.TestCase):
     """Bodies and read chains stay inside documented host read limits."""
 

@@ -51,6 +51,7 @@ class VisualOcrWorkflowTest(unittest.TestCase):
             test_command = next(command for command in run_steps if "-Dtest=" in command)
             self.assertIn("-DincludeVisualTestRuntime", test_command)
             self.assertIn("-DincludeOcrTestRuntime", test_command)
+            self.assertIn("-Dshaft.ocr.downloadEnabled=false", test_command)
             excluded_groups = [argument for argument in shlex.split(test_command)
                                if argument.startswith("-Dsurefire.excludedGroups=")]
             self.assertTrue(all("visual-ocr-mobile-acceptance" not in argument.removeprefix(
@@ -58,6 +59,13 @@ class VisualOcrWorkflowTest(unittest.TestCase):
             self.assertIn("github.event.inputs.tests", test_command)
             self.assertIn("github.event.inputs.tests != ''", test_command)
             self.assertIn(expected_default, test_command)
+            prewarm = next(command for command in run_steps
+                           if "setup plan --profile OCR" in command)
+            self.assertIn("setup install --plan", prewarm)
+            self.assertIn("setup verify --profile OCR", prewarm)
+            self.assertIn("shaft-cli-*[0-9].jar", prewarm)
+            build = next(command for command in run_steps if "build_retry.sh" in command)
+            self.assertIn("shaft-cli", build)
             verification = next(command for command in run_steps if "assert_tests_executed.py" in command)
             self.assertIn("find shaft-engine/target/surefire-reports shaft-browserstack/target/surefire-reports", verification)
             self.assertIn('"${reports[@]}" --min-executed 1', verification)
