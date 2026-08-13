@@ -8,12 +8,11 @@ import sys
 
 try:
     from scripts.ci.readme_contract import (
-        USER_GUIDE_ROOT,
         destinations,
         validate_readme_contract,
     )
 except ModuleNotFoundError:  # Direct script execution adds scripts/ci to sys.path.
-    from readme_contract import USER_GUIDE_ROOT, destinations, validate_readme_contract
+    from readme_contract import destinations, validate_readme_contract
 
 ROOT = Path(__file__).resolve().parents[2]
 RELEASES_URL = "https://github.com/ShaftHQ/SHAFT_ENGINE/releases"

@@ -2,10 +2,8 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from scripts.ci.validate_documentation_boundaries import (
-    USER_GUIDE_ROOT,
-    validate_repository,
-)
+from scripts.ci.readme_contract import USER_GUIDE_ROOT
+from scripts.ci.validate_documentation_boundaries import validate_repository
 
 
 class ValidateDocumentationBoundariesTest(unittest.TestCase):

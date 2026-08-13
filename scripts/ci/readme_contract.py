@@ -1,10 +1,8 @@
-"""Shared trust checks for the repository landing README.
-
-This is intentionally a small parser for the constructs used by this README:
-inline links and linked images, reference definitions, HTTP(S) autolinks,
-HTML ``href``/``src``, backtick or tilde fences, inline backtick code, HTML
-comments, and Mermaid flowcharts. It does not claim full CommonMark support.
-"""
+"""Shared trust checks for the repository landing README."""
+# Intentionally a small parser for the constructs used by this README: inline
+# links and linked images, reference definitions, HTTP(S) autolinks, HTML
+# href/src, backtick or tilde fences, inline backtick code, HTML comments, and
+# Mermaid flowcharts. It does not claim full CommonMark support.
 
 from __future__ import annotations
 
