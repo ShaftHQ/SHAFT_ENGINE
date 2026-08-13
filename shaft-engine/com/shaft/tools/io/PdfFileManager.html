@@ -60,6 +60,10 @@
 <li><a href="#readFileContent()" tabindex="0">readFileContent()</a></li>
 <li><a href="#readPDFContentFromDownloadedPDF(int,int,com.shaft.tools.io.PdfFileManager.DeleteFileAfterValidationStatus)" tabindex="0">readPDFContentFromDownloadedPDF(int, int, PdfFileManager.DeleteFileAfterValidationStatus)</a></li>
 <li><a href="#readPDFContentFromDownloadedPDF(com.shaft.tools.io.PdfFileManager.DeleteFileAfterValidationStatus)" tabindex="0">readPDFContentFromDownloadedPDF(PdfFileManager.DeleteFileAfterValidationStatus)</a></li>
+<li><a href="#process(com.shaft.tools.io.pdf.PdfExportRequest...)" tabindex="0">process(PdfExportRequest...)</a></li>
+<li><a href="#process(com.shaft.tools.io.pdf.PdfDocumentOptions,com.shaft.tools.io.pdf.PdfExportRequest...)" tabindex="0">process(PdfDocumentOptions, PdfExportRequest...)</a></li>
+<li><a href="#processAll(java.util.List)" tabindex="0">processAll(List)</a></li>
+<li><a href="#processAll(java.util.List,com.shaft.tools.io.pdf.PdfBatchOptions)" tabindex="0">processAll(List, PdfBatchOptions)</a></li>
 </ol>
 </li>
 </ol>
@@ -77,10 +81,11 @@
 <div class="horizontal-scroll">
 <div class="type-signature"><span class="modifiers">public class </span><span class="element-name type-name-label">PdfFileManager</span>
 <span class="extends-implements">extends <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Object.html" title="class or interface in java.lang" class="external-link">Object</a></span></div>
-<div class="block">Reads and extracts text content from PDF files using Apache PDFBox.
+<div class="block">Reads PDF text and processes native, scanned, and mixed multipage PDF documents.
 
-<p>Provides methods for reading full-page text or specific page
-content from PDF documents.</div>
+<p>The legacy text-reading methods remain source compatible. Document processing uses
+native positioned text first and the optional <code>shaft-ocr</code> provider when pixels
+contain text that the PDF text layer does not cover.</p></div>
 <dl class="notes">
 <dt>See Also:</dt>
 <dd>
@@ -136,6 +141,28 @@ content from PDF documents.</div>
 <div class="table-header col-first">Modifier and Type</div>
 <div class="table-header col-second">Method</div>
 <div class="table-header col-last">Description</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="pdf/PdfDocumentResult.html" title="class in com.shaft.tools.io.pdf">PdfDocumentResult</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#process(com.shaft.tools.io.pdf.PdfDocumentOptions,com.shaft.tools.io.pdf.PdfExportRequest...)" class="member-name-link">process</a><wbr>(<a href="pdf/PdfDocumentOptions.html" title="class in com.shaft.tools.io.pdf">PdfDocumentOptions</a>&nbsp;options,
+ <a href="pdf/PdfExportRequest.html" title="class in com.shaft.tools.io.pdf">PdfExportRequest</a>...&nbsp;exports)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Processes this PDF and writes only the explicitly requested exports.</div>
+</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="pdf/PdfDocumentResult.html" title="class in com.shaft.tools.io.pdf">PdfDocumentResult</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#process(com.shaft.tools.io.pdf.PdfExportRequest...)" class="member-name-link">process</a><wbr>(<a href="pdf/PdfExportRequest.html" title="class in com.shaft.tools.io.pdf">PdfExportRequest</a>...&nbsp;exports)</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Processes this PDF using default hybrid document OCR options.</div>
+</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static <a href="pdf/PdfBatchResult.html" title="class in com.shaft.tools.io.pdf">PdfBatchResult</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#processAll(java.util.List)" class="member-name-link">processAll</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="pdf/PdfDocumentRequest.html" title="class in com.shaft.tools.io.pdf">PdfDocumentRequest</a>&gt;&nbsp;requests)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
+<div class="block">Processes an ordered PDF batch with bounded default concurrency.</div>
+</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static <a href="pdf/PdfBatchResult.html" title="class in com.shaft.tools.io.pdf">PdfBatchResult</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#processAll(java.util.List,com.shaft.tools.io.pdf.PdfBatchOptions)" class="member-name-link">processAll</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="pdf/PdfDocumentRequest.html" title="class in com.shaft.tools.io.pdf">PdfDocumentRequest</a>&gt;&nbsp;requests,
+ <a href="pdf/PdfBatchOptions.html" title="class in com.shaft.tools.io.pdf">PdfBatchOptions</a>&nbsp;options)</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
+<div class="block">Processes an ordered PDF batch with explicit concurrency and failure behavior.</div>
+</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#readFileContent()" class="member-name-link">readFileContent</a>()</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
@@ -143,16 +170,20 @@ content from PDF documents.</div>
 <div class="col-second odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#readFileContent(java.lang.String,boolean...)" class="member-name-link">readFileContent</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;relativeFilePath,
  boolean...&nbsp;deleteFileAfterReading)</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
-<div class="block">Read PDF file content given relative path and optionally delete the file after reading it</div>
+<div class="block">Reads all native PDF text and optionally deletes the source afterward.</div>
 </div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#readPDFContentFromDownloadedPDF(int,int,com.shaft.tools.io.PdfFileManager.DeleteFileAfterValidationStatus)" class="member-name-link">readPDFContentFromDownloadedPDF</a><wbr>(int&nbsp;startPageNumber,
  int&nbsp;endPageNumber,
- <a href="PdfFileManager.DeleteFileAfterValidationStatus.html" title="enum class in com.shaft.tools.io">PdfFileManager.DeleteFileAfterValidationStatus</a>&nbsp;deleteFileAfterValidationStatus)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
+ <a href="PdfFileManager.DeleteFileAfterValidationStatus.html" title="enum class in com.shaft.tools.io">PdfFileManager.DeleteFileAfterValidationStatus</a>&nbsp;deleteStatus)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Reads native text from an inclusive one-based page range.</div>
+</div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#readPDFContentFromDownloadedPDF(com.shaft.tools.io.PdfFileManager.DeleteFileAfterValidationStatus)" class="member-name-link">readPDFContentFromDownloadedPDF</a><wbr>(<a href="PdfFileManager.DeleteFileAfterValidationStatus.html" title="enum class in com.shaft.tools.io">PdfFileManager.DeleteFileAfterValidationStatus</a>&nbsp;deleteFileAfterValidationStatus)</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#readPDFContentFromDownloadedPDF(com.shaft.tools.io.PdfFileManager.DeleteFileAfterValidationStatus)" class="member-name-link">readPDFContentFromDownloadedPDF</a><wbr>(<a href="PdfFileManager.DeleteFileAfterValidationStatus.html" title="enum class in com.shaft.tools.io">PdfFileManager.DeleteFileAfterValidationStatus</a>&nbsp;deleteStatus)</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Reads native text from every page.</div>
+</div>
 </div>
 </div>
 </div>
@@ -202,14 +233,7 @@ content from PDF documents.</div>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="modifiers">public static</span>&nbsp;<span class="return-type"><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></span>&nbsp;<span class="element-name">readFileContent</span><wbr><span class="parameters">(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;relativeFilePath,
  boolean...&nbsp;deleteFileAfterReading)</span></div>
-<div class="block">Read PDF file content given relative path and optionally delete the file after reading it</div>
-<dl class="notes">
-<dt>Parameters:</dt>
-<dd><code>relativeFilePath</code> - relative path to the PDF file</dd>
-<dd><code>deleteFileAfterReading</code> - optional boolean to delete the file after reading it or not, default is to leave the file as is</dd>
-<dt>Returns:</dt>
-<dd>a string value representing the entire content of the pdf file</dd>
-</dl>
+<div class="block">Reads all native PDF text and optionally deletes the source afterward.</div>
 </div>
 </section>
 </li>
@@ -227,18 +251,8 @@ content from PDF documents.</div>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></span>&nbsp;<span class="element-name">readPDFContentFromDownloadedPDF</span><wbr><span class="parameters">(int&nbsp;startPageNumber,
  int&nbsp;endPageNumber,
- <a href="PdfFileManager.DeleteFileAfterValidationStatus.html" title="enum class in com.shaft.tools.io">PdfFileManager.DeleteFileAfterValidationStatus</a>&nbsp;deleteFileAfterValidationStatus)</span></div>
-<dl class="notes">
-<dt>Parameters:</dt>
-<dd><code>startPageNumber</code> - the starting page for the document to
-                                       be validated</dd>
-<dd><code>endPageNumber</code> - the ending page for the document to be
-                                       validated</dd>
-<dd><code>deleteFileAfterValidationStatus</code> - the status of deleting the file after
-                                       get the document text</dd>
-<dt>Returns:</dt>
-<dd>returns the pdf content in string so that can be validated</dd>
-</dl>
+ <a href="PdfFileManager.DeleteFileAfterValidationStatus.html" title="enum class in com.shaft.tools.io">PdfFileManager.DeleteFileAfterValidationStatus</a>&nbsp;deleteStatus)</span></div>
+<div class="block">Reads native text from an inclusive one-based page range.</div>
 </div>
 </section>
 </li>
@@ -246,7 +260,46 @@ content from PDF documents.</div>
 <section class="detail" id="readPDFContentFromDownloadedPDF(com.shaft.tools.io.PdfFileManager.DeleteFileAfterValidationStatus)">
 <h3>readPDFContentFromDownloadedPDF</h3>
 <div class="horizontal-scroll">
-<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></span>&nbsp;<span class="element-name">readPDFContentFromDownloadedPDF</span><wbr><span class="parameters">(<a href="PdfFileManager.DeleteFileAfterValidationStatus.html" title="enum class in com.shaft.tools.io">PdfFileManager.DeleteFileAfterValidationStatus</a>&nbsp;deleteFileAfterValidationStatus)</span></div>
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></span>&nbsp;<span class="element-name">readPDFContentFromDownloadedPDF</span><wbr><span class="parameters">(<a href="PdfFileManager.DeleteFileAfterValidationStatus.html" title="enum class in com.shaft.tools.io">PdfFileManager.DeleteFileAfterValidationStatus</a>&nbsp;deleteStatus)</span></div>
+<div class="block">Reads native text from every page.</div>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="process(com.shaft.tools.io.pdf.PdfExportRequest...)">
+<h3>process</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="pdf/PdfDocumentResult.html" title="class in com.shaft.tools.io.pdf">PdfDocumentResult</a></span>&nbsp;<span class="element-name">process</span><wbr><span class="parameters">(<a href="pdf/PdfExportRequest.html" title="class in com.shaft.tools.io.pdf">PdfExportRequest</a>...&nbsp;exports)</span></div>
+<div class="block">Processes this PDF using default hybrid document OCR options.</div>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="process(com.shaft.tools.io.pdf.PdfDocumentOptions,com.shaft.tools.io.pdf.PdfExportRequest...)">
+<h3>process</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="pdf/PdfDocumentResult.html" title="class in com.shaft.tools.io.pdf">PdfDocumentResult</a></span>&nbsp;<span class="element-name">process</span><wbr><span class="parameters">(<a href="pdf/PdfDocumentOptions.html" title="class in com.shaft.tools.io.pdf">PdfDocumentOptions</a>&nbsp;options,
+ <a href="pdf/PdfExportRequest.html" title="class in com.shaft.tools.io.pdf">PdfExportRequest</a>...&nbsp;exports)</span></div>
+<div class="block">Processes this PDF and writes only the explicitly requested exports.</div>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="processAll(java.util.List)">
+<h3>processAll</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public static</span>&nbsp;<span class="return-type"><a href="pdf/PdfBatchResult.html" title="class in com.shaft.tools.io.pdf">PdfBatchResult</a></span>&nbsp;<span class="element-name">processAll</span><wbr><span class="parameters">(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="pdf/PdfDocumentRequest.html" title="class in com.shaft.tools.io.pdf">PdfDocumentRequest</a>&gt;&nbsp;requests)</span></div>
+<div class="block">Processes an ordered PDF batch with bounded default concurrency.</div>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="processAll(java.util.List,com.shaft.tools.io.pdf.PdfBatchOptions)">
+<h3>processAll</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public static</span>&nbsp;<span class="return-type"><a href="pdf/PdfBatchResult.html" title="class in com.shaft.tools.io.pdf">PdfBatchResult</a></span>&nbsp;<span class="element-name">processAll</span><wbr><span class="parameters">(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="pdf/PdfDocumentRequest.html" title="class in com.shaft.tools.io.pdf">PdfDocumentRequest</a>&gt;&nbsp;requests,
+ <a href="pdf/PdfBatchOptions.html" title="class in com.shaft.tools.io.pdf">PdfBatchOptions</a>&nbsp;options)</span></div>
+<div class="block">Processes an ordered PDF batch with explicit concurrency and failure behavior.</div>
 </div>
 </section>
 </li>

@@ -57,6 +57,14 @@
 <ol class="toc-list">
 <li><a href="#cacheDirectory(java.lang.String)" tabindex="0">cacheDirectory(String)</a></li>
 <li><a href="#downloadEnabled(boolean)" tabindex="0">downloadEnabled(boolean)</a></li>
+<li><a href="#documentRenderDpi(int)" tabindex="0">documentRenderDpi(int)</a></li>
+<li><a href="#documentMaximumInputBytes(long)" tabindex="0">documentMaximumInputBytes(long)</a></li>
+<li><a href="#documentMaximumPages(int)" tabindex="0">documentMaximumPages(int)</a></li>
+<li><a href="#documentMaximumPixelsPerPage(long)" tabindex="0">documentMaximumPixelsPerPage(long)</a></li>
+<li><a href="#documentPageTimeoutSeconds(long)" tabindex="0">documentPageTimeoutSeconds(long)</a></li>
+<li><a href="#documentMaximumAllureArtifactBytes(long)" tabindex="0">documentMaximumAllureArtifactBytes(long)</a></li>
+<li><a href="#documentBatchParallelism(int)" tabindex="0">documentBatchParallelism(int)</a></li>
+<li><a href="#documentMaximumInFlightRasterBytes(long)" tabindex="0">documentMaximumInFlightRasterBytes(long)</a></li>
 </ol>
 </li>
 </ol>
@@ -115,6 +123,30 @@ implements <a href="EngineProperties.SetProperty.html" title="interface in com.s
 <div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#cacheDirectory(java.lang.String)" class="member-name-link">cacheDirectory</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;value)</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="Ocr.OcrPropertyBuilder.html" title="class in com.shaft.properties.internal">Ocr.OcrPropertyBuilder</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#documentBatchParallelism(int)" class="member-name-link">documentBatchParallelism</a><wbr>(int&nbsp;value)</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="Ocr.OcrPropertyBuilder.html" title="class in com.shaft.properties.internal">Ocr.OcrPropertyBuilder</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#documentMaximumAllureArtifactBytes(long)" class="member-name-link">documentMaximumAllureArtifactBytes</a><wbr>(long&nbsp;value)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="Ocr.OcrPropertyBuilder.html" title="class in com.shaft.properties.internal">Ocr.OcrPropertyBuilder</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#documentMaximumInFlightRasterBytes(long)" class="member-name-link">documentMaximumInFlightRasterBytes</a><wbr>(long&nbsp;value)</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="Ocr.OcrPropertyBuilder.html" title="class in com.shaft.properties.internal">Ocr.OcrPropertyBuilder</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#documentMaximumInputBytes(long)" class="member-name-link">documentMaximumInputBytes</a><wbr>(long&nbsp;value)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="Ocr.OcrPropertyBuilder.html" title="class in com.shaft.properties.internal">Ocr.OcrPropertyBuilder</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#documentMaximumPages(int)" class="member-name-link">documentMaximumPages</a><wbr>(int&nbsp;value)</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="Ocr.OcrPropertyBuilder.html" title="class in com.shaft.properties.internal">Ocr.OcrPropertyBuilder</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#documentMaximumPixelsPerPage(long)" class="member-name-link">documentMaximumPixelsPerPage</a><wbr>(long&nbsp;value)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="Ocr.OcrPropertyBuilder.html" title="class in com.shaft.properties.internal">Ocr.OcrPropertyBuilder</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#documentPageTimeoutSeconds(long)" class="member-name-link">documentPageTimeoutSeconds</a><wbr>(long&nbsp;value)</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="Ocr.OcrPropertyBuilder.html" title="class in com.shaft.properties.internal">Ocr.OcrPropertyBuilder</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#documentRenderDpi(int)" class="member-name-link">documentRenderDpi</a><wbr>(int&nbsp;value)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="Ocr.OcrPropertyBuilder.html" title="class in com.shaft.properties.internal">Ocr.OcrPropertyBuilder</a></code></div>
 <div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#downloadEnabled(boolean)" class="member-name-link">downloadEnabled</a><wbr>(boolean&nbsp;value)</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
 </div>
@@ -166,6 +198,70 @@ implements <a href="EngineProperties.SetProperty.html" title="interface in com.s
 <h3>downloadEnabled</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="Ocr.OcrPropertyBuilder.html" title="class in com.shaft.properties.internal">Ocr.OcrPropertyBuilder</a></span>&nbsp;<span class="element-name">downloadEnabled</span><wbr><span class="parameters">(boolean&nbsp;value)</span></div>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="documentRenderDpi(int)">
+<h3>documentRenderDpi</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="Ocr.OcrPropertyBuilder.html" title="class in com.shaft.properties.internal">Ocr.OcrPropertyBuilder</a></span>&nbsp;<span class="element-name">documentRenderDpi</span><wbr><span class="parameters">(int&nbsp;value)</span></div>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="documentMaximumInputBytes(long)">
+<h3>documentMaximumInputBytes</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="Ocr.OcrPropertyBuilder.html" title="class in com.shaft.properties.internal">Ocr.OcrPropertyBuilder</a></span>&nbsp;<span class="element-name">documentMaximumInputBytes</span><wbr><span class="parameters">(long&nbsp;value)</span></div>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="documentMaximumPages(int)">
+<h3>documentMaximumPages</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="Ocr.OcrPropertyBuilder.html" title="class in com.shaft.properties.internal">Ocr.OcrPropertyBuilder</a></span>&nbsp;<span class="element-name">documentMaximumPages</span><wbr><span class="parameters">(int&nbsp;value)</span></div>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="documentMaximumPixelsPerPage(long)">
+<h3>documentMaximumPixelsPerPage</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="Ocr.OcrPropertyBuilder.html" title="class in com.shaft.properties.internal">Ocr.OcrPropertyBuilder</a></span>&nbsp;<span class="element-name">documentMaximumPixelsPerPage</span><wbr><span class="parameters">(long&nbsp;value)</span></div>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="documentPageTimeoutSeconds(long)">
+<h3>documentPageTimeoutSeconds</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="Ocr.OcrPropertyBuilder.html" title="class in com.shaft.properties.internal">Ocr.OcrPropertyBuilder</a></span>&nbsp;<span class="element-name">documentPageTimeoutSeconds</span><wbr><span class="parameters">(long&nbsp;value)</span></div>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="documentMaximumAllureArtifactBytes(long)">
+<h3>documentMaximumAllureArtifactBytes</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="Ocr.OcrPropertyBuilder.html" title="class in com.shaft.properties.internal">Ocr.OcrPropertyBuilder</a></span>&nbsp;<span class="element-name">documentMaximumAllureArtifactBytes</span><wbr><span class="parameters">(long&nbsp;value)</span></div>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="documentBatchParallelism(int)">
+<h3>documentBatchParallelism</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="Ocr.OcrPropertyBuilder.html" title="class in com.shaft.properties.internal">Ocr.OcrPropertyBuilder</a></span>&nbsp;<span class="element-name">documentBatchParallelism</span><wbr><span class="parameters">(int&nbsp;value)</span></div>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="documentMaximumInFlightRasterBytes(long)">
+<h3>documentMaximumInFlightRasterBytes</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="Ocr.OcrPropertyBuilder.html" title="class in com.shaft.properties.internal">Ocr.OcrPropertyBuilder</a></span>&nbsp;<span class="element-name">documentMaximumInFlightRasterBytes</span><wbr><span class="parameters">(long&nbsp;value)</span></div>
 </div>
 </section>
 </li>

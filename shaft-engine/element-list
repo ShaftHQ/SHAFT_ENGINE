@@ -40,6 +40,7 @@ com.shaft.tools.internal.support
 com.shaft.tools.internal.tms
 com.shaft.tools.io
 com.shaft.tools.io.internal
+com.shaft.tools.io.pdf
 com.shaft.tools.io.trace
 com.shaft.validation
 com.shaft.validation.accessibility

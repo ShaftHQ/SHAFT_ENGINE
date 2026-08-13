@@ -55,6 +55,7 @@
 <li><a href="#method-detail" tabindex="0">Method Details</a>
 <ol class="toc-list">
 <li><a href="#recognize(byte%5B%5D,com.shaft.gui.ocr.OcrOptions)" tabindex="0">recognize(byte[], OcrOptions)</a></li>
+<li><a href="#analyzeDocumentPage(byte%5B%5D,com.shaft.gui.ocr.OcrOptions,boolean,boolean)" tabindex="0">analyzeDocumentPage(byte[], OcrOptions, boolean, boolean)</a></li>
 <li><a href="#name()" tabindex="0">name()</a></li>
 <li><a href="#priority()" tabindex="0">priority()</a></li>
 </ol>
@@ -108,16 +109,22 @@ implements <a href="https://shafthq.github.io/apidocs/com/shaft/gui/internal/ocr
 <div class="table-header col-first">Modifier and Type</div>
 <div class="table-header col-second">Method</div>
 <div class="table-header col-last">Description</div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#name()" class="member-name-link">name</a>()</code></div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="https://shafthq.github.io/apidocs/com/shaft/gui/internal/ocr/OcrDocumentPageAnalysis.html" title="class or interface in com.shaft.gui.internal.ocr" class="external-link">OcrDocumentPageAnalysis</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#analyzeDocumentPage(byte%5B%5D,com.shaft.gui.ocr.OcrOptions,boolean,boolean)" class="member-name-link">analyzeDocumentPage</a><wbr>(byte[]&nbsp;image,
+ <a href="https://shafthq.github.io/apidocs/com/shaft/gui/ocr/OcrOptions.html" title="class or interface in com.shaft.gui.ocr" class="external-link">OcrOptions</a>&nbsp;options,
+ boolean&nbsp;detectOrientation,
+ boolean&nbsp;deskew)</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>int</code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#priority()" class="member-name-link">priority</a>()</code></div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#name()" class="member-name-link">name</a>()</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="https://shafthq.github.io/apidocs/com/shaft/gui/ocr/OcrResult.html" title="class or interface in com.shaft.gui.ocr" class="external-link">OcrResult</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#recognize(byte%5B%5D,com.shaft.gui.ocr.OcrOptions)" class="member-name-link">recognize</a><wbr>(byte[]&nbsp;image,
- <a href="https://shafthq.github.io/apidocs/com/shaft/gui/ocr/OcrOptions.html" title="class or interface in com.shaft.gui.ocr" class="external-link">OcrOptions</a>&nbsp;options)</code></div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>int</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#priority()" class="member-name-link">priority</a>()</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="https://shafthq.github.io/apidocs/com/shaft/gui/ocr/OcrResult.html" title="class or interface in com.shaft.gui.ocr" class="external-link">OcrResult</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#recognize(byte%5B%5D,com.shaft.gui.ocr.OcrOptions)" class="member-name-link">recognize</a><wbr>(byte[]&nbsp;image,
+ <a href="https://shafthq.github.io/apidocs/com/shaft/gui/ocr/OcrOptions.html" title="class or interface in com.shaft.gui.ocr" class="external-link">OcrOptions</a>&nbsp;options)</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
 </div>
 </div>
 </div>
@@ -160,6 +167,21 @@ implements <a href="https://shafthq.github.io/apidocs/com/shaft/gui/internal/ocr
 <dl class="notes">
 <dt>Specified by:</dt>
 <dd><code><a href="https://shafthq.github.io/apidocs/com/shaft/gui/internal/ocr/OcrProcessingProvider.html#recognize(byte%5B%5D,com.shaft.gui.ocr.OcrOptions)" title="class or interface in com.shaft.gui.internal.ocr" class="external-link">recognize</a></code>&nbsp;in interface&nbsp;<code><a href="https://shafthq.github.io/apidocs/com/shaft/gui/internal/ocr/OcrProcessingProvider.html" title="class or interface in com.shaft.gui.internal.ocr" class="external-link">OcrProcessingProvider</a></code></dd>
+</dl>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="analyzeDocumentPage(byte[],com.shaft.gui.ocr.OcrOptions,boolean,boolean)">
+<h3>analyzeDocumentPage</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="https://shafthq.github.io/apidocs/com/shaft/gui/internal/ocr/OcrDocumentPageAnalysis.html" title="class or interface in com.shaft.gui.internal.ocr" class="external-link">OcrDocumentPageAnalysis</a></span>&nbsp;<span class="element-name">analyzeDocumentPage</span><wbr><span class="parameters">(byte[]&nbsp;image,
+ <a href="https://shafthq.github.io/apidocs/com/shaft/gui/ocr/OcrOptions.html" title="class or interface in com.shaft.gui.ocr" class="external-link">OcrOptions</a>&nbsp;options,
+ boolean&nbsp;detectOrientation,
+ boolean&nbsp;deskew)</span></div>
+<dl class="notes">
+<dt>Specified by:</dt>
+<dd><code><a href="https://shafthq.github.io/apidocs/com/shaft/gui/internal/ocr/OcrProcessingProvider.html#analyzeDocumentPage(byte%5B%5D,com.shaft.gui.ocr.OcrOptions,boolean,boolean)" title="class or interface in com.shaft.gui.internal.ocr" class="external-link">analyzeDocumentPage</a></code>&nbsp;in interface&nbsp;<code><a href="https://shafthq.github.io/apidocs/com/shaft/gui/internal/ocr/OcrProcessingProvider.html" title="class or interface in com.shaft.gui.internal.ocr" class="external-link">OcrProcessingProvider</a></code></dd>
 </dl>
 </div>
 </section>

@@ -49,6 +49,8 @@
 <li><a href="#method-detail" tabindex="0">Method Details</a>
 <ol class="toc-list">
 <li><a href="#recognize(byte%5B%5D,com.shaft.gui.ocr.OcrOptions)" tabindex="0">recognize(byte[], OcrOptions)</a></li>
+<li><a href="#analyzeDocumentPage(byte%5B%5D,com.shaft.gui.ocr.OcrOptions,boolean,boolean)" tabindex="0">analyzeDocumentPage(byte[], OcrOptions, boolean, boolean)</a></li>
+<li><a href="#documentPageAnalysisTask(byte%5B%5D,com.shaft.gui.ocr.OcrOptions,boolean,boolean)" tabindex="0">documentPageAnalysisTask(byte[], OcrOptions, boolean, boolean)</a></li>
 <li><a href="#find(byte%5B%5D,com.shaft.gui.ocr.OcrTarget)" tabindex="0">find(byte[], OcrTarget)</a></li>
 </ol>
 </li>
@@ -83,6 +85,22 @@
 <div class="table-header col-first">Modifier and Type</div>
 <div class="table-header col-second">Method</div>
 <div class="table-header col-last">Description</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static <a href="OcrDocumentPageAnalysis.html" title="class in com.shaft.gui.internal.ocr">OcrDocumentPageAnalysis</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#analyzeDocumentPage(byte%5B%5D,com.shaft.gui.ocr.OcrOptions,boolean,boolean)" class="member-name-link">analyzeDocumentPage</a><wbr>(byte[]&nbsp;image,
+ <a href="../../ocr/OcrOptions.html" title="class in com.shaft.gui.ocr">OcrOptions</a>&nbsp;options,
+ boolean&nbsp;detectOrientation,
+ boolean&nbsp;deskew)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
+<div class="block">Recognizes a rendered PDF page with optional provider-native orientation and deskew analysis.</div>
+</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/function/Supplier.html" title="class or interface in java.util.function" class="external-link">Supplier</a><wbr>&lt;<a href="OcrDocumentPageAnalysis.html" title="class in com.shaft.gui.internal.ocr">OcrDocumentPageAnalysis</a>&gt;</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#documentPageAnalysisTask(byte%5B%5D,com.shaft.gui.ocr.OcrOptions,boolean,boolean)" class="member-name-link">documentPageAnalysisTask</a><wbr>(byte[]&nbsp;image,
+ <a href="../../ocr/OcrOptions.html" title="class in com.shaft.gui.ocr">OcrOptions</a>&nbsp;options,
+ boolean&nbsp;detectOrientation,
+ boolean&nbsp;deskew)</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
+<div class="block">Captures the effective provider on the caller thread for bounded asynchronous document processing.</div>
+</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static <a href="../../ocr/OcrMatch.html" title="class in com.shaft.gui.ocr">OcrMatch</a></code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#find(byte%5B%5D,com.shaft.gui.ocr.OcrTarget)" class="member-name-link">find</a><wbr>(byte[]&nbsp;image,
  <a href="../../ocr/OcrTarget.html" title="class in com.shaft.gui.ocr">OcrTarget</a>&nbsp;target)</code></div>
@@ -114,6 +132,30 @@
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="modifiers">public static</span>&nbsp;<span class="return-type"><a href="../../ocr/OcrResult.html" title="class in com.shaft.gui.ocr">OcrResult</a></span>&nbsp;<span class="element-name">recognize</span><wbr><span class="parameters">(byte[]&nbsp;image,
  <a href="../../ocr/OcrOptions.html" title="class in com.shaft.gui.ocr">OcrOptions</a>&nbsp;options)</span></div>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="analyzeDocumentPage(byte[],com.shaft.gui.ocr.OcrOptions,boolean,boolean)">
+<h3>analyzeDocumentPage</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public static</span>&nbsp;<span class="return-type"><a href="OcrDocumentPageAnalysis.html" title="class in com.shaft.gui.internal.ocr">OcrDocumentPageAnalysis</a></span>&nbsp;<span class="element-name">analyzeDocumentPage</span><wbr><span class="parameters">(byte[]&nbsp;image,
+ <a href="../../ocr/OcrOptions.html" title="class in com.shaft.gui.ocr">OcrOptions</a>&nbsp;options,
+ boolean&nbsp;detectOrientation,
+ boolean&nbsp;deskew)</span></div>
+<div class="block">Recognizes a rendered PDF page with optional provider-native orientation and deskew analysis.</div>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="documentPageAnalysisTask(byte[],com.shaft.gui.ocr.OcrOptions,boolean,boolean)">
+<h3>documentPageAnalysisTask</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public static</span>&nbsp;<span class="return-type"><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/function/Supplier.html" title="class or interface in java.util.function" class="external-link">Supplier</a>&lt;<a href="OcrDocumentPageAnalysis.html" title="class in com.shaft.gui.internal.ocr">OcrDocumentPageAnalysis</a>&gt;</span>&nbsp;<span class="element-name">documentPageAnalysisTask</span><wbr><span class="parameters">(byte[]&nbsp;image,
+ <a href="../../ocr/OcrOptions.html" title="class in com.shaft.gui.ocr">OcrOptions</a>&nbsp;options,
+ boolean&nbsp;detectOrientation,
+ boolean&nbsp;deskew)</span></div>
+<div class="block">Captures the effective provider on the caller thread for bounded asynchronous document processing.</div>
 </div>
 </section>
 </li>
