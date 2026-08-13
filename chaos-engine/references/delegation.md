@@ -40,16 +40,28 @@ consume a slot. Check real progress for any agent or
 command unexamined for about twenty minutes, and supply a decision, a solved
 subproblem, or a re-spec — never a heartbeat.
 
+Treat agent lifetime as part of the assignment. Close every no-longer-needed
+agent and its descendants before moving to the next phase. Never use
+`followup_task` to reactivate a completed or finished assignment; a new review
+round gets a new reviewer instance. Preserve the closed relationship as
+history instead of deleting it. A final answer with an unneeded live agent is
+incomplete.
+
 ## Independent adversarial review
 
 Every behavior-changing step ends with a review before the next step starts. The
 property that makes it work is independence, so it is not optional:
 
 - The reviewer is a **separate agent instance, never the author** of the work.
-- Obtain it by dispatching a **`reviewer` subagent**. That is the mechanism the
-  harness counts: the guard records the dispatch when it observes it, and R15
-  accepts that record in place of a review from another account. A review the
-  harness never saw satisfies nobody, however thorough it was.
+- Choose a disposable review mechanism. When the host provides reliable terminal
+  close, use a native reviewer subagent and close it after the verdict. Without
+  reliable terminal close, use an artifact-bounded ephemeral reviewer and pass
+  the exact revision or diff plus its directly required guidance as immutable
+  input. It must not depend on repository shell access to discover the artifact.
+  Such a review clears the automated review gate only when the active host
+  adapter records its successful receipt, bound to that artifact. Until an
+  adapter supports that receipt, obtain an independent pull-request review too;
+  prose claiming the one-shot review happened is not evidence.
 - The reviewer is prompted to **refute** the work — find where it is wrong,
   unverified, or over-claimed — not to approve it.
 - The reviewer is handed **the exact revision under review** and a way to read
