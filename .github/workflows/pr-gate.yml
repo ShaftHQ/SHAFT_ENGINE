@@ -182,6 +182,7 @@ jobs:
               - 'shaft-cli/src/main/java/com/shaft/commandline/command/**'
             cli:
               - 'shaft-cli/**'
+              - 'shaft-infrastructure/**'
               - 'pom.xml'
             capture:
               - 'shaft-capture/**'
@@ -580,6 +581,8 @@ jobs:
         run: |
           java -jar shaft-cli/target/shaft-cli-*[0-9].jar --version
           java -jar shaft-cli/target/shaft-cli-*[0-9].jar --help
+          java -jar shaft-cli/target/shaft-cli-*[0-9].jar setup --help
+          java -jar shaft-cli/target/shaft-cli-*[0-9].jar setup catalog --json
 
   capture-e2e:
     name: SHAFT Capture Browser E2E

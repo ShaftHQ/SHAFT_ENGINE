@@ -12,19 +12,8 @@ public final class SetupExecutor {
 
     public static SetupReceipt execute(SetupPlan plan, SetupApproval approval,
                                        Consumer<SetupAction> actionExecutor) {
-        Objects.requireNonNull(plan, "plan");
-        Objects.requireNonNull(approval, "approval");
+        validate(plan, approval);
         Objects.requireNonNull(actionExecutor, "actionExecutor");
-        if (!plan.digest().equals(approval.planDigest())) {
-            throw new StaleSetupApprovalException(approval.planDigest(), plan.digest());
-        }
-        var requiredLicenses = plan.actions().stream().flatMap(action -> action.requiredLicenses().stream())
-                .collect(java.util.stream.Collectors.toUnmodifiableSet());
-        if (!approval.acceptedLicenses().containsAll(requiredLicenses)) {
-            var missing = new java.util.TreeSet<>(requiredLicenses);
-            missing.removeAll(approval.acceptedLicenses());
-            throw new IllegalArgumentException("Missing required license acceptance: " + missing);
-        }
         List<SetupAction> completed = new ArrayList<>();
         for (SetupAction action : plan.actions()) {
             try {
@@ -36,5 +25,21 @@ public final class SetupExecutor {
             }
         }
         return new SetupReceipt(plan.digest(), Instant.now(), completed);
+    }
+
+    /** Validates approval and licenses without creating files or invoking an action executor. */
+    public static void validate(SetupPlan plan, SetupApproval approval) {
+        Objects.requireNonNull(plan, "plan");
+        Objects.requireNonNull(approval, "approval");
+        if (!plan.digest().equals(approval.planDigest())) {
+            throw new StaleSetupApprovalException(approval.planDigest(), plan.digest());
+        }
+        var requiredLicenses = plan.actions().stream().flatMap(action -> action.requiredLicenses().stream())
+                .collect(java.util.stream.Collectors.toUnmodifiableSet());
+        if (!approval.acceptedLicenses().containsAll(requiredLicenses)) {
+            var missing = new java.util.TreeSet<>(requiredLicenses);
+            missing.removeAll(approval.acceptedLicenses());
+            throw new IllegalArgumentException("Missing required license acceptance: " + missing);
+        }
     }
 }
