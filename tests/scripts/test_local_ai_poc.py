@@ -627,7 +627,7 @@ class DoctorEvaluationTest(unittest.TestCase):
         self.assertIn("48123", command)
         self.assertIn("8", command)
         self.assertIn("4096", command)
-        self.assertNotIn("0.0.0.0", command)
+        self.assertNotIn("0.0.0.0", command)  # nosec B104 - negative assertion proves loopback-only binding.
 
         runs = [
             {
@@ -716,8 +716,8 @@ class LifecycleTest(unittest.TestCase):
         self.assertIn("--alias", command)
         environment = MODULE.runtime_environment({
             "PATH": "p", "SystemRoot": "w", "TEMP": "t", "TMP": "u", "LD_LIBRARY_PATH": "l",
-            "DYLD_LIBRARY_PATH": "d", "AWS_SECRET_ACCESS_KEY": "aws", "AZURE_CLIENT_SECRET": "azure",
-            "GOOGLE_APPLICATION_CREDENTIALS": "google", "DATABASE_URL": "database", "CI_JOB_TOKEN": "ci",
+            "DYLD_LIBRARY_PATH": "d", "AWS_SECRET_ACCESS_KEY": "fixture-value", "AZURE_CLIENT_SECRET": "fixture-value",
+            "GOOGLE_APPLICATION_CREDENTIALS": "fixture-value", "DATABASE_URL": "fixture-value", "CI_JOB_TOKEN": "fixture-value",
         })
         self.assertEqual("w", environment["SystemRoot"])
         self.assertEqual("t", environment["TEMP"])
@@ -780,10 +780,6 @@ class LifecycleTest(unittest.TestCase):
             self.assertEqual("user", concurrent.read_text(encoding="utf-8"))
 
     def test_failure_after_nested_extraction_preserves_old_directories_and_allows_rerun(self):
-        import hashlib
-        import io
-        import zipfile
-
         archive_buffer = io.BytesIO()
         with zipfile.ZipFile(archive_buffer, "w") as archive:
             archive.writestr("nested/bin/llama-server.exe", b"server")

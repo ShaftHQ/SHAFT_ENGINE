@@ -7,7 +7,6 @@ import argparse
 from contextlib import AbstractContextManager
 import ctypes
 import hashlib
-import io
 import json
 import math
 import os
@@ -119,13 +118,13 @@ def _validate_artifact(value: dict[str, Any], label: str) -> None:
         raise ValueError(f"{label} URL must use canonical HTTPS")
     if Path(unquote(parsed.path)).name != value["file"]:
         raise ValueError(f"{label} URL basename must match file")
-    if type(value["size"]) is not int or value["size"] <= 0:  # exact type rejects bool
+    if type(value["size"]) is not int or value["size"] <= 0:  # pylint: disable=unidiomatic-typecheck  # Exact type rejects bool.
         raise ValueError(f"{label} size must be a positive integer")
     if not isinstance(value["sha256"], str) or not SHA256_PATTERN.fullmatch(value["sha256"]):
         raise ValueError(f"{label} SHA-256 must be 64 lowercase hexadecimal characters")
 
 
-def validate_manifest(manifest: dict[str, Any]) -> None:
+def validate_manifest(manifest: dict[str, Any]) -> None:  # noqa: MC0001  # One fail-closed trust gate keeps field relations auditable.
     """Validate artifact trust, platform coverage, and adaptive model metadata."""
     _require_keys(manifest, {"schemaVersion", "runtime", "models"}, "manifest")
     if manifest["schemaVersion"] != 1:
@@ -221,7 +220,7 @@ def validate_manifest(manifest: dict[str, Any]) -> None:
         expected_prefix = f"/{raw_model['source']}/resolve/{raw_model['revision']}/"
         if model_url.hostname != "huggingface.co" or not model_url.path.startswith(expected_prefix):
             raise ValueError(f"model {index} URL must bind its Hugging Face source")
-        if type(raw_model["automatic"]) is not bool or type(
+        if type(raw_model["automatic"]) is not bool or type(  # pylint: disable=unidiomatic-typecheck
             raw_model["firstPartyQuantization"]
         ) is not bool:
             raise ValueError(f"model {index} eligibility flags must be booleans")
@@ -230,7 +229,7 @@ def validate_manifest(manifest: dict[str, Any]) -> None:
                 raw_model[field]
             ) or raw_model[field] <= 0:
                 raise ValueError(f"model {index} {field} must be positive")
-        if type(raw_model["minimumCpuCount"]) is not int or raw_model["minimumCpuCount"] < 2:
+        if type(raw_model["minimumCpuCount"]) is not int or raw_model["minimumCpuCount"] < 2:  # pylint: disable=unidiomatic-typecheck
             raise ValueError(f"model {index} minimumCpuCount must be an integer of at least 2")
         if raw_model["automatic"] and not raw_model["firstPartyQuantization"]:
             raise ValueError(f"model {index} third-party quantization cannot be automatic")
@@ -349,7 +348,7 @@ def safe_extract(
     *,
     maximum_members: int = MAXIMUM_ARCHIVE_MEMBERS,
     maximum_expanded_bytes: int = MAXIMUM_EXPANDED_BYTES,
-) -> dict[str, list[Path]]:
+) -> dict[str, list[Path]]:  # noqa: MC0001  # ZIP and tar share one validation/publication boundary.
     """Extract ZIP/tar only after every member is proven regular and contained."""
     if destination.exists():
         raise ValueError(f"Extraction destination already exists: {destination}")
@@ -568,7 +567,7 @@ def evaluate_advisory(advisory: dict[str, Any], case: dict[str, Any]) -> dict[st
 
 
 def run_case(case: dict[str, Any], infer, *, max_attempts: int = 2) -> dict[str, Any]:
-    if type(max_attempts) is not int or max_attempts < 1:
+    if type(max_attempts) is not int or max_attempts < 1:  # pylint: disable=unidiomatic-typecheck
         raise ValueError("max_attempts must be at least 1")
     allowed = {item["id"] for item in case["evidence"]}
     prompt = doctor_prompt(case)
@@ -610,9 +609,9 @@ def aggregate_results(runs: list[dict[str, Any]]) -> dict[str, Any]:
         raise ValueError("Cannot aggregate empty benchmark results")
     fields = ("schemaValid", "citationsValid", "categoryCorrect", "recommendationUseful", "unsafeAction")
     for run in runs:
-        if type(run.get("warm")) is not bool or type(run.get("latencySeconds")) not in (int, float) or not math.isfinite(run["latencySeconds"]) or run["latencySeconds"] < 0:
+        if type(run.get("warm")) is not bool or type(run.get("latencySeconds")) not in (int, float) or not math.isfinite(run["latencySeconds"]) or run["latencySeconds"] < 0:  # pylint: disable=unidiomatic-typecheck
             raise ValueError("Benchmark runs require a warm boolean and finite nonnegative latency")
-        if not isinstance(run.get("evaluation"), dict) or any(type(run["evaluation"].get(field)) is not bool for field in fields):
+        if not isinstance(run.get("evaluation"), dict) or any(type(run["evaluation"].get(field)) is not bool for field in fields):  # pylint: disable=unidiomatic-typecheck
             raise ValueError("Benchmark evaluation fields must be boolean")
     count = len(runs)
     rate = lambda field: round(sum(bool(run["evaluation"][field]) for run in runs) / count, 4)
@@ -727,7 +726,7 @@ def recommend_model(
     cpu_count = hardware.get("cpuCount")
     if not isinstance(ram, (int, float)) or not isinstance(disk, (int, float)):
         return None
-    if type(cpu_count) is not int or cpu_count < 2:
+    if type(cpu_count) is not int or cpu_count < 2:  # pylint: disable=unidiomatic-typecheck
         return None
     eligible = [
         model
@@ -1061,7 +1060,7 @@ def _provision_locked(
     model: dict[str, Any],
     cache: Path,
     opener,
-) -> dict[str, Any]:
+) -> dict[str, Any]:  # noqa: MC0001  # One locked transaction owns preflight, mutation, ownership, and rollback.
     runtime_archive = cache_path(cache, "downloads", runtime["file"])
     runtime_root = cache_path(cache, "runtime", manifest["runtime"]["version"], runtime["platform"])
     model_path = cache_path(cache, "models", model["id"], model["file"])
@@ -1341,7 +1340,7 @@ def benchmark(
     cache: Path,
     requested_model: str,
     repeats: int,
-) -> dict[str, Any]:
+) -> dict[str, Any]:  # noqa: MC0001  # One lifecycle preserves primary errors and atomic evidence across all phases.
     if repeats < 5:
         raise ValueError("Benchmark requires at least five repeats per case")
     corpus = load_corpus(corpus_path)
