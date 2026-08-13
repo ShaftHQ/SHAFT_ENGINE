@@ -10,6 +10,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 import java.util.zip.ZipEntry;
@@ -32,6 +33,11 @@ class ReportingSetupServiceTest {
         SetupPlanStore.write(planFile, plan);
         assertEquals(plan, SetupPlanStore.read(planFile));
         assertEquals(plan, SetupPlanJson.read(SetupPlanJson.write(plan)));
+        String legacyJson = SetupPlanJson.write(plan);
+        assertTrue(!legacyJson.contains("executionPolicyDigest"));
+        assertThrows(IllegalArgumentException.class, () -> SetupPlanJson.read(legacyJson.replaceFirst(
+                "\"schemaVersion\" : 2,", "\"schemaVersion\" : 2,\n  \"executionPolicyDigest\" : \"sha256:"
+                        + "0".repeat(64) + "\",")));
         assertThrows(IllegalArgumentException.class,
                 () -> SetupPlanJson.read(SetupPlanJson.write(plan).replace(plan.digest(), "sha256:" + "0".repeat(64))));
         assertThrows(RuntimeException.class,
@@ -53,6 +59,40 @@ class ReportingSetupServiceTest {
         SetupAction bad = new SetupAction(SetupTarget.ALLURE, SetupActionKind.INSTALL, "1",
                 source.toUri(), "sha256:" + "0".repeat(64), false, Set.of());
         assertThrows(IOException.class, () -> store.fetch(bad));
+        Path offlineRoot = temp.resolve("offline");
+        VerifiedArtifactStore offline = new VerifiedArtifactStore(offlineRoot);
+        assertThrows(IOException.class, () -> offline.fetch(good, true));
+        assertTrue(Files.notExists(offlineRoot));
+    }
+
+    @Test
+    void offlineInstallPassesFailClosedNpmFlags(@TempDir Path temp) throws Exception {
+        Path cache = temp.resolve("cache").toAbsolutePath();
+        Path data = temp.resolve("data").toAbsolutePath();
+        ShaftCachePaths paths = new ShaftCachePaths(cache, data, cache.resolve("downloads"),
+                data.resolve("tools"), data.resolve("state"), data.resolve("receipts"));
+        Path nodeArchive = createNodeZip(temp.resolve("node.zip"));
+        Path allureArchive = Files.writeString(temp.resolve("allure.tgz"), "allure");
+        List<List<String>> commands = new ArrayList<>();
+        ReportingSetupService service = new ReportingSetupService(paths, SetupPlatform.WINDOWS,
+                SetupArchitecture.X64, action -> action.target() == SetupTarget.NODE ? nodeArchive : allureArchive,
+                (command, log, timeout) -> {
+                    commands.add(List.copyOf(command));
+                    int prefix = command.indexOf("--prefix");
+                    if (command.contains("ci") && prefix >= 0) {
+                        Path entry = Path.of(command.get(prefix + 1)).resolve("node_modules/allure/cli.js");
+                        Files.createDirectories(entry.getParent());
+                        Files.writeString(entry, "allure");
+                    }
+                    return new ReportingSetupService.ProcessResult(0,
+                            command.stream().anyMatch(part -> part.endsWith("cli.js")) ? "3.14.3" : "v24.19.0");
+                }, true);
+        SetupPlan plan = ReportingSetupPlanner.plan(SetupPlatform.WINDOWS, SetupArchitecture.X64,
+                SetupMode.MANAGED);
+        service.install(plan, new SetupApproval(plan.digest(), Instant.EPOCH, Set.of()));
+
+        assertTrue(commands.stream().filter(command -> command.contains("cache") || command.contains("ci"))
+                .allMatch(command -> command.contains("--offline")));
     }
 
     @Test

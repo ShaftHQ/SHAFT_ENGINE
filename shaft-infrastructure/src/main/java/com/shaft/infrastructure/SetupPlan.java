@@ -13,18 +13,23 @@ import java.util.stream.Collectors;
 /** Immutable, content-addressed setup plan. Action order is significant. */
 public record SetupPlan(int schemaVersion, SetupProfile profile, SetupPlatform platform,
                         SetupArchitecture architecture, SetupMode mode,
-                        List<SetupAction> actions, String digest) {
+                        List<SetupAction> actions, String executionPolicyDigest, String digest) {
     public SetupPlan {
-        if (schemaVersion != 2) throw new IllegalArgumentException("Unsupported plan schema version: " + schemaVersion);
+        if (schemaVersion != 2 && schemaVersion != 3) {
+            throw new IllegalArgumentException("Unsupported plan schema version: " + schemaVersion);
+        }
         Objects.requireNonNull(profile, "profile");
         Objects.requireNonNull(platform, "platform");
         Objects.requireNonNull(architecture, "architecture");
         Objects.requireNonNull(mode, "mode");
         actions = List.copyOf(Objects.requireNonNull(actions, "actions"));
         if (actions.isEmpty()) throw new IllegalArgumentException("Plan must contain at least one action.");
+        if (schemaVersion == 2) executionPolicyDigest = "";
+        else requireSha256(executionPolicyDigest, "executionPolicyDigest");
         validatePolicy(mode, actions);
         if (digest == null || digest.isBlank()) throw new IllegalArgumentException("Plan digest must not be blank.");
-        String expected = calculateDigest(schemaVersion, profile, platform, architecture, mode, actions);
+        String expected = calculateDigest(schemaVersion, profile, platform, architecture, mode, actions,
+                executionPolicyDigest);
         if (!expected.equals(digest)) throw new IllegalArgumentException("Plan digest does not match its content.");
     }
 
@@ -32,18 +37,28 @@ public record SetupPlan(int schemaVersion, SetupProfile profile, SetupPlatform p
                                    SetupMode mode, List<SetupAction> actions) {
         List<SetupAction> immutable = List.copyOf(actions);
         return new SetupPlan(2, profile, platform, architecture, mode, immutable,
-                calculateDigest(2, profile, platform, architecture, mode, immutable));
+                "", calculateDigest(2, profile, platform, architecture, mode, immutable, ""));
+    }
+
+    /** Binds an existing release plan to caller execution policy and destination roots. */
+    public static SetupPlan bind(SetupPlan plan, String executionPolicyDigest) {
+        Objects.requireNonNull(plan, "plan");
+        requireSha256(executionPolicyDigest, "executionPolicyDigest");
+        return new SetupPlan(3, plan.profile(), plan.platform(), plan.architecture(), plan.mode(), plan.actions(),
+                executionPolicyDigest, calculateDigest(3, plan.profile(), plan.platform(), plan.architecture(),
+                plan.mode(), plan.actions(), executionPolicyDigest));
     }
 
     private static String calculateDigest(int schemaVersion, SetupProfile profile, SetupPlatform platform,
                                           SetupArchitecture architecture, SetupMode mode,
-                                          List<SetupAction> actions) {
+                                          List<SetupAction> actions, String executionPolicyDigest) {
         StringBuilder canonical = new StringBuilder();
         append(canonical, Integer.toString(schemaVersion));
         append(canonical, profile.name());
         append(canonical, platform.name());
         append(canonical, architecture.name());
         append(canonical, mode.name());
+        if (schemaVersion >= 3) append(canonical, executionPolicyDigest);
         append(canonical, Integer.toString(actions.size()));
         actions.forEach(action -> {
             append(canonical, action.target().name());
@@ -66,6 +81,12 @@ public record SetupPlan(int schemaVersion, SetupProfile profile, SetupPlatform p
             return "sha256:" + HexFormat.of().formatHex(digest.digest());
         } catch (NoSuchAlgorithmException impossible) {
             throw new IllegalStateException("SHA-256 is required by the Java platform.", impossible);
+        }
+    }
+
+    private static void requireSha256(String value, String name) {
+        if (value == null || !value.matches("sha256:[0-9a-fA-F]{64}")) {
+            throw new IllegalArgumentException(name + " must be a SHA-256 digest.");
         }
     }
 

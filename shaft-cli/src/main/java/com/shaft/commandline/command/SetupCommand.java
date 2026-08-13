@@ -2,6 +2,8 @@ package com.shaft.commandline.command;
 
 import com.shaft.infrastructure.ReportingSetupPlanner;
 import com.shaft.infrastructure.ReportingSetupService;
+import com.shaft.infrastructure.InfrastructureSetupService;
+import com.shaft.infrastructure.SetupOptions;
 import com.shaft.infrastructure.SetupApproval;
 import com.shaft.infrastructure.SetupArchitecture;
 import com.shaft.infrastructure.SetupCatalog;
@@ -13,6 +15,7 @@ import com.shaft.infrastructure.SetupPlatform;
 import com.shaft.infrastructure.SetupProfile;
 import com.shaft.infrastructure.SetupProfileStatus;
 import com.shaft.infrastructure.SetupReadiness;
+import com.shaft.infrastructure.SetupReport;
 import com.shaft.infrastructure.ShaftCachePaths;
 import com.shaft.commandline.util.Json;
 import picocli.CommandLine.Command;
@@ -88,6 +91,8 @@ public final class SetupCommand implements Runnable {
         @Option(names = "--json", description = "Print the plan as JSON.")
         private boolean json;
 
+        @Mixin private RootOptions roots;
+
         @Spec
         private CommandSpec spec;
 
@@ -97,8 +102,9 @@ public final class SetupCommand implements Runnable {
                 spec.commandLine().getErr().println("No setup provider is available for profile " + profile + '.');
                 return 4;
             }
-            SetupPlan plan = ReportingSetupPlanner.plan(
-                    SetupPlatform.current(), SetupArchitecture.current(), mode);
+            SetupOptions options = SetupOptions.defaults(profile, roots.paths()).withMode(mode);
+            SetupPlan plan = InfrastructureSetupService.builtIn(
+                    SetupPlatform.current(), SetupArchitecture.current()).plan(options);
             if (!output.isAbsolute()) {
                 spec.commandLine().getErr().println("--output must be an absolute path.");
                 return 2;
@@ -132,9 +138,9 @@ public final class SetupCommand implements Runnable {
         public Integer call() {
             try {
                 SetupPlan plan = SetupPlanStore.read(planFile);
-                ReportingSetupService service = service(roots);
-                var receipt = service.install(plan,
-                        new SetupApproval(approvedDigest, Instant.now(), acceptedLicenses));
+                SetupOptions options = SetupOptions.defaults(plan.profile(), roots.paths()).withMode(plan.mode());
+                var receipt = InfrastructureSetupService.builtIn().install(plan,
+                        new SetupApproval(approvedDigest, Instant.now(), acceptedLicenses), options);
                 if (json) spec.commandLine().getOut().println(Json.MAPPER.writerWithDefaultPrettyPrinter()
                         .writeValueAsString(receipt));
                 else spec.commandLine().getOut().println("Installed approved plan " + receipt.planDigest());
@@ -186,7 +192,8 @@ public final class SetupCommand implements Runnable {
         @Override
         public Integer call() {
             if (profile != SetupProfile.REPORTING) return unsupported(spec, profile);
-            SetupProfileStatus status = service(roots).status();
+            SetupReport status = InfrastructureSetupService.builtIn().status(
+                    SetupOptions.defaults(profile, roots.paths()));
             if (json) spec.commandLine().getOut().println(Json.MAPPER.writerWithDefaultPrettyPrinter()
                     .writeValueAsString(status));
             else status.targets().forEach(target -> spec.commandLine().getOut().println(

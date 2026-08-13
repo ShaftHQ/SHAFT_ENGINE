@@ -4,7 +4,7 @@ import tools.jackson.databind.json.JsonMapper;
 import tools.jackson.core.StreamReadFeature;
 import tools.jackson.databind.DeserializationFeature;
 
-/** Stable JSON codec for setup-plan schema version 2. */
+/** Stable, strict JSON codec for setup-plan schemas 2 and 3. */
 public final class SetupPlanJson {
     private static final JsonMapper JSON = JsonMapper.builder()
             .enable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES)
@@ -14,11 +14,22 @@ public final class SetupPlanJson {
     private SetupPlanJson() { }
 
     public static String write(SetupPlan plan) {
-        return JSON.writerWithDefaultPrettyPrinter().writeValueAsString(plan) + System.lineSeparator();
+        tools.jackson.databind.node.ObjectNode tree = JSON.valueToTree(plan);
+        if (plan.schemaVersion() == 2) tree.remove("executionPolicyDigest");
+        return JSON.writerWithDefaultPrettyPrinter().writeValueAsString(tree) + System.lineSeparator();
     }
 
     public static SetupPlan read(String json) {
         try {
+            tools.jackson.databind.JsonNode tree = JSON.readTree(json);
+            int schema = tree.path("schemaVersion").asInt(-1);
+            boolean hasPolicy = tree.has("executionPolicyDigest");
+            if (schema == 2 && hasPolicy) {
+                throw new IllegalArgumentException("Schema 2 plans must not contain executionPolicyDigest.");
+            }
+            if (schema == 3 && !hasPolicy) {
+                throw new IllegalArgumentException("Schema 3 plans require executionPolicyDigest.");
+            }
             return JSON.readValue(json, SetupPlan.class);
         } catch (tools.jackson.databind.DatabindException invalid) {
             if (invalid.getCause() instanceof IllegalArgumentException rejected) throw rejected;

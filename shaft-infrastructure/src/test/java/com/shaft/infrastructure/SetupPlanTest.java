@@ -102,7 +102,7 @@ class SetupPlanTest {
                         "25", URI.create("https://example.invalid/java"), checksum(), false, Set.of()))));
         assertThrows(IllegalArgumentException.class, () -> new SetupPlan(1, SetupProfile.REPORTING,
                 SetupPlatform.LINUX, SetupArchitecture.X64,
-                SetupMode.MANAGED, List.of(install), "sha256:" + "0".repeat(64)));
+                SetupMode.MANAGED, List.of(install), "", "sha256:" + "0".repeat(64)));
         assertThrows(IllegalArgumentException.class, () -> plan(SetupPlatform.WINDOWS,
                 SetupMode.MANAGED, List.of(new SetupAction(SetupTarget.WINAPPDRIVER, SetupActionKind.INSTALL,
                         "1.2.1", URI.create("https://example.invalid/wad"), checksum(), false, Set.of()))));

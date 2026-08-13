@@ -30,20 +30,34 @@ public final class ReportingSetupService {
     private final SetupArchitecture architecture;
     private final ArtifactFetcher artifactFetcher;
     private final CommandRunner commandRunner;
+    private boolean offline;
 
     public ReportingSetupService(ShaftCachePaths paths, SetupPlatform platform, SetupArchitecture architecture) {
-        this(paths, platform, architecture, new VerifiedArtifactStore(paths.downloads())::fetch,
+        this(paths, platform, architecture, false);
+    }
+
+    public ReportingSetupService(ShaftCachePaths paths, SetupPlatform platform, SetupArchitecture architecture,
+                                 boolean offline) {
+        this(paths, platform, architecture,
+                action -> new VerifiedArtifactStore(paths.downloads()).fetch(action, offline),
                 (command, log, timeout) -> runProcess(command, log, timeout, paths.cacheRoot(),
                         nodeRoot(paths, platform, architecture)));
+        this.offline = offline;
     }
 
     ReportingSetupService(ShaftCachePaths paths, SetupPlatform platform, SetupArchitecture architecture,
                           ArtifactFetcher artifactFetcher, CommandRunner commandRunner) {
+        this(paths, platform, architecture, artifactFetcher, commandRunner, false);
+    }
+
+    ReportingSetupService(ShaftCachePaths paths, SetupPlatform platform, SetupArchitecture architecture,
+                          ArtifactFetcher artifactFetcher, CommandRunner commandRunner, boolean offline) {
         this.paths = java.util.Objects.requireNonNull(paths, "paths");
         this.platform = java.util.Objects.requireNonNull(platform, "platform");
         this.architecture = java.util.Objects.requireNonNull(architecture, "architecture");
         this.artifactFetcher = java.util.Objects.requireNonNull(artifactFetcher, "artifactFetcher");
         this.commandRunner = java.util.Objects.requireNonNull(commandRunner, "commandRunner");
+        this.offline = offline;
     }
 
     public SetupProfileStatus status() {
@@ -127,11 +141,14 @@ public final class ReportingSetupService {
             Path log = logFile();
             Files.createDirectories(log.getParent());
             copyReportingManifest(staging, action.dependencyLockChecksum());
-            requireSuccessful(commandRunner.run(List.of(nodeExecutable().toString(), npmCli().toString(),
-                    "cache", "add", packageArchive.toString()), log, Duration.ofMinutes(2)),
+            List<String> cacheCommand = new ArrayList<>(List.of(nodeExecutable().toString(), npmCli().toString(),
+                    "cache", "add", packageArchive.toString()));
+            if (offline) cacheCommand.add("--offline");
+            requireSuccessful(commandRunner.run(cacheCommand, log, Duration.ofMinutes(2)),
                     "Allure package cache preparation failed; see " + log);
-            List<String> command = List.of(nodeExecutable().toString(), npmCli().toString(), "ci",
-                    "--prefix", staging.toString(), "--ignore-scripts", "--no-audit", "--no-fund");
+            List<String> command = new ArrayList<>(List.of(nodeExecutable().toString(), npmCli().toString(), "ci",
+                    "--prefix", staging.toString(), "--ignore-scripts", "--no-audit", "--no-fund"));
+            if (offline) command.add("--offline");
             requireSuccessful(commandRunner.run(command, log, Duration.ofMinutes(5)),
                     "Allure npm installation failed; see " + log);
             Path entryPoint = staging.resolve("node_modules/allure/cli.js");
@@ -260,7 +277,13 @@ public final class ReportingSetupService {
             String resource = "/com/shaft/infrastructure/reporting/" + name;
             try (InputStream input = ReportingSetupService.class.getResourceAsStream(resource)) {
                 if (input == null) throw new IOException("Missing bundled reporting manifest: " + name);
-                Files.copy(input, staging.resolve(name));
+                byte[] content = input.readAllBytes();
+                if ("package-lock.json".equals(name)) {
+                    String canonical = new String(content, java.nio.charset.StandardCharsets.UTF_8)
+                            .replace("\r\n", "\n").replace('\r', '\n');
+                    content = canonical.getBytes(java.nio.charset.StandardCharsets.UTF_8);
+                }
+                Files.write(staging.resolve(name), content);
             }
         }
         String actual = "sha256:" + VerifiedArtifactStore.digest(staging.resolve("package-lock.json"));
