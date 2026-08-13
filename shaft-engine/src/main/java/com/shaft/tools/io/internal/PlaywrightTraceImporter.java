@@ -85,15 +85,26 @@ final class PlaywrightTraceImporter {
 
     private static void applyStackEntry(JsonNode stack, JsonNode files, Map<String, MutableAction> byCall,
                                         String name) throws IOException {
-        if (!stack.isArray() || stack.size() < 2 || !stack.get(0).canConvertToInt()
-                || !stack.get(1).isArray() || stack.get(1).isEmpty()) {
-            throw new IOException("Malformed Playwright stack entry in " + name + ".");
-        }
+        validateStackEntry(stack, name);
         MutableAction action = byCall.get("call@" + stack.get(0).asInt());
         if (action == null || !action.source.isBlank()) {
             return;
         }
         JsonNode frame = stack.get(1).get(0);
+        validateStackFrame(frame, files, name);
+        int fileIndex = frame.get(0).asInt();
+        action.source = safeText(files.get(fileIndex).asText()) + ':' + frame.get(1).asInt()
+                + ':' + frame.get(2).asInt();
+    }
+
+    private static void validateStackEntry(JsonNode stack, String name) throws IOException {
+        if (!stack.isArray() || stack.size() < 2 || !stack.get(0).canConvertToInt()
+                || !stack.get(1).isArray() || stack.get(1).isEmpty()) {
+            throw new IOException("Malformed Playwright stack entry in " + name + ".");
+        }
+    }
+
+    private static void validateStackFrame(JsonNode frame, JsonNode files, String name) throws IOException {
         if (!frame.isArray() || frame.size() < 3 || !frame.get(0).canConvertToInt()) {
             throw new IOException("Malformed Playwright stack frame in " + name + ".");
         }
@@ -101,8 +112,6 @@ final class PlaywrightTraceImporter {
         if (fileIndex < 0 || fileIndex >= files.size()) {
             throw new IOException("Playwright stack frame references an unknown source file in " + name + ".");
         }
-        action.source = safeText(files.get(fileIndex).asText()) + ':' + frame.get(1).asInt()
-                + ':' + frame.get(2).asInt();
     }
 
     private static TraceContext parseContext(PlaywrightTraceArchiveLoader.LoadedArchive loaded, String name,
