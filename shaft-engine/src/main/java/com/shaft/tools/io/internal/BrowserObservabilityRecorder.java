@@ -28,7 +28,9 @@ import java.lang.ref.WeakReference;
  */
 public final class BrowserObservabilityRecorder {
     private static final int BODY_PREVIEW_LIMIT = 2048;
+    private static final int NETWORK_EVENT_LIMIT = 1000;
     private static final int CONSOLE_EVENT_LIMIT = 1000;
+    private static final int WARNING_EVENT_LIMIT = 100;
     private static final int IN_FLIGHT_EXCHANGE_LIMIT = 1000;
     private static final ThreadLocal<ObservationSession> CURRENT = new ThreadLocal<>();
     private static final ThreadLocal<ObservationBinding> CURRENT_BINDING =
@@ -247,11 +249,17 @@ public final class BrowserObservabilityRecorder {
      * @return recorded warnings
      */
     public static List<String> drainWarnings() {
-        ObservationSession session = currentSession();
-        List<String> warnings = session.takeWarnings().stream()
+        return drainWarnings(currentSession());
+    }
+
+    /** Returns and clears warnings for an explicitly owned observation session. */
+    public static List<String> drainWarnings(ObservationSession session) {
+        if (session == null) {
+            return List.of();
+        }
+        return session.takeWarnings().stream()
                 .map(warning -> warning.source() + ": " + warning.message())
                 .toList();
-        return warnings;
     }
 
     static String drainNetworkJson() {
@@ -370,10 +378,15 @@ public final class BrowserObservabilityRecorder {
     /** Starts and binds a fresh browser-observation session to the current report thread. */
     public static ObservationSession startSession() {
         clear();
-        ObservationSession session = new ObservationSession();
+        ObservationSession session = createSession();
         CURRENT.set(session);
         CURRENT_BINDING.get().bind(session);
         return session;
+    }
+
+    /** Creates a detached observation session for a concurrently active browser owner. */
+    public static ObservationSession createSession() {
+        return new ObservationSession();
     }
 
     /** Captures the current observation owner for use by asynchronous callbacks. */
@@ -686,6 +699,8 @@ public final class BrowserObservabilityRecorder {
         private int nextNetworkId;
         private boolean closed;
         private boolean exchangeLimitWarned;
+        private boolean networkLimitWarned;
+        private boolean warningLimitWarned;
         private final boolean traceEnabled = isTraceEnabled();
         private final boolean networkEnabled = traceEnabled && SHAFT.Properties.reporting.traceIncludeNetwork();
         private final boolean consoleEnabled = traceEnabled && SHAFT.Properties.reporting.traceIncludeConsole();
@@ -695,24 +710,38 @@ public final class BrowserObservabilityRecorder {
         private boolean traceEnabled() { return traceEnabled; }
         private boolean networkEnabled() { return networkEnabled; }
         private boolean consoleEnabled() { return consoleEnabled; }
-        private synchronized void addNetwork(NetworkEvent event) { if (!closed) network.add(event); }
+        private synchronized void addNetwork(NetworkEvent event) {
+            if (!closed) {
+                if (network.size() >= NETWORK_EVENT_LIMIT) {
+                    network.removeFirst();
+                    networkLimitWarned = true;
+                }
+                network.add(event);
+            }
+        }
         private synchronized void addConsole(ConsoleEvent event) {
             if (!closed) {
                 if (console.size() >= CONSOLE_EVENT_LIMIT) console.removeFirst();
                 console.add(event);
             }
         }
-        private synchronized void addWarning(WarningEvent event) { if (!closed) warnings.add(event); }
+        private synchronized void addWarning(WarningEvent event) {
+            if (!closed) {
+                if (warnings.size() >= WARNING_EVENT_LIMIT) {
+                    warnings.removeFirst();
+                    warningLimitWarned = true;
+                }
+                warnings.add(event);
+            }
+        }
         private synchronized void warnExchangeLimitOnce() {
             if (!closed && !exchangeLimitWarned) {
                 exchangeLimitWarned = true;
-                warnings.add(new WarningEvent("network",
-                        "A network exchange was omitted because the in-flight session limit was reached."));
             }
         }
         private synchronized List<NetworkEvent> networkSnapshot() { return List.copyOf(network); }
         private synchronized List<ConsoleEvent> consoleSnapshot() { return List.copyOf(console); }
-        private synchronized List<WarningEvent> warningSnapshot() { return List.copyOf(warnings); }
+        private synchronized List<WarningEvent> warningSnapshot() { return effectiveWarnings(); }
         private synchronized List<NetworkEvent> takeNetwork() {
             List<NetworkEvent> result = List.copyOf(network);
             network.clear();
@@ -725,9 +754,25 @@ public final class BrowserObservabilityRecorder {
             return result;
         }
         private synchronized List<WarningEvent> takeWarnings() {
-            List<WarningEvent> result = List.copyOf(warnings);
+            List<WarningEvent> result = effectiveWarnings();
             warnings.clear();
+            warningLimitWarned = false;
+            exchangeLimitWarned = false;
+            networkLimitWarned = false;
             return result;
+        }
+        private synchronized List<WarningEvent> effectiveWarnings() {
+            List<WarningEvent> result = new ArrayList<>(warnings);
+            int markerCount = (networkLimitWarned ? 1 : 0) + (exchangeLimitWarned ? 1 : 0)
+                    + (warningLimitWarned ? 1 : 0);
+            while (result.size() + markerCount > WARNING_EVENT_LIMIT) result.removeFirst();
+            if (warningLimitWarned) result.add(new WarningEvent("observability",
+                    "The oldest browser observability warnings were omitted because the session limit was reached."));
+            if (networkLimitWarned) result.add(new WarningEvent("network",
+                    "The oldest network events were omitted because the session limit was reached."));
+            if (exchangeLimitWarned) result.add(new WarningEvent("network",
+                    "A network exchange was omitted because the in-flight session limit was reached."));
+            return List.copyOf(result);
         }
         private synchronized void clearNetwork() { network.clear(); nextNetworkId = 0; }
         private synchronized void clearConsole() { console.clear(); }
@@ -740,6 +785,9 @@ public final class BrowserObservabilityRecorder {
             console.clear();
             warnings.clear();
             nextNetworkId = 0;
+            networkLimitWarned = false;
+            warningLimitWarned = false;
+            exchangeLimitWarned = false;
         }
     }
 

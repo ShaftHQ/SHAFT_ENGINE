@@ -21,6 +21,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicReference;
 import org.openqa.selenium.remote.http.Contents;
+import java.util.Map;
 
 public class BrowserObservabilityRecorderSessionTest {
     @AfterMethod
@@ -102,6 +103,100 @@ public class BrowserObservabilityRecorderSessionTest {
                     "Mutable public record contents must not change identity-based session ownership.");
             Assert.assertEquals(BrowserObservabilityRecorder.snapshot(owner).getFirst().status(), 201);
         }
+    }
+
+    @Test
+    public void sessionShouldBoundNetworkEvidenceAndReportOldestEventOmission() {
+        SHAFT.Properties.reporting.set().traceEnabled(true).traceIncludeNetwork(true);
+        BrowserObservabilityRecorder.ObservationSession session = BrowserObservabilityRecorder.startSession();
+
+        for (int index = 0; index <= 1000; index++) {
+            BrowserObservabilityRecorder.recordNetwork(session, new BrowserObservabilityRecorder.NetworkObservation(
+                    "GET", "https://example.com/event-" + index, 200, Map.of(), Map.of(),
+                    1, 0, 0, "", ""));
+        }
+
+        var snapshot = BrowserObservabilityRecorder.snapshot(session);
+        Assert.assertEquals(snapshot.size(), 1000);
+        Assert.assertEquals(snapshot.getFirst().url(), "https://example.com/event-1");
+        Assert.assertEquals(snapshot.getLast().url(), "https://example.com/event-1000");
+        Assert.assertTrue(BrowserObservabilityRecorder.drainWarnings().stream()
+                .anyMatch(warning -> warning.contains("oldest network")),
+                "Trace metadata must explain bounded evidence omission.");
+    }
+
+    @Test
+    public void explicitCallbackOwnerShouldStayIsolatedFromSiblingSession() throws Exception {
+        SHAFT.Properties.reporting.set().traceEnabled(true).traceIncludeNetwork(true).traceIncludeConsole(true);
+        BrowserObservabilityRecorder.ObservationSession owner = BrowserObservabilityRecorder.startSession();
+        BrowserObservabilityRecorder.ObservationSession sibling = BrowserObservabilityRecorder.createSession();
+        try (var callbackExecutor = Executors.newSingleThreadExecutor()) {
+            callbackExecutor.submit(() -> {
+                BrowserObservabilityRecorder.recordNetwork(owner,
+                        new BrowserObservabilityRecorder.NetworkObservation("GET", "https://example.com/owner",
+                                200, Map.of(), Map.of(), 1, 0, 0, "", ""));
+                BrowserObservabilityRecorder.recordConsole(owner, "bidi", "info", "owner-console", 10);
+            }).get();
+        }
+
+        Assert.assertEquals(BrowserObservabilityRecorder.snapshot(owner).size(), 1);
+        Assert.assertEquals(BrowserObservabilityRecorder.snapshotConsole(owner).size(), 1);
+        Assert.assertTrue(BrowserObservabilityRecorder.snapshot(sibling).isEmpty());
+        Assert.assertTrue(BrowserObservabilityRecorder.snapshotConsole(sibling).isEmpty());
+    }
+
+    @Test
+    public void closedOwnerShouldRejectLateCallbackWithoutFallingBackToCurrentSession() throws Exception {
+        SHAFT.Properties.reporting.set().traceEnabled(true).traceIncludeNetwork(true).traceIncludeConsole(true);
+        BrowserObservabilityRecorder.ObservationSession closed = BrowserObservabilityRecorder.startSession();
+        BrowserObservabilityRecorder.NetworkExchange exchange = BrowserObservabilityRecorder.startNetwork(
+                closed, new HttpRequest(HttpMethod.GET, "https://example.com/late"));
+        for (int index = 0; index <= 1000; index++) {
+            BrowserObservabilityRecorder.recordNetwork(closed,
+                    new BrowserObservabilityRecorder.NetworkObservation("GET", "https://example.com/seed-" + index,
+                            200, Map.of(), Map.of(), 1, 0, 0, "", ""));
+        }
+        Assert.assertFalse(BrowserObservabilityRecorder.drainWarnings(closed).isEmpty(),
+                "The close regression must first prove an omission marker exists.");
+        BrowserObservabilityRecorder.recordNetwork(closed,
+                new BrowserObservabilityRecorder.NetworkObservation("GET", "https://example.com/seed-again",
+                        200, Map.of(), Map.of(), 1, 0, 0, "", ""));
+        closed.close();
+        BrowserObservabilityRecorder.ObservationSession current = BrowserObservabilityRecorder.startSession();
+
+        try (var callbackExecutor = Executors.newSingleThreadExecutor()) {
+            callbackExecutor.submit(() -> {
+                BrowserObservabilityRecorder.finishNetwork(exchange, new HttpResponse().setStatus(200), "");
+                BrowserObservabilityRecorder.recordConsole(closed, "bidi", "error", "late-console", 20);
+            }).get();
+        }
+
+        Assert.assertTrue(BrowserObservabilityRecorder.snapshot(closed).isEmpty());
+        Assert.assertTrue(BrowserObservabilityRecorder.snapshotConsole(closed).isEmpty());
+        Assert.assertTrue(BrowserObservabilityRecorder.drainWarnings(closed).isEmpty());
+        Assert.assertTrue(BrowserObservabilityRecorder.snapshot(current).isEmpty(),
+                "A late callback must not fall back to the current test session.");
+        Assert.assertTrue(BrowserObservabilityRecorder.snapshotConsole(current).isEmpty());
+    }
+
+    @Test
+    public void detachedSessionShouldKeepOmissionMarkersWithinWarningLimit() {
+        SHAFT.Properties.reporting.set().traceEnabled(true).traceIncludeNetwork(true);
+        BrowserObservabilityRecorder.ObservationSession detached = BrowserObservabilityRecorder.createSession();
+        for (int index = 0; index <= 1000; index++) {
+            BrowserObservabilityRecorder.recordNetwork(detached,
+                    new BrowserObservabilityRecorder.NetworkObservation("GET", "https://example.com/" + index,
+                            200, Map.of(), Map.of(), 1, 0, 0, "", ""));
+        }
+        for (int index = 0; index <= 100; index++) {
+            BrowserObservabilityRecorder.recordWarning(detached, "provider", "warning-" + index);
+        }
+
+        var warnings = BrowserObservabilityRecorder.drainWarnings(detached);
+        Assert.assertTrue(warnings.size() <= 100);
+        Assert.assertTrue(warnings.stream().anyMatch(warning -> warning.contains("oldest network")));
+        Assert.assertTrue(warnings.stream().anyMatch(warning -> warning.contains("oldest browser observability")));
+        Assert.assertTrue(BrowserObservabilityRecorder.drainWarnings(detached).isEmpty());
     }
 
     private static TestExecutionInfo info(String method) {
