@@ -127,6 +127,23 @@ final class ManagedLocalAiCache {
         return installation;
     }
 
+    static Path verifyOwnedFile(Path cache, Path candidate) throws IOException {
+        Path root = cache.toAbsolutePath().normalize();
+        Path path = candidate.toAbsolutePath().normalize();
+        String relative = relative(root, path);
+        for (Installation installation : readOwnerManifest(root).values()) {
+            if (installation.files().stream().anyMatch(file -> file.path().equals(relative))
+                    && matches(root, installation, true)) {
+                return path;
+            }
+        }
+        throw new IllegalStateException("Managed local AI file is unowned or changed.");
+    }
+
+    static boolean ownsInstallation(Path cache, String id) throws IOException {
+        return readOwnerManifest(cache.toAbsolutePath().normalize()).containsKey(id);
+    }
+
     static CleanResult clean(Path cache) throws IOException {
         Path root = cache.toAbsolutePath().normalize();
         Map<String, Installation> owned = readOwnerManifest(root);
