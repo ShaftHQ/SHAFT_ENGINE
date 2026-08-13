@@ -86,6 +86,23 @@ class SetupCommandTest {
     }
 
     @Test
+    void lighthouseProfileUsesTheRegisteredProvider(@TempDir Path temp) throws Exception {
+        Path cache = temp.resolve("cache").toAbsolutePath();
+        Path data = temp.resolve("data").toAbsolutePath();
+        CommandResult status = execute("setup", "status", "--profile", "LIGHTHOUSE",
+                "--cache-root", cache.toString(), "--data-root", data.toString(), "--json");
+        Path planFile = temp.resolve("lighthouse-plan.json").toAbsolutePath();
+        CommandResult plan = execute("setup", "plan", "--profile", "LIGHTHOUSE", "--mode", "MANAGED",
+                "--output", planFile.toString(), "--cache-root", cache.toString(),
+                "--data-root", data.toString(), "--json");
+
+        assertEquals(3, status.exitCode(), status.stderr());
+        assertEquals("LIGHTHOUSE", JSON.readTree(status.stdout()).get("profile").asText());
+        assertEquals(0, plan.exitCode(), plan.stderr());
+        assertEquals("LIGHTHOUSE", JSON.readTree(plan.stdout()).get("profile").asText());
+    }
+
+    @Test
     void ocrProfileHasProviderBackedStatusAndPlan(@TempDir Path temp) throws Exception {
         Path cache = temp.resolve("cache").toAbsolutePath();
         Path data = temp.resolve("data").toAbsolutePath();

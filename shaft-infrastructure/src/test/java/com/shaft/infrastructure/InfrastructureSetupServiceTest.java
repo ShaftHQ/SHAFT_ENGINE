@@ -4,6 +4,8 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 import java.net.URI;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.time.Instant;
@@ -60,6 +62,57 @@ class InfrastructureSetupServiceTest {
         assertEquals(SetupReadiness.MISSING, report.readiness());
         assertEquals(List.of(SetupTarget.NODE, SetupTarget.ALLURE), report.targets().stream()
                 .map(SetupStatus::target).toList());
+    }
+
+    @Test
+    void builtInCoordinatorProvidesReadOnlyLighthouseStatusAndManagedPlan(@TempDir Path temp) {
+        ShaftCachePaths paths = paths(temp);
+        InfrastructureSetupService service = InfrastructureSetupService.builtIn(
+                SetupPlatform.LINUX, SetupArchitecture.X64);
+
+        SetupReport report = service.status(SetupOptions.defaults(SetupProfile.LIGHTHOUSE, paths));
+        SetupPlan plan = service.plan(SetupOptions.defaults(SetupProfile.LIGHTHOUSE, paths)
+                .withMode(SetupMode.MANAGED));
+
+        assertEquals(SetupProfile.LIGHTHOUSE, report.profile());
+        assertEquals(SetupReadiness.MISSING, report.readiness());
+        assertEquals(List.of(SetupTarget.NODE, SetupTarget.LIGHTHOUSE), report.targets().stream()
+                .map(SetupStatus::target).toList());
+        assertEquals(SetupProfile.LIGHTHOUSE, plan.profile());
+        assertEquals(List.of(SetupTarget.NODE, SetupTarget.LIGHTHOUSE), plan.actions().stream()
+                .map(SetupAction::target).toList());
+        SetupAction lighthouse = plan.actions().get(1);
+        assertEquals(SetupActionKind.INSTALL, lighthouse.kind());
+        assertEquals("13.4.1", lighthouse.version());
+        assertEquals(URI.create("https://registry.npmjs.org/lighthouse/-/lighthouse-13.4.1.tgz"),
+                lighthouse.source());
+        assertEquals("sha256:110759ba9e863c024e214e9b08ed2b0344d89b492286227235d4dfb990dc3e54",
+                lighthouse.checksum());
+        assertEquals("sha256:5691359da63475578daef5b322a620311110ff6a09953cdb898bee314106c4dd",
+                lighthouse.dependencyLockChecksum());
+        assertTrue(lighthouse.requiredLicenses().isEmpty());
+        assertTrue(Files.notExists(paths.cacheRoot()));
+        assertTrue(Files.notExists(paths.dataRoot()));
+    }
+
+    @Test
+    void bundledLighthouseManifestMatchesTheApprovedLock() throws Exception {
+        byte[] packageJson;
+        byte[] lock;
+        try (var packageInput = InfrastructureSetupServiceTest.class.getResourceAsStream(
+                "/com/shaft/infrastructure/lighthouse/package.json");
+             var lockInput = InfrastructureSetupServiceTest.class.getResourceAsStream(
+                     "/com/shaft/infrastructure/lighthouse/package-lock.json")) {
+            packageJson = java.util.Objects.requireNonNull(packageInput).readAllBytes();
+            lock = java.util.Objects.requireNonNull(lockInput).readAllBytes();
+        }
+        String canonical = new String(lock, StandardCharsets.UTF_8).replace("\r\n", "\n").replace('\r', '\n');
+
+        assertTrue(new String(packageJson, StandardCharsets.UTF_8).contains("\"lighthouse\": \"13.4.1\""));
+        assertTrue(canonical.contains("\"lighthouse\": \"13.4.1\""));
+        var digest = java.security.MessageDigest.getInstance("SHA-256")
+                .digest(canonical.getBytes(StandardCharsets.UTF_8));
+        assertEquals(LighthouseSetupPlanner.LIGHTHOUSE_LOCK_SHA256, java.util.HexFormat.of().formatHex(digest));
     }
 
     @Test

@@ -38,6 +38,17 @@ public record SetupOptions(SetupProfile profile, SetupMode mode, ShaftCachePaths
                 startupTimeout, shutdownTimeout, remoteEndpoint);
     }
 
+    /**
+     * Reuses the same execution policy and owned paths for another setup profile.
+     *
+     * @param value replacement profile
+     * @return a copy with the selected profile
+     */
+    public SetupOptions withProfile(SetupProfile value) {
+        return new SetupOptions(Objects.requireNonNull(value, "value"), mode, paths, offline, autoStart,
+                preferSystemTools, reuseOwnedProcesses, startupTimeout, shutdownTimeout, remoteEndpoint);
+    }
+
     public SetupOptions withOffline(boolean value) {
         return copy(mode, value, autoStart, preferSystemTools, reuseOwnedProcesses,
                 startupTimeout, shutdownTimeout, remoteEndpoint);
