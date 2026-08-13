@@ -18,6 +18,7 @@ public final class BidiConsoleLogSource implements AutoCloseable {
     private static final ReferenceQueue<WebDriver> STALE_DRIVERS = new ReferenceQueue<>();
     private static final Map<IdentityWeakReference, Entry> CACHE = new HashMap<>();
     private final List<BrowserObservabilityRecorder.ConsoleSnapshotEntry> events = new ArrayList<>();
+    private boolean oldestEventOmitted;
     private final BrowserObservabilityRecorder.ObservationBinding observationBinding =
             BrowserObservabilityRecorder.captureBinding();
     private LogInspector inspector;
@@ -108,7 +109,11 @@ public final class BidiConsoleLogSource implements AutoCloseable {
         }
         BrowserObservabilityRecorder.ObservationSession owner =
                 BrowserObservabilityRecorder.resolveSession(source.observationBinding);
-        for (BrowserObservabilityRecorder.ConsoleSnapshotEntry entry : source.takeEvents()) {
+        ConsoleBatch batch = source.takeEvents();
+        if (batch.oldestOmitted()) {
+            BrowserObservabilityRecorder.recordConsoleOmission(owner);
+        }
+        for (BrowserObservabilityRecorder.ConsoleSnapshotEntry entry : batch.events()) {
             BrowserObservabilityRecorder.recordConsole(owner,
                     entry.source(), entry.level(), entry.message(), entry.timestamp());
         }
@@ -192,6 +197,7 @@ public final class BidiConsoleLogSource implements AutoCloseable {
         }
         if (events.size() >= EVENT_LIMIT) {
             events.removeFirst();
+            oldestEventOmitted = true;
         }
         events.add(BrowserObservabilityRecorder.consoleEntry("bidi", level, text, timestamp));
     }
@@ -202,13 +208,18 @@ public final class BidiConsoleLogSource implements AutoCloseable {
 
     private synchronized void clearEvents() {
         events.clear();
+        oldestEventOmitted = false;
     }
 
-    private synchronized List<BrowserObservabilityRecorder.ConsoleSnapshotEntry> takeEvents() {
-        List<BrowserObservabilityRecorder.ConsoleSnapshotEntry> snapshot = List.copyOf(events);
+    private synchronized ConsoleBatch takeEvents() {
+        ConsoleBatch snapshot = new ConsoleBatch(List.copyOf(events), oldestEventOmitted);
         events.clear();
+        oldestEventOmitted = false;
         return snapshot;
     }
+
+    private record ConsoleBatch(List<BrowserObservabilityRecorder.ConsoleSnapshotEntry> events,
+                                boolean oldestOmitted) { }
 
     @Override
     public void close() {
@@ -216,6 +227,7 @@ public final class BidiConsoleLogSource implements AutoCloseable {
         synchronized (this) {
             healthy = false;
             events.clear();
+            oldestEventOmitted = false;
             currentInspector = inspector;
             inspector = null;
         }

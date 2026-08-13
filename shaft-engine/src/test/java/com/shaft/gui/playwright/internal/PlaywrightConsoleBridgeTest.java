@@ -98,6 +98,36 @@ public class PlaywrightConsoleBridgeTest {
                 "async-playwright-owner");
     }
 
+    @Test
+    public void providerOverflowShouldReportOldestConsoleOmission() {
+        SHAFT.Properties.reporting.set().traceEnabled(true).traceIncludeConsole(true);
+        ReportContext.start(info("overflow"));
+        Page page = Mockito.mock(Page.class);
+        PlaywrightSession session = new PlaywrightSession(Mockito.mock(Playwright.class), Mockito.mock(Browser.class),
+                Mockito.mock(BrowserContext.class), page, null);
+        ArgumentCaptor<Consumer<ConsoleMessage>> listener = consumerCaptor();
+        Mockito.verify(page).onConsoleMessage(listener.capture());
+        for (int index = 0; index <= 1000; index++) {
+            listener.getValue().accept(message("playwright-" + index));
+        }
+        Assert.assertEquals(session.consoleSnapshot().size(), 1000);
+        Assert.assertEquals(session.consoleSnapshot().getFirst().message(), "playwright-1");
+        Assert.assertEquals(session.consoleSnapshot().getLast().message(), "playwright-1000");
+
+        session.drainConsoleToRecorder();
+
+        Assert.assertEquals(BrowserObservabilityRecorder.snapshotConsole().size(), 1000);
+        Assert.assertEquals(BrowserObservabilityRecorder.snapshotConsole().getFirst().message(), "playwright-1");
+        Assert.assertTrue(BrowserObservabilityRecorder.drainWarnings().stream()
+                .anyMatch(warning -> warning.contains("oldest console")));
+        BrowserObservabilityRecorder.clearConsole();
+        listener.getValue().accept(message("next-batch"));
+        session.drainConsoleToRecorder();
+        Assert.assertEquals(BrowserObservabilityRecorder.snapshotConsole().size(), 1);
+        Assert.assertEquals(BrowserObservabilityRecorder.snapshotConsole().getFirst().message(), "next-batch");
+        Assert.assertTrue(BrowserObservabilityRecorder.drainWarnings().isEmpty());
+    }
+
     @SuppressWarnings({"unchecked", "rawtypes"})
     private static <T> ArgumentCaptor<Consumer<T>> consumerCaptor() {
         return ArgumentCaptor.forClass((Class) Consumer.class);

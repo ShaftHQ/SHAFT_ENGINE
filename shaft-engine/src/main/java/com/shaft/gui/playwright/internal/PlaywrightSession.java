@@ -46,6 +46,7 @@ public final class PlaywrightSession implements AutoCloseable {
     private final Set<Page> observedPages = Collections.newSetFromMap(new IdentityHashMap<>());
     private final Set<Page> downloadObservedPages = Collections.newSetFromMap(new IdentityHashMap<>());
     private final List<BrowserObservabilityRecorder.ConsoleSnapshotEntry> consoleEvents = new ArrayList<>();
+    private boolean oldestConsoleEventOmitted;
     private final BrowserObservabilityRecorder.ObservationBinding observationBinding;
     private final List<Download> downloads = new ArrayList<>();
     private int nextPageHandleIndex = 1;
@@ -208,6 +209,7 @@ public final class PlaywrightSession implements AutoCloseable {
     /** Clears only this Playwright session's console observations. */
     public synchronized void clearConsole() {
         consoleEvents.clear();
+        oldestConsoleEventOmitted = false;
     }
 
     /** @return immutable native download handles owned by this session, oldest first */
@@ -296,9 +298,15 @@ public final class PlaywrightSession implements AutoCloseable {
         BrowserObservabilityRecorder.ObservationSession owner =
                 BrowserObservabilityRecorder.resolveSession(observationBinding);
         List<BrowserObservabilityRecorder.ConsoleSnapshotEntry> snapshot;
+        boolean oldestOmitted;
         synchronized (this) {
             snapshot = List.copyOf(consoleEvents);
             consoleEvents.clear();
+            oldestOmitted = oldestConsoleEventOmitted;
+            oldestConsoleEventOmitted = false;
+        }
+        if (oldestOmitted) {
+            BrowserObservabilityRecorder.recordConsoleOmission(owner);
         }
         for (BrowserObservabilityRecorder.ConsoleSnapshotEntry entry : snapshot) {
             BrowserObservabilityRecorder.recordConsole(owner,
@@ -309,6 +317,7 @@ public final class PlaywrightSession implements AutoCloseable {
     private synchronized void recordConsole(String level, String message) {
         if (consoleEvents.size() >= CONSOLE_EVENT_LIMIT) {
             consoleEvents.removeFirst();
+            oldestConsoleEventOmitted = true;
         }
         consoleEvents.add(BrowserObservabilityRecorder.consoleEntry(
                 "playwright", level, message, System.currentTimeMillis()));

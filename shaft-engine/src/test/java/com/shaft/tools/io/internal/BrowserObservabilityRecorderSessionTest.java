@@ -199,6 +199,44 @@ public class BrowserObservabilityRecorderSessionTest {
         Assert.assertTrue(BrowserObservabilityRecorder.drainWarnings(detached).isEmpty());
     }
 
+    @Test
+    public void sessionShouldBoundConsoleEvidenceAndReportOldestEventOmission() {
+        SHAFT.Properties.reporting.set().traceEnabled(true).traceIncludeConsole(true);
+        BrowserObservabilityRecorder.ObservationSession session = BrowserObservabilityRecorder.startSession();
+        for (int index = 0; index <= 1000; index++) {
+            BrowserObservabilityRecorder.recordConsole(session, "bidi", "info", "console-" + index, index);
+        }
+
+        var snapshot = BrowserObservabilityRecorder.snapshotConsole(session);
+        Assert.assertEquals(snapshot.size(), 1000);
+        Assert.assertEquals(snapshot.getFirst().message(), "console-1");
+        Assert.assertEquals(snapshot.getLast().message(), "console-1000");
+        Assert.assertTrue(BrowserObservabilityRecorder.drainWarnings(session).stream()
+                .anyMatch(warning -> warning.contains("oldest console")));
+        Assert.assertTrue(BrowserObservabilityRecorder.drainWarnings(session).isEmpty());
+    }
+
+    @Test
+    public void closedOwnerShouldRejectLateProviderOmissionMarker() {
+        SHAFT.Properties.reporting.set().traceEnabled(true).traceIncludeConsole(true);
+        BrowserObservabilityRecorder.ObservationSession session = BrowserObservabilityRecorder.startSession();
+        session.close();
+
+        BrowserObservabilityRecorder.recordConsoleOmission(session);
+
+        Assert.assertTrue(BrowserObservabilityRecorder.drainWarnings(session).isEmpty());
+    }
+
+    @Test
+    public void disabledOwnerShouldRejectProviderOmissionMarker() {
+        SHAFT.Properties.reporting.set().traceEnabled(true).traceIncludeConsole(false);
+        BrowserObservabilityRecorder.ObservationSession session = BrowserObservabilityRecorder.startSession();
+
+        BrowserObservabilityRecorder.recordConsoleOmission(session);
+
+        Assert.assertTrue(BrowserObservabilityRecorder.drainWarnings(session).isEmpty());
+    }
+
     private static TestExecutionInfo info(String method) {
         return new TestExecutionInfo("observability-" + method, BrowserObservabilityRecorderSessionTest.class.getName(),
                 method, method, method, null, null, false);

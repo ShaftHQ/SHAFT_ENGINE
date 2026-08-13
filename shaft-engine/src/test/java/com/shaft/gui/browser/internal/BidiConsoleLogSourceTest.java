@@ -302,4 +302,35 @@ public class BidiConsoleLogSourceTest {
         Mockito.verify(driver, Mockito.never()).manage();
         Assert.assertTrue(BrowserObservabilityRecorder.drainWarnings().isEmpty());
     }
+
+    @Test
+    public void providerOverflowShouldReportOldestConsoleOmission() {
+        SHAFT.Properties.reporting.set().traceEnabled(true).traceIncludeConsole(true);
+        com.shaft.tools.io.internal.ReportContext.start(new com.shaft.listeners.internal.TestExecutionInfo(
+                "bidi-overflow", getClass().getName(), "overflow", "overflow", "overflow",
+                null, null, false));
+        WebDriver driver = Mockito.mock(WebDriver.class);
+        BidiConsoleLogSource source = new BidiConsoleLogSource();
+        BidiConsoleLogSource.install(driver, source);
+        for (int index = 0; index <= 1000; index++) {
+            source.record("log", "bidi-" + index, index);
+        }
+        Assert.assertEquals(BidiConsoleLogSource.snapshot(driver).size(), 1000);
+        Assert.assertEquals(BidiConsoleLogSource.snapshot(driver).getFirst().message(), "bidi-1");
+        Assert.assertEquals(BidiConsoleLogSource.snapshot(driver).getLast().message(), "bidi-1000");
+
+        BidiConsoleLogSource.drainToRecorder(driver);
+
+        Assert.assertEquals(BrowserObservabilityRecorder.snapshotConsole().size(), 1000);
+        Assert.assertEquals(BrowserObservabilityRecorder.snapshotConsole().getFirst().message(), "bidi-1");
+        Assert.assertTrue(BrowserObservabilityRecorder.drainWarnings().stream()
+                .anyMatch(warning -> warning.contains("oldest console")));
+        BrowserObservabilityRecorder.clearConsole();
+        source.record("log", "next-batch", 1001);
+        BidiConsoleLogSource.drainToRecorder(driver);
+        Assert.assertEquals(BrowserObservabilityRecorder.snapshotConsole().size(), 1);
+        Assert.assertEquals(BrowserObservabilityRecorder.snapshotConsole().getFirst().message(), "next-batch");
+        Assert.assertTrue(BrowserObservabilityRecorder.drainWarnings().isEmpty());
+        BidiConsoleLogSource.closeAndRemove(driver);
+    }
 }
