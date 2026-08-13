@@ -48,7 +48,6 @@ SAFE_BASENAME_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._+-]*$")
 KNOWN_TIERS = {"lite", "balanced", "challenger"}
 KNOWN_LICENSES = {"MIT", "Apache-2.0"}
 MEMORY_RESERVE_GB = 2.0
-MINIMUM_GLIBC = (2, 31)
 WINDOWS_RESERVED_STEMS = {
     "CON", "PRN", "AUX", "NUL", "CLOCK$",
     *(f"COM{index}" for index in range(1, 10)),
@@ -153,7 +152,7 @@ def validate_manifest(manifest: dict[str, Any]) -> None:  # noqa: MC0001  # One 
     for index, raw_asset in enumerate(assets):
         if not isinstance(raw_asset, dict):
             raise ValueError(f"runtime asset {index} must be an object")
-        _require_keys(raw_asset, {"platform", "executable"}, f"runtime asset {index}")
+        _require_keys(raw_asset, {"platform", "executable", "abi"}, f"runtime asset {index}")
         _validate_artifact(raw_asset, f"runtime asset {index}")
         parsed_asset = urlparse(raw_asset["url"])
         if (
@@ -167,6 +166,21 @@ def validate_manifest(manifest: dict[str, Any]) -> None:  # noqa: MC0001  # One 
             raise ValueError(f"runtime asset {index} platform must be a string")
         if not _safe_basename(raw_asset["executable"]):
             raise ValueError(f"runtime asset {index} executable must be one safe basename")
+        expected_abi = (
+            "windows-msvc" if raw_asset["platform"].startswith("windows-")
+            else "macos-darwin" if raw_asset["platform"].startswith("macos-")
+            else "linux-glibc"
+        )
+        if raw_asset["abi"] != expected_abi:
+            raise ValueError(f"runtime asset {index} ABI must match its platform")
+        minimum_abi = raw_asset.get("minimumAbiVersion")
+        if raw_asset["platform"].startswith("linux-"):
+            if not isinstance(minimum_abi, str) or not re.fullmatch(
+                r"\d+\.\d+(?:\.\d+)?", minimum_abi
+            ):
+                raise ValueError(f"runtime asset {index} minimum ABI version is invalid")
+        elif minimum_abi is not None:
+            raise ValueError(f"runtime asset {index} must not declare a minimum ABI version")
         if f"/{runtime['version']}/" not in raw_asset["url"]:
             raise ValueError(f"runtime asset {index} URL must pin runtime version")
         platforms.append(raw_asset["platform"])
@@ -845,7 +859,12 @@ def memory_snapshot(
     }
 
 
-def runtime_compatible(system: str, libc: tuple[str, str] | None = None) -> bool:
+def runtime_compatible(
+    system: str,
+    libc: tuple[str, str] | None = None,
+    manifest: dict[str, Any] | None = None,
+    machine: str | None = None,
+) -> bool:
     """Fail closed when the published Ubuntu Linux baseline cannot be established."""
     if system in {"Windows", "Darwin"}:
         return True
@@ -855,7 +874,18 @@ def runtime_compatible(system: str, libc: tuple[str, str] | None = None) -> bool
     if name.lower() not in {"glibc", "gnu libc"}:
         return False
     match = re.fullmatch(r"(\d+)\.(\d+)(?:\.\d+)?", version)
-    return bool(match and (int(match.group(1)), int(match.group(2))) >= MINIMUM_GLIBC)
+    if not match:
+        return False
+    reviewed = manifest if manifest is not None else load_json(DEFAULT_MANIFEST)
+    validate_manifest(reviewed)
+    try:
+        asset = select_runtime_asset(reviewed, platform_key(system, machine or platform.machine()))
+    except ValueError:
+        return False
+    minimum = re.fullmatch(r"(\d+)\.(\d+)(?:\.\d+)?", asset["minimumAbiVersion"])
+    return bool(minimum and (int(match.group(1)), int(match.group(2))) >= (
+        int(minimum.group(1)), int(minimum.group(2))
+    ))
 
 
 def _nvidia_vram_gb() -> float:
@@ -876,7 +906,9 @@ def _nvidia_vram_gb() -> float:
         return 0.0
 
 
-def detect_hardware(cache: Path = DEFAULT_CACHE) -> dict[str, Any]:
+def detect_hardware(
+    cache: Path = DEFAULT_CACHE, manifest: dict[str, Any] | None = None
+) -> dict[str, Any]:
     """Collect only deterministic local sizing signals used by the PoC selector."""
     system = platform.system()
     machine = platform.machine()
@@ -889,7 +921,7 @@ def detect_hardware(cache: Path = DEFAULT_CACHE) -> dict[str, Any]:
         "system": system,
         "release": platform.release(),
         "machine": machine,
-        "runtimeCompatible": runtime_compatible(system),
+        "runtimeCompatible": runtime_compatible(system, manifest=manifest, machine=machine),
         "cpuCount": (
             os.process_cpu_count() if hasattr(os, "process_cpu_count") else os.cpu_count()
         ) or 1,
@@ -904,7 +936,7 @@ def inspect(manifest_path: Path, corpus_path: Path, cache: Path) -> dict[str, An
     manifest = load_json(manifest_path)
     validate_manifest(manifest)
     corpus = load_corpus(corpus_path)
-    hardware = detect_hardware(cache)
+    hardware = detect_hardware(cache, manifest)
     runtime = select_runtime_asset(manifest, hardware["platform"])
     recommendation = recommend_model(manifest, hardware)
     return {
@@ -1047,7 +1079,7 @@ def provision(
     """Provision the exact runtime and model into one locked PoC-owned cache."""
     manifest = load_json(manifest_path)
     validate_manifest(manifest)
-    hardware = detect_hardware(cache)
+    hardware = detect_hardware(cache, manifest)
     model = resolve_model(manifest, hardware, requested_model)
     runtime = select_runtime_asset(manifest, hardware["platform"])
     with CacheLock(cache):

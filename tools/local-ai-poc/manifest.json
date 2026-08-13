@@ -12,6 +12,7 @@
         "url": "https://github.com/ggml-org/llama.cpp/releases/download/b10400/llama-b10400-bin-win-cpu-x64.zip",
         "size": 18471221,
         "sha256": "905eb7adecddfef9c3f700dd086edced20a4751481f53e614d2eba11de2ad147",
+        "abi": "windows-msvc",
         "executable": "llama-server.exe"
       },
       {
@@ -20,6 +21,7 @@
         "url": "https://github.com/ggml-org/llama.cpp/releases/download/b10400/llama-b10400-bin-win-cpu-arm64.zip",
         "size": 12305094,
         "sha256": "19714a9207381e18f464a926b77fa9680ec1ecca9a1d6ad8ccf1c90af965606e",
+        "abi": "windows-msvc",
         "executable": "llama-server.exe"
       },
       {
@@ -28,6 +30,7 @@
         "url": "https://github.com/ggml-org/llama.cpp/releases/download/b10400/llama-b10400-bin-macos-x64.tar.gz",
         "size": 11365103,
         "sha256": "dccb8eb50c797e3338cc55cacf943a51853b4cce09f6aa1c1a8fdc3efea74725",
+        "abi": "macos-darwin",
         "executable": "llama-server"
       },
       {
@@ -36,6 +39,7 @@
         "url": "https://github.com/ggml-org/llama.cpp/releases/download/b10400/llama-b10400-bin-macos-arm64.tar.gz",
         "size": 11083410,
         "sha256": "bb0172e886c7b6ece52edf04db03bc692ffc28e096728351c0343e4c75bb5374",
+        "abi": "macos-darwin",
         "executable": "llama-server"
       },
       {
@@ -44,6 +48,8 @@
         "url": "https://github.com/ggml-org/llama.cpp/releases/download/b10400/llama-b10400-bin-ubuntu-x64.tar.gz",
         "size": 16609457,
         "sha256": "ce3aadaadcc443f46d0d9eaa5c688d4370e25b90bd7e6e903cabcaa72dd2a584",
+        "abi": "linux-glibc",
+        "minimumAbiVersion": "2.31",
         "executable": "llama-server"
       },
       {
@@ -52,6 +58,8 @@
         "url": "https://github.com/ggml-org/llama.cpp/releases/download/b10400/llama-b10400-bin-ubuntu-arm64.tar.gz",
         "size": 13473976,
         "sha256": "737ff27872dcc3018c4ccd678de3550f6ccfbf416b855ee61b2ec012b4c20dca",
+        "abi": "linux-glibc",
+        "minimumAbiVersion": "2.31",
         "executable": "llama-server"
       }
     ]
