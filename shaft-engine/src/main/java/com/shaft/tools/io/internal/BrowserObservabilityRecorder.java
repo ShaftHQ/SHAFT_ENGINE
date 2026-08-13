@@ -29,6 +29,9 @@ import java.lang.ref.WeakReference;
 public final class BrowserObservabilityRecorder {
     private static final int BODY_PREVIEW_LIMIT = 2048;
     private static final int NETWORK_EVENT_LIMIT = 1000;
+    private static final int NETWORK_FIELD_LIMIT = 2048;
+    private static final int NETWORK_HEADER_LIMIT = 64;
+    private static final int NETWORK_HEADER_CHARACTER_LIMIT = 8192;
     private static final int CONSOLE_EVENT_LIMIT = 1000;
     private static final int WARNING_EVENT_LIMIT = 100;
     private static final int IN_FLIGHT_EXCHANGE_LIMIT = 1000;
@@ -130,13 +133,19 @@ public final class BrowserObservabilityRecorder {
 
     /** Records a network event into an explicitly captured observation session. */
     public static void recordNetwork(ObservationSession session, NetworkObservation observation) {
+        recordNetwork(session, observation, "selenium-http");
+    }
+
+    /** Records provider-labeled bounded metadata into an explicitly captured observation session. */
+    public static void recordNetwork(ObservationSession session, NetworkObservation observation, String provider) {
         ObservationSession owner = valid(session);
         if (owner == null || !owner.networkEnabled() || observation == null) {
             return;
         }
         owner.addNetwork(new NetworkEvent(
-                value(observation.method()),
-                value(observation.url()),
+                value(provider),
+                boundedNetworkText(observation.method()),
+                boundedNetworkText(observation.url()),
                 observation.status(),
                 sanitizedHeaders(observation.requestHeaders()),
                 sanitizedHeaders(observation.responseHeaders()),
@@ -479,6 +488,7 @@ public final class BrowserObservabilityRecorder {
                 json.append(",");
             }
             json.append("\n    {\n");
+            field(json, 3, "provider", event.provider(), true);
             field(json, 3, "method", event.method(), true);
             field(json, 3, "url", event.url(), true);
             numberField(json, 3, "status", event.status(), true);
@@ -607,10 +617,33 @@ public final class BrowserObservabilityRecorder {
             return Map.of();
         }
         Map<String, String> sanitized = new LinkedHashMap<>();
-        source.forEach((key, value) -> sanitized.put(value(key), isSensitiveKey(key)
-                ? "********"
-                : FailureTraceReporter.redact(value(value))));
-        return sanitized;
+        int retainedCharacters = 0;
+        for (Map.Entry<String, String> entry : source.entrySet()) {
+            if (sanitized.size() >= NETWORK_HEADER_LIMIT || retainedCharacters >= NETWORK_HEADER_CHARACTER_LIMIT) {
+                break;
+            }
+            String key = boundedNetworkText(entry.getKey());
+            String headerValue = boundedNetworkHeaderValue(entry.getKey(), entry.getValue());
+            int remaining = NETWORK_HEADER_CHARACTER_LIMIT - retainedCharacters - key.length();
+            if (remaining < 0) {
+                break;
+            }
+            if (headerValue.length() > remaining) {
+                headerValue = headerValue.substring(0, remaining);
+            }
+            sanitized.put(key, headerValue);
+            retainedCharacters += key.length() + headerValue.length();
+        }
+        return Map.copyOf(sanitized);
+    }
+
+    public static String boundedNetworkText(String source) {
+        String redacted = FailureTraceReporter.redact(value(source));
+        return redacted.length() <= NETWORK_FIELD_LIMIT ? redacted : redacted.substring(0, NETWORK_FIELD_LIMIT);
+    }
+
+    public static String boundedNetworkHeaderValue(String key, String source) {
+        return isSensitiveKey(key) ? "********" : boundedNetworkText(source);
     }
 
     private static void map(StringBuilder json, int indent, String key, Map<String, String> values, boolean comma) {
@@ -869,7 +902,7 @@ public final class BrowserObservabilityRecorder {
                                      long responseSize, String failureReason, String bodyPreview) {
     }
 
-    private record NetworkEvent(String method, String url, int status, Map<String, String> requestHeaders,
+    private record NetworkEvent(String provider, String method, String url, int status, Map<String, String> requestHeaders,
                                 Map<String, String> responseHeaders, long durationMs, long requestSizeBytes,
                                 long responseSizeBytes, String failureReason, String bodyPreview, long timestamp) {
     }
