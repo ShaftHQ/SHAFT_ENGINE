@@ -29,6 +29,7 @@ import org.openqa.selenium.interactions.Sequence;
 import org.openqa.selenium.remote.RemoteWebDriver;
 import org.opentest4j.AssertionFailedError;
 import org.testng.annotations.AfterMethod;
+import org.testng.Assert;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
@@ -60,6 +61,45 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 public class AndroidTouchActionsCoverageUnitTest {
+    @Test
+    public void touchActionsShouldExposeTypedImageAndOcrFourDirectionScrolling() throws Exception {
+        Assert.assertNotNull(TouchActions.class.getMethod("tap", com.shaft.gui.image.ImageTarget.class));
+        Assert.assertNotNull(TouchActions.class.getMethod("tap", com.shaft.gui.ocr.OcrTarget.class));
+        Assert.assertNotNull(TouchActions.class.getMethod("swipeElementIntoView",
+                com.shaft.gui.image.ImageTarget.class, TouchActions.SwipeDirection.class));
+        Assert.assertNotNull(TouchActions.class.getMethod("swipeElementIntoView",
+                com.shaft.gui.ocr.OcrTarget.class, TouchActions.SwipeDirection.class));
+        Assert.assertNotNull(TouchActions.class.getMethod("swipeElementIntoView", By.class,
+                com.shaft.gui.image.ImageTarget.class, TouchActions.SwipeDirection.class));
+        Assert.assertNotNull(TouchActions.class.getMethod("swipeElementIntoView", By.class,
+                com.shaft.gui.ocr.OcrTarget.class, TouchActions.SwipeDirection.class));
+        Assert.assertEquals(TouchActions.SwipeDirection.values().length, 4);
+    }
+
+    @Test
+    public void appiumImagesFallbackShouldSelectOccurrenceAndRestoreDefaultThreshold() throws Exception {
+        AndroidDriver driver = createMockAndroidDriver();
+        WebElement first = mock(WebElement.class);
+        WebElement second = mock(WebElement.class);
+        when(driver.getSettings()).thenReturn(Map.of());
+        when(driver.setSetting(any(io.appium.java_client.Setting.class), any())).thenReturn(driver);
+        when(driver.findElements(any(By.class))).thenReturn(List.of(first, second));
+        SHAFT.Properties.visuals.set().visualMatchingThreshold(0.91);
+        TouchActions touchActions = new TouchActions(driver);
+        Method fallback = TouchActions.class.getDeclaredMethod("findUsingAppiumImages",
+                com.shaft.gui.image.ImageTarget.class);
+        fallback.setAccessible(true);
+
+        Object selected = fallback.invoke(touchActions,
+                com.shaft.gui.image.ImageTarget.fromPath(Path.of("src", "test", "resources",
+                        "testDataFiles", "youtube.png")).occurrence(1));
+
+        Assert.assertEquals(selected, java.util.Optional.of(second));
+        var order = org.mockito.Mockito.inOrder(driver);
+        order.verify(driver).setSetting(io.appium.java_client.Setting.IMAGE_MATCH_THRESHOLD, 0.91);
+        order.verify(driver).findElements(any(By.class));
+        order.verify(driver).setSetting(io.appium.java_client.Setting.IMAGE_MATCH_THRESHOLD, 0.4);
+    }
     private static final Path TEMP_DIR = Path.of("target", "temp", "touchActionsCoverage");
     private static final Path ROOT_PULL_PATH = Path.of("touchActions-root-pulled.txt");
     private boolean originalWaitForLazyLoading;

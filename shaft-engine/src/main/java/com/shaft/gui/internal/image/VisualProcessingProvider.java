@@ -1,5 +1,9 @@
 package com.shaft.gui.internal.image;
 
+import com.shaft.gui.image.ImageMatch;
+import com.shaft.gui.image.ImageMatchingAlgorithm;
+import com.shaft.gui.image.ImageRectangle;
+import com.shaft.gui.image.ImageTarget;
 import org.openqa.selenium.By;
 import org.openqa.selenium.WebDriver;
 
@@ -20,6 +24,27 @@ public interface VisualProcessingProvider {
      * @return the matched x/y coordinates, or an empty list when no match is found
      */
     List<Integer> findImageWithinCurrentPage(String referenceImagePath, byte[] currentPageScreenshot);
+
+    /**
+     * Finds all confident, non-overlapping occurrences of a typed image target.
+     *
+     * <p>The compatibility implementation delegates path-backed targets to the legacy coordinate contract.
+     * Providers should override this method to supply true bounds, confidence, scale, and diagnostics.</p>
+     */
+    default List<ImageMatch> findImageMatches(ImageTarget target, byte[] currentPageScreenshot) {
+        if (target.minimumConfidence().isPresent() || target.searchRegion().isPresent()
+                || target.matchingMode() != com.shaft.gui.image.ImageMatchingMode.AUTO) {
+            throw new UnsupportedOperationException("The configured visual provider does not support typed image constraints.");
+        }
+        return target.sourcePath()
+                .map(path -> findImageWithinCurrentPage(path.toString(), currentPageScreenshot))
+                .filter(coordinates -> coordinates.size() >= 2)
+                .map(coordinates -> List.of(new ImageMatch(
+                        new ImageRectangle(coordinates.get(0), coordinates.get(1), 1, 1),
+                        1.0, 1.0, ImageMatchingAlgorithm.TEMPLATE_COLOR,
+                        java.util.Map.of("provider", getClass().getName(), "compatibility", "legacy-center"))))
+                .orElseGet(List::of);
+    }
 
     /**
      * Compares an element screenshot against its visual baseline using the requested optional engine.

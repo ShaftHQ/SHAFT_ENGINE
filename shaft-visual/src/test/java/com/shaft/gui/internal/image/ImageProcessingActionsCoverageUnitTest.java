@@ -14,6 +14,10 @@ import com.assertthat.selenium_shutterbug.utils.image.UnableToCompareImagesExcep
 import com.shaft.cli.FileActions;
 import com.shaft.driver.SHAFT;
 import com.shaft.driver.internal.DriverFactory.DriverFactoryHelper;
+import com.shaft.gui.image.ImageMatch;
+import com.shaft.gui.image.ImageRectangle;
+import com.shaft.gui.image.ImageMatchingMode;
+import com.shaft.gui.image.ImageTarget;
 import com.shaft.properties.internal.Properties;
 import nu.pattern.OpenCV;
 import org.mockito.MockedConstruction;
@@ -275,6 +279,242 @@ public class ImageProcessingActionsCoverageUnitTest {
 
         Assert.assertFalse(ImageProcessingActions.compareAgainstBaseline(mock(WebDriver.class), failingLocator, new byte[0],
                 ImageProcessingActions.VisualValidationEngine.EXACT_OPENCV));
+    }
+
+    @Test
+    public void typedImageMatchingShouldReturnEveryOccurrenceWithRichBounds() {
+        BufferedImage targetImage = createReferenceTarget(20, 16);
+        BufferedImage screenshotImage = createImage(100, 70, Color.WHITE);
+        Graphics2D graphics = screenshotImage.createGraphics();
+        graphics.drawImage(targetImage, 8, 10, null);
+        graphics.drawImage(targetImage, 62, 39, null);
+        graphics.dispose();
+
+        ImageTarget target = ImageTarget.fromBytes(encodePng(targetImage)).minimumConfidence(0.95);
+        List<ImageMatch> matches = new OpenCvVisualProcessingProvider()
+                .findImageMatches(target, encodePng(screenshotImage));
+
+        Assert.assertEquals(matches.size(), 2);
+        Assert.assertEquals(matches.get(0).bounds(), new ImageRectangle(8, 10, 20, 16));
+        Assert.assertEquals(matches.get(1).bounds(), new ImageRectangle(62, 39, 20, 16));
+        Assert.assertTrue(matches.stream().allMatch(match -> match.confidence() >= 0.95));
+    }
+
+    @Test
+    public void typedImageMatchingShouldHonorSearchRegionAndOccurrence() {
+        BufferedImage targetImage = createReferenceTarget(20, 16);
+        BufferedImage screenshotImage = createImage(100, 70, Color.WHITE);
+        Graphics2D graphics = screenshotImage.createGraphics();
+        graphics.drawImage(targetImage, 8, 10, null);
+        graphics.drawImage(targetImage, 62, 39, null);
+        graphics.dispose();
+        byte[] screenshot = encodePng(screenshotImage);
+
+        ImageTarget target = ImageTarget.fromBytes(encodePng(targetImage))
+                .minimumConfidence(0.95)
+                .within(new ImageRectangle(50, 30, 50, 40));
+        List<ImageMatch> matches = new OpenCvVisualProcessingProvider().findImageMatches(target, screenshot);
+
+        Assert.assertEquals(matches.size(), 1);
+        Assert.assertEquals(matches.get(0).bounds(), new ImageRectangle(62, 39, 20, 16));
+    }
+
+    @Test
+    public void typedImageMatchingShouldUseAlphaMaskAndIgnoreHiddenRgb() {
+        BufferedImage targetImage = new BufferedImage(24, 20, BufferedImage.TYPE_INT_ARGB);
+        for (int y = 0; y < targetImage.getHeight(); y++) {
+            for (int x = 0; x < targetImage.getWidth(); x++) {
+                targetImage.setRGB(x, y, 0x00ff0000);
+            }
+        }
+        Graphics2D targetGraphics = targetImage.createGraphics();
+        drawReferenceTarget(targetGraphics, 5, 4, 14, 12);
+        targetGraphics.dispose();
+        BufferedImage screenshotImage = createImage(80, 60, Color.CYAN);
+        Graphics2D screenshotGraphics = screenshotImage.createGraphics();
+        screenshotGraphics.drawImage(targetImage, 31, 22, null);
+        screenshotGraphics.dispose();
+
+        List<ImageMatch> matches = new OpenCvVisualProcessingProvider().findImageMatches(
+                ImageTarget.fromBytes(encodePng(targetImage)).minimumConfidence(0.98),
+                encodePng(screenshotImage));
+
+        Assert.assertFalse(matches.isEmpty());
+        Assert.assertEquals(matches.get(0).bounds(), new ImageRectangle(31, 22, 24, 20));
+    }
+
+    @Test
+    public void typedImageMatchingShouldHandleFlatTemplatesWithoutFalsePerfectMatches() {
+        BufferedImage screenshotImage = createImage(50, 40, Color.WHITE);
+        Graphics2D graphics = screenshotImage.createGraphics();
+        graphics.setColor(Color.BLACK);
+        graphics.fillRect(17, 13, 8, 8);
+        graphics.dispose();
+        OpenCvVisualProcessingProvider provider = new OpenCvVisualProcessingProvider();
+
+        List<ImageMatch> positive = provider.findImageMatches(
+                ImageTarget.fromBytes(createPng(8, 8, Color.BLACK)).minimumConfidence(0.999),
+                encodePng(screenshotImage));
+        List<ImageMatch> negative = provider.findImageMatches(
+                ImageTarget.fromBytes(createPng(8, 8, Color.RED)).minimumConfidence(0.999),
+                encodePng(screenshotImage));
+
+        Assert.assertTrue(positive.stream().anyMatch(match -> match.bounds().x() == 17 && match.bounds().y() == 13));
+        Assert.assertTrue(negative.isEmpty());
+    }
+
+    @Test
+    public void typedImageMatchingShouldRejectIsoluminantWrongColorAtDefaultThreshold() {
+        BufferedImage screenshotImage = createImage(50, 40, Color.WHITE);
+        Graphics2D graphics = screenshotImage.createGraphics();
+        graphics.setColor(new Color(0, 130, 0));
+        graphics.fillRect(17, 13, 8, 8);
+        graphics.dispose();
+
+        List<ImageMatch> matches = new OpenCvVisualProcessingProvider().findImageMatches(
+                ImageTarget.fromBytes(createPng(8, 8, Color.RED)), encodePng(screenshotImage));
+
+        Assert.assertTrue(matches.isEmpty());
+    }
+
+    @Test
+    public void explicitFeatureModeShouldLocateRotatedDetailedTarget() {
+        BufferedImage targetImage = createFeatureTarget(100, 80);
+        BufferedImage screenshot = createImage(260, 210, Color.WHITE);
+        Graphics2D graphics = screenshot.createGraphics();
+        graphics.translate(130, 105);
+        graphics.rotate(Math.toRadians(12));
+        graphics.drawImage(targetImage, -50, -40, null);
+        graphics.dispose();
+        ImageTarget target = ImageTarget.fromBytes(encodePng(targetImage))
+                .matchingMode(ImageMatchingMode.FEATURE);
+
+        List<ImageMatch> matches = new OpenCvVisualProcessingProvider().findImageMatches(target, encodePng(screenshot));
+
+        Assert.assertEquals(matches.size(), 1);
+        Assert.assertEquals(matches.get(0).algorithm(), com.shaft.gui.image.ImageMatchingAlgorithm.FEATURE_HOMOGRAPHY);
+        Assert.assertTrue(Math.abs(matches.get(0).centerX() - 130) < 12);
+        Assert.assertTrue(Math.abs(matches.get(0).centerY() - 105) < 12);
+    }
+
+    @Test
+    public void featureModeShouldAcceptGrayscaleReferences() {
+        BufferedImage color = createFeatureTarget(100, 80);
+        BufferedImage gray = new BufferedImage(100, 80, BufferedImage.TYPE_BYTE_GRAY);
+        Graphics2D grayGraphics = gray.createGraphics();
+        grayGraphics.drawImage(color, 0, 0, null);
+        grayGraphics.dispose();
+        ImageTarget target = ImageTarget.fromBytes(encodePng(gray)).matchingMode(ImageMatchingMode.FEATURE);
+
+        List<ImageMatch> matches = new OpenCvVisualProcessingProvider().findImageMatches(target,
+                encodePng(rotatedScreenshot(gray, 12)));
+
+        Assert.assertEquals(matches.size(), 1);
+    }
+
+    @Test
+    public void featureModeShouldIgnoreHiddenRgbUnderTransparentPadding() {
+        BufferedImage redHidden = transparentFeatureTarget(120, 100, 0x00ff0000);
+        BufferedImage blueHidden = transparentFeatureTarget(120, 100, 0x000000ff);
+        byte[] screenshot = encodePng(rotatedScreenshot(redHidden, 12));
+        OpenCvVisualProcessingProvider provider = new OpenCvVisualProcessingProvider();
+
+        List<ImageMatch> first = provider.findImageMatches(ImageTarget.fromBytes(encodePng(redHidden))
+                .matchingMode(ImageMatchingMode.FEATURE), screenshot);
+        List<ImageMatch> second = provider.findImageMatches(ImageTarget.fromBytes(encodePng(blueHidden))
+                .matchingMode(ImageMatchingMode.FEATURE), screenshot);
+
+        Assert.assertEquals(first.size(), 1);
+        Assert.assertEquals(second.size(), 1);
+        Assert.assertTrue(Math.abs(first.get(0).centerX() - second.get(0).centerX()) < 3);
+    }
+
+    @Test
+    public void autoModeShouldUseFeatureFallbackAtDefaultThreshold() {
+        BufferedImage targetImage = createFeatureTarget(100, 80);
+
+        List<ImageMatch> matches = new OpenCvVisualProcessingProvider().findImageMatches(
+                ImageTarget.fromBytes(encodePng(targetImage)), encodePng(rotatedScreenshot(targetImage, 25)));
+
+        Assert.assertEquals(matches.size(), 1);
+        Assert.assertEquals(matches.get(0).algorithm(), com.shaft.gui.image.ImageMatchingAlgorithm.FEATURE_HOMOGRAPHY);
+    }
+
+    @Test
+    public void featureModeShouldFailClosedForLaterOccurrence() {
+        BufferedImage targetImage = createFeatureTarget(100, 80);
+        ImageTarget target = ImageTarget.fromBytes(encodePng(targetImage))
+                .matchingMode(ImageMatchingMode.FEATURE).occurrence(1);
+
+        Assert.expectThrows(UnsupportedOperationException.class,
+                () -> new OpenCvVisualProcessingProvider().findImageMatches(target,
+                        encodePng(rotatedScreenshot(targetImage, 12))));
+    }
+
+    @Test
+    public void featureModeShouldRejectRepeatedLocalizedFragments() {
+        BufferedImage target = createFeatureTarget(100, 80);
+        BufferedImage fragment = target.getSubimage(35, 25, 25, 20);
+        BufferedImage screenshot = createImage(260, 210, Color.WHITE);
+        Graphics2D graphics = screenshot.createGraphics();
+        for (int y = 20; y < 180; y += 40) for (int x = 20; x < 230; x += 45) {
+            graphics.drawImage(fragment, x, y, null);
+        }
+        graphics.dispose();
+
+        List<ImageMatch> matches = new OpenCvVisualProcessingProvider().findImageMatches(
+                ImageTarget.fromBytes(encodePng(target)).matchingMode(ImageMatchingMode.FEATURE),
+                encodePng(screenshot));
+
+        Assert.assertTrue(matches.isEmpty());
+    }
+
+    @Test
+    public void compareAgainstBaselineExactOpenCvShouldRejectBaselineContainedInsideLargerActualImage() {
+        By locator = By.id("open-cv-exact-containment-regression");
+        String hash = ImageProcessingActions.formatElementLocatorToImagePath(locator);
+        byte[] reference = createPng(20, 20, Color.GRAY);
+        FILE_ACTIONS.writeToFile(tempDir.resolve(hash + ".png").toString(), reference);
+
+        BufferedImage largerActual = new BufferedImage(40, 40, BufferedImage.TYPE_INT_RGB);
+        Graphics2D graphics = largerActual.createGraphics();
+        graphics.setColor(Color.WHITE);
+        graphics.fillRect(0, 0, 40, 40);
+        graphics.setColor(Color.GRAY);
+        graphics.fillRect(10, 10, 20, 20);
+        graphics.dispose();
+
+        Assert.assertFalse(ImageProcessingActions.compareAgainstBaseline(mock(WebDriver.class), locator,
+                        encodePng(largerActual), ImageProcessingActions.VisualValidationEngine.EXACT_OPENCV),
+                "EXACT_OPENCV must compare the complete image instead of accepting template containment.");
+    }
+
+    @Test
+    public void compareAgainstBaselineExactOpenCvShouldRejectOneChangedPixelAtEqualDimensions() {
+        By locator = By.id("open-cv-exact-one-pixel-regression");
+        String hash = ImageProcessingActions.formatElementLocatorToImagePath(locator);
+        byte[] reference = createPng(20, 20, Color.GRAY);
+        FILE_ACTIONS.writeToFile(tempDir.resolve(hash + ".png").toString(), reference);
+
+        BufferedImage actual = createImage(20, 20, Color.GRAY);
+        actual.setRGB(10, 10, Color.RED.getRGB());
+
+        Assert.assertFalse(ImageProcessingActions.compareAgainstBaseline(mock(WebDriver.class), locator,
+                encodePng(actual), ImageProcessingActions.VisualValidationEngine.EXACT_OPENCV));
+    }
+
+    @Test
+    public void compareAgainstBaselineExactOpenCvShouldRejectOneChangedAlphaValue() {
+        By locator = By.id("open-cv-exact-alpha-regression");
+        String hash = ImageProcessingActions.formatElementLocatorToImagePath(locator);
+        BufferedImage reference = createArgbImage(20, 20, new Color(20, 40, 60, 255));
+        FILE_ACTIONS.writeToFile(tempDir.resolve(hash + ".png").toString(), encodePng(reference));
+
+        BufferedImage actual = createArgbImage(20, 20, new Color(20, 40, 60, 255));
+        actual.setRGB(10, 10, new Color(20, 40, 60, 128).getRGB());
+
+        Assert.assertFalse(ImageProcessingActions.compareAgainstBaseline(mock(WebDriver.class), locator,
+                encodePng(actual), ImageProcessingActions.VisualValidationEngine.EXACT_OPENCV));
     }
 
     @Test
@@ -591,6 +831,53 @@ public class ImageProcessingActionsCoverageUnitTest {
 
     private static BufferedImage createImage(int width, int height, Color color) {
         BufferedImage image = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
+        Graphics2D graphics = image.createGraphics();
+        graphics.setColor(color);
+        graphics.fillRect(0, 0, width, height);
+        graphics.dispose();
+        return image;
+    }
+
+    private static BufferedImage createFeatureTarget(int width, int height) {
+        BufferedImage image = createImage(width, height, Color.WHITE);
+        Graphics2D graphics = image.createGraphics();
+        for (int y = 0; y < height; y += 10) {
+            for (int x = 0; x < width; x += 10) {
+                graphics.setColor(((x + y) / 10) % 2 == 0 ? Color.BLACK : Color.ORANGE);
+                graphics.fillRect(x, y, 8, 8);
+            }
+        }
+        graphics.setColor(Color.BLUE);
+        graphics.drawString("SHAFT", 28, 44);
+        graphics.setColor(Color.RED);
+        graphics.fillOval(9, 12, 17, 23);
+        graphics.dispose();
+        return image;
+    }
+
+    private static BufferedImage transparentFeatureTarget(int width, int height, int hiddenRgb) {
+        BufferedImage image = new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB);
+        for (int y = 0; y < height; y++) for (int x = 0; x < width; x++) {
+            image.setRGB(x, y, hiddenRgb | 0x01000000);
+        }
+        Graphics2D graphics = image.createGraphics();
+        graphics.drawImage(createFeatureTarget(100, 80), 10, 10, null);
+        graphics.dispose();
+        return image;
+    }
+
+    private static BufferedImage rotatedScreenshot(BufferedImage target, double degrees) {
+        BufferedImage screenshot = createImage(260, 210, Color.WHITE);
+        Graphics2D graphics = screenshot.createGraphics();
+        graphics.translate(130, 105);
+        graphics.rotate(Math.toRadians(degrees));
+        graphics.drawImage(target, -target.getWidth() / 2, -target.getHeight() / 2, null);
+        graphics.dispose();
+        return screenshot;
+    }
+
+    private static BufferedImage createArgbImage(int width, int height, Color color) {
+        BufferedImage image = new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB);
         Graphics2D graphics = image.createGraphics();
         graphics.setColor(color);
         graphics.fillRect(0, 0, width, height);

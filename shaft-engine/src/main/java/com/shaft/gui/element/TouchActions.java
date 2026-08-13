@@ -12,10 +12,19 @@ import com.shaft.gui.element.internal.MobileSessionStateManager;
 import com.shaft.gui.internal.healing.HealingManager;
 import com.shaft.gui.internal.healing.HealingResolution;
 import com.shaft.gui.internal.image.ScreenshotManager;
+import com.shaft.gui.internal.image.ImageProcessingActions;
+import com.shaft.gui.internal.image.ImageCoordinateMapper;
+import com.shaft.gui.internal.ocr.OcrProcessingActions;
+import com.shaft.gui.internal.ocr.OcrWebDriverPointerActions;
+import com.shaft.gui.image.ImageMatch;
+import com.shaft.gui.image.ImageTarget;
+import com.shaft.gui.ocr.OcrTarget;
+import com.shaft.gui.ocr.OcrRectangle;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.validation.internal.WebDriverElementValidationsBuilder;
 import io.appium.java_client.AppiumBy;
 import io.appium.java_client.AppiumDriver;
+import io.appium.java_client.Setting;
 import io.appium.java_client.android.AndroidDriver;
 import io.appium.java_client.flutter.FlutterIntegrationTestDriver;
 import io.appium.java_client.flutter.SupportsFlutterCameraMocking;
@@ -34,6 +43,9 @@ import org.openqa.selenium.remote.RemoteWebDriver;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.ByteArrayInputStream;
+import java.awt.image.BufferedImage;
+import javax.imageio.ImageIO;
 import java.nio.file.Files;
 import java.time.Duration;
 import java.util.Collections;
@@ -41,8 +53,11 @@ import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Locale;
+import java.util.Optional;
+import java.util.Base64;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.Arrays;
 
 import static java.util.Arrays.asList;
 
@@ -64,6 +79,7 @@ import static java.util.Arrays.asList;
  */
 @SuppressWarnings({"unused", "UnusedReturnValue"})
 public class TouchActions extends FluentWebDriverAction {
+    private Boolean appiumImagesAvailable;
     public TouchActions() {
         initialize();
     }
@@ -182,6 +198,36 @@ public class TouchActions extends FluentWebDriverAction {
             elementActionsHelper.passAction(driverFactoryHelper.getDriver(), null,
                     Thread.currentThread().getStackTrace()[1].getMethodName(),
                     "referenceImage=" + elementReferenceScreenshot + ", coordinates=" + coordinates, attachments, null);
+        }
+        return this;
+    }
+
+    /** Taps a target resolved locally from the current screenshot, with Appium Images as a capability fallback. */
+    public TouchActions tap(ImageTarget target) {
+        try {
+            byte[] screenshot = new ScreenshotManager().takeViewportScreenshot(driverFactoryHelper.getDriver());
+            Optional<ImageMatch> match = findLocalImage(target, screenshot);
+            if (match.isPresent()) {
+                performCoordinateTap(mapImageCoordinates(match.orElseThrow(), screenshot));
+            } else if (!tapUsingAppiumImages(target)) {
+                throw new IllegalStateException("Image target was not found by OpenCV or Appium Images.");
+            }
+            elementActionsHelper.passAction(driverFactoryHelper.getDriver(), null,
+                    Thread.currentThread().getStackTrace()[1].getMethodName(), "typed image target", null, null);
+        } catch (Throwable throwable) {
+            elementActionsHelper.failAction(driverFactoryHelper.getDriver(), "typed image target", null, throwable);
+        }
+        return this;
+    }
+
+    /** Taps visible text resolved from a screenshot by the configured OCR provider. */
+    public TouchActions tap(OcrTarget target) {
+        try {
+            OcrWebDriverPointerActions.click(driverFactoryHelper.getDriver(), target);
+            elementActionsHelper.passAction(driverFactoryHelper.getDriver(), null,
+                    Thread.currentThread().getStackTrace()[1].getMethodName(), "OCR target=" + target.expectedText(), null, null);
+        } catch (Throwable throwable) {
+            elementActionsHelper.failAction(driverFactoryHelper.getDriver(), "OCR target=" + target.expectedText(), null, throwable);
         }
         return this;
     }
@@ -663,6 +709,68 @@ public class TouchActions extends FluentWebDriverAction {
      */
     public TouchActions swipeElementIntoView(String elementReferenceScreenshot, SwipeDirection swipeDirection) {
         return swipeElementIntoView(null, elementReferenceScreenshot, swipeDirection);
+    }
+
+    /** Scrolls in any supported direction until a screenshot target is visible. */
+    public TouchActions swipeElementIntoView(ImageTarget target, SwipeDirection swipeDirection) {
+        return swipeImageOrTextIntoView(null, target, null, swipeDirection);
+    }
+
+    /** Scrolls inside a container in any supported direction until a screenshot target is visible. */
+    public TouchActions swipeElementIntoView(By scrollableElementLocator, ImageTarget target,
+                                             SwipeDirection swipeDirection) {
+        return swipeImageOrTextIntoView(scrollableElementLocator, target, null, swipeDirection);
+    }
+
+    /** Scrolls in any supported direction until OCR resolves the requested visible text. */
+    public TouchActions swipeElementIntoView(OcrTarget target, SwipeDirection swipeDirection) {
+        return swipeImageOrTextIntoView(null, null, target, swipeDirection);
+    }
+
+    /** Scrolls inside a container in any supported direction until OCR resolves the visible text. */
+    public TouchActions swipeElementIntoView(By scrollableElementLocator, OcrTarget target,
+                                             SwipeDirection swipeDirection) {
+        return swipeImageOrTextIntoView(scrollableElementLocator, null, target, swipeDirection);
+    }
+
+    private TouchActions swipeImageOrTextIntoView(By scrollableElementLocator, ImageTarget imageTarget, OcrTarget ocrTarget,
+                                                   SwipeDirection swipeDirection) {
+        try {
+            boolean firstAttempt = true;
+            int[] previousPixels = null;
+            int stableFrames = 0;
+            for (int attempt = 0; attempt < 30; attempt++) {
+                byte[] screenshot = new ScreenshotManager().takeViewportScreenshot(driverFactoryHelper.getDriver());
+                int[] currentPixels = stablePixels(screenshot, scrollableElementLocator);
+                ImageTarget effectiveImageTarget = imageTarget == null ? null
+                        : constrainToContainer(imageTarget, scrollableElementLocator, screenshot);
+                OcrTarget effectiveOcrTarget = ocrTarget == null ? null
+                        : constrainToContainer(ocrTarget, scrollableElementLocator, screenshot);
+                boolean found = imageTarget != null
+                        ? findLocalImage(effectiveImageTarget, screenshot).isPresent()
+                            || findUsingAppiumImages(effectiveImageTarget).isPresent()
+                        : findOcr(effectiveOcrTarget, screenshot);
+                if (found) {
+                    elementActionsHelper.passAction(driverFactoryHelper.getDriver(), null,
+                            Thread.currentThread().getStackTrace()[1].getMethodName(), "direction=" + swipeDirection, null, null);
+                    return this;
+                }
+                stableFrames = previousPixels != null && Arrays.equals(previousPixels, currentPixels)
+                        ? stableFrames + 1 : 0;
+                if (stableFrames >= 2) {
+                    break;
+                }
+                previousPixels = currentPixels;
+                if (!performImageScrollStep(scrollableElementLocator, swipeDirection, firstAttempt)) {
+                    break;
+                }
+                firstAttempt = false;
+            }
+            throw new IllegalStateException("Target was not found before the view reached its scroll boundary.");
+        } catch (Throwable throwable) {
+            elementActionsHelper.failAction(driverFactoryHelper.getDriver(), "direction=" + swipeDirection, null, throwable);
+            return this;
+        }
     }
 
     /**
@@ -1201,6 +1309,187 @@ public class TouchActions extends FluentWebDriverAction {
         tap.addAction(new Pause(input, Duration.ofMillis(200)));
         tap.addAction(input.createPointerUp(PointerInput.MouseButton.LEFT.asArg()));
         ((RemoteWebDriver) driverFactoryHelper.getDriver()).perform(ImmutableList.of(tap));
+    }
+
+    private Optional<ImageMatch> findLocalImage(ImageTarget target, byte[] screenshot) {
+        try {
+            return ImageProcessingActions.findImageWithinCurrentPage(target, screenshot);
+        } catch (IllegalStateException missingProvider) {
+            if (!(driverFactoryHelper.getDriver() instanceof AppiumDriver)
+                    || missingProvider.getMessage() == null
+                    || !missingProvider.getMessage().startsWith("Optional visual processing requires")) {
+                throw missingProvider;
+            }
+            ReportManager.logDiscrete("Local visual provider unavailable; attempting Appium Images.");
+            return Optional.empty();
+        }
+    }
+
+    private List<Integer> mapImageCoordinates(ImageMatch match, byte[] screenshot) {
+        try {
+            BufferedImage image = ImageIO.read(new ByteArrayInputStream(screenshot));
+            if (image == null) {
+                throw new IllegalArgumentException("WebDriver returned an unreadable screenshot.");
+            }
+            Dimension viewport = imageViewportSize(image);
+            int[] point = ImageCoordinateMapper.toPointerCenter(match, image.getWidth(), image.getHeight(),
+                    viewport.getWidth(), viewport.getHeight());
+            return List.of(point[0], point[1]);
+        } catch (IOException exception) {
+            throw new IllegalArgumentException("WebDriver returned an unreadable screenshot.", exception);
+        }
+    }
+
+    private Optional<WebElement> findUsingAppiumImages(ImageTarget target) {
+        if (!(driverFactoryHelper.getDriver() instanceof AppiumDriver appiumDriver)) {
+            return Optional.empty();
+        }
+        if (Boolean.FALSE.equals(appiumImagesAvailable)) {
+            return Optional.empty();
+        }
+        if (target.minimumConfidence().isPresent() || target.searchRegion().isPresent()
+                || target.matchingMode() != com.shaft.gui.image.ImageMatchingMode.AUTO) {
+            throw new UnsupportedOperationException(
+                    "Appium Images fallback cannot safely enforce confidence, region, or explicit matching-mode constraints.");
+        }
+        try {
+            String encodedTarget = Base64.getEncoder().encodeToString(target.imageBytes());
+            double threshold = SHAFT.Properties.visuals.visualMatchingThreshold();
+            List<WebElement> matches;
+            synchronized (appiumDriver) {
+                Object previousThreshold = appiumDriver.getSettings()
+                        .getOrDefault(Setting.IMAGE_MATCH_THRESHOLD.toString(), 0.4);
+                try {
+                    appiumDriver.setSetting(Setting.IMAGE_MATCH_THRESHOLD, threshold);
+                    matches = appiumDriver.findElements(AppiumBy.image(encodedTarget));
+                } finally {
+                    appiumDriver.setSetting(Setting.IMAGE_MATCH_THRESHOLD, previousThreshold);
+                }
+            }
+            appiumImagesAvailable = true;
+            if (target.occurrence().isPresent()) {
+                int occurrence = target.occurrence().getAsInt();
+                return occurrence < matches.size() ? Optional.of(matches.get(occurrence)) : Optional.empty();
+            }
+            if (matches.size() > 1) {
+                throw new IllegalStateException("Appium Images target is ambiguous: " + matches.size()
+                        + " elements matched. Select an occurrence.");
+            }
+            return matches.stream().findFirst();
+        } catch (UnsupportedCommandException unsupportedImagesCapability) {
+            appiumImagesAvailable = false;
+            ReportManager.logDiscrete("Appium Images fallback is not available for this session.");
+            return Optional.empty();
+        }
+    }
+
+    private Dimension imageViewportSize(BufferedImage screenshot) {
+        if (driverFactoryHelper.getDriver() instanceof AppiumDriver) {
+            return new Dimension(screenshot.getWidth(), screenshot.getHeight());
+        }
+        if (driverFactoryHelper.getDriver() instanceof JavascriptExecutor javascriptExecutor) {
+            Object dimensions = javascriptExecutor.executeScript("return [window.innerWidth, window.innerHeight];");
+            if (dimensions instanceof List<?> values && values.size() == 2
+                    && values.get(0) instanceof Number width && values.get(1) instanceof Number height
+                    && width.intValue() > 0 && height.intValue() > 0) {
+                return new Dimension(width.intValue(), height.intValue());
+            }
+        }
+        return driverFactoryHelper.getDriver().manage().window().getSize();
+    }
+
+    private ImageTarget constrainToContainer(ImageTarget target, By container, byte[] screenshot) {
+        if (container == null) return target;
+        ImageRectanglePixels pixels = containerPixels(container, screenshot);
+        com.shaft.gui.image.ImageRectangle containerRegion = new com.shaft.gui.image.ImageRectangle(
+                pixels.x(), pixels.y(), pixels.width(), pixels.height());
+        com.shaft.gui.image.ImageRectangle intersection = target.searchRegion()
+                .map(region -> intersect(region, containerRegion)).orElse(containerRegion);
+        return target.within(intersection);
+    }
+
+    private OcrTarget constrainToContainer(OcrTarget target, By container, byte[] screenshot) {
+        if (container == null) return target;
+        ImageRectanglePixels pixels = containerPixels(container, screenshot);
+        OcrRectangle containerRegion = new OcrRectangle(pixels.x(), pixels.y(), pixels.width(), pixels.height());
+        OcrRectangle configured = target.options().region();
+        return target.within(configured == null ? containerRegion : intersect(configured, containerRegion));
+    }
+
+    private com.shaft.gui.image.ImageRectangle intersect(com.shaft.gui.image.ImageRectangle first,
+                                                          com.shaft.gui.image.ImageRectangle second) {
+        int x = Math.max(first.x(), second.x());
+        int y = Math.max(first.y(), second.y());
+        int right = Math.min(first.x() + first.width(), second.x() + second.width());
+        int bottom = Math.min(first.y() + first.height(), second.y() + second.height());
+        if (right <= x || bottom <= y) throw new IllegalArgumentException("Image target region does not intersect the scroll container.");
+        return new com.shaft.gui.image.ImageRectangle(x, y, right - x, bottom - y);
+    }
+
+    private OcrRectangle intersect(OcrRectangle first, OcrRectangle second) {
+        int x = Math.max(first.x(), second.x());
+        int y = Math.max(first.y(), second.y());
+        int right = Math.min(first.right(), second.right());
+        int bottom = Math.min(first.bottom(), second.bottom());
+        if (right <= x || bottom <= y) throw new IllegalArgumentException("OCR target region does not intersect the scroll container.");
+        return new OcrRectangle(x, y, right - x, bottom - y);
+    }
+
+    private int[] stablePixels(byte[] screenshotBytes, By container) {
+        try {
+            BufferedImage screenshot = ImageIO.read(new ByteArrayInputStream(screenshotBytes));
+            if (screenshot == null) throw new IllegalArgumentException("WebDriver returned an unreadable screenshot.");
+            if (container == null) {
+                return screenshot.getRGB(0, 0, screenshot.getWidth(), screenshot.getHeight(), null, 0, screenshot.getWidth());
+            }
+            ImageRectanglePixels pixels = containerPixels(container, screenshotBytes);
+            int x = Math.max(0, Math.min(screenshot.getWidth() - 1, pixels.x()));
+            int y = Math.max(0, Math.min(screenshot.getHeight() - 1, pixels.y()));
+            int width = Math.min(pixels.width(), screenshot.getWidth() - x);
+            int height = Math.min(pixels.height(), screenshot.getHeight() - y);
+            return screenshot.getRGB(x, y, width, height, null, 0, width);
+        } catch (IOException exception) {
+            throw new IllegalArgumentException("WebDriver returned an unreadable screenshot.", exception);
+        }
+    }
+
+    private ImageRectanglePixels containerPixels(By container, byte[] screenshotBytes) {
+        try {
+            BufferedImage screenshot = ImageIO.read(new ByteArrayInputStream(screenshotBytes));
+            Rectangle rectangle = ((WebElement) elementActionsHelper.identifyUniqueElement(
+                    driverFactoryHelper.getDriver(), container).get(1)).getRect();
+            Dimension viewport = imageViewportSize(screenshot);
+            double xScale = (double) screenshot.getWidth() / viewport.getWidth();
+            double yScale = (double) screenshot.getHeight() / viewport.getHeight();
+            return new ImageRectanglePixels((int) Math.round(rectangle.getX() * xScale),
+                    (int) Math.round(rectangle.getY() * yScale),
+                    Math.max(1, (int) Math.round(rectangle.getWidth() * xScale)),
+                    Math.max(1, (int) Math.round(rectangle.getHeight() * yScale)));
+        } catch (IOException exception) {
+            throw new IllegalArgumentException("WebDriver returned an unreadable screenshot.", exception);
+        }
+    }
+
+    private record ImageRectanglePixels(int x, int y, int width, int height) {
+    }
+
+    private boolean tapUsingAppiumImages(ImageTarget target) {
+        Optional<WebElement> element = findUsingAppiumImages(target);
+        element.ifPresent(WebElement::click);
+        return element.isPresent();
+    }
+
+    private boolean findOcr(OcrTarget target, byte[] screenshot) {
+        try {
+            OcrProcessingActions.find(screenshot, target);
+            return true;
+        } catch (IllegalStateException noMatch) {
+            if (noMatch.getMessage() != null && (noMatch.getMessage().startsWith("No OCR match")
+                    || noMatch.getMessage().contains("OCR occurrence"))) {
+                return false;
+            }
+            throw noMatch;
+        }
     }
 
     private boolean performImageScrollStep(By scrollableElementLocator, SwipeDirection swipeDirection, boolean isFirstAttempt) {
