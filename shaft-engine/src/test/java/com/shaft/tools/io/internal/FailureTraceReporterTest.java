@@ -23,6 +23,7 @@ import org.openqa.selenium.ScreenOrientation;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.WebDriverException;
 import org.openqa.selenium.WebElement;
+import org.openqa.selenium.chromium.HasCdp;
 import org.openqa.selenium.devtools.HasDevTools;
 import org.openqa.selenium.devtools.NetworkInterceptor;
 import org.openqa.selenium.remote.DesiredCapabilities;
@@ -943,6 +944,343 @@ public class FailureTraceReporterTest {
         Assert.assertTrue(evidence.path("browserObservability").path("warnings").isArray(), root.toPrettyString());
     }
 
+    @Test(description = "Automatic terminal snapshots should avoid unbounded CDP MHTML and persist structural evidence")
+    public void terminalSnapshotShouldOmitUnboundedCdpMhtmlCapability() throws Exception {
+        boolean originalFullPage = SHAFT.Properties.reporting.traceIncludeFullPageSnapshots();
+        boolean originalNativeSource = SHAFT.Properties.reporting.traceIncludeNativePageSource();
+        int originalRetries = SHAFT.Properties.flags.retryMaximumNumberOfAttempts();
+        DriverFactoryHelper helper = new DriverFactoryHelper();
+        try {
+            SHAFT.Properties.reporting.set()
+                    .traceEnabled(true)
+                    .traceMode("auto")
+                    .traceIncludeFullPageSnapshots(true)
+                    .traceIncludeNativePageSource(true);
+            SHAFT.Properties.flags.set().retryMaximumNumberOfAttempts(1);
+            WebDriver augmentedRemote = Mockito.mock(WebDriver.class,
+                    Mockito.withSettings().extraInterfaces(HasCdp.class));
+            Mockito.when(((HasCdp) augmentedRemote)
+                            .executeCdpCommand(Mockito.eq("Page.captureSnapshot"), Mockito.anyMap()))
+                    .thenReturn(Map.of("data", "From: <Saved by Blink>\nresource-complete"));
+            Mockito.when(augmentedRemote.getPageSource()).thenReturn("<html>structural fallback</html>");
+            helper.setDriver(augmentedRemote);
+
+            JsonNode snapshot = JSON.readTree(FailureTraceReporter.renderTraceJson(
+                    info("failingScenario", failure()), "failed", List.of())).path("snapshot");
+
+            Assert.assertEquals(snapshot.path("provider").asText(), "webdriver", snapshot.toPrettyString());
+            Assert.assertEquals(snapshot.path("fidelity").asText(), "structural", snapshot.toPrettyString());
+            Assert.assertEquals(snapshot.path("status").asText(), "available", snapshot.toPrettyString());
+            Assert.assertEquals(snapshot.path("content").asText(),
+                    "<html>structural fallback</html>", snapshot.toPrettyString());
+            Assert.assertTrue(snapshot.path("reason").asText().contains("no enforceable response-size bound"),
+                    snapshot.toPrettyString());
+            Mockito.verify(augmentedRemote).getPageSource();
+            Mockito.verify((HasCdp) augmentedRemote, Mockito.never())
+                    .executeCdpCommand(Mockito.anyString(), Mockito.anyMap());
+        } finally {
+            helper.setDriver(null);
+            SHAFT.Properties.flags.set().retryMaximumNumberOfAttempts(originalRetries);
+            SHAFT.Properties.reporting.set()
+                    .traceIncludeFullPageSnapshots(originalFullPage)
+                    .traceIncludeNativePageSource(originalNativeSource);
+            TraceEventRecorder.clear();
+            Properties.clearForCurrentThread();
+        }
+    }
+
+    @Test(description = "Terminal Selenium snapshots should report structural fallback after bounded CDP failure")
+    public void terminalSnapshotShouldReportBoundedStructuralFallback() throws Exception {
+        boolean originalFullPage = SHAFT.Properties.reporting.traceIncludeFullPageSnapshots();
+        boolean originalNativeSource = SHAFT.Properties.reporting.traceIncludeNativePageSource();
+        DriverFactoryHelper helper = new DriverFactoryHelper();
+        try {
+            SHAFT.Properties.reporting.set()
+                    .traceEnabled(true)
+                    .traceMode("failure")
+                    .traceIncludeFullPageSnapshots(true)
+                    .traceIncludeNativePageSource(true);
+            WebDriver augmentedRemote = Mockito.mock(WebDriver.class,
+                    Mockito.withSettings().extraInterfaces(HasCdp.class));
+            Mockito.when(augmentedRemote.getPageSource()).thenReturn("<html>structural fallback</html>");
+            helper.setDriver(augmentedRemote);
+
+            JsonNode snapshot = JSON.readTree(FailureTraceReporter.renderTraceJson(
+                    info("failingScenario", failure()), "failed", List.of())).path("snapshot");
+
+            Assert.assertEquals(snapshot.path("provider").asText(), "webdriver", snapshot.toPrettyString());
+            Assert.assertEquals(snapshot.path("fidelity").asText(), "structural", snapshot.toPrettyString());
+            Assert.assertEquals(snapshot.path("status").asText(), "available", snapshot.toPrettyString());
+            Assert.assertEquals(snapshot.path("content").asText(),
+                    "<html>structural fallback</html>", snapshot.toPrettyString());
+            Mockito.verify((HasCdp) augmentedRemote, Mockito.never())
+                    .executeCdpCommand(Mockito.anyString(), Mockito.anyMap());
+            Mockito.verify(augmentedRemote).getPageSource();
+        } finally {
+            helper.setDriver(null);
+            SHAFT.Properties.reporting.set()
+                    .traceIncludeFullPageSnapshots(originalFullPage)
+                    .traceIncludeNativePageSource(originalNativeSource);
+            TraceEventRecorder.clear();
+            Properties.clearForCurrentThread();
+        }
+    }
+
+    @Test(description = "Disabling full-page snapshots should prevent CDP MHTML while retaining structural source")
+    public void terminalSnapshotShouldHonorIndependentFullPageGate() throws Exception {
+        boolean originalFullPage = SHAFT.Properties.reporting.traceIncludeFullPageSnapshots();
+        boolean originalNativeSource = SHAFT.Properties.reporting.traceIncludeNativePageSource();
+        DriverFactoryHelper helper = new DriverFactoryHelper();
+        try {
+            SHAFT.Properties.reporting.set().traceEnabled(true).traceMode("failure")
+                    .traceIncludeFullPageSnapshots(false).traceIncludeNativePageSource(true);
+            WebDriver augmentedRemote = Mockito.mock(WebDriver.class,
+                    Mockito.withSettings().extraInterfaces(HasCdp.class));
+            Mockito.when(augmentedRemote.getPageSource()).thenReturn("<html>structural only</html>");
+            helper.setDriver(augmentedRemote);
+
+            JsonNode snapshot = JSON.readTree(FailureTraceReporter.renderTraceJson(
+                    info("failingScenario", failure()), "failed", List.of())).path("snapshot");
+
+            Assert.assertEquals(snapshot.path("provider").asText(), "webdriver", snapshot.toPrettyString());
+            Assert.assertEquals(snapshot.path("type").asText(), "webdriver-page-source", snapshot.toPrettyString());
+            Assert.assertEquals(snapshot.path("content").asText(), "<html>structural only</html>");
+            Mockito.verify((HasCdp) augmentedRemote, Mockito.never())
+                    .executeCdpCommand(Mockito.eq("Page.captureSnapshot"), Mockito.anyMap());
+            Mockito.verify(augmentedRemote).getPageSource();
+        } finally {
+            helper.setDriver(null);
+            SHAFT.Properties.reporting.set().traceIncludeFullPageSnapshots(originalFullPage)
+                    .traceIncludeNativePageSource(originalNativeSource);
+            TraceEventRecorder.clear();
+            Properties.clearForCurrentThread();
+        }
+    }
+
+    @Test(description = "Resource-complete capture should degrade before CDP when the browser estimate exceeds the cap")
+    public void terminalSnapshotShouldPreflightResourceCompleteProviderWork() throws Exception {
+        boolean originalFullPage = SHAFT.Properties.reporting.traceIncludeFullPageSnapshots();
+        DriverFactoryHelper helper = new DriverFactoryHelper();
+        try {
+            SHAFT.Properties.reporting.set().traceEnabled(true).traceMode("failure")
+                    .traceIncludeFullPageSnapshots(true);
+            WebDriver augmentedRemote = Mockito.mock(WebDriver.class,
+                    Mockito.withSettings().extraInterfaces(HasCdp.class));
+            Mockito.when(augmentedRemote.getPageSource()).thenReturn("<html>bounded structural fallback</html>");
+            helper.setDriver(augmentedRemote);
+
+            JsonNode snapshot = JSON.readTree(FailureTraceReporter.renderTraceJson(
+                    info("failingScenario", failure()), "failed", List.of())).path("snapshot");
+
+            Assert.assertEquals(snapshot.path("provider").asText(), "webdriver", snapshot.toPrettyString());
+            Assert.assertEquals(snapshot.path("fidelity").asText(), "structural", snapshot.toPrettyString());
+            Mockito.verify((HasCdp) augmentedRemote, Mockito.never())
+                    .executeCdpCommand(Mockito.anyString(), Mockito.anyMap());
+            Mockito.verify(augmentedRemote).getPageSource();
+        } finally {
+            helper.setDriver(null);
+            SHAFT.Properties.reporting.set().traceIncludeFullPageSnapshots(originalFullPage);
+            TraceEventRecorder.clear();
+            Properties.clearForCurrentThread();
+        }
+    }
+
+    @Test(description = "Bounded terminal snapshots should redact before truncation and report partial fidelity")
+    public void terminalSnapshotShouldRedactBeforeHonestTruncation() throws Exception {
+        boolean originalFullPage = SHAFT.Properties.reporting.traceIncludeFullPageSnapshots();
+        boolean originalNativeSource = SHAFT.Properties.reporting.traceIncludeNativePageSource();
+        DriverFactoryHelper helper = new DriverFactoryHelper();
+        String secret = "BOUNDARY_SECRET_VALUE";
+        try {
+            SHAFT.Properties.reporting.set()
+                    .traceEnabled(true)
+                    .traceMode("failure")
+                    .traceIncludeFullPageSnapshots(true)
+                    .traceIncludeNativePageSource(true);
+            FailureTraceReporter.registerSensitiveSourceValue(secret);
+            WebDriver augmentedRemote = Mockito.mock(WebDriver.class,
+                    Mockito.withSettings().extraInterfaces(HasCdp.class));
+            String mhtml = "x".repeat(199_990) + secret + "tail";
+            Mockito.when(augmentedRemote.getPageSource()).thenReturn(mhtml);
+            helper.setDriver(augmentedRemote);
+
+            JsonNode snapshot = JSON.readTree(FailureTraceReporter.renderTraceJson(
+                    info("failingScenario", failure()), "failed", List.of())).path("snapshot");
+
+            Assert.assertEquals(snapshot.path("provider").asText(), "webdriver", snapshot.toPrettyString());
+            Assert.assertEquals(snapshot.path("fidelity").asText(), "partial", snapshot.toPrettyString());
+            Assert.assertEquals(snapshot.path("status").asText(), "truncated", snapshot.toPrettyString());
+            Assert.assertTrue(snapshot.path("truncated").asBoolean(), snapshot.toPrettyString());
+            Assert.assertFalse(snapshot.path("content").asText().contains(secret), snapshot.toPrettyString());
+            Assert.assertFalse(snapshot.path("content").asText().endsWith("BOUNDARY_S"), snapshot.toPrettyString());
+            Assert.assertFalse(snapshot.path("content").asText().contains("ECRET_VALUE"), snapshot.toPrettyString());
+        } finally {
+            helper.setDriver(null);
+            SHAFT.Properties.reporting.set()
+                    .traceIncludeFullPageSnapshots(originalFullPage)
+                    .traceIncludeNativePageSource(originalNativeSource);
+            TraceEventRecorder.clear();
+            FailureTraceReporter.clearSensitiveValues();
+            Properties.clearForCurrentThread();
+        }
+    }
+
+    @Test(description = "A truncated snapshot should fail closed for an unterminated sensitive field")
+    public void terminalSnapshotShouldOmitUnterminatedSensitiveBoundary() throws Exception {
+        boolean originalFullPage = SHAFT.Properties.reporting.traceIncludeFullPageSnapshots();
+        DriverFactoryHelper helper = new DriverFactoryHelper();
+        try {
+            SHAFT.Properties.reporting.set().traceEnabled(true).traceMode("failure")
+                    .traceIncludeFullPageSnapshots(true);
+            WebDriver augmentedRemote = Mockito.mock(WebDriver.class,
+                    Mockito.withSettings().extraInterfaces(HasCdp.class));
+            String mhtml = "x".repeat(199_990) + "\"password\":\"" + "s".repeat(5_000) + "\"";
+            Mockito.when(augmentedRemote.getPageSource()).thenReturn(mhtml);
+            helper.setDriver(augmentedRemote);
+
+            JsonNode snapshot = JSON.readTree(FailureTraceReporter.renderTraceJson(
+                    info("failingScenario", failure()), "failed", List.of())).path("snapshot");
+
+            Assert.assertEquals(snapshot.path("status").asText(), "omitted-sensitive-boundary",
+                    snapshot.toPrettyString());
+            Assert.assertTrue(snapshot.path("content").asText().isEmpty(), snapshot.toPrettyString());
+        } finally {
+            helper.setDriver(null);
+            SHAFT.Properties.reporting.set().traceIncludeFullPageSnapshots(originalFullPage);
+            TraceEventRecorder.clear();
+            FailureTraceReporter.clearSensitiveValues();
+            Properties.clearForCurrentThread();
+        }
+    }
+
+    @Test(description = "Escaped quotes must not terminate a sensitive field at the snapshot boundary")
+    public void terminalSnapshotShouldOmitEscapedSensitiveBoundary() throws Exception {
+        boolean originalFullPage = SHAFT.Properties.reporting.traceIncludeFullPageSnapshots();
+        DriverFactoryHelper helper = new DriverFactoryHelper();
+        try {
+            SHAFT.Properties.reporting.set().traceEnabled(true).traceMode("failure")
+                    .traceIncludeFullPageSnapshots(true);
+            WebDriver driver = Mockito.mock(WebDriver.class);
+            String source = "x".repeat(199_000) + "\"password\":\"aaa\\\""
+                    + "s".repeat(500) + "\"" + "tail".repeat(500);
+            Mockito.when(driver.getPageSource()).thenReturn(source);
+            helper.setDriver(driver);
+
+            JsonNode snapshot = JSON.readTree(FailureTraceReporter.renderTraceJson(
+                    info("failingScenario", failure()), "failed", List.of())).path("snapshot");
+
+            Assert.assertEquals(snapshot.path("status").asText(), "omitted-sensitive-boundary",
+                    snapshot.toPrettyString());
+            Assert.assertTrue(snapshot.path("content").asText().isEmpty(), snapshot.toPrettyString());
+        } finally {
+            helper.setDriver(null);
+            SHAFT.Properties.reporting.set().traceIncludeFullPageSnapshots(originalFullPage);
+            TraceEventRecorder.clear();
+            FailureTraceReporter.clearSensitiveValues();
+            Properties.clearForCurrentThread();
+        }
+    }
+
+    @Test(description = "Normal-sized structural snapshots should fail closed for escaped sensitive delimiters")
+    public void terminalSnapshotShouldOmitEscapedSensitiveContentWithoutTruncation() throws Exception {
+        DriverFactoryHelper helper = new DriverFactoryHelper();
+        try {
+            SHAFT.Properties.reporting.set().traceEnabled(true).traceMode("failure")
+                    .traceIncludeFullPageSnapshots(true);
+            WebDriver driver = Mockito.mock(WebDriver.class);
+            Mockito.when(driver.getPageSource())
+                    .thenReturn("<script>{\"password\":\"aaa\\\"SECRET_SUFFIX\"}</script>");
+            helper.setDriver(driver);
+
+            JsonNode snapshot = JSON.readTree(FailureTraceReporter.renderTraceJson(
+                    info("failingScenario", failure()), "failed", List.of())).path("snapshot");
+
+            Assert.assertEquals(snapshot.path("status").asText(), "omitted-sensitive-boundary",
+                    snapshot.toPrettyString());
+            Assert.assertTrue(snapshot.path("content").asText().isEmpty(), snapshot.toPrettyString());
+        } finally {
+            helper.setDriver(null);
+            TraceEventRecorder.clear();
+            FailureTraceReporter.clearSensitiveValues();
+            Properties.clearForCurrentThread();
+        }
+    }
+
+    @Test(description = "A normal host port at the end of structural HTML should not be treated as credentials")
+    public void terminalSnapshotShouldRetainNormalHostPort() throws Exception {
+        DriverFactoryHelper helper = new DriverFactoryHelper();
+        try {
+            SHAFT.Properties.reporting.set().traceEnabled(true).traceMode("failure")
+                    .traceIncludeFullPageSnapshots(true);
+            WebDriver driver = Mockito.mock(WebDriver.class);
+            Mockito.when(driver.getPageSource()).thenReturn("service=http://localhost:8080");
+            helper.setDriver(driver);
+
+            JsonNode snapshot = JSON.readTree(FailureTraceReporter.renderTraceJson(
+                    info("failingScenario", failure()), "failed", List.of())).path("snapshot");
+
+            Assert.assertEquals(snapshot.path("status").asText(), "available", snapshot.toPrettyString());
+            Assert.assertEquals(snapshot.path("content").asText(), "service=http://localhost:8080");
+        } finally {
+            helper.setDriver(null);
+            TraceEventRecorder.clear();
+            Properties.clearForCurrentThread();
+        }
+    }
+
+    @Test(description = "A URL credential split by the structural snapshot bound should fail closed")
+    public void terminalSnapshotShouldOmitTruncatedUrlCredentials() throws Exception {
+        DriverFactoryHelper helper = new DriverFactoryHelper();
+        try {
+            SHAFT.Properties.reporting.set().traceEnabled(true).traceMode("failure")
+                    .traceIncludeFullPageSnapshots(true);
+            WebDriver driver = Mockito.mock(WebDriver.class);
+            String source = "x".repeat(199_990) + " href=https://user:"
+                    + "s".repeat(2_000) + "@example.test/resource";
+            Mockito.when(driver.getPageSource()).thenReturn(source);
+            helper.setDriver(driver);
+
+            JsonNode snapshot = JSON.readTree(FailureTraceReporter.renderTraceJson(
+                    info("failingScenario", failure()), "failed", List.of())).path("snapshot");
+
+            Assert.assertEquals(snapshot.path("status").asText(), "omitted-sensitive-boundary",
+                    snapshot.toPrettyString());
+            Assert.assertTrue(snapshot.path("content").asText().isEmpty(), snapshot.toPrettyString());
+        } finally {
+            helper.setDriver(null);
+            TraceEventRecorder.clear();
+            FailureTraceReporter.clearSensitiveValues();
+            Properties.clearForCurrentThread();
+        }
+    }
+
+    @Test(description = "Snapshot HTML expansion should omit payload instead of rejecting required trace entries")
+    public void expandedTerminalSnapshotShouldConvergeToBudgetOmission() throws Exception {
+        Path archive = Files.createTempFile("shaft-snapshot-budget-", ".zip");
+        String json = """
+                {"schemaVersion":"3.0","session":{"schemaVersion":"2.0","events":[],"artifacts":[]},
+                "snapshot":{"provider":"webdriver","fidelity":"structural","status":"available","reason":"",
+                "type":"webdriver-page-source","content":"%s","byteCount":"199000","truncated":"false"},
+                "evidence":{"actions":[],"network":[],"console":[],"browserObservability":{},"playwright":{}}}
+                """.formatted("&".repeat(199_000));
+        try {
+            FailureTraceReporter.TraceArchiveBundle bundle = FailureTraceReporter.convergeTraceArchive(
+                    archive, json, "[]", Map.of(), null,
+                    1024L * 1024L, 4L * 1024L * 1024L, "omitted", List.of());
+            JsonNode snapshot = JSON.readTree(bundle.json()).path("snapshot");
+
+            Assert.assertEquals(snapshot.path("status").asText(), "omitted-budget", snapshot.toPrettyString());
+            Assert.assertEquals(snapshot.path("fidelity").asText(), "omitted", snapshot.toPrettyString());
+            Assert.assertTrue(snapshot.path("content").asText().isEmpty(), snapshot.toPrettyString());
+            try (ZipFile zip = new ZipFile(archive.toFile())) {
+                Assert.assertTrue(zip.getEntry("shaft-trace.json").getSize() <= 1024L * 1024L);
+                Assert.assertTrue(zip.getEntry("SHAFT Trace Report.html").getSize() <= 1024L * 1024L);
+            }
+        } finally {
+            Files.deleteIfExists(archive);
+        }
+    }
+
     @Test(description = "Persisted private v3 evidence should import and correlate the active Playwright trace")
     public void persistedTraceShouldImportAndCorrelatePlaywrightEvidence() throws Exception {
         SHAFT.Properties.reporting.set().traceEnabled(true);
@@ -1056,6 +1394,10 @@ public class FailureTraceReporterTest {
     public void sensitiveTraceShouldSuppressPlaywrightNativeEvidence() throws Exception {
         SHAFT.Properties.reporting.set().traceEnabled(true);
         FailureTraceReporter.suppressSensitiveBrowserArtifacts();
+        DriverFactoryHelper helper = new DriverFactoryHelper();
+        WebDriver hostileDriver = Mockito.mock(WebDriver.class,
+                Mockito.withSettings().extraInterfaces(HasCdp.class));
+        helper.setDriver(hostileDriver);
         Path archive = PlaywrightTraceTestFixtures.writeTrace(
                 "{\"version\":8,\"type\":\"context-options\",\"origin\":\"library\","
                         + "\"wallTime\":10000,\"monotonicTime\":100}\n"
@@ -1067,14 +1409,23 @@ public class FailureTraceReporterTest {
 
             String json = FailureTraceReporter.renderTraceJson(
                     info("sensitivePlaywrightScenario", failure()), "log", List.of());
+            JsonNode snapshot = JSON.readTree(json).path("snapshot");
             JsonNode playwright = JSON.readTree(json).path("evidence").path("playwright");
 
+            Assert.assertEquals(snapshot.path("provider").asText(), "none", json);
+            Assert.assertEquals(snapshot.path("fidelity").asText(), "omitted", json);
+            Assert.assertEquals(snapshot.path("status").asText(), "omitted-sensitive", json);
+            Assert.assertEquals(snapshot.path("type").asText(), "omitted-sensitive", json);
+            Assert.assertTrue(snapshot.path("content").asText().isEmpty(), json);
             Assert.assertEquals(playwright.path("status").asText(), "suppressed-sensitive", json);
             Assert.assertTrue(playwright.path("actions").isEmpty(), json);
             Assert.assertTrue(playwright.path("correlations").isEmpty(), json);
             Assert.assertFalse(json.contains("PRIVATE_NATIVE_SECRET"), json);
             traceManager.verify(PlaywrightTraceManager::getLastTracePath, Mockito.times(0));
+            Mockito.verifyNoInteractions((HasCdp) hostileDriver);
+            Mockito.verify(hostileDriver, Mockito.never()).getPageSource();
         } finally {
+            helper.setDriver(null);
             Files.deleteIfExists(archive);
             TraceEventRecorder.clear();
             FailureTraceReporter.clearSensitiveValues();
