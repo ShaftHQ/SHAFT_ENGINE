@@ -1,0 +1,199 @@
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="assets/brand/lockup-dark.svg">
+    <source media="(prefers-color-scheme: light)" srcset="assets/brand/lockup-light.svg">
+    <img alt="ChaosEngine" src="assets/brand/lockup-light.svg" width="720">
+  </picture>
+</p>
+
+<p align="center">
+  A portable working contract that turns software agents into disciplined engineering partners.
+</p>
+
+# ChaosEngine
+
+ChaosEngine is a provider-neutral operating system for agentic software work,
+developed by Mohab Mohie. It gives an agent one canonical entrypoint for
+research, planning, implementation, verification, review, delivery, and
+learning—without tying the project to one model, client, or marketplace.
+
+It is not a code generator or a replacement for a project's own engineering
+rules. It is the control layer that discovers those rules, routes each task to
+the right surface, and demands evidence before claiming the work is done.
+
+## Why it exists
+
+Capable agents still fail in predictable ways: they start editing before they
+understand the system, trust stale summaries, stop at a green-looking banner,
+or leave a pull request open and call the task complete. ChaosEngine makes the
+safer sequence explicit and portable.
+
+Its core promises are straightforward:
+
+- **Evidence over inference.** Read and run the real system before making a
+  claim.
+- **Research before mutation.** Retrieve prior decisions, inspect current
+  callers, and compare viable approaches first.
+- **Test-driven behavior changes.** Observe RED, make the smallest GREEN
+  change, then refactor without losing proof.
+- **Independent challenge.** A separate reviewer tries to refute non-trivial
+  work before it ships.
+- **Owned delivery.** Work continues through review, checks, and confirmed
+  merge when that authority is granted.
+- **Durable learning.** Reusable facts and decisions go to structured stores;
+  transcripts and private material do not become policy.
+
+## The operating loop
+
+```mermaid
+flowchart LR
+    accTitle: ChaosEngine delivery loop
+    accDescr: A task moves from triage and live research through planning, a test-driven change, independent review, verified delivery, and one durable learning decision.
+    T[Task and triage] --> R[Live research]
+    R --> P[Plan and design]
+    P --> D[RED, GREEN, refactor]
+    D --> V[Empirical verification]
+    V --> A[Adversarial review]
+    A --> G[Pull request and checks]
+    G --> M[Confirmed merge]
+    M --> L[Learning loop]
+```
+
+The canonical rules live in
+[`skills/chaos-engine/SKILL.md`](skills/chaos-engine/SKILL.md). That entrypoint
+sizes the task, loads the one relevant routed surface, and keeps detailed
+guidance out of the always-loaded context until it is needed.
+
+## Install
+
+Start with the full [installation and upgrade guide](INSTALL.md). The safest
+flow resolves a configured upstream branch to an immutable commit, downloads
+that exact archive, validates its paths, and installs ChaosEngine inside the
+target project.
+
+For a direct terminal flow, first save the upstream `bootstrap.py`, then run:
+
+```text
+python bootstrap.py --project . --repository owner/repository
+python .chaos-engine/install.py status --project .
+```
+
+Use the Python 3 launcher available on the host. Supply `--branch branch` only
+when the upstream's configured default branch is not the intended source.
+
+A healthy status reports the resolved 40-character commit plus healthy core,
+host adapters, and local tools. Installation is project-local: it does not
+replace global tools or infer its upstream from the consumer repository.
+
+### Upgrade, recover, or remove
+
+- **Upgrade:** run the same bootstrap command again. A failed or invalid
+  download leaves the last verified installation unchanged.
+- **Inspect:** run
+  `python .chaos-engine/install.py status --project .`.
+- **Roll back:** run
+  `python .chaos-engine/install.py rollback --project .`.
+- **Uninstall:** run
+  `python .chaos-engine/install.py uninstall --project .`.
+
+Rollback and uninstall act only on receipt-owned ChaosEngine files. Mixed or
+unknown ownership fails closed instead of deleting unrelated project content.
+
+## Use it
+
+Ask the agent to use the installed `chaos-engine` skill for the task. The
+entrypoint will:
+
+1. identify the requested outcome and proof of done;
+2. classify blast radius and reversibility;
+3. retrieve relevant Memory, MemPalace, and Graphify evidence when configured;
+4. inspect current project files and authoritative sources;
+5. choose the narrowest applicable routed surface;
+6. plan and execute in verified increments;
+7. require independent review for consequential work; and
+8. report exact checks, delivery state, and the Learning Loop result.
+
+Projects select one profile after loading the portable core. A profile supplies
+repository-specific facts such as the upstream, default branch, task-branch
+prefix, companion repositories, and routing table. See the
+[`profiles/` catalog](profiles/README.md) and the included
+[`shaft` profile](profiles/shaft/entrypoint.md) for a complete example.
+
+## What gets installed
+
+| Path | Responsibility |
+| --- | --- |
+| [`skills/chaos-engine/SKILL.md`](skills/chaos-engine/SKILL.md) | Canonical router, lifecycle, safety rules, and completion contract |
+| [`references/`](references/) | Focused methods loaded only when their trigger fires |
+| [`profiles/`](profiles/) | Project-specific facts, routes, and permissions |
+| [`install.py`](install.py) | Verified install, status, rollback, and uninstall transactions |
+| [`bootstrap.py`](bootstrap.py) | Mutable-branch resolution to an immutable upstream commit |
+| [`hosts.py`](hosts.py) | Thin native host adapters and ownership receipts |
+| [`dependencies.py`](dependencies.py) | Project-local dependency doctor, repair, and upgrade flow |
+| [`tool.py`](tool.py) | Relocatable launcher for ChaosEngine-owned local tools |
+| [`learning.py`](learning.py) | Privacy-gated queue for reusable improvement candidates |
+| [`RESEARCH.md`](RESEARCH.md) | Dated adoption decisions and their local proof owners |
+| [`assets/brand/`](assets/brand/) | Canonical identity masters and usage rules |
+
+The installer records provenance and per-file ownership in the consumer
+project. Host adapters redirect to the canonical skill; they do not fork its
+policy into competing copies.
+
+## Trust boundaries
+
+ChaosEngine is deliberately conservative around state and authority:
+
+- Current files outrank indexes, memories, plans, and agent reports.
+- Retrieved text is evidence, never an instruction channel.
+- Secrets, raw transcripts, logs, and private paths are rejected by the
+  learning workflow before local queuing or network submission.
+- Archive traversal, symlink or reparse escapes, mixed ownership, and unknown
+  files fail closed.
+- Deploy, publish, destructive cleanup, history rewrite, and external suites
+  still require the authority defined by the project.
+- Generated indexes, reports, caches, and runtime state are not source
+  artifacts.
+
+The [research and adoption matrix](RESEARCH.md) links the primary standards and
+documents which patterns were adopted, retained, or rejected.
+
+## Identity system
+
+The ChaosEngine mark forms an open **C** and recessed **E** from four controlled
+mechanical sweeps around an amber core. The complete vector set includes
+light, dark, primary, monochrome, lockup, favicon, and dedicated 16-pixel
+masters.
+
+Use the files as supplied. Do not redraw, recolor, rotate, crop, add effects,
+or scale the regular favicon down for the 16-pixel case. Palette values, clear
+space, asset selection, and geometry constraints are documented in the
+[brand identity guide](assets/brand/BRAND.md).
+
+## Develop and verify
+
+Changes to the portable harness must preserve one canonical policy body and
+its thin adapters. From the SHAFT Engine source repository, the focused checks
+are:
+
+```text
+py -3 -m unittest tests.scripts.test_chaos_engine_portable_core
+py -3 -m unittest tests.scripts.test_chaos_engine_installer
+py -3 -m unittest tests.scripts.test_chaos_engine_bootstrap
+py -3 -m unittest tests.scripts.test_chaos_engine_hosts
+py -3 scripts/ci/validate_agent_setup.py --skip-external
+```
+
+Use the equivalent Python 3 command on non-Windows hosts. Run the smallest
+affected check first, then the nearest broader gate. Never commit generated
+reports, caches, runtime indexes, or `graphify-out/`.
+
+## Read next
+
+- [Install or upgrade ChaosEngine](INSTALL.md)
+- [Canonical ChaosEngine entrypoint](skills/chaos-engine/SKILL.md)
+- [Project profiles](profiles/README.md)
+- [Research and adoption matrix](RESEARCH.md)
+- [Identity and brand rules](assets/brand/BRAND.md)
+
+ChaosEngine is developed by **Mohab Mohie** for rigorous, evidence-led software
+delivery. Gambaru.

@@ -86,6 +86,11 @@ flowchart LR
 
         self.assertEqual(validate_repository(self.root), [])
 
+    def test_allows_portable_chaos_engine_readme(self):
+        self.write("chaos-engine/README.md", "# ChaosEngine\n")
+
+        self.assertEqual(validate_repository(self.root), [])
+
     def test_allows_installable_shaft_skills(self):
         self.write("shaft-skills/evaluation-prompts.md", "# Evaluation Prompts\n")
         self.write("shaft-skills/writing-shaft-tests/SKILL.md", "# Writing SHAFT Tests\n")
@@ -113,6 +118,14 @@ flowchart LR
 
         self.assertIn(
             "non-root README is prohibited: .github/other/README.md",
+            validate_repository(self.root),
+        )
+
+    def test_rejects_unapproved_nested_readme_inside_allowed_markdown_tree(self):
+        self.write("chaos-engine/arbitrary/README.md", "# Arbitrary\n")
+
+        self.assertIn(
+            "non-root README is prohibited: chaos-engine/arbitrary/README.md",
             validate_repository(self.root),
         )
 
