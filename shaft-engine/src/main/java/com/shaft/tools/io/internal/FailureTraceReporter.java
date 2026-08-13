@@ -84,6 +84,7 @@ public final class FailureTraceReporter {
     private static final int SENSITIVE_VALUE_LENGTH_LIMIT = 512;
     private static final int NUMERIC_TOKEN_LIMIT = 256;
     private static final int NUMERIC_TOKEN_LENGTH_LIMIT = 128;
+    private static final int MAX_PLAYWRIGHT_EVIDENCE_BYTES = 512 * 1024;
     private static final String SENSITIVE_BOUNDS_OMISSION =
             "[evidence omitted because sensitive-value bounds were exceeded]";
     private static final ConcurrentMap<String, AtomicInteger> ATTEMPT_COUNTERS = new ConcurrentHashMap<>();
@@ -174,6 +175,7 @@ public final class FailureTraceReporter {
                 ? new Snapshot("omitted-sensitive", "")
                 : snapshot();
         List<TraceEventRecorder.ActionEvent> actions = TraceEventRecorder.drain();
+        Path nativeTrace = suppressBrowserArtifacts ? null : PlaywrightTraceManager.getLastTracePath();
         if (suppressBrowserArtifacts) {
             actions = actions.stream().map(FailureTraceReporter::withoutBrowserEvidence).toList();
         }
@@ -193,8 +195,11 @@ public final class FailureTraceReporter {
         String omissionMarker = "Omitted because artifact exceeded shaft.trace.maxArtifactMb="
                 + SHAFT.Properties.reporting.traceMaxArtifactMb();
         TraceArtifactManifest manifest = TraceArtifactManifest.create(networkJson, CURRENT_SCREENSHOTS.get(),
-                suppressBrowserArtifacts ? null : PlaywrightTraceManager.getLastTracePath(), maxBytes, omissionMarker);
+                nativeTrace, maxBytes, omissionMarker);
         CURRENT_ARTIFACT_MANIFEST.set(manifest);
+        PlaywrightEvidence playwrightEvidence = importPlaywrightEvidence(actions, manifest.stagedNativeTrace(),
+                nativeTrace != null, suppressBrowserArtifacts);
+        actions = playwrightEvidence.actions();
         Set<String> omittedScreenshotIds = manifest.references().stream()
                 .filter(TraceArtifactReference::omitted)
                 .filter(reference -> "screenshot".equals(reference.kind()))
@@ -240,12 +245,124 @@ public final class FailureTraceReporter {
         rawObject(json, 2, "browserObservability", observabilityJson, true);
         rawArray(json, 2, "network", networkJson, true);
         rawArray(json, 2, "console", consoleJson, true);
+        rawObject(json, 2, "playwright", playwrightEvidence.json(), true);
         rawArray(json, 2, "actions", TraceEventRecorder.toJson(actions), false);
         objectEnd(json, 1, true);
         array(json, 1, "timeline", timeline(throwable, logText), true);
         array(json, 1, "attachments", attachmentEntries(attachments), false);
         json.append("}\n");
         return json.toString();
+    }
+
+    private static PlaywrightEvidence importPlaywrightEvidence(List<TraceEventRecorder.ActionEvent> actions,
+                                                                Path nativeTrace,
+                                                                boolean nativeTraceAdvertised,
+                                                                boolean suppressBrowserArtifacts) {
+        if (suppressBrowserArtifacts) {
+            return new PlaywrightEvidence(actions, playwrightEvidenceJson("suppressed-sensitive", ""));
+        }
+        if (nativeTrace == null) {
+            String reason = nativeTraceAdvertised ? "Playwright native trace was unavailable for import." : "";
+            return new PlaywrightEvidence(actions, playwrightEvidenceJson("unavailable", reason));
+        }
+        try {
+            PlaywrightTraceImporter.ImportedTrace imported = PlaywrightTraceImporter.importTrace(nativeTrace, actions);
+            String json = availablePlaywrightEvidenceJson(imported);
+            if (json == null) {
+                return new PlaywrightEvidence(actions, playwrightEvidenceJson("omitted-budget",
+                        "Playwright action evidence exceeded its bounded report budget."));
+            }
+            return new PlaywrightEvidence(imported.correlatedActions(), json);
+        } catch (PlaywrightTraceImporter.UnsupportedTraceVersionException exception) {
+            return new PlaywrightEvidence(actions,
+                    playwrightEvidenceJson("unsupported", "Playwright native trace version is unsupported."));
+        } catch (IOException | RuntimeException exception) {
+            return new PlaywrightEvidence(actions,
+                    playwrightEvidenceJson("malformed", "Playwright native trace is malformed."));
+        }
+    }
+
+    private static String playwrightEvidenceJson(String status, String reason) {
+        ObjectNode root = JSON.createObjectNode();
+        root.put("status", status);
+        root.put("reason", reason);
+        root.putArray("actions");
+        root.putArray("correlations");
+        return JSON.writeValueAsString(root);
+    }
+
+    private static String availablePlaywrightEvidenceJson(PlaywrightTraceImporter.ImportedTrace imported) {
+        BoundedJson json = new BoundedJson(MAX_PLAYWRIGHT_EVIDENCE_BYTES);
+        if (!json.append("{\"status\":\"available\",\"reason\":\"\",\"actions\":[")) {
+            return null;
+        }
+        for (int index = 0; index < imported.actions().size(); index++) {
+            PlaywrightTraceImporter.NativeAction action = imported.actions().get(index);
+            ObjectNode node = JSON.createObjectNode();
+            node.put("callId", action.callId());
+            node.put("stepId", action.stepId());
+            node.put("className", action.className());
+            node.put("method", action.method());
+            node.put("title", action.title());
+            node.put("startEpochMillis", action.startEpochMillis());
+            node.put("endEpochMillis", action.endEpochMillis());
+            node.put("beforeSnapshot", action.beforeSnapshot());
+            node.put("inputSnapshot", action.inputSnapshot());
+            node.put("afterSnapshot", action.afterSnapshot());
+            node.put("pageId", action.pageId());
+            node.put("source", action.source());
+            var logs = node.putArray("logs");
+            action.logs().forEach(logs::add);
+            node.put("error", action.error());
+            if (!json.append((index == 0 ? "" : ",") + JSON.writeValueAsString(node))) {
+                return null;
+            }
+        }
+        if (!json.append("],\"correlations\":[")) {
+            return null;
+        }
+        for (int index = 0; index < imported.correlations().size(); index++) {
+            PlaywrightTraceImporter.Correlation correlation = imported.correlations().get(index);
+            ObjectNode node = JSON.createObjectNode();
+            node.put("shaftActionId", correlation.shaftActionId());
+            node.put("playwrightCallId", correlation.playwrightCallId());
+            node.put("basis", correlation.basis());
+            if (!json.append((index == 0 ? "" : ",") + JSON.writeValueAsString(node))) {
+                return null;
+            }
+        }
+        return json.append("]}") ? json.toString() : null;
+    }
+
+    private static final class BoundedJson {
+        private final int maximumBytes;
+        private final StringBuilder value = new StringBuilder();
+        private int bytes;
+
+        private BoundedJson(int maximumBytes) {
+            this.maximumBytes = maximumBytes;
+        }
+
+        private boolean append(String fragment) {
+            int fragmentBytes = fragment.getBytes(StandardCharsets.UTF_8).length;
+            if (fragmentBytes > maximumBytes - bytes) {
+                return false;
+            }
+            value.append(fragment);
+            bytes += fragmentBytes;
+            return true;
+        }
+
+        @Override
+        public String toString() {
+            return value.toString();
+        }
+    }
+
+    private record PlaywrightEvidence(List<TraceEventRecorder.ActionEvent> actions, String json) {
+        private PlaywrightEvidence {
+            actions = List.copyOf(actions);
+        }
     }
 
     private static TraceEventRecorder.ActionEvent withoutBrowserEvidence(TraceEventRecorder.ActionEvent action) {
@@ -1399,6 +1516,11 @@ public final class FailureTraceReporter {
         String html = renderTraceHtml(currentJson, omitted);
         int optionalEntries = manifest == null ? 0 : manifest.references().size();
         for (int pass = 0; pass <= optionalEntries; pass++) {
+            if (hasAvailablePlaywrightEvidence(currentJson)
+                    && (utf8Size(currentJson) > maxEntryBytes || utf8Size(html) > maxEntryBytes)) {
+                currentJson = omitPlaywrightEvidenceForBudget(currentJson);
+                html = renderTraceHtml(currentJson, omitted);
+            }
             TraceArchiveWriter.Entry nativeEntry = manifest == null ? null : manifest.nativeEntry();
             List<String> actual = renderTraceZip(target, currentJson, html, networkJson, screenshots,
                     nativeEntry, manifest, maxEntryBytes, maxTotalBytes, omissionMarker, omissionMarker);
@@ -1415,6 +1537,48 @@ public final class FailureTraceReporter {
             html = renderTraceHtml(currentJson, omitted);
         }
         throw new IllegalStateException("Trace archive omissions did not stabilize within the bounded pass count.");
+    }
+
+    private static boolean hasAvailablePlaywrightEvidence(String json) {
+        try {
+            return "available".equals(JSON.readTree(json).path("evidence").path("playwright")
+                    .path("status").asText());
+        } catch (RuntimeException exception) {
+            return false;
+        }
+    }
+
+    private static long utf8Size(String value) {
+        return value.getBytes(StandardCharsets.UTF_8).length;
+    }
+
+    private static String omitPlaywrightEvidenceForBudget(String json) {
+        JsonNode parsed = JSON.readTree(json);
+        if (!(parsed instanceof ObjectNode root) || !(root.path("evidence") instanceof ObjectNode evidence)) {
+            return json;
+        }
+        ObjectNode omitted = JSON.createObjectNode();
+        omitted.put("status", "omitted-budget");
+        omitted.put("reason", "Playwright action evidence exceeded its bounded report budget.");
+        omitted.putArray("actions");
+        omitted.putArray("correlations");
+        evidence.set("playwright", omitted);
+        removePlaywrightCorrelationMetadata(evidence.path("actions"));
+        removePlaywrightCorrelationMetadata(root.path("session").path("events"));
+        return JSON.writeValueAsString(root);
+    }
+
+    private static void removePlaywrightCorrelationMetadata(JsonNode actions) {
+        if (!actions.isArray()) {
+            return;
+        }
+        actions.values().forEach(action -> {
+            if (action.path("metadata") instanceof ObjectNode metadata) {
+                metadata.remove("playwrightCallId");
+                metadata.remove("playwrightStepId");
+                metadata.remove("playwrightCorrelation");
+            }
+        });
     }
 
     private static TraceEventRecorder.ActionEvent withoutScreenshot(TraceEventRecorder.ActionEvent action) {

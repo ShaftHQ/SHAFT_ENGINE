@@ -29,6 +29,12 @@ final class PlaywrightTraceImporter {
     private PlaywrightTraceImporter() {
     }
 
+    static final class UnsupportedTraceVersionException extends IOException {
+        private UnsupportedTraceVersionException(String message) {
+            super(message);
+        }
+    }
+
     static ImportedTrace importTrace(Path archive, List<TraceEventRecorder.ActionEvent> shaftActions)
             throws IOException {
         PlaywrightTraceArchiveLoader.LoadedArchive loaded = PlaywrightTraceArchiveLoader.load(archive);
@@ -136,9 +142,13 @@ final class PlaywrightTraceImporter {
     }
 
     private static void readContext(TraceContext context, JsonNode node) throws IOException {
-        int version = node.path("version").asInt(-1);
+        JsonNode versionNode = node.path("version");
+        if (!versionNode.isIntegralNumber() || !versionNode.canConvertToInt()) {
+            throw new IOException("Playwright trace has no valid integral version in " + context.name + ".");
+        }
+        int version = versionNode.asInt();
         if (version != SUPPORTED_TRACE_VERSION) {
-            throw new IOException("Unsupported Playwright trace version " + version + " in " + context.name
+            throw new UnsupportedTraceVersionException("Unsupported Playwright trace version " + version + " in " + context.name
                     + "; only version 8 is importable.");
         }
         context.origin = text(node, "origin");

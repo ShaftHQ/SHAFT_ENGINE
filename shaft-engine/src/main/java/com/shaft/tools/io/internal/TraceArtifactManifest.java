@@ -87,6 +87,10 @@ final class TraceArtifactManifest implements AutoCloseable {
         return nativeEntry;
     }
 
+    Path stagedNativeTrace() {
+        return stagedNativeTrace;
+    }
+
     List<String> omittedPaths() {
         return references.stream().filter(TraceArtifactReference::omitted).map(TraceArtifactReference::path).toList();
     }
