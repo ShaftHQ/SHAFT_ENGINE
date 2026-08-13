@@ -1349,18 +1349,31 @@ public final class FailureTraceReporter {
                                                 String aggregateReason) {
         List<TraceArchiveWriter.Entry> entries = new ArrayList<>();
         Map<String, String> omittedReasons = manifest == null ? Map.of() : manifest.references().stream()
-                .filter(TraceArtifactReference::omitted)
-                .collect(java.util.stream.Collectors.toUnmodifiableMap(TraceArtifactReference::path,
-                        reference -> reference.metadata().getOrDefault("omissionReason", aggregateReason)));
+                        .filter(TraceArtifactReference::omitted)
+                        .collect(java.util.stream.Collectors.toUnmodifiableMap(TraceArtifactReference::path,
+                                reference -> reference.metadata().getOrDefault("omissionReason", aggregateReason),
+                                FailureTraceReporter::mergeSharedOmissionReason));
         entries.add(TraceArchiveWriter.Entry.requiredText("shaft-trace.json", json));
         entries.add(TraceArchiveWriter.Entry.requiredText("SHAFT Trace Report.html", html));
         entries.add(omittedReasons.containsKey("shaft-network.har")
                 ? TraceArchiveWriter.Entry.omitted("shaft-network.har", omittedReasons.get("shaft-network.har"))
                 : TraceArchiveWriter.Entry.optionalBytes("shaft-network.har",
                 BrowserObservabilityRecorder.networkHarJson(networkJson).getBytes(StandardCharsets.UTF_8)));
+        Map<String, TraceArtifactReference> screenshotReferences = new LinkedHashMap<>();
+        if (manifest != null) {
+            manifest.references().stream().filter(reference -> "screenshot".equals(reference.kind()))
+                    .forEach(reference -> screenshotReferences.put(reference.id().replaceFirst("^screenshot-", ""),
+                            reference));
+        }
+        Set<String> addedScreenshotPaths = new LinkedHashSet<>();
         for (Map.Entry<String, byte[]> entry : screenshots.entrySet()) {
-            String path = "screenshots/" + entry.getKey() + ".png";
-            entries.add(omittedReasons.containsKey(path) ? TraceArchiveWriter.Entry.omitted(path, omittedReasons.get(path))
+            TraceArtifactReference reference = screenshotReferences.get(entry.getKey());
+            String path = reference == null ? "screenshots/" + entry.getKey() + ".png" : reference.path();
+            if (!addedScreenshotPaths.add(path)) {
+                continue;
+            }
+            entries.add(omittedReasons.containsKey(path)
+                    ? TraceArchiveWriter.Entry.omitted(path, omittedReasons.get(path))
                     : TraceArchiveWriter.Entry.optionalBytes(path, entry.getValue()));
         }
         if (nativeEntry != null) {
@@ -1414,6 +1427,13 @@ public final class FailureTraceReporter {
         LinkedHashSet<String> paths = new LinkedHashSet<>(planned);
         paths.addAll(actual);
         return List.copyOf(paths);
+    }
+
+    private static String mergeSharedOmissionReason(String first, String second) {
+        if (!first.equals(second)) {
+            throw new IllegalStateException("Shared trace artifact has conflicting omission reasons.");
+        }
+        return first;
     }
 
     private static String aggregateOmissionMarker() {

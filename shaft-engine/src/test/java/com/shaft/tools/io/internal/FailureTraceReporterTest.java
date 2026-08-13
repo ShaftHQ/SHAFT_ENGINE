@@ -295,7 +295,9 @@ public class FailureTraceReporterTest {
                     + Base64.getEncoder().encodeToString(png) + "\""), json);
             JsonNode session = JSON.readTree(json).path("session");
             JsonNode screenshot = findArtifact(session, "screenshot-action-1");
-            Assert.assertEquals(screenshot.path("path").asText(), "screenshots/action-1.png");
+            Assert.assertTrue(screenshot.path("path").asText().matches("resources/[0-9a-f]{64}\\.png"),
+                    screenshot.toPrettyString());
+            Assert.assertEquals(screenshot.path("metadata").path("sizeBytes").asText(), String.valueOf(png.length));
             Assert.assertFalse(screenshot.path("omitted").asBoolean());
             Assert.assertEquals(session.path("events").get(0).path("artifactIds").get(0).asText(),
                     "screenshot-action-1");
@@ -346,7 +348,11 @@ public class FailureTraceReporterTest {
             Assert.assertEquals(Files.readAllBytes(screenshotFile), png);
 
             try (ZipFile zip = new ZipFile(traceDirectory.resolve("shaft-trace.zip").toFile())) {
-                Assert.assertNotNull(zip.getEntry("screenshots/action-1.png"));
+                JsonNode session = JSON.readTree(zip.getInputStream(zip.getEntry("shaft-trace.json")))
+                        .path("session");
+                String path = findArtifact(session, "screenshot-action-1").path("path").asText();
+                Assert.assertNotNull(zip.getEntry(path));
+                Assert.assertEquals(zip.getInputStream(zip.getEntry(path)).readAllBytes(), png);
             }
 
             String index = Files.readString(traceDirectory.resolve("index.json"), StandardCharsets.UTF_8);
@@ -1231,7 +1237,7 @@ public class FailureTraceReporterTest {
 
             String index = Files.readString(traceDirectory.resolve("index.json"), StandardCharsets.UTF_8);
             Assert.assertTrue(index.contains("\"omittedEntries\": ["), index);
-            Assert.assertTrue(index.contains("screenshots/action-1.png"), index);
+            Assert.assertTrue(index.contains(screenshotArtifact.path("path").asText()), index);
         } finally {
             TraceEventRecorder.clear();
             deleteDirectory(traceDirectory);

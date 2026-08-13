@@ -11,6 +11,9 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.util.HexFormat;
 import org.apache.logging.log4j.Level;
 
 /** Finalized evidence-entry plan used by both schema serialization and ZIP publication. */
@@ -58,9 +61,13 @@ final class TraceArtifactManifest implements AutoCloseable {
                 "application/json", networkOmitted, omissionMetadata(networkOmitted, omissionMarker)));
         screenshots.forEach((id, bytes) -> {
             boolean omitted = bytes.length > maxBytes;
+            String digest = sha256(bytes);
+            Map<String, String> metadata = new java.util.LinkedHashMap<>(
+                    omissionMetadata(omitted, omissionMarker));
+            metadata.put("sha256", digest);
+            metadata.put("sizeBytes", String.valueOf(bytes.length));
             references.add(new TraceArtifactReference("screenshot-" + id, "screenshot",
-                    "screenshots/" + id + ".png", "image/png", omitted,
-                    omissionMetadata(omitted, omissionMarker)));
+                    "resources/" + digest + ".png", "image/png", omitted, metadata));
         });
 
         NativeArtifact nativeArtifact = stageNative(nativeTrace, maxBytes, omissionMarker, nativeSource);
@@ -88,7 +95,13 @@ final class TraceArtifactManifest implements AutoCloseable {
         Set<String> omitted = Set.copyOf(paths);
         references = references.stream().map(reference -> omitted.contains(reference.path()) && !reference.omitted()
                 ? new TraceArtifactReference(reference.id(), reference.kind(), reference.path(), reference.mimeType(),
-                true, Map.of("omissionReason", reason)) : reference).toList();
+                true, withOmissionReason(reference.metadata(), reason)) : reference).toList();
+    }
+
+    private static Map<String, String> withOmissionReason(Map<String, String> metadata, String reason) {
+        Map<String, String> updated = new java.util.LinkedHashMap<>(metadata);
+        updated.put("omissionReason", reason);
+        return Map.copyOf(updated);
     }
 
     private static NativeArtifact stageNative(Path source, long maxBytes, String omissionMarker,
@@ -138,6 +151,14 @@ final class TraceArtifactManifest implements AutoCloseable {
 
     private static Map<String, String> omissionMetadata(boolean omitted, String reason) {
         return omitted ? Map.of("omissionReason", reason) : Map.of();
+    }
+
+    private static String sha256(byte[] bytes) {
+        try {
+            return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(bytes));
+        } catch (NoSuchAlgorithmException exception) {
+            throw new IllegalStateException("SHA-256 is required by the Java platform.", exception);
+        }
     }
 
     private static void deleteStaged(Path staged) {

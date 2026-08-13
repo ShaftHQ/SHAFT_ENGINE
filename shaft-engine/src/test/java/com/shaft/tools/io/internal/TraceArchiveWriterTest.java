@@ -19,6 +19,34 @@ import java.util.zip.ZipFile;
 public class TraceArchiveWriterTest {
 
     @Test
+    public void duplicateArchiveEntryNamesShouldFailBeforePublication() throws Exception {
+        Path directory = Files.createTempDirectory("shaft-trace-writer-duplicate-");
+        Path target = directory.resolve("shaft-trace.zip");
+        try {
+            IllegalArgumentException failure = Assert.expectThrows(IllegalArgumentException.class,
+                    () -> TraceArchiveWriter.write(target,
+                            List.of(TraceArchiveWriter.Entry.text("resources/same", "a"),
+                                    TraceArchiveWriter.Entry.text("resources/same", "b")), 1024, "omitted"));
+
+            Assert.assertTrue(failure.getMessage().contains("Duplicate trace archive entry"));
+            Assert.assertFalse(Files.exists(target));
+            Assert.assertEquals(temporaryArchiveCount(directory), 0L);
+        } finally {
+            deleteRecursively(directory);
+        }
+    }
+
+    @Test
+    public void noncanonicalArchiveEntryNamesShouldFailBeforePublication() throws Exception {
+        for (String name : List.of("C:/escape", "resources\\escape", "resources//x",
+                "resources/./x", "resources/../x")) {
+            IllegalArgumentException failure = Assert.expectThrows(IllegalArgumentException.class,
+                    () -> TraceArchiveWriter.Entry.text(name, "x"));
+            Assert.assertTrue(failure.getMessage().contains("portable archive-relative"), name);
+        }
+    }
+
+    @Test
     public void bytePublicationShouldSafelyReplaceAnExactTargetWithoutCallerOwnedStaging() throws Exception {
         Method writer = java.util.Arrays.stream(TraceArchiveWriter.class.getMethods())
                 .filter(method -> method.getName().equals("writeBytes"))

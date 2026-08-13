@@ -73,6 +73,12 @@ public final class TraceArchiveWriter {
         Files.createDirectories(parent);
         Path temporary = parent.resolve(absoluteTarget.getFileName() + ".tmp-" + UUID.randomUUID());
         byte[] omitted = String.valueOf(omissionMarker).getBytes(StandardCharsets.UTF_8);
+        LinkedHashSet<String> entryNames = new LinkedHashSet<>();
+        for (Entry entry : entries) {
+            if (!entryNames.add(entry.name())) {
+                throw new IllegalArgumentException("Duplicate trace archive entry: " + entry.name());
+            }
+        }
         if (entries.size() > maxTotalBytes / Math.max(1, omitted.length)) {
             throw new IllegalArgumentException("maxTotalBytes must fit one omission marker per trace entry");
         }
@@ -373,10 +379,7 @@ public final class TraceArchiveWriter {
     /** A lazily opened archive entry backed by either bounded bytes or a filesystem path. */
     record Entry(String name, byte[] bytes, Path path, Source source, boolean optional, boolean required) {
         Entry {
-            if (name == null || name.isBlank() || name.startsWith("/") || name.startsWith("\\")
-                    || name.contains("../") || name.contains("..\\")) {
-                throw new IllegalArgumentException("Trace archive entry name must be relative and traversal-free.");
-            }
+            validateEntryName(name);
             int sourceCount = (bytes == null ? 0 : 1) + (path == null ? 0 : 1) + (source == null ? 0 : 1);
             if (sourceCount != 1) {
                 throw new IllegalArgumentException("Trace archive entry needs exactly one content source.");
@@ -390,6 +393,19 @@ public final class TraceArchiveWriter {
 
         static Entry bytes(String name, byte[] bytes) {
             return new Entry(name, Objects.requireNonNull(bytes, "bytes"), null, null, false, false);
+        }
+
+        private static void validateEntryName(String name) {
+            if (name == null || name.isBlank() || name.startsWith("/") || name.startsWith("\\")
+                    || name.contains("\\") || name.contains(":") || name.endsWith("/") || name.contains("//")) {
+                throw new IllegalArgumentException("Trace archive entry name must be a portable archive-relative path.");
+            }
+            for (String segment : name.split("/")) {
+                if (segment.isBlank() || ".".equals(segment) || "..".equals(segment)) {
+                    throw new IllegalArgumentException(
+                            "Trace archive entry name must be a portable archive-relative path.");
+                }
+            }
         }
 
         static Entry requiredText(String name, String text) {

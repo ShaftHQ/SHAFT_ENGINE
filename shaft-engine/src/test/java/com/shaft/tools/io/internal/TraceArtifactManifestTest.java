@@ -9,8 +9,123 @@ import java.nio.file.Path;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.Map;
+import java.util.HexFormat;
+import java.security.MessageDigest;
+import java.util.List;
+import java.util.zip.ZipFile;
 
 public class TraceArtifactManifestTest {
+
+    @Test
+    public void identicalScreenshotBytesShouldShareOneContentAddressedArtifactWithIntegrityMetadata() throws Exception {
+        byte[] screenshot = "same screenshot".getBytes(StandardCharsets.UTF_8);
+        String sha256 = HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(screenshot));
+
+        try (TraceArtifactManifest manifest = TraceArtifactManifest.create("[]",
+                Map.of("action-1", screenshot, "action-2", screenshot), null, 1024, "omitted")) {
+            var screenshots = manifest.references().stream()
+                    .filter(item -> item.kind().equals("screenshot"))
+                    .toList();
+
+            Assert.assertEquals(screenshots.size(), 2);
+            Assert.assertEquals(screenshots.get(0).path(), "resources/" + sha256 + ".png");
+            Assert.assertEquals(screenshots.get(1).path(), screenshots.get(0).path());
+            Assert.assertEquals(screenshots.get(0).metadata().get("sha256"), sha256);
+            Assert.assertEquals(screenshots.get(0).metadata().get("sizeBytes"),
+                    String.valueOf(screenshot.length));
+
+            Path directory = Files.createTempDirectory("shaft-deduplicated-screenshots-");
+            Path archive = directory.resolve("shaft-trace.zip");
+            String json = """
+                    {"session":{"artifacts":[
+                    {"id":"screenshot-action-1","path":"%s","omitted":false,"metadata":{}},
+                    {"id":"screenshot-action-2","path":"%s","omitted":false,"metadata":{}}]}}
+                    """.formatted(screenshots.get(0).path(), screenshots.get(1).path());
+            try {
+                FailureTraceReporter.convergeTraceArchive(archive, json, "[]",
+                        Map.of("action-1", screenshot, "action-2", screenshot), manifest,
+                        1024 * 1024, 3L * 1024 * 1024, "omitted", List.of());
+                try (ZipFile zip = new ZipFile(archive.toFile())) {
+                    Assert.assertEquals(zip.stream().filter(entry -> entry.getName().equals(screenshots.get(0).path()))
+                            .count(), 1L);
+                    Assert.assertEquals(zip.getInputStream(zip.getEntry(screenshots.get(0).path())).readAllBytes(),
+                            screenshot);
+                }
+            } finally {
+                try (var paths = Files.walk(directory)) {
+                    paths.sorted(java.util.Comparator.reverseOrder()).forEach(path -> {
+                        try {
+                            Files.deleteIfExists(path);
+                        } catch (IOException exception) {
+                            throw new java.io.UncheckedIOException(exception);
+                        }
+                    });
+                }
+            }
+        }
+    }
+
+    @Test
+    public void identicalOmittedScreenshotsShouldShareOneMarkerWithoutReasonCollision() throws Exception {
+        byte[] screenshot = new byte[128];
+        String reason = "per-entry omission";
+        try (TraceArtifactManifest manifest = TraceArtifactManifest.create("[]",
+                Map.of("action-1", screenshot, "action-2", screenshot), null, 64, reason)) {
+            Path directory = Files.createTempDirectory("shaft-deduplicated-omissions-");
+            Path archive = directory.resolve("shaft-trace.zip");
+            String path = manifest.references().stream().filter(item -> item.kind().equals("screenshot"))
+                    .findFirst().orElseThrow().path();
+            String json = """
+                    {"session":{"artifacts":[
+                    {"id":"screenshot-action-1","path":"%s","omitted":true,"metadata":{"omissionReason":"%s"}},
+                    {"id":"screenshot-action-2","path":"%s","omitted":true,"metadata":{"omissionReason":"%s"}}]}}
+                    """.formatted(path, reason, path, reason);
+            try {
+                FailureTraceReporter.convergeTraceArchive(archive, json, "[]",
+                        Map.of("action-1", screenshot, "action-2", screenshot), manifest,
+                        1024 * 1024, 3L * 1024 * 1024, "aggregate omission", List.of(path));
+                try (ZipFile zip = new ZipFile(archive.toFile())) {
+                    Assert.assertEquals(zip.stream().filter(entry -> entry.getName().equals(path)).count(), 1L);
+                    Assert.assertEquals(new String(zip.getInputStream(zip.getEntry(path)).readAllBytes(),
+                            StandardCharsets.UTF_8), reason);
+                }
+            } finally {
+                try (var paths = Files.walk(directory)) {
+                    paths.sorted(java.util.Comparator.reverseOrder()).forEach(item -> {
+                        try {
+                            Files.deleteIfExists(item);
+                        } catch (IOException exception) {
+                            throw new java.io.UncheckedIOException(exception);
+                        }
+                    });
+                }
+            }
+        }
+    }
+
+    @Test
+    public void aggregateOmissionShouldPreserveSharedScreenshotIntegrityMetadata() throws Exception {
+        byte[] screenshot = "shared aggregate screenshot".getBytes(StandardCharsets.UTF_8);
+        String sha256 = HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(screenshot));
+        try (TraceArtifactManifest manifest = TraceArtifactManifest.create("[]",
+                Map.of("action-1", screenshot, "action-2", screenshot), null, 1024, "per-entry omission")) {
+            String path = "resources/" + sha256 + ".png";
+
+            manifest.markOmitted(List.of(path), "aggregate omission");
+
+            var screenshots = manifest.references().stream()
+                    .filter(item -> item.kind().equals("screenshot"))
+                    .toList();
+            Assert.assertEquals(screenshots.size(), 2);
+            for (var reference : screenshots) {
+                Assert.assertTrue(reference.omitted());
+                Assert.assertEquals(reference.path(), path);
+                Assert.assertEquals(reference.metadata().get("omissionReason"), "aggregate omission");
+                Assert.assertEquals(reference.metadata().get("sha256"), sha256);
+                Assert.assertEquals(reference.metadata().get("sizeBytes"), String.valueOf(screenshot.length));
+            }
+        }
+    }
 
     @Test
     public void shouldFinalizeOmissionStateAndStageNativeTraceBeforeSerialization() throws Exception {
