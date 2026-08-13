@@ -32,6 +32,7 @@ public class BrowserNetworkInterceptor implements AutoCloseable {
     private boolean observing;
     private boolean closed;
     private final Counter counter = new Counter();
+    private final BrowserObservabilityRecorder.ObservationBinding observationBinding;
 
     /**
      * Creates a browser network interceptor backed by Selenium DevTools.
@@ -45,6 +46,7 @@ public class BrowserNetworkInterceptor implements AutoCloseable {
     BrowserNetworkInterceptor(WebDriver driver, InterceptorFactory interceptorFactory) {
         this.driver = driver;
         this.interceptorFactory = interceptorFactory;
+        this.observationBinding = BrowserObservabilityRecorder.captureBinding();
         counter.owner(this);
         synchronized (COUNTERS) {
             expungeStaleDrivers();
@@ -232,7 +234,8 @@ public class BrowserNetworkInterceptor implements AutoCloseable {
     private Filter createFilter() {
         return next -> request -> {
             counter.increment();
-            BrowserObservabilityRecorder.NetworkExchange exchange = BrowserObservabilityRecorder.startNetwork(request);
+            BrowserObservabilityRecorder.NetworkExchange exchange =
+                    BrowserObservabilityRecorder.startNetwork(observationBinding, request);
             BrowserNetworkInterceptionRule rule = findMatchingRule(request);
             try {
                 HttpResponse response;

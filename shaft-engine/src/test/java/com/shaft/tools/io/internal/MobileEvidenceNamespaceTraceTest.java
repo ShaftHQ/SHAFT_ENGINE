@@ -1,6 +1,7 @@
 package com.shaft.tools.io.internal;
 
 import com.shaft.driver.SHAFT;
+import com.shaft.driver.internal.DriverFactory.DriverFactoryHelper;
 import com.shaft.gui.capabilities.AutomationBackend;
 import com.shaft.gui.driver.MobileEvidenceBundle;
 import com.shaft.listeners.internal.TestExecutionInfo;
@@ -106,6 +107,25 @@ public class MobileEvidenceNamespaceTraceTest {
         } finally {
             Files.deleteIfExists(target);
             Files.deleteIfExists(directory);
+        }
+    }
+
+    @Test
+    public void backendOwnedTraceStartShouldNotResolveAnUnrelatedActiveDriver() {
+        AppiumDriver unrelated = Mockito.mock(AppiumDriver.class);
+        DriverFactoryHelper helper = new DriverFactoryHelper();
+        helper.setDriver(unrelated);
+        try {
+            Mockito.clearInvocations(unrelated);
+            SHAFT.Properties.reporting.set().traceEnabled(true);
+
+            TraceEventRecorder.Event event = TraceEventRecorder.startForBackend(
+                    "mobile/evidence", "capture", "<evidence-bundle>", AutomationBackend.APPIUM);
+
+            Assert.assertTrue(event.enabled());
+            Mockito.verifyNoInteractions(unrelated);
+        } finally {
+            helper.setDriver(null);
         }
     }
 

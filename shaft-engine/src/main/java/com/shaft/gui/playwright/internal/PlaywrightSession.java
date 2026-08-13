@@ -2,7 +2,6 @@ package com.shaft.gui.playwright.internal;
 
 import com.microsoft.playwright.Browser;
 import com.microsoft.playwright.BrowserContext;
-import com.microsoft.playwright.Dialog;
 import com.microsoft.playwright.Download;
 import com.microsoft.playwright.Page;
 import com.microsoft.playwright.Playwright;
@@ -46,6 +45,8 @@ public final class PlaywrightSession implements AutoCloseable {
     private final Set<Page> observedPages = Collections.newSetFromMap(new IdentityHashMap<>());
     private final Set<Page> downloadObservedPages = Collections.newSetFromMap(new IdentityHashMap<>());
     private final List<BrowserObservabilityRecorder.ConsoleSnapshotEntry> consoleEvents = new ArrayList<>();
+    private boolean oldestConsoleEventOmitted;
+    private final BrowserObservabilityRecorder.ObservationBinding observationBinding;
     private final List<Download> downloads = new ArrayList<>();
     private int nextPageHandleIndex = 1;
 
@@ -56,6 +57,7 @@ public final class PlaywrightSession implements AutoCloseable {
         this.browserContext = browserContext;
         this.page = page;
         this.traceManager = traceManager;
+        this.observationBinding = BrowserObservabilityRecorder.captureBinding();
         this.networkInterceptor = new PlaywrightNetworkInterceptor(browserContext);
         registerDownloadContextBridge();
         registerDialogBridge(page);
@@ -206,6 +208,7 @@ public final class PlaywrightSession implements AutoCloseable {
     /** Clears only this Playwright session's console observations. */
     public synchronized void clearConsole() {
         consoleEvents.clear();
+        oldestConsoleEventOmitted = false;
     }
 
     /** @return immutable native download handles owned by this session, oldest first */
@@ -291,19 +294,29 @@ public final class PlaywrightSession implements AutoCloseable {
 
     /** Atomically transfers this session's console observations to failure-trace storage. */
     public void drainConsoleToRecorder() {
+        BrowserObservabilityRecorder.ObservationSession owner =
+                BrowserObservabilityRecorder.resolveSession(observationBinding);
         List<BrowserObservabilityRecorder.ConsoleSnapshotEntry> snapshot;
+        boolean oldestOmitted;
         synchronized (this) {
             snapshot = List.copyOf(consoleEvents);
             consoleEvents.clear();
+            oldestOmitted = oldestConsoleEventOmitted;
+            oldestConsoleEventOmitted = false;
+        }
+        if (oldestOmitted) {
+            BrowserObservabilityRecorder.recordConsoleOmission(owner);
         }
         for (BrowserObservabilityRecorder.ConsoleSnapshotEntry entry : snapshot) {
-            BrowserObservabilityRecorder.recordConsole(entry.source(), entry.level(), entry.message(), entry.timestamp());
+            BrowserObservabilityRecorder.recordConsole(owner,
+                    entry.source(), entry.level(), entry.message(), entry.timestamp());
         }
     }
 
     private synchronized void recordConsole(String level, String message) {
         if (consoleEvents.size() >= CONSOLE_EVENT_LIMIT) {
             consoleEvents.removeFirst();
+            oldestConsoleEventOmitted = true;
         }
         consoleEvents.add(BrowserObservabilityRecorder.consoleEntry(
                 "playwright", level, message, System.currentTimeMillis()));

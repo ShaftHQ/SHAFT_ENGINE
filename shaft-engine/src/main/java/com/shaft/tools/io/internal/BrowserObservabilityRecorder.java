@@ -13,22 +13,31 @@ import org.openqa.selenium.remote.http.HttpResponse;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.lang.ref.ReferenceQueue;
+import java.lang.ref.WeakReference;
 
 /**
- * Thread-local browser network, console, and capability metadata recorder for SHAFT trace artifacts.
+ * Session-owned browser network, console, and capability metadata recorder for SHAFT trace artifacts.
  */
 public final class BrowserObservabilityRecorder {
     private static final int BODY_PREVIEW_LIMIT = 2048;
+    private static final int NETWORK_EVENT_LIMIT = 1000;
     private static final int CONSOLE_EVENT_LIMIT = 1000;
-    private static final ThreadLocal<List<NetworkEvent>> NETWORK = ThreadLocal.withInitial(ArrayList::new);
-    private static final ThreadLocal<List<ConsoleEvent>> CONSOLE = ThreadLocal.withInitial(ArrayList::new);
-    private static final ThreadLocal<List<WarningEvent>> WARNINGS = ThreadLocal.withInitial(ArrayList::new);
-    private static final ThreadLocal<Integer> NEXT_NETWORK_ID = ThreadLocal.withInitial(() -> 0);
+    private static final int WARNING_EVENT_LIMIT = 100;
+    private static final int IN_FLIGHT_EXCHANGE_LIMIT = 1000;
+    private static final ThreadLocal<ObservationSession> CURRENT = new ThreadLocal<>();
+    private static final ThreadLocal<ObservationBinding> CURRENT_BINDING =
+            ThreadLocal.withInitial(ObservationBinding::new);
+    private static final ReferenceQueue<NetworkExchange> STALE_EXCHANGES = new ReferenceQueue<>();
+    private static final Map<IdentityWeakReference, ObservationSession> EXCHANGE_OWNERS = new HashMap<>();
+    private static final AtomicInteger IN_FLIGHT_EXCHANGES = new AtomicInteger();
 
     private BrowserObservabilityRecorder() {
         throw new IllegalStateException("Utility class");
@@ -41,14 +50,35 @@ public final class BrowserObservabilityRecorder {
      * @return exchange handle, or a disabled handle when trace network capture is disabled
      */
     public static NetworkExchange startNetwork(HttpRequest request) {
-        if (!isNetworkEnabled() || request == null) {
+        return startNetwork(currentSession(), request);
+    }
+
+    /** Starts a network exchange owned by an explicitly captured observation session. */
+    public static NetworkExchange startNetwork(ObservationSession session, HttpRequest request) {
+        if (request == null) {
             return NetworkExchange.disabled();
         }
-        int index = NEXT_NETWORK_ID.get() + 1;
-        NEXT_NETWORK_ID.set(index);
-        byte[] requestBody = copyRequestBody(request);
-        return new NetworkExchange(true, "network-" + index, value(request.getMethod().name()),
-                value(request.getUri()), headers(request), requestBody.length, System.nanoTime());
+        ObservationSession owner = valid(session);
+        if (owner == null || !owner.networkEnabled()) {
+            return NetworkExchange.disabled();
+        }
+        if (!reserveExchange(owner)) {
+            return NetworkExchange.disabled();
+        }
+        int index = owner.nextNetworkId();
+        try {
+            byte[] requestBody = copyRequestBody(request);
+            NetworkExchange exchange = new NetworkExchange(true, "network-" + index,
+                    value(request.getMethod().name()), value(request.getUri()), headers(request),
+                    requestBody.length, System.nanoTime());
+            if (retainReservedExchange(exchange, owner)) {
+                return exchange;
+            }
+        } catch (RuntimeException e) {
+            IN_FLIGHT_EXCHANGES.decrementAndGet();
+            throw e;
+        }
+        return NetworkExchange.disabled();
     }
 
     /**
@@ -63,7 +93,15 @@ public final class BrowserObservabilityRecorder {
             return;
         }
         byte[] responseBody = copyResponseBody(response);
-        recordNetwork(new NetworkObservation(
+        ObservationSession owner;
+        synchronized (EXCHANGE_OWNERS) {
+            expungeStaleExchanges();
+            owner = EXCHANGE_OWNERS.remove(new IdentityWeakReference(exchange));
+        }
+        if (owner != null) {
+            IN_FLIGHT_EXCHANGES.decrementAndGet();
+        }
+        recordNetwork(owner == null ? currentSession() : owner, new NetworkObservation(
                 exchange.method(),
                 exchange.url(),
                 response == null ? 0 : response.getStatus(),
@@ -82,10 +120,21 @@ public final class BrowserObservabilityRecorder {
      * @param observation network exchange details
      */
     public static void recordNetwork(NetworkObservation observation) {
-        if (!isNetworkEnabled()) {
+        recordNetwork(currentSession(), observation);
+    }
+
+    /** Starts a network exchange using a callback binding that follows report-session rollover. */
+    public static NetworkExchange startNetwork(ObservationBinding binding, HttpRequest request) {
+        return startNetwork(binding == null ? null : binding.session(), request);
+    }
+
+    /** Records a network event into an explicitly captured observation session. */
+    public static void recordNetwork(ObservationSession session, NetworkObservation observation) {
+        ObservationSession owner = valid(session);
+        if (owner == null || !owner.networkEnabled() || observation == null) {
             return;
         }
-        NETWORK.get().add(new NetworkEvent(
+        owner.addNetwork(new NetworkEvent(
                 value(observation.method()),
                 value(observation.url()),
                 observation.status(),
@@ -105,16 +154,18 @@ public final class BrowserObservabilityRecorder {
      * @param driver active driver, or {@code null}
      */
     public static void collectConsole(WebDriver driver) {
-        if (!isConsoleEnabled()) {
-            return;
-        }
         if (driver == null && PlaywrightSessionManager.currentSession() != null) {
             PlaywrightSessionManager.currentSession().drainConsoleToRecorder();
             return;
         }
         if (BidiConsoleLogSource.isHealthy(driver)) {
             BidiConsoleLogSource.drainToRecorder(driver);
-        } else if (!tryCollectConsole(driver)) {
+            return;
+        }
+        if (!currentSession().consoleEnabled() || !isConsoleEnabled()) {
+            return;
+        }
+        if (!tryCollectConsole(driver)) {
             recordWarning("console", driver == null
                     ? "Console capture is unavailable because no active driver is registered."
                     : "Browser console logs are not supported by this driver.");
@@ -164,11 +215,16 @@ public final class BrowserObservabilityRecorder {
      * @param timestamp epoch timestamp in milliseconds
      */
     public static void recordConsole(String source, String level, String message, long timestamp) {
-        List<ConsoleEvent> events = CONSOLE.get();
-        if (events.size() >= CONSOLE_EVENT_LIMIT) {
-            events.removeFirst();
+        recordConsole(currentSession(), source, level, message, timestamp);
+    }
+
+    /** Records a console event into an explicitly captured observation session. */
+    public static void recordConsole(ObservationSession session, String source, String level, String message,
+                                     long timestamp) {
+        ObservationSession owner = valid(session);
+        if (owner != null && owner.consoleEnabled()) {
+            owner.addConsole(new ConsoleEvent(value(source), value(level), value(message), Math.max(0, timestamp)));
         }
-        events.add(new ConsoleEvent(value(source), value(level), value(message), Math.max(0, timestamp)));
     }
 
     /**
@@ -178,10 +234,21 @@ public final class BrowserObservabilityRecorder {
      * @param message warning message
      */
     public static void recordWarning(String source, String message) {
-        if (!isTraceEnabled()) {
-            return;
+        recordWarning(currentSession(), source, message);
+    }
+
+    /** Records a console event using a callback binding that follows report-session rollover. */
+    public static void recordConsole(ObservationBinding binding, String source, String level, String message,
+                                     long timestamp) {
+        recordConsole(binding == null ? null : binding.session(), source, level, message, timestamp);
+    }
+
+    /** Records a warning into an explicitly captured observation session. */
+    public static void recordWarning(ObservationSession session, String source, String message) {
+        ObservationSession owner = valid(session);
+        if (owner != null && owner.traceEnabled()) {
+            owner.addWarning(new WarningEvent(value(source), value(message)));
         }
-        WARNINGS.get().add(new WarningEvent(value(source), value(message)));
     }
 
     /**
@@ -190,17 +257,22 @@ public final class BrowserObservabilityRecorder {
      * @return recorded warnings
      */
     public static List<String> drainWarnings() {
-        List<String> warnings = WARNINGS.get().stream()
+        return drainWarnings(currentSession());
+    }
+
+    /** Returns and clears warnings for an explicitly owned observation session. */
+    public static List<String> drainWarnings(ObservationSession session) {
+        if (session == null) {
+            return List.of();
+        }
+        return session.takeWarnings().stream()
                 .map(warning -> warning.source() + ": " + warning.message())
                 .toList();
-        WARNINGS.get().clear();
-        return warnings;
     }
 
     static String drainNetworkJson() {
-        String json = networkJson(NETWORK.get());
-        NETWORK.get().clear();
-        NEXT_NETWORK_ID.set(0);
+        ObservationSession session = currentSession();
+        String json = networkJson(session.takeNetwork());
         return json;
     }
 
@@ -213,7 +285,12 @@ public final class BrowserObservabilityRecorder {
      * @return immutable snapshot of currently recorded network transactions, oldest first
      */
     public static List<NetworkSnapshotEntry> snapshot() {
-        List<NetworkEvent> events = NETWORK.get();
+        return snapshot(currentSession());
+    }
+
+    /** Returns an immutable snapshot for an explicitly captured observation session. */
+    public static List<NetworkSnapshotEntry> snapshot(ObservationSession session) {
+        List<NetworkEvent> events = session == null ? List.of() : session.networkSnapshot();
         List<NetworkSnapshotEntry> snapshot = new ArrayList<>(events.size());
         for (int i = 0; i < events.size(); i++) {
             NetworkEvent event = events.get(i);
@@ -256,18 +333,23 @@ public final class BrowserObservabilityRecorder {
     }
 
     static String drainConsoleJson() {
-        if (!isConsoleEnabled()) {
-            CONSOLE.get().clear();
+        ObservationSession session = currentSession();
+        if (!session.consoleEnabled()) {
+            session.clearConsole();
             return "[]";
         }
-        String json = consoleJson(CONSOLE.get());
-        CONSOLE.get().clear();
+        String json = consoleJson(session.takeConsole());
         return json;
     }
 
     /** @return immutable, redacted current-thread console snapshot, oldest first */
     public static List<ConsoleSnapshotEntry> snapshotConsole() {
-        return CONSOLE.get().stream()
+        return snapshotConsole(currentSession());
+    }
+
+    /** Returns an immutable console snapshot for an explicitly captured observation session. */
+    public static List<ConsoleSnapshotEntry> snapshotConsole(ObservationSession session) {
+        return (session == null ? List.<ConsoleEvent>of() : session.consoleSnapshot()).stream()
                 .map(event -> new ConsoleSnapshotEntry(event.source(), event.level(),
                         FailureTraceReporter.redact(event.message()), event.timestamp()))
                 .toList();
@@ -281,12 +363,12 @@ public final class BrowserObservabilityRecorder {
 
     /** Clears current-thread console observations without affecting network evidence. */
     public static void clearConsole() {
-        CONSOLE.get().clear();
+        currentSession().clearConsole();
     }
 
     static String drainMetadataJson() {
-        String json = metadataJson(WARNINGS.get());
-        WARNINGS.get().clear();
+        ObservationSession session = currentSession();
+        String json = metadataJson(session.takeWarnings());
         return json;
     }
 
@@ -294,10 +376,99 @@ public final class BrowserObservabilityRecorder {
      * Clears current-thread browser observability state.
      */
     public static void clear() {
-        NETWORK.remove();
-        CONSOLE.remove();
-        WARNINGS.remove();
-        NEXT_NETWORK_ID.remove();
+        ObservationSession session = CURRENT.get();
+        if (session != null) {
+            session.close();
+        }
+        CURRENT.remove();
+    }
+
+    /** Starts and binds a fresh browser-observation session to the current report thread. */
+    public static ObservationSession startSession() {
+        clear();
+        ObservationSession session = createSession();
+        CURRENT.set(session);
+        CURRENT_BINDING.get().bind(session);
+        return session;
+    }
+
+    /** Creates a detached observation session for a concurrently active browser owner. */
+    public static ObservationSession createSession() {
+        return new ObservationSession();
+    }
+
+    /** Captures the current observation owner for use by asynchronous callbacks. */
+    public static ObservationSession captureSession() {
+        return currentSession();
+    }
+
+    /** Captures a stable callback binding whose target follows current-thread report-session rollover. */
+    public static ObservationBinding captureBinding() {
+        currentSession();
+        return CURRENT_BINDING.get();
+    }
+
+    /** Resolves one callback binding once so a whole provider batch keeps one immutable owner. */
+    public static ObservationSession resolveSession(ObservationBinding binding) {
+        return binding == null ? null : binding.session();
+    }
+
+    private static ObservationSession currentSession() {
+        ObservationSession session = CURRENT.get();
+        if (session == null || session.closed()) {
+            session = new ObservationSession();
+            CURRENT.set(session);
+            CURRENT_BINDING.get().bind(session);
+        }
+        return session;
+    }
+
+    private static ObservationSession valid(ObservationSession session) {
+        return session == null || session.closed() ? null : session;
+    }
+
+    private static boolean reserveExchange(ObservationSession owner) {
+        while (true) {
+            synchronized (EXCHANGE_OWNERS) {
+                expungeStaleExchanges();
+            }
+            int current = IN_FLIGHT_EXCHANGES.get();
+            if (current >= IN_FLIGHT_EXCHANGE_LIMIT) {
+                owner.warnExchangeLimitOnce();
+                return false;
+            }
+            if (IN_FLIGHT_EXCHANGES.compareAndSet(current, current + 1)) {
+                return true;
+            }
+        }
+    }
+
+    /** Marks that a provider omitted its oldest buffered console event before transfer. */
+    public static void recordConsoleOmission(ObservationSession session) {
+        if (session != null) session.markConsoleLimit();
+    }
+
+    private static boolean retainReservedExchange(NetworkExchange exchange, ObservationSession owner) {
+        synchronized (owner) {
+            if (owner.closed()) {
+                IN_FLIGHT_EXCHANGES.decrementAndGet();
+                return false;
+            }
+            synchronized (EXCHANGE_OWNERS) {
+                expungeStaleExchanges();
+                EXCHANGE_OWNERS.put(new IdentityWeakReference(exchange, STALE_EXCHANGES), owner);
+                return true;
+            }
+        }
+    }
+
+    private static void expungeStaleExchanges() {
+        IdentityWeakReference stale;
+        while ((stale = (IdentityWeakReference) STALE_EXCHANGES.poll()) != null) {
+            if (EXCHANGE_OWNERS.remove(stale) != null) {
+                IN_FLIGHT_EXCHANGES.decrementAndGet();
+            }
+        }
     }
 
     private static String networkJson(List<NetworkEvent> events) {
@@ -381,10 +552,6 @@ public final class BrowserObservabilityRecorder {
                   }
                 }
                 """.formatted(networkJson == null || networkJson.isBlank() ? "[]" : networkJson);
-    }
-
-    private static boolean isNetworkEnabled() {
-        return isTraceEnabled() && SHAFT.Properties.reporting.traceIncludeNetwork();
     }
 
     private static boolean isConsoleEnabled() {
@@ -535,6 +702,162 @@ public final class BrowserObservabilityRecorder {
                                   Map<String, String> requestHeaders, long requestSizeBytes, long startNanos) {
         static NetworkExchange disabled() {
             return new NetworkExchange(false, "", "", "", Map.of(), 0L, 0L);
+        }
+    }
+
+    /** Opaque owner handle captured by asynchronous browser callbacks. */
+    public static final class ObservationSession implements AutoCloseable {
+        private final List<NetworkEvent> network = new ArrayList<>();
+        private final List<ConsoleEvent> console = new ArrayList<>();
+        private final List<WarningEvent> warnings = new ArrayList<>();
+        private int nextNetworkId;
+        private boolean closed;
+        private boolean exchangeLimitWarned;
+        private boolean networkLimitWarned;
+        private boolean consoleLimitWarned;
+        private boolean warningLimitWarned;
+        private final boolean traceEnabled = isTraceEnabled();
+        private final boolean networkEnabled = traceEnabled && SHAFT.Properties.reporting.traceIncludeNetwork();
+        private final boolean consoleEnabled = traceEnabled && SHAFT.Properties.reporting.traceIncludeConsole();
+
+        private synchronized int nextNetworkId() { return ++nextNetworkId; }
+        private synchronized boolean closed() { return closed; }
+        private boolean traceEnabled() { return traceEnabled; }
+        private boolean networkEnabled() { return networkEnabled; }
+        private boolean consoleEnabled() { return consoleEnabled; }
+        private synchronized void addNetwork(NetworkEvent event) {
+            if (!closed) {
+                if (network.size() >= NETWORK_EVENT_LIMIT) {
+                    network.removeFirst();
+                    networkLimitWarned = true;
+                }
+                network.add(event);
+            }
+        }
+        private synchronized void addConsole(ConsoleEvent event) {
+            if (!closed) {
+                if (console.size() >= CONSOLE_EVENT_LIMIT) {
+                    console.removeFirst();
+                    consoleLimitWarned = true;
+                }
+                console.add(event);
+            }
+        }
+        private synchronized void markConsoleLimit() {
+            if (!closed && consoleEnabled) consoleLimitWarned = true;
+        }
+        private synchronized void addWarning(WarningEvent event) {
+            if (!closed) {
+                if (warnings.size() >= WARNING_EVENT_LIMIT) {
+                    warnings.removeFirst();
+                    warningLimitWarned = true;
+                }
+                warnings.add(event);
+            }
+        }
+        private synchronized void warnExchangeLimitOnce() {
+            if (!closed && !exchangeLimitWarned) {
+                exchangeLimitWarned = true;
+            }
+        }
+        private synchronized List<NetworkEvent> networkSnapshot() { return List.copyOf(network); }
+        private synchronized List<ConsoleEvent> consoleSnapshot() { return List.copyOf(console); }
+        private synchronized List<NetworkEvent> takeNetwork() {
+            List<NetworkEvent> result = List.copyOf(network);
+            network.clear();
+            nextNetworkId = 0;
+            return result;
+        }
+        private synchronized List<ConsoleEvent> takeConsole() {
+            List<ConsoleEvent> result = List.copyOf(console);
+            console.clear();
+            return result;
+        }
+        private synchronized List<WarningEvent> takeWarnings() {
+            List<WarningEvent> result = effectiveWarnings();
+            warnings.clear();
+            warningLimitWarned = false;
+            exchangeLimitWarned = false;
+            networkLimitWarned = false;
+            consoleLimitWarned = false;
+            return result;
+        }
+        private synchronized List<WarningEvent> effectiveWarnings() {
+            List<WarningEvent> result = new ArrayList<>(warnings);
+            int markerCount = (networkLimitWarned ? 1 : 0) + (consoleLimitWarned ? 1 : 0)
+                    + (exchangeLimitWarned ? 1 : 0)
+                    + (warningLimitWarned ? 1 : 0);
+            while (result.size() + markerCount > WARNING_EVENT_LIMIT) result.removeFirst();
+            if (warningLimitWarned) result.add(new WarningEvent("observability",
+                    "The oldest browser observability warnings were omitted because the session limit was reached."));
+            if (networkLimitWarned) result.add(new WarningEvent("network",
+                    "The oldest network events were omitted because the session limit was reached."));
+            if (consoleLimitWarned) result.add(new WarningEvent("console",
+                    "The oldest console events were omitted because the session limit was reached."));
+            if (exchangeLimitWarned) result.add(new WarningEvent("network",
+                    "A network exchange was omitted because the in-flight session limit was reached."));
+            return List.copyOf(result);
+        }
+        private synchronized void clearConsole() { console.clear(); }
+
+        @Override
+        public synchronized void close() {
+            closed = true;
+            network.clear();
+            console.clear();
+            warnings.clear();
+            nextNetworkId = 0;
+            networkLimitWarned = false;
+            consoleLimitWarned = false;
+            warningLimitWarned = false;
+            exchangeLimitWarned = false;
+        }
+    }
+
+    private static final class IdentityWeakReference extends WeakReference<NetworkExchange> {
+        private final int identityHash;
+
+        private IdentityWeakReference(NetworkExchange exchange) {
+            super(exchange);
+            identityHash = System.identityHashCode(exchange);
+        }
+
+        private IdentityWeakReference(NetworkExchange exchange, ReferenceQueue<NetworkExchange> queue) {
+            super(exchange, queue);
+            identityHash = System.identityHashCode(exchange);
+        }
+
+        @Override
+        public int hashCode() {
+            return identityHash;
+        }
+
+        @Override
+        public boolean equals(Object other) {
+            if (this == other) {
+                return true;
+            }
+            if (!(other instanceof IdentityWeakReference reference)) {
+                return false;
+            }
+            NetworkExchange exchange = get();
+            return exchange != null && exchange == reference.get();
+        }
+    }
+
+    /** Stable callback owner whose current session is replaced by the runner lifecycle. */
+    public static final class ObservationBinding {
+        private volatile ObservationSession session;
+
+        private ObservationBinding() {
+        }
+
+        private void bind(ObservationSession session) {
+            this.session = session;
+        }
+
+        private ObservationSession session() {
+            return session;
         }
     }
 

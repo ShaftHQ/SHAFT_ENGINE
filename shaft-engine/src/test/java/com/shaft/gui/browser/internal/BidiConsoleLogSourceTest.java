@@ -1,5 +1,6 @@
 package com.shaft.gui.browser.internal;
 
+import com.shaft.driver.SHAFT;
 import com.shaft.driver.internal.DriverFactory.DriverFactoryHelper;
 import com.shaft.tools.io.internal.BrowserObservabilityRecorder;
 import org.mockito.Mockito;
@@ -12,6 +13,8 @@ import org.openqa.selenium.logging.LogEntry;
 import org.openqa.selenium.logging.Logs;
 import org.testng.Assert;
 import org.testng.annotations.Test;
+import org.testng.annotations.AfterMethod;
+import com.shaft.properties.internal.Properties;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -22,6 +25,11 @@ import java.util.concurrent.TimeUnit;
 import java.util.Optional;
 
 public class BidiConsoleLogSourceTest {
+    @AfterMethod
+    public void clearObservationContext() {
+        com.shaft.tools.io.internal.ReportContext.clear();
+        Properties.clearForCurrentThread();
+    }
     @Test
     public void websocketThreadEventsShouldBeVisibleAndClearableFromTheOwningTestThread() throws Exception {
         WebDriver driver = Mockito.mock(WebDriver.class);
@@ -253,6 +261,76 @@ public class BidiConsoleLogSourceTest {
 
         Assert.assertEquals(BrowserObservabilityRecorder.snapshotConsole().size(), eventCount);
         BrowserObservabilityRecorder.clearConsole();
+        BidiConsoleLogSource.closeAndRemove(driver);
+    }
+
+    @Test
+    public void asyncDrainShouldFollowReportSessionRolloverInsteadOfExecutorThread() throws Exception {
+        SHAFT.Properties.reporting.set().traceEnabled(true).traceIncludeConsole(true);
+        WebDriver driver = Mockito.mock(WebDriver.class);
+        com.shaft.tools.io.internal.ReportContext.start(new com.shaft.listeners.internal.TestExecutionInfo(
+                "bidi-setup", getClass().getName(), "setup", "setup", "setup", null, null, false));
+        BidiConsoleLogSource source = new BidiConsoleLogSource();
+        BidiConsoleLogSource.install(driver, source);
+        com.shaft.tools.io.internal.ReportContext.start(new com.shaft.listeners.internal.TestExecutionInfo(
+                "bidi-test", getClass().getName(), "test", "test", "test", null, null, false));
+
+        try (var executor = Executors.newSingleThreadExecutor()) {
+            executor.submit(() -> {
+                SHAFT.Properties.reporting.set().traceIncludeConsole(false);
+                source.record("error", "async-owner-message", 42);
+                BrowserObservabilityRecorder.collectConsole(driver);
+            }).get();
+        }
+
+        Assert.assertEquals(BrowserObservabilityRecorder.snapshotConsole().size(), 1);
+        Assert.assertEquals(BrowserObservabilityRecorder.snapshotConsole().getFirst().message(),
+                "async-owner-message");
+        BidiConsoleLogSource.closeAndRemove(driver);
+    }
+
+    @Test
+    public void disabledLegacyCollectionShouldNotConsumeDriverLogsOrWarn() {
+        SHAFT.Properties.reporting.set().traceEnabled(true).traceIncludeConsole(false);
+        com.shaft.tools.io.internal.ReportContext.start(new com.shaft.listeners.internal.TestExecutionInfo(
+                "legacy-disabled", getClass().getName(), "disabled", "disabled", "disabled",
+                null, null, false));
+        WebDriver driver = Mockito.mock(WebDriver.class);
+
+        BrowserObservabilityRecorder.collectConsole(driver);
+
+        Mockito.verify(driver, Mockito.never()).manage();
+        Assert.assertTrue(BrowserObservabilityRecorder.drainWarnings().isEmpty());
+    }
+
+    @Test
+    public void providerOverflowShouldReportOldestConsoleOmission() {
+        SHAFT.Properties.reporting.set().traceEnabled(true).traceIncludeConsole(true);
+        com.shaft.tools.io.internal.ReportContext.start(new com.shaft.listeners.internal.TestExecutionInfo(
+                "bidi-overflow", getClass().getName(), "overflow", "overflow", "overflow",
+                null, null, false));
+        WebDriver driver = Mockito.mock(WebDriver.class);
+        BidiConsoleLogSource source = new BidiConsoleLogSource();
+        BidiConsoleLogSource.install(driver, source);
+        for (int index = 0; index <= 1000; index++) {
+            source.record("log", "bidi-" + index, index);
+        }
+        Assert.assertEquals(BidiConsoleLogSource.snapshot(driver).size(), 1000);
+        Assert.assertEquals(BidiConsoleLogSource.snapshot(driver).getFirst().message(), "bidi-1");
+        Assert.assertEquals(BidiConsoleLogSource.snapshot(driver).getLast().message(), "bidi-1000");
+
+        BidiConsoleLogSource.drainToRecorder(driver);
+
+        Assert.assertEquals(BrowserObservabilityRecorder.snapshotConsole().size(), 1000);
+        Assert.assertEquals(BrowserObservabilityRecorder.snapshotConsole().getFirst().message(), "bidi-1");
+        Assert.assertTrue(BrowserObservabilityRecorder.drainWarnings().stream()
+                .anyMatch(warning -> warning.contains("oldest console")));
+        BrowserObservabilityRecorder.clearConsole();
+        source.record("log", "next-batch", 1001);
+        BidiConsoleLogSource.drainToRecorder(driver);
+        Assert.assertEquals(BrowserObservabilityRecorder.snapshotConsole().size(), 1);
+        Assert.assertEquals(BrowserObservabilityRecorder.snapshotConsole().getFirst().message(), "next-batch");
+        Assert.assertTrue(BrowserObservabilityRecorder.drainWarnings().isEmpty());
         BidiConsoleLogSource.closeAndRemove(driver);
     }
 }

@@ -32,7 +32,7 @@ public final class ReportContext {
         output.get().clear();
         attachments.get().clear();
         TraceEventRecorder.clearForNewTest();
-        BrowserObservabilityRecorder.clear();
+        BrowserObservabilityRecorder.startSession();
         logSink.remove();
         status.remove();
     }
