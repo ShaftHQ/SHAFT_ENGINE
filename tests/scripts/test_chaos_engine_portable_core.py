@@ -148,9 +148,9 @@ class ChaosEnginePortableCoreTest(unittest.TestCase):
                 signature.append((tag, attributes))
             return tuple(signature)
 
-        canonical_root = ET.parse(BRAND_ASSETS / "symbol-primary.svg").getroot()
+        canonical_root = ET.parse(BRAND_ASSETS / "symbol-primary.svg").getroot()  # nosec B314
         canonical_geometry = geometry_signature(groups_with_direct_children(canonical_root, 4)[0])
-        micro_root = ET.parse(BRAND_ASSETS / "favicon-16.svg").getroot()
+        micro_root = ET.parse(BRAND_ASSETS / "favicon-16.svg").getroot()  # nosec B314
         micro_geometry = geometry_signature(groups_with_direct_children(micro_root, 4)[0])
         full_size_assets = {
             "symbol-primary.svg", "symbol-light.svg", "symbol-dark.svg",
@@ -161,7 +161,7 @@ class ChaosEnginePortableCoreTest(unittest.TestCase):
 
         for path in sorted(BRAND_ASSETS.glob("*.svg")):
             content = path.read_text(encoding="utf-8")
-            root = ET.fromstring(content)
+            root = ET.fromstring(content)  # nosec B314
             colors = {
                 value
                 for element in root.iter()
@@ -178,7 +178,7 @@ class ChaosEnginePortableCoreTest(unittest.TestCase):
                 if path.name in {"favicon-16.svg", "favicon-16-dark.svg"}:
                     self.assertEqual([micro_geometry], list(map(geometry_signature, groups)))
 
-        specimen_root = ET.parse(BRAND_ASSETS / "specimen.svg").getroot()
+        specimen_root = ET.parse(BRAND_ASSETS / "specimen.svg").getroot()  # nosec B314
         specimen_groups = groups_with_direct_children(specimen_root, 4)
         specimen_signatures = list(map(geometry_signature, specimen_groups))
         self.assertEqual(5, len(specimen_signatures))
