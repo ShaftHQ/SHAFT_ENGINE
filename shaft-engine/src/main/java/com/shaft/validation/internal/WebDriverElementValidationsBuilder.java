@@ -99,7 +99,7 @@ public class WebDriverElementValidationsBuilder implements com.shaft.gui.driver.
     public ValidationsExecutor matchesReferenceImage() {
         this.validationType = ValidationEnums.ValidationType.POSITIVE;
         this.validationMethod = "elementMatches";
-        this.visualValidationEngine = ValidationEnums.VisualValidationEngine.EXACT_SHUTTERBUG;
+        this.visualValidationEngine = ValidationEnums.VisualValidationEngine.EXACT_OPENCV;
         appendVisualValidationMessage(true);
         var executor = new ValidationsExecutor(this);
         executor.internalPerform();
