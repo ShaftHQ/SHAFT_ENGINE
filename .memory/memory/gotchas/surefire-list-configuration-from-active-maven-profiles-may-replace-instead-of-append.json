@@ -1,0 +1,50 @@
+{
+  "body_path": "memory/gotchas/surefire-list-configuration-from-active-maven-profiles-may-replace-instead-of-append.md",
+  "content_hash": "sha256:0295a7056cfc22275cd67d064644167fe62b15e1db0676addde8602ae8a7e504",
+  "created_at": "2026-08-13T05:00:33+03:00",
+  "evidence": [
+    {
+      "id": "febee7f73079c5179fdd33731ecc5dae5c0e9597",
+      "kind": "commit"
+    },
+    {
+      "id": "da41c908c9d92d232ce44a9dc512d10d2daf53f8",
+      "kind": "commit"
+    },
+    {
+      "id": "https://github.com/ShaftHQ/SHAFT_ENGINE/issues/4836",
+      "kind": "task"
+    }
+  ],
+  "facets": {
+    "applies_to": [
+      "shaft-engine/pom.xml",
+      "maven-surefire-plugin",
+      "includeOcrTestRuntime",
+      "includeVisualTestRuntime"
+    ],
+    "category": "gotcha"
+  },
+  "id": "gotcha.surefire-list-configuration-from-active-maven-profiles-may-replace-instead-of-append",
+  "scope": {
+    "branch": null,
+    "kind": "project",
+    "project": "project.shaft-engine",
+    "task": null
+  },
+  "source": {
+    "kind": "agent",
+    "task": "Record the reusable Maven profile composition gotcha found and fixed while implementing visual/OCR acceptance."
+  },
+  "status": "active",
+  "tags": [
+    "maven",
+    "surefire",
+    "profiles",
+    "effective-pom",
+    "testing"
+  ],
+  "title": "Surefire list configuration from active Maven profiles may replace instead of append",
+  "type": "gotcha",
+  "updated_at": "2026-08-13T05:03:59+03:00"
+}

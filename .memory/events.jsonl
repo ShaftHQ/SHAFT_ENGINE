@@ -1130,3 +1130,5 @@
 {"actor":"agent","event":"memory.created","id":"gotcha.intellij-instrumented-gradle-testkit-tests-must-bind-the-gradle-runtime-and-reuse-the-outer-gradle-home","timestamp":"2026-08-12T14:01:11+03:00"}
 {"actor":"agent","event":"memory.created","id":"gotcha.local-appium-uiautomator2-acceptance-requires-android-sdk-build-tools-with-aapt2","timestamp":"2026-08-12T21:18:07+03:00"}
 {"actor":"agent","event":"memory.created","id":"gotcha.unscoped-shaft-reactor-tests-can-enter-browserstack-backed-mobile-fixtures","timestamp":"2026-08-12T21:18:07+03:00"}
+{"actor":"agent","event":"memory.created","id":"gotcha.surefire-list-configuration-from-active-maven-profiles-may-replace-instead-of-append","timestamp":"2026-08-13T05:00:33+03:00"}
+{"actor":"agent","event":"memory.updated","id":"gotcha.surefire-list-configuration-from-active-maven-profiles-may-replace-instead-of-append","timestamp":"2026-08-13T05:03:59+03:00"}

@@ -40,6 +40,7 @@ import org.apache.logging.log4j.Level;
 import org.openqa.selenium.*;
 import org.openqa.selenium.interactions.*;
 import org.openqa.selenium.remote.RemoteWebDriver;
+import org.openqa.selenium.remote.RemoteWebElement;
 
 import java.io.File;
 import java.io.IOException;
@@ -1347,14 +1348,14 @@ public class TouchActions extends FluentWebDriverAction {
         if (Boolean.FALSE.equals(appiumImagesAvailable)) {
             return Optional.empty();
         }
-        if (target.minimumConfidence().isPresent() || target.searchRegion().isPresent()
+        if (target.searchRegion().isPresent()
                 || target.matchingMode() != com.shaft.gui.image.ImageMatchingMode.AUTO) {
-            throw new UnsupportedOperationException(
-                    "Appium Images fallback cannot safely enforce confidence, region, or explicit matching-mode constraints.");
+            return Optional.empty();
         }
         try {
             String encodedTarget = Base64.getEncoder().encodeToString(target.imageBytes());
-            double threshold = SHAFT.Properties.visuals.visualMatchingThreshold();
+            double threshold = target.minimumConfidence()
+                    .orElse(SHAFT.Properties.visuals.visualMatchingThreshold());
             List<WebElement> matches;
             synchronized (appiumDriver) {
                 Object previousThreshold = appiumDriver.getSettings()
@@ -1547,6 +1548,19 @@ public class TouchActions extends FluentWebDriverAction {
         Dimension screenSize = driverFactoryHelper.getDriver().manage().window().getSize();
 
         var scrollParameters = new HashMap<>();
+
+        if (driverFactoryHelper.getDriver() instanceof IOSDriver) {
+            scrollParameters.put("direction", swipeDirection.name().toLowerCase(Locale.ROOT));
+            if (scrollableElementLocator != null) {
+                WebElement scrollableElement = (WebElement) elementActionsHelper.identifyUniqueElement(
+                        driverFactoryHelper.getDriver(), scrollableElementLocator).get(1);
+                if (!(scrollableElement instanceof RemoteWebElement remoteElement)) {
+                    throw new IllegalStateException("iOS container scrolling requires an Appium remote element.");
+                }
+                scrollParameters.put("elementId", remoteElement.getId());
+            }
+            return scrollParameters;
+        }
 
         if (scrollableElementLocator != null) {
             //scrolling inside an element
