@@ -119,7 +119,7 @@ public class PdfFileManager {
         try (PDDocument document = Loader.loadPDF(file, IOUtils.createTempFileOnlyStreamCache())) {
             PDFTextStripper stripper = new PDFTextStripper();
             stripper.setSortByPosition(true);
-            if (startPage != null) {
+            if (startPage != null && endPage != null) {
                 if (endPage > document.getNumberOfPages()) {
                     throw new IllegalArgumentException("PDF end page " + endPage + " exceeds page count "
                             + document.getNumberOfPages() + ".");
