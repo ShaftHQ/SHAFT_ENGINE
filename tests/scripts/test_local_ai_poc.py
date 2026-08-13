@@ -777,8 +777,10 @@ class LifecycleTest(unittest.TestCase):
         self.assertEqual(29, labels.count(True))
 
     def test_transaction_rejects_unowned_targets_and_preserves_concurrent_unknown_files(self):
-        runtime = MODULE.select_runtime_asset(self.manifest, "windows-x86_64")
-        model = self.manifest["models"][0]
+        runtime = dict(MODULE.select_runtime_asset(self.manifest, "windows-x86_64"))
+        runtime.update(size=1, sha256=hashlib.sha256(b"r").hexdigest())
+        model = dict(self.manifest["models"][0])
+        model.update(size=1, sha256=hashlib.sha256(b"m").hexdigest())
         with tempfile.TemporaryDirectory() as temporary:
             cache = Path(temporary) / "cache"
             archive = MODULE.cache_path(cache, "downloads", runtime["file"])
