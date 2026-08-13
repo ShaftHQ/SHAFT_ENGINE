@@ -24,6 +24,9 @@ import org.opencv.core.*;
 import org.opencv.highgui.HighGui;
 import org.opencv.imgcodecs.Imgcodecs;
 import org.opencv.imgproc.Imgproc;
+import org.opencv.calib3d.Calib3d;
+import org.opencv.features2d.DescriptorMatcher;
+import org.opencv.features2d.SIFT;
 import org.openqa.selenium.By;
 import org.openqa.selenium.UnsupportedCommandException;
 import org.openqa.selenium.WebDriver;
@@ -456,10 +459,18 @@ public class OpenCvVisualProcessingProvider implements VisualProcessingProvider 
             double threshold = target.minimumConfidence().orElseGet(
                     () -> SHAFT.Properties.visuals.visualMatchingThreshold());
             List<RichTemplateMatch> candidates = switch (target.matchingMode()) {
-                case AUTO, TEMPLATE -> findTemplateMatches(searchImage, reference, threshold);
-                case FEATURE -> throw new UnsupportedOperationException(
-                        "OpenCV feature matching is not available for this target.");
+                case TEMPLATE -> findTemplateMatches(searchImage, reference, threshold);
+                case FEATURE -> findFeatureMatches(searchImage, reference, threshold);
+                case AUTO -> {
+                    List<RichTemplateMatch> templateMatches = findTemplateMatches(searchImage, reference, threshold);
+                    yield templateMatches.isEmpty() ? findFeatureMatches(searchImage, reference, threshold) : templateMatches;
+                }
             };
+            if (target.occurrence().orElse(0) > 0 && candidates.stream()
+                    .anyMatch(match -> match.algorithm() == ImageMatchingAlgorithm.FEATURE_HOMOGRAPHY)) {
+                throw new UnsupportedOperationException(
+                        "Feature matching currently resolves one geometrically verified occurrence; use TEMPLATE or narrow the region.");
+            }
             return suppressOverlappingMatches(candidates).stream()
                     .sorted(Comparator.comparingInt((RichTemplateMatch match) -> match.bounds().y())
                             .thenComparingInt(match -> match.bounds().x()))
@@ -574,6 +585,164 @@ public class OpenCvVisualProcessingProvider implements VisualProcessingProvider 
                     }
                 });
         return retained;
+    }
+
+    private static List<RichTemplateMatch> findFeatureMatches(Mat searchImage, Mat reference, double threshold) {
+        Mat graySearch = new Mat();
+        Mat grayReference = new Mat();
+        Mat referenceMask = new Mat();
+        Mat opaqueReference = null;
+        Mat emptyMask = new Mat();
+        Mat referenceDescriptors = new Mat();
+        Mat searchDescriptors = new Mat();
+        MatOfKeyPoint referenceKeyPoints = new MatOfKeyPoint();
+        MatOfKeyPoint searchKeyPoints = new MatOfKeyPoint();
+        MatOfPoint2f referencePoints = new MatOfPoint2f();
+        MatOfPoint2f searchPoints = new MatOfPoint2f();
+        Mat inlierMask = new Mat();
+        Mat homography = null;
+        MatOfPoint2f referenceCorners = new MatOfPoint2f();
+        MatOfPoint2f projectedCorners = new MatOfPoint2f();
+        SIFT sift = null;
+        DescriptorMatcher matcher = null;
+        List<MatOfDMatch> nearestMatches = new ArrayList<>();
+        try {
+            if (searchImage.channels() == 1) searchImage.copyTo(graySearch);
+            else Imgproc.cvtColor(searchImage, graySearch, Imgproc.COLOR_BGR2GRAY);
+            if (reference.channels() == 4) {
+                Core.extractChannel(reference, referenceMask, 3);
+                Imgproc.threshold(referenceMask, referenceMask, 0, 255, Imgproc.THRESH_BINARY);
+                opaqueReference = new Mat(reference.rows(), reference.cols(), CvType.CV_8UC3,
+                        new Scalar(255, 255, 255));
+                for (int row = 0; row < reference.rows(); row++) {
+                    for (int column = 0; column < reference.cols(); column++) {
+                        double[] bgra = reference.get(row, column);
+                        double alpha = bgra[3] / 255.0;
+                        opaqueReference.put(row, column,
+                                bgra[0] * alpha + 255 * (1 - alpha),
+                                bgra[1] * alpha + 255 * (1 - alpha),
+                                bgra[2] * alpha + 255 * (1 - alpha));
+                    }
+                }
+                Imgproc.cvtColor(opaqueReference, grayReference, Imgproc.COLOR_BGR2GRAY);
+            } else if (reference.channels() == 1) reference.copyTo(grayReference);
+            else Imgproc.cvtColor(reference, grayReference, Imgproc.COLOR_BGR2GRAY);
+            sift = SIFT.create();
+            matcher = DescriptorMatcher.create(DescriptorMatcher.FLANNBASED);
+            sift.detectAndCompute(grayReference, referenceMask.empty() ? emptyMask : referenceMask,
+                    referenceKeyPoints, referenceDescriptors);
+            sift.detectAndCompute(graySearch, emptyMask, searchKeyPoints, searchDescriptors);
+            if (referenceDescriptors.empty() || searchDescriptors.empty()) return List.of();
+            matcher.knnMatch(referenceDescriptors, searchDescriptors, nearestMatches, 2);
+            KeyPoint[] referenceKeys = referenceKeyPoints.toArray();
+            KeyPoint[] searchKeys = searchKeyPoints.toArray();
+            List<Point> source = new ArrayList<>();
+            List<Point> destination = new ArrayList<>();
+            for (MatOfDMatch nearest : nearestMatches) {
+                DMatch[] pair = nearest.toArray();
+                if (pair.length >= 2 && pair[0].distance < 0.75f * pair[1].distance) {
+                    source.add(referenceKeys[pair[0].queryIdx].pt);
+                    destination.add(searchKeys[pair[0].trainIdx].pt);
+                }
+            }
+            if (source.size() < 8) return List.of();
+            referencePoints.fromList(source);
+            searchPoints.fromList(destination);
+            homography = Calib3d.findHomography(referencePoints, searchPoints, Calib3d.RANSAC, 3.0, inlierMask);
+            if (homography.empty()) return List.of();
+            int inliers = Core.countNonZero(inlierMask);
+            double inlierRatio = (double) inliers / source.size();
+            double confidence = 0.75 + 0.25 * inlierRatio;
+            if (inliers < 6 || inlierRatio < 0.60 || confidence < threshold
+                    || !hasDistributedInliers(source, inlierMask, reference.cols(), reference.rows())) return List.of();
+
+            referenceCorners.fromArray(new Point(0, 0), new Point(reference.cols(), 0),
+                    new Point(reference.cols(), reference.rows()), new Point(0, reference.rows()));
+            Core.perspectiveTransform(referenceCorners, projectedCorners, homography);
+            Point[] corners = projectedCorners.toArray();
+            if (corners.length != 4 || Arrays.stream(corners).anyMatch(point -> !Double.isFinite(point.x)
+                    || !Double.isFinite(point.y) || point.x < 0 || point.y < 0
+                    || point.x > searchImage.cols() || point.y > searchImage.rows())) return List.of();
+            MatOfPoint polygon = new MatOfPoint(corners);
+            try {
+                double projectedArea = Math.abs(Imgproc.contourArea(polygon));
+                double areaRatio = projectedArea / ((double) reference.cols() * reference.rows());
+                if (!Imgproc.isContourConvex(polygon) || projectedArea < 16 || areaRatio < 0.10 || areaRatio > 10
+                        || !hasPlausibleEdges(corners, (double) reference.cols() / reference.rows())) return List.of();
+            } finally {
+                polygon.release();
+            }
+            double minX = Arrays.stream(corners).mapToDouble(point -> point.x).min().orElseThrow();
+            double minY = Arrays.stream(corners).mapToDouble(point -> point.y).min().orElseThrow();
+            double maxX = Arrays.stream(corners).mapToDouble(point -> point.x).max().orElseThrow();
+            double maxY = Arrays.stream(corners).mapToDouble(point -> point.y).max().orElseThrow();
+            int x = Math.max(0, (int) Math.floor(minX));
+            int y = Math.max(0, (int) Math.floor(minY));
+            int width = Math.min(searchImage.cols() - x, Math.max(1, (int) Math.ceil(maxX) - x));
+            int height = Math.min(searchImage.rows() - y, Math.max(1, (int) Math.ceil(maxY) - y));
+            double scale = Math.sqrt((double) width * height / ((double) reference.cols() * reference.rows()));
+            return List.of(new RichTemplateMatch(new ImageRectangle(x, y, width, height), confidence, scale,
+                    ImageMatchingAlgorithm.FEATURE_HOMOGRAPHY));
+        } finally {
+            nearestMatches.forEach(Mat::release);
+            safelyClear(matcher);
+            safelyClear(sift);
+            projectedCorners.release();
+            referenceCorners.release();
+            if (homography != null) homography.release();
+            inlierMask.release();
+            searchPoints.release();
+            referencePoints.release();
+            searchKeyPoints.release();
+            referenceKeyPoints.release();
+            searchDescriptors.release();
+            referenceDescriptors.release();
+            emptyMask.release();
+            if (opaqueReference != null) opaqueReference.release();
+            grayReference.release();
+            referenceMask.release();
+            graySearch.release();
+        }
+    }
+
+    private static void safelyClear(org.opencv.core.Algorithm algorithm) {
+        if (algorithm == null) return;
+        try {
+            algorithm.clear();
+        } catch (Throwable ignored) {
+            // Some packaged OpenCV feature algorithms do not implement clear; their native wrapper finalizer owns it.
+        }
+    }
+
+    private static boolean hasDistributedInliers(List<Point> sourcePoints, Mat inlierMask,
+                                                  int referenceWidth, int referenceHeight) {
+        List<Point> inliers = new ArrayList<>();
+        for (int index = 0; index < sourcePoints.size(); index++) {
+            if (inlierMask.get(index, 0)[0] != 0) inliers.add(sourcePoints.get(index));
+        }
+        if (inliers.isEmpty()) return false;
+        double spreadX = inliers.stream().mapToDouble(point -> point.x).max().orElse(0)
+                - inliers.stream().mapToDouble(point -> point.x).min().orElse(0);
+        double spreadY = inliers.stream().mapToDouble(point -> point.y).max().orElse(0)
+                - inliers.stream().mapToDouble(point -> point.y).min().orElse(0);
+        return spreadX >= referenceWidth * 0.20 && spreadY >= referenceHeight * 0.20;
+    }
+
+    private static boolean hasPlausibleEdges(Point[] corners, double referenceAspectRatio) {
+        double top = distance(corners[0], corners[1]);
+        double right = distance(corners[1], corners[2]);
+        double bottom = distance(corners[2], corners[3]);
+        double left = distance(corners[3], corners[0]);
+        double shortest = Math.min(Math.min(top, bottom), Math.min(left, right));
+        double longest = Math.max(Math.max(top, bottom), Math.max(left, right));
+        if (shortest < 4 || longest / shortest > 10) return false;
+        double projectedAspectRatio = ((top + bottom) / 2) / ((left + right) / 2);
+        double distortion = projectedAspectRatio / referenceAspectRatio;
+        return distortion >= 1.0 / 3.0 && distortion <= 3.0;
+    }
+
+    private static double distance(Point first, Point second) {
+        return Math.hypot(first.x - second.x, first.y - second.y);
     }
 
     private static double intersectionOverUnion(ImageRectangle first, ImageRectangle second) {
