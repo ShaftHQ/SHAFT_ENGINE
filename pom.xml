@@ -117,6 +117,7 @@
         <proto.google.cloud.kms.v1.version>2.97.0</proto.google.cloud.kms.v1.version>
         <error.prone.annotations.version>2.50.0</error.prone.annotations.version>
         <checker.qual.version>4.2.1</checker.qual.version>
+        <jspecify.version>1.0.1</jspecify.version>
         <animal.sniffer.annotations.version>1.27</animal.sniffer.annotations.version>
         <httpcore.version>4.4.16</httpcore.version>
         <owner.version>1.0.12</owner.version>
@@ -231,6 +232,11 @@
                 <version>${selenium.version}</version>
                 <type>pom</type>
                 <scope>import</scope>
+            </dependency>
+            <dependency>
+                <groupId>org.jspecify</groupId>
+                <artifactId>jspecify</artifactId>
+                <version>${jspecify.version}</version>
             </dependency>
             <dependency>
                 <groupId>com.microsoft.playwright</groupId>
