@@ -716,8 +716,9 @@ class LifecycleTest(unittest.TestCase):
         self.assertIn("--alias", command)
         environment = MODULE.runtime_environment({
             "PATH": "p", "SystemRoot": "w", "TEMP": "t", "TMP": "u", "LD_LIBRARY_PATH": "l",
-            "DYLD_LIBRARY_PATH": "d", "AWS_SECRET_ACCESS_KEY": "fixture-value", "AZURE_CLIENT_SECRET": "fixture-value",
-            "GOOGLE_APPLICATION_CREDENTIALS": "fixture-value", "DATABASE_URL": "fixture-value", "CI_JOB_TOKEN": "fixture-value",
+            "DYLD_LIBRARY_PATH": "d", "AWS_SECRET_ACCESS_KEY": "excluded",  # nosec B105 - credential-filter fixture.
+            "AZURE_CLIENT_SECRET": "excluded",  # nosec B105 - credential-filter fixture.
+            "GOOGLE_APPLICATION_CREDENTIALS": "excluded", "DATABASE_URL": "excluded", "CI_JOB_TOKEN": "excluded",  # nosec B105 - credential-filter fixture.
         })
         self.assertEqual("w", environment["SystemRoot"])
         self.assertEqual("t", environment["TEMP"])
@@ -814,10 +815,6 @@ class LifecycleTest(unittest.TestCase):
             self.assertTrue(Path(result["runtimeExecutable"]).is_file())
 
     def test_rollback_and_clean_preserve_concurrent_unknown_paths_after_extraction(self):
-        import hashlib
-        import io
-        import zipfile
-
         archive_buffer = io.BytesIO()
         with zipfile.ZipFile(archive_buffer, "w") as archive:
             archive.writestr("bin/llama-server.exe", b"server")

@@ -342,13 +342,13 @@ def _contained(root: Path, member: str) -> bool:
         return False
 
 
-def safe_extract(
+def safe_extract(  # noqa: MC0001  # ZIP and tar share one validation/publication boundary.
     archive_path: Path,
     destination: Path,
     *,
     maximum_members: int = MAXIMUM_ARCHIVE_MEMBERS,
     maximum_expanded_bytes: int = MAXIMUM_EXPANDED_BYTES,
-) -> dict[str, list[Path]]:  # noqa: MC0001  # ZIP and tar share one validation/publication boundary.
+) -> dict[str, list[Path]]:
     """Extract ZIP/tar only after every member is proven regular and contained."""
     if destination.exists():
         raise ValueError(f"Extraction destination already exists: {destination}")
@@ -1053,14 +1053,14 @@ def provision(
         return _provision_locked(manifest, hardware, runtime, model, cache, opener)
 
 
-def _provision_locked(
+def _provision_locked(  # noqa: MC0001  # One locked transaction owns preflight, mutation, ownership, and rollback.
     manifest: dict[str, Any],
     hardware: dict[str, Any],
     runtime: dict[str, Any],
     model: dict[str, Any],
     cache: Path,
     opener,
-) -> dict[str, Any]:  # noqa: MC0001  # One locked transaction owns preflight, mutation, ownership, and rollback.
+) -> dict[str, Any]:
     runtime_archive = cache_path(cache, "downloads", runtime["file"])
     runtime_root = cache_path(cache, "runtime", manifest["runtime"]["version"], runtime["platform"])
     model_path = cache_path(cache, "models", model["id"], model["file"])
@@ -1334,13 +1334,13 @@ def _markdown_result(result: dict[str, Any]) -> str:
     )
 
 
-def benchmark(
+def benchmark(  # noqa: MC0001  # One lifecycle preserves primary errors and atomic evidence across all phases.
     manifest_path: Path,
     corpus_path: Path,
     cache: Path,
     requested_model: str,
     repeats: int,
-) -> dict[str, Any]:  # noqa: MC0001  # One lifecycle preserves primary errors and atomic evidence across all phases.
+) -> dict[str, Any]:
     if repeats < 5:
         raise ValueError("Benchmark requires at least five repeats per case")
     corpus = load_corpus(corpus_path)
