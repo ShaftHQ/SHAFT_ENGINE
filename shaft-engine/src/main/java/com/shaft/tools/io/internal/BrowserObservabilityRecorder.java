@@ -554,10 +554,6 @@ public final class BrowserObservabilityRecorder {
                 """.formatted(networkJson == null || networkJson.isBlank() ? "[]" : networkJson);
     }
 
-    private static boolean isNetworkEnabled() {
-        return isTraceEnabled() && SHAFT.Properties.reporting.traceIncludeNetwork();
-    }
-
     private static boolean isConsoleEnabled() {
         return isTraceEnabled() && SHAFT.Properties.reporting.traceIncludeConsole();
     }
@@ -766,7 +762,6 @@ public final class BrowserObservabilityRecorder {
         }
         private synchronized List<NetworkEvent> networkSnapshot() { return List.copyOf(network); }
         private synchronized List<ConsoleEvent> consoleSnapshot() { return List.copyOf(console); }
-        private synchronized List<WarningEvent> warningSnapshot() { return effectiveWarnings(); }
         private synchronized List<NetworkEvent> takeNetwork() {
             List<NetworkEvent> result = List.copyOf(network);
             network.clear();
@@ -803,9 +798,7 @@ public final class BrowserObservabilityRecorder {
                     "A network exchange was omitted because the in-flight session limit was reached."));
             return List.copyOf(result);
         }
-        private synchronized void clearNetwork() { network.clear(); nextNetworkId = 0; }
         private synchronized void clearConsole() { console.clear(); }
-        private synchronized void clearWarnings() { warnings.clear(); }
 
         @Override
         public synchronized void close() {
