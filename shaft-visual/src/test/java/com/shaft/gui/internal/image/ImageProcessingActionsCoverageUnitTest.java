@@ -301,6 +301,29 @@ public class ImageProcessingActionsCoverageUnitTest {
     }
 
     @Test
+    public void typedImageMatchingShouldKeepOverlappingOccurrencesAtDifferentScales() {
+        BufferedImage targetImage = createReferenceTarget(20, 16);
+        BufferedImage screenshotImage = createImage(90, 60, Color.WHITE);
+        Graphics2D graphics = screenshotImage.createGraphics();
+        graphics.drawImage(targetImage, 18, 10, 30, 24, null);
+        graphics.drawImage(targetImage, 10, 10, null);
+        graphics.dispose();
+
+        List<ImageMatch> matches = new OpenCvVisualProcessingProvider().findImageMatches(
+                ImageTarget.fromBytes(encodePng(targetImage)).minimumConfidence(0.70), encodePng(screenshotImage));
+
+        ImageRectangle smallExpected = new ImageRectangle(10, 10, 20, 16);
+        ImageRectangle largeExpected = new ImageRectangle(18, 10, 30, 24);
+        Assert.assertTrue(matches.size() >= 2, matches.toString());
+        Assert.assertTrue(java.util.stream.IntStream.range(0, matches.size()).anyMatch(firstIndex ->
+                java.util.stream.IntStream.range(0, matches.size()).anyMatch(secondIndex ->
+                        firstIndex != secondIndex
+                                && intersectionOverUnion(matches.get(firstIndex).bounds(), smallExpected) >= 0.50
+                                && intersectionOverUnion(matches.get(secondIndex).bounds(), largeExpected) >= 0.50)),
+                matches.toString());
+    }
+
+    @Test
     public void typedImageMatchingShouldHonorSearchRegionAndOccurrence() {
         BufferedImage targetImage = createReferenceTarget(20, 16);
         BufferedImage screenshotImage = createImage(100, 70, Color.WHITE);
@@ -760,6 +783,16 @@ public class ImageProcessingActionsCoverageUnitTest {
 
     private static byte[] createPng(int width, int height, Color color) {
         return encodePng(createImage(width, height, color));
+    }
+
+    private static double intersectionOverUnion(ImageRectangle first, ImageRectangle second) {
+        int left = Math.max(first.x(), second.x());
+        int top = Math.max(first.y(), second.y());
+        int right = Math.min(first.x() + first.width(), second.x() + second.width());
+        int bottom = Math.min(first.y() + first.height(), second.y() + second.height());
+        long intersection = (long) Math.max(0, right - left) * Math.max(0, bottom - top);
+        long union = (long) first.width() * first.height() + (long) second.width() * second.height() - intersection;
+        return (double) intersection / union;
     }
 
     private static byte[] createPatternPng(int width, int height, int x, int y, int cropWidth, int cropHeight, Color cropColor) {

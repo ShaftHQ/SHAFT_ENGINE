@@ -4,9 +4,13 @@ import com.google.common.collect.ImmutableMap;
 import com.shaft.driver.SHAFT;
 import com.shaft.gui.driver.MobileRecordingOptions;
 import com.shaft.gui.element.TouchActions;
+import com.shaft.gui.image.ImageMatchingMode;
+import com.shaft.gui.image.ImageTarget;
+import com.shaft.gui.ocr.OcrTarget;
 import io.appium.java_client.AppiumBy;
 import io.appium.java_client.android.AndroidDriver;
 import org.openqa.selenium.By;
+import org.openqa.selenium.OutputType;
 import org.openqa.selenium.WebDriverException;
 import org.testng.Assert;
 import org.testng.annotations.Test;
@@ -202,6 +206,55 @@ public class AndroidBasicInteractionsTests extends MobileTest {
                 .tap(By.xpath("//android.widget.HorizontalScrollView//android.widget.TextView[@text='TAB 12']"))
                 .swipeElementIntoView(By.xpath("//android.widget.HorizontalScrollView"), By.xpath("//android.widget.HorizontalScrollView//android.widget.TextView[@text='TAB 1']"), TouchActions.SwipeDirection.LEFT)
                 .assertThat(By.xpath("//android.widget.HorizontalScrollView//android.widget.TextView[@text='TAB 1']")).exists();
+    }
+
+    /** Opt-in real-device proof for screenshot and OCR scrolling in both axes. */
+    @Test(groups = {"ApiDemosDebug", "visual-ocr-mobile-acceptance"})
+    public void visualAndOcrTargetsShouldScrollVerticallyThroughNativeControls() {
+        By group1 = By.xpath("//android.widget.TextView[@text='Group 1']");
+        By group18 = By.xpath("//android.widget.TextView[@text='Group 18']");
+        driver.get().touch()
+                .swipeElementIntoView(AppiumBy.accessibilityId("Views"), TouchActions.SwipeDirection.DOWN)
+                .tap(AppiumBy.accessibilityId("Views"))
+                .swipeElementIntoView(AppiumBy.accessibilityId("Expandable Lists"), TouchActions.SwipeDirection.DOWN)
+                .tap(AppiumBy.accessibilityId("Expandable Lists"))
+                .tap(AppiumBy.accessibilityId("3. Simple Adapter"));
+
+        byte[] group1Screenshot = driver.get().getDriver().findElement(group1).getScreenshotAs(OutputType.BYTES);
+        driver.get().touch()
+                .swipeElementIntoView(group18, TouchActions.SwipeDirection.DOWN)
+                .swipeElementIntoView(ImageTarget.fromBytes(group1Screenshot).matchingMode(ImageMatchingMode.AUTO),
+                        TouchActions.SwipeDirection.UP);
+        Assert.assertTrue(driver.get().getDriver().findElement(group1).isDisplayed());
+
+        driver.get().touch().swipeElementIntoView(OcrTarget.exact("Group 18"), TouchActions.SwipeDirection.DOWN);
+        Assert.assertTrue(driver.get().getDriver().findElement(group18).isDisplayed());
+    }
+
+    /** Opt-in real-device proof for screenshot and OCR scrolling inside a horizontal native control. */
+    @Test(groups = {"ApiDemosDebug", "visual-ocr-mobile-acceptance"})
+    public void visualAndOcrTargetsShouldScrollHorizontallyInsideNativeControl() {
+        By tabs = By.xpath("//android.widget.HorizontalScrollView");
+        By tab1 = By.xpath("//android.widget.HorizontalScrollView//android.widget.TextView[@text='TAB 1']");
+        By tab12 = By.xpath("//android.widget.HorizontalScrollView//android.widget.TextView[@text='TAB 12']");
+        driver.get().touch()
+                .swipeElementIntoView(AppiumBy.accessibilityId("Views"), TouchActions.SwipeDirection.DOWN)
+                .tap(AppiumBy.accessibilityId("Views"))
+                .swipeElementIntoView(AppiumBy.accessibilityId("Tabs"), TouchActions.SwipeDirection.DOWN)
+                .tap(AppiumBy.accessibilityId("Tabs"))
+                .swipeElementIntoView(AppiumBy.accessibilityId("5. Scrollable"), TouchActions.SwipeDirection.DOWN)
+                .tap(AppiumBy.accessibilityId("5. Scrollable"));
+
+        byte[] tab1Screenshot = driver.get().getDriver().findElement(tab1).getScreenshotAs(OutputType.BYTES);
+        driver.get().touch()
+                .swipeElementIntoView(tabs, tab12, TouchActions.SwipeDirection.RIGHT)
+                .swipeElementIntoView(tabs,
+                        ImageTarget.fromBytes(tab1Screenshot).matchingMode(ImageMatchingMode.AUTO),
+                        TouchActions.SwipeDirection.LEFT);
+        Assert.assertTrue(driver.get().getDriver().findElement(tab1).isDisplayed());
+
+        driver.get().touch().swipeElementIntoView(tabs, OcrTarget.exact("TAB 12"), TouchActions.SwipeDirection.RIGHT);
+        Assert.assertTrue(driver.get().getDriver().findElement(tab12).isDisplayed());
     }
 
     @Test(groups = {"ApiDemosDebug"})

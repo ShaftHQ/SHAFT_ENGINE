@@ -578,13 +578,33 @@ public class OpenCvVisualProcessingProvider implements VisualProcessingProvider 
                 .sorted(Comparator.comparingDouble(RichTemplateMatch::confidence).reversed()
                         .thenComparingDouble(match -> Math.abs(1.0 - match.scale())))
                 .forEach(candidate -> {
-                    boolean overlaps = retained.stream().anyMatch(existing -> intersectionOverUnion(
-                            candidate.bounds(), existing.bounds()) >= 0.30);
+                    boolean overlaps = retained.stream().anyMatch(existing -> {
+                        ImageRectangle candidateBounds = candidate.bounds();
+                        ImageRectangle existingBounds = existing.bounds();
+                        long intersection = intersectionArea(candidateBounds, existingBounds);
+                        long smallerArea = Math.min((long) candidateBounds.width() * candidateBounds.height(),
+                                (long) existingBounds.width() * existingBounds.height());
+                        double centerDistance = Math.hypot(candidateBounds.centerX() - existingBounds.centerX(),
+                                candidateBounds.centerY() - existingBounds.centerY());
+                        double largerDiagonal = Math.hypot(Math.max(candidateBounds.width(), existingBounds.width()),
+                                Math.max(candidateBounds.height(), existingBounds.height()));
+                        return intersectionOverUnion(candidateBounds, existingBounds) >= 0.30
+                                || (smallerArea > 0 && (double) intersection / smallerArea >= 0.60
+                                && centerDistance <= largerDiagonal * 0.30);
+                    });
                     if (!overlaps) {
                         retained.add(candidate);
                     }
                 });
         return retained;
+    }
+
+    private static long intersectionArea(ImageRectangle first, ImageRectangle second) {
+        int left = Math.max(first.x(), second.x());
+        int top = Math.max(first.y(), second.y());
+        int right = Math.min(first.x() + first.width(), second.x() + second.width());
+        int bottom = Math.min(first.y() + first.height(), second.y() + second.height());
+        return (long) Math.max(0, right - left) * Math.max(0, bottom - top);
     }
 
     private static List<RichTemplateMatch> findFeatureMatches(Mat searchImage, Mat reference, double threshold) {

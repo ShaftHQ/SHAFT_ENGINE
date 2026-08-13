@@ -3,10 +3,13 @@ package testPackage.appium;
 import com.shaft.driver.SHAFT;
 import com.shaft.gui.element.ElementActions;
 import com.shaft.gui.driver.MobileRecordingOptions;
+import com.shaft.gui.image.ImageTarget;
+import com.shaft.gui.ocr.OcrTarget;
 import com.shaft.properties.internal.Properties;
 import com.shaft.validation.Validations;
 import io.appium.java_client.AppiumBy;
 import org.openqa.selenium.Platform;
+import org.openqa.selenium.OutputType;
 import org.openqa.selenium.WebDriverException;
 import org.testng.SkipException;
 import org.testng.Assert;
@@ -32,6 +35,24 @@ public class IOSBasicInteractionsTest {
                 .element(driver.get().getDriver(), AppiumBy.accessibilityId("Text Output"))
                 .text()
                 .isEqualTo("hello@browserstack.com")
+                .perform();
+    }
+
+    /** Opt-in real-device proof that iOS can interact through device screenshots and OCR text. */
+    @Test(groups = {"visual-ocr-mobile-acceptance"})
+    public void visualAndOcrTargetsShouldInteractWithNativeControls() {
+        byte[] buttonScreenshot = driver.get().getDriver().findElement(AppiumBy.accessibilityId("Text Button"))
+                .getScreenshotAs(OutputType.BYTES);
+
+        driver.get().touch()
+                .tap(ImageTarget.fromBytes(buttonScreenshot))
+                .tap(OcrTarget.exact("Text Input"));
+        driver.get().element().type(AppiumBy.accessibilityId("Text Input"), "visual ocr ios" + "\n");
+
+        Validations.assertThat()
+                .element(driver.get().getDriver(), AppiumBy.accessibilityId("Text Output"))
+                .text()
+                .isEqualTo("visual ocr ios")
                 .perform();
     }
 
