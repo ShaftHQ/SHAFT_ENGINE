@@ -8,6 +8,7 @@ import com.shaft.gui.element.internal.ElementActionsHelper;
 import com.shaft.gui.image.ImageMatchingMode;
 import com.shaft.gui.image.ImageRectangle;
 import com.shaft.gui.image.ImageTarget;
+import com.shaft.gui.internal.image.ImageProcessingActions;
 import com.shaft.gui.internal.image.ScreenshotManager;
 import com.shaft.properties.internal.Properties;
 import com.shaft.tools.io.ReportManager;
@@ -161,9 +162,12 @@ public class AndroidTouchActionsCoverageUnitTest {
         injectElementActionsHelper(touchActions, elementActionsHelper);
         byte[] screenshot = Files.readAllBytes(Path.of("src", "test", "resources", "testDataFiles", "youtube.png"));
 
-        try (MockedConstruction<ScreenshotManager> screenshots = org.mockito.Mockito.mockConstruction(
+        try (MockedStatic<ImageProcessingActions> imageProcessing = mockStatic(ImageProcessingActions.class);
+             MockedConstruction<ScreenshotManager> screenshots = org.mockito.Mockito.mockConstruction(
                 ScreenshotManager.class,
                 (manager, context) -> when(manager.takeViewportScreenshot(driver)).thenReturn(screenshot))) {
+            imageProcessing.when(() -> ImageProcessingActions.findImageWithinCurrentPage(any(ImageTarget.class),
+                    any(byte[].class))).thenReturn(java.util.Optional.empty());
             touchActions.tap(ImageTarget.fromBytes(screenshot).minimumConfidence(0.93));
         }
 

@@ -319,7 +319,8 @@ class MobileRecordingAcceptanceWorkflowContractTest(unittest.TestCase):
             argument for argument in broad_arguments if argument.startswith("-Dsurefire.excludedGroups=")
         ]
         self.assertEqual(
-            [f"-Dsurefire.excludedGroups=allure3-visual-demo,{compatible_group},mobile-evidence-real-provider"],
+            [f"-Dsurefire.excludedGroups=allure3-visual-demo,{compatible_group},mobile-evidence-real-provider,"
+             "visual-ocr-mobile-acceptance"],
             exclusions,
         )
         positive_methods = [
@@ -508,6 +509,7 @@ class MobileEvidenceAcceptanceWorkflowContractTest(unittest.TestCase):
         exclusions = [arg for arg in broad_arguments if arg.startswith("-Dsurefire.excludedGroups=")]
         self.assertEqual(
             ["-Dsurefire.excludedGroups=allure3-visual-demo,"
-             "mobile-recording-compatible-provider,mobile-evidence-real-provider"],
+             "mobile-recording-compatible-provider,mobile-evidence-real-provider,"
+             "visual-ocr-mobile-acceptance"],
             exclusions,
         )
