@@ -58,6 +58,7 @@
 <li><a href="#findImageWithinCurrentPage(java.lang.String,byte%5B%5D)" tabindex="0">findImageWithinCurrentPage(String, byte[])</a></li>
 <li><a href="#compareAgainstBaseline(org.openqa.selenium.WebDriver,org.openqa.selenium.By,byte%5B%5D,com.shaft.gui.internal.image.ImageProcessingActions.VisualValidationEngine,java.lang.String,java.lang.String)" tabindex="0">compareAgainstBaseline(WebDriver, By, byte[], ImageProcessingActions.VisualValidationEngine, String, String)</a></li>
 <li><a href="#compareAgainstBaseline(java.lang.String,byte%5B%5D,com.shaft.gui.internal.image.ImageProcessingActions.VisualValidationEngine,java.lang.String,java.lang.String)" tabindex="0">compareAgainstBaseline(String, byte[], ImageProcessingActions.VisualValidationEngine, String, String)</a></li>
+<li><a href="#findImageMatches(com.shaft.gui.image.ImageTarget,byte%5B%5D)" tabindex="0">findImageMatches(ImageTarget, byte[])</a></li>
 <li><a href="#compareScreenshotAgainstBaseline(byte%5B%5D,byte%5B%5D,java.util.List,java.lang.Integer,java.lang.Double)" tabindex="0">compareScreenshotAgainstBaseline(byte[], byte[], List, Integer, Double)</a></li>
 <li><a href="#load()" tabindex="0">load()</a></li>
 </ol>
@@ -143,13 +144,17 @@ implements <a href="https://shafthq.github.io/apidocs/com/shaft/gui/internal/ima
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Integer.html" title="class or interface in java.lang" class="external-link">Integer</a>&nbsp;maxDiffPixels,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Double.html" title="class or interface in java.lang" class="external-link">Double</a>&nbsp;maxDiffPixelRatio)</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a><wbr>&lt;<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Integer.html" title="class or interface in java.lang" class="external-link">Integer</a>&gt;</code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#findImageWithinCurrentPage(java.lang.String,byte%5B%5D)" class="member-name-link">findImageWithinCurrentPage</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;referenceImagePath,
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a><wbr>&lt;<a href="https://shafthq.github.io/apidocs/com/shaft/gui/image/ImageMatch.html" title="class or interface in com.shaft.gui.image" class="external-link">ImageMatch</a>&gt;</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#findImageMatches(com.shaft.gui.image.ImageTarget,byte%5B%5D)" class="member-name-link">findImageMatches</a><wbr>(<a href="https://shafthq.github.io/apidocs/com/shaft/gui/image/ImageTarget.html" title="class or interface in com.shaft.gui.image" class="external-link">ImageTarget</a>&nbsp;target,
  byte[]&nbsp;currentPageScreenshot)</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>void</code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#load()" class="member-name-link">load</a>()</code></div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a><wbr>&lt;<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Integer.html" title="class or interface in java.lang" class="external-link">Integer</a>&gt;</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#findImageWithinCurrentPage(java.lang.String,byte%5B%5D)" class="member-name-link">findImageWithinCurrentPage</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;referenceImagePath,
+ byte[]&nbsp;currentPageScreenshot)</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>void</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#load()" class="member-name-link">load</a>()</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
 </div>
 </div>
 </div>
@@ -225,6 +230,19 @@ implements <a href="https://shafthq.github.io/apidocs/com/shaft/gui/internal/ima
 <dl class="notes">
 <dt>Specified by:</dt>
 <dd><code><a href="https://shafthq.github.io/apidocs/com/shaft/gui/internal/image/VisualProcessingProvider.html#compareAgainstBaseline(java.lang.String,byte%5B%5D,com.shaft.gui.internal.image.ImageProcessingActions.VisualValidationEngine,java.lang.String,java.lang.String)" title="class or interface in com.shaft.gui.internal.image" class="external-link">compareAgainstBaseline</a></code>&nbsp;in interface&nbsp;<code><a href="https://shafthq.github.io/apidocs/com/shaft/gui/internal/image/VisualProcessingProvider.html" title="class or interface in com.shaft.gui.internal.image" class="external-link">VisualProcessingProvider</a></code></dd>
+</dl>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="findImageMatches(com.shaft.gui.image.ImageTarget,byte[])">
+<h3>findImageMatches</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="https://shafthq.github.io/apidocs/com/shaft/gui/image/ImageMatch.html" title="class or interface in com.shaft.gui.image" class="external-link">ImageMatch</a>&gt;</span>&nbsp;<span class="element-name">findImageMatches</span><wbr><span class="parameters">(<a href="https://shafthq.github.io/apidocs/com/shaft/gui/image/ImageTarget.html" title="class or interface in com.shaft.gui.image" class="external-link">ImageTarget</a>&nbsp;target,
+ byte[]&nbsp;currentPageScreenshot)</span></div>
+<dl class="notes">
+<dt>Specified by:</dt>
+<dd><code><a href="https://shafthq.github.io/apidocs/com/shaft/gui/internal/image/VisualProcessingProvider.html#findImageMatches(com.shaft.gui.image.ImageTarget,byte%5B%5D)" title="class or interface in com.shaft.gui.internal.image" class="external-link">findImageMatches</a></code>&nbsp;in interface&nbsp;<code><a href="https://shafthq.github.io/apidocs/com/shaft/gui/internal/image/VisualProcessingProvider.html" title="class or interface in com.shaft.gui.internal.image" class="external-link">VisualProcessingProvider</a></code></dd>
 </dl>
 </div>
 </section>

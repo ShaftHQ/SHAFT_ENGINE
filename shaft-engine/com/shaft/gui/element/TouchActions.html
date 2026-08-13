@@ -64,6 +64,8 @@
 <li><a href="#nativeKeyboardKeyPress(java.lang.String)" tabindex="0">nativeKeyboardKeyPress(String)</a></li>
 <li><a href="#hideNativeKeyboard()" tabindex="0">hideNativeKeyboard()</a></li>
 <li><a href="#tap(java.lang.String)" tabindex="0">tap(String)</a></li>
+<li><a href="#tap(com.shaft.gui.image.ImageTarget)" tabindex="0">tap(ImageTarget)</a></li>
+<li><a href="#tap(com.shaft.gui.ocr.OcrTarget)" tabindex="0">tap(OcrTarget)</a></li>
 <li><a href="#type(java.lang.String,java.lang.CharSequence...)" tabindex="0">type(String, CharSequence...)</a></li>
 <li><a href="#tap(org.openqa.selenium.By)" tabindex="0">tap(By)</a></li>
 <li><a href="#tapByCoordinates(int,int)" tabindex="0">tapByCoordinates(int, int)</a></li>
@@ -85,6 +87,10 @@
 <li><a href="#waitUntilElementIsVisible(java.lang.String)" tabindex="0">waitUntilElementIsVisible(String)</a></li>
 <li><a href="#waitUntilElementIsNotVisible(java.lang.String)" tabindex="0">waitUntilElementIsNotVisible(String)</a></li>
 <li><a href="#swipeElementIntoView(java.lang.String,com.shaft.gui.element.TouchActions.SwipeDirection)" tabindex="0">swipeElementIntoView(String, TouchActions.SwipeDirection)</a></li>
+<li><a href="#swipeElementIntoView(com.shaft.gui.image.ImageTarget,com.shaft.gui.element.TouchActions.SwipeDirection)" tabindex="0">swipeElementIntoView(ImageTarget, TouchActions.SwipeDirection)</a></li>
+<li><a href="#swipeElementIntoView(org.openqa.selenium.By,com.shaft.gui.image.ImageTarget,com.shaft.gui.element.TouchActions.SwipeDirection)" tabindex="0">swipeElementIntoView(By, ImageTarget, TouchActions.SwipeDirection)</a></li>
+<li><a href="#swipeElementIntoView(com.shaft.gui.ocr.OcrTarget,com.shaft.gui.element.TouchActions.SwipeDirection)" tabindex="0">swipeElementIntoView(OcrTarget, TouchActions.SwipeDirection)</a></li>
+<li><a href="#swipeElementIntoView(org.openqa.selenium.By,com.shaft.gui.ocr.OcrTarget,com.shaft.gui.element.TouchActions.SwipeDirection)" tabindex="0">swipeElementIntoView(By, OcrTarget, TouchActions.SwipeDirection)</a></li>
 <li><a href="#swipeElementIntoView(org.openqa.selenium.By,java.lang.String,com.shaft.gui.element.TouchActions.SwipeDirection)" tabindex="0">swipeElementIntoView(By, String, TouchActions.SwipeDirection)</a></li>
 <li><a href="#swipeElementIntoView(org.openqa.selenium.By,org.openqa.selenium.By,com.shaft.gui.element.TouchActions.SwipeDirection)" tabindex="0">swipeElementIntoView(By, By, TouchActions.SwipeDirection)</a></li>
 <li><a href="#swipeElementIntoView(java.lang.String)" tabindex="0">swipeElementIntoView(String)</a></li>
@@ -355,6 +361,18 @@ the same device/app configuration without re-resolving it.</div>
 <div class="block">Swipes an element with the desired x and y offset.</div>
 </div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="TouchActions.html" title="class in com.shaft.gui.element">TouchActions</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#swipeElementIntoView(com.shaft.gui.image.ImageTarget,com.shaft.gui.element.TouchActions.SwipeDirection)" class="member-name-link">swipeElementIntoView</a><wbr>(<a href="../image/ImageTarget.html" title="class in com.shaft.gui.image">ImageTarget</a>&nbsp;target,
+ <a href="TouchActions.SwipeDirection.html" title="enum class in com.shaft.gui.element">TouchActions.SwipeDirection</a>&nbsp;swipeDirection)</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Scrolls in any supported direction until a screenshot target is visible.</div>
+</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="TouchActions.html" title="class in com.shaft.gui.element">TouchActions</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#swipeElementIntoView(com.shaft.gui.ocr.OcrTarget,com.shaft.gui.element.TouchActions.SwipeDirection)" class="member-name-link">swipeElementIntoView</a><wbr>(<a href="../ocr/OcrTarget.html" title="class in com.shaft.gui.ocr">OcrTarget</a>&nbsp;target,
+ <a href="TouchActions.SwipeDirection.html" title="enum class in com.shaft.gui.element">TouchActions.SwipeDirection</a>&nbsp;swipeDirection)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Scrolls in any supported direction until OCR resolves the requested visible text.</div>
+</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="TouchActions.html" title="class in com.shaft.gui.element">TouchActions</a></code></div>
 <div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#swipeElementIntoView(java.lang.String)" class="member-name-link">swipeElementIntoView</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;targetText)</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Attempts to scroll element into view using androidUIAutomator</div>
@@ -382,6 +400,20 @@ the same device/app configuration without re-resolving it.</div>
  <a href="TouchActions.SwipeDirection.html" title="enum class in com.shaft.gui.element">TouchActions.SwipeDirection</a>&nbsp;swipeDirection)</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Attempts to scroll the element into view in case of native mobile elements.</div>
+</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="TouchActions.html" title="class in com.shaft.gui.element">TouchActions</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#swipeElementIntoView(org.openqa.selenium.By,com.shaft.gui.image.ImageTarget,com.shaft.gui.element.TouchActions.SwipeDirection)" class="member-name-link">swipeElementIntoView</a><wbr>(org.openqa.selenium.By&nbsp;scrollableElementLocator,
+ <a href="../image/ImageTarget.html" title="class in com.shaft.gui.image">ImageTarget</a>&nbsp;target,
+ <a href="TouchActions.SwipeDirection.html" title="enum class in com.shaft.gui.element">TouchActions.SwipeDirection</a>&nbsp;swipeDirection)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Scrolls inside a container in any supported direction until a screenshot target is visible.</div>
+</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="TouchActions.html" title="class in com.shaft.gui.element">TouchActions</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#swipeElementIntoView(org.openqa.selenium.By,com.shaft.gui.ocr.OcrTarget,com.shaft.gui.element.TouchActions.SwipeDirection)" class="member-name-link">swipeElementIntoView</a><wbr>(org.openqa.selenium.By&nbsp;scrollableElementLocator,
+ <a href="../ocr/OcrTarget.html" title="class in com.shaft.gui.ocr">OcrTarget</a>&nbsp;target,
+ <a href="TouchActions.SwipeDirection.html" title="enum class in com.shaft.gui.element">TouchActions.SwipeDirection</a>&nbsp;swipeDirection)</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Scrolls inside a container in any supported direction until OCR resolves the visible text.</div>
 </div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="TouchActions.html" title="class in com.shaft.gui.element">TouchActions</a></code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#swipeElementIntoView(org.openqa.selenium.By,java.lang.String)" class="member-name-link">swipeElementIntoView</a><wbr>(org.openqa.selenium.By&nbsp;targetElementLocator,
@@ -420,6 +452,16 @@ screen</div>
  <a href="TouchActions.SwipeDirection.html" title="enum class in com.shaft.gui.element">TouchActions.SwipeDirection</a>&nbsp;swipeDirection)</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Swipes inside a scrollable element until it can no longer scroll in the requested direction.</div>
+</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="TouchActions.html" title="class in com.shaft.gui.element">TouchActions</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#tap(com.shaft.gui.image.ImageTarget)" class="member-name-link">tap</a><wbr>(<a href="../image/ImageTarget.html" title="class in com.shaft.gui.image">ImageTarget</a>&nbsp;target)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Taps a target resolved locally from the current screenshot, with Appium Images as a capability fallback.</div>
+</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="TouchActions.html" title="class in com.shaft.gui.element">TouchActions</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#tap(com.shaft.gui.ocr.OcrTarget)" class="member-name-link">tap</a><wbr>(<a href="../ocr/OcrTarget.html" title="class in com.shaft.gui.ocr">OcrTarget</a>&nbsp;target)</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Taps visible text resolved from a screenshot by the configured OCR provider.</div>
 </div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="TouchActions.html" title="class in com.shaft.gui.element">TouchActions</a></code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#tap(java.lang.String)" class="member-name-link">tap</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;elementReferenceScreenshot)</code></div>
@@ -631,6 +673,24 @@ natural language.
 <dt>Returns:</dt>
 <dd>a self-reference to be used to chain actions</dd>
 </dl>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="tap(com.shaft.gui.image.ImageTarget)">
+<h3>tap</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="TouchActions.html" title="class in com.shaft.gui.element">TouchActions</a></span>&nbsp;<span class="element-name">tap</span><wbr><span class="parameters">(<a href="../image/ImageTarget.html" title="class in com.shaft.gui.image">ImageTarget</a>&nbsp;target)</span></div>
+<div class="block">Taps a target resolved locally from the current screenshot, with Appium Images as a capability fallback.</div>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="tap(com.shaft.gui.ocr.OcrTarget)">
+<h3>tap</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="TouchActions.html" title="class in com.shaft.gui.element">TouchActions</a></span>&nbsp;<span class="element-name">tap</span><wbr><span class="parameters">(<a href="../ocr/OcrTarget.html" title="class in com.shaft.gui.ocr">OcrTarget</a>&nbsp;target)</span></div>
+<div class="block">Taps visible text resolved from a screenshot by the configured OCR provider.</div>
 </div>
 </section>
 </li>
@@ -1024,6 +1084,48 @@ is determined by the value of the offset.</div>
 <dt>Returns:</dt>
 <dd>a self-reference to be used to chain actions</dd>
 </dl>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="swipeElementIntoView(com.shaft.gui.image.ImageTarget,com.shaft.gui.element.TouchActions.SwipeDirection)">
+<h3>swipeElementIntoView</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="TouchActions.html" title="class in com.shaft.gui.element">TouchActions</a></span>&nbsp;<span class="element-name">swipeElementIntoView</span><wbr><span class="parameters">(<a href="../image/ImageTarget.html" title="class in com.shaft.gui.image">ImageTarget</a>&nbsp;target,
+ <a href="TouchActions.SwipeDirection.html" title="enum class in com.shaft.gui.element">TouchActions.SwipeDirection</a>&nbsp;swipeDirection)</span></div>
+<div class="block">Scrolls in any supported direction until a screenshot target is visible.</div>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="swipeElementIntoView(org.openqa.selenium.By,com.shaft.gui.image.ImageTarget,com.shaft.gui.element.TouchActions.SwipeDirection)">
+<h3>swipeElementIntoView</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="TouchActions.html" title="class in com.shaft.gui.element">TouchActions</a></span>&nbsp;<span class="element-name">swipeElementIntoView</span><wbr><span class="parameters">(org.openqa.selenium.By&nbsp;scrollableElementLocator,
+ <a href="../image/ImageTarget.html" title="class in com.shaft.gui.image">ImageTarget</a>&nbsp;target,
+ <a href="TouchActions.SwipeDirection.html" title="enum class in com.shaft.gui.element">TouchActions.SwipeDirection</a>&nbsp;swipeDirection)</span></div>
+<div class="block">Scrolls inside a container in any supported direction until a screenshot target is visible.</div>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="swipeElementIntoView(com.shaft.gui.ocr.OcrTarget,com.shaft.gui.element.TouchActions.SwipeDirection)">
+<h3>swipeElementIntoView</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="TouchActions.html" title="class in com.shaft.gui.element">TouchActions</a></span>&nbsp;<span class="element-name">swipeElementIntoView</span><wbr><span class="parameters">(<a href="../ocr/OcrTarget.html" title="class in com.shaft.gui.ocr">OcrTarget</a>&nbsp;target,
+ <a href="TouchActions.SwipeDirection.html" title="enum class in com.shaft.gui.element">TouchActions.SwipeDirection</a>&nbsp;swipeDirection)</span></div>
+<div class="block">Scrolls in any supported direction until OCR resolves the requested visible text.</div>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="swipeElementIntoView(org.openqa.selenium.By,com.shaft.gui.ocr.OcrTarget,com.shaft.gui.element.TouchActions.SwipeDirection)">
+<h3>swipeElementIntoView</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="TouchActions.html" title="class in com.shaft.gui.element">TouchActions</a></span>&nbsp;<span class="element-name">swipeElementIntoView</span><wbr><span class="parameters">(org.openqa.selenium.By&nbsp;scrollableElementLocator,
+ <a href="../ocr/OcrTarget.html" title="class in com.shaft.gui.ocr">OcrTarget</a>&nbsp;target,
+ <a href="TouchActions.SwipeDirection.html" title="enum class in com.shaft.gui.element">TouchActions.SwipeDirection</a>&nbsp;swipeDirection)</span></div>
+<div class="block">Scrolls inside a container in any supported direction until OCR resolves the visible text.</div>
 </div>
 </section>
 </li>

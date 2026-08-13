@@ -52,6 +52,7 @@
 <li><a href="#compareImageFolders(java.lang.String,java.lang.String,double)" tabindex="0">compareImageFolders(String, String, double)</a></li>
 <li><a href="#highlightElementInScreenshot(byte%5B%5D,org.openqa.selenium.Rectangle,java.awt.Color)" tabindex="0">highlightElementInScreenshot(byte[], Rectangle, Color)</a></li>
 <li><a href="#findImageWithinCurrentPage(java.lang.String,byte%5B%5D)" tabindex="0">findImageWithinCurrentPage(String, byte[])</a></li>
+<li><a href="#findImageWithinCurrentPage(com.shaft.gui.image.ImageTarget,byte%5B%5D)" tabindex="0">findImageWithinCurrentPage(ImageTarget, byte[])</a></li>
 <li><a href="#formatElementLocatorToImagePath(org.openqa.selenium.By)" tabindex="0">formatElementLocatorToImagePath(By)</a></li>
 <li><a href="#formatElementLocatorToImagePath(java.lang.String)" tabindex="0">formatElementLocatorToImagePath(String)</a></li>
 <li><a href="#getReferenceImage(org.openqa.selenium.By)" tabindex="0">getReferenceImage(By)</a></li>
@@ -148,49 +149,55 @@ baseline using a pixel-level diff.</div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
 <div class="block">Compares an element's actual screenshot against its visual-regression baseline using a pixel-level diff.</div>
 </div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a><wbr>&lt;<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Integer.html" title="class or interface in java.lang" class="external-link">Integer</a>&gt;</code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#findImageWithinCurrentPage(java.lang.String,byte%5B%5D)" class="member-name-link">findImageWithinCurrentPage</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;referenceImagePath,
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/Optional.html" title="class or interface in java.util" class="external-link">Optional</a><wbr>&lt;<a href="../../image/ImageMatch.html" title="class in com.shaft.gui.image">ImageMatch</a>&gt;</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#findImageWithinCurrentPage(com.shaft.gui.image.ImageTarget,byte%5B%5D)" class="member-name-link">findImageWithinCurrentPage</a><wbr>(<a href="../../image/ImageTarget.html" title="class in com.shaft.gui.image">ImageTarget</a>&nbsp;target,
  byte[]&nbsp;currentPageScreenshot)</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">&nbsp;</div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#formatElementLocatorToImagePath(java.lang.String)" class="member-name-link">formatElementLocatorToImagePath</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;elementLocatorName)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
+<div class="block">Resolves a typed target in a screenshot.</div>
+</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a><wbr>&lt;<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Integer.html" title="class or interface in java.lang" class="external-link">Integer</a>&gt;</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#findImageWithinCurrentPage(java.lang.String,byte%5B%5D)" class="member-name-link">findImageWithinCurrentPage</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;referenceImagePath,
+ byte[]&nbsp;currentPageScreenshot)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">&nbsp;</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#formatElementLocatorToImagePath(java.lang.String)" class="member-name-link">formatElementLocatorToImagePath</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;elementLocatorName)</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
 <div class="block">Formats a backend-neutral locator description into the stable visual-baseline file-name hash used by SHAFT.</div>
 </div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#formatElementLocatorToImagePath(org.openqa.selenium.By)" class="member-name-link">formatElementLocatorToImagePath</a><wbr>(org.openqa.selenium.By&nbsp;elementLocator)</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
+<div class="col-first even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#formatElementLocatorToImagePath(org.openqa.selenium.By)" class="member-name-link">formatElementLocatorToImagePath</a><wbr>(org.openqa.selenium.By&nbsp;elementLocator)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
 <div class="block">Formats a Selenium locator into the stable visual-baseline file-name hash used by SHAFT.</div>
 </div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static byte[]</code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#getReferenceImage(java.lang.String)" class="member-name-link">getReferenceImage</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;elementLocatorName)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static byte[]</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#getReferenceImage(java.lang.String)" class="member-name-link">getReferenceImage</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;elementLocatorName)</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
 <div class="block">Reads the existing reference image for a backend-neutral locator, when present.</div>
 </div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static byte[]</code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#getReferenceImage(org.openqa.selenium.By)" class="member-name-link">getReferenceImage</a><wbr>(org.openqa.selenium.By&nbsp;elementLocator)</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
+<div class="col-first even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static byte[]</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#getReferenceImage(org.openqa.selenium.By)" class="member-name-link">getReferenceImage</a><wbr>(org.openqa.selenium.By&nbsp;elementLocator)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
 <div class="block">Reads the existing reference image for a Selenium locator, when present.</div>
 </div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static byte[]</code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#getShutterbugDifferencesImage(java.lang.String)" class="member-name-link">getShutterbugDifferencesImage</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;elementLocatorName)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static byte[]</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#getShutterbugDifferencesImage(java.lang.String)" class="member-name-link">getShutterbugDifferencesImage</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;elementLocatorName)</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
 <div class="block">Reads a generated Shutterbug differences image for a backend-neutral locator, when present.</div>
 </div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static byte[]</code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#getShutterbugDifferencesImage(org.openqa.selenium.By)" class="member-name-link">getShutterbugDifferencesImage</a><wbr>(org.openqa.selenium.By&nbsp;elementLocator)</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">&nbsp;</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static byte[]</code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#highlightElementInScreenshot(byte%5B%5D,org.openqa.selenium.Rectangle,java.awt.Color)" class="member-name-link">highlightElementInScreenshot</a><wbr>(byte[]&nbsp;targetScreenshot,
+<div class="col-second even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#getShutterbugDifferencesImage(org.openqa.selenium.By)" class="member-name-link">getShutterbugDifferencesImage</a><wbr>(org.openqa.selenium.By&nbsp;elementLocator)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">&nbsp;</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static byte[]</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#highlightElementInScreenshot(byte%5B%5D,org.openqa.selenium.Rectangle,java.awt.Color)" class="member-name-link">highlightElementInScreenshot</a><wbr>(byte[]&nbsp;targetScreenshot,
  org.openqa.selenium.Rectangle&nbsp;elementLocation,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.desktop/java/awt/Color.html" title="class or interface in java.awt" class="external-link">Color</a>&nbsp;highlightColor)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">&nbsp;</div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static void</code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#loadOpenCV()" class="member-name-link">loadOpenCV</a>()</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">&nbsp;</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static void</code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#loadOpenCVIfAvailable()" class="member-name-link">loadOpenCVIfAvailable</a>()</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
+<div class="col-second even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#loadOpenCV()" class="member-name-link">loadOpenCV</a>()</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">&nbsp;</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static void</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#loadOpenCVIfAvailable()" class="member-name-link">loadOpenCVIfAvailable</a>()</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
 <div class="block">Loads the optional visual processing provider when it is available.</div>
 </div>
 </div>
@@ -236,6 +243,23 @@ baseline using a pixel-level diff.</div>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="modifiers">public static</span>&nbsp;<span class="return-type"><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Integer.html" title="class or interface in java.lang" class="external-link">Integer</a>&gt;</span>&nbsp;<span class="element-name">findImageWithinCurrentPage</span><wbr><span class="parameters">(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;referenceImagePath,
  byte[]&nbsp;currentPageScreenshot)</span></div>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="findImageWithinCurrentPage(com.shaft.gui.image.ImageTarget,byte[])">
+<h3>findImageWithinCurrentPage</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public static</span>&nbsp;<span class="return-type"><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/Optional.html" title="class or interface in java.util" class="external-link">Optional</a>&lt;<a href="../../image/ImageMatch.html" title="class in com.shaft.gui.image">ImageMatch</a>&gt;</span>&nbsp;<span class="element-name">findImageWithinCurrentPage</span><wbr><span class="parameters">(<a href="../../image/ImageTarget.html" title="class in com.shaft.gui.image">ImageTarget</a>&nbsp;target,
+ byte[]&nbsp;currentPageScreenshot)</span></div>
+<div class="block">Resolves a typed target in a screenshot. An unspecified occurrence requires a unique match so repeated
+controls cannot be clicked nondeterministically.</div>
+<dl class="notes">
+<dt>Returns:</dt>
+<dd>the selected match, or empty when no requested occurrence is present</dd>
+<dt>Throws:</dt>
+<dd><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/IllegalStateException.html" title="class or interface in java.lang" class="external-link">IllegalStateException</a></code> - when an occurrence is not specified and more than one match is present</dd>
+</dl>
 </div>
 </section>
 </li>

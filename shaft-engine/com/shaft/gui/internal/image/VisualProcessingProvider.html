@@ -50,6 +50,7 @@
 <li><a href="#method-detail" tabindex="0">Method Details</a>
 <ol class="toc-list">
 <li><a href="#findImageWithinCurrentPage(java.lang.String,byte%5B%5D)" tabindex="0">findImageWithinCurrentPage(String, byte[])</a></li>
+<li><a href="#findImageMatches(com.shaft.gui.image.ImageTarget,byte%5B%5D)" tabindex="0">findImageMatches(ImageTarget, byte[])</a></li>
 <li><a href="#compareAgainstBaseline(org.openqa.selenium.WebDriver,org.openqa.selenium.By,byte%5B%5D,com.shaft.gui.internal.image.ImageProcessingActions.VisualValidationEngine,java.lang.String,java.lang.String)" tabindex="0">compareAgainstBaseline(WebDriver, By, byte[], ImageProcessingActions.VisualValidationEngine, String, String)</a></li>
 <li><a href="#compareAgainstBaseline(java.lang.String,byte%5B%5D,com.shaft.gui.internal.image.ImageProcessingActions.VisualValidationEngine,java.lang.String,java.lang.String)" tabindex="0">compareAgainstBaseline(String, byte[], ImageProcessingActions.VisualValidationEngine, String, String)</a></li>
 <li><a href="#load()" tabindex="0">load()</a></li>
@@ -132,15 +133,21 @@ SHAFT and JDK types. Providers are discovered through <a href="https://docs.orac
 <div class="block">Compares raw screenshot bytes against a baseline image using a pixel-level diff, honoring optional
 mask rectangles and diff budgets.</div>
 </div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a><wbr>&lt;<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Integer.html" title="class or interface in java.lang" class="external-link">Integer</a>&gt;</code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#findImageWithinCurrentPage(java.lang.String,byte%5B%5D)" class="member-name-link">findImageWithinCurrentPage</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;referenceImagePath,
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code>default <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a><wbr>&lt;<a href="../../image/ImageMatch.html" title="class in com.shaft.gui.image">ImageMatch</a>&gt;</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#findImageMatches(com.shaft.gui.image.ImageTarget,byte%5B%5D)" class="member-name-link">findImageMatches</a><wbr>(<a href="../../image/ImageTarget.html" title="class in com.shaft.gui.image">ImageTarget</a>&nbsp;target,
  byte[]&nbsp;currentPageScreenshot)</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5">
+<div class="block">Finds all confident, non-overlapping occurrences of a typed image target.</div>
+</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a><wbr>&lt;<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Integer.html" title="class or interface in java.lang" class="external-link">Integer</a>&gt;</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#findImageWithinCurrentPage(java.lang.String,byte%5B%5D)" class="member-name-link">findImageWithinCurrentPage</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;referenceImagePath,
+ byte[]&nbsp;currentPageScreenshot)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
 <div class="block">Finds a reference image within a page screenshot.</div>
 </div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code>void</code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#load()" class="member-name-link">load</a>()</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code>void</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#load()" class="member-name-link">load</a>()</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
 <div class="block">Loads any native libraries required by this provider.</div>
 </div>
 </div>
@@ -171,6 +178,19 @@ mask rectangles and diff budgets.</div>
 <dt>Returns:</dt>
 <dd>the matched x/y coordinates, or an empty list when no match is found</dd>
 </dl>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="findImageMatches(com.shaft.gui.image.ImageTarget,byte[])">
+<h3>findImageMatches</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">default</span>&nbsp;<span class="return-type"><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="../../image/ImageMatch.html" title="class in com.shaft.gui.image">ImageMatch</a>&gt;</span>&nbsp;<span class="element-name">findImageMatches</span><wbr><span class="parameters">(<a href="../../image/ImageTarget.html" title="class in com.shaft.gui.image">ImageTarget</a>&nbsp;target,
+ byte[]&nbsp;currentPageScreenshot)</span></div>
+<div class="block">Finds all confident, non-overlapping occurrences of a typed image target.
+
+<p>The compatibility implementation delegates path-backed targets to the legacy coordinate contract.
+Providers should override this method to supply true bounds, confidence, scale, and diagnostics.</p></div>
 </div>
 </section>
 </li>
