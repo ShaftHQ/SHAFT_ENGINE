@@ -3,10 +3,14 @@ package testPackage.appium;
 import com.shaft.driver.SHAFT;
 import com.shaft.gui.element.ElementActions;
 import com.shaft.gui.driver.MobileRecordingOptions;
+import com.shaft.gui.image.ImageTarget;
+import com.shaft.gui.ocr.OcrTarget;
 import com.shaft.properties.internal.Properties;
 import com.shaft.validation.Validations;
 import io.appium.java_client.AppiumBy;
+import io.appium.java_client.ios.IOSDriver;
 import org.openqa.selenium.Platform;
+import org.openqa.selenium.OutputType;
 import org.openqa.selenium.WebDriverException;
 import org.testng.SkipException;
 import org.testng.Assert;
@@ -32,6 +36,29 @@ public class IOSBasicInteractionsTest {
                 .element(driver.get().getDriver(), AppiumBy.accessibilityId("Text Output"))
                 .text()
                 .isEqualTo("hello@browserstack.com")
+                .perform();
+    }
+
+    /** Opt-in real-device proof that iOS can interact through device screenshots and OCR text. */
+    @Test(groups = {"visual-ocr-mobile-acceptance"})
+    public void visualAndOcrTargetsShouldInteractWithNativeControls() {
+        byte[] inputScreenshot = driver.get().getDriver().findElement(AppiumBy.accessibilityId("Text Input"))
+                .getScreenshotAs(OutputType.BYTES);
+
+        driver.get().touch()
+                .tap(ImageTarget.fromBytes(inputScreenshot));
+        Assert.assertEquals(driver.get().getDriver().switchTo().activeElement().getAttribute("name"), "Text Input");
+
+        ((IOSDriver) driver.get().getDriver()).hideKeyboard();
+        Assert.assertNotEquals(driver.get().getDriver().switchTo().activeElement().getAttribute("name"), "Text Input");
+        driver.get().touch().tap(OcrTarget.exact("Text Input"));
+        Assert.assertEquals(driver.get().getDriver().switchTo().activeElement().getAttribute("name"), "Text Input");
+        driver.get().element().type(AppiumBy.accessibilityId("Text Input"), "visual ocr ios" + "\n");
+
+        Validations.assertThat()
+                .element(driver.get().getDriver(), AppiumBy.accessibilityId("Text Output"))
+                .text()
+                .isEqualTo("visual ocr ios")
                 .perform();
     }
 
