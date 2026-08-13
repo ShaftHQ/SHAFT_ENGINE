@@ -172,7 +172,8 @@ public final class FailureTraceReporter {
         boolean suppressBrowserArtifacts = shouldOmitSensitiveBrowserEvidence()
                 || containsSensitiveThrowable(throwable);
         Snapshot snapshot = suppressBrowserArtifacts
-                ? new Snapshot("omitted-sensitive", "")
+                ? new Snapshot("none", "omitted", "omitted-sensitive",
+                "Browser snapshot was omitted at the sensitive-data boundary.", "omitted-sensitive", "", 0, false)
                 : snapshot();
         List<TraceEventRecorder.ActionEvent> actions = TraceEventRecorder.drain();
         Path nativeTrace = suppressBrowserArtifacts ? null : PlaywrightTraceManager.getLastTracePath();
@@ -237,8 +238,14 @@ public final class FailureTraceReporter {
         field(json, 2, "fileContent", source.fileContent(), false);
         objectEnd(json, 1, true);
         objectStart(json, 1, "snapshot");
+        field(json, 2, "provider", snapshot.provider(), true);
+        field(json, 2, "fidelity", snapshot.fidelity(), true);
+        field(json, 2, "status", snapshot.status(), true);
+        field(json, 2, "reason", snapshot.reason(), true);
         field(json, 2, "type", snapshot.type(), true);
-        field(json, 2, "content", snapshot.content(), false);
+        field(json, 2, "content", snapshot.content(), true);
+        field(json, 2, "byteCount", String.valueOf(snapshot.byteCount()), true);
+        field(json, 2, "truncated", String.valueOf(snapshot.truncated()), false);
         objectEnd(json, 1, true);
         rawObject(json, 1, "locatorHealth", locatorHealthJson(), true);
         objectStart(json, 1, "evidence");
@@ -1516,6 +1523,11 @@ public final class FailureTraceReporter {
         String html = renderTraceHtml(currentJson, omitted);
         int optionalEntries = manifest == null ? 0 : manifest.references().size();
         for (int pass = 0; pass <= optionalEntries; pass++) {
+            if (hasSnapshotContent(currentJson)
+                    && (utf8Size(currentJson) > maxEntryBytes || utf8Size(html) > maxEntryBytes)) {
+                currentJson = omitSnapshotForBudget(currentJson);
+                html = renderTraceHtml(currentJson, omitted);
+            }
             if (hasAvailablePlaywrightEvidence(currentJson)
                     && (utf8Size(currentJson) > maxEntryBytes || utf8Size(html) > maxEntryBytes)) {
                 currentJson = omitPlaywrightEvidenceForBudget(currentJson);
@@ -1548,6 +1560,14 @@ public final class FailureTraceReporter {
         }
     }
 
+    private static boolean hasSnapshotContent(String json) {
+        try {
+            return !JSON.readTree(json).path("snapshot").path("content").asText().isEmpty();
+        } catch (RuntimeException exception) {
+            return false;
+        }
+    }
+
     private static long utf8Size(String value) {
         return value.getBytes(StandardCharsets.UTF_8).length;
     }
@@ -1565,6 +1585,21 @@ public final class FailureTraceReporter {
         evidence.set("playwright", omitted);
         removePlaywrightCorrelationMetadata(evidence.path("actions"));
         removePlaywrightCorrelationMetadata(root.path("session").path("events"));
+        return JSON.writeValueAsString(root);
+    }
+
+    private static String omitSnapshotForBudget(String json) {
+        JsonNode parsed = JSON.readTree(json);
+        if (!(parsed instanceof ObjectNode root) || !(root.path("snapshot") instanceof ObjectNode snapshot)) {
+            return json;
+        }
+        snapshot.put("fidelity", "omitted");
+        snapshot.put("status", "omitted-budget");
+        snapshot.put("reason", "Browser snapshot exceeded the bounded report budget.");
+        snapshot.put("type", "omitted-budget");
+        snapshot.put("content", "");
+        snapshot.put("byteCount", "0");
+        snapshot.put("truncated", "false");
         return JSON.writeValueAsString(root);
     }
 
@@ -1805,26 +1840,41 @@ public final class FailureTraceReporter {
     private static Snapshot snapshot() {
         if (!SHAFT.Properties.reporting.traceIncludeFullPageSnapshots()
                 && !SHAFT.Properties.reporting.traceIncludeNativePageSource()) {
-            return new Snapshot("disabled", "");
+            return new Snapshot("none", "disabled", "disabled", "", "disabled", "", 0, false);
         }
         try {
             Page page = PlaywrightSessionManager.currentPage();
             if (page != null && SHAFT.Properties.reporting.traceIncludeFullPageSnapshots()) {
-                return new Snapshot("playwright-html", redact(page.content()));
+                return snapshot(SeleniumTraceCapture.fromContent("playwright", "structural", "playwright-html",
+                        page.content(), FailureTraceReporter::redactSourceText));
             }
         } catch (RuntimeException ignored) {
             // Snapshot collection is best-effort; trace generation must never hide the original failure.
         }
         WebDriver driver = DriverFactoryHelper.getActiveDriver();
         if (driver == null) {
-            return new Snapshot("unavailable", "No active browser or native driver was registered for this thread.");
+            return new Snapshot("none", "unavailable", "unavailable",
+                    "No active browser or native driver was registered for this thread.", "unavailable", "", 0, false);
         }
-        try {
-            return new Snapshot(DriverFactoryHelper.isMobileNativeExecution() ? "native-page-source" : "webdriver-page-source",
-                    redact(driver.getPageSource()));
-        } catch (RuntimeException e) {
-            return new Snapshot("unavailable", "Snapshot capture failed: " + e.getMessage());
+        if (DriverFactoryHelper.isMobileNativeExecution()) {
+            try {
+                return snapshot(SeleniumTraceCapture.fromContent("appium", "structural", "native-page-source",
+                        driver.getPageSource(), FailureTraceReporter::redactSourceText));
+            } catch (RuntimeException ignored) {
+                return new Snapshot("appium", "unavailable", "unavailable", "Snapshot capture failed.",
+                        "unavailable", "", 0, false);
+            }
         }
+        SeleniumTraceCapture.Result result = SeleniumTraceCapture.capture(driver,
+                FailureTraceReporter::redactSourceText,
+                SHAFT.Properties.reporting.traceIncludeFullPageSnapshots());
+        return snapshot(result);
+    }
+
+    private static Snapshot snapshot(SeleniumTraceCapture.Result result) {
+        String content = result.content();
+        return new Snapshot(result.provider(), result.fidelity(), result.status(), result.reason(), result.type(),
+                content, content.getBytes(StandardCharsets.UTF_8).length, result.truncated());
     }
 
     private static SourceContext sourceContext(TestExecutionInfo info) {
@@ -2497,6 +2547,7 @@ public final class FailureTraceReporter {
         }
     }
 
-    private record Snapshot(String type, String content) {
+    private record Snapshot(String provider, String fidelity, String status, String reason, String type, String content,
+                            int byteCount, boolean truncated) {
     }
 }
