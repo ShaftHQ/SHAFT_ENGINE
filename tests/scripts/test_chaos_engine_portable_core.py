@@ -3,7 +3,7 @@
 import json
 import re
 import unittest
-import xml.etree.ElementTree as ET
+import xml.etree.ElementTree as ET  # nosec B405
 from pathlib import Path
 
 
@@ -26,7 +26,7 @@ class ChaosEnginePortableCoreTest(unittest.TestCase):
         readme = PORTABLE_README.read_text(encoding="utf-8")
         targets = re.findall(r'\[[^]]+\]\(([^)]+)\)', readme)
         targets.extend(re.findall(r"(?m)^\s{0,3}\[[^]]+\]:\s*(\S+)", readme))
-        targets.extend(re.findall(r'(?:src|srcset)="([^"]+)"', readme))
+        targets.extend(re.findall(r'(?:href|src|srcset)="([^"]+)"', readme))
 
         self.assertIn("assets/brand/lockup-light.svg", targets)
         self.assertIn("assets/brand/lockup-dark.svg", targets)
@@ -58,7 +58,7 @@ class ChaosEnginePortableCoreTest(unittest.TestCase):
             "filter", "image", "linearGradient", "radialGradient", "script", "style", "text"
         }
         for path in sorted(BRAND_ASSETS.glob("*.svg")):
-            root = ET.parse(path).getroot()
+            root = ET.parse(path).getroot()  # nosec B314
             tags = {element.tag.rsplit("}", 1)[-1] for element in root.iter()}
             labelled_by = root.attrib.get("aria-labelledby", "").split()
             element_ids = {element.attrib["id"] for element in root.iter() if "id" in element.attrib}

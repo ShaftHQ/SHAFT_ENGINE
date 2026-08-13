@@ -115,9 +115,9 @@ entrypoint will:
 
 Projects select one profile after loading the portable core. A profile supplies
 repository-specific facts such as the upstream, default branch, task-branch
-prefix, companion repositories, and routing table. See the
-[`profiles/` catalog](profiles/README.md) and the included
-[`shaft` profile](profiles/shaft/entrypoint.md) for a complete example.
+prefix, companion repositories, and routing table. The
+<a href="profiles/README.md">profiles catalog</a> and included
+<a href="profiles/shaft/entrypoint.md">SHAFT profile</a> show the complete shape.
 
 ## What gets installed
 
@@ -191,7 +191,7 @@ reports, caches, runtime indexes, or `graphify-out/`.
 
 - [Install or upgrade ChaosEngine](INSTALL.md)
 - [Canonical ChaosEngine entrypoint](skills/chaos-engine/SKILL.md)
-- [Project profiles](profiles/README.md)
+- <a href="profiles/README.md">Project profiles</a>
 - [Research and adoption matrix](RESEARCH.md)
 - [Identity and brand rules](assets/brand/BRAND.md)
 
