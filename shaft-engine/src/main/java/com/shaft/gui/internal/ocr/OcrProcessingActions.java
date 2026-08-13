@@ -8,6 +8,7 @@ import com.shaft.tools.io.internal.ReportManagerHelper;
 
 import java.io.ByteArrayInputStream;
 import java.util.Objects;
+import java.util.function.Supplier;
 
 /** Provider-neutral OCR orchestration used by SHAFT actions and assertions. */
 public final class OcrProcessingActions {
@@ -31,6 +32,26 @@ public final class OcrProcessingActions {
                     + "Options: " + options + System.lineSeparator() + "Failure: " + exception);
             throw exception;
         }
+    }
+
+    /** Recognizes a rendered PDF page with optional provider-native orientation and deskew analysis. */
+    public static OcrDocumentPageAnalysis analyzeDocumentPage(byte[] image, OcrOptions options,
+                                                               boolean detectOrientation, boolean deskew) {
+        return documentPageAnalysisTask(image, options, detectOrientation, deskew).get();
+    }
+
+    /** Captures the effective provider on the caller thread for bounded asynchronous document processing. */
+    public static Supplier<OcrDocumentPageAnalysis> documentPageAnalysisTask(byte[] image, OcrOptions options,
+                                                                              boolean detectOrientation,
+                                                                              boolean deskew) {
+        Objects.requireNonNull(image, "image");
+        Objects.requireNonNull(options, "options");
+        if (image.length == 0) {
+            throw new IllegalArgumentException("OCR document page bytes cannot be empty.");
+        }
+        OcrProcessingProvider provider = OcrProcessingProviderRegistry.requireProvider();
+        return () -> Objects.requireNonNull(provider.analyzeDocumentPage(image, options, detectOrientation, deskew),
+                "OCR provider returned a null document page analysis.");
     }
 
     public static OcrMatch find(byte[] image, OcrTarget target) {
