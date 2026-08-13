@@ -15,10 +15,12 @@ import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.util.Objects;
 import com.shaft.properties.internal.ThreadLocalPropertiesManager;
+import com.shaft.infrastructure.OcrSetupManifest;
+import com.shaft.infrastructure.ShaftCachePaths;
 
 /** Self-contained JavaCPP-backed local Tesseract provider. */
 public final class TesseractOcrProvider implements OcrProcessingProvider {
-    static final String TESSDATA_REVISION = "87416418657359cb625c412a48b6e1d6d41c29bd";
+    static final String TESSDATA_REVISION = OcrSetupManifest.TESSDATA_REVISION;
     private static final URI DEFAULT_MODEL_BASE = URI.create(
             "https://raw.githubusercontent.com/tesseract-ocr/tessdata_fast/" + TESSDATA_REVISION + "/");
     private static final Map<String, String> PINNED_GIT_BLOB_IDS = loadModelManifest();
@@ -72,14 +74,22 @@ public final class TesseractOcrProvider implements OcrProcessingProvider {
         String configuredCache = configured == null
                 ? effectiveProperty("shaft.ocr.cacheDirectory", "").trim()
                 : invokeString(configured, "cacheDirectory").trim();
-        Path cache = configuredCache.isEmpty()
-                ? Path.of(System.getProperty("user.home"), ".cache", "shaft", "ocr", "tessdata-fast-" + TESSDATA_REVISION)
-                : Path.of(configuredCache);
+        Path setupCache = OcrSetupManifest.modelsDirectory(ShaftCachePaths.current());
+        Path cache = configuredCache.isEmpty() ? setupCache : absoluteConfiguredCache(configuredCache);
+        Path fallback = configuredCache.isEmpty() ? null : setupCache;
         boolean downloadsEnabled = configured == null
                 ? Boolean.parseBoolean(effectiveProperty("shaft.ocr.downloadEnabled", "true"))
                 : invokeBoolean(configured, "downloadEnabled");
-        return new TessdataModelManager(cache, DEFAULT_MODEL_BASE, downloadsEnabled, PINNED_GIT_BLOB_IDS,
+        return new TessdataModelManager(cache, fallback, DEFAULT_MODEL_BASE, downloadsEnabled, PINNED_GIT_BLOB_IDS,
                 TessdataModelManager.IntegrityAlgorithm.GIT_BLOB_SHA1);
+    }
+
+    private static Path absoluteConfiguredCache(String configuredCache) {
+        Path path = Path.of(configuredCache).normalize();
+        if (!path.isAbsolute()) {
+            throw new IllegalArgumentException("shaft.ocr.cacheDirectory must be absolute.");
+        }
+        return path;
     }
 
     private static Object typedProperties() {

@@ -12,6 +12,7 @@ on:
       - 'pom.xml'
       - '*/pom.xml'
       - 'shaft-engine/**'
+      - 'shaft-infrastructure/**'
       - 'shaft-pilot-core/**'
       - 'shaft-capture/**'
       - 'shaft-doctor/**'

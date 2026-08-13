@@ -11,6 +11,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 NS = {"m": "http://maven.apache.org/POM/4.0.0"}
 MODULES = {
+    "shaft-infrastructure": "Batteries-included setup contracts",
     "shaft-engine": "Core engine",
     "shaft-pilot-core": "SHAFT Pilot contracts and security",
     "shaft-capture": "Deterministic browser capture model",

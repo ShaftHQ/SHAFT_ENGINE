@@ -36,6 +36,11 @@
     </scm>
 
     <dependencies>
+        <dependency>
+            <groupId>io.github.shafthq</groupId>
+            <artifactId>shaft-infrastructure</artifactId>
+            <version>${project.version}</version>
+        </dependency>
         <!-- TESTNG DEPENDENCIES -->
         <dependency>
             <groupId>org.testng</groupId>

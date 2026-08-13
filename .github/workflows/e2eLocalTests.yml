@@ -42,6 +42,7 @@ jobs:
       - Windows_Edge_Local
       - MacOSX_Safari_Local
       - Windows_Chrome_Local
+      - Windows_Managed_Lighthouse
       - Windows_SikuliX_Local
       - Windows_Appium_Desktop_Local
       - MacOSX_Chrome_Local
@@ -182,6 +183,74 @@ jobs:
         uses: ./.github/actions/post-test-report
         with:
           job-name: Windows_Chrome_Local
+          codecov-token: ${{ secrets.CODECOV_TOKEN }}
+
+  # Issue #4884: opt-in real acceptance for the release-pinned managed Node/Lighthouse
+  # toolchain. This stays manual because it downloads a full npm dependency tree and
+  # audits a live local Chrome session; PR/unit gates cover the deterministic seams.
+  Windows_Managed_Lighthouse:
+    if: github.event_name == 'workflow_dispatch' && (github.event.inputs.jobs == 'all' || contains(format(',{0},', github.event.inputs.jobs), ',Windows_Managed_Lighthouse,'))
+    runs-on: windows-latest
+    timeout-minutes: 30
+    outputs:
+      job: ${{ steps.post_test_report.outputs.job }}
+      total: ${{ steps.post_test_report.outputs.total }}
+      passed: ${{ steps.post_test_report.outputs.passed }}
+      failed: ${{ steps.post_test_report.outputs.failed }}
+      broken: ${{ steps.post_test_report.outputs.broken }}
+      skipped: ${{ steps.post_test_report.outputs.skipped }}
+      duration: ${{ steps.post_test_report.outputs.duration }}
+    steps:
+      - name: Enable Windows long paths
+        run: git config --global core.longpaths true
+      - name: Checkout Code
+        uses: actions/checkout@v7
+      - name: Setup Test Environment
+        uses: ./.github/actions/setup-test-env
+        with:
+          node-version: '24'
+      - name: Package the setup CLI
+        run: mvn --batch-mode -pl shaft-cli -am package "-DskipTests" "-Dallure.automaticallyOpen=false" "-Dgpg.skip=true"
+      - name: Plan, approve, install, and verify managed Lighthouse
+        shell: pwsh
+        run: |
+          $cli = Get-ChildItem -Path shaft-cli/target -Filter 'shaft-cli-*.jar' |
+            Where-Object { $_.Name -match '^shaft-cli-[0-9][0-9.]*\.jar$' } |
+            Select-Object -First 1 -ExpandProperty FullName
+          if (-not $cli) { throw 'Packaged shaft-cli executable JAR was not found.' }
+          $cacheRoot = Join-Path $env:RUNNER_TEMP 'shaft-lighthouse-cache'
+          $dataRoot = Join-Path $cacheRoot 'data'
+          $plan = Join-Path $env:RUNNER_TEMP 'lighthouse-plan.json'
+          $planOutput = & java -jar $cli setup plan --profile LIGHTHOUSE --mode MANAGED --output $plan --cache-root $cacheRoot --data-root $dataRoot
+          if ($LASTEXITCODE -ne 0) { throw "Lighthouse planning failed: $planOutput" }
+          $digest = (($planOutput | Select-String '^Digest: ').Line -replace '^Digest:\s*', '')
+          if (-not $digest) { throw 'Lighthouse plan did not emit an approval digest.' }
+          & java -jar $cli setup install --plan $plan --approve $digest --cache-root $cacheRoot --data-root $dataRoot
+          if ($LASTEXITCODE -ne 0) { throw 'Managed Lighthouse installation failed.' }
+          & java -jar $cli setup verify --profile LIGHTHOUSE --cache-root $cacheRoot --data-root $dataRoot
+          if ($LASTEXITCODE -ne 0) { throw 'Managed Lighthouse verification failed.' }
+      - name: Run real local-Chrome Lighthouse report
+        continue-on-error: true
+        run: >-
+          mvn --batch-mode -pl shaft-engine -am test
+          "-Dtest=testPackage.ManagedLighthouseE2ETest"
+          "-DrunManagedLighthouseE2E=true"
+          "-Dinfrastructure.mode=MANAGED"
+          "-Dinfrastructure.profile=LIGHTHOUSE"
+          "-Dinfrastructure.cacheDirectory=${{ runner.temp }}\shaft-lighthouse-cache"
+          "-DlightHouseExecution=true"
+          "-DopenLighthouseReportWhileExecution=false"
+          "-DexecutionAddress=local"
+          "-DtargetBrowserName=chrome"
+          "-DheadlessExecution=true"
+          "-Dallure.automaticallyOpen=false"
+          "-Dgpg.skip=true"
+      - name: Post-Test Report and Check
+        id: post_test_report
+        if: always()
+        uses: ./.github/actions/post-test-report
+        with:
+          job-name: Windows_Managed_Lighthouse
           codecov-token: ${{ secrets.CODECOV_TOKEN }}
 
   Windows_SikuliX_Local:
@@ -433,7 +502,7 @@ jobs:
 
   notify_local_e2e_tests_failure:
     name: Notify on nightly failure
-    needs: [ Windows_Edge_Local, MacOSX_Safari_Local, Windows_Chrome_Local, Windows_SikuliX_Local, Windows_Appium_Desktop_Local, MacOSX_Chrome_Local, Windows_Edge_Cucumber_Local ]
+    needs: [ Windows_Edge_Local, MacOSX_Safari_Local, Windows_Chrome_Local, Windows_Managed_Lighthouse, Windows_SikuliX_Local, Windows_Appium_Desktop_Local, MacOSX_Chrome_Local, Windows_Edge_Cucumber_Local ]
     if: always()
     runs-on: ubuntu-22.04
     timeout-minutes: 5

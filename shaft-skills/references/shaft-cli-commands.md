@@ -66,6 +66,42 @@ works right after a `capture start`/`capture stop` pair. Every other
 unchanged; exit code 2 means no `--session` was given and none could be
 inferred.
 
+## Local infrastructure setup (direct, no MCP session)
+
+`shaft-cli setup` exposes the release-coupled setup catalog and lifecycle. It
+defaults to the read-only `EXTERNAL` mode. Managed mutations require a plan
+file plus its exact printed digest; a stale or edited plan is rejected before
+the cache or durable-data roots are created.
+
+```text
+shaft-cli setup catalog|profiles [--json]
+shaft-cli setup doctor|status|verify --profile REPORTING [--json]
+shaft-cli setup plan --profile REPORTING --mode MANAGED --output <absolute-plan.json> [policy options] [--json]
+shaft-cli setup install|apply|update --plan <absolute-plan.json> --approve <sha256:digest> [--accept-license <id>] [policy options] [--json]
+shaft-cli setup start|stop --profile <profile>
+shaft-cli setup logs --profile REPORTING
+```
+
+The first managed provider installs verified, SHAFT-owned portable Node and
+Allure 3 artifacts for the `REPORTING` profile. `start` and `stop` return
+unsupported for profiles without an owned service; they never adopt or stop
+an unknown process. Exit codes are 0 for ready/success, 2 for invalid input or
+approval, 3 for missing/degraded readiness, 4 for unsupported providers, and
+5 for execution or integrity failures. `--cache-root` and `--data-root` are
+paired advanced overrides and must both be absolute.
+
+Plan and install must receive the same policy options because those values are
+bound into the approved digest: `--offline`, `--auto-start`,
+`--prefer-system-tools=true|false`, `--reuse-owned-processes=true|false`,
+`--startup-timeout <ISO-8601 duration>`, and
+`--shutdown-timeout <ISO-8601 duration>`.
+
+The equivalent Java surface is `SHAFT.Infrastructure`. Its no-argument
+read-only methods use `SHAFT.Properties.infrastructure`; `install` and `start`
+require the exact `SetupPlan` and `SetupApproval`. Defaults remain
+`EXTERNAL`, `offline=false`, and `autoStart=false`. An explicit remote
+execution address wins for web, Grid, and mobile endpoint profiles.
+
 ## Curated aliases
 
 Shortcuts over `call`, same options:

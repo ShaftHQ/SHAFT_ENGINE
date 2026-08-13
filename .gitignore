@@ -41,6 +41,20 @@
 /shaft-visual/src/test/resources/META-INF/services/
 /shaft-visual/src/test/resources/junit-platform.properties
 /shaft-visual/src/test/resources/testDataFiles/
+/shaft-ocr/allure-results/
+/shaft-ocr/allure-report/
+/shaft-ocr/allure-report-check/
+/shaft-ocr/allurerc.yaml
+/shaft-ocr/execution-summary/
+/shaft-ocr/performanceReport/
+/shaft-ocr/generatedReport_*.zip
+/shaft-ocr/generatedReport/
+/shaft-ocr/generate_allure_report.sh
+/shaft-ocr/generate_allure_report.bat
+/shaft-ocr/src/main/resources/properties/
+/shaft-ocr/src/test/resources/META-INF/services/
+/shaft-ocr/src/test/resources/junit-platform.properties
+/shaft-ocr/src/test/resources/testDataFiles/
 # SHAFT regenerates the default property set into each module's resources at
 # runtime; only the hand-authored custom.properties (already tracked) belongs
 # in git, same as shaft-engine/shaft-heal/shaft-visual above (#3856).

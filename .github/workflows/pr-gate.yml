@@ -182,6 +182,7 @@ jobs:
               - 'shaft-cli/src/main/java/com/shaft/commandline/command/**'
             cli:
               - 'shaft-cli/**'
+              - 'shaft-infrastructure/**'
               - 'pom.xml'
             capture:
               - 'shaft-capture/**'
@@ -216,12 +217,14 @@ jobs:
             # above (used by capture-e2e), and the unit-tests job's `if` condition also
             # checks that filter directly rather than duplicating its paths into javacore.
             javacore:
+              - 'shaft-infrastructure/**'
               - 'shaft-engine/**'
               - 'shaft-pilot-core/**'
               - 'shaft-doctor/**'
               - 'shaft-ai/**'
               - 'shaft-heal/**'
               - 'shaft-mcp/**'
+              - 'shaft-ocr/**'
               - 'pom.xml'
             # Issue #4506: tests/scripts/test_pilot_module_boundary.py pins the
             # shaft-engine -> shaft-pilot-core -> shaft-capture/shaft-ai
@@ -241,6 +244,13 @@ jobs:
               - 'tools/modularization/consumer-fixtures/pilot-core/pom.xml'
               - '.github/workflows/shaft-mcp.yml'
               - 'tests/scripts/test_pilot_module_boundary.py'
+              - 'shaft-infrastructure/**'
+              - 'shaft-ocr/**'
+              - 'shaft-cli/pom.xml'
+              - '.github/workflows/e2eTests.yml'
+              - '.github/workflows/e2eLocalTests.yml'
+              - 'tests/scripts/test_ocr_infrastructure_boundary.py'
+              - 'tests/scripts/test_lighthouse_infrastructure_boundary.py'
             infra:
               - '.github/workflows/pr-gate.yml'
               # Composite actions this gate's jobs call (issue #4440 added
@@ -579,6 +589,8 @@ jobs:
         run: |
           java -jar shaft-cli/target/shaft-cli-*[0-9].jar --version
           java -jar shaft-cli/target/shaft-cli-*[0-9].jar --help
+          java -jar shaft-cli/target/shaft-cli-*[0-9].jar setup --help
+          java -jar shaft-cli/target/shaft-cli-*[0-9].jar setup catalog --json
 
   capture-e2e:
     name: SHAFT Capture Browser E2E
@@ -693,7 +705,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        module: [ shaft-engine, shaft-pilot-core, shaft-doctor, shaft-ai, shaft-heal, shaft-mcp, shaft-capture ]
+        module: [ shaft-infrastructure, shaft-engine, shaft-pilot-core, shaft-doctor, shaft-ai, shaft-heal, shaft-mcp, shaft-capture, shaft-ocr ]
     steps:
       - name: Checkout Code
         uses: actions/checkout@v7
@@ -734,10 +746,17 @@ jobs:
           sys.exit(1 if failed else 0)
           "
       - name: Run ${{ matrix.module }} tests
-        if: matrix.module != 'shaft-engine'
+        if: matrix.module != 'shaft-engine' && matrix.module != 'shaft-ocr'
         run: >-
           mvn --batch-mode
           -pl ${{ matrix.module }} test
+          '-DheadlessExecution=true' '-Dallure.automaticallyOpen=false' -Dgpg.skip
+      - name: Run deterministic shaft-ocr unit tests
+        if: matrix.module == 'shaft-ocr'
+        run: >-
+          mvn --batch-mode
+          -pl shaft-ocr test
+          '-Dtest=TessdataModelManagerTest,TesseractOcrProviderTest,OcrLanguageRegistryTest'
           '-DheadlessExecution=true' '-Dallure.automaticallyOpen=false' -Dgpg.skip
       - name: Upload module coverage to Codecov
         if: always()
@@ -831,7 +850,11 @@ jobs:
         with:
           python-version: "3.13"
       - name: Run pilot module boundary tests
-        run: python3 -m unittest tests.scripts.test_pilot_module_boundary -v
+        run: >-
+          python3 -m unittest
+          tests.scripts.test_pilot_module_boundary
+          tests.scripts.test_ocr_infrastructure_boundary
+          tests.scripts.test_lighthouse_infrastructure_boundary -v
 
   # Issue #4071: a TestNG suite XML file that no pom, workflow, or script
   # references is invisible -- unlike a failing test, nothing reports it, so

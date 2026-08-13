@@ -1,18 +1,27 @@
 package com.shaft.performance.internal;
 
-import com.shaft.cli.FileActions;
-import com.shaft.cli.TerminalActions;
 import com.shaft.driver.SHAFT;
+import com.shaft.infrastructure.LighthouseRuntime;
+import com.shaft.infrastructure.SetupOptions;
 import com.shaft.tools.io.internal.ReportManagerHelper;
-import org.apache.commons.lang3.SystemUtils;
 import org.openqa.selenium.WebDriver;
+import org.openqa.selenium.remote.RemoteWebDriver;
 
+import java.awt.Desktop;
+import java.awt.GraphicsEnvironment;
+import java.io.IOException;
 import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URL;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.time.Duration;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Generates Google Lighthouse performance reports for web pages by
@@ -26,136 +35,158 @@ public class LightHouseGenerateReport {
     final WebDriver driver;
     int PortNum;
     String PageName;
+    private final RuntimeResolver runtimeResolver;
+    private final CommandRunner commandRunner;
+    private final Path reportDirectory;
 
     public LightHouseGenerateReport(WebDriver driver) {
+        this(driver, LighthouseRuntime::requireReady, LightHouseGenerateReport::runCommand,
+                Path.of("lighthouse-reports"));
+    }
+
+    LightHouseGenerateReport(WebDriver driver, RuntimeResolver runtimeResolver, CommandRunner commandRunner,
+                             Path reportDirectory) {
         this.driver = driver;
+        this.runtimeResolver = runtimeResolver;
+        this.commandRunner = commandRunner;
+        this.reportDirectory = reportDirectory.toAbsolutePath().normalize();
+    }
+
+    static List<String> command(com.shaft.infrastructure.LighthouseRuntime runtime, String url, int port,
+                                java.nio.file.Path output) {
+        var command = new ArrayList<>(runtime.commandPrefix());
+        command.add(url);
+        command.add("--port=" + port);
+        command.add("--preset=desktop");
+        command.add("--output=html");
+        command.add("--output-path=" + output.toAbsolutePath().normalize());
+        command.add("--only-categories=performance");
+        return List.copyOf(command);
     }
 
     public void generateLightHouseReport() {
+        if (!SHAFT.Properties.performance.isEnabled()) {
+            return;
+        }
         PortNum = SHAFT.Properties.performance.port();
         PageName = getPageName();
-
-        String commandToGenerateLightHouseReport;
-        if (SHAFT.Properties.performance.isEnabled()) {
-            createLighthouseReportFolderInProjectDirectory();
-            writeNodeScriptFileInProjectDirectory();
-
-            if (SystemUtils.IS_OS_WINDOWS) {
-                commandToGenerateLightHouseReport = ("cmd.exe /c node GenerateLHScript.js --url=\"" + driver.getCurrentUrl() + "\" --port=" + PortNum + " --reportName=" + PageName + " ");
-            } else {
-                commandToGenerateLightHouseReport = ("node GenerateLHScript.js --url=\"" + driver.getCurrentUrl() + "\" --port=" + PortNum + " --reportName=" + PageName + " ");
+        try {
+            SetupOptions options = SHAFT.Infrastructure.options().withProfile(com.shaft.infrastructure.SetupProfile.LIGHTHOUSE);
+            LighthouseRuntime runtime = runtimeResolver.resolve(options);
+            Files.createDirectories(reportDirectory);
+            Path report = reportDirectory.resolve(PageName + ".html");
+            if (Files.exists(report)) {
+                throw new IOException("Refusing to overwrite an existing Lighthouse report: " + report);
             }
-            commandToGenerateLightHouseReport = commandToGenerateLightHouseReport.replace("&", "N898");
-            //TerminalActions.getInstance(true, true).performTerminalCommand(commandToGenerateLightHouseReport);
-            (new TerminalActions()).performTerminalCommand(commandToGenerateLightHouseReport);
-            writeReportPathToFilesInProjectDirectory(PageName);
-            openLighthouseReportWhileExecution();
-            SHAFT.Report.report("Lighthouse Report Generated successfully");
-            SHAFT.Report.attach("LightHouse HTML", "Report", FileActions.getInstance(true).readFile("lighthouse-reports/" + PageName + ".html"));
+            int port = debuggerPort(driver, PortNum);
+            boolean completed = false;
+            try {
+                CommandResult result = commandRunner.run(command(runtime, driver.getCurrentUrl(), port, report),
+                        runtime.workingDirectory(), options.startupTimeout());
+                if (result.exitCode() != 0) {
+                    throw new IOException("Lighthouse exited with code " + result.exitCode() + ": " + result.output());
+                }
+                if (!Files.isRegularFile(report) || Files.size(report) == 0) {
+                    throw new IOException("Lighthouse completed without creating a non-empty report at " + report);
+                }
+                String html = Files.readString(report, StandardCharsets.UTF_8);
+                if (!html.toLowerCase(java.util.Locale.ROOT).contains("<html")) {
+                    throw new IOException("Lighthouse output is not an HTML document: " + report);
+                }
+                completed = true;
+                openReportWhenRequested(report);
+                SHAFT.Report.report("Lighthouse Report Generated successfully");
+                SHAFT.Report.attach("LightHouse HTML", "Report", html);
+            } finally {
+                if (!completed) Files.deleteIfExists(report);
+            }
+        } catch (IOException e) {
+            throw new IllegalStateException("Failed to generate the Lighthouse report: " + e.getMessage(), e);
         }
+    }
+
+    static int debuggerPort(WebDriver driver, int fallback) {
+        if (driver instanceof RemoteWebDriver remote) {
+            Object chromeOptions = remote.getCapabilities().getCapability("goog:chromeOptions");
+            if (chromeOptions instanceof Map<?, ?> options) {
+                Object address = options.get("debuggerAddress");
+                if (address instanceof String value) {
+                    int separator = value.lastIndexOf(':');
+                    if (separator >= 0 && separator + 1 < value.length()) {
+                        try {
+                            return Integer.parseInt(value.substring(separator + 1));
+                        } catch (NumberFormatException ignored) {
+                            // Fall back to the explicitly configured Lighthouse port.
+                        }
+                    }
+                }
+            }
+        }
+        return fallback;
+    }
+
+    private static void openReportWhenRequested(Path report) throws IOException {
+        if (!SHAFT.Properties.reporting.openLighthouseReportWhileExecution()) {
+            return;
+        }
+        if (GraphicsEnvironment.isHeadless() || !Desktop.isDesktopSupported()) {
+            throw new IOException("Opening the Lighthouse report was requested, but this environment has no desktop handler.");
+        }
+        Desktop.getDesktop().browse(report.toUri());
+        SHAFT.Report.report("Lighthouse Report Opened in the default browser successfully");
+    }
+
+    private static CommandResult runCommand(List<String> command, Path workingDirectory, Duration timeout)
+            throws IOException {
+        com.shaft.infrastructure.ManagedProcessRunner.Result result =
+                com.shaft.infrastructure.ManagedProcessRunner.run(command, workingDirectory, timeout);
+        return new CommandResult(result.exitCode(), result.output());
+    }
+
+    @FunctionalInterface
+    interface RuntimeResolver {
+        LighthouseRuntime resolve(SetupOptions options) throws IOException;
+    }
+
+    @FunctionalInterface
+    interface CommandRunner {
+        CommandResult run(List<String> command, Path workingDirectory, Duration timeout) throws IOException;
+    }
+
+    record CommandResult(int exitCode, String output) {
     }
 
     public void createLighthouseReportFolderInProjectDirectory() {
-        FileActions.getInstance(true).createFolder("lighthouse-reports");
+        try {
+            Files.createDirectories(reportDirectory);
+        } catch (IOException failure) {
+            throw new IllegalStateException("Unable to create the Lighthouse report directory.", failure);
+        }
     }
 
+    /** @deprecated Reports are opened directly from the verified output path. */
+    @Deprecated(forRemoval = true)
     public void openLighthouseReportWhileExecution() {
-        String commandToOpenLighthouseReport;
-        if (SHAFT.Properties.reporting.openLighthouseReportWhileExecution()) {
-            if (SystemUtils.IS_OS_WINDOWS) {
-                commandToOpenLighthouseReport = ("cmd.exe /c node OpenLHReport.js");
-            } else {
-                commandToOpenLighthouseReport = ("node OpenLHReport.js");
-            }
-//                TerminalActions.getInstance(true, true).performTerminalCommand(commandToOpenLighthouseReport);
-            (new TerminalActions()).performTerminalCommand(commandToOpenLighthouseReport);
-            SHAFT.Report.report("Lighthouse Report Opened in new tab successfully");
+        if (!SHAFT.Properties.reporting.openLighthouseReportWhileExecution()) return;
+        String name = PageName == null ? getPageName() : PageName;
+        try {
+            openReportWhenRequested(reportDirectory.resolve(name + ".html"));
+        } catch (IOException failure) {
+            throw new IllegalStateException("Unable to open the Lighthouse report.", failure);
         }
     }
 
+    /** @deprecated Generated report-opener scripts were removed; use the report output path. */
+    @Deprecated(forRemoval = true)
     public void writeReportPathToFilesInProjectDirectory(String pageName) {
-        List<String> commandsToServeLHReport;
-        commandsToServeLHReport = List.of(
-                "import open from 'open';\n" +
-                        "import path from 'path';\n" +
-                        "const __dirname = path.resolve();\n" +
-                        "await open(__dirname +'/lighthouse-reports/" + pageName + ".html');\n");
-        FileActions.getInstance(true).writeToFile("", "OpenLHReport.js", commandsToServeLHReport);
+        throw new UnsupportedOperationException("Generated Lighthouse opener scripts are no longer supported.");
     }
 
+    /** @deprecated Generated executable scripts were removed; use managed Lighthouse setup. */
+    @Deprecated(forRemoval = true)
     public void writeNodeScriptFileInProjectDirectory() {
-        List<String> commandsToServeLHReport;
-        if (SystemUtils.IS_OS_WINDOWS) {
-            commandsToServeLHReport = List.of("""
-                    import puppeteer from 'puppeteer';
-                    import fs from 'fs';
-                    import lighthouse from 'lighthouse';
-                    import optimist from 'optimist';
-                    var argv =optimist.argv;
-                    import open from 'open';
-                    import path from 'path';
-                    const __dirname = path.resolve();
-                     import desktopConfig from 'lighthouse/core/config/desktop-config.js';
-                    // -------- Configs ----------
-                      var text = argv.url;
-                      var Url = text.replaceAll("N898", "&");
-                      var Port = argv.port;
-                      var LogLevel='info';
-                      var OutputType='html'; // html , json
-                      var ReportName=argv.reportName;
-                    //----------------------------
-                    (async() => {
-                      // Use Puppeteer to connect to the opened session by port
-                      const browserURL = 'http://127.0.0.1:'+Port;
-                      const browser = await puppeteer.connect({browserURL});
-                      // Lighthouse connect to the opened page and generate the report.
-                      const options = {logLevel:LogLevel ,output: OutputType, port:Port};
-                      const runnerResult = await lighthouse(Url,options,desktopConfig);
-                      // `Genrate the report output as HTML or JSON
-                      const reportHtml = runnerResult.report;
-                      // save the report in node.js path
-                      fs.writeFileSync(__dirname +'/lighthouse-reports/'+ReportName+'.'+OutputType, reportHtml);
-                      // Disconnect from the session
-                      await browser.disconnect();
-                    })();""");
-        } else {
-            commandsToServeLHReport = List.of("""
-                    import puppeteer from 'puppeteer';
-                    import fs from 'fs';
-                    import lighthouse from 'lighthouse';
-                    import optimist from 'optimist';
-                    var argv =optimist.argv;
-                    import open from 'open';
-                    import path from 'path';
-                    const __dirname = path.resolve();
-                    import desktopConfig from 'lighthouse/lighthouse-core/config/desktop-config.js';
-                    // -------- Configs ----------
-                       var text = argv.url;
-                       var Url = text.replaceAll( "N898 ",  "& ");
-                       //Url=Url.replace( "'&' ",  "& ");
-                       var Port = argv.port;
-                       var LogLevel='info';
-                       var OutputType='html'; argv.outputType; // html , json
-                       var ReportName=argv.reportName;
-                    //----------------------------
-                    (async() => {
-                       // Use Puppeteer to connect to the opened session by port
-                       const browserURL = 'http://127.0.0.1:'+Port;
-                       const browser = await puppeteer.connect({browserURL});
-                       // open new tab to Fix Lighthouse issue in MacOS as it run on same tab
-                       const newTab = browser.newPage(browserURL);
-                       //Lighthouse connect to the opened page and generate the report.
-                       const options = {logLevel:LogLevel ,output: OutputType, port:Port};
-                       const runnerResult = await lighthouse(Url,options,desktopConfig);
-                       // `Genrate the report output as HTML or JSON
-                       const reportHtml = runnerResult.report;
-                       // save the report in node.js path
-                       fs.writeFileSync(__dirname +'/lighthouse-reports/'+ReportName+'.'+OutputType, reportHtml);
-                       // Disconnect from the session
-                       await browser.disconnect();
-                     })();""");
-        }
-        FileActions.getInstance(true).writeToFile("", "GenerateLHScript.js", commandsToServeLHReport);
+        throw new UnsupportedOperationException("Generated Lighthouse scripts are no longer supported. "
+                + "Install the managed LIGHTHOUSE profile and call generateLightHouseReport().");
     }
 
     public String getPageName() {
