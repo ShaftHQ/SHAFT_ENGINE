@@ -1133,3 +1133,4 @@
 {"actor":"agent","event":"memory.created","id":"gotcha.surefire-list-configuration-from-active-maven-profiles-may-replace-instead-of-append","timestamp":"2026-08-13T05:00:33+03:00"}
 {"actor":"agent","event":"memory.updated","id":"gotcha.surefire-list-configuration-from-active-maven-profiles-may-replace-instead-of-append","timestamp":"2026-08-13T05:03:59+03:00"}
 {"actor":"agent","event":"memory.created","id":"decision.pdf-document-ocr-extends-pdffilemanager-with-explicit-bounded-exports","timestamp":"2026-08-13T11:37:41+03:00"}
+{"actor":"agent","event":"memory.created","id":"decision.managed-local-ai-baseline-is-pinned-llamacpp-behind-ai-execution-policy","timestamp":"2026-08-13T12:12:15+03:00"}
