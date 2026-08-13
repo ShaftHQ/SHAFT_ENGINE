@@ -780,7 +780,7 @@ jobs:
           "-DbrowserStack.appiumVersion=3.3.0" "-DbrowserStack.platformVersion=13.0"
           "-DbrowserStack.deviceName=Google Pixel 7" "-DbrowserStack.appUrl="
           "-DgenerateAllureReportArchive=true"
-          "-Dtest=AndroidBasicInteractionsTests#visualAndOcrTargetsShouldScrollVerticallyThroughNativeControls+visualAndOcrTargetsShouldScrollHorizontallyInsideNativeControl"
+          "-Dtest=${{ github.event.inputs.tests != '' && github.event.inputs.tests || 'AndroidBasicInteractionsTests#visualAndOcrTargetsShouldScrollVerticallyThroughNativeControls+visualAndOcrTargetsShouldScrollHorizontallyInsideNativeControl' }}"
       - name: Verify Android screenshot and OCR acceptance executed
         run: >-
           python3 scripts/ci/assert_tests_executed.py
@@ -838,7 +838,7 @@ jobs:
           "-DbrowserStack.appiumVersion=3.3.0" "-DbrowserStack.platformVersion=16"
           "-DbrowserStack.deviceName=iPhone 14" "-DbrowserStack.appUrl="
           "-Dshaft.enableNativeIosE2E=true" "-DgenerateAllureReportArchive=true"
-          "-Dtest=IOSBasicInteractionsTest#visualAndOcrTargetsShouldInteractWithNativeControls"
+          "-Dtest=${{ github.event.inputs.tests != '' && github.event.inputs.tests || 'IOSBasicInteractionsTest#visualAndOcrTargetsShouldInteractWithNativeControls' }}"
       - name: Verify iOS screenshot and OCR acceptance executed
         run: >-
           python3 scripts/ci/assert_tests_executed.py

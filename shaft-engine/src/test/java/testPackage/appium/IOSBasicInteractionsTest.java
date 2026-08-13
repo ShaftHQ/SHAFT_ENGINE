@@ -41,12 +41,16 @@ public class IOSBasicInteractionsTest {
     /** Opt-in real-device proof that iOS can interact through device screenshots and OCR text. */
     @Test(groups = {"visual-ocr-mobile-acceptance"})
     public void visualAndOcrTargetsShouldInteractWithNativeControls() {
-        byte[] buttonScreenshot = driver.get().getDriver().findElement(AppiumBy.accessibilityId("Text Button"))
+        byte[] inputScreenshot = driver.get().getDriver().findElement(AppiumBy.accessibilityId("Text Input"))
                 .getScreenshotAs(OutputType.BYTES);
 
         driver.get().touch()
-                .tap(ImageTarget.fromBytes(buttonScreenshot))
-                .tap(OcrTarget.exact("Text Input"));
+                .tap(ImageTarget.fromBytes(inputScreenshot));
+        Assert.assertEquals(driver.get().getDriver().switchTo().activeElement().getAttribute("name"), "Text Input");
+
+        driver.get().touch().tap(AppiumBy.accessibilityId("Text Button"));
+        driver.get().touch().tap(OcrTarget.exact("Text Input"));
+        Assert.assertEquals(driver.get().getDriver().switchTo().activeElement().getAttribute("name"), "Text Input");
         driver.get().element().type(AppiumBy.accessibilityId("Text Input"), "visual ocr ios" + "\n");
 
         Validations.assertThat()

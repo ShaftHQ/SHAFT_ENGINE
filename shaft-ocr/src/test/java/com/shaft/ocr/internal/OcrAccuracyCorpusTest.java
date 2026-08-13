@@ -2,6 +2,7 @@ package com.shaft.ocr.internal;
 
 import com.shaft.gui.ocr.OcrBlockLevel;
 import com.shaft.gui.ocr.OcrOptions;
+import com.shaft.gui.ocr.OcrRectangle;
 import com.shaft.gui.ocr.OcrResult;
 import org.testng.Assert;
 import org.testng.annotations.Test;
@@ -30,12 +31,14 @@ public class OcrAccuracyCorpusTest {
         TesseractOcrProvider provider = new TesseractOcrProvider();
         OcrOptions options = OcrOptions.defaults().withLanguages("English").withMinimumConfidence(0);
         List<CorpusCase> corpus = List.of(
-                positive("standard", render("SHAFT OCR 42", 68, Color.BLACK, Color.WHITE, 1.0f), "SHAFT"),
-                positive("small-text", render("MOBILE TARGET", 30, Color.BLACK, Color.WHITE, 1.0f), "MOBILE"),
+                positive("standard", render("SHAFT OCR 42", 68, Color.BLACK, Color.WHITE, 1.0f), "SHAFT OCR 42",
+                        new OcrRectangle(37, 55, 483, 51)),
+                positive("small-text", render("MOBILE TARGET", 30, Color.BLACK, Color.WHITE, 1.0f), "MOBILE TARGET",
+                        new OcrRectangle(37, 83, 242, 22)),
                 positive("dark-mode", render("DARK CONTROL", 56, Color.WHITE, new Color(28, 32, 38), 1.0f),
-                        "DARK"),
+                        "DARK CONTROL", new OcrRectangle(35, 55, 290, 55)),
                 positive("semi-transparent", render("ALPHA LABEL", 56, Color.BLACK, Color.WHITE, 0.62f),
-                        "ALPHA"),
+                        "ALPHA LABEL", new OcrRectangle(35, 55, 275, 55)),
                 negative("blank", render("", 56, Color.BLACK, Color.WHITE, 1.0f))
         );
 
@@ -51,17 +54,22 @@ public class OcrAccuracyCorpusTest {
             long started = System.nanoTime();
             OcrResult result = provider.recognize(sample.image(), options);
             elapsedMillis.add((System.nanoTime() - started) / 1_000_000);
-            boolean expectedTextFound = sample.expectedFragment() != null
-                    && result.fullText().toUpperCase(Locale.ROOT).contains(sample.expectedFragment());
-            boolean validWordBounds = result.blocks().stream()
+            String normalizedActual = normalize(result.fullText());
+            boolean expectedTextFound = sample.expectedText() != null && normalizedActual.equals(sample.expectedText());
+            boolean expectedWordBounds = sample.expectedText() != null && result.blocks().stream()
                     .filter(block -> block.level() == OcrBlockLevel.WORD)
-                    .anyMatch(block -> block.bounds().width() > 0 && block.bounds().height() > 0);
-            if (sample.expectedFragment() != null && expectedTextFound && validWordBounds) {
+                    .filter(block -> sample.expectedText().contains(normalize(block.text())))
+                    .map(block -> block.bounds())
+                    .reduce(OcrRectangle::union)
+                    .filter(bounds -> intersectionOverUnion(bounds, sample.expectedBounds()) >= 0.50)
+                    .isPresent();
+            if (sample.expectedText() != null && expectedTextFound && expectedWordBounds) {
                 truePositive++;
-            } else if (sample.expectedFragment() != null) {
+            } else if (sample.expectedText() != null) {
                 falseNegative++;
-                failures.add(sample.name() + "=false-negative:'" + result.fullText().strip() + "'");
-                if (!result.fullText().isBlank()) {
+                failures.add(sample.name() + "=false-negative:'" + result.fullText().strip() + "' blocks="
+                        + result.blocks().stream().filter(block -> block.level() == OcrBlockLevel.WORD).toList());
+                if (!normalizedActual.isBlank() && !normalizedActual.equals(sample.expectedText())) {
                     falsePositive++;
                 }
             } else if (!result.fullText().isBlank()) {
@@ -84,16 +92,30 @@ public class OcrAccuracyCorpusTest {
         Assert.assertTrue(p95Millis <= MAX_P95_MILLIS, metrics);
     }
 
-    private static CorpusCase positive(String name, byte[] image, String expectedFragment) {
-        return new CorpusCase(name, image, expectedFragment);
+    private static CorpusCase positive(String name, byte[] image, String expectedText, OcrRectangle expectedBounds) {
+        return new CorpusCase(name, image, expectedText, expectedBounds);
     }
 
     private static CorpusCase negative(String name, byte[] image) {
-        return new CorpusCase(name, image, null);
+        return new CorpusCase(name, image, null, null);
     }
 
     private static double ratio(int numerator, int denominator) {
         return denominator == 0 ? 1 : (double) numerator / denominator;
+    }
+
+    private static String normalize(String text) {
+        return text.toUpperCase(Locale.ROOT).replaceAll("\\s+", " ").strip();
+    }
+
+    private static double intersectionOverUnion(OcrRectangle actual, OcrRectangle expected) {
+        int left = Math.max(actual.x(), expected.x());
+        int top = Math.max(actual.y(), expected.y());
+        int right = Math.min(actual.right(), expected.right());
+        int bottom = Math.min(actual.bottom(), expected.bottom());
+        long intersection = (long) Math.max(0, right - left) * Math.max(0, bottom - top);
+        long union = (long) actual.width() * actual.height() + (long) expected.width() * expected.height() - intersection;
+        return union == 0 ? 0 : (double) intersection / union;
     }
 
     private static byte[] render(String text, int fontSize, Color foreground, Color background, float opacity)
@@ -116,6 +138,6 @@ public class OcrAccuracyCorpusTest {
         return output.toByteArray();
     }
 
-    private record CorpusCase(String name, byte[] image, String expectedFragment) {
+    private record CorpusCase(String name, byte[] image, String expectedText, OcrRectangle expectedBounds) {
     }
 }
