@@ -244,5 +244,29 @@ final class PlaywrightTraceArchiveLoader {
             byte[] bytes = entries.get(name);
             return bytes == null ? -1 : bytes.length;
         }
+
+        void visitTraceRecords(String name, TraceRecordVisitor visitor) throws IOException {
+            byte[] bytes = entries.get(name);
+            if (bytes == null || !isTraceEntry(name) || name.endsWith(".stacks")) {
+                throw new IOException("Playwright trace entry is unavailable for record iteration: " + name);
+            }
+            int start = 0;
+            for (int index = 0; index <= bytes.length; index++) {
+                if (index < bytes.length && bytes[index] != '\n') {
+                    continue;
+                }
+                int end = index > start && bytes[index - 1] == '\r' ? index - 1 : index;
+                if (end > start) {
+                    visitor.accept(JSON.readTree(bytes, start, end - start));
+                }
+                start = index + 1;
+            }
+        }
+
+    }
+
+    @FunctionalInterface
+    interface TraceRecordVisitor {
+        void accept(JsonNode record) throws IOException;
     }
 }
