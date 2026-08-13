@@ -832,6 +832,7 @@ def memory_snapshot(
                     total = min(total, limit)
                     available = min(available, max(0, limit - current))
             except (OSError, KeyError, ValueError):
+                # Windows exposes no stable NVIDIA memory value when this diagnostic is unavailable.
                 pass
     else:
         raise ValueError(f"Unsupported memory platform: {system}")
@@ -1153,6 +1154,7 @@ def _provision_locked(  # noqa: MC0001  # One locked transaction owns preflight,
             try:
                 directory.rmdir()
             except OSError:
+                # A nonempty or concurrently reused directory is deliberately preserved.
                 pass
         raise
 
@@ -1216,6 +1218,7 @@ def _wait_for_identity(
             if alias in identifiers:
                 return
         except (OSError, ValueError, urllib.error.URLError):
+            # Identity is polled until timeout because the local server may still be starting.
             pass
         sleeper(0.25)
     raise TimeoutError("llama-server identity was not established")
