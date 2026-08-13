@@ -124,6 +124,7 @@ public class FailureTraceReporterTest {
                 Assert.assertTrue(html.contains("data-console-sort=\"message\""), html);
                 Assert.assertTrue(html.contains("id=\"console-level-filter\""), html);
                 Assert.assertTrue(html.contains("data-tab=\"log\""), html);
+                Assert.assertTrue(html.contains("const evidence = trace && trace.evidence"), html);
                 String tracedJson = readZipEntry(zip, "shaft-trace.json");
                 Assert.assertTrue(tracedJson.contains("\"environment\""), tracedJson);
                 Assert.assertTrue(tracedJson.contains("\"os\""), tracedJson);
@@ -526,7 +527,7 @@ public class FailureTraceReporterTest {
             Assert.assertTrue(json.contains("\"network\": ["), json);
             Assert.assertTrue(json.contains("\"method\": \"POST\""), json);
             Assert.assertTrue(json.contains("\"status\": 500"), json);
-            Assert.assertTrue(root.path("network").get(0).path("timestamp").asLong(0L) > 0L,
+            Assert.assertTrue(root.path("evidence").path("network").get(0).path("timestamp").asLong(0L) > 0L,
                     "Network events must carry an epoch timestamp for timeline correlation: " + json);
             Assert.assertTrue(json.contains("\"console\": ["), json);
             Assert.assertTrue(json.contains("\"level\": \"SEVERE\""), json);
@@ -871,8 +872,8 @@ public class FailureTraceReporterTest {
         }
     }
 
-    @Test(description = "Trace JSON should publish v2 session/events while retaining legacy action fields")
-    public void traceJsonShouldExposeBackendNeutralV2AndLegacyCompatibilityFields() throws Exception {
+    @Test(description = "Persisted trace JSON should use private v3 evidence without changing the public v2 session")
+    public void persistedTraceShouldUsePrivateV3WithoutChangingPublicV2Contract() throws Exception {
         SHAFT.Properties.reporting.set().traceEnabled(true);
         TraceEventRecorder.record("element", "click", "passed", "id=pay", null, "clicked", null,
                 Map.of("context", "web"), List.of());
@@ -880,7 +881,7 @@ public class FailureTraceReporterTest {
         String json = FailureTraceReporter.renderTraceJson(info("v2SchemaScenario", failure()), "log", List.of());
 
         JsonNode root = JSON.readTree(json);
-        Assert.assertEquals(root.path("schemaVersion").asText(), "1.0");
+        Assert.assertEquals(root.path("schemaVersion").asText(), "3.0");
         JsonNode session = root.path("session");
         Assert.assertEquals(session.path("schemaVersion").asText(), "2.0");
         Assert.assertEquals(session.path("backend").asText(), "UNKNOWN");
@@ -899,17 +900,17 @@ public class FailureTraceReporterTest {
         Assert.assertEquals(event.path("metadata").path("context").asText(), "web");
         Assert.assertEquals(session.path("artifacts").get(0).path("id").asText(), "network");
 
-        Assert.assertEquals(legacyActionNames(root), List.of("click"));
-        Assert.assertEquals(root.path("actions").get(0).path("id").asText(), "action-1");
-    }
-
-    private static List<String> legacyActionNames(JsonNode root) {
-        if (!"1.0".equals(root.path("schemaVersion").asText()) || !root.path("actions").isArray()) {
-            throw new IllegalArgumentException("Unsupported legacy trace document");
-        }
-        List<String> names = new ArrayList<>();
-        root.path("actions").forEach(action -> names.add(action.path("name").asText()));
-        return names;
+        JsonNode evidence = root.path("evidence");
+        Assert.assertTrue(evidence.path("actions").isArray(), root.toPrettyString());
+        Assert.assertTrue(evidence.path("network").isArray(), root.toPrettyString());
+        Assert.assertTrue(evidence.path("console").isArray(), root.toPrettyString());
+        Assert.assertEquals(evidence.path("actions").get(0).path("id").asText(), "action-1");
+        Assert.assertFalse(root.has("actions"), "v3 must have one canonical action location: " + root);
+        Assert.assertFalse(root.has("network"), "v3 must have one canonical network location: " + root);
+        Assert.assertFalse(root.has("console"), "v3 must have one canonical console location: " + root);
+        Assert.assertFalse(root.has("browserObservability"),
+                "v3 must have one canonical observability location: " + root);
+        Assert.assertTrue(evidence.path("browserObservability").path("warnings").isArray(), root.toPrettyString());
     }
 
     @Test(description = "Parallel same-id publication should keep the highest completed attempt and unique invocation paths")

@@ -190,7 +190,7 @@ public final class FailureTraceReporter {
                 manifest.references());
         StringBuilder json = new StringBuilder();
         json.append("{\n");
-        field(json, 1, "schemaVersion", "1.0", true);
+        field(json, 1, "schemaVersion", "3.0", true);
         field(json, 1, "generatedAt", traceSession.generatedAt().toString(), true);
         rawObject(json, 1, "session", TraceSchemaSerializer.toJson(traceSession), true);
         appendTestObject(json, info, throwable, attempt);
@@ -218,10 +218,12 @@ public final class FailureTraceReporter {
         field(json, 2, "content", snapshot.content(), false);
         objectEnd(json, 1, true);
         rawObject(json, 1, "locatorHealth", locatorHealthJson(), true);
-        rawObject(json, 1, "browserObservability", observabilityJson, true);
-        rawArray(json, 1, "network", networkJson, true);
-        rawArray(json, 1, "console", consoleJson, true);
-        rawArray(json, 1, "actions", TraceEventRecorder.toJson(actions), true);
+        objectStart(json, 1, "evidence");
+        rawObject(json, 2, "browserObservability", observabilityJson, true);
+        rawArray(json, 2, "network", networkJson, true);
+        rawArray(json, 2, "console", consoleJson, true);
+        rawArray(json, 2, "actions", TraceEventRecorder.toJson(actions), false);
+        objectEnd(json, 1, true);
         array(json, 1, "timeline", timeline(throwable, logText), true);
         array(json, 1, "attachments", attachmentEntries(attachments), false);
         json.append("}\n");
@@ -587,9 +589,11 @@ public final class FailureTraceReporter {
                 <script>
                 const trace = JSON.parse(document.getElementById('trace-data').textContent);
                 const truncation = JSON.parse(document.getElementById('trace-truncation').textContent);
-                const actions = Array.isArray(trace.actions) ? trace.actions : [];
-                const network = Array.isArray(trace.network) ? trace.network : [];
-                const consoleEvents = Array.isArray(trace.console) ? trace.console : [];
+                const evidence = trace && trace.evidence && typeof trace.evidence === 'object'
+                    ? trace.evidence : trace;
+                const actions = Array.isArray(evidence.actions) ? evidence.actions : [];
+                const network = Array.isArray(evidence.network) ? evidence.network : [];
+                const consoleEvents = Array.isArray(evidence.console) ? evidence.console : [];
                 const artifacts = Array.isArray(trace.session && trace.session.artifacts)
                     ? trace.session.artifacts : [];
                 const actionList = document.getElementById('action-list');
@@ -1202,7 +1206,10 @@ public final class FailureTraceReporter {
                   } else if (tab === 'log') {
                     tabContent.textContent = Array.isArray(trace.timeline) && trace.timeline.length ? trace.timeline.join('\\n') : 'No test log lines were recorded.';
                   } else {
-                    const data = tab === 'json' ? trace : tab === 'exception' && action.exception && (action.exception.type || action.exception.message) ? action.exception : trace[tab];
+                    const data = tab === 'json' ? trace
+                        : tab === 'exception' && action.exception && (action.exception.type || action.exception.message) ? action.exception
+                        : tab === 'browserObservability' ? evidence.browserObservability
+                        : trace[tab];
                     tabContent.textContent = typeof data === 'string' ? data : JSON.stringify(data || {}, null, 2);
                   }
                   document.querySelectorAll('#action-tabs button').forEach(button => button.classList.toggle('selected', button.dataset.tab === tab));

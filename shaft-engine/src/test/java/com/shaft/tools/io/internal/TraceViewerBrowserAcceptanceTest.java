@@ -423,9 +423,10 @@ public class TraceViewerBrowserAcceptanceTest {
             page.evaluate("""
                     () => {
                       const trace = JSON.parse(document.getElementById('trace-data').textContent);
-                      const action = trace.actions[0];
-                      const actionTimes = trace.actions.map(item => Date.parse(item.startTime));
-                      const networkStart = trace.network[0].timestamp - trace.network[0].durationMs;
+                      const evidence = trace.evidence || trace;
+                      const action = evidence.actions[0];
+                      const actionTimes = evidence.actions.map(item => Date.parse(item.startTime));
+                      const networkStart = evidence.network[0].timestamp - evidence.network[0].durationMs;
                       const base = Math.min(networkStart, ...actionTimes);
                       const actionStart = Date.parse(action.startTime) - base;
                       const start = actionStart + 10;
@@ -443,6 +444,9 @@ public class TraceViewerBrowserAcceptanceTest {
                     new com.microsoft.playwright.Locator.FilterOptions().setHasText("CLICK")).first()
                     .getAttribute("class").contains("inwindow"));
 
+            page.locator("button[data-tab=browserObservability]").click();
+            Assert.assertTrue(page.locator("#tab-content").textContent().contains("warnings"));
+
             page.locator("button[data-tab=network]").click();
             page.evaluate("""
                     () => {
@@ -459,8 +463,9 @@ public class TraceViewerBrowserAcceptanceTest {
             page.evaluate("""
                     () => {
                       const trace = JSON.parse(document.getElementById('trace-data').textContent);
-                      const event = trace.network[0];
-                      const actionTimes = trace.actions.map(action => Date.parse(action.startTime));
+                      const evidence = trace.evidence || trace;
+                      const event = evidence.network[0];
+                      const actionTimes = evidence.actions.map(action => Date.parse(action.startTime));
                       const networkStart = event.timestamp - event.durationMs;
                       const base = Math.min(networkStart, ...actionTimes);
                       const start = Math.max(0, networkStart - base + 50);
@@ -706,6 +711,8 @@ public class TraceViewerBrowserAcceptanceTest {
             Assert.assertTrue(page.locator("#timeline-list .timeline-entry").count() > 0,
                     "The session-less v1 trace must retain usable legacy timeline content.");
             Assert.assertTrue(page.locator("#timeline-list").textContent().contains("CLICK"));
+            page.locator("button[data-tab=browserObservability]").click();
+            Assert.assertTrue(page.locator("#tab-content").textContent().contains("warnings"));
             Assert.assertTrue(pageErrors.isEmpty(), "Page errors: " + pageErrors);
             Assert.assertTrue(externalRequests.isEmpty(), "External requests: " + externalRequests);
         } finally {
@@ -791,7 +798,15 @@ public class TraceViewerBrowserAcceptanceTest {
         String encoded = html.substring(payloadStart, payloadEnd);
         String decoded = encoded.replace("&lt;", "<").replace("&gt;", ">").replace("&amp;", "&");
         JsonNode legacy = JSON.readTree(decoded);
-        ((tools.jackson.databind.node.ObjectNode) legacy).remove("session");
+        var legacyObject = (tools.jackson.databind.node.ObjectNode) legacy;
+        JsonNode evidence = legacy.path("evidence");
+        legacyObject.put("schemaVersion", "1.0");
+        legacyObject.set("actions", evidence.path("actions"));
+        legacyObject.set("network", evidence.path("network"));
+        legacyObject.set("console", evidence.path("console"));
+        legacyObject.set("browserObservability", evidence.path("browserObservability"));
+        legacyObject.remove("evidence");
+        legacyObject.remove("session");
         String legacyJson = JSON.writeValueAsString(legacy)
                 .replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;");
         Path target = currentHtml.resolveSibling("trace-viewer-browser-acceptance-v1.html");
