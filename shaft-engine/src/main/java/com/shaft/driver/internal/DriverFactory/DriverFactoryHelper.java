@@ -6,6 +6,7 @@ import com.shaft.driver.DriverFactory.DriverType;
 import com.shaft.driver.SHAFT;
 import com.shaft.gui.browser.BrowserActions;
 import com.shaft.gui.browser.internal.BidiNetworkActivitySource;
+import com.shaft.gui.browser.internal.CdpWebSocketTraceSource;
 import com.shaft.gui.browser.internal.BidiConsoleLogSource;
 import com.shaft.gui.browser.internal.LegacyConsoleLogSource;
 import com.shaft.gui.browser.internal.BidiPermissionState;
@@ -290,6 +291,7 @@ public class DriverFactoryHelper {
                     && SHAFT.Properties.reporting != null
                     && SHAFT.Properties.reporting.traceEnabled()
                     && SHAFT.Properties.reporting.traceIncludeNetwork()) {
+                CdpWebSocketTraceSource.attach(driver);
                 getBrowserNetworkInterceptor().startObserving();
             }
         } catch (RuntimeException e) {
@@ -914,6 +916,7 @@ public class DriverFactoryHelper {
                 }
                 BrowserNetworkInterceptor.closeAndRemove(driver);
                 BidiNetworkActivitySource.closeAndRemove(driver);
+                CdpWebSocketTraceSource.closeAndRemove(driver);
                 BidiConsoleLogSource.closeAndRemove(driver);
                 LegacyConsoleLogSource.closeAndRemove(driver);
                 MobileLogSource.closeAndRemove(driver);

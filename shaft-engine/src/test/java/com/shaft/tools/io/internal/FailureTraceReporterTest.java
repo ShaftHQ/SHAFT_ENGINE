@@ -567,6 +567,13 @@ public class FailureTraceReporterTest {
             BrowserObservabilityRecorder.recordConsole("browser", "SEVERE",
                     "Uncaught token=raw-token", 123L);
             BrowserObservabilityRecorder.recordWarning("network", "Network capture is not supported by this driver.");
+            BrowserObservabilityRecorder.recordWebSocket(BrowserObservabilityRecorder.captureSession(),
+                    new BrowserObservabilityRecorder.WebSocketObservation("socket-1", "wss://example.test/socket",
+                            "received", "frame", 1, "hello", "", 5, "available", ""));
+            BrowserObservabilityRecorder.recordWebSocket(BrowserObservabilityRecorder.captureSession(),
+                    new BrowserObservabilityRecorder.WebSocketObservation("socket-1", "wss://example.test/socket",
+                            "sent", "frame", 2, "", "039058c6f2c0cb492c533b0a4d14ef77cc0f78abccced5287d84a1a2011cfb81",
+                            3, "malformed", "CDP WebSocket binary frame was malformed."));
 
             String json = FailureTraceReporter.renderTraceJson(info("failingScenario", failure()), "failed", List.of());
             var root = new tools.jackson.databind.ObjectMapper().readTree(json);
@@ -580,6 +587,27 @@ public class FailureTraceReporterTest {
             Assert.assertTrue(json.contains("\"level\": \"SEVERE\""), json);
             Assert.assertTrue(json.contains("\"browserObservability\""), json);
             Assert.assertTrue(json.contains("Network capture is not supported by this driver."), json);
+            Assert.assertEquals(root.path("evidence").path("browserObservability").path("webSockets")
+                    .get(0).path("provider").asText(), "cdp", json);
+            Assert.assertEquals(root.path("evidence").path("browserObservability").path("webSockets")
+                    .get(0).path("text").asText(), "hello", json);
+            var binary = root.path("evidence").path("browserObservability").path("webSockets").get(1);
+            Assert.assertEquals(binary.path("requestId").asText(), "socket-1", json);
+            Assert.assertEquals(binary.path("url").asText(), "wss://example.test/socket", json);
+            Assert.assertEquals(binary.path("direction").asText(), "sent", json);
+            Assert.assertEquals(binary.path("type").asText(), "frame", json);
+            Assert.assertEquals(binary.path("opcode").asInt(), 2, json);
+            Assert.assertEquals(binary.path("sha256").asText(),
+                    "039058c6f2c0cb492c533b0a4d14ef77cc0f78abccced5287d84a1a2011cfb81", json);
+            Assert.assertEquals(binary.path("sizeBytes").asLong(), 3L, json);
+            Assert.assertEquals(binary.path("status").asText(), "malformed", json);
+            Assert.assertEquals(binary.path("reason").asText(), "CDP WebSocket binary frame was malformed.", json);
+            Assert.assertTrue(binary.path("timestamp").asLong() > 0L, json);
+            BrowserObservabilityRecorder.recordWebSocket(BrowserObservabilityRecorder.captureSession(),
+                    new BrowserObservabilityRecorder.WebSocketObservation("socket", "", "", "frame", 2,
+                            "", "private-value".repeat(1_000), 0, "available", ""));
+            Assert.assertTrue(BrowserObservabilityRecorder.snapshotWebSockets(
+                    BrowserObservabilityRecorder.captureSession()).getFirst().sha256().isEmpty());
             Assert.assertFalse(json.contains("raw-token"), json);
             Assert.assertFalse(json.contains("raw-cookie"), json);
             Assert.assertFalse(json.contains("raw-password"), json);
