@@ -40,6 +40,7 @@ import org.apache.logging.log4j.Level;
 import org.openqa.selenium.*;
 import org.openqa.selenium.interactions.*;
 import org.openqa.selenium.remote.RemoteWebDriver;
+import org.openqa.selenium.remote.RemoteWebElement;
 
 import java.io.File;
 import java.io.IOException;
@@ -1547,6 +1548,19 @@ public class TouchActions extends FluentWebDriverAction {
         Dimension screenSize = driverFactoryHelper.getDriver().manage().window().getSize();
 
         var scrollParameters = new HashMap<>();
+
+        if (driverFactoryHelper.getDriver() instanceof IOSDriver) {
+            scrollParameters.put("direction", swipeDirection.name().toLowerCase(Locale.ROOT));
+            if (scrollableElementLocator != null) {
+                WebElement scrollableElement = (WebElement) elementActionsHelper.identifyUniqueElement(
+                        driverFactoryHelper.getDriver(), scrollableElementLocator).get(1);
+                if (!(scrollableElement instanceof RemoteWebElement remoteElement)) {
+                    throw new IllegalStateException("iOS container scrolling requires an Appium remote element.");
+                }
+                scrollParameters.put("elementId", remoteElement.getId());
+            }
+            return scrollParameters;
+        }
 
         if (scrollableElementLocator != null) {
             //scrolling inside an element

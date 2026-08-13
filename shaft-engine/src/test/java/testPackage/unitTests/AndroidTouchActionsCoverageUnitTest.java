@@ -32,6 +32,7 @@ import org.openqa.selenium.WebDriverException;
 import org.openqa.selenium.WebElement;
 import org.openqa.selenium.interactions.Sequence;
 import org.openqa.selenium.remote.RemoteWebDriver;
+import org.openqa.selenium.remote.RemoteWebElement;
 import org.opentest4j.AssertionFailedError;
 import org.testng.annotations.AfterMethod;
 import org.testng.Assert;
@@ -331,7 +332,8 @@ public class AndroidTouchActionsCoverageUnitTest {
         doReturn(null).doReturn(false).when(iosDriver).executeScript(eq("mobile: scroll"), anyMap());
         TouchActions touchActions = new TouchActions(iosDriver);
         ElementActionsHelper elementActionsHelper = mock(ElementActionsHelper.class);
-        WebElement scrollableElement = mock(WebElement.class);
+        RemoteWebElement scrollableElement = mock(RemoteWebElement.class);
+        when(scrollableElement.getId()).thenReturn("ios-container-id");
         when(scrollableElement.getRect()).thenReturn(new org.openqa.selenium.Rectangle(10, 20, 300, 500));
         when(elementActionsHelper.identifyUniqueElement(any(), eq(By.id("ios-container"))))
                 .thenReturn(List.of("ios-container", scrollableElement));
@@ -348,10 +350,12 @@ public class AndroidTouchActionsCoverageUnitTest {
         @SuppressWarnings("unchecked")
         Map<Object, Object> elementLeftParameters = (Map<Object, Object>) prepareParameters.invoke(touchActions, TouchActions.SwipeDirection.LEFT, By.id("ios-container"), By.id("target"));
 
-        SHAFT.Validations.assertThat().object(downParameters.get("direction")).isEqualTo("DOWN").perform();
-        SHAFT.Validations.assertThat().object(rightParameters.get("left")).isEqualTo(100).perform();
-        SHAFT.Validations.assertThat().object(elementUpParameters.get("height")).isEqualTo(270).perform();
-        SHAFT.Validations.assertThat().object(elementLeftParameters.get("left")).isEqualTo(260).perform();
+        Assert.assertEquals(downParameters, Map.of("direction", "down"));
+        Assert.assertEquals(rightParameters, Map.of("direction", "right"));
+        Assert.assertEquals(elementUpParameters, Map.of(
+                "direction", "up", "elementId", "ios-container-id"));
+        Assert.assertEquals(elementLeftParameters, Map.of(
+                "direction", "left", "elementId", "ios-container-id"));
 
         Method performW3cCompliantScroll = TouchActions.class.getDeclaredMethod("performW3cCompliantScroll", java.util.HashMap.class, boolean.class);
         performW3cCompliantScroll.setAccessible(true);
