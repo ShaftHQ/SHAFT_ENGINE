@@ -714,10 +714,19 @@ class LifecycleTest(unittest.TestCase):
         self.assertIn("--api-key", command)
         self.assertIn("secret", command)
         self.assertIn("--alias", command)
-        environment = MODULE.runtime_environment({"PATH": "p", "SystemRoot": "w", "TEMP": "t", "LD_LIBRARY_PATH": "l"})
+        environment = MODULE.runtime_environment({
+            "PATH": "p", "SystemRoot": "w", "TEMP": "t", "TMP": "u", "LD_LIBRARY_PATH": "l",
+            "DYLD_LIBRARY_PATH": "d", "AWS_SECRET_ACCESS_KEY": "aws", "AZURE_CLIENT_SECRET": "azure",
+            "GOOGLE_APPLICATION_CREDENTIALS": "google", "DATABASE_URL": "database", "CI_JOB_TOKEN": "ci",
+        })
         self.assertEqual("w", environment["SystemRoot"])
         self.assertEqual("t", environment["TEMP"])
         self.assertEqual("l", environment["LD_LIBRARY_PATH"])
+        self.assertEqual("d", environment["DYLD_LIBRARY_PATH"])
+        self.assertFalse(
+            {"AWS_SECRET_ACCESS_KEY", "AZURE_CLIENT_SECRET", "GOOGLE_APPLICATION_CREDENTIALS", "DATABASE_URL", "CI_JOB_TOKEN"}
+            & environment.keys()
+        )
 
         process = type("Process", (), {"poll": lambda self: None})()
         seen = []
@@ -919,6 +928,50 @@ class LifecycleTest(unittest.TestCase):
             self.assertEqual("failed", failure["status"])
             self.assertEqual("OSError", failure["errorType"])
             self.assertEqual("qwen3-1.7b-q8_0", failure["modelId"])
+
+    def test_invalid_corpus_fails_before_provisioning_or_network_mutation(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            invalid_corpus = root / "corpus.json"
+            invalid_corpus.write_text('{"schemaVersion": 1, "cases": []}', encoding="utf-8")
+            with mock.patch.object(MODULE, "provision") as provision:
+                with self.assertRaises(ValueError):
+                    MODULE.benchmark(MANIFEST_PATH, invalid_corpus, root / "cache", "qwen3-1.7b-q8_0", 5)
+            provision.assert_not_called()
+
+    def test_benchmark_log_is_cache_contained_and_failed_unlink_becomes_owned(self):
+        provisioned = {
+            "runtimeExecutable": "server.exe", "modelPath": "model.gguf", "runtimeVersion": "b10400",
+            "modelId": "qwen3-1.7b-q8_0", "hardware": self.hardware,
+        }
+        process = type("Process", (), {"poll": lambda self: None})()
+        with tempfile.TemporaryDirectory() as temporary:
+            cache = Path(temporary) / "cache"
+            captured_log = []
+
+            def popen(_command, **kwargs):
+                captured_log.append(Path(kwargs["stdout"].name))
+                return process
+
+            real_unlink = Path.unlink
+
+            def fail_log_unlink(path, *args, **kwargs):
+                if captured_log and path == captured_log[0]:
+                    raise PermissionError("locked log")
+                return real_unlink(path, *args, **kwargs)
+
+            with mock.patch.object(MODULE, "provision", return_value=provisioned), \
+                 mock.patch.object(MODULE.subprocess, "Popen", side_effect=popen), \
+                 mock.patch.object(MODULE, "_wait_for_identity"), \
+                 mock.patch.object(MODULE, "run_case", side_effect=OSError("inference failed")), \
+                 mock.patch.object(MODULE, "_terminate"), \
+                 mock.patch.object(Path, "unlink", autospec=True, side_effect=fail_log_unlink):
+                with self.assertRaisesRegex(OSError, "inference failed"):
+                    MODULE.benchmark(MANIFEST_PATH, CORPUS_PATH, cache, "qwen3-1.7b-q8_0", 5)
+            self.assertEqual(1, len(captured_log))
+            captured_log[0].resolve().relative_to(cache.resolve())
+            owned = {entry["path"] for entry in MODULE._owner_entries(cache)}
+            self.assertIn(MODULE._relative_owned(cache, captured_log[0]), owned)
 
     def test_benchmark_preserves_inference_failure_when_termination_also_fails(self):
         provisioned = {

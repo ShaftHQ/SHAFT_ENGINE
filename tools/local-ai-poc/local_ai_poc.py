@@ -243,7 +243,11 @@ def load_corpus(path: Path) -> dict[str, Any]:
     """Load and minimally validate the fixed sanitized Doctor corpus."""
     corpus = load_json(path)
     _require_keys(corpus, {"schemaVersion", "cases"}, "corpus")
-    if corpus["schemaVersion"] != 1 or not isinstance(corpus["cases"], list):
+    if (
+        corpus["schemaVersion"] != 1
+        or not isinstance(corpus["cases"], list)
+        or len(corpus["cases"]) < 6
+    ):
         raise ValueError("Unsupported Doctor corpus")
     identifiers = set()
     for index, case in enumerate(corpus["cases"]):
@@ -1268,13 +1272,14 @@ def _termination_error(process: subprocess.Popen | None) -> Exception | None:
 
 
 def runtime_environment(source: dict[str, str] | None = None) -> dict[str, str]:
-    """Preserve platform loader/temp prerequisites while removing known remote AI secrets."""
-    environment = dict(os.environ if source is None else source)
-    for key in tuple(environment):
-        upper = key.upper()
-        if upper.endswith("_API_KEY") or upper in {"GITHUB_TOKEN", "HF_TOKEN", "HUGGING_FACE_HUB_TOKEN"}:
-            environment.pop(key, None)
-    return environment
+    """Pass only platform loader/temp essentials to the downloaded native runtime."""
+    available = os.environ if source is None else source
+    allowed = {
+        "PATH", "SYSTEMROOT", "WINDIR", "TEMP", "TMP", "TMPDIR", "COMSPEC", "PATHEXT",
+        "LD_LIBRARY_PATH", "DYLD_LIBRARY_PATH", "DYLD_FALLBACK_LIBRARY_PATH",
+        "LANG", "LC_ALL", "LC_CTYPE", "TZ", "HOME", "USERPROFILE",
+    }
+    return {key: value for key, value in available.items() if key.upper() in allowed}
 
 
 def warm_labels(case_count: int, repeats: int) -> list[bool]:
@@ -1339,6 +1344,7 @@ def benchmark(
 ) -> dict[str, Any]:
     if repeats < 5:
         raise ValueError("Benchmark requires at least five repeats per case")
+    corpus = load_corpus(corpus_path)
     provisioned = None
     log_file = None
     log_path = None
@@ -1348,12 +1354,13 @@ def benchmark(
     cleanup_errors: list[str] = []
     try:
         provisioned = provision(manifest_path, cache, requested_model)
-        corpus = load_corpus(corpus_path)
         api_key = secrets.token_urlsafe(32)
         alias = f"shaft-poc-{secrets.token_hex(8)}"
         creation_flags = subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0
+        log_root = cache_path(cache, "staging", "logs")
+        log_root.mkdir(parents=True, exist_ok=True)
         log_file = tempfile.NamedTemporaryFile(
-            mode="w+", encoding="utf-8", prefix="shaft-local-ai-", suffix=".log", delete=False
+            mode="w+", encoding="utf-8", prefix="shaft-local-ai-", suffix=".log", delete=False, dir=log_root
         )
         log_path = Path(log_file.name)
         for _launch_attempt in range(3):
@@ -1469,6 +1476,11 @@ def benchmark(
                 log_path.unlink(missing_ok=True)
             except Exception as cleanup_error:
                 print(f"Could not remove temporary benchmark log: {cleanup_error}", file=sys.stderr)
+                try:
+                    with CacheLock(cache):
+                        _write_owner_entries(cache, merge_owned_files(cache, [log_path]))
+                except Exception as ownership_error:
+                    print(f"Could not own retained benchmark log: {ownership_error}", file=sys.stderr)
 
 
 def build_parser() -> argparse.ArgumentParser:
