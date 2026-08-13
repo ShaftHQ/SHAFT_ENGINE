@@ -180,7 +180,8 @@ class ProviderConformanceTest {
     void serviceLoaderDiscoversAllDirectProviders() {
         var ids = new AiProviderRegistry().serviceProviders().stream().map(AiProvider::id).toList();
 
-        assertEquals(List.of("anthropic", "gemini", "github", "lmstudio", "ollama", "openai"), ids);
+        assertEquals(List.of("managed-local", "anthropic", "gemini", "github", "lmstudio", "ollama", "openai"),
+                ids);
     }
 
     @ParameterizedTest
