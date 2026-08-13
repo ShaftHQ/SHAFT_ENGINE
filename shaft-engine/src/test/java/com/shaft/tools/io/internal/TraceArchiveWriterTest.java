@@ -7,6 +7,7 @@ import java.io.IOException;
 import java.io.File;
 import java.io.InputStream;
 import java.lang.reflect.Method;
+import java.lang.reflect.InvocationTargetException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -75,6 +76,114 @@ public class TraceArchiveWriterTest {
                 Assert.assertEquals(new String(zip.getInputStream(zip.getEntry("large.bin")).readAllBytes(),
                         StandardCharsets.UTF_8), "bounded omission");
             }
+        } finally {
+            deleteRecursively(directory);
+        }
+    }
+
+    @Test
+    public void totalBudgetShouldOmitLaterIndividuallySmallEntriesAndKeepZipValid() throws Exception {
+        Path directory = Files.createTempDirectory("shaft-trace-writer-total-cap-");
+        Path target = directory.resolve("shaft-trace.zip");
+        try {
+            Method boundedWriter;
+            try {
+                boundedWriter = TraceArchiveWriter.class.getDeclaredMethod("write", Path.class, List.class,
+                        long.class, long.class, String.class);
+            } catch (NoSuchMethodException missing) {
+                throw new AssertionError("Trace archives need an aggregate decompressed-byte budget.", missing);
+            }
+            try {
+                boundedWriter.invoke(null, target, List.of(
+                                TraceArchiveWriter.Entry.text("first.txt", "12345678"),
+                                TraceArchiveWriter.Entry.text("second.txt", "abcdef")),
+                        8L, 8L, "x");
+            } catch (InvocationTargetException failure) {
+                if (failure.getCause() instanceof Exception exception) {
+                    throw exception;
+                }
+                throw failure;
+            }
+
+            try (ZipFile zip = new ZipFile(target.toFile())) {
+                Assert.assertEquals(new String(zip.getInputStream(zip.getEntry("first.txt")).readAllBytes(),
+                        StandardCharsets.UTF_8), "x");
+                Assert.assertEquals(new String(zip.getInputStream(zip.getEntry("second.txt")).readAllBytes(),
+                        StandardCharsets.UTF_8), "abcdef");
+                long totalBytes = zip.stream().mapToLong(java.util.zip.ZipEntry::getSize).sum();
+                Assert.assertEquals(totalBytes, 7L);
+            }
+        } finally {
+            deleteRecursively(directory);
+        }
+    }
+
+    @Test
+    public void aggregateBudgetShouldHandleLongMaxAndRejectInfeasibleMarkers() throws Exception {
+        Path directory = Files.createTempDirectory("shaft-trace-writer-max-budget-");
+        Path target = directory.resolve("shaft-trace.zip");
+        TraceArchiveWriter.Source maximumSized = new TraceArchiveWriter.Source() {
+            @Override
+            public long size() {
+                return Long.MAX_VALUE;
+            }
+
+            @Override
+            public InputStream open() {
+                throw new AssertionError("An over-budget source must not be opened.");
+            }
+        };
+        try {
+            TraceArchiveWriter.write(target, List.of(
+                            TraceArchiveWriter.Entry.optional("maximum.bin", maximumSized),
+                            TraceArchiveWriter.Entry.text("tail.txt", "t")),
+                    Long.MAX_VALUE, Long.MAX_VALUE, "x");
+            try (ZipFile zip = new ZipFile(target.toFile())) {
+                Assert.assertEquals(new String(zip.getInputStream(zip.getEntry("maximum.bin")).readAllBytes(),
+                        StandardCharsets.UTF_8), "x");
+                Assert.assertEquals(new String(zip.getInputStream(zip.getEntry("tail.txt")).readAllBytes(),
+                        StandardCharsets.UTF_8), "t");
+            }
+            Assert.expectThrows(IllegalArgumentException.class, () -> TraceArchiveWriter.write(target,
+                    List.of(TraceArchiveWriter.Entry.text("a", "a"), TraceArchiveWriter.Entry.text("b", "b")),
+                    8, 1, "x"));
+            IOException infeasible = Assert.expectThrows(IOException.class, () -> TraceArchiveWriter.write(target,
+                    List.of(TraceArchiveWriter.Entry.requiredText("core", "12345678"),
+                            TraceArchiveWriter.Entry.optionalBytes("extra", new byte[]{1})),
+                    8, 8, "x"));
+            Assert.assertTrue(infeasible.getMessage().contains("aggregate archive budget"));
+        } finally {
+            deleteRecursively(directory);
+        }
+    }
+
+    @Test
+    public void aggregatePlanningShouldRemainLinearForManyEntries() throws Exception {
+        Path directory = Files.createTempDirectory("shaft-trace-writer-many-");
+        Path target = directory.resolve("shaft-trace.zip");
+        AtomicInteger sizeCalls = new AtomicInteger();
+        try {
+            List<TraceArchiveWriter.Entry> entries = java.util.stream.IntStream.range(0, 1_000)
+                    .mapToObj(index -> TraceArchiveWriter.Entry.required("resources/" + index,
+                            new TraceArchiveWriter.Source() {
+                                @Override
+                                public long size() {
+                                    sizeCalls.incrementAndGet();
+                                    return 0;
+                                }
+
+                                @Override
+                                public InputStream open() {
+                                    return InputStream.nullInputStream();
+                                }
+                            }))
+                    .toList();
+            TraceArchiveWriter.write(target, entries, 1, 1_000, "x");
+            try (ZipFile zip = new ZipFile(target.toFile())) {
+                Assert.assertEquals(zip.size(), 1_000);
+            }
+            Assert.assertTrue(sizeCalls.get() <= 3_000,
+                    "Aggregate planning must not rescan every later source: " + sizeCalls.get());
         } finally {
             deleteRecursively(directory);
         }
