@@ -64,35 +64,45 @@ final class PlaywrightTraceImporter {
             if (context == null) {
                 continue;
             }
-            JsonNode root = JSON.readTree(loaded.entry(name));
-            JsonNode files = root.path("files");
-            JsonNode stacks = root.path("stacks");
-            if (!files.isArray() || !stacks.isArray()) {
-                throw new IOException("Malformed Playwright stack metadata in " + name + ".");
-            }
-            Map<String, MutableAction> byCall = new HashMap<>();
-            context.actions.forEach(action -> byCall.put(action.callId, action));
-            for (JsonNode stack : stacks.values()) {
-                if (!stack.isArray() || stack.size() < 2 || !stack.get(0).canConvertToInt()
-                        || !stack.get(1).isArray() || stack.get(1).isEmpty()) {
-                    throw new IOException("Malformed Playwright stack entry in " + name + ".");
-                }
-                MutableAction action = byCall.get("call@" + stack.get(0).asInt());
-                if (action == null || !action.source.isBlank()) {
-                    continue;
-                }
-                JsonNode frame = stack.get(1).get(0);
-                if (!frame.isArray() || frame.size() < 3 || !frame.get(0).canConvertToInt()) {
-                    throw new IOException("Malformed Playwright stack frame in " + name + ".");
-                }
-                int fileIndex = frame.get(0).asInt();
-                if (fileIndex < 0 || fileIndex >= files.size()) {
-                    throw new IOException("Playwright stack frame references an unknown source file in " + name + ".");
-                }
-                action.source = safeText(files.get(fileIndex).asText()) + ':' + frame.get(1).asInt()
-                        + ':' + frame.get(2).asInt();
-            }
+            applyStackSidecar(loaded, name, context);
         }
+    }
+
+    private static void applyStackSidecar(PlaywrightTraceArchiveLoader.LoadedArchive loaded, String name,
+                                          TraceContext context) throws IOException {
+        JsonNode root = JSON.readTree(loaded.entry(name));
+        JsonNode files = root.path("files");
+        JsonNode stacks = root.path("stacks");
+        if (!files.isArray() || !stacks.isArray()) {
+            throw new IOException("Malformed Playwright stack metadata in " + name + ".");
+        }
+        Map<String, MutableAction> byCall = new HashMap<>();
+        context.actions.forEach(action -> byCall.put(action.callId, action));
+        for (JsonNode stack : stacks.values()) {
+            applyStackEntry(stack, files, byCall, name);
+        }
+    }
+
+    private static void applyStackEntry(JsonNode stack, JsonNode files, Map<String, MutableAction> byCall,
+                                        String name) throws IOException {
+        if (!stack.isArray() || stack.size() < 2 || !stack.get(0).canConvertToInt()
+                || !stack.get(1).isArray() || stack.get(1).isEmpty()) {
+            throw new IOException("Malformed Playwright stack entry in " + name + ".");
+        }
+        MutableAction action = byCall.get("call@" + stack.get(0).asInt());
+        if (action == null || !action.source.isBlank()) {
+            return;
+        }
+        JsonNode frame = stack.get(1).get(0);
+        if (!frame.isArray() || frame.size() < 3 || !frame.get(0).canConvertToInt()) {
+            throw new IOException("Malformed Playwright stack frame in " + name + ".");
+        }
+        int fileIndex = frame.get(0).asInt();
+        if (fileIndex < 0 || fileIndex >= files.size()) {
+            throw new IOException("Playwright stack frame references an unknown source file in " + name + ".");
+        }
+        action.source = safeText(files.get(fileIndex).asText()) + ':' + frame.get(1).asInt()
+                + ':' + frame.get(2).asInt();
     }
 
     private static TraceContext parseContext(PlaywrightTraceArchiveLoader.LoadedArchive loaded, String name,
@@ -250,16 +260,31 @@ final class PlaywrightTraceImporter {
         if (shaftAction.backend() != AutomationBackend.MICROSOFT_PLAYWRIGHT) {
             return null;
         }
-        long start;
-        try {
-            start = Instant.parse(shaftAction.startTime()).toEpochMilli();
-        } catch (DateTimeParseException | ArithmeticException exception) {
+        Long start = epochMillis(shaftAction.startTime());
+        if (start == null) {
             return null;
         }
         NavigableMap<Long, List<NativeAction>> candidates = byOperation.get(canonicalOperation(shaftAction.name()));
         if (candidates == null || candidates.isEmpty()) {
             return null;
         }
+        Map.Entry<Long, List<NativeAction>> nearestEntry = nearestEntry(candidates, start);
+        if (nearestEntry == null || nearestEntry.getValue().size() != 1) {
+            return null;
+        }
+        return nearestEntry.getValue().getFirst();
+    }
+
+    private static Long epochMillis(String instant) {
+        try {
+            return Instant.parse(instant).toEpochMilli();
+        } catch (DateTimeParseException | ArithmeticException exception) {
+            return null;
+        }
+    }
+
+    private static Map.Entry<Long, List<NativeAction>> nearestEntry(
+            NavigableMap<Long, List<NativeAction>> candidates, long start) {
         Map.Entry<Long, List<NativeAction>> floor = candidates.floorEntry(start);
         Map.Entry<Long, List<NativeAction>> ceiling = candidates.ceilingEntry(start);
         long floorDistance = floor == null ? Long.MAX_VALUE : nonNegativeDistance(start, floor.getKey());
@@ -270,12 +295,7 @@ final class PlaywrightTraceImporter {
         if (distance > CORRELATION_WINDOW_MILLIS || tiedDifferentTimes) {
             return null;
         }
-        Map.Entry<Long, List<NativeAction>> nearestEntry = floorDistance <= ceilingDistance ? floor : ceiling;
-        if (nearestEntry == null) {
-            return null;
-        }
-        List<NativeAction> nearest = nearestEntry.getValue();
-        return nearest.size() == 1 ? nearest.getFirst() : null;
+        return floorDistance <= ceilingDistance ? floor : ceiling;
     }
 
     private static long nonNegativeDistance(long greater, long lesser) {
