@@ -86,6 +86,43 @@ class SetupCommandTest {
     }
 
     @Test
+    void ocrProfileHasProviderBackedStatusAndPlan(@TempDir Path temp) throws Exception {
+        Path cache = temp.resolve("cache").toAbsolutePath();
+        Path data = temp.resolve("data").toAbsolutePath();
+        CommandResult status = execute("setup", "status", "--profile", "OCR",
+                "--cache-root", cache.toString(), "--data-root", data.toString(), "--json");
+        assertEquals(3, status.exitCode(), status.stderr());
+        assertEquals("OCR", JSON.readTree(status.stdout()).get("profile").asText());
+
+        Path planFile = temp.resolve("ocr-plan.json").toAbsolutePath();
+        CommandResult planned = execute("setup", "plan", "--profile", "OCR", "--mode", "MANAGED",
+                "--output", planFile.toString(), "--cache-root", cache.toString(),
+                "--data-root", data.toString(), "--json");
+        assertEquals(0, planned.exitCode(), planned.stderr());
+        JsonNode plan = JSON.readTree(planned.stdout());
+        assertEquals("OCR", plan.get("profile").asText());
+        assertEquals(2, plan.get("actions").size());
+        assertEquals("OCR_TESSDATA", plan.get("actions").get(0).get("target").asText());
+
+        Path languagePlan = temp.resolve("ocr-language-plan.json").toAbsolutePath();
+        CommandResult selected = execute("setup", "plan", "--profile", "OCR", "--mode", "MANAGED",
+                "--language", "fra", "--language", "deu", "--output", languagePlan.toString(),
+                "--cache-root", cache.toString(), "--data-root", data.toString(), "--offline", "--json");
+        assertEquals(0, selected.exitCode(), selected.stderr());
+        JsonNode selectedPlan = JSON.readTree(selected.stdout());
+        assertEquals(2, selectedPlan.get("actions").size());
+        assertTrue(selectedPlan.get("actions").get(0).get("version").asText().endsWith(":deu"));
+        assertTrue(selectedPlan.get("actions").get(1).get("version").asText().endsWith(":fra"));
+
+        CommandResult installWithoutRepeatedLanguages = execute("setup", "install", "--plan",
+                languagePlan.toString(), "--approve", selectedPlan.get("digest").asText(),
+                "--cache-root", cache.toString(), "--data-root", data.toString(), "--offline");
+        assertEquals(5, installWithoutRepeatedLanguages.exitCode());
+        assertTrue(installWithoutRepeatedLanguages.stderr().contains("offline cache"),
+                installWithoutRepeatedLanguages.stderr());
+    }
+
+    @Test
     void setupHelpExposesOnlyTheApprovedVersionOneTree() {
         CommandResult result = execute("setup", "--help");
 
@@ -97,6 +134,22 @@ class SetupCommandTest {
         for (String deferred : java.util.List.of("uninstall", "cache-clean")) {
             assertTrue(!result.stdout().contains(deferred), deferred);
         }
+    }
+
+    @Test
+    void invalidAndNonOcrLanguageSelectorsReturnInvalidInputWithoutStackTrace(@TempDir Path temp) {
+        String cache = temp.resolve("cache").toAbsolutePath().toString();
+        String data = temp.resolve("data").toAbsolutePath().toString();
+        CommandResult unknown = execute("setup", "status", "--profile", "OCR", "--language", "zzz",
+                "--cache-root", cache, "--data-root", data);
+        CommandResult nonOcr = execute("setup", "status", "--profile", "REPORTING", "--language", "eng",
+                "--cache-root", cache, "--data-root", data);
+
+        assertEquals(2, unknown.exitCode());
+        assertTrue(unknown.stderr().contains("Unsupported OCR language code"));
+        assertTrue(!unknown.stderr().contains("\tat "));
+        assertEquals(2, nonOcr.exitCode());
+        assertTrue(nonOcr.stderr().contains("only for profile OCR"));
     }
 
     @Test

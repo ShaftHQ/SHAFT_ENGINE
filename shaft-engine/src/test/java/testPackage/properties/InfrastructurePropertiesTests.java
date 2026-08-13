@@ -5,6 +5,7 @@ import com.shaft.infrastructure.SetupApproval;
 import com.shaft.infrastructure.SetupMode;
 import com.shaft.infrastructure.SetupPlan;
 import com.shaft.infrastructure.SetupProfile;
+import com.shaft.infrastructure.SetupSelection;
 import com.shaft.properties.internal.Properties;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
@@ -129,5 +130,22 @@ public class InfrastructurePropertiesTests {
         var reporting = SHAFT.Infrastructure.options();
         Assert.assertEquals(reporting.effectiveMode(), SetupMode.MANAGED);
         Assert.assertTrue(reporting.remoteEndpoint().isEmpty());
+    }
+
+    @Test
+    public void ocrSelectionIsAvailableThroughTheShaftFacade() throws Exception {
+        Path root = Files.createTempDirectory("shaft-infrastructure-ocr-").toAbsolutePath();
+        SHAFT.Properties.infrastructure.set().mode(SetupMode.MANAGED).profile(SetupProfile.OCR)
+                .cacheDirectory(root.toString());
+        var options = SHAFT.Infrastructure.options();
+        var selection = new SetupSelection(java.util.List.of("fra", "deu"));
+
+        SetupPlan plan = SHAFT.Infrastructure.plan(options, selection);
+
+        Assert.assertEquals(plan.actions().size(), 2);
+        Assert.assertTrue(plan.actions().get(0).version().endsWith(":deu"));
+        Assert.assertTrue(plan.actions().get(1).version().endsWith(":fra"));
+        Assert.assertEquals(SHAFT.Infrastructure.status(options, selection).profile(), SetupProfile.OCR);
+        Assert.assertEquals(SHAFT.Infrastructure.verify(options, selection).profile(), SetupProfile.OCR);
     }
 }

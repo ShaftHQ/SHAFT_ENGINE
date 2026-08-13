@@ -1780,15 +1780,27 @@ public class SHAFT {
         public static com.shaft.infrastructure.SetupReport status(com.shaft.infrastructure.SetupOptions options) {
             return service().status(options);
         }
+        public static com.shaft.infrastructure.SetupReport status(com.shaft.infrastructure.SetupOptions options,
+                com.shaft.infrastructure.SetupSelection selection) {
+            return service().status(options, selection);
+        }
 
         public static com.shaft.infrastructure.SetupPlan plan() { return plan(options()); }
         public static com.shaft.infrastructure.SetupPlan plan(com.shaft.infrastructure.SetupOptions options) {
             return service().plan(options);
         }
+        public static com.shaft.infrastructure.SetupPlan plan(com.shaft.infrastructure.SetupOptions options,
+                com.shaft.infrastructure.SetupSelection selection) {
+            return service().plan(options, selection);
+        }
 
         public static com.shaft.infrastructure.SetupReport verify() { return verify(options()); }
         public static com.shaft.infrastructure.SetupReport verify(com.shaft.infrastructure.SetupOptions options) {
             return service().verify(options);
+        }
+        public static com.shaft.infrastructure.SetupReport verify(com.shaft.infrastructure.SetupOptions options,
+                com.shaft.infrastructure.SetupSelection selection) {
+            return service().verify(options, selection);
         }
 
         public static com.shaft.infrastructure.SetupReceipt install(
@@ -1801,6 +1813,12 @@ public class SHAFT {
                 com.shaft.infrastructure.SetupPlan plan, com.shaft.infrastructure.SetupApproval approval,
                 com.shaft.infrastructure.SetupOptions options) throws java.io.IOException {
             return service().install(plan, approval, options);
+        }
+        public static com.shaft.infrastructure.SetupReceipt install(
+                com.shaft.infrastructure.SetupPlan plan, com.shaft.infrastructure.SetupApproval approval,
+                com.shaft.infrastructure.SetupOptions options,
+                com.shaft.infrastructure.SetupSelection selection) throws java.io.IOException {
+            return service().install(plan, approval, options, selection);
         }
 
         public static com.shaft.infrastructure.ManagedEnvironment start(

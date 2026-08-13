@@ -22,7 +22,8 @@ public final class InfrastructureSetupService {
     }
 
     public static InfrastructureSetupService builtIn(SetupPlatform platform, SetupArchitecture architecture) {
-        return new InfrastructureSetupService(new SetupProviderRegistry(List.of(new ReportingSetupProvider())),
+        return new InfrastructureSetupService(new SetupProviderRegistry(List.of(
+                new ReportingSetupProvider(), new OcrSetupProvider())),
                 platform, architecture);
     }
 
@@ -31,8 +32,13 @@ public final class InfrastructureSetupService {
     }
 
     public SetupPlan plan(SetupOptions options) {
+        return plan(options, SetupSelection.defaults());
+    }
+
+    public SetupPlan plan(SetupOptions options, SetupSelection selection) {
         SetupOptions value = Objects.requireNonNull(options, "options");
-        SetupPlan plan = providers.require(value.profile()).plan(value, platform, architecture);
+        SetupPlan plan = providers.require(value.profile()).plan(value, Objects.requireNonNull(selection, "selection"),
+                platform, architecture);
         requirePlanIdentity(plan, value);
         return SetupPlan.bind(plan, value.policyDigest());
     }
@@ -42,8 +48,13 @@ public final class InfrastructureSetupService {
     }
 
     public SetupReport status(SetupOptions options) {
+        return status(options, SetupSelection.defaults());
+    }
+
+    public SetupReport status(SetupOptions options, SetupSelection selection) {
         SetupOptions value = Objects.requireNonNull(options, "options");
-        SetupReport report = providers.require(value.profile()).status(value, platform, architecture);
+        SetupReport report = providers.require(value.profile()).status(value,
+                Objects.requireNonNull(selection, "selection"), platform, architecture);
         if (report.profile() != value.profile()) {
             throw new IllegalStateException("Setup provider returned a report for " + report.profile()
                     + " instead of " + value.profile() + '.');
@@ -55,8 +66,17 @@ public final class InfrastructureSetupService {
         return status(options);
     }
 
+    public SetupReport verify(SetupOptions options, SetupSelection selection) {
+        return status(options, selection);
+    }
+
     public SetupReceipt install(SetupPlan plan, SetupApproval approval, SetupOptions options) throws IOException {
-        SetupProvider provider = authorize(plan, approval, options, "mutate the host");
+        return install(plan, approval, options, SetupSelection.defaults());
+    }
+
+    public SetupReceipt install(SetupPlan plan, SetupApproval approval, SetupOptions options,
+                                SetupSelection selection) throws IOException {
+        SetupProvider provider = authorize(plan, approval, options, selection, "mutate the host");
         SetupReceipt receipt = provider.install(plan, approval, options);
         requireReceiptIdentity(receipt, plan);
         return receipt;
@@ -64,7 +84,7 @@ public final class InfrastructureSetupService {
 
     public ManagedEnvironment start(SetupPlan plan, SetupApproval approval, SetupOptions options)
             throws IOException {
-        SetupProvider provider = authorize(plan, approval, options, "start a managed service");
+        SetupProvider provider = authorize(plan, approval, options, SetupSelection.defaults(), "start a managed service");
         ManagedEnvironment environment = provider.start(plan, approval, options);
         try {
             if (environment.profile() != plan.profile()) {
@@ -82,7 +102,8 @@ public final class InfrastructureSetupService {
         return environment;
     }
 
-    private SetupProvider authorize(SetupPlan plan, SetupApproval approval, SetupOptions options, String operation) {
+    private SetupProvider authorize(SetupPlan plan, SetupApproval approval, SetupOptions options,
+                                    SetupSelection selection, String operation) {
         Objects.requireNonNull(plan, "plan");
         Objects.requireNonNull(options, "options");
         if (options.effectiveMode() == SetupMode.EXTERNAL) {
@@ -96,7 +117,7 @@ public final class InfrastructureSetupService {
             throw new IllegalArgumentException("Plan does not match the requested setup options.");
         }
         SetupProvider provider = providers.require(options.profile());
-        SetupPlan expected = provider.plan(options, platform, architecture);
+        SetupPlan expected = provider.plan(options, Objects.requireNonNull(selection, "selection"), platform, architecture);
         requirePlanIdentity(expected, options);
         if (!SetupPlan.bind(expected, options.policyDigest()).equals(plan)) {
             throw new IllegalArgumentException("Plan does not match the provider manifest shipped with this release.");

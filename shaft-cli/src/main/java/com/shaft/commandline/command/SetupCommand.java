@@ -16,6 +16,7 @@ import com.shaft.infrastructure.SetupProfile;
 import com.shaft.infrastructure.SetupProfileStatus;
 import com.shaft.infrastructure.SetupReadiness;
 import com.shaft.infrastructure.SetupReport;
+import com.shaft.infrastructure.SetupSelection;
 import com.shaft.infrastructure.ShaftCachePaths;
 import com.shaft.commandline.util.Json;
 import picocli.CommandLine.Command;
@@ -30,6 +31,7 @@ import java.time.Instant;
 import java.util.LinkedHashSet;
 import java.util.Set;
 import java.util.concurrent.Callable;
+import java.util.List;
 
 /** Direct, MCP-independent setup planning and lifecycle commands. */
 @Command(name = "setup", mixinStandardHelpOptions = true,
@@ -93,6 +95,8 @@ public final class SetupCommand implements Runnable {
 
         @Mixin private RootOptions roots;
         @Mixin private PolicyOptions policy;
+        @Option(names = "--language", description = "OCR language code (repeatable).")
+        private List<String> languages = new java.util.ArrayList<>();
 
         @Spec
         private CommandSpec spec;
@@ -100,13 +104,17 @@ public final class SetupCommand implements Runnable {
         @Override
         public Integer call() {
             try {
-                if (profile != SetupProfile.REPORTING) {
+                if (profile != SetupProfile.REPORTING && profile != SetupProfile.OCR) {
                     spec.commandLine().getErr().println("No setup provider is available for profile " + profile + '.');
                     return 4;
                 }
+                if (profile != SetupProfile.OCR && !languages.isEmpty()) {
+                    throw new IllegalArgumentException("--language is supported only for profile OCR.");
+                }
                 SetupOptions options = policy.options(profile, mode, roots.paths());
                 SetupPlan plan = InfrastructureSetupService.builtIn(
-                        SetupPlatform.current(), SetupArchitecture.current()).plan(options);
+                        SetupPlatform.current(), SetupArchitecture.current())
+                        .plan(options, new SetupSelection(languages));
                 if (!output.isAbsolute()) {
                     spec.commandLine().getErr().println("--output must be an absolute path.");
                     return 2;
@@ -142,15 +150,22 @@ public final class SetupCommand implements Runnable {
         private boolean json;
         @Mixin private RootOptions roots;
         @Mixin private PolicyOptions policy;
+        @Option(names = "--language", description = "OCR language code from the reviewed plan (repeatable).")
+        private List<String> languages = new java.util.ArrayList<>();
         @Spec private CommandSpec spec;
 
         @Override
         public Integer call() {
             try {
                 SetupPlan plan = SetupPlanStore.read(planFile);
+                if (plan.profile() != SetupProfile.OCR && !languages.isEmpty()) {
+                    throw new IllegalArgumentException("--language is supported only for profile OCR.");
+                }
+                SetupSelection selection = plan.profile() == SetupProfile.OCR
+                        ? ocrSelection(plan, languages) : SetupSelection.defaults();
                 SetupOptions options = policy.options(plan.profile(), plan.mode(), roots.paths());
                 var receipt = InfrastructureSetupService.builtIn().install(plan,
-                        new SetupApproval(approvedDigest, Instant.now(), acceptedLicenses), options);
+                        new SetupApproval(approvedDigest, Instant.now(), acceptedLicenses), options, selection);
                 if (json) spec.commandLine().getOut().println(Json.MAPPER.writerWithDefaultPrettyPrinter()
                         .writeValueAsString(receipt));
                 else spec.commandLine().getOut().println("Installed approved plan " + receipt.planDigest());
@@ -197,20 +212,46 @@ public final class SetupCommand implements Runnable {
         @Option(names = "--profile", required = true) private SetupProfile profile;
         @Option(names = "--json", description = "Print machine-readable JSON.") private boolean json;
         @Mixin private RootOptions roots;
+        @Option(names = "--language", description = "OCR language code (repeatable).")
+        private List<String> languages = new java.util.ArrayList<>();
         @Spec private CommandSpec spec;
 
         @Override
         public Integer call() {
-            if (profile != SetupProfile.REPORTING) return unsupported(spec, profile);
-            SetupReport status = InfrastructureSetupService.builtIn().status(
-                    SetupOptions.defaults(profile, roots.paths()));
-            if (json) spec.commandLine().getOut().println(Json.MAPPER.writerWithDefaultPrettyPrinter()
-                    .writeValueAsString(status));
-            else status.targets().forEach(target -> spec.commandLine().getOut().println(
-                    target.target() + "\t" + target.readiness() + "\t" + target.detectedVersion()
-                            + "\t" + target.detail()));
-            return status.readiness() == SetupReadiness.READY ? 0 : 3;
+            try {
+                if (profile != SetupProfile.REPORTING && profile != SetupProfile.OCR) return unsupported(spec, profile);
+                if (profile != SetupProfile.OCR && !languages.isEmpty()) {
+                    throw new IllegalArgumentException("--language is supported only for profile OCR.");
+                }
+                SetupReport status = InfrastructureSetupService.builtIn().status(
+                        SetupOptions.defaults(profile, roots.paths()), new SetupSelection(languages));
+                if (json) spec.commandLine().getOut().println(Json.MAPPER.writerWithDefaultPrettyPrinter()
+                        .writeValueAsString(status));
+                else status.targets().forEach(target -> spec.commandLine().getOut().println(
+                        target.target() + "\t" + target.readiness() + "\t" + target.detectedVersion()
+                                + "\t" + target.detail()));
+                return status.readiness() == SetupReadiness.READY ? 0 : 3;
+            } catch (IllegalArgumentException failure) {
+                spec.commandLine().getErr().println(failure.getMessage());
+                return 2;
+            }
         }
+    }
+
+    private static SetupSelection ocrSelection(SetupPlan plan, List<String> supplied) {
+        List<String> fromPlan = plan.actions().stream().map(action -> {
+            String version = action.version();
+            int separator = version.lastIndexOf(':');
+            if (action.target() != com.shaft.infrastructure.SetupTarget.OCR_TESSDATA || separator < 0) {
+                throw new IllegalArgumentException("OCR plan contains an unsupported action.");
+            }
+            return version.substring(separator + 1);
+        }).toList();
+        SetupSelection selected = new SetupSelection(fromPlan);
+        if (!supplied.isEmpty() && !selected.equals(new SetupSelection(supplied))) {
+            throw new IllegalArgumentException("--language does not match the reviewed OCR plan.");
+        }
+        return selected;
     }
 
     static class UnsupportedLifecycle implements Callable<Integer> {
