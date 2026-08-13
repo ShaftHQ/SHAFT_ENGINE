@@ -70,8 +70,11 @@ final class TraceSchemaSerializer {
             metadata.put("attachmentSummaries", String.join(" | ", action.attachments()));
         }
         String screenshotId = "screenshot-" + action.id();
-        List<String> artifactIds = artifacts.stream().anyMatch(artifact -> artifact.id().equals(screenshotId))
-                ? List.of(screenshotId) : List.of();
+        List<String> artifactIds = artifacts.stream()
+                .filter(artifact -> artifact.id().equals(screenshotId)
+                        || action.id().equals(artifact.metadata().get("actionId")))
+                .map(TraceArtifactReference::id)
+                .toList();
         return new TraceEvent(sessionId + "/" + action.id(), action.backend(), nonBlank(action.category(), "action"),
                 nonBlank(action.name(), "unnamed"), status(action.status()), instant(action.startTime(), generatedAt),
                 action.durationMs(), action.caller(), action.locator(), action.message(), metadata, artifactIds);
