@@ -1347,14 +1347,14 @@ public class TouchActions extends FluentWebDriverAction {
         if (Boolean.FALSE.equals(appiumImagesAvailable)) {
             return Optional.empty();
         }
-        if (target.minimumConfidence().isPresent() || target.searchRegion().isPresent()
+        if (target.searchRegion().isPresent()
                 || target.matchingMode() != com.shaft.gui.image.ImageMatchingMode.AUTO) {
-            throw new UnsupportedOperationException(
-                    "Appium Images fallback cannot safely enforce confidence, region, or explicit matching-mode constraints.");
+            return Optional.empty();
         }
         try {
             String encodedTarget = Base64.getEncoder().encodeToString(target.imageBytes());
-            double threshold = SHAFT.Properties.visuals.visualMatchingThreshold();
+            double threshold = target.minimumConfidence()
+                    .orElse(SHAFT.Properties.visuals.visualMatchingThreshold());
             List<WebElement> matches;
             synchronized (appiumDriver) {
                 Object previousThreshold = appiumDriver.getSettings()

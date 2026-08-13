@@ -5,6 +5,10 @@ import com.shaft.driver.internal.DriverFactory.DriverFactoryHelper;
 import com.shaft.driver.internal.FluentWebDriverAction;
 import com.shaft.gui.element.TouchActions;
 import com.shaft.gui.element.internal.ElementActionsHelper;
+import com.shaft.gui.image.ImageMatchingMode;
+import com.shaft.gui.image.ImageRectangle;
+import com.shaft.gui.image.ImageTarget;
+import com.shaft.gui.internal.image.ScreenshotManager;
 import com.shaft.properties.internal.Properties;
 import com.shaft.tools.io.ReportManager;
 import io.appium.java_client.AppiumBy;
@@ -16,6 +20,7 @@ import io.appium.java_client.flutter.commands.ScrollParameter;
 import io.appium.java_client.flutter.commands.WaitParameter;
 import io.appium.java_client.ios.IOSDriver;
 import org.mockito.ArgumentCaptor;
+import org.mockito.MockedConstruction;
 import org.mockito.MockedStatic;
 import org.openqa.selenium.By;
 import org.openqa.selenium.Dimension;
@@ -34,6 +39,7 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 import java.io.File;
+import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Field;
 import java.nio.file.Files;
@@ -99,6 +105,95 @@ public class AndroidTouchActionsCoverageUnitTest {
         order.verify(driver).setSetting(io.appium.java_client.Setting.IMAGE_MATCH_THRESHOLD, 0.91);
         order.verify(driver).findElements(any(By.class));
         order.verify(driver).setSetting(io.appium.java_client.Setting.IMAGE_MATCH_THRESHOLD, 0.4);
+    }
+
+    @Test
+    public void typedImageScrollShouldContinueLocallyWhenAppiumCannotHonorRegion() throws Exception {
+        AndroidDriver driver = createMockAndroidDriver();
+        doReturn(false).when(driver).executeScript(eq("mobile: scrollGesture"), anyMap());
+        TouchActions touchActions = new TouchActions(driver);
+        ElementActionsHelper elementActionsHelper = mock(ElementActionsHelper.class);
+        injectElementActionsHelper(touchActions, elementActionsHelper);
+        byte[] screenshot = Files.readAllBytes(Path.of("src", "test", "resources", "testDataFiles", "youtube.png"));
+        ImageTarget target = ImageTarget.fromBytes(screenshot).within(new ImageRectangle(0, 0, 1, 1));
+
+        try (MockedConstruction<ScreenshotManager> screenshots = org.mockito.Mockito.mockConstruction(
+                ScreenshotManager.class,
+                (manager, context) -> when(manager.takeViewportScreenshot(driver)).thenReturn(screenshot))) {
+            touchActions.swipeElementIntoView(target, TouchActions.SwipeDirection.DOWN);
+        }
+
+        verify(driver).executeScript(eq("mobile: scrollGesture"), anyMap());
+        verify(driver, never()).findElements(argThat(locator -> locator.toString().startsWith("AppiumBy.image")));
+    }
+
+    @Test
+    public void typedImageScrollShouldNotUseAppiumForExplicitMatchingMode() throws Exception {
+        AndroidDriver driver = createMockAndroidDriver();
+        doReturn(false).when(driver).executeScript(eq("mobile: scrollGesture"), anyMap());
+        TouchActions touchActions = new TouchActions(driver);
+        ElementActionsHelper elementActionsHelper = mock(ElementActionsHelper.class);
+        injectElementActionsHelper(touchActions, elementActionsHelper);
+        byte[] screenshot = Files.readAllBytes(Path.of("src", "test", "resources", "testDataFiles", "youtube.png"));
+        ImageTarget target = ImageTarget.fromBytes(screenshot).matchingMode(ImageMatchingMode.FEATURE);
+
+        try (MockedConstruction<ScreenshotManager> screenshots = org.mockito.Mockito.mockConstruction(
+                ScreenshotManager.class,
+                (manager, context) -> when(manager.takeViewportScreenshot(driver)).thenReturn(screenshot))) {
+            touchActions.swipeElementIntoView(target, TouchActions.SwipeDirection.LEFT);
+        }
+
+        verify(driver).executeScript(eq("mobile: scrollGesture"), anyMap());
+        verify(driver, never()).findElements(argThat(locator -> locator.toString().startsWith("AppiumBy.image")));
+    }
+
+    @Test
+    public void typedImageTapShouldUseTargetConfidenceForAppiumFallback() throws Exception {
+        AndroidDriver driver = createMockAndroidDriver();
+        WebElement match = mock(WebElement.class);
+        when(driver.getSettings()).thenReturn(Map.of(
+                io.appium.java_client.Setting.IMAGE_MATCH_THRESHOLD.toString(), 0.67));
+        when(driver.setSetting(any(io.appium.java_client.Setting.class), any())).thenReturn(driver);
+        when(driver.findElements(any(By.class))).thenReturn(List.of(match));
+        TouchActions touchActions = new TouchActions(driver);
+        ElementActionsHelper elementActionsHelper = mock(ElementActionsHelper.class);
+        injectElementActionsHelper(touchActions, elementActionsHelper);
+        byte[] screenshot = Files.readAllBytes(Path.of("src", "test", "resources", "testDataFiles", "youtube.png"));
+
+        try (MockedConstruction<ScreenshotManager> screenshots = org.mockito.Mockito.mockConstruction(
+                ScreenshotManager.class,
+                (manager, context) -> when(manager.takeViewportScreenshot(driver)).thenReturn(screenshot))) {
+            touchActions.tap(ImageTarget.fromBytes(screenshot).minimumConfidence(0.93));
+        }
+
+        verify(match).click();
+        var order = org.mockito.Mockito.inOrder(driver);
+        order.verify(driver).setSetting(io.appium.java_client.Setting.IMAGE_MATCH_THRESHOLD, 0.93);
+        order.verify(driver).findElements(any(By.class));
+        order.verify(driver).setSetting(io.appium.java_client.Setting.IMAGE_MATCH_THRESHOLD, 0.67);
+    }
+
+    @Test
+    public void appiumImagesFallbackShouldRestorePriorThresholdWhenLookupFails() throws Exception {
+        AndroidDriver driver = createMockAndroidDriver();
+        when(driver.getSettings()).thenReturn(Map.of(
+                io.appium.java_client.Setting.IMAGE_MATCH_THRESHOLD.toString(), 0.66));
+        when(driver.setSetting(any(io.appium.java_client.Setting.class), any())).thenReturn(driver);
+        when(driver.findElements(any(By.class))).thenThrow(new WebDriverException("provider lookup failed"));
+        TouchActions touchActions = new TouchActions(driver);
+        Method fallback = TouchActions.class.getDeclaredMethod("findUsingAppiumImages", ImageTarget.class);
+        fallback.setAccessible(true);
+        ImageTarget target = ImageTarget.fromPath(Path.of("src", "test", "resources",
+                "testDataFiles", "youtube.png")).minimumConfidence(0.94);
+
+        InvocationTargetException failure = Assert.expectThrows(InvocationTargetException.class,
+                () -> fallback.invoke(touchActions, target));
+
+        Assert.assertTrue(failure.getCause() instanceof WebDriverException);
+        var order = org.mockito.Mockito.inOrder(driver);
+        order.verify(driver).setSetting(io.appium.java_client.Setting.IMAGE_MATCH_THRESHOLD, 0.94);
+        order.verify(driver).findElements(any(By.class));
+        order.verify(driver).setSetting(io.appium.java_client.Setting.IMAGE_MATCH_THRESHOLD, 0.66);
     }
     private static final Path TEMP_DIR = Path.of("target", "temp", "touchActionsCoverage");
     private static final Path ROOT_PULL_PATH = Path.of("touchActions-root-pulled.txt");
