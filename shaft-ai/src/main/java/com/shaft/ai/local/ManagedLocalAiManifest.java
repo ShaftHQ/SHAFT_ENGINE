@@ -30,7 +30,7 @@ final class ManagedLocalAiManifest {
     private static final Pattern SHA_256 = Pattern.compile("[0-9a-f]{64}");
     private static final Pattern PORTABLE_NAME = Pattern.compile("[A-Za-z0-9][A-Za-z0-9._+-]{0,199}");
     private static final Set<String> LICENSES = Set.of("MIT", "Apache-2.0");
-    private static final Set<String> WINDOWS_DEVICES = Set.of("CON", "PRN", "AUX", "NUL",
+    static final Set<String> WINDOWS_DEVICES = Set.of("CON", "PRN", "AUX", "NUL",
             "COM1", "COM2", "COM3", "COM4", "COM5", "COM6", "COM7", "COM8", "COM9",
             "LPT1", "LPT2", "LPT3", "LPT4", "LPT5", "LPT6", "LPT7", "LPT8", "LPT9");
 
