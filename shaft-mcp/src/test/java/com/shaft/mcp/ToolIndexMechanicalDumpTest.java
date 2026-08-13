@@ -68,13 +68,16 @@ class ToolIndexMechanicalDumpTest {
     private AutobotService autobotService;
     @Autowired
     private PlannerService plannerService;
+    @Autowired
+    private InfrastructureMcpService infrastructureMcpService;
 
     @Test
     void liveToolSchemasMatchCheckedInMechanicalIndex() throws IOException {
         List<ToolIndexEntry> liveEntries = ToolIndexDumper.dump(
                 List.of(engineService, browserService, elementService, mobileService, captureService,
                         doctorService, traceService, healerService, guideService, shaftProjectService,
-                        testAutomationService, codingPartnerService, autobotService, plannerService),
+                        testAutomationService, codingPartnerService, autobotService, plannerService,
+                        infrastructureMcpService),
                 annotationScannedToolSpecs());
 
         ObjectMapper mapper = new ObjectMapper();
