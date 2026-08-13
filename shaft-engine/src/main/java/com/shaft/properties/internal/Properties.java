@@ -59,6 +59,7 @@ public class Properties {
     static LambdaTest baseLambdaTest;
     static API baseApi;
     static Pilot basePilot;
+    static ManagedLocalAi baseManagedLocalAi;
     static NaturalActions baseNaturalActions;
     static Playwright basePlaywright;
     static Capture baseCapture;
@@ -86,6 +87,7 @@ public class Properties {
     static final ThreadLocal<LambdaTest> lambdaTestOverride = new ThreadLocal<>();
     static final ThreadLocal<API> apiOverride = new ThreadLocal<>();
     static final ThreadLocal<Pilot> pilotOverride = new ThreadLocal<>();
+    static final ThreadLocal<ManagedLocalAi> managedLocalAiOverride = new ThreadLocal<>();
     static final ThreadLocal<NaturalActions> naturalActionsOverride = new ThreadLocal<>();
     static final ThreadLocal<Playwright> playwrightOverride = new ThreadLocal<>();
     static final ThreadLocal<Capture> captureOverride = new ThreadLocal<>();
@@ -114,6 +116,8 @@ public class Properties {
     public static final LambdaTest lambdaTest = createProxy(LambdaTest.class, lambdaTestOverride, () -> baseLambdaTest);
     public static final API api = createProxy(API.class, apiOverride, () -> baseApi);
     public static final Pilot pilot = createProxy(Pilot.class, pilotOverride, () -> basePilot);
+    public static final ManagedLocalAi managedLocalAi = createProxy(
+            ManagedLocalAi.class, managedLocalAiOverride, () -> baseManagedLocalAi);
     public static final NaturalActions naturalActions = createProxy(
             NaturalActions.class,
             naturalActionsOverride,
@@ -251,6 +255,7 @@ public class Properties {
         lambdaTestOverride.remove();
         apiOverride.remove();
         pilotOverride.remove();
+        managedLocalAiOverride.remove();
         naturalActionsOverride.remove();
         playwrightOverride.remove();
         captureOverride.remove();
