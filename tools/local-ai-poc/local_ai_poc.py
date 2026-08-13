@@ -832,7 +832,7 @@ def memory_snapshot(
                     total = min(total, limit)
                     available = min(available, max(0, limit - current))
             except (OSError, KeyError, ValueError):
-                # Windows exposes no stable NVIDIA memory value when this diagnostic is unavailable.
+                # Missing/invalid cgroup-v1 metrics leave /proc/meminfo as the conservative source.
                 pass
     else:
         raise ValueError(f"Unsupported memory platform: {system}")
