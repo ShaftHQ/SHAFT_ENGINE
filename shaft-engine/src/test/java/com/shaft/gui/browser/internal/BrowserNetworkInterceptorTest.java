@@ -12,6 +12,8 @@ import org.openqa.selenium.remote.http.HttpRequest;
 import org.openqa.selenium.remote.http.HttpResponse;
 import org.testng.Assert;
 import org.testng.annotations.Test;
+import org.mockito.MockedStatic;
+import org.mockito.Mockito;
 
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -20,6 +22,24 @@ import java.util.Optional;
 import java.util.Set;
 
 public class BrowserNetworkInterceptorTest {
+    @Test
+    public void unsupportedDetailedCaptureShouldActivateExistingBidiMetadataOwner() {
+        WebDriver driver = Mockito.mock(WebDriver.class);
+        BidiNetworkActivitySource bidiSource = Mockito.mock(BidiNetworkActivitySource.class);
+        Mockito.when(bidiSource.healthy()).thenReturn(true);
+        try (MockedStatic<BidiNetworkActivitySource> bidi = Mockito.mockStatic(BidiNetworkActivitySource.class)) {
+            bidi.when(() -> BidiNetworkActivitySource.forDriver(driver)).thenReturn(bidiSource);
+            BrowserNetworkInterceptor interceptor = new BrowserNetworkInterceptor(driver, (ignored, filter) -> {
+                throw new AssertionError("A non-DevTools driver must not install a detailed interceptor.");
+            });
+
+            Assert.assertFalse(interceptor.startObserving());
+
+            bidi.verify(() -> BidiNetworkActivitySource.forDriver(driver), Mockito.times(1));
+            interceptor.close();
+        }
+    }
+
     @Test
     public void failedObservationStartShouldNotPublishZeroState() {
         WebDriver driver = new EqualWebDriver();
