@@ -2,6 +2,8 @@ package com.shaft.commandline.command;
 
 import com.shaft.infrastructure.ReportingSetupPlanner;
 import com.shaft.infrastructure.ReportingSetupService;
+import com.shaft.infrastructure.InfrastructureSetupService;
+import com.shaft.infrastructure.SetupOptions;
 import com.shaft.infrastructure.SetupApproval;
 import com.shaft.infrastructure.SetupArchitecture;
 import com.shaft.infrastructure.SetupCatalog;
@@ -13,6 +15,7 @@ import com.shaft.infrastructure.SetupPlatform;
 import com.shaft.infrastructure.SetupProfile;
 import com.shaft.infrastructure.SetupProfileStatus;
 import com.shaft.infrastructure.SetupReadiness;
+import com.shaft.infrastructure.SetupReport;
 import com.shaft.infrastructure.ShaftCachePaths;
 import com.shaft.commandline.util.Json;
 import picocli.CommandLine.Command;
@@ -88,29 +91,41 @@ public final class SetupCommand implements Runnable {
         @Option(names = "--json", description = "Print the plan as JSON.")
         private boolean json;
 
+        @Mixin private RootOptions roots;
+        @Mixin private PolicyOptions policy;
+
         @Spec
         private CommandSpec spec;
 
         @Override
-        public Integer call() throws Exception {
-            if (profile != SetupProfile.REPORTING) {
-                spec.commandLine().getErr().println("No setup provider is available for profile " + profile + '.');
-                return 4;
-            }
-            SetupPlan plan = ReportingSetupPlanner.plan(
-                    SetupPlatform.current(), SetupArchitecture.current(), mode);
-            if (!output.isAbsolute()) {
-                spec.commandLine().getErr().println("--output must be an absolute path.");
+        public Integer call() {
+            try {
+                if (profile != SetupProfile.REPORTING) {
+                    spec.commandLine().getErr().println("No setup provider is available for profile " + profile + '.');
+                    return 4;
+                }
+                SetupOptions options = policy.options(profile, mode, roots.paths());
+                SetupPlan plan = InfrastructureSetupService.builtIn(
+                        SetupPlatform.current(), SetupArchitecture.current()).plan(options);
+                if (!output.isAbsolute()) {
+                    spec.commandLine().getErr().println("--output must be an absolute path.");
+                    return 2;
+                }
+                SetupPlanStore.write(output, plan);
+                if (json) {
+                    spec.commandLine().getOut().print(SetupPlanJson.write(plan));
+                } else {
+                    spec.commandLine().getOut().println("Plan: " + output.toAbsolutePath().normalize());
+                    spec.commandLine().getOut().println("Digest: " + plan.digest());
+                }
+                return 0;
+            } catch (IllegalArgumentException failure) {
+                spec.commandLine().getErr().println(failure.getMessage());
                 return 2;
+            } catch (Exception failure) {
+                spec.commandLine().getErr().println(failure.getMessage());
+                return 5;
             }
-            SetupPlanStore.write(output, plan);
-            if (json) {
-                spec.commandLine().getOut().print(SetupPlanJson.write(plan));
-            } else {
-                spec.commandLine().getOut().println("Plan: " + output.toAbsolutePath().normalize());
-                spec.commandLine().getOut().println("Digest: " + plan.digest());
-            }
-            return 0;
         }
     }
 
@@ -126,15 +141,16 @@ public final class SetupCommand implements Runnable {
         @Option(names = "--json", description = "Print machine-readable JSON.")
         private boolean json;
         @Mixin private RootOptions roots;
+        @Mixin private PolicyOptions policy;
         @Spec private CommandSpec spec;
 
         @Override
         public Integer call() {
             try {
                 SetupPlan plan = SetupPlanStore.read(planFile);
-                ReportingSetupService service = service(roots);
-                var receipt = service.install(plan,
-                        new SetupApproval(approvedDigest, Instant.now(), acceptedLicenses));
+                SetupOptions options = policy.options(plan.profile(), plan.mode(), roots.paths());
+                var receipt = InfrastructureSetupService.builtIn().install(plan,
+                        new SetupApproval(approvedDigest, Instant.now(), acceptedLicenses), options);
                 if (json) spec.commandLine().getOut().println(Json.MAPPER.writerWithDefaultPrettyPrinter()
                         .writeValueAsString(receipt));
                 else spec.commandLine().getOut().println("Installed approved plan " + receipt.planDigest());
@@ -186,7 +202,8 @@ public final class SetupCommand implements Runnable {
         @Override
         public Integer call() {
             if (profile != SetupProfile.REPORTING) return unsupported(spec, profile);
-            SetupProfileStatus status = service(roots).status();
+            SetupReport status = InfrastructureSetupService.builtIn().status(
+                    SetupOptions.defaults(profile, roots.paths()));
             if (json) spec.commandLine().getOut().println(Json.MAPPER.writerWithDefaultPrettyPrinter()
                     .writeValueAsString(status));
             else status.targets().forEach(target -> spec.commandLine().getOut().println(
@@ -220,6 +237,35 @@ public final class SetupCommand implements Runnable {
             Path data = dataRoot.normalize();
             return new ShaftCachePaths(cache, data, cache.resolve("downloads"), data.resolve("tools"),
                     data.resolve("state"), data.resolve("receipts"));
+        }
+    }
+
+    static final class PolicyOptions {
+        @Option(names = "--offline", description = "Require verified cached artifacts and disable network access.")
+        private boolean offline;
+        @Option(names = "--auto-start", description = "Request managed service start after verification.")
+        private boolean autoStart;
+        @Option(names = "--prefer-system-tools", defaultValue = "true",
+                description = "Prefer compatible host tools (true or false).")
+        private boolean preferSystemTools;
+        @Option(names = "--reuse-owned-processes", defaultValue = "true",
+                description = "Reuse compatible SHAFT-owned services (true or false).")
+        private boolean reuseOwnedProcesses;
+        @Option(names = "--startup-timeout", defaultValue = "PT2M")
+        private String startupTimeout;
+        @Option(names = "--shutdown-timeout", defaultValue = "PT30S")
+        private String shutdownTimeout;
+
+        SetupOptions options(SetupProfile profile, SetupMode mode, ShaftCachePaths paths) {
+            try {
+                return SetupOptions.defaults(profile, paths).withMode(mode).withOffline(offline)
+                        .withAutoStart(autoStart).withPreferSystemTools(preferSystemTools)
+                        .withReuseOwnedProcesses(reuseOwnedProcesses)
+                        .withTimeouts(java.time.Duration.parse(startupTimeout),
+                                java.time.Duration.parse(shutdownTimeout));
+            } catch (RuntimeException invalid) {
+                throw new IllegalArgumentException("Setup timeouts must be positive ISO-8601 durations.", invalid);
+            }
         }
     }
 

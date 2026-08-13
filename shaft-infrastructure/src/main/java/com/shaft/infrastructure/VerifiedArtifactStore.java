@@ -21,12 +21,17 @@ public final class VerifiedArtifactStore {
     }
 
     public Path fetch(SetupAction action) throws IOException {
+        return fetch(action, false);
+    }
+
+    public Path fetch(SetupAction action, boolean offline) throws IOException {
         String expected = action.checksum().substring("sha256:".length()).toLowerCase();
         String sourcePath = action.source().getPath();
         String sourceName = sourcePath.substring(sourcePath.lastIndexOf('/') + 1);
         if (sourceName.isBlank()) throw new IOException("Artifact source has no file name: " + action.source());
         Path destination = downloads.resolve(expected + '-' + sourceName);
         if (Files.isRegularFile(destination) && expected.equals(digest(destination))) return destination;
+        if (offline) throw new IOException("Artifact is not available in the verified offline cache: " + sourceName);
         Files.createDirectories(downloads);
         Files.deleteIfExists(destination);
         Path temporary = Files.createTempFile(downloads, sourceName, ".part");
