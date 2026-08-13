@@ -117,7 +117,7 @@ tool_dir="$data_root/ChaosEngine/tools/maven-tools-mcp/$version"
 jar="$tool_dir/maven-tools-mcp-$version.jar"
 mkdir -p "$tool_dir"
 cp "target/maven-tools-mcp-$version.jar" "$jar"
-sha=$(sha256sum "$jar" | awk '{print $1}')
+sha=$(python3 -c 'import hashlib,pathlib,sys; print(hashlib.sha256(pathlib.Path(sys.argv[1]).read_bytes()).hexdigest())' "$jar")
 printf '{"version":"%s","commit":"%s","jar":"%s","sha256":"%s"}\n' \
   "$version" "$commit" "maven-tools-mcp-$version.jar" "$sha" \
   > "$tool_dir/install-receipt.json"
