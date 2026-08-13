@@ -1,18 +1,13 @@
 import unittest
-import xml.etree.ElementTree as ET
+import re
 from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[2]
-NS = {"m": "http://maven.apache.org/POM/4.0.0"}
-
-
 def dependencies(module: str) -> set[str]:
-    pom = ET.parse(ROOT / module / "pom.xml").getroot()
-    return {
-        dependency.findtext("m:artifactId", namespaces=NS)
-        for dependency in pom.findall("m:dependencies/m:dependency", NS)
-    }
+    pom = (ROOT / module / "pom.xml").read_text(encoding="utf-8")
+    sections = re.findall(r"<dependencies>(.*?)</dependencies>", pom, re.DOTALL)
+    return set(re.findall(r"<artifactId>([^<]+)</artifactId>", "\n".join(sections)))
 
 
 class OcrInfrastructureBoundaryTest(unittest.TestCase):
