@@ -345,3 +345,7 @@ tracking are separate duties: a receipt, Memory entry, Graphify flag, or existin
 issue reference never replaces the required new issue for an action.
 
 Gambaru.
+
+The portable distribution's [human overview](../../README.md) uses the
+deterministic light, dark, monochrome, lockup, and small-size identity masters
+documented in the [ChaosEngine identity guide](../../assets/brand/BRAND.md).
