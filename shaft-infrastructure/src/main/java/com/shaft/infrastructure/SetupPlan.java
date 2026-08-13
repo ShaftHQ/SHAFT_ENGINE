@@ -11,30 +11,38 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 
 /** Immutable, content-addressed setup plan. Action order is significant. */
-public record SetupPlan(int schemaVersion, SetupPlatform platform, SetupMode mode,
+public record SetupPlan(int schemaVersion, SetupProfile profile, SetupPlatform platform,
+                        SetupArchitecture architecture, SetupMode mode,
                         List<SetupAction> actions, String digest) {
     public SetupPlan {
-        if (schemaVersion != 1) throw new IllegalArgumentException("Unsupported plan schema version: " + schemaVersion);
+        if (schemaVersion != 2) throw new IllegalArgumentException("Unsupported plan schema version: " + schemaVersion);
+        Objects.requireNonNull(profile, "profile");
         Objects.requireNonNull(platform, "platform");
+        Objects.requireNonNull(architecture, "architecture");
         Objects.requireNonNull(mode, "mode");
         actions = List.copyOf(Objects.requireNonNull(actions, "actions"));
         if (actions.isEmpty()) throw new IllegalArgumentException("Plan must contain at least one action.");
         validatePolicy(mode, actions);
         if (digest == null || digest.isBlank()) throw new IllegalArgumentException("Plan digest must not be blank.");
-        String expected = calculateDigest(schemaVersion, platform, mode, actions);
+        String expected = calculateDigest(schemaVersion, profile, platform, architecture, mode, actions);
         if (!expected.equals(digest)) throw new IllegalArgumentException("Plan digest does not match its content.");
     }
 
-    public static SetupPlan create(SetupPlatform platform, SetupMode mode, List<SetupAction> actions) {
+    public static SetupPlan create(SetupProfile profile, SetupPlatform platform, SetupArchitecture architecture,
+                                   SetupMode mode, List<SetupAction> actions) {
         List<SetupAction> immutable = List.copyOf(actions);
-        return new SetupPlan(1, platform, mode, immutable, calculateDigest(1, platform, mode, immutable));
+        return new SetupPlan(2, profile, platform, architecture, mode, immutable,
+                calculateDigest(2, profile, platform, architecture, mode, immutable));
     }
 
-    private static String calculateDigest(int schemaVersion, SetupPlatform platform, SetupMode mode,
+    private static String calculateDigest(int schemaVersion, SetupProfile profile, SetupPlatform platform,
+                                          SetupArchitecture architecture, SetupMode mode,
                                           List<SetupAction> actions) {
         StringBuilder canonical = new StringBuilder();
         append(canonical, Integer.toString(schemaVersion));
+        append(canonical, profile.name());
         append(canonical, platform.name());
+        append(canonical, architecture.name());
         append(canonical, mode.name());
         append(canonical, Integer.toString(actions.size()));
         actions.forEach(action -> {
@@ -43,6 +51,7 @@ public record SetupPlan(int schemaVersion, SetupPlatform platform, SetupMode mod
             append(canonical, action.version());
             append(canonical, action.source().toString());
             append(canonical, action.checksum());
+            append(canonical, action.dependencyLockChecksum());
             append(canonical, Boolean.toString(action.privileged()));
             append(canonical, Integer.toString(action.requiredLicenses().size()));
             action.requiredLicenses().stream().sorted().forEach(license -> append(canonical, license));

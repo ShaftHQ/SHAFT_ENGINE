@@ -16,32 +16,30 @@ class SetupPlanTest {
     @Test
     void digestIsDeterministicAndBindsEveryMutationRelevantField() {
         SetupAction action = action(SetupTarget.ALLURE, "2.34.1");
-        SetupPlan first = SetupPlan.create(SetupPlatform.LINUX, SetupMode.MANAGED, List.of(action));
-        SetupPlan same = SetupPlan.create(SetupPlatform.LINUX, SetupMode.MANAGED, List.of(action));
-        SetupPlan changed = SetupPlan.create(SetupPlatform.LINUX, SetupMode.MANAGED,
+        SetupPlan first = plan(SetupPlatform.LINUX, SetupMode.MANAGED, action);
+        SetupPlan same = plan(SetupPlatform.LINUX, SetupMode.MANAGED, action);
+        SetupPlan changed = plan(SetupPlatform.LINUX, SetupMode.MANAGED,
                 List.of(action(SetupTarget.ALLURE, "2.35.0")));
 
         assertEquals(first.digest(), same.digest());
         assertNotEquals(first.digest(), changed.digest());
-        assertNotEquals(first.digest(), SetupPlan.create(SetupPlatform.WINDOWS, SetupMode.MANAGED,
-                List.of(action)).digest());
+        assertNotEquals(first.digest(), plan(SetupPlatform.WINDOWS, SetupMode.MANAGED, action).digest());
         SetupAction aliasedSource = new SetupAction(SetupTarget.ALLURE, SetupActionKind.INSTALL, "2.34.1",
                 URI.create("https://example.invalid/a/../allure"), checksum(), false, Set.of());
-        assertNotEquals(first.digest(), SetupPlan.create(SetupPlatform.LINUX, SetupMode.MANAGED,
-                List.of(aliasedSource)).digest());
+        assertNotEquals(first.digest(), plan(SetupPlatform.LINUX, SetupMode.MANAGED, aliasedSource).digest());
         SetupAction surrogateOne = new SetupAction(SetupTarget.ALLURE, SetupActionKind.INSTALL, "\uD800",
                 URI.create("https://example.invalid/allure"), checksum(), false, Set.of());
         SetupAction surrogateTwo = new SetupAction(SetupTarget.ALLURE, SetupActionKind.INSTALL, "\uD801",
                 URI.create("https://example.invalid/allure"), checksum(), false, Set.of());
-        assertNotEquals(SetupPlan.create(SetupPlatform.LINUX, SetupMode.MANAGED, List.of(surrogateOne)).digest(),
-                SetupPlan.create(SetupPlatform.LINUX, SetupMode.MANAGED, List.of(surrogateTwo)).digest());
+        assertNotEquals(plan(SetupPlatform.LINUX, SetupMode.MANAGED, surrogateOne).digest(),
+                plan(SetupPlatform.LINUX, SetupMode.MANAGED, surrogateTwo).digest());
     }
 
     @Test
     void actionFailureCarriesPartialReceiptAndFailedAction() {
         SetupAction first = action(SetupTarget.ALLURE, "2.34.1");
         SetupAction failed = action(SetupTarget.SELENIUM_BROWSER, "stable");
-        SetupPlan plan = SetupPlan.create(SetupPlatform.LINUX, SetupMode.MANAGED, List.of(first, failed));
+        SetupPlan plan = plan(SetupPlatform.LINUX, SetupMode.MANAGED, List.of(first, failed));
 
         SetupExecutionException failure = assertThrows(SetupExecutionException.class,
                 () -> SetupExecutor.execute(plan, approval(plan), action -> {
@@ -62,9 +60,9 @@ class SetupPlanTest {
 
     @Test
     void staleApprovalIsRejectedBeforeAnyActionRuns() {
-        SetupPlan approvedPlan = SetupPlan.create(SetupPlatform.LINUX, SetupMode.MANAGED,
+        SetupPlan approvedPlan = plan(SetupPlatform.LINUX, SetupMode.MANAGED,
                 List.of(action(SetupTarget.ALLURE, "2.34.1")));
-        SetupPlan changedPlan = SetupPlan.create(SetupPlatform.LINUX, SetupMode.MANAGED,
+        SetupPlan changedPlan = plan(SetupPlatform.LINUX, SetupMode.MANAGED,
                 List.of(action(SetupTarget.ALLURE, "2.35.0")));
         SetupApproval staleApproval = new SetupApproval(approvedPlan.digest(), Instant.EPOCH, Set.of());
         List<SetupAction> mutations = new ArrayList<>();
@@ -78,7 +76,7 @@ class SetupPlanTest {
     void matchingApprovalProducesImmutableReceiptInActionOrder() {
         SetupAction allure = action(SetupTarget.ALLURE, "2.34.1");
         SetupAction browser = action(SetupTarget.SELENIUM_BROWSER, "stable");
-        SetupPlan plan = SetupPlan.create(SetupPlatform.LINUX, SetupMode.HYBRID, List.of(allure, browser));
+        SetupPlan plan = plan(SetupPlatform.LINUX, SetupMode.HYBRID, List.of(allure, browser));
         List<SetupAction> mutations = new ArrayList<>();
 
         SetupReceipt receipt = SetupExecutor.execute(plan,
@@ -98,19 +96,20 @@ class SetupPlanTest {
     void rejectsExternalMutationsPrivilegeSpoofingAndMissingLicenseBeforeMutation() {
         SetupAction install = action(SetupTarget.ALLURE, "2.34.1");
         assertThrows(IllegalArgumentException.class,
-                () -> SetupPlan.create(SetupPlatform.LINUX, SetupMode.EXTERNAL, List.of(install)));
-        assertThrows(IllegalArgumentException.class, () -> SetupPlan.create(SetupPlatform.LINUX,
+                () -> plan(SetupPlatform.LINUX, SetupMode.EXTERNAL, install));
+        assertThrows(IllegalArgumentException.class, () -> plan(SetupPlatform.LINUX,
                 SetupMode.MANAGED, List.of(new SetupAction(SetupTarget.JAVA, SetupActionKind.CONFIGURE,
                         "25", URI.create("https://example.invalid/java"), checksum(), false, Set.of()))));
-        assertThrows(IllegalArgumentException.class, () -> new SetupPlan(2, SetupPlatform.LINUX,
+        assertThrows(IllegalArgumentException.class, () -> new SetupPlan(1, SetupProfile.REPORTING,
+                SetupPlatform.LINUX, SetupArchitecture.X64,
                 SetupMode.MANAGED, List.of(install), "sha256:" + "0".repeat(64)));
-        assertThrows(IllegalArgumentException.class, () -> SetupPlan.create(SetupPlatform.WINDOWS,
+        assertThrows(IllegalArgumentException.class, () -> plan(SetupPlatform.WINDOWS,
                 SetupMode.MANAGED, List.of(new SetupAction(SetupTarget.WINAPPDRIVER, SetupActionKind.INSTALL,
                         "1.2.1", URI.create("https://example.invalid/wad"), checksum(), false, Set.of()))));
 
         SetupAction licensed = new SetupAction(SetupTarget.ALLURE, SetupActionKind.INSTALL, "2.34.1",
                 URI.create("https://example.invalid/allure"), checksum(), false, Set.of("allure-eula"));
-        SetupPlan plan = SetupPlan.create(SetupPlatform.LINUX, SetupMode.MANAGED, List.of(licensed));
+        SetupPlan plan = plan(SetupPlatform.LINUX, SetupMode.MANAGED, licensed);
         List<SetupAction> mutations = new ArrayList<>();
         assertThrows(IllegalArgumentException.class, () -> SetupExecutor.execute(plan,
                 new SetupApproval(plan.digest(), Instant.EPOCH, Set.of()), mutations::add));
@@ -129,6 +128,14 @@ class SetupPlanTest {
 
     private static SetupApproval approval(SetupPlan plan) {
         return new SetupApproval(plan.digest(), Instant.EPOCH, Set.of());
+    }
+
+    private static SetupPlan plan(SetupPlatform platform, SetupMode mode, SetupAction action) {
+        return plan(platform, mode, List.of(action));
+    }
+
+    private static SetupPlan plan(SetupPlatform platform, SetupMode mode, List<SetupAction> actions) {
+        return SetupPlan.create(SetupProfile.REPORTING, platform, SetupArchitecture.X64, mode, actions);
     }
 
     private static String checksum() {
