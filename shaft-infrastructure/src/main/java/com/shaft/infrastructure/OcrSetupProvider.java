@@ -79,18 +79,9 @@ final class OcrSetupProvider implements SetupProvider {
                     List.of(unsafePath.getMessage()));
         }
         for (SetupAction action : selected) {
-            Path model = directory.resolve(fileName(action));
-            try {
-                if (!Files.isRegularFile(model, LinkOption.NOFOLLOW_LINKS)) failures.add(fileName(action) + " is missing");
-                else if (!action.checksum().substring("sha256:".length())
-                        .equalsIgnoreCase(VerifiedArtifactStore.digest(model))) {
-                    failures.add(fileName(action) + " failed SHA-256 verification");
-                    corrupt = true;
-                }
-            } catch (IOException failure) {
-                failures.add(fileName(action) + " could not be verified: " + failure.getMessage());
-                corrupt = true;
-            }
+            ModelStatus modelStatus = inspect(directory, action);
+            if (modelStatus.failure() != null) failures.add(modelStatus.failure());
+            corrupt |= modelStatus.corrupt();
         }
         SetupReadiness readiness = failures.isEmpty() ? SetupReadiness.READY
                 : corrupt || failures.size() < selected.size() ? SetupReadiness.DEGRADED : SetupReadiness.MISSING;
@@ -99,6 +90,22 @@ final class OcrSetupProvider implements SetupProvider {
         SetupStatus target = new SetupStatus(SetupTarget.OCR_TESSDATA, readiness,
                 failures.isEmpty() ? OcrSetupManifest.TESSDATA_REVISION : "", detail);
         return new SetupReport(1, profile(), readiness, List.of(target), failures);
+    }
+
+    private static ModelStatus inspect(Path directory, SetupAction action) {
+        String name = fileName(action);
+        Path model = directory.resolve(name);
+        try {
+            if (!Files.isRegularFile(model, LinkOption.NOFOLLOW_LINKS)) {
+                return new ModelStatus(name + " is missing", false);
+            }
+            String expected = action.checksum().substring("sha256:".length());
+            return expected.equalsIgnoreCase(VerifiedArtifactStore.digest(model))
+                    ? new ModelStatus(null, false)
+                    : new ModelStatus(name + " failed SHA-256 verification", true);
+        } catch (IOException failure) {
+            return new ModelStatus(name + " could not be verified: " + failure.getMessage(), true);
+        }
     }
 
     @Override
@@ -208,4 +215,6 @@ final class OcrSetupProvider implements SetupProvider {
     private static final class SetupOperationException extends RuntimeException {
         private SetupOperationException(IOException cause) { super(cause); }
     }
+
+    private record ModelStatus(String failure, boolean corrupt) { }
 }
