@@ -149,6 +149,15 @@ class ManifestAndSelectionTest(unittest.TestCase):
         bad_tier = json.loads(json.dumps(self.manifest))
         bad_tier["models"][0]["tier"] = 7
         mutations.append(bad_tier)
+        missing_abi = json.loads(json.dumps(self.manifest))
+        del missing_abi["runtime"]["assets"][0]["abi"]
+        mutations.append(missing_abi)
+        mismatched_abi = json.loads(json.dumps(self.manifest))
+        mismatched_abi["runtime"]["assets"][0]["abi"] = "linux-glibc"
+        mutations.append(mismatched_abi)
+        missing_minimum = json.loads(json.dumps(self.manifest))
+        del missing_minimum["runtime"]["assets"][4]["minimumAbiVersion"]
+        mutations.append(missing_minimum)
         for unsafe_name in ("CON", "model.", "NUL.gguf"):
             unsafe = json.loads(json.dumps(self.manifest))
             unsafe["models"][0]["file"] = unsafe_name
@@ -301,13 +310,23 @@ class ManifestAndSelectionTest(unittest.TestCase):
         self.assertEqual(6.0, mac["effectiveRamGb"])
 
     def test_linux_runtime_compatibility_and_inspect_no_mutation_are_proven(self):
-        self.assertTrue(MODULE.runtime_compatible("Linux", ("glibc", "2.31")))
-        self.assertFalse(MODULE.runtime_compatible("Linux", ("glibc", "2.30")))
+        self.assertTrue(
+            MODULE.runtime_compatible("Linux", ("glibc", "2.31"), self.manifest, "x86_64")
+        )
+        self.assertFalse(
+            MODULE.runtime_compatible("Linux", ("glibc", "2.30"), self.manifest, "x86_64")
+        )
         self.assertFalse(MODULE.runtime_compatible("Linux", ("glibc", "invalid")))
         self.assertFalse(MODULE.runtime_compatible("Linux", ("musl", "1.2")))
         self.assertFalse(MODULE.runtime_compatible("Linux", ("", "")))
         self.assertTrue(MODULE.runtime_compatible("Windows", ("", "")))
         self.assertTrue(MODULE.runtime_compatible("Darwin", ("", "")))
+
+        raised_minimum = json.loads(json.dumps(self.manifest))
+        raised_minimum["runtime"]["assets"][4]["minimumAbiVersion"] = "99.0"
+        self.assertFalse(
+            MODULE.runtime_compatible("Linux", ("glibc", "2.31"), raised_minimum, "x86_64")
+        )
 
         with tempfile.TemporaryDirectory() as temporary:
             cache = Path(temporary) / "missing" / "cache"
@@ -758,8 +777,10 @@ class LifecycleTest(unittest.TestCase):
         self.assertEqual(29, labels.count(True))
 
     def test_transaction_rejects_unowned_targets_and_preserves_concurrent_unknown_files(self):
-        runtime = MODULE.select_runtime_asset(self.manifest, "windows-x86_64")
-        model = self.manifest["models"][0]
+        runtime = dict(MODULE.select_runtime_asset(self.manifest, "windows-x86_64"))
+        runtime.update(size=1, sha256=hashlib.sha256(b"r").hexdigest())
+        model = dict(self.manifest["models"][0])
+        model.update(size=1, sha256=hashlib.sha256(b"m").hexdigest())
         with tempfile.TemporaryDirectory() as temporary:
             cache = Path(temporary) / "cache"
             archive = MODULE.cache_path(cache, "downloads", runtime["file"])
