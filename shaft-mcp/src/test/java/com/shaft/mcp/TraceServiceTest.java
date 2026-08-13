@@ -153,7 +153,11 @@ class TraceServiceTest {
         Path privateV3 = writeTrace(temp, "compat-v3", """
                 {"schemaVersion":"3.0","test":{"className":"CheckoutTest","methodName":"payShouldFail",
                  "displayName":"CheckoutTest.payShouldFail","status":"failed"},
-                 "evidence":{"actions":[%s],"network":%s,"console":%s},"unknownFutureField":[1,2,3]}
+                 "evidence":{"actions":[%s],"network":%s,"console":%s,
+                 "playwright":{"status":"available","reason":"","actions":[{"callId":"call@1",
+                 "title":"Native Click","unknownNativeField":{"nested":true}}],
+                 "correlations":[{"shaftActionId":"action-2","playwrightCallId":"call@1",
+                 "basis":"exact-operation-time"}]}},"unknownFutureField":[1,2,3]}
                 """.formatted(action, network, console));
 
         var expected = service(temp).traceSummarize(relative(temp, legacy));

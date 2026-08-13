@@ -1,5 +1,6 @@
 package com.shaft.ocr.internal;
 
+import com.shaft.gui.internal.ocr.OcrDocumentPageAnalysis;
 import com.shaft.gui.internal.ocr.OcrProcessingProvider;
 import com.shaft.gui.ocr.OcrOptions;
 import com.shaft.gui.ocr.OcrResult;
@@ -42,6 +43,20 @@ public final class TesseractOcrProvider implements OcrProcessingProvider {
         List<String> languages = OcrLanguageRegistry.resolve(options.languages());
         Path tessdata = models.ensureAvailable(languages);
         return backend.recognize(image, tessdata, String.join("+", languages), options);
+    }
+
+    @Override
+    public OcrDocumentPageAnalysis analyzeDocumentPage(byte[] image, OcrOptions options,
+                                                       boolean detectOrientation, boolean deskew) {
+        Objects.requireNonNull(options, "options");
+        List<String> languages = OcrLanguageRegistry.resolve(options.languages());
+        List<String> requiredModels = new java.util.ArrayList<>(languages);
+        if (detectOrientation) {
+            requiredModels.add("osd");
+        }
+        Path tessdata = models.ensureAvailable(requiredModels);
+        return backend.analyzeDocumentPage(image, tessdata, String.join("+", languages), options,
+                detectOrientation, deskew);
     }
 
     @Override

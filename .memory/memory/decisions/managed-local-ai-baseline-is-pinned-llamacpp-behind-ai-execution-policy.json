@@ -1,0 +1,59 @@
+{
+  "body_path": "memory/decisions/managed-local-ai-baseline-is-pinned-llamacpp-behind-ai-execution-policy.md",
+  "content_hash": "sha256:1b1da6089cd4dacd2c2d35052e32f462844f51d196d9bd87703fe971a17f31c1",
+  "created_at": "2026-08-13T12:12:15+03:00",
+  "evidence": [
+    {
+      "id": "tools/local-ai-poc/README.md",
+      "kind": "file"
+    },
+    {
+      "id": "05f73c7dcb665d3d09c9cae52727f29c64bcf7d7",
+      "kind": "commit"
+    },
+    {
+      "id": "5a51954413f9fc47ffd8b8a70335509bdb0eeaef",
+      "kind": "commit"
+    },
+    {
+      "id": "https://github.com/ShaftHQ/SHAFT_ENGINE/issues/4851",
+      "kind": "task"
+    },
+    {
+      "id": "https://github.com/ShaftHQ/SHAFT_ENGINE/issues/4852",
+      "kind": "task"
+    }
+  ],
+  "facets": {
+    "applies_to": [
+      "tools/local-ai-poc",
+      "shaft-pilot-core",
+      "AiExecutionService",
+      "DoctorAiAnalysisService",
+      "AiCandidateReranker"
+    ],
+    "category": "decision-rationale"
+  },
+  "id": "decision.managed-local-ai-baseline-is-pinned-llamacpp-behind-ai-execution-policy",
+  "scope": {
+    "branch": null,
+    "kind": "project",
+    "project": "project.shaft-engine",
+    "task": null
+  },
+  "source": {
+    "kind": "agent",
+    "task": "Record the merged managed-local-AI R&D architecture decision and remaining evidence gate without duplicating the linked GitHub roadmap."
+  },
+  "status": "active",
+  "tags": [
+    "local-ai",
+    "llamacpp",
+    "doctor",
+    "provisioning",
+    "deterministic-fallback"
+  ],
+  "title": "Managed local AI baseline is pinned llama.cpp behind AiExecutionService policy",
+  "type": "decision",
+  "updated_at": "2026-08-13T12:12:15+03:00"
+}

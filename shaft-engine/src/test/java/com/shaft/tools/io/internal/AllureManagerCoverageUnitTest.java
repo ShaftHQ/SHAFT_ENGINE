@@ -289,6 +289,11 @@ public class AllureManagerCoverageUnitTest {
         Assert.assertEquals(html.split("href=\"https://github.com/ShaftHQ/SHAFT_ENGINE\"", -1).length - 1, 1, html);
         Assert.assertEquals(html.split("target=\"_blank\"", -1).length - 1, 2, html);
         Assert.assertEquals(html.split("rel=\"noopener\"", -1).length - 1, 2, html);
+        Assert.assertEquals(html.split("class=\"shaft-header-brand\"", -1).length - 1, 1, html);
+        Assert.assertEquals(html.split("alt=\"SHAFT logo\"", -1).length - 1, 1, html);
+        Assert.assertEquals(html.split("src=\"data:image/png;base64,", -1).length - 1, 1, html);
+        Assert.assertTrue(html.contains(":root[data-theme=\"dark\"] .shaft-header-brand"), html);
+        Assert.assertTrue(html.contains("filter: brightness(0) invert(1)"), html);
         Assert.assertTrue(html.contains("User Guide"), html);
         Assert.assertTrue(html.contains("Star SHAFT"), html);
         // The bar must be a real sibling BEFORE the app root, not inside it or after </body>,

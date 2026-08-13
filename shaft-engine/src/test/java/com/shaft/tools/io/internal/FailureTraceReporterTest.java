@@ -5,6 +5,7 @@ import com.shaft.driver.internal.DriverFactory.DriverFactoryHelper;
 import com.shaft.gui.browser.BrowserActions;
 import com.shaft.gui.element.TouchActions;
 import com.shaft.gui.browser.internal.BrowserNetworkInterceptor;
+import com.shaft.gui.capabilities.AutomationBackend;
 import com.shaft.gui.internal.locator.LocatorHealthReporter;
 import com.shaft.gui.playwright.internal.PlaywrightTraceManager;
 import com.shaft.listeners.internal.TestExecutionInfo;
@@ -40,6 +41,7 @@ import java.lang.reflect.Method;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.Comparator;
@@ -928,6 +930,10 @@ public class FailureTraceReporterTest {
         Assert.assertTrue(evidence.path("actions").isArray(), root.toPrettyString());
         Assert.assertTrue(evidence.path("network").isArray(), root.toPrettyString());
         Assert.assertTrue(evidence.path("console").isArray(), root.toPrettyString());
+        Assert.assertEquals(evidence.path("playwright").path("status").asText(), "unavailable",
+                root.toPrettyString());
+        Assert.assertTrue(evidence.path("playwright").path("actions").isEmpty(), root.toPrettyString());
+        Assert.assertTrue(evidence.path("playwright").path("correlations").isEmpty(), root.toPrettyString());
         Assert.assertEquals(evidence.path("actions").get(0).path("id").asText(), "action-1");
         Assert.assertFalse(root.has("actions"), "v3 must have one canonical action location: " + root);
         Assert.assertFalse(root.has("network"), "v3 must have one canonical network location: " + root);
@@ -935,6 +941,273 @@ public class FailureTraceReporterTest {
         Assert.assertFalse(root.has("browserObservability"),
                 "v3 must have one canonical observability location: " + root);
         Assert.assertTrue(evidence.path("browserObservability").path("warnings").isArray(), root.toPrettyString());
+    }
+
+    @Test(description = "Persisted private v3 evidence should import and correlate the active Playwright trace")
+    public void persistedTraceShouldImportAndCorrelatePlaywrightEvidence() throws Exception {
+        SHAFT.Properties.reporting.set().traceEnabled(true);
+        var event = TraceEventRecorder.startForBackend("element", "click", "getByRole(button)",
+                AutomationBackend.MICROSOFT_PLAYWRIGHT);
+        TraceEventRecorder.finish(event, "passed", "clicked", null, Map.of(), List.of());
+        long actionStart = Instant.parse(TraceEventRecorder.snapshot().getFirst().startTime()).toEpochMilli();
+        Path archive = PlaywrightTraceTestFixtures.writeTrace(
+                "{\"version\":8,\"type\":\"context-options\",\"origin\":\"library\","
+                        + "\"wallTime\":" + actionStart + ",\"monotonicTime\":100}\n"
+                        + "{\"type\":\"before\",\"callId\":\"call@1\",\"startTime\":100,"
+                        + "\"class\":\"Frame\",\"method\":\"click\",\"title\":\"Click Save\","
+                        + "\"params\":{},\"stepId\":\"step@1\",\"beforeSnapshot\":\"before@call@1\"}\n"
+                        + "{\"type\":\"log\",\"callId\":\"call@1\",\"message\":\"attempting click\"}\n"
+                        + "{\"type\":\"after\",\"callId\":\"call@1\",\"endTime\":110,"
+                        + "\"afterSnapshot\":\"after@call@1\"}\n");
+        try (MockedStatic<PlaywrightTraceManager> traceManager = Mockito.mockStatic(PlaywrightTraceManager.class);
+             MockedStatic<PlaywrightTraceImporter> importer = Mockito.mockStatic(PlaywrightTraceImporter.class,
+                     Mockito.CALLS_REAL_METHODS)) {
+            traceManager.when(PlaywrightTraceManager::getLastTracePath).thenReturn(archive);
+            importer.when(() -> PlaywrightTraceImporter.importTrace(Mockito.any(Path.class), Mockito.anyList()))
+                    .thenAnswer(invocation -> {
+                        Files.deleteIfExists(archive);
+                        return invocation.callRealMethod();
+                    });
+
+            JsonNode root = JSON.readTree(FailureTraceReporter.renderTraceJson(
+                    info("playwrightImportScenario", failure()), "log", List.of()));
+
+            JsonNode playwright = root.path("evidence").path("playwright");
+            Assert.assertEquals(playwright.path("status").asText(), "available", root.toPrettyString());
+            Assert.assertEquals(playwright.path("actions").size(), 1, root.toPrettyString());
+            Assert.assertEquals(playwright.path("actions").get(0).path("callId").asText(), "call@1");
+            Assert.assertEquals(playwright.path("actions").get(0).path("logs").get(0).asText(),
+                    "attempting click");
+            Assert.assertEquals(playwright.path("correlations").size(), 1, root.toPrettyString());
+            Assert.assertEquals(playwright.path("correlations").get(0).path("shaftActionId").asText(), "action-1");
+            Assert.assertEquals(playwright.path("correlations").get(0).path("playwrightCallId").asText(), "call@1");
+            Assert.assertEquals(root.path("evidence").path("actions").get(0).path("metadata")
+                    .path("playwrightCallId").asText(), "call@1");
+            Assert.assertEquals(root.path("session").path("schemaVersion").asText(), "2.0");
+            Assert.assertEquals(root.path("session").path("events").get(0).path("metadata")
+                    .path("playwrightCallId").asText(), "call@1");
+            traceManager.verify(PlaywrightTraceManager::getLastTracePath, Mockito.times(1));
+            Assert.assertFalse(Files.exists(archive),
+                    "The original generation must be removable after manifest staging and before import.");
+        } finally {
+            Files.deleteIfExists(archive);
+            TraceEventRecorder.clear();
+            Properties.clearForCurrentThread();
+        }
+    }
+
+    @Test(description = "Unsupported Playwright traces should fail soft without losing SHAFT actions")
+    public void unsupportedPlaywrightTraceShouldRemainExplicitAndKeepShaftActions() throws Exception {
+        SHAFT.Properties.reporting.set().traceEnabled(true);
+        var event = TraceEventRecorder.startForBackend("element", "click", "getByRole(button)",
+                AutomationBackend.MICROSOFT_PLAYWRIGHT);
+        TraceEventRecorder.finish(event, "passed", "clicked", null, Map.of(), List.of());
+        Path archive = PlaywrightTraceTestFixtures.writeTrace(
+                "{\"version\":7,\"type\":\"context-options\",\"origin\":\"library\","
+                        + "\"wallTime\":10000,\"monotonicTime\":100}\n");
+        try (MockedStatic<PlaywrightTraceManager> traceManager = Mockito.mockStatic(PlaywrightTraceManager.class)) {
+            traceManager.when(PlaywrightTraceManager::getLastTracePath).thenReturn(archive);
+
+            JsonNode root = JSON.readTree(FailureTraceReporter.renderTraceJson(
+                    info("malformedPlaywrightScenario", failure()), "log", List.of()));
+
+            JsonNode playwright = root.path("evidence").path("playwright");
+            Assert.assertEquals(playwright.path("status").asText(), "unsupported", root.toPrettyString());
+            Assert.assertEquals(playwright.path("reason").asText(),
+                    "Playwright native trace version is unsupported.");
+            Assert.assertTrue(playwright.path("actions").isEmpty(), root.toPrettyString());
+            Assert.assertTrue(playwright.path("correlations").isEmpty(), root.toPrettyString());
+            Assert.assertEquals(root.path("evidence").path("actions").size(), 1, root.toPrettyString());
+            Assert.assertFalse(root.path("evidence").path("actions").get(0).path("metadata")
+                    .has("playwrightCallId"));
+        } finally {
+            Files.deleteIfExists(archive);
+            TraceEventRecorder.clear();
+            Properties.clearForCurrentThread();
+        }
+    }
+
+    @Test(description = "Malformed Playwright traces should remain explicit without leaking parser details")
+    public void malformedPlaywrightTraceShouldRemainExplicit() throws Exception {
+        SHAFT.Properties.reporting.set().traceEnabled(true);
+        Path archive = PlaywrightTraceTestFixtures.writeTrace(
+                "{\"type\":\"context-options\",\"origin\":\"library\","
+                        + "\"wallTime\":10000,\"monotonicTime\":100}\n");
+        try (MockedStatic<PlaywrightTraceManager> traceManager = Mockito.mockStatic(PlaywrightTraceManager.class)) {
+            traceManager.when(PlaywrightTraceManager::getLastTracePath).thenReturn(archive);
+
+            String json = FailureTraceReporter.renderTraceJson(
+                    info("malformedPlaywrightScenario", failure()), "log", List.of());
+            JsonNode playwright = JSON.readTree(json).path("evidence").path("playwright");
+
+            Assert.assertEquals(playwright.path("status").asText(), "malformed", json);
+            Assert.assertEquals(playwright.path("reason").asText(),
+                    "Playwright native trace is malformed.");
+            Assert.assertTrue(playwright.path("actions").isEmpty(), json);
+            Assert.assertFalse(json.contains("finite wallTime"), json);
+        } finally {
+            Files.deleteIfExists(archive);
+            TraceEventRecorder.clear();
+            Properties.clearForCurrentThread();
+        }
+    }
+
+    @Test(description = "Sensitive browser evidence should skip native Playwright import entirely")
+    public void sensitiveTraceShouldSuppressPlaywrightNativeEvidence() throws Exception {
+        SHAFT.Properties.reporting.set().traceEnabled(true);
+        FailureTraceReporter.suppressSensitiveBrowserArtifacts();
+        Path archive = PlaywrightTraceTestFixtures.writeTrace(
+                "{\"version\":8,\"type\":\"context-options\",\"origin\":\"library\","
+                        + "\"wallTime\":10000,\"monotonicTime\":100}\n"
+                        + "{\"type\":\"before\",\"callId\":\"call@secret\",\"startTime\":100,"
+                        + "\"class\":\"Frame\",\"method\":\"click\",\"title\":\"PRIVATE_NATIVE_SECRET\","
+                        + "\"params\":{}}\n");
+        try (MockedStatic<PlaywrightTraceManager> traceManager = Mockito.mockStatic(PlaywrightTraceManager.class)) {
+            traceManager.when(PlaywrightTraceManager::getLastTracePath).thenReturn(archive);
+
+            String json = FailureTraceReporter.renderTraceJson(
+                    info("sensitivePlaywrightScenario", failure()), "log", List.of());
+            JsonNode playwright = JSON.readTree(json).path("evidence").path("playwright");
+
+            Assert.assertEquals(playwright.path("status").asText(), "suppressed-sensitive", json);
+            Assert.assertTrue(playwright.path("actions").isEmpty(), json);
+            Assert.assertTrue(playwright.path("correlations").isEmpty(), json);
+            Assert.assertFalse(json.contains("PRIVATE_NATIVE_SECRET"), json);
+            traceManager.verify(PlaywrightTraceManager::getLastTracePath, Mockito.times(0));
+        } finally {
+            Files.deleteIfExists(archive);
+            TraceEventRecorder.clear();
+            FailureTraceReporter.clearSensitiveValues();
+            Properties.clearForCurrentThread();
+        }
+    }
+
+    @Test(description = "Oversized imported Playwright evidence should not prevent trace publication")
+    public void oversizedPlaywrightEvidenceShouldPublishAnExplicitBudgetOmission() throws Exception {
+        TestExecutionInfo failingInfo = info("oversizedPlaywrightEvidenceScenario", failure());
+        Path traceDirectory = FailureTraceReporter.traceDirectory(failingInfo);
+        StringBuilder trace = new StringBuilder(
+                "{\"version\":8,\"type\":\"context-options\",\"origin\":\"library\","
+                        + "\"wallTime\":10000,\"monotonicTime\":100}\n");
+        String payload = "x".repeat(4_096);
+        for (int action = 0; action < 3; action++) {
+            trace.append("{\"type\":\"before\",\"callId\":\"call@").append(action)
+                    .append("\",\"startTime\":").append(100 + action)
+                    .append(",\"class\":\"Frame\",\"method\":\"click\",\"params\":{}}\n");
+            for (int log = 0; log < 100; log++) {
+                trace.append("{\"type\":\"log\",\"callId\":\"call@").append(action)
+                        .append("\",\"message\":\"").append(payload).append("\"}\n");
+            }
+        }
+        Path archive = PlaywrightTraceTestFixtures.writeTrace(trace.toString());
+        try (MockedStatic<PlaywrightTraceManager> traceManager = Mockito.mockStatic(PlaywrightTraceManager.class)) {
+            deleteDirectory(traceDirectory);
+            SHAFT.Properties.reporting.set().traceEnabled(true).traceMode("failure").traceMaxArtifactMb(1);
+            traceManager.when(PlaywrightTraceManager::getLastTracePath).thenReturn(archive);
+
+            FailureTraceReporter.attachOnFailure(failingInfo, "failed", List.of());
+
+            Path bundle = traceDirectory.resolve("shaft-trace.zip");
+            Assert.assertTrue(Files.isRegularFile(bundle), "Required trace bundle must survive optional import overflow.");
+            try (ZipFile zip = new ZipFile(bundle.toFile())) {
+                JsonNode root = JSON.readTree(readZipEntry(zip, "shaft-trace.json"));
+                JsonNode playwright = root.path("evidence").path("playwright");
+                Assert.assertEquals(playwright.path("status").asText(), "omitted-budget", root.toPrettyString());
+                Assert.assertEquals(playwright.path("reason").asText(),
+                        "Playwright action evidence exceeded its bounded report budget.");
+                Assert.assertTrue(playwright.path("actions").isEmpty(), root.toPrettyString());
+                Assert.assertTrue(playwright.path("correlations").isEmpty(), root.toPrettyString());
+            }
+        } finally {
+            Files.deleteIfExists(archive);
+            TraceEventRecorder.clear();
+            deleteDirectory(traceDirectory);
+            Properties.clearForCurrentThread();
+        }
+    }
+
+    @Test(description = "Near-cap core JSON and an individually fitting Playwright import should still publish")
+    public void cumulativeRequiredBudgetShouldOmitPlaywrightEvidenceBeforePublication() throws Exception {
+        String padding = "p".repeat(700_000);
+        String nativeEvidence = "n".repeat(300_000);
+        String baseJson = """
+                {"schemaVersion":"3.0","session":{"schemaVersion":"2.0","events":[{"metadata":{
+                "playwrightCallId":"call@1","playwrightStepId":"step@1","playwrightCorrelation":"exact-operation-time"}}]},
+                "evidence":{"playwright":{"status":"available","reason":"","actions":[{"callId":"call@1","title":"%s"}],
+                "correlations":[{"shaftActionId":"action-1","playwrightCallId":"call@1","basis":"exact-operation-time"}]},
+                "actions":[{"metadata":{"playwrightCallId":"call@1","playwrightStepId":"step@1",
+                "playwrightCorrelation":"exact-operation-time"}}]},"padding":"%s"}
+                """.formatted(nativeEvidence, padding);
+        Path directory = Files.createTempDirectory("shaft-trace-cumulative-budget-");
+        Path target = directory.resolve("shaft-trace.zip");
+        try (TraceArtifactManifest manifest = TraceArtifactManifest.create("[]", Map.of(), null,
+                1024 * 1024, "omitted")) {
+            FailureTraceReporter.TraceArchiveBundle bundle = FailureTraceReporter.convergeTraceArchive(target,
+                    baseJson, "[]", Map.of(), manifest, 1024 * 1024, 4L * 1024 * 1024,
+                    "omitted", List.of());
+
+            JsonNode root = JSON.readTree(bundle.json());
+            Assert.assertEquals(root.path("evidence").path("playwright").path("status").asText(),
+                    "omitted-budget", root.toPrettyString());
+            Assert.assertTrue(root.path("evidence").path("playwright").path("actions").isEmpty());
+            Assert.assertFalse(root.path("evidence").path("actions").get(0).path("metadata")
+                    .has("playwrightCallId"));
+            Assert.assertFalse(root.path("session").path("events").get(0).path("metadata")
+                    .has("playwrightCallId"));
+            Assert.assertTrue(Files.isRegularFile(target));
+            try (ZipFile zip = new ZipFile(target.toFile())) {
+                Assert.assertTrue(zip.getEntry("shaft-trace.json").getSize() <= 1024 * 1024L);
+                Assert.assertTrue(zip.getEntry("SHAFT Trace Report.html").getSize() <= 1024 * 1024L);
+            }
+        } finally {
+            deleteDirectory(directory);
+        }
+    }
+
+    @Test(description = "Artifact reconciliation growth should reapply the Playwright evidence fallback")
+    public void aggregateReconciliationGrowthShouldReapplyPlaywrightBudgetFallback() throws Exception {
+        String nativeEvidence = "n".repeat(50_000);
+        String network = "[{\"url\":\"" + "x".repeat(50_000) + "\"}]";
+        String baseJson = """
+                {"schemaVersion":"3.0","session":{"schemaVersion":"2.0","events":[{"metadata":{
+                "playwrightCallId":"call@1"}}],"artifacts":[{"id":"network","kind":"network",
+                "path":"shaft-network.har","mimeType":"application/json","omitted":false,"metadata":{}}]},
+                "evidence":{"playwright":{"status":"available","reason":"","actions":[{"callId":"call@1",
+                "title":"%s"}],"correlations":[]},"actions":[{"metadata":{"playwrightCallId":"call@1"}}]}}
+                """.formatted(nativeEvidence);
+        String reason = "aggregate budget";
+        Path directory = Files.createTempDirectory("shaft-trace-reconciliation-growth-");
+        Path target = directory.resolve("shaft-trace.zip");
+        TraceArtifactManifest manifest = TraceArtifactManifest.create(network, Map.of(), null,
+                1024 * 1024, "per-entry budget");
+        try {
+            FailureTraceReporter.TraceArchiveBundle baseline = FailureTraceReporter.convergeTraceArchive(target,
+                    baseJson, "[]", Map.of(), null, 1024 * 1024, 4L * 1024 * 1024,
+                    reason, List.of());
+            long initialJsonBytes = baseJson.getBytes(StandardCharsets.UTF_8).length;
+            long initialHtmlBytes = baseline.html().getBytes(StandardCharsets.UTF_8).length;
+            long maxEntryBytes = Math.max(initialJsonBytes, initialHtmlBytes) + 1;
+            long maxTotalBytes = initialJsonBytes + initialHtmlBytes
+                    + reason.getBytes(StandardCharsets.UTF_8).length;
+
+            FailureTraceReporter.TraceArchiveBundle bundle = FailureTraceReporter.convergeTraceArchive(target,
+                    baseJson, network, Map.of(), manifest, maxEntryBytes, maxTotalBytes,
+                    reason, List.of());
+
+            JsonNode root = JSON.readTree(bundle.json());
+            Assert.assertEquals(root.path("evidence").path("playwright").path("status").asText(),
+                    "omitted-budget", root.toPrettyString());
+            Assert.assertTrue(findArtifact(root.path("session"), "network").path("omitted").asBoolean());
+            Assert.assertTrue(bundle.json().getBytes(StandardCharsets.UTF_8).length <= maxEntryBytes);
+            Assert.assertTrue(bundle.html().getBytes(StandardCharsets.UTF_8).length <= maxEntryBytes);
+            try (ZipFile zip = new ZipFile(target.toFile())) {
+                Assert.assertEquals(new String(zip.getInputStream(zip.getEntry("shaft-network.har")).readAllBytes(),
+                        StandardCharsets.UTF_8), reason);
+            }
+        } finally {
+            manifest.close();
+            deleteDirectory(directory);
+        }
     }
 
     @Test(description = "Persisted trace archives should enforce the configured aggregate decompressed budget")
@@ -1341,11 +1614,17 @@ public class FailureTraceReporterTest {
 
             try (ZipFile zip = new ZipFile(traceDirectory.resolve("shaft-trace.zip").toFile())) {
                 String json = readZipEntry(zip, "shaft-trace.json");
-                schemaArtifacts = JSON.readTree(json).path("session").path("artifacts");
-                JsonNode nativeArtifact = findArtifact(JSON.readTree(json).path("session"), "native-trace");
+                JsonNode root = JSON.readTree(json);
+                schemaArtifacts = root.path("session").path("artifacts");
+                JsonNode nativeArtifact = findArtifact(root.path("session"), "native-trace");
                 Assert.assertTrue(nativeArtifact.path("omitted").asBoolean(), json);
                 Assert.assertTrue(nativeArtifact.path("metadata").path("omissionReason").asText()
                         .contains("unavailable"), json);
+                Assert.assertEquals(root.path("evidence").path("playwright").path("status").asText(),
+                        "unavailable", json);
+                Assert.assertEquals(root.path("evidence").path("playwright").path("reason").asText(),
+                        "Playwright native trace was unavailable for import.", json);
+                Assert.assertTrue(root.path("evidence").path("playwright").path("actions").isEmpty(), json);
                 Assert.assertTrue(readZipEntry(zip, "missing-native-trace.zip").contains("unavailable"));
                 String html = readZipEntry(zip, "SHAFT Trace Report.html");
                 String truncationPayload = html.substring(

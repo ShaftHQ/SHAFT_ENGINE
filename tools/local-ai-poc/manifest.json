@@ -1,0 +1,137 @@
+{
+  "schemaVersion": 1,
+  "runtime": {
+    "id": "llama.cpp",
+    "version": "b10400",
+    "license": "MIT",
+    "releaseUrl": "https://github.com/ggml-org/llama.cpp/releases/tag/b10400",
+    "assets": [
+      {
+        "platform": "windows-x86_64",
+        "file": "llama-b10400-bin-win-cpu-x64.zip",
+        "url": "https://github.com/ggml-org/llama.cpp/releases/download/b10400/llama-b10400-bin-win-cpu-x64.zip",
+        "size": 18471221,
+        "sha256": "905eb7adecddfef9c3f700dd086edced20a4751481f53e614d2eba11de2ad147",
+        "abi": "windows-msvc",
+        "executable": "llama-server.exe"
+      },
+      {
+        "platform": "windows-aarch64",
+        "file": "llama-b10400-bin-win-cpu-arm64.zip",
+        "url": "https://github.com/ggml-org/llama.cpp/releases/download/b10400/llama-b10400-bin-win-cpu-arm64.zip",
+        "size": 12305094,
+        "sha256": "19714a9207381e18f464a926b77fa9680ec1ecca9a1d6ad8ccf1c90af965606e",
+        "abi": "windows-msvc",
+        "executable": "llama-server.exe"
+      },
+      {
+        "platform": "macos-x86_64",
+        "file": "llama-b10400-bin-macos-x64.tar.gz",
+        "url": "https://github.com/ggml-org/llama.cpp/releases/download/b10400/llama-b10400-bin-macos-x64.tar.gz",
+        "size": 11365103,
+        "sha256": "dccb8eb50c797e3338cc55cacf943a51853b4cce09f6aa1c1a8fdc3efea74725",
+        "abi": "macos-darwin",
+        "executable": "llama-server"
+      },
+      {
+        "platform": "macos-aarch64",
+        "file": "llama-b10400-bin-macos-arm64.tar.gz",
+        "url": "https://github.com/ggml-org/llama.cpp/releases/download/b10400/llama-b10400-bin-macos-arm64.tar.gz",
+        "size": 11083410,
+        "sha256": "bb0172e886c7b6ece52edf04db03bc692ffc28e096728351c0343e4c75bb5374",
+        "abi": "macos-darwin",
+        "executable": "llama-server"
+      },
+      {
+        "platform": "linux-x86_64",
+        "file": "llama-b10400-bin-ubuntu-x64.tar.gz",
+        "url": "https://github.com/ggml-org/llama.cpp/releases/download/b10400/llama-b10400-bin-ubuntu-x64.tar.gz",
+        "size": 16609457,
+        "sha256": "ce3aadaadcc443f46d0d9eaa5c688d4370e25b90bd7e6e903cabcaa72dd2a584",
+        "abi": "linux-glibc",
+        "minimumAbiVersion": "2.31",
+        "executable": "llama-server"
+      },
+      {
+        "platform": "linux-aarch64",
+        "file": "llama-b10400-bin-ubuntu-arm64.tar.gz",
+        "url": "https://github.com/ggml-org/llama.cpp/releases/download/b10400/llama-b10400-bin-ubuntu-arm64.tar.gz",
+        "size": 13473976,
+        "sha256": "737ff27872dcc3018c4ccd678de3550f6ccfbf416b855ee61b2ec012b4c20dca",
+        "abi": "linux-glibc",
+        "minimumAbiVersion": "2.31",
+        "executable": "llama-server"
+      }
+    ]
+  },
+  "models": [
+    {
+      "id": "qwen3-1.7b-q8_0",
+      "displayName": "Qwen3 1.7B Q8_0",
+      "tier": "lite",
+      "automatic": true,
+      "firstPartyQuantization": true,
+      "license": "Apache-2.0",
+      "source": "Qwen/Qwen3-1.7B-GGUF",
+      "revision": "90862c4b9d2787eaed51d12237eafdfe7c5f6077",
+      "file": "Qwen3-1.7B-Q8_0.gguf",
+      "url": "https://huggingface.co/Qwen/Qwen3-1.7B-GGUF/resolve/90862c4b9d2787eaed51d12237eafdfe7c5f6077/Qwen3-1.7B-Q8_0.gguf",
+      "size": 1834426016,
+      "sha256": "061b54daade076b5d3362dac252678d17da8c68f07560be70818cace6590cb1a",
+      "minimumRamGb": 8,
+      "minimumCpuCount": 4,
+      "minimumFreeDiskGb": 4
+    },
+    {
+      "id": "qwen3-4b-q4_k_m",
+      "displayName": "Qwen3 4B Q4_K_M",
+      "tier": "balanced",
+      "automatic": true,
+      "firstPartyQuantization": true,
+      "license": "Apache-2.0",
+      "source": "Qwen/Qwen3-4B-GGUF",
+      "revision": "bc640142c66e1fdd12af0bd68f40445458f3869b",
+      "file": "Qwen3-4B-Q4_K_M.gguf",
+      "url": "https://huggingface.co/Qwen/Qwen3-4B-GGUF/resolve/bc640142c66e1fdd12af0bd68f40445458f3869b/Qwen3-4B-Q4_K_M.gguf",
+      "size": 2497280256,
+      "sha256": "7485fe6f11af29433bc51cab58009521f205840f5b4ae3a32fa7f92e8534fdf5",
+      "minimumRamGb": 16,
+      "minimumCpuCount": 8,
+      "minimumFreeDiskGb": 6
+    },
+    {
+      "id": "phi-4-mini-q4_k_m",
+      "displayName": "Phi-4 Mini Instruct Q4_K_M",
+      "tier": "challenger",
+      "automatic": false,
+      "firstPartyQuantization": false,
+      "license": "MIT",
+      "source": "unsloth/Phi-4-mini-instruct-GGUF",
+      "revision": "78eb92a46fc37e6b524df991ed9aca9bc6aa7b80",
+      "file": "Phi-4-mini-instruct-Q4_K_M.gguf",
+      "url": "https://huggingface.co/unsloth/Phi-4-mini-instruct-GGUF/resolve/78eb92a46fc37e6b524df991ed9aca9bc6aa7b80/Phi-4-mini-instruct-Q4_K_M.gguf",
+      "size": 2491874272,
+      "sha256": "88c00229914083cd112853aab84ed51b87bdf6b9ce42f532d8c85c7c63b1730a",
+      "minimumRamGb": 16,
+      "minimumCpuCount": 8,
+      "minimumFreeDiskGb": 6
+    },
+    {
+      "id": "gemma-4-e2b-it-q4_0",
+      "displayName": "Gemma 4 E2B IT QAT Q4_0",
+      "tier": "challenger",
+      "automatic": false,
+      "firstPartyQuantization": true,
+      "license": "Apache-2.0",
+      "source": "google/gemma-4-E2B-it-qat-q4_0-gguf",
+      "revision": "675cff42a74c774d6cb76f76d8eacb49b48c9b93",
+      "file": "gemma-4-E2B_q4_0-it.gguf",
+      "url": "https://huggingface.co/google/gemma-4-E2B-it-qat-q4_0-gguf/resolve/675cff42a74c774d6cb76f76d8eacb49b48c9b93/gemma-4-E2B_q4_0-it.gguf",
+      "size": 3349516256,
+      "sha256": "fa401b55b07ee70a54c6dae3903c783a6e65064312529ea57175cb5f8dec6634",
+      "minimumRamGb": 16,
+      "minimumCpuCount": 8,
+      "minimumFreeDiskGb": 7
+    }
+  ]
+}

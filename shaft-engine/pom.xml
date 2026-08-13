@@ -633,6 +633,7 @@
                     <include>junit-platform.properties</include>
                     <include>axe.min.js</include>
                     <include>ariaSnapshot.js</include>
+                    <include>images/shaft_report_logo.png</include>
                 </includes>
             </resource>
         </resources>

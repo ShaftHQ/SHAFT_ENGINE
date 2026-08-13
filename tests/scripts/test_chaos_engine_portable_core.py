@@ -3,6 +3,7 @@
 import json
 import re
 import unittest
+import xml.etree.ElementTree as ET  # nosec B405
 from pathlib import Path
 
 
@@ -12,6 +13,8 @@ CANONICAL_SKILL = CORE / "skills/chaos-engine/SKILL.md"
 REPOSITORY_ADAPTER = ROOT / ".agents/skills/chaos-engine/SKILL.md"
 COMPATIBILITY_ALIAS = ROOT / ".agents/skills/act-as-mohab/SKILL.md"
 SHAFT_PROFILE = CORE / "profiles/shaft/profile.json"
+PORTABLE_README = CORE / "README.md"
+BRAND_ASSETS = CORE / "assets/brand"
 POSIX_ABSOLUTE_PATH = re.compile(
     r"(?:^|[\s`\"'(=])(/[A-Za-z0-9._~-]+(?:/[A-Za-z0-9._~*{}-]+)+)",
     re.MULTILINE,
@@ -19,6 +22,71 @@ POSIX_ABSOLUTE_PATH = re.compile(
 
 
 class ChaosEnginePortableCoreTest(unittest.TestCase):
+    def test_portable_readme_uses_existing_contained_targets(self):
+        readme = PORTABLE_README.read_text(encoding="utf-8")
+        targets = re.findall(r'\[[^]]+\]\(([^)]+)\)', readme)
+        targets.extend(re.findall(r"(?m)^\s{0,3}\[[^]]+\]:\s*(\S+)", readme))
+        targets.extend(re.findall(r'(?:href|src|srcset)="([^"]+)"', readme))
+
+        self.assertIn("assets/brand/lockup-light.svg", targets)
+        self.assertIn("assets/brand/lockup-dark.svg", targets)
+        for target in targets:
+            if re.match(r"^[a-z][a-z0-9+.-]*:", target, re.IGNORECASE) or target.startswith("#"):
+                continue
+            resolved = (CORE / target.split("#", 1)[0]).resolve()
+            with self.subTest(target=target):
+                self.assertTrue(resolved.is_relative_to(CORE.resolve()))
+                self.assertTrue(resolved.exists())
+
+    def test_brand_assets_are_deterministic_accessible_vector_masters(self):
+        expected = {
+            "favicon-16-dark.svg",
+            "favicon-16.svg",
+            "favicon-dark.svg",
+            "favicon.svg",
+            "lockup-dark.svg",
+            "lockup-light.svg",
+            "symbol-dark.svg",
+            "symbol-light.svg",
+            "symbol-monochrome-black.svg",
+            "symbol-monochrome-white.svg",
+            "symbol-primary.svg",
+        }
+        self.assertEqual(expected, {path.name for path in BRAND_ASSETS.glob("*.svg")})
+
+        forbidden_tags = {
+            "filter", "image", "linearGradient", "radialGradient", "script", "style", "text"
+        }
+        for path in sorted(BRAND_ASSETS.glob("*.svg")):
+            root = ET.parse(path).getroot()  # nosec B314
+            tags = {element.tag.rsplit("}", 1)[-1] for element in root.iter()}
+            labelled_by = root.attrib.get("aria-labelledby", "").split()
+            element_ids = {element.attrib["id"] for element in root.iter() if "id" in element.attrib}
+            forbidden_attributes = []
+            for element in root.iter():
+                for name, value in element.attrib.items():
+                    local_name = name.rsplit("}", 1)[-1]
+                    if (
+                        local_name in {"filter", "href"}
+                        or local_name.startswith("on")
+                    ):
+                        forbidden_attributes.append((local_name, value))
+            with self.subTest(path=path.name):
+                self.assertEqual("svg", root.tag.rsplit("}", 1)[-1])
+                self.assertEqual("img", root.attrib.get("role"))
+                self.assertEqual(["title", "desc"], labelled_by)
+                self.assertTrue(set(labelled_by).issubset(element_ids))
+                self.assertTrue({"title", "desc"}.issubset(tags))
+                self.assertFalse(forbidden_tags & tags)
+                self.assertEqual([], forbidden_attributes)
+                if "monochrome" in path.name:
+                    description = next(
+                        element.text or ""
+                        for element in root.iter()
+                        if element.tag.rsplit("}", 1)[-1] == "desc"
+                    )
+                    self.assertNotIn("amber", description.lower())
+
     def test_chaos_engine_is_the_canonical_skill_and_act_as_mohab_is_only_an_alias(self):
         canonical = CANONICAL_SKILL.read_text(encoding="utf-8")
         repository_adapter = REPOSITORY_ADAPTER.read_text(encoding="utf-8")

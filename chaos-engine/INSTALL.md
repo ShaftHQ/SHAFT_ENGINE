@@ -1,4 +1,22 @@
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="assets/brand/symbol-dark.svg">
+    <source media="(prefers-color-scheme: light)" srcset="assets/brand/symbol-light.svg">
+    <img alt="ChaosEngine symbol" src="assets/brand/symbol-light.svg" width="180">
+  </picture>
+</p>
+
 # Install or upgrade ChaosEngine
+
+ChaosEngine is a portable, provider-neutral working contract for software
+agents. It routes work through research, planning, focused playbooks, empirical
+verification, independent adversarial review, and a durable learning loop.
+
+This page is the direct installation reference. Start with the human-facing
+[`README.md`](README.md) for the purpose, operating loop, trust boundaries, and
+portable layout. The canonical operating model lives in
+[`skills/chaos-engine/SKILL.md`](skills/chaos-engine/SKILL.md), and the reusable
+vector masters and application rules live in the [identity guide](assets/brand/BRAND.md).
 
 Give the following single command to Codex, Claude, Grok, Gemini, or another
 coding agent while its working directory is the project you want to manage:
