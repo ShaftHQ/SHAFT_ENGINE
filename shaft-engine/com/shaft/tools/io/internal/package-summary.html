@@ -99,7 +99,7 @@ GIFs, data files, page snapshots, etc.) to the Allure report and optionally to R
 </div>
 <div class="col-first even-row-color class-summary class-summary-tab2"><a href="BrowserObservabilityRecorder.html" title="class in com.shaft.tools.io.internal">BrowserObservabilityRecorder</a></div>
 <div class="col-last even-row-color class-summary class-summary-tab2">
-<div class="block">Thread-local browser network, console, and capability metadata recorder for SHAFT trace artifacts.</div>
+<div class="block">Session-owned browser network, console, and capability metadata recorder for SHAFT trace artifacts.</div>
 </div>
 <div class="col-first odd-row-color class-summary class-summary-tab4"><a href="BrowserObservabilityRecorder.ConsoleSnapshotEntry.html" title="class in com.shaft.tools.io.internal">BrowserObservabilityRecorder.ConsoleSnapshotEntry</a></div>
 <div class="col-last odd-row-color class-summary class-summary-tab4">
@@ -117,6 +117,14 @@ GIFs, data files, page snapshots, etc.) to the Allure report and optionally to R
 <div class="col-last even-row-color class-summary class-summary-tab4">
 <div class="block">Read-only snapshot of one observed network transaction, safe to hand to a caller outside this
 class (unlike <code>BrowserObservabilityRecorder.NetworkEvent</code>, which stays private since it backs the mutable trace list).</div>
+</div>
+<div class="col-first odd-row-color class-summary class-summary-tab2"><a href="BrowserObservabilityRecorder.ObservationBinding.html" title="class in com.shaft.tools.io.internal">BrowserObservabilityRecorder.ObservationBinding</a></div>
+<div class="col-last odd-row-color class-summary class-summary-tab2">
+<div class="block">Stable callback owner whose current session is replaced by the runner lifecycle.</div>
+</div>
+<div class="col-first even-row-color class-summary class-summary-tab2"><a href="BrowserObservabilityRecorder.ObservationSession.html" title="class in com.shaft.tools.io.internal">BrowserObservabilityRecorder.ObservationSession</a></div>
+<div class="col-last even-row-color class-summary class-summary-tab2">
+<div class="block">Opaque owner handle captured by asynchronous browser callbacks.</div>
 </div>
 <div class="col-first odd-row-color class-summary class-summary-tab2"><a href="BrowserPerformanceExecutionReport.html" title="class in com.shaft.tools.io.internal">BrowserPerformanceExecutionReport</a></div>
 <div class="col-last odd-row-color class-summary class-summary-tab2">
