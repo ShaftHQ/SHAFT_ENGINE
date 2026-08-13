@@ -51,6 +51,7 @@ class ChaosEnginePortableCoreTest(unittest.TestCase):
             "symbol-monochrome-black.svg",
             "symbol-monochrome-white.svg",
             "symbol-primary.svg",
+            "specimen.svg",
         }
         self.assertEqual(expected, {path.name for path in BRAND_ASSETS.glob("*.svg")})
 
@@ -86,6 +87,105 @@ class ChaosEnginePortableCoreTest(unittest.TestCase):
                         if element.tag.rsplit("}", 1)[-1] == "desc"
                     )
                     self.assertNotIn("amber", description.lower())
+
+    def test_brand_v3_uses_the_quantum_mandate_geometry_and_palette(self):
+        brand = (BRAND_ASSETS / "BRAND.md").read_text(encoding="utf-8")
+        palette = json.loads((BRAND_ASSETS / "palette.json").read_text(encoding="utf-8"))
+        expected_palette = {
+            "void": "#06080D",
+            "carbon": "#10141C",
+            "opticalWhite": "#F2F7FF",
+            "ionBlue": "#2F7DFF",
+            "electricCyan": "#61D4FF",
+            "cyberneticRed": "#FF3B4D",
+        }
+        self.assertEqual(3, palette["schemaVersion"])
+        self.assertEqual(expected_palette, palette["colors"])
+        self.assertIn("Quantum Mandate", brand)
+        self.assertIn("Chinese seal", brand)
+        self.assertIn("abstract dark-authority", brand)
+
+        readme = PORTABLE_README.read_text(encoding="utf-8")
+        self.assertIn("Quantum Mandate", readme)
+        self.assertNotIn("amber core", readme)
+
+        allowed_colors = {
+            "symbol-primary.svg": {"#10141C", "#FF3B4D"},
+            "symbol-light.svg": {"#F2F7FF", "#10141C", "#FF3B4D"},
+            "symbol-dark.svg": {"#06080D", "#F2F7FF", "#FF3B4D"},
+            "lockup-light.svg": {"#F2F7FF", "#10141C", "#FF3B4D"},
+            "lockup-dark.svg": {"#06080D", "#F2F7FF", "#FF3B4D"},
+            "favicon.svg": {"#10141C", "#FF3B4D"},
+            "favicon-dark.svg": {"#F2F7FF", "#FF3B4D"},
+            "favicon-16.svg": {"#10141C", "#FF3B4D"},
+            "favicon-16-dark.svg": {"#F2F7FF", "#FF3B4D"},
+            "symbol-monochrome-black.svg": {"#10141C"},
+            "symbol-monochrome-white.svg": {"#F2F7FF"},
+            "specimen.svg": {"#06080D", "#10141C", "#F2F7FF", "#FF3B4D"},
+        }
+
+        def groups_with_direct_children(root, child_count):
+            groups = []
+            for element in root.iter():
+                if element.attrib.get("data-geometry") != "quantum-mandate-v3":
+                    continue
+                children = list(element)
+                if len(children) == child_count:
+                    groups.append(children)
+            return groups
+
+        def geometry_signature(children):
+            signature = []
+            for element in children:
+                tag = element.tag.rsplit("}", 1)[-1]
+                attributes = tuple(
+                    sorted(
+                        (name.rsplit("}", 1)[-1], value)
+                        for name, value in element.attrib.items()
+                        if name.rsplit("}", 1)[-1] not in {"fill", "stroke"}
+                    )
+                )
+                signature.append((tag, attributes))
+            return tuple(signature)
+
+        canonical_root = ET.parse(BRAND_ASSETS / "symbol-primary.svg").getroot()
+        canonical_geometry = geometry_signature(groups_with_direct_children(canonical_root, 4)[0])
+        micro_root = ET.parse(BRAND_ASSETS / "favicon-16.svg").getroot()
+        micro_geometry = geometry_signature(groups_with_direct_children(micro_root, 4)[0])
+        full_size_assets = {
+            "symbol-primary.svg", "symbol-light.svg", "symbol-dark.svg",
+            "lockup-light.svg", "lockup-dark.svg", "favicon.svg",
+            "favicon-dark.svg", "symbol-monochrome-black.svg",
+            "symbol-monochrome-white.svg", "specimen.svg",
+        }
+
+        for path in sorted(BRAND_ASSETS.glob("*.svg")):
+            content = path.read_text(encoding="utf-8")
+            root = ET.fromstring(content)
+            colors = {
+                value
+                for element in root.iter()
+                for name, value in element.attrib.items()
+                if name.rsplit("}", 1)[-1] in {"fill", "stroke"} and value != "none"
+            }
+            with self.subTest(path=path.name):
+                self.assertNotIn("17d4c5c2b655f876", content)
+                self.assertIn("quantum-mandate-v3", content)
+                self.assertEqual(allowed_colors[path.name], colors)
+                groups = groups_with_direct_children(root, 4)
+                if path.name in full_size_assets:
+                    self.assertIn(canonical_geometry, map(geometry_signature, groups))
+                if path.name in {"favicon-16.svg", "favicon-16-dark.svg"}:
+                    self.assertEqual([micro_geometry], list(map(geometry_signature, groups)))
+
+        specimen_root = ET.parse(BRAND_ASSETS / "specimen.svg").getroot()
+        specimen_groups = groups_with_direct_children(specimen_root, 4)
+        specimen_signatures = list(map(geometry_signature, specimen_groups))
+        self.assertEqual(5, len(specimen_signatures))
+        self.assertEqual(3, specimen_signatures.count(canonical_geometry))
+        self.assertEqual(2, specimen_signatures.count(micro_geometry))
+        self.assertEqual({canonical_geometry, micro_geometry}, set(specimen_signatures))
+        self.assertIn("interface and data-visualization use only", brand)
 
     def test_chaos_engine_is_the_canonical_skill_and_act_as_mohab_is_only_an_alias(self):
         canonical = CANONICAL_SKILL.read_text(encoding="utf-8")

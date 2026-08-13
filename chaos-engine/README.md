@@ -159,10 +159,11 @@ documents which patterns were adopted, retained, or rejected.
 
 ## Identity system
 
-The ChaosEngine mark forms an open **C** and recessed **E** from four controlled
-mechanical sweeps around an amber core. The complete vector set includes
-light, dark, primary, monochrome, lockup, favicon, and dedicated 16-pixel
-masters.
+**Quantum Mandate** compresses an open **C**, three **E**-like logic gates, an
+offset data spine, and a cybernetic-red intelligence core into one engineered
+seal. The canonical logo uses only a neutral and red; blue and cyan belong to
+the surrounding interface system. The vector set includes light, dark,
+primary, monochrome, lockup, specimen, favicon, and dedicated 16-pixel masters.
 
 Use the files as supplied. Do not redraw, recolor, rotate, crop, add effects,
 or scale the regular favicon down for the 16-pixel case. Palette values, clear
