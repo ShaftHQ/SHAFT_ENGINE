@@ -168,7 +168,10 @@ final class ManagedLocalAiProcess {
             }
             if (!parentExited) {
                 process.destroyForcibly();
-                process.waitFor(Math.max(1, timeout.toMillis()), TimeUnit.MILLISECONDS);
+                boolean forcedExit = process.waitFor(Math.max(1, timeout.toMillis()), TimeUnit.MILLISECONDS);
+                if (!forcedExit || process.isAlive()) {
+                    survivorFailure = new IllegalStateException("Managed local AI process did not terminate.");
+                }
             }
         } catch (InterruptedException interrupted) {
             Thread.currentThread().interrupt();

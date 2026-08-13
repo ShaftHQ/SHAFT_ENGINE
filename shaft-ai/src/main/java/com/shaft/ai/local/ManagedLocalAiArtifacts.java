@@ -464,15 +464,41 @@ final class ManagedLocalAiArtifacts {
             return;
         }
         List<IOException> failures = new ArrayList<>();
-        try (Stream<Path> paths = Files.walk(root)) {
-            paths.sorted(Comparator.reverseOrder()).forEach(path -> {
-                try {
-                    Files.deleteIfExists(path);
-                } catch (IOException failure) {
+        Files.walkFileTree(root, new java.nio.file.SimpleFileVisitor<>() {
+            @Override
+            public java.nio.file.FileVisitResult preVisitDirectory(Path directory,
+                    java.nio.file.attribute.BasicFileAttributes attributes) {
+                if (!directory.equals(root) && (attributes.isSymbolicLink() || attributes.isOther())) {
+                    return java.nio.file.FileVisitResult.SKIP_SUBTREE;
+                }
+                return java.nio.file.FileVisitResult.CONTINUE;
+            }
+
+            @Override
+            public java.nio.file.FileVisitResult visitFile(Path file,
+                    java.nio.file.attribute.BasicFileAttributes attributes) throws IOException {
+                if (attributes.isSymbolicLink() || attributes.isOther()) {
+                    return java.nio.file.FileVisitResult.CONTINUE;
+                }
+                Files.deleteIfExists(file);
+                return java.nio.file.FileVisitResult.CONTINUE;
+            }
+
+            @Override
+            public java.nio.file.FileVisitResult postVisitDirectory(Path directory, IOException failure) {
+                if (failure != null) {
                     failures.add(failure);
                 }
-            });
-        }
+                try {
+                    Files.delete(directory);
+                } catch (java.nio.file.DirectoryNotEmptyException unknownContent) {
+                    // Concurrent unknown or reparse content is preserved.
+                } catch (IOException deleteFailure) {
+                    failures.add(deleteFailure);
+                }
+                return java.nio.file.FileVisitResult.CONTINUE;
+            }
+        });
         if (!failures.isEmpty()) {
             throw failures.getFirst();
         }
