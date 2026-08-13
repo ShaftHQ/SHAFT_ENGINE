@@ -783,7 +783,7 @@ jobs:
           "-Dtest=${{ github.event.inputs.tests != '' && github.event.inputs.tests || 'AndroidBasicInteractionsTests#visualAndOcrTargetsShouldScrollVerticallyThroughNativeControls+visualAndOcrTargetsShouldScrollHorizontallyInsideNativeControl' }}"
       - name: Verify Android screenshot and OCR acceptance executed
         run: |
-          mapfile -t reports < <(find shaft-engine/target/surefire-reports -name 'TEST-*.xml' -type f)
+          mapfile -t reports < <(find shaft-engine/target/surefire-reports shaft-browserstack/target/surefire-reports -name 'TEST-*.xml' -type f 2>/dev/null)
           python3 scripts/ci/assert_tests_executed.py "${reports[@]}" --min-executed 1
       - name: Post-Test Report and Check
         id: post_test_report
@@ -840,7 +840,7 @@ jobs:
           "-Dtest=${{ github.event.inputs.tests != '' && github.event.inputs.tests || 'IOSBasicInteractionsTest#visualAndOcrTargetsShouldInteractWithNativeControls' }}"
       - name: Verify iOS screenshot and OCR acceptance executed
         run: |
-          mapfile -t reports < <(find shaft-engine/target/surefire-reports -name 'TEST-*.xml' -type f)
+          mapfile -t reports < <(find shaft-engine/target/surefire-reports shaft-browserstack/target/surefire-reports -name 'TEST-*.xml' -type f 2>/dev/null)
           python3 scripts/ci/assert_tests_executed.py "${reports[@]}" --min-executed 1
       - name: Post-Test Report and Check
         id: post_test_report

@@ -25,6 +25,6 @@ class VisualOcrWorkflowTest(unittest.TestCase):
             self.assertIn("github.event.inputs.tests != ''", test_command)
             self.assertIn(expected_default, test_command)
             verification = next(command for command in run_steps if "assert_tests_executed.py" in command)
-            self.assertIn("find shaft-engine/target/surefire-reports -name 'TEST-*.xml'", verification)
+            self.assertIn("find shaft-engine/target/surefire-reports shaft-browserstack/target/surefire-reports", verification)
             self.assertIn('"${reports[@]}" --min-executed 1', verification)
             self.assertNotIn("TEST-testPackage.appium", verification)
