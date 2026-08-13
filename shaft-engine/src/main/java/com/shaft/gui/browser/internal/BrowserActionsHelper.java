@@ -17,11 +17,9 @@ import org.apache.logging.log4j.Level;
 import org.openqa.selenium.*;
 import org.openqa.selenium.Dimension;
 import org.openqa.selenium.Point;
-import org.openqa.selenium.bidi.BiDiException;
 import org.openqa.selenium.bidi.browsingcontext.BrowsingContext;
 import org.openqa.selenium.bidi.browsingcontext.ReadinessState;
-import org.openqa.selenium.chromium.ChromiumDriver;
-import org.openqa.selenium.devtools.DevToolsException;
+import org.openqa.selenium.chromium.HasCdp;
 import org.openqa.selenium.support.ui.ExpectedConditions;
 import org.openqa.selenium.support.ui.WebDriverWait;
 
@@ -504,26 +502,32 @@ public class BrowserActionsHelper {
      * @return the serialised page data as a {@link String} (MHTML or HTML source)
      */
     public String capturePageSnapshot(WebDriver driver) {
-        var serializedPageData = "";
-        try {
-            if (driver instanceof ChromiumDriver chromiumDriver) {
-                var result = chromiumDriver.executeCdpCommand("Page.captureSnapshot", new HashMap<>());
-                serializedPageData = (String) ((Map<String, ?>) result).get("data");
-            } else {
-                // get page source
-                serializedPageData = driver.getPageSource();
+        if (driver == null) {
+            return "";
+        }
+        if (driver instanceof HasCdp cdp) {
+            for (int attempt = 0; attempt < 2; attempt++) {
+                try {
+                    Map<String, Object> result = cdp.executeCdpCommand("Page.captureSnapshot", Map.of());
+                    Object data = result == null ? null : result.get("data");
+                    if (data instanceof String snapshot && !snapshot.isBlank()) {
+                        return snapshot;
+                    }
+                    break;
+                } catch (RuntimeException exception) {
+                    if (attempt == 0) {
+                        continue;
+                    }
+                    ReportManagerHelper.logDiscrete("Resource-complete page snapshot was unavailable; "
+                            + "using structural WebDriver page source instead.", Level.DEBUG);
+                }
             }
-            return serializedPageData;
-        } catch (BiDiException | DevToolsException exception) {
-            ReportManagerHelper.logDiscrete(exception);
-            return capturePageSnapshot(driver);
-        } catch (WebDriverException webDriverException) {
-            // unknown error: unhandled inspector error: {"code":-32000,"message":"Failed to generate MHTML"
-            // try again but just get the regular page source this time
-            return capturePageSnapshot(null);
+        }
+        try {
+            return driver.getPageSource();
         } catch (Exception rootCauseException) {
-            failAction(driver, serializedPageData, rootCauseException);
-            return serializedPageData;
+            failAction(driver, "", rootCauseException);
+            return "";
         }
     }
 
