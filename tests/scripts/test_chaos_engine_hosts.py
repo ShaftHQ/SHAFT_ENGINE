@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import importlib.util
 import errno
+import hashlib
 import json
 import os
 import tempfile
@@ -27,6 +28,25 @@ def load(path: Path, name: str):
 
 
 class ChaosEngineHostsTest(unittest.TestCase):
+    def setUp(self):
+        self.runtime_state = tempfile.TemporaryDirectory()
+        self.runtime_environment = mock.patch.dict(
+            os.environ,
+            {
+                "LOCALAPPDATA": self.runtime_state.name,
+                "XDG_DATA_HOME": self.runtime_state.name,
+                "CHAOSENGINE_JAVA": "",
+                "CHAOSENGINE_MAVEN_TOOLS_MCP_JAR": "",
+                "JAVA_HOME": "",
+            },
+            clear=False,
+        )
+        self.runtime_environment.start()
+
+    def tearDown(self):
+        self.runtime_environment.stop()
+        self.runtime_state.cleanup()
+
     def test_validate_path_rejects_a_path_outside_the_project(self):
         module = load(HOSTS, "chaos_engine_hosts_outside_path")
         with tempfile.TemporaryDirectory() as temporary:
@@ -96,6 +116,173 @@ class ChaosEngineHostsTest(unittest.TestCase):
         for server in posix.values():
             self.assertEqual("python3", server["command"])
             self.assertNotEqual("-3", server["args"][0])
+
+    def test_native_maven_tools_runtime_uses_resolved_host_paths(self):
+        module = load(HOSTS, "chaos_engine_hosts_native_maven")
+        java = Path(r"C:\runtime\jdk-25\bin\java.exe")
+        jar = Path(r"C:\runtime\maven-tools-mcp\3.2.0\server.jar")
+
+        servers = module.owned_servers("nt", maven_runtime=(java, jar))
+        maven = servers["maven-tools-mcp"]
+
+        self.assertEqual(str(java), maven["command"])
+        self.assertEqual(
+            ["-jar", str(jar), "--spring.profiles.active=docker"],
+            maven["args"],
+        )
+        self.assertNotEqual("docker", Path(str(maven["command"])).name.casefold())
+
+    def test_native_maven_tools_runtime_is_rendered_for_both_host_configs(self):
+        module = load(HOSTS, "chaos_engine_hosts_native_maven_configs")
+        java = Path(r"C:\runtime\jdk-25\bin\java.exe")
+        jar = Path(r"C:\runtime\maven-tools-mcp\3.2.0\server.jar")
+        before = {relative: None for relative in module.managed_paths()}
+
+        after = module.desired_content(before, maven_runtime=(java, jar))
+        claude = json.loads(after[".mcp.json"])
+        codex = after[".codex/config.toml"].decode("utf-8")
+
+        self.assertEqual(str(java), claude["mcpServers"]["maven-tools-mcp"]["command"])
+        self.assertIn(str(jar).replace("\\", "\\\\"), codex)
+        self.assertIn("--spring.profiles.active=docker", codex)
+
+    def test_native_maven_tools_runtime_discovers_user_paths(self):
+        module = load(HOSTS, "chaos_engine_hosts_native_maven_discovery")
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            java = root / "jdk-25/bin/java.exe"
+            jar = (
+                root
+                / "data/ChaosEngine/tools/maven-tools-mcp/3.2.0"
+                / "maven-tools-mcp-3.2.0.jar"
+            )
+            java.parent.mkdir(parents=True)
+            jar.parent.mkdir(parents=True)
+            java.write_bytes(b"java")
+            jar.write_bytes(b"jar")
+            jar.with_name("install-receipt.json").write_text(
+                json.dumps(
+                    {
+                        "version": "3.2.0",
+                        "commit": "4475ff6c61f23ea9a93cb6d5665a63235ef2ef36",
+                        "jar": jar.name,
+                        "sha256": hashlib.sha256(jar.read_bytes()).hexdigest(),
+                    }
+                ),
+                encoding="utf-8",
+            )
+            globals_ = module.discover_maven_tools_runtime.__globals__
+            prior = globals_["java_major"]
+            globals_["java_major"] = lambda candidate: 25 if candidate == java.resolve() else None
+            try:
+                with mock.patch.dict(
+                    os.environ,
+                    {
+                        "LOCALAPPDATA": str(root / "data"),
+                        "CHAOSENGINE_JAVA": str(java),
+                        "CHAOSENGINE_MAVEN_TOOLS_MCP_JAR": "",
+                    },
+                    clear=False,
+                ):
+                    self.assertEqual(
+                        (java.resolve(), jar.resolve()),
+                        module.discover_maven_tools_runtime(),
+                    )
+            finally:
+                globals_["java_major"] = prior
+
+    def test_native_maven_tools_runtime_rejects_unreceipted_or_changed_jar(self):
+        module = load(HOSTS, "chaos_engine_hosts_native_maven_receipt")
+        with tempfile.TemporaryDirectory() as temporary:
+            jar = Path(temporary) / "maven-tools-mcp-3.2.0.jar"
+            jar.write_bytes(b"not-a-jar")
+            self.assertIsNone(module.verified_maven_tools_jar(jar))
+
+            jar.with_name("install-receipt.json").write_text(
+                json.dumps(
+                    {
+                        "version": "3.2.0",
+                        "commit": "4475ff6c61f23ea9a93cb6d5665a63235ef2ef36",
+                        "jar": jar.name,
+                        "sha256": hashlib.sha256(jar.read_bytes()).hexdigest(),
+                    }
+                ),
+                encoding="utf-8",
+            )
+            self.assertEqual(jar.resolve(), module.verified_maven_tools_jar(jar))
+            jar.write_bytes(b"changed")
+            self.assertIsNone(module.verified_maven_tools_jar(jar))
+
+    def test_native_maven_tools_runtime_resolves_path_java_symlink(self):
+        module = load(HOSTS, "chaos_engine_hosts_native_maven_java_symlink")
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            real_java = root / "jdk-25/bin/java"
+            linked_java = root / "bin/java"
+            jar = root / "maven-tools-mcp-3.2.0.jar"
+            real_java.parent.mkdir(parents=True)
+            linked_java.parent.mkdir(parents=True)
+            real_java.write_bytes(b"java")
+            try:
+                linked_java.symlink_to(real_java)
+            except OSError as error:
+                self.skipTest(f"symlinks unavailable: {error}")
+            jar.write_bytes(b"jar")
+            jar.with_name("install-receipt.json").write_text(
+                json.dumps(
+                    {
+                        "version": "3.2.0",
+                        "commit": "4475ff6c61f23ea9a93cb6d5665a63235ef2ef36",
+                        "jar": jar.name,
+                        "sha256": hashlib.sha256(jar.read_bytes()).hexdigest(),
+                    }
+                ),
+                encoding="utf-8",
+            )
+            globals_ = module.discover_maven_tools_runtime.__globals__
+            prior = globals_["java_major"]
+            globals_["java_major"] = lambda candidate: 25 if candidate == real_java.resolve() else None
+            try:
+                with mock.patch.dict(
+                    os.environ,
+                    {
+                        "LOCALAPPDATA": str(root / "data"),
+                        "CHAOSENGINE_MAVEN_TOOLS_MCP_JAR": str(jar),
+                    },
+                    clear=True,
+                ), mock.patch.object(module.shutil, "which", return_value=str(linked_java)):
+                    self.assertEqual(
+                        (real_java.resolve(), jar.resolve()),
+                        module.discover_maven_tools_runtime(),
+                    )
+            finally:
+                globals_["java_major"] = prior
+
+    def test_legacy_docker_maven_server_is_removed_during_host_rendering(self):
+        module = load(HOSTS, "chaos_engine_hosts_legacy_maven")
+        legacy_json = json.dumps(
+            {"mcpServers": {"maven-tools-mcp": module.LEGACY_MAVEN_TOOLS_SERVER}}
+        ).encode()
+        legacy_toml = (
+            '[mcp_servers.maven-tools-mcp]\ncommand = "docker"\n'
+            'args = ["run", "-i", "--rm", "arvindand/maven-tools-mcp:3.2.0"]\n'
+            "required = false\n"
+        ).encode()
+
+        rendered_json = json.loads(module.json_content(legacy_json))
+        rendered_toml = module.codex_content(legacy_toml).decode()
+
+        self.assertNotIn("maven-tools-mcp", rendered_json["mcpServers"])
+        self.assertNotIn("docker", rendered_toml.casefold())
+
+        rendered_crlf = module.codex_content(legacy_toml.replace(b"\n", b"\r\n")).decode()
+        self.assertNotIn("docker", rendered_crlf.casefold())
+
+        managed = module.codex_content(None)
+        for legacy in (legacy_toml, legacy_toml.replace(b"\n", b"\r\n")):
+            rerendered = module.codex_content(managed + b"\n" + legacy).decode()
+            self.assertIn("# CHAOSENGINE:START", rerendered)
+            self.assertNotIn("docker", rerendered.casefold())
 
     def test_existing_unrelated_config_is_preserved_and_owned_collision_fails_closed(self):
         module = load(HOSTS, "chaos_engine_hosts")

@@ -833,6 +833,29 @@ class AgentHarnessPortabilityTest(unittest.TestCase):
         for pattern in ("entities.json", "graphify-out/", "**/target/"):
             self.assertIn(pattern, ignore)
 
+    def test_default_mcp_configs_do_not_launch_docker(self):
+        claude = json.loads((ROOT / ".mcp.json").read_text(encoding="utf-8"))[
+            "mcpServers"
+        ]
+        codex = tomllib.loads((ROOT / ".codex/config.toml").read_text(encoding="utf-8"))[
+            "mcp_servers"
+        ]
+
+        offenders = []
+        for host, servers in (("claude", claude), ("codex", codex)):
+            offenders.extend(
+                f"{host}:{name}"
+                for name, config in servers.items()
+                if config.get("command", "").casefold() in {"docker", "docker.exe"}
+            )
+
+        self.assertEqual(
+            offenders,
+            [],
+            "Default stdio MCP declarations start once per client; Docker-backed "
+            "servers must be an explicit opt-in, not a default harness cost.",
+        )
+
     def test_active_memory_has_no_retired_harness_contracts(self):
         memory_root = ROOT / ".memory"
         retired = re.compile(
