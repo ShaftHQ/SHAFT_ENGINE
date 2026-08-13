@@ -14,6 +14,7 @@ import org.apache.logging.log4j.Level;
 import org.openqa.selenium.WebDriver;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.node.ArrayNode;
 import tools.jackson.databind.node.ObjectNode;
 
 import java.io.ByteArrayOutputStream;
@@ -176,9 +177,13 @@ public final class FailureTraceReporter {
                 "Browser snapshot was omitted at the sensitive-data boundary.", "omitted-sensitive", "", 0, false)
                 : snapshot();
         List<TraceEventRecorder.ActionEvent> actions = TraceEventRecorder.drain();
+        Map<String, TraceEventRecorder.ActionSnapshots> actionSnapshots = TraceEventRecorder.drainActionSnapshots();
+        actions = actions.stream().map(FailureTraceReporter::resanitizeActionDom).toList();
+        actionSnapshots = resanitizeActionSnapshots(actionSnapshots);
         Path nativeTrace = suppressBrowserArtifacts ? null : PlaywrightTraceManager.getLastTracePath();
         if (suppressBrowserArtifacts) {
             actions = actions.stream().map(FailureTraceReporter::withoutBrowserEvidence).toList();
+            actionSnapshots = Map.of();
         }
         CURRENT_SCREENSHOTS.set(decodeScreenshots(actions));
         if (suppressBrowserArtifacts) {
@@ -196,7 +201,7 @@ public final class FailureTraceReporter {
         String omissionMarker = "Omitted because artifact exceeded shaft.trace.maxArtifactMb="
                 + SHAFT.Properties.reporting.traceMaxArtifactMb();
         TraceArtifactManifest manifest = TraceArtifactManifest.create(networkJson, CURRENT_SCREENSHOTS.get(),
-                nativeTrace, maxBytes, omissionMarker);
+                snapshotResources(actions, actionSnapshots), nativeTrace, maxBytes, omissionMarker);
         CURRENT_ARTIFACT_MANIFEST.set(manifest);
         PlaywrightEvidence playwrightEvidence = importPlaywrightEvidence(actions, manifest.stagedNativeTrace(),
                 nativeTrace != null, suppressBrowserArtifacts);
@@ -425,6 +430,64 @@ public final class FailureTraceReporter {
             }
         }
         return screenshots;
+    }
+
+    private static TraceEventRecorder.ActionEvent resanitizeActionDom(TraceEventRecorder.ActionEvent action) {
+        return new TraceEventRecorder.ActionEvent(action.id(), action.backend(), action.category(), action.name(),
+                action.status(), action.startTime(), action.durationMs(), action.locator(), action.url(), action.caller(),
+                action.message(), action.exceptionType(), action.exceptionMessage(), action.attachments(),
+                action.metadata(), action.actionability(), redactSourceText(action.domSnapshotBefore()),
+                redactSourceText(action.domSnapshotAfter()), action.screenshot());
+    }
+
+    private static Map<String, TraceEventRecorder.ActionSnapshots> resanitizeActionSnapshots(
+            Map<String, TraceEventRecorder.ActionSnapshots> snapshots) {
+        Map<String, TraceEventRecorder.ActionSnapshots> sanitized = new LinkedHashMap<>();
+        snapshots.forEach((actionId, phases) -> sanitized.put(actionId, new TraceEventRecorder.ActionSnapshots(
+                resanitizeSnapshot(phases.before()), resanitizeSnapshot(phases.after()))));
+        return Map.copyOf(sanitized);
+    }
+
+    private static SeleniumTraceCapture.Result resanitizeSnapshot(SeleniumTraceCapture.Result result) {
+        if (result == null || result.content().isEmpty()) {
+            return result;
+        }
+        SeleniumTraceCapture.Result sanitized = SeleniumTraceCapture.fromContent(
+                result.provider(), result.fidelity(), result.type(), result.content(),
+                FailureTraceReporter::redactSourceText);
+        boolean preserveTruncation = result.truncated() && "available".equals(sanitized.status());
+        return new SeleniumTraceCapture.Result(sanitized.provider(),
+                preserveTruncation ? result.fidelity() : sanitized.fidelity(),
+                preserveTruncation ? result.status() : sanitized.status(),
+                preserveTruncation ? result.reason() : sanitized.reason(), sanitized.type(), sanitized.content(),
+                result.truncated() || sanitized.truncated());
+    }
+
+    private static List<TraceArtifactManifest.SnapshotResource> snapshotResources(
+            List<TraceEventRecorder.ActionEvent> actions,
+            Map<String, TraceEventRecorder.ActionSnapshots> snapshotsByAction) {
+        List<TraceArtifactManifest.SnapshotResource> resources = new ArrayList<>();
+        Map<String, byte[]> canonicalBytes = new java.util.HashMap<>();
+        for (TraceEventRecorder.ActionEvent action : actions) {
+            TraceEventRecorder.ActionSnapshots snapshots = snapshotsByAction.get(action.id());
+            addSnapshotResource(resources, canonicalBytes, action.id(), "before",
+                    snapshots == null ? null : snapshots.before());
+            addSnapshotResource(resources, canonicalBytes, action.id(), "after",
+                    snapshots == null ? null : snapshots.after());
+        }
+        return List.copyOf(resources);
+    }
+
+    private static void addSnapshotResource(List<TraceArtifactManifest.SnapshotResource> resources,
+                                            Map<String, byte[]> canonicalBytes, String actionId, String phase,
+                                            SeleniumTraceCapture.Result snapshot) {
+        if (snapshot == null) {
+            return;
+        }
+        byte[] bytes = canonicalBytes.computeIfAbsent(snapshot.content(),
+                content -> content.getBytes(StandardCharsets.UTF_8));
+        resources.add(new TraceArtifactManifest.SnapshotResource(
+                "snapshot-" + actionId + "-" + phase, actionId, phase, snapshot, bytes));
     }
 
     static boolean shouldAttachTrace(TestExecutionInfo info) {
@@ -1501,6 +1564,11 @@ public final class FailureTraceReporter {
                     ? TraceArchiveWriter.Entry.omitted(path, omittedReasons.get(path))
                     : TraceArchiveWriter.Entry.optionalBytes(path, entry.getValue()));
         }
+        if (manifest != null) {
+            manifest.resourceBytes().forEach((path, bytes) -> entries.add(omittedReasons.containsKey(path)
+                    ? TraceArchiveWriter.Entry.omitted(path, omittedReasons.get(path))
+                    : TraceArchiveWriter.Entry.optionalBytes(path, bytes)));
+        }
         if (nativeEntry != null) {
             entries.add(omittedReasons.containsKey(nativeEntry.name())
                     ? TraceArchiveWriter.Entry.omitted(nativeEntry.name(), omittedReasons.get(nativeEntry.name()))
@@ -1521,6 +1589,7 @@ public final class FailureTraceReporter {
         List<String> omitted = List.copyOf(plannedOmissions);
         String currentJson = json;
         String html = renderTraceHtml(currentJson, omitted);
+        Map<String, byte[]> currentScreenshots = screenshots;
         int optionalEntries = manifest == null ? 0 : manifest.references().size();
         for (int pass = 0; pass <= optionalEntries; pass++) {
             if (hasSnapshotContent(currentJson)
@@ -1528,13 +1597,29 @@ public final class FailureTraceReporter {
                 currentJson = omitSnapshotForBudget(currentJson);
                 html = renderTraceHtml(currentJson, omitted);
             }
+            if (hasInlineActionSnapshots(currentJson)
+                    && (utf8Size(currentJson) > maxEntryBytes || utf8Size(html) > maxEntryBytes)) {
+                currentJson = omitInlineActionSnapshotsForBudget(currentJson, manifest);
+                html = renderTraceHtml(currentJson, omitted);
+            }
             if (hasAvailablePlaywrightEvidence(currentJson)
                     && (utf8Size(currentJson) > maxEntryBytes || utf8Size(html) > maxEntryBytes)) {
                 currentJson = omitPlaywrightEvidenceForBudget(currentJson);
                 html = renderTraceHtml(currentJson, omitted);
             }
+            if (hasActionEvidence(currentJson)
+                    && (utf8Size(currentJson) > maxEntryBytes || utf8Size(html) > maxEntryBytes)) {
+                ActionCompaction compacted = compactActionEvidenceForBudget(currentJson, omitted, maxEntryBytes);
+                currentJson = compacted.json();
+                omitted = omitted.stream().filter(path -> !compacted.removedArtifactPaths().contains(path)).toList();
+                if (manifest != null) {
+                    manifest.retainActionArtifacts(compacted.retainedArtifactIds());
+                }
+                currentScreenshots = filterScreenshots(currentScreenshots, compacted.retainedArtifactIds());
+                html = renderTraceHtml(currentJson, omitted);
+            }
             TraceArchiveWriter.Entry nativeEntry = manifest == null ? null : manifest.nativeEntry();
-            List<String> actual = renderTraceZip(target, currentJson, html, networkJson, screenshots,
+            List<String> actual = renderTraceZip(target, currentJson, html, networkJson, currentScreenshots,
                     nativeEntry, manifest, maxEntryBytes, maxTotalBytes, omissionMarker, omissionMarker);
             List<String> merged = mergeOmitted(omitted, actual);
             if (merged.equals(omitted)) {
@@ -1563,6 +1648,30 @@ public final class FailureTraceReporter {
     private static boolean hasSnapshotContent(String json) {
         try {
             return !JSON.readTree(json).path("snapshot").path("content").asText().isEmpty();
+        } catch (RuntimeException exception) {
+            return false;
+        }
+    }
+
+    private static boolean hasInlineActionSnapshots(String json) {
+        try {
+            for (JsonNode action : JSON.readTree(json).path("evidence").path("actions")) {
+                if (!action.path("domSnapshotBefore").asText().isEmpty()
+                        || !action.path("domSnapshotAfter").asText().isEmpty()) {
+                    return true;
+                }
+            }
+            return false;
+        } catch (RuntimeException exception) {
+            return false;
+        }
+    }
+
+    private static boolean hasActionEvidence(String json) {
+        try {
+            JsonNode root = JSON.readTree(json);
+            return !root.path("evidence").path("actions").isEmpty()
+                    || !root.path("session").path("events").isEmpty();
         } catch (RuntimeException exception) {
             return false;
         }
@@ -1601,6 +1710,201 @@ public final class FailureTraceReporter {
         snapshot.put("byteCount", "0");
         snapshot.put("truncated", "false");
         return JSON.writeValueAsString(root);
+    }
+
+    private static String omitInlineActionSnapshotsForBudget(String json, TraceArtifactManifest manifest) {
+        JsonNode parsed = JSON.readTree(json);
+        if (!(parsed instanceof ObjectNode root)) {
+            return json;
+        }
+        JsonNode actions = root.path("evidence").path("actions");
+        if (!actions.isArray()) {
+            return json;
+        }
+        Set<String> resourceActions = manifest == null ? Set.of() : manifest.references().stream()
+                .filter(reference -> "dom-snapshot".equals(reference.kind()))
+                .filter(reference -> !reference.omitted())
+                .map(reference -> reference.metadata().getOrDefault("actionId", ""))
+                .filter(actionId -> !actionId.isEmpty())
+                .collect(java.util.stream.Collectors.toUnmodifiableSet());
+        actions.forEach(action -> {
+            if (!(action instanceof ObjectNode object)) {
+                return;
+            }
+            boolean hadSnapshot = !object.path("domSnapshotBefore").asText().isEmpty()
+                    || !object.path("domSnapshotAfter").asText().isEmpty();
+            if (!hadSnapshot) {
+                return;
+            }
+            object.put("domSnapshotBefore", "");
+            object.put("domSnapshotAfter", "");
+            object.put("domSnapshotInlineStatus",
+                    resourceActions.contains(object.path("id").asText()) ? "resource-only" : "omitted-budget");
+            object.put("domSnapshotInlineReason",
+                    "Inline DOM snapshots exceeded the bounded report entry budget.");
+        });
+        return JSON.writeValueAsString(root);
+    }
+
+    private static ActionCompaction compactActionEvidenceForBudget(String json, List<String> omitted,
+                                                                    long maxEntryBytes) {
+        JsonNode parsed = JSON.readTree(json);
+        if (!(parsed instanceof ObjectNode root)) {
+            return new ActionCompaction(json, Set.of(), Set.of());
+        }
+        List<JsonNode> actions = withoutOmissionMarker(copyNodes(root.path("evidence").path("actions")));
+        List<JsonNode> events = withoutOmissionMarker(copyNodes(root.path("session").path("events")));
+        int priorOmitted = Math.max(omittedActionCount(root.path("evidence").path("actions")),
+                omittedActionCount(root.path("session").path("events")));
+        int total = Math.max(actions.size(), events.size());
+        int low = 0;
+        int high = total;
+        ActionCompaction best = null;
+        while (low <= high) {
+            int retained = low + (high - low) / 2;
+            ActionCompaction candidate = compactedActionJson(root, actions, events, retained, total, priorOmitted);
+            List<String> candidateOmissions = omitted.stream()
+                    .filter(path -> !candidate.removedArtifactPaths().contains(path)).toList();
+            String candidateHtml = renderTraceHtml(candidate.json(), candidateOmissions);
+            if (utf8Size(candidate.json()) <= maxEntryBytes && utf8Size(candidateHtml) <= maxEntryBytes) {
+                best = candidate;
+                low = retained + 1;
+            } else {
+                high = retained - 1;
+            }
+        }
+        if (best == null) {
+            throw new IllegalStateException("Trace action metadata exceeded the required entry budget after bounded compaction.");
+        }
+        return best;
+    }
+
+    private static List<JsonNode> withoutOmissionMarker(List<JsonNode> values) {
+        if (values.isEmpty() || !isActionOmissionMarker(values.getLast())) {
+            return values;
+        }
+        return List.copyOf(values.subList(0, values.size() - 1));
+    }
+
+    private static int omittedActionCount(JsonNode values) {
+        if (!values.isArray() || values.isEmpty()) {
+            return 0;
+        }
+        JsonNode last = values.get(values.size() - 1);
+        return isActionOmissionMarker(last)
+                ? last.path("metadata").path("omittedCount").asInt(0) : 0;
+    }
+
+    private static boolean isActionOmissionMarker(JsonNode value) {
+        String id = value.path("id").asText();
+        boolean ownedId = "action-limit".equals(id) || "action-budget".equals(id)
+                || id.endsWith("/action-limit") || id.endsWith("/action-budget");
+        return ownedId && "omitted-actions".equals(value.path("name").asText())
+                && positiveInteger(value.path("metadata").path("omittedCount").asText());
+    }
+
+    private static boolean positiveInteger(String value) {
+        try {
+            return Integer.parseInt(value) > 0;
+        } catch (NumberFormatException exception) {
+            return false;
+        }
+    }
+
+    private static List<JsonNode> copyNodes(JsonNode array) {
+        if (!array.isArray()) {
+            return List.of();
+        }
+        List<JsonNode> values = new ArrayList<>();
+        array.forEach(value -> values.add(value.deepCopy()));
+        return List.copyOf(values);
+    }
+
+    private static ActionCompaction compactedActionJson(ObjectNode original, List<JsonNode> actions,
+                                                        List<JsonNode> events, int retained, int total,
+                                                        int priorOmitted) {
+        ObjectNode copy = original.deepCopy();
+        var compactActions = copy.withObject("evidence").putArray("actions");
+        for (int index = 0; index < Math.min(retained, actions.size()); index++) {
+            compactActions.add(actions.get(index));
+        }
+        var compactEvents = copy.withObject("session").putArray("events");
+        for (int index = 0; index < Math.min(retained, events.size()); index++) {
+            compactEvents.add(events.get(index));
+        }
+        Set<String> retainedArtifactIds = new LinkedHashSet<>();
+        compactEvents.forEach(event -> event.path("artifactIds").forEach(id -> retainedArtifactIds.add(id.asText())));
+        Set<String> originalActionArtifactPaths = new LinkedHashSet<>();
+        Set<String> retainedActionArtifactPaths = new LinkedHashSet<>();
+        if (copy.path("session").path("artifacts") instanceof ArrayNode artifacts) {
+            List<JsonNode> originalArtifacts = copyNodes(artifacts);
+            originalArtifacts.stream().filter(FailureTraceReporter::isActionArtifact)
+                    .forEach(artifact -> originalActionArtifactPaths.add(artifact.path("path").asText()));
+            List<JsonNode> kept = originalArtifacts.stream().filter(artifact -> {
+                String kind = artifact.path("kind").asText();
+                return !("dom-snapshot".equals(kind) || "screenshot".equals(kind))
+                        || retainedArtifactIds.contains(artifact.path("id").asText());
+            }).toList();
+            kept.stream().filter(FailureTraceReporter::isActionArtifact)
+                    .forEach(artifact -> retainedActionArtifactPaths.add(artifact.path("path").asText()));
+            artifacts.removeAll();
+            kept.forEach(artifacts::add);
+        }
+        if (retained < total) {
+            int omittedCount = priorOmitted + total - retained;
+            compactActions.add(actionOmissionNode(omittedCount));
+            compactEvents.add(eventOmissionNode(copy.path("session").path("id").asText(), omittedCount));
+        }
+        originalActionArtifactPaths.removeAll(retainedActionArtifactPaths);
+        return new ActionCompaction(JSON.writeValueAsString(copy), Set.copyOf(retainedArtifactIds),
+                Set.copyOf(originalActionArtifactPaths));
+    }
+
+    private static boolean isActionArtifact(JsonNode artifact) {
+        String kind = artifact.path("kind").asText();
+        return "dom-snapshot".equals(kind) || "screenshot".equals(kind);
+    }
+
+    private static ObjectNode actionOmissionNode(int omittedCount) {
+        ObjectNode marker = JSON.createObjectNode();
+        marker.put("id", "action-budget");
+        marker.put("category", "trace");
+        marker.put("name", "omitted-actions");
+        marker.put("status", "skipped");
+        marker.put("message", omittedCount + " newest actions were omitted to fit the trace report budget.");
+        marker.putObject("metadata").put("omittedCount", String.valueOf(omittedCount));
+        return marker;
+    }
+
+    private static ObjectNode eventOmissionNode(String sessionId, int omittedCount) {
+        ObjectNode marker = JSON.createObjectNode();
+        marker.put("id", (sessionId == null || sessionId.isBlank() ? "session" : sessionId) + "/action-budget");
+        marker.put("backend", "UNKNOWN");
+        marker.put("category", "trace");
+        marker.put("name", "omitted-actions");
+        marker.put("status", "SKIPPED");
+        marker.put("startedAt", Instant.EPOCH.toString());
+        marker.put("durationMs", 0L);
+        marker.put("source", "");
+        marker.put("target", "");
+        marker.put("message", omittedCount + " newest actions were omitted to fit the trace report budget.");
+        marker.putArray("artifactIds");
+        marker.putObject("metadata").put("omittedCount", String.valueOf(omittedCount));
+        return marker;
+    }
+
+    private static Map<String, byte[]> filterScreenshots(Map<String, byte[]> screenshots,
+                                                         Set<String> retainedArtifactIds) {
+        Map<String, byte[]> retained = new LinkedHashMap<>();
+        screenshots.forEach((id, bytes) -> {
+            if (retainedArtifactIds.contains("screenshot-" + id)) {
+                retained.put(id, bytes);
+            }
+        });
+        return Map.copyOf(retained);
+    }
+
+    private record ActionCompaction(String json, Set<String> retainedArtifactIds, Set<String> removedArtifactPaths) {
     }
 
     private static void removePlaywrightCorrelationMetadata(JsonNode actions) {
@@ -1647,16 +1951,44 @@ public final class FailureTraceReporter {
         if (!sessionArtifacts.isArray()) {
             throw new IllegalStateException("Trace session artifacts must be an array.");
         }
-        Map<String, TraceArtifactReference> byPath = new LinkedHashMap<>();
-        artifacts.forEach(reference -> byPath.put(reference.path(), reference));
+        Map<String, TraceArtifactReference> byId = new LinkedHashMap<>();
+        artifacts.forEach(reference -> byId.put(reference.id(), reference));
         sessionArtifacts.forEach(node -> {
-            TraceArtifactReference reference = byPath.get(node.path("path").asText());
+            TraceArtifactReference reference = byId.get(node.path("id").asText());
             if (reference != null && node instanceof ObjectNode object) {
                 object.put("omitted", reference.omitted());
                 object.set("metadata", JSON.valueToTree(reference.metadata()));
             }
         });
+        if (root instanceof ObjectNode objectRoot) {
+            refreshInlineDomStatus(objectRoot, artifacts);
+        }
         return JSON.writeValueAsString(root);
+    }
+
+    private static void refreshInlineDomStatus(ObjectNode root, List<TraceArtifactReference> artifacts) {
+        Map<String, Boolean> availableByAction = new LinkedHashMap<>();
+        artifacts.stream().filter(reference -> "dom-snapshot".equals(reference.kind())).forEach(reference -> {
+            String actionId = reference.metadata().getOrDefault("actionId", "");
+            if (!actionId.isEmpty()) {
+                availableByAction.merge(actionId, !reference.omitted(), Boolean::logicalOr);
+            }
+        });
+        JsonNode actions = root.path("evidence").path("actions");
+        if (!actions.isArray()) {
+            return;
+        }
+        actions.forEach(action -> {
+            if (!(action instanceof ObjectNode object) || !object.has("domSnapshotInlineStatus")) {
+                return;
+            }
+            boolean available = availableByAction.getOrDefault(object.path("id").asText(), false);
+            object.put("domSnapshotInlineStatus", available ? "resource-only" : "omitted-budget");
+            if (!available) {
+                object.put("domSnapshotInlineReason",
+                        "Inline and resource DOM snapshots exceeded the bounded trace archive budget.");
+            }
+        });
     }
 
     private static void closeArtifactManifest() {

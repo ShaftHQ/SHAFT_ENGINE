@@ -10,6 +10,7 @@ import com.shaft.gui.internal.locator.LocatorHealthReporter;
 import com.shaft.gui.playwright.internal.PlaywrightTraceManager;
 import com.shaft.listeners.internal.TestExecutionInfo;
 import com.shaft.properties.internal.Properties;
+import com.shaft.tools.io.trace.TraceArtifactReference;
 import io.appium.java_client.android.AndroidDriver;
 import io.qameta.allure.Allure;
 import io.qameta.allure.model.Attachment;
@@ -36,6 +37,7 @@ import org.testng.Assert;
 import org.testng.annotations.Test;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.node.ObjectNode;
 
 import java.io.IOException;
 import java.lang.reflect.Method;
@@ -253,6 +255,24 @@ public class FailureTraceReporterTest {
 
             Assert.assertTrue(json.contains("\"domSnapshotBefore\": \"<html><body>before</body></html>\""), json);
             Assert.assertTrue(json.contains("\"domSnapshotAfter\": \"<html><body>after</body></html>\""), json);
+            JsonNode session = JSON.readTree(json).path("session");
+            JsonNode before = findArtifact(session, "snapshot-action-1-before");
+            JsonNode after = findArtifact(session, "snapshot-action-1-after");
+            Assert.assertEquals(before.path("kind").asText(), "dom-snapshot", before.toPrettyString());
+            Assert.assertEquals(after.path("kind").asText(), "dom-snapshot", after.toPrettyString());
+            Assert.assertTrue(before.path("path").asText().matches("resources/[0-9a-f]{64}\\.html"),
+                    before.toPrettyString());
+            Assert.assertTrue(after.path("path").asText().matches("resources/[0-9a-f]{64}\\.html"),
+                    after.toPrettyString());
+            Assert.assertEquals(before.path("metadata").path("actionId").asText(), "action-1");
+            Assert.assertEquals(before.path("metadata").path("phase").asText(), "before");
+            Assert.assertEquals(before.path("metadata").path("provider").asText(), "webdriver");
+            Assert.assertEquals(before.path("metadata").path("fidelity").asText(), "structural");
+            Assert.assertEquals(before.path("metadata").path("status").asText(), "available");
+            Assert.assertEquals(after.path("metadata").path("actionId").asText(), "action-1");
+            Assert.assertEquals(after.path("metadata").path("phase").asText(), "after");
+            Assert.assertEquals(session.path("events").get(0).path("artifactIds"), JSON.readTree(
+                    "[\"snapshot-action-1-before\",\"snapshot-action-1-after\"]"));
         } finally {
             TraceEventRecorder.clear();
             Properties.clearForCurrentThread();
@@ -985,6 +1005,412 @@ public class FailureTraceReporterTest {
                     .traceIncludeFullPageSnapshots(originalFullPage)
                     .traceIncludeNativePageSource(originalNativeSource);
             TraceEventRecorder.clear();
+            Properties.clearForCurrentThread();
+        }
+    }
+
+    @Test(description = "Action DOM snapshot resources should be published with their exact phase bytes")
+    public void failureModeShouldPersistActionDomSnapshotResources() throws Exception {
+        TestExecutionInfo failingInfo = info("domResourceScenario", failure());
+        Path traceDirectory = FailureTraceReporter.traceDirectory(failingInfo);
+        try {
+            deleteDirectory(traceDirectory);
+            SHAFT.Properties.reporting.set().traceEnabled(true).traceMode("failure")
+                    .traceIncludeDomSnapshots(true);
+            RecordingJavascriptExecutorDriver driver = new RecordingJavascriptExecutorDriver(
+                    "<html><body>before resource</body></html>",
+                    "<html><body>after resource</body></html>");
+            TraceEventRecorder.Event event = TraceEventRecorder.start("element", "CLICK", By.id("pay"), driver);
+            TraceEventRecorder.finish(event, "failed", "Click failed", failure(), Map.of(), List.of());
+
+            FailureTraceReporter.attachOnFailure(failingInfo, "failed", List.of());
+
+            try (ZipFile zip = new ZipFile(traceDirectory.resolve("shaft-trace.zip").toFile())) {
+                JsonNode session = JSON.readTree(zip.getInputStream(zip.getEntry("shaft-trace.json")))
+                        .path("session");
+                String beforePath = findArtifact(session, "snapshot-action-1-before").path("path").asText();
+                String afterPath = findArtifact(session, "snapshot-action-1-after").path("path").asText();
+                Assert.assertEquals(new String(zip.getInputStream(zip.getEntry(beforePath)).readAllBytes(),
+                        StandardCharsets.UTF_8), "<html><body>before resource</body></html>");
+                Assert.assertEquals(new String(zip.getInputStream(zip.getEntry(afterPath)).readAllBytes(),
+                        StandardCharsets.UTF_8), "<html><body>after resource</body></html>");
+            }
+        } finally {
+            TraceEventRecorder.clear();
+            deleteDirectory(traceDirectory);
+            Properties.clearForCurrentThread();
+        }
+    }
+
+    @Test(description = "Action DOM snapshots should redact before their bounded cutoff")
+    public void actionDomSnapshotsShouldRedactBeforeTruncation() throws Exception {
+        String secret = "ACTION_BOUNDARY_SECRET";
+        try {
+            SHAFT.Properties.reporting.set().traceEnabled(true).traceMode("failure")
+                    .traceIncludeDomSnapshots(true);
+            FailureTraceReporter.registerSensitiveSourceValue(secret);
+            RecordingJavascriptExecutorDriver driver = new RecordingJavascriptExecutorDriver(
+                    "x".repeat(199_990) + secret + "tail", "<html>after</html>");
+            TraceEventRecorder.Event event = TraceEventRecorder.start("element", "CLICK", By.id("pay"), driver);
+            TraceEventRecorder.finish(event, "failed", "Click failed", failure(), Map.of(), List.of());
+
+            JsonNode action = JSON.readTree(FailureTraceReporter.renderTraceJson(
+                    info("failingScenario", failure()), "failed", List.of()))
+                    .path("evidence").path("actions").get(0);
+
+            Assert.assertFalse(action.path("domSnapshotBefore").asText().contains(secret), action.toPrettyString());
+            Assert.assertFalse(action.path("domSnapshotBefore").asText().endsWith("ACTION_BOU"),
+                    action.toPrettyString());
+        } finally {
+            TraceEventRecorder.clear();
+            FailureTraceReporter.clearSensitiveValues();
+            Properties.clearForCurrentThread();
+        }
+    }
+
+    @Test(description = "Report-time sensitive values should resanitize earlier action DOM snapshots")
+    public void actionDomSnapshotsShouldResanitizeAtReportTime() throws Exception {
+        TestExecutionInfo failingInfo = info("lateSensitiveDomScenario", failure());
+        Path traceDirectory = FailureTraceReporter.traceDirectory(failingInfo);
+        String secret = "LATE_REGISTERED_ACTION_SECRET";
+        try {
+            deleteDirectory(traceDirectory);
+            SHAFT.Properties.reporting.set().traceEnabled(true).traceMode("failure")
+                    .traceIncludeDomSnapshots(true);
+            RecordingJavascriptExecutorDriver driver = new RecordingJavascriptExecutorDriver(
+                    "<html>" + secret + " before</html>", "<html>" + secret + " after</html>");
+            TraceEventRecorder.Event event = TraceEventRecorder.start("element", "CLICK", By.id("pay"), driver);
+            FailureTraceReporter.registerSensitiveSourceValue(secret);
+            TraceEventRecorder.finish(event, "failed", "Click failed", failure(), Map.of(), List.of());
+
+            FailureTraceReporter.attachOnFailure(failingInfo, "failed", List.of());
+
+            try (ZipFile zip = new ZipFile(traceDirectory.resolve("shaft-trace.zip").toFile())) {
+                String json = readZipEntry(zip, "shaft-trace.json");
+                Assert.assertFalse(json.contains(secret), json);
+                JsonNode root = JSON.readTree(json);
+                Assert.assertTrue(root.path("evidence").path("actions").get(0)
+                        .path("domSnapshotBefore").asText().contains("********"), json);
+                JsonNode session = root.path("session");
+                int availableDomArtifacts = 0;
+                for (JsonNode artifact : session.path("artifacts")) {
+                    if (!"dom-snapshot".equals(artifact.path("kind").asText()) || artifact.path("omitted").asBoolean()) {
+                        continue;
+                    }
+                    availableDomArtifacts++;
+                    Assert.assertTrue(artifact.path("id").asText().equals("snapshot-action-1-before")
+                            || artifact.path("id").asText().equals("snapshot-action-1-after"), artifact.toPrettyString());
+                    String content = readZipEntry(zip, artifact.path("path").asText());
+                    Assert.assertFalse(content.contains(secret), content);
+                    Assert.assertTrue(content.contains("********"), content);
+                }
+                Assert.assertEquals(availableDomArtifacts, 2);
+            }
+        } finally {
+            TraceEventRecorder.clear();
+            FailureTraceReporter.clearSensitiveValues();
+            deleteDirectory(traceDirectory);
+            Properties.clearForCurrentThread();
+        }
+    }
+
+    @Test(description = "Minimum-budget archive should compact action evidence consistently")
+    public void actionOverflowShouldStillPublishWithinMinimumBudget() throws Exception {
+        Path archive = Files.createTempFile("shaft-action-budget-", ".zip");
+        ObjectNode root = JSON.createObjectNode();
+        root.put("schemaVersion", "3.0");
+        ObjectNode session = root.putObject("session");
+        session.put("schemaVersion", "2.0");
+        session.put("id", "session-budget");
+        var events = session.putArray("events");
+        var artifacts = session.putArray("artifacts");
+        ObjectNode evidence = root.putObject("evidence");
+        var actions = evidence.putArray("actions");
+        evidence.putArray("network");
+        evidence.putArray("console");
+        evidence.putObject("browserObservability");
+        evidence.putObject("playwright");
+        root.putObject("snapshot").put("content", "");
+        int totalActions = 12_000;
+        for (int index = 0; index < totalActions; index++) {
+            ObjectNode action = actions.addObject();
+            action.put("id", "action-" + index);
+            action.put("name", index == totalActions - 1 ? "omitted-actions" : "click-" + index);
+            action.put("message", "x".repeat(128));
+            ObjectNode event = events.addObject();
+            event.put("id", "session/action-" + index);
+            event.put("name", index == totalActions - 1 ? "omitted-actions" : "click-" + index);
+            event.put("message", "x".repeat(128));
+            event.putArray("artifactIds").add("snapshot-action-" + index + "-before");
+            ObjectNode artifact = artifacts.addObject();
+            artifact.put("id", "snapshot-action-" + index + "-before");
+            artifact.put("kind", "dom-snapshot");
+            artifact.put("path", "resources/" + String.format("%064x", index) + ".html");
+            artifact.put("mimeType", "text/html");
+            artifact.put("omitted", true);
+            artifact.putObject("metadata").put("actionId", "action-" + index)
+                    .put("reason", "x".repeat(64));
+        }
+        try {
+            List<String> plannedOmissions = new ArrayList<>();
+            for (int index = 0; index < totalActions; index++) {
+                plannedOmissions.add("resources/" + String.format("%064x", index) + ".html");
+            }
+            String prunedOmission = plannedOmissions.getLast();
+            FailureTraceReporter.TraceArchiveBundle bundle = FailureTraceReporter.convergeTraceArchive(
+                    archive, JSON.writeValueAsString(root), "[]", Map.of(), null,
+                    1024L * 1024L, 4L * 1024L * 1024L, "omitted", plannedOmissions);
+            JsonNode compacted = JSON.readTree(bundle.json());
+            JsonNode compactActions = compacted.path("evidence").path("actions");
+            JsonNode compactEvents = compacted.path("session").path("events");
+            JsonNode compactArtifacts = compacted.path("session").path("artifacts");
+            Assert.assertTrue(compactActions.size() < totalActions, String.valueOf(compactActions.size()));
+            Assert.assertEquals(compactActions.get(compactActions.size() - 1).path("name").asText(),
+                    "omitted-actions");
+            int retainedRealActions = compactActions.size() - 1;
+            Assert.assertEquals(compactActions.get(compactActions.size() - 1)
+                    .path("metadata").path("omittedCount").asInt(), totalActions - retainedRealActions);
+            Assert.assertEquals(compactEvents.get(compactEvents.size() - 1).path("name").asText(),
+                    "omitted-actions");
+            JsonNode eventMarker = compactEvents.get(compactEvents.size() - 1);
+            Assert.assertEquals(eventMarker.path("id").asText(), "session-budget/action-budget");
+            Assert.assertFalse(eventMarker.path("startedAt").asText().isBlank(), eventMarker.toPrettyString());
+            java.time.Instant.parse(eventMarker.path("startedAt").asText());
+            Assert.assertEquals(eventMarker.path("durationMs").asLong(-1), 0L);
+            Assert.assertTrue(eventMarker.has("source"), eventMarker.toPrettyString());
+            Assert.assertTrue(eventMarker.has("target"), eventMarker.toPrettyString());
+            Assert.assertTrue(compactArtifacts.size() <= compactEvents.size() - 1,
+                    compactArtifacts.toPrettyString());
+            Assert.assertFalse(bundle.omitted().contains(prunedOmission), bundle.omitted().toString());
+            try (ZipFile zip = new ZipFile(archive.toFile())) {
+                Assert.assertTrue(zip.getEntry("shaft-trace.json").getSize() <= 1024L * 1024L);
+                Assert.assertTrue(zip.getEntry("SHAFT Trace Report.html").getSize() <= 1024L * 1024L);
+            }
+        } finally {
+            Files.deleteIfExists(archive);
+        }
+    }
+
+    @Test(description = "Report-time resanitization should preserve truncated action snapshot metadata")
+    public void actionDomResanitizationShouldPreserveTruncatedMetadata() throws Exception {
+        try {
+            SHAFT.Properties.reporting.set().traceEnabled(true).traceMode("failure")
+                    .traceIncludeDomSnapshots(true);
+            RecordingJavascriptExecutorDriver driver = new RecordingJavascriptExecutorDriver(
+                    "x".repeat(201_100), "<html>after</html>");
+            TraceEventRecorder.Event event = TraceEventRecorder.start("element", "CLICK", By.id("pay"), driver);
+            TraceEventRecorder.finish(event, "failed", "Click failed", failure(), Map.of(), List.of());
+
+            JsonNode artifacts = JSON.readTree(FailureTraceReporter.renderTraceJson(
+                    info("truncatedActionDom", failure()), "failed", List.of()))
+                    .path("session").path("artifacts");
+            JsonNode before = findArtifact(JSON.createObjectNode().set("artifacts", artifacts),
+                    "snapshot-action-1-before");
+            Assert.assertEquals(before.path("metadata").path("status").asText(), "truncated",
+                    before.toPrettyString());
+            Assert.assertTrue(before.path("metadata").path("truncated").asBoolean(), before.toPrettyString());
+            Assert.assertFalse(before.path("metadata").path("reason").asText().isBlank(), before.toPrettyString());
+        } finally {
+            TraceEventRecorder.clear();
+            Properties.clearForCurrentThread();
+        }
+    }
+
+    @Test(description = "Action DOM capture should enforce one cumulative per-report byte budget")
+    public void actionDomSnapshotsShouldRespectCumulativeBudget() throws Exception {
+        int originalMax = SHAFT.Properties.reporting.traceMaxArtifactMb();
+        try {
+            SHAFT.Properties.reporting.set().traceEnabled(true).traceMode("failure")
+                    .traceIncludeDomSnapshots(true).traceMaxArtifactMb(1);
+            RecordingJavascriptExecutorDriver driver = new RecordingJavascriptExecutorDriver(
+                    "1" + "x".repeat(199_999), "2" + "x".repeat(199_999),
+                    "3" + "x".repeat(199_999), "4" + "x".repeat(199_999),
+                    "5" + "x".repeat(199_999), "6" + "x".repeat(199_999));
+            for (int index = 0; index < 3; index++) {
+                TraceEventRecorder.Event event = TraceEventRecorder.start(
+                        "element", "CLICK", By.id("pay-" + index), driver);
+                TraceEventRecorder.finish(event, "failed", "Click failed", failure(), Map.of(), List.of());
+            }
+
+            JsonNode artifacts = JSON.readTree(FailureTraceReporter.renderTraceJson(
+                    info("failingScenario", failure()), "failed", List.of()))
+                    .path("session").path("artifacts");
+            long retainedBytes = 0;
+            int omitted = 0;
+            for (JsonNode artifact : artifacts) {
+                if (!"dom-snapshot".equals(artifact.path("kind").asText())) {
+                    continue;
+                }
+                if ("omitted-budget".equals(artifact.path("metadata").path("status").asText())) {
+                    omitted++;
+                } else {
+                    retainedBytes += artifact.path("metadata").path("sizeBytes").asLong();
+                }
+            }
+            Assert.assertTrue(omitted > 0, artifacts.toPrettyString());
+            Assert.assertTrue(retainedBytes <= 1024L * 1024L, artifacts.toPrettyString());
+        } finally {
+            SHAFT.Properties.reporting.set().traceMaxArtifactMb(originalMax);
+            TraceEventRecorder.clear();
+            Properties.clearForCurrentThread();
+        }
+    }
+
+    @Test(description = "Action recording should stay bounded and report omitted actions")
+    public void actionRecorderShouldBoundAndReportOverflow() throws Exception {
+        try {
+            SHAFT.Properties.reporting.set().traceEnabled(true).traceMode("failure")
+                    .traceIncludeDomSnapshots(false);
+            for (int index = 0; index <= 10_000; index++) {
+                TraceEventRecorder.Event event = TraceEventRecorder.startForBackend(
+                        "element", "click-" + index, "button", AutomationBackend.MICROSOFT_PLAYWRIGHT);
+                TraceEventRecorder.finish(event, "passed", "clicked", null, Map.of(), List.of());
+            }
+
+            String json = FailureTraceReporter.renderTraceJson(
+                    info("failingScenario", failure()), "failed", List.of());
+            JsonNode actions = JSON.readTree(json).path("evidence").path("actions");
+
+            Assert.assertEquals(actions.size(), 10_000, actions.size());
+            Assert.assertEquals(actions.get(0).path("name").asText(), "click-0");
+            Assert.assertEquals(actions.get(actions.size() - 2).path("name").asText(), "click-9998");
+            Assert.assertEquals(actions.get(actions.size() - 1).path("name").asText(), "omitted-actions");
+            Assert.assertTrue(actions.get(actions.size() - 1).path("message").asText().contains("limit"));
+            Assert.assertEquals(actions.get(actions.size() - 1).path("metadata").path("omitted").asText(),
+                    "newest-tail");
+            Assert.assertEquals(actions.get(actions.size() - 1).path("metadata").path("omittedCount").asInt(), 2);
+
+            Path archive = Files.createTempFile("shaft-action-limit-budget-", ".zip");
+            try {
+                FailureTraceReporter.TraceArchiveBundle bundle = FailureTraceReporter.convergeTraceArchive(
+                        archive, json, "[]", Map.of(), null, 1024L * 1024L, 4L * 1024L * 1024L,
+                        "omitted", List.of());
+                JsonNode compacted = JSON.readTree(bundle.json());
+                JsonNode compactActions = compacted.path("evidence").path("actions");
+                JsonNode marker = compactActions.get(compactActions.size() - 1);
+                int retainedRealActions = compactActions.size() - 1;
+                Assert.assertEquals(marker.path("name").asText(), "omitted-actions");
+                Assert.assertEquals(marker.path("metadata").path("omittedCount").asInt(),
+                        10_001 - retainedRealActions, marker.toPrettyString());
+            } finally {
+                Files.deleteIfExists(archive);
+            }
+        } finally {
+            TraceEventRecorder.clear();
+            Properties.clearForCurrentThread();
+        }
+    }
+
+    @Test(description = "Required entry convergence should move large inline DOM evidence to resources")
+    public void expandedInlineActionDomShouldConvergeToResourceOnly() throws Exception {
+        Path archive = Files.createTempFile("shaft-inline-dom-budget-", ".zip");
+        String json = """
+                {"schemaVersion":"3.0","session":{"schemaVersion":"2.0","events":[],"artifacts":[]},
+                "snapshot":{"content":""},"evidence":{"actions":[{"id":"action-1",
+                "domSnapshotBefore":"%s","domSnapshotAfter":"<html>after</html>"}],
+                "network":[],"console":[],"browserObservability":{},"playwright":{}}}
+                """.formatted("&".repeat(220_000));
+        String html = "&".repeat(220_000);
+        byte[] bytes = html.getBytes(StandardCharsets.UTF_8);
+        SeleniumTraceCapture.Result result = new SeleniumTraceCapture.Result(
+                "webdriver", "structural", "available", "", "action-dom-snapshot", html, false);
+        try (TraceArtifactManifest manifest = TraceArtifactManifest.create("[]", Map.of(), List.of(
+                new TraceArtifactManifest.SnapshotResource(
+                        "snapshot-action-1-before", "action-1", "before", result, bytes)),
+                null, 1024L * 1024L, "omitted")) {
+            FailureTraceReporter.TraceArchiveBundle bundle = FailureTraceReporter.convergeTraceArchive(
+                    archive, json, "[]", Map.of(), manifest,
+                    1024L * 1024L, 4L * 1024L * 1024L, "omitted", List.of());
+            JsonNode action = JSON.readTree(bundle.json()).path("evidence").path("actions").get(0);
+            Assert.assertTrue(action.path("domSnapshotBefore").asText().isEmpty(), action.toPrettyString());
+            Assert.assertTrue(action.path("domSnapshotAfter").asText().isEmpty(), action.toPrettyString());
+            Assert.assertEquals(action.path("domSnapshotInlineStatus").asText(), "resource-only");
+            try (ZipFile zip = new ZipFile(archive.toFile())) {
+                Assert.assertTrue(zip.getEntry("shaft-trace.json").getSize() <= 1024L * 1024L);
+                Assert.assertTrue(zip.getEntry("SHAFT Trace Report.html").getSize() <= 1024L * 1024L);
+            }
+        } finally {
+            Files.deleteIfExists(archive);
+        }
+    }
+
+    @Test(description = "Shared omitted DOM paths should retain each reference's action and phase ownership")
+    public void sharedDomOmissionShouldPreserveReferenceOwnership() {
+        String path = "resources/" + "a".repeat(64) + ".html";
+        List<TraceArtifactReference> references = List.of(
+                new TraceArtifactReference("snapshot-action-1-before", "dom-snapshot", path, "text/html", true,
+                        Map.of("actionId", "action-1", "phase", "before", "omissionReason", "aggregate")),
+                new TraceArtifactReference("snapshot-action-1-after", "dom-snapshot", path, "text/html", true,
+                        Map.of("actionId", "action-1", "phase", "after", "omissionReason", "aggregate")));
+        String json = """
+                {"session":{"artifacts":[
+                {"id":"snapshot-action-1-before","path":"%s","omitted":false,"metadata":{}},
+                {"id":"snapshot-action-1-after","path":"%s","omitted":false,"metadata":{}}]}}
+                """.formatted(path, path);
+
+        JsonNode artifacts = JSON.readTree(FailureTraceReporter.reconcileArtifactOmissions(json, references))
+                .path("session").path("artifacts");
+
+        Assert.assertEquals(artifacts.get(0).path("metadata").path("phase").asText(), "before");
+        Assert.assertEquals(artifacts.get(1).path("metadata").path("phase").asText(), "after");
+        Assert.assertEquals(artifacts.get(0).path("metadata").path("actionId").asText(), "action-1");
+        Assert.assertTrue(artifacts.get(0).path("omitted").asBoolean());
+        Assert.assertTrue(artifacts.get(1).path("omitted").asBoolean());
+    }
+
+    @Test(description = "Aggregate DOM omission should replace a stale resource-only inline status")
+    public void aggregateDomOmissionShouldRefreshInlineStatus() {
+        String path = "resources/" + "b".repeat(64) + ".html";
+        List<TraceArtifactReference> references = List.of(new TraceArtifactReference(
+                "snapshot-action-1-before", "dom-snapshot", path, "text/html", true,
+                Map.of("actionId", "action-1", "phase", "before", "omissionReason", "aggregate")));
+        String json = """
+                {"session":{"artifacts":[{"id":"snapshot-action-1-before","path":"%s",
+                "omitted":false,"metadata":{}}]},"evidence":{"actions":[{"id":"action-1",
+                "domSnapshotBefore":"","domSnapshotAfter":"","domSnapshotInlineStatus":"resource-only"}]}}
+                """.formatted(path);
+
+        JsonNode action = JSON.readTree(FailureTraceReporter.reconcileArtifactOmissions(json, references))
+                .path("evidence").path("actions").get(0);
+
+        Assert.assertEquals(action.path("domSnapshotInlineStatus").asText(), "omitted-budget",
+                action.toPrettyString());
+        Assert.assertTrue(action.path("domSnapshotInlineReason").asText().contains("resource"),
+                action.toPrettyString());
+    }
+
+    @Test(description = "Sensitive suppression should discard captured action DOM sidecar resources")
+    public void sensitiveTraceShouldSuppressActionDomResources() throws Exception {
+        TestExecutionInfo failingInfo = info("sensitiveDomResourceScenario", failure());
+        Path traceDirectory = FailureTraceReporter.traceDirectory(failingInfo);
+        String secret = "PRIVATE_ACTION_DOM_SECRET";
+        try {
+            deleteDirectory(traceDirectory);
+            SHAFT.Properties.reporting.set().traceEnabled(true).traceMode("failure")
+                    .traceIncludeDomSnapshots(true);
+            RecordingJavascriptExecutorDriver driver = new RecordingJavascriptExecutorDriver(
+                    "<html>" + secret + " before</html>", "<html>" + secret + " after</html>");
+            TraceEventRecorder.Event event = TraceEventRecorder.start("element", "CLICK", By.id("pay"), driver);
+            TraceEventRecorder.finish(event, "failed", "Click failed", failure(), Map.of(), List.of());
+            FailureTraceReporter.suppressSensitiveBrowserArtifacts();
+
+            FailureTraceReporter.attachOnFailure(failingInfo, "failed", List.of());
+
+            try (ZipFile zip = new ZipFile(traceDirectory.resolve("shaft-trace.zip").toFile())) {
+                String json = readZipEntry(zip, "shaft-trace.json");
+                JsonNode artifacts = JSON.readTree(json).path("session").path("artifacts");
+                Assert.assertFalse(json.contains(secret), json);
+                for (JsonNode artifact : artifacts) {
+                    Assert.assertNotEquals(artifact.path("kind").asText(), "dom-snapshot",
+                            artifacts.toPrettyString());
+                }
+                Assert.assertEquals(zip.stream().filter(entry -> entry.getName().startsWith("resources/")
+                        && entry.getName().endsWith(".html")).count(), 0L);
+            }
+        } finally {
+            TraceEventRecorder.clear();
+            FailureTraceReporter.clearSensitiveValues();
+            deleteDirectory(traceDirectory);
             Properties.clearForCurrentThread();
         }
     }
