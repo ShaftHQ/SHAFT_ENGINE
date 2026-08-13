@@ -69,7 +69,7 @@
         <jackson.legacy.version>2.22.1</jackson.legacy.version>
         <jackson.annotations.version>2.22</jackson.annotations.version>
         <tools.jackson.core.version>3.2.1</tools.jackson.core.version>
-        <selenium.version>4.46.0</selenium.version>
+        <selenium.version>4.47.0</selenium.version>
         <playwright.version>1.62.0</playwright.version>
         <slf4j.version>2.0.18</slf4j.version>
         <grpc.version>1.83.1</grpc.version>
@@ -117,6 +117,7 @@
         <proto.google.cloud.kms.v1.version>2.97.0</proto.google.cloud.kms.v1.version>
         <error.prone.annotations.version>2.50.0</error.prone.annotations.version>
         <checker.qual.version>4.2.1</checker.qual.version>
+        <jspecify.version>1.0.1</jspecify.version>
         <animal.sniffer.annotations.version>1.27</animal.sniffer.annotations.version>
         <httpcore.version>4.4.16</httpcore.version>
         <owner.version>1.0.12</owner.version>
@@ -231,6 +232,11 @@
                 <version>${selenium.version}</version>
                 <type>pom</type>
                 <scope>import</scope>
+            </dependency>
+            <dependency>
+                <groupId>org.jspecify</groupId>
+                <artifactId>jspecify</artifactId>
+                <version>${jspecify.version}</version>
             </dependency>
             <dependency>
                 <groupId>com.microsoft.playwright</groupId>
