@@ -112,6 +112,7 @@ public class PropertiesHelper {
         Properties.baseLambdaTest = ConfigFactory.create(LambdaTest.class);
         Properties.baseApi = ConfigFactory.create(API.class);
         Properties.basePilot = ConfigFactory.create(Pilot.class);
+        Properties.baseManagedLocalAi = ConfigFactory.create(ManagedLocalAi.class);
         Properties.baseNaturalActions = ConfigFactory.create(NaturalActions.class);
         Properties.basePlaywright = ConfigFactory.create(Playwright.class);
         Properties.baseCapture = ConfigFactory.create(Capture.class);
