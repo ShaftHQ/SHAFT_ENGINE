@@ -99,7 +99,7 @@ final class PlaywrightTraceImporter {
                                              ActionBudget actionBudget) throws IOException {
         TraceContext context = new TraceContext(name);
         Map<String, MutableAction> actions = new LinkedHashMap<>();
-        loaded.visitTraceRecords(name, (node, record) -> {
+        loaded.visitTraceRecords(name, node -> {
             String type = node.path("type").asText();
             switch (type) {
                 case "context-options" -> {
@@ -270,7 +270,11 @@ final class PlaywrightTraceImporter {
         if (distance > CORRELATION_WINDOW_MILLIS || tiedDifferentTimes) {
             return null;
         }
-        List<NativeAction> nearest = floorDistance <= ceilingDistance ? floor.getValue() : ceiling.getValue();
+        Map.Entry<Long, List<NativeAction>> nearestEntry = floorDistance <= ceilingDistance ? floor : ceiling;
+        if (nearestEntry == null) {
+            return null;
+        }
+        List<NativeAction> nearest = nearestEntry.getValue();
         return nearest.size() == 1 ? nearest.getFirst() : null;
     }
 
