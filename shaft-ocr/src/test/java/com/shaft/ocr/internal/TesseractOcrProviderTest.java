@@ -16,6 +16,19 @@ import static org.mockito.Mockito.when;
 
 public class TesseractOcrProviderTest {
     @Test
+    public void relativeConfiguredCacheIsRejectedBeforeRuntimeConstruction() {
+        com.shaft.driver.SHAFT.Properties.ocr.set().cacheDirectory("relative-ocr-cache");
+        try {
+            IllegalArgumentException failure = Assert.expectThrows(IllegalArgumentException.class,
+                    TesseractOcrProvider::new);
+            Assert.assertTrue(failure.getMessage().contains("must be absolute"));
+            Assert.assertFalse(java.nio.file.Files.exists(Path.of("relative-ocr-cache")));
+        } finally {
+            com.shaft.driver.SHAFT.Properties.clearForCurrentThread();
+        }
+    }
+
+    @Test
     public void resolvesDefaultsProvisionsModelsAndDelegatesToNativeBackend() {
         TessdataModelManager models = mock(TessdataModelManager.class);
         TesseractBackend backend = mock(TesseractBackend.class);
