@@ -10,7 +10,7 @@ public final class ReportingSetupPlanner {
     public static final String NODE_VERSION = "24.19.0";
     public static final String ALLURE_VERSION = "3.14.3";
     private static final String ALLURE_SHA256 = "6388ce188104d0b58236598a2e8ff61882066fcf4d3b7c9e9e680a75344e2264";
-    public static final String ALLURE_LOCK_SHA256 = "385f9d727c62be5e5628a4826fc089cb99a8d9378f226cdcf781b4ac563abff1";
+    public static final String ALLURE_LOCK_SHA256 = "96327d096b27c87274d1bfbeb3a0a460acba354921f1f2920ba66805c5b6b83b";
     private static final Map<String, String> NODE_SHA256 = Map.of(
             "darwin-arm64.tar.gz", "8294b7aa9b03997481c06babf1e8b270c859358f27da57a11509afe537ac381d",
             "darwin-x64.tar.gz", "d1b5e999db158c62fe8f7267a4476b035d8bd93b1a605bac24a3f0dd166e3316",

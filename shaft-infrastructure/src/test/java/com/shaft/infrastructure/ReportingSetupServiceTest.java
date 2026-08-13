@@ -7,6 +7,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Instant;
@@ -21,6 +22,23 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class ReportingSetupServiceTest {
+    @Test
+    void bundledReportingLockOverridesVulnerableAdmZip() throws Exception {
+        String packageJson;
+        String lock;
+        try (var packageInput = ReportingSetupServiceTest.class.getResourceAsStream(
+                "/com/shaft/infrastructure/reporting/package.json");
+             var lockInput = ReportingSetupServiceTest.class.getResourceAsStream(
+                     "/com/shaft/infrastructure/reporting/package-lock.json")) {
+            packageJson = new String(java.util.Objects.requireNonNull(packageInput).readAllBytes(),
+                    StandardCharsets.UTF_8);
+            lock = new String(java.util.Objects.requireNonNull(lockInput).readAllBytes(), StandardCharsets.UTF_8);
+        }
+
+        assertTrue(packageJson.contains("\"adm-zip\": \"0.6.0\""));
+        assertTrue(lock.matches("(?s).*\"node_modules/adm-zip\"\\s*:\\s*\\{\\s*\"version\"\\s*:\\s*\"0\\.6\\.0\".*"));
+    }
+
     @Test
     void installsAndReceiptsWindowsReportingProfileWithoutNetwork(@TempDir Path temp) throws Exception {
         exerciseInstall(temp, SetupPlatform.WINDOWS, createNodeZip(temp.resolve("node.zip")));
