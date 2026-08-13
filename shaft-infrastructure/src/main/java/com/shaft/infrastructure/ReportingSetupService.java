@@ -472,9 +472,9 @@ public final class ReportingSetupService {
     }
 
     private static void extractTar(Path archive, Path destination) throws IOException {
-        InputStream raw = Files.newInputStream(archive);
-        InputStream compressed = new GzipCompressorInputStream(raw);
-        try (TarArchiveInputStream input = new TarArchiveInputStream(compressed)) {
+        try (InputStream raw = Files.newInputStream(archive);
+             InputStream compressed = new GzipCompressorInputStream(raw);
+             TarArchiveInputStream input = new TarArchiveInputStream(compressed)) {
             for (TarArchiveEntry entry; (entry = input.getNextEntry()) != null;) {
                 if (entry.isSymbolicLink() || entry.isLink()) throw new IOException("Archive links are not allowed.");
                 Path target = archiveTarget(destination, entry.getName());

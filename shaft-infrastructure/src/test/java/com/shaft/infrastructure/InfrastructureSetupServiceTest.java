@@ -34,7 +34,7 @@ class InfrastructureSetupServiceTest {
     }
 
     @Test
-    void registryRejectsDuplicateAndMissingProviders(@TempDir Path temp) {
+    void registryRejectsDuplicateAndMissingProviders() {
         SetupProvider provider = new FakeProvider();
         assertThrows(IllegalArgumentException.class, () -> new SetupProviderRegistry(List.of(provider, provider)));
 
