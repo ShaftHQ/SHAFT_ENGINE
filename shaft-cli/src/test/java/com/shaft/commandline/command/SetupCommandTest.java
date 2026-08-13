@@ -11,7 +11,6 @@ import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.time.Instant;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -116,6 +115,18 @@ class SetupCommandTest {
     }
 
     @Test
+    void incompletePlanRootsReturnInvalidInputWithoutWritingPlan(@TempDir Path temp) {
+        Path planFile = temp.resolve("plan.json").toAbsolutePath();
+
+        CommandResult result = execute("setup", "plan", "--profile", "REPORTING", "--mode", "MANAGED",
+                "--output", planFile.toString(), "--cache-root", temp.resolve("cache").toAbsolutePath().toString());
+
+        assertEquals(2, result.exitCode());
+        assertTrue(result.stderr().contains("must be supplied together"), result.stderr());
+        assertTrue(Files.notExists(planFile));
+    }
+
+    @Test
     void foreignPlatformPlanIsRejectedBeforeStateCreation(@TempDir Path temp) throws Exception {
         Path cache = temp.resolve("cache").toAbsolutePath();
         Path data = temp.resolve("data").toAbsolutePath();
@@ -139,6 +150,28 @@ class SetupCommandTest {
         assertEquals(2, result.exitCode());
         assertTrue(Files.notExists(cache));
         assertTrue(Files.notExists(data));
+    }
+
+    @Test
+    void cliPlanBindsTheSameNonDefaultPolicyAsJavaApi(@TempDir Path temp) throws Exception {
+        Path cache = temp.resolve("cache").toAbsolutePath();
+        Path data = temp.resolve("data").toAbsolutePath();
+        Path planFile = temp.resolve("policy-plan.json").toAbsolutePath();
+        CommandResult result = execute("setup", "plan", "--profile", "REPORTING", "--mode", "MANAGED",
+                "--output", planFile.toString(), "--cache-root", cache.toString(), "--data-root", data.toString(),
+                "--offline", "--auto-start", "--prefer-system-tools=false", "--reuse-owned-processes=false",
+                "--startup-timeout", "PT45S", "--shutdown-timeout", "PT10S", "--json");
+
+        assertEquals(0, result.exitCode(), result.stderr());
+        com.shaft.infrastructure.SetupPlan plan = com.shaft.infrastructure.SetupPlanStore.read(planFile);
+        com.shaft.infrastructure.ShaftCachePaths paths = new com.shaft.infrastructure.ShaftCachePaths(cache, data,
+                cache.resolve("downloads"), data.resolve("tools"), data.resolve("state"), data.resolve("receipts"));
+        com.shaft.infrastructure.SetupOptions expected = com.shaft.infrastructure.SetupOptions.defaults(
+                com.shaft.infrastructure.SetupProfile.REPORTING, paths)
+                .withMode(com.shaft.infrastructure.SetupMode.MANAGED).withOffline(true).withAutoStart(true)
+                .withPreferSystemTools(false).withReuseOwnedProcesses(false)
+                .withTimeouts(java.time.Duration.ofSeconds(45), java.time.Duration.ofSeconds(10));
+        assertEquals(expected.policyDigest(), plan.executionPolicyDigest());
     }
 
     private static CommandResult execute(String... arguments) {

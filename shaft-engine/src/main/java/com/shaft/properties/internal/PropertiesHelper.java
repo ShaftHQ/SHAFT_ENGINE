@@ -116,6 +116,7 @@ public class PropertiesHelper {
         Properties.basePlaywright = ConfigFactory.create(Playwright.class);
         Properties.baseCapture = ConfigFactory.create(Capture.class);
         Properties.baseOcr = ConfigFactory.create(Ocr.class);
+        Properties.baseInfrastructure = ConfigFactory.create(Infrastructure.class);
         Properties.initialized = true;
     }
 

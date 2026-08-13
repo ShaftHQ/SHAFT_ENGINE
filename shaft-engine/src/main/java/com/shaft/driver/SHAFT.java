@@ -1760,6 +1760,117 @@ public class SHAFT {
     }
 
     /**
+     * Plans, diagnoses, verifies, and explicitly provisions SHAFT-owned local infrastructure.
+     * Read-only methods use {@link Properties#infrastructure}; mutation always requires an exact
+     * {@link com.shaft.infrastructure.SetupApproval} for the supplied plan.
+     */
+    public static final class Infrastructure {
+        private Infrastructure() { throw new IllegalStateException("Utility class"); }
+
+        public static com.shaft.infrastructure.SetupCatalog catalog() {
+            return service().catalog();
+        }
+
+        public static com.shaft.infrastructure.SetupReport doctor() { return doctor(options()); }
+        public static com.shaft.infrastructure.SetupReport doctor(com.shaft.infrastructure.SetupOptions options) {
+            return service().doctor(options);
+        }
+
+        public static com.shaft.infrastructure.SetupReport status() { return status(options()); }
+        public static com.shaft.infrastructure.SetupReport status(com.shaft.infrastructure.SetupOptions options) {
+            return service().status(options);
+        }
+
+        public static com.shaft.infrastructure.SetupPlan plan() { return plan(options()); }
+        public static com.shaft.infrastructure.SetupPlan plan(com.shaft.infrastructure.SetupOptions options) {
+            return service().plan(options);
+        }
+
+        public static com.shaft.infrastructure.SetupReport verify() { return verify(options()); }
+        public static com.shaft.infrastructure.SetupReport verify(com.shaft.infrastructure.SetupOptions options) {
+            return service().verify(options);
+        }
+
+        public static com.shaft.infrastructure.SetupReceipt install(
+                com.shaft.infrastructure.SetupPlan plan, com.shaft.infrastructure.SetupApproval approval)
+                throws java.io.IOException {
+            return install(plan, approval, options());
+        }
+
+        public static com.shaft.infrastructure.SetupReceipt install(
+                com.shaft.infrastructure.SetupPlan plan, com.shaft.infrastructure.SetupApproval approval,
+                com.shaft.infrastructure.SetupOptions options) throws java.io.IOException {
+            return service().install(plan, approval, options);
+        }
+
+        public static com.shaft.infrastructure.ManagedEnvironment start(
+                com.shaft.infrastructure.SetupPlan plan, com.shaft.infrastructure.SetupApproval approval)
+                throws java.io.IOException {
+            return start(plan, approval, options());
+        }
+
+        public static com.shaft.infrastructure.ManagedEnvironment start(
+                com.shaft.infrastructure.SetupPlan plan, com.shaft.infrastructure.SetupApproval approval,
+                com.shaft.infrastructure.SetupOptions options) throws java.io.IOException {
+            return service().start(plan, approval, options);
+        }
+
+        public static com.shaft.infrastructure.SetupOptions options() {
+            com.shaft.properties.internal.Infrastructure configured = Properties.infrastructure;
+            com.shaft.infrastructure.ShaftCachePaths paths = configured.cacheDirectory().isBlank()
+                    ? com.shaft.infrastructure.ShaftCachePaths.current()
+                    : cachePaths(java.nio.file.Path.of(configured.cacheDirectory()));
+            com.shaft.infrastructure.SetupOptions options = com.shaft.infrastructure.SetupOptions
+                    .defaults(configured.profile(), paths)
+                    .withMode(configured.mode()).withOffline(configured.offline())
+                    .withAutoStart(configured.autoStart())
+                    .withPreferSystemTools(configured.preferSystemTools())
+                    .withReuseOwnedProcesses(configured.reuseOwnedProcesses())
+                    .withTimeouts(duration("infrastructure.startupTimeout", configured.startupTimeout()),
+                            duration("infrastructure.shutdownTimeout", configured.shutdownTimeout()));
+            String executionAddress = Properties.platform.executionAddress();
+            if (usesExecutionEndpoint(configured.profile()) && executionAddress != null
+                    && !executionAddress.isBlank() && !executionAddress.equalsIgnoreCase("local")
+                    && !executionAddress.equalsIgnoreCase("dockerized")) {
+                String normalized = executionAddress.matches("(?i)^https?://.*")
+                        ? executionAddress : "http://" + executionAddress;
+                options = options.withRemoteEndpoint(java.net.URI.create(normalized));
+            }
+            return options;
+        }
+
+        private static boolean usesExecutionEndpoint(com.shaft.infrastructure.SetupProfile profile) {
+            return switch (profile) {
+                case WEB_LOCAL, SELENIUM_GRID, MOBILE_ANDROID, MOBILE_IOS, MOBILE_WINDOWS, HEALENIUM -> true;
+                default -> false;
+            };
+        }
+
+        private static java.time.Duration duration(String property, String value) {
+            try {
+                java.time.Duration duration = java.time.Duration.parse(value);
+                if (duration.isZero() || duration.isNegative()) throw new IllegalArgumentException();
+                return duration;
+            } catch (RuntimeException invalid) {
+                throw new IllegalArgumentException(property + " must be a positive ISO-8601 duration.", invalid);
+            }
+        }
+
+        private static com.shaft.infrastructure.ShaftCachePaths cachePaths(java.nio.file.Path configured) {
+            java.nio.file.Path cache = configured.normalize();
+            if (!cache.isAbsolute()) throw new IllegalArgumentException(
+                    "infrastructure.cacheDirectory must be absolute.");
+            java.nio.file.Path data = cache.resolve("data");
+            return new com.shaft.infrastructure.ShaftCachePaths(cache, data, cache.resolve("downloads"),
+                    data.resolve("tools"), data.resolve("state"), data.resolve("receipts"));
+        }
+
+        private static com.shaft.infrastructure.InfrastructureSetupService service() {
+            return com.shaft.infrastructure.InfrastructureSetupService.builtIn();
+        }
+    }
+
+    /**
      * Utility class for emitting log messages and attaching artifacts to
      * the Allure execution report.
      *
