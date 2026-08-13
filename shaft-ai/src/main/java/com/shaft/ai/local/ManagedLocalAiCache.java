@@ -79,6 +79,10 @@ final class ManagedLocalAiCache {
     }
 
     static Installation adopt(Path cache, String id, Path stage) throws IOException {
+        return adopt(cache, id, stage, null);
+    }
+
+    static Installation adopt(Path cache, String id, Path stage, List<Path> expectedFiles) throws IOException {
         validateId(id);
         Path root = cache.toAbsolutePath().normalize();
         Path stagingRoot = root.resolve("staging");
@@ -90,6 +94,16 @@ final class ManagedLocalAiCache {
             throw new IllegalArgumentException("Installation stage is not a verified cache-owned stage.");
         }
         validateTree(source);
+        List<String> expectedRelative = expectedFiles == null ? null : expectedFiles.stream().map(path -> {
+            Path normalized = path.toAbsolutePath().normalize();
+            if (!normalized.startsWith(source) || normalized.equals(source)) {
+                throw new IllegalArgumentException("Expected installation file escapes its stage.");
+            }
+            return source.relativize(normalized).toString().replace('\\', '/');
+        }).distinct().sorted().toList();
+        if (expectedRelative != null) {
+            requireExactStage(source, expectedRelative);
+        }
         Path installations = root.resolve("installations");
         Files.createDirectories(installations);
         Path destination = installations.resolve(id + "-" + UUID.randomUUID());
@@ -102,7 +116,8 @@ final class ManagedLocalAiCache {
         }
         Installation installation;
         try {
-            installation = inventory(root, id, destination);
+            installation = expectedRelative == null ? inventory(root, id, destination)
+                    : inventoryExact(root, id, destination, expectedRelative);
             Map<String, Installation> owned = readOwnerManifest(root);
             if (owned.containsKey(id)) {
                 throw new IllegalStateException("An installation with this identifier is already owned.");
@@ -145,12 +160,22 @@ final class ManagedLocalAiCache {
     }
 
     static CleanResult clean(Path cache) throws IOException {
+        return clean(cache, null);
+    }
+
+    static CleanResult clean(Path cache, Set<String> installationIds) throws IOException {
         Path root = cache.toAbsolutePath().normalize();
         Map<String, Installation> owned = readOwnerManifest(root);
+        if (installationIds != null) {
+            installationIds.forEach(ManagedLocalAiCache::validateId);
+        }
         int deleted = 0;
         List<String> conflicts = new ArrayList<>();
         Map<String, Installation> remaining = new LinkedHashMap<>(owned);
         for (Installation installation : owned.values()) {
+            if (installationIds != null && !installationIds.contains(installation.id())) {
+                continue;
+            }
             if (!matches(root, installation, true)) {
                 conflicts.add(installation.id());
                 continue;
@@ -248,6 +273,45 @@ final class ManagedLocalAiCache {
             throw new IllegalArgumentException("Installation stage contains no owned files.");
         }
         return new Installation(id, installationRoot, List.copyOf(files));
+    }
+
+    private static Installation inventoryExact(Path cache, String id, Path installationRoot,
+                                               List<String> expectedFiles) throws IOException {
+        requireExactStage(installationRoot, expectedFiles);
+        List<OwnedFile> files = new ArrayList<>();
+        for (String relative : expectedFiles) {
+            Path path = installationRoot.resolve(relative).normalize();
+            ensureNoLinks(installationRoot, path);
+            if (!Files.isRegularFile(path, LinkOption.NOFOLLOW_LINKS)) {
+                throw new IllegalStateException("Expected installation file is missing or changed.");
+            }
+            files.add(new OwnedFile(relative(cache, path), Files.size(path), sha256(path)));
+        }
+        files.sort(Comparator.comparing(OwnedFile::path));
+        if (files.isEmpty()) {
+            throw new IllegalArgumentException("Installation stage contains no owned files.");
+        }
+        return new Installation(id, installationRoot, List.copyOf(files));
+    }
+
+    private static void requireExactStage(Path root, List<String> expectedFiles) throws IOException {
+        Set<String> expected = new HashSet<>();
+        expected.add("");
+        for (String relative : expectedFiles) {
+            Path path = contained(root, relative);
+            Path cursor = path;
+            while (!cursor.equals(root)) {
+                expected.add(root.relativize(cursor).toString().replace('\\', '/'));
+                cursor = cursor.getParent();
+            }
+        }
+        try (Stream<Path> paths = Files.walk(root)) {
+            Set<String> actual = paths.map(path -> root.relativize(path).toString().replace('\\', '/'))
+                    .collect(java.util.stream.Collectors.toSet());
+            if (!actual.equals(expected)) {
+                throw new IllegalStateException("Installation stage contains unknown content.");
+            }
+        }
     }
 
     private static boolean matches(Path cache, Installation installation, boolean rejectUnknown) throws IOException {

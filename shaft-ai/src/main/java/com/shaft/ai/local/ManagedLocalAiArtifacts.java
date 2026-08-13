@@ -212,6 +212,11 @@ final class ManagedLocalAiArtifacts {
      */
     static Path extractToStage(Path archive, Path destinationPrefix, BooleanSupplier cancelled)
             throws IOException, InterruptedException {
+        return extractStage(archive, destinationPrefix, cancelled).root();
+    }
+
+    static Extraction extractStage(Path archive, Path destinationPrefix, BooleanSupplier cancelled)
+            throws IOException, InterruptedException {
         Path absoluteArchive = archive.toAbsolutePath().normalize();
         if (!Files.isRegularFile(absoluteArchive, LinkOption.NOFOLLOW_LINKS)) {
             throw new IllegalArgumentException("Archive must be a verified regular file.");
@@ -224,19 +229,24 @@ final class ManagedLocalAiArtifacts {
         Files.createDirectories(parent);
         Path stage = parent.resolve(absoluteDestination.getFileName() + ".extract-" + UUID.randomUUID());
         Files.createDirectory(stage);
+        List<Path> files = new ArrayList<>();
+        List<Path> directories = new ArrayList<>();
+        directories.add(stage);
         try {
-            List<Path> executables = extractInto(absoluteArchive, stage, cancelled);
+            List<Path> executables = extractInto(absoluteArchive, stage, cancelled, files, directories);
             markReviewedExecutables(executables);
             checkCancelled(cancelled);
             publishReadyMarker(stage);
-            return stage;
+            files.add(stage.resolve(".shaft-ready"));
+            return new Extraction(stage, List.copyOf(files), List.copyOf(directories));
         } catch (IOException | InterruptedException | RuntimeException primary) {
-            cleanupTree(stage, primary);
+            cleanupExact(files, directories, primary);
             throw primary;
         }
     }
 
-    private static List<Path> extractInto(Path archive, Path stage, BooleanSupplier cancelled)
+    private static List<Path> extractInto(Path archive, Path stage, BooleanSupplier cancelled,
+                                          List<Path> files, List<Path> directories)
             throws IOException, InterruptedException {
         long archiveBytes = Files.size(archive);
         long ratioLimit;
@@ -266,18 +276,18 @@ final class ManagedLocalAiArtifacts {
                     throw new IllegalArgumentException("Archive contains a duplicate portable member path.");
                 }
                 if (entry.isDirectory()) {
-                    Files.createDirectories(target);
+                    createDirectoriesTracked(stage, target, directories);
                     continue;
                 }
                 long declared = entry.getSize();
                 if (declared != ArchiveEntry.SIZE_UNKNOWN && declared > byteLimit - expanded) {
                     throw new IllegalArgumentException("Archive exceeds its expanded byte limit.");
                 }
-                Files.createDirectories(target.getParent());
+                createDirectoriesTracked(stage, target.getParent(), directories);
                 if (Files.exists(target, LinkOption.NOFOLLOW_LINKS)) {
                     throw new IllegalArgumentException("Archive contains a duplicate member path.");
                 }
-                long written = copyBounded(input, target, byteLimit - expanded, cancelled);
+                long written = copyBounded(input, target, byteLimit - expanded, cancelled, files);
                 if (declared != ArchiveEntry.SIZE_UNKNOWN && written != declared) {
                     throw new IllegalArgumentException("Archive member size does not match its declaration.");
                 }
@@ -295,6 +305,26 @@ final class ManagedLocalAiArtifacts {
             throw new IllegalArgumentException("Archive must contain exactly one reviewed runtime executable.");
         }
         return List.copyOf(executables);
+    }
+
+    private static void createDirectoriesTracked(Path root, Path target, List<Path> directories) throws IOException {
+        List<Path> missing = new ArrayList<>();
+        Path cursor = target;
+        while (!cursor.equals(root) && !Files.exists(cursor, LinkOption.NOFOLLOW_LINKS)) {
+            missing.add(cursor);
+            cursor = cursor.getParent();
+            if (cursor == null || !cursor.startsWith(root)) {
+                throw new IllegalArgumentException("Archive directory escapes its extraction root.");
+            }
+        }
+        if (!Files.isDirectory(cursor, LinkOption.NOFOLLOW_LINKS)) {
+            throw new IllegalArgumentException("Archive directory collides with a non-directory path.");
+        }
+        for (int index = missing.size() - 1; index >= 0; index--) {
+            Path directory = missing.get(index);
+            Files.createDirectory(directory);
+            directories.add(directory);
+        }
     }
 
     private static ArchiveInputStream<?> openArchive(Path archive) throws IOException {
@@ -353,25 +383,25 @@ final class ManagedLocalAiArtifacts {
     }
 
     private static long copyBounded(ArchiveInputStream<?> input, Path target, long remaining,
-                                    BooleanSupplier cancelled) throws IOException, InterruptedException {
-        long written = 0;
-        try (FileChannel output = FileChannel.open(target, StandardOpenOption.CREATE_NEW, StandardOpenOption.WRITE)) {
+                                    BooleanSupplier cancelled, List<Path> createdFiles)
+            throws IOException, InterruptedException {
+        long[] written = {0};
+        createExclusive(target, createdFiles, output -> {
             byte[] buffer = new byte[BUFFER_SIZE];
             int count;
             while ((count = input.read(buffer)) != -1) {
                 checkCancelled(cancelled);
-                written = Math.addExact(written, count);
-                if (written > remaining) {
-                    throw new IllegalArgumentException("Archive exceeds its expanded byte limit.");
-                }
+                written[0] = Math.addExact(written[0], count);
+                if (written[0] > remaining) throw new IllegalArgumentException(
+                        "Archive exceeds its expanded byte limit.");
                 ByteBuffer bytes = ByteBuffer.wrap(buffer, 0, count);
                 while (bytes.hasRemaining()) {
                     output.write(bytes);
                 }
             }
             output.force(true);
-        }
-        return written;
+        });
+        return written[0];
     }
 
     private static void publishFileWithoutReplace(Path source, Path target) throws IOException {
@@ -459,7 +489,7 @@ final class ManagedLocalAiArtifacts {
         }
     }
 
-    private static void deleteCreatedTree(Path root) throws IOException {
+    static void deleteCreatedTree(Path root) throws IOException {
         if (!Files.exists(root, LinkOption.NOFOLLOW_LINKS)) {
             return;
         }
@@ -504,6 +534,44 @@ final class ManagedLocalAiArtifacts {
         }
     }
 
+    static void cleanupExact(List<Path> files, List<Path> directories, Throwable primary) {
+        IOException cleanup = null;
+        for (Path file : files.reversed()) {
+            try {
+                Files.deleteIfExists(file);
+            } catch (IOException failure) {
+                cleanup = append(cleanup, failure);
+            }
+        }
+        for (Path directory : directories.reversed()) {
+            try {
+                Files.delete(directory);
+            } catch (java.nio.file.DirectoryNotEmptyException unknown) {
+                // Preserve concurrently introduced unknown content and its containing stage.
+            } catch (IOException failure) {
+                cleanup = append(cleanup, failure);
+            }
+        }
+        if (cleanup != null) {
+            primary.addSuppressed(cleanup);
+        }
+    }
+
+    static void createExclusive(Path target, List<Path> createdFiles, IoAction action)
+            throws IOException, InterruptedException {
+        try (FileChannel channel = FileChannel.open(target, StandardOpenOption.CREATE_NEW,
+                StandardOpenOption.WRITE)) {
+            createdFiles.add(target);
+            action.run(channel);
+        }
+    }
+
+    private static IOException append(IOException existing, IOException next) {
+        if (existing == null) return next;
+        existing.addSuppressed(next);
+        return existing;
+    }
+
     private static void cleanupFile(Path stage, Throwable primary) {
         try {
             Files.deleteIfExists(stage);
@@ -525,9 +593,21 @@ final class ManagedLocalAiArtifacts {
         DownloadResponse get(URI uri, Duration timeout) throws IOException, InterruptedException;
     }
 
+    @FunctionalInterface
+    interface IoAction {
+        void run(FileChannel channel) throws IOException, InterruptedException;
+    }
+
     record DownloadResponse(int statusCode, URI uri, Map<String, List<String>> headers, InputStream body) {
         DownloadResponse {
             headers = Map.copyOf(headers);
+        }
+    }
+
+    record Extraction(Path root, List<Path> files, List<Path> directories) {
+        Extraction {
+            files = List.copyOf(files);
+            directories = List.copyOf(directories);
         }
     }
 

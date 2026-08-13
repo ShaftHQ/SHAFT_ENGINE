@@ -45,6 +45,24 @@ class ManagedLocalAiArtifactsTest {
     }
 
     @Test
+    void exactCleanupNeverDeletesAConcurrentExpectedPathItDidNotCreate() throws Exception {
+        Path stage = temp.resolve("collision-stage");
+        Files.createDirectory(stage);
+        Path concurrent = stage.resolve("expected.bin");
+        Files.writeString(concurrent, "mine");
+        RuntimeException primary = new RuntimeException("creation collision");
+        List<Path> created = new java.util.ArrayList<>();
+
+        assertThrows(java.nio.file.FileAlreadyExistsException.class,
+                () -> ManagedLocalAiArtifacts.createExclusive(concurrent, created, ignored -> { }));
+        ManagedLocalAiArtifacts.cleanupExact(created, List.of(stage), primary);
+
+        assertTrue(Files.isRegularFile(concurrent));
+        assertTrue(Files.readString(concurrent).equals("mine"));
+        assertTrue(Files.isDirectory(stage));
+    }
+
+    @Test
     void rejectsShortOversizedChangedAndCancelledDownloadsWithoutPublication() throws Exception {
         byte[] content = "verified-runtime".getBytes(StandardCharsets.UTF_8);
         Path target = temp.resolve("downloads/runtime.zip");
