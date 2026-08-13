@@ -154,7 +154,12 @@ class ManagedLocalAiProcessTest {
         @Override public java.io.OutputStream getOutputStream() { return new ByteArrayOutputStream(); }
         @Override public java.io.InputStream getInputStream() { return new ByteArrayInputStream(new byte[0]); }
         @Override public java.io.InputStream getErrorStream() { return new ByteArrayInputStream(new byte[0]); }
-        @Override public int waitFor() throws InterruptedException { while (exit == null) Thread.sleep(5); return exit; }
+        @Override public int waitFor() throws InterruptedException {
+            while (exit == null) {
+                Thread.sleep(5);
+            }
+            return exit;
+        }
         @Override public boolean waitFor(long timeout, java.util.concurrent.TimeUnit unit) { return exit != null; }
         @Override public int exitValue() { if (exit == null) throw new IllegalThreadStateException(); return exit; }
         @Override public void destroy() { destroyed = true; }

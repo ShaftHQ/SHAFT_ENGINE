@@ -259,7 +259,6 @@ final class ManagedLocalAiCache {
         if (!Files.isDirectory(root, LinkOption.NOFOLLOW_LINKS)) {
             return false;
         }
-        Set<String> recorded = new HashSet<>();
         Set<String> expectedPaths = new HashSet<>();
         expectedPaths.add(relative(cache, root));
         for (OwnedFile file : installation.files()) {
@@ -269,7 +268,6 @@ final class ManagedLocalAiCache {
                     || Files.size(path) != file.size() || !sha256(path).equals(file.sha256())) {
                 return false;
             }
-            recorded.add(file.path());
             Path current = path;
             while (!current.equals(root)) {
                 expectedPaths.add(relative(cache, current));
