@@ -36,15 +36,23 @@ authentication boundary. For a direct terminal flow, save the bootstrap and
 run:
 
 ```text
-python bootstrap.py --project . --repository owner/repository
+python bootstrap.py --project . --repository owner/repository --distribution portable
 ```
 
 Add `--branch branch` to override the repository's configured default branch. The
 bootstrap resolves that mutable branch through the GitHub API, downloads the
 exact commit archive, rejects unsafe archive entries, and records repository,
-branch, and commit provenance in `.chaos-engine/manifest.json`. Re-running the
+immutable provenance digests and the commit in `.chaos-engine/manifest.json`.
+The public default is always the neutral `portable` distribution; a source
+repository's contributor profile requires an explicit non-default selection. Re-running the
 same command upgrades to the latest resolved commit; an offline or invalid
 download leaves the last verified installation unchanged.
+
+Installations created before distribution-bound manifests are reported as
+`legacy`. To prevent repository-specific content from surviving in a backup,
+convert them with an explicit uninstall followed by the portable bootstrap.
+The installer refuses an in-place legacy conversion and leaves the old tree
+unchanged.
 
 The consumer folder may be a GitHub checkout, another Git checkout, or a
 non-Git directory. ChaosEngine installs project-locally and does not infer its

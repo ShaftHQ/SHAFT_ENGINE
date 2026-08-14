@@ -59,11 +59,10 @@ one that cannot report failure is reporting its own absence.
 - Read a test before claiming what it covers, runs, asserts, or misses, and
   re-open it before writing the finding rather than reporting from memory of
   having glanced at it earlier in the review.
-- Before claiming no test exists, search the repo by symbol and import
-  reference — expected file locations alone aren't enough (`gotcha.local-mvn-test-never-fails-the-build-read-surefire-xml-counts-for-verdicts`
-  is the SHAFT-specific version of this: `BUILD SUCCESS` from `mvn test`
-  proves nothing — read `surefire-reports/TEST-*.xml` counts before calling
-  anything green).
+- Before claiming no test exists, search the repository by symbol and import
+  reference; expected file locations alone are not enough. A successful build
+  banner alone proves nothing when the runner writes structured reports; read
+  the report counts before calling anything green.
 - Say what you actually checked ("none of the tests I read cover this") and
   how far you looked. An ungrounded finding gets dropped, not softened — that
   is a wider rule than the refuted bucket, which is about a finding you did

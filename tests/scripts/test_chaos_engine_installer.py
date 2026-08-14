@@ -68,6 +68,124 @@ def tree_digest(root: Path) -> dict[str, str]:
 
 
 class ChaosEngineInstallerTest(unittest.TestCase):
+    def test_default_distribution_installs_only_neutral_portable_payload(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary) / "consumer"
+            project.mkdir()
+
+            MODULE.install(project, SOURCE, TEST_COMMIT)
+
+            install_root = project / ".chaos-engine"
+            manifest = json.loads((install_root / "manifest.json").read_text(encoding="utf-8"))
+            self.assertEqual("portable", manifest["distribution"]["id"])
+            self.assertRegex(manifest["distribution"]["policySha256"], r"^[0-9a-f]{64}$")
+            owned_text = "\n".join(
+                path.read_text(encoding="utf-8", errors="ignore")
+                for path in install_root.rglob("*")
+                if path.is_file()
+            ).casefold()
+            owned_paths = "\n".join(manifest["files"]).casefold()
+            self.assertNotIn("shaft", owned_paths)
+            self.assertNotIn("shaft", owned_text)
+
+    def test_distribution_cannot_change_during_an_update(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary) / "consumer"
+            project.mkdir()
+            MODULE.install(project, SOURCE, TEST_COMMIT)
+            before = tree_digest(project / ".chaos-engine")
+
+            with self.assertRaisesRegex(ValueError, "uninstall before changing"):
+                MODULE.install(project, SOURCE, "2" * 40, distribution="repository")
+
+            self.assertEqual(before, tree_digest(project / ".chaos-engine"))
+            self.assertFalse(project.joinpath(".chaos-engine.backup").exists())
+
+    def test_legacy_manifest_is_verified_but_requires_explicit_reinstall(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary) / "consumer"
+            project.mkdir()
+            MODULE.install(project, SOURCE, TEST_COMMIT)
+            manifest_path = project / ".chaos-engine/manifest.json"
+            manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+            manifest.pop("distribution")
+            manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+
+            self.assertEqual("legacy", MODULE.status(project)["distribution"])
+            before = tree_digest(project / ".chaos-engine")
+            with self.assertRaisesRegex(ValueError, "uninstall before changing"):
+                MODULE.install(project, SOURCE, "2" * 40)
+            self.assertEqual(before, tree_digest(project / ".chaos-engine"))
+
+    def test_distribution_rejects_a_missing_profile_before_mutation(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            source = copy_source(root / "source")
+            project = root / "consumer"
+            project.mkdir()
+            catalog_path = source / "distributions.json"
+            catalog = json.loads(catalog_path.read_text(encoding="utf-8"))
+            catalog["distributions"]["portable"]["profile"] = "missing"
+            catalog_path.write_text(json.dumps(catalog), encoding="utf-8")
+
+            with self.assertRaisesRegex(ValueError, "profile is incomplete"):
+                MODULE.install(project, source, TEST_COMMIT)
+            self.assertFalse(project.joinpath(".chaos-engine").exists())
+
+    def test_distribution_rejects_profile_traversal_before_mutation(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            source = copy_source(root / "source")
+            outside = root / "outside"
+            outside.mkdir()
+            for name in ("entrypoint.md", "profile.json"):
+                outside.joinpath(name).write_text("{}", encoding="utf-8")
+            project = root / "consumer"
+            project.mkdir()
+            catalog_path = source / "distributions.json"
+            catalog = json.loads(catalog_path.read_text(encoding="utf-8"))
+            catalog["distributions"]["portable"]["profile"] = "../../outside"
+            catalog_path.write_text(json.dumps(catalog), encoding="utf-8")
+
+            with self.assertRaisesRegex(ValueError, "policy is invalid"):
+                MODULE.install(project, source, TEST_COMMIT)
+            self.assertFalse(project.joinpath(".chaos-engine").exists())
+
+    def test_new_commit_can_harden_policy_without_changing_distribution(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            source = copy_source(root / "source")
+            project = root / "consumer"
+            project.mkdir()
+            MODULE.install(project, source, TEST_COMMIT)
+            catalog_path = source / "distributions.json"
+            catalog = json.loads(catalog_path.read_text(encoding="utf-8"))
+            catalog["distributions"]["portable"]["forbiddenTokens"].append(
+                "never-present-marker"
+            )
+            catalog_path.write_text(json.dumps(catalog), encoding="utf-8")
+
+            MODULE.install(project, source, "2" * 40)
+
+            manifest = MODULE.verify_install(project / ".chaos-engine")
+            self.assertEqual("portable", manifest["distribution"]["id"])
+            self.assertEqual("2" * 40, manifest["source"]["commit"])
+
+    def test_full_status_reports_distribution_identity(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary) / "consumer"
+            project.mkdir()
+            MODULE.install_with_dependencies(
+                project,
+                SOURCE,
+                TEST_COMMIT,
+                provisioner=lambda *_args, **_kwargs: None,
+            )
+
+            self.assertEqual(
+                "portable", MODULE.status_with_dependencies(project)["distribution"]
+            )
+
     def test_project_lock_closes_descriptor_when_stream_creation_fails(self):
         with tempfile.TemporaryDirectory() as temporary:
             project = Path(temporary)
@@ -109,10 +227,7 @@ class ChaosEngineInstallerTest(unittest.TestCase):
 
             expected = {
                 path.relative_to(SOURCE).as_posix(): sha256(path)
-                for path in SOURCE.rglob("*")
-                if path.is_file()
-                and "__pycache__" not in path.relative_to(SOURCE).parts
-                and path.suffix != ".pyc"
+                for path in MODULE.source_files(SOURCE, "portable")
             }
             self.assertEqual(expected, manifest["files"])
             for relative, digest in manifest["files"].items():

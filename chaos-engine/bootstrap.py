@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 import re
@@ -148,6 +149,7 @@ def install_latest(
     repository: str,
     branch: str | None = None,
     skip_tools: bool = False,
+    distribution: str = "portable",
     opener=urllib.request.urlopen,
     provisioner=None,
 ) -> dict[str, str]:
@@ -163,14 +165,24 @@ def install_latest(
     with tempfile.TemporaryDirectory(prefix="chaos-engine-bootstrap-") as temporary:
         source = extract_source(archive, Path(temporary))
         installer = load_installer(source)
-        provenance = {
-            "kind": "git",
-            "repository": repository,
-            "branch": resolved_branch,
-            "commit": commit,
-        }
+        if distribution == "portable":
+            provenance = {
+                "kind": "git-digest",
+                "repositorySha256": hashlib.sha256(repository.casefold().encode()).hexdigest(),
+                "branchSha256": hashlib.sha256(resolved_branch.encode()).hexdigest(),
+                "commit": commit,
+            }
+        else:
+            provenance = {
+                "kind": "git",
+                "repository": repository,
+                "branch": resolved_branch,
+                "commit": commit,
+            }
         if skip_tools:
-            target = installer.install(project, source, commit, source_record=provenance)
+            target = installer.install(
+                project, source, commit, source_record=provenance, distribution=distribution
+            )
         else:
             target = installer.install_with_dependencies(
                 project,
@@ -178,6 +190,7 @@ def install_latest(
                 commit,
                 provisioner=provisioner,
                 source_record=provenance,
+                distribution=distribution,
             )
     return {"status": "installed", "root": str(target), "commit": commit}
 
@@ -187,6 +200,7 @@ def parser() -> argparse.ArgumentParser:
     result.add_argument("--project", type=Path, default=Path.cwd())
     result.add_argument("--repository", required=True)
     result.add_argument("--branch")
+    result.add_argument("--distribution", default="portable")
     result.add_argument("--skip-tools", action="store_true", help=argparse.SUPPRESS)
     return result
 
@@ -199,6 +213,7 @@ def main() -> int:
             repository=args.repository,
             branch=args.branch,
             skip_tools=args.skip_tools,
+            distribution=args.distribution,
         )
     except (OSError, RuntimeError, ValueError) as error:
         print(str(error), file=sys.stderr)

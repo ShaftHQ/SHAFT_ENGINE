@@ -82,9 +82,16 @@ class ChaosEngineBootstrapTest(unittest.TestCase):
             self.assertEqual(COMMIT_ONE, first["commit"])
             manifest = json.loads((project / ".chaos-engine/manifest.json").read_text(encoding="utf-8"))
             self.assertEqual(
-                {"kind": "git", "repository": "shafthq/shaft_engine", "branch": "main", "commit": COMMIT_ONE},
+                {
+                    "kind": "git-digest",
+                    "repositorySha256": mock.ANY,
+                    "branchSha256": mock.ANY,
+                    "commit": COMMIT_ONE,
+                },
                 manifest["source"],
             )
+            self.assertEqual("portable", manifest["distribution"]["id"])
+            self.assertNotIn("shaft", (project / ".chaos-engine/manifest.json").read_text().casefold())
             self.assertTrue(any("api.github.com/repos/ShaftHQ/SHAFT_ENGINE/commits/main" in call for call in calls))
 
             open_two, _ = self.opener([(COMMIT_TWO, "two")])
@@ -188,8 +195,8 @@ class ChaosEngineBootstrapTest(unittest.TestCase):
             backup = json.loads(
                 (project / ".chaos-engine.backup/manifest.json").read_text(encoding="utf-8")
             )
-            self.assertEqual("git", current["source"]["kind"])
-            self.assertEqual("example/project", current["source"]["repository"])
+            self.assertEqual("git-digest", current["source"]["kind"])
+            self.assertNotIn("repository", current["source"])
             self.assertEqual(before, backup)
 
     def test_failed_full_migration_restores_the_prior_local_manifest(self):

@@ -22,6 +22,8 @@ from pathlib import Path
 INSTALL_DIRECTORY = ".chaos-engine"
 MANIFEST_NAME = "manifest.json"
 SCHEMA_VERSION = 1
+DEFAULT_DISTRIBUTION = "portable"
+DISTRIBUTIONS_NAME = "distributions.json"
 COMMIT_PATTERN = re.compile(r"[0-9a-f]{40}")
 REPOSITORY_PATTERN = re.compile(r"[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+")
 BRANCH_PATTERN = re.compile(r"[^\x00-\x20\x7f~^:?*\\\[\]]+")
@@ -68,6 +70,14 @@ def normalize_source_record(source: object) -> dict[str, str]:
         and COMMIT_PATTERN.fullmatch(source.get("commit", "")) is not None
     ):
         return dict(source)
+    if (
+        set(source) == {"commit", "kind", "repositorySha256", "branchSha256"}
+        and source.get("kind") == "git-digest"
+        and COMMIT_PATTERN.fullmatch(source.get("commit", "")) is not None
+        and re.fullmatch(r"[0-9a-f]{64}", source.get("repositorySha256", "")) is not None
+        and re.fullmatch(r"[0-9a-f]{64}", source.get("branchSha256", "")) is not None
+    ):
+        return dict(source)
     repository = source.get("repository", "")
     branch = source.get("branch", "")
     components = repository.split("/")
@@ -106,20 +116,63 @@ def require_absent(path: Path, label: str) -> None:
         raise ValueError(f"{label} collision: {path}")
 
 
-def source_files(source: Path) -> tuple[Path, ...]:
+def load_distribution(source: Path, distribution: str) -> tuple[dict[str, object], str]:
+    try:
+        catalog = json.loads((source / DISTRIBUTIONS_NAME).read_text(encoding="utf-8"))
+        policy = catalog["distributions"][distribution]
+    except (OSError, json.JSONDecodeError, KeyError, TypeError) as error:
+        raise ValueError(f"unknown ChaosEngine distribution: {distribution}") from error
+    if not isinstance(policy, dict):
+        raise ValueError(f"unknown ChaosEngine distribution: {distribution}")
+    profile = policy.get("profile")
+    forbidden_tokens = policy.get("forbiddenTokens")
+    if (
+        not isinstance(profile, str)
+        or re.fullmatch(r"[a-z0-9][a-z0-9-]*", profile) is None
+        or not isinstance(forbidden_tokens, list)
+        or not all(
+        isinstance(token, str) and token for token in forbidden_tokens
+        )
+    ):
+        raise ValueError("ChaosEngine distribution policy is invalid")
+    profile_root = source / "profiles" / profile
+    if not all((profile_root / name).is_file() for name in ("entrypoint.md", "profile.json")):
+        raise ValueError(f"ChaosEngine distribution profile is incomplete: {profile}")
+    encoded = json.dumps(policy, sort_keys=True, separators=(",", ":")).encode()
+    return policy, hashlib.sha256(encoded).hexdigest()
+
+
+def source_files(source: Path, distribution: str = DEFAULT_DISTRIBUTION) -> tuple[Path, ...]:
     reject_link_or_reparse(source)
     if not (source / "skills/chaos-engine/SKILL.md").is_file():
         raise ValueError(f"source is not a portable ChaosEngine tree: {source}")
     if (source / MANIFEST_NAME).exists():
         raise ValueError(f"source contains the reserved manifest path: {MANIFEST_NAME}")
+    policy, _ = load_distribution(source, distribution)
+    selected_profile = str(policy["profile"])
+    forbidden_tokens = tuple(str(token).casefold() for token in policy["forbiddenTokens"])
     files: list[Path] = []
     for path in sorted(source.rglob("*")):
         relative = path.relative_to(source)
         if "__pycache__" in relative.parts or path.suffix == ".pyc":
             continue
+        if relative.as_posix() == DISTRIBUTIONS_NAME:
+            continue
+        if (
+            len(relative.parts) >= 3
+            and relative.parts[0] == "profiles"
+            and relative.parts[1] != selected_profile
+        ):
+            continue
         if is_link_or_reparse(path):
             raise ValueError(f"source contains a link or reparse point: {relative}")
         if path.is_file():
+            relative_text = relative.as_posix().casefold()
+            content = path.read_text(encoding="utf-8", errors="ignore").casefold()
+            if any(token in relative_text or token in content for token in forbidden_tokens):
+                raise ValueError(
+                    f"distribution policy rejected forbidden content: {relative.as_posix()}"
+                )
             files.append(path)
     return tuple(files)
 
@@ -144,12 +197,19 @@ def load_manifest(target: Path) -> dict[str, object]:
     source = manifest.get("source")
     files = manifest.get("files")
     host_token = manifest.get("hostToken")
+    distribution = manifest.get("distribution")
+    if distribution is None and manifest.get("schemaVersion") == 1:
+        distribution = {"id": "legacy", "policySha256": "0" * 64}
+        manifest["distribution"] = distribution
     try:
         normalized_source = normalize_source_record(source)
     except ValueError as error:
         raise ValueError("ChaosEngine manifest has an invalid ownership record") from error
     if (
         not isinstance(files, dict)
+        or not isinstance(distribution, dict)
+        or not isinstance(distribution.get("id"), str)
+        or re.fullmatch(r"[0-9a-f]{64}", str(distribution.get("policySha256", ""))) is None
         or not isinstance(host_token, str)
         or re.fullmatch(r"[0-9a-f]{64}", host_token) is None
         or any(not isinstance(path, str) or not isinstance(digest, str) for path, digest in files.items())
@@ -575,6 +635,7 @@ def install(  # noqa: MC0001 - publication and compensation form one transaction
     commit: str,
     _locked: bool = False,
     source_record: dict[str, str] | None = None,
+    distribution: str = DEFAULT_DISTRIBUTION,
 ) -> Path:
     project = project.resolve()
     reject_link_or_reparse(source.absolute())
@@ -586,12 +647,18 @@ def install(  # noqa: MC0001 - publication and compensation form one transaction
     desired_source = normalize_source_record({"commit": commit, "kind": "local"})
     if source_record is not None:
         desired_source = normalize_source_record(source_record)
-        if desired_source.get("commit") != commit or desired_source.get("kind") != "git":
+        if desired_source.get("commit") != commit or desired_source.get("kind") not in {
+            "git",
+            "git-digest",
+        }:
             raise ValueError("ChaosEngine source record is invalid")
     if source == project or source.is_relative_to(project) or project.is_relative_to(source):
         raise ValueError("ChaosEngine source and project trees must be disjoint")
 
-    files = source_files(source)
+    if (source / MANIFEST_NAME).exists():
+        raise ValueError(f"source contains the reserved manifest path: {MANIFEST_NAME}")
+    _, policy_digest = load_distribution(source, distribution)
+    files = source_files(source, distribution)
     ownership = {path.relative_to(source).as_posix(): file_sha256(path) for path in files}
     target = project / INSTALL_DIRECTORY
     backup = project / BACKUP_NAME
@@ -604,7 +671,16 @@ def install(  # noqa: MC0001 - publication and compensation form one transaction
         if target.exists():
             current = verify_install(target)
             current_commit = current["source"]["commit"]  # type: ignore[index]
+            current_distribution = current.get("distribution")
+            if not isinstance(current_distribution, dict) or current_distribution.get("id") != distribution:
+                raise ValueError(
+                    "installed ChaosEngine distribution differs; uninstall before changing it"
+                )
             if current_commit == commit:
+                if current_distribution.get("policySha256") != policy_digest:
+                    raise ValueError(
+                        "same commit resolved to a different ChaosEngine distribution policy"
+                    )
                 if current["files"] != ownership:
                     raise ValueError("same commit resolved to a different ChaosEngine payload")
                 if current["source"] == desired_source:
@@ -623,6 +699,7 @@ def install(  # noqa: MC0001 - publication and compensation form one transaction
             verify_staged_payload(stage, ownership)
             manifest = {
                 "schemaVersion": SCHEMA_VERSION,
+                "distribution": {"id": distribution, "policySha256": policy_digest},
                 "source": desired_source,
                 "files": ownership,
                 "hostToken": (
@@ -657,7 +734,11 @@ def status(project: Path) -> dict[str, str]:
     with project_lock(project):
         manifest = verify_install(project / INSTALL_DIRECTORY)
         state = "recovery-required" if (project / JOURNAL_NAME).exists() else "healthy"
-        return {"status": state, "commit": str(manifest["source"]["commit"])}  # type: ignore[index]
+        return {
+            "status": state,
+            "commit": str(manifest["source"]["commit"]),  # type: ignore[index]
+            "distribution": str(manifest["distribution"]["id"]),  # type: ignore[index]
+        }
 
 
 def rollback(  # noqa: MC0001 - cross-resource rollback is one journaled state machine.
@@ -845,6 +926,7 @@ def install_with_dependencies(  # noqa: MC0001 - owned resources share one compe
     commit: str,
     provisioner=None,
     source_record: dict[str, str] | None = None,
+    distribution: str = DEFAULT_DISTRIBUTION,
 ) -> Path:
     project = project.resolve()
     with project_lock(project):
@@ -867,6 +949,7 @@ def install_with_dependencies(  # noqa: MC0001 - owned resources share one compe
             commit,
             _locked=True,
             source_record=source_record,
+            distribution=distribution,
         )
         core_changed = old_manifest is None or verify_install(target) != old_manifest
         host_controller = load_installed_controller(target, "hosts")
@@ -926,6 +1009,8 @@ def status_with_dependencies(project: Path) -> dict[str, object]:
             result: dict[str, object] = {
                 "status": state,
                 "commit": str(manifest["source"]["commit"]),  # type: ignore[index]
+                "distribution": str(manifest["distribution"]["id"]),  # type: ignore[index]
+                "policySha256": str(manifest["distribution"]["policySha256"]),  # type: ignore[index]
             }
             host_controller = load_installed_controller(target, "hosts")
             pending_rollback = read_cross_rollback_journal(project)
@@ -1086,6 +1171,7 @@ def parser() -> argparse.ArgumentParser:
     install_command.add_argument("--project", required=True, type=Path)
     install_command.add_argument("--source", required=True, type=Path)
     install_command.add_argument("--commit", required=True)
+    install_command.add_argument("--distribution", default=DEFAULT_DISTRIBUTION)
     install_command.add_argument("--skip-tools", action="store_true")
     for name in ("status", "rollback", "uninstall"):
         command = commands.add_parser(name)
@@ -1098,9 +1184,19 @@ def main() -> int:
     try:
         if args.command == "install":
             target = (
-                install(args.project, args.source, args.commit)
+                install(
+                    args.project,
+                    args.source,
+                    args.commit,
+                    distribution=args.distribution,
+                )
                 if args.skip_tools
-                else install_with_dependencies(args.project, args.source, args.commit)
+                else install_with_dependencies(
+                    args.project,
+                    args.source,
+                    args.commit,
+                    distribution=args.distribution,
+                )
             )
             result: object = {"status": "installed", "root": str(target)}
         elif args.command == "status":

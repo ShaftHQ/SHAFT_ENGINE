@@ -74,7 +74,7 @@ target project.
 For a direct terminal flow, first save the upstream `bootstrap.py`, then run:
 
 ```text
-python bootstrap.py --project . --repository owner/repository
+python bootstrap.py --project . --repository owner/repository --distribution portable
 python .chaos-engine/install.py status --project .
 ```
 
@@ -89,6 +89,9 @@ replace global tools or infer its upstream from the consumer repository.
 
 - **Upgrade:** run the same bootstrap command again. A failed or invalid
   download leaves the last verified installation unchanged.
+- **Legacy migration:** if status reports `legacy`, uninstall first and then
+  run the portable bootstrap. This deliberate reinstall prevents old
+  repository-specific payloads from surviving in the rollback backup.
 - **Inspect:** run
   `python .chaos-engine/install.py status --project .`.
 - **Roll back:** run
@@ -116,8 +119,9 @@ entrypoint will:
 Projects select one profile after loading the portable core. A profile supplies
 repository-specific facts such as the upstream, default branch, task-branch
 prefix, companion repositories, and routing table. The
-<a href="profiles/README.md">profiles catalog</a> and included
-<a href="profiles/shaft/entrypoint.md">SHAFT profile</a> show the complete shape.
+<a href="profiles/README.md">profiles catalog</a> and included neutral profile
+show the complete shape. The public install path selects the neutral profile by
+default; repository-specific distributions require an explicit selection.
 
 ## What gets installed
 
@@ -173,8 +177,7 @@ space, asset selection, and geometry constraints are documented in the
 ## Develop and verify
 
 Changes to the portable harness must preserve one canonical policy body and
-its thin adapters. From the SHAFT Engine source repository, the focused checks
-are:
+its thin adapters. From the upstream source repository, the focused checks are:
 
 ```text
 py -3 -m unittest tests.scripts.test_chaos_engine_portable_core
