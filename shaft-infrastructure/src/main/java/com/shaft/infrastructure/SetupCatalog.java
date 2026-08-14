@@ -65,12 +65,14 @@ public record SetupCatalog(int schemaVersion, List<SetupTargetDefinition> target
                 target(SetupTarget.XCODE, "Xcode", "Apple host toolchain, runtimes, signing, and device trust.", SetupCapability.HOST_PREREQUISITE, SetupCapability.PRIVILEGED),
                 target(SetupTarget.DOCKER, "Docker", "Host container engine and Compose plugin.", SetupCapability.HOST_PREREQUISITE),
                 target(SetupTarget.LM_STUDIO, "LM Studio", "Existing loopback LM Studio service.", SetupCapability.HOST_PREREQUISITE),
-                target(SetupTarget.FFMPEG, "FFmpeg", "Native video payload provided by the SHAFT video module.", SetupCapability.PROVIDED),
+                target(SetupTarget.FFMPEG, "FFmpeg", "Pinned media payload installed with Playwright or provided by the SHAFT video module.",
+                        SetupCapability.INSTALLABLE, SetupCapability.PROVIDED),
                 target(SetupTarget.OPENCV, "OpenCV", "Native visual payload provided by optional SHAFT modules.", SetupCapability.PROVIDED));
         List<SetupProfileDefinition> profiles = List.of(
                 profile(SetupProfile.WEB_LOCAL, "Local web", SetupTarget.SELENIUM_BROWSER),
-                profile(SetupProfile.PLAYWRIGHT, "Playwright", SetupTarget.PLAYWRIGHT_CHROMIUM,
-                        SetupTarget.PLAYWRIGHT_FIREFOX, SetupTarget.PLAYWRIGHT_WEBKIT),
+                profile(SetupProfile.PLAYWRIGHT, "Playwright", SetupTarget.NODE,
+                        SetupTarget.PLAYWRIGHT_CHROMIUM, SetupTarget.PLAYWRIGHT_FIREFOX,
+                        SetupTarget.PLAYWRIGHT_WEBKIT, SetupTarget.FFMPEG),
                 profile(SetupProfile.LIGHTHOUSE, "Lighthouse", SetupTarget.NODE, SetupTarget.LIGHTHOUSE),
                 profile(SetupProfile.MOBILE_ANDROID, "Android mobile", SetupTarget.NODE, SetupTarget.APPIUM_SERVER,
                         SetupTarget.APPIUM_INSPECTOR_PLUGIN, SetupTarget.APPIUM_UIAUTOMATOR2_DRIVER,
