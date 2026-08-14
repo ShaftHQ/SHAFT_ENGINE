@@ -19,13 +19,15 @@ public record McpManagedLocalAiStatus(
         String runtimeId,
         String runtimeVersion,
         String runtimeLicense,
+        long runtimeArtifactBytes,
         String runtimeCacheHealth,
         String modelCacheHealth,
         String phase,
         long completedBytes,
         long totalBytes,
         List<String> eligibleModels,
-        Map<String, List<String>> modelExclusions) {
+        Map<String, List<String>> modelExclusions,
+        Map<String, Model> models) {
 
     public McpManagedLocalAiStatus {
         Objects.requireNonNull(state, "state");
@@ -42,6 +44,7 @@ public record McpManagedLocalAiStatus(
         LinkedHashMap<String, List<String>> exclusions = new LinkedHashMap<>();
         modelExclusions.forEach((model, reasons) -> exclusions.put(model, List.copyOf(reasons)));
         modelExclusions = Map.copyOf(exclusions);
+        models = Map.copyOf(models);
     }
 
     static McpManagedLocalAiStatus from(ManagedLocalAiSnapshot snapshot) {
@@ -56,10 +59,23 @@ public record McpManagedLocalAiStatus(
                 .filter(entry -> !entry.getValue().eligible())
                 .sorted(Map.Entry.comparingByKey())
                 .forEach(entry -> exclusions.put(entry.getKey(), entry.getValue().reasons()));
+        LinkedHashMap<String, Model> inventory = new LinkedHashMap<>();
+        snapshot.models().entrySet().stream().sorted(Map.Entry.comparingByKey())
+                .forEach(entry -> inventory.put(entry.getKey(), Model.from(entry.getValue())));
         return new McpManagedLocalAiStatus(snapshot.state().name(), snapshot.action(), snapshot.enabled(),
                 snapshot.transparentProvisioning(), "SHAFT_USER_CACHE", snapshot.requestedModelId(),
                 snapshot.selectedModelId(), snapshot.runtimeId(), snapshot.runtimeVersion(),
-                snapshot.runtimeLicense(), snapshot.runtimeCacheHealth().name(), snapshot.modelCacheHealth().name(),
-                snapshot.phase().name(), snapshot.completedBytes(), snapshot.totalBytes(), eligible, exclusions);
+                snapshot.runtimeLicense(), snapshot.runtimeAssetBytes(), snapshot.runtimeCacheHealth().name(),
+                snapshot.modelCacheHealth().name(), snapshot.phase().name(), snapshot.completedBytes(),
+                snapshot.totalBytes(), eligible, exclusions, inventory);
+    }
+
+    /** Reviewed artifact metadata; contains no host-specific path or capacity data. */
+    public record Model(String displayName, String tier, String license, String revision,
+                        long artifactBytes, boolean automatic, boolean eligible, List<String> reasons) {
+        static Model from(ManagedLocalAiSnapshot.Model model) {
+            return new Model(model.displayName(), model.tier(), model.license(), model.revision(),
+                    model.artifactBytes(), model.automatic(), model.eligible(), model.reasons());
+        }
     }
 }

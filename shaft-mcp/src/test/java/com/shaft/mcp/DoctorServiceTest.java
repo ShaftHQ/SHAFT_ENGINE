@@ -40,7 +40,9 @@ class DoctorServiceTest {
                 temp.toAbsolutePath(), true, false, "auto", "qwen3-0.6b-q8_0", "windows-x86_64",
                 "llama.cpp", "b10400", "MIT", "runtime.zip", "a".repeat(64), "llama-server.exe",
                 10, ManagedLocalAiSnapshot.CacheHealth.CORRUPT, ManagedLocalAiSnapshot.CacheHealth.READY,
-                ManagedLocalAiSnapshot.Phase.IDLE, 0, 0, 4_000, 4, 8_000, Map.of());
+                ManagedLocalAiSnapshot.Phase.IDLE, 0, 0, 4_000, 4, 8_000, Map.of("qwen3-0.6b-q8_0",
+                new ManagedLocalAiSnapshot.Model("Qwen3 0.6B", "lite", "Apache-2.0", "revision", "model.gguf",
+                        "b".repeat(64), false, true, List.of(), 2_000, 639_446_688)));
         DoctorService service = new DoctorService(McpWorkspacePolicy.of(temp),
                 new McpDoctorRemediationService(), () -> expected);
 
@@ -49,6 +51,9 @@ class DoctorServiceTest {
         assertEquals("SHAFT_USER_CACHE", actual.storageClass());
         assertEquals("qwen3-0.6b-q8_0", actual.selectedModelId());
         assertEquals("b10400", actual.runtimeVersion());
+        assertEquals(10, actual.runtimeArtifactBytes());
+        assertEquals("Apache-2.0", actual.models().get("qwen3-0.6b-q8_0").license());
+        assertEquals(639_446_688, actual.models().get("qwen3-0.6b-q8_0").artifactBytes());
         assertFalse(actual.toString().contains(temp.toString()), "MCP status must not expose the absolute cache path");
         assertFalse(actual.toString().contains("8000"), "MCP status must not expose exact host resource values");
     }
