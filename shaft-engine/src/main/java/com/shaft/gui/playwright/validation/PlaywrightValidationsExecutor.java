@@ -789,7 +789,7 @@ final class PlaywrightValidationsExecutor extends ValidationsExecutor {
         boolean attachScreenshot = !outcome.visualComparisonAttached() && shouldAttachScreenshot(outcome.passed());
         boolean attachPageSnapshot = shouldAttachPageSnapshot(outcome.passed());
         Page evidencePage = attachScreenshot || attachPageSnapshot
-                ? outcome.evidencePage() == null ? session.page() : outcome.evidencePage()
+                ? resolveEvidencePage(outcome)
                 : null;
         if (attachScreenshot) {
             try {
@@ -811,6 +811,13 @@ final class PlaywrightValidationsExecutor extends ValidationsExecutor {
             }
         }
         return attachments;
+    }
+
+    private Page resolveEvidencePage(Outcome outcome) {
+        if (outcome.evidencePage() != null) {
+            return outcome.evidencePage();
+        }
+        return locator == null ? session.page() : locator.page();
     }
 
     private boolean shouldAttachScreenshot(boolean passed) {
