@@ -21,6 +21,18 @@ class VerifiedArtifactStoreTest {
         assertEquals(128L * 1024 * 1024,
                 VerifiedArtifactStore.maximumArtifactBytes(SetupTarget.NODE));
     }
+
+    @Test
+    void playwrightBrowsersHaveATargetSpecificBoundWithoutWeakeningSharedArtifacts() {
+        assertEquals(512L * 1024 * 1024,
+                VerifiedArtifactStore.maximumArtifactBytes(SetupTarget.PLAYWRIGHT_CHROMIUM));
+        assertEquals(512L * 1024 * 1024,
+                VerifiedArtifactStore.maximumArtifactBytes(SetupTarget.PLAYWRIGHT_FIREFOX));
+        assertEquals(512L * 1024 * 1024,
+                VerifiedArtifactStore.maximumArtifactBytes(SetupTarget.PLAYWRIGHT_WEBKIT));
+        assertEquals(128L * 1024 * 1024,
+                VerifiedArtifactStore.maximumArtifactBytes(SetupTarget.FFMPEG));
+    }
     @Test
     void oversizedArtifactIsRejectedAndTemporaryFileIsRemoved(@TempDir Path temp) throws Exception {
         Path source = temp.resolve("oversized.bin");

@@ -112,6 +112,37 @@ class SetupCommandTest {
     }
 
     @Test
+    void playwrightProfileUsesTheRegisteredProviderWithoutMutatingOnStatus(@TempDir Path temp) throws Exception {
+        Path cache = temp.resolve("cache").toAbsolutePath();
+        Path data = temp.resolve("data").toAbsolutePath();
+        CommandResult status = execute("setup", "status", "--profile", "PLAYWRIGHT",
+                "--cache-root", cache.toString(), "--data-root", data.toString(), "--json");
+        Path planFile = temp.resolve("playwright-plan.json").toAbsolutePath();
+        CommandResult plan = execute("setup", "plan", "--profile", "PLAYWRIGHT", "--mode", "MANAGED",
+                "--output", planFile.toString(), "--cache-root", cache.toString(),
+                "--data-root", data.toString(), "--json");
+
+        if (status.exitCode() == 3) {
+            JsonNode report = JSON.readTree(status.stdout());
+            assertEquals("PLAYWRIGHT", report.get("profile").asText());
+            assertEquals(5, report.get("targets").size());
+        } else {
+            assertEquals(2, status.exitCode(), status.stderr());
+            assertTrue(status.stderr().contains("Unsupported Playwright host"), status.stderr());
+        }
+        if (plan.exitCode() == 0) {
+            JsonNode planned = JSON.readTree(plan.stdout());
+            assertEquals("PLAYWRIGHT", planned.get("profile").asText());
+            assertEquals(5, planned.get("actions").size());
+        } else {
+            assertEquals(2, plan.exitCode(), plan.stderr());
+            assertTrue(plan.stderr().contains("Unsupported Playwright host"), plan.stderr());
+        }
+        assertTrue(Files.notExists(cache));
+        assertTrue(Files.notExists(data));
+    }
+
+    @Test
     void ocrProfileHasProviderBackedStatusAndPlan(@TempDir Path temp) throws Exception {
         Path cache = temp.resolve("cache").toAbsolutePath();
         Path data = temp.resolve("data").toAbsolutePath();
