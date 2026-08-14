@@ -22,6 +22,7 @@ import org.openqa.selenium.By;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 import org.testng.annotations.AfterMethod;
+import org.testng.annotations.BeforeMethod;
 
 import java.util.concurrent.atomic.AtomicReference;
 import java.math.BigDecimal;
@@ -43,9 +44,57 @@ import static org.mockito.Mockito.when;
 
 @SuppressWarnings("PMD.AvoidAccessibilityAlteration")
 public class PlaywrightElementValidationTargetTest {
+    private final ThreadLocal<String> previousScreenshotPolicy = new ThreadLocal<>();
+    private final ThreadLocal<String> previousPageSourcePolicy = new ThreadLocal<>();
+
+    @BeforeMethod(alwaysRun = true)
+    public void isolateVisualEvidencePolicy() {
+        previousScreenshotPolicy.set(SHAFT.Properties.visuals.screenshotParamsWhenToTakeAScreenshot());
+        previousPageSourcePolicy.set(SHAFT.Properties.visuals.whenToTakePageSourceSnapshot());
+        SHAFT.Properties.visuals.set().screenshotParamsWhenToTakeAScreenshot("Never");
+        SHAFT.Properties.visuals.set().whenToTakePageSourceSnapshot("Never");
+    }
+
     @AfterMethod(alwaysRun = true)
     public void resetVerificationState() {
-        ValidationsHelper.resetVerificationStateAfterFailing();
+        try {
+            ValidationsHelper.resetVerificationStateAfterFailing();
+        } finally {
+            String screenshotPolicy = previousScreenshotPolicy.get();
+            String pageSourcePolicy = previousPageSourcePolicy.get();
+            if (screenshotPolicy != null) {
+                SHAFT.Properties.visuals.set().screenshotParamsWhenToTakeAScreenshot(screenshotPolicy);
+            }
+            if (pageSourcePolicy != null) {
+                SHAFT.Properties.visuals.set().whenToTakePageSourceSnapshot(pageSourcePolicy);
+            }
+            previousScreenshotPolicy.remove();
+            previousPageSourcePolicy.remove();
+        }
+    }
+
+    @Test
+    public void visualEvidencePolicyIsolationShouldRestoreTheCallingThread() {
+        String owningScreenshotPolicy = SHAFT.Properties.visuals.screenshotParamsWhenToTakeAScreenshot();
+        String owningPageSourcePolicy = SHAFT.Properties.visuals.whenToTakePageSourceSnapshot();
+        PlaywrightElementValidationTargetTest isolatedLifecycle = new PlaywrightElementValidationTargetTest();
+        try {
+            SHAFT.Properties.visuals.set().screenshotParamsWhenToTakeAScreenshot("Always");
+            SHAFT.Properties.visuals.set().whenToTakePageSourceSnapshot("FailuresOnly");
+
+            isolatedLifecycle.isolateVisualEvidencePolicy();
+
+            Assert.assertEquals(SHAFT.Properties.visuals.screenshotParamsWhenToTakeAScreenshot(), "Never");
+            Assert.assertEquals(SHAFT.Properties.visuals.whenToTakePageSourceSnapshot(), "Never");
+
+            isolatedLifecycle.resetVerificationState();
+
+            Assert.assertEquals(SHAFT.Properties.visuals.screenshotParamsWhenToTakeAScreenshot(), "Always");
+            Assert.assertEquals(SHAFT.Properties.visuals.whenToTakePageSourceSnapshot(), "FailuresOnly");
+        } finally {
+            SHAFT.Properties.visuals.set().screenshotParamsWhenToTakeAScreenshot(owningScreenshotPolicy);
+            SHAFT.Properties.visuals.set().whenToTakePageSourceSnapshot(owningPageSourcePolicy);
+        }
     }
 
     @Test
@@ -78,14 +127,23 @@ public class PlaywrightElementValidationTargetTest {
 
     @Test
     public void everyNativeLocatorStarterShouldUseTheExactLocatorWithoutReadingThePage() throws Exception {
-        assertNativeStarter(ValidationEnums.ValidationCategory.HARD_ASSERT,
-                starter -> new PlaywrightDriverAssertions(starter.session()).element(starter.locator()));
-        assertNativeStarter(ValidationEnums.ValidationCategory.SOFT_ASSERT,
-                starter -> new PlaywrightDriverVerifications(starter.session()).element(starter.locator()));
-        assertNativeStarter(ValidationEnums.ValidationCategory.HARD_ASSERT,
-                starter -> new ElementActions(starter.session()).assertThat(starter.locator()));
-        assertNativeStarter(ValidationEnums.ValidationCategory.SOFT_ASSERT,
-                starter -> new ElementActions(starter.session()).verifyThat(starter.locator()));
+        String screenshotPolicy = SHAFT.Properties.visuals.screenshotParamsWhenToTakeAScreenshot();
+        String pageSourcePolicy = SHAFT.Properties.visuals.whenToTakePageSourceSnapshot();
+        SHAFT.Properties.visuals.set().screenshotParamsWhenToTakeAScreenshot("Never");
+        SHAFT.Properties.visuals.set().whenToTakePageSourceSnapshot("Always");
+        try {
+            assertNativeStarter(ValidationEnums.ValidationCategory.HARD_ASSERT,
+                    starter -> new PlaywrightDriverAssertions(starter.session()).element(starter.locator()));
+            assertNativeStarter(ValidationEnums.ValidationCategory.SOFT_ASSERT,
+                    starter -> new PlaywrightDriverVerifications(starter.session()).element(starter.locator()));
+            assertNativeStarter(ValidationEnums.ValidationCategory.HARD_ASSERT,
+                    starter -> new ElementActions(starter.session()).assertThat(starter.locator()));
+            assertNativeStarter(ValidationEnums.ValidationCategory.SOFT_ASSERT,
+                    starter -> new ElementActions(starter.session()).verifyThat(starter.locator()));
+        } finally {
+            SHAFT.Properties.visuals.set().screenshotParamsWhenToTakeAScreenshot(screenshotPolicy);
+            SHAFT.Properties.visuals.set().whenToTakePageSourceSnapshot(pageSourcePolicy);
+        }
     }
 
     @Test
@@ -472,8 +530,11 @@ public class PlaywrightElementValidationTargetTest {
                                             Function<NativeStarter, ElementAssertions> createAssertions) throws Exception {
         PlaywrightSession session = mock(PlaywrightSession.class);
         Locator locator = mock(Locator.class);
+        Page locatorPage = mock(Page.class);
         LocatorAssertions locatorAssertions = mock(LocatorAssertions.class);
         when(locator.count()).thenReturn(1);
+        when(locator.page()).thenReturn(locatorPage);
+        when(locatorPage.content()).thenReturn("<html></html>");
         ElementAssertions assertions = createAssertions.apply(new NativeStarter(session, locator));
 
         try (MockedStatic<PlaywrightAssertions> playwrightAssertions = mockStatic(PlaywrightAssertions.class)) {
@@ -482,6 +543,8 @@ public class PlaywrightElementValidationTargetTest {
         }
 
         verify(session, never()).page();
+        verify(locator).page();
+        verify(locatorPage).content();
         verify(locatorAssertions).isAttached();
         Assert.assertEquals(category(assertions), expectedCategory);
     }

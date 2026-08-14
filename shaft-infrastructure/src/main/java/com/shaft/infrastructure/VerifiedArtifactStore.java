@@ -135,6 +135,7 @@ public final class VerifiedArtifactStore {
 
     static void requireUnlinkedAncestors(Path path) throws IOException {
         Path absolute = path.toAbsolutePath().normalize();
+        Path trustedAnchor = trustedAnchor(absolute);
         for (Path current = absolute; current != null; current = current.getParent()) {
             if (Files.isSymbolicLink(current)) {
                 throw new IOException("SHAFT setup paths must not contain symbolic links: " + current);
@@ -144,7 +145,26 @@ public final class VerifiedArtifactStore {
                     .equals(Boolean.TRUE)) {
                 throw new IOException("SHAFT setup paths must not contain reparse/special entries: " + current);
             }
+            if (current.equals(trustedAnchor)) {
+                break;
+            }
         }
+    }
+
+    private static Path trustedAnchor(Path absolute) {
+        Path trusted = absolute.getRoot();
+        for (String property : new String[]{"java.io.tmpdir", "user.home"}) {
+            String configured = System.getProperty(property);
+            if (configured == null || configured.isBlank()) {
+                continue;
+            }
+            Path candidate = Path.of(configured).toAbsolutePath().normalize();
+            if (absolute.startsWith(candidate)
+                    && (trusted == null || candidate.getNameCount() > trusted.getNameCount())) {
+                trusted = candidate;
+            }
+        }
+        return trusted;
     }
 
     private static InputStream open(URI source, long deadline) throws IOException {
