@@ -197,7 +197,8 @@ public class BrowserCaptureAcceptanceTest {
     }
 
     private static TestExecutionInfo info() throws Exception {
-        Method marker = BrowserCaptureAcceptanceTest.class.getDeclaredMethod("marker");
+        Method marker = BrowserCaptureAcceptanceTest.class.getDeclaredMethod(
+                "chromiumFailureTraceShouldPersistBoundedRedactedBrowserEvidence");
         return new TestExecutionInfo("browser-capture-acceptance", "customer.BrowserCaptureTest",
                 "browserCapture", "browserCapture", "browser capture acceptance", marker,
                 new AssertionError("browser capture acceptance"), false);
@@ -214,9 +215,6 @@ public class BrowserCaptureAcceptanceTest {
             for (Path path : paths.sorted(java.util.Comparator.reverseOrder()).toList()) Files.deleteIfExists(path);
         }
     }
-
-    @SuppressWarnings("unused")
-    private static void marker() { }
 
     private static final class LoopbackPageServer implements AutoCloseable {
         private final HttpServer server;

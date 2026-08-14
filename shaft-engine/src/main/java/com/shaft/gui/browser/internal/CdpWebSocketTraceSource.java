@@ -14,10 +14,8 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.Base64;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
 /** Passive, session-owned CDP WebSocket lifecycle and bounded-frame trace source. */
 public final class CdpWebSocketTraceSource implements AutoCloseable {
@@ -31,10 +29,12 @@ public final class CdpWebSocketTraceSource implements AutoCloseable {
             BrowserObservabilityRecorder.captureBinding();
     private final Map<String, SocketOwner> sockets = new HashMap<>();
     private final Map<String, List<PendingFrame>> pendingFrames = new HashMap<>();
-    private final Set<String> pendingClosed = new HashSet<>();
+    private final Map<String, BrowserObservabilityRecorder.ObservationSession> pendingClosed = new HashMap<>();
     private int pendingFrameCount;
+    private boolean pendingCloseOverflow;
     private BrowserObservabilityRecorder.ObservationSession socketLimitWarningOwner;
     private BrowserObservabilityRecorder.ObservationSession pendingFrameLimitWarningOwner;
+    private BrowserObservabilityRecorder.ObservationSession pendingCloseLimitWarningOwner;
     private boolean closed;
 
     CdpWebSocketTraceSource() { }
@@ -115,16 +115,21 @@ public final class CdpWebSocketTraceSource implements AutoCloseable {
             return;
         }
         String safeUrl = BrowserObservabilityRecorder.retainedNetworkText(url);
+        BrowserObservabilityRecorder.ObservationSession closedOwner = pendingClosed.remove(id);
+        if (pendingCloseOverflow && closedOwner == null) {
+            return;
+        }
         sockets.put(id, new SocketOwner(safeUrl));
-        add(owner, new Entry(id, safeUrl, "", "created", 0, "", "", 0, "available", ""));
         List<PendingFrame> reordered = pendingFrames.remove(id);
+        BrowserObservabilityRecorder.ObservationSession createdOwner = reordered == null || reordered.isEmpty()
+                ? (closedOwner == null ? owner : closedOwner) : reordered.getFirst().owner();
+        add(createdOwner, new Entry(id, safeUrl, "", "created", 0, "", "", 0, "available", ""));
         if (reordered != null) {
             pendingFrameCount -= reordered.size();
-            reordered.forEach(frame -> add(BrowserObservabilityRecorder.resolveSession(binding),
-                    frame.entry(id, safeUrl)));
+            reordered.forEach(frame -> add(frame.owner(), frame.entry(id, safeUrl)));
         }
-        if (pendingClosed.remove(id)) {
-            closed(id);
+        if (closedOwner != null) {
+            recordClosed(id, sockets.remove(id), closedOwner);
         }
     }
 
@@ -135,10 +140,10 @@ public final class CdpWebSocketTraceSource implements AutoCloseable {
     private synchronized void frame(String id, String direction, WebSocketFrame frame) {
         if (closed || frame == null || id == null || id.length() > 2_048) return;
         SocketOwner socket = sockets.get(id);
-        PendingFrame retained = retainedFrame(direction, frame);
+        BrowserObservabilityRecorder.ObservationSession owner =
+                BrowserObservabilityRecorder.resolveSession(binding);
+        PendingFrame retained = retainedFrame(owner, direction, frame);
         if (socket == null) {
-            BrowserObservabilityRecorder.ObservationSession owner =
-                    BrowserObservabilityRecorder.resolveSession(binding);
             if (pendingFrameCount >= PENDING_FRAME_LIMIT) {
                 if (!java.util.Objects.equals(pendingFrameLimitWarningOwner, owner)) {
                     pendingFrameLimitWarningOwner = owner;
@@ -151,10 +156,11 @@ public final class CdpWebSocketTraceSource implements AutoCloseable {
             pendingFrameCount++;
             return;
         }
-        add(BrowserObservabilityRecorder.resolveSession(binding), retained.entry(id, socket.url()));
+        add(owner, retained.entry(id, socket.url()));
     }
 
-    private static PendingFrame retainedFrame(String direction, WebSocketFrame frame) {
+    private static PendingFrame retainedFrame(BrowserObservabilityRecorder.ObservationSession owner,
+                                              String direction, WebSocketFrame frame) {
         String payload = frame.getPayloadData() == null ? "" : frame.getPayloadData();
         int opcode = frame.getOpcode() == null ? 0 : frame.getOpcode().intValue();
         boolean text = opcode == 1;
@@ -180,7 +186,7 @@ public final class CdpWebSocketTraceSource implements AutoCloseable {
                 digest = sha256(decoded);
             }
         }
-        return new PendingFrame(direction, opcode, retainedText, digest, size, status, reason);
+        return new PendingFrame(owner, direction, opcode, retainedText, digest, size, status, reason);
     }
 
     synchronized void failed(String id) {
@@ -195,13 +201,30 @@ public final class CdpWebSocketTraceSource implements AutoCloseable {
 
     synchronized void closed(String id) {
         if (closed) return;
+        BrowserObservabilityRecorder.ObservationSession owner =
+                BrowserObservabilityRecorder.resolveSession(binding);
         SocketOwner socket = sockets.remove(id);
         if (socket != null) {
-            add(BrowserObservabilityRecorder.resolveSession(binding),
-                    new Entry(id, socket.url(), "", "closed", 0, "", "", 0,
+            recordClosed(id, socket, owner);
+        } else if (id != null && id.length() <= 2_048) {
+            if (pendingClosed.size() >= ACTIVE_SOCKET_LIMIT) {
+                pendingCloseOverflow = true;
+                if (!java.util.Objects.equals(pendingCloseLimitWarningOwner, owner)) {
+                    pendingCloseLimitWarningOwner = owner;
+                    BrowserObservabilityRecorder.recordWarning(owner, "websocket",
+                            "A reordered CDP WebSocket close was omitted because the pending trace limit was reached.");
+                }
+                return;
+            }
+            pendingClosed.put(id, owner);
+        }
+    }
+
+    private void recordClosed(String id, SocketOwner socket,
+                              BrowserObservabilityRecorder.ObservationSession owner) {
+        if (socket != null) {
+            add(owner, new Entry(id, socket.url(), "", "closed", 0, "", "", 0,
                     "available", ""));
-        } else if (id != null && id.length() <= 2_048 && pendingClosed.size() < ACTIVE_SOCKET_LIMIT) {
-            pendingClosed.add(id);
         }
     }
 
@@ -242,13 +265,16 @@ public final class CdpWebSocketTraceSource implements AutoCloseable {
         pendingFrames.clear();
         pendingClosed.clear();
         pendingFrameCount = 0;
+        pendingCloseOverflow = false;
         socketLimitWarningOwner = null;
         pendingFrameLimitWarningOwner = null;
+        pendingCloseLimitWarningOwner = null;
     }
 
     record Entry(String requestId, String url, String direction, String type, int opcode,
                  String text, String sha256, long sizeBytes, String status, String reason) { }
-    private record PendingFrame(String direction, int opcode, String text, String sha256,
+    private record PendingFrame(BrowserObservabilityRecorder.ObservationSession owner,
+                                String direction, int opcode, String text, String sha256,
                                 long sizeBytes, String status, String reason) {
         private Entry entry(String requestId, String url) {
             return new Entry(requestId, url, direction, "frame", opcode, text, sha256, sizeBytes, status, reason);

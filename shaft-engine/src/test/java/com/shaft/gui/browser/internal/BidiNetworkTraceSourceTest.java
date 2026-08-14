@@ -283,7 +283,6 @@ public class BidiNetworkTraceSourceTest {
     public void bidiRetainedHeaderContextsShouldShareOneAggregateBudget() {
         SHAFT.Properties.reporting.set().traceEnabled(true).traceIncludeNetwork(true);
         BrowserObservabilityRecorder.startSession();
-        BidiNetworkActivitySource source = new BidiNetworkActivitySource(System::nanoTime);
         List<Header> headers = List.of(
                 header("N".repeat(2_560), "v".repeat(2_560)),
                 header("M".repeat(2_560), "w".repeat(2_560)));

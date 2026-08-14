@@ -27,7 +27,6 @@ import java.lang.ref.WeakReference;
  * Session-owned browser network, console, and capability metadata recorder for SHAFT trace artifacts.
  */
 public final class BrowserObservabilityRecorder {
-    private static final int BODY_PREVIEW_LIMIT = 2048;
     private static final int NETWORK_EVENT_LIMIT = 1000;
     private static final int NETWORK_FIELD_LIMIT = 2048;
     private static final String NETWORK_FIELD_OMITTED =
@@ -791,12 +790,7 @@ public final class BrowserObservabilityRecorder {
         if (bytes == null || bytes.length == 0) {
             return "";
         }
-        return truncate(new String(bytes, java.nio.charset.StandardCharsets.UTF_8));
-    }
-
-    private static String truncate(String value) {
-        String safe = value(value);
-        return safe.length() <= BODY_PREVIEW_LIMIT ? safe : safe.substring(0, BODY_PREVIEW_LIMIT);
+        return retainedNetworkText(new String(bytes, java.nio.charset.StandardCharsets.UTF_8));
     }
 
     private static StringBuilder indent(StringBuilder builder, int level) {

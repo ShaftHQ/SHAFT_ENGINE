@@ -335,34 +335,44 @@ public class BidiNetworkActivitySource implements AutoCloseable {
         int retainedCharacters = 0;
         boolean truncated = false;
         for (Header header : source) {
-            if (values.size() >= TRACE_HEADER_LIMIT || retainedCharacters >= TRACE_HEADER_CHARACTER_LIMIT) {
+            if (headerLimitReached(values.size(), retainedCharacters)) {
                 truncated = true;
                 break;
             }
-            if (header != null && header.getName() != null && header.getValue() != null) {
-                RetainedText name = retainedText(header.getName());
-                RetainedText value = isSensitiveHeader(header.getName())
-                        ? new RetainedText("********", "")
-                        : retainedText(safe(header.getValue().getValue()));
-                boolean sensitive = isSensitiveHeader(header.getName());
-                if (!name.value().equals(header.getName()) || !name.context().isEmpty()
-                        || (!sensitive && (!value.value().equals(safe(header.getValue().getValue()))
-                        || !value.context().isEmpty()))) {
-                    truncated = true;
-                }
-                int required = name.value().length() + value.value().length();
-                if (required > TRACE_HEADER_CHARACTER_LIMIT - retainedCharacters) {
-                    truncated = true;
-                    break;
-                }
-                values.put(name.value(), value.value());
-                if (!name.context().isEmpty() || !value.context().isEmpty()) {
-                    contexts.put(name.value(), new HeaderContext(name.context(), value.context()));
-                }
-                retainedCharacters += required;
+            RetainedHeader retained = retainedHeader(header);
+            if (retained == null) {
+                continue;
             }
+            truncated |= retained.bounded();
+            if (retained.characters() > TRACE_HEADER_CHARACTER_LIMIT - retainedCharacters) {
+                truncated = true;
+                break;
+            }
+            values.put(retained.name().value(), retained.value().value());
+            if (retained.hasContext()) {
+                contexts.put(retained.name().value(),
+                        new HeaderContext(retained.name().context(), retained.value().context()));
+            }
+            retainedCharacters += retained.characters();
         }
         return new BoundedHeaders(Map.copyOf(values), Map.copyOf(contexts), truncated || values.size() < source.size());
+    }
+
+    private static boolean headerLimitReached(int retainedHeaders, int retainedCharacters) {
+        return retainedHeaders >= TRACE_HEADER_LIMIT || retainedCharacters >= TRACE_HEADER_CHARACTER_LIMIT;
+    }
+
+    private static RetainedHeader retainedHeader(Header header) {
+        if (header == null || header.getName() == null || header.getValue() == null) {
+            return null;
+        }
+        String sourceValue = safe(header.getValue().getValue());
+        boolean sensitive = isSensitiveHeader(header.getName());
+        RetainedText name = retainedText(header.getName());
+        RetainedText value = sensitive ? new RetainedText("********", "") : retainedText(sourceValue);
+        boolean bounded = !name.value().equals(header.getName()) || !name.context().isEmpty()
+                || (!sensitive && (!value.value().equals(sourceValue) || !value.context().isEmpty()));
+        return new RetainedHeader(name, value, bounded);
     }
 
     private static boolean metadataWasBounded(org.openqa.selenium.bidi.network.RequestData request,
@@ -511,6 +521,16 @@ public class BidiNetworkActivitySource implements AutoCloseable {
     }
 
     private record RetainedText(String value, String context) {
+    }
+
+    private record RetainedHeader(RetainedText name, RetainedText value, boolean bounded) {
+        private int characters() {
+            return name.value().length() + value.value().length();
+        }
+
+        private boolean hasContext() {
+            return !name.context().isEmpty() || !value.context().isEmpty();
+        }
     }
 
     record HeaderContext(String name, String value) {

@@ -241,6 +241,26 @@ public class BrowserObservabilityRecorderSessionTest {
     }
 
     @Test
+    public void responsePreviewShouldFailClosedBeforeCredentialBoundaryTruncation() throws Exception {
+        SHAFT.Properties.reporting.set().traceEnabled(true).traceIncludeNetwork(true);
+        BrowserObservabilityRecorder.ObservationSession owner = BrowserObservabilityRecorder.startSession();
+        String secret = "RESPONSE-BOUNDARY-SECRET-771923";
+        FailureTraceReporter.registerSensitiveSourceValue(secret);
+        BrowserObservabilityRecorder.NetworkExchange exchange = BrowserObservabilityRecorder.startNetwork(owner,
+                new HttpRequest(HttpMethod.GET, "https://example.com/response-boundary"));
+        HttpResponse response = new HttpResponse().setStatus(200)
+                .setContent(Contents.utf8String("r".repeat(2_040) + secret + "-tail"));
+
+        try (var callbackExecutor = Executors.newSingleThreadExecutor()) {
+            callbackExecutor.submit(() -> BrowserObservabilityRecorder.finishNetwork(exchange, response, "")).get();
+        }
+
+        String preview = BrowserObservabilityRecorder.snapshot(owner).getFirst().bodyPreview();
+        Assert.assertTrue(preview.contains("omitted"), preview);
+        Assert.assertFalse(preview.contains(secret.substring(0, 16)), preview);
+    }
+
+    @Test
     public void publicSnapshotShouldRedactSourceSensitiveMimeTypeOnOwnerThread() throws Exception {
         SHAFT.Properties.reporting.set().traceEnabled(true).traceIncludeNetwork(true);
         BrowserObservabilityRecorder.ObservationSession owner = BrowserObservabilityRecorder.startSession();

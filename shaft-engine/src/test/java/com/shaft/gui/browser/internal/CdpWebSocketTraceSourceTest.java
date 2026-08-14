@@ -150,6 +150,33 @@ public class CdpWebSocketTraceSourceTest {
     }
 
     @Test
+    public void reorderedFrameShouldNotCrossObservationSessionRollover() {
+        startOwner();
+        CdpWebSocketTraceSource source = new CdpWebSocketTraceSource();
+        source.frame("reordered-rollover", "sent", 1, "prior-session-frame");
+
+        owner = BrowserObservabilityRecorder.startSession();
+        source.created("reordered-rollover", "wss://example.test/reordered-rollover");
+
+        Assert.assertTrue(BrowserObservabilityRecorder.snapshotWebSockets(owner).isEmpty());
+    }
+
+    @Test
+    public void pendingCloseOverflowShouldFailClosedAndWarn() {
+        startOwner();
+        CdpWebSocketTraceSource source = new CdpWebSocketTraceSource();
+        for (int index = 0; index <= 1_000; index++) {
+            source.closed("reordered-close-" + index);
+        }
+
+        source.created("reordered-close-1000", "wss://example.test/already-closed");
+
+        Assert.assertEquals(source.activeSocketCount(), 0);
+        Assert.assertEquals(BrowserObservabilityRecorder.drainWarnings(owner).stream()
+                .filter(warning -> warning.contains("reordered CDP WebSocket close")).count(), 1L);
+    }
+
+    @Test
     public void driverLifecycleShouldAttachOnceAndCloseTheExactSource() throws Exception {
         startOwner();
         DevTools devTools = Mockito.mock(DevTools.class);
