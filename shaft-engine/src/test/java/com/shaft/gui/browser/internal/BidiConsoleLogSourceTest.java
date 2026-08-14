@@ -2,6 +2,7 @@ package com.shaft.gui.browser.internal;
 
 import com.shaft.driver.SHAFT;
 import com.shaft.driver.internal.DriverFactory.DriverFactoryHelper;
+import com.shaft.gui.BidiTestSupport;
 import com.shaft.tools.io.internal.BrowserObservabilityRecorder;
 import org.mockito.Mockito;
 import org.openqa.selenium.WebDriver;
@@ -188,11 +189,10 @@ public class BidiConsoleLogSourceTest {
     }
 
     @Test
-    @SuppressWarnings("removal")
     public void attachedNegotiatedDriversShouldStartObservationDuringHelperInitialization() {
         WebDriver driver = Mockito.mock(WebDriver.class, Mockito.withSettings().extraInterfaces(HasBiDi.class));
         BiDi bidi = Mockito.mock(BiDi.class);
-        Mockito.when(((HasBiDi) driver).maybeGetBiDi()).thenReturn(Optional.of(bidi));
+        Mockito.when(((HasBiDi) driver).getHandle()).thenReturn(BidiTestSupport.handleFor(bidi));
         try (var inspectors = Mockito.mockConstruction(LogInspector.class)) {
             new DriverFactoryHelper(driver);
 

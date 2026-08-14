@@ -7,7 +7,7 @@ import com.shaft.gui.capabilities.internal.AutomationCapabilityResolver;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.bidi.Command;
 import org.openqa.selenium.bidi.HasBiDi;
-import org.openqa.selenium.bidi.emulation.Emulation;
+import org.openqa.selenium.bidi.Module;
 import org.openqa.selenium.bidi.emulation.GeolocationCoordinates;
 import org.openqa.selenium.bidi.emulation.ScreenArea;
 import org.openqa.selenium.bidi.emulation.SetGeolocationOverrideParameters;
@@ -15,6 +15,7 @@ import org.openqa.selenium.bidi.emulation.SetScreenSettingsOverrideParameters;
 import org.openqa.selenium.bidi.emulation.SetScriptingEnabledParameters;
 import org.openqa.selenium.bidi.emulation.SetTimezoneOverrideParameters;
 import org.openqa.selenium.bidi.emulation.SetUserAgentOverrideParameters;
+import org.openqa.selenium.bidi.emulation.OverrideParameters;
 import org.openqa.selenium.devtools.DevTools;
 import org.openqa.selenium.devtools.HasDevTools;
 import org.openqa.selenium.remote.RemoteWebDriver;
@@ -42,13 +43,13 @@ public final class BrowserEmulationManager {
 
     public static void setScreenSize(WebDriver driver, int width, int height) {
         requirePositiveDimensions(width, height);
-        emulation(driver, "screen size").setScreenSettingsOverride(
+        sendEmulation(driver, "screen size", "emulation.setScreenSettingsOverride",
                 new SetScreenSettingsOverrideParameters(new ScreenArea(width, height))
                         .contexts(contexts(driver, "screen size")));
     }
 
     public static void clearScreenSize(WebDriver driver) {
-        emulation(driver, "clear screen size").setScreenSettingsOverride(
+        sendEmulation(driver, "clear screen size", "emulation.setScreenSettingsOverride",
                 new SetScreenSettingsOverrideParameters(null)
                         .contexts(contexts(driver, "clear screen size")));
     }
@@ -113,25 +114,25 @@ public final class BrowserEmulationManager {
 
     public static void setGeolocation(WebDriver driver, double latitude, double longitude, double accuracy) {
         requireValidGeolocation(latitude, longitude, accuracy);
-        emulation(driver, "geolocation").setGeolocationOverride(new SetGeolocationOverrideParameters(
+        sendEmulation(driver, "geolocation", "emulation.setGeolocationOverride", new SetGeolocationOverrideParameters(
                 new GeolocationCoordinates(latitude, longitude).accuracy(accuracy))
                 .contexts(contexts(driver, "geolocation")));
     }
 
     public static void clearGeolocation(WebDriver driver) {
-        emulation(driver, "clear geolocation").setGeolocationOverride(
+        sendEmulation(driver, "clear geolocation", "emulation.setGeolocationOverride",
                 new SetGeolocationOverrideParameters((GeolocationCoordinates) null)
                         .contexts(contexts(driver, "clear geolocation")));
     }
 
     public static void setTimezone(WebDriver driver, String timezoneId) {
         requireTimezone(timezoneId);
-        emulation(driver, "timezone").setTimezoneOverride(new SetTimezoneOverrideParameters(timezoneId)
+        sendEmulation(driver, "timezone", "emulation.setTimezoneOverride", new SetTimezoneOverrideParameters(timezoneId)
                 .contexts(contexts(driver, "timezone")));
     }
 
     public static void clearTimezone(WebDriver driver) {
-        emulation(driver, "clear timezone").setTimezoneOverride(new SetTimezoneOverrideParameters(null)
+        sendEmulation(driver, "clear timezone", "emulation.setTimezoneOverride", new SetTimezoneOverrideParameters(null)
                 .contexts(contexts(driver, "clear timezone")));
     }
 
@@ -148,45 +149,45 @@ public final class BrowserEmulationManager {
         if (userAgent == null || userAgent.isBlank()) {
             throw new IllegalArgumentException("User agent must not be null or blank.");
         }
-        emulation(driver, "user agent").setUserAgentOverride(new SetUserAgentOverrideParameters(userAgent)
+        sendEmulation(driver, "user agent", "emulation.setUserAgentOverride", new SetUserAgentOverrideParameters(userAgent)
                 .contexts(contexts(driver, "user agent")));
     }
 
     public static void clearUserAgent(WebDriver driver) {
-        emulation(driver, "clear user agent").setUserAgentOverride(new SetUserAgentOverrideParameters(null)
+        sendEmulation(driver, "clear user agent", "emulation.setUserAgentOverride", new SetUserAgentOverrideParameters(null)
                 .contexts(contexts(driver, "clear user agent")));
     }
 
     public static void disableScripting(WebDriver driver) {
-        emulation(driver, "disable scripting").setScriptingEnabled(new SetScriptingEnabledParameters(false)
+        sendEmulation(driver, "disable scripting", "emulation.setScriptingEnabled", new SetScriptingEnabledParameters(false)
                 .contexts(contexts(driver, "disable scripting")));
     }
 
     public static void clearScriptingOverride(WebDriver driver) {
-        emulation(driver, "clear scripting").setScriptingEnabled(new SetScriptingEnabledParameters(null)
+        sendEmulation(driver, "clear scripting", "emulation.setScriptingEnabled", new SetScriptingEnabledParameters(null)
                 .contexts(contexts(driver, "clear scripting")));
     }
 
     private static void sendLocale(WebDriver driver, String locale) {
-        HasBiDi hasBiDi = requireBiDi(driver, locale == null ? "clear locale" : "locale");
+        requireBiDi(driver, locale == null ? "clear locale" : "locale");
         Map<String, Object> parameters = new LinkedHashMap<>();
         parameters.put("locale", locale);
         parameters.put("contexts", contexts(driver, locale == null ? "clear locale" : "locale"));
-        hasBiDi.getBiDi().send(new Command<>("emulation.setLocaleOverride", parameters));
+        new HandleEmulationModule(driver).send("emulation.setLocaleOverride", parameters);
     }
 
-    private static Emulation emulation(WebDriver driver, String operation) {
+    private static void sendEmulation(WebDriver driver, String operation, String method,
+                                      OverrideParameters parameters) {
         requireBiDi(driver, operation);
-        return new Emulation(driver);
+        new HandleEmulationModule(driver).send(method, parameters.toMap());
     }
 
-    private static HasBiDi requireBiDi(WebDriver driver, String operation) {
+    private static void requireBiDi(WebDriver driver, String operation) {
         if (!AutomationCapabilityResolver.hasNegotiatedBiDi(driver)
-                || !(driver instanceof HasBiDi hasBiDi)) {
+                || !(driver instanceof HasBiDi)) {
             throw new UnsupportedOperationException("Emulation " + operation
                     + " requires a live Selenium or Appium session with negotiated WebDriver BiDi.");
         }
-        return hasBiDi;
     }
 
     private static DevTools devTools(WebDriver driver, String operation) {
@@ -298,6 +299,16 @@ public final class BrowserEmulationManager {
 
         private CdpMediaState withReducedMotion(String value) {
             return new CdpMediaState(media, colorScheme, value);
+        }
+    }
+
+    private static final class HandleEmulationModule extends Module {
+        private HandleEmulationModule(WebDriver driver) {
+            super(driver);
+        }
+
+        private void send(String method, Map<String, Object> parameters) {
+            send(new Command<>(method, parameters));
         }
     }
 }

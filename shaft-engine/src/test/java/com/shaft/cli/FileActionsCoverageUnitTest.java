@@ -176,7 +176,7 @@ public class FileActionsCoverageUnitTest {
         Mockito.doReturn(tempDirectory.resolve("id_rsa").toString()).when(helperActions).getAbsolutePath("keys/", "id_rsa");
 
         TerminalActions remoteDockerTerminal = Mockito.mock(TerminalActions.class);
-        Mockito.when(remoteDockerTerminal.isDockerizedTerminal()).thenReturn(true);
+        Mockito.when(remoteDockerTerminal.getDockerName()).thenReturn("container");
         Mockito.when(remoteDockerTerminal.isRemoteTerminal()).thenReturn(true);
         Mockito.when(remoteDockerTerminal.getSshHostName()).thenReturn("remote-host");
         Mockito.when(remoteDockerTerminal.getSshPortNumber()).thenReturn(2222);

@@ -326,7 +326,7 @@ public class TerminalActions implements AutoCloseable {
      */
     @Deprecated(since = "10.2.20260614", forRemoval = true)
     public boolean isDockerizedTerminal() {
-        return !dockerName.isEmpty();
+        return hasDockerTarget();
     }
 
     public String performTerminalCommands(List<String> commands) {
@@ -352,7 +352,7 @@ public class TerminalActions implements AutoCloseable {
 
         // Build long command and refactor for dockerized execution if needed
         String longCommand = buildLongCommand(internalCommands);
-        List<String> commandsToExecute = isDockerizedTerminal() && !isRemoteTerminal()
+        List<String> commandsToExecute = hasDockerTarget() && !isRemoteTerminal()
                 ? Collections.singletonList(longCommand)
                 : internalCommands;
 
@@ -886,7 +886,7 @@ public class TerminalActions implements AutoCloseable {
             failAction("SFTP file transfer",
                     new IllegalStateException("SFTP is only supported for remote SSH terminals."));
         }
-        if (isDockerizedTerminal()) {
+        if (hasDockerTarget()) {
             failAction("SFTP file transfer", new IllegalStateException(
                     "SFTP operates on the remote host filesystem. Use performTerminalCommand(...) for dockerized remote terminals."));
         }
@@ -911,7 +911,7 @@ public class TerminalActions implements AutoCloseable {
             failAction("Reusable remote SSH feature",
                     new IllegalStateException("This feature is only supported for remote SSH terminals."));
         }
-        if (isDockerizedTerminal()) {
+        if (hasDockerTarget()) {
             failAction("Reusable remote SSH feature", new IllegalStateException(
                     "This feature operates on the remote host SSH session. Use performTerminalCommand(...) for dockerized remote terminals."));
         }
@@ -1008,12 +1008,16 @@ public class TerminalActions implements AutoCloseable {
         }
 
         // refactor long command for dockerized execution
-        if (isDockerizedTerminal()) {
+        if (hasDockerTarget()) {
             command.insert(0, "docker exec -u " + dockerUsername + " -i " + dockerName + " timeout "
-                    + SHAFT.Properties.timeouts.dockerCommandTimeout() + " sh -c '");
+                    + SHAFT.Properties.timeouts.dockerCommandTimeoutSeconds() + " sh -c '");
             command.append("'");
         }
         return command.toString();
+    }
+
+    private boolean hasDockerTarget() {
+        return !dockerName.isEmpty();
     }
 
     private void applyLocalProcessEnvironment(ProcessBuilder processBuilder, Map<String, String> environmentVariables) {

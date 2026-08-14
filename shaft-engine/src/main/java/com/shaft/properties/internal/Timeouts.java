@@ -129,6 +129,15 @@ public interface Timeouts extends EngineProperties<Timeouts> {
     @DefaultValue("30")
     int dockerCommandTimeout();
 
+    /**
+     * Timeout in seconds retained for compatibility with deprecated Docker-wrapped terminal execution.
+     *
+     * @return the configured Docker command timeout in seconds
+     */
+    @Key("dockerCommandTimeout")
+    @DefaultValue("30")
+    int dockerCommandTimeoutSeconds();
+
     @Key("databaseLoginTimeout")
     @DefaultValue("30")
     int databaseLoginTimeout();
@@ -283,6 +292,11 @@ public interface Timeouts extends EngineProperties<Timeouts> {
          */
         @Deprecated(since = "10.2.20260614", forRemoval = true)
         public SetProperty dockerCommandTimeout(int value) {
+            setProperty("dockerCommandTimeout", String.valueOf(value));
+            return this;
+        }
+
+        public SetProperty dockerCommandTimeoutSeconds(int value) {
             setProperty("dockerCommandTimeout", String.valueOf(value));
             return this;
         }

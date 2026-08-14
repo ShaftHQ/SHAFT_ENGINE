@@ -172,7 +172,7 @@ public class BidiNetworkActivitySource implements AutoCloseable {
         } catch (RuntimeException e) {
             // new Network(driver) throws for any session that doesn't support/enable BiDi:
             // IllegalArgumentException when the driver doesn't implement HasBiDi at all, or a
-            // BiDiException (via HasBiDi.getBiDi()) when it does but no BiDi connection could be
+            // BiDiException (via the supported BiDi handle) when it does but no connection could be
             // established. Either way: mark unhealthy, log once, never retry for this driver.
             ReportManagerHelper.logDiscrete("BiDi network-activity source unavailable for this driver "
                     + "session; browser-readiness waits will use the JS-only network signal. "

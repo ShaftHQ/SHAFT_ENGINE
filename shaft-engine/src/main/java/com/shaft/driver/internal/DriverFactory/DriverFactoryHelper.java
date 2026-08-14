@@ -286,10 +286,9 @@ public class DriverFactoryHelper {
         return browserNetworkInterceptor;
     }
 
-    @SuppressWarnings("removal")
     private void startBrowserObservability() {
         try {
-            if (driver instanceof HasBiDi hasBiDi && hasBiDi.maybeGetBiDi().isPresent()) {
+            if (driver instanceof HasBiDi hasBiDi && hasBiDi.getHandle() != null) {
                 BidiConsoleLogSource.attach(driver);
             }
             if (driver != null

@@ -20,6 +20,7 @@ import com.shaft.gui.browser.internal.HarReplayRules;
 import com.shaft.gui.browser.internal.JavaScriptWaitManager;
 import com.shaft.gui.browser.internal.ScrollSweepPlanner;
 import com.shaft.gui.capabilities.AutomationBackend;
+import com.shaft.gui.capabilities.internal.AutomationCapabilityResolver;
 import com.shaft.gui.driver.BrowserConsoleMessage;
 import com.shaft.gui.internal.image.ScreenshotManager;
 import com.shaft.gui.internal.locator.LocatorBuilder;
@@ -41,7 +42,6 @@ import io.qameta.allure.Step;
 import org.apache.logging.log4j.Level;
 import org.openqa.selenium.*;
 import org.openqa.selenium.devtools.HasDevTools;
-import org.openqa.selenium.bidi.HasBiDi;
 import org.openqa.selenium.bidi.permissions.PermissionState;
 import org.openqa.selenium.remote.RemoteWebDriver;
 import org.openqa.selenium.remote.http.HttpRequest;
@@ -839,14 +839,12 @@ public class BrowserActions extends FluentWebDriverAction implements com.shaft.g
         }
     }
 
-    @SuppressWarnings("removal")
     private org.openqa.selenium.bidi.module.Permission bidiPermissions(WebDriver driver, String operation) {
         boolean closedRemoteSession = driver instanceof RemoteWebDriver remoteDriver && remoteDriver.getSessionId() == null;
         Capabilities capabilities = driver instanceof HasCapabilities hasCapabilities
                 ? hasCapabilities.getCapabilities() : null;
         Object webSocketUrl = capabilities == null ? null : capabilities.getCapability("webSocketUrl");
-        boolean negotiated = driver instanceof HasBiDi hasBiDi
-                && hasBiDi.maybeGetBiDi().isPresent()
+        boolean negotiated = AutomationCapabilityResolver.hasNegotiatedBiDi(driver)
                 && webSocketUrl instanceof String url && !url.isBlank();
         if (driver instanceof AppiumDriver || closedRemoteSession || !negotiated) {
             throw new UnsupportedOperationException("Browser permissions " + operation

@@ -6,6 +6,7 @@ import com.microsoft.playwright.Page;
 import com.shaft.gui.playwright.internal.PlaywrightSession;
 import com.shaft.gui.capabilities.AutomationFeature;
 import com.shaft.gui.capabilities.internal.AutomationCapabilityResolver;
+import com.shaft.gui.BidiTestSupport;
 import io.appium.java_client.AppiumDriver;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
@@ -151,7 +152,7 @@ public class BrowserPermissionsNamespaceTest {
     }
 
     @Test
-    @SuppressWarnings({"unchecked", "rawtypes", "removal"})
+    @SuppressWarnings({"unchecked", "rawtypes"})
     public void seleniumBiDiShouldGrantForOriginAndClearBackToPrompt() {
         RemoteWebDriver driver = Mockito.mock(RemoteWebDriver.class,
                 Mockito.withSettings().extraInterfaces(HasBiDi.class));
@@ -161,8 +162,7 @@ public class BrowserPermissionsNamespaceTest {
         capabilities.setCapability("webSocketUrl", "ws://localhost/session");
         Mockito.when(driver.getSessionId()).thenReturn(new SessionId("selenium"));
         Mockito.when(driver.getCapabilities()).thenReturn(capabilities);
-        Mockito.when(hasBiDi.maybeGetBiDi()).thenReturn(Optional.of(bidi));
-        Mockito.when(hasBiDi.getBiDi()).thenReturn(bidi);
+        BidiTestSupport.connect(hasBiDi, bidi);
         new com.shaft.gui.browser.BrowserActions(driver, true).permissions()
                 .grantFor("https://example.test", "geolocation");
         new com.shaft.gui.browser.BrowserActions(driver, true).permissions().clear();
@@ -176,7 +176,7 @@ public class BrowserPermissionsNamespaceTest {
     }
 
     @Test
-    @SuppressWarnings({"unchecked", "rawtypes", "removal"})
+    @SuppressWarnings({"unchecked", "rawtypes"})
     public void seleniumGrantAndClearShouldSerializeProviderAndInventoryTransitions() throws Exception {
         RemoteWebDriver driver = Mockito.mock(RemoteWebDriver.class,
                 Mockito.withSettings().extraInterfaces(HasBiDi.class));
@@ -186,8 +186,7 @@ public class BrowserPermissionsNamespaceTest {
         capabilities.setCapability("webSocketUrl", "ws://localhost/session");
         Mockito.when(driver.getSessionId()).thenReturn(new SessionId("serialized"));
         Mockito.when(driver.getCapabilities()).thenReturn(capabilities);
-        Mockito.when(hasBiDi.maybeGetBiDi()).thenReturn(Optional.of(bidi));
-        Mockito.when(hasBiDi.getBiDi()).thenReturn(bidi);
+        BidiTestSupport.connect(hasBiDi, bidi);
         AtomicInteger sends = new AtomicInteger();
         CountDownLatch clearEnteredProvider = new CountDownLatch(1);
         CountDownLatch releaseClear = new CountDownLatch(1);

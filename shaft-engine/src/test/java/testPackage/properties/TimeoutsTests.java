@@ -1,6 +1,7 @@
 package testPackage.properties;
 
 import com.shaft.driver.SHAFT;
+import org.testng.Assert;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
@@ -51,7 +52,7 @@ public class TimeoutsTests {
         apiConnectionManagerTimeout = SHAFT.Properties.timeouts.apiConnectionManagerTimeout();
         shellSessionTimeout = SHAFT.Properties.timeouts.shellSessionTimeout();
         sshServerAliveInterval = SHAFT.Properties.timeouts.sshServerAliveInterval();
-        dockerCommandTimeout = SHAFT.Properties.timeouts.dockerCommandTimeout();
+        dockerCommandTimeout = SHAFT.Properties.timeouts.dockerCommandTimeoutSeconds();
         databaseNetworkTimeout = SHAFT.Properties.timeouts.databaseLoginTimeout();
         databaseLoginTimeout = SHAFT.Properties.timeouts.databaseLoginTimeout();
         databaseQueryTimeout = SHAFT.Properties.timeouts.databaseQueryTimeout();
@@ -60,6 +61,18 @@ public class TimeoutsTests {
         remoteServerInstanceCreationTimeout = SHAFT.Properties.timeouts.remoteServerInstanceCreationTimeout();
         remoteServerConnectionAttemptTimeout = SHAFT.Properties.timeouts.remoteServerConnectionAttemptTimeout();
 
+    }
+
+    @Test
+    public void dockerCommandTimeoutHasSupportedCompatibilityAccessor() {
+        var replacement = java.util.Arrays.stream(SHAFT.Properties.timeouts.getClass().getInterfaces())
+                .flatMap(type -> java.util.Arrays.stream(type.getMethods()))
+                .filter(method -> method.getName().equals("dockerCommandTimeoutSeconds"))
+                .findFirst()
+                .orElse(null);
+
+        Assert.assertNotNull(replacement,
+                "The deprecated Docker timeout must have a supported seconds-based replacement.");
     }
 
     @Test
@@ -82,7 +95,7 @@ public class TimeoutsTests {
         SHAFT.Properties.timeouts.set().apiConnectionManagerTimeout(apiConnectionManagerTimeout);
         SHAFT.Properties.timeouts.set().shellSessionTimeout(shellSessionTimeout);
         SHAFT.Properties.timeouts.set().sshServerAliveInterval(sshServerAliveInterval);
-        SHAFT.Properties.timeouts.set().dockerCommandTimeout(dockerCommandTimeout);
+        SHAFT.Properties.timeouts.set().dockerCommandTimeoutSeconds(dockerCommandTimeout);
         SHAFT.Properties.timeouts.set().databaseNetworkTimeout(databaseNetworkTimeout);
         SHAFT.Properties.timeouts.set().databaseLoginTimeout(databaseLoginTimeout);
         SHAFT.Properties.timeouts.set().databaseQueryTimeout(databaseQueryTimeout);
