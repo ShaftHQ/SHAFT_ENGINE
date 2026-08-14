@@ -96,6 +96,31 @@ class InfrastructureSetupServiceTest {
     }
 
     @Test
+    void builtInCoordinatorProvidesCompleteAndroidPlanIncludingBuildToolsLicense(@TempDir Path temp) {
+        ShaftCachePaths paths = paths(temp);
+        InfrastructureSetupService service = InfrastructureSetupService.builtIn(
+                SetupPlatform.LINUX, SetupArchitecture.X64);
+        SetupOptions options = SetupOptions.defaults(SetupProfile.MOBILE_ANDROID, paths)
+                .withMode(SetupMode.MANAGED);
+
+        assertTrue(service.supports(SetupProfile.MOBILE_ANDROID));
+        SetupPlan plan = service.plan(options);
+
+        assertEquals(SetupProfile.MOBILE_ANDROID, plan.profile());
+        assertEquals(List.of(SetupTarget.NODE, SetupTarget.APPIUM_SERVER,
+                SetupTarget.APPIUM_INSPECTOR_PLUGIN, SetupTarget.APPIUM_UIAUTOMATOR2_DRIVER,
+                SetupTarget.ANDROID_SDK, SetupTarget.ANDROID_EMULATOR), plan.actions().stream()
+                .map(SetupAction::target).toList());
+        assertTrue(plan.actions().stream().allMatch(action -> action.kind() == SetupActionKind.INSTALL));
+        SetupAction androidSdk = plan.actions().get(4);
+        assertTrue(androidSdk.version().contains("build-tools;"),
+                "The reviewed Android package set must bind build-tools so aapt2 is present.");
+        assertTrue(androidSdk.requiredLicenses().contains("android-sdk-license"));
+        assertTrue(Files.notExists(paths.cacheRoot()));
+        assertTrue(Files.notExists(paths.dataRoot()));
+    }
+
+    @Test
     void bundledLighthouseManifestMatchesTheApprovedLock() throws Exception {
         byte[] packageJson;
         byte[] lock;

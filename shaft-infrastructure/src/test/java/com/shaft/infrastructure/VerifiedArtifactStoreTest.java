@@ -15,6 +15,13 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 
 class VerifiedArtifactStoreTest {
     @Test
+    void androidCommandLineToolsHaveATargetSpecificBoundWithoutWeakeningOtherArtifacts() {
+        assertEquals(256L * 1024 * 1024,
+                VerifiedArtifactStore.maximumArtifactBytes(SetupTarget.ANDROID_SDK));
+        assertEquals(128L * 1024 * 1024,
+                VerifiedArtifactStore.maximumArtifactBytes(SetupTarget.NODE));
+    }
+    @Test
     void oversizedArtifactIsRejectedAndTemporaryFileIsRemoved(@TempDir Path temp) throws Exception {
         Path source = temp.resolve("oversized.bin");
         try (var output = Files.newOutputStream(source)) {
