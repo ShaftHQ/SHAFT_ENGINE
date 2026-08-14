@@ -331,6 +331,104 @@ if (-not ($resolverOk -and $queryOk -and $auditOk)) {
 
         self._assert_mandatory_graphify_cli_route(guidance)
 
+    def _assert_graphify_contention_is_a_degraded_continuation(self, files):
+        graphify = re.sub(r"\s+", " ", files["graphify"])
+        retrieval = re.sub(r"\s+", " ", files["retrieval"])
+        entrypoint = re.sub(r"\s+", " ", files["entrypoint"])
+
+        for required in (
+            "The primary checkout is the sole Graphify refresh owner.",
+            "A linked-worktree revision mismatch or an active refresh lock is an expected "
+            "degraded state after G1 through G4, not an implementation blocker.",
+            "must not refresh, wait or retry-loop, clear or replace the lock, freshness "
+            "marker, or cache, or switch, reset, or overwrite the primary checkout",
+            "Continue with native Memory, MemPalace, and targeted live `rg`.",
+            "Only the primary owner may schedule one later refresh when the primary "
+            "checkout and shared cache are uncontested.",
+        ):
+            self.assertIn(required, graphify)
+
+        self.assertIn(
+            "Graphify contention is the narrow exception to implementation waiting",
+            retrieval,
+        )
+        self.assertIn(
+            "a complete degraded Graphify receipt permits implementation to continue",
+            entrypoint,
+        )
+        # This is a closed contract over canonical unsafe permission clauses,
+        # not an attempt to parse unrestricted natural language.
+        unsafe_permission_clause = re.compile(
+            r"\blinked(?:-| )worktrees?\s+"
+            r"(?:may|can|(?:is|are)\s+(?:allowed|permitted)\s+to)\s+"
+            r"(?:refresh|wait|retry(?:-loop)?|"
+            r"(?:clear|replace)(?:\s+or\s+(?:clear|replace))?\s+"
+            r"(?:the\s+)?(?:shared\s+)?"
+            r"(?:refresh\s+lock|lock|freshness\s+marker|cache))\b",
+            flags=re.IGNORECASE,
+        )
+        self.assertIsNone(
+            unsafe_permission_clause.search(graphify),
+            "linked worktrees must not receive permission to mutate or contend for "
+            "shared Graphify state",
+        )
+
+    def test_graphify_contention_degrades_without_shared_state_mutation(self):
+        files = {
+            "graphify": (ROOT / "chaos-engine/references/graphify.md").read_text(
+                encoding="utf-8"
+            ),
+            "retrieval": (
+                ROOT / "chaos-engine/references/retrieve-first.md"
+            ).read_text(encoding="utf-8"),
+            "entrypoint": (
+                ROOT / "chaos-engine/skills/chaos-engine/SKILL.md"
+            ).read_text(encoding="utf-8"),
+        }
+
+        self._assert_graphify_contention_is_a_degraded_continuation(files)
+
+        mutations = {
+            "contradictory linked refresh permission appended": (
+                files["graphify"]
+                + "\nA linked worktree may clear the cache and retry refresh until it succeeds.\n"
+            ),
+            "hyphenated contradictory linked refresh permission appended": (
+                files["graphify"]
+                + "\nA linked-worktree may clear the cache and retry refresh until it succeeds.\n"
+            ),
+            "linked refresh allowed": files["graphify"].replace(
+                "must not refresh, wait or retry-loop",
+                "may refresh or wait and retry-loop",
+            ),
+            "contention blocks implementation": files["graphify"].replace(
+                "not an implementation blocker",
+                "an implementation blocker",
+            ),
+            "primary ownership removed": files["graphify"].replace(
+                "The primary checkout is the sole Graphify refresh owner.",
+                "Any checkout may own a Graphify refresh.",
+            ),
+        }
+        for name, graphify_mutation in mutations.items():
+            with self.subTest(name=name), self.assertRaises(AssertionError):
+                self._assert_graphify_contention_is_a_degraded_continuation(
+                    {**files, "graphify": graphify_mutation}
+                )
+
+        for name, safe_text in {
+            "continue without refresh": (
+                "A linked worktree can continue implementation without refresh."
+            ),
+            "continue while retaining wait prohibition": (
+                "A linked worktree can continue and must not wait."
+            ),
+        }.items():
+            with self.subTest(name=name):
+                self._assert_graphify_contention_is_a_degraded_continuation(
+                    {**files, "graphify": files["graphify"] + "\n" + safe_text + "\n"}
+                )
+
     def test_graphify_cli_route_contract_rejects_bypass_mutations(self):
         guidance = (
             ROOT / "chaos-engine/references/graphify.md"
