@@ -8,6 +8,7 @@ from scripts.ci.validate_quality_configuration import (
     validate_maven_jvm_configuration,
     validate_quality_configuration,
     validate_surefire_jacoco_arg_lines,
+    validate_windows_appium_retry,
     validate_workflow_coverage_policy,
     validate_workflow_readme_inventory,
 )
@@ -75,6 +76,42 @@ def missing_coverage_error(workflow: str, job: str) -> str:
 
 
 class ValidateQualityConfigurationTest(unittest.TestCase):
+    def test_windows_appium_prepares_dependencies_with_retry_then_runs_tests_once(self):
+        workflow = """
+jobs:
+  Windows_Appium_Desktop_Local:
+    steps:
+      - name: Prepare dependencies
+        run: bash scripts/ci/build_retry.sh 2 60 mvn -pl shaft-engine -am -e test "-DskipTests"
+      - name: Run tests
+        run: |
+          Start-Appium
+          mvn -pl shaft-engine -am -e test "-DrunWindowsDesktopE2E=true"
+"""
+
+        self.assertEqual(validate_windows_appium_retry(workflow), [])
+
+    def test_windows_appium_runtime_test_cannot_be_wrapped_for_retry(self):
+        workflow = """
+jobs:
+  Windows_Appium_Desktop_Local:
+    steps:
+      - name: Prepare dependencies
+        run: bash scripts/ci/build_retry.sh 2 60 mvn -pl shaft-engine -am -e test "-DskipTests"
+      - name: Run tests
+        run: |
+          Start-Appium
+          bash scripts/ci/build_retry.sh 2 60 mvn -pl shaft-engine -am -e test "-DrunWindowsDesktopE2E=true"
+"""
+
+        self.assertEqual(
+            validate_windows_appium_retry(workflow),
+            [
+                "e2eLocalTests.yml Windows Appium dependency preparation must use transfer-only retry "
+                "and the runtime test must execute once"
+            ],
+        )
+
     def test_repository_configuration_is_valid(self):
         self.assertEqual(validate_quality_configuration(), [])
 

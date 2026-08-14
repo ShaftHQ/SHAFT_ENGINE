@@ -30,6 +30,8 @@ import org.openqa.selenium.remote.RemoteWebDriver;
 import org.openqa.selenium.remote.SessionId;
 import io.appium.java_client.AppiumDriver;
 import org.testng.Assert;
+import org.testng.annotations.AfterMethod;
+import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 import javax.tools.SimpleJavaFileObject;
@@ -46,6 +48,42 @@ import java.util.stream.Collectors;
 
 @SuppressWarnings("PMD.AvoidAccessibilityAlteration") // Private constructors are exercised as compatibility fixtures.
 public class BrowserEmulationNamespaceTest {
+    private final ThreadLocal<TracePolicy> tracePolicy = new ThreadLocal<>();
+
+    @BeforeMethod(alwaysRun = true)
+    public void isolateTracePolicy() {
+        tracePolicy.set(new TracePolicy(SHAFT.Properties.reporting.traceEnabled(),
+                SHAFT.Properties.reporting.traceIncludeNetwork()));
+        SHAFT.Properties.reporting.set().traceEnabled(false).traceIncludeNetwork(false);
+    }
+
+    @AfterMethod(alwaysRun = true)
+    public void restoreTracePolicy() {
+        TracePolicy saved = tracePolicy.get();
+        tracePolicy.remove();
+        if (saved != null) {
+            SHAFT.Properties.reporting.set().traceEnabled(saved.enabled()).traceIncludeNetwork(saved.network());
+        }
+    }
+
+    @Test
+    public void tracePolicyIsolationShouldRestoreTheCallingThread() {
+        boolean outerEnabled = SHAFT.Properties.reporting.traceEnabled();
+        boolean outerNetwork = SHAFT.Properties.reporting.traceIncludeNetwork();
+        BrowserEmulationNamespaceTest lifecycle = new BrowserEmulationNamespaceTest();
+        try {
+            SHAFT.Properties.reporting.set().traceEnabled(true).traceIncludeNetwork(true);
+            lifecycle.isolateTracePolicy();
+            Assert.assertFalse(SHAFT.Properties.reporting.traceEnabled());
+            Assert.assertFalse(SHAFT.Properties.reporting.traceIncludeNetwork());
+            lifecycle.restoreTracePolicy();
+            Assert.assertTrue(SHAFT.Properties.reporting.traceEnabled());
+            Assert.assertTrue(SHAFT.Properties.reporting.traceIncludeNetwork());
+        } finally {
+            SHAFT.Properties.reporting.set().traceEnabled(outerEnabled).traceIncludeNetwork(outerNetwork);
+        }
+    }
+
     @Test
     public void playwrightContextCreationEmulationPropertiesShouldBeDiscoverable() {
         Set<String> propertyGetters = Arrays.stream(com.shaft.properties.internal.Playwright.class.getMethods())
@@ -549,4 +587,6 @@ public class BrowserEmulationNamespaceTest {
                         "-d", output.toString()), null,
                 List.of(sourceFile)).call());
     }
+
+    private record TracePolicy(boolean enabled, boolean network) { }
 }

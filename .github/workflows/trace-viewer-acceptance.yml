@@ -53,6 +53,13 @@ jobs:
           -Dallure.automaticallyOpen=false
           -Dtelemetry.enabled=false
           test
+      - name: Upload native trace parity coverage
+        if: always()
+        uses: ./.github/actions/upload-jacoco-coverage
+        with:
+          codecov-token: ${{ secrets.CODECOV_TOKEN }}
+          required-files: ./shaft-engine/target/jacoco/jacoco.xml
+          source-id: trace-viewer-native-${{ matrix.browser }}
 
   chromium:
     runs-on: ubuntu-22.04
@@ -72,3 +79,10 @@ jobs:
           -Dallure.automaticallyOpen=false
           -Dtelemetry.enabled=false
           test
+      - name: Upload offline trace viewer coverage
+        if: always()
+        uses: ./.github/actions/upload-jacoco-coverage
+        with:
+          codecov-token: ${{ secrets.CODECOV_TOKEN }}
+          required-files: ./shaft-engine/target/jacoco/jacoco.xml
+          source-id: trace-viewer-offline-chromium
