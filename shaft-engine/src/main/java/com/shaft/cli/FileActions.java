@@ -251,7 +251,7 @@ public class FileActions {
         String targetFilePath = targetFileFolderPath + targetFileName;
         TerminalActions terminalSessionForRemoteMachine = new TerminalActions();
         // fetch file from inside docker to the machine itself
-        if (terminalSession.isDockerizedTerminal()) {
+        if (terminalSession.hasDockerTarget()) {
             terminalSessionForRemoteMachine = new TerminalActions(terminalSession.getSshHostName(),
                     terminalSession.getSshPortNumber(), terminalSession.getSshUsername(),
                     terminalSession.getSshKeyFileFolderName(), terminalSession.getSshKeyFileName());
@@ -294,7 +294,7 @@ public class FileActions {
         // it's already on the local machine so no need to do anything here
 
         // clean temp directory on remote machine
-        if (terminalSession.isDockerizedTerminal() && terminalSession.isRemoteTerminal()) {
+        if (terminalSession.hasDockerTarget() && terminalSession.isRemoteTerminal()) {
             terminalSessionForRemoteMachine.performTerminalCommand("rm -r " + Arrays.toString(pathToTempDirectoryOnRemoteMachine));
         }
 

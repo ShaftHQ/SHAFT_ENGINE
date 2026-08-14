@@ -6,6 +6,7 @@ import com.microsoft.playwright.Page;
 import com.microsoft.playwright.Tracing;
 import com.shaft.driver.SHAFT;
 import com.shaft.gui.capabilities.AutomationBackend;
+import com.shaft.gui.BidiTestSupport;
 import com.shaft.gui.driver.EmulatedColorScheme;
 import com.shaft.gui.driver.EmulatedMediaType;
 import com.shaft.gui.driver.EmulatedReducedMotion;
@@ -107,8 +108,7 @@ public class BrowserEmulationNamespaceTraceTest {
         capabilities.setCapability("webSocketUrl", "ws://bidi.example.test/session");
         Mockito.when(driver.getSessionId()).thenReturn(new SessionId("appium-emulation"));
         Mockito.when(driver.getCapabilities()).thenReturn(capabilities);
-        Mockito.when(driver.maybeGetBiDi()).thenReturn(Optional.of(bidi));
-        Mockito.when(driver.getBiDi()).thenReturn(bidi);
+        Mockito.when(driver.getHandle()).thenReturn(BidiTestSupport.handleFor(bidi));
         Mockito.when(driver.getWindowHandle()).thenReturn("webview-context");
 
         new com.shaft.gui.browser.BrowserActions(driver, true).emulation().location().locale("ar-EG");
@@ -172,8 +172,7 @@ public class BrowserEmulationNamespaceTraceTest {
         AppiumDriver driver = Mockito.mock(AppiumDriver.class);
         Mockito.when(driver.getSessionId()).thenReturn(new SessionId("appium-sensitive-emulation"));
         Mockito.when(driver.getCapabilities()).thenReturn(capabilities);
-        Mockito.when(driver.maybeGetBiDi()).thenReturn(Optional.of(bidi));
-        Mockito.when(driver.getBiDi()).thenReturn(bidi);
+        Mockito.when(driver.getHandle()).thenReturn(BidiTestSupport.handleFor(bidi));
         Mockito.when(driver.getWindowHandle()).thenReturn("WEBVIEW_1");
         Mockito.when(driver.getPageSource()).thenReturn(domEvidence);
 
@@ -236,8 +235,7 @@ public class BrowserEmulationNamespaceTraceTest {
         AppiumDriver driver = Mockito.mock(AppiumDriver.class);
         Mockito.when(driver.getSessionId()).thenReturn(new SessionId("appium-sensitive-success"));
         Mockito.when(driver.getCapabilities()).thenReturn(capabilities);
-        Mockito.when(driver.maybeGetBiDi()).thenReturn(Optional.of(bidi));
-        Mockito.when(driver.getBiDi()).thenReturn(bidi);
+        Mockito.when(driver.getHandle()).thenReturn(BidiTestSupport.handleFor(bidi));
         Mockito.when(driver.getWindowHandle()).thenReturn("WEBVIEW_1");
         Mockito.when(driver.getPageSource()).thenReturn("application rendered " + sensitiveValue);
 
@@ -760,8 +758,7 @@ public class BrowserEmulationNamespaceTraceTest {
         BiDi bidi = Mockito.mock(BiDi.class);
         DevTools devTools = Mockito.mock(DevTools.class);
         Mockito.when(((HasCapabilities) driver).getCapabilities()).thenReturn(capabilities);
-        Mockito.when(((HasBiDi) driver).maybeGetBiDi()).thenReturn(Optional.of(bidi));
-        Mockito.when(((HasBiDi) driver).getBiDi()).thenReturn(bidi);
+        Mockito.when(((HasBiDi) driver).getHandle()).thenReturn(BidiTestSupport.handleFor(bidi));
         Mockito.when(((HasDevTools) driver).maybeGetDevTools()).thenReturn(Optional.of(devTools));
         Mockito.when(((HasDevTools) driver).getDevTools()).thenReturn(devTools);
         Mockito.when(driver.getWindowHandle()).thenReturn("context-1");
@@ -856,8 +853,7 @@ public class BrowserEmulationNamespaceTraceTest {
         WebDriver driver = Mockito.mock(WebDriver.class, Mockito.withSettings()
                 .extraInterfaces(HasBiDi.class, HasCapabilities.class));
         Mockito.when(((HasCapabilities) driver).getCapabilities()).thenReturn(capabilities);
-        Mockito.when(((HasBiDi) driver).maybeGetBiDi()).thenReturn(Optional.of(bidi));
-        Mockito.when(((HasBiDi) driver).getBiDi()).thenReturn(bidi);
+        Mockito.when(((HasBiDi) driver).getHandle()).thenReturn(BidiTestSupport.handleFor(bidi));
         Mockito.when(driver.getWindowHandle()).thenReturn("context-1");
         Mockito.when(driver.getPageSource()).thenReturn(pageSource);
         return driver;
