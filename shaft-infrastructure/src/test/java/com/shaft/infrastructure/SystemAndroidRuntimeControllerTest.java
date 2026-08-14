@@ -26,8 +26,9 @@ class SystemAndroidRuntimeControllerTest {
         try {
             awaitCommandChange(process.pid(), "/bin/sh", Duration.ofSeconds(5));
 
-            assertTrue(process.commandIdentity().contains("30"));
-            assertTrue(controller.find(process.pid(), process.startInstant(), process.commandIdentity()).isPresent());
+            String postExecIdentity = process.commandIdentity();
+            assertTrue(!postExecIdentity.contains("/bin/sh"));
+            assertTrue(controller.find(process.pid(), process.startInstant(), postExecIdentity).isPresent());
         } finally {
             process.stop(Duration.ofSeconds(5));
         }

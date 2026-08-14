@@ -4,6 +4,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 import java.net.HttpURLConnection;
+import java.net.Proxy;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -51,7 +52,7 @@ class VerifiedArtifactMirrorTest {
     }
 
     private static Response request(URI uri, String method) throws Exception {
-        HttpURLConnection connection = (HttpURLConnection) uri.toURL().openConnection();
+        HttpURLConnection connection = (HttpURLConnection) uri.toURL().openConnection(Proxy.NO_PROXY);
         connection.setRequestMethod(method);
         connection.setConnectTimeout(2_000);
         connection.setReadTimeout(2_000);
