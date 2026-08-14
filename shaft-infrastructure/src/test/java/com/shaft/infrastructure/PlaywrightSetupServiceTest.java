@@ -22,6 +22,31 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class PlaywrightSetupServiceTest {
     @Test
+    void separateJvmProcessesConvergeOnOneInstallation(@TempDir Path temp) throws Exception {
+        Path java = Path.of(System.getProperty("java.home"), "bin",
+                SetupPlatform.current() == SetupPlatform.WINDOWS ? "java.exe" : "java");
+        List<String> command = List.of(java.toString(), "-cp", System.getProperty("java.class.path"),
+                PlaywrightSetupProcessProbe.class.getName(), temp.toString());
+        Process first = new ProcessBuilder(command).redirectErrorStream(true).start();
+        Process second = new ProcessBuilder(command).redirectErrorStream(true).start();
+        try {
+            assertTrue(first.waitFor(20, TimeUnit.SECONDS), "first setup process timed out");
+            assertTrue(second.waitFor(20, TimeUnit.SECONDS), "second setup process timed out");
+            String firstOutput = read(first);
+            String secondOutput = read(second);
+            assertEquals(0, first.exitValue(), firstOutput);
+            assertEquals(0, second.exitValue(), secondOutput);
+        } finally {
+            if (first.isAlive()) first.destroyForcibly();
+            if (second.isAlive()) second.destroyForcibly();
+        }
+
+        assertEquals(List.of("installed"), Files.readAllLines(temp.resolve("install-count.txt")));
+        assertTrue(Files.isRegularFile(PlaywrightSetupProcessProbe.paths(temp).receipts()
+                .resolve("playwright.json")));
+    }
+
+    @Test
     void threeJvmWaitersConvergeOnOnePublishedReceipt(@TempDir Path temp) throws Exception {
         ShaftCachePaths paths = paths(temp);
         Path node = Files.writeString(temp.resolve("node.exe"), "node");
@@ -361,5 +386,9 @@ class PlaywrightSetupServiceTest {
         Path data = temp.resolve("data").toAbsolutePath();
         return new ShaftCachePaths(cache, data, cache.resolve("downloads"), data.resolve("tools"),
                 data.resolve("state"), data.resolve("receipts"));
+    }
+
+    private static String read(Process process) throws java.io.IOException {
+        return new String(process.getInputStream().readAllBytes());
     }
 }
