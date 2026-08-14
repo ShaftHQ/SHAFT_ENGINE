@@ -190,12 +190,12 @@ final class DefaultAndroidToolchainOperations implements AndroidToolchainOperati
             Map<String, String> environment = androidEnvironment(staging, avdHome());
             Path log = logFile();
             Files.createDirectories(log.getParent());
-            requireSuccess(run(List.of(sdkManager.toString(), "--sdk_root=" + staging, "--licenses"), staging,
-                    "y\n".repeat(80), log, Duration.ofMinutes(5), environment),
-                    "Android SDK license acceptance failed");
             List<String> command = new ArrayList<>(List.of(sdkManager.toString(), "--sdk_root=" + staging));
             command.addAll(sdkPackages());
-            requireSuccess(run(command, staging, null, log, Duration.ofMinutes(30), environment),
+            // The reviewed plan binds the one stable Android SDK license required by this exact package set.
+            // Feed consent only to that package-scoped install; `sdkmanager --licenses` would accept unrelated
+            // repository licenses that were never present in the approved plan.
+            requireSuccess(run(command, staging, "y\n", log, Duration.ofMinutes(30), environment),
                     "Android SDK package installation failed");
             requireSdkFiles(staging);
             requireSdkTools(staging);

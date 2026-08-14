@@ -311,12 +311,18 @@ class AndroidSetupServiceTest {
         AndroidSetupRequest request = new AndroidSetupRequest(36, "pixel_8", "google_apis", "x86_64",
                 "integration_avd", 4096, 2, 4723);
         List<List<String>> commands = new ArrayList<>();
+        List<String> sdkPackageInputs = new ArrayList<>();
         AndroidCommandRunner runner = (command, workingDirectory, environment, removed, input, log, timeout) -> {
             commands.add(List.copyOf(command));
             int prefix = command.indexOf("--prefix");
             if (command.contains("ci") && prefix >= 0) createAppiumFixture(Path.of(command.get(prefix + 1)));
             if (command.stream().anyMatch(part -> part.contains("sdkmanager"))
-                    && !command.contains("--licenses")) createSdkFixture(workingDirectory);
+                    && !command.contains("--licenses")) {
+                createSdkFixture(workingDirectory);
+                if (command.stream().anyMatch(part -> part.startsWith("system-images;"))) {
+                    sdkPackageInputs.add(input);
+                }
+            }
             int avdPath = command.indexOf("--path");
             if (command.stream().anyMatch(part -> part.contains("avdmanager")) && avdPath >= 0) {
                 Path root = Path.of(command.get(avdPath + 1));
@@ -360,7 +366,8 @@ class AndroidSetupServiceTest {
         assertEquals(SetupReadiness.READY, service.status().readiness());
         assertTrue(Files.isRegularFile(paths.tools().resolve("android-sdk/15859902-api36-x86_64/"
                 + "build-tools/36.0.0/aapt2.exe")));
-        assertTrue(commands.stream().anyMatch(command -> command.contains("--licenses")));
+        assertTrue(commands.stream().noneMatch(command -> command.contains("--licenses")));
+        assertEquals(List.of("y\n"), sdkPackageInputs);
         assertTrue(commands.stream().anyMatch(command -> command.contains("build-tools;36.0.0")));
         assertTrue(commands.stream().anyMatch(command -> command.contains("--list_installed")));
         assertTrue(commands.stream().anyMatch(command -> command.stream().anyMatch(part -> part.endsWith("aapt2.exe"))
