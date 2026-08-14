@@ -24,7 +24,7 @@ import org.openqa.selenium.HasCapabilities;
 import org.openqa.selenium.MutableCapabilities;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.bidi.HasBiDi;
-import org.openqa.selenium.bidi.BiDi;
+import org.openqa.selenium.bidi.Handle;
 import org.openqa.selenium.devtools.HasDevTools;
 import org.openqa.selenium.logging.Logs;
 import org.openqa.selenium.remote.SessionId;
@@ -40,7 +40,6 @@ import static org.mockito.Mockito.when;
 public class AutomationCapabilityResolverUnitTest {
 
     @Test
-    @SuppressWarnings("removal")
     public void seleniumShouldRequireNegotiatedProtocolObjectsInsteadOfCapabilityNames() {
         boolean originalBiDi = SHAFT.Properties.platform.enableBiDi();
         try {
@@ -53,7 +52,7 @@ public class AutomationCapabilityResolverUnitTest {
             WebDriver driver = mock(WebDriver.class, withSettings().extraInterfaces(
                     HasCapabilities.class, HasBiDi.class, HasDevTools.class));
             when(((HasCapabilities) driver).getCapabilities()).thenReturn(rawCapabilities);
-            when(((HasBiDi) driver).maybeGetBiDi()).thenReturn(Optional.of(mock(BiDi.class)));
+            when(((HasBiDi) driver).getHandle()).thenReturn(mock(Handle.class));
             when(((HasDevTools) driver).maybeGetDevTools()).thenReturn(Optional.empty());
 
             AutomationCapabilities capabilities = AutomationCapabilityResolver.forWebDriver(driver);
@@ -143,7 +142,7 @@ public class AutomationCapabilityResolverUnitTest {
         capabilities.setCapability("webSocketUrl", "ws://bidi.example.test/session");
         when(driver.getSessionId()).thenReturn(new SessionId("appium-dual-console"));
         when(driver.getCapabilities()).thenReturn(capabilities);
-        when(driver.maybeGetBiDi()).thenReturn(Optional.of(mock(BiDi.class)));
+        when(driver.getHandle()).thenReturn(mock(Handle.class));
         WebDriver.Options options = mock(WebDriver.Options.class);
         Logs logs = mock(Logs.class);
         when(driver.manage()).thenReturn(options);
@@ -260,7 +259,6 @@ public class AutomationCapabilityResolverUnitTest {
     }
 
     @Test
-    @SuppressWarnings("removal")
     public void appiumShouldExposeBiDiOnlyWhenTheLiveChannelIsNegotiated() {
         boolean originalBiDi = SHAFT.Properties.platform.enableBiDi();
         try {
@@ -270,12 +268,12 @@ public class AutomationCapabilityResolverUnitTest {
             rawCapabilities.setCapability("webSocketUrl", "ws://localhost/appium/session/1");
             when(android.getSessionId()).thenReturn(new SessionId("live-appium-bidi"));
             when(android.getCapabilities()).thenReturn(rawCapabilities);
-            when(android.maybeGetBiDi()).thenReturn(Optional.empty());
+            when(android.getHandle()).thenReturn(null);
 
             Assert.assertFalse(AutomationCapabilityResolver.forWebDriver(android)
                     .supports(AutomationFeature.BIDI));
 
-            when(android.maybeGetBiDi()).thenReturn(Optional.of(mock(BiDi.class)));
+            when(android.getHandle()).thenReturn(mock(Handle.class));
             Assert.assertTrue(AutomationCapabilityResolver.forWebDriver(android)
                     .supports(AutomationFeature.BIDI));
         } finally {

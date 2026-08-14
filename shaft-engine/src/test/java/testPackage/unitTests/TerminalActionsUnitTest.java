@@ -47,7 +47,7 @@ public class TerminalActionsUnitTest {
         TerminalActions terminal = new TerminalActions();
         Assert.assertFalse(terminal.isRemoteTerminal(),
                 "Default terminal should not be remote");
-        Assert.assertFalse(terminal.isDockerizedTerminal(),
+        Assert.assertTrue(terminal.getDockerName().isEmpty(),
                 "Default terminal should not be dockerized");
     }
 
@@ -56,7 +56,7 @@ public class TerminalActionsUnitTest {
         TerminalActions terminal = new TerminalActions(true);
         Assert.assertFalse(terminal.isRemoteTerminal(),
                 "Async terminal should not be remote");
-        Assert.assertFalse(terminal.isDockerizedTerminal(),
+        Assert.assertTrue(terminal.getDockerName().isEmpty(),
                 "Async terminal should not be dockerized");
     }
 
@@ -66,7 +66,7 @@ public class TerminalActionsUnitTest {
         TerminalActions terminal = new TerminalActions("myContainer", "root");
         Assert.assertFalse(terminal.isRemoteTerminal(),
                 "Docker terminal should not be remote");
-        Assert.assertTrue(terminal.isDockerizedTerminal(),
+        Assert.assertFalse(terminal.getDockerName().isEmpty(),
                 "Docker terminal should be dockerized");
         Assert.assertEquals(terminal.getDockerName(), "myContainer",
                 "Docker name should match constructor argument");
@@ -80,7 +80,7 @@ public class TerminalActionsUnitTest {
                 "host.example.com", 22, "user", "/keys/", "id_rsa");
         Assert.assertTrue(terminal.isRemoteTerminal(),
                 "SSH terminal should be remote");
-        Assert.assertFalse(terminal.isDockerizedTerminal(),
+        Assert.assertTrue(terminal.getDockerName().isEmpty(),
                 "SSH terminal should not be dockerized");
         Assert.assertEquals(terminal.getSshHostName(), "host.example.com",
                 "SSH host name should match");
@@ -102,7 +102,7 @@ public class TerminalActionsUnitTest {
                 "appContainer", "appUser");
         Assert.assertTrue(terminal.isRemoteTerminal(),
                 "Combined terminal should be remote");
-        Assert.assertTrue(terminal.isDockerizedTerminal(),
+        Assert.assertFalse(terminal.getDockerName().isEmpty(),
                 "Combined terminal should be dockerized");
         Assert.assertEquals(terminal.getSshHostName(), "host.example.com");
         Assert.assertEquals(terminal.getSshPortNumber(), 2222);
@@ -117,7 +117,7 @@ public class TerminalActionsUnitTest {
         TerminalActions terminal = TerminalActions.getInstance();
         Assert.assertNotNull(terminal, "getInstance() should return a non-null instance");
         Assert.assertFalse(terminal.isRemoteTerminal());
-        Assert.assertFalse(terminal.isDockerizedTerminal());
+        Assert.assertTrue(terminal.getDockerName().isEmpty());
     }
 
     @Test(description = "getInstance(boolean) should return a non-null terminal")
@@ -334,7 +334,7 @@ public class TerminalActionsUnitTest {
     @Test(description = "isDockerizedTerminal should be false when dockerName is empty")
     public void isDockerizedTerminalShouldBeFalseWhenDockerNameEmpty() {
         TerminalActions terminal = new TerminalActions();
-        Assert.assertFalse(terminal.isDockerizedTerminal(),
+        Assert.assertTrue(terminal.getDockerName().isEmpty(),
                 "Terminal with empty docker name should not be dockerized");
     }
 

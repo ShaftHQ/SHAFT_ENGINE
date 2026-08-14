@@ -613,7 +613,7 @@ jobs:
           distribution: "zulu"
           check-latest: true
       - name: Set up Maven
-        uses: stCarolas/setup-maven@v5
+        uses: stCarolas/setup-maven@v5.1
         with:
           maven-version: 3.9.5
       # pr-gate has no earlier install step for this module set, unlike the
@@ -787,7 +787,7 @@ jobs:
           distribution: 'zulu'
           check-latest: true
       - name: Set up Maven
-        uses: stCarolas/setup-maven@v5
+        uses: stCarolas/setup-maven@v5.1
         with:
           maven-version: 3.9.12
       - name: Run template-coupled shaft-mcp tests

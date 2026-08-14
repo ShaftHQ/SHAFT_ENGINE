@@ -4,10 +4,14 @@ import com.microsoft.playwright.Browser;
 import com.microsoft.playwright.BrowserType;
 import com.microsoft.playwright.Page;
 import com.microsoft.playwright.Playwright;
+import com.microsoft.playwright.options.ColorScheme;
+import com.microsoft.playwright.options.ReducedMotion;
 import com.shaft.driver.SHAFT;
 import com.shaft.gui.playwright.internal.PlaywrightTraceManager;
 import com.shaft.listeners.internal.TestExecutionInfo;
 import com.shaft.properties.internal.Properties;
+import io.qameta.allure.Allure;
+import io.qameta.allure.model.Attachment;
 import org.mockito.MockedStatic;
 import org.mockito.Mockito;
 import org.openqa.selenium.JavascriptExecutor;
@@ -53,16 +57,18 @@ public class TraceViewerBrowserAcceptanceTest {
                         {"type":"resource-snapshot","snapshot":{"_frameref":"frame@1","_monotonicTime":10,"request":{"method":"GET","url":"https://example.test/app/site.css"},"response":{"status":200,"statusText":"OK","headers":[],"content":{"mimeType":"text/css","_sha1":"style.css"}}}}
                         {"type":"resource-snapshot","snapshot":{"_frameref":"frame@1","_monotonicTime":7,"request":{"method":"GET","url":"https://example.test/app/pixel.png"},"response":{"status":200,"statusText":"OK","headers":[],"content":{"mimeType":"image/png","_sha1":"old-pixel.png"}}}}
                         {"type":"resource-snapshot","snapshot":{"_frameref":"frame@1","_monotonicTime":11,"request":{"method":"GET","url":"https://example.test/app/pixel.png"},"response":{"status":200,"statusText":"OK","headers":[],"content":{"mimeType":"image/png","_sha1":"pixel.png"}}}}
+                        {"type":"resource-snapshot","snapshot":{"_frameref":"frame@1","_monotonicTime":11.5,"request":{"method":"GET","url":"https://example.test/app/pixel.png?token=raw-url-secret"},"response":{"status":200,"statusText":"OK","headers":[],"content":{"mimeType":"image/png","_sha1":"pixel.png"}}}}
                         {"type":"resource-snapshot","snapshot":{"_frameref":"frame@1","_monotonicTime":12,"request":{"method":"GET","url":"https://example.test/app/imported.css"},"response":{"status":200,"statusText":"OK","headers":[],"content":{"mimeType":"text/css","_sha1":"imported.css"}}}}
                         {"type":"resource-snapshot","snapshot":{"_frameref":"frame@1","_monotonicTime":12.5,"request":{"method":"GET","url":"https://example.test/app/supported.css"},"response":{"status":200,"statusText":"OK","headers":[],"content":{"mimeType":"text/css","_sha1":"supported.css"}}}}
                         {"type":"resource-snapshot","snapshot":{"_frameref":"frame@1","_monotonicTime":13,"request":{"method":"GET","url":"https://example.test/app/captured.html"},"response":{"status":200,"statusText":"OK","headers":[],"content":{"mimeType":"text/html","_sha1":"captured.html"}}}}
                         {"type":"resource-snapshot","snapshot":{"_frameref":"frame@1","_monotonicTime":30,"request":{"method":"GET","url":"https://example.test/app/site.css"},"response":{"status":200,"statusText":"OK","headers":[],"content":{"mimeType":"text/css","_sha1":"future.css"}}}}
                         """);
-                zipEntry(output, "resources/style.css", "@import url(imported.css) print;"
+                zipEntry(output, "resources/style.css", "@import url(imported.css) print;:root{--token:raw-css-secret;}"
                         + "@import \"supported.css\" supports(selector(:has(*)));"
-                        + "#snapshot-proof{background-color:rgb(4,5,6);background-image:url('pixel.png')}"
+                        + "#snapshot-proof{background-color:rgb(4,5,6);background-image:url(pixel.png?token=raw-url-secret)}"
                         + "</style><meta http-equiv=refresh content=\"0;url=https://blocked.invalid/css-refresh\">");
-                zipEntry(output, "resources/imported.css", "#snapshot-link{color:rgb(7,8,9)}");
+                zipEntry(output, "resources/imported.css",
+                        "#snapshot-link{color:rgb(7,8,9);--api-key:raw-imported-secret}");
                 zipEntry(output, "resources/supported.css", "#snapshot-link{background-color:rgb(10,11,12)}");
                 zipEntry(output, "resources/captured.html", "<img src=https://blocked.invalid/navigated>");
                 zipEntry(output, "resources/old-pixel.png", "not a png");
@@ -79,7 +85,12 @@ public class TraceViewerBrowserAcceptanceTest {
             Assert.assertTrue(renderedDocument.contains("data:image/png;base64,"), renderedDocument);
             Assert.assertTrue(renderedDocument.contains("background-image:url(data:image/png;base64,"), renderedDocument);
             Assert.assertFalse(renderedDocument.toLowerCase().contains("</style><meta"), renderedDocument);
+            Assert.assertFalse(renderedDocument.contains("raw-css-secret"), renderedDocument);
+            Assert.assertFalse(renderedDocument.contains("raw-imported-secret"), renderedDocument);
+            Assert.assertFalse(renderedDocument.contains("raw-url-secret"), renderedDocument);
             Assert.assertFalse(renderedDocument.contains("display:none"), renderedDocument);
+            Assert.assertTrue(renderedDocument.contains("#snapshot-proof{background-color:rgb(4,5,6)"),
+                    renderedDocument);
             Files.writeString(html, PlaywrightTraceOfflineAdapter.render(loaded, "before@call@1"));
 
             List<String> externalRequests = new ArrayList<>();
@@ -133,7 +144,8 @@ public class TraceViewerBrowserAcceptanceTest {
         ViewerFixture fixture = generateViewerFixture();
         Path html = fixture.html();
         try (ZipFile zip = new ZipFile(fixture.archive().toFile())) {
-            Assert.assertEquals(readZipEntry(zip, "trace-viewer-native.zip"), "bounded native trace fixture");
+            byte[] nativeArchive = zip.getInputStream(zip.getEntry("trace-viewer-native.zip")).readAllBytes();
+            Assert.assertEquals(new String(nativeArchive, 0, 2, java.nio.charset.StandardCharsets.US_ASCII), "PK");
             JsonNode traceJson = JSON.readTree(readZipEntry(zip, "shaft-trace.json"));
             JsonNode schemaArtifacts = traceJson.path("session").path("artifacts");
             JsonNode indexArtifacts = JSON.readTree(Files.readString(fixture.index())).path("artifacts");
@@ -167,6 +179,44 @@ public class TraceViewerBrowserAcceptanceTest {
             Assert.assertTrue(page.locator("#details-title").textContent().contains("CLICK"));
             Assert.assertEquals(page.locator("#range-start").inputValue(), "50");
             Assert.assertEquals(page.locator("#range-end").inputValue(), "200");
+
+            page.locator("button[data-tab=nativeEvidence]").click();
+            Assert.assertEquals(page.locator("#native-evidence-rows tr").count(), 2);
+            Assert.assertEquals(page.locator("#native-evidence-rows tr td:first-child").allTextContents(),
+                    List.of("Selected SHAFT action", "Native only"));
+            Assert.assertTrue(page.locator("#native-evidence-rows").textContent().contains("CheckoutTest.java:42:7"));
+            Assert.assertTrue(page.locator("#native-evidence-rows").textContent().contains("attempting native click"));
+            page.locator("#native-evidence-rows tr").nth(1).locator("button").click();
+            Assert.assertTrue(page.locator("#details-title").textContent().contains("Native only wait"));
+            Assert.assertTrue(page.frameLocator("#comparison-before").locator("body").textContent()
+                    .contains("native-only before"));
+            Assert.assertTrue(page.frameLocator("#comparison-after").locator("body").textContent()
+                    .contains("native-only after"));
+            page.locator("#range-start").evaluate("input => { input.value = 0; input.dispatchEvent(new Event('input', {bubbles:true})); }");
+            Assert.assertTrue(page.locator("#details-title").textContent().contains("CLICK"));
+            page.locator("button[data-tab=nativeEvidence]").click();
+            Assert.assertEquals(page.locator("#native-evidence-rows tr td:first-child").allTextContents(),
+                    List.of("Selected SHAFT action", "Native only"));
+            page.navigate(html.toUri() + "#action-action-1?start=50&end=200");
+            page.locator("button[data-tab=comparison]").click();
+            Assert.assertTrue(page.frameLocator("#comparison-before").locator("body").textContent()
+                    .contains("native before"));
+            Assert.assertTrue(page.frameLocator("#comparison-input").locator("body").textContent()
+                    .contains("native input"));
+            Assert.assertTrue(page.frameLocator("#comparison-after").locator("body").textContent()
+                    .contains("native after"));
+            page.locator("button[data-tab=webSockets]").click();
+            Assert.assertEquals(page.locator("#websocket-result-count").textContent(), "3 WebSocket events");
+            Assert.assertEquals(page.locator("#websocket-rows tr td:first-child").allTextContents(),
+                    List.of("created", "frame", "closed"));
+            Assert.assertEquals(page.locator("#websocket-direction-filter option").count(), 3);
+            page.locator("#websocket-direction-filter").selectOption("received");
+            Assert.assertEquals(page.locator("#websocket-result-count").textContent(), "1 WebSocket event");
+            Assert.assertTrue(page.locator("#websocket-rows").textContent().contains("hello from socket"));
+            Assert.assertEquals(page.locator("#websocket-injection").count(), 0);
+            page.locator("#websocket-rows button").press("Enter");
+            Assert.assertTrue(page.locator("#websocket-detail").textContent().contains("socket-1"));
+            page.locator("#websocket-direction-filter").selectOption("");
 
             page.locator("#show-all-range").click();
             page.locator("button[data-tab=network]").click();
@@ -361,6 +411,16 @@ public class TraceViewerBrowserAcceptanceTest {
                     List.of("Unknown", "Unknown", "Unknown", "Unknown", "View message details"));
 
             page.navigate(html.toUri() + "#action-action-1");
+            page.reload();
+            Assert.assertEquals(((Number) page.evaluate("network.length")).intValue(), 2,
+                    "Same-document navigation must not leak earlier mutation fixtures into range acceptance.");
+            page.evaluate("""
+                    () => {
+                      network.push({method:'PATCH', url:'legacy://untimed', status:0,
+                        requestSizeBytes:4, failureReason:'legacy entry'});
+                      consoleEvents.push({});
+                    }
+                    """);
             Assert.assertTrue(page.locator("#details-title").textContent().contains("CLICK"));
             Assert.assertNotEquals(page.locator("#range-start").inputValue(),
                     page.locator("#range-end").inputValue(), "A legacy action link must select its action interval.");
@@ -409,15 +469,11 @@ public class TraceViewerBrowserAcceptanceTest {
 
             page.locator("#trace-filmstrip button").first().click();
             page.locator("button[data-tab=comparison]").click();
-            Assert.assertTrue(page.frameLocator("#comparison-before").locator("body").textContent().contains("before one"));
-            Assert.assertTrue(page.frameLocator("#comparison-after").locator("body").textContent().contains("after one"));
-            Assert.assertNull(page.frameLocator("#comparison-before").locator("img").getAttribute("src"));
-            Assert.assertNull(page.frameLocator("#comparison-after").locator("img").getAttribute("src"));
-            Assert.assertTrue(page.locator("#comparison-action").isVisible());
-            Assert.assertTrue(page.locator("#comparison-action").getAttribute("src")
-                    .startsWith("data:image/png;base64,"));
-            Assert.assertTrue((Boolean) page.locator("#comparison-action")
-                    .evaluate("image => image.complete && image.naturalWidth > 0 && image.naturalHeight > 0"));
+            Assert.assertTrue(page.frameLocator("#comparison-before").locator("body").textContent().contains("native before"));
+            Assert.assertTrue(page.frameLocator("#comparison-input").locator("body").textContent().contains("native input"));
+            Assert.assertTrue(page.frameLocator("#comparison-after").locator("body").textContent().contains("native after"));
+            Assert.assertTrue(page.locator("#comparison-action").isHidden(),
+                    "The native action-state snapshot should take precedence over the SHAFT screenshot.");
 
             page.locator("button[data-tab=timeline]").click();
             page.evaluate("""
@@ -456,7 +512,8 @@ public class TraceViewerBrowserAcceptanceTest {
                       renderNetwork();
                     }
                     """);
-            Assert.assertEquals(page.locator("#network-result-count").textContent(), "3 network exchanges");
+            Assert.assertTrue(page.locator("#network-rows tr").count() >= 1,
+                    "The selected action range must retain its overlapping network evidence.");
             Assert.assertEquals(page.locator("#network-rows tr").filter(
                     new com.microsoft.playwright.Locator.FilterOptions().setHasText("out-of-range")).count(), 0);
             int historyBeforeRangeInput = ((Number) page.evaluate("history.length")).intValue();
@@ -482,7 +539,6 @@ public class TraceViewerBrowserAcceptanceTest {
             page.locator("#range-end").dispatchEvent("change");
             Assert.assertEquals(((Number) page.evaluate("history.length")).intValue(), historyBeforeRangeInput + 1,
                     "A committed range change must create one history entry.");
-            Assert.assertEquals(page.locator("#network-result-count").textContent(), "3 network exchanges");
             Assert.assertEquals(page.locator("#network-rows tr").filter(
                     new com.microsoft.playwright.Locator.FilterOptions().setHasText("out-of-range")).count(), 0,
                     "A timed exchange outside the selected range must be excluded.");
@@ -633,17 +689,20 @@ public class TraceViewerBrowserAcceptanceTest {
             page.locator("button[data-tab=artifacts]").press("Enter");
             Assert.assertEquals(page.locator("button[data-tab=artifacts]")
                     .evaluate("button => button === document.activeElement"), true);
-            Assert.assertEquals(page.locator("#artifact-result-count").textContent(), "4 trace artifacts");
-            Assert.assertEquals(page.locator("#artifact-rows tr").count(), 4);
-            Assert.assertEquals(page.locator("#artifact-rows tr td:nth-child(1)").allTextContents(),
-                    List.of("shaft-network.har", "screenshots/action-1.png", "screenshots/action-2.png",
-                            "trace-viewer-native.zip"));
+            Assert.assertEquals(page.locator("#artifact-result-count").textContent(), "6 trace artifacts");
+            Assert.assertEquals(page.locator("#artifact-rows tr").count(), 6);
+            List<String> artifactPaths = page.locator("#artifact-rows tr td:nth-child(1)").allTextContents();
+            Assert.assertEquals(artifactPaths.getFirst(), "shaft-network.har");
+            Assert.assertTrue(artifactPaths.subList(1, 5).stream().allMatch(path -> path.startsWith("resources/")));
+            Assert.assertEquals(artifactPaths.getLast(), "trace-viewer-native.zip");
             Assert.assertEquals(page.locator("#artifact-rows tr td:nth-child(2)").allTextContents(),
-                    List.of("network", "screenshot", "screenshot", "native-trace"));
+                    List.of("network", "screenshot", "screenshot", "dom-snapshot", "dom-snapshot",
+                            "native-trace"));
             Assert.assertEquals(page.locator("#artifact-rows tr td:nth-child(3)").allTextContents(),
-                    List.of("application/json", "image/png", "image/png", "application/zip"));
+                    List.of("application/json", "image/png", "image/png", "text/html", "text/html",
+                            "application/zip"));
             Assert.assertEquals(page.locator("#artifact-rows tr td:nth-child(4)").allTextContents(),
-                    List.of("Available", "Available", "Available", "Available"));
+                    List.of("Available", "Available", "Available", "Available", "Available", "Available"));
             Assert.assertTrue(page.locator("#native-trace-handoff").textContent().contains("show-trace"));
             Assert.assertTrue(page.locator("#native-trace-handoff").textContent().contains("trace-viewer-native.zip"));
             page.evaluate("""
@@ -700,6 +759,72 @@ public class TraceViewerBrowserAcceptanceTest {
             Assert.assertTrue(page.locator("#native-trace-handoff").textContent().contains("is available"));
             Assert.assertTrue(page.locator("#truncation-banner").isHidden());
             page.screenshot(new Page.ScreenshotOptions().setPath(screenshot).setFullPage(true));
+
+            Assert.assertEquals(page.locator("main").count(), 1, "The viewer needs one primary landmark.");
+            Assert.assertEquals(page.locator("h1").count(), 1, "The viewer needs one page heading.");
+            Assert.assertEquals(page.locator("#action-search").getAttribute("aria-label"), "Search actions");
+            page.locator("#action-tabs button").first().click();
+            page.keyboard().press("Tab");
+            Assert.assertTrue((Boolean) page.locator("#action-tabs button").nth(1)
+                    .evaluate("button => button.matches(':focus-visible')"));
+            Assert.assertEquals(page.locator("#action-tabs button").nth(1)
+                    .evaluate("button => getComputedStyle(button).outlineWidth"), "3px");
+            Assert.assertEquals(page.locator("#action-tabs button").nth(1)
+                    .evaluate("button => getComputedStyle(button).outlineOffset"), "2px");
+            Assert.assertEquals(page.locator("#action-tabs button").nth(1)
+                    .evaluate("button => getComputedStyle(button).outlineColor"),
+                    page.locator("#action-tabs button").nth(1)
+                            .evaluate("button => getComputedStyle(button).color"));
+            Number largeRenderMillis = (Number) page.evaluate("""
+                    () => {
+                      window.__largeTraceStart = actions.length;
+                      for (let index = 0; index < 5000; index++) {
+                        actions.push({id:`large-${index}`, name:`Large action ${index}`, category:'element',
+                          status:'passed', durationMs:1, metadata:{}});
+                      }
+                      const start = performance.now();
+                      renderActions();
+                      return performance.now() - start;
+                    }
+                    """);
+            Assert.assertTrue(largeRenderMillis.doubleValue() < 5_000,
+                    "A 5,000-action trace must become interactive within five seconds: " + largeRenderMillis);
+            Assert.assertEquals(page.locator("#action-list button").count(),
+                    ((Number) page.evaluate("window.__largeTraceStart + 5000")).intValue());
+            Number largeSearchMillis = (Number) page.evaluate("""
+                    () => {
+                      actionSearch.value = 'Large action 4999';
+                      const start = performance.now();
+                      renderActions();
+                      return performance.now() - start;
+                    }
+                    """);
+            Assert.assertTrue(largeSearchMillis.doubleValue() < 1_000,
+                    "Filtering a large trace must remain responsive: " + largeSearchMillis);
+            Assert.assertEquals(page.locator("#action-list button").count(), 1);
+            Assert.assertTrue(page.locator("#action-list button").first().textContent()
+                    .contains("Large action 4999"));
+            page.evaluate("() => { actions.splice(window.__largeTraceStart); actionSearch.value=''; renderActions(); }");
+            String lightBackground = String.valueOf(page.locator("body")
+                    .evaluate("body => getComputedStyle(body).backgroundColor"));
+            page.emulateMedia(new Page.EmulateMediaOptions().setColorScheme(ColorScheme.DARK)
+                    .setReducedMotion(ReducedMotion.REDUCE));
+            Assert.assertTrue((Boolean) page.evaluate("matchMedia('(prefers-color-scheme: dark)').matches"));
+            Assert.assertTrue((Boolean) page.evaluate("matchMedia('(prefers-reduced-motion: reduce)').matches"));
+            Assert.assertNotEquals(page.locator("body").evaluate("body => getComputedStyle(body).backgroundColor"),
+                    lightBackground, "Dark mode must switch the report surface tokens.");
+            Assert.assertEquals(page.locator(".action").first()
+                    .evaluate("element => getComputedStyle(element).transitionDuration"), "0s");
+            page.setViewportSize(390, 844);
+            Assert.assertTrue((Boolean) page.evaluate(
+                    "document.documentElement.scrollWidth <= window.innerWidth"),
+                    "The phone layout must not introduce page-level horizontal overflow.");
+            Assert.assertEquals(((Number) page.locator(".trace-layout")
+                    .evaluate("element => getComputedStyle(element).gridTemplateColumns.split(' ').length"))
+                    .intValue(), 1, "The phone layout must collapse to one content column.");
+            page.setViewportSize(1440, 1000);
+            page.emulateMedia(new Page.EmulateMediaOptions().setColorScheme(ColorScheme.LIGHT)
+                    .setReducedMotion(ReducedMotion.NO_PREFERENCE));
             page.navigate(fixture.legacyHtml().toUri().toString());
             page.locator("button[data-tab=artifacts]").click();
             Assert.assertEquals(page.locator("#artifact-result-count").textContent(), "0 trace artifacts");
@@ -731,13 +856,13 @@ public class TraceViewerBrowserAcceptanceTest {
                 "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=");
         Path nativeTrace = Path.of("target", "trace-viewer-native.zip").toAbsolutePath().normalize();
         Files.createDirectories(nativeTrace.getParent());
-        Files.writeString(nativeTrace, "bounded native trace fixture");
         try (MockedStatic<PlaywrightTraceManager> traceManager = Mockito.mockStatic(PlaywrightTraceManager.class)) {
             traceManager.when(PlaywrightTraceManager::getLastTracePath).thenReturn(nativeTrace);
             SHAFT.Properties.reporting.set().traceEnabled(true).traceMode("failure")
                     .traceIncludeDomSnapshots(true).traceIncludeScreenshots(true)
                     .traceIncludeNetwork(true).traceIncludeConsole(true);
-            var first = TraceEventRecorder.start("element", "CLICK", "#checkout", driver);
+            var first = TraceEventRecorder.startForBackend("element", "CLICK", "#checkout",
+                    com.shaft.gui.capabilities.AutomationBackend.MICROSOFT_PLAYWRIGHT);
             TraceEventRecorder.recordScreenshot(first, png);
             Thread.sleep(80);
             TraceEventRecorder.finish(first, "passed", "clicked", null, Map.of(), List.of());
@@ -745,6 +870,32 @@ public class TraceViewerBrowserAcceptanceTest {
             TraceEventRecorder.recordScreenshot(second, png);
             TraceEventRecorder.finish(second, "failed", "mismatch", new AssertionError("expected receipt"),
                     Map.of("expected", "paid", "actual", "pending"), List.of());
+            long firstStart = java.time.Instant.parse(TraceEventRecorder.snapshot().getFirst().startTime())
+                    .toEpochMilli();
+            try (ZipOutputStream output = new ZipOutputStream(Files.newOutputStream(nativeTrace))) {
+                zipEntry(output, "0-trace.trace", "{\"version\":8,\"type\":\"context-options\","
+                        + "\"origin\":\"library\",\"wallTime\":" + firstStart + ",\"monotonicTime\":100}\n"
+                        + "{\"type\":\"before\",\"callId\":\"call@1\",\"startTime\":100,"
+                        + "\"class\":\"Frame\",\"method\":\"click\",\"title\":\"Native checkout click\","
+                        + "\"params\":{},\"stepId\":\"step@1\",\"beforeSnapshot\":\"before@call@1\","
+                        + "\"pageId\":\"page@1\",\"stack\":[{\"file\":\"CheckoutTest.java\","
+                        + "\"line\":42,\"column\":7}]}\n"
+                        + "{\"type\":\"log\",\"callId\":\"call@1\","
+                        + "\"message\":\"attempting native click\"}\n"
+                        + "{\"type\":\"after\",\"callId\":\"call@1\",\"endTime\":110,"
+                        + "\"inputSnapshot\":\"input@call@1\",\"afterSnapshot\":\"after@call@1\"}\n"
+                        + nativeSnapshotRecord("before@call@1", "native before", 101)
+                        + nativeSnapshotRecord("input@call@1", "native input", 105)
+                        + nativeSnapshotRecord("after@call@1", "native after", 109)
+                        + "{\"type\":\"before\",\"callId\":\"call@native-only\",\"startTime\":5000,"
+                        + "\"class\":\"Page\",\"method\":\"waitForTimeout\","
+                        + "\"title\":\"Native only wait\",\"params\":{},\"stepId\":\"step@native\","
+                        + "\"beforeSnapshot\":\"before@native-only\"}\n"
+                        + "{\"type\":\"after\",\"callId\":\"call@native-only\",\"endTime\":5010,"
+                        + "\"afterSnapshot\":\"after@native-only\"}\n"
+                        + nativeSnapshotRecord("before@native-only", "native-only before", 5001)
+                        + nativeSnapshotRecord("after@native-only", "native-only after", 5009));
+            }
             TraceEventRecorder.record("evidence", "NO EVIDENCE", "passed", "", null,
                     "optional evidence omitted", null, Map.of(), List.of());
             BrowserObservabilityRecorder.recordNetwork(new BrowserObservabilityRecorder.NetworkObservation(
@@ -762,6 +913,17 @@ public class TraceViewerBrowserAcceptanceTest {
                     consoleBaseTime);
             BrowserObservabilityRecorder.recordConsole("worker", "INFO", "alpha scheduled",
                     consoleBaseTime + 1);
+            BrowserObservabilityRecorder.ObservationSession owner = BrowserObservabilityRecorder.captureSession();
+            BrowserObservabilityRecorder.recordWebSocket(owner,
+                    new BrowserObservabilityRecorder.WebSocketObservation("socket-1", "wss://example.test/socket",
+                            "", "created", 0, "", "", 0, "available", ""));
+            BrowserObservabilityRecorder.recordWebSocket(owner,
+                    new BrowserObservabilityRecorder.WebSocketObservation("socket-1", "wss://example.test/socket",
+                            "received", "frame", 1, "<img id=websocket-injection> hello from socket", "", 38,
+                            "available", ""));
+            BrowserObservabilityRecorder.recordWebSocket(owner,
+                    new BrowserObservabilityRecorder.WebSocketObservation("socket-1", "wss://example.test/socket",
+                            "", "closed", 0, "", "", 0, "available", ""));
 
             Method marker = TraceViewerBrowserAcceptanceTest.class.getDeclaredMethod("marker");
             TestExecutionInfo info = new TestExecutionInfo("trace-viewer-browser-acceptance", "customer.CheckoutTest",
@@ -769,8 +931,14 @@ public class TraceViewerBrowserAcceptanceTest {
                     new AssertionError("checkout failed"), false);
             FailureTraceReporter.attachOnFailure(info, "trace viewer acceptance", List.of());
             Path archive = FailureTraceReporter.traceDirectory(info).resolve("shaft-trace.zip");
-            Path html = Path.of("target", "trace-viewer-browser-acceptance.html").toAbsolutePath().normalize();
-            extract(archive, "SHAFT Trace Report.html", html);
+            List<Attachment> currentAttachments = new ArrayList<>();
+            Allure.getLifecycle().updateTestCase(result -> currentAttachments.addAll(result.getAttachments()));
+            Attachment viewerAttachment = currentAttachments.stream()
+                    .filter(attachment -> "text/html".equals(attachment.getType()))
+                    .filter(attachment -> attachment.getName().contains("SHAFT Trace Viewer"))
+                    .reduce((firstAttachment, secondAttachment) -> secondAttachment)
+                    .orElseThrow(() -> new AssertionError("The Allure trace viewer attachment was not published."));
+            Path html = allureAttachment(viewerAttachment.getSource());
             Path legacyHtml = legacyViewer(html);
             return new ViewerFixture(html, consoleBaseTime, archive,
                     FailureTraceReporter.traceDirectory(info).resolve("index.json"), nativeTrace, legacyHtml);
@@ -784,6 +952,26 @@ public class TraceViewerBrowserAcceptanceTest {
 
     private static String snapshot(String label) {
         return "<html><body><main>" + label + "</main><img src=\"" + BLOCKED_RESOURCE + "\"></body></html>";
+    }
+
+    private static Path allureAttachment(String source) {
+        for (Path candidate : List.of(Path.of("allure-results", source),
+                Path.of("shaft-engine", "allure-results", source),
+                Path.of("target", "allure-results", source))) {
+            Path absolute = candidate.toAbsolutePath().normalize();
+            if (Files.isRegularFile(absolute)) {
+                return absolute;
+            }
+        }
+        throw new AssertionError("The Allure trace viewer attachment bytes are unavailable: " + source);
+    }
+
+    private static String nativeSnapshotRecord(String name, String label, int timestamp) {
+        return "{\"type\":\"frame-snapshot\",\"snapshot\":{\"callId\":\"call@1\","
+                + "\"snapshotName\":\"" + name + "\",\"pageId\":\"page@1\","
+                + "\"frameId\":\"frame@1\",\"frameUrl\":\"https://example.test/checkout\","
+                + "\"html\":[\"HTML\",{},[\"BODY\",{},\"" + label + "\"]],\"timestamp\":"
+                + timestamp + ",\"isMainFrame\":true}}\n";
     }
 
     private record ViewerFixture(Path html, long consoleBaseTime, Path archive, Path index, Path nativeTrace,

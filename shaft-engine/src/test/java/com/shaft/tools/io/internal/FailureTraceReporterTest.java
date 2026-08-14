@@ -8,6 +8,8 @@ import com.shaft.gui.browser.internal.BrowserNetworkInterceptor;
 import com.shaft.gui.capabilities.AutomationBackend;
 import com.shaft.gui.internal.locator.LocatorHealthReporter;
 import com.shaft.gui.playwright.internal.PlaywrightTraceManager;
+import com.shaft.gui.playwright.internal.PlaywrightSession;
+import com.shaft.gui.playwright.internal.PlaywrightSessionManager;
 import com.shaft.listeners.internal.TestExecutionInfo;
 import com.shaft.properties.internal.Properties;
 import com.shaft.tools.io.trace.TraceArtifactReference;
@@ -60,6 +62,32 @@ import java.util.zip.ZipEntry;
 @Test(singleThreaded = true)
 public class FailureTraceReporterTest {
     private static final ObjectMapper JSON = new ObjectMapper();
+
+    @Test(description = "The runtime Playwright engine should win over stale configured browser names")
+    public void attachedPlaywrightSessionShouldReportRuntimeBrowserType() throws Exception {
+        var session = Mockito.mock(PlaywrightSession.class);
+        var browser = Mockito.mock(com.microsoft.playwright.Browser.class);
+        var browserType = Mockito.mock(com.microsoft.playwright.BrowserType.class);
+        Mockito.when(session.browser()).thenReturn(browser);
+        Mockito.when(browser.browserType()).thenReturn(browserType);
+        Mockito.when(browserType.name()).thenReturn("firefox");
+        SHAFT.Properties.playwright.set().browserName("chromium");
+        SHAFT.Properties.reporting.set().traceEnabled(true);
+
+        try (MockedStatic<PlaywrightSessionManager> sessions = Mockito.mockStatic(PlaywrightSessionManager.class)) {
+            sessions.when(PlaywrightSessionManager::currentSession).thenReturn(session);
+            sessions.when(PlaywrightSessionManager::currentPage).thenReturn(null);
+
+            JsonNode root = JSON.readTree(FailureTraceReporter.renderTraceJson(
+                    info("attachedPlaywrightRuntimeBrowser", failure()), "log", List.of()));
+
+            Assert.assertEquals(root.path("environment").path("browser").asText(), "firefox");
+        } finally {
+            TraceEventRecorder.clear();
+            BrowserObservabilityRecorder.clear();
+            Properties.clearForCurrentThread();
+        }
+    }
 
     @Test(description = "Configured artifact MiB values should convert without integer overflow")
     public void configuredArtifactBudgetShouldUseLongArithmetic() {
@@ -1747,15 +1775,34 @@ public class FailureTraceReporterTest {
                         + "\"wallTime\":" + actionStart + ",\"monotonicTime\":100}\n"
                         + "{\"type\":\"before\",\"callId\":\"call@1\",\"startTime\":100,"
                         + "\"class\":\"Frame\",\"method\":\"click\",\"title\":\"Click Save\","
-                        + "\"params\":{},\"stepId\":\"step@1\",\"beforeSnapshot\":\"before@call@1\"}\n"
+                        + "\"params\":{},\"stepId\":\"step@1\",\"beforeSnapshot\":\"before@call@1\","
+                        + "\"stack\":[{\"file\":\"CheckoutTest.java\",\"line\":42,\"column\":7}]}\n"
                         + "{\"type\":\"log\",\"callId\":\"call@1\",\"message\":\"attempting click\"}\n"
                         + "{\"type\":\"after\",\"callId\":\"call@1\",\"endTime\":110,"
-                        + "\"afterSnapshot\":\"after@call@1\"}\n");
+                        + "\"inputSnapshot\":\"input@call@1\",\"afterSnapshot\":\"after@call@1\","
+                        + "\"error\":{\"message\":\"button moved\"}}\n"
+                        + "{\"type\":\"frame-snapshot\",\"snapshot\":{\"callId\":\"call@1\","
+                        + "\"snapshotName\":\"before@call@1\",\"pageId\":\"page@1\","
+                        + "\"frameId\":\"frame@1\",\"frameUrl\":\"https://example.test/checkout\","
+                        + "\"html\":[\"HTML\",{},[\"BODY\",{},[\"BUTTON\",{\"id\":\"save\"},"
+                        + "\"Save before\"],[\"INPUT\",{\"type\":\"password\","
+                        + "\"__playwright_value_\":\"raw-native-password\"}]]],"
+                        + "\"timestamp\":101,\"isMainFrame\":true}}\n"
+                        + "{\"type\":\"frame-snapshot\",\"snapshot\":{\"callId\":\"call@1\","
+                        + "\"snapshotName\":\"input@call@1\",\"pageId\":\"page@1\","
+                        + "\"frameId\":\"frame@1\",\"frameUrl\":\"https://example.test/checkout\","
+                        + "\"html\":[\"HTML\",{},[\"BODY\",{},\"Save input\"]],"
+                        + "\"timestamp\":105,\"isMainFrame\":true}}\n"
+                        + "{\"type\":\"frame-snapshot\",\"snapshot\":{\"callId\":\"call@1\","
+                        + "\"snapshotName\":\"after@call@1\",\"pageId\":\"page@1\","
+                        + "\"frameId\":\"frame@1\",\"frameUrl\":\"https://example.test/checkout\","
+                        + "\"html\":[\"HTML\",{},[\"BODY\",{},\"Save after\"]],"
+                        + "\"timestamp\":109,\"isMainFrame\":true}}\n");
         try (MockedStatic<PlaywrightTraceManager> traceManager = Mockito.mockStatic(PlaywrightTraceManager.class);
-             MockedStatic<PlaywrightTraceImporter> importer = Mockito.mockStatic(PlaywrightTraceImporter.class,
+             MockedStatic<PlaywrightTraceArchiveLoader> loader = Mockito.mockStatic(PlaywrightTraceArchiveLoader.class,
                      Mockito.CALLS_REAL_METHODS)) {
             traceManager.when(PlaywrightTraceManager::getLastTracePath).thenReturn(archive);
-            importer.when(() -> PlaywrightTraceImporter.importTrace(Mockito.any(Path.class), Mockito.anyList()))
+            loader.when(() -> PlaywrightTraceArchiveLoader.load(Mockito.any(Path.class)))
                     .thenAnswer(invocation -> {
                         Files.deleteIfExists(archive);
                         return invocation.callRealMethod();
@@ -1770,6 +1817,27 @@ public class FailureTraceReporterTest {
             Assert.assertEquals(playwright.path("actions").get(0).path("callId").asText(), "call@1");
             Assert.assertEquals(playwright.path("actions").get(0).path("logs").get(0).asText(),
                     "attempting click");
+            Assert.assertEquals(playwright.path("actions").get(0).path("source").asText(),
+                    "CheckoutTest.java:42:7");
+            Assert.assertEquals(playwright.path("actions").get(0).path("sourceStatus").asText(), "available");
+            Assert.assertTrue(playwright.path("actions").get(0).path("sourceReason").asText().isEmpty());
+            Assert.assertEquals(playwright.path("actions").get(0).path("error").asText(), "button moved");
+            Assert.assertEquals(playwright.path("snapshots").size(), 3, root.toPrettyString());
+            Assert.assertEquals(playwright.path("snapshotOmission").path("status").asText(), "available");
+            Assert.assertEquals(playwright.path("snapshotOmission").path("omittedCount").asInt(), 0);
+            Assert.assertEquals(playwright.path("snapshots").path("before@call@1").path("status").asText(),
+                    "available", root.toPrettyString());
+            Assert.assertEquals(playwright.path("snapshots").path("before@call@1").path("fidelity").asText(),
+                    "native-offline", root.toPrettyString());
+            Assert.assertTrue(playwright.path("snapshots").path("before@call@1").path("content").asText()
+                    .contains("Save before"), root.toPrettyString());
+            Assert.assertFalse(root.toString().contains("raw-native-password"), root.toPrettyString());
+            Assert.assertTrue(playwright.path("snapshots").path("before@call@1").path("content").asText()
+                    .contains("value=\"********\""), root.toPrettyString());
+            Assert.assertTrue(playwright.path("snapshots").path("input@call@1").path("content").asText()
+                    .contains("Save input"), root.toPrettyString());
+            Assert.assertTrue(playwright.path("snapshots").path("after@call@1").path("content").asText()
+                    .contains("Save after"), root.toPrettyString());
             Assert.assertEquals(playwright.path("correlations").size(), 1, root.toPrettyString());
             Assert.assertEquals(playwright.path("correlations").get(0).path("shaftActionId").asText(), "action-1");
             Assert.assertEquals(playwright.path("correlations").get(0).path("playwrightCallId").asText(), "call@1");
@@ -1778,6 +1846,8 @@ public class FailureTraceReporterTest {
             Assert.assertEquals(root.path("session").path("schemaVersion").asText(), "2.0");
             Assert.assertEquals(root.path("session").path("events").get(0).path("metadata")
                     .path("playwrightCallId").asText(), "call@1");
+            Assert.assertFalse(root.path("session").path("events").get(0).path("metadata")
+                    .has("playwrightSnapshot"), root.toPrettyString());
             traceManager.verify(PlaywrightTraceManager::getLastTracePath, Mockito.times(1));
             Assert.assertFalse(Files.exists(archive),
                     "The original generation must be removable after manifest staging and before import.");
@@ -1785,6 +1855,68 @@ public class FailureTraceReporterTest {
             Files.deleteIfExists(archive);
             TraceEventRecorder.clear();
             Properties.clearForCurrentThread();
+        }
+    }
+
+    @Test(description = "Native snapshot fan-out should stop at the reconstruction ceiling with an explicit receipt")
+    public void nativeSnapshotFanOutShouldRemainBoundedAndExplicit() throws Exception {
+        SHAFT.Properties.reporting.set().traceEnabled(true);
+        StringBuilder records = new StringBuilder(
+                "{\"version\":8,\"type\":\"context-options\",\"origin\":\"library\","
+                        + "\"wallTime\":10000,\"monotonicTime\":100}\n");
+        for (int index = 0; index < 17; index++) {
+            String callId = "call@" + index;
+            String snapshotName = "before@" + callId;
+            records.append("{\"type\":\"before\",\"callId\":\"").append(callId)
+                    .append("\",\"startTime\":").append(100 + index)
+                    .append(",\"class\":\"Frame\",\"method\":\"click\",\"title\":\"Click\","
+                            + "\"params\":{},\"stepId\":\"step@").append(index)
+                    .append("\",\"beforeSnapshot\":\"").append(snapshotName).append("\"}\n")
+                    .append("{\"type\":\"after\",\"callId\":\"").append(callId)
+                    .append("\",\"endTime\":").append(101 + index).append("}\n")
+                    .append("{\"type\":\"frame-snapshot\",\"snapshot\":{\"callId\":\"")
+                    .append(callId).append("\",\"snapshotName\":\"").append(snapshotName)
+                    .append("\",\"pageId\":\"page@1\",\"frameId\":\"frame@1\","
+                            + "\"frameUrl\":\"https://example.test/\",\"html\":[\"HTML\",{},"
+                            + "[\"BODY\",{},\"bounded\"]],\"timestamp\":")
+                    .append(100 + index).append(",\"isMainFrame\":true}}\n");
+        }
+        Path archive = PlaywrightTraceTestFixtures.writeTrace(records.toString());
+        try (MockedStatic<PlaywrightTraceManager> traceManager = Mockito.mockStatic(PlaywrightTraceManager.class)) {
+            traceManager.when(PlaywrightTraceManager::getLastTracePath).thenReturn(archive);
+            String json = FailureTraceReporter.renderTraceJson(info("snapshotFanOut", failure()), "log", List.of());
+            JsonNode playwright = JSON.readTree(json).path("evidence").path("playwright");
+            Assert.assertEquals(playwright.path("status").asText(), "available", json);
+            Assert.assertEquals(playwright.path("snapshots").size(), 16, json);
+            Assert.assertEquals(playwright.path("snapshotOmission").path("status").asText(), "omitted-budget");
+            Assert.assertEquals(playwright.path("snapshotOmission").path("omittedCount").asInt(), 1);
+            Assert.assertTrue(json.getBytes(java.nio.charset.StandardCharsets.UTF_8).length <= 512 * 1024,
+                    "Private Playwright evidence must stay inside its aggregate report budget.");
+        } finally {
+            Files.deleteIfExists(archive);
+            TraceEventRecorder.clear();
+            Properties.clearForCurrentThread();
+        }
+    }
+
+    @Test(description = "An oversized native snapshot model should report budget omission for every request")
+    public void oversizedNativeSnapshotModelShouldRemainExplicit() throws Exception {
+        StringBuilder records = new StringBuilder(
+                "{\"version\":8,\"type\":\"context-options\",\"origin\":\"library\"}\n");
+        String padding = "x".repeat(1024 * 1024);
+        for (int index = 0; index < 9; index++) {
+            records.append("{\"type\":\"noop\",\"padding\":\"").append(padding).append("\"}\n");
+        }
+        Path archive = PlaywrightTraceTestFixtures.writeTrace(records.toString());
+        try {
+            Map<String, PlaywrightTraceOfflineAdapter.SnapshotDocument> documents =
+                    PlaywrightTraceOfflineAdapter.snapshotDocuments(
+                            PlaywrightTraceArchiveLoader.load(archive), List.of("before@call@1"), 128 * 1024);
+
+            Assert.assertEquals(documents.get("before@call@1").status(), "omitted-budget");
+            Assert.assertTrue(documents.get("before@call@1").content().isEmpty());
+        } finally {
+            Files.deleteIfExists(archive);
         }
     }
 

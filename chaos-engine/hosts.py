@@ -10,7 +10,9 @@ import json
 import os
 import re
 import secrets
+import shutil
 import stat
+import subprocess  # nosec B404 - probes a resolved local Java executable.
 from pathlib import Path
 
 
@@ -20,6 +22,14 @@ ACTIVE_ANCHOR_PREFIX = ".chaos-engine-hosts.active-"
 REMOVING_ANCHOR_PREFIX = ".chaos-engine-hosts.removing-"
 ANCHOR_TOKEN = re.compile(r"^[0-9a-f]{64}$")
 SCHEMA_VERSION = 1
+MAVEN_TOOLS_MCP_VERSION = "3.2.0"
+MAVEN_TOOLS_MCP_COMMIT = "4475ff6c61f23ea9a93cb6d5665a63235ef2ef36"
+MAVEN_TOOLS_MCP_RECEIPT = "install-receipt.json"
+MAVEN_TOOLS_MCP_PROFILE = "docker,no-context7"
+LEGACY_MAVEN_TOOLS_SERVER = {
+    "command": "docker",
+    "args": ["run", "-i", "--rm", "arvindand/maven-tools-mcp:3.2.0"],
+}
 START = "<!-- CHAOSENGINE:START -->"
 END = "<!-- CHAOSENGINE:END -->"
 DIRECTORY_MARKER = ".chaos-engine-owned-directory"
@@ -37,9 +47,101 @@ def interpreter(platform_name: str | None = None) -> tuple[str, list[str]]:
     return ("py", ["-3"]) if platform_name == "nt" else ("python3", [])
 
 
-def owned_servers(platform_name: str | None = None) -> dict[str, dict[str, object]]:
+def java_major(java: Path) -> int | None:
+    try:
+        result = subprocess.run(  # nosec B603 - executable is resolved before use.
+            [str(java), "-version"],
+            capture_output=True,
+            text=True,
+            timeout=10,
+            check=False,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return None
+    match = re.search(r'version "(?P<major>\d+)', result.stderr + result.stdout)
+    return int(match.group("major")) if match else None
+
+
+def verified_maven_tools_jar(candidate: Path) -> Path | None:
+    if not candidate.is_file() or is_link_or_reparse(candidate):
+        return None
+    jar = candidate.resolve()
+    receipt_path = jar.parent / MAVEN_TOOLS_MCP_RECEIPT
+    if not receipt_path.is_file() or is_link_or_reparse(receipt_path):
+        return None
+    try:
+        receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError):
+        return None
+    try:
+        digest = hashlib.sha256(jar.read_bytes()).hexdigest()
+    except OSError:
+        return None
+    expected = {
+        "version": MAVEN_TOOLS_MCP_VERSION,
+        "commit": MAVEN_TOOLS_MCP_COMMIT,
+        "jar": jar.name,
+        "sha256": digest,
+    }
+    return jar if receipt == expected else None
+
+
+def discover_maven_tools_runtime() -> tuple[Path, Path] | None:
+    configured_jar = os.environ.get("CHAOSENGINE_MAVEN_TOOLS_MCP_JAR")
+    configured_data_root = os.environ.get(
+        "LOCALAPPDATA" if os.name == "nt" else "XDG_DATA_HOME", ""
+    )
+    data_root = Path(configured_data_root or Path.home() / ".local/share")
+    jar_candidates = [
+        Path(configured_jar).expanduser() if configured_jar else None,
+        data_root
+        / "ChaosEngine/tools/maven-tools-mcp"
+        / MAVEN_TOOLS_MCP_VERSION
+        / f"maven-tools-mcp-{MAVEN_TOOLS_MCP_VERSION}.jar",
+    ]
+    jar = next(
+        (
+            verified
+            for candidate in jar_candidates
+            if candidate is not None
+            for verified in (verified_maven_tools_jar(candidate),)
+            if verified is not None
+        ),
+        None,
+    )
+    if jar is None:
+        return None
+
+    configured_java = os.environ.get("CHAOSENGINE_JAVA")
+    java_home = os.environ.get("JAVA_HOME")
+    path_java = shutil.which("java")
+    java_candidates = [
+        Path(configured_java).expanduser() if configured_java else None,
+        Path(java_home) / "bin" / ("java.exe" if os.name == "nt" else "java")
+        if java_home
+        else None,
+        Path(path_java) if path_java else None,
+    ]
+    for candidate in java_candidates:
+        if candidate is None or not candidate.is_file():
+            continue
+        try:
+            resolved = candidate.resolve(strict=True)
+        except OSError:
+            continue
+        if is_link_or_reparse(resolved):
+            continue
+        if java_major(resolved) == 25:
+            return resolved, jar
+    return None
+
+
+def owned_servers(
+    platform_name: str | None = None,
+    maven_runtime: tuple[Path, Path] | None = None,
+) -> dict[str, dict[str, object]]:
     command, prefix = interpreter(platform_name)
-    return {
+    servers: dict[str, dict[str, object]] = {
         "chaosengine-memory": {
             "command": command,
             "args": [*prefix, ".chaos-engine/tool.py", "memory-mcp"],
@@ -52,6 +154,17 @@ def owned_servers(platform_name: str | None = None) -> dict[str, dict[str, objec
             "env": {"MEMPALACE_EMBEDDING_MODEL": "minilm"},
         },
     }
+    if maven_runtime is not None:
+        java, jar = maven_runtime
+        servers["maven-tools-mcp"] = {
+            "command": str(java),
+            "args": [
+                "-jar",
+                str(jar),
+                f"--spring.profiles.active={MAVEN_TOOLS_MCP_PROFILE}",
+            ],
+        }
+    return servers
 
 
 def managed_paths() -> tuple[str, ...]:
@@ -295,7 +408,9 @@ def instruction_content(before: bytes | None, instruction: str) -> bytes:
     return (existing + separator + instruction).encode()
 
 
-def json_content(before: bytes | None) -> bytes:
+def json_content(
+    before: bytes | None, maven_runtime: tuple[Path, Path] | None = None
+) -> bytes:
     try:
         value = json.loads(before.decode("utf-8")) if before is not None else {}
     except (UnicodeDecodeError, json.JSONDecodeError) as error:
@@ -305,18 +420,35 @@ def json_content(before: bytes | None) -> bytes:
     servers = value.setdefault("mcpServers", {})
     if not isinstance(servers, dict):
         raise ValueError("invalid MCP server configuration")
-    for name, desired in owned_servers().items():
+    if servers.get("maven-tools-mcp") == LEGACY_MAVEN_TOOLS_SERVER:
+        del servers["maven-tools-mcp"]
+    for name, desired in owned_servers(maven_runtime=maven_runtime).items():
         if name in servers and servers[name] != desired:
             raise ValueError(f"ChaosEngine MCP server collision: {name}")
         servers[name] = desired
     return (json.dumps(value, indent=2, sort_keys=True) + "\n").encode()
 
 
-def codex_content(before: bytes | None, platform_name: str | None = None) -> bytes:
+def codex_content(
+    before: bytes | None,
+    platform_name: str | None = None,
+    maven_runtime: tuple[Path, Path] | None = None,
+) -> bytes:
     try:
         existing = before.decode("utf-8") if before is not None else ""
     except UnicodeDecodeError as error:
         raise ValueError("invalid Codex configuration") from error
+    legacy_blocks = (
+        '[mcp_servers.maven-tools-mcp]\ncommand = "docker"\n'
+        'args = ["run", "-i", "--rm", "arvindand/maven-tools-mcp:3.2.0"]\n'
+        "required = false\n",
+        '[mcp_servers."maven-tools-mcp"]\ncommand = "docker"\n'
+        'args = ["run", "-i", "--rm", "arvindand/maven-tools-mcp:3.2.0"]\n'
+        "required = false\n",
+    )
+    for legacy in legacy_blocks:
+        for newline_variant in (legacy, legacy.replace("\n", "\r\n")):
+            existing = existing.replace(newline_variant, "")
     command, prefix = interpreter(platform_name)
     prefix_text = '"-3", ' if prefix else ""
     block = (
@@ -327,18 +459,34 @@ def codex_content(before: bytes | None, platform_name: str | None = None) -> byt
         f'args = [{prefix_text}".chaos-engine/tool.py", "mempalace-mcp"]\ncwd = ".."\n'
         'env = { MEMPALACE_EMBEDDING_MODEL = "minilm" }\n# CHAOSENGINE:END\n'
     )
+    if maven_runtime is not None:
+        java, jar = maven_runtime
+        block = block.replace(
+            "# CHAOSENGINE:END\n",
+            "\n"
+            '[mcp_servers."maven-tools-mcp"]\n'
+            f"command = {json.dumps(str(java))}\n"
+            f'args = ["-jar", {json.dumps(str(jar))}, '
+            f'"--spring.profiles.active={MAVEN_TOOLS_MCP_PROFILE}"]\n'
+            "# CHAOSENGINE:END\n",
+        )
     if "# CHAOSENGINE:START" in existing or "# CHAOSENGINE:END" in existing:
         if block not in existing:
             raise ValueError("ChaosEngine Codex configuration collision")
-        return before  # type: ignore[return-value]
-    for name in owned_servers():
+        return existing.encode()
+    for name in owned_servers(maven_runtime=maven_runtime):
         if f'mcp_servers."{name}"' in existing or f"mcp_servers.{name}" in existing:
             raise ValueError(f"ChaosEngine Codex server collision: {name}")
     separator = "\n" if existing and not existing.endswith("\n") else ""
     return (existing + separator + block).encode()
 
 
-def desired_content(before: dict[str, bytes | None]) -> dict[str, bytes]:
+def desired_content(
+    before: dict[str, bytes | None],
+    maven_runtime: tuple[Path, Path] | None | bool = False,
+) -> dict[str, bytes]:
+    if maven_runtime is False:
+        maven_runtime = discover_maven_tools_runtime()
     adapters = managed_paths()[:4]
     skill = (
         "---\nname: chaos-engine\ndescription: Load the canonical installed ChaosEngine before every task.\n---\n\n"
@@ -351,9 +499,13 @@ def desired_content(before: dict[str, bytes | None]) -> dict[str, bytes]:
         before[".github/copilot-instructions.md"],
         INSTRUCTION.replace(".chaos-engine/", "../.chaos-engine/"),
     )
-    after[".mcp.json"] = json_content(before[".mcp.json"])
-    after[".gemini/settings.json"] = json_content(before[".gemini/settings.json"])
-    after[".codex/config.toml"] = codex_content(before[".codex/config.toml"])
+    after[".mcp.json"] = json_content(before[".mcp.json"], maven_runtime)
+    after[".gemini/settings.json"] = json_content(
+        before[".gemini/settings.json"], maven_runtime
+    )
+    after[".codex/config.toml"] = codex_content(
+        before[".codex/config.toml"], maven_runtime=maven_runtime
+    )
     return after
 
 
