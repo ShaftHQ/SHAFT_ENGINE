@@ -64,7 +64,7 @@ final class VerifiedArtifactMirror implements AutoCloseable {
     }
 
     URI baseUri() {
-        return URI.create("http://127.0.0.1:" + server.getAddress().getPort() + '/');
+        return URI.create("http://127.0.0.1:" + server.getAddress().getPort());
     }
 
     private void handle(HttpExchange exchange) throws IOException {
@@ -79,7 +79,8 @@ final class VerifiedArtifactMirror implements AutoCloseable {
                 exchange.sendResponseHeaders(404, -1);
                 return;
             }
-            Path artifact = artifacts.get(request.getRawPath());
+            String rawPath = canonicalRequestPath(request);
+            Path artifact = artifacts.get(rawPath);
             if (artifact == null) {
                 exchange.sendResponseHeaders(404, -1);
                 return;
@@ -97,6 +98,15 @@ final class VerifiedArtifactMirror implements AutoCloseable {
                 input.transferTo(output);
             }
         }
+    }
+
+    static String canonicalRequestPath(URI request) {
+        String rawPath = request.getRawPath();
+        if (request.getScheme() == null && request.getRawAuthority() != null) {
+            rawPath = '/' + request.getRawAuthority() + rawPath;
+        }
+        if (rawPath.startsWith("//") && !rawPath.startsWith("///")) return rawPath.substring(1);
+        return rawPath;
     }
 
     @Override
