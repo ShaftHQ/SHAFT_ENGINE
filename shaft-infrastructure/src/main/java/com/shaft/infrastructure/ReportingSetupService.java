@@ -18,13 +18,12 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.ReentrantLock;
-import java.util.zip.ZipEntry;
-import java.util.zip.ZipInputStream;
 
 /** Managed, release-pinned lifecycle for the REPORTING profile. */
 public final class ReportingSetupService {
@@ -235,6 +234,14 @@ public final class ReportingSetupService {
 
     static ProcessResult runProcess(List<String> command, Path log, Duration timeout,
                                     Path cacheRoot, Path nodeRoot, Path workingDirectory) throws IOException {
+        return runProcess(command, log, timeout, cacheRoot, nodeRoot, workingDirectory,
+                Map.of(), Set.of(), null);
+    }
+
+    static ProcessResult runProcess(List<String> command, Path log, Duration timeout,
+                                    Path cacheRoot, Path nodeRoot, Path workingDirectory,
+                                    Map<String, String> environment,
+                                    Set<String> removedEnvironment, String standardInput) throws IOException {
         ProcessBuilder builder = new ProcessBuilder(command).redirectErrorStream(true);
         if (workingDirectory != null) builder.directory(workingDirectory.toFile());
         String nodeBin = Files.isRegularFile(nodeRoot.resolve("node.exe"))
@@ -242,7 +249,22 @@ public final class ReportingSetupService {
         builder.environment().put("PATH", nodeBin + java.io.File.pathSeparator
                 + builder.environment().getOrDefault("PATH", ""));
         builder.environment().put("npm_config_cache", cacheRoot.resolve("npm").toString());
+        removedEnvironment.forEach(builder.environment()::remove);
+        builder.environment().putAll(environment);
         Process process = builder.start();
+        try {
+            if (standardInput != null) {
+                process.getOutputStream().write(standardInput.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            }
+            process.getOutputStream().close();
+        } catch (IOException inputFailure) {
+            try {
+                destroyProcessTree(process);
+            } catch (IOException cleanupFailure) {
+                inputFailure.addSuppressed(cleanupFailure);
+            }
+            throw inputFailure;
+        }
         long deadlineNanos = System.nanoTime() + timeout.toNanos();
         InputStream input = process.getInputStream();
         var outputFuture = java.util.concurrent.CompletableFuture.supplyAsync(() -> {
@@ -458,36 +480,71 @@ public final class ReportingSetupService {
     }
 
     private static void extractZip(Path archive, Path destination) throws IOException {
-        try (ZipInputStream input = new ZipInputStream(Files.newInputStream(archive))) {
-            for (ZipEntry entry; (entry = input.getNextEntry()) != null;) {
-                Path target = archiveTarget(destination, entry.getName());
-                if (target == null) continue;
-                if (entry.isDirectory()) Files.createDirectories(target);
-                else {
-                    Files.createDirectories(target.getParent());
-                    Files.copy(input, target);
+        Path expanded = Files.createTempDirectory(destination.getParent(), "node.zip-");
+        try {
+            SafeZipExtractor.extract(archive, expanded);
+            List<Path> roots;
+            try (var stream = Files.list(expanded)) {
+                roots = stream.toList();
+            }
+            if (roots.size() != 1 || !Files.isDirectory(roots.getFirst(),
+                    java.nio.file.LinkOption.NOFOLLOW_LINKS)) {
+                throw new IOException("Portable Node ZIP must contain exactly one top-level directory.");
+            }
+            try (var stream = Files.list(roots.getFirst())) {
+                for (Path child : stream.toList()) {
+                    VerifiedArtifactStore.move(child, destination.resolve(child.getFileName()));
                 }
             }
+        } finally {
+            deleteTree(expanded);
         }
     }
 
     private static void extractTar(Path archive, Path destination) throws IOException {
+        List<DeferredArchiveLink> links = new ArrayList<>();
         try (InputStream raw = Files.newInputStream(archive);
              InputStream compressed = new GzipCompressorInputStream(raw);
              TarArchiveInputStream input = new TarArchiveInputStream(compressed)) {
             for (TarArchiveEntry entry; (entry = input.getNextEntry()) != null;) {
-                if (entry.isSymbolicLink() || entry.isLink()) throw new IOException("Archive links are not allowed.");
                 Path target = archiveTarget(destination, entry.getName());
                 if (target == null) continue;
-                if (entry.isDirectory()) Files.createDirectories(target);
+                if (entry.isLink()) throw new IOException("Archive hard links are not allowed: " + entry.getName());
+                if (entry.isSymbolicLink()) {
+                    links.add(new DeferredArchiveLink(target,
+                            containedRelativeLinkTarget(destination, target, entry.getLinkName()), entry.getMode()));
+                } else if (entry.isDirectory()) Files.createDirectories(target);
                 else if (entry.isFile()) {
                     Files.createDirectories(target.getParent());
                     Files.copy(input, target);
                     if ((entry.getMode() & 0111) != 0) makeExecutable(target);
-                }
+                } else throw new IOException("Archive special entries are not allowed: " + entry.getName());
             }
         }
+        for (DeferredArchiveLink link : links) {
+            if (!Files.isRegularFile(link.source(), java.nio.file.LinkOption.NOFOLLOW_LINKS)) {
+                throw new IOException("Archive link target is not an extracted regular file: " + link.source());
+            }
+            Files.createDirectories(link.target().getParent());
+            Files.copy(link.source(), link.target());
+            if ((link.mode() & 0111) != 0) makeExecutable(link.target());
+        }
     }
+
+    private static Path containedRelativeLinkTarget(Path destination, Path link, String rawTarget)
+            throws IOException {
+        String normalized = rawTarget == null ? "" : rawTarget.replace('\\', '/');
+        if (normalized.isBlank() || normalized.startsWith("/") || normalized.contains(":")) {
+            throw new IOException("Archive link target must be relative: " + rawTarget);
+        }
+        Path target = link.getParent().resolve(normalized).normalize();
+        if (!target.startsWith(destination)) {
+            throw new IOException("Archive link target escapes its destination: " + rawTarget);
+        }
+        return target;
+    }
+
+    private record DeferredArchiveLink(Path target, Path source, int mode) { }
 
     private static Path archiveTarget(Path destination, String name) throws IOException {
         String normalized = name.replace('\\', '/');
@@ -498,7 +555,7 @@ public final class ReportingSetupService {
         return target;
     }
 
-    private static void makeExecutable(Path file) throws IOException {
+    static void makeExecutable(Path file) throws IOException {
         try {
             Set<PosixFilePermission> permissions = EnumSet.copyOf(Files.getPosixFilePermissions(file));
             permissions.add(PosixFilePermission.OWNER_EXECUTE);

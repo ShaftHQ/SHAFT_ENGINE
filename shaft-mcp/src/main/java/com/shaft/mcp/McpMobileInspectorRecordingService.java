@@ -1,5 +1,6 @@
 package com.shaft.mcp;
 
+import com.shaft.infrastructure.ManagedEnvironment;
 import tools.jackson.core.JacksonException;
 import tools.jackson.databind.ObjectMapper;
 
@@ -103,6 +104,8 @@ final class McpMobileInspectorRecordingService {
                     && "device".equals(device.state()));
             if (!androidReadyDevice) {
                 if (!selectedAvd.isBlank()) {
+                    proposal = toolchain.defaultAndroidProposal(selectedAvd, androidApiLevel, androidDeviceProfile,
+                            androidImageTag, androidAbi, androidRamMb, androidCores);
                     nextSteps.add("Confirm this plan to start cached Android emulator `" + selectedAvd + "`.");
                 } else if (!status.cachedAndroidEmulators().isEmpty()) {
                     readyToStart = false;
@@ -178,7 +181,7 @@ final class McpMobileInspectorRecordingService {
         }
 
         List<String> warnings = new ArrayList<>(plan.warnings());
-        Process emulatorProcess = null;
+        ManagedEnvironment managedEnvironment = null;
         boolean managedEmulator = false;
         String androidAvdName = text(selectedAndroidAvdName).isBlank()
                 ? plan.selectedAndroidAvdName()
@@ -187,36 +190,37 @@ final class McpMobileInspectorRecordingService {
         try {
             toolchain.ensureAppium(plan.platformName());
             if ("Android".equals(plan.platformName()) && deviceId.isBlank()) {
-                if (plan.willProvisionAndroidEmulator()) {
-                    toolchain.ensureAndroidEmulator(plan.androidEmulatorProposal());
+                if (plan.androidEmulatorProposal() != null) {
+                    managedEnvironment = toolchain.startAndroidRuntime(plan.androidEmulatorProposal());
                     androidAvdName = plan.androidEmulatorProposal().avdName();
+                    managedEmulator = true;
+                    deviceId = managedEnvironment.connectionProperties().getOrDefault("ANDROID_SERIAL", "");
                 } else if (androidAvdName.isBlank()) {
                     throw new IllegalArgumentException(
                             "selectedAndroidAvdName is required when no real Android device is connected.");
                 }
-                emulatorProcess = toolchain.startAndroidEmulator(androidAvdName, plan.androidEmulatorProposal());
-                managedEmulator = true;
-                if (!toolchain.waitForAndroidDevice(Duration.ofMinutes(3))) {
-                    throw new IllegalStateException("Android emulator did not become ready within 3 minutes.");
-                }
-                McpMobileToolchainStatus status = toolchain.status("Android");
-                deviceId = status.androidDevices().stream()
-                        .filter(device -> device.emulator() && "device".equals(device.state()))
-                        .map(McpMobileDevice::id)
-                        .findFirst()
-                        .orElse("");
             }
 
-            int appiumPort = freePort();
             recorder.start(plan.outputPath(), "mobile-inspector-" + plan.platformName().toLowerCase(Locale.ROOT),
                     plan.includeSensitiveValues());
-            Process appiumProcess = toolchain.startAppiumServer(appiumPort);
-            URI backend = URI.create("http://127.0.0.1:" + appiumPort);
-            waitForAppium(backend, warnings);
+            Process appiumProcess = null;
+            URI backend;
+            if (managedEnvironment != null) {
+                backend = managedEnvironment.endpoint().orElseThrow(() ->
+                        new IllegalStateException("Shared Android runtime did not publish its Appium endpoint."));
+            } else if ("Android".equals(plan.platformName())) {
+                backend = URI.create(DEFAULT_APPIUM_SERVER);
+                waitForAppium(backend, warnings);
+            } else {
+                int appiumPort = freePort();
+                appiumProcess = toolchain.startAppiumServer(appiumPort);
+                backend = URI.create("http://127.0.0.1:" + appiumPort);
+                waitForAppium(backend, warnings);
+            }
             Session session = new Session(
                     plan,
                     appiumProcess,
-                    emulatorProcess,
+                    managedEnvironment,
                     managedEmulator,
                     deviceId,
                     androidAvdName,
@@ -234,7 +238,10 @@ final class McpMobileInspectorRecordingService {
                     + " if the embedded Inspector asks for a server endpoint.");
             return status(session, warnings, session.setupBlocks);
         } catch (RuntimeException exception) {
-            cleanupFailedStart(emulatorProcess, managedEmulator, deviceId);
+            if (managedEnvironment != null) {
+                managedEnvironment.close();
+            }
+            cleanupFailedStart();
             activeSession = null;
             throw exception;
         }
@@ -305,10 +312,10 @@ final class McpMobileInspectorRecordingService {
             warnings.add("Session-managed Appium and emulator processes were stopped. Update executionAddress "
                     + "before replaying against a different Appium server.");
         }
-        destroy(session.appiumProcess);
-        if (session.managedEmulator) {
-            toolchain.stopAndroidEmulator(session.deviceId);
-            destroy(session.emulatorProcess);
+        if (session.managedEnvironment != null) {
+            session.managedEnvironment.close();
+        } else {
+            destroy(session.appiumProcess);
         }
         if (closeProxy && session.proxy != null) {
             session.proxy.close();
@@ -437,11 +444,7 @@ final class McpMobileInspectorRecordingService {
         };
     }
 
-    private void cleanupFailedStart(Process emulatorProcess, boolean managedEmulator, String deviceId) {
-        if (managedEmulator) {
-            toolchain.stopAndroidEmulator(deviceId);
-            destroy(emulatorProcess);
-        }
+    private void cleanupFailedStart() {
         try {
             if (recorder.status().active()) {
                 recorder.stop(true);
@@ -544,7 +547,7 @@ final class McpMobileInspectorRecordingService {
     private static final class Session {
         private final McpMobileInspectorPlan plan;
         private final Process appiumProcess;
-        private final Process emulatorProcess;
+        private final ManagedEnvironment managedEnvironment;
         private final boolean managedEmulator;
         private final String deviceId;
         private final String androidAvdName;
@@ -557,7 +560,7 @@ final class McpMobileInspectorRecordingService {
         private Session(
                 McpMobileInspectorPlan plan,
                 Process appiumProcess,
-                Process emulatorProcess,
+                ManagedEnvironment managedEnvironment,
                 boolean managedEmulator,
                 String deviceId,
                 String androidAvdName,
@@ -565,7 +568,7 @@ final class McpMobileInspectorRecordingService {
                 List<McpCodeBlock> setupBlocks) {
             this.plan = plan;
             this.appiumProcess = appiumProcess;
-            this.emulatorProcess = emulatorProcess;
+            this.managedEnvironment = managedEnvironment;
             this.managedEmulator = managedEmulator;
             this.deviceId = text(deviceId);
             this.androidAvdName = text(androidAvdName);

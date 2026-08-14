@@ -23,7 +23,8 @@ public final class InfrastructureSetupService {
 
     public static InfrastructureSetupService builtIn(SetupPlatform platform, SetupArchitecture architecture) {
         return new InfrastructureSetupService(new SetupProviderRegistry(List.of(
-                new ReportingSetupProvider(), new OcrSetupProvider(), new LighthouseSetupProvider())),
+                new ReportingSetupProvider(), new OcrSetupProvider(), new LighthouseSetupProvider(),
+                new AndroidSetupProvider())),
                 platform, architecture);
     }
 
@@ -53,6 +54,12 @@ public final class InfrastructureSetupService {
         return SetupPlan.bind(plan, value.policyDigest());
     }
 
+    /** Plans one typed Android emulator request without exposing provider encoding details. */
+    public SetupPlan plan(SetupOptions options, AndroidSetupRequest request) {
+        requireAndroidProfile(options);
+        return plan(options, Objects.requireNonNull(request, "request").toSelection());
+    }
+
     public SetupReport doctor(SetupOptions options) {
         return status(options);
     }
@@ -72,12 +79,23 @@ public final class InfrastructureSetupService {
         return report;
     }
 
+    /** Reports readiness for one exact typed Android emulator request. */
+    public SetupReport status(SetupOptions options, AndroidSetupRequest request) {
+        requireAndroidProfile(options);
+        return status(options, Objects.requireNonNull(request, "request").toSelection());
+    }
+
     public SetupReport verify(SetupOptions options) {
         return status(options);
     }
 
     public SetupReport verify(SetupOptions options, SetupSelection selection) {
         return status(options, selection);
+    }
+
+    /** Verifies one exact typed Android emulator request. */
+    public SetupReport verify(SetupOptions options, AndroidSetupRequest request) {
+        return status(options, request);
     }
 
     public SetupReceipt install(SetupPlan plan, SetupApproval approval, SetupOptions options) throws IOException {
@@ -92,9 +110,21 @@ public final class InfrastructureSetupService {
         return receipt;
     }
 
+    /** Installs one exact typed Android emulator request after approval. */
+    public SetupReceipt install(SetupPlan plan, SetupApproval approval, SetupOptions options,
+                                AndroidSetupRequest request) throws IOException {
+        requireAndroidProfile(options);
+        return install(plan, approval, options, Objects.requireNonNull(request, "request").toSelection());
+    }
+
     public ManagedEnvironment start(SetupPlan plan, SetupApproval approval, SetupOptions options)
             throws IOException {
-        SetupProvider provider = authorize(plan, approval, options, SetupSelection.defaults(), "start a managed service");
+        return start(plan, approval, options, SetupSelection.defaults());
+    }
+
+    public ManagedEnvironment start(SetupPlan plan, SetupApproval approval, SetupOptions options,
+                                    SetupSelection selection) throws IOException {
+        SetupProvider provider = authorize(plan, approval, options, selection, "start a managed service");
         ManagedEnvironment environment = provider.start(plan, approval, options);
         try {
             if (environment.profile() != plan.profile()) {
@@ -110,6 +140,13 @@ public final class InfrastructureSetupService {
             throw mismatch;
         }
         return environment;
+    }
+
+    /** Starts one exact typed Android emulator request from its verified install receipt. */
+    public ManagedEnvironment start(SetupPlan plan, SetupApproval approval, SetupOptions options,
+                                    AndroidSetupRequest request) throws IOException {
+        requireAndroidProfile(options);
+        return start(plan, approval, options, Objects.requireNonNull(request, "request").toSelection());
     }
 
     private SetupProvider authorize(SetupPlan plan, SetupApproval approval, SetupOptions options,
@@ -146,6 +183,12 @@ public final class InfrastructureSetupService {
         Objects.requireNonNull(receipt, "receipt");
         if (!receipt.planDigest().equals(plan.digest()) || !receipt.completedActions().equals(plan.actions())) {
             throw new IllegalStateException("Setup provider returned a mismatched receipt.");
+        }
+    }
+
+    private static void requireAndroidProfile(SetupOptions options) {
+        if (Objects.requireNonNull(options, "options").profile() != SetupProfile.MOBILE_ANDROID) {
+            throw new IllegalArgumentException("Android setup requests require profile MOBILE_ANDROID.");
         }
     }
 }

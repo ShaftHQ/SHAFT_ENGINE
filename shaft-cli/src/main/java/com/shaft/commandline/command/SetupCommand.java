@@ -1,8 +1,9 @@
 package com.shaft.commandline.command;
 
-import com.shaft.infrastructure.ReportingSetupPlanner;
 import com.shaft.infrastructure.ReportingSetupService;
 import com.shaft.infrastructure.InfrastructureSetupService;
+import com.shaft.infrastructure.AndroidSetupRequest;
+import com.shaft.infrastructure.AndroidRuntimeManager;
 import com.shaft.infrastructure.SetupOptions;
 import com.shaft.infrastructure.SetupApproval;
 import com.shaft.infrastructure.SetupArchitecture;
@@ -13,7 +14,6 @@ import com.shaft.infrastructure.SetupPlanJson;
 import com.shaft.infrastructure.SetupPlanStore;
 import com.shaft.infrastructure.SetupPlatform;
 import com.shaft.infrastructure.SetupProfile;
-import com.shaft.infrastructure.SetupProfileStatus;
 import com.shaft.infrastructure.SetupReadiness;
 import com.shaft.infrastructure.SetupReport;
 import com.shaft.infrastructure.SetupSelection;
@@ -95,6 +95,7 @@ public final class SetupCommand implements Runnable {
 
         @Mixin private RootOptions roots;
         @Mixin private PolicyOptions policy;
+        @Mixin private AndroidOptions android;
         @Option(names = "--language", description = "OCR language code (repeatable).")
         private List<String> languages = new java.util.ArrayList<>();
 
@@ -112,9 +113,10 @@ public final class SetupCommand implements Runnable {
                     throw new IllegalArgumentException("--language is supported only for profile OCR.");
                 }
                 SetupOptions options = policy.options(profile, mode, roots.paths());
+                SetupSelection selection = selection(profile, languages, android.request(profile));
                 SetupPlan plan = InfrastructureSetupService.builtIn(
                         SetupPlatform.current(), SetupArchitecture.current())
-                        .plan(options, new SetupSelection(languages));
+                        .plan(options, selection);
                 if (!output.isAbsolute()) {
                     spec.commandLine().getErr().println("--output must be an absolute path.");
                     return 2;
@@ -150,6 +152,7 @@ public final class SetupCommand implements Runnable {
         private boolean json;
         @Mixin private RootOptions roots;
         @Mixin private PolicyOptions policy;
+        @Mixin private AndroidOptions android;
         @Option(names = "--language", description = "OCR language code from the reviewed plan (repeatable).")
         private List<String> languages = new java.util.ArrayList<>();
         @Spec private CommandSpec spec;
@@ -161,8 +164,7 @@ public final class SetupCommand implements Runnable {
                 if (plan.profile() != SetupProfile.OCR && !languages.isEmpty()) {
                     throw new IllegalArgumentException("--language is supported only for profile OCR.");
                 }
-                SetupSelection selection = plan.profile() == SetupProfile.OCR
-                        ? ocrSelection(plan, languages) : SetupSelection.defaults();
+                SetupSelection selection = selectionFromPlan(plan, languages, android);
                 SetupOptions options = policy.options(plan.profile(), plan.mode(), roots.paths());
                 var receipt = InfrastructureSetupService.builtIn().install(plan,
                         new SetupApproval(approvedDigest, Instant.now(), acceptedLicenses), options, selection);
@@ -174,7 +176,7 @@ public final class SetupCommand implements Runnable {
                 spec.commandLine().getErr().println(failure.getMessage());
                 return 2;
             } catch (Exception failure) {
-                spec.commandLine().getErr().println(failure.getMessage());
+                spec.commandLine().getErr().println(failureDetails(failure));
                 return 5;
             }
         }
@@ -182,28 +184,101 @@ public final class SetupCommand implements Runnable {
 
     @Command(name = "start", mixinStandardHelpOptions = true,
             description = "Start a SHAFT-owned service from its verified receipt.")
-    static final class Start extends UnsupportedLifecycle { }
+    static final class Start implements Callable<Integer> {
+        @Option(names = "--plan", required = true) private Path planFile;
+        @Option(names = "--approve", required = true) private String approvedDigest;
+        @Option(names = "--accept-license") private Set<String> acceptedLicenses = new LinkedHashSet<>();
+        @Option(names = "--json") private boolean json;
+        @Option(names = "--language") private List<String> languages = new java.util.ArrayList<>();
+        @Mixin private RootOptions roots;
+        @Mixin private PolicyOptions policy;
+        @Mixin private AndroidOptions android;
+        @Spec private CommandSpec spec;
+
+        @Override
+        public Integer call() {
+            try {
+                SetupPlan plan = SetupPlanStore.read(planFile);
+                if (plan.profile() != SetupProfile.MOBILE_ANDROID) return unsupported(spec, plan.profile());
+                SetupSelection selection = selectionFromPlan(plan, languages, android);
+                SetupOptions options = policy.options(plan.profile(), plan.mode(), roots.paths());
+                var environment = InfrastructureSetupService.builtIn().start(plan,
+                        new SetupApproval(approvedDigest, Instant.now(), acceptedLicenses), options, selection);
+                if (json) spec.commandLine().getOut().println(Json.MAPPER.writerWithDefaultPrettyPrinter()
+                        .writeValueAsString(java.util.Map.of("profile", environment.profile(),
+                                "endpoint", environment.endpoint().map(Object::toString).orElse(""),
+                                "connectionProperties", environment.connectionProperties(),
+                                "planDigest", environment.receipt().planDigest())));
+                else spec.commandLine().getOut().println("Started " + environment.profile() + " at "
+                        + environment.endpoint().map(Object::toString).orElse("owned local runtime"));
+                return 0;
+            } catch (IllegalArgumentException failure) {
+                spec.commandLine().getErr().println(failure.getMessage());
+                return 2;
+            } catch (Exception failure) {
+                spec.commandLine().getErr().println(failureDetails(failure));
+                return 5;
+            }
+        }
+    }
 
     @Command(name = "stop", mixinStandardHelpOptions = true,
             description = "Stop a SHAFT-owned service identified by its lease.")
-    static final class Stop extends UnsupportedLifecycle { }
+    static final class Stop implements Callable<Integer> {
+        @Option(names = "--profile", required = true) private SetupProfile profile;
+        @Mixin private RootOptions roots;
+        @Mixin private PolicyOptions policy;
+        @Mixin private AndroidOptions android;
+        @Spec private CommandSpec spec;
+
+        @Override
+        public Integer call() {
+            try {
+                if (profile != SetupProfile.MOBILE_ANDROID) return unsupported(spec, profile);
+                ShaftCachePaths paths = roots.paths();
+                AndroidSetupRequest request = android.request(profile);
+                boolean stopped = AndroidRuntimeManager.stop(paths, SetupPlatform.current(),
+                        SetupArchitecture.current(), request,
+                        policy.options(profile, SetupMode.MANAGED, paths).shutdownTimeout());
+                if (!stopped) {
+                    spec.commandLine().getErr().println("No live owned Android runtime exists.");
+                    return 3;
+                }
+                spec.commandLine().getOut().println("Stopped the owned Android runtime.");
+                return 0;
+            } catch (IllegalArgumentException failure) {
+                spec.commandLine().getErr().println(failure.getMessage());
+                return 2;
+            } catch (Exception failure) {
+                spec.commandLine().getErr().println(failure.getMessage());
+                return 5;
+            }
+        }
+    }
 
     @Command(name = "logs", mixinStandardHelpOptions = true,
             description = "Read logs for a SHAFT-owned setup provider.")
     static final class Logs implements Callable<Integer> {
         @Option(names = "--profile", required = true) private SetupProfile profile;
         @Mixin private RootOptions roots;
+        @Mixin private AndroidOptions android;
         @Spec private CommandSpec spec;
 
         @Override
         public Integer call() throws Exception {
-            if (profile != SetupProfile.REPORTING) return unsupported(spec, profile);
-            Path log = service(roots).logFile();
-            if (Files.notExists(log)) {
+            String content;
+            if (profile == SetupProfile.REPORTING) {
+                Path log = service(roots).logFile();
+                content = Files.notExists(log) ? "" : Files.readString(log);
+            } else if (profile == SetupProfile.MOBILE_ANDROID) {
+                content = AndroidRuntimeManager.logs(roots.paths(), SetupPlatform.current(),
+                        SetupArchitecture.current(), android.request(profile));
+            } else return unsupported(spec, profile);
+            if (content.isEmpty()) {
                 spec.commandLine().getErr().println("No owned logs exist for profile " + profile + '.');
                 return 3;
             }
-            spec.commandLine().getOut().print(Files.readString(log));
+            spec.commandLine().getOut().print(content);
             return 0;
         }
     }
@@ -212,6 +287,7 @@ public final class SetupCommand implements Runnable {
         @Option(names = "--profile", required = true) private SetupProfile profile;
         @Option(names = "--json", description = "Print machine-readable JSON.") private boolean json;
         @Mixin private RootOptions roots;
+        @Mixin private AndroidOptions android;
         @Option(names = "--language", description = "OCR language code (repeatable).")
         private List<String> languages = new java.util.ArrayList<>();
         @Spec private CommandSpec spec;
@@ -224,7 +300,8 @@ public final class SetupCommand implements Runnable {
                     throw new IllegalArgumentException("--language is supported only for profile OCR.");
                 }
                 SetupReport status = InfrastructureSetupService.builtIn().status(
-                        SetupOptions.defaults(profile, roots.paths()), new SetupSelection(languages));
+                        SetupOptions.defaults(profile, roots.paths()),
+                        selection(profile, languages, android.request(profile)));
                 if (json) spec.commandLine().getOut().println(Json.MAPPER.writerWithDefaultPrettyPrinter()
                         .writeValueAsString(status));
                 else status.targets().forEach(target -> spec.commandLine().getOut().println(
@@ -252,6 +329,29 @@ public final class SetupCommand implements Runnable {
             throw new IllegalArgumentException("--language does not match the reviewed OCR plan.");
         }
         return selected;
+    }
+
+    private static SetupSelection selectionFromPlan(SetupPlan plan, List<String> languages,
+                                                    AndroidOptions android) {
+        if (plan.profile() != SetupProfile.OCR && !languages.isEmpty()) {
+            throw new IllegalArgumentException("--language is supported only for profile OCR.");
+        }
+        return switch (plan.profile()) {
+            case OCR -> ocrSelection(plan, languages);
+            case MOBILE_ANDROID -> android.selectionFromPlan(plan);
+            default -> {
+                android.rejectIfSupplied(plan.profile());
+                yield SetupSelection.defaults();
+            }
+        };
+    }
+
+    private static SetupSelection selection(SetupProfile profile, List<String> languages,
+                                            AndroidSetupRequest androidRequest) {
+        if (profile == SetupProfile.OCR) return new SetupSelection(languages);
+        if (!languages.isEmpty()) throw new IllegalArgumentException("--language is supported only for profile OCR.");
+        return profile == SetupProfile.MOBILE_ANDROID
+                ? androidRequest.toSelection() : SetupSelection.defaults();
     }
 
     static class UnsupportedLifecycle implements Callable<Integer> {
@@ -310,6 +410,62 @@ public final class SetupCommand implements Runnable {
         }
     }
 
+    static final class AndroidOptions {
+        @Option(names = "--api-level") private Integer apiLevel;
+        @Option(names = "--device-profile") private String deviceProfile;
+        @Option(names = "--image-tag") private String imageTag;
+        @Option(names = "--abi") private String abi;
+        @Option(names = "--avd-name") private String avdName;
+        @Option(names = "--ram-mb") private Integer ramMb;
+        @Option(names = "--cores") private Integer cores;
+        @Option(names = "--port") private Integer port;
+
+        AndroidSetupRequest request(SetupProfile profile) {
+            if (profile != SetupProfile.MOBILE_ANDROID) {
+                rejectIfSupplied(profile);
+                return AndroidSetupRequest.defaults();
+            }
+            return apply(AndroidSetupRequest.defaults());
+        }
+
+        SetupSelection selectionFromPlan(SetupPlan plan) {
+            AndroidSetupRequest reviewed = AndroidSetupRequest.fromPlan(plan);
+            if (hasAny()) {
+                AndroidSetupRequest supplied = apply(reviewed);
+                if (!supplied.equals(reviewed)) {
+                    throw new IllegalArgumentException("Android selectors do not match the reviewed plan.");
+                }
+            }
+            return reviewed.toSelection();
+        }
+
+        void rejectIfSupplied(SetupProfile profile) {
+            if (hasAny()) throw new IllegalArgumentException(
+                    "Android selectors are supported only for profile MOBILE_ANDROID, not " + profile + '.');
+        }
+
+        private AndroidSetupRequest apply(AndroidSetupRequest base) {
+            return new AndroidSetupRequest(selected(apiLevel, base.apiLevel()),
+                    selected(deviceProfile, base.deviceProfile()), selected(imageTag, base.imageTag()),
+                    selected(abi, base.abi()), selected(avdName, base.avdName()),
+                    selected(ramMb, base.ramMb()), selected(cores, base.cores()),
+                    selected(port, base.appiumPort()));
+        }
+
+        private static int selected(Integer supplied, int fallback) {
+            return supplied == null ? fallback : supplied;
+        }
+
+        private static String selected(String supplied, String fallback) {
+            return supplied == null ? fallback : supplied;
+        }
+
+        private boolean hasAny() {
+            return apiLevel != null || deviceProfile != null || imageTag != null || abi != null || avdName != null
+                    || ramMb != null || cores != null || port != null;
+        }
+    }
+
     private static ReportingSetupService service(RootOptions roots) {
         return new ReportingSetupService(roots.paths(), SetupPlatform.current(), SetupArchitecture.current());
     }
@@ -317,5 +473,18 @@ public final class SetupCommand implements Runnable {
     private static int unsupported(CommandSpec spec, SetupProfile profile) {
         spec.commandLine().getErr().println("No lifecycle provider is available for profile " + profile + '.');
         return 4;
+    }
+
+    static String failureDetails(Throwable failure) {
+        StringBuilder details = new StringBuilder();
+        for (Throwable current = failure; current != null; current = current.getCause()) {
+            String message = current.getMessage();
+            if (message != null && !message.isBlank()
+                    && (details.isEmpty() || !details.toString().endsWith(message))) {
+                if (!details.isEmpty()) details.append(": ");
+                details.append(message);
+            }
+        }
+        return details.isEmpty() ? failure.getClass().getSimpleName() : details.toString();
     }
 }

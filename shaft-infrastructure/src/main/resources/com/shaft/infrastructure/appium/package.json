@@ -1,0 +1,10 @@
+{
+  "name": "shaft-managed-appium",
+  "version": "1.0.0",
+  "private": true,
+  "dependencies": {
+    "appium": "3.6.0",
+    "appium-inspector-plugin": "2026.7.1",
+    "appium-uiautomator2-driver": "8.2.2"
+  }
+}

@@ -16,6 +16,7 @@ import java.util.HexFormat;
 /** Download cache that publishes an artifact only after its approved SHA-256 matches. */
 public final class VerifiedArtifactStore {
     static final long MAX_ARTIFACT_BYTES = 128L * 1024 * 1024;
+    private static final long MAX_ANDROID_SDK_BYTES = 256L * 1024 * 1024;
     private final Path downloads;
 
     public VerifiedArtifactStore(Path downloads) {
@@ -45,7 +46,7 @@ public final class VerifiedArtifactStore {
         Path quarantine = downloads.resolve(destination.getFileName() + ".quarantine");
         try (InputStream input = open(action.source());
              OutputStream output = Files.newOutputStream(temporary)) {
-            copyBounded(input, output, action.source());
+            copyBounded(input, output, action.source(), maximumArtifactBytes(action.target()));
             String actual = digest(temporary);
             if (!expected.equals(actual)) {
                 throw new IOException("SHA-256 mismatch for " + action.source() + ": expected " + expected
@@ -92,13 +93,17 @@ public final class VerifiedArtifactStore {
         void move(Path source, Path destination) throws IOException;
     }
 
-    private static void copyBounded(InputStream input, OutputStream output, URI source) throws IOException {
+    static long maximumArtifactBytes(SetupTarget target) {
+        return target == SetupTarget.ANDROID_SDK ? MAX_ANDROID_SDK_BYTES : MAX_ARTIFACT_BYTES;
+    }
+
+    private static void copyBounded(InputStream input, OutputStream output, URI source, long maximum) throws IOException {
         byte[] buffer = new byte[64 * 1024];
         long total = 0;
         for (int read; (read = input.read(buffer)) >= 0;) {
             total += read;
-            if (total > MAX_ARTIFACT_BYTES) {
-                throw new IOException("Artifact exceeds the " + MAX_ARTIFACT_BYTES + " byte safety limit: " + source);
+            if (total > maximum) {
+                throw new IOException("Artifact exceeds the " + maximum + " byte safety limit: " + source);
             }
             output.write(buffer, 0, read);
         }
