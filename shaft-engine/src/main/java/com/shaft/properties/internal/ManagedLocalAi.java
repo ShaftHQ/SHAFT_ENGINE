@@ -53,6 +53,7 @@ public interface ManagedLocalAi extends EngineProperties<ManagedLocalAi> {
     int launchTimeoutSeconds();
 
     /** @return a current-thread property setter */
+    @Override
     default SetProperty set() {
         return new SetProperty();
     }
