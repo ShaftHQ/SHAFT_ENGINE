@@ -1357,12 +1357,12 @@ def _abort_process_tree(process: subprocess.Popen) -> None:
                         fields = (entry / "stat").read_text(encoding="utf-8").split(") ", 1)[1].split()
                         parents[int(entry.name)] = int(fields[1])
                     except (OSError, IndexError, ValueError):
-                        pass
+                        continue
         for owned_pid in sorted(_process_tree(pid, parents), key=lambda value: value == pid):
             try:
                 os.kill(owned_pid, signal.SIGKILL)
             except ProcessLookupError:
-                pass
+                continue
     if process.poll() is None:
         process.kill()
 
