@@ -16,6 +16,15 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class SetupCommandTest {
+    @Test
+    void failureDetailsPreserveOuterActionAndNestedCause() {
+        RuntimeException failure = new RuntimeException("Setup action failed",
+                new IllegalStateException("Appium manifest is invalid", new java.io.IOException("lock mismatch")));
+
+        assertEquals("Setup action failed: Appium manifest is invalid: lock mismatch",
+                SetupCommand.failureDetails(failure));
+    }
+
     private static final JsonMapper JSON = JsonMapper.builder().build();
 
     @Test

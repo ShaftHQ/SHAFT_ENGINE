@@ -178,7 +178,7 @@ public final class SetupCommand implements Runnable {
                 spec.commandLine().getErr().println(failure.getMessage());
                 return 2;
             } catch (Exception failure) {
-                spec.commandLine().getErr().println(failure.getMessage());
+                spec.commandLine().getErr().println(failureDetails(failure));
                 return 5;
             }
         }
@@ -218,7 +218,7 @@ public final class SetupCommand implements Runnable {
                 spec.commandLine().getErr().println(failure.getMessage());
                 return 2;
             } catch (Exception failure) {
-                spec.commandLine().getErr().println(failure.getMessage());
+                spec.commandLine().getErr().println(failureDetails(failure));
                 return 5;
             }
         }
@@ -468,5 +468,18 @@ public final class SetupCommand implements Runnable {
     private static int unsupported(CommandSpec spec, SetupProfile profile) {
         spec.commandLine().getErr().println("No lifecycle provider is available for profile " + profile + '.');
         return 4;
+    }
+
+    static String failureDetails(Throwable failure) {
+        StringBuilder details = new StringBuilder();
+        for (Throwable current = failure; current != null; current = current.getCause()) {
+            String message = current.getMessage();
+            if (message != null && !message.isBlank()
+                    && (details.isEmpty() || !details.toString().endsWith(message))) {
+                if (!details.isEmpty()) details.append(": ");
+                details.append(message);
+            }
+        }
+        return details.isEmpty() ? failure.getClass().getSimpleName() : details.toString();
     }
 }
