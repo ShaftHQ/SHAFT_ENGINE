@@ -2393,7 +2393,16 @@ public final class FailureTraceReporter {
     }
 
     private static String reportedBrowser() {
-        if (PlaywrightSessionManager.currentSession() != null) {
+        var session = PlaywrightSessionManager.currentSession();
+        if (session != null) {
+            try {
+                var browser = session.browser();
+                String runtimeBrowser = browser == null || browser.browserType() == null
+                        ? "" : browser.browserType().name();
+                if (runtimeBrowser != null && !runtimeBrowser.isBlank()) return runtimeBrowser;
+            } catch (RuntimeException ignored) {
+                // Attached or closing sessions may no longer expose their browser type; use configured fallback.
+            }
             String playwrightBrowser = safeProperty(() -> SHAFT.Properties.playwright.browserName());
             if (!playwrightBrowser.isBlank()) return playwrightBrowser;
         }

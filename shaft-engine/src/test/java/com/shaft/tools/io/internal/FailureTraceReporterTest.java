@@ -8,6 +8,8 @@ import com.shaft.gui.browser.internal.BrowserNetworkInterceptor;
 import com.shaft.gui.capabilities.AutomationBackend;
 import com.shaft.gui.internal.locator.LocatorHealthReporter;
 import com.shaft.gui.playwright.internal.PlaywrightTraceManager;
+import com.shaft.gui.playwright.internal.PlaywrightSession;
+import com.shaft.gui.playwright.internal.PlaywrightSessionManager;
 import com.shaft.listeners.internal.TestExecutionInfo;
 import com.shaft.properties.internal.Properties;
 import com.shaft.tools.io.trace.TraceArtifactReference;
@@ -60,6 +62,32 @@ import java.util.zip.ZipEntry;
 @Test(singleThreaded = true)
 public class FailureTraceReporterTest {
     private static final ObjectMapper JSON = new ObjectMapper();
+
+    @Test(description = "The runtime Playwright engine should win over stale configured browser names")
+    public void attachedPlaywrightSessionShouldReportRuntimeBrowserType() throws Exception {
+        var session = Mockito.mock(PlaywrightSession.class);
+        var browser = Mockito.mock(com.microsoft.playwright.Browser.class);
+        var browserType = Mockito.mock(com.microsoft.playwright.BrowserType.class);
+        Mockito.when(session.browser()).thenReturn(browser);
+        Mockito.when(browser.browserType()).thenReturn(browserType);
+        Mockito.when(browserType.name()).thenReturn("firefox");
+        SHAFT.Properties.playwright.set().browserName("chromium");
+        SHAFT.Properties.reporting.set().traceEnabled(true);
+
+        try (MockedStatic<PlaywrightSessionManager> sessions = Mockito.mockStatic(PlaywrightSessionManager.class)) {
+            sessions.when(PlaywrightSessionManager::currentSession).thenReturn(session);
+            sessions.when(PlaywrightSessionManager::currentPage).thenReturn(null);
+
+            JsonNode root = JSON.readTree(FailureTraceReporter.renderTraceJson(
+                    info("attachedPlaywrightRuntimeBrowser", failure()), "log", List.of()));
+
+            Assert.assertEquals(root.path("environment").path("browser").asText(), "firefox");
+        } finally {
+            TraceEventRecorder.clear();
+            BrowserObservabilityRecorder.clear();
+            Properties.clearForCurrentThread();
+        }
+    }
 
     @Test(description = "Configured artifact MiB values should convert without integer overflow")
     public void configuredArtifactBudgetShouldUseLongArithmetic() {
