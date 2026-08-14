@@ -27,6 +27,8 @@ from scripts.ci.worktree_hygiene import (
     collect_worktree_report,
     format_advisories,
     open_pull_requests_via_gh,
+    resolve_upstream_ref,
+    verify_repository_state,
 )
 
 
@@ -61,6 +63,12 @@ class WorktreeHygieneTest(unittest.TestCase):
         """Point refs/remotes/origin/main at the current main, without a remote."""
         head = git(self.main, "rev-parse", "main").stdout.strip()
         git(self.main, "update-ref", "refs/remotes/origin/main", head)
+        git(
+            self.main,
+            "symbolic-ref",
+            "refs/remotes/origin/HEAD",
+            "refs/remotes/origin/main",
+        )
 
     def write(self, root: Path, relative_path: str, content: str) -> Path:
         path = root / relative_path
@@ -280,14 +288,126 @@ class WorktreeHygieneTest(unittest.TestCase):
                         if "held" in item)
         self.assertNotIn("abandoned", advisory)
 
-    def test_a_prunable_worktree_entry_is_skipped(self):
-        import shutil
-
+    def test_a_prunable_worktree_entry_is_reported(self):
         worktree = self.add_worktree("gone", "ChaosEngine/gone")
         shutil.rmtree(worktree)
 
         report = collect_worktree_report(self.main)
-        self.assertEqual([Path(item["path"]).name for item in report], ["checkout"])
+        entry = self.entry(report, "gone")
+        self.assertTrue(entry["prunable"])
+        self.assertEqual(entry["state"], "prunable")
+        self.assertTrue(any("prunable" in item for item in format_advisories(report)))
+
+    def test_origin_head_resolves_nonstandard_default_branches(self):
+        for branch in ("main", "master", "trunk"):
+            with self.subTest(branch=branch):
+                git(self.main, "branch", "-M", branch)
+                head = git(self.main, "rev-parse", branch).stdout.strip()
+                git(self.main, "update-ref", f"refs/remotes/origin/{branch}", head)
+                git(
+                    self.main,
+                    "symbolic-ref",
+                    "refs/remotes/origin/HEAD",
+                    f"refs/remotes/origin/{branch}",
+                )
+                self.assertEqual(resolve_upstream_ref(self.main), f"origin/{branch}")
+
+    def test_explicit_upstream_overrides_origin_head(self):
+        head = git(self.main, "rev-parse", "HEAD").stdout.strip()
+        git(self.main, "update-ref", "refs/remotes/upstream/stable", head)
+
+        self.assertEqual(
+            resolve_upstream_ref(self.main, "upstream/stable"),
+            "upstream/stable",
+        )
+
+    def test_missing_upstream_fails_closed(self):
+        git(self.main, "symbolic-ref", "--delete", "refs/remotes/origin/HEAD")
+        git(self.main, "branch", "--unset-upstream")
+
+        self.assertIsNone(resolve_upstream_ref(self.main))
+        violations = verify_repository_state(self.main)
+        self.assertIn("missing-upstream", violations)
+
+    def test_current_branch_upstream_cannot_authenticate_the_expected_branch(self):
+        git(self.main, "symbolic-ref", "--delete", "refs/remotes/origin/HEAD")
+        git(self.main, "remote", "add", "origin", str(self.base / "unused.git"))
+        git(self.main, "branch", "--set-upstream-to", "origin/main", "main")
+
+        self.assertIsNone(resolve_upstream_ref(self.main))
+        self.assertIn("missing-upstream", verify_repository_state(self.main))
+
+    def test_clean_single_checkout_verifies(self):
+        self.assertEqual(verify_repository_state(self.main), [])
+
+    def test_sole_local_branch_must_match_the_upstream_branch_name(self):
+        git(self.main, "branch", "-M", "release-local")
+
+        violations = verify_repository_state(self.main)
+
+        self.assertIn("extra-local-branches", violations)
+        self.assertIn("wrong-branch", violations)
+
+    def test_verification_reports_dirty_extra_branch_and_worktree(self):
+        self.write(self.main, "dirty.txt", "dirty\n")
+        git(self.main, "branch", "extra")
+        self.add_worktree("other", "other-worktree")
+
+        violations = verify_repository_state(self.main)
+
+        self.assertIn("dirty-worktree", violations)
+        self.assertIn("extra-local-branches", violations)
+        self.assertIn("extra-worktrees", violations)
+
+    def test_verification_reports_detached_and_wrong_tip(self):
+        self.write(self.main, "next.txt", "next\n")
+        git(self.main, "add", "next.txt")
+        git(self.main, "commit", "-qm", "next")
+        git(self.main, "checkout", "--detach", "HEAD")
+
+        violations = verify_repository_state(self.main)
+
+        self.assertIn("detached-head", violations)
+        self.assertIn("wrong-tip", violations)
+
+    def test_verification_reports_prunable_metadata(self):
+        worktree = self.add_worktree("gone", "ChaosEngine/gone")
+        shutil.rmtree(worktree)
+
+        self.assertIn("prunable-worktree", verify_repository_state(self.main))
+
+    def test_verification_reports_an_active_git_operation(self):
+        git_dir = Path(git(self.main, "rev-parse", "--absolute-git-dir").stdout.strip())
+        (git_dir / "MERGE_HEAD").write_text(
+            git(self.main, "rev-parse", "HEAD").stdout.strip() + "\n",
+            encoding="utf-8",
+        )
+
+        self.assertIn("active-git-operation", verify_repository_state(self.main))
+
+    def test_verify_cli_returns_nonzero_and_json_violations(self):
+        self.write(self.main, "dirty.txt", "dirty\n")
+        helper = Path(__file__).resolve().parents[2] / "scripts" / "ci" / "worktree_hygiene.py"
+
+        completed = subprocess.run(  # nosec B603 - fixed tracked helper on fixture.
+            [
+                sys.executable,
+                str(helper),
+                "--root",
+                str(self.main),
+                "--format",
+                "json",
+                "--verify",
+            ],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+
+        self.assertEqual(completed.returncode, 1, completed.stderr)
+        payload = json.loads(completed.stdout)
+        self.assertEqual(payload["upstream"], "origin/main")
+        self.assertIn("dirty-worktree", payload["violations"])
 
     def test_patch_identical_commits_count_as_already_upstream(self):
         # The 2026-08-04 case: the content had already landed on origin/main

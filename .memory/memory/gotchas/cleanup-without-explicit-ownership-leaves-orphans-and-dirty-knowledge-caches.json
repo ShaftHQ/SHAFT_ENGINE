@@ -1,0 +1,55 @@
+{
+  "body_path": "memory/gotchas/cleanup-without-explicit-ownership-leaves-orphans-and-dirty-knowledge-caches.md",
+  "content_hash": "sha256:f77cd91003f7d46022969c1c8962c362dd2cf1cb5dea94967e5447a1915bc6d8",
+  "created_at": "2026-08-14T20:49:54+03:00",
+  "evidence": [
+    {
+      "id": "https://github.com/ShaftHQ/SHAFT_ENGINE/issues/4955",
+      "kind": "task"
+    },
+    {
+      "id": "chaos-engine/skills/chaos-engine/SKILL.md",
+      "kind": "file"
+    },
+    {
+      "id": "scripts/ci/worktree_hygiene.py",
+      "kind": "file"
+    }
+  ],
+  "facets": {
+    "applies_to": [
+      "chaos-engine/skills/chaos-engine/SKILL.md",
+      "chaos-engine/references/cleanup-scopes.md",
+      "scripts/ci/worktree_hygiene.py",
+      "tests/scripts/test_worktree_hygiene.py"
+    ],
+    "category": "agent-guidance"
+  },
+  "id": "gotcha.cleanup-without-explicit-ownership-leaves-orphans-and-dirty-knowledge-caches",
+  "origin": {
+    "captured_at": "2026-08-14T00:00:00+03:00",
+    "kind": "user",
+    "locator": "approved cleanup plan and portability requirement"
+  },
+  "scope": {
+    "branch": null,
+    "kind": "project",
+    "project": "project.shaft-engine",
+    "task": null
+  },
+  "source": {
+    "kind": "agent",
+    "task": "Record the durable cleanup finding and portable three-scope policy from issue #4955."
+  },
+  "status": "active",
+  "tags": [
+    "cleanup",
+    "worktrees",
+    "portability",
+    "knowledge-refresh",
+    "safety"
+  ],
+  "title": "Cleanup without explicit ownership leaves orphaned workspaces and stale knowledge caches",
+  "type": "gotcha",
+  "updated_at": "2026-08-14T20:52:33+03:00"
+}

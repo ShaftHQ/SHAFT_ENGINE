@@ -10,6 +10,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 CORE = ROOT / "chaos-engine"
 CANONICAL_SKILL = CORE / "skills/chaos-engine/SKILL.md"
+CLEANUP_SCOPES = CORE / "references/cleanup-scopes.md"
 REPOSITORY_ADAPTER = ROOT / ".agents/skills/chaos-engine/SKILL.md"
 COMPATIBILITY_ALIAS = ROOT / ".agents/skills/act-as-mohab/SKILL.md"
 SHAFT_PROFILE = CORE / "profiles/shaft/profile.json"
@@ -266,6 +267,106 @@ class ChaosEnginePortableCoreTest(unittest.TestCase):
             for label, pattern in forbidden.items():
                 with self.subTest(path=path.relative_to(ROOT), forbidden=label):
                     self.assertIsNone(pattern.search(text))
+
+    def test_canonical_cleanup_policy_is_portable_and_has_three_scopes(self):
+        canonical = CANONICAL_SKILL.read_text(encoding="utf-8")
+        task_isolation_router = canonical.split("## Task isolation", 1)[1].split(
+            "## Operating contract", 1
+        )[0]
+        cleanup_scopes = CLEANUP_SCOPES.read_text(encoding="utf-8")
+        self.assertIn("../../references/cleanup-scopes.md", task_isolation_router)
+
+        for heading in (
+            "### Task scope (default)",
+            "### Repository scope (explicit)",
+            "### Machine scope (approval-gated)",
+        ):
+            self.assertIn(heading, cleanup_scopes)
+        self.assertIn("Memory", cleanup_scopes)
+        self.assertIn("Graphify", cleanup_scopes)
+        self.assertIn("MemPalace", cleanup_scopes)
+        self.assertIn("exact validated manifest", cleanup_scopes)
+
+        task_preservation = (
+            "A pre-existing artifact stays outside deletion scope even if the task "
+            "touches it."
+        )
+        repository_preservation = (
+            "Preserve and halt on pre-existing unknown, dirty, locked, or concurrently "
+            "owned state unless its discard is separately authorized."
+        )
+        store_refresh = (
+            "Refresh and validate all three knowledge stores: native Memory, Graphify, "
+            "and MemPalace."
+        )
+
+        def assert_cleanup_contract(content: str) -> None:
+            task_scope = content.split("### Task scope (default)", 1)[1].split(
+                "### Repository scope (explicit)", 1
+            )[0]
+            repository_scope = content.split(
+                "### Repository scope (explicit)", 1
+            )[1].split("### Machine scope (approval-gated)", 1)[0]
+            machine_scope = content.split(
+                "### Machine scope (approval-gated)", 1
+            )[1].split("## Verification helper", 1)[0]
+            normalized_task = " ".join(task_scope.split())
+            normalized_repository = " ".join(repository_scope.split())
+            self.assertIn("append-only ownership manifest", normalized_task)
+            self.assertIn("ownership record is immutable", normalized_task)
+            self.assertIn(task_preservation, normalized_task)
+            self.assertIn(repository_preservation, normalized_repository)
+            self.assertNotRegex(
+                normalized_task,
+                r"(?i)(?:unless|except) (?:the task touches|normalization requires)",
+            )
+            self.assertNotRegex(
+                normalized_repository,
+                r"unless normalization requires|without separate authorization",
+            )
+            for scope in (repository_scope, machine_scope):
+                normalized_scope = " ".join(scope.split())
+                self.assertEqual(1, normalized_scope.count(store_refresh))
+                self.assertNotRegex(
+                    normalized_scope,
+                    r"(?i)(?:are )?(?:not|never) refreshed|refresh(?:ing)? (?:is )?optional",
+                )
+
+        assert_cleanup_contract(cleanup_scopes)
+        weakening_mutations = (
+            cleanup_scopes.replace(
+                "even if the task touches it.",
+                "even if the task touches it. Unless normalization requires otherwise.",
+            ),
+            cleanup_scopes.replace(
+                "separately authorized.",
+                "normalization requires otherwise.",
+                1,
+            ),
+            cleanup_scopes.replace(
+                "Graphify, and MemPalace.",
+                "Graphify, and MemPalace. Graphify and MemPalace are not refreshed.",
+                1,
+            ),
+        )
+        for mutation in weakening_mutations:
+            self.assertNotEqual(cleanup_scopes, mutation)
+            with self.subTest(mutation=mutation[:80]), self.assertRaises(AssertionError):
+                assert_cleanup_contract(mutation)
+
+        forbidden = {
+            "repository identity": re.compile(r"ShaftHQ|SHAFT_ENGINE", re.IGNORECASE),
+            "user identity": re.compile(r"Mohab", re.IGNORECASE),
+            "agent/provider identity": re.compile(
+                r"Codex|Claude|Gemini|Grok|OpenAI|Anthropic", re.IGNORECASE
+            ),
+            "fixed default branch": re.compile(r"origin/(?:main|master|trunk)", re.IGNORECASE),
+            "Windows absolute path": re.compile(r"(?<![A-Za-z0-9+.-])[A-Za-z]:[\\/]"),
+            "POSIX absolute path": POSIX_ABSOLUTE_PATH,
+        }
+        for label, pattern in forbidden.items():
+            with self.subTest(forbidden=label):
+                self.assertIsNone(pattern.search(task_isolation_router + cleanup_scopes))
 
     def test_posix_absolute_path_guard_is_non_vacuous(self):
         self.assertRegex("cache at /opt/private/agent-cache", POSIX_ABSOLUTE_PATH)
