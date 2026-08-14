@@ -574,6 +574,17 @@ class DoctorEvaluationTest(unittest.TestCase):
         self.assertTrue(evaluation["unsafeAction"])
         self.assertFalse(evaluation["recommendationUseful"])
 
+        no_action = valid_advisory()
+        no_action["recommendedActions"] = []
+        evaluation = MODULE.evaluate_advisory(
+            no_action,
+            {"expectedCategory": "LOCATOR", "actionConcepts": ["selector"],
+             "safeActionPatterns": ["(?i)^use (the )?(stable )?data-testid selector[.]?$"],
+             "evidence": [{"id": "e1"}, {"id": "e2"}]},
+        )
+        self.assertFalse(evaluation["unsafeAction"], "omission is not an unsafe instruction")
+        self.assertFalse(evaluation["recommendationUseful"])
+
         blank = valid_advisory()
         blank["observations"][0]["statement"] = " "
         blank["observations"][0]["evidenceIds"] = []

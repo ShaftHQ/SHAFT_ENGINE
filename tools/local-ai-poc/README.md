@@ -54,7 +54,7 @@ Runtime grammar is defense in depth, not the trust boundary. The harness indepen
 
 | Candidate | Pinned artifact | Size | Provenance/license | Role |
 | --- | --- | ---: | --- | --- |
-| [Qwen3 0.6B](https://huggingface.co/Qwen/Qwen3-0.6B-GGUF) | Official Q8_0 GGUF | 639.45 MB | First-party, Apache-2.0 | Approved compact CPU benchmark candidate; automatic use remains blocked until every quality, latency and process-tree RSS gate passes |
+| [Qwen3 0.6B](https://huggingface.co/Qwen/Qwen3-0.6B-GGUF) | Official Q8_0 GGUF | 639.45 MB | First-party, Apache-2.0 | Compact CPU benchmark failed Doctor quality gates; remains manual/ineligible for automatic use |
 | [Qwen3 1.7B](https://huggingface.co/Qwen/Qwen3-1.7B-GGUF) | Official Q8_0 GGUF | 1.83 GB | First-party, Apache-2.0 | Lite automatic candidate |
 | [Qwen3 4B](https://huggingface.co/Qwen/Qwen3-4B-GGUF) | Official Q4_K_M GGUF | 2.50 GB | First-party, Apache-2.0 | Balanced automatic candidate |
 | [Phi-4 Mini Instruct](https://huggingface.co/microsoft/Phi-4-mini-instruct) | Third-party Q4_K_M conversion | 2.49 GB | MIT base; conversion by Unsloth | Challenger only; automatic use blocked until quantization provenance policy exists |
@@ -136,6 +136,10 @@ Generated evidence is written to `target/local-ai-poc/results/`. Do not commit i
 The first research host is Windows 11 x64, Ryzen 9 5900HS (16 logical CPUs), 23.41 GB physical RAM and an NVIDIA RTX 3060 Laptop reporting 6 GB VRAM. No Ollama, LM Studio or llama.cpp runtime was preinstalled. Disk and available RAM changed materially during research, validating the decision to use current safe capacity rather than static total RAM.
 
 At the latest preflight on 2026-08-13, the host had 34.13 GB free disk but only 1.52 GB currently available RAM, yielding 0 GB effective RAM after the 2 GB reserve. The harness therefore returned no automatic recommendation, reported every candidate as excluded, set `mutated` to `false`, and did not download or launch a model. This is an expected safe exclusion, not a failed test; an actual benchmark aggregate must be added here only after the same preflight clears.
+
+On 2026-08-14 the approved compact run used the exact official Qwen3 0.6B Q8_0 artifact at revision `23749fefcc72300e3a2ad315e1317431b06b590a` with llama.cpp `b10400`, CPU-only, context 4096, parallelism 1, six cases and five repeats per case. Preflight recorded 16 usable CPUs, 4.94 GB available / 2.94 GB effective RAM, and 137.39 GB free disk. The verified 30-run matrix achieved 100% schema validity, 100% citation validity, 0% primary-category agreement, 0% safe recommendation coverage, zero unsafe instructions, 6.843-second warm P95, and 1,359,163,392-byte peak aggregate process-tree RSS against the 4 GiB ceiling. Responses consistently supplied grounded observations but omitted the required primary hypothesis and safe action. The candidate therefore fails the quality gates and remains ineligible for automatic production selection; deterministic SHAFT behavior remains the recommendation.
+
+An initial pre-inference attempt is excluded from quality evidence because llama.cpp rejected the unanchored defense-in-depth schema pattern with HTTP 400. The harness now requires b10400-compatible anchored patterns; the independent SHAFT-side validator remains authoritative. Generated raw attempts, server logs, and the aggregate stay under ignored `target/local-ai-poc/results/` and are not committed.
 
 ## Production decomposition
 

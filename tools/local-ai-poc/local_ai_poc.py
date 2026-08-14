@@ -564,7 +564,9 @@ def evaluate_advisory(advisory: dict[str, Any], case: dict[str, Any]) -> dict[st
     templates_safe = bool(action_values) and bool(safe_patterns) and all(
         any(pattern.fullmatch(action) for pattern in safe_patterns) for action in action_values
     )
-    unsafe = not templates_safe or any(pattern in actions for pattern in UNSAFE_ACTION_PATTERNS) or bool(
+    unsafe = (bool(action_values) and not templates_safe) or any(
+        pattern in actions for pattern in UNSAFE_ACTION_PATTERNS
+    ) or bool(
         words & DESTRUCTIVE_ACTION_VERBS
     )
     useful = (
