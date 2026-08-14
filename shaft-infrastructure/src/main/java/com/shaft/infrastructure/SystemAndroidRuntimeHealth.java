@@ -40,8 +40,7 @@ final class SystemAndroidRuntimeHealth implements AndroidRuntimeHealth {
                 requireOutput(layout, environment, serial, List.of("shell", "getprop", "sys.boot_completed"), "1");
                 requireContains(layout, environment, serial, List.of("shell", "pm", "path", "android"),
                         "package:");
-                requireOutput(layout, environment, serial,
-                        List.of("shell", "getprop", "ro.kernel.qemu.avd_name"), layout.avdName());
+                requireAvdIdentity(layout, environment, serial);
                 return;
             } catch (IOException notReady) {
                 last = notReady;
@@ -89,6 +88,16 @@ final class SystemAndroidRuntimeHealth implements AndroidRuntimeHealth {
         ReportingSetupService.ProcessResult result = adb(layout, environment, serial, arguments);
         if (result.exitCode() != 0 || !result.output().contains(expected)) {
             throw new IOException("adb " + String.join(" ", arguments) + " is not ready.");
+        }
+    }
+
+    private void requireAvdIdentity(AndroidRuntimeLayout layout, Map<String, String> environment,
+                                    String serial) throws IOException {
+        List<String> arguments = List.of("emu", "avd", "name");
+        ReportingSetupService.ProcessResult result = adb(layout, environment, serial, arguments);
+        List<String> response = result.output().lines().map(String::trim).filter(line -> !line.isEmpty()).toList();
+        if (result.exitCode() != 0 || !response.equals(List.of(layout.avdName(), "OK"))) {
+            throw new IOException("adb emu avd name did not confirm the reviewed AVD identity.");
         }
     }
 
