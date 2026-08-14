@@ -356,14 +356,19 @@ if (-not ($resolverOk -and $queryOk -and $auditOk)) {
             "a complete degraded Graphify receipt permits implementation to continue",
             entrypoint,
         )
+        # This is a closed contract over canonical unsafe permission clauses,
+        # not an attempt to parse unrestricted natural language.
+        unsafe_permission_clause = re.compile(
+            r"\blinked(?:-| )worktrees?\s+"
+            r"(?:may|can|(?:is|are)\s+(?:allowed|permitted)\s+to)\s+"
+            r"(?:refresh|wait|retry(?:-loop)?|"
+            r"(?:clear|replace)(?:\s+or\s+(?:clear|replace))?\s+"
+            r"(?:the\s+)?(?:shared\s+)?"
+            r"(?:refresh\s+lock|lock|freshness\s+marker|cache))\b",
+            flags=re.IGNORECASE,
+        )
         self.assertIsNone(
-            re.search(
-                r"linked worktrees?[^.]{0,160}\b(?:may(?!\s+not\b)|can(?!not\b)|"
-                r"(?:is|are) (?:allowed|permitted) to)\b[^.]{0,160}\b"
-                r"(?:refresh|wait|retry(?:-loop)?|clear|replace)\b",
-                graphify,
-                flags=re.IGNORECASE,
-            ),
+            unsafe_permission_clause.search(graphify),
             "linked worktrees must not receive permission to mutate or contend for "
             "shared Graphify state",
         )
@@ -388,6 +393,10 @@ if (-not ($resolverOk -and $queryOk -and $auditOk)) {
                 files["graphify"]
                 + "\nA linked worktree may clear the cache and retry refresh until it succeeds.\n"
             ),
+            "hyphenated contradictory linked refresh permission appended": (
+                files["graphify"]
+                + "\nA linked-worktree may clear the cache and retry refresh until it succeeds.\n"
+            ),
             "linked refresh allowed": files["graphify"].replace(
                 "must not refresh, wait or retry-loop",
                 "may refresh or wait and retry-loop",
@@ -405,6 +414,19 @@ if (-not ($resolverOk -and $queryOk -and $auditOk)) {
             with self.subTest(name=name), self.assertRaises(AssertionError):
                 self._assert_graphify_contention_is_a_degraded_continuation(
                     {**files, "graphify": graphify_mutation}
+                )
+
+        for name, safe_text in {
+            "continue without refresh": (
+                "A linked worktree can continue implementation without refresh."
+            ),
+            "continue while retaining wait prohibition": (
+                "A linked worktree can continue and must not wait."
+            ),
+        }.items():
+            with self.subTest(name=name):
+                self._assert_graphify_contention_is_a_degraded_continuation(
+                    {**files, "graphify": files["graphify"] + "\n" + safe_text + "\n"}
                 )
 
     def test_graphify_cli_route_contract_rejects_bypass_mutations(self):
