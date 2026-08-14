@@ -30,9 +30,22 @@ final class PlaywrightSetupProvider implements SetupProvider {
     @Override
     public SetupReceipt install(SetupPlan plan, SetupApproval approval, SetupOptions options) throws IOException {
         SetupPlan providerPlan = PlaywrightSetupPlanner.plan(plan.platform(), plan.architecture(), plan.mode());
+        preflightOffline(options, providerPlan);
         SetupReceipt receipt = service(options, plan.platform(), plan.architecture()).install(providerPlan,
                 new SetupApproval(providerPlan.digest(), approval.approvedAt(), approval.acceptedLicenses()));
         return new SetupReceipt(plan.digest(), receipt.completedAt(), receipt.completedActions());
+    }
+
+    private static void preflightOffline(SetupOptions options, SetupPlan plan) throws IOException {
+        if (!options.offline()) return;
+        VerifiedArtifactStore store = new VerifiedArtifactStore(options.paths().downloads());
+        store.fetch(plan.actions().getFirst(), true);
+        String lockChecksum = plan.actions().get(1).dependencyLockChecksum();
+        PlaywrightHostPlatform host = PlaywrightHostPlatform.current(plan.platform(), plan.architecture());
+        for (PlaywrightArtifactManifest.Artifact artifact : PlaywrightArtifactManifest.load()
+                .requirePlatform(host.token())) {
+            store.fetch(PlaywrightSetupService.artifactAction(artifact, lockChecksum), true);
+        }
     }
 
     private static PlaywrightSetupService service(SetupOptions options, SetupPlatform platform,

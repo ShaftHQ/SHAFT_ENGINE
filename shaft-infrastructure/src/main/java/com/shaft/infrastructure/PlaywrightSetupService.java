@@ -185,7 +185,7 @@ public final class PlaywrightSetupService {
         }
     }
 
-    private SetupAction artifactAction(PlaywrightArtifactManifest.Artifact artifact, String lockChecksum) {
+    static SetupAction artifactAction(PlaywrightArtifactManifest.Artifact artifact, String lockChecksum) {
         SetupTarget target = switch (artifact.name()) {
             case "firefox" -> SetupTarget.PLAYWRIGHT_FIREFOX;
             case "webkit" -> SetupTarget.PLAYWRIGHT_WEBKIT;

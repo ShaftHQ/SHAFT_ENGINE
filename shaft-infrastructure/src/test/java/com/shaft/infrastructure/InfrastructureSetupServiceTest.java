@@ -122,6 +122,22 @@ class InfrastructureSetupServiceTest {
     }
 
     @Test
+    void coldOfflinePlaywrightInstallRejectsBeforeCreatingState(@TempDir Path temp) {
+        ShaftCachePaths paths = paths(temp);
+        InfrastructureSetupService service = InfrastructureSetupService.builtIn(
+                SetupPlatform.WINDOWS, SetupArchitecture.X64);
+        SetupOptions options = SetupOptions.defaults(SetupProfile.PLAYWRIGHT, paths)
+                .withMode(SetupMode.MANAGED).withOffline(true);
+        SetupPlan plan = service.plan(options);
+
+        assertThrows(java.io.IOException.class, () -> service.install(plan,
+                new SetupApproval(plan.digest(), Instant.EPOCH, Set.of()), options));
+
+        assertTrue(Files.notExists(paths.cacheRoot()));
+        assertTrue(Files.notExists(paths.dataRoot()));
+    }
+
+    @Test
     void builtInCoordinatorProvidesCompleteAndroidPlanIncludingBuildToolsLicense(@TempDir Path temp) {
         ShaftCachePaths paths = paths(temp);
         InfrastructureSetupService service = InfrastructureSetupService.builtIn(
