@@ -83,7 +83,7 @@
 <dd><code><span id="param-totalMatched">totalMatched</span></code> - total transactions matching the filter before the limit was applied</dd>
 <dd><code><span id="param-truncated">truncated</span></code> - whether <code>totalMatched</code> exceeded the requested limit</dd>
 <dd><code><span id="param-warnings">warnings</span></code> - safe warnings, such as no transactions observed yet</dd>
-<dd><code><span id="param-detail">detail</span></code> - full detail (headers and a truncated, redacted response body preview) for the
+<dd><code><span id="param-detail">detail</span></code> - full detail (headers and a bounded/redacted response preview or explicit omission) for the
                     single transaction matching the requested <code>id</code>; <code>null</code> unless an
                     <code>id</code> was supplied and matched exactly one transaction. Absorbs the former
                     <code>browser_network_request</code> tool (design doc Decision 2).</dd>

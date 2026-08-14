@@ -639,7 +639,7 @@ apply.</div>
 <h3>networkRequests</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="annotations">@Tool(name="browser_network_requests",
-      description="lists the active browser session's observed network transactions (method, URL, status, mimeType, sizes, timestamp; never bodies); optional id narrows the listing to that single transaction and populates its full detail (headers and a truncated, redacted response body preview), absorbing the former browser_network_request tool; requires the DevTools-based network trace capture that is on by default (shaft.trace.enabled and shaft.trace.includeNetwork); not supported on the Playwright engine")
+      description="lists the active browser session's observed network transactions (method, URL, status, mimeType, sizes, timestamp; never bodies); optional id narrows the listing to that single transaction and populates its full detail (headers and a bounded, redacted response preview or explicit safe-boundary omission), absorbing the former browser_network_request tool; requires the DevTools-based network trace capture that is on by default (shaft.trace.enabled and shaft.trace.includeNetwork); not supported on the Playwright engine")
 </span><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="McpNetworkTransactionList.html" title="class in com.shaft.mcp">McpNetworkTransactionList</a></span>&nbsp;<span class="element-name">networkRequests</span><wbr><span class="parameters">(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;urlFilter,
  int&nbsp;limit,
  @ToolParam(required=false)

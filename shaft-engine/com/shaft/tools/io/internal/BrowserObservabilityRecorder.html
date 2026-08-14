@@ -55,6 +55,8 @@
 <li><a href="#recordNetwork(com.shaft.tools.io.internal.BrowserObservabilityRecorder.NetworkObservation)" tabindex="0">recordNetwork(BrowserObservabilityRecorder.NetworkObservation)</a></li>
 <li><a href="#startNetwork(com.shaft.tools.io.internal.BrowserObservabilityRecorder.ObservationBinding,org.openqa.selenium.remote.http.HttpRequest)" tabindex="0">startNetwork(BrowserObservabilityRecorder.ObservationBinding, HttpRequest)</a></li>
 <li><a href="#recordNetwork(com.shaft.tools.io.internal.BrowserObservabilityRecorder.ObservationSession,com.shaft.tools.io.internal.BrowserObservabilityRecorder.NetworkObservation)" tabindex="0">recordNetwork(BrowserObservabilityRecorder.ObservationSession, BrowserObservabilityRecorder.NetworkObservation)</a></li>
+<li><a href="#recordNetwork(com.shaft.tools.io.internal.BrowserObservabilityRecorder.ObservationSession,com.shaft.tools.io.internal.BrowserObservabilityRecorder.NetworkObservation,java.lang.String)" tabindex="0">recordNetwork(BrowserObservabilityRecorder.ObservationSession, BrowserObservabilityRecorder.NetworkObservation, String)</a></li>
+<li><a href="#recordWebSocket(com.shaft.tools.io.internal.BrowserObservabilityRecorder.ObservationSession,com.shaft.tools.io.internal.BrowserObservabilityRecorder.WebSocketObservation)" tabindex="0">recordWebSocket(BrowserObservabilityRecorder.ObservationSession, BrowserObservabilityRecorder.WebSocketObservation)</a></li>
 <li><a href="#collectConsole(org.openqa.selenium.WebDriver)" tabindex="0">collectConsole(WebDriver)</a></li>
 <li><a href="#tryCollectConsole(org.openqa.selenium.WebDriver)" tabindex="0">tryCollectConsole(WebDriver)</a></li>
 <li><a href="#recordConsole(java.lang.String,java.lang.String,java.lang.String,long)" tabindex="0">recordConsole(String, String, String, long)</a></li>
@@ -71,6 +73,7 @@
 <li><a href="#snapshotConsole(com.shaft.tools.io.internal.BrowserObservabilityRecorder.ObservationSession)" tabindex="0">snapshotConsole(BrowserObservabilityRecorder.ObservationSession)</a></li>
 <li><a href="#consoleEntry(java.lang.String,java.lang.String,java.lang.String,long)" tabindex="0">consoleEntry(String, String, String, long)</a></li>
 <li><a href="#clearConsole()" tabindex="0">clearConsole()</a></li>
+<li><a href="#snapshotWebSockets(com.shaft.tools.io.internal.BrowserObservabilityRecorder.ObservationSession)" tabindex="0">snapshotWebSockets(BrowserObservabilityRecorder.ObservationSession)</a></li>
 <li><a href="#clear()" tabindex="0">clear()</a></li>
 <li><a href="#startSession()" tabindex="0">startSession()</a></li>
 <li><a href="#createSession()" tabindex="0">createSession()</a></li>
@@ -78,6 +81,10 @@
 <li><a href="#captureBinding()" tabindex="0">captureBinding()</a></li>
 <li><a href="#resolveSession(com.shaft.tools.io.internal.BrowserObservabilityRecorder.ObservationBinding)" tabindex="0">resolveSession(BrowserObservabilityRecorder.ObservationBinding)</a></li>
 <li><a href="#recordConsoleOmission(com.shaft.tools.io.internal.BrowserObservabilityRecorder.ObservationSession)" tabindex="0">recordConsoleOmission(BrowserObservabilityRecorder.ObservationSession)</a></li>
+<li><a href="#retainedNetworkText(java.lang.String)" tabindex="0">retainedNetworkText(String)</a></li>
+<li><a href="#retainedNetworkHeaderValue(java.lang.String,java.lang.String)" tabindex="0">retainedNetworkHeaderValue(String, String)</a></li>
+<li><a href="#boundedNetworkText(java.lang.String)" tabindex="0">boundedNetworkText(String)</a></li>
+<li><a href="#boundedNetworkHeaderValue(java.lang.String,java.lang.String)" tabindex="0">boundedNetworkHeaderValue(String, String)</a></li>
 </ol>
 </li>
 </ol>
@@ -140,6 +147,16 @@ class (unlike <code>BrowserObservabilityRecorder.NetworkEvent</code>, which stay
 <div class="col-last odd-row-color">
 <div class="block">Opaque owner handle captured by asynchronous browser callbacks.</div>
 </div>
+<div class="col-first even-row-color"><code>static final record&nbsp;</code></div>
+<div class="col-second even-row-color"><code><a href="BrowserObservabilityRecorder.WebSocketObservation.html" class="type-name-link" title="class in com.shaft.tools.io.internal">BrowserObservabilityRecorder.WebSocketObservation</a></code></div>
+<div class="col-last even-row-color">
+<div class="block">Bounded WebSocket lifecycle/frame metadata.</div>
+</div>
+<div class="col-first odd-row-color"><code>static final record&nbsp;</code></div>
+<div class="col-second odd-row-color"><code><a href="BrowserObservabilityRecorder.WebSocketSnapshotEntry.html" class="type-name-link" title="class in com.shaft.tools.io.internal">BrowserObservabilityRecorder.WebSocketSnapshotEntry</a></code></div>
+<div class="col-last odd-row-color">
+<div class="block">Read-only WebSocket evidence used by focused diagnostics and tests.</div>
+</div>
 </div>
 </section>
 </li>
@@ -154,6 +171,13 @@ class (unlike <code>BrowserObservabilityRecorder.NetworkEvent</code>, which stay
 <div class="table-header col-first">Modifier and Type</div>
 <div class="table-header col-second">Method</div>
 <div class="table-header col-last">Description</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#boundedNetworkHeaderValue(java.lang.String,java.lang.String)" class="member-name-link">boundedNetworkHeaderValue</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;key,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;source)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">&nbsp;</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#boundedNetworkText(java.lang.String)" class="member-name-link">boundedNetworkText</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;source)</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">&nbsp;</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static <a href="BrowserObservabilityRecorder.ObservationBinding.html" title="class in com.shaft.tools.io.internal">BrowserObservabilityRecorder.ObservationBinding</a></code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#captureBinding()" class="member-name-link">captureBinding</a>()</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
@@ -257,22 +281,46 @@ class (unlike <code>BrowserObservabilityRecorder.NetworkEvent</code>, which stay
 <div class="block">Records a network event into an explicitly captured observation session.</div>
 </div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static void</code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#recordWarning(com.shaft.tools.io.internal.BrowserObservabilityRecorder.ObservationSession,java.lang.String,java.lang.String)" class="member-name-link">recordWarning</a><wbr>(<a href="BrowserObservabilityRecorder.ObservationSession.html" title="class in com.shaft.tools.io.internal">BrowserObservabilityRecorder.ObservationSession</a>&nbsp;session,
- <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;source,
- <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;message)</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#recordNetwork(com.shaft.tools.io.internal.BrowserObservabilityRecorder.ObservationSession,com.shaft.tools.io.internal.BrowserObservabilityRecorder.NetworkObservation,java.lang.String)" class="member-name-link">recordNetwork</a><wbr>(<a href="BrowserObservabilityRecorder.ObservationSession.html" title="class in com.shaft.tools.io.internal">BrowserObservabilityRecorder.ObservationSession</a>&nbsp;session,
+ <a href="BrowserObservabilityRecorder.NetworkObservation.html" title="class in com.shaft.tools.io.internal">BrowserObservabilityRecorder.NetworkObservation</a>&nbsp;observation,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;provider)</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
-<div class="block">Records a warning into an explicitly captured observation session.</div>
+<div class="block">Records provider-labeled bounded metadata into an explicitly captured observation session.</div>
 </div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static void</code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#recordWarning(java.lang.String,java.lang.String)" class="member-name-link">recordWarning</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;source,
+<div class="col-second even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#recordWarning(com.shaft.tools.io.internal.BrowserObservabilityRecorder.ObservationSession,java.lang.String,java.lang.String)" class="member-name-link">recordWarning</a><wbr>(<a href="BrowserObservabilityRecorder.ObservationSession.html" title="class in com.shaft.tools.io.internal">BrowserObservabilityRecorder.ObservationSession</a>&nbsp;session,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;source,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;message)</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
+<div class="block">Records a warning into an explicitly captured observation session.</div>
+</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static void</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#recordWarning(java.lang.String,java.lang.String)" class="member-name-link">recordWarning</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;source,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;message)</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
 <div class="block">Records safe browser observability metadata for unsupported capabilities.</div>
+</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static void</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#recordWebSocket(com.shaft.tools.io.internal.BrowserObservabilityRecorder.ObservationSession,com.shaft.tools.io.internal.BrowserObservabilityRecorder.WebSocketObservation)" class="member-name-link">recordWebSocket</a><wbr>(<a href="BrowserObservabilityRecorder.ObservationSession.html" title="class in com.shaft.tools.io.internal">BrowserObservabilityRecorder.ObservationSession</a>&nbsp;session,
+ <a href="BrowserObservabilityRecorder.WebSocketObservation.html" title="class in com.shaft.tools.io.internal">BrowserObservabilityRecorder.WebSocketObservation</a>&nbsp;observation)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
+<div class="block">Records one bounded CDP WebSocket lifecycle or frame observation.</div>
 </div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static <a href="BrowserObservabilityRecorder.ObservationSession.html" title="class in com.shaft.tools.io.internal">BrowserObservabilityRecorder.ObservationSession</a></code></div>
 <div class="col-second odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#resolveSession(com.shaft.tools.io.internal.BrowserObservabilityRecorder.ObservationBinding)" class="member-name-link">resolveSession</a><wbr>(<a href="BrowserObservabilityRecorder.ObservationBinding.html" title="class in com.shaft.tools.io.internal">BrowserObservabilityRecorder.ObservationBinding</a>&nbsp;binding)</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
 <div class="block">Resolves one callback binding once so a whole provider batch keeps one immutable owner.</div>
+</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#retainedNetworkHeaderValue(java.lang.String,java.lang.String)" class="member-name-link">retainedNetworkHeaderValue</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;key,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;source)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
+<div class="block">Retains one bounded callback header value while masking known sensitive header names immediately.</div>
+</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#retainedNetworkText(java.lang.String)" class="member-name-link">retainedNetworkText</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;source)</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
+<div class="block">Retains complete bounded callback text, or a fail-closed marker that cannot contain a partial credential.</div>
 </div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a><wbr>&lt;<a href="BrowserObservabilityRecorder.NetworkSnapshotEntry.html" title="class in com.shaft.tools.io.internal">BrowserObservabilityRecorder.NetworkSnapshotEntry</a>&gt;</code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#snapshot()" class="member-name-link">snapshot</a>()</code></div>
@@ -295,31 +343,36 @@ end-of-test drain of the same thread-local state.</div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
 <div class="block">Returns an immutable console snapshot for an explicitly captured observation session.</div>
 </div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static <a href="BrowserObservabilityRecorder.NetworkExchange.html" title="class in com.shaft.tools.io.internal">BrowserObservabilityRecorder.NetworkExchange</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#startNetwork(com.shaft.tools.io.internal.BrowserObservabilityRecorder.ObservationBinding,org.openqa.selenium.remote.http.HttpRequest)" class="member-name-link">startNetwork</a><wbr>(<a href="BrowserObservabilityRecorder.ObservationBinding.html" title="class in com.shaft.tools.io.internal">BrowserObservabilityRecorder.ObservationBinding</a>&nbsp;binding,
- org.openqa.selenium.remote.http.HttpRequest&nbsp;request)</code></div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a><wbr>&lt;<a href="BrowserObservabilityRecorder.WebSocketSnapshotEntry.html" title="class in com.shaft.tools.io.internal">BrowserObservabilityRecorder.WebSocketSnapshotEntry</a>&gt;</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#snapshotWebSockets(com.shaft.tools.io.internal.BrowserObservabilityRecorder.ObservationSession)" class="member-name-link">snapshotWebSockets</a><wbr>(<a href="BrowserObservabilityRecorder.ObservationSession.html" title="class in com.shaft.tools.io.internal">BrowserObservabilityRecorder.ObservationSession</a>&nbsp;session)</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
-<div class="block">Starts a network exchange using a callback binding that follows report-session rollover.</div>
+<div class="block">Returns immutable WebSocket evidence for an explicitly captured observation session.</div>
 </div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static <a href="BrowserObservabilityRecorder.NetworkExchange.html" title="class in com.shaft.tools.io.internal">BrowserObservabilityRecorder.NetworkExchange</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#startNetwork(com.shaft.tools.io.internal.BrowserObservabilityRecorder.ObservationSession,org.openqa.selenium.remote.http.HttpRequest)" class="member-name-link">startNetwork</a><wbr>(<a href="BrowserObservabilityRecorder.ObservationSession.html" title="class in com.shaft.tools.io.internal">BrowserObservabilityRecorder.ObservationSession</a>&nbsp;session,
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#startNetwork(com.shaft.tools.io.internal.BrowserObservabilityRecorder.ObservationBinding,org.openqa.selenium.remote.http.HttpRequest)" class="member-name-link">startNetwork</a><wbr>(<a href="BrowserObservabilityRecorder.ObservationBinding.html" title="class in com.shaft.tools.io.internal">BrowserObservabilityRecorder.ObservationBinding</a>&nbsp;binding,
  org.openqa.selenium.remote.http.HttpRequest&nbsp;request)</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
-<div class="block">Starts a network exchange owned by an explicitly captured observation session.</div>
+<div class="block">Starts a network exchange using a callback binding that follows report-session rollover.</div>
 </div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static <a href="BrowserObservabilityRecorder.NetworkExchange.html" title="class in com.shaft.tools.io.internal">BrowserObservabilityRecorder.NetworkExchange</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#startNetwork(org.openqa.selenium.remote.http.HttpRequest)" class="member-name-link">startNetwork</a><wbr>(org.openqa.selenium.remote.http.HttpRequest&nbsp;request)</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#startNetwork(com.shaft.tools.io.internal.BrowserObservabilityRecorder.ObservationSession,org.openqa.selenium.remote.http.HttpRequest)" class="member-name-link">startNetwork</a><wbr>(<a href="BrowserObservabilityRecorder.ObservationSession.html" title="class in com.shaft.tools.io.internal">BrowserObservabilityRecorder.ObservationSession</a>&nbsp;session,
+ org.openqa.selenium.remote.http.HttpRequest&nbsp;request)</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
+<div class="block">Starts a network exchange owned by an explicitly captured observation session.</div>
+</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static <a href="BrowserObservabilityRecorder.NetworkExchange.html" title="class in com.shaft.tools.io.internal">BrowserObservabilityRecorder.NetworkExchange</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#startNetwork(org.openqa.selenium.remote.http.HttpRequest)" class="member-name-link">startNetwork</a><wbr>(org.openqa.selenium.remote.http.HttpRequest&nbsp;request)</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
 <div class="block">Starts a network exchange and copies the request body so downstream filters can still read it.</div>
 </div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static <a href="BrowserObservabilityRecorder.ObservationSession.html" title="class in com.shaft.tools.io.internal">BrowserObservabilityRecorder.ObservationSession</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#startSession()" class="member-name-link">startSession</a>()</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
+<div class="col-first even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static <a href="BrowserObservabilityRecorder.ObservationSession.html" title="class in com.shaft.tools.io.internal">BrowserObservabilityRecorder.ObservationSession</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#startSession()" class="member-name-link">startSession</a>()</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
 <div class="block">Starts and binds a fresh browser-observation session to the current report thread.</div>
 </div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static boolean</code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#tryCollectConsole(org.openqa.selenium.WebDriver)" class="member-name-link">tryCollectConsole</a><wbr>(org.openqa.selenium.WebDriver&nbsp;driver)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static boolean</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#tryCollectConsole(org.openqa.selenium.WebDriver)" class="member-name-link">tryCollectConsole</a><wbr>(org.openqa.selenium.WebDriver&nbsp;driver)</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
 <div class="block">Collects Selenium browser logs and reports whether the provider exposes the browser log type.</div>
 </div>
 </div>
@@ -411,6 +464,27 @@ end-of-test drain of the same thread-local state.</div>
 <div class="member-signature"><span class="modifiers">public static</span>&nbsp;<span class="return-type">void</span>&nbsp;<span class="element-name">recordNetwork</span><wbr><span class="parameters">(<a href="BrowserObservabilityRecorder.ObservationSession.html" title="class in com.shaft.tools.io.internal">BrowserObservabilityRecorder.ObservationSession</a>&nbsp;session,
  <a href="BrowserObservabilityRecorder.NetworkObservation.html" title="class in com.shaft.tools.io.internal">BrowserObservabilityRecorder.NetworkObservation</a>&nbsp;observation)</span></div>
 <div class="block">Records a network event into an explicitly captured observation session.</div>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="recordNetwork(com.shaft.tools.io.internal.BrowserObservabilityRecorder.ObservationSession,com.shaft.tools.io.internal.BrowserObservabilityRecorder.NetworkObservation,java.lang.String)">
+<h3>recordNetwork</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public static</span>&nbsp;<span class="return-type">void</span>&nbsp;<span class="element-name">recordNetwork</span><wbr><span class="parameters">(<a href="BrowserObservabilityRecorder.ObservationSession.html" title="class in com.shaft.tools.io.internal">BrowserObservabilityRecorder.ObservationSession</a>&nbsp;session,
+ <a href="BrowserObservabilityRecorder.NetworkObservation.html" title="class in com.shaft.tools.io.internal">BrowserObservabilityRecorder.NetworkObservation</a>&nbsp;observation,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;provider)</span></div>
+<div class="block">Records provider-labeled bounded metadata into an explicitly captured observation session.</div>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="recordWebSocket(com.shaft.tools.io.internal.BrowserObservabilityRecorder.ObservationSession,com.shaft.tools.io.internal.BrowserObservabilityRecorder.WebSocketObservation)">
+<h3>recordWebSocket</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public static</span>&nbsp;<span class="return-type">void</span>&nbsp;<span class="element-name">recordWebSocket</span><wbr><span class="parameters">(<a href="BrowserObservabilityRecorder.ObservationSession.html" title="class in com.shaft.tools.io.internal">BrowserObservabilityRecorder.ObservationSession</a>&nbsp;session,
+ <a href="BrowserObservabilityRecorder.WebSocketObservation.html" title="class in com.shaft.tools.io.internal">BrowserObservabilityRecorder.WebSocketObservation</a>&nbsp;observation)</span></div>
+<div class="block">Records one bounded CDP WebSocket lifecycle or frame observation.</div>
 </div>
 </section>
 </li>
@@ -616,6 +690,15 @@ end-of-test drain of the same thread-local state.</div>
 </section>
 </li>
 <li>
+<section class="detail" id="snapshotWebSockets(com.shaft.tools.io.internal.BrowserObservabilityRecorder.ObservationSession)">
+<h3>snapshotWebSockets</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public static</span>&nbsp;<span class="return-type"><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="BrowserObservabilityRecorder.WebSocketSnapshotEntry.html" title="class in com.shaft.tools.io.internal">BrowserObservabilityRecorder.WebSocketSnapshotEntry</a>&gt;</span>&nbsp;<span class="element-name">snapshotWebSockets</span><wbr><span class="parameters">(<a href="BrowserObservabilityRecorder.ObservationSession.html" title="class in com.shaft.tools.io.internal">BrowserObservabilityRecorder.ObservationSession</a>&nbsp;session)</span></div>
+<div class="block">Returns immutable WebSocket evidence for an explicitly captured observation session.</div>
+</div>
+</section>
+</li>
+<li>
 <section class="detail" id="clear()">
 <h3>clear</h3>
 <div class="horizontal-scroll">
@@ -675,6 +758,42 @@ end-of-test drain of the same thread-local state.</div>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="modifiers">public static</span>&nbsp;<span class="return-type">void</span>&nbsp;<span class="element-name">recordConsoleOmission</span><wbr><span class="parameters">(<a href="BrowserObservabilityRecorder.ObservationSession.html" title="class in com.shaft.tools.io.internal">BrowserObservabilityRecorder.ObservationSession</a>&nbsp;session)</span></div>
 <div class="block">Marks that a provider omitted its oldest buffered console event before transfer.</div>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="retainedNetworkText(java.lang.String)">
+<h3>retainedNetworkText</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public static</span>&nbsp;<span class="return-type"><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></span>&nbsp;<span class="element-name">retainedNetworkText</span><wbr><span class="parameters">(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;source)</span></div>
+<div class="block">Retains complete bounded callback text, or a fail-closed marker that cannot contain a partial credential.</div>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="retainedNetworkHeaderValue(java.lang.String,java.lang.String)">
+<h3>retainedNetworkHeaderValue</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public static</span>&nbsp;<span class="return-type"><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></span>&nbsp;<span class="element-name">retainedNetworkHeaderValue</span><wbr><span class="parameters">(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;key,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;source)</span></div>
+<div class="block">Retains one bounded callback header value while masking known sensitive header names immediately.</div>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="boundedNetworkText(java.lang.String)">
+<h3>boundedNetworkText</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public static</span>&nbsp;<span class="return-type"><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></span>&nbsp;<span class="element-name">boundedNetworkText</span><wbr><span class="parameters">(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;source)</span></div>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="boundedNetworkHeaderValue(java.lang.String,java.lang.String)">
+<h3>boundedNetworkHeaderValue</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public static</span>&nbsp;<span class="return-type"><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></span>&nbsp;<span class="element-name">boundedNetworkHeaderValue</span><wbr><span class="parameters">(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;key,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;source)</span></div>
 </div>
 </section>
 </li>
