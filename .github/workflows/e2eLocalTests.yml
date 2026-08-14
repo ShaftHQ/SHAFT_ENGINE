@@ -312,6 +312,12 @@ jobs:
         uses: ./.github/actions/setup-test-env
         with:
           node-version: '24'
+      - name: Resolve Windows Appium test dependencies
+        shell: bash
+        run: >-
+          bash scripts/ci/build_retry.sh 2 60
+          mvn -pl shaft-engine -am -e test
+          "-DskipTests" "-Dallure.automaticallyOpen=false" "-Dgpg.skip" "-Dcyclonedx.skip"
       - name: Install Appium Windows driver
         run: |
           npm install -g appium@3.5.2
@@ -372,7 +378,7 @@ jobs:
             }
             throw "Appium server did not become ready."
           }
-          bash scripts/ci/build_retry.sh 2 60 mvn -pl shaft-engine -am -e test "-DrunWindowsDesktopE2E=true" "-DdefaultElementIdentificationTimeout=5" "-DretryMaximumNumberOfAttempts=1" "-DexecutionAddress=http://127.0.0.1:4723" "-DtargetOperatingSystem=WINDOWS" "-DtargetBrowserName=WindowsApp" "-DheadlessExecution=false" "-DplatformName=Windows" "-Dmobile_automationName=Windows" "-Dmobile_app=C:/Windows/System32/notepad.exe" "-DautomaticallyOpen=false" "-DopenLighthouseReportWhileExecution=false" "-DgenerateAllureReportArchive=true" "-Dtest=${{ github.event.inputs.tests != '' && github.event.inputs.tests || 'WindowsDesktopAppiumE2ETest' }}"
+          mvn -pl shaft-engine -am -e test "-DrunWindowsDesktopE2E=true" "-DdefaultElementIdentificationTimeout=5" "-DretryMaximumNumberOfAttempts=1" "-DexecutionAddress=http://127.0.0.1:4723" "-DtargetOperatingSystem=WINDOWS" "-DtargetBrowserName=WindowsApp" "-DheadlessExecution=false" "-DplatformName=Windows" "-Dmobile_automationName=Windows" "-Dmobile_app=C:/Windows/System32/notepad.exe" "-DautomaticallyOpen=false" "-DopenLighthouseReportWhileExecution=false" "-DgenerateAllureReportArchive=true" "-Dtest=${{ github.event.inputs.tests != '' && github.event.inputs.tests || 'WindowsDesktopAppiumE2ETest' }}"
       - name: Dump Appium server log
         if: always()
         shell: powershell

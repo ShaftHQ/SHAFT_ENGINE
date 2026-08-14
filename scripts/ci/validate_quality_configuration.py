@@ -582,20 +582,34 @@ def validate_quality_configuration(root: Path = ROOT) -> list[str]:
 
 
 def validate_windows_appium_retry(workflow_text: str) -> list[str]:
-    error = "e2eLocalTests.yml Windows Appium Maven launch must use transfer-only fresh-process retry"
+    error = (
+        "e2eLocalTests.yml Windows Appium dependency preparation must use transfer-only retry "
+        "and the runtime test must execute once"
+    )
     try:
         document = yaml.safe_load(workflow_text) or {}
     except yaml.YAMLError:
         return [error]
     appium_job = (document.get("jobs") or {}).get("Windows_Appium_Desktop_Local") or {}
-    maven_lines = [
+    run_lines = [
         line.strip()
         for step in appium_job.get("steps") or []
         for line in str(step.get("run") or "").splitlines()
+        if line.strip() and not line.lstrip().startswith("#")
+    ]
+    preparation_lines = [
+        line for line in run_lines
+        if "mvn -pl shaft-engine -am -e test" in line and "-DskipTests" in line
+    ]
+    test_lines = [
+        line for line in run_lines
         if "mvn -pl shaft-engine -am -e test" in line and "-DrunWindowsDesktopE2E=true" in line
     ]
-    required_prefix = "bash scripts/ci/build_retry.sh 2 60 mvn -pl shaft-engine -am -e test"
-    if len(maven_lines) != 1 or not maven_lines[0].startswith(required_prefix):
+    required_preparation = "bash scripts/ci/build_retry.sh 2 60 mvn -pl shaft-engine -am -e test"
+    if (len(preparation_lines) != 1
+            or not preparation_lines[0].startswith(required_preparation)
+            or len(test_lines) != 1
+            or not test_lines[0].startswith("mvn -pl shaft-engine -am -e test ")):
         return [error]
     return []
 

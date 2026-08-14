@@ -100,7 +100,7 @@ class AssistantGeminiLiveE2ETest {
         assertEquals("gemini", response.get("provider").getAsString());
         assertTrue(response.get("model").getAsString().startsWith(model), response.get("model").getAsString());
         assertEquals("ASK", response.get("mode").getAsString());
-        assertEquals(LIVE_CANARY_TOKEN, answer, answer);
+        assertEquals(LIVE_CANARY_TOKEN, answer.trim(), answer);
     }
 
     @SuppressWarnings("unchecked")
