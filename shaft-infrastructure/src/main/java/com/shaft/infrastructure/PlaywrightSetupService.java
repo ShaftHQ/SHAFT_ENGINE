@@ -4,6 +4,7 @@ import tools.jackson.databind.DeserializationFeature;
 import tools.jackson.databind.json.JsonMapper;
 
 import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.nio.channels.FileChannel;
 import java.nio.channels.FileLock;
 import java.nio.file.Files;
@@ -155,7 +156,7 @@ public final class PlaywrightSetupService {
             } catch (IOException failure) {
                 SetupAction failedAction = publicAction(plan, artifact);
                 SetupReceipt partial = new SetupReceipt(plan.digest(), Instant.now(), List.of(nodeAction));
-                throw new SetupExecutionException(failedAction, partial, new RuntimeException(failure));
+                throw new SetupExecutionException(failedAction, partial, new UncheckedIOException(failure));
             }
         }
 
@@ -177,7 +178,7 @@ public final class PlaywrightSetupService {
                 return receipt;
             } catch (IOException failure) {
                 SetupReceipt partial = new SetupReceipt(plan.digest(), Instant.now(), List.of(nodeAction));
-                throw new SetupExecutionException(plan.actions().get(1), partial, new RuntimeException(failure));
+                throw new SetupExecutionException(plan.actions().get(1), partial, new UncheckedIOException(failure));
             }
         } finally {
             deleteTree(driverRoot);

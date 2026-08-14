@@ -14,6 +14,7 @@ import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class VerifiedArtifactMirrorTest {
@@ -34,12 +35,8 @@ class VerifiedArtifactMirrorTest {
             assertEquals(404, request(base.resolve("builds/firefox/1538/%2e%2e/browser.zip"), "GET").status());
         }
 
-        try {
-            request(base.resolve("builds/firefox/1538/firefox-win64.zip"), "GET");
-            throw new AssertionError("Closed artifact mirror still accepted a connection.");
-        } catch (java.net.ConnectException expectedFailure) {
-            assertTrue(true);
-        }
+        URI closedMirror = base.resolve("builds/firefox/1538/firefox-win64.zip");
+        assertThrows(java.net.ConnectException.class, () -> request(closedMirror, "GET"));
     }
 
     @Test

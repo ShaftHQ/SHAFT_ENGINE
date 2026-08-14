@@ -92,16 +92,12 @@ final class VerifiedArtifactMirror implements AutoCloseable {
     }
 
     private void handle(BufferedInputStream input, BufferedOutputStream output) throws IOException {
-        String requestLine = readLine(input);
-        String[] request = requestLine.split(" ", 3);
-        if (request.length != 3 || !request[2].startsWith("HTTP/1.")) {
+        String[] request = readRequest(input);
+        if (request == null) {
             respond(output, 400, null);
             return;
         }
-        int headerCount = 0;
-        while (!readLine(input).isEmpty()) {
-            headerCount++;
-            if (headerCount <= MAXIMUM_HTTP_HEADERS) continue;
+        if (!readHeaders(input)) {
             respond(output, 431, null);
             return;
         }
@@ -109,19 +105,7 @@ final class VerifiedArtifactMirror implements AutoCloseable {
             respond(output, 405, null);
             return;
         }
-        URI target;
-        try {
-            target = URI.create(request[1]);
-        } catch (IllegalArgumentException invalid) {
-            respond(output, 404, null);
-            return;
-        }
-        if (target.getRawQuery() != null || target.getRawFragment() != null
-                || target.getRawPath() == null || target.getRawPath().contains("%")) {
-            respond(output, 404, null);
-            return;
-        }
-        Path artifact = artifacts.get(canonicalRequestPath(target));
+        Path artifact = requestedArtifact(request[1]);
         if (artifact == null) {
             respond(output, 404, null);
             return;
@@ -132,6 +116,31 @@ final class VerifiedArtifactMirror implements AutoCloseable {
             return;
         }
         respond(output, 200, artifact);
+    }
+
+    private static String[] readRequest(BufferedInputStream input) throws IOException {
+        String[] request = readLine(input).split(" ", 3);
+        return request.length == 3 && request[2].startsWith("HTTP/1.") ? request : null;
+    }
+
+    private static boolean readHeaders(BufferedInputStream input) throws IOException {
+        int headerCount = 0;
+        while (!readLine(input).isEmpty()) {
+            headerCount++;
+            if (headerCount > MAXIMUM_HTTP_HEADERS) return false;
+        }
+        return true;
+    }
+
+    private Path requestedArtifact(String requestTarget) {
+        try {
+            URI target = URI.create(requestTarget);
+            if (target.getRawQuery() != null || target.getRawFragment() != null
+                    || target.getRawPath() == null || target.getRawPath().contains("%")) return null;
+            return artifacts.get(canonicalRequestPath(target));
+        } catch (IllegalArgumentException invalid) {
+            return null;
+        }
     }
 
     private static String readLine(BufferedInputStream input) throws IOException {

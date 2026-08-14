@@ -11,25 +11,22 @@ import java.util.stream.Collectors;
 
 /** Exact Playwright browser host identity supported by this release. */
 enum PlaywrightHostPlatform {
-    WIN64("win64", SetupPlatform.WINDOWS, Set.of(SetupArchitecture.X64, SetupArchitecture.ARM64),
+    WIN64("win64", SetupPlatform.WINDOWS,
             Set.of("chromium", "chromium-headless-shell", "firefox", "webkit", "ffmpeg", "winldd")),
-    UBUNTU_24_04_X64("ubuntu24.04-x64", SetupPlatform.LINUX, Set.of(SetupArchitecture.X64),
+    UBUNTU_24_04_X64("ubuntu24.04-x64", SetupPlatform.LINUX,
             Set.of("chromium", "chromium-headless-shell", "firefox", "webkit", "ffmpeg")),
-    MAC15("mac15", SetupPlatform.MACOS, Set.of(SetupArchitecture.X64),
+    MAC15("mac15", SetupPlatform.MACOS,
             Set.of("chromium", "chromium-headless-shell", "firefox", "webkit", "ffmpeg")),
-    MAC15_ARM64("mac15-arm64", SetupPlatform.MACOS, Set.of(SetupArchitecture.ARM64),
+    MAC15_ARM64("mac15-arm64", SetupPlatform.MACOS,
             Set.of("chromium", "chromium-headless-shell", "firefox", "webkit", "ffmpeg"));
 
     private final String token;
     private final SetupPlatform platform;
-    private final Set<SetupArchitecture> architectures;
     private final Set<String> requiredArtifacts;
 
-    PlaywrightHostPlatform(String token, SetupPlatform platform, Set<SetupArchitecture> architectures,
-                           Set<String> requiredArtifacts) {
+    PlaywrightHostPlatform(String token, SetupPlatform platform, Set<String> requiredArtifacts) {
         this.token = token;
         this.platform = platform;
-        this.architectures = Set.copyOf(architectures);
         this.requiredArtifacts = Set.copyOf(requiredArtifacts);
     }
 
@@ -99,7 +96,7 @@ enum PlaywrightHostPlatform {
     static PlaywrightHostPlatform resolve(SetupPlatform platform, SetupArchitecture architecture,
                                           String osRelease) {
         if (platform == SetupPlatform.WINDOWS
-                && WIN64.architectures.contains(architecture)) return WIN64;
+                && Set.of(SetupArchitecture.X64, SetupArchitecture.ARM64).contains(architecture)) return WIN64;
         if (platform == SetupPlatform.LINUX && architecture == SetupArchitecture.X64) {
             Map<String, String> values = Arrays.stream(osRelease.split("\\R"))
                     .map(String::trim)
