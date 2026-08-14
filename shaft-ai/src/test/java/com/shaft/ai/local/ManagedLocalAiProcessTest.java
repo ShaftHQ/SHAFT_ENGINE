@@ -677,7 +677,7 @@ class ManagedLocalAiProcessTest {
                     starts.incrementAndGet();
                     return new FakeProcess(null, "srv  llama_server: listening on http://127.0.0.1:18181\n");
                 }, (process, port, key, alias, timeout) -> {
-                    Thread.sleep(timeout.toMillis());
+                    java.util.concurrent.TimeUnit.NANOSECONDS.sleep(timeout.toNanos());
                     throw new IllegalStateException("identity unavailable");
                 }));
         long elapsedMillis = Duration.ofNanos(System.nanoTime() - started).toMillis();
