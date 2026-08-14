@@ -4,17 +4,23 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 import java.net.HttpURLConnection;
+import java.net.InetSocketAddress;
 import java.net.Proxy;
+import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Map;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class VerifiedArtifactMirrorTest {
@@ -36,7 +42,11 @@ class VerifiedArtifactMirrorTest {
         }
 
         URI closedMirror = base.resolve("builds/firefox/1538/firefox-win64.zip");
-        assertThrows(java.net.ConnectException.class, () -> request(closedMirror, "GET"));
+        byte[] replacementBody = "replacement listener".getBytes(StandardCharsets.UTF_8);
+        Response reusedPort = requestAfterPortReuse(closedMirror, replacementBody);
+        assertEquals(200, reusedPort.status());
+        assertArrayEquals(replacementBody, reusedPort.body());
+        assertFalse(java.util.Arrays.equals(expected, reusedPort.body()));
     }
 
     @Test
@@ -82,6 +92,34 @@ class VerifiedArtifactMirrorTest {
                 : connection.getInputStream().readAllBytes();
         connection.disconnect();
         return new Response(status, body);
+    }
+
+    private static Response requestAfterPortReuse(URI uri, byte[] replacementBody) throws Exception {
+        try (ServerSocket replacement = new ServerSocket()) {
+            replacement.setReuseAddress(true);
+            replacement.bind(new InetSocketAddress(uri.getHost(), uri.getPort()));
+            ExecutorService responder = Executors.newSingleThreadExecutor();
+            Future<?> response = responder.submit(() -> {
+                try (Socket connection = replacement.accept()) {
+                    byte[] headers = ("HTTP/1.1 200 OK\r\nContent-Length: " + replacementBody.length
+                            + "\r\nConnection: close\r\n\r\n").getBytes(StandardCharsets.US_ASCII);
+                    connection.getOutputStream().write(headers);
+                    connection.getOutputStream().write(replacementBody);
+                    connection.getOutputStream().flush();
+                } catch (java.io.IOException failure) {
+                    throw new java.io.UncheckedIOException(failure);
+                }
+            });
+            try {
+                return request(uri, "GET");
+            } finally {
+                try {
+                    response.get(2, TimeUnit.SECONDS);
+                } finally {
+                    responder.shutdownNow();
+                }
+            }
+        }
     }
 
     private record Response(int status, byte[] body) { }
