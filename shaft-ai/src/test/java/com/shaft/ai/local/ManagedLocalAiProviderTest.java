@@ -742,13 +742,21 @@ class ManagedLocalAiProviderTest {
 
     private ManagedLocalAiHardware.HostAccess host() {
         return new ManagedLocalAiHardware.HostAccess() {
+            @Override
             public String osName() { return "Windows 11"; }
+            @Override
             public String architecture() { return "amd64"; }
+            @Override
             public String abi() { return "windows-msvc"; }
+            @Override
             public String abiVersion() { return ""; }
+            @Override
             public long availableMemoryBytes() { return 16L * 1024 * 1024 * 1024; }
+            @Override
             public int availableProcessors() { return 8; }
+            @Override
             public long usableSpace(Path ignored) { return 64L * 1024 * 1024 * 1024; }
+            @Override
             public String read(String ignored) { return null; }
         };
     }

@@ -110,13 +110,13 @@ public final class ManagedLocalAiService {
                     operation.cancelled();
                 }
             } catch (InterruptedException cancelled) {
-                if (provisioned != null && configured != null) {
+                if (provisioned != null) {
                     rollbackCancellation(initial.cacheDirectory(), configured, provisioned.installationIds());
                 }
                 Thread.currentThread().interrupt();
                 operation.cancelled();
             } catch (Exception failure) {
-                if (provisioned != null && configured != null) {
+                if (provisioned != null) {
                     try {
                         rollback(initial.cacheDirectory(), configured, provisioned.installationIds());
                     } catch (Exception cleanup) {
