@@ -672,7 +672,9 @@ def server_command(
 
 
 def doctor_schema() -> dict[str, Any]:
-    text_schema = {"type": "string", "minLength": 1, "maxLength": 1000, "pattern": r".*\S.*"}
+    # llama.cpp b10400 requires grammar-converted patterns to be explicitly anchored.
+    # The independent validator below still enforces non-whitespace text.
+    text_schema = {"type": "string", "minLength": 1, "maxLength": 1000, "pattern": r"^.+$"}
     return {
         "type": "object", "additionalProperties": False,
         "required": sorted(ADVISORY_KEYS),

@@ -587,6 +587,8 @@ class DoctorEvaluationTest(unittest.TestCase):
         action_schema = schema["properties"]["recommendedActions"]["items"]["properties"]["action"]
         self.assertEqual(1000, action_schema["maxLength"])
         self.assertIn("pattern", action_schema)
+        self.assertTrue(action_schema["pattern"].startswith("^"))
+        self.assertTrue(action_schema["pattern"].endswith("$"))
 
     def test_corrective_retry_is_bounded_and_recorded(self):
         calls = []
