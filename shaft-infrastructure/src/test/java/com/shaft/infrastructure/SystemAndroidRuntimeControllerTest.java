@@ -26,6 +26,7 @@ class SystemAndroidRuntimeControllerTest {
         try {
             awaitCommandChange(process.pid(), "/bin/sh", Duration.ofSeconds(5));
 
+            assertTrue(process.commandIdentity().contains("30"));
             assertTrue(controller.find(process.pid(), process.startInstant(), process.commandIdentity()).isPresent());
         } finally {
             process.stop(Duration.ofSeconds(5));
@@ -41,7 +42,7 @@ class SystemAndroidRuntimeControllerTest {
                         "-XX:+UseSerialGC", "-cp", System.getProperty("java.class.path"), SleepingChild.class.getName()),
                 temp, Map.of(), Set.of(), log);
         try {
-            assertTrue(process.commandIdentity().contains(SleepingChild.class.getName()));
+            assertTrue(process.commandIdentity().startsWith(java.toString()));
             Instant wrongStart = process.startInstant().plusMillis(1);
 
             assertThrows(java.io.IOException.class,
