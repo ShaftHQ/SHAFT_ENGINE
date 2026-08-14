@@ -186,6 +186,7 @@ final class DefaultAndroidToolchainOperations implements AndroidToolchainOperati
             Files.createDirectories(latest.getParent());
             VerifiedArtifactStore.move(commandTools, latest);
             deleteTree(extracted);
+            makeSdkCommandsExecutable(staging);
             Path sdkManager = sdkManager(staging);
             Map<String, String> environment = androidEnvironment(staging, avdHome());
             Path log = logFile();
@@ -472,6 +473,17 @@ final class DefaultAndroidToolchainOperations implements AndroidToolchainOperati
 
     private Path avdManager(Path root) {
         return executable(root.resolve("cmdline-tools/latest/bin"), "avdmanager");
+    }
+
+    private void makeSdkCommandsExecutable(Path root) throws IOException {
+        if (platform == SetupPlatform.WINDOWS) return;
+        for (Path command : List.of(sdkManager(root), avdManager(root))) {
+            VerifiedArtifactStore.requireUnlinkedAncestors(command);
+            if (!Files.isRegularFile(command, LinkOption.NOFOLLOW_LINKS)) {
+                throw new IOException("Android command-line-tools archive is missing " + command.getFileName() + '.');
+            }
+            ReportingSetupService.makeExecutable(command);
+        }
     }
 
     private Path executable(Path directory, String name) {

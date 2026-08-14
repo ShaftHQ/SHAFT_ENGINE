@@ -2,6 +2,8 @@ package com.shaft.infrastructure;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.junit.jupiter.api.condition.EnabledOnOs;
+import org.junit.jupiter.api.condition.OS;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -21,6 +23,30 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class AndroidSetupServiceTest {
+    @Test
+    @EnabledOnOs(OS.LINUX)
+    void extractedLinuxSdkCommandsAreExecutableBeforeFirstInvocation(@TempDir Path temp) throws Exception {
+        ShaftCachePaths paths = paths(temp);
+        Path commandTools = createLinuxCommandToolsZip(temp.resolve("command-tools.zip"));
+        AndroidSetupRequest request = AndroidSetupRequest.defaults();
+        AndroidCommandRunner runner = (command, workingDirectory, environment, removed, input, log, timeout) -> {
+            Path executable = Path.of(command.getFirst());
+            assertTrue(Files.isExecutable(executable), "SDK command must be executable: " + executable);
+            if (command.contains("--sdk_root=" + workingDirectory)) createLinuxSdkFixture(workingDirectory);
+            return new ReportingSetupService.ProcessResult(0,
+                    command.contains("--list_installed") ? exactInstalledPackages() : "fixture");
+        };
+        DefaultAndroidToolchainOperations operations = new DefaultAndroidToolchainOperations(paths,
+                SetupPlatform.LINUX, SetupArchitecture.X64, request,
+                action -> commandTools, runner, false);
+        SetupAction sdkAction = AndroidSetupPlanner.plan(SetupPlatform.LINUX, SetupArchitecture.X64,
+                SetupMode.MANAGED, request).actions().get(4);
+
+        operations.install(sdkAction);
+
+        assertEquals(SetupReadiness.READY, operations.status(sdkAction).readiness());
+    }
+
     @Test
     void separateJvmInstallersConvergeOnOneReceiptAndPublicationSet(@TempDir Path temp) throws Exception {
         Path javaExecutable = Path.of(System.getProperty("java.home"), "bin",
@@ -400,6 +426,18 @@ class AndroidSetupServiceTest {
         return destination;
     }
 
+    private static Path createLinuxCommandToolsZip(Path destination) throws IOException {
+        try (ZipOutputStream output = new ZipOutputStream(Files.newOutputStream(destination))) {
+            for (String name : List.of("cmdline-tools/bin/sdkmanager",
+                    "cmdline-tools/bin/avdmanager", "cmdline-tools/lib/repository.jar")) {
+                output.putNextEntry(new ZipEntry(name));
+                output.write("fixture".getBytes(java.nio.charset.StandardCharsets.UTF_8));
+                output.closeEntry();
+            }
+        }
+        return destination;
+    }
+
     private static void createAppiumFixture(Path staging) throws IOException {
         Files.createDirectories(staging.resolve("node_modules/appium"));
         Files.createDirectories(staging.resolve("node_modules/appium-inspector-plugin"));
@@ -418,6 +456,16 @@ class AndroidSetupServiceTest {
                 root.resolve("system-images/android-36/google_apis/x86_64/package.xml"))) {
             Files.createDirectories(file.getParent());
             Files.writeString(file, "fixture");
+        }
+    }
+
+    private static void createLinuxSdkFixture(Path root) throws IOException {
+        for (Path file : List.of(root.resolve("platform-tools/adb"), root.resolve("emulator/emulator"),
+                root.resolve("platforms/android-36/android.jar"), root.resolve("build-tools/36.0.0/aapt2"),
+                root.resolve("system-images/android-36/google_apis/x86_64/package.xml"))) {
+            Files.createDirectories(file.getParent());
+            Files.writeString(file, "fixture");
+            assertTrue(file.toFile().setExecutable(true, false));
         }
     }
 

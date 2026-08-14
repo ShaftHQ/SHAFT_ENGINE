@@ -548,7 +548,7 @@ public final class ReportingSetupService {
         return target;
     }
 
-    private static void makeExecutable(Path file) throws IOException {
+    static void makeExecutable(Path file) throws IOException {
         try {
             Set<PosixFilePermission> permissions = EnumSet.copyOf(Files.getPosixFilePermissions(file));
             permissions.add(PosixFilePermission.OWNER_EXECUTE);
