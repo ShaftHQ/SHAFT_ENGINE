@@ -283,6 +283,40 @@ class PlaywrightSetupServiceTest {
     }
 
     @Test
+    void linkedQuarantineIsRejectedBeforeKnownGoodPublicationIsRemoved(@TempDir Path temp) throws Exception {
+        ShaftCachePaths paths = paths(temp);
+        Path node = Files.writeString(temp.resolve("node.exe"), "node");
+        PlaywrightSetupService service = new PlaywrightSetupService(paths, SetupPlatform.WINDOWS,
+                SetupArchitecture.X64, readyNode(node), action -> Files.writeString(
+                temp.resolve(action.version().replace(':', '-') + ".zip"), action.version()),
+                (nodePath, destination) -> {
+                    Path cli = destination.resolve("package/cli.js");
+                    Files.createDirectories(cli.getParent());
+                    Files.writeString(cli, "cli");
+                },
+                (nodePath, driverRoot, browserRoot, archives, log, timeout) ->
+                        createReadyWindowsLayout(browserRoot));
+        SetupPlan plan = PlaywrightSetupPlanner.plan(SetupPlatform.WINDOWS, SetupArchitecture.X64,
+                SetupMode.MANAGED);
+        SetupApproval approval = new SetupApproval(plan.digest(), Instant.EPOCH, Set.of());
+        service.install(plan, approval);
+        Path knownGood = service.browserRoot().resolve("chromium-1234/chrome-win64/chrome.exe");
+        Path quarantine = service.browserRoot().resolveSibling(service.browserRoot().getFileName() + ".quarantine");
+        Path external = Files.createDirectory(temp.resolve("external-quarantine"));
+        try {
+            Files.createSymbolicLink(quarantine, external);
+        } catch (UnsupportedOperationException | java.io.IOException unsupported) {
+            org.junit.jupiter.api.Assumptions.abort("Symbolic links unavailable: " + unsupported.getMessage());
+        }
+
+        java.io.IOException failure = assertThrows(java.io.IOException.class, () -> service.install(plan, approval));
+
+        assertTrue(failure.getMessage().contains("symbolic links"));
+        assertTrue(Files.isRegularFile(knownGood));
+        assertTrue(Files.isDirectory(external));
+    }
+
+    @Test
     void installerReceivesOnlyTheRemainingSharedTransactionBudget(@TempDir Path temp) throws Exception {
         ShaftCachePaths paths = paths(temp);
         Path node = Files.writeString(temp.resolve("node.exe"), "node");

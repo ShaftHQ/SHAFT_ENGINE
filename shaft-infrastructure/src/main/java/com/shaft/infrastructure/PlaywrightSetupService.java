@@ -336,6 +336,8 @@ public final class PlaywrightSetupService {
 
     private static void recoverQuarantine(Path quarantine, Path destination) throws IOException {
         if (!Files.exists(quarantine, java.nio.file.LinkOption.NOFOLLOW_LINKS)) return;
+        VerifiedArtifactStore.requireUnlinkedAncestors(quarantine);
+        VerifiedArtifactStore.requireUnlinkedAncestors(destination);
         deleteTree(destination);
         VerifiedArtifactStore.move(quarantine, destination);
     }
