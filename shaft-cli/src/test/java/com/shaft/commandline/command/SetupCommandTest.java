@@ -44,7 +44,7 @@ class SetupCommandTest {
         JsonNode printed = JSON.readTree(stdout.toString());
         JsonNode persisted = JSON.readTree(Files.readString(planFile));
         assertEquals(persisted, printed);
-        assertEquals(3, persisted.get("schemaVersion").asInt());
+        assertEquals(4, persisted.get("schemaVersion").asInt());
         assertTrue(persisted.get("executionPolicyDigest").asText().matches("sha256:[0-9a-f]{64}"));
         assertEquals("REPORTING", persisted.get("profile").asText());
         assertEquals("MANAGED", persisted.get("mode").asText());
@@ -55,6 +55,7 @@ class SetupCommandTest {
             assertTrue(action.hasNonNull("version"));
             assertTrue(action.hasNonNull("source"));
             assertTrue(action.get("checksum").asText().matches("sha256:[0-9a-f]{64}"));
+            assertEquals(0L, action.get("artifactBytes").asLong());
             assertTrue(action.hasNonNull("dependencyLockChecksum"));
             assertTrue(action.has("requiredLicenses"));
             assertTrue(action.has("privileged"));
