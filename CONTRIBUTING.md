@@ -78,8 +78,10 @@ update, and troubleshooting runbook:
   from the repo root (cache in gitignored `graphify-out/`; see
   `tools/repository-map/README.md`). Nightly auto-refresh (Windows):
   `tools/agent-infra/install-agent-tasks.ps1`.
-- **MCP servers** (`.mcp.json`) — `context7` (npx) and `maven-tools-mcp`
-  (Docker) start on demand; they require Node and Docker locally.
+- **MCP servers** (`.mcp.json`) — `context7` starts on demand through npx.
+  Optional Maven Tools MCP uses a locally verified Java 25/JAR installation
+  discovered by the [ChaosEngine installer](chaos-engine/INSTALL.md#optional-native-maven-tools-mcp);
+  default agent configuration does not start Docker.
 - **Claude Code plugins** — installed automatically from
   `.claude/settings.json` `enabledPlugins`/`extraKnownMarketplaces` on
   first session.

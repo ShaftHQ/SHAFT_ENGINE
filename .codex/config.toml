@@ -20,8 +20,3 @@ required = false
 command = "npx"
 args = ["-y", "@upstash/context7-mcp"]
 required = false
-
-[mcp_servers.maven-tools-mcp]
-command = "docker"
-args = ["run", "-i", "--rm", "arvindand/maven-tools-mcp:3.2.0"]
-required = false
