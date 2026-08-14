@@ -48,7 +48,7 @@ jobs:
       - name: Cache Maven repository
         uses: ./.github/actions/cache-maven-repo
       - name: Set up Maven
-        uses: stCarolas/setup-maven@v5
+        uses: stCarolas/setup-maven@v5.1
         with:
           maven-version: 3.9.5
       # Captures the reactor version from the root pom.xml.
