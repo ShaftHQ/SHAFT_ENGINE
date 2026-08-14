@@ -72,9 +72,10 @@ final class PlaywrightTraceOfflineAdapter {
                 documents.put(snapshotName, new SnapshotDocument("available",
                         snapshotDocument(model, snapshotName, maximumBytesPerSnapshot)));
             } catch (IllegalArgumentException exception) {
-                String status = exception.getMessage() != null
-                        && exception.getMessage().startsWith("Rendered Playwright snapshot exceeds")
-                        ? "omitted-budget" : "unavailable";
+                String message = exception.getMessage() == null ? "" : exception.getMessage();
+                String status = message.contains(" limit") || message.contains("exceeds")
+                        ? "omitted-budget" : message.startsWith("Main-frame Playwright snapshot is unavailable")
+                        ? "unavailable" : "malformed";
                 documents.put(snapshotName, new SnapshotDocument(status, ""));
             }
         }
@@ -164,7 +165,7 @@ final class PlaywrightTraceOfflineAdapter {
                                    SnapshotContext resourceContext, Model model, RenderBudget output, int depth) {
         output.visit(depth);
         if (node.isString()) {
-            output.append(escapeText(node.asText()));
+            output.append(escapeText(FailureTraceReporter.redactSourceText(node.asText())));
             return;
         }
         if (!node.isArray() || node.isEmpty()) {
@@ -224,6 +225,9 @@ final class PlaywrightTraceOfflineAdapter {
                     continue;
                 }
                 String value = attribute.getValue().asText();
+                boolean passwordValue = "INPUT".equals(upper) && "value".equals(lower)
+                        && "password".equalsIgnoreCase(attributes.path("type").asText());
+                value = passwordValue ? "********" : FailureTraceReporter.redactSourceText(value);
                 if (URL_ATTRIBUTES.contains(lower)) {
                     if (lower.equals("href") || lower.equals("xlink:href") || lower.equals("action")
                             || lower.equals("formaction")) {
@@ -233,7 +237,8 @@ final class PlaywrightTraceOfflineAdapter {
                         value = resource == null ? "" : resource.dataUri(output.remainingBytes());
                     }
                 } else if (lower.equals("style")) {
-                    value = rewriteCss(value, resourceContext.snapshot().path("frameUrl").asText(), model,
+                    value = rewriteCss(FailureTraceReporter.redactSourceText(value),
+                            resourceContext.snapshot().path("frameUrl").asText(), model,
                             resourceContext,
                             output.remainingBytes(), output.cssSources(), new HashSet<>(), 0);
                 }
@@ -243,7 +248,7 @@ final class PlaywrightTraceOfflineAdapter {
         output.append(">");
         for (int index = 2; index < node.size(); index++) {
             if ("STYLE".equals(upper) && node.get(index).isString()) {
-                output.append(rewriteCss(node.get(index).asText(),
+                output.append(rewriteCss(FailureTraceReporter.redactSourceText(node.get(index).asText()),
                         resourceContext.snapshot().path("frameUrl").asText(), model, resourceContext,
                         output.remainingBytes(), output.cssSources(), new HashSet<>(), 0));
             } else {

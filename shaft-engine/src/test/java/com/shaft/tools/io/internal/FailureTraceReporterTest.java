@@ -1757,7 +1757,9 @@ public class FailureTraceReporterTest {
                         + "\"snapshotName\":\"before@call@1\",\"pageId\":\"page@1\","
                         + "\"frameId\":\"frame@1\",\"frameUrl\":\"https://example.test/checkout\","
                         + "\"html\":[\"HTML\",{},[\"BODY\",{},[\"BUTTON\",{\"id\":\"save\"},"
-                        + "\"Save before\"]]],\"timestamp\":101,\"isMainFrame\":true}}\n"
+                        + "\"Save before\"],[\"INPUT\",{\"type\":\"password\","
+                        + "\"__playwright_value_\":\"raw-native-password\"}]]],"
+                        + "\"timestamp\":101,\"isMainFrame\":true}}\n"
                         + "{\"type\":\"frame-snapshot\",\"snapshot\":{\"callId\":\"call@1\","
                         + "\"snapshotName\":\"input@call@1\",\"pageId\":\"page@1\","
                         + "\"frameId\":\"frame@1\",\"frameUrl\":\"https://example.test/checkout\","
@@ -1799,6 +1801,9 @@ public class FailureTraceReporterTest {
                     "native-offline", root.toPrettyString());
             Assert.assertTrue(playwright.path("snapshots").path("before@call@1").path("content").asText()
                     .contains("Save before"), root.toPrettyString());
+            Assert.assertFalse(root.toString().contains("raw-native-password"), root.toPrettyString());
+            Assert.assertTrue(playwright.path("snapshots").path("before@call@1").path("content").asText()
+                    .contains("value=\"********\""), root.toPrettyString());
             Assert.assertTrue(playwright.path("snapshots").path("input@call@1").path("content").asText()
                     .contains("Save input"), root.toPrettyString());
             Assert.assertTrue(playwright.path("snapshots").path("after@call@1").path("content").asText()

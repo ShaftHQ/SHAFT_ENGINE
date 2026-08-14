@@ -910,7 +910,9 @@ public final class FailureTraceReporter {
                 let selected = actionFromHash()
                     || [...actions].reverse().find(action => action.status !== 'passed')
                     || actions[0] || null;
+                let selectedNativeAction = null;
                 function selectAction(action, selectItsRange = true, historyMode = 'push'){
+                  selectedNativeAction = null;
                   selected = action;
                   if (selectItsRange && action) {
                     const start = actionStartMs(action);
@@ -1119,6 +1121,7 @@ public final class FailureTraceReporter {
                 }
                 function row(name, value){ return value ? `<dt>${esc(name)}</dt><dd>${esc(value)}</dd>` : ''; }
                 function nativeActionFor(action){
+                  if (selectedNativeAction) return selectedNativeAction;
                   const callId = action && action.metadata && action.metadata.playwrightCallId;
                   return callId ? nativeActions.find(candidate => candidate.callId === callId) || null : null;
                 }
@@ -1551,7 +1554,15 @@ public final class FailureTraceReporter {
                     const correlation = selectedNative && selectedNative.callId === native.callId
                       ? 'Selected SHAFT action' : (playwright.correlations || []).some(item => item.playwrightCallId === native.callId)
                         ? 'Correlated' : 'Native only';
-                    tr.innerHTML = `<td>${esc(correlation)}</td><td>${esc(native.title || native.method || native.callId || 'Unknown')}</td><td>${esc(native.source || 'Unavailable')}</td><td>${esc((native.logs || []).join('\\n') || 'None')}</td><td>${esc(native.error || 'None')}</td>`;
+                    tr.innerHTML = `<td>${esc(correlation)}</td><td>${esc(native.title || native.method || native.callId || 'Unknown')}</td><td>${esc(native.source || 'Unavailable')}</td><td>${esc((native.logs || []).join('\\n') || 'None')}</td><td>${esc(native.error || 'None')}<br><button type="button" class="secondary">Inspect native action</button></td>`;
+                    tr.querySelector('button').addEventListener('click', () => {
+                      selectedNativeAction = native;
+                      document.getElementById('details-title').textContent = `Native action: ${native.title || native.method || native.callId}`;
+                      details.innerHTML = row('Provider', 'Playwright') + row('Call ID', native.callId)
+                        + row('Source', native.source) + row('Logs', (native.logs || []).join('\\n'))
+                        + row('Error', native.error);
+                      renderTab('comparison');
+                    });
                     nativeEvidenceRows.appendChild(tr);
                   });
                 }

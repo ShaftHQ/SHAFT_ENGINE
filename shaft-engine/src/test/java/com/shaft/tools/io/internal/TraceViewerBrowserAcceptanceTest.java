@@ -10,6 +10,8 @@ import com.shaft.driver.SHAFT;
 import com.shaft.gui.playwright.internal.PlaywrightTraceManager;
 import com.shaft.listeners.internal.TestExecutionInfo;
 import com.shaft.properties.internal.Properties;
+import io.qameta.allure.Allure;
+import io.qameta.allure.model.Attachment;
 import org.mockito.MockedStatic;
 import org.mockito.Mockito;
 import org.openqa.selenium.JavascriptExecutor;
@@ -177,6 +179,11 @@ public class TraceViewerBrowserAcceptanceTest {
                     List.of("Selected SHAFT action", "Native only"));
             Assert.assertTrue(page.locator("#native-evidence-rows").textContent().contains("CheckoutTest.java:42:7"));
             Assert.assertTrue(page.locator("#native-evidence-rows").textContent().contains("attempting native click"));
+            page.locator("#native-evidence-rows tr").nth(1).locator("button").click();
+            Assert.assertTrue(page.locator("#details-title").textContent().contains("Native only wait"));
+            Assert.assertTrue(page.frameLocator("#comparison-before").locator("body").textContent()
+                    .contains("native-only before"));
+            page.navigate(html.toUri() + "#action-action-1?start=50&end=200");
             page.locator("button[data-tab=comparison]").click();
             Assert.assertTrue(page.frameLocator("#comparison-before").locator("body").textContent()
                     .contains("native before"));
@@ -732,8 +739,41 @@ public class TraceViewerBrowserAcceptanceTest {
             Assert.assertEquals(page.locator("main").count(), 1, "The viewer needs one primary landmark.");
             Assert.assertEquals(page.locator("h1").count(), 1, "The viewer needs one page heading.");
             Assert.assertEquals(page.locator("#action-search").getAttribute("aria-label"), "Search actions");
+            page.locator("#action-tabs button").first().focus();
             Assert.assertTrue((Boolean) page.locator("#action-tabs button").first()
-                    .evaluate("button => button.matches(':focus-visible') === false"));
+                    .evaluate("button => button.matches(':focus-visible')"));
+            Assert.assertNotEquals(page.locator("#action-tabs button").first()
+                    .evaluate("button => getComputedStyle(button).outlineStyle"), "none");
+            Assert.assertNotEquals(page.locator("#action-tabs button").first()
+                    .evaluate("button => getComputedStyle(button).outlineWidth"), "0px");
+            Number largeRenderMillis = (Number) page.evaluate("""
+                    () => {
+                      window.__largeTraceStart = actions.length;
+                      for (let index = 0; index < 5000; index++) {
+                        actions.push({id:`large-${index}`, name:`Large action ${index}`, category:'element',
+                          status:'passed', durationMs:1, metadata:{}});
+                      }
+                      const start = performance.now();
+                      renderActions();
+                      return performance.now() - start;
+                    }
+                    """);
+            Assert.assertTrue(largeRenderMillis.doubleValue() < 5_000,
+                    "A 5,000-action trace must become interactive within five seconds: " + largeRenderMillis);
+            Assert.assertEquals(page.locator("#action-list button").count(),
+                    ((Number) page.evaluate("window.__largeTraceStart + 5000")).intValue());
+            Number largeSearchMillis = (Number) page.evaluate("""
+                    () => {
+                      actionSearch.value = 'Large action 4999';
+                      const start = performance.now();
+                      renderActions();
+                      return performance.now() - start;
+                    }
+                    """);
+            Assert.assertTrue(largeSearchMillis.doubleValue() < 1_000,
+                    "Filtering a large trace must remain responsive: " + largeSearchMillis);
+            Assert.assertEquals(page.locator("#action-list button").count(), 1);
+            page.evaluate("() => { actions.splice(window.__largeTraceStart); actionSearch.value=''; renderActions(); }");
             String lightBackground = String.valueOf(page.locator("body")
                     .evaluate("body => getComputedStyle(body).backgroundColor"));
             page.emulateMedia(new Page.EmulateMediaOptions().setColorScheme(ColorScheme.DARK)
@@ -818,8 +858,12 @@ public class TraceViewerBrowserAcceptanceTest {
                         + nativeSnapshotRecord("after@call@1", "native after", 109)
                         + "{\"type\":\"before\",\"callId\":\"call@native-only\",\"startTime\":5000,"
                         + "\"class\":\"Page\",\"method\":\"waitForTimeout\","
-                        + "\"title\":\"Native only wait\",\"params\":{},\"stepId\":\"step@native\"}\n"
-                        + "{\"type\":\"after\",\"callId\":\"call@native-only\",\"endTime\":5010}\n");
+                        + "\"title\":\"Native only wait\",\"params\":{},\"stepId\":\"step@native\","
+                        + "\"beforeSnapshot\":\"before@native-only\"}\n"
+                        + "{\"type\":\"after\",\"callId\":\"call@native-only\",\"endTime\":5010,"
+                        + "\"afterSnapshot\":\"after@native-only\"}\n"
+                        + nativeSnapshotRecord("before@native-only", "native-only before", 5001)
+                        + nativeSnapshotRecord("after@native-only", "native-only after", 5009));
             }
             TraceEventRecorder.record("evidence", "NO EVIDENCE", "passed", "", null,
                     "optional evidence omitted", null, Map.of(), List.of());
@@ -856,8 +900,14 @@ public class TraceViewerBrowserAcceptanceTest {
                     new AssertionError("checkout failed"), false);
             FailureTraceReporter.attachOnFailure(info, "trace viewer acceptance", List.of());
             Path archive = FailureTraceReporter.traceDirectory(info).resolve("shaft-trace.zip");
-            Path html = Path.of("target", "trace-viewer-browser-acceptance.html").toAbsolutePath().normalize();
-            extract(archive, "SHAFT Trace Report.html", html);
+            List<Attachment> currentAttachments = new ArrayList<>();
+            Allure.getLifecycle().updateTestCase(result -> currentAttachments.addAll(result.getAttachments()));
+            Attachment viewerAttachment = currentAttachments.stream()
+                    .filter(attachment -> "text/html".equals(attachment.getType()))
+                    .filter(attachment -> attachment.getName().contains("SHAFT Trace Viewer"))
+                    .reduce((firstAttachment, secondAttachment) -> secondAttachment)
+                    .orElseThrow(() -> new AssertionError("The Allure trace viewer attachment was not published."));
+            Path html = allureAttachment(viewerAttachment.getSource());
             Path legacyHtml = legacyViewer(html);
             return new ViewerFixture(html, consoleBaseTime, archive,
                     FailureTraceReporter.traceDirectory(info).resolve("index.json"), nativeTrace, legacyHtml);
@@ -871,6 +921,18 @@ public class TraceViewerBrowserAcceptanceTest {
 
     private static String snapshot(String label) {
         return "<html><body><main>" + label + "</main><img src=\"" + BLOCKED_RESOURCE + "\"></body></html>";
+    }
+
+    private static Path allureAttachment(String source) {
+        for (Path candidate : List.of(Path.of("allure-results", source),
+                Path.of("shaft-engine", "allure-results", source),
+                Path.of("target", "allure-results", source))) {
+            Path absolute = candidate.toAbsolutePath().normalize();
+            if (Files.isRegularFile(absolute)) {
+                return absolute;
+            }
+        }
+        throw new AssertionError("The Allure trace viewer attachment bytes are unavailable: " + source);
     }
 
     private static String nativeSnapshotRecord(String name, String label, int timestamp) {
