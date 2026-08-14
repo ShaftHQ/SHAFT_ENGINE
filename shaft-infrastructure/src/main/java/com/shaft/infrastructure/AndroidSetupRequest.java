@@ -34,6 +34,9 @@ public record AndroidSetupRequest(int apiLevel, String deviceProfile, String ima
         if (appiumPort < 1024 || appiumPort > 65535) {
             throw new IllegalArgumentException("Appium port must be between 1024 and 65535.");
         }
+        if (appiumPort == 5554 || appiumPort == 5555) {
+            throw new IllegalArgumentException("Appium port must not overlap the owned emulator ports 5554/5555.");
+        }
     }
 
     /** Returns the release defaults; the host ABI is resolved during planning. */

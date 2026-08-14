@@ -56,6 +56,10 @@ class AndroidSetupPlannerTest {
                 36, "pixel_8", "google_apis", "x86_64", "../escape", 4096, 2, 4723));
         assertThrows(IllegalArgumentException.class, () -> new AndroidSetupRequest(
                 35, "pixel_8", "google_apis", "x86_64", "safe", 4096, 2, 4723));
+        assertThrows(IllegalArgumentException.class, () -> new AndroidSetupRequest(
+                36, "pixel_8", "google_apis", "x86_64", "safe", 4096, 2, 5554));
+        assertThrows(IllegalArgumentException.class, () -> new AndroidSetupRequest(
+                36, "pixel_8", "google_apis", "x86_64", "safe", 4096, 2, 5555));
         SetupAction emulator = customPlan.actions().getLast();
         SetupAction injected = new SetupAction(emulator.target(), emulator.kind(),
                 emulator.version() + ",extra=unapproved", emulator.source(), emulator.checksum(),
