@@ -356,6 +356,17 @@ if (-not ($resolverOk -and $queryOk -and $auditOk)) {
             "a complete degraded Graphify receipt permits implementation to continue",
             entrypoint,
         )
+        self.assertIsNone(
+            re.search(
+                r"linked worktrees?[^.]{0,160}\b(?:may(?!\s+not\b)|can(?!not\b)|"
+                r"(?:is|are) (?:allowed|permitted) to)\b[^.]{0,160}\b"
+                r"(?:refresh|wait|retry(?:-loop)?|clear|replace)\b",
+                graphify,
+                flags=re.IGNORECASE,
+            ),
+            "linked worktrees must not receive permission to mutate or contend for "
+            "shared Graphify state",
+        )
 
     def test_graphify_contention_degrades_without_shared_state_mutation(self):
         files = {
@@ -373,6 +384,10 @@ if (-not ($resolverOk -and $queryOk -and $auditOk)) {
         self._assert_graphify_contention_is_a_degraded_continuation(files)
 
         mutations = {
+            "contradictory linked refresh permission appended": (
+                files["graphify"]
+                + "\nA linked worktree may clear the cache and retry refresh until it succeeds.\n"
+            ),
             "linked refresh allowed": files["graphify"].replace(
                 "must not refresh, wait or retry-loop",
                 "may refresh or wait and retry-loop",
