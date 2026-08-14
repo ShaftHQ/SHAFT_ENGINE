@@ -1,6 +1,6 @@
 # Roles
 
-Every role first loads the act-as-mohab entrypoint. Role says what the agent is
+Every role first loads the canonical ChaosEngine entrypoint. Role says what the agent is
 accountable for; capability level says how much intelligence the assignment
 earns. The two are chosen separately — see [delegation](delegation.md).
 

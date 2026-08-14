@@ -68,6 +68,11 @@ def tree_digest(root: Path) -> dict[str, str]:
 
 
 class ChaosEngineInstallerTest(unittest.TestCase):
+    def test_doctor_command_uses_the_full_status_contract(self):
+        arguments = MODULE.parser().parse_args(["doctor", "--project", "."])
+
+        self.assertEqual("doctor", arguments.command)
+
     def test_default_distribution_installs_only_neutral_portable_payload(self):
         with tempfile.TemporaryDirectory() as temporary:
             project = Path(temporary) / "consumer"
@@ -87,6 +92,8 @@ class ChaosEngineInstallerTest(unittest.TestCase):
             owned_paths = "\n".join(manifest["files"]).casefold()
             self.assertNotIn("shaft", owned_paths)
             self.assertNotIn("shaft", owned_text)
+            self.assertNotIn("act-as-mohab", owned_paths)
+            self.assertNotIn("act-as-mohab", owned_text)
 
     def test_distribution_cannot_change_during_an_update(self):
         with tempfile.TemporaryDirectory() as temporary:

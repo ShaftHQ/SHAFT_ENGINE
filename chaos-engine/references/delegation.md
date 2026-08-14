@@ -137,7 +137,7 @@ re-found by a reviewer instead of accumulating into a check.
 [Roles](roles.md) states how each host carries this. Either way, every dispatch
 carries it:
 
-> Load the act-as-mohab entrypoint before all other work. Evidence over
+> Load the canonical ChaosEngine entrypoint before all other work. Evidence over
 > inference: read or run before claiming. Stay inside assigned scope; report
 > adjacent findings. Cite repository-relative `file:line` evidence. Behavior
 > changes use observed RED, minimal implementation, observed GREEN. Never claim

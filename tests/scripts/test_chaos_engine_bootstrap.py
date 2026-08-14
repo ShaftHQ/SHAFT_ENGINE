@@ -154,6 +154,25 @@ class ChaosEngineBootstrapTest(unittest.TestCase):
             self.assertEqual("healthy", status["status"])
             self.assertEqual("healthy", status["hosts"]["status"])
             self.assertEqual("healthy", status["dependencies"]["status"])
+            self.assertEqual(
+                {
+                    "core",
+                    "skills",
+                    "playbooks",
+                    "hooks",
+                    "plugins",
+                    "roles",
+                    "mcps",
+                    "tools",
+                    "memory",
+                    "mempalace",
+                    "graphify",
+                },
+                set(status["components"]),
+            )
+            self.assertTrue(
+                all(component["status"] == "healthy" for component in status["components"].values())
+            )
             self.assertTrue(project.joinpath(".agents/skills/chaos-engine/SKILL.md").is_file())
             self.assertTrue(project.joinpath(".mcp.json").is_file())
 

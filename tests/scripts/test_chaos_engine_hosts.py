@@ -103,6 +103,150 @@ class ChaosEngineHostsTest(unittest.TestCase):
                     self.assertIn(".chaos-engine/tool.py", server["args"])
             self.assertIn('[mcp_servers."chaosengine-memory"]', codex)
             self.assertIn('".chaos-engine/tool.py", "memory-mcp"]', codex)
+            self.assertIn(".chaos-engine-state/mempalace", str(claude))
+
+    def test_complete_host_harness_installs_inventory_roles_hooks_and_plugin(self):
+        module = load(HOSTS, "chaos_engine_complete_hosts")
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary) / "consumer"
+            project.joinpath(".chaos-engine/skills/chaos-engine").mkdir(parents=True)
+            project.joinpath(".chaos-engine/skills/chaos-engine/SKILL.md").write_text("# C\n")
+
+            receipt = module.install(project)
+
+            required = {
+                ".agents/skills/README.md",
+                ".agents/plugins/marketplace.json",
+                ".claude-plugin/marketplace.json",
+                "plugins/chaos-engine/.codex-plugin/plugin.json",
+                "plugins/chaos-engine/.claude-plugin/plugin.json",
+                "plugins/chaos-engine/hooks/hooks.json",
+                "plugins/chaos-engine/hooks/guard.py",
+                "plugins/chaos-engine/skills/chaos-engine/SKILL.md",
+                ".codex/hooks.json",
+                ".claude/settings.json",
+            }
+            for role in ("orchestrator", "implementer", "reviewer", "tester", "mechanical-helper"):
+                required.add(f".claude/agents/chaos-engine-{role}.md")
+                required.add(f".codex/agents/chaos-engine-{role}.toml")
+            self.assertTrue(required <= set(receipt["after"]))
+            for relative in required:
+                self.assertTrue(project.joinpath(relative).is_file(), relative)
+            marketplace = json.loads(
+                project.joinpath(".agents/plugins/marketplace.json").read_text()
+            )
+            self.assertEqual(
+                "INSTALLED_BY_DEFAULT",
+                marketplace["plugins"][0]["policy"]["installation"],
+            )
+            self.assertNotIn(
+                "act-as-mohab",
+                "\n".join(
+                    project.joinpath(path).read_text(errors="ignore") for path in required
+                ),
+            )
+
+    def test_plugin_marketplace_preserves_unrelated_entries(self):
+        module = load(HOSTS, "chaos_engine_marketplace_merge")
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary) / "consumer"
+            project.joinpath(".chaos-engine/skills/chaos-engine").mkdir(parents=True)
+            project.joinpath(".chaos-engine/skills/chaos-engine/SKILL.md").write_text("# C\n")
+            marketplace_path = project / ".agents/plugins/marketplace.json"
+            marketplace_path.parent.mkdir(parents=True)
+            original = {
+                "name": "project",
+                "interface": {"displayName": "Project"},
+                "plugins": [
+                    {
+                        "name": "unrelated",
+                        "source": {"source": "local", "path": "vendor/unrelated"},
+                        "policy": {"installation": "AVAILABLE", "authentication": "ON_USE"},
+                        "category": "Developer Tools",
+                    }
+                ],
+            }
+            marketplace_path.write_text(json.dumps(original), encoding="utf-8")
+
+            module.install(project)
+            merged = json.loads(marketplace_path.read_text())
+            self.assertEqual(["unrelated", "chaos-engine"], [item["name"] for item in merged["plugins"]])
+            self.assertEqual("./plugins/chaos-engine", merged["plugins"][1]["source"]["path"])
+            module.uninstall(project)
+            self.assertEqual(original, json.loads(marketplace_path.read_text()))
+
+    def test_legacy_host_receipt_updates_to_complete_harness(self):
+        module = load(HOSTS, "chaos_engine_legacy_receipt")
+        legacy_paths = (
+            ".agents/skills/chaos-engine/SKILL.md",
+            ".claude/skills/chaos-engine/SKILL.md",
+            ".gemini/skills/chaos-engine/SKILL.md",
+            ".github/skills/chaos-engine/SKILL.md",
+            "AGENTS.md",
+            "CLAUDE.md",
+            "GEMINI.md",
+            ".github/copilot-instructions.md",
+            ".mcp.json",
+            ".gemini/settings.json",
+            ".codex/config.toml",
+        )
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary) / "consumer"
+            project.joinpath(".chaos-engine/skills/chaos-engine").mkdir(parents=True)
+            project.joinpath(".chaos-engine/skills/chaos-engine/SKILL.md").write_text("# C\n")
+            module.install(project, core_commit="1" * 40)
+            receipt, _ = module.read_receipt(project)
+            for field in ("before", "after"):
+                receipt[field] = {
+                    path: value for path, value in receipt[field].items() if path in legacy_paths
+                }
+            receipt["createdDirectories"] = []
+            for relative in set(module.managed_paths()) - set(legacy_paths):
+                path = project / relative
+                if path.is_file():
+                    path.unlink()
+            project.joinpath(module.RECEIPT_NAME).write_bytes(
+                module.receipt_bytes(receipt, project)
+            )
+
+            receipt = module.install(project, core_commit="2" * 40)
+
+            self.assertEqual(set(module.managed_paths()), set(receipt["after"]))
+            self.assertEqual("healthy", module.verify(project, core_commit="2" * 40)["status"])
+
+    def test_codex_hooks_preserve_unrelated_events(self):
+        module = load(HOSTS, "chaos_engine_hook_merge")
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary) / "consumer"
+            project.joinpath(".chaos-engine/skills/chaos-engine").mkdir(parents=True)
+            project.joinpath(".chaos-engine/skills/chaos-engine/SKILL.md").write_text("# C\n")
+            hook_path = project / ".codex/hooks.json"
+            hook_path.parent.mkdir(parents=True)
+            original = {"hooks": {"SessionStart": [{"hooks": [{"type": "command", "command": "user-hook"}]}]}}
+            hook_path.write_text(json.dumps(original), encoding="utf-8")
+
+            module.install(project)
+            merged = json.loads(hook_path.read_text())
+            self.assertEqual("user-hook", merged["hooks"]["SessionStart"][0]["hooks"][0]["command"])
+            self.assertGreater(len(merged["hooks"]["SessionStart"]), 1)
+            module.uninstall(project)
+            self.assertEqual(original, json.loads(hook_path.read_text()))
+
+    def test_unrelated_claude_marketplace_fails_closed_without_mutation(self):
+        module = load(HOSTS, "chaos_engine_claude_marketplace_collision")
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary) / "consumer"
+            project.joinpath(".chaos-engine/skills/chaos-engine").mkdir(parents=True)
+            project.joinpath(".chaos-engine/skills/chaos-engine/SKILL.md").write_text("# C\n")
+            path = project / ".claude-plugin/marketplace.json"
+            path.parent.mkdir(parents=True)
+            original = {"name": "user-marketplace", "plugins": []}
+            path.write_text(json.dumps(original), encoding="utf-8")
+
+            with self.assertRaisesRegex(ValueError, "Claude marketplace collision"):
+                module.install(project)
+            self.assertEqual(original, json.loads(path.read_text()))
+            self.assertFalse(project.joinpath(module.RECEIPT_NAME).exists())
 
     def test_launcher_rendering_is_explicit_for_windows_and_posix(self):
         module = load(HOSTS, "chaos_engine_hosts")

@@ -37,6 +37,7 @@ run:
 
 ```text
 python bootstrap.py --project . --repository owner/repository --distribution portable
+python .chaos-engine/install.py doctor --project .
 ```
 
 Add `--branch branch` to override the repository's configured default branch. The

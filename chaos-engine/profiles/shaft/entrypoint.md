@@ -2,6 +2,7 @@
 
 Load the [canonical ChaosEngine entrypoint](../../skills/chaos-engine/SKILL.md)
 first. This profile adds only repository-specific facts and permissions.
+Its machine-readable identity is in [profile.json](profile.json).
 
 - Repository: `ShaftHQ/SHAFT_ENGINE`; default branch: `main`.
 - Task branches use `ChaosEngine/*` and start from fetched `origin/main`.

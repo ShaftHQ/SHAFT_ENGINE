@@ -75,7 +75,7 @@ For a direct terminal flow, first save the upstream `bootstrap.py`, then run:
 
 ```text
 python bootstrap.py --project . --repository owner/repository --distribution portable
-python .chaos-engine/install.py status --project .
+python .chaos-engine/install.py doctor --project .
 ```
 
 Use the Python 3 launcher available on the host. Supply `--branch branch` only
@@ -133,6 +133,7 @@ default; repository-specific distributions require an explicit selection.
 | [`install.py`](install.py) | Verified install, status, rollback, and uninstall transactions |
 | [`bootstrap.py`](bootstrap.py) | Mutable-branch resolution to an immutable upstream commit |
 | [`hosts.py`](hosts.py) | Thin native host adapters and ownership receipts |
+| [`hooks/guard.py`](hooks/guard.py) | Portable lifecycle activation and catastrophic-scope guard |
 | [`dependencies.py`](dependencies.py) | Project-local dependency doctor, repair, and upgrade flow |
 | [`tool.py`](tool.py) | Relocatable launcher for ChaosEngine-owned local tools |
 | [`learning.py`](learning.py) | Privacy-gated queue for reusable improvement candidates |

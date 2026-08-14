@@ -1,7 +1,7 @@
 # Work GitHub — playbook
 
 A session-shaped method for taking an issue from filed to merged. Load
-`act-as-mohab` alongside this playbook. Start with [planning and tracking](work-github-planning.md), then return here for delivery.
+the canonical ChaosEngine entrypoint alongside this playbook. Start with [planning and tracking](work-github-planning.md), then return here for delivery.
 
 ## 4. Review before you commit — every time
 
@@ -126,7 +126,7 @@ by ancestry. Squash and rebase merging are disabled; do not substitute them.
 3. **Watch** from the target repository with
    `py -3 scripts/ci/watch_pr_checks.py --pr <n>` when its checkout carries
    the adapter, or with the installed plugin's
-   `python3 <plugin-root>/bin/act-as-mohab.pyz watch-pr-checks --pr <n>`.
+   the provider's native pull-request check watcher.
    Pass `--repo` for an explicit cross-repository target. Exit 0 is green, 1
    is red, 2 is pending, and 3 is an environment error.
 4. **Ask for unseen states** with `gh pr view <n> --json

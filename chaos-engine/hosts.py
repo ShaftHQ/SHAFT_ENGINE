@@ -22,6 +22,19 @@ ACTIVE_ANCHOR_PREFIX = ".chaos-engine-hosts.active-"
 REMOVING_ANCHOR_PREFIX = ".chaos-engine-hosts.removing-"
 ANCHOR_TOKEN = re.compile(r"^[0-9a-f]{64}$")
 SCHEMA_VERSION = 1
+LEGACY_MANAGED_PATHS = (
+    ".agents/skills/chaos-engine/SKILL.md",
+    ".claude/skills/chaos-engine/SKILL.md",
+    ".gemini/skills/chaos-engine/SKILL.md",
+    ".github/skills/chaos-engine/SKILL.md",
+    "AGENTS.md",
+    "CLAUDE.md",
+    "GEMINI.md",
+    ".github/copilot-instructions.md",
+    ".mcp.json",
+    ".gemini/settings.json",
+    ".codex/config.toml",
+)
 MAVEN_TOOLS_MCP_VERSION = "3.2.0"
 MAVEN_TOOLS_MCP_COMMIT = "4475ff6c61f23ea9a93cb6d5665a63235ef2ef36"
 MAVEN_TOOLS_MCP_RECEIPT = "install-receipt.json"
@@ -149,7 +162,13 @@ def owned_servers(
         },
         "chaosengine-mempalace": {
             "command": command,
-            "args": [*prefix, ".chaos-engine/tool.py", "mempalace-mcp"],
+            "args": [
+                *prefix,
+                ".chaos-engine/tool.py",
+                "mempalace-mcp",
+                "--palace",
+                ".chaos-engine-state/mempalace",
+            ],
             "cwd": ".",
             "env": {"MEMPALACE_EMBEDDING_MODEL": "minilm"},
         },
@@ -173,6 +192,26 @@ def managed_paths() -> tuple[str, ...]:
         ".claude/skills/chaos-engine/SKILL.md",
         ".gemini/skills/chaos-engine/SKILL.md",
         ".github/skills/chaos-engine/SKILL.md",
+        ".agents/skills/README.md",
+        ".agents/plugins/marketplace.json",
+        ".claude-plugin/marketplace.json",
+        "plugins/chaos-engine/.codex-plugin/plugin.json",
+        "plugins/chaos-engine/.claude-plugin/plugin.json",
+        "plugins/chaos-engine/hooks/hooks.json",
+        "plugins/chaos-engine/hooks/guard.py",
+        "plugins/chaos-engine/skills/chaos-engine/SKILL.md",
+        ".codex/hooks.json",
+        ".claude/settings.json",
+        ".claude/agents/chaos-engine-orchestrator.md",
+        ".claude/agents/chaos-engine-implementer.md",
+        ".claude/agents/chaos-engine-reviewer.md",
+        ".claude/agents/chaos-engine-tester.md",
+        ".claude/agents/chaos-engine-mechanical-helper.md",
+        ".codex/agents/chaos-engine-orchestrator.toml",
+        ".codex/agents/chaos-engine-implementer.toml",
+        ".codex/agents/chaos-engine-reviewer.toml",
+        ".codex/agents/chaos-engine-tester.toml",
+        ".codex/agents/chaos-engine-mechanical-helper.toml",
         "AGENTS.md",
         "CLAUDE.md",
         "GEMINI.md",
@@ -456,7 +495,8 @@ def codex_content(
         f'[mcp_servers."chaosengine-memory"]\ncommand = "{command}"\n'
         f'args = [{prefix_text}".chaos-engine/tool.py", "memory-mcp"]\ncwd = ".."\n\n'
         f'[mcp_servers."chaosengine-mempalace"]\ncommand = "{command}"\n'
-        f'args = [{prefix_text}".chaos-engine/tool.py", "mempalace-mcp"]\ncwd = ".."\n'
+        f'args = [{prefix_text}".chaos-engine/tool.py", "mempalace-mcp", "--palace", '
+        '".chaos-engine-state/mempalace"]\ncwd = ".."\n'
         'env = { MEMPALACE_EMBEDDING_MODEL = "minilm" }\n# CHAOSENGINE:END\n'
     )
     if maven_runtime is not None:
@@ -481,6 +521,24 @@ def codex_content(
     return (existing + separator + block).encode()
 
 
+def hook_content(before: bytes | None, rendered: bytes, label: str) -> bytes:
+    try:
+        existing = json.loads(before) if before is not None else {"hooks": {}}
+        desired = json.loads(rendered)
+    except (UnicodeDecodeError, json.JSONDecodeError) as error:
+        raise ValueError(f"invalid {label} hook configuration") from error
+    if not isinstance(existing, dict) or not isinstance(existing.get("hooks"), dict):
+        raise ValueError(f"invalid {label} hook configuration")
+    for event, groups in desired["hooks"].items():
+        current = existing["hooks"].setdefault(event, [])
+        if not isinstance(current, list):
+            raise ValueError(f"invalid {label} hook configuration")
+        for group in groups:
+            if group not in current:
+                current.append(group)
+    return (json.dumps(existing, indent=2, sort_keys=True) + "\n").encode()
+
+
 def desired_content(
     before: dict[str, bytes | None],
     maven_runtime: tuple[Path, Path] | None | bool = False,
@@ -493,6 +551,214 @@ def desired_content(
         "Follow the [canonical ChaosEngine](../../../.chaos-engine/skills/chaos-engine/SKILL.md).\n"
     ).encode()
     after = {relative: skill for relative in adapters}
+    after[".agents/skills/README.md"] = (
+        "# Installed agent harness\n\n"
+        "- `chaos-engine/`: canonical skill adapter.\n"
+        "- `../../plugins/chaos-engine/`: installed plugin and lifecycle hook.\n"
+        "- `.chaos-engine/`: canonical skills, playbooks, tools, and policy.\n"
+    ).encode()
+    plugin_entry = {
+        "name": "chaos-engine",
+        "source": {"source": "local", "path": "./plugins/chaos-engine"},
+        "policy": {
+            "installation": "INSTALLED_BY_DEFAULT",
+            "authentication": "ON_INSTALL",
+        },
+        "category": "Developer Tools",
+    }
+    marketplace_before = before[".agents/plugins/marketplace.json"]
+    if marketplace_before is None:
+        marketplace = {
+            "name": "chaos-engine-project",
+            "interface": {"displayName": "ChaosEngine Project"},
+            "plugins": [],
+        }
+    else:
+        try:
+            marketplace = json.loads(marketplace_before)
+        except (UnicodeDecodeError, json.JSONDecodeError) as error:
+            raise ValueError("invalid plugin marketplace configuration") from error
+        if not isinstance(marketplace, dict) or not isinstance(marketplace.get("plugins"), list):
+            raise ValueError("invalid plugin marketplace configuration")
+    existing_plugin = next(
+        (item for item in marketplace["plugins"] if isinstance(item, dict) and item.get("name") == "chaos-engine"),
+        None,
+    )
+    if existing_plugin is not None and existing_plugin != plugin_entry:
+        raise ValueError("ChaosEngine plugin marketplace collision")
+    if existing_plugin is None:
+        marketplace["plugins"].append(plugin_entry)
+    after[".agents/plugins/marketplace.json"] = (
+        json.dumps(marketplace, indent=2, sort_keys=True) + "\n"
+    ).encode()
+    claude_plugin_entry = {
+        "name": "chaos-engine",
+        "source": "./plugins/chaos-engine",
+        "description": "Neutral project-local agent harness.",
+        "version": "1.0.0",
+    }
+    claude_marketplace_before = before[".claude-plugin/marketplace.json"]
+    if claude_marketplace_before is None:
+        claude_marketplace = {
+            "name": "chaos-engine-project",
+            "owner": {"name": "ChaosEngine contributors"},
+            "description": "Neutral project-local agent harness.",
+            "plugins": [],
+        }
+    else:
+        try:
+            claude_marketplace = json.loads(claude_marketplace_before)
+        except (UnicodeDecodeError, json.JSONDecodeError) as error:
+            raise ValueError("invalid Claude marketplace configuration") from error
+        if (
+            not isinstance(claude_marketplace, dict)
+            or claude_marketplace.get("name") != "chaos-engine-project"
+            or not isinstance(claude_marketplace.get("plugins"), list)
+        ):
+            raise ValueError("ChaosEngine Claude marketplace collision")
+    existing_claude_plugin = next(
+        (
+            item
+            for item in claude_marketplace["plugins"]
+            if isinstance(item, dict) and item.get("name") == "chaos-engine"
+        ),
+        None,
+    )
+    if existing_claude_plugin is not None and existing_claude_plugin != claude_plugin_entry:
+        raise ValueError("ChaosEngine Claude marketplace collision")
+    if existing_claude_plugin is None:
+        claude_marketplace["plugins"].append(claude_plugin_entry)
+    after[".claude-plugin/marketplace.json"] = (
+        json.dumps(claude_marketplace, indent=2, sort_keys=True) + "\n"
+    ).encode()
+    plugin_manifest = {
+        "name": "chaos-engine",
+        "version": "1.0.0",
+        "description": "Neutral project-local software agent working harness.",
+        "author": {"name": "ChaosEngine contributors"},
+        "skills": "./skills",
+        "interface": {
+            "displayName": "ChaosEngine",
+            "shortDescription": "Neutral project working harness",
+            "longDescription": "A neutral project-local harness for research, planning, implementation, verification, and durable learning.",
+            "developerName": "ChaosEngine contributors",
+            "category": "Developer Tools",
+            "capabilities": ["Instructions", "Lifecycle hooks", "MCP servers"],
+            "defaultPrompt": ["Use ChaosEngine for this task."],
+        },
+    }
+    after["plugins/chaos-engine/.codex-plugin/plugin.json"] = (
+        json.dumps(plugin_manifest, indent=2, sort_keys=True) + "\n"
+    ).encode()
+    after["plugins/chaos-engine/.claude-plugin/plugin.json"] = (
+        json.dumps(
+            {
+                "name": "chaos-engine",
+                "version": "1.0.0",
+                "description": "Neutral project-local software agent working harness.",
+                "author": {"name": "ChaosEngine contributors"},
+            },
+            indent=2,
+            sort_keys=True,
+        )
+        + "\n"
+    ).encode()
+    command, prefix = interpreter()
+    hook_command = " ".join([command, *prefix, '"${CLAUDE_PLUGIN_ROOT}/hooks/guard.py"'])
+    rendered_plugin_hooks = (
+        json.dumps(
+            {
+                "hooks": {
+                    "SessionStart": [
+                        {
+                            "matcher": "startup|resume|clear|compact",
+                            "hooks": [
+                                {"type": "command", "command": hook_command, "timeout": 5}
+                            ],
+                        }
+                    ],
+                    "PreToolUse": [
+                        {
+                            "matcher": "Bash|PowerShell|shell_command",
+                            "hooks": [
+                                {"type": "command", "command": hook_command, "timeout": 5}
+                            ],
+                        }
+                    ],
+                }
+            },
+            indent=2,
+            sort_keys=True,
+        )
+        + "\n"
+    ).encode()
+    project_command = " ".join([command, *prefix, ".chaos-engine/hooks/guard.py"])
+    project_hooks = json.loads(rendered_plugin_hooks)
+    for groups in project_hooks["hooks"].values():
+        for group in groups:
+            for hook in group["hooks"]:
+                hook["command"] = project_command
+    rendered_project_hooks = (json.dumps(project_hooks, indent=2, sort_keys=True) + "\n").encode()
+    after["plugins/chaos-engine/hooks/hooks.json"] = hook_content(
+        before["plugins/chaos-engine/hooks/hooks.json"], rendered_plugin_hooks, "plugin"
+    )
+    after[".codex/hooks.json"] = hook_content(
+        before[".codex/hooks.json"], rendered_project_hooks, "Codex"
+    )
+    after["plugins/chaos-engine/hooks/guard.py"] = (
+        Path(__file__).resolve().parent / "hooks/guard.py"
+    ).read_bytes()
+    after["plugins/chaos-engine/skills/chaos-engine/SKILL.md"] = (
+        "---\nname: chaos-engine\ndescription: Load the canonical installed ChaosEngine before every task.\n---\n\n"
+        "From the active project root, load `.chaos-engine/skills/chaos-engine/SKILL.md` before every task.\n"
+    ).encode()
+    claude_settings = before[".claude/settings.json"]
+    try:
+        settings = json.loads(claude_settings) if claude_settings is not None else {}
+    except (UnicodeDecodeError, json.JSONDecodeError) as error:
+        raise ValueError("invalid Claude settings") from error
+    if not isinstance(settings, dict):
+        raise ValueError("invalid Claude settings")
+    enabled = settings.setdefault("enabledPlugins", {})
+    marketplaces = settings.setdefault("extraKnownMarketplaces", {})
+    if not isinstance(enabled, dict) or not isinstance(marketplaces, dict):
+        raise ValueError("invalid Claude settings")
+    plugin_id = "chaos-engine@chaos-engine-project"
+    if plugin_id in enabled and enabled[plugin_id] is not True:
+        raise ValueError("ChaosEngine Claude plugin collision")
+    desired_marketplace = {
+        "source": {"source": "directory", "path": "."}
+    }
+    if "chaos-engine-project" in marketplaces and marketplaces["chaos-engine-project"] != desired_marketplace:
+        raise ValueError("ChaosEngine Claude marketplace collision")
+    enabled[plugin_id] = True
+    marketplaces["chaos-engine-project"] = desired_marketplace
+    after[".claude/settings.json"] = (
+        json.dumps(settings, indent=2, sort_keys=True) + "\n"
+    ).encode()
+    roles = {
+        "orchestrator": "Own planning, architecture, synthesis, and final verification.",
+        "implementer": "Implement one bounded specification with test-driven development.",
+        "reviewer": "Perform an independent read-only adversarial review; never edit.",
+        "tester": "Reproduce behavior and produce regression and acceptance evidence.",
+        "mechanical-helper": "Perform deterministic reversible spec-exact work; stop on ambiguity.",
+    }
+    for role, responsibility in roles.items():
+        slug = f"chaos-engine-{role}"
+        tools = "Read, Grep, Glob, Bash" if role == "reviewer" else "Read, Grep, Glob, Bash, Write, Edit"
+        after[f".claude/agents/{slug}.md"] = (
+            f"---\nname: {slug}\ndescription: {responsibility}\n"
+            f"tools: {tools}\n---\n\n"
+            f"Load `.chaos-engine/skills/chaos-engine/SKILL.md` and follow "
+            f"`.chaos-engine/references/roles.md#{role}`. {responsibility}\n"
+        ).encode()
+        sandbox = 'sandbox_mode = "read-only"\n' if role == "reviewer" else ""
+        after[f".codex/agents/{slug}.toml"] = (
+            f'name = "{slug}"\n'
+            f'description = {json.dumps(responsibility)}\n'
+            f'developer_instructions = {json.dumps(f"Load .chaos-engine/skills/chaos-engine/SKILL.md and follow .chaos-engine/references/roles.md#{role}. {responsibility}")}\n'
+            f"{sandbox}"
+        ).encode()
     for relative in ("AGENTS.md", "CLAUDE.md", "GEMINI.md"):
         after[relative] = instruction_content(before[relative], INSTRUCTION)
     after[".github/copilot-instructions.md"] = instruction_content(
@@ -521,7 +787,11 @@ def encode_images(images: dict[str, bytes | None]) -> dict[str, str | None]:
 
 
 def decode_images(value: object, *, nullable: bool) -> dict[str, bytes | None]:
-    if not isinstance(value, dict) or set(value) != set(managed_paths()):
+    keys = frozenset(value) if isinstance(value, dict) else frozenset()
+    if not isinstance(value, dict) or keys not in {
+        frozenset(managed_paths()),
+        frozenset(LEGACY_MANAGED_PATHS),
+    }:
         raise ValueError("ChaosEngine host receipt ownership is invalid")
     result: dict[str, bytes | None] = {}
     try:
@@ -534,6 +804,8 @@ def decode_images(value: object, *, nullable: bool) -> dict[str, bytes | None]:
                 raise ValueError
     except (ValueError, TypeError) as error:
         raise ValueError("ChaosEngine host receipt content is invalid") from error
+    for relative in managed_paths():
+        result.setdefault(relative, None)
     return result
 
 
@@ -905,8 +1177,14 @@ def install(project: Path, core_commit: str | None = None) -> dict[str, object]:
             next_receipt["phase"] = "installing"
             next_receipt["coreCommit"] = core_commit
             next_receipt["after"] = encode_images(wanted)
+            new_directories = created_directories(project)
+            next_receipt["createdDirectories"] = sorted(
+                set(receipt_directories(receipt)) | set(new_directories),
+                key=lambda item: (len(Path(item).parts), item),
+            )
             next_raw = write_receipt(project, next_receipt, raw)
             try:
+                prepare_created_directories(project, next_receipt)
                 reconcile(project, wanted, (after, wanted))
                 next_receipt["phase"] = "installed"
                 write_receipt(project, next_receipt, next_raw)

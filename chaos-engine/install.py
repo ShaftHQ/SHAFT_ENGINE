@@ -1041,6 +1041,38 @@ def status_with_dependencies(project: Path) -> dict[str, object]:
                 runtime,
                 specification=controller.load_specification(target / "dependencies.json"),
             )
+            dependency_health = str(result["dependencies"].get("status"))  # type: ignore[union-attr]
+            component_paths = {
+                "core": [target / "skills/chaos-engine/SKILL.md"],
+                "skills": [project / ".agents/skills/chaos-engine/SKILL.md"],
+                "playbooks": [target / "references/work-github-playbook.md"],
+                "hooks": [
+                    target / "hooks/guard.py",
+                    project / ".codex/hooks.json",
+                    project / "plugins/chaos-engine/hooks/hooks.json",
+                ],
+                "plugins": [
+                    project / ".agents/plugins/marketplace.json",
+                    project / ".claude-plugin/marketplace.json",
+                    project / "plugins/chaos-engine/.codex-plugin/plugin.json",
+                    project / "plugins/chaos-engine/.claude-plugin/plugin.json",
+                ],
+                "roles": [
+                    *(project / ".claude/agents").glob("chaos-engine-*"),
+                    *(project / ".codex/agents").glob("chaos-engine-*"),
+                ],
+                "mcps": [project / ".mcp.json", project / ".codex/config.toml"],
+            }
+            components: dict[str, dict[str, str]] = {}
+            for name, paths in component_paths.items():
+                expected_count = 10 if name == "roles" else len(paths)
+                healthy = len(paths) == expected_count and all(path.is_file() for path in paths)
+                components[name] = {"status": "healthy" if healthy else "absent"}
+            for name in ("tools", "memory", "mempalace", "graphify"):
+                components[name] = {"status": dependency_health}
+            result["components"] = components
+            if any(item["status"] != "healthy" for item in components.values()):
+                result["status"] = "recovery-required"
             return result
 
 
@@ -1173,7 +1205,7 @@ def parser() -> argparse.ArgumentParser:
     install_command.add_argument("--commit", required=True)
     install_command.add_argument("--distribution", default=DEFAULT_DISTRIBUTION)
     install_command.add_argument("--skip-tools", action="store_true")
-    for name in ("status", "rollback", "uninstall"):
+    for name in ("status", "doctor", "rollback", "uninstall"):
         command = commands.add_parser(name)
         command.add_argument("--project", required=True, type=Path)
     return result
@@ -1199,7 +1231,7 @@ def main() -> int:
                 )
             )
             result: object = {"status": "installed", "root": str(target)}
-        elif args.command == "status":
+        elif args.command in {"status", "doctor"}:
             result = status_with_dependencies(args.project)
         elif args.command == "rollback":
             result = {"status": "rolled-back", "root": str(rollback(args.project))}
