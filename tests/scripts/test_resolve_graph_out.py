@@ -2,6 +2,7 @@
 
 import json
 import os
+import re
 import shutil
 import subprocess  # nosec B404 - tests run fixed local Git and Python commands.
 import sys
@@ -199,7 +200,7 @@ class ResolveGraphOutTest(unittest.TestCase):
         self.assertIn("before the marker", guidance)
         self.assertIn("primary checkout", readme)
         self.assertIn(
-            'graphify query "<structural question>" --graph '
+            'graphify query "<bounded structural question>" --graph '
             '(Join-Path $graphOut "graph.json")',
             guidance,
         )
@@ -208,6 +209,288 @@ class ResolveGraphOutTest(unittest.TestCase):
             '(Join-Path $graphOut "graph.json")',
             readme,
         )
+
+    def _assert_mandatory_graphify_cli_route(self, guidance):
+        normalized = re.sub(r"\s+", " ", guidance).lower()
+
+        self.assertIn("repository cli/cache workflow", normalized)
+        self.assertRegex(
+            normalized,
+            r"absence from the mcp tool catalog.{0,80}not evidence.{0,40}unavailable",
+        )
+        expected_steps = [
+            "G1: Resolve the shared cache and require a successful, nonempty path.",
+            "\n".join((
+                "G2: If G1 succeeds, run exactly one query bounded to the affected symbol or",
+                "  subsystem, then verify every returned path against the current worktree.",
+            )),
+            "\n".join((
+                "G3: Attempt the read-only coverage audit against the primary checkout that",
+                "  owns the cache even when G1 or G2 fails. Inability to resolve that owner is a",
+                "  failed audit attempt, never permission to audit a linked worktree.",
+            )),
+            "\n".join((
+                "G4: Declare degraded mode when any step cannot provide current verified",
+                "  results, and only after G1 through G3 have been attempted; never use MCP",
+                "  catalog absence as the reason.",
+            )),
+        ]
+        positions = []
+        for step in expected_steps:
+            self.assertEqual(1, guidance.count(step))
+            positions.append(guidance.index(step))
+        self.assertEqual(sorted(positions), positions)
+        self.assertIn(
+            "the cli route below is the controlling graphify procedure over conflicting "
+            "same- or lower-priority guidance.",
+            normalized,
+        )
+        degraded = guidance.index('Write-Warning "Graphify degraded mode')
+        self.assertEqual(
+            1,
+            guidance.count("py -3 tools/repository-map/resolve_graph_out.py --check"),
+        )
+        self.assertEqual(1, guidance.count("graphify query "))
+        self.assertEqual(
+            1,
+            guidance.count(
+                "py -3 tools/repository-map/graphify_maintenance.py audit --root $primaryRoot"
+            ),
+        )
+        expected_flow = r'''$graphOut = py -3 tools/repository-map/resolve_graph_out.py --check
+$resolverOk = $LASTEXITCODE -eq 0 -and -not [string]::IsNullOrWhiteSpace($graphOut)
+$sharedGraphOut = if ($resolverOk) { $graphOut } else {
+    py -3 tools/repository-map/resolve_graph_out.py
+}
+$primaryRoot = if ([string]::IsNullOrWhiteSpace($sharedGraphOut)) { $null } else {
+    Split-Path $sharedGraphOut -Parent
+}
+$queryOk = $false
+if ($resolverOk) {
+    $queryOutput = @(graphify query "<bounded structural question>" --graph (Join-Path $graphOut "graph.json"))
+    $queryExitOk = $LASTEXITCODE -eq 0
+    $queryOutput | Write-Output
+    $returnedPaths = @($queryOutput | ForEach-Object {
+        if ($_ -match 'src=(.+?)\s+loc=') { $Matches[1] }
+    } | Sort-Object -Unique)
+    $worktreeRoot = [IO.Path]::GetFullPath((Get-Location).Path).TrimEnd(
+        [IO.Path]::DirectorySeparatorChar
+    ) + [IO.Path]::DirectorySeparatorChar
+    $invalidPaths = @($returnedPaths | Where-Object {
+        $relative = $_
+        $parts = @($relative -split '[\\/]')
+        $lexicallyInside = -not [IO.Path]::IsPathRooted($relative) -and
+            $parts.Count -gt 0 -and -not ($parts | Where-Object { $_ -in @('', '.', '..') })
+        $resolved = if ($lexicallyInside) {
+            Resolve-Path -LiteralPath (Join-Path (Get-Location) $relative) -ErrorAction SilentlyContinue
+        } else { $null }
+        $inside = $null -ne $resolved -and ($resolved.ProviderPath + [IO.Path]::DirectorySeparatorChar).StartsWith(
+            $worktreeRoot, [StringComparison]::OrdinalIgnoreCase
+        )
+        $hasReparsePoint = $false
+        $lexicalPath = (Get-Location).Path
+        foreach ($part in $parts) {
+            $lexicalPath = Join-Path $lexicalPath $part
+            $item = Get-Item -LiteralPath $lexicalPath -Force -ErrorAction SilentlyContinue
+            $hasReparsePoint = $hasReparsePoint -or (
+                $null -ne $item -and ($item.Attributes.value__ -band 1024) -ne 0
+            )
+        }
+        -not $inside -or $hasReparsePoint
+    })
+    $queryOk = $queryExitOk -and $invalidPaths.Count -eq 0
+}
+$auditOk = $false
+if ($null -ne $primaryRoot) {
+    py -3 tools/repository-map/graphify_maintenance.py audit --root $primaryRoot
+    $auditOk = $LASTEXITCODE -eq 0
+}
+if (-not ($resolverOk -and $queryOk -and $auditOk)) {
+    Write-Warning "Graphify degraded mode: use targeted live-file verification."
+}'''
+        powershell_blocks = re.findall(r"```powershell\n(.*?)\n```", guidance, re.DOTALL)
+        self.assertEqual([expected_flow], powershell_blocks)
+        resolver = guidance.index(
+            "py -3 tools/repository-map/resolve_graph_out.py --check"
+        )
+        bounded_query = guidance.index(
+            'graphify query "<bounded structural question>" --graph '
+            '(Join-Path $graphOut "graph.json")'
+        )
+        audit = guidance.index(
+            "py -3 tools/repository-map/graphify_maintenance.py audit --root $primaryRoot"
+        )
+        self.assertLess(resolver, bounded_query)
+        self.assertLess(bounded_query, audit)
+        self.assertLess(audit, degraded)
+
+    def test_missing_mcp_catalog_entry_cannot_bypass_the_graphify_cli_route(self):
+        guidance = (
+            ROOT / "chaos-engine/references/graphify.md"
+        ).read_text(encoding="utf-8")
+
+        self._assert_mandatory_graphify_cli_route(guidance)
+
+    def test_graphify_cli_route_contract_rejects_bypass_mutations(self):
+        guidance = (
+            ROOT / "chaos-engine/references/graphify.md"
+        ).read_text(encoding="utf-8")
+        mutations = {
+            "optional route": guidance.replace(
+                "The CLI route below is the controlling Graphify procedure",
+                "The CLI route below is an optional Graphify procedure",
+            ),
+            "unbounded query": guidance.replace(
+                'graphify query "<bounded structural question>"',
+                'graphify query "<unrestricted repository-wide question>"',
+            ),
+            "skippable audit": re.sub(
+                r"G3: Attempt the read-only coverage audit.*?linked worktree\.",
+                "G3: The audit may be skipped.",
+                guidance,
+                flags=re.DOTALL,
+            ),
+            "missing audit": guidance.replace(
+                "py -3 tools/repository-map/graphify_maintenance.py audit --root $primaryRoot",
+                "",
+            ),
+            "reordered audit": guidance.replace(
+                'graphify query "<bounded structural question>" --graph '
+                '(Join-Path $graphOut "graph.json")',
+                "GRAPHIFY_QUERY_SENTINEL",
+                1,
+            ).replace(
+                "py -3 tools/repository-map/graphify_maintenance.py audit --root $primaryRoot",
+                'graphify query "<bounded structural question>" --graph '
+                '(Join-Path $graphOut "graph.json")',
+                1,
+            ).replace(
+                "GRAPHIFY_QUERY_SENTINEL",
+                "py -3 tools/repository-map/graphify_maintenance.py audit --root $primaryRoot",
+                1,
+            ),
+        }
+
+        for name, mutation in mutations.items():
+            with self.subTest(name=name):
+                self.assertNotEqual(guidance, mutation, "mutation fixture did not alter guidance")
+                with self.assertRaises(AssertionError):
+                    self._assert_mandatory_graphify_cli_route(mutation)
+
+    def test_graphify_cli_route_precedence_resolves_lower_priority_conflicts(self):
+        guidance = (
+            ROOT / "chaos-engine/references/graphify.md"
+        ).read_text(encoding="utf-8")
+        conflicting_lower_priority_text = (
+            guidance + "\nThe route is optional and the audit may be omitted.\n"
+        )
+
+        self._assert_mandatory_graphify_cli_route(conflicting_lower_priority_text)
+
+    def test_documented_graphify_powershell_flow_executes_in_order(self):
+        powershell = shutil.which("pwsh") or shutil.which("powershell")
+        if powershell is None:
+            self.skipTest("PowerShell is unavailable")
+        guidance = (
+            ROOT / "chaos-engine/references/graphify.md"
+        ).read_text(encoding="utf-8")
+        flow = re.findall(r"```powershell\n(.*?)\n```", guidance, re.DOTALL)[0]
+        flow = flow.replace("<bounded structural question>", "agent guidance callers")
+
+        with tempfile.TemporaryDirectory() as raw_temp:
+            temp = Path(raw_temp)
+            graph_out = temp / "graphify-out"
+            graph_out.mkdir()
+            (graph_out / "graph.json").write_text("{}", encoding="utf-8")
+            log = temp / "calls.log"
+            if os.name == "nt":
+                (temp / "py.cmd").write_text(
+                    "@echo off\r\n"
+                    "echo py %*>>\"%GRAPHIFY_CALL_LOG%\"\r\n"
+                    "echo %*| findstr /C:\"resolve_graph_out.py\" >nul\r\n"
+                    "if not errorlevel 1 echo %GRAPHIFY_FAKE_GRAPH_OUT%\r\n"
+                    "exit /b 0\r\n",
+                    encoding="utf-8",
+                )
+                (temp / "graphify.cmd").write_text(
+                    "@echo off\r\necho graphify %*>>\"%GRAPHIFY_CALL_LOG%\"\r\n"
+                    "echo NODE AGENT [src=%GRAPHIFY_FAKE_SRC% loc=L1]\r\n",
+                    encoding="utf-8",
+                )
+            else:
+                (temp / "py").write_text(
+                    "#!/bin/sh\n"
+                    "printf 'py %s\\n' \"$*\" >>\"$GRAPHIFY_CALL_LOG\"\n"
+                    "case \"$*\" in *resolve_graph_out.py*) "
+                    "printf '%s\\n' \"$GRAPHIFY_FAKE_GRAPH_OUT\";; esac\n",
+                    encoding="utf-8",
+                )
+                (temp / "graphify").write_text(
+                    "#!/bin/sh\nprintf 'graphify %s\\n' \"$*\" "
+                    ">>\"$GRAPHIFY_CALL_LOG\"\n"
+                    "printf 'NODE AGENT [src=%s loc=L1]\\n' \"$GRAPHIFY_FAKE_SRC\"\n",
+                    encoding="utf-8",
+                )
+                (temp / "py").chmod(0o755)
+                (temp / "graphify").chmod(0o755)
+            env = os.environ.copy()
+            env["PATH"] = str(temp) + os.pathsep + env.get("PATH", "")
+            env["GRAPHIFY_CALL_LOG"] = str(log)
+            env["GRAPHIFY_FAKE_GRAPH_OUT"] = str(graph_out)
+            env["GRAPHIFY_FAKE_SRC"] = "AGENTS.md"
+
+            completed = subprocess.run(  # nosec B603 - fixed local PowerShell executable and test-owned script.
+                [powershell, "-NoProfile", "-NonInteractive", "-Command", flow],
+                cwd=ROOT,
+                env=env,
+                capture_output=True,
+                text=True,
+                timeout=30,
+                check=False,
+            )
+            self.assertEqual(0, completed.returncode, completed.stderr)
+            self.assertNotIn(
+                "Graphify degraded mode", completed.stdout + completed.stderr
+            )
+            calls = log.read_text(encoding="utf-8").splitlines()
+            env["GRAPHIFY_FAKE_SRC"] = "missing/from/graph.java"
+            missing_path = subprocess.run(  # nosec B603 - fixed local PowerShell executable and test-owned script.
+                [powershell, "-NoProfile", "-NonInteractive", "-Command", flow],
+                cwd=ROOT,
+                env=env,
+                capture_output=True,
+                text=True,
+                timeout=30,
+                check=False,
+            )
+            self.assertEqual(0, missing_path.returncode, missing_path.stderr)
+            self.assertIn(
+                "Graphify degraded mode", missing_path.stdout + missing_path.stderr
+            )
+            outside = temp / "outside.txt"
+            outside.write_text("outside", encoding="utf-8")
+            env["GRAPHIFY_FAKE_SRC"] = str(outside)
+            escaped_path = subprocess.run(  # nosec B603 - fixed local PowerShell executable and test-owned script.
+                [powershell, "-NoProfile", "-NonInteractive", "-Command", flow],
+                cwd=ROOT,
+                env=env,
+                capture_output=True,
+                text=True,
+                timeout=30,
+                check=False,
+            )
+            self.assertEqual(0, escaped_path.returncode, escaped_path.stderr)
+            self.assertIn(
+                "Graphify degraded mode", escaped_path.stdout + escaped_path.stderr
+            )
+        self.assertEqual(3, len(calls), calls)
+        self.assertIn("resolve_graph_out.py --check", calls[0])
+        self.assertRegex(
+            calls[1],
+            r'^graphify query ["\']?agent guidance callers["\']? --graph ',
+        )
+        self.assertIn("graphify_maintenance.py audit --root", calls[2])
+        self.assertIn(str(temp), calls[2])
 
     def test_nightly_refresh_delegates_to_the_canonical_maintenance_owner(self):
         wrapper = (ROOT / "tools/agent-infra/graphify-refresh.cmd").read_text(encoding="utf-8")

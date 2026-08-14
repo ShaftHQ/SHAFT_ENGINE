@@ -1,12 +1,8 @@
 package com.shaft.ocr.internal;
 
-import com.sun.net.httpserver.HttpServer;
 import org.testng.Assert;
-import org.testng.annotations.AfterMethod;
-import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-import java.net.InetSocketAddress;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -15,93 +11,83 @@ import java.security.MessageDigest;
 import java.util.HexFormat;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.Executors;
-import java.util.concurrent.atomic.AtomicInteger;
 
 public class TessdataModelManagerTest {
-    private HttpServer server;
-    private Path cache;
-    private byte[] model;
-    private AtomicInteger requests;
-
-    @BeforeMethod
-    public void setUp() throws Exception {
-        cache = Files.createTempDirectory("shaft-ocr-model-test");
-        model = "verified trained data".getBytes(StandardCharsets.UTF_8);
-        requests = new AtomicInteger();
-        server = HttpServer.create(new InetSocketAddress(0), 0);
-        server.createContext("/eng.traineddata", exchange -> {
-            requests.incrementAndGet();
-            exchange.sendResponseHeaders(200, model.length);
-            exchange.getResponseBody().write(model);
-            exchange.close();
-        });
-        server.start();
-    }
-
-    @AfterMethod
-    public void tearDown() throws Exception {
-        if (server != null) {
-            server.stop(0);
-        }
-        try (var paths = Files.walk(cache)) {
-            paths.sorted((left, right) -> right.compareTo(left)).forEach(path -> {
-                try {
-                    Files.deleteIfExists(path);
-                } catch (Exception ignored) {
-                    // Best-effort cleanup of a test-owned temporary directory.
-                }
-            });
-        }
-    }
-
     @Test
-    public void downloadsVerifiesAndReusesCachedModel() throws Exception {
-        TessdataModelManager manager = manager(sha256(model), true);
+    public void verifiesAndReusesProvisionedModel() throws Exception {
+        Path cache = Files.createTempDirectory("shaft-ocr-model-test");
+        byte[] model = "verified trained data".getBytes(StandardCharsets.UTF_8);
+        Files.write(cache.resolve("eng.traineddata"), model);
+        TessdataModelManager manager = manager(cache, sha256(model), false);
 
         Path tessdata = manager.ensureAvailable(List.of("eng"));
         manager.ensureAvailable(List.of("eng"));
 
         Assert.assertEquals(Files.readAllBytes(tessdata.resolve("eng.traineddata")), model);
-        Assert.assertEquals(requests.get(), 1);
     }
 
     @Test
     public void checksumMismatchNeverReplacesKnownGoodCache() throws Exception {
+        Path cache = Files.createTempDirectory("shaft-ocr-model-test");
+        byte[] model = "verified trained data".getBytes(StandardCharsets.UTF_8);
         Path existing = cache.resolve("eng.traineddata");
         byte[] knownGood = "known good".getBytes(StandardCharsets.UTF_8);
         Files.write(existing, knownGood);
-        TessdataModelManager manager = manager(sha256(model), true);
+        TessdataModelManager manager = manager(cache, sha256(model), true);
 
         Assert.expectThrows(IllegalStateException.class, () -> manager.ensureAvailable(List.of("eng")));
         Assert.assertEquals(Files.readAllBytes(existing), knownGood);
     }
 
     @Test
-    public void offlineFailureNamesLanguageAndCachePath() {
-        TessdataModelManager manager = manager(sha256(model), false);
+    public void missingModelRequiresApprovedSetupEvenWhenLegacyDownloadFlagIsTrue() throws Exception {
+        Path cache = Files.createTempDirectory("shaft-ocr-model-test");
+        byte[] model = "verified trained data".getBytes(StandardCharsets.UTF_8);
+        TessdataModelManager manager = manager(cache, sha256(model), true);
 
         IllegalStateException error = Assert.expectThrows(IllegalStateException.class,
                 () -> manager.ensureAvailable(List.of("eng")));
 
         Assert.assertTrue(error.getMessage().contains("eng"));
         Assert.assertTrue(error.getMessage().contains(cache.toString()));
+        Assert.assertTrue(error.getMessage().contains("shaft-cli setup plan --profile OCR --language eng"));
+        Assert.assertTrue(error.getMessage().contains("no longer bypasses setup approval"));
+        Assert.assertFalse(Files.exists(cache.resolve("eng.traineddata")));
     }
 
     @Test
-    public void concurrentCallersShareOneAtomicDownload() throws Exception {
-        TessdataModelManager manager = manager(sha256(model), true);
-        try (var executor = Executors.newFixedThreadPool(2)) {
-            var first = executor.submit(() -> manager.ensureAvailable(List.of("eng")));
-            var second = executor.submit(() -> manager.ensureAvailable(List.of("eng")));
-            Assert.assertEquals(first.get(), cache);
-            Assert.assertEquals(second.get(), cache);
-        }
-        Assert.assertEquals(requests.get(), 1);
+    public void emptyCustomCacheFallsBackToVerifiedSharedSetupCache() throws Exception {
+        Path custom = Files.createTempDirectory("shaft-ocr-custom-test");
+        Path shared = Files.createTempDirectory("shaft-ocr-shared-test");
+        byte[] model = "verified shared model".getBytes(StandardCharsets.UTF_8);
+        Files.write(shared.resolve("eng.traineddata"), model);
+        TessdataModelManager manager = new TessdataModelManager(custom, shared,
+                URI.create("https://example.invalid/"), false, Map.of("eng", sha256(model)),
+                TessdataModelManager.IntegrityAlgorithm.SHA256);
+
+        Assert.assertEquals(manager.ensureAvailable(List.of("eng")), shared);
+        Assert.assertFalse(Files.exists(custom.resolve("eng.traineddata")));
     }
 
-    private TessdataModelManager manager(String checksum, boolean downloadsEnabled) {
-        URI baseUri = URI.create("http://127.0.0.1:" + server.getAddress().getPort() + "/");
+    @Test
+    public void partialCustomCacheFallsBackToCompleteVerifiedSharedCache() throws Exception {
+        Path custom = Files.createTempDirectory("shaft-ocr-custom-test");
+        Path shared = Files.createTempDirectory("shaft-ocr-shared-test");
+        byte[] english = "english".getBytes(StandardCharsets.UTF_8);
+        byte[] french = "french".getBytes(StandardCharsets.UTF_8);
+        Files.write(custom.resolve("eng.traineddata"), english);
+        Files.write(shared.resolve("eng.traineddata"), english);
+        Files.write(shared.resolve("fra.traineddata"), french);
+        TessdataModelManager manager = new TessdataModelManager(custom, shared,
+                URI.create("https://example.invalid/"), false,
+                Map.of("eng", sha256(english), "fra", sha256(french)),
+                TessdataModelManager.IntegrityAlgorithm.SHA256);
+
+        Assert.assertEquals(manager.ensureAvailable(List.of("eng", "fra")), shared);
+    }
+
+    private TessdataModelManager manager(Path cache, String checksum, boolean downloadsEnabled) {
+        URI baseUri = URI.create("https://example.invalid/");
         return new TessdataModelManager(cache, baseUri, downloadsEnabled, Map.of("eng", checksum));
     }
 

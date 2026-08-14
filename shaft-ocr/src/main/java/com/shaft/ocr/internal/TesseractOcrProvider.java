@@ -1,5 +1,6 @@
 package com.shaft.ocr.internal;
 
+import com.shaft.gui.internal.ocr.OcrDocumentPageAnalysis;
 import com.shaft.gui.internal.ocr.OcrProcessingProvider;
 import com.shaft.gui.ocr.OcrOptions;
 import com.shaft.gui.ocr.OcrResult;
@@ -14,10 +15,12 @@ import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.util.Objects;
 import com.shaft.properties.internal.ThreadLocalPropertiesManager;
+import com.shaft.infrastructure.OcrSetupManifest;
+import com.shaft.infrastructure.ShaftCachePaths;
 
 /** Self-contained JavaCPP-backed local Tesseract provider. */
 public final class TesseractOcrProvider implements OcrProcessingProvider {
-    static final String TESSDATA_REVISION = "87416418657359cb625c412a48b6e1d6d41c29bd";
+    static final String TESSDATA_REVISION = OcrSetupManifest.TESSDATA_REVISION;
     private static final URI DEFAULT_MODEL_BASE = URI.create(
             "https://raw.githubusercontent.com/tesseract-ocr/tessdata_fast/" + TESSDATA_REVISION + "/");
     private static final Map<String, String> PINNED_GIT_BLOB_IDS = loadModelManifest();
@@ -43,6 +46,20 @@ public final class TesseractOcrProvider implements OcrProcessingProvider {
     }
 
     @Override
+    public OcrDocumentPageAnalysis analyzeDocumentPage(byte[] image, OcrOptions options,
+                                                       boolean detectOrientation, boolean deskew) {
+        Objects.requireNonNull(options, "options");
+        List<String> languages = OcrLanguageRegistry.resolve(options.languages());
+        List<String> requiredModels = new java.util.ArrayList<>(languages);
+        if (detectOrientation) {
+            requiredModels.add("osd");
+        }
+        Path tessdata = models.ensureAvailable(requiredModels);
+        return backend.analyzeDocumentPage(image, tessdata, String.join("+", languages), options,
+                detectOrientation, deskew);
+    }
+
+    @Override
     public String name() {
         return "tesseract-local";
     }
@@ -57,14 +74,22 @@ public final class TesseractOcrProvider implements OcrProcessingProvider {
         String configuredCache = configured == null
                 ? effectiveProperty("shaft.ocr.cacheDirectory", "").trim()
                 : invokeString(configured, "cacheDirectory").trim();
-        Path cache = configuredCache.isEmpty()
-                ? Path.of(System.getProperty("user.home"), ".cache", "shaft", "ocr", "tessdata-fast-" + TESSDATA_REVISION)
-                : Path.of(configuredCache);
+        Path setupCache = OcrSetupManifest.modelsDirectory(ShaftCachePaths.current());
+        Path cache = configuredCache.isEmpty() ? setupCache : absoluteConfiguredCache(configuredCache);
+        Path fallback = configuredCache.isEmpty() ? null : setupCache;
         boolean downloadsEnabled = configured == null
                 ? Boolean.parseBoolean(effectiveProperty("shaft.ocr.downloadEnabled", "true"))
                 : invokeBoolean(configured, "downloadEnabled");
-        return new TessdataModelManager(cache, DEFAULT_MODEL_BASE, downloadsEnabled, PINNED_GIT_BLOB_IDS,
+        return new TessdataModelManager(cache, fallback, DEFAULT_MODEL_BASE, downloadsEnabled, PINNED_GIT_BLOB_IDS,
                 TessdataModelManager.IntegrityAlgorithm.GIT_BLOB_SHA1);
+    }
+
+    private static Path absoluteConfiguredCache(String configuredCache) {
+        Path path = Path.of(configuredCache).normalize();
+        if (!path.isAbsolute()) {
+            throw new IllegalArgumentException("shaft.ocr.cacheDirectory must be absolute.");
+        }
+        return path;
     }
 
     private static Object typedProperties() {

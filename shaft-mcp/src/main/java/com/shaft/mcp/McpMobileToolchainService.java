@@ -1,6 +1,16 @@
 package com.shaft.mcp;
 
 import com.shaft.driver.SHAFT;
+import com.shaft.infrastructure.AndroidSetupRequest;
+import com.shaft.infrastructure.AndroidSetupPlanner;
+import com.shaft.infrastructure.InfrastructureSetupService;
+import com.shaft.infrastructure.ManagedEnvironment;
+import com.shaft.infrastructure.SetupApproval;
+import com.shaft.infrastructure.SetupMode;
+import com.shaft.infrastructure.SetupOptions;
+import com.shaft.infrastructure.SetupPlan;
+import com.shaft.infrastructure.SetupProfile;
+import com.shaft.infrastructure.ShaftCachePaths;
 import com.shaft.properties.internal.PropertiesHelper;
 
 import java.io.IOException;
@@ -15,6 +25,7 @@ import java.nio.file.SimpleFileVisitor;
 import java.nio.file.StandardCopyOption;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.time.Duration;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.LinkedHashSet;
@@ -57,10 +68,12 @@ final class McpMobileToolchainService {
     private final String osName;
     private final String osArch;
     private final HttpClient httpClient;
+    private final AndroidSetupOwner androidSetupOwner;
 
     McpMobileToolchainService() {
         this(McpProcessRunner.system(), System.getenv(), McpRuntimePaths.applicationDataRoot().resolve("tools"),
-                System.getProperty("os.name", ""), System.getProperty("os.arch", ""));
+                System.getProperty("os.name", ""), System.getProperty("os.arch", ""),
+                new InfrastructureAndroidSetupOwner(ShaftCachePaths.current()));
     }
 
     McpMobileToolchainService(
@@ -69,12 +82,24 @@ final class McpMobileToolchainService {
             Path toolRoot,
             String osName,
             String osArch) {
+        this(runner, environment, toolRoot, osName, osArch,
+                new InfrastructureAndroidSetupOwner(setupPaths(toolRoot)));
+    }
+
+    McpMobileToolchainService(
+            McpProcessRunner runner,
+            Map<String, String> environment,
+            Path toolRoot,
+            String osName,
+            String osArch,
+            AndroidSetupOwner androidSetupOwner) {
         ensurePropertiesInitialized();
         this.runner = runner;
         this.environment = environment == null ? Map.of() : Map.copyOf(environment);
         this.toolRoot = toolRoot.toAbsolutePath().normalize();
         this.osName = osName == null ? "" : osName;
         this.osArch = osArch == null ? "" : osArch;
+        this.androidSetupOwner = java.util.Objects.requireNonNull(androidSetupOwner, "androidSetupOwner");
         this.httpClient = HttpClient.newBuilder()
                 .connectTimeout(Duration.ofSeconds(30))
                 .followRedirects(HttpClient.Redirect.NORMAL)
@@ -83,31 +108,47 @@ final class McpMobileToolchainService {
 
     McpMobileToolchainStatus status(String platformName) {
         String platform = normalizePlatform(platformName);
-        Path androidSdkRoot = androidSdkRoot();
-        Path androidAvdHome = androidAvdHome();
-        Path appiumRoot = appiumRoot();
+        boolean sharedAndroid = "Android".equals(platform);
+        Path androidSdkRoot = statusAndroidSdkRoot(sharedAndroid);
+        Path androidAvdHome = statusAndroidAvdHome(sharedAndroid);
+        Path managedAppiumRoot = toolRoot.resolve("appium").resolve(appiumServerVersion());
+        Path legacyAppiumRoot = appiumRoot();
+        Path appiumRoot = sharedAndroid ? managedAppiumRoot : legacyAppiumRoot;
+        List<Path> nodeBins = sharedAndroid ? List.of(managedNodeBin(), nodeBin()) : List.of(nodeBin());
         List<String> warnings = new ArrayList<>();
 
-        Optional<Path> node = resolveExecutable("node", List.of(nodeBin()));
-        Optional<Path> npm = resolveExecutable("npm", List.of(nodeBin()));
-        Optional<Path> appium = resolveExecutable("appium", List.of(appiumBin()));
+        Optional<Path> node = resolveExecutable("node", nodeBins);
+        Optional<Path> npm = resolveExecutable("npm", nodeBins);
+        List<Path> appiumBins = sharedAndroid
+                ? List.of(managedAppiumRoot.resolve("node_modules/.bin"), appiumBin()) : List.of(appiumBin());
+        Optional<Path> appium = resolveExecutable("appium", appiumBins);
+        if (sharedAndroid && appium.isPresent()
+                && !appium.orElseThrow().startsWith(managedAppiumRoot.toAbsolutePath().normalize())
+                && appium.orElseThrow().startsWith(legacyAppiumRoot.toAbsolutePath().normalize())) {
+            appiumRoot = legacyAppiumRoot;
+        }
+        Path statusAppiumRoot = appiumRoot;
         Optional<Path> adb = resolveExecutable("adb", List.of(androidSdkRoot.resolve("platform-tools")));
         Optional<Path> emulator = resolveExecutable("emulator", List.of(androidSdkRoot.resolve("emulator")));
         Optional<Path> sdkManager = resolveExecutable("sdkmanager", List.of(androidSdkRoot.resolve("cmdline-tools")
                 .resolve("latest").resolve("bin")));
         Optional<Path> avdManager = resolveExecutable("avdmanager", List.of(androidSdkRoot.resolve("cmdline-tools")
                 .resolve("latest").resolve("bin")));
-        Path inspectorPluginPath = appiumRoot.resolve("node_modules").resolve("appium-inspector-plugin");
+        Path inspectorPluginPath = statusAppiumRoot.resolve("node_modules").resolve("appium-inspector-plugin");
 
-        List<McpMobileDevice> devices = adb.map(this::androidDevices).orElseGet(() -> {
+        List<McpMobileDevice> devices = adb.map(value -> androidDevices(value, androidSdkRoot, androidAvdHome))
+                .orElseGet(() -> {
             warnings.add("adb was not found on PATH or in the SHAFT-managed Android SDK cache.");
             return List.of();
         });
-        List<String> avds = cachedAndroidEmulators(emulator.orElse(null), androidAvdHome);
-        boolean inspector = appium.filter(this::hasInspectorPlugin).isPresent()
+        List<String> avds = cachedAndroidEmulators(emulator.orElse(null), androidSdkRoot, androidAvdHome);
+        boolean inspector = appium.filter(value -> hasInspectorPlugin(value, statusAppiumRoot,
+                        androidSdkRoot, androidAvdHome)).isPresent()
                 || Files.isDirectory(inspectorPluginPath);
-        String detectedAppiumVersion = appiumVersion(appium.orElse(null));
-        List<McpMobileToolchainDiagnostic> diagnostics = diagnostics(platform, androidSdkRoot, appiumRoot, node, npm,
+        String detectedAppiumVersion = appiumVersion(appium.orElse(null), statusAppiumRoot,
+                androidSdkRoot, androidAvdHome);
+        List<McpMobileToolchainDiagnostic> diagnostics = diagnostics(platform, androidSdkRoot, statusAppiumRoot,
+                node, npm,
                 appium, inspector, inspectorPluginPath, adb, emulator, sdkManager, avdManager, detectedAppiumVersion);
 
         List<String> missing = new ArrayList<>();
@@ -151,7 +192,7 @@ final class McpMobileToolchainService {
                 toolRoot,
                 androidSdkRoot,
                 androidAvdHome,
-                appiumRoot,
+                statusAppiumRoot,
                 detectedAppiumVersion,
                 appiumInspectorPluginVersion(),
                 devices,
@@ -265,13 +306,14 @@ final class McpMobileToolchainService {
                 + resolvedAbi.replace('-', '_'));
         int resolvedRam = ramMb > 0 ? ramMb : androidEmulatorRamMb();
         int resolvedCores = cores > 0 ? cores : androidEmulatorCores();
-        Path sdkRoot = androidSdkRoot();
-        Path avdHome = androidAvdHome();
+        Path sdkRoot = androidSetupOwner.sdkRoot(resolvedApiLevel, resolvedAbi);
+        Path avdHome = androidSetupOwner.avdHome();
         String imagePackage = "system-images;android-" + resolvedApiLevel + ";" + resolvedTag + ";" + resolvedAbi;
         List<String> packages = List.of(
                 "platform-tools",
                 "emulator",
                 "platforms;android-" + resolvedApiLevel,
+                "build-tools;" + AndroidSetupPlanner.BUILD_TOOLS_VERSION,
                 imagePackage);
         List<String> commands = List.of(
                 commandLineToolsUrl(),
@@ -298,6 +340,9 @@ final class McpMobileToolchainService {
 
     void ensureAppium(String platformName) {
         String platform = normalizePlatform(platformName);
+        if ("Android".equals(platform)) {
+            return;
+        }
         Path npm = ensureNpm();
         try {
             Files.createDirectories(appiumRoot());
@@ -326,46 +371,85 @@ final class McpMobileToolchainService {
         if (proposal == null) {
             throw new IllegalArgumentException("Android emulator proposal is required.");
         }
-        ensureAndroidCommandLineTools();
-        Path sdkManager = sdkManagerCommand();
-        Path avdManager = avdManagerCommand();
         try {
-            Files.createDirectories(proposal.avdHome());
+            androidSetupOwner.install(proposal);
         } catch (IOException exception) {
-            throw new IllegalStateException("Android AVD home could not be created.", exception);
+            throw new IllegalStateException("Shared Android setup could not be installed.", exception);
         }
-        runner.runWithInput(List.of(sdkManager.toString(), "--sdk_root=" + androidSdkRoot(), "--licenses"),
-                androidSdkRoot(), androidEnvironment(), INSTALL_TIMEOUT, "y\n".repeat(80));
-        List<String> sdkCommand = new ArrayList<>(List.of(sdkManager.toString(), "--sdk_root=" + androidSdkRoot()));
-        sdkCommand.addAll(proposal.sdkPackages());
-        runChecked(sdkCommand, androidSdkRoot(), androidEnvironment(), INSTALL_TIMEOUT,
-                "Android SDK package installation failed.");
-        runChecked(List.of(avdManager.toString(), "create", "avd", "--force",
-                "--name", proposal.avdName(),
-                "--package", "system-images;android-" + proposal.apiLevel() + ";" + proposal.imageTag() + ";"
-                        + proposal.abi(),
-                "--device", proposal.deviceProfile()),
-                androidSdkRoot(), androidEnvironment(), INSTALL_TIMEOUT, "Android AVD creation failed.");
     }
 
-    Process startAndroidEmulator(String avdName, McpAndroidEmulatorProposal proposal) {
-        String name = defaultText(avdName, proposal == null ? "" : proposal.avdName());
-        if (name.isBlank()) {
-            throw new IllegalArgumentException("Android AVD name is required.");
+    ManagedEnvironment startAndroidRuntime(McpAndroidEmulatorProposal proposal) {
+        if (proposal == null) {
+            throw new IllegalArgumentException("Android emulator proposal is required.");
         }
-        Path emulator = emulatorCommand();
-        List<String> command = new ArrayList<>(List.of(
-                emulator.toString(),
-                "-avd",
-                name,
-                "-no-snapshot-save",
-                "-no-boot-anim"));
-        if (proposal != null) {
-            command.addAll(List.of(
-                    "-memory", String.valueOf(proposal.ramMb()),
-                    "-cores", String.valueOf(proposal.cores())));
+        try {
+            return androidSetupOwner.start(proposal);
+        } catch (IOException exception) {
+            throw new IllegalStateException("Shared Android runtime could not be started.", exception);
         }
-        return runner.start(command, androidSdkRoot(), androidEnvironment());
+    }
+
+    interface AndroidSetupOwner {
+        Path sdkRoot(int apiLevel, String abi);
+        Path avdHome();
+        void install(McpAndroidEmulatorProposal proposal) throws IOException;
+        ManagedEnvironment start(McpAndroidEmulatorProposal proposal) throws IOException;
+    }
+
+    private static final class InfrastructureAndroidSetupOwner implements AndroidSetupOwner {
+        private final ShaftCachePaths paths;
+        private final InfrastructureSetupService coordinator = InfrastructureSetupService.builtIn();
+
+        private InfrastructureAndroidSetupOwner(ShaftCachePaths paths) {
+            this.paths = paths;
+        }
+
+        @Override
+        public Path sdkRoot(int apiLevel, String abi) {
+            return paths.tools().resolve("android-sdk").resolve(AndroidSetupPlanner.COMMAND_LINE_TOOLS_VERSION
+                    + "-api" + apiLevel + '-' + abi);
+        }
+
+        @Override
+        public Path avdHome() {
+            return paths.tools().resolve("android-avd");
+        }
+
+        @Override
+        public void install(McpAndroidEmulatorProposal proposal) throws IOException {
+            PreparedAndroidSetup setup = prepare(proposal);
+            coordinator.install(setup.plan(), setup.approval(), setup.options(), setup.request());
+        }
+
+        @Override
+        public ManagedEnvironment start(McpAndroidEmulatorProposal proposal) throws IOException {
+            PreparedAndroidSetup setup = prepare(proposal);
+            coordinator.install(setup.plan(), setup.approval(), setup.options(), setup.request());
+            return coordinator.start(setup.plan(), setup.approval(), setup.options(), setup.request());
+        }
+
+        private PreparedAndroidSetup prepare(McpAndroidEmulatorProposal proposal) {
+            AndroidSetupRequest request = new AndroidSetupRequest(proposal.apiLevel(), proposal.deviceProfile(),
+                    proposal.imageTag(), proposal.abi(), proposal.avdName(), proposal.ramMb(), proposal.cores(),
+                    AndroidSetupPlanner.APPIUM_PORT);
+            SetupOptions options = SetupOptions.defaults(SetupProfile.MOBILE_ANDROID, paths)
+                    .withMode(SetupMode.MANAGED);
+            SetupPlan plan = coordinator.plan(options, request);
+            SetupApproval approval = new SetupApproval(plan.digest(), Instant.now(),
+                    Set.of(AndroidSetupPlanner.ANDROID_SDK_LICENSE));
+            return new PreparedAndroidSetup(request, options, plan, approval);
+        }
+
+        private record PreparedAndroidSetup(AndroidSetupRequest request, SetupOptions options, SetupPlan plan,
+                                            SetupApproval approval) { }
+    }
+
+    private static ShaftCachePaths setupPaths(Path toolRoot) {
+        Path tools = toolRoot.toAbsolutePath().normalize();
+        Path data = java.util.Objects.requireNonNullElse(tools.getParent(), tools);
+        Path cache = data.resolve("cache");
+        return new ShaftCachePaths(cache, data, cache.resolve("downloads"), tools,
+                data.resolve("state"), data.resolve("receipts"));
     }
 
     Process startAppiumServer(int port) {
@@ -374,33 +458,8 @@ final class McpMobileToolchainService {
                 appium.toString(),
                 "--address", "127.0.0.1",
                 "--port", String.valueOf(port),
-                "--use-plugins=inspector",
-                "--relaxed-security"),
+                "--use-plugins=inspector"),
                 appiumRoot(), appiumEnvironment());
-    }
-
-    boolean waitForAndroidDevice(Duration timeout) {
-        Optional<Path> adb = resolveExecutable("adb", List.of(androidSdkRoot().resolve("platform-tools")));
-        if (adb.isEmpty()) {
-            return false;
-        }
-        long deadline = System.nanoTime() + timeout.toNanos();
-        while (System.nanoTime() < deadline) {
-            if (androidDevices(adb.get()).stream().anyMatch(device -> "device".equals(device.state()))) {
-                return true;
-            }
-            sleep(Duration.ofSeconds(2));
-        }
-        return false;
-    }
-
-    void stopAndroidEmulator(String deviceId) {
-        Optional<Path> adb = resolveExecutable("adb", List.of(androidSdkRoot().resolve("platform-tools")));
-        if (adb.isEmpty() || text(deviceId).isBlank()) {
-            return;
-        }
-        runner.run(List.of(adb.get().toString(), "-s", deviceId, "emu", "kill"),
-                androidSdkRoot(), androidEnvironment(), Duration.ofSeconds(8));
     }
 
     String newConfirmationToken() {
@@ -420,29 +479,6 @@ final class McpMobileToolchainService {
         downloadPortableNode();
         return resolveExecutable("npm", List.of(nodeBin()))
                 .orElseThrow(() -> new IllegalStateException("npm was not found after portable Node.js setup."));
-    }
-
-    private void ensureAndroidCommandLineTools() {
-        if (Files.isRegularFile(sdkManagerCommand()) || Files.isRegularFile(sdkManagerCommand().resolveSibling(
-                sdkManagerCommand().getFileName().toString() + ".bat"))) {
-            return;
-        }
-        Path zip = toolRoot.resolve("downloads").resolve("android-commandlinetools.zip");
-        Path temp = toolRoot.resolve("downloads").resolve("android-commandlinetools-" + System.nanoTime());
-        try {
-            Files.createDirectories(zip.getParent());
-            download(commandLineToolsUrl(), zip);
-            unzip(zip, temp);
-            Path extracted = temp.resolve("cmdline-tools");
-            Path target = androidSdkRoot().resolve("cmdline-tools").resolve("latest");
-            deleteIfExists(target);
-            Files.createDirectories(target.getParent());
-            Files.move(extracted, target, StandardCopyOption.REPLACE_EXISTING);
-        } catch (IOException exception) {
-            throw new IllegalStateException("Android command-line tools could not be prepared.", exception);
-        } finally {
-            deleteIfExists(temp);
-        }
     }
 
     private void downloadPortableNode() {
@@ -525,9 +561,9 @@ final class McpMobileToolchainService {
         }
     }
 
-    private List<McpMobileDevice> androidDevices(Path adb) {
+    private List<McpMobileDevice> androidDevices(Path adb, Path sdkRoot, Path avdHome) {
         McpProcessRunner.ProcessResult result = runner.run(List.of(adb.toString(), "devices", "-l"),
-                androidSdkRoot(), androidEnvironment(), QUICK_TIMEOUT);
+                sdkRoot, androidEnvironment(sdkRoot, avdHome), QUICK_TIMEOUT);
         if (result.exitCode() != 0 || result.timedOut()) {
             return List.of(new McpMobileDevice("", "", "Android", "unavailable", false,
                     List.of("adb devices failed: " + safeOutput(result.stdout(), result.stderr()))));
@@ -557,11 +593,11 @@ final class McpMobileToolchainService {
         return List.copyOf(devices);
     }
 
-    private List<String> cachedAndroidEmulators(Path emulator, Path androidAvdHome) {
+    private List<String> cachedAndroidEmulators(Path emulator, Path sdkRoot, Path androidAvdHome) {
         Set<String> avds = new LinkedHashSet<>();
         if (emulator != null) {
             McpProcessRunner.ProcessResult result = runner.run(List.of(emulator.toString(), "-list-avds"),
-                    androidSdkRoot(), androidEnvironment(), QUICK_TIMEOUT);
+                    sdkRoot, androidEnvironment(sdkRoot, androidAvdHome), QUICK_TIMEOUT);
             if (result.exitCode() == 0 && !result.timedOut()) {
                 Arrays.stream(result.stdout().split("\\R"))
                         .map(String::trim)
@@ -587,18 +623,18 @@ final class McpMobileToolchainService {
         }
     }
 
-    private boolean hasInspectorPlugin(Path appium) {
+    private boolean hasInspectorPlugin(Path appium, Path root, Path sdkRoot, Path avdHome) {
         McpProcessRunner.ProcessResult result = runner.run(List.of(appium.toString(), "plugin", "list", "--installed"),
-                appiumRoot(), appiumEnvironment(), QUICK_TIMEOUT);
+                root, appiumEnvironment(root, sdkRoot, avdHome), QUICK_TIMEOUT);
         return result.exitCode() == 0 && result.stdout().toLowerCase(Locale.ROOT).contains("inspector");
     }
 
-    private String appiumVersion(Path appium) {
+    private String appiumVersion(Path appium, Path root, Path sdkRoot, Path avdHome) {
         if (appium == null) {
             return "";
         }
         McpProcessRunner.ProcessResult result = runner.run(List.of(appium.toString(), "--version"),
-                appiumRoot(), appiumEnvironment(), QUICK_TIMEOUT);
+                root, appiumEnvironment(root, sdkRoot, avdHome), QUICK_TIMEOUT);
         return result.exitCode() == 0 ? result.stdout().trim() : "";
     }
 
@@ -634,18 +670,21 @@ final class McpMobileToolchainService {
     }
 
     private Map<String, String> androidEnvironment() {
-        return mergedEnvironment(Map.of(
-                "ANDROID_HOME", androidSdkRoot().toString(),
-                "ANDROID_SDK_ROOT", androidSdkRoot().toString(),
-                "ANDROID_AVD_HOME", androidAvdHome().toString()));
+        return androidEnvironment(androidSdkRoot(), androidAvdHome());
+    }
+
+    private Map<String, String> androidEnvironment(Path sdkRoot, Path avdHome) {
+        return mergedEnvironment(Map.of("ANDROID_HOME", sdkRoot.toString(),
+                "ANDROID_SDK_ROOT", sdkRoot.toString(), "ANDROID_AVD_HOME", avdHome.toString()));
     }
 
     private Map<String, String> appiumEnvironment() {
-        return mergedEnvironment(Map.of(
-                "APPIUM_HOME", appiumRoot().resolve("home").toString(),
-                "ANDROID_HOME", androidSdkRoot().toString(),
-                "ANDROID_SDK_ROOT", androidSdkRoot().toString(),
-                "ANDROID_AVD_HOME", androidAvdHome().toString()));
+        return appiumEnvironment(appiumRoot().resolve("home"), androidSdkRoot(), androidAvdHome());
+    }
+
+    private Map<String, String> appiumEnvironment(Path root, Path sdkRoot, Path avdHome) {
+        return mergedEnvironment(Map.of("APPIUM_HOME", root.toString(), "ANDROID_HOME", sdkRoot.toString(),
+                "ANDROID_SDK_ROOT", sdkRoot.toString(), "ANDROID_AVD_HOME", avdHome.toString()));
     }
 
     private Map<String, String> mergedEnvironment(Map<String, String> additions) {
@@ -667,9 +706,22 @@ final class McpMobileToolchainService {
         return configured == null ? toolRoot.resolve("android-sdk") : Path.of(configured);
     }
 
+    private Path statusAndroidSdkRoot(boolean sharedAndroid) {
+        String configured = firstNonBlank(environment.get("ANDROID_SDK_ROOT"), environment.get("ANDROID_HOME"));
+        if (configured != null) return Path.of(configured);
+        return sharedAndroid ? androidSetupOwner.sdkRoot(androidEmulatorApiLevel(), hostAndroidAbi())
+                : toolRoot.resolve("android-sdk");
+    }
+
     private Path androidAvdHome() {
         String configured = environment.get("ANDROID_AVD_HOME");
         return configured == null || configured.isBlank() ? toolRoot.resolve("android-avd") : Path.of(configured);
+    }
+
+    private Path statusAndroidAvdHome(boolean sharedAndroid) {
+        String configured = environment.get("ANDROID_AVD_HOME");
+        if (configured != null && !configured.isBlank()) return Path.of(configured);
+        return sharedAndroid ? androidSetupOwner.avdHome() : toolRoot.resolve("android-avd");
     }
 
     private Path defaultUserAvdHome() {
@@ -686,6 +738,14 @@ final class McpMobileToolchainService {
 
     private Path nodeBin() {
         return toolRoot.resolve("node").resolve(nodeArchiveName()).resolve(isWindows() ? "" : "bin");
+    }
+
+    private Path managedNodeBin() {
+        String platform = isWindows() ? "windows" : isMac() ? "macos" : "linux";
+        String architecture = osArch.toLowerCase(Locale.ROOT).contains("aarch64")
+                || osArch.toLowerCase(Locale.ROOT).contains("arm64") ? "arm64" : "x64";
+        return toolRoot.resolve("node").resolve(nodeLtsVersion()).resolve(platform + '-' + architecture)
+                .resolve(isWindows() ? "" : "bin");
     }
 
     private Path sdkManagerCommand() {

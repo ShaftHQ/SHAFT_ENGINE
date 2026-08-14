@@ -38,6 +38,10 @@
       "description": "Manage the shaft-mcp daemon session (start | status | stop)."
     },
     {
+      "name": "setup",
+      "description": "Plan and manage SHAFT-owned local infrastructure."
+    },
+    {
       "name": "tools",
       "description": "List the tools exposed by shaft-mcp."
     }

@@ -14,13 +14,14 @@ import yaml
 ROOT = Path(__file__).resolve().parents[2]
 NS = {"m": "http://maven.apache.org/POM/4.0.0"}
 JAVA_MODULES = {
-    "shaft-engine", "shaft-pilot-core", "shaft-capture", "shaft-capture-proxy", "shaft-doctor",
+    "shaft-infrastructure", "shaft-engine", "shaft-pilot-core", "shaft-capture", "shaft-capture-proxy", "shaft-doctor",
     "shaft-ai", "shaft-heal", "shaft-browserstack", "shaft-video", "shaft-visual", "shaft-ocr", "shaft-sikulix",
     "shaft-mcp",
 }
 DEPENDABOT_DIRECTORIES = {
     "/",
     "/shaft-engine",
+    "/shaft-infrastructure",
     "/shaft-pilot-core",
     "/shaft-capture",
     "/shaft-capture-proxy",
@@ -491,7 +492,7 @@ def validate_quality_configuration(root: Path = ROOT) -> list[str]:
 
     codeql = (root / ".github" / "workflows" / "security.yml").read_text(encoding="utf-8")
     selector = (
-        "-pl shaft-engine,shaft-pilot-core,shaft-capture,shaft-capture-proxy,shaft-doctor,"
+        "-pl shaft-infrastructure,shaft-engine,shaft-pilot-core,shaft-capture,shaft-capture-proxy,shaft-doctor,"
         "shaft-ai,shaft-heal,shaft-browserstack,shaft-video,shaft-visual,shaft-ocr,shaft-sikulix,"
         "shaft-mcp,report-aggregate -am"
     )
@@ -554,10 +555,10 @@ def validate_quality_configuration(root: Path = ROOT) -> list[str]:
         e2e_workflow.count('"-DincludeVisualTestRuntime"')
         + local_e2e_workflow.count('"-DincludeVisualTestRuntime"')
     )
-    if grid_install_count != 4 or local_install_count != 4 or activation_count != 8:
+    if grid_install_count != 4 or local_install_count != 4 or activation_count != 10:
         errors.append(
             "e2eTests.yml and e2eLocalTests.yml must prepare and activate the visual test runtime "
-            "for 4 grid/cloud and 4 local broad browser jobs"
+            "for 4 grid/cloud, 4 local broad-browser, and 2 OCR acceptance jobs"
         )
     for required_local_flow in (
         "Windows_SikuliX_Local",

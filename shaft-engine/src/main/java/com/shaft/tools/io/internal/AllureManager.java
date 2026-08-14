@@ -30,6 +30,7 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Base64;
 import java.util.Comparator;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
@@ -520,6 +521,19 @@ public class AllureManager {
               border-bottom: 1px solid var(--color-border-subtle, rgba(16, 42, 49, 0.10));
             }
 
+            .shaft-header-brand {
+              display: block;
+              width: 32px;
+              height: 32px;
+              margin-right: auto;
+              border-radius: 6px;
+              object-fit: contain;
+            }
+
+            :root[data-theme="dark"] .shaft-header-brand {
+              filter: brightness(0) invert(1);
+            }
+
             .shaft-header-btn {
               display: inline-flex;
               align-items: center;
@@ -602,12 +616,25 @@ public class AllureManager {
     private static String allureHeaderButtonsPatch() {
         return ALLURE_HEADER_BUTTONS_STYLE
                 + "<div id=\"" + ALLURE_HEADER_BUTTONS_ID + "\">"
+                + "<img class=\"shaft-header-brand\" src=\"" + shaftHeaderLogoDataUri()
+                + "\" width=\"32\" height=\"32\" alt=\"SHAFT logo\">"
                 + "<a class=\"shaft-header-btn shaft-header-btn--primary\" href=\"https://shafthq.github.io\""
                 + " target=\"_blank\" rel=\"noopener\">User Guide</a>"
                 + "<a class=\"shaft-header-btn shaft-header-btn--secondary\" href=\"https://github.com/ShaftHQ/SHAFT_ENGINE\""
                 + " target=\"_blank\" rel=\"noopener\" aria-label=\"Star SHAFT on GitHub\">"
                 + "<span class=\"shaft-header-btn-star\" aria-hidden=\"true\">&#9733;</span> Star SHAFT</a>"
                 + "</div>";
+    }
+
+    private static String shaftHeaderLogoDataUri() {
+        try (InputStream logo = AllureManager.class.getResourceAsStream("/images/shaft_report_logo.png")) {
+            if (logo == null) {
+                throw new IllegalStateException("Bundled SHAFT report logo is missing.");
+            }
+            return "data:image/png;base64," + Base64.getEncoder().encodeToString(logo.readAllBytes());
+        } catch (IOException exception) {
+            throw new IllegalStateException("Failed to embed the SHAFT report logo.", exception);
+        }
     }
 
     // ─── Portable Node.js bootstrap ────────────────────────────────────────────

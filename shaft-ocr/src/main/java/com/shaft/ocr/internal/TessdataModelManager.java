@@ -2,61 +2,64 @@ package com.shaft.ocr.internal;
 
 import java.io.IOException;
 import java.net.URI;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
-import java.nio.channels.FileChannel;
-import java.nio.channels.FileLock;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.StandardCopyOption;
-import java.nio.file.StandardOpenOption;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
-import java.time.Duration;
 import java.util.HexFormat;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.locks.ReentrantLock;
 
 final class TessdataModelManager {
-    private static final Duration DOWNLOAD_TIMEOUT = Duration.ofSeconds(60);
-    private static final ConcurrentHashMap<Path, ReentrantLock> JVM_LOCKS = new ConcurrentHashMap<>();
-
     private final Path cacheDirectory;
-    private final URI baseUri;
+    private final Path fallbackDirectory;
     private final boolean downloadsEnabled;
     private final Map<String, String> checksums;
     private final IntegrityAlgorithm integrityAlgorithm;
-    private final HttpClient httpClient;
 
     TessdataModelManager(Path cacheDirectory, URI baseUri, boolean downloadsEnabled, Map<String, String> checksums) {
-        this(cacheDirectory, baseUri, downloadsEnabled, checksums, IntegrityAlgorithm.SHA256);
+        this(cacheDirectory, null, baseUri, downloadsEnabled, checksums, IntegrityAlgorithm.SHA256);
     }
 
     TessdataModelManager(Path cacheDirectory, URI baseUri, boolean downloadsEnabled, Map<String, String> checksums,
                          IntegrityAlgorithm integrityAlgorithm) {
+        this(cacheDirectory, null, baseUri, downloadsEnabled, checksums, integrityAlgorithm);
+    }
+
+    TessdataModelManager(Path cacheDirectory, Path fallbackDirectory, URI baseUri, boolean downloadsEnabled,
+                         Map<String, String> checksums, IntegrityAlgorithm integrityAlgorithm) {
         this.cacheDirectory = Objects.requireNonNull(cacheDirectory, "cacheDirectory").toAbsolutePath().normalize();
-        this.baseUri = Objects.requireNonNull(baseUri, "baseUri");
+        this.fallbackDirectory = fallbackDirectory == null ? null : fallbackDirectory.toAbsolutePath().normalize();
+        Objects.requireNonNull(baseUri, "baseUri");
         this.downloadsEnabled = downloadsEnabled;
         this.checksums = Map.copyOf(Objects.requireNonNull(checksums, "checksums"));
         this.integrityAlgorithm = Objects.requireNonNull(integrityAlgorithm, "integrityAlgorithm");
-        this.httpClient = HttpClient.newBuilder().connectTimeout(DOWNLOAD_TIMEOUT).build();
     }
 
     Path ensureAvailable(List<String> languageCodes) {
-        try {
-            Files.createDirectories(cacheDirectory);
-        } catch (IOException exception) {
-            throw new IllegalStateException("Could not create SHAFT OCR model cache: " + cacheDirectory, exception);
+        if (languageCodes.stream()
+                .allMatch(language -> verified(cacheDirectory.resolve(language + ".traineddata"), language))) {
+            return cacheDirectory;
+        }
+        if (fallbackDirectory != null && languageCodes.stream()
+                .allMatch(language -> verified(fallbackDirectory.resolve(language + ".traineddata"), language))) {
+            return fallbackDirectory;
         }
         for (String languageCode : languageCodes) {
             ensureOne(languageCode);
         }
         return cacheDirectory;
+    }
+
+    private boolean verified(Path model, String languageCode) {
+        String checksum = checksums.get(languageCode);
+        if (checksum == null || !Files.isRegularFile(model)) return false;
+        try {
+            return checksum.equalsIgnoreCase(integrityAlgorithm.digest(Files.readAllBytes(model)));
+        } catch (IOException exception) {
+            return false;
+        }
     }
 
     private void ensureOne(String languageCode) {
@@ -69,68 +72,11 @@ final class TessdataModelManager {
             requireChecksum(model, expectedChecksum, "Cached OCR model failed integrity verification", integrityAlgorithm);
             return;
         }
-        if (!downloadsEnabled) {
-            throw new IllegalStateException("OCR language '" + languageCode + "' is not cached at " + cacheDirectory
-                    + " and first-use downloads are disabled.");
-        }
-
-        ReentrantLock jvmLock = JVM_LOCKS.computeIfAbsent(model, ignored -> new ReentrantLock());
-        jvmLock.lock();
-        try {
-            withProcessLock(languageCode, model, expectedChecksum);
-        } finally {
-            jvmLock.unlock();
-            if (!jvmLock.hasQueuedThreads()) {
-                JVM_LOCKS.remove(model, jvmLock);
-            }
-        }
-    }
-
-    private void withProcessLock(String languageCode, Path model, String expectedChecksum) {
-        Path lockPath = cacheDirectory.resolve(languageCode + ".lock");
-        try (FileChannel channel = FileChannel.open(lockPath, StandardOpenOption.CREATE, StandardOpenOption.WRITE);
-             FileLock ignored = channel.lock()) {
-            if (Files.exists(model)) {
-                requireChecksum(model, expectedChecksum, "Cached OCR model failed integrity verification", integrityAlgorithm);
-                return;
-            }
-            download(languageCode, model, expectedChecksum);
-        } catch (IOException exception) {
-            throw new IllegalStateException("Could not lock SHAFT OCR model cache for '" + languageCode
-                    + "' at " + cacheDirectory, exception);
-        }
-    }
-
-    private void download(String languageCode, Path model, String expectedChecksum) {
-        URI source = baseUri.resolve(languageCode + ".traineddata");
-        HttpRequest request = HttpRequest.newBuilder(source).timeout(DOWNLOAD_TIMEOUT).GET().build();
-        Path temporary = cacheDirectory.resolve(languageCode + "." + UUID.randomUUID() + ".tmp");
-        try {
-            HttpResponse<byte[]> response = httpClient.send(request, HttpResponse.BodyHandlers.ofByteArray());
-            if (response.statusCode() != 200) {
-                throw new IllegalStateException("Could not download OCR language '" + languageCode + "' from "
-                        + source + ": HTTP " + response.statusCode());
-            }
-            Files.write(temporary, response.body(), StandardOpenOption.CREATE_NEW);
-            requireChecksum(temporary, expectedChecksum, "Downloaded OCR model failed integrity verification", integrityAlgorithm);
-            try {
-                Files.move(temporary, model, StandardCopyOption.ATOMIC_MOVE);
-            } catch (java.nio.file.AtomicMoveNotSupportedException exception) {
-                Files.move(temporary, model);
-            }
-        } catch (InterruptedException exception) {
-            Thread.currentThread().interrupt();
-            throw new IllegalStateException("Interrupted while downloading OCR language '" + languageCode + "'.", exception);
-        } catch (IOException exception) {
-            throw new IllegalStateException("Could not provision OCR language '" + languageCode + "' into "
-                    + cacheDirectory, exception);
-        } finally {
-            try {
-                Files.deleteIfExists(temporary);
-            } catch (IOException ignored) {
-                // A failed temporary cleanup does not replace or invalidate a known-good model.
-            }
-        }
+        String legacy = downloadsEnabled ? " The legacy shaft.ocr.downloadEnabled flag no longer bypasses setup approval."
+                : "";
+        throw new IllegalStateException("OCR language '" + languageCode + "' is not cached at " + cacheDirectory
+                + ". Run shaft-cli setup plan --profile OCR --language " + languageCode
+                + ", review and install the approved plan with the same --language option." + legacy);
     }
 
     private static void requireChecksum(Path file, String expectedChecksum, String message,

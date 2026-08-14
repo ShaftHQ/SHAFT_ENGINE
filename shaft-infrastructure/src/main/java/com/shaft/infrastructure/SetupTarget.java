@@ -1,0 +1,37 @@
+package com.shaft.infrastructure;
+
+/** One external tool, runtime, asset, or service known to SHAFT setup. */
+public enum SetupTarget {
+    JAVA,
+    MAVEN,
+    PYTHON,
+    NODE,
+    ALLURE,
+    SELENIUM_BROWSER,
+    PLAYWRIGHT_CHROMIUM,
+    PLAYWRIGHT_FIREFOX,
+    PLAYWRIGHT_WEBKIT,
+    LIGHTHOUSE,
+    APPIUM_SERVER,
+    APPIUM_INSPECTOR_PLUGIN,
+    APPIUM_UIAUTOMATOR2_DRIVER,
+    APPIUM_XCUITEST_DRIVER,
+    APPIUM_WINDOWS_DRIVER,
+    APPIUM_FLUTTER_DRIVER,
+    ANDROID_SDK,
+    ANDROID_EMULATOR,
+    XCODE,
+    IOS_SIMULATOR,
+    WINAPPDRIVER,
+    DOCKER,
+    SELENIUM_GRID,
+    OCR_TESSDATA,
+    HEALENIUM,
+    REPORT_PORTAL,
+    BROWSERSTACK_LOCAL,
+    AGENT_CLI,
+    OLLAMA,
+    LM_STUDIO,
+    FFMPEG,
+    OPENCV
+}

@@ -16,6 +16,7 @@ NS = {"m": "http://maven.apache.org/POM/4.0.0"}
 PUBLIC_ARTIFACTS = {
     "shaft-parent": (Path("pom.xml"), "pom"),
     "shaft-engine": (Path("shaft-engine/pom.xml"), "jar"),
+    "shaft-infrastructure": (Path("shaft-infrastructure/pom.xml"), "jar"),
     "shaft-pilot-core": (Path("shaft-pilot-core/pom.xml"), "jar"),
     "shaft-capture": (Path("shaft-capture/pom.xml"), "jar"),
     "shaft-capture-proxy": (Path("shaft-capture-proxy/pom.xml"), "jar"),

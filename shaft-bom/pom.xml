@@ -28,6 +28,11 @@
             </dependency>
             <dependency>
                 <groupId>${project.groupId}</groupId>
+                <artifactId>shaft-infrastructure</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>${project.groupId}</groupId>
                 <artifactId>shaft-pilot-core</artifactId>
                 <version>${project.version}</version>
             </dependency>

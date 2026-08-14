@@ -48,6 +48,10 @@
         </dependency>
         <dependency>
             <groupId>io.github.shafthq</groupId>
+            <artifactId>shaft-infrastructure</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.github.shafthq</groupId>
             <artifactId>shaft-pilot-core</artifactId>
             <version>${shaft.version}</version>
         </dependency>

@@ -661,11 +661,11 @@ class InstallShaftMcpTest(unittest.TestCase):
         self.assertEqual(expected, listed)
         self.assertIn("./shaft-developer", listed)
 
-    def test_readme_routes_agent_setup_to_the_current_skills_guide(self):
+    def test_readme_routes_agent_setup_without_website_subpaths(self):
         readme = (REPO_ROOT / "README.md").read_text(encoding="utf-8")
 
         self.assertIn("`$shaft-developer`", readme)
-        self.assertIn("https://shafthq.github.io/docs/agentic/skills", readme)
+        self.assertIn("https://shafthq.github.io/", readme)
         self.assertIn("shaft-skills/references/shaft-mcp-tools.md", readme)
         self.assertIn("shaft-skills/references/shaft-cli-commands.md", readme)
         self.assertNotIn("act-as-shaft-dev", readme)

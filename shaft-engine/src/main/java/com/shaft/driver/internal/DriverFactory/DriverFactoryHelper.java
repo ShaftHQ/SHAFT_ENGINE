@@ -136,11 +136,16 @@ public class DriverFactoryHelper {
     private WebDriver driver;
     private BrowserNetworkInterceptor browserNetworkInterceptor;
     private RemoteGridPreflight.SessionPermit remoteGridPreflightPermit = RemoteGridPreflight.SessionPermit.noop();
+    private ManagedAndroidBootstrap.Session managedAndroidSession;
 
     /**
      * Creates a helper instance without an attached WebDriver.
      */
     public DriverFactoryHelper() {
+    }
+
+    DriverFactoryHelper(ManagedAndroidBootstrap.Session managedAndroidSession) {
+        this.managedAndroidSession = managedAndroidSession;
     }
 
     /**
@@ -927,11 +932,13 @@ public class DriverFactoryHelper {
                 BrowserEmulationManager.clearAndRemove(driver);
                 FailureTraceReporter.clearPersistentSensitiveBrowserState(driver);
                 releaseRemoteGridPreflightPermit();
+                releaseManagedAndroidSession();
                 clearThreadLocalDriverState();
                 ReportManager.log("Closed the WebDriver session.");
             }
         } else {
             releaseRemoteGridPreflightPermit();
+            releaseManagedAndroidSession();
             clearThreadLocalDriverState();
             ReportManager.log("WebDriver session was already closed.");
         }
@@ -1468,6 +1475,7 @@ public class DriverFactoryHelper {
         try {
             var isMobileExecution = Platform.ANDROID.toString().equalsIgnoreCase(SHAFT.Properties.platform.targetPlatform()) || Platform.IOS.toString().equalsIgnoreCase(SHAFT.Properties.platform.targetPlatform());
             if (isMobileExecution) {
+                startManagedAndroidIfConfigured();
                 //mobile execution
                 if (isMobileWebExecution()) {
                     // org.openqa.selenium.InvalidArgumentException: Parameters were incorrect. We wanted {"required":["x","y","width","height"]} and you sent ["width","height"]
@@ -1484,6 +1492,7 @@ public class DriverFactoryHelper {
                     driverType = DriverType.APPIUM_MOBILE_NATIVE;
                 }
                 optionsManager.setDriverOptions(driverType, customDriverOptions);
+                applyManagedAndroidCapabilities();
                 createNewRemoteDriverInstance(driverType);
             } else {
                 //desktop execution
@@ -1513,7 +1522,15 @@ public class DriverFactoryHelper {
             // start session recording
             RecordManager.startVideoRecording(driver);
         } catch (NullPointerException e) {
+            releaseManagedAndroidSession();
             FailureReporter.fail(DriverFactoryHelper.class, "Unhandled exception with driver type \"" + JavaHelper.convertToSentenceCase(driverType.getValue()) + "\".", e);
+        } catch (RuntimeException e) {
+            releaseManagedAndroidSession();
+            throw e;
+        } finally {
+            if (managedAndroidSession != null && driver == null) {
+                releaseManagedAndroidSession();
+            }
         }
 
         startBrowserObservability();
@@ -1521,6 +1538,40 @@ public class DriverFactoryHelper {
             ReportManager.logDiscrete("Wrapping the session with Healenium self-healing driver.");
 //            driver =ThreadGuard.protect(SelfHealingDriver.create(driver)));
             setDriver(SelfHealingDriver.create(driver));
+        }
+    }
+
+    private void startManagedAndroidIfConfigured() {
+        try {
+            managedAndroidSession = ManagedAndroidBootstrap.startIfConfigured(
+                    SHAFT.Properties.platform.executionAddress(), SHAFT.Properties.platform.targetPlatform(),
+                    SHAFT.Infrastructure.options(), com.shaft.infrastructure.AndroidSetupRequest.defaults(),
+                    ManagedAndroidBootstrap.builtInGateway()).orElse(null);
+            if (managedAndroidSession != null) {
+                setTargetHubUrl(managedAndroidSession.endpoint().toString());
+            }
+        } catch (java.io.IOException failure) {
+            throw new IllegalStateException("Managed Android auto-start requires a compatible installed receipt. "
+                    + "Run the explicit infrastructure plan/install flow first.", failure);
+        }
+    }
+
+    private void applyManagedAndroidCapabilities() {
+        if (managedAndroidSession == null || optionsManager.getAppiumCapabilities() == null) return;
+        String serial = managedAndroidSession.connectionProperties().getOrDefault("ANDROID_SERIAL", "");
+        if (!serial.isBlank() && optionsManager.getAppiumCapabilities().getCapability("appium:udid") == null) {
+            optionsManager.getAppiumCapabilities().setCapability("appium:udid", serial);
+        }
+    }
+
+    private void releaseManagedAndroidSession() {
+        if (managedAndroidSession == null) return;
+        try {
+            managedAndroidSession.close();
+        } catch (RuntimeException failure) {
+            ReportManagerHelper.logDiscrete(failure);
+        } finally {
+            managedAndroidSession = null;
         }
     }
 

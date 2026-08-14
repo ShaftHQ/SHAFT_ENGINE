@@ -553,6 +553,60 @@
       ]
     },
     {
+      "name": "setup_catalog",
+      "mutation": false,
+      "sensitive": false,
+      "deprecated": false
+    },
+    {
+      "name": "setup_doctor",
+      "mutation": false,
+      "sensitive": false,
+      "deprecated": false
+    },
+    {
+      "name": "setup_install",
+      "mutation": true,
+      "sensitive": false,
+      "deprecated": false
+    },
+    {
+      "name": "setup_logs",
+      "mutation": false,
+      "sensitive": true,
+      "deprecated": false
+    },
+    {
+      "name": "setup_plan",
+      "mutation": false,
+      "sensitive": false,
+      "deprecated": false
+    },
+    {
+      "name": "setup_start",
+      "mutation": true,
+      "sensitive": false,
+      "deprecated": false
+    },
+    {
+      "name": "setup_status",
+      "mutation": false,
+      "sensitive": false,
+      "deprecated": false
+    },
+    {
+      "name": "setup_stop",
+      "mutation": true,
+      "sensitive": false,
+      "deprecated": false
+    },
+    {
+      "name": "setup_verify",
+      "mutation": false,
+      "sensitive": false,
+      "deprecated": false
+    },
+    {
       "name": "test_automation_scenarios",
       "mutation": false,
       "sensitive": false,

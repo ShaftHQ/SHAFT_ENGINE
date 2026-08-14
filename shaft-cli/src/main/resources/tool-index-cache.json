@@ -2872,6 +2872,228 @@
       "example": null
     },
     {
+      "name": "setup_catalog",
+      "service": "InfrastructureMcpService",
+      "description": "returns the deterministic SHAFT setup profiles, targets, and capabilities",
+      "params": [],
+      "mutation": false,
+      "sensitive": false,
+      "intentKeywords": [
+        "setup catalog",
+        "setup profiles",
+        "available infrastructure"
+      ],
+      "slashAlias": null,
+      "cliCommand": null,
+      "example": null
+    },
+    {
+      "name": "setup_doctor",
+      "service": "InfrastructureMcpService",
+      "description": "diagnoses a setup profile without installing, downloading, or starting services",
+      "params": [
+        {
+          "name": "request",
+          "type": "object",
+          "required": true,
+          "default": null,
+          "description": "setup profile, paths, policy, and components"
+        }
+      ],
+      "mutation": false,
+      "sensitive": false,
+      "intentKeywords": [
+        "diagnose setup",
+        "setup doctor",
+        "infrastructure prerequisites"
+      ],
+      "slashAlias": null,
+      "cliCommand": null,
+      "example": null
+    },
+    {
+      "name": "setup_install",
+      "service": "InfrastructureMcpService",
+      "description": "installs one reviewed setup plan after exact digest and license approval",
+      "params": [
+        {
+          "name": "acceptedLicenses",
+          "type": "array",
+          "required": false,
+          "default": null,
+          "description": "explicitly accepted license identifiers"
+        },
+        {
+          "name": "approvedDigest",
+          "type": "string",
+          "required": true,
+          "default": null,
+          "description": "exact plan digest explicitly approved by the caller"
+        },
+        {
+          "name": "planJson",
+          "type": "string",
+          "required": true,
+          "default": null,
+          "description": "exact plan JSON returned by setup_plan"
+        },
+        {
+          "name": "request",
+          "type": "object",
+          "required": true,
+          "default": null,
+          "description": "the same paths and execution policy used to create the plan"
+        }
+      ],
+      "mutation": true,
+      "sensitive": false,
+      "intentKeywords": [
+        "install approved setup",
+        "apply setup plan"
+      ],
+      "slashAlias": null,
+      "cliCommand": null,
+      "example": null
+    },
+    {
+      "name": "setup_logs",
+      "service": "InfrastructureMcpService",
+      "description": "reports whether the selected setup profile exposes owned service logs",
+      "params": [
+        {
+          "name": "profile",
+          "type": "string",
+          "required": true,
+          "default": null,
+          "description": "setup profile"
+        }
+      ],
+      "mutation": false,
+      "sensitive": true,
+      "intentKeywords": [
+        "setup logs",
+        "infrastructure logs"
+      ],
+      "slashAlias": null,
+      "cliCommand": null,
+      "example": null
+    },
+    {
+      "name": "setup_plan",
+      "service": "InfrastructureMcpService",
+      "description": "creates an exact reviewable setup plan and approval digest without mutating the host",
+      "params": [
+        {
+          "name": "request",
+          "type": "object",
+          "required": true,
+          "default": null,
+          "description": "setup profile, ownership mode, paths, policy, and components"
+        }
+      ],
+      "mutation": false,
+      "sensitive": false,
+      "intentKeywords": [
+        "create setup plan",
+        "plan infrastructure install"
+      ],
+      "slashAlias": null,
+      "cliCommand": null,
+      "example": null
+    },
+    {
+      "name": "setup_start",
+      "service": "InfrastructureMcpService",
+      "description": "reports whether the selected setup profile owns a startable managed service",
+      "params": [
+        {
+          "name": "profile",
+          "type": "string",
+          "required": true,
+          "default": null,
+          "description": "setup profile"
+        }
+      ],
+      "mutation": true,
+      "sensitive": false,
+      "intentKeywords": [
+        "start setup service",
+        "start managed infrastructure"
+      ],
+      "slashAlias": null,
+      "cliCommand": null,
+      "example": null
+    },
+    {
+      "name": "setup_status",
+      "service": "InfrastructureMcpService",
+      "description": "returns actual read-only readiness for a registered setup profile",
+      "params": [
+        {
+          "name": "request",
+          "type": "object",
+          "required": true,
+          "default": null,
+          "description": "setup profile, paths, policy, and components"
+        }
+      ],
+      "mutation": false,
+      "sensitive": false,
+      "intentKeywords": [
+        "setup status",
+        "infrastructure readiness"
+      ],
+      "slashAlias": null,
+      "cliCommand": null,
+      "example": null
+    },
+    {
+      "name": "setup_stop",
+      "service": "InfrastructureMcpService",
+      "description": "reports whether the selected setup profile owns a stoppable managed service lease",
+      "params": [
+        {
+          "name": "profile",
+          "type": "string",
+          "required": true,
+          "default": null,
+          "description": "setup profile"
+        }
+      ],
+      "mutation": true,
+      "sensitive": false,
+      "intentKeywords": [
+        "stop setup service",
+        "stop managed infrastructure"
+      ],
+      "slashAlias": null,
+      "cliCommand": null,
+      "example": null
+    },
+    {
+      "name": "setup_verify",
+      "service": "InfrastructureMcpService",
+      "description": "verifies exact setup readiness without mutating the host",
+      "params": [
+        {
+          "name": "request",
+          "type": "object",
+          "required": true,
+          "default": null,
+          "description": "setup profile, paths, policy, and components"
+        }
+      ],
+      "mutation": false,
+      "sensitive": false,
+      "intentKeywords": [
+        "verify setup",
+        "verify infrastructure"
+      ],
+      "slashAlias": null,
+      "cliCommand": null,
+      "example": null
+    },
+    {
       "name": "shaft_coding_partner_diff",
       "service": "CodingPartnerService",
       "description": "produces a preview-only unified diff that inserts reviewed SHAFT code blocks into an existing Java target at a chosen method or textual anchor; never writes files",

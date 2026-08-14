@@ -8,6 +8,7 @@ import com.shaft.commandline.command.DoctorCommand;
 import com.shaft.commandline.command.ElementCommand;
 import com.shaft.commandline.command.GuideCommand;
 import com.shaft.commandline.command.SessionCommand;
+import com.shaft.commandline.command.SetupCommand;
 import com.shaft.commandline.command.ToolsCommand;
 import picocli.CommandLine;
 import picocli.CommandLine.Command;
@@ -30,6 +31,7 @@ import java.nio.charset.StandardCharsets;
                 ToolsCommand.class,
                 CallCommand.class,
                 SessionCommand.class,
+                SetupCommand.class,
                 BrowserCommand.class,
                 ElementCommand.class,
                 CaptureCommand.class,
