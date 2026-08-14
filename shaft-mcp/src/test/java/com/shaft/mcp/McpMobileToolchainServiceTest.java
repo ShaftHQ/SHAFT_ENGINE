@@ -76,6 +76,52 @@ class McpMobileToolchainServiceTest {
     }
 
     @Test
+    void androidStatusDiscoversTheExactSharedInfrastructureLayout(@TempDir Path root) throws Exception {
+        Path toolRoot = Files.createDirectories(root.resolve("tools"));
+        Path sdk = Files.createDirectories(toolRoot.resolve("android-sdk/15859902-api36-x86_64"));
+        Path avdHome = Files.createDirectories(toolRoot.resolve("android-avd"));
+        create(sdk.resolve("platform-tools"), "adb.exe");
+        create(sdk.resolve("emulator"), "emulator.exe");
+        create(sdk.resolve("cmdline-tools/latest/bin"), "sdkmanager.bat");
+        create(sdk.resolve("cmdline-tools/latest/bin"), "avdmanager.bat");
+        Path node = toolRoot.resolve("node").resolve(INTERNAL.nodeLtsVersion()).resolve("windows-x64");
+        create(node, "node.exe");
+        create(node, "npm.cmd");
+        Path appium = toolRoot.resolve("appium").resolve(INTERNAL.appiumServerVersion());
+        create(appium.resolve("node_modules/.bin"), "appium.cmd");
+        Files.createDirectories(appium.resolve("node_modules/appium-inspector-plugin"));
+        Files.createDirectories(avdHome.resolve("Shared_Pixel.avd"));
+        FakeRunner runner = new FakeRunner();
+        runner.appiumPluginOutput = "inspector\n";
+        runner.appiumVersionOutput = INTERNAL.appiumServerVersion() + "\n";
+        McpMobileToolchainService.AndroidSetupOwner owner = new McpMobileToolchainService.AndroidSetupOwner() {
+            @Override public Path sdkRoot(int apiLevel, String abi) { return sdk; }
+            @Override public Path avdHome() { return avdHome; }
+            @Override public void install(McpAndroidEmulatorProposal proposal) { }
+            @Override public ManagedEnvironment start(McpAndroidEmulatorProposal proposal) {
+                throw new UnsupportedOperationException();
+            }
+        };
+        McpMobileToolchainService service = new McpMobileToolchainService(runner, Map.of("PATH", ""),
+                toolRoot, "Windows 11", "amd64", owner);
+
+        McpMobileToolchainStatus status = service.status("Android");
+
+        assertEquals(sdk, status.androidSdkRoot());
+        assertEquals(avdHome, status.androidAvdHome());
+        assertEquals(appium, status.appiumRoot());
+        assertTrue(status.nodeAvailable());
+        assertTrue(status.npmAvailable());
+        assertTrue(status.appiumAvailable());
+        assertTrue(status.appiumInspectorAvailable());
+        assertTrue(status.adbAvailable());
+        assertTrue(status.emulatorAvailable());
+        assertTrue(status.sdkManagerAvailable());
+        assertTrue(status.avdManagerAvailable());
+        assertTrue(status.cachedAndroidEmulators().contains("Shared_Pixel"));
+    }
+
+    @Test
     void statusReportsRepairableDiagnosticsForMissingAndroidToolchain() {
         Path toolRoot = temp.resolve("tools");
         McpMobileToolchainService service = new McpMobileToolchainService(new FakeRunner(),
