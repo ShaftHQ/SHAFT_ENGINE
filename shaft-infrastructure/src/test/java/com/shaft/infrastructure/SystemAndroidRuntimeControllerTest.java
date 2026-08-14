@@ -18,10 +18,11 @@ class SystemAndroidRuntimeControllerTest {
     @Test
     void mismatchedStartInstantOrCommandIsNeverAdoptedOrKilled(@TempDir Path temp) throws Exception {
         Path java = javaExecutable();
+        Path log = temp.resolve("child.log");
         SystemAndroidRuntimeController controller = new SystemAndroidRuntimeController();
         AndroidOwnedProcess process = controller.start("child", List.of(java.toString(), "-Xmx32m",
                         "-XX:+UseSerialGC", "-cp", System.getProperty("java.class.path"), SleepingChild.class.getName()),
-                temp, Map.of(), Set.of(), temp.resolve("child.log"));
+                temp, Map.of(), Set.of(), log);
         try {
             Instant wrongStart = process.startInstant().plusMillis(1);
 
@@ -33,6 +34,7 @@ class SystemAndroidRuntimeControllerTest {
             assertTrue(process.isAlive());
         } finally {
             process.stop(Duration.ofSeconds(5));
+            awaitDelete(log, Duration.ofSeconds(2));
         }
     }
 
@@ -69,6 +71,21 @@ class SystemAndroidRuntimeControllerTest {
             Thread.sleep(Duration.ofMillis(10));
         }
         throw new AssertionError("Timed out waiting for descendant PID.");
+    }
+
+    private static void awaitDelete(Path file, Duration timeout) throws Exception {
+        long deadline = System.nanoTime() + timeout.toNanos();
+        Exception last = null;
+        while (System.nanoTime() < deadline) {
+            try {
+                Files.deleteIfExists(file);
+                return;
+            } catch (java.io.IOException locked) {
+                last = locked;
+                Thread.sleep(Duration.ofMillis(10));
+            }
+        }
+        throw new java.io.IOException("Timed out waiting for child process log handle to close: " + file, last);
     }
 
     private static Path javaExecutable() {
