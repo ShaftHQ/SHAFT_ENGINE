@@ -57,16 +57,18 @@ public class TraceViewerBrowserAcceptanceTest {
                         {"type":"resource-snapshot","snapshot":{"_frameref":"frame@1","_monotonicTime":10,"request":{"method":"GET","url":"https://example.test/app/site.css"},"response":{"status":200,"statusText":"OK","headers":[],"content":{"mimeType":"text/css","_sha1":"style.css"}}}}
                         {"type":"resource-snapshot","snapshot":{"_frameref":"frame@1","_monotonicTime":7,"request":{"method":"GET","url":"https://example.test/app/pixel.png"},"response":{"status":200,"statusText":"OK","headers":[],"content":{"mimeType":"image/png","_sha1":"old-pixel.png"}}}}
                         {"type":"resource-snapshot","snapshot":{"_frameref":"frame@1","_monotonicTime":11,"request":{"method":"GET","url":"https://example.test/app/pixel.png"},"response":{"status":200,"statusText":"OK","headers":[],"content":{"mimeType":"image/png","_sha1":"pixel.png"}}}}
+                        {"type":"resource-snapshot","snapshot":{"_frameref":"frame@1","_monotonicTime":11.5,"request":{"method":"GET","url":"https://example.test/app/pixel.png?token=raw-url-secret"},"response":{"status":200,"statusText":"OK","headers":[],"content":{"mimeType":"image/png","_sha1":"pixel.png"}}}}
                         {"type":"resource-snapshot","snapshot":{"_frameref":"frame@1","_monotonicTime":12,"request":{"method":"GET","url":"https://example.test/app/imported.css"},"response":{"status":200,"statusText":"OK","headers":[],"content":{"mimeType":"text/css","_sha1":"imported.css"}}}}
                         {"type":"resource-snapshot","snapshot":{"_frameref":"frame@1","_monotonicTime":12.5,"request":{"method":"GET","url":"https://example.test/app/supported.css"},"response":{"status":200,"statusText":"OK","headers":[],"content":{"mimeType":"text/css","_sha1":"supported.css"}}}}
                         {"type":"resource-snapshot","snapshot":{"_frameref":"frame@1","_monotonicTime":13,"request":{"method":"GET","url":"https://example.test/app/captured.html"},"response":{"status":200,"statusText":"OK","headers":[],"content":{"mimeType":"text/html","_sha1":"captured.html"}}}}
                         {"type":"resource-snapshot","snapshot":{"_frameref":"frame@1","_monotonicTime":30,"request":{"method":"GET","url":"https://example.test/app/site.css"},"response":{"status":200,"statusText":"OK","headers":[],"content":{"mimeType":"text/css","_sha1":"future.css"}}}}
                         """);
-                zipEntry(output, "resources/style.css", "@import url(imported.css) print;"
+                zipEntry(output, "resources/style.css", "@import url(imported.css) print;:root{--token:raw-css-secret;}"
                         + "@import \"supported.css\" supports(selector(:has(*)));"
-                        + "#snapshot-proof{background-color:rgb(4,5,6);background-image:url('pixel.png')}"
+                        + "#snapshot-proof{background-color:rgb(4,5,6);background-image:url(pixel.png?token=raw-url-secret)}"
                         + "</style><meta http-equiv=refresh content=\"0;url=https://blocked.invalid/css-refresh\">");
-                zipEntry(output, "resources/imported.css", "#snapshot-link{color:rgb(7,8,9)}");
+                zipEntry(output, "resources/imported.css",
+                        "#snapshot-link{color:rgb(7,8,9);--api-key:raw-imported-secret}");
                 zipEntry(output, "resources/supported.css", "#snapshot-link{background-color:rgb(10,11,12)}");
                 zipEntry(output, "resources/captured.html", "<img src=https://blocked.invalid/navigated>");
                 zipEntry(output, "resources/old-pixel.png", "not a png");
@@ -83,7 +85,12 @@ public class TraceViewerBrowserAcceptanceTest {
             Assert.assertTrue(renderedDocument.contains("data:image/png;base64,"), renderedDocument);
             Assert.assertTrue(renderedDocument.contains("background-image:url(data:image/png;base64,"), renderedDocument);
             Assert.assertFalse(renderedDocument.toLowerCase().contains("</style><meta"), renderedDocument);
+            Assert.assertFalse(renderedDocument.contains("raw-css-secret"), renderedDocument);
+            Assert.assertFalse(renderedDocument.contains("raw-imported-secret"), renderedDocument);
+            Assert.assertFalse(renderedDocument.contains("raw-url-secret"), renderedDocument);
             Assert.assertFalse(renderedDocument.contains("display:none"), renderedDocument);
+            Assert.assertTrue(renderedDocument.contains("#snapshot-proof{background-color:rgb(4,5,6)"),
+                    renderedDocument);
             Files.writeString(html, PlaywrightTraceOfflineAdapter.render(loaded, "before@call@1"));
 
             List<String> externalRequests = new ArrayList<>();
@@ -739,13 +746,18 @@ public class TraceViewerBrowserAcceptanceTest {
             Assert.assertEquals(page.locator("main").count(), 1, "The viewer needs one primary landmark.");
             Assert.assertEquals(page.locator("h1").count(), 1, "The viewer needs one page heading.");
             Assert.assertEquals(page.locator("#action-search").getAttribute("aria-label"), "Search actions");
-            page.locator("#action-tabs button").first().focus();
-            Assert.assertTrue((Boolean) page.locator("#action-tabs button").first()
+            page.locator("#action-tabs button").first().click();
+            page.keyboard().press("Tab");
+            Assert.assertTrue((Boolean) page.locator("#action-tabs button").nth(1)
                     .evaluate("button => button.matches(':focus-visible')"));
-            Assert.assertNotEquals(page.locator("#action-tabs button").first()
-                    .evaluate("button => getComputedStyle(button).outlineStyle"), "none");
-            Assert.assertNotEquals(page.locator("#action-tabs button").first()
-                    .evaluate("button => getComputedStyle(button).outlineWidth"), "0px");
+            Assert.assertEquals(page.locator("#action-tabs button").nth(1)
+                    .evaluate("button => getComputedStyle(button).outlineWidth"), "3px");
+            Assert.assertEquals(page.locator("#action-tabs button").nth(1)
+                    .evaluate("button => getComputedStyle(button).outlineOffset"), "2px");
+            Assert.assertEquals(page.locator("#action-tabs button").nth(1)
+                    .evaluate("button => getComputedStyle(button).outlineColor"),
+                    page.locator("#action-tabs button").nth(1)
+                            .evaluate("button => getComputedStyle(button).color"));
             Number largeRenderMillis = (Number) page.evaluate("""
                     () => {
                       window.__largeTraceStart = actions.length;
@@ -773,6 +785,8 @@ public class TraceViewerBrowserAcceptanceTest {
             Assert.assertTrue(largeSearchMillis.doubleValue() < 1_000,
                     "Filtering a large trace must remain responsive: " + largeSearchMillis);
             Assert.assertEquals(page.locator("#action-list button").count(), 1);
+            Assert.assertTrue(page.locator("#action-list button").first().textContent()
+                    .contains("Large action 4999"));
             page.evaluate("() => { actions.splice(window.__largeTraceStart); actionSearch.value=''; renderActions(); }");
             String lightBackground = String.valueOf(page.locator("body")
                     .evaluate("body => getComputedStyle(body).backgroundColor"));

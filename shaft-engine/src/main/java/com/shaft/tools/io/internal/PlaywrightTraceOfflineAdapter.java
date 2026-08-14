@@ -237,8 +237,7 @@ final class PlaywrightTraceOfflineAdapter {
                         value = resource == null ? "" : resource.dataUri(output.remainingBytes());
                     }
                 } else if (lower.equals("style")) {
-                    value = rewriteCss(FailureTraceReporter.redactSourceText(value),
-                            resourceContext.snapshot().path("frameUrl").asText(), model,
+                    value = rewriteCss(value, resourceContext.snapshot().path("frameUrl").asText(), model,
                             resourceContext,
                             output.remainingBytes(), output.cssSources(), new HashSet<>(), 0);
                 }
@@ -248,7 +247,7 @@ final class PlaywrightTraceOfflineAdapter {
         output.append(">");
         for (int index = 2; index < node.size(); index++) {
             if ("STYLE".equals(upper) && node.get(index).isString()) {
-                output.append(rewriteCss(FailureTraceReporter.redactSourceText(node.get(index).asText()),
+                output.append(rewriteCss(node.get(index).asText(),
                         resourceContext.snapshot().path("frameUrl").asText(), model, resourceContext,
                         output.remainingBytes(), output.cssSources(), new HashSet<>(), 0));
             } else {
@@ -334,12 +333,12 @@ final class PlaywrightTraceOfflineAdapter {
             boolean hasImport = importMatcher.find(offset);
             boolean hasUrl = urlMatcher.find(offset);
             if (!hasImport && !hasUrl) {
-                rewritten.append(safe.substring(offset));
+                rewritten.append(FailureTraceReporter.redactSourceText(safe.substring(offset)));
                 break;
             }
             boolean useImport = hasImport && (!hasUrl || importMatcher.start() <= urlMatcher.start());
             Matcher match = useImport ? importMatcher : urlMatcher;
-            rewritten.append(safe.substring(offset, match.start()));
+            rewritten.append(FailureTraceReporter.redactSourceText(safe.substring(offset, match.start())));
             String importUrl = useImport ? firstNonBlank(match.group(2), match.group(3), match.group(5))
                     : match.group(2);
             String absolute = resolveUrl(baseUrl, importUrl);
@@ -347,7 +346,7 @@ final class PlaywrightTraceOfflineAdapter {
             if (useImport) {
                 if (resource != null && resource.mimeType().toLowerCase(Locale.ROOT).startsWith("text/css")
                         && imports.add(absolute)) {
-                    String condition = match.group(6).trim();
+                    String condition = FailureTraceReporter.redactSourceText(match.group(6).trim());
                     int conditionBlocks = openImportConditions(condition, rewritten);
                     rewriteCss(resource.text(rewritten.remainingBytes(), sources), absolute, model, context,
                             rewritten, sources, imports, depth + 1);
