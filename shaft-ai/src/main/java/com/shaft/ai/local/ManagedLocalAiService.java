@@ -483,58 +483,114 @@ public final class ManagedLocalAiService {
             ManagedLocalAiManifest.RuntimeAsset asset = manifest.runtime().assets().stream()
                     .filter(candidate -> candidate.platform().equals(profile.platform())).findFirst().orElseThrow();
             long total = Math.addExact(asset.size(), model.size());
-            return ManagedLocalAiCache.withLock(cache, Duration.ofSeconds(settings.lockTimeoutSeconds()), () -> {
-                ManagedLocalAiHardware.Profile lockedProfile = ManagedLocalAiHardware.profile(cache,
-                        host);
-                ManagedLocalAiHardware.Selection lockedSelection = ManagedLocalAiHardware.select(manifest,
-                        lockedProfile, model.id());
-                if (!model.id().equals(lockedSelection.selectedModelId())) {
-                    throw new IllegalStateException("Managed local AI resources changed before provisioning.");
-                }
-                String runtimeId = runtimeInstallationId(manifest, profile.platform());
-                String modelId = modelInstallationId(model);
-                ManagedLocalAiSnapshot.CacheHealth runtimeHealth = inspectRuntime(cache, manifest, asset);
-                ManagedLocalAiSnapshot.CacheHealth modelHealth = inspectModel(cache, model);
-                if (runtimeHealth == ManagedLocalAiSnapshot.CacheHealth.CORRUPT
-                        || modelHealth == ManagedLocalAiSnapshot.CacheHealth.CORRUPT) {
-                    throw new IllegalStateException("Changed managed local AI cache must be rebuilt explicitly.");
-                }
-                boolean installedRuntime = false;
-                boolean installedModel = false;
+            ProvisionContext context = new ProvisionContext(cache, manifest, profile, model, settings, host,
+                    cancelled, progress, asset, total);
+            return ManagedLocalAiCache.withLock(cache, Duration.ofSeconds(settings.lockTimeoutSeconds()),
+                    () -> provisionLocked(context));
+        }
+
+        private ProvisionResult provisionLocked(ProvisionContext context) throws Exception {
+            validateLockedSelection(context);
+            String runtimeId = runtimeInstallationId(context.manifest(), context.profile().platform());
+            String modelId = modelInstallationId(context.model());
+            ManagedLocalAiSnapshot.CacheHealth runtimeHealth = inspectRuntime(
+                    context.cache(), context.manifest(), context.asset());
+            ManagedLocalAiSnapshot.CacheHealth modelHealth = inspectModel(context.cache(), context.model());
+            requireHealthyCache(runtimeHealth, modelHealth);
+            return installMissing(context, runtimeId, modelId, runtimeHealth, modelHealth);
+        }
+
+        private static void validateLockedSelection(ProvisionContext context) {
+            ManagedLocalAiHardware.Profile lockedProfile = ManagedLocalAiHardware.profile(
+                    context.cache(), context.host());
+            ManagedLocalAiHardware.Selection lockedSelection = ManagedLocalAiHardware.select(
+                    context.manifest(), lockedProfile, context.model().id());
+            if (!context.model().id().equals(lockedSelection.selectedModelId())) {
+                throw new IllegalStateException("Managed local AI resources changed before provisioning.");
+            }
+        }
+
+        private static void requireHealthyCache(ManagedLocalAiSnapshot.CacheHealth runtimeHealth,
+                                                ManagedLocalAiSnapshot.CacheHealth modelHealth) {
+            if (runtimeHealth == ManagedLocalAiSnapshot.CacheHealth.CORRUPT
+                    || modelHealth == ManagedLocalAiSnapshot.CacheHealth.CORRUPT) {
+                throw new IllegalStateException("Changed managed local AI cache must be rebuilt explicitly.");
+            }
+        }
+
+        private ProvisionResult installMissing(ProvisionContext context, String runtimeId, String modelId,
+                                               ManagedLocalAiSnapshot.CacheHealth runtimeHealth,
+                                               ManagedLocalAiSnapshot.CacheHealth modelHealth) throws Exception {
+            boolean installedRuntime = false;
+            boolean installedModel = false;
+            try {
+                installedRuntime = installRuntimeIfMissing(context, runtimeId, runtimeHealth);
+                installedModel = installModelIfMissing(context, modelId, modelHealth);
+            } catch (InterruptedException primary) {
+                rollbackFailedProvision(context.cache(), runtimeId, installedRuntime, primary, true);
+                throw primary;
+            } catch (Exception primary) {
+                boolean interrupted = context.cancelled().getAsBoolean() || Thread.interrupted();
+                Thread.interrupted();
+                rollbackFailedProvision(context.cache(), runtimeId, installedRuntime, primary, interrupted);
+                throw primary;
+            }
+            java.util.Set<String> installed = new java.util.LinkedHashSet<>();
+            if (installedRuntime) {
+                installed.add(runtimeId);
+            }
+            if (installedModel) {
+                installed.add(modelId);
+            }
+            return new ProvisionResult(installed);
+        }
+
+        private boolean installRuntimeIfMissing(ProvisionContext context, String runtimeId,
+                                                ManagedLocalAiSnapshot.CacheHealth health) throws Exception {
+            if (health != ManagedLocalAiSnapshot.CacheHealth.MISSING) {
+                return false;
+            }
+            context.progress().accept(new Progress(ManagedLocalAiSnapshot.Phase.DOWNLOADING_RUNTIME,
+                    0, context.total()));
+            installRuntime(context.cache(), context.asset(), runtimeId, context.settings(), context.cancelled(),
+                    context.progress(), context.total());
+            return true;
+        }
+
+        private boolean installModelIfMissing(ProvisionContext context, String modelId,
+                                              ManagedLocalAiSnapshot.CacheHealth health) throws Exception {
+            if (health != ManagedLocalAiSnapshot.CacheHealth.MISSING) {
+                return false;
+            }
+            context.progress().accept(new Progress(ManagedLocalAiSnapshot.Phase.DOWNLOADING_MODEL,
+                    context.asset().size(), context.total()));
+            installModel(context.cache(), context.model(), modelId, context.settings(), context.cancelled());
+            context.progress().accept(new Progress(ManagedLocalAiSnapshot.Phase.ADOPTING,
+                    context.total(), context.total()));
+            return true;
+        }
+
+        private static void rollbackFailedProvision(Path cache, String runtimeId, boolean installedRuntime,
+                                                    Exception primary, boolean interrupted) {
+            Thread.interrupted();
+            if (installedRuntime) {
                 try {
-                    if (runtimeHealth == ManagedLocalAiSnapshot.CacheHealth.MISSING) {
-                        progress.accept(new Progress(ManagedLocalAiSnapshot.Phase.DOWNLOADING_RUNTIME, 0, total));
-                        installRuntime(cache, asset, runtimeId, settings, cancelled, progress, total);
-                        installedRuntime = true;
-                    }
-                    if (modelHealth == ManagedLocalAiSnapshot.CacheHealth.MISSING) {
-                        progress.accept(new Progress(ManagedLocalAiSnapshot.Phase.DOWNLOADING_MODEL,
-                                asset.size(), total));
-                        installModel(cache, model, modelId, settings, cancelled);
-                        installedModel = true;
-                        progress.accept(new Progress(ManagedLocalAiSnapshot.Phase.ADOPTING, total, total));
-                    }
-                } catch (Exception primary) {
-                    boolean interrupted = primary instanceof InterruptedException
-                            || cancelled.getAsBoolean() || Thread.interrupted();
-                    Thread.interrupted();
-                    if (installedRuntime) {
-                        try {
-                            ManagedLocalAiCache.clean(cache, java.util.Set.of(runtimeId));
-                        } catch (Exception rollback) {
-                            primary.addSuppressed(rollback);
-                        }
-                    }
-                    if (interrupted) {
-                        Thread.currentThread().interrupt();
-                    }
-                    throw primary;
+                    ManagedLocalAiCache.clean(cache, java.util.Set.of(runtimeId));
+                } catch (Exception rollback) {
+                    primary.addSuppressed(rollback);
                 }
-                java.util.Set<String> installed = new java.util.LinkedHashSet<>();
-                if (installedRuntime) installed.add(runtimeId);
-                if (installedModel) installed.add(modelId);
-                return new ProvisionResult(installed);
-            });
+            }
+            if (interrupted) {
+                Thread.currentThread().interrupt();
+            }
+        }
+
+        private record ProvisionContext(Path cache, ManagedLocalAiManifest manifest,
+                                        ManagedLocalAiHardware.Profile profile,
+                                        ManagedLocalAiManifest.ModelManifest model, Settings settings,
+                                        ManagedLocalAiHardware.HostAccess host, BooleanSupplier cancelled,
+                                        Consumer<Progress> progress, ManagedLocalAiManifest.RuntimeAsset asset,
+                                        long total) {
         }
 
         private void installRuntime(Path cache, ManagedLocalAiManifest.RuntimeAsset asset, String id,
