@@ -78,6 +78,9 @@ guidance, persisted-data, and external-system mutation wait for the repaired
 source and a complete receipt. Never substitute a stale index, recollection, or
 generic summary for the named live query. Reuse established solutions and
 standards before inventing a local one.
+After G1-G4, a complete degraded Graphify receipt permits implementation to
+continue. [Graphify](../../references/graphify.md) owns the narrow
+worktree/lock-contention exception and forbids competing shared-state mutation.
 The dated [adoption matrix](../../RESEARCH.md) records the portable harness
 baseline; revalidate a row when its relevant discovery, schema, or install
 contract changes.

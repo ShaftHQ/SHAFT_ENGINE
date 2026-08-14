@@ -76,3 +76,10 @@ If a required store is unavailable, **name the degraded mode**, diagnose its
 root owner, and continue analysis with the remaining sources. Implementation
 waits until the store works and the receipt is complete. Skipping a store
 silently is the failure this gate exists to prevent.
+
+Graphify contention is the narrow exception to implementation waiting. After
+the required G1 through G4 attempts, a linked-worktree revision mismatch or an
+active refresh lock completes the Graphify receipt in explicit degraded mode;
+continue implementation with the remaining sources. The canonical
+[Graphify procedure](graphify.md) owns the sole-refresh-owner, forbidden-action,
+live-verification, and later-safe-refresh rules.
