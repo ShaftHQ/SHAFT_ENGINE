@@ -3,6 +3,7 @@ package com.shaft.infrastructure;
 import java.io.IOException;
 import java.util.List;
 import java.util.Objects;
+import java.util.ServiceLoader;
 
 /** Shared provider-neutral setup orchestration used by every public adapter. */
 public final class InfrastructureSetupService {
@@ -22,10 +23,13 @@ public final class InfrastructureSetupService {
     }
 
     public static InfrastructureSetupService builtIn(SetupPlatform platform, SetupArchitecture architecture) {
-        return new InfrastructureSetupService(new SetupProviderRegistry(List.of(
+        List<SetupProvider> providers = new java.util.ArrayList<>(List.of(
                 new ReportingSetupProvider(), new OcrSetupProvider(), new LighthouseSetupProvider(),
-                new PlaywrightSetupProvider(), new AndroidSetupProvider())),
-                platform, architecture);
+                new PlaywrightSetupProvider(), new AndroidSetupProvider()));
+        ClassLoader contextLoader = Thread.currentThread().getContextClassLoader();
+        ClassLoader loader = contextLoader == null ? InfrastructureSetupService.class.getClassLoader() : contextLoader;
+        ServiceLoader.load(SetupProvider.class, loader).forEach(providers::add);
+        return new InfrastructureSetupService(new SetupProviderRegistry(providers), platform, architecture);
     }
 
     public SetupCatalog catalog() {
