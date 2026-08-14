@@ -5,6 +5,7 @@ import com.shaft.infrastructure.InfrastructureSetupService;
 import com.shaft.infrastructure.AndroidSetupRequest;
 import com.shaft.infrastructure.AndroidRuntimeManager;
 import com.shaft.infrastructure.SetupOptions;
+import com.shaft.infrastructure.SetupOperation;
 import com.shaft.infrastructure.SetupApproval;
 import com.shaft.infrastructure.SetupArchitecture;
 import com.shaft.infrastructure.SetupCatalog;
@@ -88,6 +89,9 @@ public final class SetupCommand implements Runnable {
         @Option(names = "--mode", defaultValue = "EXTERNAL", description = "Ownership mode.")
         private SetupMode mode;
 
+        @Option(names = "--operation", defaultValue = "INSTALL", description = "Plan operation.")
+        private SetupOperation operation;
+
         @Option(names = "--output", required = true, description = "Plan JSON output file.")
         private Path output;
 
@@ -117,7 +121,7 @@ public final class SetupCommand implements Runnable {
                 SetupSelection selection = selection(profile, languages, android.request(profile));
                 SetupPlan plan = InfrastructureSetupService.builtIn(
                         SetupPlatform.current(), SetupArchitecture.current())
-                        .plan(options, selection);
+                        .plan(options, selection, operation);
                 if (!output.isAbsolute()) {
                     spec.commandLine().getErr().println("--output must be an absolute path.");
                     return 2;

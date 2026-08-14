@@ -35,7 +35,9 @@ class SetupCatalogTest {
 
         assertEquals(List.of("MANAGED_LOCAL_AI_RUNTIME", "MANAGED_LOCAL_AI_MODEL"),
                 localAi.targets().stream().map(Enum::name).toList());
-        assertEquals(List.of(Set.of(SetupCapability.INSTALLABLE), Set.of(SetupCapability.INSTALLABLE)),
+        Set<SetupCapability> managed = Set.of(SetupCapability.INSTALLABLE, SetupCapability.CLEANABLE,
+                SetupCapability.ROLLBACKABLE);
+        assertEquals(List.of(managed, managed),
                 localAi.targets().stream().map(target -> catalog.targets().stream()
                         .filter(definition -> definition.target() == target)
                         .findFirst().orElseThrow().capabilities()).toList());
@@ -90,7 +92,9 @@ class SetupCatalogTest {
                 SetupTarget.PLAYWRIGHT_CHROMIUM, SetupTarget.PLAYWRIGHT_FIREFOX, SetupTarget.PLAYWRIGHT_WEBKIT,
                 SetupTarget.LIGHTHOUSE, SetupTarget.APPIUM_INSPECTOR_PLUGIN, SetupTarget.APPIUM_UIAUTOMATOR2_DRIVER,
                 SetupTarget.APPIUM_XCUITEST_DRIVER, SetupTarget.APPIUM_WINDOWS_DRIVER, SetupTarget.APPIUM_FLUTTER_DRIVER,
-                SetupTarget.ANDROID_SDK, SetupTarget.OCR_TESSDATA, SetupTarget.AGENT_CLI,
+                SetupTarget.ANDROID_SDK, SetupTarget.OCR_TESSDATA, SetupTarget.AGENT_CLI);
+        put(expected, Set.of(SetupCapability.INSTALLABLE, SetupCapability.CLEANABLE,
+                        SetupCapability.ROLLBACKABLE),
                 SetupTarget.MANAGED_LOCAL_AI_RUNTIME, SetupTarget.MANAGED_LOCAL_AI_MODEL);
         put(expected, Set.of(SetupCapability.INSTALLABLE, SetupCapability.STARTABLE), SetupTarget.APPIUM_SERVER,
                 SetupTarget.ANDROID_EMULATOR, SetupTarget.SELENIUM_GRID, SetupTarget.HEALENIUM,

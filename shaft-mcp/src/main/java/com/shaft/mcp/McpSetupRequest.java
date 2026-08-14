@@ -3,6 +3,7 @@ package com.shaft.mcp;
 import com.shaft.ai.local.ManagedLocalAiService;
 import com.shaft.infrastructure.SetupMode;
 import com.shaft.infrastructure.SetupOptions;
+import com.shaft.infrastructure.SetupOperation;
 import com.shaft.infrastructure.SetupProfile;
 import com.shaft.infrastructure.SetupSelection;
 import com.shaft.infrastructure.ShaftCachePaths;
@@ -17,9 +18,26 @@ import java.util.Locale;
 public record McpSetupRequest(String profile, String mode, String cacheRoot, String dataRoot,
                               Boolean offline, Boolean autoStart, Boolean preferSystemTools,
                               Boolean reuseOwnedProcesses, String startupTimeout, String shutdownTimeout,
-                              String remoteEndpoint, List<String> components) {
+                              String remoteEndpoint, String operation, List<String> components) {
     public McpSetupRequest {
+        operation = operation == null || operation.isBlank() ? SetupOperation.INSTALL.name() : operation;
         components = components == null ? List.of() : List.copyOf(components);
+    }
+
+    public McpSetupRequest(String profile, String mode, String cacheRoot, String dataRoot,
+                           Boolean offline, Boolean autoStart, Boolean preferSystemTools,
+                           Boolean reuseOwnedProcesses, String startupTimeout, String shutdownTimeout,
+                           String remoteEndpoint, List<String> components) {
+        this(profile, mode, cacheRoot, dataRoot, offline, autoStart, preferSystemTools, reuseOwnedProcesses,
+                startupTimeout, shutdownTimeout, remoteEndpoint, SetupOperation.INSTALL.name(), components);
+    }
+
+    SetupOperation setupOperation() {
+        try {
+            return SetupOperation.valueOf(operation.trim().toUpperCase(Locale.ROOT));
+        } catch (IllegalArgumentException invalid) {
+            throw new IllegalArgumentException("Unsupported setup operation: " + operation, invalid);
+        }
     }
 
     SetupProfile setupProfile() {

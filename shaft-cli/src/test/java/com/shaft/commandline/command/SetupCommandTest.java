@@ -421,6 +421,30 @@ class SetupCommandTest {
         }
     }
 
+    @Test
+    void unsupportedMaintenanceOperationIsRejectedByTheProviderInsteadOfTheCliParser(@TempDir Path temp) {
+        Path planFile = temp.resolve("reporting-clean-plan.json").toAbsolutePath();
+
+        CommandResult result = execute("setup", "plan", "--profile", "REPORTING", "--mode", "MANAGED",
+                "--operation", "CLEAN", "--output", planFile.toString(), "--json");
+
+        assertEquals(2, result.exitCode());
+        assertTrue(result.stderr().contains("REPORTING does not support CLEAN"), result.stderr());
+        assertFalse(Files.exists(planFile));
+    }
+
+    @Test
+    void externalCleanIsRejectedBeforeWritingAPlan(@TempDir Path temp) {
+        Path planFile = temp.resolve("local-ai-clean-plan.json").toAbsolutePath();
+
+        CommandResult result = execute("setup", "plan", "--profile", "LOCAL_AI",
+                "--operation", "CLEAN", "--output", planFile.toString(), "--json");
+
+        assertEquals(2, result.exitCode());
+        assertTrue(result.stderr().contains("CLEAN requires MANAGED mode"), result.stderr());
+        assertFalse(Files.exists(planFile));
+    }
+
     private static CommandResult execute(String... arguments) {
         StringWriter stdout = new StringWriter();
         StringWriter stderr = new StringWriter();

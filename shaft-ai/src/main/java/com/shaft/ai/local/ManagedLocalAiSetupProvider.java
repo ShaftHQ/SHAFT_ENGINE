@@ -5,6 +5,7 @@ import com.shaft.infrastructure.SetupAction;
 import com.shaft.infrastructure.SetupActionKind;
 import com.shaft.infrastructure.SetupArchitecture;
 import com.shaft.infrastructure.SetupOptions;
+import com.shaft.infrastructure.SetupOperation;
 import com.shaft.infrastructure.SetupPlan;
 import com.shaft.infrastructure.SetupPlatform;
 import com.shaft.infrastructure.SetupProfile;
@@ -17,6 +18,7 @@ import com.shaft.infrastructure.SetupTarget;
 import com.shaft.infrastructure.SetupExecutor;
 import com.shaft.infrastructure.SetupMode;
 import com.shaft.infrastructure.SetupProgress;
+import com.shaft.infrastructure.SetupSelection;
 
 import java.io.IOException;
 import java.time.Instant;
@@ -48,25 +50,49 @@ public final class ManagedLocalAiSetupProvider implements SetupProvider {
 
     @Override
     public SetupPlan plan(SetupOptions options, SetupPlatform platform, SetupArchitecture architecture) {
+        return plan(options, SetupSelection.defaults(), SetupOperation.INSTALL, platform, architecture);
+    }
+
+    @Override
+    public SetupPlan plan(SetupOptions options, SetupSelection selection, SetupOperation operation,
+                          SetupPlatform platform, SetupArchitecture architecture) {
+        Objects.requireNonNull(selection, "selection");
+        Objects.requireNonNull(operation, "operation");
+        if (!selection.components().isEmpty()) {
+            throw new IllegalArgumentException("Profile LOCAL_AI does not accept component selection.");
+        }
+        if (operation != SetupOperation.INSTALL && options.effectiveMode() != SetupMode.MANAGED) {
+            throw new IllegalArgumentException(operation + " requires MANAGED mode for profile LOCAL_AI.");
+        }
+        if (operation == SetupOperation.ROLLBACK) {
+            throw new IllegalStateException("No reviewed managed local AI rollback candidate is available in this release.");
+        }
         ManagedLocalAiSnapshot snapshot = inspect(options);
-        if (snapshot.selectedModelId() == null) {
+        if (operation == SetupOperation.INSTALL && snapshot.selectedModelId() == null) {
             throw new IllegalStateException("Managed local AI cannot select a reviewed model: " + snapshot.action());
         }
         ManagedLocalAiManifest manifest = ManagedLocalAiManifest.loadDefault();
-        ManagedLocalAiManifest.RuntimeAsset runtime = manifest.runtime().assets().stream()
-                .filter(candidate -> candidate.platform().equals(snapshot.platform()))
-                .findFirst().orElseThrow();
-        ManagedLocalAiManifest.ModelManifest model = manifest.models().stream()
-                .filter(candidate -> candidate.id().equals(snapshot.selectedModelId()))
-                .findFirst().orElseThrow();
-        SetupActionKind kind = options.effectiveMode() == com.shaft.infrastructure.SetupMode.EXTERNAL
-                ? SetupActionKind.DIAGNOSE : SetupActionKind.INSTALL;
-        return SetupPlan.create(SetupProfile.LOCAL_AI, platform, architecture, options.effectiveMode(), List.of(
-                new SetupAction(SetupTarget.MANAGED_LOCAL_AI_RUNTIME, kind, manifest.runtime().version(),
-                        runtime.url(), "sha256:" + runtime.sha256(), runtime.size(), false,
-                        Set.of(manifest.runtime().license())),
-                new SetupAction(SetupTarget.MANAGED_LOCAL_AI_MODEL, kind, model.revision(), model.url(),
-                        "sha256:" + model.sha256(), model.size(), false, Set.of(model.license()))));
+        SetupActionKind kind = options.effectiveMode() == SetupMode.EXTERNAL
+                ? SetupActionKind.DIAGNOSE
+                : operation == SetupOperation.CLEAN ? SetupActionKind.CLEAN : SetupActionKind.INSTALL;
+        Set<String> runtimeLicenses = kind == SetupActionKind.CLEAN ? Set.of()
+                : Set.of(manifest.runtime().license());
+        List<ManagedLocalAiManifest.RuntimeAsset> runtimes = operation == SetupOperation.CLEAN
+                ? manifest.runtime().assets()
+                : manifest.runtime().assets().stream().filter(candidate -> candidate.platform().equals(snapshot.platform()))
+                .toList();
+        List<ManagedLocalAiManifest.ModelManifest> models = operation == SetupOperation.CLEAN
+                ? manifest.models()
+                : manifest.models().stream().filter(candidate -> candidate.id().equals(snapshot.selectedModelId()))
+                .toList();
+        java.util.ArrayList<SetupAction> actions = new java.util.ArrayList<>();
+        runtimes.forEach(runtime -> actions.add(new SetupAction(SetupTarget.MANAGED_LOCAL_AI_RUNTIME, kind,
+                manifest.runtime().version(), runtime.url(), "sha256:" + runtime.sha256(), runtime.size(), false,
+                runtimeLicenses)));
+        models.forEach(model -> actions.add(new SetupAction(SetupTarget.MANAGED_LOCAL_AI_MODEL, kind,
+                model.revision(), model.url(), "sha256:" + model.sha256(), model.size(), false,
+                kind == SetupActionKind.CLEAN ? Set.of() : Set.of(model.license()))));
+        return SetupPlan.create(SetupProfile.LOCAL_AI, platform, architecture, options.effectiveMode(), actions);
     }
 
     @Override
@@ -109,9 +135,34 @@ public final class ManagedLocalAiSetupProvider implements SetupProvider {
             throw new IllegalArgumentException("External local AI setup is diagnostic-only.");
         }
         SetupExecutor.validate(plan, approval);
+        SetupOperation operation = SetupOperation.fromPlan(plan);
+        if (operation == SetupOperation.ROLLBACK) {
+            throw new IllegalArgumentException("Managed local AI rollback is unavailable without a reviewed candidate.");
+        }
+        SetupPlan expected = SetupPlan.bind(plan(options, SetupSelection.defaults(), operation,
+                plan.platform(), plan.architecture()), options.policyDigest());
+        if (!expected.equals(plan)) {
+            throw new IllegalArgumentException("Managed local AI plan does not match the reviewed manifest and operation.");
+        }
         Lifecycle lifecycle = lifecycles.create(options);
         ManagedLocalAiSnapshot initial = lifecycle.inspect();
         requireCacheRoot(options, initial);
+        if (operation == SetupOperation.CLEAN) {
+            boolean cleaned;
+            try {
+                cleaned = lifecycle.clean();
+            } catch (InterruptedException cancelled) {
+                Thread.currentThread().interrupt();
+                throw new IOException("Managed local AI clean was interrupted.", cancelled);
+            } catch (Exception failure) {
+                if (failure instanceof IOException io) throw io;
+                throw new IOException("Managed local AI clean failed.", failure);
+            }
+            if (!cleaned) {
+                throw new IOException("Managed local AI clean preserved changed or unknown owned content; no receipt was created.");
+            }
+            return new SetupReceipt(plan.digest(), Instant.now(), plan.actions());
+        }
         if (options.offline() && initial.state() != ManagedLocalAiSnapshot.State.READY) {
             throw new IOException("Managed local AI is not ready and offline setup cannot download artifacts.");
         }
@@ -181,6 +232,8 @@ public final class ManagedLocalAiSetupProvider implements SetupProvider {
         ManagedLocalAiSnapshot inspect();
 
         ManagedLocalAiOperation provision(Consumer<ManagedLocalAiSnapshot> progress);
+
+        boolean clean() throws Exception;
     }
 
     record ServiceLifecycle(ManagedLocalAiService service) implements Lifecycle {
@@ -196,6 +249,11 @@ public final class ManagedLocalAiSetupProvider implements SetupProvider {
         @Override
         public ManagedLocalAiOperation provision(Consumer<ManagedLocalAiSnapshot> progress) {
             return service.provision(progress);
+        }
+
+        @Override
+        public boolean clean() throws Exception {
+            return service.cleanReviewed();
         }
     }
 }

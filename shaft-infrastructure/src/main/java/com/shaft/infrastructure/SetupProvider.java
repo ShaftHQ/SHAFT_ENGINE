@@ -17,6 +17,15 @@ public interface SetupProvider {
         return plan(options, platform, architecture);
     }
 
+    default SetupPlan plan(SetupOptions options, SetupSelection selection, SetupOperation operation,
+                           SetupPlatform platform, SetupArchitecture architecture) {
+        java.util.Objects.requireNonNull(operation, "operation");
+        if (operation != SetupOperation.INSTALL) {
+            throw new IllegalArgumentException("Profile " + profile() + " does not support " + operation + '.');
+        }
+        return plan(options, selection, platform, architecture);
+    }
+
     SetupReport status(SetupOptions options, SetupPlatform platform, SetupArchitecture architecture);
 
     default SetupReport status(SetupOptions options, SetupSelection selection,

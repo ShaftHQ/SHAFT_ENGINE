@@ -52,9 +52,13 @@ public final class InfrastructureSetupService {
     }
 
     public SetupPlan plan(SetupOptions options, SetupSelection selection) {
+        return plan(options, selection, SetupOperation.INSTALL);
+    }
+
+    public SetupPlan plan(SetupOptions options, SetupSelection selection, SetupOperation operation) {
         SetupOptions value = Objects.requireNonNull(options, "options");
         SetupPlan plan = providers.require(value.profile()).plan(value, Objects.requireNonNull(selection, "selection"),
-                platform, architecture);
+                Objects.requireNonNull(operation, "operation"), platform, architecture);
         requirePlanIdentity(plan, value);
         return SetupPlan.bind(plan, value.policyDigest());
     }
@@ -180,7 +184,8 @@ public final class InfrastructureSetupService {
             throw new IllegalArgumentException("Plan does not match the requested setup options.");
         }
         SetupProvider provider = providers.require(options.profile());
-        SetupPlan expected = provider.plan(options, Objects.requireNonNull(selection, "selection"), platform, architecture);
+        SetupPlan expected = provider.plan(options, Objects.requireNonNull(selection, "selection"),
+                SetupOperation.fromPlan(plan), platform, architecture);
         requirePlanIdentity(expected, options);
         if (!SetupPlan.bind(expected, options.policyDigest()).equals(plan)) {
             throw new IllegalArgumentException("Plan does not match the provider manifest shipped with this release.");

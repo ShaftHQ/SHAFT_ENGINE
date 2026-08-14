@@ -374,6 +374,30 @@ class ManagedLocalAiServiceTest {
         };
     }
 
+    @Test
+    void reviewedCleanPreservesOtherOwnedInstallations(@TempDir Path cache) throws Exception {
+        byte[] runtimeArchive = "runtime".getBytes();
+        byte[] modelPayload = "model".getBytes();
+        ManagedLocalAiManifest manifest = manifest(runtimeArchive, modelPayload);
+        FakeProvisioning provisioning = new FakeProvisioning(cache, manifest, runtimeArchive, modelPayload);
+        ManagedLocalAiService service = service(cache, true, "test-model",
+                host("Windows 11", "amd64", "windows-msvc", "", 16 * GIB, 8, 64 * GIB),
+                manifest, provisioning);
+        assertEquals(ManagedLocalAiSnapshot.State.READY,
+                service.provision(ignored -> { }).completion().get(5, TimeUnit.SECONDS).state());
+        ManagedLocalAiCache.Installation prior = adopt(cache, "prior-reviewed-version",
+                new Payload("prior.bin", "prior".getBytes()));
+
+        boolean cleaned = service.cleanReviewed();
+
+        assertTrue(cleaned);
+        assertEquals(prior, ManagedLocalAiCache.verify(cache, "prior-reviewed-version"));
+        assertFalse(ManagedLocalAiCache.ownsInstallation(cache,
+                ManagedLocalAiService.runtimeInstallationId(manifest, "windows-x86_64")));
+        assertFalse(ManagedLocalAiCache.ownsInstallation(cache,
+                ManagedLocalAiService.modelInstallationId(manifest.models().getFirst())));
+    }
+
     private static final class ThrowingHost implements ManagedLocalAiHardware.HostAccess {
         private AssertionError unexpected() { return new AssertionError("disabled inspection touched hardware"); }
         @Override

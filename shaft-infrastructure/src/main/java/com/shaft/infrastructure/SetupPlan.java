@@ -113,6 +113,8 @@ public record SetupPlan(int schemaVersion, SetupProfile profile, SetupPlatform p
                 case DOWNLOAD, INSTALL, CONFIGURE -> SetupCapability.INSTALLABLE;
                 case PREWARM -> SetupCapability.PREWARMABLE;
                 case START -> SetupCapability.STARTABLE;
+                case CLEAN -> SetupCapability.CLEANABLE;
+                case ROLLBACK -> SetupCapability.ROLLBACKABLE;
                 case DIAGNOSE -> null;
             };
             if (required != null && !capabilities.contains(required)) {

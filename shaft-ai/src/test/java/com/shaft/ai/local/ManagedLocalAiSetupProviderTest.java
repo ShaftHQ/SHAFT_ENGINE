@@ -7,6 +7,7 @@ import com.shaft.infrastructure.SetupApproval;
 import com.shaft.infrastructure.SetupArchitecture;
 import com.shaft.infrastructure.SetupMode;
 import com.shaft.infrastructure.SetupOptions;
+import com.shaft.infrastructure.SetupOperation;
 import com.shaft.infrastructure.SetupPlan;
 import com.shaft.infrastructure.SetupPlatform;
 import com.shaft.infrastructure.SetupProfile;
@@ -14,6 +15,7 @@ import com.shaft.infrastructure.SetupProviderRegistry;
 import com.shaft.infrastructure.SetupReadiness;
 import com.shaft.infrastructure.SetupReceipt;
 import com.shaft.infrastructure.SetupProgress;
+import com.shaft.infrastructure.SetupSelection;
 import com.shaft.infrastructure.SetupTarget;
 import com.shaft.infrastructure.ShaftCachePaths;
 import org.junit.jupiter.api.Test;
@@ -72,6 +74,119 @@ class ManagedLocalAiSetupProviderTest {
         assertEquals(639_446_688L, plan.actions().get(1).artifactBytes());
         assertFalse(Files.exists(options.paths().cacheRoot()));
         assertFalse(Files.exists(options.paths().dataRoot()));
+    }
+
+    @Test
+    void cleanPlanBindsTheExactReviewedOwnedArtifactsWithoutMutating(@TempDir Path temp) {
+        SetupOptions options = options(temp);
+        ManagedLocalAiSnapshot ready = snapshot(options, ManagedLocalAiSnapshot.State.READY);
+        InfrastructureSetupService setup = setup(new FakeLifecycle(ready));
+
+        SetupPlan plan = setup.plan(options, SetupSelection.defaults(), SetupOperation.CLEAN);
+
+        ManagedLocalAiManifest manifest = ManagedLocalAiManifest.loadDefault();
+        assertEquals(manifest.runtime().assets().size() + manifest.models().size(), plan.actions().size());
+        assertTrue(plan.actions().stream().allMatch(action -> action.kind() == SetupActionKind.CLEAN));
+        assertEquals(manifest.runtime().assets().size(), plan.actions().stream()
+                .filter(action -> action.target() == SetupTarget.MANAGED_LOCAL_AI_RUNTIME).count());
+        assertEquals(manifest.models().size(), plan.actions().stream()
+                .filter(action -> action.target() == SetupTarget.MANAGED_LOCAL_AI_MODEL).count());
+        assertFalse(Files.exists(options.paths().cacheRoot()));
+        assertFalse(Files.exists(options.paths().dataRoot()));
+    }
+
+    @Test
+    void approvedCleanReturnsAReceiptOnlyAfterTheOwnedArtifactsAreAbsent(@TempDir Path temp) throws Exception {
+        SetupOptions options = options(temp);
+        FakeLifecycle lifecycle = new FakeLifecycle(snapshot(options, ManagedLocalAiSnapshot.State.READY));
+        lifecycle.cleanComplete = true;
+        InfrastructureSetupService setup = setup(lifecycle);
+        SetupPlan plan = setup.plan(options, SetupSelection.defaults(), SetupOperation.CLEAN);
+
+        SetupReceipt receipt = setup.install(plan, approval(plan), options);
+
+        assertEquals(plan.actions(), receipt.completedActions());
+        assertEquals(1, lifecycle.cleans.get());
+        assertEquals(0, lifecycle.provisions.get());
+    }
+
+    @Test
+    void changedOwnedContentPreventsACleanReceipt(@TempDir Path temp) {
+        SetupOptions options = options(temp);
+        FakeLifecycle lifecycle = new FakeLifecycle(snapshot(options, ManagedLocalAiSnapshot.State.READY));
+        lifecycle.cleanComplete = false;
+        InfrastructureSetupService setup = setup(lifecycle);
+        SetupPlan plan = setup.plan(options, SetupSelection.defaults(), SetupOperation.CLEAN);
+
+        IOException failure = assertThrows(IOException.class,
+                () -> setup.install(plan, approval(plan), options));
+
+        assertTrue(failure.getMessage().contains("no receipt"));
+        assertEquals(1, lifecycle.cleans.get());
+        assertEquals(0, lifecycle.provisions.get());
+    }
+
+    @Test
+    void rollbackPlanningRejectsAnUnreviewedCachedVersionBeforeMutation(@TempDir Path temp) {
+        SetupOptions options = options(temp);
+        FakeLifecycle lifecycle = new FakeLifecycle(snapshot(options, ManagedLocalAiSnapshot.State.READY));
+        InfrastructureSetupService setup = setup(lifecycle);
+
+        IllegalStateException failure = assertThrows(IllegalStateException.class,
+                () -> setup.plan(options, SetupSelection.defaults(), SetupOperation.ROLLBACK));
+
+        assertTrue(failure.getMessage().contains("No reviewed managed local AI rollback candidate"));
+        assertEquals(0, lifecycle.cleans.get());
+        assertEquals(0, lifecycle.provisions.get());
+    }
+
+    @Test
+    void cleanPlanningDoesNotDependOnEnablementOrHardwareEligibility(@TempDir Path temp) {
+        SetupOptions options = options(temp);
+        for (ManagedLocalAiSnapshot.State state : List.of(ManagedLocalAiSnapshot.State.DISABLED,
+                ManagedLocalAiSnapshot.State.EXCLUDED, ManagedLocalAiSnapshot.State.UNSUPPORTED)) {
+            FakeLifecycle lifecycle = new FakeLifecycle(snapshot(options, state));
+
+            SetupPlan plan = setup(lifecycle).plan(options, SetupSelection.defaults(), SetupOperation.CLEAN);
+
+            assertTrue(plan.actions().stream().allMatch(action -> action.kind() == SetupActionKind.CLEAN),
+                    state.name());
+            assertEquals(0, lifecycle.cleans.get());
+            assertEquals(0, lifecycle.provisions.get());
+        }
+    }
+
+    @Test
+    void directProviderExecutionRejectsRollbackBeforeLifecycleMutation(@TempDir Path temp) {
+        SetupOptions options = options(temp);
+        FakeLifecycle lifecycle = new FakeLifecycle(snapshot(options, ManagedLocalAiSnapshot.State.READY));
+        ManagedLocalAiSetupProvider provider = new ManagedLocalAiSetupProvider(ignored -> lifecycle);
+        SetupPlan install = provider.plan(options, SetupPlatform.WINDOWS, SetupArchitecture.X64);
+        SetupPlan rollback = SetupPlan.create(install.profile(), install.platform(), install.architecture(),
+                install.mode(), install.actions().stream().map(action -> new SetupAction(action.target(),
+                        SetupActionKind.ROLLBACK, action.version(), action.source(), action.checksum(),
+                        action.artifactBytes(), false, Set.of())).toList());
+
+        assertThrows(IllegalArgumentException.class,
+                () -> provider.install(rollback, approval(rollback), options));
+        assertEquals(0, lifecycle.cleans.get());
+        assertEquals(0, lifecycle.provisions.get());
+    }
+
+    @Test
+    void directProviderRejectsAPartialCleanPlanBeforeMutation(@TempDir Path temp) {
+        SetupOptions options = options(temp);
+        FakeLifecycle lifecycle = new FakeLifecycle(snapshot(options, ManagedLocalAiSnapshot.State.READY));
+        ManagedLocalAiSetupProvider provider = new ManagedLocalAiSetupProvider(ignored -> lifecycle);
+        SetupPlan exact = provider.plan(options, SetupSelection.defaults(), SetupOperation.CLEAN,
+                SetupPlatform.WINDOWS, SetupArchitecture.X64);
+        SetupPlan partial = SetupPlan.bind(SetupPlan.create(exact.profile(), exact.platform(), exact.architecture(),
+                exact.mode(), List.of(exact.actions().getFirst())), options.policyDigest());
+
+        assertThrows(IllegalArgumentException.class,
+                () -> provider.install(partial, approval(partial), options));
+        assertEquals(0, lifecycle.cleans.get());
+        assertEquals(0, lifecycle.provisions.get());
     }
 
     @Test
@@ -294,7 +409,9 @@ class ManagedLocalAiSetupProviderTest {
     private static final class FakeLifecycle implements ManagedLocalAiSetupProvider.Lifecycle {
         private final ManagedLocalAiSnapshot inspected;
         private final AtomicInteger provisions = new AtomicInteger();
+        private final AtomicInteger cleans = new AtomicInteger();
         private ManagedLocalAiSnapshot provisioned;
+        private boolean cleanComplete = true;
         private List<ManagedLocalAiSnapshot> progressSnapshots = List.of();
         private Exception failure;
         private boolean leaveRunning;
@@ -328,6 +445,12 @@ class ManagedLocalAiSetupProviderTest {
                 operation.complete(provisioned);
             }
             return operation;
+        }
+
+        @Override
+        public boolean clean() {
+            cleans.incrementAndGet();
+            return cleanComplete;
         }
     }
 }

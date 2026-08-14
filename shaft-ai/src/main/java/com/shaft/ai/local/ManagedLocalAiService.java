@@ -12,6 +12,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.function.Supplier;
 import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
@@ -118,6 +119,28 @@ public final class ManagedLocalAiService {
             ManagedLocalAiCache.withLock(cache, lockTimeout, () -> ManagedLocalAiCache.clean(cache));
         });
         return inspect();
+    }
+
+    /** Removes only unchanged artifacts named by the current reviewed manifest. */
+    boolean cleanReviewed() throws Exception {
+        Settings configured = Objects.requireNonNull(settings.get(), "managed local AI settings");
+        ManagedLocalAiManifest manifest = Objects.requireNonNull(manifests.get(), "managed local AI manifest");
+        Path cache = resolveCache(configured.cacheDirectory());
+        Duration lockTimeout = Duration.ofSeconds(configured.lockTimeoutSeconds());
+        Set<String> reviewed = new java.util.LinkedHashSet<>();
+        manifest.runtime().assets().forEach(asset -> reviewed.add(runtimeInstallationId(manifest, asset.platform())));
+        manifest.models().forEach(model -> reviewed.add(modelInstallationId(model)));
+        java.util.concurrent.atomic.AtomicReference<ManagedLocalAiCache.CleanResult> result =
+                new java.util.concurrent.atomic.AtomicReference<>();
+        ManagedLocalAiProcess.withLaunchExclusion(lockTimeout, () -> {
+            ManagedLocalAiProcess.terminateRetainedLaunches();
+            ManagedLocalAiCache.withLock(cache, lockTimeout, () -> {
+                ManagedLocalAiCache.CleanResult cleaned = ManagedLocalAiCache.clean(cache, reviewed);
+                result.set(cleaned);
+                return cleaned;
+            });
+        });
+        return result.get().conflicts().isEmpty();
     }
 
     /** Inspects configuration, hardware, reviewed inventory, and cache state without mutation. */
