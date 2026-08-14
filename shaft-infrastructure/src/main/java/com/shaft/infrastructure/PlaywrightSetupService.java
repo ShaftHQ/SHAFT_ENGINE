@@ -135,12 +135,12 @@ public final class PlaywrightSetupService {
     }
 
     private SetupReceipt installLocked(SetupPlan plan) throws IOException {
+        long deadline = Math.addExact(nanoTime.getAsLong(), transactionTimeout.toNanos());
         SetupAction nodeAction = plan.actions().getFirst();
         if (nodeOwner.readiness() != SetupReadiness.READY) nodeOwner.install(nodeAction);
         if (nodeOwner.readiness() != SetupReadiness.READY) {
             throw new IOException("Portable Node did not become ready for Playwright installation.");
         }
-        long deadline = Math.addExact(nanoTime.getAsLong(), transactionTimeout.toNanos());
 
         PlaywrightArtifactManifest manifest = PlaywrightArtifactManifest.load();
         if (!PlaywrightSetupPlanner.PLAYWRIGHT_VERSION.equals(manifest.playwrightVersion())) {

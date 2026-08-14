@@ -321,6 +321,46 @@ class PlaywrightSetupServiceTest {
     }
 
     @Test
+    void sharedTransactionDeadlineIncludesPortableNodeSetup(@TempDir Path temp) throws Exception {
+        ShaftCachePaths paths = paths(temp);
+        Path node = temp.resolve("node.exe");
+        AtomicBoolean nodeReady = new AtomicBoolean();
+        java.util.concurrent.atomic.AtomicLong now = new java.util.concurrent.atomic.AtomicLong();
+        AtomicInteger fetches = new AtomicInteger();
+        PlaywrightSetupService.NodeOwner nodeOwner = new PlaywrightSetupService.NodeOwner() {
+            @Override public SetupReadiness readiness() {
+                return nodeReady.get() ? SetupReadiness.READY : SetupReadiness.MISSING;
+            }
+
+            @Override public void install(SetupAction action) throws java.io.IOException {
+                now.addAndGet(Duration.ofSeconds(21).toNanos());
+                Files.writeString(node, "node");
+                nodeReady.set(true);
+            }
+
+            @Override public Path executable() { return node; }
+        };
+        PlaywrightSetupService service = new PlaywrightSetupService(paths, PlaywrightHostPlatform.WIN64,
+                SetupArchitecture.X64, nodeOwner, (action, timeout) -> {
+                    fetches.incrementAndGet();
+                    return Files.writeString(temp.resolve(action.version().replace(':', '-') + ".zip"),
+                            action.version());
+                }, (nodePath, destination) -> {
+                    Path cli = destination.resolve("package/cli.js");
+                    Files.createDirectories(cli.getParent());
+                    Files.writeString(cli, "cli");
+                }, (nodePath, driverRoot, browserRoot, archives, log, timeout) ->
+                        createReadyWindowsLayout(browserRoot), now::get, Duration.ofSeconds(20));
+        SetupPlan plan = PlaywrightSetupPlanner.plan(SetupPlatform.WINDOWS, SetupArchitecture.X64,
+                SetupMode.MANAGED);
+
+        assertThrows(SetupExecutionException.class,
+                () -> service.install(plan, new SetupApproval(plan.digest(), Instant.EPOCH, Set.of())));
+        assertEquals(0, fetches.get());
+        assertFalse(Files.exists(service.browserRoot()));
+    }
+
+    @Test
     void installerReceivesOnlyTheRemainingSharedTransactionBudget(@TempDir Path temp) throws Exception {
         ShaftCachePaths paths = paths(temp);
         Path node = Files.writeString(temp.resolve("node.exe"), "node");
