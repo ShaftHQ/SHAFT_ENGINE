@@ -313,6 +313,10 @@ final class DefaultAndroidToolchainOperations implements AndroidToolchainOperati
         if (!Files.readString(pointer, StandardCharsets.UTF_8).equals(avdPointerContent(avdRoot()))) {
             return degraded(action, "", "AVD pointer does not match the reviewed request.");
         }
+        if (!avdImageMatchesReviewedRequest()) {
+            return degraded(action, action.version(),
+                    "AVD config does not reference the reviewed Android system image.");
+        }
         ReportingSetupService.ProcessResult acceleration = run(List.of(
                         executable(sdkRoot().resolve("emulator"), "emulator").toString(), "-accel-check"),
                 sdkRoot(), null, null, Duration.ofSeconds(30), androidEnvironment(sdkRoot(), avdHome()));
@@ -332,6 +336,15 @@ final class DefaultAndroidToolchainOperations implements AndroidToolchainOperati
         if (!Files.isRegularFile(metadata, LinkOption.NOFOLLOW_LINKS)
                 || !Files.isRegularFile(config, LinkOption.NOFOLLOW_LINKS)) return false;
         return Files.readString(metadata, StandardCharsets.UTF_8).equals(requestMetadata());
+    }
+
+    private boolean avdImageMatchesReviewedRequest() throws IOException {
+        String expected = systemImage().replace(';', '/');
+        return Files.readAllLines(avdRoot().resolve("config.ini"), StandardCharsets.UTF_8).stream()
+                .filter(line -> line.startsWith("image.sysdir.1="))
+                .map(line -> line.substring("image.sysdir.1=".length()).trim().replace('\\', '/'))
+                .map(value -> value.endsWith("/") ? value.substring(0, value.length() - 1) : value)
+                .anyMatch(expected::equals);
     }
 
     private boolean appiumBundleReady() throws IOException {

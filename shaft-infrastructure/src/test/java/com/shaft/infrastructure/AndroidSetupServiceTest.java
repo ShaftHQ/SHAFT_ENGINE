@@ -136,7 +136,7 @@ class AndroidSetupServiceTest {
             if (command.stream().anyMatch(part -> part.contains("avdmanager"))) {
                 Path staging = Path.of(command.get(command.indexOf("--path") + 1));
                 Files.createDirectories(staging);
-                Files.writeString(staging.resolve("config.ini"), "fixture");
+                Files.writeString(staging.resolve("config.ini"), exactAvdConfig(request));
             }
             return new ReportingSetupService.ProcessResult(0, command.contains("--list_installed")
                     ? exactInstalledPackages() : "fixture");
@@ -200,7 +200,7 @@ class AndroidSetupServiceTest {
         Path avdHome = paths.tools().resolve("android-avd");
         Path avd = avdHome.resolve(request.avdName() + ".avd");
         Files.createDirectories(avd);
-        Files.writeString(avd.resolve("config.ini"), "fixture");
+        Files.writeString(avd.resolve("config.ini"), exactAvdConfig(request));
         Files.writeString(avd.resolve("shaft-request.properties"), requestMetadata(request));
         Files.writeString(avdHome.resolve(request.avdName() + ".ini"),
                 "path=" + avd.toAbsolutePath().normalize() + System.lineSeparator()
@@ -226,6 +226,36 @@ class AndroidSetupServiceTest {
         assertTrue(status.detail().contains("host virtualization is unavailable"));
         assertTrue(commands.stream().anyMatch(command -> command.equals(List.of(
                 sdk.resolve("emulator/emulator.exe").toString(), "-accel-check"))));
+    }
+
+    @Test
+    void avdStatusRejectsConfigPointingAtDifferentSystemImage(@TempDir Path temp) throws Exception {
+        ShaftCachePaths paths = paths(temp);
+        AndroidSetupRequest request = AndroidSetupRequest.defaults().resolve(SetupArchitecture.X64);
+        Path sdk = paths.tools().resolve("android-sdk/15859902-api36-x86_64");
+        createSdkFixture(sdk);
+        Path avdHome = paths.tools().resolve("android-avd");
+        Path avd = avdHome.resolve(request.avdName() + ".avd");
+        Files.createDirectories(avd);
+        Files.writeString(avd.resolve("config.ini"),
+                "image.sysdir.1=system-images/android-35/default/x86_64/\n");
+        Files.writeString(avd.resolve("shaft-request.properties"), requestMetadata(request));
+        Files.writeString(avdHome.resolve(request.avdName() + ".ini"),
+                "path=" + avd.toAbsolutePath().normalize() + System.lineSeparator()
+                        + "path.rel=avd/" + request.avdName() + ".avd" + System.lineSeparator()
+                        + "target=android-" + request.apiLevel() + System.lineSeparator());
+        AndroidCommandRunner runner = (command, workingDirectory, environment, removed, input, log, timeout) ->
+                new ReportingSetupService.ProcessResult(0, "accel: available");
+        DefaultAndroidToolchainOperations operations = new DefaultAndroidToolchainOperations(paths,
+                SetupPlatform.WINDOWS, SetupArchitecture.X64, request,
+                action -> { throw new AssertionError("Status must not fetch."); }, runner, false);
+        SetupAction avdAction = AndroidSetupPlanner.plan(SetupPlatform.WINDOWS, SetupArchitecture.X64,
+                SetupMode.MANAGED, request).actions().getLast();
+
+        SetupStatus status = operations.status(avdAction);
+
+        assertEquals(SetupReadiness.DEGRADED, status.readiness());
+        assertTrue(status.detail().contains("system image"));
     }
 
     @Test
@@ -473,6 +503,11 @@ class AndroidSetupServiceTest {
         return String.join("\n", "api=" + request.apiLevel(), "device=" + request.deviceProfile(),
                 "tag=" + request.imageTag(), "abi=" + request.abi(), "avd=" + request.avdName(),
                 "ramMb=" + request.ramMb(), "cores=" + request.cores(), "port=" + request.appiumPort()) + "\n";
+    }
+
+    private static String exactAvdConfig(AndroidSetupRequest request) {
+        return "image.sysdir.1=system-images/android-" + request.apiLevel() + '/' + request.imageTag() + '/'
+                + request.abi() + "/\n";
     }
 
     private static void createLinuxSdkFixture(Path root) throws IOException {
