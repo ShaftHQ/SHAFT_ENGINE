@@ -219,7 +219,7 @@ public final class PlaywrightSetupService {
             if (Files.notExists(browserRoot(), java.nio.file.LinkOption.NOFOLLOW_LINKS)) {
                 return new SetupStatus(target, SetupReadiness.MISSING, "", "Not installed.");
             }
-            boolean ready = true;
+            boolean ready = releaseMarkerReady(browserRoot());
             for (String required : requiredPaths) {
                 Path path = browserRoot().resolve(required).normalize();
                 VerifiedArtifactStore.requireUnlinkedAncestors(path);
@@ -254,7 +254,21 @@ public final class PlaywrightSetupService {
                 throw new IOException("Playwright installation did not publish an executable payload: " + required);
             }
         }
+        if (!releaseMarkerReady(root)) {
+            throw new IOException("Playwright installation release marker does not match this release.");
+        }
         if (!original.equals(browserRoot())) throw new IllegalStateException("Playwright browser root changed.");
+    }
+
+    private boolean releaseMarkerReady(Path root) throws IOException {
+        Path marker = root.resolve("SHAFT_PLAYWRIGHT_VERSION").normalize();
+        VerifiedArtifactStore.requireUnlinkedAncestors(marker);
+        if (!marker.startsWith(root)
+                || !Files.isRegularFile(marker, java.nio.file.LinkOption.NOFOLLOW_LINKS)) return false;
+        String manifestDigest = PlaywrightSetupPlanner.plan(hostPlatform, architecture, SetupMode.MANAGED)
+                .actions().get(1).dependencyLockChecksum();
+        return Files.readAllLines(marker).equals(List.of(
+                PlaywrightSetupPlanner.PLAYWRIGHT_VERSION, manifestDigest));
     }
 
     private SetupReadiness receiptReadiness() {

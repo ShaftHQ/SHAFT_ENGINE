@@ -167,6 +167,10 @@ class PlaywrightSetupServiceTest {
         assertEquals(SetupReadiness.READY, service.status().readiness());
         assertTrue(Files.isRegularFile(paths.receipts().resolve("playwright.json")));
         assertTrue(Files.isRegularFile(service.browserRoot().resolve("SHAFT_PLAYWRIGHT_VERSION")));
+
+        Files.writeString(service.browserRoot().resolve("SHAFT_PLAYWRIGHT_VERSION"), "1.61.0\nwrong-lock");
+
+        assertEquals(SetupReadiness.DEGRADED, service.status().readiness());
     }
 
     @Test
