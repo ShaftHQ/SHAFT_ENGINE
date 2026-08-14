@@ -66,6 +66,23 @@
   },
   "models": [
     {
+      "id": "qwen3-0.6b-q8_0",
+      "displayName": "Qwen3 0.6B Q8_0",
+      "tier": "lite",
+      "automatic": false,
+      "firstPartyQuantization": true,
+      "license": "Apache-2.0",
+      "source": "Qwen/Qwen3-0.6B-GGUF",
+      "revision": "23749fefcc72300e3a2ad315e1317431b06b590a",
+      "file": "Qwen3-0.6B-Q8_0.gguf",
+      "url": "https://huggingface.co/Qwen/Qwen3-0.6B-GGUF/resolve/23749fefcc72300e3a2ad315e1317431b06b590a/Qwen3-0.6B-Q8_0.gguf",
+      "size": 639446688,
+      "sha256": "9465e63a22add5354d9bb4b99e90117043c7124007664907259bd16d043bb031",
+      "minimumRamGb": 2,
+      "minimumCpuCount": 2,
+      "minimumFreeDiskGb": 3
+    },
+    {
       "id": "qwen3-1.7b-q8_0",
       "displayName": "Qwen3 1.7B Q8_0",
       "tier": "lite",

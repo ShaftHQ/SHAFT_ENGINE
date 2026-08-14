@@ -64,6 +64,15 @@ class ManagedLocalAiHardwareTest {
                 new ManagedLocalAiHardware.Profile("linux-x86_64", true, 32 * GIB, 16, 30 * GIB), null);
         assertEquals("qwen3-4b-q4_k_m", automatic.selectedModelId());
         assertFalse(automatic.models().get("phi-4-mini-q4_k_m").eligible());
+
+        ManagedLocalAiHardware.Profile compactOnly = new ManagedLocalAiHardware.Profile(
+                "linux-x86_64", true, 2 * GIB, 2, 20 * GIB);
+        ManagedLocalAiHardware.Selection noUnbenchmarkedAutomatic = ManagedLocalAiHardware.select(
+                manifest, compactOnly, null);
+        assertEquals(null, noUnbenchmarkedAutomatic.selectedModelId());
+        assertTrue(noUnbenchmarkedAutomatic.models().get("qwen3-0.6b-q8_0").reasons().contains("MANUAL_ONLY"));
+        assertEquals("qwen3-0.6b-q8_0", ManagedLocalAiHardware.select(
+                manifest, compactOnly, "qwen3-0.6b-q8_0").selectedModelId());
     }
 
     @Test

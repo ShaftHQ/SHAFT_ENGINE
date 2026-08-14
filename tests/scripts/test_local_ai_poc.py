@@ -79,7 +79,15 @@ class ManifestAndSelectionTest(unittest.TestCase):
         corpus = MODULE.load_corpus(CORPUS_PATH)
 
         self.assertEqual(6, len(self.manifest["runtime"]["assets"]))
-        self.assertGreaterEqual(len(self.manifest["models"]), 4)
+        self.assertEqual(5, len(self.manifest["models"]))
+        compact = next(model for model in self.manifest["models"] if model["id"] == "qwen3-0.6b-q8_0")
+        self.assertEqual("Qwen/Qwen3-0.6B-GGUF", compact["source"])
+        self.assertEqual("23749fefcc72300e3a2ad315e1317431b06b590a", compact["revision"])
+        self.assertEqual("Qwen3-0.6B-Q8_0.gguf", compact["file"])
+        self.assertEqual(639446688, compact["size"])
+        self.assertEqual("9465e63a22add5354d9bb4b99e90117043c7124007664907259bd16d043bb031", compact["sha256"])
+        self.assertEqual("Apache-2.0", compact["license"])
+        self.assertFalse(compact["automatic"])
         self.assertEqual(
             {
                 "LOCATOR",
@@ -689,6 +697,31 @@ class LifecycleTest(unittest.TestCase):
             "totalRamGb": 24, "availableRamGb": 18, "effectiveRamGb": 16,
             "freeDiskGb": 20, "freeDiskBytes": 20 * 1024**3, "gpuVramGb": 0,
         }
+
+    def test_process_tree_rss_monitor_aborts_and_records_the_exact_peak(self):
+        class Process:
+            pid = 42
+            killed = False
+
+            def poll(self):
+                return None
+
+            def kill(self):
+                self.killed = True
+
+        process = Process()
+        readings = iter((MODULE.MAX_PROCESS_TREE_RSS_BYTES,
+                         MODULE.MAX_PROCESS_TREE_RSS_BYTES + 1))
+        monitor = MODULE.ProcessTreeRssMonitor(
+            process, sampler=lambda _pid: next(readings), aborter=lambda owned: owned.kill()
+        )
+
+        self.assertFalse(monitor.poll_once())
+        self.assertTrue(monitor.poll_once())
+        self.assertTrue(process.killed)
+        self.assertEqual(MODULE.MAX_PROCESS_TREE_RSS_BYTES + 1, monitor.peak_bytes)
+        with self.assertRaisesRegex(RuntimeError, "4 GiB"):
+            monitor.raise_if_failed()
 
     def test_model_ids_and_every_derived_path_are_cache_contained(self):
         for identifier in ("../../escape", "C:escape", "NUL", "bad/id", "bad\\id"):

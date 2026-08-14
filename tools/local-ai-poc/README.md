@@ -54,6 +54,7 @@ Runtime grammar is defense in depth, not the trust boundary. The harness indepen
 
 | Candidate | Pinned artifact | Size | Provenance/license | Role |
 | --- | --- | ---: | --- | --- |
+| [Qwen3 0.6B](https://huggingface.co/Qwen/Qwen3-0.6B-GGUF) | Official Q8_0 GGUF | 639.45 MB | First-party, Apache-2.0 | Approved compact CPU benchmark candidate; automatic use remains blocked until every quality, latency and process-tree RSS gate passes |
 | [Qwen3 1.7B](https://huggingface.co/Qwen/Qwen3-1.7B-GGUF) | Official Q8_0 GGUF | 1.83 GB | First-party, Apache-2.0 | Lite automatic candidate |
 | [Qwen3 4B](https://huggingface.co/Qwen/Qwen3-4B-GGUF) | Official Q4_K_M GGUF | 2.50 GB | First-party, Apache-2.0 | Balanced automatic candidate |
 | [Phi-4 Mini Instruct](https://huggingface.co/microsoft/Phi-4-mini-instruct) | Third-party Q4_K_M conversion | 2.49 GB | MIT base; conversion by Unsloth | Challenger only; automatic use blocked until quantization provenance policy exists |
@@ -63,6 +64,7 @@ The recommendation chooses the largest eligible automatic model using process-vi
 
 Current thresholds are research defaults, not a production promise:
 
+- Compact benchmark override: at least two usable CPUs, 2 GB effective RAM and 3 GB free disk; manual-only until the approved CPU run remains at or below 4 GiB aggregate process-tree RSS and clears every Doctor threshold.
 - Lite: at least four usable CPUs, 8 GB effective RAM and 4 GB free disk.
 - Balanced: at least eight usable CPUs, 16 GB effective RAM and 6 GB free disk.
 - Unsupported or currently pressured hosts: no automatic model; deterministic fallback.
@@ -115,10 +117,10 @@ These commands may run from any directory because the script derives repository 
 py -3 tools/local-ai-poc/local_ai_poc.py inspect
 
 # Explicit, visible large download after resource preflight.
-py -3 tools/local-ai-poc/local_ai_poc.py provision --model qwen3-1.7b-q8_0
+py -3 tools/local-ai-poc/local_ai_poc.py provision --model qwen3-0.6b-q8_0
 
 # Six cases × five repeats; provisions if needed and writes ignored results.
-py -3 tools/local-ai-poc/local_ai_poc.py benchmark --model qwen3-1.7b-q8_0 --repeats 5
+py -3 tools/local-ai-poc/local_ai_poc.py benchmark --model qwen3-0.6b-q8_0 --repeats 5
 
 # Removes only unchanged files owned by the PoC manifest.
 py -3 tools/local-ai-poc/local_ai_poc.py clean
