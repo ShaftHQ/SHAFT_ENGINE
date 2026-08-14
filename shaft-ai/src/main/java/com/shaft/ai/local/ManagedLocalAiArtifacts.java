@@ -493,44 +493,60 @@ final class ManagedLocalAiArtifacts {
         if (!Files.exists(root, LinkOption.NOFOLLOW_LINKS)) {
             return;
         }
-        List<IOException> failures = new ArrayList<>();
-        Files.walkFileTree(root, new java.nio.file.SimpleFileVisitor<>() {
-            @Override
-            public java.nio.file.FileVisitResult preVisitDirectory(Path directory,
-                    java.nio.file.attribute.BasicFileAttributes attributes) {
-                if (!directory.equals(root) && (attributes.isSymbolicLink() || attributes.isOther())) {
-                    return java.nio.file.FileVisitResult.SKIP_SUBTREE;
-                }
-                return java.nio.file.FileVisitResult.CONTINUE;
-            }
+        CreatedTreeDeletionVisitor visitor = new CreatedTreeDeletionVisitor(root);
+        Files.walkFileTree(root, visitor);
+        visitor.throwIfFailed();
+    }
 
-            @Override
-            public java.nio.file.FileVisitResult visitFile(Path file,
-                    java.nio.file.attribute.BasicFileAttributes attributes) throws IOException {
-                if (attributes.isSymbolicLink() || attributes.isOther()) {
-                    return java.nio.file.FileVisitResult.CONTINUE;
-                }
+    private static final class CreatedTreeDeletionVisitor extends java.nio.file.SimpleFileVisitor<Path> {
+        private final Path root;
+        private final List<IOException> failures = new ArrayList<>();
+
+        private CreatedTreeDeletionVisitor(Path root) {
+            this.root = root;
+        }
+
+        @Override
+        public java.nio.file.FileVisitResult preVisitDirectory(Path directory,
+                java.nio.file.attribute.BasicFileAttributes attributes) {
+            if (!directory.equals(root) && (attributes.isSymbolicLink() || attributes.isOther())) {
+                return java.nio.file.FileVisitResult.SKIP_SUBTREE;
+            }
+            return java.nio.file.FileVisitResult.CONTINUE;
+        }
+
+        @Override
+        public java.nio.file.FileVisitResult visitFile(Path file,
+                java.nio.file.attribute.BasicFileAttributes attributes) throws IOException {
+            if (!attributes.isSymbolicLink() && !attributes.isOther()) {
                 Files.deleteIfExists(file);
-                return java.nio.file.FileVisitResult.CONTINUE;
             }
+            return java.nio.file.FileVisitResult.CONTINUE;
+        }
 
-            @Override
-            public java.nio.file.FileVisitResult postVisitDirectory(Path directory, IOException failure) {
-                if (failure != null) {
-                    failures.add(failure);
-                }
-                try {
-                    Files.delete(directory);
-                } catch (java.nio.file.DirectoryNotEmptyException unknownContent) {
-                    // Concurrent unknown or reparse content is preserved.
-                } catch (IOException deleteFailure) {
-                    failures.add(deleteFailure);
-                }
-                return java.nio.file.FileVisitResult.CONTINUE;
+        @Override
+        public java.nio.file.FileVisitResult postVisitDirectory(Path directory, IOException failure) {
+            if (failure != null) {
+                failures.add(failure);
             }
-        });
-        if (!failures.isEmpty()) {
-            throw failures.getFirst();
+            deleteDirectory(directory);
+            return java.nio.file.FileVisitResult.CONTINUE;
+        }
+
+        private void deleteDirectory(Path directory) {
+            try {
+                Files.delete(directory);
+            } catch (java.nio.file.DirectoryNotEmptyException unknownContent) {
+                // Concurrent unknown or reparse content is preserved.
+            } catch (IOException deleteFailure) {
+                failures.add(deleteFailure);
+            }
+        }
+
+        private void throwIfFailed() throws IOException {
+            if (!failures.isEmpty()) {
+                throw failures.getFirst();
+            }
         }
     }
 
