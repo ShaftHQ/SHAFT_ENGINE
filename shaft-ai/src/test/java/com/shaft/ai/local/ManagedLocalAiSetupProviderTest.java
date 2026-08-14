@@ -28,7 +28,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CancellationException;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -178,6 +181,49 @@ class ManagedLocalAiSetupProviderTest {
         assertEquals("IDLE", progress.getLast().phase());
     }
 
+    @Test
+    void interruptedInstallCancelsUnderlyingOperationAndReturnsNoReceipt(@TempDir Path temp) throws Exception {
+        SetupOptions options = options(temp);
+        FakeLifecycle lifecycle = new FakeLifecycle(snapshot(options, ManagedLocalAiSnapshot.State.NOT_PROVISIONED));
+        lifecycle.leaveRunning = true;
+        InfrastructureSetupService setup = setup(lifecycle);
+        SetupPlan plan = setup.plan(options);
+        AtomicReference<Throwable> failure = new AtomicReference<>();
+        Thread install = Thread.ofPlatform().start(() -> {
+            try {
+                setup.install(plan, approval(plan), options);
+            } catch (Throwable thrown) {
+                failure.set(thrown);
+            }
+        });
+
+        assertTrue(lifecycle.provisionStarted.await(5, TimeUnit.SECONDS));
+        install.interrupt();
+        install.join(5_000);
+
+        assertFalse(install.isAlive());
+        assertTrue(failure.get() instanceof IOException);
+        assertTrue(failure.get().getMessage().contains("interrupted"));
+        assertFalse(lifecycle.lastOperation.cancel(), "provider must already have requested cancellation");
+    }
+
+    @Test
+    void failedProvisionCanBeRetriedByAnExplicitFreshInstall(@TempDir Path temp) throws Exception {
+        SetupOptions options = options(temp);
+        FakeLifecycle lifecycle = new FakeLifecycle(snapshot(options, ManagedLocalAiSnapshot.State.NOT_PROVISIONED));
+        InfrastructureSetupService setup = setup(lifecycle);
+        SetupPlan plan = setup.plan(options);
+        lifecycle.failure = new IOException("temporary download failure");
+        assertThrows(IOException.class, () -> setup.install(plan, approval(plan), options));
+
+        lifecycle.failure = null;
+        lifecycle.provisioned = snapshot(options, ManagedLocalAiSnapshot.State.READY);
+        SetupReceipt receipt = setup.install(plan, approval(plan), options);
+
+        assertEquals(plan.actions(), receipt.completedActions());
+        assertEquals(2, lifecycle.provisions.get());
+    }
+
     private static SetupApproval approval(SetupPlan plan) {
         Set<String> licenses = plan.actions().stream().flatMap(action -> action.requiredLicenses().stream())
                 .collect(java.util.stream.Collectors.toSet());
@@ -251,6 +297,9 @@ class ManagedLocalAiSetupProviderTest {
         private ManagedLocalAiSnapshot provisioned;
         private List<ManagedLocalAiSnapshot> progressSnapshots = List.of();
         private Exception failure;
+        private boolean leaveRunning;
+        private final CountDownLatch provisionStarted = new CountDownLatch(1);
+        private ManagedLocalAiOperation lastOperation;
 
         private FakeLifecycle(ManagedLocalAiSnapshot inspected) {
             this.inspected = inspected;
@@ -266,6 +315,9 @@ class ManagedLocalAiSetupProviderTest {
         public ManagedLocalAiOperation provision(Consumer<ManagedLocalAiSnapshot> progress) {
             provisions.incrementAndGet();
             ManagedLocalAiOperation operation = new ManagedLocalAiOperation(inspected);
+            lastOperation = operation;
+            provisionStarted.countDown();
+            if (leaveRunning) return operation;
             if (failure instanceof CancellationException) {
                 operation.cancelled();
             } else if (failure != null) {
