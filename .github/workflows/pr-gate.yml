@@ -592,10 +592,10 @@ jobs:
           java -jar shaft-cli/target/shaft-cli-*[0-9].jar --help
           java -jar shaft-cli/target/shaft-cli-*[0-9].jar setup --help
           java -jar shaft-cli/target/shaft-cli-*[0-9].jar setup catalog --json
-          android_plan="$(mktemp --suffix=.json)"
+          android_plan="$RUNNER_TEMP/shaft-android-plan.json"
           java -jar shaft-cli/target/shaft-cli-*[0-9].jar setup plan --profile MOBILE_ANDROID \
             --mode MANAGED --offline --output "$android_plan"
-          python3 -c "import json; p=json.load(open('$android_plan')); assert len(p['actions']) == 6; assert 'android-sdk-license' in p['actions'][4]['requiredLicenses']"
+          python3 -c "import json,sys; p=json.load(open(sys.argv[1])); assert len(p['actions']) == 6; assert 'android-sdk-license' in p['actions'][4]['requiredLicenses']" "$android_plan"
 
   capture-e2e:
     name: SHAFT Capture Browser E2E

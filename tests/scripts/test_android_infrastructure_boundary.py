@@ -23,6 +23,9 @@ class AndroidInfrastructureBoundaryTest(unittest.TestCase):
         self.assertIn("tests.scripts.test_android_infrastructure_boundary", workflow)
         self.assertIn("setup plan --profile MOBILE_ANDROID", workflow)
         self.assertIn("android-sdk-license", workflow)
+        self.assertIn('android_plan="$RUNNER_TEMP/shaft-android-plan.json"', workflow)
+        self.assertIn("open(sys.argv[1])", workflow)
+        self.assertNotIn('android_plan="$(mktemp', workflow)
 
     def test_real_acceptance_is_gated_and_proves_uiautomator2_and_aapt2(self):
         workflow = (ROOT / ".github/workflows/e2eLocalTests.yml").read_text(encoding="utf-8")
