@@ -55,17 +55,22 @@
 <li><a href="#status()" tabindex="0">status()</a></li>
 <li><a href="#status(com.shaft.infrastructure.SetupOptions)" tabindex="0">status(SetupOptions)</a></li>
 <li><a href="#status(com.shaft.infrastructure.SetupOptions,com.shaft.infrastructure.SetupSelection)" tabindex="0">status(SetupOptions, SetupSelection)</a></li>
+<li><a href="#status(com.shaft.infrastructure.SetupOptions,com.shaft.infrastructure.AndroidSetupRequest)" tabindex="0">status(SetupOptions, AndroidSetupRequest)</a></li>
 <li><a href="#plan()" tabindex="0">plan()</a></li>
 <li><a href="#plan(com.shaft.infrastructure.SetupOptions)" tabindex="0">plan(SetupOptions)</a></li>
 <li><a href="#plan(com.shaft.infrastructure.SetupOptions,com.shaft.infrastructure.SetupSelection)" tabindex="0">plan(SetupOptions, SetupSelection)</a></li>
+<li><a href="#plan(com.shaft.infrastructure.SetupOptions,com.shaft.infrastructure.AndroidSetupRequest)" tabindex="0">plan(SetupOptions, AndroidSetupRequest)</a></li>
 <li><a href="#verify()" tabindex="0">verify()</a></li>
 <li><a href="#verify(com.shaft.infrastructure.SetupOptions)" tabindex="0">verify(SetupOptions)</a></li>
 <li><a href="#verify(com.shaft.infrastructure.SetupOptions,com.shaft.infrastructure.SetupSelection)" tabindex="0">verify(SetupOptions, SetupSelection)</a></li>
+<li><a href="#verify(com.shaft.infrastructure.SetupOptions,com.shaft.infrastructure.AndroidSetupRequest)" tabindex="0">verify(SetupOptions, AndroidSetupRequest)</a></li>
 <li><a href="#install(com.shaft.infrastructure.SetupPlan,com.shaft.infrastructure.SetupApproval)" tabindex="0">install(SetupPlan, SetupApproval)</a></li>
 <li><a href="#install(com.shaft.infrastructure.SetupPlan,com.shaft.infrastructure.SetupApproval,com.shaft.infrastructure.SetupOptions)" tabindex="0">install(SetupPlan, SetupApproval, SetupOptions)</a></li>
 <li><a href="#install(com.shaft.infrastructure.SetupPlan,com.shaft.infrastructure.SetupApproval,com.shaft.infrastructure.SetupOptions,com.shaft.infrastructure.SetupSelection)" tabindex="0">install(SetupPlan, SetupApproval, SetupOptions, SetupSelection)</a></li>
+<li><a href="#install(com.shaft.infrastructure.SetupPlan,com.shaft.infrastructure.SetupApproval,com.shaft.infrastructure.SetupOptions,com.shaft.infrastructure.AndroidSetupRequest)" tabindex="0">install(SetupPlan, SetupApproval, SetupOptions, AndroidSetupRequest)</a></li>
 <li><a href="#start(com.shaft.infrastructure.SetupPlan,com.shaft.infrastructure.SetupApproval)" tabindex="0">start(SetupPlan, SetupApproval)</a></li>
 <li><a href="#start(com.shaft.infrastructure.SetupPlan,com.shaft.infrastructure.SetupApproval,com.shaft.infrastructure.SetupOptions)" tabindex="0">start(SetupPlan, SetupApproval, SetupOptions)</a></li>
+<li><a href="#start(com.shaft.infrastructure.SetupPlan,com.shaft.infrastructure.SetupApproval,com.shaft.infrastructure.SetupOptions,com.shaft.infrastructure.AndroidSetupRequest)" tabindex="0">start(SetupPlan, SetupApproval, SetupOptions, AndroidSetupRequest)</a></li>
 <li><a href="#options()" tabindex="0">options()</a></li>
 </ol>
 </li>
@@ -125,19 +130,29 @@ Read-only methods use <a href="../properties/internal/Properties.html#infrastruc
  <a href="https://shafthq.github.io/shaft-infrastructure/apidocs/com/shaft/infrastructure/SetupOptions.html" title="class or interface in com.shaft.infrastructure" class="external-link">SetupOptions</a>&nbsp;options)</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">&nbsp;</div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static <a href="https://shafthq.github.io/shaft-infrastructure/apidocs/com/shaft/infrastructure/SetupReceipt.html" title="class or interface in com.shaft.infrastructure" class="external-link">SetupReceipt</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#install(com.shaft.infrastructure.SetupPlan,com.shaft.infrastructure.SetupApproval,com.shaft.infrastructure.SetupOptions,com.shaft.infrastructure.SetupSelection)" class="member-name-link">install</a><wbr>(<a href="https://shafthq.github.io/shaft-infrastructure/apidocs/com/shaft/infrastructure/SetupPlan.html" title="class or interface in com.shaft.infrastructure" class="external-link">SetupPlan</a>&nbsp;plan,
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#install(com.shaft.infrastructure.SetupPlan,com.shaft.infrastructure.SetupApproval,com.shaft.infrastructure.SetupOptions,com.shaft.infrastructure.AndroidSetupRequest)" class="member-name-link">install</a><wbr>(<a href="https://shafthq.github.io/shaft-infrastructure/apidocs/com/shaft/infrastructure/SetupPlan.html" title="class or interface in com.shaft.infrastructure" class="external-link">SetupPlan</a>&nbsp;plan,
+ <a href="https://shafthq.github.io/shaft-infrastructure/apidocs/com/shaft/infrastructure/SetupApproval.html" title="class or interface in com.shaft.infrastructure" class="external-link">SetupApproval</a>&nbsp;approval,
+ <a href="https://shafthq.github.io/shaft-infrastructure/apidocs/com/shaft/infrastructure/SetupOptions.html" title="class or interface in com.shaft.infrastructure" class="external-link">SetupOptions</a>&nbsp;options,
+ <a href="https://shafthq.github.io/shaft-infrastructure/apidocs/com/shaft/infrastructure/AndroidSetupRequest.html" title="class or interface in com.shaft.infrastructure" class="external-link">AndroidSetupRequest</a>&nbsp;request)</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">&nbsp;</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static <a href="https://shafthq.github.io/shaft-infrastructure/apidocs/com/shaft/infrastructure/SetupReceipt.html" title="class or interface in com.shaft.infrastructure" class="external-link">SetupReceipt</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#install(com.shaft.infrastructure.SetupPlan,com.shaft.infrastructure.SetupApproval,com.shaft.infrastructure.SetupOptions,com.shaft.infrastructure.SetupSelection)" class="member-name-link">install</a><wbr>(<a href="https://shafthq.github.io/shaft-infrastructure/apidocs/com/shaft/infrastructure/SetupPlan.html" title="class or interface in com.shaft.infrastructure" class="external-link">SetupPlan</a>&nbsp;plan,
  <a href="https://shafthq.github.io/shaft-infrastructure/apidocs/com/shaft/infrastructure/SetupApproval.html" title="class or interface in com.shaft.infrastructure" class="external-link">SetupApproval</a>&nbsp;approval,
  <a href="https://shafthq.github.io/shaft-infrastructure/apidocs/com/shaft/infrastructure/SetupOptions.html" title="class or interface in com.shaft.infrastructure" class="external-link">SetupOptions</a>&nbsp;options,
  <a href="https://shafthq.github.io/shaft-infrastructure/apidocs/com/shaft/infrastructure/SetupSelection.html" title="class or interface in com.shaft.infrastructure" class="external-link">SetupSelection</a>&nbsp;selection)</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">&nbsp;</div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static <a href="https://shafthq.github.io/shaft-infrastructure/apidocs/com/shaft/infrastructure/SetupOptions.html" title="class or interface in com.shaft.infrastructure" class="external-link">SetupOptions</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#options()" class="member-name-link">options</a>()</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">&nbsp;</div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static <a href="https://shafthq.github.io/shaft-infrastructure/apidocs/com/shaft/infrastructure/SetupPlan.html" title="class or interface in com.shaft.infrastructure" class="external-link">SetupPlan</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#plan()" class="member-name-link">plan</a>()</code></div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static <a href="https://shafthq.github.io/shaft-infrastructure/apidocs/com/shaft/infrastructure/SetupOptions.html" title="class or interface in com.shaft.infrastructure" class="external-link">SetupOptions</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#options()" class="member-name-link">options</a>()</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">&nbsp;</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static <a href="https://shafthq.github.io/shaft-infrastructure/apidocs/com/shaft/infrastructure/SetupPlan.html" title="class or interface in com.shaft.infrastructure" class="external-link">SetupPlan</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#plan(com.shaft.infrastructure.SetupOptions)" class="member-name-link">plan</a><wbr>(<a href="https://shafthq.github.io/shaft-infrastructure/apidocs/com/shaft/infrastructure/SetupOptions.html" title="class or interface in com.shaft.infrastructure" class="external-link">SetupOptions</a>&nbsp;options)</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#plan()" class="member-name-link">plan</a>()</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">&nbsp;</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static <a href="https://shafthq.github.io/shaft-infrastructure/apidocs/com/shaft/infrastructure/SetupPlan.html" title="class or interface in com.shaft.infrastructure" class="external-link">SetupPlan</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#plan(com.shaft.infrastructure.SetupOptions)" class="member-name-link">plan</a><wbr>(<a href="https://shafthq.github.io/shaft-infrastructure/apidocs/com/shaft/infrastructure/SetupOptions.html" title="class or interface in com.shaft.infrastructure" class="external-link">SetupOptions</a>&nbsp;options)</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">&nbsp;</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static <a href="https://shafthq.github.io/shaft-infrastructure/apidocs/com/shaft/infrastructure/SetupPlan.html" title="class or interface in com.shaft.infrastructure" class="external-link">SetupPlan</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#plan(com.shaft.infrastructure.SetupOptions,com.shaft.infrastructure.AndroidSetupRequest)" class="member-name-link">plan</a><wbr>(<a href="https://shafthq.github.io/shaft-infrastructure/apidocs/com/shaft/infrastructure/SetupOptions.html" title="class or interface in com.shaft.infrastructure" class="external-link">SetupOptions</a>&nbsp;options,
+ <a href="https://shafthq.github.io/shaft-infrastructure/apidocs/com/shaft/infrastructure/AndroidSetupRequest.html" title="class or interface in com.shaft.infrastructure" class="external-link">AndroidSetupRequest</a>&nbsp;request)</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">&nbsp;</div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static <a href="https://shafthq.github.io/shaft-infrastructure/apidocs/com/shaft/infrastructure/SetupPlan.html" title="class or interface in com.shaft.infrastructure" class="external-link">SetupPlan</a></code></div>
 <div class="col-second odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#plan(com.shaft.infrastructure.SetupOptions,com.shaft.infrastructure.SetupSelection)" class="member-name-link">plan</a><wbr>(<a href="https://shafthq.github.io/shaft-infrastructure/apidocs/com/shaft/infrastructure/SetupOptions.html" title="class or interface in com.shaft.infrastructure" class="external-link">SetupOptions</a>&nbsp;options,
@@ -152,11 +167,21 @@ Read-only methods use <a href="../properties/internal/Properties.html#infrastruc
  <a href="https://shafthq.github.io/shaft-infrastructure/apidocs/com/shaft/infrastructure/SetupApproval.html" title="class or interface in com.shaft.infrastructure" class="external-link">SetupApproval</a>&nbsp;approval,
  <a href="https://shafthq.github.io/shaft-infrastructure/apidocs/com/shaft/infrastructure/SetupOptions.html" title="class or interface in com.shaft.infrastructure" class="external-link">SetupOptions</a>&nbsp;options)</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">&nbsp;</div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static <a href="https://shafthq.github.io/shaft-infrastructure/apidocs/com/shaft/infrastructure/SetupReport.html" title="class or interface in com.shaft.infrastructure" class="external-link">SetupReport</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#status()" class="member-name-link">status</a>()</code></div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static <a href="https://shafthq.github.io/shaft-infrastructure/apidocs/com/shaft/infrastructure/ManagedEnvironment.html" title="class or interface in com.shaft.infrastructure" class="external-link">ManagedEnvironment</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#start(com.shaft.infrastructure.SetupPlan,com.shaft.infrastructure.SetupApproval,com.shaft.infrastructure.SetupOptions,com.shaft.infrastructure.AndroidSetupRequest)" class="member-name-link">start</a><wbr>(<a href="https://shafthq.github.io/shaft-infrastructure/apidocs/com/shaft/infrastructure/SetupPlan.html" title="class or interface in com.shaft.infrastructure" class="external-link">SetupPlan</a>&nbsp;plan,
+ <a href="https://shafthq.github.io/shaft-infrastructure/apidocs/com/shaft/infrastructure/SetupApproval.html" title="class or interface in com.shaft.infrastructure" class="external-link">SetupApproval</a>&nbsp;approval,
+ <a href="https://shafthq.github.io/shaft-infrastructure/apidocs/com/shaft/infrastructure/SetupOptions.html" title="class or interface in com.shaft.infrastructure" class="external-link">SetupOptions</a>&nbsp;options,
+ <a href="https://shafthq.github.io/shaft-infrastructure/apidocs/com/shaft/infrastructure/AndroidSetupRequest.html" title="class or interface in com.shaft.infrastructure" class="external-link">AndroidSetupRequest</a>&nbsp;request)</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">&nbsp;</div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static <a href="https://shafthq.github.io/shaft-infrastructure/apidocs/com/shaft/infrastructure/SetupReport.html" title="class or interface in com.shaft.infrastructure" class="external-link">SetupReport</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#status(com.shaft.infrastructure.SetupOptions)" class="member-name-link">status</a><wbr>(<a href="https://shafthq.github.io/shaft-infrastructure/apidocs/com/shaft/infrastructure/SetupOptions.html" title="class or interface in com.shaft.infrastructure" class="external-link">SetupOptions</a>&nbsp;options)</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#status()" class="member-name-link">status</a>()</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">&nbsp;</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static <a href="https://shafthq.github.io/shaft-infrastructure/apidocs/com/shaft/infrastructure/SetupReport.html" title="class or interface in com.shaft.infrastructure" class="external-link">SetupReport</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#status(com.shaft.infrastructure.SetupOptions)" class="member-name-link">status</a><wbr>(<a href="https://shafthq.github.io/shaft-infrastructure/apidocs/com/shaft/infrastructure/SetupOptions.html" title="class or interface in com.shaft.infrastructure" class="external-link">SetupOptions</a>&nbsp;options)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">&nbsp;</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static <a href="https://shafthq.github.io/shaft-infrastructure/apidocs/com/shaft/infrastructure/SetupReport.html" title="class or interface in com.shaft.infrastructure" class="external-link">SetupReport</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#status(com.shaft.infrastructure.SetupOptions,com.shaft.infrastructure.AndroidSetupRequest)" class="member-name-link">status</a><wbr>(<a href="https://shafthq.github.io/shaft-infrastructure/apidocs/com/shaft/infrastructure/SetupOptions.html" title="class or interface in com.shaft.infrastructure" class="external-link">SetupOptions</a>&nbsp;options,
+ <a href="https://shafthq.github.io/shaft-infrastructure/apidocs/com/shaft/infrastructure/AndroidSetupRequest.html" title="class or interface in com.shaft.infrastructure" class="external-link">AndroidSetupRequest</a>&nbsp;request)</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">&nbsp;</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static <a href="https://shafthq.github.io/shaft-infrastructure/apidocs/com/shaft/infrastructure/SetupReport.html" title="class or interface in com.shaft.infrastructure" class="external-link">SetupReport</a></code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#status(com.shaft.infrastructure.SetupOptions,com.shaft.infrastructure.SetupSelection)" class="member-name-link">status</a><wbr>(<a href="https://shafthq.github.io/shaft-infrastructure/apidocs/com/shaft/infrastructure/SetupOptions.html" title="class or interface in com.shaft.infrastructure" class="external-link">SetupOptions</a>&nbsp;options,
@@ -169,9 +194,13 @@ Read-only methods use <a href="../properties/internal/Properties.html#infrastruc
 <div class="col-second even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#verify(com.shaft.infrastructure.SetupOptions)" class="member-name-link">verify</a><wbr>(<a href="https://shafthq.github.io/shaft-infrastructure/apidocs/com/shaft/infrastructure/SetupOptions.html" title="class or interface in com.shaft.infrastructure" class="external-link">SetupOptions</a>&nbsp;options)</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">&nbsp;</div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static <a href="https://shafthq.github.io/shaft-infrastructure/apidocs/com/shaft/infrastructure/SetupReport.html" title="class or interface in com.shaft.infrastructure" class="external-link">SetupReport</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#verify(com.shaft.infrastructure.SetupOptions,com.shaft.infrastructure.SetupSelection)" class="member-name-link">verify</a><wbr>(<a href="https://shafthq.github.io/shaft-infrastructure/apidocs/com/shaft/infrastructure/SetupOptions.html" title="class or interface in com.shaft.infrastructure" class="external-link">SetupOptions</a>&nbsp;options,
- <a href="https://shafthq.github.io/shaft-infrastructure/apidocs/com/shaft/infrastructure/SetupSelection.html" title="class or interface in com.shaft.infrastructure" class="external-link">SetupSelection</a>&nbsp;selection)</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#verify(com.shaft.infrastructure.SetupOptions,com.shaft.infrastructure.AndroidSetupRequest)" class="member-name-link">verify</a><wbr>(<a href="https://shafthq.github.io/shaft-infrastructure/apidocs/com/shaft/infrastructure/SetupOptions.html" title="class or interface in com.shaft.infrastructure" class="external-link">SetupOptions</a>&nbsp;options,
+ <a href="https://shafthq.github.io/shaft-infrastructure/apidocs/com/shaft/infrastructure/AndroidSetupRequest.html" title="class or interface in com.shaft.infrastructure" class="external-link">AndroidSetupRequest</a>&nbsp;request)</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">&nbsp;</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static <a href="https://shafthq.github.io/shaft-infrastructure/apidocs/com/shaft/infrastructure/SetupReport.html" title="class or interface in com.shaft.infrastructure" class="external-link">SetupReport</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#verify(com.shaft.infrastructure.SetupOptions,com.shaft.infrastructure.SetupSelection)" class="member-name-link">verify</a><wbr>(<a href="https://shafthq.github.io/shaft-infrastructure/apidocs/com/shaft/infrastructure/SetupOptions.html" title="class or interface in com.shaft.infrastructure" class="external-link">SetupOptions</a>&nbsp;options,
+ <a href="https://shafthq.github.io/shaft-infrastructure/apidocs/com/shaft/infrastructure/SetupSelection.html" title="class or interface in com.shaft.infrastructure" class="external-link">SetupSelection</a>&nbsp;selection)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">&nbsp;</div>
 </div>
 </div>
 </div>
@@ -239,6 +268,15 @@ Read-only methods use <a href="../properties/internal/Properties.html#infrastruc
 </section>
 </li>
 <li>
+<section class="detail" id="status(com.shaft.infrastructure.SetupOptions,com.shaft.infrastructure.AndroidSetupRequest)">
+<h3>status</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public static</span>&nbsp;<span class="return-type"><a href="https://shafthq.github.io/shaft-infrastructure/apidocs/com/shaft/infrastructure/SetupReport.html" title="class or interface in com.shaft.infrastructure" class="external-link">SetupReport</a></span>&nbsp;<span class="element-name">status</span><wbr><span class="parameters">(<a href="https://shafthq.github.io/shaft-infrastructure/apidocs/com/shaft/infrastructure/SetupOptions.html" title="class or interface in com.shaft.infrastructure" class="external-link">SetupOptions</a>&nbsp;options,
+ <a href="https://shafthq.github.io/shaft-infrastructure/apidocs/com/shaft/infrastructure/AndroidSetupRequest.html" title="class or interface in com.shaft.infrastructure" class="external-link">AndroidSetupRequest</a>&nbsp;request)</span></div>
+</div>
+</section>
+</li>
+<li>
 <section class="detail" id="plan()">
 <h3>plan</h3>
 <div class="horizontal-scroll">
@@ -264,6 +302,15 @@ Read-only methods use <a href="../properties/internal/Properties.html#infrastruc
 </section>
 </li>
 <li>
+<section class="detail" id="plan(com.shaft.infrastructure.SetupOptions,com.shaft.infrastructure.AndroidSetupRequest)">
+<h3>plan</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public static</span>&nbsp;<span class="return-type"><a href="https://shafthq.github.io/shaft-infrastructure/apidocs/com/shaft/infrastructure/SetupPlan.html" title="class or interface in com.shaft.infrastructure" class="external-link">SetupPlan</a></span>&nbsp;<span class="element-name">plan</span><wbr><span class="parameters">(<a href="https://shafthq.github.io/shaft-infrastructure/apidocs/com/shaft/infrastructure/SetupOptions.html" title="class or interface in com.shaft.infrastructure" class="external-link">SetupOptions</a>&nbsp;options,
+ <a href="https://shafthq.github.io/shaft-infrastructure/apidocs/com/shaft/infrastructure/AndroidSetupRequest.html" title="class or interface in com.shaft.infrastructure" class="external-link">AndroidSetupRequest</a>&nbsp;request)</span></div>
+</div>
+</section>
+</li>
+<li>
 <section class="detail" id="verify()">
 <h3>verify</h3>
 <div class="horizontal-scroll">
@@ -285,6 +332,15 @@ Read-only methods use <a href="../properties/internal/Properties.html#infrastruc
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="modifiers">public static</span>&nbsp;<span class="return-type"><a href="https://shafthq.github.io/shaft-infrastructure/apidocs/com/shaft/infrastructure/SetupReport.html" title="class or interface in com.shaft.infrastructure" class="external-link">SetupReport</a></span>&nbsp;<span class="element-name">verify</span><wbr><span class="parameters">(<a href="https://shafthq.github.io/shaft-infrastructure/apidocs/com/shaft/infrastructure/SetupOptions.html" title="class or interface in com.shaft.infrastructure" class="external-link">SetupOptions</a>&nbsp;options,
  <a href="https://shafthq.github.io/shaft-infrastructure/apidocs/com/shaft/infrastructure/SetupSelection.html" title="class or interface in com.shaft.infrastructure" class="external-link">SetupSelection</a>&nbsp;selection)</span></div>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="verify(com.shaft.infrastructure.SetupOptions,com.shaft.infrastructure.AndroidSetupRequest)">
+<h3>verify</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public static</span>&nbsp;<span class="return-type"><a href="https://shafthq.github.io/shaft-infrastructure/apidocs/com/shaft/infrastructure/SetupReport.html" title="class or interface in com.shaft.infrastructure" class="external-link">SetupReport</a></span>&nbsp;<span class="element-name">verify</span><wbr><span class="parameters">(<a href="https://shafthq.github.io/shaft-infrastructure/apidocs/com/shaft/infrastructure/SetupOptions.html" title="class or interface in com.shaft.infrastructure" class="external-link">SetupOptions</a>&nbsp;options,
+ <a href="https://shafthq.github.io/shaft-infrastructure/apidocs/com/shaft/infrastructure/AndroidSetupRequest.html" title="class or interface in com.shaft.infrastructure" class="external-link">AndroidSetupRequest</a>&nbsp;request)</span></div>
 </div>
 </section>
 </li>
@@ -334,6 +390,22 @@ Read-only methods use <a href="../properties/internal/Properties.html#infrastruc
 </section>
 </li>
 <li>
+<section class="detail" id="install(com.shaft.infrastructure.SetupPlan,com.shaft.infrastructure.SetupApproval,com.shaft.infrastructure.SetupOptions,com.shaft.infrastructure.AndroidSetupRequest)">
+<h3>install</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public static</span>&nbsp;<span class="return-type"><a href="https://shafthq.github.io/shaft-infrastructure/apidocs/com/shaft/infrastructure/SetupReceipt.html" title="class or interface in com.shaft.infrastructure" class="external-link">SetupReceipt</a></span>&nbsp;<span class="element-name">install</span><wbr><span class="parameters">(<a href="https://shafthq.github.io/shaft-infrastructure/apidocs/com/shaft/infrastructure/SetupPlan.html" title="class or interface in com.shaft.infrastructure" class="external-link">SetupPlan</a>&nbsp;plan,
+ <a href="https://shafthq.github.io/shaft-infrastructure/apidocs/com/shaft/infrastructure/SetupApproval.html" title="class or interface in com.shaft.infrastructure" class="external-link">SetupApproval</a>&nbsp;approval,
+ <a href="https://shafthq.github.io/shaft-infrastructure/apidocs/com/shaft/infrastructure/SetupOptions.html" title="class or interface in com.shaft.infrastructure" class="external-link">SetupOptions</a>&nbsp;options,
+ <a href="https://shafthq.github.io/shaft-infrastructure/apidocs/com/shaft/infrastructure/AndroidSetupRequest.html" title="class or interface in com.shaft.infrastructure" class="external-link">AndroidSetupRequest</a>&nbsp;request)</span>
+                            throws <span class="exceptions"><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/io/IOException.html" title="class or interface in java.io" class="external-link">IOException</a></span></div>
+<dl class="notes">
+<dt>Throws:</dt>
+<dd><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/io/IOException.html" title="class or interface in java.io" class="external-link">IOException</a></code></dd>
+</dl>
+</div>
+</section>
+</li>
+<li>
 <section class="detail" id="start(com.shaft.infrastructure.SetupPlan,com.shaft.infrastructure.SetupApproval)">
 <h3>start</h3>
 <div class="horizontal-scroll">
@@ -354,6 +426,22 @@ Read-only methods use <a href="../properties/internal/Properties.html#infrastruc
 <div class="member-signature"><span class="modifiers">public static</span>&nbsp;<span class="return-type"><a href="https://shafthq.github.io/shaft-infrastructure/apidocs/com/shaft/infrastructure/ManagedEnvironment.html" title="class or interface in com.shaft.infrastructure" class="external-link">ManagedEnvironment</a></span>&nbsp;<span class="element-name">start</span><wbr><span class="parameters">(<a href="https://shafthq.github.io/shaft-infrastructure/apidocs/com/shaft/infrastructure/SetupPlan.html" title="class or interface in com.shaft.infrastructure" class="external-link">SetupPlan</a>&nbsp;plan,
  <a href="https://shafthq.github.io/shaft-infrastructure/apidocs/com/shaft/infrastructure/SetupApproval.html" title="class or interface in com.shaft.infrastructure" class="external-link">SetupApproval</a>&nbsp;approval,
  <a href="https://shafthq.github.io/shaft-infrastructure/apidocs/com/shaft/infrastructure/SetupOptions.html" title="class or interface in com.shaft.infrastructure" class="external-link">SetupOptions</a>&nbsp;options)</span>
+                                throws <span class="exceptions"><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/io/IOException.html" title="class or interface in java.io" class="external-link">IOException</a></span></div>
+<dl class="notes">
+<dt>Throws:</dt>
+<dd><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/io/IOException.html" title="class or interface in java.io" class="external-link">IOException</a></code></dd>
+</dl>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="start(com.shaft.infrastructure.SetupPlan,com.shaft.infrastructure.SetupApproval,com.shaft.infrastructure.SetupOptions,com.shaft.infrastructure.AndroidSetupRequest)">
+<h3>start</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public static</span>&nbsp;<span class="return-type"><a href="https://shafthq.github.io/shaft-infrastructure/apidocs/com/shaft/infrastructure/ManagedEnvironment.html" title="class or interface in com.shaft.infrastructure" class="external-link">ManagedEnvironment</a></span>&nbsp;<span class="element-name">start</span><wbr><span class="parameters">(<a href="https://shafthq.github.io/shaft-infrastructure/apidocs/com/shaft/infrastructure/SetupPlan.html" title="class or interface in com.shaft.infrastructure" class="external-link">SetupPlan</a>&nbsp;plan,
+ <a href="https://shafthq.github.io/shaft-infrastructure/apidocs/com/shaft/infrastructure/SetupApproval.html" title="class or interface in com.shaft.infrastructure" class="external-link">SetupApproval</a>&nbsp;approval,
+ <a href="https://shafthq.github.io/shaft-infrastructure/apidocs/com/shaft/infrastructure/SetupOptions.html" title="class or interface in com.shaft.infrastructure" class="external-link">SetupOptions</a>&nbsp;options,
+ <a href="https://shafthq.github.io/shaft-infrastructure/apidocs/com/shaft/infrastructure/AndroidSetupRequest.html" title="class or interface in com.shaft.infrastructure" class="external-link">AndroidSetupRequest</a>&nbsp;request)</span>
                                 throws <span class="exceptions"><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/io/IOException.html" title="class or interface in java.io" class="external-link">IOException</a></span></div>
 <dl class="notes">
 <dt>Throws:</dt>
