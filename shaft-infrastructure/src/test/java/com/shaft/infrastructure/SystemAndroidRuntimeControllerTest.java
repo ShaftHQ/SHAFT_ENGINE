@@ -26,7 +26,7 @@ class SystemAndroidRuntimeControllerTest {
         try {
             awaitCommandChange(process.pid(), "/bin/sh", Duration.ofSeconds(5));
 
-            String postExecIdentity = process.commandIdentity();
+            String postExecIdentity = awaitReusableIdentity(controller, process, Duration.ofSeconds(5));
             assertTrue(!postExecIdentity.contains("/bin/sh"));
             assertTrue(controller.find(process.pid(), process.startInstant(), postExecIdentity).isPresent());
         } finally {
@@ -118,6 +118,22 @@ class SystemAndroidRuntimeControllerTest {
             Thread.sleep(Duration.ofMillis(10));
         }
         throw new AssertionError("Timed out waiting for the child process exec transition.");
+    }
+
+    private static String awaitReusableIdentity(SystemAndroidRuntimeController controller, AndroidOwnedProcess process,
+                                                Duration timeout) throws Exception {
+        long deadline = System.nanoTime() + timeout.toNanos();
+        java.io.IOException last = null;
+        while (System.nanoTime() < deadline) {
+            String identity = process.commandIdentity();
+            try {
+                if (controller.find(process.pid(), process.startInstant(), identity).isPresent()) return identity;
+            } catch (java.io.IOException changingIdentity) {
+                last = changingIdentity;
+            }
+            Thread.sleep(Duration.ofMillis(10));
+        }
+        throw new java.io.IOException("Timed out waiting for a reusable post-exec process identity.", last);
     }
 
     private static Path javaExecutable() {

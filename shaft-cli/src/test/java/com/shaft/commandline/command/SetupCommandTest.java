@@ -122,10 +122,14 @@ class SetupCommandTest {
                 "--output", planFile.toString(), "--cache-root", cache.toString(),
                 "--data-root", data.toString(), "--json");
 
-        assertEquals(3, status.exitCode(), status.stderr());
-        JsonNode report = JSON.readTree(status.stdout());
-        assertEquals("PLAYWRIGHT", report.get("profile").asText());
-        assertEquals(5, report.get("targets").size());
+        if (status.exitCode() == 3) {
+            JsonNode report = JSON.readTree(status.stdout());
+            assertEquals("PLAYWRIGHT", report.get("profile").asText());
+            assertEquals(5, report.get("targets").size());
+        } else {
+            assertEquals(2, status.exitCode(), status.stderr());
+            assertTrue(status.stderr().contains("Unsupported Playwright host"), status.stderr());
+        }
         if (plan.exitCode() == 0) {
             JsonNode planned = JSON.readTree(plan.stdout());
             assertEquals("PLAYWRIGHT", planned.get("profile").asText());

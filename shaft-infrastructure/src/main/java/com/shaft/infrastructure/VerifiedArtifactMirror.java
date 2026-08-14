@@ -58,7 +58,9 @@ final class VerifiedArtifactMirror implements AutoCloseable {
         });
         VerifiedArtifactMirror mirror = new VerifiedArtifactMirror(server, executor, Map.copyOf(verified));
         server.createContext("/", mirror::handle);
-        server.createContext("//", mirror::handle);
+        for (String requestPath : verified.keySet()) {
+            server.createContext('/' + requestPath, mirror::handle);
+        }
         server.setExecutor(executor);
         server.start();
         return mirror;
