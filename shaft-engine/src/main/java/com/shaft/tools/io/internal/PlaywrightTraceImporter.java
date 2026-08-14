@@ -38,6 +38,11 @@ final class PlaywrightTraceImporter {
     static ImportedTrace importTrace(Path archive, List<TraceEventRecorder.ActionEvent> shaftActions)
             throws IOException {
         PlaywrightTraceArchiveLoader.LoadedArchive loaded = PlaywrightTraceArchiveLoader.load(archive);
+        return importTrace(loaded, shaftActions);
+    }
+
+    static ImportedTrace importTrace(PlaywrightTraceArchiveLoader.LoadedArchive loaded,
+                                     List<TraceEventRecorder.ActionEvent> shaftActions) throws IOException {
         List<TraceContext> contexts = new ArrayList<>();
         ActionBudget actionBudget = new ActionBudget(MAX_ACTIONS);
         for (String name : loaded.traceEntryNames()) {

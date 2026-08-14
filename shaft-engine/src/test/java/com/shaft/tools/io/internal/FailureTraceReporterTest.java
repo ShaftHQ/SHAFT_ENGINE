@@ -1747,15 +1747,32 @@ public class FailureTraceReporterTest {
                         + "\"wallTime\":" + actionStart + ",\"monotonicTime\":100}\n"
                         + "{\"type\":\"before\",\"callId\":\"call@1\",\"startTime\":100,"
                         + "\"class\":\"Frame\",\"method\":\"click\",\"title\":\"Click Save\","
-                        + "\"params\":{},\"stepId\":\"step@1\",\"beforeSnapshot\":\"before@call@1\"}\n"
+                        + "\"params\":{},\"stepId\":\"step@1\",\"beforeSnapshot\":\"before@call@1\","
+                        + "\"stack\":[{\"file\":\"CheckoutTest.java\",\"line\":42,\"column\":7}]}\n"
                         + "{\"type\":\"log\",\"callId\":\"call@1\",\"message\":\"attempting click\"}\n"
                         + "{\"type\":\"after\",\"callId\":\"call@1\",\"endTime\":110,"
-                        + "\"afterSnapshot\":\"after@call@1\"}\n");
+                        + "\"inputSnapshot\":\"input@call@1\",\"afterSnapshot\":\"after@call@1\","
+                        + "\"error\":{\"message\":\"button moved\"}}\n"
+                        + "{\"type\":\"frame-snapshot\",\"snapshot\":{\"callId\":\"call@1\","
+                        + "\"snapshotName\":\"before@call@1\",\"pageId\":\"page@1\","
+                        + "\"frameId\":\"frame@1\",\"frameUrl\":\"https://example.test/checkout\","
+                        + "\"html\":[\"HTML\",{},[\"BODY\",{},[\"BUTTON\",{\"id\":\"save\"},"
+                        + "\"Save before\"]]],\"timestamp\":101,\"isMainFrame\":true}}\n"
+                        + "{\"type\":\"frame-snapshot\",\"snapshot\":{\"callId\":\"call@1\","
+                        + "\"snapshotName\":\"input@call@1\",\"pageId\":\"page@1\","
+                        + "\"frameId\":\"frame@1\",\"frameUrl\":\"https://example.test/checkout\","
+                        + "\"html\":[\"HTML\",{},[\"BODY\",{},\"Save input\"]],"
+                        + "\"timestamp\":105,\"isMainFrame\":true}}\n"
+                        + "{\"type\":\"frame-snapshot\",\"snapshot\":{\"callId\":\"call@1\","
+                        + "\"snapshotName\":\"after@call@1\",\"pageId\":\"page@1\","
+                        + "\"frameId\":\"frame@1\",\"frameUrl\":\"https://example.test/checkout\","
+                        + "\"html\":[\"HTML\",{},[\"BODY\",{},\"Save after\"]],"
+                        + "\"timestamp\":109,\"isMainFrame\":true}}\n");
         try (MockedStatic<PlaywrightTraceManager> traceManager = Mockito.mockStatic(PlaywrightTraceManager.class);
-             MockedStatic<PlaywrightTraceImporter> importer = Mockito.mockStatic(PlaywrightTraceImporter.class,
+             MockedStatic<PlaywrightTraceArchiveLoader> loader = Mockito.mockStatic(PlaywrightTraceArchiveLoader.class,
                      Mockito.CALLS_REAL_METHODS)) {
             traceManager.when(PlaywrightTraceManager::getLastTracePath).thenReturn(archive);
-            importer.when(() -> PlaywrightTraceImporter.importTrace(Mockito.any(Path.class), Mockito.anyList()))
+            loader.when(() -> PlaywrightTraceArchiveLoader.load(Mockito.any(Path.class)))
                     .thenAnswer(invocation -> {
                         Files.deleteIfExists(archive);
                         return invocation.callRealMethod();
@@ -1770,6 +1787,20 @@ public class FailureTraceReporterTest {
             Assert.assertEquals(playwright.path("actions").get(0).path("callId").asText(), "call@1");
             Assert.assertEquals(playwright.path("actions").get(0).path("logs").get(0).asText(),
                     "attempting click");
+            Assert.assertEquals(playwright.path("actions").get(0).path("source").asText(),
+                    "CheckoutTest.java:42:7");
+            Assert.assertEquals(playwright.path("actions").get(0).path("error").asText(), "button moved");
+            Assert.assertEquals(playwright.path("snapshots").size(), 3, root.toPrettyString());
+            Assert.assertEquals(playwright.path("snapshots").path("before@call@1").path("status").asText(),
+                    "available", root.toPrettyString());
+            Assert.assertEquals(playwright.path("snapshots").path("before@call@1").path("fidelity").asText(),
+                    "native-offline", root.toPrettyString());
+            Assert.assertTrue(playwright.path("snapshots").path("before@call@1").path("content").asText()
+                    .contains("Save before"), root.toPrettyString());
+            Assert.assertTrue(playwright.path("snapshots").path("input@call@1").path("content").asText()
+                    .contains("Save input"), root.toPrettyString());
+            Assert.assertTrue(playwright.path("snapshots").path("after@call@1").path("content").asText()
+                    .contains("Save after"), root.toPrettyString());
             Assert.assertEquals(playwright.path("correlations").size(), 1, root.toPrettyString());
             Assert.assertEquals(playwright.path("correlations").get(0).path("shaftActionId").asText(), "action-1");
             Assert.assertEquals(playwright.path("correlations").get(0).path("playwrightCallId").asText(), "call@1");
@@ -1778,6 +1809,8 @@ public class FailureTraceReporterTest {
             Assert.assertEquals(root.path("session").path("schemaVersion").asText(), "2.0");
             Assert.assertEquals(root.path("session").path("events").get(0).path("metadata")
                     .path("playwrightCallId").asText(), "call@1");
+            Assert.assertFalse(root.path("session").path("events").get(0).path("metadata")
+                    .has("playwrightSnapshot"), root.toPrettyString());
             traceManager.verify(PlaywrightTraceManager::getLastTracePath, Mockito.times(1));
             Assert.assertFalse(Files.exists(archive),
                     "The original generation must be removable after manifest staging and before import.");

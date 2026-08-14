@@ -86,6 +86,7 @@ public final class FailureTraceReporter {
     private static final int NUMERIC_TOKEN_LIMIT = 256;
     private static final int NUMERIC_TOKEN_LENGTH_LIMIT = 128;
     private static final int MAX_PLAYWRIGHT_EVIDENCE_BYTES = 512 * 1024;
+    private static final int MAX_PLAYWRIGHT_SNAPSHOT_BYTES = 128 * 1024;
     private static final String SENSITIVE_BOUNDS_OMISSION =
             "[evidence omitted because sensitive-value bounds were exceeded]";
     private static final ConcurrentMap<String, AtomicInteger> ATTEMPT_COUNTERS = new ConcurrentHashMap<>();
@@ -278,8 +279,9 @@ public final class FailureTraceReporter {
             return new PlaywrightEvidence(actions, playwrightEvidenceJson("unavailable", reason));
         }
         try {
-            PlaywrightTraceImporter.ImportedTrace imported = PlaywrightTraceImporter.importTrace(nativeTrace, actions);
-            String json = availablePlaywrightEvidenceJson(imported);
+            PlaywrightTraceArchiveLoader.LoadedArchive loaded = PlaywrightTraceArchiveLoader.load(nativeTrace);
+            PlaywrightTraceImporter.ImportedTrace imported = PlaywrightTraceImporter.importTrace(loaded, actions);
+            String json = availablePlaywrightEvidenceJson(imported, loaded);
             if (json == null) {
                 return new PlaywrightEvidence(actions, playwrightEvidenceJson("omitted-budget",
                         "Playwright action evidence exceeded its bounded report budget."));
@@ -303,7 +305,8 @@ public final class FailureTraceReporter {
         return JSON.writeValueAsString(root);
     }
 
-    private static String availablePlaywrightEvidenceJson(PlaywrightTraceImporter.ImportedTrace imported) {
+    private static String availablePlaywrightEvidenceJson(PlaywrightTraceImporter.ImportedTrace imported,
+                                                           PlaywrightTraceArchiveLoader.LoadedArchive archive) {
         BoundedJson json = new BoundedJson(MAX_PLAYWRIGHT_EVIDENCE_BYTES);
         if (!json.append("{\"status\":\"available\",\"reason\":\"\",\"actions\":[")) {
             return null;
@@ -343,7 +346,50 @@ public final class FailureTraceReporter {
                 return null;
             }
         }
-        return json.append("]}") ? json.toString() : null;
+        if (!json.append("],\"snapshots\":{")) {
+            return null;
+        }
+        List<String> snapshotNames = imported.actions().stream()
+                .flatMap(action -> java.util.stream.Stream.of(
+                        action.beforeSnapshot(), action.inputSnapshot(), action.afterSnapshot()))
+                .filter(name -> name != null && !name.isBlank())
+                .distinct()
+                .toList();
+        Map<String, String> documents;
+        try {
+            documents = PlaywrightTraceOfflineAdapter.snapshotDocuments(
+                    archive, snapshotNames, MAX_PLAYWRIGHT_SNAPSHOT_BYTES);
+        } catch (IllegalArgumentException exception) {
+            documents = Map.of();
+        }
+        for (int index = 0; index < snapshotNames.size(); index++) {
+            String snapshotName = snapshotNames.get(index);
+            ObjectNode snapshot = JSON.createObjectNode();
+            String document = documents.get(snapshotName);
+            if (document == null) {
+                snapshot.put("status", "unavailable");
+                snapshot.put("fidelity", "omitted");
+                snapshot.put("content", "");
+            } else {
+                snapshot.put("status", "available");
+                snapshot.put("fidelity", "native-offline");
+                snapshot.put("content", document);
+            }
+            String property = (index == 0 ? "" : ",") + JSON.writeValueAsString(snapshotName)
+                    + ":" + JSON.writeValueAsString(snapshot);
+            if (!json.append(property)) {
+                ObjectNode omitted = JSON.createObjectNode();
+                omitted.put("status", "omitted-budget");
+                omitted.put("fidelity", "omitted");
+                omitted.put("content", "");
+                String fallback = (index == 0 ? "" : ",") + JSON.writeValueAsString(snapshotName)
+                        + ":" + JSON.writeValueAsString(omitted);
+                if (!json.append(fallback)) {
+                    return null;
+                }
+            }
+        }
+        return json.append("}}") ? json.toString() : null;
     }
 
     private static final class BoundedJson {

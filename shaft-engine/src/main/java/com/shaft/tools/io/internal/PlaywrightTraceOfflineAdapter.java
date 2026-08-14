@@ -9,6 +9,7 @@ import java.util.ArrayList;
 import java.util.Base64;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -59,13 +60,34 @@ final class PlaywrightTraceOfflineAdapter {
 
     static String snapshotDocument(PlaywrightTraceArchiveLoader.LoadedArchive archive, String snapshotName) {
         Model model = model(archive);
+        return snapshotDocument(model, snapshotName, MAX_RENDER_BYTES);
+    }
+
+    static Map<String, String> snapshotDocuments(PlaywrightTraceArchiveLoader.LoadedArchive archive,
+                                                  List<String> snapshotNames, int maximumBytesPerSnapshot) {
+        Model model = model(archive);
+        Map<String, String> documents = new LinkedHashMap<>();
+        for (String snapshotName : snapshotNames) {
+            try {
+                documents.put(snapshotName, snapshotDocument(model, snapshotName, maximumBytesPerSnapshot));
+            } catch (IllegalArgumentException exception) {
+                // Keep valid sibling snapshots available when one capture is absent or exceeds its own budget.
+            }
+        }
+        return Map.copyOf(documents);
+    }
+
+    private static String snapshotDocument(Model model, String snapshotName, int maximumBytes) {
+        if (maximumBytes <= 0 || maximumBytes > MAX_RENDER_BYTES) {
+            throw new IllegalArgumentException("Invalid Playwright snapshot render limit.");
+        }
         SnapshotContext selected = model.snapshots().stream()
                 .filter(context -> snapshotName.equals(context.snapshot().path("snapshotName").asText()))
                 .filter(context -> context.snapshot().path("isMainFrame").asBoolean(false))
                 .findFirst()
                 .orElseThrow(() -> new IllegalArgumentException(
                         "Main-frame Playwright snapshot is unavailable: " + snapshotName));
-        RenderBudget output = new RenderBudget();
+        RenderBudget output = new RenderBudget(maximumBytes);
         renderNode(selected.snapshot().path("html"), selected, selected, model, output, 0);
         String doctype = selected.snapshot().path("doctype").asText().replaceAll("[^a-zA-Z0-9]", "");
         return (doctype.isBlank() ? "" : "<!DOCTYPE " + doctype + ">") + output.value();
@@ -573,8 +595,17 @@ final class PlaywrightTraceOfflineAdapter {
     private static final class RenderBudget {
         private final StringBuilder value = new StringBuilder();
         private final CssSourceBudget cssSources = new CssSourceBudget();
+        private final int maximumBytes;
         private int bytes;
         private int nodes;
+
+        private RenderBudget() {
+            this(MAX_RENDER_BYTES);
+        }
+
+        private RenderBudget(int maximumBytes) {
+            this.maximumBytes = maximumBytes;
+        }
 
         void visit(int depth) {
             nodes++;
@@ -585,7 +616,7 @@ final class PlaywrightTraceOfflineAdapter {
 
         RenderBudget append(String text) {
             bytes = Math.addExact(bytes, text.getBytes(StandardCharsets.UTF_8).length);
-            if (bytes > MAX_RENDER_BYTES) {
+            if (bytes > maximumBytes) {
                 throw new IllegalArgumentException("Rendered Playwright snapshot exceeds the offline render limit.");
             }
             value.append(text);
@@ -597,7 +628,7 @@ final class PlaywrightTraceOfflineAdapter {
         }
 
         int remainingBytes() {
-            return MAX_RENDER_BYTES - bytes;
+            return maximumBytes - bytes;
         }
 
         CssSourceBudget cssSources() {
