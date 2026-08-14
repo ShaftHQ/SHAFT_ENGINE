@@ -32,6 +32,7 @@ class AndroidInfrastructureBoundaryTest(unittest.TestCase):
         self.assertIn("runManagedAndroidE2E=true", workflow)
         self.assertIn("setup install", workflow)
         self.assertIn("--accept-license android-sdk-license", workflow)
+        self.assertIn("mobile-android-install.log", workflow)
         self.assertIn("UiAutomator2Options", acceptance)
         self.assertIn("aapt2", acceptance)
         self.assertIn("getPageSource", acceptance)

@@ -540,9 +540,13 @@ jobs:
             --output "$plan" --cache-root "$cache_root" --data-root "$data_root" \
             --startup-timeout PT8M --shutdown-timeout PT1M
           digest="$(python3 -c "import json; print(json.load(open('$plan'))['digest'])")"
-          java -jar "$cli_jar" setup install --plan "$plan" --approve "$digest" \
+          if ! java -jar "$cli_jar" setup install --plan "$plan" --approve "$digest" \
             --accept-license android-sdk-license --cache-root "$cache_root" --data-root "$data_root" \
-            --startup-timeout PT8M --shutdown-timeout PT1M
+            --startup-timeout PT8M --shutdown-timeout PT1M; then
+            install_log="$data_root/state/logs/mobile-android-install.log"
+            test ! -f "$install_log" || cat "$install_log"
+            exit 1
+          fi
       - name: Run real emulator, UiAutomator2, and aapt2 acceptance
         continue-on-error: true
         run: >-
