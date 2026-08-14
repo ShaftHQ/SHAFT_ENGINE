@@ -530,8 +530,8 @@ public class BrowserService {
     @Tool(name = "browser_network_requests",
             description = "lists the active browser session's observed network transactions (method, URL, "
                     + "status, mimeType, sizes, timestamp; never bodies); optional id narrows the listing to that "
-                    + "single transaction and populates its full detail (headers and a truncated, redacted "
-                    + "bounded/redacted response preview or explicit safe-boundary omission), absorbing the former "
+                    + "single transaction and populates its full detail (headers and a bounded, redacted response "
+                    + "preview or explicit safe-boundary omission), absorbing the former "
                     + "browser_network_request tool; requires the "
                     + "DevTools-based network trace capture that is on by default (shaft.trace.enabled and "
                     + "shaft.trace.includeNetwork); not supported on the Playwright engine")
