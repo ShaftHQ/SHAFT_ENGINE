@@ -220,14 +220,20 @@ class ResolveGraphOutTest(unittest.TestCase):
         )
         expected_steps = [
             "G1: Resolve the shared cache and require a successful, nonempty path.",
-            "G2: If G1 succeeds, run exactly one query bounded to the affected symbol or\n"
-            "  subsystem, then verify every returned path against the current worktree.",
-            "G3: Attempt the read-only coverage audit against the primary checkout that\n"
-            "  owns the cache even when G1 or G2 fails. Inability to resolve that owner is a\n"
-            "  failed audit attempt, never permission to audit a linked worktree.",
-            "G4: Declare degraded mode when any step cannot provide current verified\n"
-            "  results, and only after G1 through G3 have been attempted; never use MCP\n"
-            "  catalog absence as the reason.",
+            "\n".join((
+                "G2: If G1 succeeds, run exactly one query bounded to the affected symbol or",
+                "  subsystem, then verify every returned path against the current worktree.",
+            )),
+            "\n".join((
+                "G3: Attempt the read-only coverage audit against the primary checkout that",
+                "  owns the cache even when G1 or G2 fails. Inability to resolve that owner is a",
+                "  failed audit attempt, never permission to audit a linked worktree.",
+            )),
+            "\n".join((
+                "G4: Declare degraded mode when any step cannot provide current verified",
+                "  results, and only after G1 through G3 have been attempted; never use MCP",
+                "  catalog absence as the reason.",
+            )),
         ]
         positions = []
         for step in expected_steps:
