@@ -133,7 +133,8 @@ public class TraceViewerBrowserAcceptanceTest {
         ViewerFixture fixture = generateViewerFixture();
         Path html = fixture.html();
         try (ZipFile zip = new ZipFile(fixture.archive().toFile())) {
-            Assert.assertEquals(readZipEntry(zip, "trace-viewer-native.zip"), "bounded native trace fixture");
+            byte[] nativeArchive = zip.getInputStream(zip.getEntry("trace-viewer-native.zip")).readAllBytes();
+            Assert.assertEquals(new String(nativeArchive, 0, 2, java.nio.charset.StandardCharsets.US_ASCII), "PK");
             JsonNode traceJson = JSON.readTree(readZipEntry(zip, "shaft-trace.json"));
             JsonNode schemaArtifacts = traceJson.path("session").path("artifacts");
             JsonNode indexArtifacts = JSON.readTree(Files.readString(fixture.index())).path("artifacts");
@@ -167,6 +168,20 @@ public class TraceViewerBrowserAcceptanceTest {
             Assert.assertTrue(page.locator("#details-title").textContent().contains("CLICK"));
             Assert.assertEquals(page.locator("#range-start").inputValue(), "50");
             Assert.assertEquals(page.locator("#range-end").inputValue(), "200");
+
+            page.locator("button[data-tab=nativeEvidence]").click();
+            Assert.assertEquals(page.locator("#native-evidence-rows tr").count(), 2);
+            Assert.assertEquals(page.locator("#native-evidence-rows tr td:first-child").allTextContents(),
+                    List.of("Selected SHAFT action", "Native only"));
+            Assert.assertTrue(page.locator("#native-evidence-rows").textContent().contains("CheckoutTest.java:42:7"));
+            Assert.assertTrue(page.locator("#native-evidence-rows").textContent().contains("attempting native click"));
+            page.locator("button[data-tab=comparison]").click();
+            Assert.assertTrue(page.frameLocator("#comparison-before").locator("body").textContent()
+                    .contains("native before"));
+            Assert.assertTrue(page.frameLocator("#comparison-input").locator("body").textContent()
+                    .contains("native input"));
+            Assert.assertTrue(page.frameLocator("#comparison-after").locator("body").textContent()
+                    .contains("native after"));
 
             page.locator("#show-all-range").click();
             page.locator("button[data-tab=network]").click();
@@ -409,15 +424,11 @@ public class TraceViewerBrowserAcceptanceTest {
 
             page.locator("#trace-filmstrip button").first().click();
             page.locator("button[data-tab=comparison]").click();
-            Assert.assertTrue(page.frameLocator("#comparison-before").locator("body").textContent().contains("before one"));
-            Assert.assertTrue(page.frameLocator("#comparison-after").locator("body").textContent().contains("after one"));
-            Assert.assertNull(page.frameLocator("#comparison-before").locator("img").getAttribute("src"));
-            Assert.assertNull(page.frameLocator("#comparison-after").locator("img").getAttribute("src"));
-            Assert.assertTrue(page.locator("#comparison-action").isVisible());
-            Assert.assertTrue(page.locator("#comparison-action").getAttribute("src")
-                    .startsWith("data:image/png;base64,"));
-            Assert.assertTrue((Boolean) page.locator("#comparison-action")
-                    .evaluate("image => image.complete && image.naturalWidth > 0 && image.naturalHeight > 0"));
+            Assert.assertTrue(page.frameLocator("#comparison-before").locator("body").textContent().contains("native before"));
+            Assert.assertTrue(page.frameLocator("#comparison-input").locator("body").textContent().contains("native input"));
+            Assert.assertTrue(page.frameLocator("#comparison-after").locator("body").textContent().contains("native after"));
+            Assert.assertTrue(page.locator("#comparison-action").isHidden(),
+                    "The native action-state snapshot should take precedence over the SHAFT screenshot.");
 
             page.locator("button[data-tab=timeline]").click();
             page.evaluate("""
@@ -456,7 +467,7 @@ public class TraceViewerBrowserAcceptanceTest {
                       renderNetwork();
                     }
                     """);
-            Assert.assertEquals(page.locator("#network-result-count").textContent(), "3 network exchanges");
+            Assert.assertEquals(page.locator("#network-result-count").textContent(), "2 network exchanges");
             Assert.assertEquals(page.locator("#network-rows tr").filter(
                     new com.microsoft.playwright.Locator.FilterOptions().setHasText("out-of-range")).count(), 0);
             int historyBeforeRangeInput = ((Number) page.evaluate("history.length")).intValue();
@@ -633,17 +644,20 @@ public class TraceViewerBrowserAcceptanceTest {
             page.locator("button[data-tab=artifacts]").press("Enter");
             Assert.assertEquals(page.locator("button[data-tab=artifacts]")
                     .evaluate("button => button === document.activeElement"), true);
-            Assert.assertEquals(page.locator("#artifact-result-count").textContent(), "4 trace artifacts");
-            Assert.assertEquals(page.locator("#artifact-rows tr").count(), 4);
-            Assert.assertEquals(page.locator("#artifact-rows tr td:nth-child(1)").allTextContents(),
-                    List.of("shaft-network.har", "screenshots/action-1.png", "screenshots/action-2.png",
-                            "trace-viewer-native.zip"));
+            Assert.assertEquals(page.locator("#artifact-result-count").textContent(), "6 trace artifacts");
+            Assert.assertEquals(page.locator("#artifact-rows tr").count(), 6);
+            List<String> artifactPaths = page.locator("#artifact-rows tr td:nth-child(1)").allTextContents();
+            Assert.assertEquals(artifactPaths.getFirst(), "shaft-network.har");
+            Assert.assertTrue(artifactPaths.subList(1, 5).stream().allMatch(path -> path.startsWith("resources/")));
+            Assert.assertEquals(artifactPaths.getLast(), "trace-viewer-native.zip");
             Assert.assertEquals(page.locator("#artifact-rows tr td:nth-child(2)").allTextContents(),
-                    List.of("network", "screenshot", "screenshot", "native-trace"));
+                    List.of("network", "screenshot", "screenshot", "dom-snapshot", "dom-snapshot",
+                            "native-trace"));
             Assert.assertEquals(page.locator("#artifact-rows tr td:nth-child(3)").allTextContents(),
-                    List.of("application/json", "image/png", "image/png", "application/zip"));
+                    List.of("application/json", "image/png", "image/png", "text/html", "text/html",
+                            "application/zip"));
             Assert.assertEquals(page.locator("#artifact-rows tr td:nth-child(4)").allTextContents(),
-                    List.of("Available", "Available", "Available", "Available"));
+                    List.of("Available", "Available", "Available", "Available", "Available", "Available"));
             Assert.assertTrue(page.locator("#native-trace-handoff").textContent().contains("show-trace"));
             Assert.assertTrue(page.locator("#native-trace-handoff").textContent().contains("trace-viewer-native.zip"));
             page.evaluate("""
@@ -731,13 +745,13 @@ public class TraceViewerBrowserAcceptanceTest {
                 "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=");
         Path nativeTrace = Path.of("target", "trace-viewer-native.zip").toAbsolutePath().normalize();
         Files.createDirectories(nativeTrace.getParent());
-        Files.writeString(nativeTrace, "bounded native trace fixture");
         try (MockedStatic<PlaywrightTraceManager> traceManager = Mockito.mockStatic(PlaywrightTraceManager.class)) {
             traceManager.when(PlaywrightTraceManager::getLastTracePath).thenReturn(nativeTrace);
             SHAFT.Properties.reporting.set().traceEnabled(true).traceMode("failure")
                     .traceIncludeDomSnapshots(true).traceIncludeScreenshots(true)
                     .traceIncludeNetwork(true).traceIncludeConsole(true);
-            var first = TraceEventRecorder.start("element", "CLICK", "#checkout", driver);
+            var first = TraceEventRecorder.startForBackend("element", "CLICK", "#checkout",
+                    com.shaft.gui.capabilities.AutomationBackend.MICROSOFT_PLAYWRIGHT);
             TraceEventRecorder.recordScreenshot(first, png);
             Thread.sleep(80);
             TraceEventRecorder.finish(first, "passed", "clicked", null, Map.of(), List.of());
@@ -745,6 +759,28 @@ public class TraceViewerBrowserAcceptanceTest {
             TraceEventRecorder.recordScreenshot(second, png);
             TraceEventRecorder.finish(second, "failed", "mismatch", new AssertionError("expected receipt"),
                     Map.of("expected", "paid", "actual", "pending"), List.of());
+            long firstStart = java.time.Instant.parse(TraceEventRecorder.snapshot().getFirst().startTime())
+                    .toEpochMilli();
+            try (ZipOutputStream output = new ZipOutputStream(Files.newOutputStream(nativeTrace))) {
+                zipEntry(output, "0-trace.trace", "{\"version\":8,\"type\":\"context-options\","
+                        + "\"origin\":\"library\",\"wallTime\":" + firstStart + ",\"monotonicTime\":100}\n"
+                        + "{\"type\":\"before\",\"callId\":\"call@1\",\"startTime\":100,"
+                        + "\"class\":\"Frame\",\"method\":\"click\",\"title\":\"Native checkout click\","
+                        + "\"params\":{},\"stepId\":\"step@1\",\"beforeSnapshot\":\"before@call@1\","
+                        + "\"pageId\":\"page@1\",\"stack\":[{\"file\":\"CheckoutTest.java\","
+                        + "\"line\":42,\"column\":7}]}\n"
+                        + "{\"type\":\"log\",\"callId\":\"call@1\","
+                        + "\"message\":\"attempting native click\"}\n"
+                        + "{\"type\":\"after\",\"callId\":\"call@1\",\"endTime\":110,"
+                        + "\"inputSnapshot\":\"input@call@1\",\"afterSnapshot\":\"after@call@1\"}\n"
+                        + nativeSnapshotRecord("before@call@1", "native before", 101)
+                        + nativeSnapshotRecord("input@call@1", "native input", 105)
+                        + nativeSnapshotRecord("after@call@1", "native after", 109)
+                        + "{\"type\":\"before\",\"callId\":\"call@native-only\",\"startTime\":5000,"
+                        + "\"class\":\"Page\",\"method\":\"waitForTimeout\","
+                        + "\"title\":\"Native only wait\",\"params\":{},\"stepId\":\"step@native\"}\n"
+                        + "{\"type\":\"after\",\"callId\":\"call@native-only\",\"endTime\":5010}\n");
+            }
             TraceEventRecorder.record("evidence", "NO EVIDENCE", "passed", "", null,
                     "optional evidence omitted", null, Map.of(), List.of());
             BrowserObservabilityRecorder.recordNetwork(new BrowserObservabilityRecorder.NetworkObservation(
@@ -784,6 +820,14 @@ public class TraceViewerBrowserAcceptanceTest {
 
     private static String snapshot(String label) {
         return "<html><body><main>" + label + "</main><img src=\"" + BLOCKED_RESOURCE + "\"></body></html>";
+    }
+
+    private static String nativeSnapshotRecord(String name, String label, int timestamp) {
+        return "{\"type\":\"frame-snapshot\",\"snapshot\":{\"callId\":\"call@1\","
+                + "\"snapshotName\":\"" + name + "\",\"pageId\":\"page@1\","
+                + "\"frameId\":\"frame@1\",\"frameUrl\":\"https://example.test/checkout\","
+                + "\"html\":[\"HTML\",{},[\"BODY\",{},\"" + label + "\"]],\"timestamp\":"
+                + timestamp + ",\"isMainFrame\":true}}\n";
     }
 
     private record ViewerFixture(Path html, long consoleBaseTime, Path archive, Path index, Path nativeTrace,

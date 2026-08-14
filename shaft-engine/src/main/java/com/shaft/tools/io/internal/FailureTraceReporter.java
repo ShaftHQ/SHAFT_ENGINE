@@ -726,6 +726,7 @@ public final class FailureTraceReporter {
                       <button data-tab="exception">Exception</button>
                       <button data-tab="source">Source</button>
                       <button data-tab="snapshot">Snapshot</button>
+                      <button data-tab="nativeEvidence">Native evidence</button>
                       <button data-tab="comparison">Comparison</button>
                       <button data-tab="domSnapshot">DOM Snapshot</button>
                       <button data-tab="screenshot">Screenshot</button>
@@ -769,9 +770,15 @@ public final class FailureTraceReporter {
                     <div id="comparison-panel" hidden>
                       <div class="comparison-grid">
                         <section><h3>Before action</h3><iframe id="comparison-before" title="Before action DOM snapshot" sandbox=""></iframe><p id="comparison-before-empty" class="muted" hidden>No before-action snapshot was captured.</p></section>
-                        <section><h3>Action state</h3><img id="comparison-action" alt="Screenshot captured during the selected action"><p id="comparison-action-empty" class="muted" hidden>No action screenshot was captured.</p></section>
+                        <section><h3>Action state</h3><iframe id="comparison-input" title="Native action-state DOM snapshot" sandbox=""></iframe><img id="comparison-action" alt="Screenshot captured during the selected action"><p id="comparison-action-empty" class="muted" hidden>No action-state snapshot or screenshot was captured.</p></section>
                         <section><h3>After action</h3><iframe id="comparison-after" title="After action DOM snapshot" sandbox=""></iframe><p id="comparison-after-empty" class="muted" hidden>No after-action snapshot was captured.</p></section>
                       </div>
+                    </div>
+                    <div id="native-evidence-panel" hidden>
+                      <p class="muted" id="native-evidence-hint"></p>
+                      <table class="trace-table"><thead><tr>
+                        <th>Correlation</th><th>Operation</th><th>Source</th><th>Logs</th><th>Error</th>
+                      </tr></thead><tbody id="native-evidence-rows"></tbody></table>
                     </div>
                     <div id="network-panel" hidden>
                       <p class="muted" id="network-hint"></p>
@@ -850,6 +857,11 @@ public final class FailureTraceReporter {
                 const actions = Array.isArray(evidence.actions) ? evidence.actions : [];
                 const network = Array.isArray(evidence.network) ? evidence.network : [];
                 const consoleEvents = Array.isArray(evidence.console) ? evidence.console : [];
+                const playwright = evidence.playwright && typeof evidence.playwright === 'object'
+                    ? evidence.playwright : {status:'unavailable', reason:'', actions:[], correlations:[], snapshots:{}};
+                const nativeActions = Array.isArray(playwright.actions) ? playwright.actions : [];
+                const nativeSnapshots = playwright.snapshots && typeof playwright.snapshots === 'object'
+                    ? playwright.snapshots : {};
                 const artifacts = Array.isArray(trace.session && trace.session.artifacts)
                     ? trace.session.artifacts : [];
                 const actionList = document.getElementById('action-list');
@@ -1083,6 +1095,10 @@ public final class FailureTraceReporter {
                   });
                 }
                 function row(name, value){ return value ? `<dt>${esc(name)}</dt><dd>${esc(value)}</dd>` : ''; }
+                function nativeActionFor(action){
+                  const callId = action && action.metadata && action.metadata.playwrightCallId;
+                  return callId ? nativeActions.find(candidate => candidate.callId === callId) || null : null;
+                }
                 function renderDetails(){
                   const action = selected || {};
                   document.getElementById('details-title').textContent = action.name ? `Action: ${action.name}` : 'Trace Details';
@@ -1090,6 +1106,9 @@ public final class FailureTraceReporter {
                   details.innerHTML = row('Status', action.status) + row('Category', action.category)
                     + row('Expected', metadata.expected) + row('Actual', metadata.actual)
                     + row('Locator', action.locator) + row('URL', action.url) + row('Caller', action.caller) + row('Started', action.startTime) + row('Duration', action.durationMs == null ? '' : `${action.durationMs}ms`) + row('Message', action.message);
+                  const native = nativeActionFor(action);
+                  details.innerHTML += row('Native fidelity', native ? 'Playwright correlated' : 'SHAFT capture')
+                    + row('Native source', native && native.source) + row('Native error', native && native.error);
                   renderTab(document.querySelector('.tabs button.selected').dataset.tab);
                 }
                 const timelinePanel = document.getElementById('timeline-panel');
@@ -1395,12 +1414,25 @@ public final class FailureTraceReporter {
                     resourceAttributes.forEach(attribute => element.removeAttribute(attribute)));
                   return snapshotCsp + parsed.documentElement.outerHTML;
                 }
+                function nativeSnapshot(name){
+                  const snapshot = name && nativeSnapshots[name];
+                  return snapshot && snapshot.status === 'available' && snapshot.content
+                    ? snapshot.content : '';
+                }
+                function preferredSnapshot(action, side){
+                  const native = nativeActionFor(action);
+                  const nativeName = native && native[side + 'Snapshot'];
+                  const content = nativeSnapshot(nativeName);
+                  if (content) return snapshotCsp + content;
+                  const fallback = side === 'after' ? action.domSnapshotAfter : action.domSnapshotBefore;
+                  return fallback ? snapshotDocument(fallback) : '';
+                }
                 let selectedDomSide = 'before';
                 function renderDomSnapshot(){
                   const action = selected || {};
-                  const html = domSnapshotFrame && (selectedDomSide === 'after' ? action.domSnapshotAfter : action.domSnapshotBefore);
+                  const html = domSnapshotFrame && preferredSnapshot(action, selectedDomSide);
                   if (domSnapshotFrame) {
-                    domSnapshotFrame.srcdoc = snapshotDocument(html);
+                    domSnapshotFrame.srcdoc = html || snapshotDocument('');
                   }
                   document.querySelectorAll('#dom-snapshot-tabs button').forEach(button =>
                       button.classList.toggle('selected', button.dataset.dom === selectedDomSide));
@@ -1419,30 +1451,57 @@ public final class FailureTraceReporter {
                 }
                 const comparisonPanel = document.getElementById('comparison-panel');
                 const comparisonBefore = document.getElementById('comparison-before');
+                const comparisonInput = document.getElementById('comparison-input');
                 const comparisonAction = document.getElementById('comparison-action');
                 const comparisonAfter = document.getElementById('comparison-after');
                 function renderComparison(){
                   const action = selected || {};
-                  const hasBefore = Boolean(action.domSnapshotBefore);
-                  const hasAction = Boolean(action.screenshot);
-                  const hasAfter = Boolean(action.domSnapshotAfter);
+                  const native = nativeActionFor(action);
+                  const before = preferredSnapshot(action, 'before');
+                  const input = nativeSnapshot(native && native.inputSnapshot);
+                  const after = preferredSnapshot(action, 'after');
+                  const hasBefore = Boolean(before);
+                  const hasInput = Boolean(input);
+                  const hasAction = hasInput || Boolean(action.screenshot);
+                  const hasAfter = Boolean(after);
                   comparisonBefore.hidden = !hasBefore;
                   document.getElementById('comparison-before-empty').hidden = hasBefore;
-                  comparisonBefore.srcdoc = snapshotDocument(hasBefore ? action.domSnapshotBefore : '');
-                  comparisonAction.hidden = !hasAction;
+                  comparisonBefore.srcdoc = before;
+                  comparisonInput.hidden = !hasInput;
+                  comparisonInput.srcdoc = hasInput ? snapshotCsp + input : '';
+                  comparisonAction.hidden = hasInput || !action.screenshot;
                   document.getElementById('comparison-action-empty').hidden = hasAction;
-                  comparisonAction.src = hasAction ? 'data:image/png;base64,' + action.screenshot : '';
+                  comparisonAction.src = !hasInput && action.screenshot ? 'data:image/png;base64,' + action.screenshot : '';
                   comparisonAfter.hidden = !hasAfter;
                   document.getElementById('comparison-after-empty').hidden = hasAfter;
-                  comparisonAfter.srcdoc = snapshotDocument(hasAfter ? action.domSnapshotAfter : '');
+                  comparisonAfter.srcdoc = after;
+                }
+                const nativeEvidencePanel = document.getElementById('native-evidence-panel');
+                const nativeEvidenceRows = document.getElementById('native-evidence-rows');
+                function renderNativeEvidence(){
+                  nativeEvidenceRows.innerHTML = '';
+                  document.getElementById('native-evidence-hint').textContent = playwright.status === 'available'
+                    ? `${nativeActions.length} native Playwright ${nativeActions.length === 1 ? 'action' : 'actions'} retained offline.`
+                    : `Native Playwright evidence ${playwright.status || 'unavailable'}${playwright.reason ? ': ' + playwright.reason : '.'}`;
+                  const selectedNative = nativeActionFor(selected || {});
+                  nativeActions.forEach(native => {
+                    const tr = document.createElement('tr');
+                    const correlation = selectedNative && selectedNative.callId === native.callId
+                      ? 'Selected SHAFT action' : (playwright.correlations || []).some(item => item.playwrightCallId === native.callId)
+                        ? 'Correlated' : 'Native only';
+                    tr.innerHTML = `<td>${esc(correlation)}</td><td>${esc(native.title || native.method || native.callId || 'Unknown')}</td><td>${esc(native.source || 'Unavailable')}</td><td>${esc((native.logs || []).join('\\n') || 'None')}</td><td>${esc(native.error || 'None')}</td>`;
+                    nativeEvidenceRows.appendChild(tr);
+                  });
                 }
                 function renderTab(tab){
                   const action = selected || {};
-                  const panels = {timeline: timelinePanel, comparison: comparisonPanel, domSnapshot: domSnapshotPanel, screenshot: screenshotPanel, network: networkPanel, console: consolePanel, mobile: document.getElementById('mobile-panel'), artifacts: document.getElementById('artifact-panel')};
+                  const panels = {timeline: timelinePanel, nativeEvidence: nativeEvidencePanel, comparison: comparisonPanel, domSnapshot: domSnapshotPanel, screenshot: screenshotPanel, network: networkPanel, console: consolePanel, mobile: document.getElementById('mobile-panel'), artifacts: document.getElementById('artifact-panel')};
                   tabContent.hidden = tab in panels;
                   Object.entries(panels).forEach(([name, panel]) => panel.hidden = name !== tab);
                   if (tab === 'timeline') {
                     renderTimeline();
+                  } else if (tab === 'nativeEvidence') {
+                    renderNativeEvidence();
                   } else if (tab === 'comparison') {
                     renderComparison();
                   } else if (tab === 'domSnapshot') {
