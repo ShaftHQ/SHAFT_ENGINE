@@ -1,6 +1,7 @@
 package com.shaft.infrastructure;
 
 import java.io.IOException;
+import java.util.function.Consumer;
 
 /** Provider SPI used by Java, CLI, MCP, and IDE setup adapters. */
 public interface SetupProvider {
@@ -27,6 +28,12 @@ public interface SetupProvider {
     }
 
     SetupReceipt install(SetupPlan plan, SetupApproval approval, SetupOptions options) throws IOException;
+
+    default SetupReceipt install(SetupPlan plan, SetupApproval approval, SetupOptions options,
+                                 Consumer<SetupProgress> progress) throws IOException {
+        java.util.Objects.requireNonNull(progress, "progress");
+        return install(plan, approval, options);
+    }
 
     default ManagedEnvironment start(SetupPlan plan, SetupApproval approval, SetupOptions options)
             throws IOException {

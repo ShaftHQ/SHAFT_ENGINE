@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.util.List;
 import java.util.Objects;
 import java.util.ServiceLoader;
+import java.util.function.Consumer;
 
 /** Shared provider-neutral setup orchestration used by every public adapter. */
 public final class InfrastructureSetupService {
@@ -107,9 +108,20 @@ public final class InfrastructureSetupService {
     }
 
     public SetupReceipt install(SetupPlan plan, SetupApproval approval, SetupOptions options,
+                                Consumer<SetupProgress> progress) throws IOException {
+        return install(plan, approval, options, SetupSelection.defaults(), progress);
+    }
+
+    public SetupReceipt install(SetupPlan plan, SetupApproval approval, SetupOptions options,
                                 SetupSelection selection) throws IOException {
+        return install(plan, approval, options, selection, ignored -> { });
+    }
+
+    public SetupReceipt install(SetupPlan plan, SetupApproval approval, SetupOptions options,
+                                SetupSelection selection, Consumer<SetupProgress> progress) throws IOException {
         SetupProvider provider = authorize(plan, approval, options, selection, "mutate the host");
-        SetupReceipt receipt = provider.install(plan, approval, options);
+        SetupReceipt receipt = provider.install(plan, approval, options,
+                Objects.requireNonNull(progress, "progress"));
         requireReceiptIdentity(receipt, plan);
         return receipt;
     }

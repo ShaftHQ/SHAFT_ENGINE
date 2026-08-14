@@ -13,6 +13,7 @@ import com.shaft.infrastructure.SetupProfile;
 import com.shaft.infrastructure.SetupProviderRegistry;
 import com.shaft.infrastructure.SetupReadiness;
 import com.shaft.infrastructure.SetupReceipt;
+import com.shaft.infrastructure.SetupProgress;
 import com.shaft.infrastructure.SetupTarget;
 import com.shaft.infrastructure.ShaftCachePaths;
 import org.junit.jupiter.api.Test;
@@ -154,6 +155,29 @@ class ManagedLocalAiSetupProviderTest {
         }
     }
 
+    @Test
+    void installPublishesManagedPhaseBytesAndPercentage(@TempDir Path temp) throws Exception {
+        SetupOptions options = options(temp);
+        ManagedLocalAiSnapshot missing = snapshot(options, ManagedLocalAiSnapshot.State.NOT_PROVISIONED);
+        FakeLifecycle lifecycle = new FakeLifecycle(missing);
+        lifecycle.progressSnapshots = List.of(withProgress(missing,
+                ManagedLocalAiSnapshot.Phase.DOWNLOADING_MODEL, 25, 100));
+        lifecycle.provisioned = snapshot(options, ManagedLocalAiSnapshot.State.READY);
+        InfrastructureSetupService setup = setup(lifecycle);
+        SetupPlan plan = setup.plan(options);
+        java.util.ArrayList<SetupProgress> progress = new java.util.ArrayList<>();
+
+        setup.install(plan, approval(plan), options, progress::add);
+
+        assertEquals(2, progress.size());
+        assertEquals(SetupProfile.LOCAL_AI, progress.getFirst().profile());
+        assertEquals("DOWNLOADING_MODEL", progress.getFirst().phase());
+        assertEquals(25, progress.getFirst().completedBytes());
+        assertEquals(100, progress.getFirst().totalBytes());
+        assertEquals(25, progress.getFirst().percentage());
+        assertEquals("IDLE", progress.getLast().phase());
+    }
+
     private static SetupApproval approval(SetupPlan plan) {
         Set<String> licenses = plan.actions().stream().flatMap(action -> action.requiredLicenses().stream())
                 .collect(java.util.stream.Collectors.toSet());
@@ -209,10 +233,23 @@ class ManagedLocalAiSetupProviderTest {
                 16L * 1024 * 1024 * 1024, 8, 64L * 1024 * 1024 * 1024, models);
     }
 
+    private static ManagedLocalAiSnapshot withProgress(ManagedLocalAiSnapshot snapshot,
+                                                       ManagedLocalAiSnapshot.Phase phase,
+                                                       long completedBytes, long totalBytes) {
+        return new ManagedLocalAiSnapshot(snapshot.state(), snapshot.action(), snapshot.cacheDirectory(),
+                snapshot.enabled(), snapshot.transparentProvisioning(), snapshot.requestedModelId(),
+                snapshot.selectedModelId(), snapshot.platform(), snapshot.runtimeId(), snapshot.runtimeVersion(),
+                snapshot.runtimeLicense(), snapshot.runtimeAssetFile(), snapshot.runtimeAssetSha256(),
+                snapshot.runtimeExecutable(), snapshot.runtimeAssetBytes(), snapshot.runtimeCacheHealth(),
+                snapshot.modelCacheHealth(), phase, completedBytes, totalBytes, snapshot.effectiveMemoryBytes(),
+                snapshot.cpuCount(), snapshot.freeDiskBytes(), snapshot.models());
+    }
+
     private static final class FakeLifecycle implements ManagedLocalAiSetupProvider.Lifecycle {
         private final ManagedLocalAiSnapshot inspected;
         private final AtomicInteger provisions = new AtomicInteger();
         private ManagedLocalAiSnapshot provisioned;
+        private List<ManagedLocalAiSnapshot> progressSnapshots = List.of();
         private Exception failure;
 
         private FakeLifecycle(ManagedLocalAiSnapshot inspected) {
@@ -234,6 +271,7 @@ class ManagedLocalAiSetupProviderTest {
             } else if (failure != null) {
                 operation.fail(failure);
             } else {
+                progressSnapshots.forEach(progress);
                 progress.accept(provisioned);
                 operation.complete(provisioned);
             }

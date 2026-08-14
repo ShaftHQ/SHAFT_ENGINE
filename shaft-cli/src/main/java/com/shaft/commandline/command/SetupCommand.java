@@ -168,7 +168,10 @@ public final class SetupCommand implements Runnable {
                 SetupSelection selection = selectionFromPlan(plan, languages, android);
                 SetupOptions options = policy.options(plan.profile(), plan.mode(), roots.paths(plan.profile()));
                 var receipt = InfrastructureSetupService.builtIn().install(plan,
-                        new SetupApproval(approvedDigest, Instant.now(), acceptedLicenses), options, selection);
+                        new SetupApproval(approvedDigest, Instant.now(), acceptedLicenses), options, selection,
+                        progress -> spec.commandLine().getErr().println(progress.phase() + "\t"
+                                + progress.completedBytes() + "/" + progress.totalBytes() + "\t"
+                                + progress.percentage() + "%"));
                 if (json) spec.commandLine().getOut().println(Json.MAPPER.writerWithDefaultPrettyPrinter()
                         .writeValueAsString(receipt));
                 else spec.commandLine().getOut().println("Installed approved plan " + receipt.planDigest());

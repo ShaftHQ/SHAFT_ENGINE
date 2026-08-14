@@ -16,6 +16,7 @@ import com.shaft.infrastructure.SetupStatus;
 import com.shaft.infrastructure.SetupTarget;
 import com.shaft.infrastructure.SetupExecutor;
 import com.shaft.infrastructure.SetupMode;
+import com.shaft.infrastructure.SetupProgress;
 
 import java.io.IOException;
 import java.time.Instant;
@@ -92,7 +93,14 @@ public final class ManagedLocalAiSetupProvider implements SetupProvider {
 
     @Override
     public SetupReceipt install(SetupPlan plan, SetupApproval approval, SetupOptions options) throws IOException {
+        return install(plan, approval, options, ignored -> { });
+    }
+
+    @Override
+    public SetupReceipt install(SetupPlan plan, SetupApproval approval, SetupOptions options,
+                                Consumer<SetupProgress> progress) throws IOException {
         Objects.requireNonNull(options, "options");
+        Objects.requireNonNull(progress, "progress");
         if (plan.profile() != SetupProfile.LOCAL_AI || options.profile() != SetupProfile.LOCAL_AI
                 || plan.mode() != options.effectiveMode()) {
             throw new IllegalArgumentException("Managed local AI plan does not match the requested setup options.");
@@ -108,7 +116,9 @@ public final class ManagedLocalAiSetupProvider implements SetupProvider {
             throw new IOException("Managed local AI is not ready and offline setup cannot download artifacts.");
         }
         ManagedLocalAiSnapshot ready = initial.state() == ManagedLocalAiSnapshot.State.READY
-                ? initial : await(lifecycle.provision(ignored -> { }), options);
+                ? initial : await(lifecycle.provision(snapshot -> progress.accept(SetupProgress.of(
+                        SetupProfile.LOCAL_AI, snapshot.phase().name(), snapshot.completedBytes(),
+                        snapshot.totalBytes()))), options);
         if (ready.state() != ManagedLocalAiSnapshot.State.READY) {
             throw new IOException("Managed local AI provisioning completed without a ready installation.");
         }
