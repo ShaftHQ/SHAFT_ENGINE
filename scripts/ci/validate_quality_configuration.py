@@ -570,6 +570,7 @@ def validate_quality_configuration(root: Path = ROOT) -> list[str]:
     ):
         if required_local_flow not in local_e2e_workflow:
             errors.append(f"e2eLocalTests.yml is missing Windows desktop E2E flow token: {required_local_flow}")
+    errors.extend(validate_windows_appium_retry(local_e2e_workflow))
     for cucumber_argument in (
         '"-Dcucumber.features=src/test/resources/CucumberFeatures,src/test/resources/CustomCucumberFeatures"',
         '"-Dcucumber.glue=customCucumberSteps,com.shaft.cucumber"',
@@ -578,6 +579,25 @@ def validate_quality_configuration(root: Path = ROOT) -> list[str]:
         if cucumber_argument not in e2e_workflow:
             errors.append(f"e2eTests.yml Cucumber job is missing {cucumber_argument}")
     return errors
+
+
+def validate_windows_appium_retry(workflow_text: str) -> list[str]:
+    error = "e2eLocalTests.yml Windows Appium Maven launch must use transfer-only fresh-process retry"
+    try:
+        document = yaml.safe_load(workflow_text) or {}
+    except yaml.YAMLError:
+        return [error]
+    appium_job = (document.get("jobs") or {}).get("Windows_Appium_Desktop_Local") or {}
+    maven_lines = [
+        line.strip()
+        for step in appium_job.get("steps") or []
+        for line in str(step.get("run") or "").splitlines()
+        if "mvn -pl shaft-engine -am -e test" in line and "-DrunWindowsDesktopE2E=true" in line
+    ]
+    required_prefix = "bash scripts/ci/build_retry.sh 2 60 mvn -pl shaft-engine -am -e test"
+    if len(maven_lines) != 1 or not maven_lines[0].startswith(required_prefix):
+        return [error]
+    return []
 
 
 def main() -> int:

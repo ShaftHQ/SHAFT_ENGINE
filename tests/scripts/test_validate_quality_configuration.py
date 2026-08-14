@@ -7,6 +7,7 @@ from scripts.ci.validate_quality_configuration import (
     validate_maven_jvm_configuration,
     validate_quality_configuration,
     validate_surefire_jacoco_arg_lines,
+    validate_windows_appium_retry,
     validate_workflow_coverage_policy,
     validate_workflow_readme_inventory,
 )
@@ -74,6 +75,35 @@ def missing_coverage_error(workflow: str, job: str) -> str:
 
 
 class ValidateQualityConfigurationTest(unittest.TestCase):
+    def test_windows_appium_maven_launch_is_bound_to_transfer_retry(self):
+        workflow = """
+jobs:
+  Windows_Appium_Desktop_Local:
+    steps:
+      - name: Run tests
+        run: |
+          Start-Appium
+          bash scripts/ci/build_retry.sh 2 60 mvn -pl shaft-engine -am -e test "-DrunWindowsDesktopE2E=true"
+"""
+
+        self.assertEqual(validate_windows_appium_retry(workflow), [])
+
+    def test_windows_appium_retry_comment_cannot_mask_an_unwrapped_launch(self):
+        workflow = """
+jobs:
+  Windows_Appium_Desktop_Local:
+    steps:
+      - name: Run tests
+        run: |
+          # bash scripts/ci/build_retry.sh 2 60
+          mvn -pl shaft-engine -am -e test "-DrunWindowsDesktopE2E=true"
+"""
+
+        self.assertEqual(
+            validate_windows_appium_retry(workflow),
+            ["e2eLocalTests.yml Windows Appium Maven launch must use transfer-only fresh-process retry"],
+        )
+
     def test_repository_configuration_is_valid(self):
         self.assertEqual(validate_quality_configuration(), [])
 
