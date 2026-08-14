@@ -112,6 +112,29 @@ class SetupCommandTest {
     }
 
     @Test
+    void playwrightProfileUsesTheRegisteredProviderWithoutMutatingOnStatus(@TempDir Path temp) throws Exception {
+        Path cache = temp.resolve("cache").toAbsolutePath();
+        Path data = temp.resolve("data").toAbsolutePath();
+        CommandResult status = execute("setup", "status", "--profile", "PLAYWRIGHT",
+                "--cache-root", cache.toString(), "--data-root", data.toString(), "--json");
+        Path planFile = temp.resolve("playwright-plan.json").toAbsolutePath();
+        CommandResult plan = execute("setup", "plan", "--profile", "PLAYWRIGHT", "--mode", "MANAGED",
+                "--output", planFile.toString(), "--cache-root", cache.toString(),
+                "--data-root", data.toString(), "--json");
+
+        assertEquals(3, status.exitCode(), status.stderr());
+        JsonNode report = JSON.readTree(status.stdout());
+        assertEquals("PLAYWRIGHT", report.get("profile").asText());
+        assertEquals(5, report.get("targets").size());
+        assertEquals(0, plan.exitCode(), plan.stderr());
+        JsonNode planned = JSON.readTree(plan.stdout());
+        assertEquals("PLAYWRIGHT", planned.get("profile").asText());
+        assertEquals(5, planned.get("actions").size());
+        assertTrue(Files.notExists(cache));
+        assertTrue(Files.notExists(data));
+    }
+
+    @Test
     void ocrProfileHasProviderBackedStatusAndPlan(@TempDir Path temp) throws Exception {
         Path cache = temp.resolve("cache").toAbsolutePath();
         Path data = temp.resolve("data").toAbsolutePath();

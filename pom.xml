@@ -244,6 +244,11 @@
                 <version>${playwright.version}</version>
             </dependency>
             <dependency>
+                <groupId>com.microsoft.playwright</groupId>
+                <artifactId>driver</artifactId>
+                <version>${playwright.version}</version>
+            </dependency>
+            <dependency>
                 <groupId>org.slf4j</groupId>
                 <artifactId>slf4j-bom</artifactId>
                 <version>${slf4j.version}</version>

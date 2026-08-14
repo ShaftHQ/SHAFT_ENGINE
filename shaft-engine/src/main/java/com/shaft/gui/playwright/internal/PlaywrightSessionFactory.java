@@ -24,7 +24,10 @@ public final class PlaywrightSessionFactory {
     }
 
     public static PlaywrightSession create() {
-        Playwright playwright = Playwright.create();
+        var managedEnvironment = PlaywrightManagedRuntime.environment(SHAFT.Infrastructure.options(),
+                SHAFT.Properties.playwright.connectionMode(), SHAFT.Properties.playwright.channel(), System.getenv());
+        Playwright playwright = managedEnvironment.isEmpty() ? Playwright.create()
+                : Playwright.create(new Playwright.CreateOptions().setEnv(managedEnvironment));
         PlaywrightDeviceDescriptor deviceDescriptor =
                 PlaywrightDeviceDescriptor.resolve(playwright, SHAFT.Properties.playwright.deviceName()).orElse(null);
         String resolvedBrowserName = browserName(deviceDescriptor);

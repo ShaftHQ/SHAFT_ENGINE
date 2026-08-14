@@ -96,6 +96,32 @@ class InfrastructureSetupServiceTest {
     }
 
     @Test
+    void builtInCoordinatorProvidesReadOnlyPlaywrightStatusAndExactManagedPlan(@TempDir Path temp) {
+        ShaftCachePaths paths = paths(temp);
+        InfrastructureSetupService service = InfrastructureSetupService.builtIn(
+                SetupPlatform.WINDOWS, SetupArchitecture.X64);
+        SetupOptions external = SetupOptions.defaults(SetupProfile.PLAYWRIGHT, paths);
+        SetupOptions managed = external.withMode(SetupMode.MANAGED);
+
+        assertTrue(service.supports(SetupProfile.PLAYWRIGHT));
+        SetupReport report = service.status(external);
+        SetupPlan plan = service.plan(managed);
+
+        assertEquals(SetupProfile.PLAYWRIGHT, report.profile());
+        assertEquals(SetupReadiness.MISSING, report.readiness());
+        assertEquals(List.of(SetupTarget.NODE, SetupTarget.PLAYWRIGHT_CHROMIUM,
+                SetupTarget.PLAYWRIGHT_FIREFOX, SetupTarget.PLAYWRIGHT_WEBKIT, SetupTarget.FFMPEG),
+                report.targets().stream().map(SetupStatus::target).toList());
+        assertEquals(SetupProfile.PLAYWRIGHT, plan.profile());
+        assertEquals(List.of(SetupTarget.NODE, SetupTarget.PLAYWRIGHT_CHROMIUM,
+                SetupTarget.PLAYWRIGHT_FIREFOX, SetupTarget.PLAYWRIGHT_WEBKIT, SetupTarget.FFMPEG),
+                plan.actions().stream().map(SetupAction::target).toList());
+        assertTrue(plan.actions().stream().allMatch(action -> action.kind() == SetupActionKind.INSTALL));
+        assertTrue(Files.notExists(paths.cacheRoot()));
+        assertTrue(Files.notExists(paths.dataRoot()));
+    }
+
+    @Test
     void builtInCoordinatorProvidesCompleteAndroidPlanIncludingBuildToolsLicense(@TempDir Path temp) {
         ShaftCachePaths paths = paths(temp);
         InfrastructureSetupService service = InfrastructureSetupService.builtIn(
