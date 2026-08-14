@@ -724,10 +724,17 @@ class ManagedLocalAiProviderTest {
         @Override public java.io.OutputStream getOutputStream() { return new ByteArrayOutputStream(); }
         @Override public java.io.InputStream getInputStream() { return new ByteArrayInputStream(new byte[0]); }
         @Override public java.io.InputStream getErrorStream() { return new ByteArrayInputStream(new byte[0]); }
-        @Override public int waitFor() throws InterruptedException { while (alive) Thread.sleep(5); return -1; }
+        @Override public int waitFor() throws InterruptedException {
+            while (alive) {
+                Thread.sleep(5);
+            }
+            return -1;
+        }
         @Override public boolean waitFor(long timeout, java.util.concurrent.TimeUnit unit) throws InterruptedException {
             long deadline = System.nanoTime() + unit.toNanos(timeout);
-            while (alive && System.nanoTime() < deadline) Thread.sleep(5);
+            while (alive && System.nanoTime() < deadline) {
+                Thread.sleep(5);
+            }
             return !alive;
         }
         @Override public int exitValue() { if (alive) throw new IllegalThreadStateException(); return -1; }

@@ -622,14 +622,19 @@ public final class ManagedLocalAiService {
     }
 
     private static final class DefaultArtifactAccess implements ArtifactAccess {
+        @Override
         public void download(ManagedLocalAiManifest.RuntimeAsset asset, Path target, Duration timeout,
                              BooleanSupplier cancelled) throws IOException, InterruptedException {
             ManagedLocalAiArtifacts.download(asset, target, timeout, cancelled);
         }
+
+        @Override
         public void download(ManagedLocalAiManifest.ModelManifest model, Path target, Duration timeout,
                              BooleanSupplier cancelled) throws IOException, InterruptedException {
             ManagedLocalAiArtifacts.download(model, target, timeout, cancelled);
         }
+
+        @Override
         public ManagedLocalAiArtifacts.Extraction extract(Path archive, Path destination,
                                                            BooleanSupplier cancelled)
                 throws IOException, InterruptedException {

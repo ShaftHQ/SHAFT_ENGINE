@@ -355,26 +355,42 @@ class ManagedLocalAiServiceTest {
     private ManagedLocalAiHardware.HostAccess host(String os, String arch, String abi, String abiVersion,
                                                     long memory, int processors, long disk) {
         return new ManagedLocalAiHardware.HostAccess() {
+            @Override
             public String osName() { return os; }
+            @Override
             public String architecture() { return arch; }
+            @Override
             public String abi() { return abi; }
+            @Override
             public String abiVersion() { return abiVersion; }
+            @Override
             public long availableMemoryBytes() { return memory; }
+            @Override
             public int availableProcessors() { return processors; }
+            @Override
             public long usableSpace(Path ignored) { return disk; }
+            @Override
             public String read(String ignored) { return null; }
         };
     }
 
     private static final class ThrowingHost implements ManagedLocalAiHardware.HostAccess {
         private AssertionError unexpected() { return new AssertionError("disabled inspection touched hardware"); }
+        @Override
         public String osName() { throw unexpected(); }
+        @Override
         public String architecture() { throw unexpected(); }
+        @Override
         public String abi() { throw unexpected(); }
+        @Override
         public String abiVersion() { throw unexpected(); }
+        @Override
         public long availableMemoryBytes() { throw unexpected(); }
+        @Override
         public int availableProcessors() { throw unexpected(); }
+        @Override
         public long usableSpace(Path ignored) { throw unexpected(); }
+        @Override
         public String read(String ignored) throws IOException { throw unexpected(); }
     }
 
@@ -398,6 +414,7 @@ class ManagedLocalAiServiceTest {
             this.model = model;
         }
 
+        @Override
         public ManagedLocalAiService.ProvisionResult provision(Path ignoredCache,
                               ManagedLocalAiManifest ignoredManifest,
                               ManagedLocalAiHardware.Profile profile,
