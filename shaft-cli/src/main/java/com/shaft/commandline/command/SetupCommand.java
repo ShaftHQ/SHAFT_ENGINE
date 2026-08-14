@@ -1,6 +1,5 @@
 package com.shaft.commandline.command;
 
-import com.shaft.infrastructure.ReportingSetupPlanner;
 import com.shaft.infrastructure.ReportingSetupService;
 import com.shaft.infrastructure.InfrastructureSetupService;
 import com.shaft.infrastructure.AndroidSetupRequest;
@@ -15,7 +14,6 @@ import com.shaft.infrastructure.SetupPlanJson;
 import com.shaft.infrastructure.SetupPlanStore;
 import com.shaft.infrastructure.SetupPlatform;
 import com.shaft.infrastructure.SetupProfile;
-import com.shaft.infrastructure.SetupProfileStatus;
 import com.shaft.infrastructure.SetupReadiness;
 import com.shaft.infrastructure.SetupReport;
 import com.shaft.infrastructure.SetupSelection;
@@ -447,12 +445,19 @@ public final class SetupCommand implements Runnable {
         }
 
         private AndroidSetupRequest apply(AndroidSetupRequest base) {
-            return new AndroidSetupRequest(apiLevel == null ? base.apiLevel() : apiLevel,
-                    deviceProfile == null ? base.deviceProfile() : deviceProfile,
-                    imageTag == null ? base.imageTag() : imageTag,
-                    abi == null ? base.abi() : abi, avdName == null ? base.avdName() : avdName,
-                    ramMb == null ? base.ramMb() : ramMb, cores == null ? base.cores() : cores,
-                    port == null ? base.appiumPort() : port);
+            return new AndroidSetupRequest(selected(apiLevel, base.apiLevel()),
+                    selected(deviceProfile, base.deviceProfile()), selected(imageTag, base.imageTag()),
+                    selected(abi, base.abi()), selected(avdName, base.avdName()),
+                    selected(ramMb, base.ramMb()), selected(cores, base.cores()),
+                    selected(port, base.appiumPort()));
+        }
+
+        private static int selected(Integer supplied, int fallback) {
+            return supplied == null ? fallback : supplied;
+        }
+
+        private static String selected(String supplied, String fallback) {
+            return supplied == null ? fallback : supplied;
         }
 
         private boolean hasAny() {

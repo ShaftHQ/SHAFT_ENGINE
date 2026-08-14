@@ -67,8 +67,10 @@ final class SystemAndroidRuntimeHealth implements AndroidRuntimeHealth {
             } catch (InterruptedException interrupted) {
                 Thread.currentThread().interrupt();
                 throw new IOException("Interrupted while waiting for Appium readiness.", interrupted);
+            } catch (IOException notReady) {
+                last = notReady;
             } catch (Exception notReady) {
-                last = notReady instanceof IOException io ? io : new IOException(notReady);
+                last = new IOException(notReady);
             }
             pause(deadline);
         }

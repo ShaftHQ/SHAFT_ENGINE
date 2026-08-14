@@ -143,6 +143,10 @@ public class DriverFactoryHelper {
     public DriverFactoryHelper() {
     }
 
+    DriverFactoryHelper(ManagedAndroidBootstrap.Session managedAndroidSession) {
+        this.managedAndroidSession = managedAndroidSession;
+    }
+
     /**
      * Creates a helper instance attached to an existing WebDriver session.
      *

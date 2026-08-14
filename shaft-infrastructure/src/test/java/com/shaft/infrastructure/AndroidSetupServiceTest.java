@@ -13,6 +13,7 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.EnumMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
@@ -336,58 +337,8 @@ class AndroidSetupServiceTest {
         Path npmArchive = Files.writeString(temp.resolve("package.tgz"), "package");
         AndroidSetupRequest request = new AndroidSetupRequest(36, "pixel_8", "google_apis", "x86_64",
                 "integration_avd", 4096, 2, 4723);
-        List<List<String>> commands = new ArrayList<>();
-        List<String> sdkPackageInputs = new ArrayList<>();
-        AndroidCommandRunner runner = (command, workingDirectory, environment, removed, input, log, timeout) -> {
-            commands.add(List.copyOf(command));
-            if (command.contains("driver") || command.contains("plugin")) {
-                Path extensionManifest = workingDirectory.resolve("node_modules/.cache/appium/extensions.yaml");
-                if (Files.notExists(extensionManifest)) {
-                    Files.createDirectories(extensionManifest.getParent());
-                    Files.writeString(extensionManifest, "installPath: " + workingDirectory);
-                }
-            }
-            int prefix = command.indexOf("--prefix");
-            if (command.contains("ci") && prefix >= 0) createAppiumFixture(Path.of(command.get(prefix + 1)));
-            if (command.stream().anyMatch(part -> part.contains("sdkmanager"))
-                    && !command.contains("--licenses")) {
-                createSdkFixture(workingDirectory);
-                if (command.stream().anyMatch(part -> part.startsWith("system-images;"))) {
-                    sdkPackageInputs.add(input);
-                }
-            }
-            int avdPath = command.indexOf("--path");
-            if (command.stream().anyMatch(part -> part.contains("avdmanager")) && avdPath >= 0) {
-                Path root = Path.of(command.get(avdPath + 1));
-                Files.createDirectories(root);
-                Files.writeString(root.resolve("config.ini"), "image.sysdir.1=system-images/android-36/google_apis/x86_64\n");
-            }
-            String output;
-            if (command.contains("--list_installed")) {
-                output = "Installed packages:\nPath | Version | Description\n"
-                        + "platform-tools | 37.0.1 | fixture\n"
-                        + "emulator | 37.1.11 | fixture\n"
-                        + "platforms;android-36 | 2 | fixture\n"
-                        + "build-tools;36.0.0 | 36.0.0 | fixture\n"
-                        + "system-images;android-36;google_apis;x86_64 | 7 | fixture\n";
-            } else if (command.contains("driver")) {
-                output = "dbug Appium refreshed extension cache\n"
-                        + "{\"uiautomator2\":{\"pkgName\":\"appium-uiautomator2-driver\",\"version\":\"8.2.2\"}}";
-            } else if (command.contains("plugin")) {
-                output = "dbug Appium refreshed extension cache\n"
-                        + "{\"inspector\":{\"pkgName\":\"appium-inspector-plugin\",\"version\":\"2026.7.1\"}}";
-            } else {
-                output = command.stream().anyMatch(part -> part.endsWith("appium/index.js")
-                        || part.endsWith("appium\\index.js"))
-                        ? "dbug Appium refreshed extension cache\n3.6.0" : "v24.19.0";
-            }
-            return new ReportingSetupService.ProcessResult(0, output);
-        };
-        ReportingSetupService.ArtifactFetcher fetcher = action -> switch (action.target()) {
-            case NODE -> nodeArchive;
-            case ANDROID_SDK -> commandTools;
-            default -> npmArchive;
-        };
+        FullInstallRunner runner = new FullInstallRunner();
+        ReportingSetupService.ArtifactFetcher fetcher = fixtureFetcher(nodeArchive, commandTools, npmArchive);
         DefaultAndroidToolchainOperations operations = new DefaultAndroidToolchainOperations(paths,
                 SetupPlatform.WINDOWS, SetupArchitecture.X64, request, fetcher, runner, false);
         AndroidSetupService service = new AndroidSetupService(paths, SetupPlatform.WINDOWS,
@@ -406,17 +357,27 @@ class AndroidSetupServiceTest {
                 "appium/3.6.0/node_modules/.cache/appium/extensions.yaml"));
         assertFalse(extensionManifest.contains(".staging-"));
         assertTrue(extensionManifest.contains(paths.tools().resolve("appium/3.6.0").toString()));
-        assertTrue(commands.stream().noneMatch(command -> command.contains("--licenses")));
-        assertEquals(List.of("y\n"), sdkPackageInputs);
-        assertTrue(commands.stream().anyMatch(command -> command.contains("build-tools;36.0.0")));
-        assertTrue(commands.stream().anyMatch(command -> command.contains("--list_installed")));
-        assertTrue(commands.stream().anyMatch(command -> command.stream().anyMatch(part -> part.endsWith("aapt2.exe"))
+        assertTrue(runner.commands.stream().noneMatch(command -> command.contains("--licenses")));
+        assertEquals(List.of("y\n"), runner.sdkPackageInputs);
+        assertTrue(runner.commands.stream().anyMatch(command -> command.contains("build-tools;36.0.0")));
+        assertTrue(runner.commands.stream().anyMatch(command -> command.contains("--list_installed")));
+        assertTrue(runner.commands.stream().anyMatch(command -> command.stream()
+                .anyMatch(part -> part.endsWith("aapt2.exe"))
                 && command.contains("version")));
-        assertTrue(commands.stream().anyMatch(command -> command.containsAll(
+        assertTrue(runner.commands.stream().anyMatch(command -> command.containsAll(
                 List.of("driver", "list", "--installed", "--json"))));
-        assertTrue(commands.stream().anyMatch(command -> command.containsAll(
+        assertTrue(runner.commands.stream().anyMatch(command -> command.containsAll(
                 List.of("plugin", "list", "--installed", "--json"))));
-        assertTrue(commands.stream().noneMatch(command -> command.contains("--relaxed-security")));
+        assertTrue(runner.commands.stream().noneMatch(command -> command.contains("--relaxed-security")));
+    }
+
+    private static ReportingSetupService.ArtifactFetcher fixtureFetcher(Path nodeArchive, Path commandTools,
+                                                                          Path npmArchive) {
+        return action -> switch (action.target()) {
+            case NODE -> nodeArchive;
+            case ANDROID_SDK -> commandTools;
+            default -> npmArchive;
+        };
     }
 
     private static ShaftCachePaths paths(Path temp) {
@@ -490,6 +451,76 @@ class AndroidSetupServiceTest {
                 + "system-images;android-36;google_apis;x86_64 | 7 | fixture\n";
     }
 
+    private static final class FullInstallRunner implements AndroidCommandRunner {
+        private final List<List<String>> commands = new ArrayList<>();
+        private final List<String> sdkPackageInputs = new ArrayList<>();
+
+        @Override
+        public ReportingSetupService.ProcessResult run(List<String> command, Path workingDirectory,
+                                                       Map<String, String> environment, Set<String> removed,
+                                                       String input, Path log, Duration timeout) throws IOException {
+            commands.add(List.copyOf(command));
+            recordExtensionManifest(command, workingDirectory);
+            createInstalledFixtures(command, workingDirectory, input);
+            return new ReportingSetupService.ProcessResult(0, output(command));
+        }
+
+        private void recordExtensionManifest(List<String> command, Path workingDirectory) throws IOException {
+            if (!command.contains("driver") && !command.contains("plugin")) return;
+            Path manifest = workingDirectory.resolve("node_modules/.cache/appium/extensions.yaml");
+            if (Files.exists(manifest)) return;
+            Files.createDirectories(manifest.getParent());
+            Files.writeString(manifest, "installPath: " + workingDirectory);
+        }
+
+        private void createInstalledFixtures(List<String> command, Path workingDirectory, String input)
+                throws IOException {
+            createAppiumInstall(command);
+            createSdkInstall(command, workingDirectory, input);
+            createAvdInstall(command);
+        }
+
+        private static void createAppiumInstall(List<String> command) throws IOException {
+            int prefix = command.indexOf("--prefix");
+            if (command.contains("ci") && prefix >= 0) {
+                createAppiumFixture(Path.of(command.get(prefix + 1)));
+            }
+        }
+
+        private void createSdkInstall(List<String> command, Path workingDirectory, String input) throws IOException {
+            boolean sdkManager = command.stream().anyMatch(part -> part.contains("sdkmanager"));
+            if (!sdkManager || command.contains("--licenses")) return;
+            createSdkFixture(workingDirectory);
+            if (command.stream().anyMatch(part -> part.startsWith("system-images;"))) {
+                sdkPackageInputs.add(input);
+            }
+        }
+
+        private static void createAvdInstall(List<String> command) throws IOException {
+            int avdPath = command.indexOf("--path");
+            boolean avdManager = command.stream().anyMatch(part -> part.contains("avdmanager"));
+            if (!avdManager || avdPath < 0) return;
+            Path root = Path.of(command.get(avdPath + 1));
+            Files.createDirectories(root);
+            Files.writeString(root.resolve("config.ini"),
+                    "image.sysdir.1=system-images/android-36/google_apis/x86_64\n");
+        }
+
+        private static String output(List<String> command) {
+            if (command.contains("--list_installed")) return exactInstalledPackages();
+            if (command.contains("driver")) return "dbug Appium refreshed extension cache\n"
+                    + "{\"uiautomator2\":{\"pkgName\":\"appium-uiautomator2-driver\",\"version\":\"8.2.2\"}}";
+            if (command.contains("plugin")) return "dbug Appium refreshed extension cache\n"
+                    + "{\"inspector\":{\"pkgName\":\"appium-inspector-plugin\",\"version\":\"2026.7.1\"}}";
+            return isAppium(command) ? "dbug Appium refreshed extension cache\n3.6.0" : "v24.19.0";
+        }
+
+        private static boolean isAppium(List<String> command) {
+            return command.stream().anyMatch(part -> part.endsWith("appium/index.js")
+                    || part.endsWith("appium\\index.js"));
+        }
+    }
+
     private static final class RecordingOperations implements AndroidToolchainOperations {
         private final List<SetupAction> installs = new ArrayList<>();
         private final EnumMap<SetupTarget, SetupReadiness> readiness = new EnumMap<>(SetupTarget.class);
@@ -517,7 +548,7 @@ class AndroidSetupServiceTest {
     }
 
     private static final class ConvergingOperations implements AndroidToolchainOperations {
-        private final java.util.Set<SetupTarget> installed = java.util.concurrent.ConcurrentHashMap.newKeySet();
+        private final Set<SetupTarget> installed = java.util.concurrent.ConcurrentHashMap.newKeySet();
         private final java.util.concurrent.atomic.AtomicInteger preflights = new java.util.concurrent.atomic.AtomicInteger();
         private final java.util.concurrent.atomic.AtomicInteger activeMutations = new java.util.concurrent.atomic.AtomicInteger();
         private final java.util.concurrent.atomic.AtomicInteger maximumActiveMutations =

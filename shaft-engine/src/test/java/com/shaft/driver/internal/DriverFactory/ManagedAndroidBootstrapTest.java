@@ -18,7 +18,6 @@ import java.io.IOException;
 import java.net.URI;
 import java.nio.file.Files;
 import java.time.Instant;
-import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -85,10 +84,7 @@ public class ManagedAndroidBootstrapTest {
                 Optional.of(URI.create("http://127.0.0.1:4723/")), Map.of(), () -> released.set(true));
         ManagedAndroidBootstrap.Session session = new ManagedAndroidBootstrap.Session(
                 URI.create("http://127.0.0.1:4723/"), Map.of(), environment);
-        DriverFactoryHelper helper = new DriverFactoryHelper();
-        var field = DriverFactoryHelper.class.getDeclaredField("managedAndroidSession");
-        field.setAccessible(true);
-        field.set(helper, session);
+        DriverFactoryHelper helper = new DriverFactoryHelper(session);
 
         helper.closeDriver();
 

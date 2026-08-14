@@ -68,7 +68,7 @@ final class AndroidLifecycleService {
                 receipt = requireInstallReceipt(plan);
                 requireInstalled(plan);
                 Optional<ActiveRuntime> reusable = readReusable(plan, options);
-                if (reusable.isPresent()) return environment(plan, receipt, reusable.orElseThrow(), options);
+                if (reusable.isPresent()) return environment(receipt, reusable.orElseThrow(), options);
                 return startNew(plan, receipt, options);
             }
         } catch (InterruptedException interrupted) {
@@ -138,17 +138,23 @@ final class AndroidLifecycleService {
             AndroidRuntimeLease lease = new AndroidRuntimeLease(1, plan.digest(), request.avdName(), layout.serial(),
                     endpoint.toString(), ProcessIdentity.of(emulator), ProcessIdentity.of(appium), 1);
             writeLease(lease);
-            return environment(plan, receipt, new ActiveRuntime(lease, emulator, appium), options);
-        } catch (IOException | RuntimeException failure) {
-            IOException cleanup = stopStarted(appium, emulator, options.shutdownTimeout());
-            if (cleanup != null) failure.addSuppressed(cleanup);
-            if (failure instanceof IOException io) throw io;
+            return environment(receipt, new ActiveRuntime(lease, emulator, appium), options);
+        } catch (IOException failure) {
+            suppressCleanupFailure(failure, appium, emulator, options.shutdownTimeout());
+            throw failure;
+        } catch (RuntimeException failure) {
+            suppressCleanupFailure(failure, appium, emulator, options.shutdownTimeout());
             throw failure;
         }
     }
 
-    private ManagedEnvironment environment(SetupPlan plan, SetupReceipt receipt, ActiveRuntime active,
-                                           SetupOptions options) {
+    private void suppressCleanupFailure(Throwable failure, AndroidOwnedProcess appium,
+                                        AndroidOwnedProcess emulator, Duration timeout) {
+        IOException cleanup = stopStarted(appium, emulator, timeout);
+        if (cleanup != null) failure.addSuppressed(cleanup);
+    }
+
+    private ManagedEnvironment environment(SetupReceipt receipt, ActiveRuntime active, SetupOptions options) {
         Map<String, String> properties = new LinkedHashMap<>(androidEnvironment());
         properties.put("APPIUM_HOME", layout.appiumHome().toString());
         properties.put("ANDROID_SERIAL", layout.serial());

@@ -18,6 +18,7 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -236,13 +237,13 @@ public final class ReportingSetupService {
     static ProcessResult runProcess(List<String> command, Path log, Duration timeout,
                                     Path cacheRoot, Path nodeRoot, Path workingDirectory) throws IOException {
         return runProcess(command, log, timeout, cacheRoot, nodeRoot, workingDirectory,
-                java.util.Map.of(), java.util.Set.of(), null);
+                Map.of(), Set.of(), null);
     }
 
     static ProcessResult runProcess(List<String> command, Path log, Duration timeout,
                                     Path cacheRoot, Path nodeRoot, Path workingDirectory,
-                                    java.util.Map<String, String> environment,
-                                    java.util.Set<String> removedEnvironment, String standardInput) throws IOException {
+                                    Map<String, String> environment,
+                                    Set<String> removedEnvironment, String standardInput) throws IOException {
         ProcessBuilder builder = new ProcessBuilder(command).redirectErrorStream(true);
         if (workingDirectory != null) builder.directory(workingDirectory.toFile());
         String nodeBin = Files.isRegularFile(nodeRoot.resolve("node.exe"))
