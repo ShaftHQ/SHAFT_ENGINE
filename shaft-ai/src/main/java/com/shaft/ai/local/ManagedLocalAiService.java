@@ -113,8 +113,11 @@ public final class ManagedLocalAiService {
     public ManagedLocalAiSnapshot clean() throws Exception {
         Settings configured = Objects.requireNonNull(settings.get(), "managed local AI settings");
         Path cache = resolveCache(configured.cacheDirectory());
-        ManagedLocalAiCache.withLock(cache, Duration.ofSeconds(configured.lockTimeoutSeconds()),
-                () -> ManagedLocalAiCache.clean(cache));
+        Duration lockTimeout = Duration.ofSeconds(configured.lockTimeoutSeconds());
+        ManagedLocalAiProcess.withLaunchExclusion(lockTimeout, () -> {
+            ManagedLocalAiProcess.terminateRetainedLaunches();
+            ManagedLocalAiCache.withLock(cache, lockTimeout, () -> ManagedLocalAiCache.clean(cache));
+        });
         return inspect();
     }
 
@@ -167,6 +170,35 @@ public final class ManagedLocalAiService {
         }
         return snapshot(state, action, cache, configured, profile.platform(), profile, manifest, model, models,
                 runtimeStatus, modelStatus);
+    }
+
+    ReadyRuntime readyRuntime() throws IOException {
+        ManagedLocalAiSnapshot snapshot = inspect();
+        if (snapshot.state() != ManagedLocalAiSnapshot.State.READY || snapshot.selectedModelId() == null) {
+            throw new IllegalStateException("Managed local AI is not ready for inference.");
+        }
+        ManagedLocalAiManifest manifest = Objects.requireNonNull(manifests.get(), "managed local AI manifest");
+        ManagedLocalAiManifest.RuntimeAsset asset = manifest.runtime().assets().stream()
+                .filter(candidate -> candidate.platform().equals(snapshot.platform())).findFirst().orElseThrow();
+        ManagedLocalAiManifest.ModelManifest model = manifest.models().stream()
+                .filter(candidate -> candidate.id().equals(snapshot.selectedModelId())).findFirst().orElseThrow();
+        ManagedLocalAiCache.Installation runtimeInstallation = ManagedLocalAiCache.verify(snapshot.cacheDirectory(),
+                runtimeInstallationId(manifest, snapshot.platform()));
+        ManagedLocalAiCache.Installation modelInstallation = ManagedLocalAiCache.verify(snapshot.cacheDirectory(),
+                modelInstallationId(model));
+        int launchTimeoutSeconds = SHAFT.Properties.managedLocalAi.launchTimeoutSeconds();
+        if (launchTimeoutSeconds <= 0) {
+            throw new IllegalStateException("Managed local AI launch timeout must be positive.");
+        }
+        return new ReadyRuntime(snapshot.cacheDirectory(),
+                requireOwnedNamedFile(snapshot.cacheDirectory(), runtimeInstallation, asset.executable()),
+                requireOwnedNamedFile(snapshot.cacheDirectory(), modelInstallation, model.file()),
+                inferenceLog(snapshot.cacheDirectory()), model.id(),
+                Math.max(1, snapshot.cpuCount()), Duration.ofSeconds(launchTimeoutSeconds));
+    }
+
+    static Path inferenceLog(Path cache) {
+        return cache.toAbsolutePath().normalize().resolve("staging/logs/server-" + UUID.randomUUID() + ".log");
     }
 
     static String runtimeInstallationId(ManagedLocalAiManifest manifest, String platform) {
@@ -400,6 +432,10 @@ public final class ManagedLocalAiService {
         ProvisionResult {
             installationIds = java.util.Set.copyOf(installationIds);
         }
+    }
+
+    record ReadyRuntime(Path cache, Path executable, Path model, Path log, String alias, int threads,
+                        Duration launchTimeout) {
     }
 
     static final class DefaultProvisioning implements Provisioning {

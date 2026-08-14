@@ -35,6 +35,18 @@ class ManagedLocalAiServiceTest {
     Path temp;
 
     @Test
+    void eachRuntimeLaunchUsesANewContainedLogLeaf() {
+        Path cache = temp.resolve("cache").toAbsolutePath();
+
+        Path first = ManagedLocalAiService.inferenceLog(cache);
+        Path second = ManagedLocalAiService.inferenceLog(cache);
+
+        assertTrue(first.startsWith(cache.resolve("staging/logs")));
+        assertTrue(second.startsWith(cache.resolve("staging/logs")));
+        assertFalse(first.equals(second));
+    }
+
+    @Test
     void inspectionIsReadOnlyAndSurfacesDisabledUnsupportedExcludedAndMissingInventory() throws Exception {
         Path absentCache = temp.resolve("absent/cache");
         ManagedLocalAiService disabledService = service(absentCache, false, "auto", new ThrowingHost());

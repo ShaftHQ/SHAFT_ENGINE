@@ -2,10 +2,17 @@ package com.shaft.ai.local;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.shaft.pilot.ai.AiRequest;
+import com.shaft.pilot.ai.AiResponse;
+import com.shaft.pilot.ai.AiResponseStatus;
+import com.shaft.pilot.ai.AiUsage;
+import com.shaft.pilot.config.PilotConfiguration;
+import com.shaft.pilot.json.JsonSchemaValidator;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.net.ServerSocket;
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -19,6 +26,7 @@ import java.nio.file.attribute.FileAttribute;
 import java.nio.file.attribute.PosixFilePermissions;
 import java.security.SecureRandom;
 import java.time.Duration;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.LinkedHashMap;
@@ -28,12 +36,31 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.locks.ReentrantLock;
+import java.util.regex.Pattern;
 
 /** Bounded, authenticated loopback lifecycle for the SHAFT-owned llama.cpp process. */
 final class ManagedLocalAiProcess {
     private static final ObjectMapper JSON = new ObjectMapper();
+    private static final tools.jackson.databind.ObjectMapper PILOT_JSON = new tools.jackson.databind.ObjectMapper();
+    private static final int MAXIMUM_INFERENCE_RESPONSE_BYTES = 1024 * 1024;
+    private static final int MAXIMUM_STARTUP_BYTES = 64 * 1024;
+    private static final int MAXIMUM_STARTUP_LINE_BYTES = 4 * 1024;
     private static final SecureRandom RANDOM = new SecureRandom();
     private static final int MAX_LAUNCH_ATTEMPTS = 3;
+    private static final Pattern LISTENING_ENDPOINT = Pattern.compile(
+            "^srv\\s+llama_server:\\s+listening on http://127\\.0\\.0\\.1:(\\d{1,5})$");
+    private static final ReentrantLock LAUNCH_LOCK = new ReentrantLock();
+    private static final Object LOG_WRITE_LOCK = new Object();
+    private static final java.util.concurrent.atomic.AtomicReference<Session> FAILED_LAUNCH =
+            new java.util.concurrent.atomic.AtomicReference<>();
+    private static final java.util.concurrent.atomic.AtomicReference<Session> ACTIVE_LAUNCH =
+            new java.util.concurrent.atomic.AtomicReference<>();
+    private static final java.util.concurrent.atomic.AtomicReference<LaunchReservation> PENDING_LAUNCH =
+            new java.util.concurrent.atomic.AtomicReference<>();
+    private static final Set<Process> SUPERVISED_PROCESSES = java.util.concurrent.ConcurrentHashMap.newKeySet();
+    private static final HttpClient LOOPBACK_HTTP = HttpClient.newBuilder()
+            .connectTimeout(Duration.ofSeconds(2)).followRedirects(HttpClient.Redirect.NEVER).build();
     private static final Set<String> ENVIRONMENT_ALLOWLIST = Set.of(
             "PATH", "SYSTEMROOT", "WINDIR", "TEMP", "TMP", "TMPDIR", "COMSPEC", "PATHEXT",
             "LD_LIBRARY_PATH", "DYLD_LIBRARY_PATH", "DYLD_FALLBACK_LIBRARY_PATH", "LANG", "LC_ALL",
@@ -57,7 +84,7 @@ final class ManagedLocalAiProcess {
         requireRegular(executable, "runtime executable");
         requireRegular(model, "model");
         requireRegular(apiKeyFile, "API key file");
-        if (port < 1 || port > 65_535 || alias == null || alias.isBlank()
+        if (port < 0 || port > 65_535 || alias == null || alias.isBlank()
                 || threads < 1) {
             throw new IllegalArgumentException("Managed local AI launch parameters are invalid.");
         }
@@ -66,12 +93,53 @@ final class ManagedLocalAiProcess {
                 "--api-key-file", apiKeyFile.toAbsolutePath().toString(), "--threads", Integer.toString(threads));
     }
 
-    static Session launch(Path cache, Path executable, Path model, Path log, String alias, int threads, Duration timeout,
-                          PortSupplier ports, ProcessStarter starter, IdentityProbe identity) throws Exception {
+    static Session launch(Path cache, Path executable, Path model, Path log, String alias, int threads,
+                          Duration timeout, ProcessStarter starter,
+                          IdentityProbe identity) throws Exception {
+        return launch(cache, executable, model, log, alias, threads, timeout, () -> false, starter, identity);
+    }
+
+    static Session launch(Path cache, Path executable, Path model, Path log, String alias, int threads,
+                          Duration timeout, java.util.function.BooleanSupplier cancelled,
+                          ProcessStarter starter, IdentityProbe identity) throws Exception {
         Objects.requireNonNull(timeout, "timeout");
+        Objects.requireNonNull(cancelled, "cancelled");
         if (timeout.isNegative() || timeout.isZero()) {
             throw new IllegalArgumentException("Launch timeout must be positive.");
         }
+        long deadline = System.nanoTime() + timeout.toNanos();
+        boolean locked = false;
+        try {
+            locked = LAUNCH_LOCK.tryLock(remaining(deadline).toNanos(), TimeUnit.NANOSECONDS);
+            if (!locked) {
+                throw new DeadlineExceededException();
+            }
+            return launchLocked(cache, executable, model, log, alias, threads, timeout, deadline, cancelled, starter,
+                    identity);
+        } catch (InterruptedException interrupted) {
+            Thread.currentThread().interrupt();
+            throw interrupted;
+        } finally {
+            if (locked) {
+                LAUNCH_LOCK.unlock();
+            }
+        }
+    }
+
+    private static Session launchLocked(Path cache, Path executable, Path model, Path log, String alias, int threads,
+                                        Duration timeout, long deadline, java.util.function.BooleanSupplier cancellation,
+                                        ProcessStarter starter,
+                                        IdentityProbe identity) throws Exception {
+        Session failedLaunch = FAILED_LAUNCH.get();
+        if (failedLaunch != null && failedLaunch.hasSurvivors()) {
+            throw new IllegalStateException("A prior managed local AI launch still owns a surviving process tree.");
+        }
+        FAILED_LAUNCH.compareAndSet(failedLaunch, null);
+        Session activeLaunch = ACTIVE_LAUNCH.get();
+        if (activeLaunch != null && activeLaunch.hasSurvivors()) {
+            throw new IllegalStateException("A managed local AI process tree is already active.");
+        }
+        ACTIVE_LAUNCH.compareAndSet(activeLaunch, null);
         Path verifiedExecutable = ManagedLocalAiCache.verifyOwnedFile(cache, executable);
         Path verifiedModel = ManagedLocalAiCache.verifyOwnedFile(cache, model);
         requireContainedLog(cache, log);
@@ -80,36 +148,153 @@ final class ManagedLocalAiProcess {
         reserveLog(log);
         Exception lastFailure = null;
         for (int attempt = 0; attempt < MAX_LAUNCH_ATTEMPTS; attempt++) {
+            try {
+                remaining(deadline);
+            } catch (DeadlineExceededException expired) {
+                lastFailure = expired;
+                break;
+            }
             String key = secret();
             Path keyFile = createKeyFile(cache, key);
             Process process = null;
+            Session candidate = null;
+            LaunchReservation reservation = new LaunchReservation(Thread.currentThread());
             try {
-                int port = ports.next();
-                process = starter.start(command(verifiedExecutable, verifiedModel, port, alias, keyFile, threads),
+                remaining(deadline);
+                if (!PENDING_LAUNCH.compareAndSet(null, reservation)) {
+                    throw new IllegalStateException("Managed local AI process start is already pending.");
+                }
+                if (cancellation.getAsBoolean() || reservation.cancelled()) {
+                    throw new IllegalStateException("Managed local AI launch was cancelled before process start.");
+                }
+                process = starter.start(command(verifiedExecutable, verifiedModel, 0, alias, keyFile, threads),
                         runtimeEnvironment(System.getenv()), log);
-                identity.await(process, port, key, alias, timeout);
+                synchronized (reservation) {
+                    reservation.bind(process);
+                    candidate = new Session(process, 0, alias, key, timeout, verifiedExecutable, verifiedModel,
+                            threads);
+                    if (!ACTIVE_LAUNCH.compareAndSet(null, candidate)) {
+                        throw new IllegalStateException("Managed local AI process ownership is already registered.");
+                    }
+                }
+                if (cancellation.getAsBoolean() || reservation.cancelled()) {
+                    throw new IllegalStateException("Managed local AI launch was cancelled during process start.");
+                }
+                reservation.resolve();
+                PENDING_LAUNCH.compareAndSet(reservation, null);
+                StartupObservation startup = awaitStartup(process, remaining(deadline));
+                candidate.bindLogCapture(captureLog(cache, process.getInputStream(), log, startup.captured(), key));
+                if (startup.port() == null) {
+                    throw new IOException("Managed local AI did not report its child-owned loopback endpoint.");
+                }
+                int port = startup.port();
+                candidate.bindPort(port);
+                identity.await(process, port, key, alias, remaining(deadline));
                 if (!process.isAlive()) {
                     throw new IllegalStateException("Managed local AI process exited during identity verification.");
                 }
                 deleteKeyFile(keyFile, null);
-                return new Session(process, port, alias, key, timeout);
+                return candidate;
             } catch (InterruptedException cancelled) {
-                Thread.currentThread().interrupt();
-                if (process != null) {
-                    terminate(process, Duration.ofSeconds(2), cancelled);
+                if (candidate != null) {
+                    candidate.close(cleanupTimeout(deadline), cancelled);
+                    retainFailedLaunch(candidate);
+                } else if (process != null) {
+                    terminate(process, cleanupTimeout(deadline), cancelled);
                 }
                 deleteKeyFile(keyFile, cancelled);
+                Thread.currentThread().interrupt();
                 throw cancelled;
             } catch (Exception failure) {
                 lastFailure = failure;
-                if (process != null) {
-                    terminate(process, Duration.ofSeconds(2), failure);
+                boolean survivors = false;
+                if (candidate != null) {
+                    candidate.close(cleanupTimeout(deadline), failure);
+                    survivors = candidate.hasSurvivors();
+                    if (survivors) {
+                        retainFailedLaunch(candidate);
+                    }
+                } else if (process != null) {
+                    terminate(process, cleanupTimeout(deadline), failure);
                 }
                 deleteKeyFile(keyFile, failure);
+                if (survivors) {
+                    break;
+                }
+            } finally {
+                reservation.resolve();
+                PENDING_LAUNCH.compareAndSet(reservation, null);
             }
         }
         throw new IllegalStateException("Managed local AI process could not establish its authenticated identity.",
                 lastFailure);
+    }
+
+    private static Duration cleanupTimeout(long deadline) {
+        long nanos = Math.max(0, deadline - System.nanoTime());
+        return Duration.ofNanos(Math.min(Duration.ofSeconds(2).toNanos(), nanos));
+    }
+
+    private static void retainFailedLaunch(Session session) {
+        if (!session.hasSurvivors() || !FAILED_LAUNCH.compareAndSet(null, session)) {
+            return;
+        }
+        Thread.ofVirtual().name("shaft-local-ai-failed-launch-reaper").start(() -> {
+            try {
+                while (session.hasSurvivors()) {
+                    session.close(Duration.ofMillis(100),
+                            new IllegalStateException("Failed managed local AI launch retained survivors."));
+                    Thread.sleep(25);
+                }
+            } catch (InterruptedException interrupted) {
+                Thread.currentThread().interrupt();
+            } finally {
+                if (!session.hasSurvivors()) {
+                    ACTIVE_LAUNCH.compareAndSet(session, null);
+                }
+                FAILED_LAUNCH.compareAndSet(session, null);
+            }
+        });
+    }
+
+    static void terminateRetainedLaunches() {
+        Throwable cleanup = new IllegalStateException("Managed local AI retained launch shutdown cleanup.");
+        LaunchReservation pending = PENDING_LAUNCH.get();
+        if (pending != null) {
+            pending.cancel(cleanup);
+            pending.awaitResolution(Duration.ofSeconds(2));
+        }
+        Set<Session> sessions = new java.util.LinkedHashSet<>();
+        Session active = ACTIVE_LAUNCH.get();
+        Session failed = FAILED_LAUNCH.get();
+        if (active != null) {
+            sessions.add(active);
+        }
+        if (failed != null) {
+            sessions.add(failed);
+        }
+        for (Session session : sessions) {
+            if (session.forceKillAndAwait(Duration.ofSeconds(2), cleanup)) {
+                throw new IllegalStateException("Managed local AI process tree survived forced shutdown.", cleanup);
+            }
+            ACTIVE_LAUNCH.compareAndSet(session, null);
+            FAILED_LAUNCH.compareAndSet(session, null);
+        }
+    }
+
+    static void withLaunchExclusion(Duration timeout, CheckedRunnable action) throws Exception {
+        boolean locked = false;
+        try {
+            locked = LAUNCH_LOCK.tryLock(timeout.toNanos(), TimeUnit.NANOSECONDS);
+            if (!locked) {
+                throw new IllegalStateException("Managed local AI launch ownership is busy.");
+            }
+            action.run();
+        } finally {
+            if (locked) {
+                LAUNCH_LOCK.unlock();
+            }
+        }
     }
 
     static void requireIdentity(Process process, int port, String apiKey, String alias, Duration timeout,
@@ -122,7 +307,8 @@ final class ManagedLocalAiProcess {
             }
             try {
                 Map<String, Object> response = requester.get(
-                        URI.create("http://127.0.0.1:" + port + "/v1/models"), "Bearer " + apiKey);
+                        URI.create("http://127.0.0.1:" + port + "/v1/models"), "Bearer " + apiKey,
+                        remaining(deadline));
                 Object data = response.get("data");
                 if (data instanceof List<?> models && models.size() == 1 && models.getFirst() instanceof Map<?, ?> model
                         && alias.equals(model.get("id"))) {
@@ -141,25 +327,46 @@ final class ManagedLocalAiProcess {
     }
 
     static void terminate(Process process, Duration timeout, Throwable primary) {
+        terminate(process, timeout, primary, new java.util.LinkedHashSet<>());
+    }
+
+    private static boolean terminate(Process process, Duration timeout, Throwable primary,
+                                     Set<ProcessHandle> retainedDescendants) {
         if (process == null) {
-            return;
+            return false;
         }
-        List<ProcessHandle> discovered = List.of();
+        revokeSupervisorOwnership(process, primary);
+        if (SUPERVISED_PROCESSES.contains(process)) {
+            try {
+                boolean exited = process.waitFor(timeout.toNanos(), TimeUnit.NANOSECONDS);
+                if (exited || !process.isAlive()) {
+                    SUPERVISED_PROCESSES.remove(process);
+                    return false;
+                }
+            } catch (InterruptedException interrupted) {
+                Thread.currentThread().interrupt();
+                if (primary != null) {
+                    primary.addSuppressed(interrupted);
+                }
+            }
+            return true;
+        }
+        Set<ProcessHandle> discovered = new java.util.LinkedHashSet<>(retainedDescendants);
         try {
-            discovered = process.toHandle().descendants().toList();
+            discovered.addAll(process.toHandle().descendants().toList());
             discovered.forEach(ProcessHandle::destroy);
         } catch (Exception cleanup) {
             if (primary != null) {
                 primary.addSuppressed(cleanup);
             }
         }
-        List<ProcessHandle> descendants = discovered;
+        Set<ProcessHandle> descendants = discovered;
         RuntimeException survivorFailure = null;
+        long deadline = System.nanoTime() + timeout.toNanos();
         try {
             process.destroy();
-            boolean parentExited = process.waitFor(Math.max(0, timeout.toMillis()), TimeUnit.MILLISECONDS);
+            boolean parentExited = process.waitFor(Math.max(0, deadline - System.nanoTime()), TimeUnit.NANOSECONDS);
             descendants.stream().filter(ProcessHandle::isAlive).forEach(ProcessHandle::destroyForcibly);
-            long deadline = System.nanoTime() + timeout.toNanos();
             while (descendants.stream().anyMatch(ProcessHandle::isAlive) && System.nanoTime() < deadline) {
                 Thread.sleep(10);
             }
@@ -168,12 +375,20 @@ final class ManagedLocalAiProcess {
             }
             if (!parentExited) {
                 process.destroyForcibly();
-                boolean forcedExit = process.waitFor(Math.max(1, timeout.toMillis()), TimeUnit.MILLISECONDS);
+                boolean forcedExit = process.waitFor(Math.max(0, deadline - System.nanoTime()), TimeUnit.NANOSECONDS);
                 if (!forcedExit || process.isAlive()) {
                     survivorFailure = new IllegalStateException("Managed local AI process did not terminate.");
                 }
             }
         } catch (InterruptedException interrupted) {
+            try {
+                descendants.stream().filter(ProcessHandle::isAlive).forEach(ProcessHandle::destroyForcibly);
+                if (process.isAlive()) {
+                    process.destroyForcibly();
+                }
+            } catch (Exception cleanup) {
+                interrupted.addSuppressed(cleanup);
+            }
             Thread.currentThread().interrupt();
             if (primary != null) {
                 primary.addSuppressed(interrupted);
@@ -183,11 +398,25 @@ final class ManagedLocalAiProcess {
                 primary.addSuppressed(cleanup);
             }
         }
+        retainedDescendants.clear();
+        descendants.stream().filter(ProcessHandle::isAlive).forEach(retainedDescendants::add);
+        boolean survivors = process.isAlive() || !retainedDescendants.isEmpty();
         if (survivorFailure != null) {
             if (primary != null) {
                 primary.addSuppressed(survivorFailure);
             } else {
                 throw survivorFailure;
+            }
+        }
+        return survivors;
+    }
+
+    private static void revokeSupervisorOwnership(Process process, Throwable primary) {
+        try {
+            process.getOutputStream().close();
+        } catch (IOException cleanup) {
+            if (primary != null) {
+                primary.addSuppressed(cleanup);
             }
         }
     }
@@ -294,27 +523,156 @@ final class ManagedLocalAiProcess {
         return Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
     }
 
-    static int availablePort() throws IOException {
-        try (ServerSocket socket = new ServerSocket(0, 1, java.net.InetAddress.getLoopbackAddress())) {
-            return socket.getLocalPort();
+    static Process start(List<String> command, Map<String, String> environment, Path log) throws IOException {
+        Path java = Path.of(System.getProperty("java.home"), "bin",
+                System.getProperty("os.name").toLowerCase(Locale.ROOT).contains("win") ? "java.exe" : "java");
+        String classPath = System.getProperty("surefire.test.class.path", System.getProperty("java.class.path"));
+        ProcessHandle current = ProcessHandle.current();
+        String parentStartedAt = current.info().startInstant()
+                .orElseThrow(() -> new IOException("Unable to establish the SHAFT process identity"))
+                .toString();
+        List<String> supervised = new java.util.ArrayList<>(List.of(java.toString(),
+                ManagedLocalAiProcessSupervisor.class.getName(),
+                Long.toString(current.pid()),
+                parentStartedAt));
+        supervised.addAll(command);
+        ProcessBuilder builder = new ProcessBuilder(supervised);
+        builder.environment().clear();
+        builder.environment().putAll(environment);
+        builder.environment().put("CLASSPATH", classPath);
+        builder.redirectErrorStream(true);
+        Process supervisor = builder.start();
+        SUPERVISED_PROCESSES.add(supervisor);
+        return supervisor;
+    }
+
+    private static StartupObservation awaitStartup(Process process, Duration timeout) throws Exception {
+        var executor = java.util.concurrent.Executors.newThreadPerTaskExecutor(
+                Thread.ofVirtual().name("shaft-local-ai-startup-reader").factory());
+        try {
+            var task = executor.submit(() -> readStartup(process.getInputStream()));
+            try {
+                return task.get(timeout.toNanos(), TimeUnit.NANOSECONDS);
+            } catch (java.util.concurrent.TimeoutException timeoutFailure) {
+                task.cancel(true);
+                try {
+                    process.getInputStream().close();
+                } catch (IOException cleanup) {
+                    timeoutFailure.addSuppressed(cleanup);
+                }
+                throw new DeadlineExceededException(timeoutFailure);
+            } catch (java.util.concurrent.ExecutionException failure) {
+                if (failure.getCause() instanceof Exception exception) {
+                    throw exception;
+                }
+                throw failure;
+            }
+        } finally {
+            executor.shutdownNow();
         }
     }
 
-    static Process start(List<String> command, Map<String, String> environment, Path log) throws IOException {
-        ProcessBuilder builder = new ProcessBuilder(command);
-        builder.environment().clear();
-        builder.environment().putAll(environment);
-        builder.redirectErrorStream(true);
-        Process process = builder.start();
-        Thread.ofVirtual().name("shaft-local-ai-log").start(() -> {
-            try {
-                writeSanitizedLog(log.getParent().getParent().getParent(), process.getInputStream(), log,
-                        Set.of(), 1024 * 1024);
+    private static StartupObservation readStartup(InputStream input) throws IOException {
+        ByteArrayOutputStream captured = new ByteArrayOutputStream();
+        ByteArrayOutputStream line = new ByteArrayOutputStream();
+        while (captured.size() < MAXIMUM_STARTUP_BYTES) {
+            int next = input.read();
+            if (next < 0) {
+                return new StartupObservation(null, captured.toByteArray());
+            }
+            captured.write(next);
+            if (next == '\n') {
+                String text = line.toString(StandardCharsets.UTF_8).stripTrailing();
+                var matcher = LISTENING_ENDPOINT.matcher(text);
+                if (matcher.matches()) {
+                    int port = Integer.parseInt(matcher.group(1));
+                    if (port > 0 && port <= 65_535) {
+                        return new StartupObservation(port, captured.toByteArray());
+                    }
+                    throw new IOException("Managed local AI reported an invalid loopback port.");
+                }
+                line.reset();
+            } else {
+                if (line.size() >= MAXIMUM_STARTUP_LINE_BYTES) {
+                    throw new IOException("Managed local AI startup line exceeded the size limit.");
+                }
+                line.write(next);
+            }
+        }
+        throw new IOException("Managed local AI startup output exceeded the size limit.");
+    }
+
+    private static Thread captureLog(Path cache, InputStream input, Path log, byte[] prefix, String secret)
+            throws IOException {
+        long maximumBytes = 1024 * 1024;
+        appendSanitizedLog(cache, new ByteArrayInputStream(prefix), log, Set.of(secret), maximumBytes);
+        Thread capture = Thread.ofVirtual().name("shaft-local-ai-log").unstarted(() -> {
+            try (input) {
+                appendSanitizedLog(cache, input, log, Set.of(secret), Math.max(1, maximumBytes - prefix.length));
             } catch (IOException ignored) {
                 // Lifecycle status owns launch failure; logging must never mask it.
             }
         });
-        return process;
+        capture.start();
+        return capture;
+    }
+
+    private static void appendSanitizedLog(Path cache, InputStream input, Path log, Set<String> secrets,
+                                           long maximumBytes) throws IOException {
+        requireContainedLog(cache, log);
+        ByteArrayOutputStream line = new ByteArrayOutputStream();
+        long written = 0;
+        boolean discardingOverlongLine = false;
+        try (var output = Files.newByteChannel(log, Set.of(StandardOpenOption.WRITE,
+                StandardOpenOption.APPEND, LinkOption.NOFOLLOW_LINKS))) {
+            int next;
+            while ((next = input.read()) >= 0) {
+                if (discardingOverlongLine) {
+                    if (next == '\n') {
+                        discardingOverlongLine = false;
+                    }
+                    continue;
+                }
+                if (line.size() >= MAXIMUM_STARTUP_LINE_BYTES) {
+                    line.reset();
+                    discardingOverlongLine = true;
+                    continue;
+                }
+                line.write(next);
+                if (next == '\n') {
+                    written += appendSanitizedLine(output, line.toByteArray(), secrets, maximumBytes - written);
+                    line.reset();
+                    if (written >= maximumBytes) {
+                        input.transferTo(java.io.OutputStream.nullOutputStream());
+                        return;
+                    }
+                }
+            }
+            if (!discardingOverlongLine && line.size() > 0 && written < maximumBytes) {
+                appendSanitizedLine(output, line.toByteArray(), secrets, maximumBytes - written);
+            }
+        }
+    }
+
+    private static int appendSanitizedLine(java.nio.channels.SeekableByteChannel output, byte[] raw,
+                                           Set<String> secrets, long remaining) throws IOException {
+        String text = new String(raw, StandardCharsets.UTF_8)
+                .replaceAll("(?i)authorization\\s*:\\s*bearer\\s+\\S+", "Authorization: [REDACTED]")
+                .replaceAll("(?i)--api-key\\s+\\S+", "--api-key [REDACTED]");
+        for (String secret : secrets) {
+            if (secret != null && !secret.isEmpty()) {
+                text = text.replace(secret, "[REDACTED]");
+            }
+        }
+        byte[] sanitized = text.getBytes(StandardCharsets.UTF_8);
+        int length = (int) Math.min(Math.max(0, remaining), sanitized.length);
+        synchronized (LOG_WRITE_LOCK) {
+            java.nio.ByteBuffer buffer = java.nio.ByteBuffer.wrap(sanitized, 0, length);
+            while (buffer.hasRemaining()) {
+                output.write(buffer);
+            }
+        }
+        return length;
     }
 
     static void writeSanitizedLog(Path cache, InputStream input, Path log, Set<String> secrets, long maximumBytes)
@@ -346,12 +704,12 @@ final class ManagedLocalAiProcess {
         input.transferTo(java.io.OutputStream.nullOutputStream());
     }
 
-    static Map<String, Object> requestIdentity(URI uri, String bearer) throws Exception {
-        HttpRequest request = HttpRequest.newBuilder(uri).timeout(Duration.ofSeconds(2))
+    static Map<String, Object> requestIdentity(URI uri, String bearer, Duration timeout) throws Exception {
+        long deadline = System.nanoTime() + timeout.toNanos();
+        HttpRequest request = HttpRequest.newBuilder(uri).timeout(timeout)
                 .header("Authorization", bearer).GET().build();
-        HttpResponse<InputStream> response = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(2)).build()
-                .send(request, HttpResponse.BodyHandlers.ofInputStream());
-        byte[] body = boundedRead(response.body(), 64 * 1024, Duration.ofSeconds(2));
+        HttpResponse<InputStream> response = LOOPBACK_HTTP.send(request, HttpResponse.BodyHandlers.ofInputStream());
+        byte[] body = boundedRead(response.body(), 64 * 1024, remaining(deadline));
         if (response.statusCode() != 200 || body.length > 64 * 1024) {
             throw new IOException("Managed local AI identity response was rejected.");
         }
@@ -368,6 +726,149 @@ final class ManagedLocalAiProcess {
         return Map.of("data", data);
     }
 
+    static AiResponse infer(Session session, AiRequest request) {
+        return infer(session, request, ManagedLocalAiProcess::requestInference);
+    }
+
+    static AiResponse infer(Session session, AiRequest request, InferenceRequester requester) {
+        return infer(session, request, requester, System.nanoTime() + request.timeout().toNanos());
+    }
+
+    static AiResponse infer(Session session, AiRequest request, InferenceRequester requester, long deadline) {
+        Objects.requireNonNull(session, "session");
+        Objects.requireNonNull(request, "request");
+        Objects.requireNonNull(requester, "requester");
+        Instant started = Instant.now();
+        try {
+            tools.jackson.databind.node.ObjectNode body = PILOT_JSON.createObjectNode();
+            body.put("model", session.alias());
+            body.put("stream", false);
+            long requestedOutputTokens = request.budget().maxOutputTokens();
+            long configuredOutputTokens = PilotConfiguration.current().maxOutputTokens();
+            body.put("max_tokens", requestedOutputTokens <= 0
+                    ? configuredOutputTokens : Math.min(requestedOutputTokens, configuredOutputTokens));
+            tools.jackson.databind.node.ObjectNode message = body.putArray("messages").addObject();
+            message.put("role", "user");
+            message.put("content", prompt(request));
+            tools.jackson.databind.node.ObjectNode format = body.putObject("response_format");
+            format.put("type", "json_object");
+            format.set("schema", request.desiredResponseSchema());
+
+            URI endpoint = URI.create("http://127.0.0.1:" + session.port() + "/v1/chat/completions");
+            String serialized = PILOT_JSON.writeValueAsString(body);
+            InferenceResponse response = requester.send(endpoint, "Bearer " + session.apiKey(), serialized,
+                    remaining(deadline));
+            byte[] responseBody;
+            try (InputStream input = response.body()) {
+                AiResponseStatus httpFailure = inferenceStatus(response.statusCode());
+                if (httpFailure != null) {
+                    return inferenceFailure(request, httpFailure, inferenceReason(httpFailure),
+                            Duration.between(started, Instant.now()), session.alias());
+                }
+                responseBody = boundedRead(input, MAXIMUM_INFERENCE_RESPONSE_BYTES, remaining(deadline));
+            }
+            Duration duration = Duration.between(started, Instant.now());
+            if (responseBody.length > MAXIMUM_INFERENCE_RESPONSE_BYTES) {
+                return inferenceFailure(request, AiResponseStatus.INVALID_RESPONSE,
+                        "Managed local inference response exceeded the size limit.", duration, session.alias());
+            }
+            tools.jackson.databind.JsonNode root = PILOT_JSON.readTree(responseBody);
+            if (!root.isObject() || !session.alias().equals(root.path("model").asText())
+                    || !root.path("choices").isArray() || root.path("choices").size() != 1
+                    || !root.path("choices").get(0).path("message").path("content").isTextual()) {
+                return inferenceFailure(request, AiResponseStatus.INVALID_RESPONSE,
+                        "Managed local inference response was malformed.", duration, session.alias());
+            }
+            tools.jackson.databind.JsonNode payload = PILOT_JSON.readTree(
+                    root.path("choices").get(0).path("message").path("content").asText());
+            if (!JsonSchemaValidator.validate(request.desiredResponseSchema(), payload).isEmpty()) {
+                return inferenceFailure(request, AiResponseStatus.INVALID_RESPONSE,
+                        "Managed local inference response did not match the requested schema.",
+                        duration, session.alias());
+            }
+            tools.jackson.databind.JsonNode usage = root.path("usage");
+            return AiResponse.success("managed-local", session.alias(), payload, duration,
+                    new AiUsage(Math.max(0, usage.path("prompt_tokens").asLong()),
+                            Math.max(0, usage.path("completion_tokens").asLong()), null),
+                    request.deterministicFallback());
+        } catch (java.net.http.HttpTimeoutException | DeadlineExceededException timeout) {
+            return inferenceFailure(request, AiResponseStatus.TIMEOUT, "Managed local inference timed out.",
+                    Duration.between(started, Instant.now()), session.alias());
+        } catch (InterruptedException interrupted) {
+            Thread.currentThread().interrupt();
+            return inferenceFailure(request, AiResponseStatus.ERROR, "Managed local inference was interrupted.",
+                    Duration.between(started, Instant.now()), session.alias());
+        } catch (tools.jackson.core.JacksonException malformed) {
+            return inferenceFailure(request, AiResponseStatus.INVALID_RESPONSE,
+                    "Managed local inference response was malformed.",
+                    Duration.between(started, Instant.now()), session.alias());
+        } catch (Exception unavailable) {
+            return inferenceFailure(request, AiResponseStatus.PROVIDER_UNAVAILABLE,
+                    "Managed local inference is unavailable.",
+                    Duration.between(started, Instant.now()), session.alias());
+        }
+    }
+
+    static InferenceResponse requestInference(URI endpoint, String bearer, String body, Duration timeout)
+            throws Exception {
+        HttpRequest httpRequest = HttpRequest.newBuilder(endpoint).timeout(timeout)
+                .header("Authorization", bearer).header("Accept", "application/json")
+                .header("Content-Type", "application/json")
+                .POST(HttpRequest.BodyPublishers.ofString(body)).build();
+        HttpResponse<InputStream> response = LOOPBACK_HTTP.send(httpRequest, HttpResponse.BodyHandlers.ofInputStream());
+        return new InferenceResponse(response.statusCode(), response.body());
+    }
+
+    static Duration remaining(long deadline) throws DeadlineExceededException {
+        long nanos = deadline - System.nanoTime();
+        if (nanos <= 0) {
+            throw new DeadlineExceededException();
+        }
+        return Duration.ofNanos(nanos);
+    }
+
+    private static String prompt(AiRequest request) {
+        StringBuilder result = new StringBuilder("Purpose: ").append(request.purpose());
+        if (!request.text().isBlank()) {
+            result.append('\n').append(request.text());
+        }
+        request.evidence().forEach(evidence -> result.append("\n\nEvidence ").append(evidence.id())
+                .append(" [").append(evidence.category()).append("]:\n").append(evidence.content()));
+        return result.toString();
+    }
+
+    private static AiResponse inferenceFailure(AiRequest request, AiResponseStatus status, String reason,
+                                               Duration duration, String model) {
+        return AiResponse.failure(status, "managed-local", model, reason, duration,
+                request.deterministicFallback());
+    }
+
+    private static AiResponseStatus inferenceStatus(int statusCode) {
+        if (statusCode >= 200 && statusCode < 300) {
+            return null;
+        }
+        if (statusCode == 401 || statusCode == 403) {
+            return AiResponseStatus.AUTHENTICATION_FAILED;
+        }
+        if (statusCode == 408 || statusCode == 504) {
+            return AiResponseStatus.TIMEOUT;
+        }
+        if (statusCode == 429) {
+            return AiResponseStatus.RATE_LIMITED;
+        }
+        return statusCode >= 500 ? AiResponseStatus.PROVIDER_UNAVAILABLE : AiResponseStatus.ERROR;
+    }
+
+    private static String inferenceReason(AiResponseStatus status) {
+        return switch (status) {
+            case AUTHENTICATION_FAILED -> "Managed local inference authentication failed.";
+            case RATE_LIMITED -> "Managed local inference rate limit was reached.";
+            case TIMEOUT -> "Managed local inference timed out.";
+            case PROVIDER_UNAVAILABLE -> "Managed local inference is unavailable.";
+            default -> "Managed local inference request was rejected.";
+        };
+    }
+
     private static byte[] boundedRead(InputStream input, int maximumBytes, Duration timeout) throws Exception {
         var executor = java.util.concurrent.Executors.newThreadPerTaskExecutor(
                 Thread.ofVirtual().name("shaft-local-ai-identity-reader").factory());
@@ -382,7 +883,7 @@ final class ManagedLocalAiProcess {
                 } catch (IOException cleanup) {
                     timeoutFailure.addSuppressed(cleanup);
                 }
-                throw new IOException("Managed local AI identity response body timed out.", timeoutFailure);
+                throw new DeadlineExceededException(timeoutFailure);
             } catch (java.util.concurrent.ExecutionException failure) {
                 if (failure.getCause() instanceof Exception exception) {
                     throw exception;
@@ -394,22 +895,291 @@ final class ManagedLocalAiProcess {
         }
     }
 
-    record Session(Process process, int port, String alias, String apiKey, Duration shutdownTimeout)
-            implements AutoCloseable {
+    static final class Session implements AutoCloseable {
+        private final Process process;
+        private volatile int port;
+        private final String alias;
+        private final String apiKey;
+        private final Duration shutdownTimeout;
+        private final Path executable;
+        private final Path model;
+        private final int threads;
+        private final Set<ProcessHandle> retainedDescendants = java.util.concurrent.ConcurrentHashMap.newKeySet();
+        private volatile Thread logCapture;
+
+        Session(Process process, int port, String alias, String apiKey, Duration shutdownTimeout) {
+            this(process, port, alias, apiKey, shutdownTimeout, null, null, -1);
+        }
+
+        private Session(Process process, int port, String alias, String apiKey, Duration shutdownTimeout,
+                        Path executable, Path model, int threads) {
+            this.process = process;
+            this.port = port;
+            this.alias = alias;
+            this.apiKey = apiKey;
+            this.shutdownTimeout = shutdownTimeout;
+            this.executable = normalizeIdentity(executable);
+            this.model = normalizeIdentity(model);
+            this.threads = threads;
+            captureDescendants();
+            Thread.ofVirtual().name("shaft-local-ai-process-tree-owner").start(() -> {
+                try {
+                    while (process.isAlive()) {
+                        captureDescendants();
+                        Thread.sleep(10);
+                    }
+                } catch (InterruptedException interrupted) {
+                    Thread.currentThread().interrupt();
+                }
+            });
+        }
+
+        private void bindPort(int childPort) {
+            if (port != 0 || childPort < 1 || childPort > 65_535) {
+                throw new IllegalStateException("Managed local AI child port ownership is invalid.");
+            }
+            port = childPort;
+        }
+
+        private void bindLogCapture(Thread capture) {
+            if (logCapture != null) {
+                throw new IllegalStateException("Managed local AI log ownership is already bound.");
+            }
+            logCapture = Objects.requireNonNull(capture, "capture");
+        }
+
+        Process process() { return process; }
+        int port() { return port; }
+        String alias() { return alias; }
+        String apiKey() { return apiKey; }
+        Duration shutdownTimeout() { return shutdownTimeout; }
+        boolean matches(Path expectedExecutable, Path expectedModel, String expectedAlias, int expectedThreads) {
+            return executable != null && model != null && alias.equals(expectedAlias)
+                    && executable.equals(normalizeIdentity(expectedExecutable))
+                    && model.equals(normalizeIdentity(expectedModel)) && threads == expectedThreads;
+        }
+
+        private static Path normalizeIdentity(Path path) {
+            return path == null ? null : path.toAbsolutePath().normalize();
+        }
+
+        synchronized boolean close(Duration timeout) {
+            captureDescendants();
+            return terminateAndJoinLog(timeout, null);
+        }
+
+        synchronized boolean close(Duration timeout, Throwable primary) {
+            captureDescendants();
+            return terminateAndJoinLog(timeout, primary);
+        }
+
+        private boolean terminateAndJoinLog(Duration timeout, Throwable primary) {
+            long deadline = System.nanoTime() + timeout.toNanos();
+            boolean survivors = terminate(process, timeout, primary, retainedDescendants);
+            Thread capture = logCapture;
+            if (capture != null && capture != Thread.currentThread()) {
+                try {
+                    long remaining = deadline - System.nanoTime();
+                    if (remaining > 0) {
+                        capture.join(remaining / 1_000_000, (int) (remaining % 1_000_000));
+                    }
+                } catch (InterruptedException interrupted) {
+                    Thread.currentThread().interrupt();
+                    if (primary != null) {
+                        primary.addSuppressed(interrupted);
+                    }
+                }
+            }
+            if (!survivors) {
+                ACTIVE_LAUNCH.compareAndSet(this, null);
+                FAILED_LAUNCH.compareAndSet(this, null);
+            }
+            return survivors;
+        }
+
+        synchronized boolean hasSurvivors() {
+            return process.isAlive() || retainedDescendants.stream().anyMatch(ProcessHandle::isAlive);
+        }
+
+        void forceKillNow(Throwable primary) {
+            revokeSupervisorOwnership(process, primary);
+            if (SUPERVISED_PROCESSES.contains(process)) {
+                return;
+            }
+            try {
+                captureDescendants();
+                if (process.isAlive()) {
+                    process.destroyForcibly();
+                }
+                captureDescendants();
+                retainedDescendants.stream().filter(ProcessHandle::isAlive)
+                        .forEach(ProcessHandle::destroyForcibly);
+            } catch (RuntimeException cleanup) {
+                if (primary != null) {
+                    primary.addSuppressed(cleanup);
+                }
+            }
+        }
+
+        boolean forceKillAndAwait(Duration timeout, Throwable primary) {
+            forceKillNow(primary);
+            long deadline = System.nanoTime() + timeout.toNanos();
+            try {
+                long remaining;
+                while ((process.isAlive() || retainedDescendants.stream().anyMatch(ProcessHandle::isAlive))
+                        && (remaining = deadline - System.nanoTime()) > 0) {
+                    if (SUPERVISED_PROCESSES.contains(process)) {
+                        TimeUnit.NANOSECONDS.sleep(Math.min(remaining, Duration.ofMillis(10).toNanos()));
+                        continue;
+                    }
+                    captureDescendants();
+                    if (process.isAlive()) {
+                        process.destroyForcibly();
+                    }
+                    retainedDescendants.stream().filter(ProcessHandle::isAlive)
+                            .forEach(ProcessHandle::destroyForcibly);
+                    TimeUnit.NANOSECONDS.sleep(Math.min(remaining, Duration.ofMillis(10).toNanos()));
+                }
+            } catch (InterruptedException interrupted) {
+                Thread.currentThread().interrupt();
+                if (primary != null) {
+                    primary.addSuppressed(interrupted);
+                }
+            } catch (Exception cleanup) {
+                if (primary != null) {
+                    primary.addSuppressed(cleanup);
+                }
+            }
+            awaitLogCapture(deadline, primary);
+            if (!process.isAlive()) {
+                SUPERVISED_PROCESSES.remove(process);
+            }
+            return process.isAlive() || retainedDescendants.stream().anyMatch(ProcessHandle::isAlive);
+        }
+
+        private void awaitLogCapture(long deadline, Throwable primary) {
+            Thread capture = logCapture;
+            if (capture == null || capture == Thread.currentThread()) {
+                return;
+            }
+            try {
+                long remaining = deadline - System.nanoTime();
+                if (remaining > 0) {
+                    capture.join(remaining / 1_000_000, (int) (remaining % 1_000_000));
+                }
+            } catch (InterruptedException interrupted) {
+                Thread.currentThread().interrupt();
+                if (primary != null) {
+                    primary.addSuppressed(interrupted);
+                }
+            }
+        }
+
+        private void captureDescendants() {
+            try {
+                process.toHandle().descendants().forEach(retainedDescendants::add);
+            } catch (RuntimeException ignored) {
+                // Existing retained handles remain authoritative if the parent disappears during enumeration.
+            }
+        }
+
         @Override
         public void close() {
-            terminate(process, shutdownTimeout, null);
+            close(shutdownTimeout);
         }
     }
 
-    @FunctionalInterface interface PortSupplier { int next() throws Exception; }
     @FunctionalInterface interface ProcessStarter {
         Process start(List<String> command, Map<String, String> environment, Path log) throws Exception;
     }
+
+    private static final class LaunchReservation {
+        private final Thread owner;
+        private boolean cancelled;
+        private boolean resolved;
+        private Process process;
+
+        private LaunchReservation(Thread owner) {
+            this.owner = owner;
+        }
+
+        synchronized boolean cancelled() {
+            return cancelled;
+        }
+
+        synchronized void bind(Process started) {
+            process = Objects.requireNonNull(started, "started");
+        }
+
+        synchronized void cancel(Throwable primary) {
+            cancelled = true;
+            owner.interrupt();
+            if (process != null && process.isAlive()) {
+                revokeSupervisorOwnership(process, primary);
+                if (!SUPERVISED_PROCESSES.contains(process)) {
+                    try {
+                        process.destroyForcibly();
+                    } catch (RuntimeException cleanup) {
+                        primary.addSuppressed(cleanup);
+                    }
+                }
+            }
+        }
+
+        synchronized void resolve() {
+            resolved = true;
+            notifyAll();
+        }
+
+        synchronized boolean awaitResolution(Duration timeout) {
+            long deadline = System.nanoTime() + timeout.toNanos();
+            boolean interrupted = false;
+            while (!resolved && System.nanoTime() < deadline) {
+                try {
+                    long remaining = deadline - System.nanoTime();
+                    wait(Math.max(1, remaining / 1_000_000), (int) Math.max(0, remaining % 1_000_000));
+                } catch (InterruptedException ignored) {
+                    interrupted = true;
+                }
+            }
+            if (interrupted) {
+                Thread.currentThread().interrupt();
+            }
+            return resolved;
+        }
+
+    }
+    @FunctionalInterface interface CheckedRunnable { void run() throws Exception; }
     @FunctionalInterface interface IdentityProbe {
         void await(Process process, int port, String apiKey, String alias, Duration timeout) throws Exception;
     }
     @FunctionalInterface interface JsonRequester {
-        Map<String, Object> get(URI uri, String bearer) throws Exception;
+        Map<String, Object> get(URI uri, String bearer, Duration timeout) throws Exception;
+    }
+    @FunctionalInterface interface InferenceRequester {
+        InferenceResponse send(URI uri, String bearer, String body, Duration timeout) throws Exception;
+    }
+    record InferenceResponse(int statusCode, InputStream body) {
+        InferenceResponse {
+            Objects.requireNonNull(body, "body");
+        }
+    }
+    private record StartupObservation(Integer port, byte[] captured) {
+        private StartupObservation {
+            captured = captured.clone();
+        }
+
+        @Override
+        public byte[] captured() {
+            return captured.clone();
+        }
+    }
+    static final class DeadlineExceededException extends IOException {
+        private DeadlineExceededException() {
+            super("Managed local AI request deadline expired.");
+        }
+        private DeadlineExceededException(Throwable cause) {
+            super("Managed local AI response body timed out.", cause);
+        }
     }
 }
