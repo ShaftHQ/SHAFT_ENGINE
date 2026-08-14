@@ -12,6 +12,7 @@ import tools.jackson.databind.node.JsonNodeFactory;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.net.InetSocketAddress;
@@ -27,6 +28,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -361,6 +363,26 @@ class ManagedLocalAiProcessTest {
                 }));
 
         assertFalse(identityCalled.get(), "bearer identity must wait for an exact child-owned endpoint");
+    }
+
+    @Test
+    void oversizedNumericStartupPortFailsAsBoundedInputError() throws Exception {
+        Path cache = temp.resolve("oversized-startup-port-cache");
+        ManagedLocalAiCache.Installation runtime = ManagedLocalAiCache.withLock(cache, Duration.ofSeconds(1),
+                () -> ManagedLocalAiCache.adopt(cache, "runtime-oversized-port",
+                        readyStage(cache, "runtime-oversized-port", "server", "binary")));
+        ManagedLocalAiCache.Installation model = ManagedLocalAiCache.withLock(cache, Duration.ofSeconds(1),
+                () -> ManagedLocalAiCache.adopt(cache, "model-oversized-port",
+                        readyStage(cache, "model-oversized-port", "model.gguf", "weights")));
+
+        IllegalStateException failure = assertThrows(IllegalStateException.class, () -> ManagedLocalAiProcess.launch(
+                cache, runtime.root().resolve("server"), model.root().resolve("model.gguf"),
+                cache.resolve("staging/logs/oversized-port.log"), "expected", 2, Duration.ofMillis(300),
+                (command, environment, log) -> new FakeProcess(null,
+                        "srv  llama_server: listening on http://127.0.0.1:999999999999999999999999\n"),
+                (process, port, key, alias, timeout) -> { }));
+
+        assertInstanceOf(IOException.class, failure.getCause());
     }
 
     @Test
