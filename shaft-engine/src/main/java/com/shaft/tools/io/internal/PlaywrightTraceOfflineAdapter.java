@@ -63,19 +63,25 @@ final class PlaywrightTraceOfflineAdapter {
         return snapshotDocument(model, snapshotName, MAX_RENDER_BYTES);
     }
 
-    static Map<String, String> snapshotDocuments(PlaywrightTraceArchiveLoader.LoadedArchive archive,
-                                                  List<String> snapshotNames, int maximumBytesPerSnapshot) {
+    static Map<String, SnapshotDocument> snapshotDocuments(PlaywrightTraceArchiveLoader.LoadedArchive archive,
+                                                            List<String> snapshotNames, int maximumBytesPerSnapshot) {
         Model model = model(archive);
-        Map<String, String> documents = new LinkedHashMap<>();
+        Map<String, SnapshotDocument> documents = new LinkedHashMap<>();
         for (String snapshotName : snapshotNames) {
             try {
-                documents.put(snapshotName, snapshotDocument(model, snapshotName, maximumBytesPerSnapshot));
+                documents.put(snapshotName, new SnapshotDocument("available",
+                        snapshotDocument(model, snapshotName, maximumBytesPerSnapshot)));
             } catch (IllegalArgumentException exception) {
-                // Keep valid sibling snapshots available when one capture is absent or exceeds its own budget.
+                String status = exception.getMessage() != null
+                        && exception.getMessage().startsWith("Rendered Playwright snapshot exceeds")
+                        ? "omitted-budget" : "unavailable";
+                documents.put(snapshotName, new SnapshotDocument(status, ""));
             }
         }
         return Map.copyOf(documents);
     }
+
+    record SnapshotDocument(String status, String content) { }
 
     private static String snapshotDocument(Model model, String snapshotName, int maximumBytes) {
         if (maximumBytes <= 0 || maximumBytes > MAX_RENDER_BYTES) {

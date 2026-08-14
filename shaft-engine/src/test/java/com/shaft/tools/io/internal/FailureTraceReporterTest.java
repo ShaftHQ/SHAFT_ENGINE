@@ -1791,6 +1791,8 @@ public class FailureTraceReporterTest {
                     "CheckoutTest.java:42:7");
             Assert.assertEquals(playwright.path("actions").get(0).path("error").asText(), "button moved");
             Assert.assertEquals(playwright.path("snapshots").size(), 3, root.toPrettyString());
+            Assert.assertEquals(playwright.path("snapshotOmission").path("status").asText(), "available");
+            Assert.assertEquals(playwright.path("snapshotOmission").path("omittedCount").asInt(), 0);
             Assert.assertEquals(playwright.path("snapshots").path("before@call@1").path("status").asText(),
                     "available", root.toPrettyString());
             Assert.assertEquals(playwright.path("snapshots").path("before@call@1").path("fidelity").asText(),
@@ -1814,6 +1816,47 @@ public class FailureTraceReporterTest {
             traceManager.verify(PlaywrightTraceManager::getLastTracePath, Mockito.times(1));
             Assert.assertFalse(Files.exists(archive),
                     "The original generation must be removable after manifest staging and before import.");
+        } finally {
+            Files.deleteIfExists(archive);
+            TraceEventRecorder.clear();
+            Properties.clearForCurrentThread();
+        }
+    }
+
+    @Test(description = "Native snapshot fan-out should stop at the reconstruction ceiling with an explicit receipt")
+    public void nativeSnapshotFanOutShouldRemainBoundedAndExplicit() throws Exception {
+        SHAFT.Properties.reporting.set().traceEnabled(true);
+        StringBuilder records = new StringBuilder(
+                "{\"version\":8,\"type\":\"context-options\",\"origin\":\"library\","
+                        + "\"wallTime\":10000,\"monotonicTime\":100}\n");
+        for (int index = 0; index < 17; index++) {
+            String callId = "call@" + index;
+            String snapshotName = "before@" + callId;
+            records.append("{\"type\":\"before\",\"callId\":\"").append(callId)
+                    .append("\",\"startTime\":").append(100 + index)
+                    .append(",\"class\":\"Frame\",\"method\":\"click\",\"title\":\"Click\","
+                            + "\"params\":{},\"stepId\":\"step@").append(index)
+                    .append("\",\"beforeSnapshot\":\"").append(snapshotName).append("\"}\n")
+                    .append("{\"type\":\"after\",\"callId\":\"").append(callId)
+                    .append("\",\"endTime\":").append(101 + index).append("}\n")
+                    .append("{\"type\":\"frame-snapshot\",\"snapshot\":{\"callId\":\"")
+                    .append(callId).append("\",\"snapshotName\":\"").append(snapshotName)
+                    .append("\",\"pageId\":\"page@1\",\"frameId\":\"frame@1\","
+                            + "\"frameUrl\":\"https://example.test/\",\"html\":[\"HTML\",{},"
+                            + "[\"BODY\",{},\"bounded\"]],\"timestamp\":")
+                    .append(100 + index).append(",\"isMainFrame\":true}}\n");
+        }
+        Path archive = PlaywrightTraceTestFixtures.writeTrace(records.toString());
+        try (MockedStatic<PlaywrightTraceManager> traceManager = Mockito.mockStatic(PlaywrightTraceManager.class)) {
+            traceManager.when(PlaywrightTraceManager::getLastTracePath).thenReturn(archive);
+            String json = FailureTraceReporter.renderTraceJson(info("snapshotFanOut", failure()), "log", List.of());
+            JsonNode playwright = JSON.readTree(json).path("evidence").path("playwright");
+            Assert.assertEquals(playwright.path("status").asText(), "available", json);
+            Assert.assertEquals(playwright.path("snapshots").size(), 16, json);
+            Assert.assertEquals(playwright.path("snapshotOmission").path("status").asText(), "omitted-budget");
+            Assert.assertEquals(playwright.path("snapshotOmission").path("omittedCount").asInt(), 1);
+            Assert.assertTrue(json.getBytes(java.nio.charset.StandardCharsets.UTF_8).length <= 512 * 1024,
+                    "Private Playwright evidence must stay inside its aggregate report budget.");
         } finally {
             Files.deleteIfExists(archive);
             TraceEventRecorder.clear();

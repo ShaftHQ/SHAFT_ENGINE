@@ -87,6 +87,7 @@ public final class FailureTraceReporter {
     private static final int NUMERIC_TOKEN_LENGTH_LIMIT = 128;
     private static final int MAX_PLAYWRIGHT_EVIDENCE_BYTES = 512 * 1024;
     private static final int MAX_PLAYWRIGHT_SNAPSHOT_BYTES = 128 * 1024;
+    private static final int MAX_PLAYWRIGHT_SNAPSHOTS = 16;
     private static final String SENSITIVE_BOUNDS_OMISSION =
             "[evidence omitted because sensitive-value bounds were exceeded]";
     private static final ConcurrentMap<String, AtomicInteger> ATTEMPT_COUNTERS = new ConcurrentHashMap<>();
@@ -346,16 +347,20 @@ public final class FailureTraceReporter {
                 return null;
             }
         }
-        if (!json.append("],\"snapshots\":{")) {
-            return null;
-        }
-        List<String> snapshotNames = imported.actions().stream()
+        List<String> allSnapshotNames = imported.actions().stream()
                 .flatMap(action -> java.util.stream.Stream.of(
                         action.beforeSnapshot(), action.inputSnapshot(), action.afterSnapshot()))
                 .filter(name -> name != null && !name.isBlank())
                 .distinct()
                 .toList();
-        Map<String, String> documents;
+        List<String> snapshotNames = allSnapshotNames.stream().limit(MAX_PLAYWRIGHT_SNAPSHOTS).toList();
+        int omittedSnapshotCount = allSnapshotNames.size() - snapshotNames.size();
+        if (!json.append("],\"snapshotOmission\":{\"status\":\""
+                + (omittedSnapshotCount > 0 ? "omitted-budget" : "available")
+                + "\",\"omittedCount\":" + omittedSnapshotCount + "},\"snapshots\":{")) {
+            return null;
+        }
+        Map<String, PlaywrightTraceOfflineAdapter.SnapshotDocument> documents;
         try {
             documents = PlaywrightTraceOfflineAdapter.snapshotDocuments(
                     archive, snapshotNames, MAX_PLAYWRIGHT_SNAPSHOT_BYTES);
@@ -365,15 +370,15 @@ public final class FailureTraceReporter {
         for (int index = 0; index < snapshotNames.size(); index++) {
             String snapshotName = snapshotNames.get(index);
             ObjectNode snapshot = JSON.createObjectNode();
-            String document = documents.get(snapshotName);
-            if (document == null) {
-                snapshot.put("status", "unavailable");
+            PlaywrightTraceOfflineAdapter.SnapshotDocument document = documents.get(snapshotName);
+            if (document == null || !"available".equals(document.status())) {
+                snapshot.put("status", document == null ? "unavailable" : document.status());
                 snapshot.put("fidelity", "omitted");
                 snapshot.put("content", "");
             } else {
                 snapshot.put("status", "available");
                 snapshot.put("fidelity", "native-offline");
-                snapshot.put("content", document);
+                snapshot.put("content", document.content());
             }
             String property = (index == 0 ? "" : ",") + JSON.writeValueAsString(snapshotName)
                     + ":" + JSON.writeValueAsString(snapshot);
