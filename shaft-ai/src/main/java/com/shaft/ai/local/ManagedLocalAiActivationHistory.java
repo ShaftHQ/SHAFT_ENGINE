@@ -84,7 +84,11 @@ final class ManagedLocalAiActivationHistory {
             return null;
         }
         History history = parse(value);
-        verifyActivation(cache, history.active());
+        try {
+            verifyActivation(cache, history.active());
+        } catch (IllegalStateException drift) {
+            throw new ActiveArtifactDrift(drift);
+        }
         return history;
     }
 
@@ -479,5 +483,11 @@ final class ManagedLocalAiActivationHistory {
     }
 
     record History(Activation active, Activation previous) {
+    }
+
+    static final class ActiveArtifactDrift extends IllegalStateException {
+        private ActiveArtifactDrift(IllegalStateException cause) {
+            super("The active managed-local installation is unowned or changed.", cause);
+        }
     }
 }

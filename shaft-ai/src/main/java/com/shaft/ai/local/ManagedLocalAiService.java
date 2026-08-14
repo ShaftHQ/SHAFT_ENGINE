@@ -204,13 +204,16 @@ public final class ManagedLocalAiService {
         ManagedLocalAiManifest manifest = Objects.requireNonNull(manifests.get(), "managed local AI manifest");
         ManagedLocalAiHardware.Profile profile = ManagedLocalAiHardware.profile(cache, host);
         if (effectiveActivation) {
+            ManagedLocalAiActivationHistory.History history;
             try {
-                ManagedLocalAiActivationHistory.History history = ManagedLocalAiActivationHistory.readVerified(cache);
-                if (history != null) {
-                    return activationSnapshot(cache, configured, history.active());
-                }
+                history = ManagedLocalAiActivationHistory.readVerified(cache);
+            } catch (ManagedLocalAiActivationHistory.ActiveArtifactDrift changedActivation) {
+                history = null;
             } catch (IOException failure) {
                 throw new IllegalStateException("Managed-local activation history cannot be read.", failure);
+            }
+            if (history != null) {
+                return activationSnapshot(cache, configured, history.active());
             }
         }
         if (!profile.runtimeCompatible()) {

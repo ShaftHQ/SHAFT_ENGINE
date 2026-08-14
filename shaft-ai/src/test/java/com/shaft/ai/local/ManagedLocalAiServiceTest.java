@@ -129,6 +129,31 @@ class ManagedLocalAiServiceTest {
     }
 
     @Test
+    void inspectionReportsCorruptWhenAnActivatedArtifactChanges() throws Exception {
+        Path cache = temp.resolve("activated-corrupt-cache");
+        byte[] runtimeArchive = "runtime".getBytes();
+        byte[] modelPayload = "model".getBytes();
+        ManagedLocalAiManifest manifest = manifest(runtimeArchive, modelPayload);
+        ManagedLocalAiService service = service(cache, true, "test-model",
+                host("Windows 11", "amd64", "windows-msvc", "", 16 * GIB, 8, 64 * GIB),
+                manifest, new FakeProvisioning(cache, manifest, runtimeArchive, modelPayload));
+
+        assertEquals(ManagedLocalAiSnapshot.State.READY,
+                service.provision(ignored -> { }).completion().get(5, TimeUnit.SECONDS).state());
+        ManagedLocalAiCache.Installation model = ManagedLocalAiCache.verify(cache,
+                ManagedLocalAiService.modelInstallationId(manifest.models().getFirst()));
+        Path modelFile = model.files().stream()
+                .map(file -> cache.resolve(file.path()))
+                .filter(path -> path.getFileName().toString().equals("model.gguf"))
+                .findFirst().orElseThrow();
+        Files.writeString(modelFile, "changed");
+        List<String> changed = tree(cache);
+
+        assertEquals(ManagedLocalAiSnapshot.State.CORRUPT, service.inspect().state());
+        assertEquals(changed, tree(cache), "corrupt activated inspection must remain read-only");
+    }
+
+    @Test
     void provisionPublishesOrderedProgressReusesReadyCacheAndCanBeCancelledAndRetried() throws Exception {
         Path cache = temp.resolve("provision-cache");
         byte[] runtimeArchive = "runtime".getBytes();
