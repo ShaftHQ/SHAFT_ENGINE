@@ -33,6 +33,7 @@ class AndroidInfrastructureBoundaryTest(unittest.TestCase):
         self.assertIn("setup install", workflow)
         self.assertIn("--accept-license android-sdk-license", workflow)
         self.assertIn("mobile-android-install.log", workflow)
+        self.assertIn("sudo apt-get install --yes libpulse0", workflow)
         self.assertIn("UiAutomator2Options", acceptance)
         self.assertIn("aapt2", acceptance)
         self.assertIn("getPageSource", acceptance)

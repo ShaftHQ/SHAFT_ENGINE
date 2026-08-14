@@ -523,9 +523,11 @@ jobs:
         uses: ./.github/actions/setup-test-env
         with:
           node-version: '24'
-      - name: Enable KVM for the SHAFT-owned Android emulator
+      - name: Provision the Android emulator host runtime
         run: |
           if [ -e /dev/kvm ]; then sudo chmod 666 /dev/kvm; fi
+          sudo apt-get update
+          sudo apt-get install --yes libpulse0
       - name: Package the setup CLI
         run: mvn --batch-mode -pl shaft-cli -am package -DskipTests '-Dallure.automaticallyOpen=false' -Dgpg.skip
       - name: Install the reviewed managed Android plan
