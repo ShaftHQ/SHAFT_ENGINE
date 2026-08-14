@@ -176,6 +176,7 @@ public class FileActionsCoverageUnitTest {
         Mockito.doReturn(tempDirectory.resolve("id_rsa").toString()).when(helperActions).getAbsolutePath("keys/", "id_rsa");
 
         TerminalActions remoteDockerTerminal = Mockito.mock(TerminalActions.class);
+        Mockito.when(remoteDockerTerminal.hasDockerTarget()).thenReturn(true);
         Mockito.when(remoteDockerTerminal.getDockerName()).thenReturn("container");
         Mockito.when(remoteDockerTerminal.isRemoteTerminal()).thenReturn(true);
         Mockito.when(remoteDockerTerminal.getSshHostName()).thenReturn("remote-host");
@@ -194,20 +195,16 @@ public class FileActionsCoverageUnitTest {
 
             Assert.assertEquals(Path.of(localPath), localTemp.resolve("app.log"));
             Assert.assertTrue(Files.isDirectory(localTemp));
+            Mockito.verify(ignoredConstruction.constructed().get(1)).performTerminalCommand(
+                    "docker cp container:/var/log/app.log /remote-temp//var/log/app.log");
         }
     }
 
     @Test
     public void nullDockerNameShouldFailBeforeSelectingHostOrSshCopy() {
         FileActions actions = FileActions.getInstance(true);
-        TerminalActions terminal = new TerminalActions();
-        try {
-            var dockerName = TerminalActions.class.getDeclaredField("dockerName");
-            dockerName.setAccessible(true);
-            dockerName.set(terminal, null);
-        } catch (ReflectiveOperationException exception) {
-            throw new AssertionError("Could not arrange the legacy null Docker-name state.", exception);
-        }
+        TerminalActions terminal = Mockito.mock(TerminalActions.class);
+        Mockito.when(terminal.hasDockerTarget()).thenCallRealMethod();
 
         Assert.expectThrows(NullPointerException.class, () ->
                 actions.copyFileToLocalMachine(terminal, "/var/log/", "app.log"));
