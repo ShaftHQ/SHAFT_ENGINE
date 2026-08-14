@@ -1791,6 +1791,8 @@ public class FailureTraceReporterTest {
                     "attempting click");
             Assert.assertEquals(playwright.path("actions").get(0).path("source").asText(),
                     "CheckoutTest.java:42:7");
+            Assert.assertEquals(playwright.path("actions").get(0).path("sourceStatus").asText(), "available");
+            Assert.assertTrue(playwright.path("actions").get(0).path("sourceReason").asText().isEmpty());
             Assert.assertEquals(playwright.path("actions").get(0).path("error").asText(), "button moved");
             Assert.assertEquals(playwright.path("snapshots").size(), 3, root.toPrettyString());
             Assert.assertEquals(playwright.path("snapshotOmission").path("status").asText(), "available");
