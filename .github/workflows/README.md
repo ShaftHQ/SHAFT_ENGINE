@@ -54,6 +54,7 @@ changing that token silently breaks both distribution publishers.
 | `shaft-mcp.yml` | nightly, manual | Public installer matrix, MCP packaging, coverage, and container smoke. |
 | `guided-workflows-live.yml` | nightly, manual | Live IntelliJ guided Web, mobile-emulation, and Doctor flows through real MCP. |
 | `live-tools-nightly.yml` | nightly, manual | Live SHAFT CLI and IntelliJ assistant tool calls that cannot run in the PR gate. |
+| `trace-viewer-acceptance.yml` | trace-relevant pull request and push to `main` | Native Playwright trace parity across engines plus offline Chromium viewer acceptance. |
 | `agent-plugin-acceptance.yml` | weekly, manual | Three independent evidence jobs: native-client routing, immutable external guardrail-corpus scoring, and checksum-verified agnix cross-client conformance. |
 | `update-selenium-grid-versions.yml` | weekly, manual | Updates Selenium Grid image references and opens a validated PR. |
 
