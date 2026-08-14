@@ -105,6 +105,7 @@ public class BrowserObservabilityRecorderSessionTest {
             Assert.assertEquals(BrowserObservabilityRecorder.snapshot(owner).size(), 1,
                     "Mutable public record contents must not change identity-based session ownership.");
             Assert.assertEquals(BrowserObservabilityRecorder.snapshot(owner).getFirst().status(), 201);
+            Assert.assertEquals(BrowserObservabilityRecorder.snapshot(owner).getFirst().bodyPreview(), "ok");
         }
     }
 
