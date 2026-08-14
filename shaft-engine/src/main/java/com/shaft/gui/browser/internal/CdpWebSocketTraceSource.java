@@ -14,11 +14,15 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.Base64;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /** Passive, session-owned CDP WebSocket lifecycle and bounded-frame trace source. */
 public final class CdpWebSocketTraceSource implements AutoCloseable {
     private static final int ACTIVE_SOCKET_LIMIT = 1000;
+    private static final int PENDING_FRAME_LIMIT = 1000;
     private static final int HASH_INPUT_LIMIT = 65_536;
     private static final ReferenceQueue<WebDriver> STALE_DRIVERS = new ReferenceQueue<>();
     private static final Map<IdentityWeakReference, CacheEntry> CACHE = new HashMap<>();
@@ -26,13 +30,19 @@ public final class CdpWebSocketTraceSource implements AutoCloseable {
     private final BrowserObservabilityRecorder.ObservationBinding binding =
             BrowserObservabilityRecorder.captureBinding();
     private final Map<String, SocketOwner> sockets = new HashMap<>();
+    private final Map<String, List<PendingFrame>> pendingFrames = new HashMap<>();
+    private final Set<String> pendingClosed = new HashSet<>();
+    private int pendingFrameCount;
     private BrowserObservabilityRecorder.ObservationSession socketLimitWarningOwner;
+    private BrowserObservabilityRecorder.ObservationSession pendingFrameLimitWarningOwner;
     private boolean closed;
 
     CdpWebSocketTraceSource() { }
 
-    private void register(DevTools devTools) {
-        devTools.createSessionIfThereIsNotOne();
+    private void register(DevTools devTools, WebDriver driver) {
+        if (devTools.getCdpSession() == null) {
+            devTools.createSessionIfThereIsNotOne(driver.getWindowHandle());
+        }
         devTools.send(Network.enable(java.util.Optional.empty(), java.util.Optional.empty(),
                 java.util.Optional.empty(), java.util.Optional.empty(), java.util.Optional.empty()));
         devTools.addListener(Network.webSocketCreated(), event ->
@@ -42,7 +52,7 @@ public final class CdpWebSocketTraceSource implements AutoCloseable {
         devTools.addListener(Network.webSocketFrameReceived(), event ->
                 frame(event.getRequestId().toString(), "received", event.getResponse()));
         devTools.addListener(Network.webSocketFrameError(), event ->
-                failed(event.getRequestId().toString(), event.getErrorMessage()));
+                failed(event.getRequestId().toString()));
         devTools.addListener(Network.webSocketClosed(), event -> closed(event.getRequestId().toString()));
     }
 
@@ -59,7 +69,7 @@ public final class CdpWebSocketTraceSource implements AutoCloseable {
             entry.source = created;
             CACHE.put(new IdentityWeakReference(driver, STALE_DRIVERS), entry);
             try {
-                created.register(hasDevTools.getDevTools());
+                created.register(hasDevTools.getDevTools(), driver);
                 return true;
             } catch (RuntimeException ignored) {
                 entry.closed = true;
@@ -104,9 +114,18 @@ public final class CdpWebSocketTraceSource implements AutoCloseable {
             }
             return;
         }
-        String safeUrl = BrowserObservabilityRecorder.boundedNetworkText(url);
+        String safeUrl = BrowserObservabilityRecorder.retainedNetworkText(url);
         sockets.put(id, new SocketOwner(safeUrl));
         add(owner, new Entry(id, safeUrl, "", "created", 0, "", "", 0, "available", ""));
+        List<PendingFrame> reordered = pendingFrames.remove(id);
+        if (reordered != null) {
+            pendingFrameCount -= reordered.size();
+            reordered.forEach(frame -> add(BrowserObservabilityRecorder.resolveSession(binding),
+                    frame.entry(id, safeUrl)));
+        }
+        if (pendingClosed.remove(id)) {
+            closed(id);
+        }
     }
 
     synchronized void frame(String id, String direction, int opcode, String payload) {
@@ -114,9 +133,28 @@ public final class CdpWebSocketTraceSource implements AutoCloseable {
     }
 
     private synchronized void frame(String id, String direction, WebSocketFrame frame) {
-        if (closed || frame == null) return;
+        if (closed || frame == null || id == null || id.length() > 2_048) return;
         SocketOwner socket = sockets.get(id);
-        if (socket == null) return;
+        PendingFrame retained = retainedFrame(direction, frame);
+        if (socket == null) {
+            BrowserObservabilityRecorder.ObservationSession owner =
+                    BrowserObservabilityRecorder.resolveSession(binding);
+            if (pendingFrameCount >= PENDING_FRAME_LIMIT) {
+                if (!java.util.Objects.equals(pendingFrameLimitWarningOwner, owner)) {
+                    pendingFrameLimitWarningOwner = owner;
+                    BrowserObservabilityRecorder.recordWarning(owner, "websocket",
+                            "A reordered CDP WebSocket frame was omitted because the pending trace limit was reached.");
+                }
+                return;
+            }
+            pendingFrames.computeIfAbsent(id, ignored -> new java.util.ArrayList<>()).add(retained);
+            pendingFrameCount++;
+            return;
+        }
+        add(BrowserObservabilityRecorder.resolveSession(binding), retained.entry(id, socket.url()));
+    }
+
+    private static PendingFrame retainedFrame(String direction, WebSocketFrame frame) {
         String payload = frame.getPayloadData() == null ? "" : frame.getPayloadData();
         int opcode = frame.getOpcode() == null ? 0 : frame.getOpcode().intValue();
         boolean text = opcode == 1;
@@ -129,7 +167,7 @@ public final class CdpWebSocketTraceSource implements AutoCloseable {
             status = "omitted-budget";
             reason = "CDP WebSocket frame exceeded the bounded inspection limit.";
         } else if (text) {
-            retainedText = BrowserObservabilityRecorder.boundedNetworkText(payload);
+            retainedText = BrowserObservabilityRecorder.retainedNetworkText(payload);
             size = payload.getBytes(StandardCharsets.UTF_8).length;
         } else {
             byte[] decoded = decode(payload);
@@ -142,12 +180,10 @@ public final class CdpWebSocketTraceSource implements AutoCloseable {
                 digest = sha256(decoded);
             }
         }
-        add(BrowserObservabilityRecorder.resolveSession(binding),
-                new Entry(id, socket.url(), direction, "frame", opcode, retainedText, digest, size,
-                status, reason));
+        return new PendingFrame(direction, opcode, retainedText, digest, size, status, reason);
     }
 
-    synchronized void failed(String id, String providerDetail) {
+    synchronized void failed(String id) {
         if (closed) return;
         SocketOwner socket = sockets.get(id);
         if (socket != null) {
@@ -164,6 +200,8 @@ public final class CdpWebSocketTraceSource implements AutoCloseable {
             add(BrowserObservabilityRecorder.resolveSession(binding),
                     new Entry(id, socket.url(), "", "closed", 0, "", "", 0,
                     "available", ""));
+        } else if (id != null && id.length() <= 2_048 && pendingClosed.size() < ACTIVE_SOCKET_LIMIT) {
+            pendingClosed.add(id);
         }
     }
 
@@ -201,11 +239,21 @@ public final class CdpWebSocketTraceSource implements AutoCloseable {
     @Override public synchronized void close() {
         closed = true;
         sockets.clear();
+        pendingFrames.clear();
+        pendingClosed.clear();
+        pendingFrameCount = 0;
         socketLimitWarningOwner = null;
+        pendingFrameLimitWarningOwner = null;
     }
 
     record Entry(String requestId, String url, String direction, String type, int opcode,
                  String text, String sha256, long sizeBytes, String status, String reason) { }
+    private record PendingFrame(String direction, int opcode, String text, String sha256,
+                                long sizeBytes, String status, String reason) {
+        private Entry entry(String requestId, String url) {
+            return new Entry(requestId, url, direction, "frame", opcode, text, sha256, sizeBytes, status, reason);
+        }
+    }
     private record SocketOwner(String url) { }
 
     private static final class IdentityWeakReference extends WeakReference<WebDriver> {
