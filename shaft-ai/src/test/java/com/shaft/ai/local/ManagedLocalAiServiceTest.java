@@ -191,18 +191,21 @@ class ManagedLocalAiServiceTest {
         ManagedLocalAiManifest manifest = manifest(runtimeArchive, modelPayload);
         AtomicBoolean addUnknown = new AtomicBoolean();
         ManagedLocalAiService.ArtifactAccess artifacts = new ManagedLocalAiService.ArtifactAccess() {
+            @Override
             public void download(ManagedLocalAiManifest.RuntimeAsset asset, Path target, Duration timeout,
                                  java.util.function.BooleanSupplier cancelled)
                     throws IOException, InterruptedException {
                 ManagedLocalAiArtifacts.download(new ByteArrayInputStream(runtimeArchive), asset.size(),
                         asset.sha256(), target, cancelled);
             }
+            @Override
             public void download(ManagedLocalAiManifest.ModelManifest model, Path target, Duration timeout,
                                  java.util.function.BooleanSupplier cancelled)
                     throws IOException, InterruptedException {
                 ManagedLocalAiArtifacts.download(new ByteArrayInputStream(modelPayload), model.size(),
                         model.sha256(), target, cancelled);
             }
+            @Override
             public ManagedLocalAiArtifacts.Extraction extract(Path archive, Path destination,
                                                                java.util.function.BooleanSupplier cancelled)
                     throws IOException, InterruptedException {

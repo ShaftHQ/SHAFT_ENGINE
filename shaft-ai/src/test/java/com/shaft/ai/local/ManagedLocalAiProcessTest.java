@@ -324,13 +324,21 @@ class ManagedLocalAiProcessTest {
         ManagedLocalAiService service = new ManagedLocalAiService(
                 () -> new ManagedLocalAiService.Settings(false, false, "auto", cache.toString(), 2, 1),
                 new ManagedLocalAiHardware.HostAccess() {
+                    @Override
                     public String osName() { return "Windows 11"; }
+                    @Override
                     public String architecture() { return "amd64"; }
+                    @Override
                     public String abi() { return "windows-msvc"; }
+                    @Override
                     public String abiVersion() { return ""; }
+                    @Override
                     public long availableMemoryBytes() { return 16L * 1024 * 1024 * 1024; }
+                    @Override
                     public int availableProcessors() { return 8; }
+                    @Override
                     public long usableSpace(Path ignored) { return 64L * 1024 * 1024 * 1024; }
+                    @Override
                     public String read(String ignored) { return null; }
                 });
         var clean = java.util.concurrent.CompletableFuture.runAsync(() -> {

@@ -1360,6 +1360,7 @@ def _abort_process_tree(process: subprocess.Popen) -> None:
                         fields = (entry / "stat").read_text(encoding="utf-8").split(") ", 1)[1].split()
                         parents[int(entry.name)] = int(fields[1])
                     except (OSError, IndexError, ValueError):
+                        # Processes may exit or expose an incomplete stat record while the tree is sampled.
                         continue
         for owned_pid in sorted(_process_tree(pid, parents), key=lambda value: value == pid):
             try:
@@ -1759,7 +1760,6 @@ def benchmark(  # noqa: MC0001  # One lifecycle preserves primary errors and ato
     finally:
         if rss_monitor is not None:
             rss_monitor.stop()
-            peak_process_tree_rss_bytes = max(peak_process_tree_rss_bytes, rss_monitor.peak_bytes)
         if process is not None:
             cleanup_error = _termination_error(process)
             if cleanup_error is not None:
