@@ -20,6 +20,7 @@ import com.shaft.gui.browser.internal.HarReplayRules;
 import com.shaft.gui.browser.internal.JavaScriptWaitManager;
 import com.shaft.gui.browser.internal.ScrollSweepPlanner;
 import com.shaft.gui.capabilities.AutomationBackend;
+import com.shaft.gui.capabilities.internal.AutomationCapabilityResolver;
 import com.shaft.gui.driver.BrowserConsoleMessage;
 import com.shaft.gui.internal.image.ScreenshotManager;
 import com.shaft.gui.internal.locator.LocatorBuilder;
@@ -41,7 +42,6 @@ import io.qameta.allure.Step;
 import org.apache.logging.log4j.Level;
 import org.openqa.selenium.*;
 import org.openqa.selenium.devtools.HasDevTools;
-import org.openqa.selenium.bidi.HasBiDi;
 import org.openqa.selenium.bidi.permissions.PermissionState;
 import org.openqa.selenium.remote.RemoteWebDriver;
 import org.openqa.selenium.remote.http.HttpRequest;
@@ -795,7 +795,7 @@ public class BrowserActions extends FluentWebDriverAction implements com.shaft.g
                 case "prompt" -> PermissionState.PROMPT;
                 default -> throw new IllegalArgumentException("Unknown permission state: " + stateName);
             };
-            org.openqa.selenium.bidi.module.Permission permission = bidiPermissions(driver, stateName);
+            HandlePermissionModule permission = bidiPermissions(driver, stateName);
             TraceEventRecorder.withoutNestedEvents(() -> BidiPermissionState.exclusively(driver, changes -> {
                 permissions.forEach(name -> {
                     permission.setPermission(Map.of("name", name), state, validatedOrigin);
@@ -821,7 +821,7 @@ public class BrowserActions extends FluentWebDriverAction implements com.shaft.g
         WebDriver driver = driverFactoryHelper == null ? null : driverFactoryHelper.getDriver();
         var event = TraceEventRecorder.start("permissions", "clear", "", driver);
         try {
-            org.openqa.selenium.bidi.module.Permission permission = bidiPermissions(driver, "clear");
+            HandlePermissionModule permission = bidiPermissions(driver, "clear");
             int restored = TraceEventRecorder.withoutNestedEvents(() ->
                     BidiPermissionState.exclusively(driver, changes -> {
                 List<BidiPermissionState.Change> snapshot = List.copyOf(changes);
@@ -839,20 +839,32 @@ public class BrowserActions extends FluentWebDriverAction implements com.shaft.g
         }
     }
 
-    @SuppressWarnings("removal")
-    private org.openqa.selenium.bidi.module.Permission bidiPermissions(WebDriver driver, String operation) {
+    private HandlePermissionModule bidiPermissions(WebDriver driver, String operation) {
         boolean closedRemoteSession = driver instanceof RemoteWebDriver remoteDriver && remoteDriver.getSessionId() == null;
         Capabilities capabilities = driver instanceof HasCapabilities hasCapabilities
                 ? hasCapabilities.getCapabilities() : null;
         Object webSocketUrl = capabilities == null ? null : capabilities.getCapability("webSocketUrl");
-        boolean negotiated = driver instanceof HasBiDi hasBiDi
-                && hasBiDi.maybeGetBiDi().isPresent()
+        boolean negotiated = AutomationCapabilityResolver.hasNegotiatedBiDi(driver)
                 && webSocketUrl instanceof String url && !url.isBlank();
         if (driver instanceof AppiumDriver || closedRemoteSession || !negotiated) {
             throw new UnsupportedOperationException("Browser permissions " + operation
                     + " requires a live Selenium session with negotiated WebDriver BiDi permission support.");
         }
-        return new org.openqa.selenium.bidi.module.Permission(driver);
+        return new HandlePermissionModule(driver);
+    }
+
+    private static final class HandlePermissionModule extends org.openqa.selenium.bidi.Module {
+        private HandlePermissionModule(WebDriver driver) {
+            super(driver);
+        }
+
+        private void setPermission(Map<String, String> descriptor, PermissionState state, String origin) {
+            Map<String, Object> parameters = new HashMap<>();
+            parameters.put("descriptor", descriptor);
+            parameters.put("state", state.toString());
+            parameters.put("origin", origin);
+            send(new org.openqa.selenium.bidi.Command<>("permissions.setPermission", parameters));
+        }
     }
 
     private static List<String> validatedPermissionNames(String... permissionNames) {

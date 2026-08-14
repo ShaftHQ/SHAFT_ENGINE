@@ -2,12 +2,15 @@ package com.shaft.gui.browser.internal;
 
 import com.shaft.driver.SHAFT;
 import com.shaft.driver.internal.DriverFactory.DriverFactoryHelper;
+import com.shaft.gui.BidiTestSupport;
 import com.shaft.tools.io.internal.BrowserObservabilityRecorder;
 import org.mockito.Mockito;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.bidi.BiDi;
+import org.openqa.selenium.bidi.BiDiException;
 import org.openqa.selenium.bidi.HasBiDi;
 import org.openqa.selenium.bidi.module.LogInspector;
+import org.openqa.selenium.remote.RemoteWebDriver;
 import org.openqa.selenium.logging.LogEntries;
 import org.openqa.selenium.logging.LogEntry;
 import org.openqa.selenium.logging.Logs;
@@ -188,17 +191,32 @@ public class BidiConsoleLogSourceTest {
     }
 
     @Test
-    @SuppressWarnings("removal")
     public void attachedNegotiatedDriversShouldStartObservationDuringHelperInitialization() {
         WebDriver driver = Mockito.mock(WebDriver.class, Mockito.withSettings().extraInterfaces(HasBiDi.class));
         BiDi bidi = Mockito.mock(BiDi.class);
-        Mockito.when(((HasBiDi) driver).maybeGetBiDi()).thenReturn(Optional.of(bidi));
+        Mockito.when(((HasBiDi) driver).getHandle()).thenReturn(BidiTestSupport.handleFor(bidi));
         try (var inspectors = Mockito.mockConstruction(LogInspector.class)) {
             new DriverFactoryHelper(driver);
 
             Assert.assertTrue(BidiConsoleLogSource.isHealthy(driver));
             Assert.assertEquals(inspectors.constructed().size(), 1);
             BidiConsoleLogSource.closeAndRemove(driver);
+        }
+    }
+
+    @Test
+    public void unavailableBiDiHandleShouldNotPreventNetworkObservationDuringHelperInitialization() {
+        RemoteWebDriver driver = Mockito.mock(RemoteWebDriver.class);
+        Mockito.when(driver.getHandle()).thenThrow(new BiDiException("BiDi is not negotiated"));
+        SHAFT.Properties.reporting.set().traceEnabled(true).traceIncludeNetwork(true);
+
+        try (var interceptors = Mockito.mockConstruction(BrowserNetworkInterceptor.class,
+                (mock, context) -> Mockito.when(mock.startObserving()).thenReturn(true))) {
+            new DriverFactoryHelper(driver);
+
+            Assert.assertEquals(interceptors.constructed().size(), 1,
+                    "An unavailable optional BiDi channel must not skip independent network setup.");
+            Mockito.verify(interceptors.constructed().getFirst()).startObserving();
         }
     }
 

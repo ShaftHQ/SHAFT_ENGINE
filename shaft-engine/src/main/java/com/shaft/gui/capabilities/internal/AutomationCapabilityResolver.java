@@ -286,13 +286,12 @@ public final class AutomationCapabilityResolver {
      * Returns whether one live driver has both a usable BiDi object and the negotiated websocket capability.
      * Runtime protocol users call this same predicate so advertised and executable support cannot diverge.
      */
-    @SuppressWarnings("removal")
     public static boolean hasNegotiatedBiDi(WebDriver driver) {
         try {
             if ((driver instanceof RemoteWebDriver remote && remote.getSessionId() == null)
                     || !(driver instanceof HasBiDi hasBiDi)
                     || !(driver instanceof HasCapabilities hasCapabilities)
-                    || hasBiDi.maybeGetBiDi().isEmpty()) {
+                    || hasBiDi.getHandle() == null) {
                 return false;
             }
             Capabilities capabilities = hasCapabilities.getCapabilities();

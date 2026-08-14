@@ -428,6 +428,34 @@ def validate_browser_matrix_scope_policy(root: Path = ROOT) -> list[str]:
     return errors
 
 
+def validate_codeql_build_mode(workflow: str) -> list[str]:
+    document = yaml.safe_load(workflow) or {}
+    error = ["CodeQL initialization must use explicit manual build mode"]
+    if not isinstance(document, dict):
+        return error
+    jobs = document.get("jobs")
+    if not isinstance(jobs, dict):
+        return error
+    codeql = jobs.get("codeql")
+    if not isinstance(codeql, dict):
+        return error
+    steps = codeql.get("steps")
+    if not isinstance(steps, list) or any(not isinstance(step, dict) for step in steps):
+        return error
+    init = next(
+        (
+            step
+            for step in steps
+            if str(step.get("uses", "")).startswith("github/codeql-action/init@")
+        ),
+        {},
+    )
+    inputs = init.get("with")
+    if not isinstance(inputs, dict) or inputs.get("build-mode") != "manual":
+        return error
+    return []
+
+
 def validate_quality_configuration(root: Path = ROOT) -> list[str]:
     errors: list[str] = []
     root_pom = ET.parse(root / "pom.xml").getroot()
@@ -491,6 +519,7 @@ def validate_quality_configuration(root: Path = ROOT) -> list[str]:
     codecov_count = (workflow_text + action_text).count("codecov/codecov-action@")
 
     codeql = (root / ".github" / "workflows" / "security.yml").read_text(encoding="utf-8")
+    errors.extend(validate_codeql_build_mode(codeql))
     selector = (
         "-pl shaft-infrastructure,shaft-engine,shaft-pilot-core,shaft-capture,shaft-capture-proxy,shaft-doctor,"
         "shaft-ai,shaft-heal,shaft-browserstack,shaft-video,shaft-visual,shaft-ocr,shaft-sikulix,"

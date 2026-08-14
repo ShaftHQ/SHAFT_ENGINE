@@ -1,6 +1,11 @@
 package testPackage.properties;
 
 import com.shaft.driver.SHAFT;
+import com.shaft.properties.internal.ThreadLocalPropertiesManager;
+import com.shaft.properties.internal.Timeouts;
+import org.aeonbits.owner.Config.DefaultValue;
+import org.aeonbits.owner.Config.Key;
+import org.testng.Assert;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
@@ -51,7 +56,7 @@ public class TimeoutsTests {
         apiConnectionManagerTimeout = SHAFT.Properties.timeouts.apiConnectionManagerTimeout();
         shellSessionTimeout = SHAFT.Properties.timeouts.shellSessionTimeout();
         sshServerAliveInterval = SHAFT.Properties.timeouts.sshServerAliveInterval();
-        dockerCommandTimeout = SHAFT.Properties.timeouts.dockerCommandTimeout();
+        dockerCommandTimeout = SHAFT.Properties.timeouts.dockerCommandTimeoutSeconds();
         databaseNetworkTimeout = SHAFT.Properties.timeouts.databaseLoginTimeout();
         databaseLoginTimeout = SHAFT.Properties.timeouts.databaseLoginTimeout();
         databaseQueryTimeout = SHAFT.Properties.timeouts.databaseQueryTimeout();
@@ -60,6 +65,25 @@ public class TimeoutsTests {
         remoteServerInstanceCreationTimeout = SHAFT.Properties.timeouts.remoteServerInstanceCreationTimeout();
         remoteServerConnectionAttemptTimeout = SHAFT.Properties.timeouts.remoteServerConnectionAttemptTimeout();
 
+    }
+
+    @Test
+    public void dockerCommandTimeoutHasSupportedCompatibilityAccessor() {
+        try {
+            var getter = Timeouts.class.getMethod("dockerCommandTimeoutSeconds");
+            Assert.assertEquals(getter.getReturnType(), int.class);
+            Assert.assertEquals(getter.getAnnotation(Key.class).value(), "dockerCommandTimeout");
+            Assert.assertEquals(getter.getAnnotation(DefaultValue.class).value(), "30");
+
+            SHAFT.Properties.timeouts.set().dockerCommandTimeoutSeconds(47);
+
+            Assert.assertEquals(ThreadLocalPropertiesManager.getProperty("dockerCommandTimeout"), "47");
+            Assert.assertEquals(SHAFT.Properties.timeouts.dockerCommandTimeoutSeconds(), 47);
+        } catch (NoSuchMethodException exception) {
+            throw new AssertionError("The supported Docker timeout accessor is missing.", exception);
+        } finally {
+            SHAFT.Properties.timeouts.set().dockerCommandTimeoutSeconds(dockerCommandTimeout);
+        }
     }
 
     @Test
@@ -82,7 +106,7 @@ public class TimeoutsTests {
         SHAFT.Properties.timeouts.set().apiConnectionManagerTimeout(apiConnectionManagerTimeout);
         SHAFT.Properties.timeouts.set().shellSessionTimeout(shellSessionTimeout);
         SHAFT.Properties.timeouts.set().sshServerAliveInterval(sshServerAliveInterval);
-        SHAFT.Properties.timeouts.set().dockerCommandTimeout(dockerCommandTimeout);
+        SHAFT.Properties.timeouts.set().dockerCommandTimeoutSeconds(dockerCommandTimeout);
         SHAFT.Properties.timeouts.set().databaseNetworkTimeout(databaseNetworkTimeout);
         SHAFT.Properties.timeouts.set().databaseLoginTimeout(databaseLoginTimeout);
         SHAFT.Properties.timeouts.set().databaseQueryTimeout(databaseQueryTimeout);

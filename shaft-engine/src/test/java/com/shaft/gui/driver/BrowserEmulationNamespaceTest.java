@@ -11,6 +11,7 @@ import com.microsoft.playwright.options.ReducedMotion;
 import com.microsoft.playwright.options.ViewportSize;
 import com.shaft.gui.playwright.internal.PlaywrightSession;
 import com.shaft.gui.playwright.internal.PlaywrightTraceManager;
+import com.shaft.gui.BidiTestSupport;
 import com.shaft.driver.SHAFT;
 import com.shaft.gui.capabilities.AutomationCapabilities;
 import com.shaft.gui.capabilities.AutomationFeature;
@@ -118,7 +119,7 @@ public class BrowserEmulationNamespaceTest {
         WebDriver bidiDriver = Mockito.mock(WebDriver.class, Mockito.withSettings()
                 .extraInterfaces(HasBiDi.class, HasCapabilities.class));
         BiDi bidi = Mockito.mock(BiDi.class);
-        Mockito.when(((HasBiDi) bidiDriver).maybeGetBiDi()).thenReturn(Optional.of(bidi));
+        Mockito.when(((HasBiDi) bidiDriver).getHandle()).thenReturn(BidiTestSupport.handleFor(bidi));
         Mockito.when(((HasCapabilities) bidiDriver).getCapabilities()).thenReturn(negotiatedBiDi);
         AutomationCapabilities bidiCapabilities = AutomationCapabilityResolver.forWebDriver(bidiDriver);
         Assert.assertTrue(bidiCapabilities.supports(AutomationFeature.SCREEN_EMULATION));
@@ -166,7 +167,7 @@ public class BrowserEmulationNamespaceTest {
                 Mockito.withSettings().extraInterfaces(HasBiDi.class, HasDevTools.class));
         Mockito.when(closed.getCapabilities()).thenReturn(negotiated);
         Mockito.when(closed.getSessionId()).thenReturn(null);
-        Mockito.when(((HasBiDi) closed).maybeGetBiDi()).thenReturn(Optional.of(bidi));
+        Mockito.when(((HasBiDi) closed).getHandle()).thenReturn(BidiTestSupport.handleFor(bidi));
         Mockito.when(((HasDevTools) closed).maybeGetDevTools()).thenReturn(Optional.of(devTools));
         AutomationCapabilities closedCapabilities = AutomationCapabilityResolver.forWebDriver(closed);
         Assert.assertFalse(closedCapabilities.supports(AutomationFeature.SCREEN_EMULATION));
@@ -176,7 +177,7 @@ public class BrowserEmulationNamespaceTest {
         AppiumDriver appium = Mockito.mock(AppiumDriver.class);
         Mockito.when(appium.getSessionId()).thenReturn(new SessionId("appium-emulation"));
         Mockito.when(appium.getCapabilities()).thenReturn(negotiated);
-        Mockito.when(appium.maybeGetBiDi()).thenReturn(Optional.of(bidi));
+        Mockito.when(appium.getHandle()).thenReturn(BidiTestSupport.handleFor(bidi));
         AutomationCapabilities appiumCapabilities = AutomationCapabilityResolver.forWebDriver(appium);
         Assert.assertTrue(appiumCapabilities.supports(AutomationFeature.GEOLOCATION_EMULATION));
         Assert.assertTrue(appiumCapabilities.supports(AutomationFeature.LOCALE_EMULATION));
@@ -190,8 +191,7 @@ public class BrowserEmulationNamespaceTest {
         WebDriver selenium = Mockito.mock(WebDriver.class, Mockito.withSettings()
                 .extraInterfaces(HasBiDi.class, HasCapabilities.class));
         Mockito.when(((HasCapabilities) selenium).getCapabilities()).thenReturn(missingWebSocket);
-        Mockito.when(((HasBiDi) selenium).maybeGetBiDi()).thenReturn(Optional.of(bidi));
-        Mockito.when(((HasBiDi) selenium).getBiDi()).thenReturn(bidi);
+        Mockito.when(((HasBiDi) selenium).getHandle()).thenReturn(BidiTestSupport.handleFor(bidi));
         Mockito.when(selenium.getWindowHandle()).thenReturn("context-1");
         Assert.assertFalse(AutomationCapabilityResolver.forWebDriver(selenium)
                 .supports(AutomationFeature.GEOLOCATION_EMULATION));
@@ -202,8 +202,7 @@ public class BrowserEmulationNamespaceTest {
         AppiumDriver appium = Mockito.mock(AppiumDriver.class);
         Mockito.when(appium.getSessionId()).thenReturn(new SessionId("appium-without-websocket"));
         Mockito.when(appium.getCapabilities()).thenReturn(missingWebSocket);
-        Mockito.when(appium.maybeGetBiDi()).thenReturn(Optional.of(bidi));
-        Mockito.when(appium.getBiDi()).thenReturn(bidi);
+        Mockito.when(appium.getHandle()).thenReturn(BidiTestSupport.handleFor(bidi));
         Mockito.when(appium.getWindowHandle()).thenReturn("WEBVIEW_1");
         Assert.assertFalse(AutomationCapabilityResolver.forWebDriver(appium)
                 .supports(AutomationFeature.GEOLOCATION_EMULATION));
@@ -230,8 +229,7 @@ public class BrowserEmulationNamespaceTest {
                 .extraInterfaces(HasBiDi.class, HasCapabilities.class));
         BiDi bidi = Mockito.mock(BiDi.class);
         Mockito.when(((HasCapabilities) driver).getCapabilities()).thenReturn(negotiated);
-        Mockito.when(((HasBiDi) driver).maybeGetBiDi()).thenReturn(Optional.of(bidi));
-        Mockito.when(((HasBiDi) driver).getBiDi()).thenReturn(bidi);
+        Mockito.when(((HasBiDi) driver).getHandle()).thenReturn(BidiTestSupport.handleFor(bidi));
         Mockito.when(driver.getWindowHandle()).thenReturn("context-1");
 
         disableScripting.invoke(new com.shaft.gui.browser.BrowserActions(driver, true).emulation().runtime());
@@ -256,8 +254,7 @@ public class BrowserEmulationNamespaceTest {
 
         WebDriver bidiDriver = Mockito.mock(WebDriver.class, Mockito.withSettings().extraInterfaces(HasBiDi.class));
         BiDi bidi = Mockito.mock(BiDi.class);
-        Mockito.when(((HasBiDi) bidiDriver).maybeGetBiDi()).thenReturn(Optional.of(bidi));
-        Mockito.when(((HasBiDi) bidiDriver).getBiDi()).thenReturn(bidi);
+        Mockito.when(((HasBiDi) bidiDriver).getHandle()).thenReturn(BidiTestSupport.handleFor(bidi));
         Mockito.when(bidiDriver.getWindowHandle()).thenReturn("context-1");
         EmulationActionsContract bidiActions = new com.shaft.gui.browser.BrowserActions(bidiDriver, true).emulation();
         Assert.expectThrows(IllegalArgumentException.class,
@@ -342,8 +339,7 @@ public class BrowserEmulationNamespaceTest {
                 .extraInterfaces(HasBiDi.class, HasCapabilities.class));
         BiDi bidi = Mockito.mock(BiDi.class);
         Mockito.when(((HasCapabilities) driver).getCapabilities()).thenReturn(negotiated);
-        Mockito.when(((HasBiDi) driver).maybeGetBiDi()).thenReturn(Optional.of(bidi));
-        Mockito.when(((HasBiDi) driver).getBiDi()).thenReturn(bidi);
+        Mockito.when(((HasBiDi) driver).getHandle()).thenReturn(BidiTestSupport.handleFor(bidi));
         Mockito.when(driver.getWindowHandle()).thenReturn("context-1");
         EmulationActionsContract emulation = new com.shaft.gui.browser.BrowserActions(driver, true).emulation();
 

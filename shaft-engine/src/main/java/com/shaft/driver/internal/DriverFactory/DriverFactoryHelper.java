@@ -286,12 +286,15 @@ public class DriverFactoryHelper {
         return browserNetworkInterceptor;
     }
 
-    @SuppressWarnings("removal")
     private void startBrowserObservability() {
         try {
-            if (driver instanceof HasBiDi hasBiDi && hasBiDi.maybeGetBiDi().isPresent()) {
+            if (driver instanceof HasBiDi hasBiDi && hasBiDi.getHandle() != null) {
                 BidiConsoleLogSource.attach(driver);
             }
+        } catch (RuntimeException e) {
+            ReportManagerHelper.logDiscrete("Could not start BiDi console observability: " + e.getMessage(), Level.WARN);
+        }
+        try {
             if (driver != null
                     && SHAFT.Properties.reporting != null
                     && SHAFT.Properties.reporting.traceEnabled()
@@ -300,7 +303,7 @@ public class DriverFactoryHelper {
                 getBrowserNetworkInterceptor().startObserving();
             }
         } catch (RuntimeException e) {
-            ReportManagerHelper.logDiscrete("Could not start browser observability: " + e.getMessage(), Level.WARN);
+            ReportManagerHelper.logDiscrete("Could not start network observability: " + e.getMessage(), Level.WARN);
         }
     }
 
