@@ -2,6 +2,8 @@ package com.shaft.infrastructure;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.junit.jupiter.api.condition.EnabledOnOs;
+import org.junit.jupiter.api.condition.OS;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -15,6 +17,21 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 class SystemAndroidRuntimeControllerTest {
+    @Test
+    @EnabledOnOs(OS.LINUX)
+    void execTransitionUsesPostLaunchCommandIdentityForLeaseReuse(@TempDir Path temp) throws Exception {
+        SystemAndroidRuntimeController controller = new SystemAndroidRuntimeController();
+        AndroidOwnedProcess process = controller.start("exec-child", List.of("/bin/sh", "-c", "exec sleep 30"),
+                temp, Map.of(), Set.of(), temp.resolve("exec-child.log"));
+        try {
+            awaitCommandChange(process.pid(), "/bin/sh", Duration.ofSeconds(5));
+
+            assertTrue(controller.find(process.pid(), process.startInstant(), process.commandIdentity()).isPresent());
+        } finally {
+            process.stop(Duration.ofSeconds(5));
+        }
+    }
+
     @Test
     void mismatchedStartInstantOrCommandIsNeverAdoptedOrKilled(@TempDir Path temp) throws Exception {
         Path java = javaExecutable();
@@ -86,6 +103,18 @@ class SystemAndroidRuntimeControllerTest {
             }
         }
         throw new java.io.IOException("Timed out waiting for child process log handle to close: " + file, last);
+    }
+
+    private static void awaitCommandChange(long pid, String launchCommand, Duration timeout) throws Exception {
+        String normalizedLaunch = Path.of(launchCommand).toAbsolutePath().normalize().toString();
+        long deadline = System.nanoTime() + timeout.toNanos();
+        while (System.nanoTime() < deadline) {
+            String command = ProcessHandle.of(pid).flatMap(handle -> handle.info().command())
+                    .map(value -> Path.of(value).toAbsolutePath().normalize().toString()).orElse("");
+            if (!command.isBlank() && !command.equals(normalizedLaunch)) return;
+            Thread.sleep(Duration.ofMillis(10));
+        }
+        throw new AssertionError("Timed out waiting for the child process exec transition.");
     }
 
     private static Path javaExecutable() {

@@ -25,7 +25,7 @@ final class SystemAndroidRuntimeController implements AndroidRuntimeController {
         removedEnvironment.forEach(builder.environment()::remove);
         builder.environment().putAll(environment);
         Process process = builder.start();
-        return new SystemOwnedProcess(process.toHandle(), identity(process.toHandle(), command.getFirst()));
+        return new SystemOwnedProcess(process.toHandle(), command.getFirst());
     }
 
     @Override
@@ -48,9 +48,10 @@ final class SystemAndroidRuntimeController implements AndroidRuntimeController {
                 .orElseGet(() -> Path.of(fallback).toAbsolutePath().normalize().toString());
     }
 
-    private record SystemOwnedProcess(ProcessHandle handle, String commandIdentity) implements AndroidOwnedProcess {
+    private record SystemOwnedProcess(ProcessHandle handle, String launchCommand) implements AndroidOwnedProcess {
         @Override public long pid() { return handle.pid(); }
         @Override public Instant startInstant() { return handle.info().startInstant().orElse(Instant.EPOCH); }
+        @Override public String commandIdentity() { return identity(handle, launchCommand); }
         @Override public boolean isAlive() { return handle.isAlive(); }
 
         @Override
