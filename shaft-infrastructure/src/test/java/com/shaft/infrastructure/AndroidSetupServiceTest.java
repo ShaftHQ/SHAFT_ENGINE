@@ -371,7 +371,8 @@ class AndroidSetupServiceTest {
                         + "{\"inspector\":{\"pkgName\":\"appium-inspector-plugin\",\"version\":\"2026.7.1\"}}";
             } else {
                 output = command.stream().anyMatch(part -> part.endsWith("appium/index.js")
-                        || part.endsWith("appium\\index.js")) ? "3.6.0" : "v24.19.0";
+                        || part.endsWith("appium\\index.js"))
+                        ? "dbug Appium refreshed extension cache\n3.6.0" : "v24.19.0";
             }
             return new ReportingSetupService.ProcessResult(0, output);
         };

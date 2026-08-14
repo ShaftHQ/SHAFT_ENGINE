@@ -239,7 +239,7 @@ final class DefaultAndroidToolchainOperations implements AndroidToolchainOperati
         ReportingSetupService.ProcessResult result = run(List.of(nodeExecutable().toString(),
                 appiumRoot().resolve("node_modules/appium/index.js").toString(), "--version"), appiumRoot(),
                 null, null, Duration.ofSeconds(20));
-        String version = result.output().trim();
+        String version = reportedVersion(result.output());
         return result.exitCode() == 0 && version.equals(action.version())
                 ? ready(action, version) : degraded(action, version, "Appium version or execution check failed.");
     }
@@ -537,9 +537,14 @@ final class DefaultAndroidToolchainOperations implements AndroidToolchainOperati
     }
 
     private static void requireExactVersion(String output, String expected, String tool) throws IOException {
-        if (!output.trim().equals(expected)) {
+        if (!reportedVersion(output).equals(expected)) {
             throw new IOException(tool + " verification returned unexpected version: " + output.trim());
         }
+    }
+
+    private static String reportedVersion(String output) {
+        return output.lines().map(String::trim).filter(line -> !line.isEmpty())
+                .reduce((ignored, last) -> last).orElse("");
     }
 
     private static void requireSuccess(ReportingSetupService.ProcessResult result, String message) throws IOException {
