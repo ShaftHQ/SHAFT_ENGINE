@@ -56,6 +56,7 @@ final class VerifiedArtifactMirror implements AutoCloseable {
 
         InetAddress loopback = InetAddress.getByAddress(new byte[]{127, 0, 0, 1});
         ServerSocket server = new ServerSocket();
+        server.setReuseAddress(true);
         server.bind(new InetSocketAddress(loopback, 0));
         ExecutorService executor = Executors.newSingleThreadExecutor(runnable -> {
             Thread thread = new Thread(runnable, "shaft-playwright-artifact-mirror");
