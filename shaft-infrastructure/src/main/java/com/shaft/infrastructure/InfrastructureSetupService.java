@@ -24,7 +24,7 @@ public final class InfrastructureSetupService {
     public static InfrastructureSetupService builtIn(SetupPlatform platform, SetupArchitecture architecture) {
         return new InfrastructureSetupService(new SetupProviderRegistry(List.of(
                 new ReportingSetupProvider(), new OcrSetupProvider(), new LighthouseSetupProvider(),
-                new AndroidSetupProvider())),
+                new PlaywrightSetupProvider(), new AndroidSetupProvider())),
                 platform, architecture);
     }
 
