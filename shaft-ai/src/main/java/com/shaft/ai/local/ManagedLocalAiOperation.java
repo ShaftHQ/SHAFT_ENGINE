@@ -52,18 +52,30 @@ public final class ManagedLocalAiOperation {
         }
     }
 
-    boolean complete(ManagedLocalAiSnapshot value) {
-        if (!status.compareAndSet(Status.RUNNING, Status.COMPLETED)) {
-            return false;
+    boolean claimCompletion() {
+        return status.compareAndSet(Status.RUNNING, Status.COMMITTING);
+    }
+
+    void finishCompletion(ManagedLocalAiSnapshot value) {
+        if (!status.compareAndSet(Status.COMMITTING, Status.COMPLETED)) {
+            throw new IllegalStateException("Managed local AI operation completion was not claimed.");
         }
         snapshot.set(value);
         completion.complete(value);
         worker.set(null);
+    }
+
+    boolean complete(ManagedLocalAiSnapshot value) {
+        if (!claimCompletion()) {
+            return false;
+        }
+        finishCompletion(value);
         return true;
     }
 
     void fail(Throwable failure) {
-        if (status.compareAndSet(Status.RUNNING, Status.COMPLETED)) {
+        if (status.compareAndSet(Status.RUNNING, Status.COMPLETED)
+                || status.compareAndSet(Status.COMMITTING, Status.COMPLETED)) {
             completion.completeExceptionally(failure);
         } else if (status.get() == Status.CANCELLED) {
             completion.cancel(false);
@@ -77,5 +89,5 @@ public final class ManagedLocalAiOperation {
         worker.set(null);
     }
 
-    private enum Status { RUNNING, CANCELLED, COMPLETED }
+    private enum Status { RUNNING, COMMITTING, CANCELLED, COMPLETED }
 }

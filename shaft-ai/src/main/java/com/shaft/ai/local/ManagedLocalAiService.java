@@ -57,10 +57,15 @@ public final class ManagedLocalAiService {
         ManagedLocalAiSnapshot initial = inspect();
         ManagedLocalAiOperation operation = new ManagedLocalAiOperation(initial);
         Thread worker = Thread.ofVirtual().name("shaft-managed-local-ai-provision").start(() -> {
+            ProvisionResult provisioned = null;
+            Settings configured = null;
             try {
                 if (initial.state() == ManagedLocalAiSnapshot.State.READY) {
                     publish(operation, progress, initial);
-                    if (!operation.complete(initial)) {
+                    configured = Objects.requireNonNull(settings.get(), "managed local AI settings");
+                    ManagedLocalAiManifest manifest = Objects.requireNonNull(manifests.get(),
+                            "managed local AI manifest");
+                    if (!publishActivation(operation, initial, configured, manifest)) {
                         operation.cancelled();
                     }
                     return;
@@ -69,19 +74,18 @@ public final class ManagedLocalAiService {
                     throw new IllegalStateException("Managed local AI cannot be provisioned from state "
                             + initial.state() + ".");
                 }
-                Settings configured = Objects.requireNonNull(settings.get(), "managed local AI settings");
+                configured = Objects.requireNonNull(settings.get(), "managed local AI settings");
                 ManagedLocalAiManifest manifest = Objects.requireNonNull(manifests.get(), "managed local AI manifest");
                 ManagedLocalAiHardware.Profile profile = ManagedLocalAiHardware.profile(initial.cacheDirectory(), host);
                 String requested = AUTOMATIC_MODEL.equalsIgnoreCase(configured.model()) ? null : configured.model();
                 ManagedLocalAiHardware.Selection selection = ManagedLocalAiHardware.select(manifest, profile, requested);
                 ManagedLocalAiManifest.ModelManifest model = manifest.models().stream()
                         .filter(candidate -> candidate.id().equals(selection.selectedModelId())).findFirst().orElseThrow();
-                ProvisionResult provisioned = provisioning.provision(initial.cacheDirectory(), manifest, profile,
+                provisioned = provisioning.provision(initial.cacheDirectory(), manifest, profile,
                         model, configured,
                         host, operation::isCancelled, phase -> publish(operation, progress,
                                 withProgress(initial, phase.phase(), phase.completedBytes(), phase.totalBytes())));
                 if (operation.isCancelled()) {
-                    rollbackCancellation(initial.cacheDirectory(), configured, provisioned.installationIds());
                     throw new InterruptedException("Managed local AI provisioning was cancelled.");
                 }
                 ManagedLocalAiSnapshot ready = inspect();
@@ -94,19 +98,40 @@ public final class ManagedLocalAiService {
                 } catch (RuntimeException observerFailure) {
                     // Lifecycle ownership and rollback must not depend on an observer callback.
                 }
-                if (!operation.complete(ready)) {
+                if (!publishActivation(operation, ready, configured, manifest)) {
                     rollbackCancellation(initial.cacheDirectory(), configured, provisioned.installationIds());
                     operation.cancelled();
                 }
             } catch (InterruptedException cancelled) {
+                if (provisioned != null && configured != null) {
+                    rollbackCancellation(initial.cacheDirectory(), configured, provisioned.installationIds());
+                }
                 Thread.currentThread().interrupt();
                 operation.cancelled();
             } catch (Exception failure) {
+                if (provisioned != null && configured != null) {
+                    try {
+                        rollback(initial.cacheDirectory(), configured, provisioned.installationIds());
+                    } catch (Exception cleanup) {
+                        failure.addSuppressed(cleanup);
+                    }
+                }
                 operation.fail(failure);
             }
         });
         operation.attach(worker);
         return operation;
+    }
+
+    private static boolean publishActivation(ManagedLocalAiOperation operation, ManagedLocalAiSnapshot ready,
+                                             Settings configured, ManagedLocalAiManifest manifest) throws Exception {
+        boolean published = ManagedLocalAiActivationHistory.publish(ready.cacheDirectory(),
+                Duration.ofSeconds(configured.lockTimeoutSeconds()),
+                ManagedLocalAiActivationHistory.from(ready, manifest), operation::claimCompletion);
+        if (published) {
+            operation.finishCompletion(ready);
+        }
+        return published;
     }
 
     /** Removes unchanged SHAFT-owned managed artifacts. Unknown or changed content is preserved. */
@@ -116,7 +141,10 @@ public final class ManagedLocalAiService {
         Duration lockTimeout = Duration.ofSeconds(configured.lockTimeoutSeconds());
         ManagedLocalAiProcess.withLaunchExclusion(lockTimeout, () -> {
             ManagedLocalAiProcess.terminateRetainedLaunches();
-            ManagedLocalAiCache.withLock(cache, lockTimeout, () -> ManagedLocalAiCache.clean(cache));
+            ManagedLocalAiCache.withLock(cache, lockTimeout, () -> {
+                ManagedLocalAiActivationHistory.clearLocked(cache);
+                return ManagedLocalAiCache.clean(cache);
+            });
         });
         return inspect();
     }
@@ -135,6 +163,7 @@ public final class ManagedLocalAiService {
         ManagedLocalAiProcess.withLaunchExclusion(lockTimeout, () -> {
             ManagedLocalAiProcess.terminateRetainedLaunches();
             ManagedLocalAiCache.withLock(cache, lockTimeout, () -> {
+                ManagedLocalAiActivationHistory.clearLocked(cache);
                 ManagedLocalAiCache.CleanResult cleaned = ManagedLocalAiCache.clean(cache, reviewed);
                 result.set(cleaned);
                 return cleaned;
