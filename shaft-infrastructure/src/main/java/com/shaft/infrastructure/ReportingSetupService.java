@@ -24,8 +24,6 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.ReentrantLock;
-import java.util.zip.ZipEntry;
-import java.util.zip.ZipInputStream;
 
 /** Managed, release-pinned lifecycle for the REPORTING profile. */
 public final class ReportingSetupService {
@@ -482,16 +480,24 @@ public final class ReportingSetupService {
     }
 
     private static void extractZip(Path archive, Path destination) throws IOException {
-        try (ZipInputStream input = new ZipInputStream(Files.newInputStream(archive))) {
-            for (ZipEntry entry; (entry = input.getNextEntry()) != null;) {
-                Path target = archiveTarget(destination, entry.getName());
-                if (target == null) continue;
-                if (entry.isDirectory()) Files.createDirectories(target);
-                else {
-                    Files.createDirectories(target.getParent());
-                    Files.copy(input, target);
+        Path expanded = Files.createTempDirectory(destination.getParent(), "node.zip-");
+        try {
+            SafeZipExtractor.extract(archive, expanded);
+            List<Path> roots;
+            try (var stream = Files.list(expanded)) {
+                roots = stream.toList();
+            }
+            if (roots.size() != 1 || !Files.isDirectory(roots.getFirst(),
+                    java.nio.file.LinkOption.NOFOLLOW_LINKS)) {
+                throw new IOException("Portable Node ZIP must contain exactly one top-level directory.");
+            }
+            try (var stream = Files.list(roots.getFirst())) {
+                for (Path child : stream.toList()) {
+                    VerifiedArtifactStore.move(child, destination.resolve(child.getFileName()));
                 }
             }
+        } finally {
+            deleteTree(expanded);
         }
     }
 

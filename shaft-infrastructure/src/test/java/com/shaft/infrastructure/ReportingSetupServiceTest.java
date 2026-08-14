@@ -45,6 +45,33 @@ class ReportingSetupServiceTest {
     }
 
     @Test
+    void windowsNodeZipRejectsCaseFoldCollisionBeforePublication(@TempDir Path temp) throws Exception {
+        Path archive = temp.resolve("node-collision.zip");
+        try (ZipOutputStream output = new ZipOutputStream(Files.newOutputStream(archive))) {
+            for (String entry : List.of("node-v24.19.0-win-x64/node.exe",
+                    "node-v24.19.0-win-x64/NODE.EXE")) {
+                output.putNextEntry(new ZipEntry(entry));
+                output.write("binary".getBytes(StandardCharsets.UTF_8));
+                output.closeEntry();
+            }
+        }
+        Path cache = temp.resolve("cache").toAbsolutePath();
+        Path data = temp.resolve("data").toAbsolutePath();
+        ShaftCachePaths paths = new ShaftCachePaths(cache, data, cache.resolve("downloads"),
+                data.resolve("tools"), data.resolve("state"), data.resolve("receipts"));
+        ReportingSetupService service = new ReportingSetupService(paths, SetupPlatform.WINDOWS,
+                SetupArchitecture.X64, action -> archive,
+                (command, log, timeout) -> new ReportingSetupService.ProcessResult(0, "v24.19.0"), false);
+
+        IOException failure = assertThrows(IOException.class, () -> service.installNodeAction(
+                ReportingSetupPlanner.plan(SetupPlatform.WINDOWS, SetupArchitecture.X64,
+                        SetupMode.MANAGED).actions().getFirst()));
+
+        assertTrue(failure.getMessage().contains("duplicate path"));
+        assertTrue(Files.notExists(paths.tools().resolve("node/24.19.0/windows-x64")));
+    }
+
+    @Test
     void installsLinuxTarArchiveAndRoundTripsPlan(@TempDir Path temp) throws Exception {
         SetupPlan plan = exerciseInstall(temp, SetupPlatform.LINUX, createNodeTar(temp.resolve("node.tar.gz")));
         Path planFile = temp.resolve("plan.json");
