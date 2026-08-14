@@ -22,6 +22,7 @@ final class TraceArtifactManifest implements AutoCloseable {
     private List<TraceArtifactReference> references;
     private final TraceArchiveWriter.Entry nativeEntry;
     private final Path stagedNativeTrace;
+    private Map<String, byte[]> resourceBytes;
     private static final NativeTraceSource FILE_SOURCE = new NativeTraceSource() {
         @Override
         public boolean isRegularFile(Path path) {
@@ -40,10 +41,11 @@ final class TraceArtifactManifest implements AutoCloseable {
     };
 
     private TraceArtifactManifest(List<TraceArtifactReference> references, TraceArchiveWriter.Entry nativeEntry,
-                                  Path stagedNativeTrace) {
+                                  Path stagedNativeTrace, Map<String, byte[]> resourceBytes) {
         this.references = List.copyOf(references);
         this.nativeEntry = nativeEntry;
         this.stagedNativeTrace = stagedNativeTrace;
+        this.resourceBytes = Map.copyOf(resourceBytes);
     }
 
     static TraceArtifactManifest create(String networkJson, Map<String, byte[]> screenshots, Path nativeTrace,
@@ -53,7 +55,20 @@ final class TraceArtifactManifest implements AutoCloseable {
 
     static TraceArtifactManifest create(String networkJson, Map<String, byte[]> screenshots, Path nativeTrace,
                                         long maxBytes, String omissionMarker, NativeTraceSource nativeSource) {
+        return create(networkJson, screenshots, List.of(), nativeTrace, maxBytes, omissionMarker, nativeSource);
+    }
+
+    static TraceArtifactManifest create(String networkJson, Map<String, byte[]> screenshots,
+                                        List<SnapshotResource> snapshots, Path nativeTrace,
+                                        long maxBytes, String omissionMarker) {
+        return create(networkJson, screenshots, snapshots, nativeTrace, maxBytes, omissionMarker, FILE_SOURCE);
+    }
+
+    private static TraceArtifactManifest create(String networkJson, Map<String, byte[]> screenshots,
+                                                List<SnapshotResource> snapshots, Path nativeTrace,
+                                                long maxBytes, String omissionMarker, NativeTraceSource nativeSource) {
         List<TraceArtifactReference> references = new ArrayList<>();
+        Map<String, byte[]> resources = new java.util.LinkedHashMap<>();
         byte[] networkHar = BrowserObservabilityRecorder.networkHarJson(networkJson)
                 .getBytes(StandardCharsets.UTF_8);
         boolean networkOmitted = networkHar.length > maxBytes;
@@ -69,6 +84,30 @@ final class TraceArtifactManifest implements AutoCloseable {
             references.add(new TraceArtifactReference("screenshot-" + id, "screenshot",
                     "resources/" + digest + ".png", "image/png", omitted, metadata));
         });
+        snapshots.forEach(snapshot -> {
+            SeleniumTraceCapture.Result result = snapshot.result();
+            byte[] bytes = snapshot.bytes();
+            boolean providerOmitted = !"available".equals(result.status()) && !"truncated".equals(result.status());
+            boolean omitted = providerOmitted || bytes.length > maxBytes;
+            String omissionReason = providerOmitted ? result.reason() : omissionMarker;
+            String digest = sha256(providerOmitted
+                    ? omissionReason.getBytes(StandardCharsets.UTF_8) : bytes);
+            String path = "resources/" + digest + ".html";
+            Map<String, String> metadata = new java.util.LinkedHashMap<>(
+                    omissionMetadata(omitted, omissionReason));
+            metadata.put("sha256", digest);
+            metadata.put("sizeBytes", String.valueOf(bytes.length));
+            metadata.put("actionId", snapshot.actionId());
+            metadata.put("phase", snapshot.phase());
+            metadata.put("provider", result.provider());
+            metadata.put("fidelity", result.fidelity());
+            metadata.put("status", result.status());
+            metadata.put("reason", result.reason());
+            metadata.put("truncated", String.valueOf(result.truncated()));
+            references.add(new TraceArtifactReference(snapshot.id(), "dom-snapshot", path,
+                    "text/html", omitted, metadata));
+            resources.putIfAbsent(path, bytes);
+        });
 
         NativeArtifact nativeArtifact = stageNative(nativeTrace, maxBytes, omissionMarker, nativeSource);
         if (nativeArtifact.entry() != null) {
@@ -76,7 +115,7 @@ final class TraceArtifactManifest implements AutoCloseable {
                     nativeArtifact.entry().name(), "application/zip", nativeArtifact.omitted(),
                     omissionMetadata(nativeArtifact.omitted(), nativeArtifact.omissionReason())));
         }
-        return new TraceArtifactManifest(references, nativeArtifact.entry(), nativeArtifact.stagedPath());
+        return new TraceArtifactManifest(references, nativeArtifact.entry(), nativeArtifact.stagedPath(), resources);
     }
 
     List<TraceArtifactReference> references() {
@@ -91,6 +130,10 @@ final class TraceArtifactManifest implements AutoCloseable {
         return stagedNativeTrace;
     }
 
+    Map<String, byte[]> resourceBytes() {
+        return resourceBytes;
+    }
+
     List<String> omittedPaths() {
         return references.stream().filter(TraceArtifactReference::omitted).map(TraceArtifactReference::path).toList();
     }
@@ -100,6 +143,17 @@ final class TraceArtifactManifest implements AutoCloseable {
         references = references.stream().map(reference -> omitted.contains(reference.path()) && !reference.omitted()
                 ? new TraceArtifactReference(reference.id(), reference.kind(), reference.path(), reference.mimeType(),
                 true, withOmissionReason(reference.metadata(), reason)) : reference).toList();
+    }
+
+    void retainActionArtifacts(Set<String> retainedArtifactIds) {
+        references = references.stream().filter(reference -> {
+            boolean actionOwned = "dom-snapshot".equals(reference.kind()) || "screenshot".equals(reference.kind());
+            return !actionOwned || retainedArtifactIds.contains(reference.id());
+        }).toList();
+        Set<String> retainedPaths = references.stream().map(TraceArtifactReference::path)
+                .collect(java.util.stream.Collectors.toUnmodifiableSet());
+        resourceBytes = resourceBytes.entrySet().stream().filter(entry -> retainedPaths.contains(entry.getKey()))
+                .collect(java.util.stream.Collectors.toUnmodifiableMap(Map.Entry::getKey, Map.Entry::getValue));
     }
 
     private static Map<String, String> withOmissionReason(Map<String, String> metadata, String reason) {
@@ -190,6 +244,10 @@ final class TraceArtifactManifest implements AutoCloseable {
         long size(Path path) throws IOException;
 
         InputStream open(Path path) throws IOException;
+    }
+
+    record SnapshotResource(String id, String actionId, String phase, SeleniumTraceCapture.Result result,
+                            byte[] bytes) {
     }
 
     private record NativeArtifact(TraceArchiveWriter.Entry entry, Path stagedPath, boolean omitted,

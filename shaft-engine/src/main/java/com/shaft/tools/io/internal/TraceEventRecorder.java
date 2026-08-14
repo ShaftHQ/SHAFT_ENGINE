@@ -8,6 +8,9 @@ import io.appium.java_client.AppiumDriver;
 import org.openqa.selenium.By;
 import org.openqa.selenium.WebDriver;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Base64;
@@ -15,6 +18,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.HexFormat;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 
@@ -22,14 +26,21 @@ import java.util.function.Supplier;
  * Thread-local Selenium trace event recorder used by failure trace artifacts.
  */
 public final class TraceEventRecorder {
+    private static final int MAX_ACTIONS = 10_000;
     private static final ThreadLocal<List<ActionEvent>> EVENTS = ThreadLocal.withInitial(ArrayList::new);
     private static final ThreadLocal<Map<String, AutomationBackend>> EVENT_BACKENDS =
             ThreadLocal.withInitial(LinkedHashMap::new);
     private static final ThreadLocal<Integer> NEXT_ID = ThreadLocal.withInitial(() -> 0);
     private static final ThreadLocal<Map<String, byte[]>> SCREENSHOTS = ThreadLocal.withInitial(LinkedHashMap::new);
+    private static final ThreadLocal<Map<String, ActionSnapshots>> ACTION_SNAPSHOTS =
+            ThreadLocal.withInitial(LinkedHashMap::new);
+    private static final ThreadLocal<Map<String, String>> ACTION_SNAPSHOT_CONTENT =
+            ThreadLocal.withInitial(LinkedHashMap::new);
+    private static final ThreadLocal<Long> ACTION_SNAPSHOT_BYTES = ThreadLocal.withInitial(() -> 0L);
+    private static final ThreadLocal<Boolean> ACTION_LIMIT_OMITTED = ThreadLocal.withInitial(() -> false);
+    private static final ThreadLocal<Integer> ACTIONS_OMITTED = ThreadLocal.withInitial(() -> 0);
     private static final ThreadLocal<Long> SCREENSHOT_BYTES = ThreadLocal.withInitial(() -> 0L);
     private static final ThreadLocal<Integer> SUPPRESSION_DEPTH = ThreadLocal.withInitial(() -> 0);
-    private static final int MAX_DOM_SNAPSHOT_CHARACTERS = 200_000;
 
     private TraceEventRecorder() {
         throw new IllegalStateException("Utility class");
@@ -62,10 +73,19 @@ public final class TraceEventRecorder {
         if (!isEnabled() || SUPPRESSION_DEPTH.get() > 0) {
             return Event.disabled();
         }
+        if (NEXT_ID.get() >= MAX_ACTIONS) {
+            ACTION_LIMIT_OMITTED.set(true);
+            ACTIONS_OMITTED.set(ACTIONS_OMITTED.get() + 1);
+            return Event.disabled();
+        }
         int index = NEXT_ID.get() + 1;
         NEXT_ID.set(index);
         String id = "action-" + index;
         EVENT_BACKENDS.get().put(id, backend(driver));
+        SeleniumTraceCapture.Result beforeSnapshot = domSnapshot(driver);
+        if (beforeSnapshot != null) {
+            ACTION_SNAPSHOTS.get().put(id, new ActionSnapshots(beforeSnapshot, null));
+        }
         return new Event(
                 true,
                 id,
@@ -76,7 +96,7 @@ public final class TraceEventRecorder {
                 value(locator),
                 currentUrl(driver),
                 callerFrame(),
-                domSnapshot(driver),
+                snapshotContent(beforeSnapshot),
                 driver);
     }
 
@@ -87,6 +107,11 @@ public final class TraceEventRecorder {
     public static Event startForBackend(String category, String name, String locator, AutomationBackend backend) {
         FailureTraceReporter.activateBrowserEvidenceOwner(null);
         if (!isEnabled() || SUPPRESSION_DEPTH.get() > 0) {
+            return Event.disabled();
+        }
+        if (NEXT_ID.get() >= MAX_ACTIONS) {
+            ACTION_LIMIT_OMITTED.set(true);
+            ACTIONS_OMITTED.set(ACTIONS_OMITTED.get() + 1);
             return Event.disabled();
         }
         int index = NEXT_ID.get() + 1;
@@ -228,6 +253,12 @@ public final class TraceEventRecorder {
         if (event == null || !event.enabled()) {
             return;
         }
+        SeleniumTraceCapture.Result afterSnapshot = domSnapshot(event.driver());
+        if (afterSnapshot != null) {
+            ActionSnapshots snapshots = ACTION_SNAPSHOTS.get().get(event.id());
+            ACTION_SNAPSHOTS.get().put(event.id(), new ActionSnapshots(
+                    snapshots == null ? null : snapshots.before(), afterSnapshot));
+        }
         EVENTS.get().add(new ActionEvent(
                 event.id(),
                 EVENT_BACKENDS.get().getOrDefault(event.id(), AutomationBackend.UNKNOWN),
@@ -246,7 +277,7 @@ public final class TraceEventRecorder {
                 metadata == null ? Map.of() : new LinkedHashMap<>(metadata),
                 actionability == null ? Map.of() : new LinkedHashMap<>(actionability),
                 event.domSnapshotBefore(),
-                domSnapshot(event.driver()),
+                snapshotContent(afterSnapshot),
                 screenshotBase64(event.id())));
         EVENT_BACKENDS.get().remove(event.id());
     }
@@ -260,8 +291,18 @@ public final class TraceEventRecorder {
         List<ActionEvent> snapshot = snapshot();
         EVENTS.get().clear();
         EVENT_BACKENDS.get().clear();
+        ACTION_LIMIT_OMITTED.remove();
+        ACTIONS_OMITTED.remove();
         NEXT_ID.set(0);
         return snapshot;
+    }
+
+    static Map<String, ActionSnapshots> drainActionSnapshots() {
+        Map<String, ActionSnapshots> snapshots = Map.copyOf(ACTION_SNAPSHOTS.get());
+        ACTION_SNAPSHOTS.remove();
+        ACTION_SNAPSHOT_CONTENT.remove();
+        ACTION_SNAPSHOT_BYTES.remove();
+        return snapshots;
     }
 
     /**
@@ -270,7 +311,19 @@ public final class TraceEventRecorder {
      * @return recorded action events
      */
     static List<ActionEvent> snapshot() {
-        return List.copyOf(EVENTS.get());
+        List<ActionEvent> snapshot = new ArrayList<>(EVENTS.get());
+        if (!ACTION_LIMIT_OMITTED.get()) {
+            return List.copyOf(snapshot);
+        }
+        int omittedCount = ACTIONS_OMITTED.get();
+        ActionEvent marker = actionLimitMarker(snapshot.isEmpty() ? null : snapshot.getLast(),
+                omittedCount + (snapshot.size() >= MAX_ACTIONS ? 1 : 0));
+        if (snapshot.size() >= MAX_ACTIONS) {
+            snapshot.set(snapshot.size() - 1, marker);
+        } else {
+            snapshot.add(marker);
+        }
+        return List.copyOf(snapshot);
     }
 
     /**
@@ -305,6 +358,11 @@ public final class TraceEventRecorder {
         EVENT_BACKENDS.remove();
         NEXT_ID.remove();
         SCREENSHOTS.remove();
+        ACTION_SNAPSHOTS.remove();
+        ACTION_SNAPSHOT_CONTENT.remove();
+        ACTION_SNAPSHOT_BYTES.remove();
+        ACTION_LIMIT_OMITTED.remove();
+        ACTIONS_OMITTED.remove();
         SCREENSHOT_BYTES.remove();
         SUPPRESSION_DEPTH.remove();
     }
@@ -405,28 +463,84 @@ public final class TraceEventRecorder {
 
     /**
      * Best-effort {@code document.documentElement.outerHTML} snapshot for the current thread's
-     * active driver, gated by {@code shaft.trace.includeDomSnapshots} and bounded to
-     * {@link #MAX_DOM_SNAPSHOT_CHARACTERS} so a single huge page never blows up trace artifact
-     * size. Never throws; capture failures degrade to an empty snapshot rather than failing the
-     * action being traced.
+     * active driver, gated by {@code shaft.trace.includeDomSnapshots} and bounded by the shared
+     * structural snapshot policy so a single huge page never blows up trace artifact size. Never
+     * throws; capture failures degrade to an empty snapshot rather than failing the action being
+     * traced.
      */
-    private static String domSnapshot(WebDriver driver) {
+    private static SeleniumTraceCapture.Result domSnapshot(WebDriver driver) {
         if (driver == null || !isDomSnapshotEnabled()) {
-            return "";
+            return null;
         }
         try {
             if (!(driver instanceof org.openqa.selenium.JavascriptExecutor executor)) {
-                return "";
+                return new SeleniumTraceCapture.Result("webdriver", "unavailable", "unavailable",
+                        "DOM snapshot provider was unavailable.", "unavailable", "", false);
             }
             Object result = executor.executeScript(
                     "return document.documentElement ? document.documentElement.outerHTML : '';");
             String html = result == null ? "" : String.valueOf(result);
-            return html.length() > MAX_DOM_SNAPSHOT_CHARACTERS
-                    ? html.substring(0, MAX_DOM_SNAPSHOT_CHARACTERS)
-                    : html;
+            return retainDomSnapshot(SeleniumTraceCapture.fromContent(
+                    "webdriver", "structural", "action-dom-snapshot", html,
+                    FailureTraceReporter::redactSourceText));
         } catch (RuntimeException e) {
-            return "";
+            return new SeleniumTraceCapture.Result("webdriver", "unavailable", "unavailable",
+                    "DOM snapshot capture failed.", "unavailable", "", false);
         }
+    }
+
+    private static String snapshotContent(SeleniumTraceCapture.Result snapshot) {
+        return snapshot == null ? "" : snapshot.content();
+    }
+
+    private static SeleniumTraceCapture.Result retainDomSnapshot(SeleniumTraceCapture.Result snapshot) {
+        if (snapshot.content().isEmpty()) {
+            return snapshot;
+        }
+        byte[] bytes = snapshot.content().getBytes(StandardCharsets.UTF_8);
+        String digest = sha256(bytes);
+        String canonical = ACTION_SNAPSHOT_CONTENT.get().get(digest);
+        if (canonical != null) {
+            return new SeleniumTraceCapture.Result(snapshot.provider(), snapshot.fidelity(), snapshot.status(),
+                    snapshot.reason(), snapshot.type(), canonical, snapshot.truncated());
+        }
+        long used = ACTION_SNAPSHOT_BYTES.get();
+        long budget = actionSnapshotBudgetBytes();
+        if (used > budget || bytes.length > budget - used) {
+            return new SeleniumTraceCapture.Result(snapshot.provider(), "omitted", "omitted-budget",
+                    "Action DOM snapshot exceeded the cumulative trace capture budget.",
+                    "omitted-budget", "", false);
+        }
+        ACTION_SNAPSHOT_CONTENT.get().put(digest, snapshot.content());
+        ACTION_SNAPSHOT_BYTES.set(used + bytes.length);
+        return snapshot;
+    }
+
+    private static long actionSnapshotBudgetBytes() {
+        try {
+            long mebibytes = SHAFT.Properties.reporting == null
+                    ? Long.MAX_VALUE / (1024L * 1024L)
+                    : Math.max(1L, SHAFT.Properties.reporting.traceMaxArtifactMb());
+            return Math.multiplyExact(mebibytes, 1024L * 1024L);
+        } catch (RuntimeException exception) {
+            return 1024L * 1024L;
+        }
+    }
+
+    private static String sha256(byte[] bytes) {
+        try {
+            return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(bytes));
+        } catch (NoSuchAlgorithmException exception) {
+            throw new IllegalStateException("SHA-256 is required by the Java platform.", exception);
+        }
+    }
+
+    private static ActionEvent actionLimitMarker(ActionEvent lastRetained, int omittedCount) {
+        return new ActionEvent("action-limit", AutomationBackend.UNKNOWN, "trace", "omitted-actions", "skipped",
+                lastRetained == null ? Instant.EPOCH.toString() : lastRetained.startTime(), 0L,
+                "", "", "", "Action evidence exceeded the 10000-action limit.",
+                "", "", List.of(), Map.of("omitted", "newest-tail",
+                        "omittedCount", String.valueOf(omittedCount)), Map.of(), "", "", "");
     }
 
     private static boolean isDomSnapshotEnabled() {
@@ -637,5 +751,8 @@ public final class TraceEventRecorder {
                        String exceptionMessage, List<String> attachments, Map<String, String> metadata,
                        Map<String, Object> actionability, String domSnapshotBefore, String domSnapshotAfter,
                        String screenshot) {
+    }
+
+    record ActionSnapshots(SeleniumTraceCapture.Result before, SeleniumTraceCapture.Result after) {
     }
 }

@@ -9,7 +9,7 @@ import java.util.List;
  * @param totalMatched total transactions matching the filter before the limit was applied
  * @param truncated    whether {@code totalMatched} exceeded the requested limit
  * @param warnings     safe warnings, such as no transactions observed yet
- * @param detail       full detail (headers and a truncated, redacted response body preview) for the
+ * @param detail       full detail (headers and a bounded/redacted response preview or explicit omission) for the
  *                     single transaction matching the requested {@code id}; {@code null} unless an
  *                     {@code id} was supplied and matched exactly one transaction. Absorbs the former
  *                     {@code browser_network_request} tool (design doc Decision 2).

@@ -1,6 +1,7 @@
 package com.shaft.gui.browser.internal;
 
 import com.shaft.driver.SHAFT;
+import com.shaft.tools.io.internal.BrowserObservabilityRecorder;
 import com.shaft.tools.io.internal.ReportManagerHelper;
 import org.apache.logging.log4j.Level;
 import org.openqa.selenium.WebDriver;
@@ -12,11 +13,14 @@ import org.openqa.selenium.bidi.network.ResponseDetails;
 
 import java.time.Duration;
 import java.util.List;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.Locale;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.LongSupplier;
+import java.util.function.BooleanSupplier;
 
 /**
  * Advisory, best-effort BiDi network-activity signal that {@link JavaScriptWaitManager} folds
@@ -79,13 +83,23 @@ public class BidiNetworkActivitySource implements AutoCloseable {
      * duration per request -- never a wait that hangs past the existing 30s ceiling.
      */
     static final Duration IN_FLIGHT_AGE_OUT_WINDOW = Duration.ofSeconds(10);
+    private static final int TRACE_REQUEST_LIMIT = 1000;
+    private static final int TRACE_FIELD_CHARACTER_LIMIT = 2048;
+    private static final int TRACE_HEADER_LIMIT = 64;
+    private static final int TRACE_HEADER_CHARACTER_LIMIT = 8192;
 
     private static final ConcurrentHashMap<WebDriver, BidiNetworkActivitySource> CACHE = new ConcurrentHashMap<>();
 
     private final ConcurrentHashMap<String, Long> inFlightStartNanos = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<String, TraceRequest> traceRequests = new ConcurrentHashMap<>();
     private final AtomicLong activitySequence = new AtomicLong();
     private final AtomicBoolean healthy = new AtomicBoolean(false);
     private final LongSupplier nanoTimeSource;
+    private final BooleanSupplier detailedObservationActive;
+    private final BrowserObservabilityRecorder.ObservationBinding observationBinding;
+    private final AtomicBoolean closed = new AtomicBoolean();
+    private BrowserObservabilityRecorder.ObservationSession traceRequestLimitWarningOwner;
+    private BrowserObservabilityRecorder.ObservationSession traceMetadataLimitWarningOwner;
     private volatile Network network;
 
     /**
@@ -98,10 +112,14 @@ public class BidiNetworkActivitySource implements AutoCloseable {
      */
     BidiNetworkActivitySource(LongSupplier nanoTimeSource) {
         this.nanoTimeSource = nanoTimeSource;
+        this.detailedObservationActive = () -> false;
+        this.observationBinding = BrowserObservabilityRecorder.captureBinding();
     }
 
-    private BidiNetworkActivitySource(WebDriver driver, LongSupplier nanoTimeSource) {
+    BidiNetworkActivitySource(WebDriver driver, LongSupplier nanoTimeSource) {
         this.nanoTimeSource = nanoTimeSource;
+        this.detailedObservationActive = () -> BrowserNetworkInterceptor.observationCountIfPresent(driver).isPresent();
+        this.observationBinding = BrowserObservabilityRecorder.captureBinding();
         attach(driver);
     }
 
@@ -185,31 +203,219 @@ public class BidiNetworkActivitySource implements AutoCloseable {
      *
      * @return the advisory in-flight count; never negative
      */
-    int inFlightCount() {
+    synchronized int inFlightCount() {
+        if (closed.get()) {
+            return 0;
+        }
         ageOutStaleEntries();
         return inFlightStartNanos.size();
+    }
+
+    synchronized int retainedTraceRequestCount() {
+        return traceRequests.size();
     }
 
     private void ageOutStaleEntries() {
         long now = nanoTimeSource.getAsLong();
         long thresholdNanos = IN_FLIGHT_AGE_OUT_WINDOW.toNanos();
-        inFlightStartNanos.entrySet().removeIf(entry -> (now - entry.getValue()) >= thresholdNanos);
+        inFlightStartNanos.entrySet().removeIf(entry -> {
+            boolean stale = now >= entry.getValue() && now - entry.getValue() >= thresholdNanos;
+            if (stale) {
+                publish(traceRequests.remove(entry.getKey()), null,
+                        "BiDi request completion was unavailable after the bounded age-out window.");
+            }
+            return stale;
+        });
     }
 
-    void handleBeforeRequestSent(BeforeRequestSent event) {
+    synchronized void handleBeforeRequestSent(BeforeRequestSent event) {
+        if (closed.get()) {
+            return;
+        }
         org.openqa.selenium.bidi.network.RequestData request = event == null ? null : event.getRequest();
         activitySequence.incrementAndGet();
-        recordRequestStart(requestIdOf(request), isLongLivedUpgrade(request));
+        boolean longLived = isLongLivedUpgrade(request);
+        recordRequestStart(requestIdOf(request), longLived);
+        recordTraceRequest(request, longLived);
     }
 
-    void handleResponseCompleted(ResponseDetails event) {
+    synchronized void handleResponseCompleted(ResponseDetails event) {
+        if (closed.get()) {
+            return;
+        }
         activitySequence.incrementAndGet();
-        recordRequestEnd(requestIdOf(event == null ? null : event.getRequest()));
+        org.openqa.selenium.bidi.network.RequestData request = event == null ? null : event.getRequest();
+        String requestId = requestIdOf(request);
+        recordRequestEnd(requestId);
+        completeTraceRequest(requestId, event == null ? null : event.getResponseData(), "");
     }
 
-    void handleFetchError(FetchError event) {
+    synchronized void handleFetchError(FetchError event) {
+        if (closed.get()) {
+            return;
+        }
         activitySequence.incrementAndGet();
-        recordRequestEnd(requestIdOf(event == null ? null : event.getRequest()));
+        org.openqa.selenium.bidi.network.RequestData request = event == null ? null : event.getRequest();
+        String requestId = requestIdOf(request);
+        recordRequestEnd(requestId);
+        completeTraceRequest(requestId, null, "BiDi request failed.");
+    }
+
+    private synchronized void recordTraceRequest(org.openqa.selenium.bidi.network.RequestData request,
+                                                 boolean longLived) {
+        if (request == null || detailedObservationActive.getAsBoolean()) {
+            return;
+        }
+        BrowserObservabilityRecorder.ObservationSession owner =
+                BrowserObservabilityRecorder.resolveSession(observationBinding);
+        BoundedHeaders requestHeaders = headers(request.getHeaders());
+        RetainedText method = retainedText(request.getMethod());
+        RetainedText url = retainedText(request.getUrl());
+        if (metadataWasBounded(request, method, url, requestHeaders)) {
+            warnMetadataLimit(owner);
+        }
+        TraceRequest traceRequest = new TraceRequest(owner, method.value(), url.value(), requestHeaders.values(),
+                method.context(), url.context(), requestHeaders.contexts(),
+                Math.max(0L, request.getBodySize() == null ? 0L : request.getBodySize()), nanoTimeSource.getAsLong());
+        if (longLived) {
+            publish(traceRequest, null, "BiDi long-lived request observed; completion metadata is unavailable.");
+            return;
+        }
+        if (traceRequests.size() >= TRACE_REQUEST_LIMIT) {
+            if (!java.util.Objects.equals(traceRequestLimitWarningOwner, owner)) {
+                traceRequestLimitWarningOwner = owner;
+                BrowserObservabilityRecorder.recordWarning(owner, "network",
+                        "A BiDi network request was omitted because the in-flight trace limit was reached.");
+            }
+            return;
+        }
+        String requestId = request.getRequestId();
+        if (requestId != null) {
+            traceRequests.put(requestId, traceRequest);
+        }
+    }
+
+    private synchronized void completeTraceRequest(String requestId,
+                                                   org.openqa.selenium.bidi.network.ResponseData response,
+                                                   String failureReason) {
+        TraceRequest pending = requestId == null ? null : traceRequests.remove(requestId);
+        publish(pending, response, failureReason);
+    }
+
+    private void publish(TraceRequest request, org.openqa.selenium.bidi.network.ResponseData response,
+                         String failureReason) {
+        if (request == null) {
+            return;
+        }
+        long now = nanoTimeSource.getAsLong();
+        long elapsed = now >= request.startNanos() ? now - request.startNanos() : 0L;
+        long responseSize = response == null ? 0L : Math.max(0L,
+                response.getBodySize() == null ? response.getBytesReceived() : response.getBodySize());
+        BoundedHeaders responseHeaders = response == null ? new BoundedHeaders(Map.of(), Map.of(), false)
+                : headers(response.getHeaders());
+        if (responseHeaders.truncated()) {
+            warnMetadataLimit(request.owner());
+        }
+        BrowserObservabilityRecorder.recordNetwork(request.owner(),
+                new BrowserObservabilityRecorder.NetworkObservation(
+                        completeText(request.method(), request.methodContext()),
+                        completeText(request.url(), request.urlContext()), response == null ? 0 : response.getStatus(),
+                        completeHeaders(request.requestHeaders(), request.requestHeaderContexts()),
+                        completeHeaders(responseHeaders.values(), responseHeaders.contexts()),
+                        java.util.concurrent.TimeUnit.NANOSECONDS.toMillis(elapsed), request.requestSize(),
+                        responseSize, failureReason, ""), "bidi");
+    }
+
+    static BoundedHeaders headers(List<Header> source) {
+        if (source == null || source.isEmpty()) {
+            return new BoundedHeaders(Map.of(), Map.of(), false);
+        }
+        Map<String, String> values = new LinkedHashMap<>();
+        Map<String, HeaderContext> contexts = new LinkedHashMap<>();
+        int retainedCharacters = 0;
+        boolean truncated = false;
+        for (Header header : source) {
+            if (headerLimitReached(values.size(), retainedCharacters)) {
+                truncated = true;
+                break;
+            }
+            RetainedHeader retained = retainedHeader(header);
+            if (retained == null) {
+                continue;
+            }
+            truncated |= retained.bounded();
+            if (retained.characters() > TRACE_HEADER_CHARACTER_LIMIT - retainedCharacters) {
+                truncated = true;
+                break;
+            }
+            values.put(retained.name().value(), retained.value().value());
+            if (retained.hasContext()) {
+                contexts.put(retained.name().value(),
+                        new HeaderContext(retained.name().context(), retained.value().context()));
+            }
+            retainedCharacters += retained.characters();
+        }
+        return new BoundedHeaders(Map.copyOf(values), Map.copyOf(contexts), truncated || values.size() < source.size());
+    }
+
+    private static boolean headerLimitReached(int retainedHeaders, int retainedCharacters) {
+        return retainedHeaders >= TRACE_HEADER_LIMIT || retainedCharacters >= TRACE_HEADER_CHARACTER_LIMIT;
+    }
+
+    private static RetainedHeader retainedHeader(Header header) {
+        if (header == null || header.getName() == null || header.getValue() == null) {
+            return null;
+        }
+        String sourceValue = safe(header.getValue().getValue());
+        boolean sensitive = isSensitiveHeader(header.getName());
+        RetainedText name = retainedText(header.getName());
+        RetainedText value = sensitive ? new RetainedText("********", "") : retainedText(sourceValue);
+        boolean bounded = !name.value().equals(header.getName()) || !name.context().isEmpty()
+                || (!sensitive && (!value.value().equals(sourceValue) || !value.context().isEmpty()));
+        return new RetainedHeader(name, value, bounded);
+    }
+
+    private static boolean metadataWasBounded(org.openqa.selenium.bidi.network.RequestData request,
+                                              RetainedText method, RetainedText url, BoundedHeaders headers) {
+        return !method.value().equals(safe(request.getMethod())) || !method.context().isEmpty()
+                || !url.value().equals(safe(request.getUrl())) || !url.context().isEmpty() || headers.truncated();
+    }
+
+    private static RetainedText retainedText(String source) {
+        String retained = BrowserObservabilityRecorder.retainedNetworkText(source);
+        int boundary = Math.min(TRACE_FIELD_CHARACTER_LIMIT, retained.length());
+        return new RetainedText(retained.substring(0, boundary), retained.substring(boundary));
+    }
+
+    private static String completeText(String value, String context) {
+        return safe(value) + safe(context);
+    }
+
+    private static Map<String, String> completeHeaders(Map<String, String> values,
+                                                        Map<String, HeaderContext> contexts) {
+        if (values.isEmpty()) return values;
+        Map<String, String> completed = new LinkedHashMap<>();
+        values.forEach((name, value) -> {
+            HeaderContext context = contexts.getOrDefault(name, new HeaderContext("", ""));
+            completed.put(name + context.name(), value + context.value());
+        });
+        return Map.copyOf(completed);
+    }
+
+    private static boolean isSensitiveHeader(String key) {
+        return "********".equals(BrowserObservabilityRecorder.retainedNetworkHeaderValue(key, "probe"));
+    }
+
+    private void warnMetadataLimit(BrowserObservabilityRecorder.ObservationSession owner) {
+        if (!java.util.Objects.equals(traceMetadataLimitWarningOwner, owner)) {
+            traceMetadataLimitWarningOwner = owner;
+            BrowserObservabilityRecorder.recordWarning(owner, "network",
+                    "BiDi network metadata was truncated to the bounded trace limit.");
+        }
+    }
+
+    private static String safe(String value) {
+        return value == null ? "" : value;
     }
 
     /**
@@ -220,8 +426,9 @@ public class BidiNetworkActivitySource implements AutoCloseable {
      * @param excludeFromInFlight {@code true} for requests that are expected to legitimately never
      *                            complete (SSE/WebSocket upgrade) -- see {@link #isLongLivedUpgrade}
      */
-    void recordRequestStart(String requestId, boolean excludeFromInFlight) {
-        if (requestId != null && !excludeFromInFlight) {
+    synchronized void recordRequestStart(String requestId, boolean excludeFromInFlight) {
+        if (!closed.get() && requestId != null && !excludeFromInFlight
+                && inFlightStartNanos.size() < TRACE_REQUEST_LIMIT) {
             inFlightStartNanos.put(requestId, nanoTimeSource.getAsLong());
         }
     }
@@ -232,7 +439,7 @@ public class BidiNetworkActivitySource implements AutoCloseable {
      *
      * @param requestId the BiDi request id, or {@code null} to no-op
      */
-    void recordRequestEnd(String requestId) {
+    synchronized void recordRequestEnd(String requestId) {
         if (requestId != null) {
             inFlightStartNanos.remove(requestId);
         }
@@ -288,9 +495,17 @@ public class BidiNetworkActivitySource implements AutoCloseable {
      */
     @Override
     public void close() {
-        Network toClose = this.network;
-        this.network = null;
-        healthy.set(false);
+        Network toClose;
+        synchronized (this) {
+            if (!closed.compareAndSet(false, true)) {
+                return;
+            }
+            toClose = this.network;
+            this.network = null;
+            healthy.set(false);
+            traceRequests.clear();
+            inFlightStartNanos.clear();
+        }
         if (toClose != null) {
             try {
                 toClose.close();
@@ -298,5 +513,29 @@ public class BidiNetworkActivitySource implements AutoCloseable {
                 // Closing an already-torn-down BiDi connection during driver teardown is harmless.
             }
         }
+    }
+
+    private record TraceRequest(BrowserObservabilityRecorder.ObservationSession owner, String method, String url,
+                                Map<String, String> requestHeaders, String methodContext, String urlContext,
+                                Map<String, HeaderContext> requestHeaderContexts, long requestSize, long startNanos) {
+    }
+
+    private record RetainedText(String value, String context) {
+    }
+
+    private record RetainedHeader(RetainedText name, RetainedText value, boolean bounded) {
+        private int characters() {
+            return name.value().length() + value.value().length();
+        }
+
+        private boolean hasContext() {
+            return !name.context().isEmpty() || !value.context().isEmpty();
+        }
+    }
+
+    record HeaderContext(String name, String value) {
+    }
+
+    record BoundedHeaders(Map<String, String> values, Map<String, HeaderContext> contexts, boolean truncated) {
     }
 }
