@@ -522,6 +522,89 @@ class ManagedLocalAiServiceTest {
     }
 
     @Test
+    void conflictedReviewedCleanPreservesActivationHistoryAndRollbackCandidate(@TempDir Path cache)
+            throws Exception {
+        ManagedLocalAiHardware.HostAccess host = host("Windows 11", "amd64", "windows-msvc", "",
+                16 * GIB, 8, 64 * GIB);
+        byte[] firstRuntime = "runtime-one".getBytes();
+        byte[] firstModel = "model-one".getBytes();
+        ManagedLocalAiManifest firstManifest = manifest(firstRuntime, firstModel);
+        ManagedLocalAiService first = service(cache, true, "test-model", host, firstManifest,
+                new FakeProvisioning(cache, firstManifest, firstRuntime, firstModel));
+        assertEquals(ManagedLocalAiSnapshot.State.READY,
+                first.provision(ignored -> { }).completion().get(5, TimeUnit.SECONDS).state());
+
+        byte[] secondRuntime = "runtime-two".getBytes();
+        byte[] secondModel = "model-two".getBytes();
+        ManagedLocalAiManifest secondManifest = manifest(secondRuntime, secondModel);
+        byte[] extraModelPayload = "extra-model".getBytes();
+        ManagedLocalAiManifest.ModelManifest extraModel = new ManagedLocalAiManifest.ModelManifest(
+                "extra-model", "Extra model", "lite", false, true, "Apache-2.0", "owner/repo",
+                "1123456789012345678901234567890123456789", "extra.gguf",
+                URI.create("https://huggingface.co/owner/repo/resolve/1123456789012345678901234567890123456789/extra.gguf"),
+                extraModelPayload.length, sha256(extraModelPayload), 1, 1, 1);
+        secondManifest = new ManagedLocalAiManifest(secondManifest.schemaVersion(), secondManifest.runtime(),
+                List.of(secondManifest.models().getFirst(), extraModel));
+        ManagedLocalAiService second = service(cache, true, "test-model", host, secondManifest,
+                new FakeProvisioning(cache, secondManifest, secondRuntime, secondModel));
+        assertEquals(ManagedLocalAiSnapshot.State.READY,
+                second.provision(ignored -> { }).completion().get(5, TimeUnit.SECONDS).state());
+
+        Path historyFile = cache.resolve("activation-history.json");
+        byte[] historyBefore = Files.readAllBytes(historyFile);
+        ManagedLocalAiActivationHistory.Activation rollbackBefore = second.rollbackCandidate();
+        ManagedLocalAiCache.Installation changed = adopt(cache, ManagedLocalAiService.modelInstallationId(extraModel),
+                new Payload(extraModel.file(), extraModelPayload));
+        Path changedFile = changed.root().resolve(extraModel.file());
+        Files.writeString(changedFile, "changed-owned-model");
+
+        assertFalse(second.cleanReviewed());
+
+        assertArrayEquals(historyBefore, Files.readAllBytes(historyFile));
+        assertEquals("changed-owned-model", Files.readString(changedFile));
+        assertEquals(rollbackBefore, second.rollbackCandidate());
+    }
+
+    @Test
+    void cleanRecoveryNeverLeavesHistoryReferencingAnAlreadyDeletedInstallation(@TempDir Path cache)
+            throws Exception {
+        ManagedLocalAiHardware.HostAccess host = host("Windows 11", "amd64", "windows-msvc", "",
+                16 * GIB, 8, 64 * GIB);
+        byte[] runtime = "runtime".getBytes();
+        byte[] model = "model".getBytes();
+        ManagedLocalAiManifest manifest = manifest(runtime, model);
+        ManagedLocalAiService service = service(cache, true, "test-model", host, manifest,
+                new FakeProvisioning(cache, manifest, runtime, model));
+        assertEquals(ManagedLocalAiSnapshot.State.READY,
+                service.provision(ignored -> { }).completion().get(5, TimeUnit.SECONDS).state());
+
+        Path historyFile = cache.resolve(ManagedLocalAiActivationHistory.FILE);
+        byte[] staleHistory = Files.readAllBytes(historyFile);
+        ManagedLocalAiActivationHistory.Activation active = ManagedLocalAiActivationHistory.parse(staleHistory)
+                .active();
+        ManagedLocalAiCache.Installation installed = ManagedLocalAiCache.verify(cache, active.runtimeId());
+        ManagedLocalAiCache.withLock(cache, Duration.ofSeconds(1),
+                () -> ManagedLocalAiCache.clean(cache, java.util.Set.of(active.runtimeId())));
+        Files.write(historyFile, staleHistory);
+
+        String source = cache.toAbsolutePath().normalize().relativize(installed.root())
+                .toString().replace('\\', '/');
+        String target = "trash/" + active.runtimeId() + "-interrupted";
+        String files = installed.files().stream().map(file ->
+                "{\"path\":\"%s\",\"size\":%d,\"sha256\":\"%s\"}".formatted(
+                        file.path(), file.size(), file.sha256()))
+                .collect(java.util.stream.Collectors.joining(","));
+        Files.writeString(cache.resolve("transaction.json"), """
+                {"schemaVersion":1,"operation":"CLEAN","id":"%s","source":"%s","target":"%s","files":[%s]}
+                """.formatted(active.runtimeId(), source, target, files));
+
+        ManagedLocalAiCache.withLock(cache, Duration.ofSeconds(1), () -> null);
+
+        assertFalse(Files.exists(historyFile));
+        assertFalse(Files.exists(cache.resolve("transaction.json")));
+    }
+
+    @Test
     void failedAndCancelledUpdatesNeverPublishFalseActivation(@TempDir Path cache) throws Exception {
         ManagedLocalAiHardware.HostAccess host = host("Windows 11", "amd64", "windows-msvc", "",
                 16 * GIB, 8, 64 * GIB);

@@ -149,8 +149,9 @@ public final class ManagedLocalAiService {
         ManagedLocalAiProcess.withLaunchExclusion(lockTimeout, () -> {
             ManagedLocalAiProcess.terminateRetainedLaunches();
             ManagedLocalAiCache.withLock(cache, lockTimeout, () -> {
-                ManagedLocalAiActivationHistory.clearLocked(cache);
-                return ManagedLocalAiCache.clean(cache);
+                ManagedLocalAiActivationHistory.readVerified(cache);
+                return ManagedLocalAiCache.clean(cache, null, () -> { },
+                        () -> ManagedLocalAiActivationHistory.clearLocked(cache));
             });
         });
         return inspect();
@@ -170,8 +171,9 @@ public final class ManagedLocalAiService {
         ManagedLocalAiProcess.withLaunchExclusion(lockTimeout, () -> {
             ManagedLocalAiProcess.terminateRetainedLaunches();
             ManagedLocalAiCache.withLock(cache, lockTimeout, () -> {
-                ManagedLocalAiActivationHistory.clearLocked(cache);
-                ManagedLocalAiCache.CleanResult cleaned = ManagedLocalAiCache.clean(cache, reviewed);
+                ManagedLocalAiActivationHistory.readVerified(cache);
+                ManagedLocalAiCache.CleanResult cleaned = ManagedLocalAiCache.clean(cache, reviewed, () -> { },
+                        () -> ManagedLocalAiActivationHistory.clearLocked(cache));
                 result.set(cleaned);
                 return cleaned;
             });

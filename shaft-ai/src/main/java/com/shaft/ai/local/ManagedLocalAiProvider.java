@@ -79,10 +79,11 @@ public final class ManagedLocalAiProvider implements AiProvider {
         @Override
         public ManagedLocalAiProcess.Session launch(ManagedLocalAiService.ReadyRuntime runtime, Duration timeout,
                                                     BooleanSupplier shuttingDown) throws Exception {
-            return ManagedLocalAiProcess.launch(runtime.cache(), runtime.executable(), runtime.model(), runtime.log(),
-                    runtime.alias(), runtime.threads(), timeout, shuttingDown, ManagedLocalAiProcess::start,
-                    (process, port, key, alias, identityTimeout) -> ManagedLocalAiProcess.requireIdentity(
-                            process, port, key, alias, identityTimeout, ManagedLocalAiProcess::requestIdentity));
+            return ManagedLocalAiProcess.launchManaged(runtime.cache(), runtime.executable(), runtime.model(),
+                    runtime.log(), runtime.alias(), runtime.threads(), timeout, shuttingDown,
+                    ManagedLocalAiProcess::start, (process, port, key, alias, identityTimeout) ->
+                            ManagedLocalAiProcess.requireIdentity(process, port, key, alias, identityTimeout,
+                                    ManagedLocalAiProcess::requestIdentity));
         }
 
         @Override
@@ -187,7 +188,7 @@ public final class ManagedLocalAiProvider implements AiProvider {
                     }
                 }
                 AiResponse response = runtimeClient.infer(session, request, deadline);
-                if (!session.process().isAlive()) {
+                if (!session.process().isAlive() || session.resourceFailure() != null) {
                     closeSession(deadline);
                 }
                 return response;

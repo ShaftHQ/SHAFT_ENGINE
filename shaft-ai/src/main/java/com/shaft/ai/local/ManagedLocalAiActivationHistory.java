@@ -126,6 +126,23 @@ final class ManagedLocalAiActivationHistory {
         Files.deleteIfExists(target);
     }
 
+    static void clearIfReferencesLocked(Path cache, String installationId) throws IOException {
+        Path target = cache.toAbsolutePath().normalize().resolve(FILE);
+        byte[] value = readBytes(target);
+        if (value == null) {
+            return;
+        }
+        History history = parse(value);
+        if (references(history.active(), installationId)
+                || history.previous() != null && references(history.previous(), installationId)) {
+            clearLocked(cache);
+        }
+    }
+
+    private static boolean references(Activation activation, String installationId) {
+        return activation.runtimeId().equals(installationId) || activation.modelId().equals(installationId);
+    }
+
     private static boolean publishLocked(Path cache, Activation activation, BooleanSupplier complete)
             throws IOException {
         Path target = cache.toAbsolutePath().normalize().resolve(FILE);

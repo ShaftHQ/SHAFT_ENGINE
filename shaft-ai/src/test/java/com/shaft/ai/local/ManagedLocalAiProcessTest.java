@@ -22,6 +22,7 @@ import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -43,6 +44,7 @@ class ManagedLocalAiProcessTest {
     void supervisorRefusesToStartNativeRuntimeAfterParentExit() {
         assertDoesNotThrow(() -> ManagedLocalAiProcessSupervisor.main(new String[]{
                 Long.toString(Long.MAX_VALUE), java.time.Instant.EPOCH.toString(),
+                temp.toAbsolutePath().toString(),
                 temp.resolve("must-not-start").toString()}));
     }
 
@@ -62,6 +64,7 @@ class ManagedLocalAiProcessTest {
             String parentStartedAt = parent.info().startInstant().orElseThrow().toString();
             ProcessBuilder supervisorBuilder = new ProcessBuilder(javaPath.toString(),
                     ManagedLocalAiProcessSupervisor.class.getName(), Long.toString(parent.pid()), parentStartedAt,
+                    javaPath.getParent().toAbsolutePath().toString(),
                     javaPath.toString(), "-jar", helper.toString(), childMarker.toString());
             supervisorBuilder.environment().put("CLASSPATH",
                     System.getProperty("surefire.test.class.path", System.getProperty("java.class.path")));
@@ -91,18 +94,231 @@ class ManagedLocalAiProcessTest {
         Path keyFile = Files.writeString(temp.resolve("api-key.txt"), "key-123");
         Map<String, String> environment = ManagedLocalAiProcess.runtimeEnvironment(Map.of(
                 "Path", "bin", "SystemRoot", "windows", "TEMP", "tmp", "LD_LIBRARY_PATH", "loader",
+                "DYLD_LIBRARY_PATH", "dyld", "DYLD_FALLBACK_LIBRARY_PATH", "fallback-loader",
                 "AWS_SECRET_ACCESS_KEY", "secret", "AZURE_CLIENT_SECRET", "secret", "DATABASE_URL", "secret"));
         List<String> command = ManagedLocalAiProcess.command(executable, model, 19191, "alias-123", keyFile, 4);
 
-        assertEquals("bin", environment.get("Path"));
         assertEquals("windows", environment.get("SystemRoot"));
-        assertEquals("loader", environment.get("LD_LIBRARY_PATH"));
+        assertFalse(environment.containsKey("Path"));
+        assertFalse(environment.containsKey("LD_LIBRARY_PATH"));
+        assertFalse(environment.containsKey("DYLD_LIBRARY_PATH"));
+        assertFalse(environment.containsKey("DYLD_FALLBACK_LIBRARY_PATH"));
         assertFalse(environment.containsValue("secret"));
         assertTrue(command.containsAll(List.of("--host", "127.0.0.1", "--port", "19191",
                 "--api-key-file", keyFile.toAbsolutePath().toString(), "--alias", "alias-123", "--threads", "4")));
         assertFalse(command.contains("key-123"));
         assertTrue(ManagedLocalAiProcess.command(executable, model, 0, "alias", keyFile, 1)
                 .containsAll(List.of("--host", "127.0.0.1", "--port", "0")));
+    }
+
+    @Test
+    void supervisorStartsTheNativeChildFromItsExecutableDirectory() throws Exception {
+        Path caller = Files.createDirectories(temp.resolve("caller"));
+        Path marker = temp.resolve("child-working-directory.txt");
+        Path javaPath = Path.of(System.getProperty("java.home"), "bin",
+                System.getProperty("os.name").toLowerCase(java.util.Locale.ROOT).contains("win")
+                        ? "java.exe" : "java").toAbsolutePath().normalize();
+        ProcessHandle current = ProcessHandle.current();
+        ProcessBuilder supervisorBuilder = new ProcessBuilder(javaPath.toString(),
+                ManagedLocalAiProcessSupervisor.class.getName(), Long.toString(current.pid()),
+                current.info().startInstant().orElseThrow().toString(), javaPath.getParent().toString(),
+                javaPath.toString(), "-classpath",
+                System.getProperty("surefire.test.class.path", System.getProperty("java.class.path")),
+                WorkingDirectoryReporter.class.getName(), marker.toString());
+        supervisorBuilder.directory(caller.toFile());
+        supervisorBuilder.environment().put("CLASSPATH",
+                System.getProperty("surefire.test.class.path", System.getProperty("java.class.path")));
+
+        Process supervisor = supervisorBuilder.start();
+        try {
+            assertTrue(supervisor.waitFor(5, TimeUnit.SECONDS));
+            assertEquals(0, supervisor.exitValue());
+            assertEquals(javaPath.getParent(), Path.of(Files.readString(marker)).toAbsolutePath().normalize());
+            assertNotEquals(caller, Path.of(Files.readString(marker)).toAbsolutePath().normalize());
+        } finally {
+            supervisor.getOutputStream().close();
+            supervisor.destroyForcibly();
+        }
+    }
+
+    @Test
+    void aggregateProcessTreeRssCeilingRetiresTheSessionAndForcesDeterministicFallback() throws Exception {
+        AtomicInteger samples = new AtomicInteger();
+        FakeProcess process = new FakeProcess(null);
+        ManagedLocalAiProcess.Session session = new ManagedLocalAiProcess.Session(process,
+                18181, "selected-model", "secret-key", Duration.ofSeconds(1),
+                (ignoredProcess, ignoredDescendants) -> samples.getAndIncrement() == 0
+                        ? ManagedLocalAiProcess.MAX_PROCESS_TREE_RSS_BYTES
+                        : ManagedLocalAiProcess.MAX_PROCESS_TREE_RSS_BYTES + 1);
+
+        long deadline = System.nanoTime() + Duration.ofSeconds(2).toNanos();
+        while (process.isAlive() && System.nanoTime() < deadline) {
+            Thread.sleep(10);
+        }
+        AtomicBoolean requested = new AtomicBoolean();
+        AiRequest request = AiRequest.builder("rss-ceiling", JsonNodeFactory.instance.objectNode())
+                .deterministicFallback(JsonNodeFactory.instance.objectNode().put("fallback", true)).build();
+        AiResponse response = ManagedLocalAiProcess.infer(session, request, (uri, bearer, body, timeout) -> {
+            requested.set(true);
+            throw new AssertionError("resource-failed sessions must not issue inference requests");
+        });
+
+        assertFalse(process.isAlive());
+        assertTrue(samples.get() >= 2);
+        assertEquals(ManagedLocalAiProcess.MAX_PROCESS_TREE_RSS_BYTES + 1, session.peakRssBytes());
+        assertFalse(requested.get());
+        assertEquals(AiResponseStatus.PROVIDER_UNAVAILABLE, response.status());
+        assertTrue(response.structuredPayload().path("fallback").asBoolean());
+    }
+
+    @Test
+    void unreadableProcessTreeInventoryFailsClosedBeforeInference() throws Exception {
+        FakeProcess process = new FakeProcess(null);
+        ManagedLocalAiProcess.Session session = new ManagedLocalAiProcess.Session(process,
+                18181, "selected-model", "secret-key", Duration.ofSeconds(1),
+                (ignoredProcess, ignoredDescendants) -> {
+                    throw new IOException("inventory unavailable");
+                });
+
+        long deadline = System.nanoTime() + Duration.ofSeconds(2).toNanos();
+        while (process.isAlive() && System.nanoTime() < deadline) {
+            Thread.sleep(10);
+        }
+        AtomicBoolean requested = new AtomicBoolean();
+        AiRequest request = AiRequest.builder("rss-inventory", JsonNodeFactory.instance.objectNode())
+                .deterministicFallback(JsonNodeFactory.instance.objectNode().put("fallback", true)).build();
+        AiResponse response = ManagedLocalAiProcess.infer(session, request, (uri, bearer, body, timeout) -> {
+            requested.set(true);
+            throw new AssertionError("resource-failed sessions must not issue inference requests");
+        });
+
+        assertFalse(process.isAlive());
+        assertFalse(requested.get());
+        assertEquals(AiResponseStatus.PROVIDER_UNAVAILABLE, response.status());
+        assertTrue(response.structuredPayload().path("fallback").asBoolean());
+    }
+
+    @Test
+    void resourceFailureDuringStartupIsNeverRetried() throws Exception {
+        Path cache = temp.resolve("rss-startup-cache");
+        ManagedLocalAiCache.Installation runtime = ManagedLocalAiCache.withLock(cache, Duration.ofSeconds(1),
+                () -> ManagedLocalAiCache.adopt(cache, "runtime-rss-startup",
+                        readyStage(cache, "runtime-rss-startup", "server", "binary")));
+        ManagedLocalAiCache.Installation model = ManagedLocalAiCache.withLock(cache, Duration.ofSeconds(1),
+                () -> ManagedLocalAiCache.adopt(cache, "model-rss-startup",
+                        readyStage(cache, "model-rss-startup", "model.gguf", "weights")));
+        AtomicInteger starts = new AtomicInteger();
+        java.util.concurrent.CountDownLatch sampled = new java.util.concurrent.CountDownLatch(1);
+
+        IllegalStateException failure = assertThrows(IllegalStateException.class,
+                () -> ManagedLocalAiProcess.launchManaged(cache, runtime.root().resolve("server"),
+                        model.root().resolve("model.gguf"), cache.resolve("staging/logs/rss-startup.log"),
+                        "expected", 2, Duration.ofSeconds(1), () -> false,
+                        (ignoredProcess, ignoredDescendants) -> {
+                            sampled.countDown();
+                            throw new IOException("inventory unavailable");
+                        },
+                        (command, environment, log) -> {
+                            starts.incrementAndGet();
+                            return new FakeProcess(null,
+                                    "srv  llama_server: listening on http://127.0.0.1:19191\n");
+                        },
+                        (process, port, key, alias, timeout) ->
+                                assertTrue(sampled.await(1, TimeUnit.SECONDS))));
+
+        assertEquals(1, starts.get());
+        assertTrue(failure.getMessage().contains("RSS inventory"));
+    }
+
+    @Test
+    void launchCannotBecomeReadyBeforeTheFirstRssInventoryCompletes() throws Exception {
+        Path cache = temp.resolve("rss-first-sample-cache");
+        ManagedLocalAiCache.Installation runtime = ManagedLocalAiCache.withLock(cache, Duration.ofSeconds(1),
+                () -> ManagedLocalAiCache.adopt(cache, "runtime-rss-first-sample",
+                        readyStage(cache, "runtime-rss-first-sample", "server", "binary")));
+        ManagedLocalAiCache.Installation model = ManagedLocalAiCache.withLock(cache, Duration.ofSeconds(1),
+                () -> ManagedLocalAiCache.adopt(cache, "model-rss-first-sample",
+                        readyStage(cache, "model-rss-first-sample", "model.gguf", "weights")));
+        var sampleEntered = new java.util.concurrent.CountDownLatch(1);
+        var releaseSample = new java.util.concurrent.CountDownLatch(1);
+        var launch = java.util.concurrent.CompletableFuture.supplyAsync(() -> {
+            try {
+                return ManagedLocalAiProcess.launchManaged(cache, runtime.root().resolve("server"),
+                        model.root().resolve("model.gguf"), cache.resolve("staging/logs/rss-first-sample.log"),
+                        "expected", 2, Duration.ofSeconds(2), () -> false,
+                        (ignoredProcess, ignoredDescendants) -> {
+                            sampleEntered.countDown();
+                            assertTrue(releaseSample.await(1, TimeUnit.SECONDS));
+                            return 1;
+                        },
+                        (command, environment, log) -> new FakeProcess(null,
+                                "srv  llama_server: listening on http://127.0.0.1:19191\n"),
+                        (process, port, key, alias, timeout) -> { });
+            } catch (Exception failure) {
+                throw new java.util.concurrent.CompletionException(failure);
+            }
+        });
+
+        assertTrue(sampleEntered.await(1, TimeUnit.SECONDS));
+        assertFalse(launch.isDone(), "readiness must wait for the first process-tree RSS inventory");
+        releaseSample.countDown();
+        try (ManagedLocalAiProcess.Session ignored = launch.get(2, TimeUnit.SECONDS)) {
+            assertTrue(ignored.process().isAlive());
+        }
+    }
+
+    @Test
+    void firstRssInventoryConsumesTheLaunchDeadlineAndIsNotRetried() throws Exception {
+        Path cache = temp.resolve("rss-first-sample-timeout-cache");
+        ManagedLocalAiCache.Installation runtime = ManagedLocalAiCache.withLock(cache, Duration.ofSeconds(1),
+                () -> ManagedLocalAiCache.adopt(cache, "runtime-rss-first-sample-timeout",
+                        readyStage(cache, "runtime-rss-first-sample-timeout", "server", "binary")));
+        ManagedLocalAiCache.Installation model = ManagedLocalAiCache.withLock(cache, Duration.ofSeconds(1),
+                () -> ManagedLocalAiCache.adopt(cache, "model-rss-first-sample-timeout",
+                        readyStage(cache, "model-rss-first-sample-timeout", "model.gguf", "weights")));
+        AtomicInteger starts = new AtomicInteger();
+        var neverRelease = new java.util.concurrent.CountDownLatch(1);
+        var unexpected = new java.util.concurrent.atomic.AtomicReference<ManagedLocalAiProcess.Session>();
+
+        try {
+            assertThrows(IllegalStateException.class,
+                    () -> unexpected.set(ManagedLocalAiProcess.launchManaged(cache, runtime.root().resolve("server"),
+                            model.root().resolve("model.gguf"), cache.resolve("staging/logs/rss-first-timeout.log"),
+                            "expected", 2, Duration.ofMillis(100), () -> false,
+                            (ignoredProcess, ignoredDescendants) -> {
+                                neverRelease.await();
+                                return 1;
+                            },
+                            (command, environment, log) -> {
+                                starts.incrementAndGet();
+                                return new FakeProcess(null,
+                                        "srv  llama_server: listening on http://127.0.0.1:19191\n");
+                            },
+                            (process, port, key, alias, timeout) -> { })));
+        } finally {
+            if (unexpected.get() != null) {
+                unexpected.get().close();
+            }
+        }
+
+        assertEquals(1, starts.get());
+    }
+
+    @Test
+    void productionProcessTreeRssSamplerReadsARealOwnedProcess() throws Exception {
+        Path javaExecutable = Path.of(System.getProperty("java.home"), "bin",
+                System.getProperty("os.name").toLowerCase(java.util.Locale.ROOT).contains("win")
+                        ? "java.exe" : "java");
+        String classPath = System.getProperty("surefire.test.class.path", System.getProperty("java.class.path"));
+        Process child = new ProcessBuilder(javaExecutable.toString(), "-classpath", classPath,
+                RssSleeper.class.getName()).start();
+        try {
+            assertTrue(child.isAlive());
+            assertTrue(ManagedLocalAiProcessTreeRss.sample(child, Set.of()) > 0);
+        } finally {
+            child.destroyForcibly();
+            assertTrue(child.waitFor(2, TimeUnit.SECONDS));
+        }
     }
 
     @Test
@@ -1163,6 +1379,24 @@ class ManagedLocalAiProcessTest {
         @Override public Process destroyForcibly() { forciblyDestroyed = true; exit = -1; return this; }
         @Override public boolean isAlive() { return exit == null; }
         @Override public ProcessHandle toHandle() { return descendant == null ? super.toHandle() : descendant; }
+    }
+
+    public static final class RssSleeper {
+        private RssSleeper() {
+        }
+
+        public static void main(String[] arguments) throws Exception {
+            Thread.sleep(Duration.ofSeconds(30));
+        }
+    }
+
+    public static final class WorkingDirectoryReporter {
+        private WorkingDirectoryReporter() {
+        }
+
+        public static void main(String[] arguments) throws Exception {
+            Files.writeString(Path.of(arguments[0]), Path.of("").toAbsolutePath().normalize().toString());
+        }
     }
 
     private static final class FakeHandle implements ProcessHandle {

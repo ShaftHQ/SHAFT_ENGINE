@@ -2,6 +2,10 @@ package com.shaft.ai.local;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.nio.file.Files;
+import java.nio.file.LinkOption;
+import java.nio.file.Path;
+import java.nio.file.attribute.BasicFileAttributes;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
@@ -15,7 +19,7 @@ public final class ManagedLocalAiProcessSupervisor {
 
     /** Internal process entrypoint. */
     public static void main(String[] arguments) throws Exception {
-        if (arguments.length < 3) {
+        if (arguments.length < 4) {
             System.exit(2);
         }
         long parentPid = Long.parseLong(arguments[0]);
@@ -29,7 +33,8 @@ public final class ManagedLocalAiProcessSupervisor {
         if (parent == null) {
             return;
         }
-        List<String> command = new ArrayList<>(List.of(arguments).subList(2, arguments.length));
+        Path workingDirectory = validatedWorkingDirectory(arguments[2], arguments[3]);
+        List<String> command = new ArrayList<>(List.of(arguments).subList(3, arguments.length));
         Object gate = new Object();
         AtomicBoolean parentExited = new AtomicBoolean();
         AtomicBoolean launchResolved = new AtomicBoolean();
@@ -73,7 +78,8 @@ public final class ManagedLocalAiProcessSupervisor {
                 launchResolved.set(true);
                 return;
             }
-            ProcessBuilder builder = new ProcessBuilder(command).redirectErrorStream(true);
+            ProcessBuilder builder = new ProcessBuilder(command).directory(workingDirectory.toFile())
+                    .redirectErrorStream(true);
             builder.environment().remove("CLASSPATH");
             builder.inheritIO();
             try {
@@ -92,6 +98,30 @@ public final class ManagedLocalAiProcessSupervisor {
             }
             treeMonitor.interrupt();
         }
+    }
+
+    private static Path validatedWorkingDirectory(String requestedDirectory, String requestedExecutable)
+            throws java.io.IOException {
+        Path directory = Path.of(requestedDirectory);
+        Path executable = Path.of(requestedExecutable);
+        if (!directory.isAbsolute() || !executable.isAbsolute()) {
+            throw new IllegalArgumentException("Managed local AI child paths must be absolute.");
+        }
+        directory = directory.normalize();
+        executable = executable.normalize();
+        if (!directory.equals(executable.getParent())) {
+            throw new IllegalArgumentException("Managed local AI child working directory is not executable-owned.");
+        }
+        BasicFileAttributes directoryAttributes = Files.readAttributes(directory,
+                BasicFileAttributes.class, LinkOption.NOFOLLOW_LINKS);
+        BasicFileAttributes executableAttributes = Files.readAttributes(executable,
+                BasicFileAttributes.class, LinkOption.NOFOLLOW_LINKS);
+        if (!directoryAttributes.isDirectory() || directoryAttributes.isSymbolicLink()
+                || directoryAttributes.isOther() || !executableAttributes.isRegularFile()
+                || executableAttributes.isSymbolicLink() || executableAttributes.isOther()) {
+            throw new IllegalArgumentException("Managed local AI child path is not ordinary.");
+        }
+        return directory;
     }
 
     private static void terminateOnOwnerLoss(Object gate, AtomicBoolean parentExited,
