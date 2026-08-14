@@ -276,9 +276,9 @@ public class BrowserCaptureAcceptanceTest {
         private String failure() { return failure; }
 
         private void serve() {
-            try (Socket socket = server.accept()) {
-                BufferedReader reader = new BufferedReader(new InputStreamReader(socket.getInputStream(),
-                        StandardCharsets.US_ASCII));
+            try (Socket socket = server.accept();
+                 BufferedReader reader = new BufferedReader(new InputStreamReader(socket.getInputStream(),
+                         StandardCharsets.US_ASCII))) {
                 String key = "";
                 for (String line; (line = reader.readLine()) != null && !line.isEmpty(); ) {
                     if (line.regionMatches(true, 0, "Sec-WebSocket-Key:", 0, 18)) key = line.substring(18).trim();
