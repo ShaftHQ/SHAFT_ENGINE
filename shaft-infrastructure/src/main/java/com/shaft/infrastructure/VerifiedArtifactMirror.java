@@ -1,12 +1,15 @@
 package com.shaft.infrastructure;
 
-import com.sun.net.httpserver.HttpExchange;
-import com.sun.net.httpserver.HttpServer;
-
+import java.io.BufferedInputStream;
+import java.io.BufferedOutputStream;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
+import java.net.ServerSocket;
+import java.net.Socket;
+import java.net.SocketException;
 import java.net.URI;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.LinkedHashMap;
@@ -18,12 +21,14 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 /** Ephemeral loopback-only HTTP mirror for already verified setup artifacts. */
 final class VerifiedArtifactMirror implements AutoCloseable {
-    private final HttpServer server;
+    private static final int MAXIMUM_HTTP_LINE_BYTES = 8 * 1024;
+    private static final int MAXIMUM_HTTP_HEADERS = 100;
+    private final ServerSocket server;
     private final ExecutorService executor;
     private final Map<String, Path> artifacts;
     private final AtomicBoolean closed = new AtomicBoolean();
 
-    private VerifiedArtifactMirror(HttpServer server, ExecutorService executor, Map<String, Path> artifacts) {
+    private VerifiedArtifactMirror(ServerSocket server, ExecutorService executor, Map<String, Path> artifacts) {
         this.server = server;
         this.executor = executor;
         this.artifacts = artifacts;
@@ -50,57 +55,114 @@ final class VerifiedArtifactMirror implements AutoCloseable {
         if (verified.isEmpty()) throw new IllegalArgumentException("Artifact mirror must not be empty.");
 
         InetAddress loopback = InetAddress.getByAddress(new byte[]{127, 0, 0, 1});
-        HttpServer server = HttpServer.create(new InetSocketAddress(loopback, 0), 0);
+        ServerSocket server = new ServerSocket();
+        server.bind(new InetSocketAddress(loopback, 0));
         ExecutorService executor = Executors.newSingleThreadExecutor(runnable -> {
             Thread thread = new Thread(runnable, "shaft-playwright-artifact-mirror");
             thread.setDaemon(true);
             return thread;
         });
         VerifiedArtifactMirror mirror = new VerifiedArtifactMirror(server, executor, Map.copyOf(verified));
-        server.createContext("/", mirror::handle);
-        for (String requestPath : verified.keySet()) {
-            server.createContext('/' + requestPath, mirror::handle);
-        }
-        server.setExecutor(executor);
-        server.start();
+        executor.submit(mirror::serve);
         return mirror;
     }
 
     URI baseUri() {
-        return URI.create("http://127.0.0.1:" + server.getAddress().getPort());
+        return URI.create("http://127.0.0.1:" + server.getLocalPort());
     }
 
-    private void handle(HttpExchange exchange) throws IOException {
-        try (exchange) {
-            if (!"GET".equals(exchange.getRequestMethod())) {
-                exchange.sendResponseHeaders(405, -1);
-                return;
-            }
-            URI request = exchange.getRequestURI();
-            if (request.getRawQuery() != null || request.getRawFragment() != null
-                    || request.getRawPath().contains("%")) {
-                exchange.sendResponseHeaders(404, -1);
-                return;
-            }
-            String rawPath = canonicalRequestPath(request);
-            Path artifact = artifacts.get(rawPath);
-            if (artifact == null) {
-                exchange.sendResponseHeaders(404, -1);
-                return;
-            }
-            VerifiedArtifactStore.requireUnlinkedAncestors(artifact);
-            if (!Files.isRegularFile(artifact, java.nio.file.LinkOption.NOFOLLOW_LINKS)) {
-                exchange.sendResponseHeaders(404, -1);
-                return;
-            }
-            long size = Files.size(artifact);
-            exchange.getResponseHeaders().set("Content-Type", "application/octet-stream");
-            exchange.getResponseHeaders().set("Cache-Control", "no-store");
-            exchange.sendResponseHeaders(200, size);
-            try (var input = Files.newInputStream(artifact); var output = exchange.getResponseBody()) {
-                input.transferTo(output);
+    private void serve() {
+        while (!closed.get()) {
+            try (Socket connection = server.accept()) {
+                connection.setSoTimeout(30_000);
+                handle(connection);
+            } catch (SocketException stopped) {
+                if (!closed.get()) throw new IllegalStateException("Playwright artifact mirror socket failed.", stopped);
+            } catch (IOException failure) {
+                if (!closed.get()) throw new IllegalStateException("Playwright artifact mirror request failed.", failure);
             }
         }
+    }
+
+    private void handle(Socket connection) throws IOException {
+        BufferedInputStream input = new BufferedInputStream(connection.getInputStream());
+        BufferedOutputStream output = new BufferedOutputStream(connection.getOutputStream());
+        String requestLine = readLine(input);
+        String[] request = requestLine.split(" ", 3);
+        if (request.length != 3 || !request[2].startsWith("HTTP/1.")) {
+            respond(output, 400, null);
+            return;
+        }
+        for (int count = 0; count < MAXIMUM_HTTP_HEADERS; count++) {
+            if (readLine(input).isEmpty()) break;
+            if (count == MAXIMUM_HTTP_HEADERS - 1) {
+                respond(output, 431, null);
+                return;
+            }
+        }
+        if (!"GET".equals(request[0])) {
+            respond(output, 405, null);
+            return;
+        }
+        URI target;
+        try {
+            target = URI.create(request[1]);
+        } catch (IllegalArgumentException invalid) {
+            respond(output, 404, null);
+            return;
+        }
+        if (target.getRawQuery() != null || target.getRawFragment() != null
+                || target.getRawPath() == null || target.getRawPath().contains("%")) {
+            respond(output, 404, null);
+            return;
+        }
+        Path artifact = artifacts.get(canonicalRequestPath(target));
+        if (artifact == null) {
+            respond(output, 404, null);
+            return;
+        }
+        VerifiedArtifactStore.requireUnlinkedAncestors(artifact);
+        if (!Files.isRegularFile(artifact, java.nio.file.LinkOption.NOFOLLOW_LINKS)) {
+            respond(output, 404, null);
+            return;
+        }
+        respond(output, 200, artifact);
+    }
+
+    private static String readLine(BufferedInputStream input) throws IOException {
+        byte[] line = new byte[MAXIMUM_HTTP_LINE_BYTES];
+        int length = 0;
+        while (length < line.length) {
+            int value = input.read();
+            if (value < 0) throw new IOException("Unexpected end of HTTP request.");
+            if (value == '\n') {
+                if (length > 0 && line[length - 1] == '\r') length--;
+                return new String(line, 0, length, StandardCharsets.US_ASCII);
+            }
+            line[length++] = (byte) value;
+        }
+        throw new IOException("Playwright artifact mirror HTTP line is too long.");
+    }
+
+    private static void respond(BufferedOutputStream output, int status, Path artifact) throws IOException {
+        long size = artifact == null ? 0 : Files.size(artifact);
+        String reason = switch (status) {
+            case 200 -> "OK";
+            case 400 -> "Bad Request";
+            case 405 -> "Method Not Allowed";
+            case 431 -> "Request Header Fields Too Large";
+            default -> "Not Found";
+        };
+        String headers = "HTTP/1.1 " + status + ' ' + reason + "\r\nContent-Length: " + size
+                + "\r\nConnection: close\r\n" + (artifact == null ? "" :
+                "Content-Type: application/octet-stream\r\nCache-Control: no-store\r\n") + "\r\n";
+        output.write(headers.getBytes(StandardCharsets.US_ASCII));
+        if (artifact != null) {
+            try (var file = Files.newInputStream(artifact)) {
+                file.transferTo(output);
+            }
+        }
+        output.flush();
     }
 
     static String canonicalRequestPath(URI request) {
@@ -115,7 +177,11 @@ final class VerifiedArtifactMirror implements AutoCloseable {
     @Override
     public void close() {
         if (!closed.compareAndSet(false, true)) return;
-        server.stop(0);
+        try {
+            server.close();
+        } catch (IOException ignored) {
+            // Closing an already failed ephemeral mirror is best-effort.
+        }
         executor.shutdownNow();
     }
 }

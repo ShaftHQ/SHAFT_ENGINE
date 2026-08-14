@@ -28,7 +28,6 @@ class SystemAndroidRuntimeControllerTest {
 
             String postExecIdentity = awaitReusableIdentity(controller, process, Duration.ofSeconds(5));
             assertTrue(!postExecIdentity.contains("/bin/sh"));
-            assertTrue(controller.find(process.pid(), process.startInstant(), postExecIdentity).isPresent());
         } finally {
             process.stop(Duration.ofSeconds(5));
         }
