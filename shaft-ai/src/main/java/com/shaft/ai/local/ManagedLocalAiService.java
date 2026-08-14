@@ -126,8 +126,8 @@ public final class ManagedLocalAiService {
         Path cache = resolveCache(configured.cacheDirectory());
         if (!configured.enabled()) {
             return snapshot(ManagedLocalAiSnapshot.State.DISABLED,
-                    "Enable managed local AI to provision a local model.", cache, configured,
-                    "", null, null, null, Map.of());
+                    "Enable managed local AI to provision a local model.",
+                    new SnapshotContext(cache, configured, "", null, null, null, Map.of()));
         }
 
         ManagedLocalAiManifest manifest = Objects.requireNonNull(manifests.get(), "managed local AI manifest");
@@ -135,7 +135,7 @@ public final class ManagedLocalAiService {
         if (!profile.runtimeCompatible()) {
             return snapshot(ManagedLocalAiSnapshot.State.UNSUPPORTED,
                     "Use an external local provider or a supported desktop OS, architecture, and ABI.",
-                    cache, configured, profile.platform(), profile, manifest, null, Map.of());
+                    new SnapshotContext(cache, configured, profile.platform(), profile, manifest, null, Map.of()));
         }
 
         String requested = AUTOMATIC_MODEL.equalsIgnoreCase(configured.model()) ? null : configured.model();
@@ -144,7 +144,7 @@ public final class ManagedLocalAiService {
         if (selection.selectedModelId() == null) {
             return snapshot(ManagedLocalAiSnapshot.State.EXCLUDED,
                     "No reviewed model safely fits the effective memory, CPU, and free-disk limits.",
-                    cache, configured, profile.platform(), profile, manifest, null, models);
+                    new SnapshotContext(cache, configured, profile.platform(), profile, manifest, null, models));
         }
 
         ManagedLocalAiManifest.ModelManifest model = manifest.models().stream()
@@ -167,7 +167,8 @@ public final class ManagedLocalAiService {
             state = ManagedLocalAiSnapshot.State.NOT_PROVISIONED;
             action = "Provision the reviewed managed runtime and model.";
         }
-        return snapshot(state, action, cache, configured, profile.platform(), profile, manifest, model, models,
+        return snapshot(state, action,
+                new SnapshotContext(cache, configured, profile.platform(), profile, manifest, model, models),
                 runtimeStatus, modelStatus);
     }
 
@@ -223,36 +224,61 @@ public final class ManagedLocalAiService {
         return inventory;
     }
 
-    private static ManagedLocalAiSnapshot snapshot(ManagedLocalAiSnapshot.State state, String action, Path cache,
-                                                    Settings settings, String platform,
-                                                    ManagedLocalAiHardware.Profile profile,
-                                                    ManagedLocalAiManifest manifest,
-                                                    ManagedLocalAiManifest.ModelManifest model,
-                                                    Map<String, ManagedLocalAiSnapshot.Model> models) {
-        return snapshot(state, action, cache, settings, platform, profile, manifest, model, models,
+    private static ManagedLocalAiSnapshot snapshot(ManagedLocalAiSnapshot.State state, String action,
+                                                   SnapshotContext context) {
+        return snapshot(state, action, context,
                 ManagedLocalAiSnapshot.CacheHealth.NOT_APPLICABLE,
                 ManagedLocalAiSnapshot.CacheHealth.NOT_APPLICABLE);
     }
 
-    private static ManagedLocalAiSnapshot snapshot(ManagedLocalAiSnapshot.State state, String action, Path cache,
-                                                    Settings settings, String platform,
-                                                    ManagedLocalAiHardware.Profile profile,
-                                                    ManagedLocalAiManifest manifest,
-                                                    ManagedLocalAiManifest.ModelManifest model,
-                                                    Map<String, ManagedLocalAiSnapshot.Model> models,
-                                                    ManagedLocalAiSnapshot.CacheHealth runtimeHealth,
-                                                    ManagedLocalAiSnapshot.CacheHealth modelHealth) {
-        ManagedLocalAiManifest.RuntimeAsset asset = manifest == null ? null : manifest.runtime().assets().stream()
-                .filter(candidate -> candidate.platform().equals(platform)).findFirst().orElse(null);
-        return new ManagedLocalAiSnapshot(state, action, cache, settings.enabled(),
-                settings.transparentProvisioning(), settings.model(), model == null ? null : model.id(), platform,
-                manifest == null ? "" : manifest.runtime().id(),
-                manifest == null ? "" : manifest.runtime().version(),
-                manifest == null ? "" : manifest.runtime().license(), asset == null ? "" : asset.file(),
-                asset == null ? "" : asset.sha256(), asset == null ? "" : asset.executable(),
-                asset == null ? 0 : asset.size(), runtimeHealth, modelHealth, ManagedLocalAiSnapshot.Phase.IDLE,
-                0, 0, profile == null ? 0 : profile.effectiveMemoryBytes(),
-                profile == null ? 0 : profile.cpuCount(), profile == null ? 0 : profile.freeDiskBytes(), models);
+    private static ManagedLocalAiSnapshot snapshot(ManagedLocalAiSnapshot.State state, String action,
+                                                   SnapshotContext context,
+                                                   ManagedLocalAiSnapshot.CacheHealth runtimeHealth,
+                                                   ManagedLocalAiSnapshot.CacheHealth modelHealth) {
+        RuntimeDetails runtime = RuntimeDetails.from(context.manifest(), context.platform());
+        HardwareDetails hardware = HardwareDetails.from(context.profile());
+        return new ManagedLocalAiSnapshot(state, action, context.cache(), context.settings().enabled(),
+                context.settings().transparentProvisioning(), context.settings().model(),
+                selectedModelId(context.model()), context.platform(), runtime.id(), runtime.version(),
+                runtime.license(), runtime.file(), runtime.sha256(), runtime.executable(), runtime.size(),
+                runtimeHealth, modelHealth, ManagedLocalAiSnapshot.Phase.IDLE, 0, 0,
+                hardware.effectiveMemoryBytes(), hardware.cpuCount(), hardware.freeDiskBytes(), context.models());
+    }
+
+    private static String selectedModelId(ManagedLocalAiManifest.ModelManifest model) {
+        return model == null ? null : model.id();
+    }
+
+    private record SnapshotContext(Path cache, Settings settings, String platform,
+                                   ManagedLocalAiHardware.Profile profile, ManagedLocalAiManifest manifest,
+                                   ManagedLocalAiManifest.ModelManifest model,
+                                   Map<String, ManagedLocalAiSnapshot.Model> models) {
+    }
+
+    private record RuntimeDetails(String id, String version, String license, String file, String sha256,
+                                  String executable, long size) {
+        private static RuntimeDetails from(ManagedLocalAiManifest manifest, String platform) {
+            if (manifest == null) {
+                return new RuntimeDetails("", "", "", "", "", "", 0);
+            }
+            ManagedLocalAiManifest.RuntimeAsset asset = manifest.runtime().assets().stream()
+                    .filter(candidate -> candidate.platform().equals(platform)).findFirst().orElse(null);
+            if (asset == null) {
+                return new RuntimeDetails(manifest.runtime().id(), manifest.runtime().version(),
+                        manifest.runtime().license(), "", "", "", 0);
+            }
+            return new RuntimeDetails(manifest.runtime().id(), manifest.runtime().version(),
+                    manifest.runtime().license(), asset.file(), asset.sha256(), asset.executable(), asset.size());
+        }
+    }
+
+    private record HardwareDetails(long effectiveMemoryBytes, int cpuCount, long freeDiskBytes) {
+        private static HardwareDetails from(ManagedLocalAiHardware.Profile profile) {
+            if (profile == null) {
+                return new HardwareDetails(0, 0, 0);
+            }
+            return new HardwareDetails(profile.effectiveMemoryBytes(), profile.cpuCount(), profile.freeDiskBytes());
+        }
     }
 
     private static ManagedLocalAiSnapshot.CacheHealth inspectRuntime(Path cache,
