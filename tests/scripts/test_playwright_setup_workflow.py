@@ -1,6 +1,8 @@
 from pathlib import Path
 import unittest
 
+import yaml
+
 
 ROOT = Path(__file__).resolve().parents[2]
 WORKFLOW = ROOT / ".github" / "workflows" / "e2eTests.yml"
@@ -28,11 +30,27 @@ class PlaywrightSetupWorkflowTest(unittest.TestCase):
         raw_installs = [line.strip() for line in workflow.splitlines()
                         if "com.microsoft.playwright.CLI" in line]
 
-        self.assertEqual(2, len(raw_installs))
+        self.assertEqual(4, len(raw_installs))
         self.assertTrue(any("install --with-deps chrome" in line for line in raw_installs))
         self.assertTrue(any("install --with-deps msedge" in line for line in raw_installs))
-        self.assertTrue(all("chromium" not in line and "firefox" not in line and "webkit" not in line
-                            for line in raw_installs))
+        self.assertEqual(2, sum("install-deps webkit" in line for line in raw_installs))
+        self.assertTrue(all("install webkit" not in line and "install firefox" not in line
+                            and "install chromium" not in line for line in raw_installs))
+
+    def test_each_linux_webkit_job_prepares_host_dependencies_after_managed_install(self):
+        jobs = yaml.safe_load(WORKFLOW.read_text(encoding="utf-8"))["jobs"]
+
+        for job_name in ("Ubuntu_Playwright_WebKit", "Ubuntu_Playwright_IPhone17ProMax"):
+            steps = jobs[job_name]["steps"]
+            managed_index = next(index for index, step in enumerate(steps)
+                                 if "install_managed_playwright.sh" in step.get("run", ""))
+            dependency_indexes = [index for index, step in enumerate(steps)
+                                  if "install-deps webkit" in step.get("run", "")]
+            test_index = next(index for index, step in enumerate(steps)
+                              if "-Dinfrastructure.profile=PLAYWRIGHT" in step.get("run", ""))
+
+            self.assertEqual([managed_index + 1], dependency_indexes, job_name)
+            self.assertLess(dependency_indexes[0], test_index, job_name)
 
 
 if __name__ == "__main__":

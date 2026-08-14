@@ -493,6 +493,8 @@ jobs:
         run: mvn --batch-mode -pl shaft-cli -am package -DskipTests '-Dallure.automaticallyOpen=false' -Dgpg.skip
       - name: Install reviewed managed Playwright browsers
         run: bash scripts/ci/install_managed_playwright.sh
+      - name: Install Playwright WebKit host dependencies
+        run: mvn -f shaft-engine/pom.xml -e org.codehaus.mojo:exec-maven-plugin:3.6.3:java "-Dexec.mainClass=com.microsoft.playwright.CLI" "-Dexec.args=install-deps webkit"
       - name: Run Playwright WebKit E2E
         continue-on-error: true
         run: mvn -pl shaft-engine -am -e test "-DdefaultElementIdentificationTimeout=5" "-DsetParallelMode=NONE" "-DretryMaximumNumberOfAttempts=1" "-DheadlessExecution=true" "-Dinfrastructure.mode=MANAGED" "-Dinfrastructure.profile=PLAYWRIGHT" "-Dinfrastructure.cacheDirectory=${{ runner.temp }}/shaft-playwright-cache" "-DgenerateAllureReportArchive=true" "-Dtest=${{ github.event.inputs.tests != '' && github.event.inputs.tests || 'WebKitPlaywrightActionsE2ETest' }}"
@@ -601,6 +603,8 @@ jobs:
         run: mvn --batch-mode -pl shaft-cli -am package -DskipTests '-Dallure.automaticallyOpen=false' -Dgpg.skip
       - name: Install reviewed managed Playwright browsers
         run: bash scripts/ci/install_managed_playwright.sh
+      - name: Install Playwright WebKit host dependencies
+        run: mvn -f shaft-engine/pom.xml -e org.codehaus.mojo:exec-maven-plugin:3.6.3:java "-Dexec.mainClass=com.microsoft.playwright.CLI" "-Dexec.args=install-deps webkit"
       - name: Run Playwright iPhone 17 Pro Max E2E
         continue-on-error: true
         run: mvn -pl shaft-engine -am -e test "-DdefaultElementIdentificationTimeout=5" "-DsetParallelMode=NONE" "-DretryMaximumNumberOfAttempts=1" "-DheadlessExecution=true" "-Dinfrastructure.mode=MANAGED" "-Dinfrastructure.profile=PLAYWRIGHT" "-Dinfrastructure.cacheDirectory=${{ runner.temp }}/shaft-playwright-cache" "-DgenerateAllureReportArchive=true" "-Dtest=${{ github.event.inputs.tests != '' && github.event.inputs.tests || 'IPhone17ProMaxPlaywrightActionsE2ETest' }}"

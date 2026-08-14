@@ -228,7 +228,7 @@ jobs:
           if (-not $digest) { throw 'Lighthouse plan did not emit an approval digest.' }
           & java -jar $cli setup install --plan $plan --approve $digest --cache-root $cacheRoot --data-root $dataRoot
           if ($LASTEXITCODE -ne 0) { throw 'Managed Lighthouse installation failed.' }
-          & java -jar $cli setup verify --profile LIGHTHOUSE --cache-root $cacheRoot --data-root $dataRoot
+          & java -jar $cli setup verify --profile LIGHTHOUSE --mode MANAGED --cache-root $cacheRoot --data-root $dataRoot
           if ($LASTEXITCODE -ne 0) { throw 'Managed Lighthouse verification failed.' }
       - name: Run real local-Chrome Lighthouse report
         continue-on-error: true
