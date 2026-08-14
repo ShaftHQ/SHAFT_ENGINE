@@ -1,6 +1,6 @@
 {
   "body_path": "memory/decisions/managed-local-ai-baseline-is-pinned-llamacpp-behind-ai-execution-policy.md",
-  "content_hash": "sha256:1b1da6089cd4dacd2c2d35052e32f462844f51d196d9bd87703fe971a17f31c1",
+  "content_hash": "sha256:070877b111bac607d3d1ab621753d758895b19be79338826531a2afd371cc57b",
   "created_at": "2026-08-13T12:12:15+03:00",
   "evidence": [
     {
@@ -8,19 +8,19 @@
       "kind": "file"
     },
     {
-      "id": "05f73c7dcb665d3d09c9cae52727f29c64bcf7d7",
+      "id": "0e7e220b0a0735e0727b3baf080b9adef12edb88",
       "kind": "commit"
     },
     {
-      "id": "5a51954413f9fc47ffd8b8a70335509bdb0eeaef",
-      "kind": "commit"
-    },
-    {
-      "id": "https://github.com/ShaftHQ/SHAFT_ENGINE/issues/4851",
+      "id": "https://github.com/ShaftHQ/SHAFT_ENGINE/issues/4852#issuecomment-5291994955",
       "kind": "task"
     },
     {
-      "id": "https://github.com/ShaftHQ/SHAFT_ENGINE/issues/4852",
+      "id": "https://github.com/ShaftHQ/SHAFT_ENGINE/pull/4921",
+      "kind": "task"
+    },
+    {
+      "id": "https://github.com/ShaftHQ/SHAFT_ENGINE/issues/4953",
       "kind": "task"
     }
   ],
@@ -51,9 +51,11 @@
     "llamacpp",
     "doctor",
     "provisioning",
-    "deterministic-fallback"
+    "deterministic-fallback",
+    "manual-only",
+    "benchmark"
   ],
   "title": "Managed local AI baseline is pinned llama.cpp behind AiExecutionService policy",
   "type": "decision",
-  "updated_at": "2026-08-13T12:12:15+03:00"
+  "updated_at": "2026-08-14T22:59:38+03:00"
 }
