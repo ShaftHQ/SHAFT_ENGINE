@@ -803,6 +803,9 @@ def rollback(  # noqa: MC0001 - cross-resource rollback is one journaled state m
             try:
                 previous_hosts = load_installed_controller(target, "hosts")
                 previous_hosts.install(project, core_commit=desired_commit)
+                restored_host_receipt, _ = previous_hosts.read_receipt(project)
+                if isinstance(restored_host_receipt.get("clientActivation"), dict):
+                    previous_hosts.activate_detected_plugins(project)
                 previous_dependencies = load_dependency_controller(target)
                 repair = provisioner or previous_dependencies.repair
                 repair(
@@ -1092,9 +1095,13 @@ def status_with_dependencies(project: Path, *, active_probes: bool = False) -> d
             return result
 
 
-def doctor_with_dependencies(project: Path) -> dict[str, object]:
+def doctor_with_dependencies(
+    project: Path, *, verify_clients: bool = True
+) -> dict[str, object]:
     """Verify installed files and actively execute every dependency entrypoint probe."""
     result = status_with_dependencies(project, active_probes=True)
+    if not verify_clients:
+        return result
     target = project.resolve() / INSTALL_DIRECTORY
     host_controller = load_installed_controller(target, "hosts")
     clients = host_controller.detected_plugin_status(project.resolve())

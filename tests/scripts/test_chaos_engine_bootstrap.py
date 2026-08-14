@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import importlib.util
 import io
+import ast
 import json
 import subprocess  # nosec B404 - tests run fixed local Git commands only.
 import tempfile
@@ -50,6 +51,14 @@ class Response(io.BytesIO):
 
 
 class ChaosEngineBootstrapTest(unittest.TestCase):
+    def test_documented_one_command_contains_valid_python_source(self):
+        for relative in ("chaos-engine/README.md", "chaos-engine/INSTALL.md"):
+            document = ROOT.joinpath(relative).read_text(encoding="utf-8")
+            line = next(item for item in document.splitlines() if item.startswith("py -3 -c "))
+            self.assertTrue(line.startswith('py -3 -c "') and line.endswith('"'))
+            self.assertNotIn('\\"', line)
+            ast.parse(line[len('py -3 -c "') : -1])
+
     def test_public_full_flow_activates_clients_and_runs_doctor(self):
         module = load()
         with tempfile.TemporaryDirectory() as temporary:
@@ -75,7 +84,9 @@ class ChaosEngineBootstrapTest(unittest.TestCase):
                 project / ".chaos-engine", "hosts"
             )
             installer.load_installed_controller.return_value.activate_detected_plugins.assert_called_once_with(project)
-            installer.doctor_with_dependencies.assert_called_once_with(project)
+            installer.doctor_with_dependencies.assert_called_once_with(
+                project, verify_clients=False
+            )
             self.assertEqual("healthy", result["doctor"]["status"])
 
     def test_failed_post_install_doctor_removes_new_activation_and_install(self):
@@ -99,7 +110,7 @@ class ChaosEngineBootstrapTest(unittest.TestCase):
                         opener=opener,
                     )
 
-            host.deactivate_created_plugins.assert_called_once()
+            host.activate_detected_plugins.assert_not_called()
             installer.uninstall_with_dependencies.assert_called_once_with(project)
     def opener(self, commits: list[tuple[str, str]]):
         calls: list[str] = []

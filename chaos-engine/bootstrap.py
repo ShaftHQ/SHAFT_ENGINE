@@ -196,15 +196,13 @@ def install_latest(
     if skip_tools or provisioner is not None:
         return {"status": "installed", "root": str(target), "commit": commit}
     host_controller = installer.load_installed_controller(target, "hosts")
-    clients = None
     try:
-        clients = host_controller.activate_detected_plugins(project)
-        doctor = installer.doctor_with_dependencies(project)
+        doctor = installer.doctor_with_dependencies(project, verify_clients=False)
         if doctor.get("status") != "healthy":
             raise RuntimeError("ChaosEngine doctor did not report a healthy installation")
+        clients = host_controller.activate_detected_plugins(project)
+        doctor["clients"] = clients.get("clients", {})
     except BaseException:
-        if clients is not None:
-            host_controller.deactivate_created_plugins(project, clients)
         if prior_install:
             installer.rollback(project)
         else:

@@ -43,7 +43,7 @@ For a literal one-command terminal flow from the adopter project, use this on
 Windows PowerShell:
 
 ```powershell
-py -3 -c \"import pathlib,runpy,sys,tempfile,urllib.request; o='S'+'haftHQ'; r='S'+'HAFT_ENGINE'; repo=f'{o}/{r}'; d=tempfile.TemporaryDirectory(prefix='chaos-engine-bootstrap-'); p=pathlib.Path(d.name)/'bootstrap.py'; p.write_bytes(urllib.request.urlopen(f'https://raw.githubusercontent.com/{repo}/main/chaos-engine/bootstrap.py').read()); sys.argv=[str(p),'--project','.','--repository',repo]; runpy.run_path(str(p),run_name='__main__')\"
+py -3 -c "import pathlib,runpy,sys,tempfile,urllib.request; o='S'+'haftHQ'; r='S'+'HAFT_ENGINE'; repo=f'{o}/{r}'; d=tempfile.TemporaryDirectory(prefix='chaos-engine-bootstrap-'); p=pathlib.Path(d.name)/'bootstrap.py'; p.write_bytes(urllib.request.urlopen(f'https://raw.githubusercontent.com/{repo}/main/chaos-engine/bootstrap.py').read()); sys.argv=[str(p),'--project','.','--repository',repo]; runpy.run_path(str(p),run_name='__main__')"
 ```
 
 On macOS or Linux, replace `py -3` with `python3`. Inspect the

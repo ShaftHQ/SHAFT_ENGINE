@@ -259,6 +259,101 @@ def cached_plugin_matches(installed_path: object, source: Path) -> bool:
     return True
 
 
+def activation_commands(root: Path, plugin_id: str) -> dict[str, dict[str, list[str]]]:
+    return {
+        "codex": {
+            "marketplace": ["plugin", "marketplace", "add", str(root), "--json"],
+            "install": ["plugin", "add", plugin_id, "--json"],
+            "remove": ["plugin", "remove", plugin_id, "--json"],
+            "removeMarketplace": ["plugin", "marketplace", "remove", plugin_id.split("@", 1)[1]],
+        },
+        "claude": {
+            "marketplace": ["plugin", "marketplace", "add", "--scope", "local", str(root)],
+            "install": ["plugin", "install", plugin_id, "--scope", "local"],
+            "remove": ["plugin", "uninstall", plugin_id, "--scope", "local"],
+            "removeMarketplace": [
+                "plugin", "marketplace", "remove", plugin_id.split("@", 1)[1], "--scope", "local"
+            ],
+        },
+    }
+
+
+def record_client_activation(project: Path, activation: dict[str, object]) -> None:
+    receipt_path = project / RECEIPT_NAME
+    if read_file(project, receipt_path) is None:
+        return
+    receipt, raw = read_receipt(project)
+    if receipt.get("phase") != "installed":
+        raise ValueError("ChaosEngine host activation requires an installed receipt")
+    receipt["clientActivation"] = {
+        "marketplaceName": activation["marketplaceName"],
+        "ownedClients": activation["ownedClients"],
+        "pluginVersion": activation["pluginVersion"],
+        "claudeLocalBefore": activation["claudeLocalBefore"],
+    }
+    write_receipt(project, receipt, raw)
+
+
+def restore_claude_local_before(project: Path, activation: dict[str, object]) -> None:
+    encoded = activation.get("claudeLocalBefore")
+    if encoded is not None and not isinstance(encoded, str):
+        raise ValueError("ChaosEngine client activation receipt is invalid")
+    before = base64.b64decode(encoded, validate=True) if isinstance(encoded, str) else None
+    path = project / ".claude/settings.local.json"
+    current = read_file(project, path)
+    if before is None:
+        if current is not None:
+            atomic_remove(project, path, current)
+    elif current != before:
+        atomic_write(project, path, before, current)
+
+
+def remove_client_activation(
+    project: Path,
+    clients: list[str],
+    *,
+    runner=subprocess.run,
+    which=shutil.which,
+) -> None:
+    root, _, plugin_id, _ = activation_contract(project)
+    commands = activation_commands(root, plugin_id)
+    for client in reversed(clients):
+        executable = which(client)
+        if executable is None:
+            continue
+        selected = lambda name, chosen=client, path=executable: path if name == chosen else None
+        current = detected_plugin_status(project, runner=runner, which=selected).get(client, {})
+        if current.get("plugin") in {"healthy", "stale"}:
+            client_command(executable, commands[client]["remove"], project, runner=runner)
+        current = detected_plugin_status(project, runner=runner, which=selected).get(client, {})
+        if current.get("marketplace") == "healthy":
+            client_command(
+                executable, commands[client]["removeMarketplace"], project, runner=runner
+            )
+
+
+def restore_client_activation(
+    project: Path,
+    activation: dict[str, object] | None,
+    *,
+    runner=subprocess.run,
+    which=shutil.which,
+) -> None:
+    if activation is None:
+        return
+    clients = activation.get("ownedClients")
+    if not isinstance(clients, list) or not all(item in {"codex", "claude"} for item in clients):
+        raise ValueError("ChaosEngine client activation receipt is invalid")
+    root, _, plugin_id, _ = activation_contract(project)
+    commands = activation_commands(root, plugin_id)
+    for client in clients:
+        executable = which(client)
+        if executable is None:
+            continue
+        client_command(executable, commands[client]["marketplace"], project, runner=runner)
+        client_command(executable, commands[client]["install"], project, runner=runner)
+
+
 def activate_detected_plugins(
     project: Path,
     *,
@@ -267,21 +362,32 @@ def activate_detected_plugins(
 ) -> dict[str, object]:
     """Register and install the project plugin for detected native clients."""
     project = project.resolve()
+    old_root, _, _, _ = activation_contract(project)
+    prior_activation = None
+    if read_file(project, project / RECEIPT_NAME) is not None:
+        prior_receipt, _ = read_receipt(project)
+        candidate = prior_receipt.get("clientActivation")
+        prior_activation = candidate if isinstance(candidate, dict) else None
+    claude_local_before = read_file(project, project / ".claude/settings.local.json")
+    original_local = (
+        prior_activation.get("claudeLocalBefore")
+        if prior_activation is not None and "claudeLocalBefore" in prior_activation
+        else (
+            base64.b64encode(claude_local_before).decode("ascii")
+            if claude_local_before is not None
+            else None
+        )
+    )
+    snapshot = old_root.parent / f".{old_root.name}.activation-backup-{secrets.token_hex(8)}"
+    if old_root.exists():
+        if is_link_or_reparse(old_root) or not old_root.is_dir():
+            raise ValueError("ChaosEngine activation marketplace collision")
+        shutil.copytree(old_root, snapshot)
     root, marketplace_name, plugin_id, _ = prepare_activation_bundle(project)
     created_marketplaces: list[str] = []
     created_plugins: list[str] = []
-    commands = {
-        "codex": {
-            "marketplace": ["plugin", "marketplace", "add", str(root), "--json"],
-            "install": ["plugin", "add", plugin_id, "--json"],
-            "update": ["plugin", "add", plugin_id, "--json"],
-        },
-        "claude": {
-            "marketplace": ["plugin", "marketplace", "add", "--scope", "local", str(root)],
-            "install": ["plugin", "install", plugin_id, "--scope", "local"],
-            "update": ["plugin", "update", plugin_id, "--scope", "local"],
-        },
-    }
+    commands = activation_commands(root, plugin_id)
+    touched_clients: list[str] = []
     receipt: dict[str, object] = {
         "createdMarketplaces": created_marketplaces,
         "createdPlugins": created_plugins,
@@ -292,6 +398,7 @@ def activate_detected_plugins(
             executable = which(client)
             if executable is None:
                 continue
+            touched_clients.append(client)
             selected_client = lambda name, selected=client, path=executable: path if name == selected else None
             current = detected_plugin_status(project, runner=runner, which=selected_client)[client]
             if current["marketplace"] != "healthy":
@@ -302,12 +409,43 @@ def activate_detected_plugins(
                 client_command(executable, commands[client]["install"], project, runner=runner)
                 created_plugins.append(client)
             elif current["plugin"] == "stale":
-                client_command(executable, commands[client]["update"], project, runner=runner)
+                client_command(executable, commands[client]["remove"], project, runner=runner)
+                client_command(executable, commands[client]["install"], project, runner=runner)
             verified = detected_plugin_status(project, runner=runner, which=selected_client)[client]
             if verified["status"] != "healthy":
                 raise RuntimeError(f"{client} plugin activation did not verify")
+        verified_clients = detected_plugin_status(project, runner=runner, which=which)
+        receipt["ownedClients"] = touched_clients
+        receipt["pluginVersion"] = activation_contract(project)[3]
+        receipt["clients"] = verified_clients
+        receipt["claudeLocalBefore"] = original_local
+        record_client_activation(project, receipt)
+        if snapshot.exists():
+            shutil.rmtree(snapshot)
     except BaseException:
-        deactivate_created_plugins(project, receipt, runner=runner, which=which)
+        rollback_errors: list[BaseException] = []
+        try:
+            remove_client_activation(project, touched_clients, runner=runner, which=which)
+        except BaseException as error:
+            rollback_errors.append(error)
+        try:
+            if snapshot.exists():
+                if root.exists():
+                    shutil.rmtree(root)
+                snapshot.replace(root)
+                restore_client_activation(
+                    project, prior_activation, runner=runner, which=which
+                )
+            elif root.exists():
+                shutil.rmtree(root)
+            if prior_activation is None:
+                restore_claude_local_before(
+                    project, {"claudeLocalBefore": original_local}
+                )
+        except BaseException as error:
+            rollback_errors.append(error)
+        if rollback_errors:
+            raise rollback_errors[0]
         raise
     return receipt
 
@@ -370,6 +508,13 @@ GITIGNORE_END = "# CHAOSENGINE-RUNTIME:END"
 def interpreter(platform_name: str | None = None) -> tuple[str, list[str]]:
     platform_name = platform_name or os.name
     return ("py", ["-3"]) if platform_name == "nt" else ("python3", [])
+
+
+def plugin_cache_version(core_commit: str | None) -> str:
+    """Return a cache-busting SemVer; stale activation is reinstalled, never ordered."""
+    if core_commit and re.fullmatch(r"[0-9a-f]{40}", core_commit):
+        return f"1.0.{int(core_commit[:8], 16)}"
+    return "1.0.0"
 
 
 def java_major(java: Path) -> int | None:
@@ -868,7 +1013,17 @@ def gitignore_content(before: bytes | None) -> bytes:
         ".chaos-engine-hosts.json\n.chaos-engine-hosts.*\n"
         ".chaos-engine-directory-claim-*\ngraphify-out/\n"
         ".memory/*\n!.memory/\n!.memory/config.json\n"
+        "!.chaos-engine/\n!.chaos-engine/**\n"
+        "!.agents/\n!.agents/plugins/\n!.agents/plugins/marketplace.json\n"
+        "!.agents/skills/\n!.agents/skills/README.md\n"
+        "!.agents/skills/chaos-engine/\n!.agents/skills/chaos-engine/**\n"
         "!.claude/\n!.claude/**\n.claude/settings.local.json\n!.codex/\n!.codex/**\n"
+        "!.gemini/\n!.gemini/settings.json\n!.gemini/skills/\n"
+        "!.gemini/skills/chaos-engine/\n!.gemini/skills/chaos-engine/**\n"
+        "!.github/\n!.github/copilot-instructions.md\n!.github/skills/\n"
+        "!.github/skills/chaos-engine/\n!.github/skills/chaos-engine/**\n"
+        "!plugins/\n!plugins/chaos-engine/\n!plugins/chaos-engine/**\n"
+        "!.mcp.json\n!mempalace.yaml\n!AGENTS.md\n!CLAUDE.md\n!GEMINI.md\n"
         ".chaos-engine-owned-directory\n"
         f"{GITIGNORE_END}\n"
     )
@@ -1588,7 +1743,7 @@ def install(project: Path, core_commit: str | None = None) -> dict[str, object]:
         after = decode_images(receipt["after"], nullable=False)
         if receipt["phase"] == "installed":
             verify(project, receipt)
-            version = f"1.0.{int(core_commit[:8], 16)}" if core_commit and re.fullmatch(r"[0-9a-f]{40}", core_commit) else "1.0.0"
+            version = plugin_cache_version(core_commit)
             wanted = desired_content(before, project_name=project.name, plugin_version=version)
             if after == wanted and receipt.get("coreCommit") == core_commit:
                 return receipt
@@ -1623,7 +1778,7 @@ def install(project: Path, core_commit: str | None = None) -> dict[str, object]:
         return receipt
 
     before = current_images(project)
-    version = f"1.0.{int(core_commit[:8], 16)}" if core_commit and re.fullmatch(r"[0-9a-f]{40}", core_commit) else "1.0.0"
+    version = plugin_cache_version(core_commit)
     after = desired_content(before, project_name=project.name, plugin_version=version)
     if existing_anchors and existing_anchors[0].name.startswith(REMOVING_ANCHOR_PREFIX):
         raise ValueError("ChaosEngine host removal recovery is required")
@@ -1721,18 +1876,42 @@ def restore_snapshot(project: Path, saved: dict[str, object]) -> None:
     atomic_write(project, project / RECEIPT_NAME, raw, current_raw)
 
 
-def prepare_uninstall(project: Path) -> dict[str, object]:
+def prepare_uninstall(
+    project: Path,
+    *,
+    runner=subprocess.run,
+    which=shutil.which,
+) -> dict[str, object]:
     project = project.resolve()
     receipt, raw = read_receipt(project)
     before = decode_images(receipt["before"], nullable=True)
     after = decode_images(receipt["after"], nullable=False)
     if receipt["phase"] == "installed":
         verify(project, receipt)
-        receipt["phase"] = "removing"
-        write_receipt(project, receipt, raw)
+        activation = receipt.get("clientActivation")
+        removed_activation = False
+        try:
+            if isinstance(activation, dict):
+                clients = activation.get("ownedClients")
+                if not isinstance(clients, list):
+                    raise ValueError("ChaosEngine client activation receipt is invalid")
+                remove_client_activation(project, clients, runner=runner, which=which)
+                removed_activation = True
+                restore_claude_local_before(project, activation)
+            receipt["clientActivationRemoved"] = removed_activation
+            receipt["phase"] = "removing"
+            write_receipt(project, receipt, raw)
+        except BaseException:
+            if removed_activation and isinstance(activation, dict):
+                restore_client_activation(project, activation, runner=runner, which=which)
+            raise
     elif receipt["phase"] != "removing":
         raise ValueError("ChaosEngine host installation recovery is required")
-    reconcile(project, before, (before, after))
+    try:
+        reconcile(project, before, (before, after))
+    except BaseException:
+        cancel_uninstall(project, runner=runner, which=which)
+        raise
     return receipt
 
 
@@ -1772,7 +1951,12 @@ def remove_created_directories(project: Path, receipt: dict[str, object]) -> Non
             claim.unlink()
 
 
-def cancel_uninstall(project: Path) -> None:
+def cancel_uninstall(
+    project: Path,
+    *,
+    runner=subprocess.run,
+    which=shutil.which,
+) -> None:
     project = project.resolve()
     receipt, raw = read_receipt(project)
     if receipt["phase"] != "removing":
@@ -1781,6 +1965,10 @@ def cancel_uninstall(project: Path) -> None:
     after = decode_images(receipt["after"], nullable=False)
     prepare_created_directories(project, receipt)
     reconcile(project, after, (before, after))
+    activation = receipt.get("clientActivation")
+    if receipt.get("clientActivationRemoved") is True and isinstance(activation, dict):
+        restore_client_activation(project, activation, runner=runner, which=which)
+    receipt["clientActivationRemoved"] = False
     receipt["phase"] = "installed"
     write_receipt(project, receipt, raw)
     anchor = host_anchor_path(project)
@@ -1808,20 +1996,30 @@ def finalize_uninstall(project: Path) -> None:
     anchor = host_anchor_path(project)
     if anchor.name.startswith(ACTIVE_ANCHOR_PREFIX):
         anchor = move_anchor(project, anchor, REMOVING_ANCHOR_PREFIX)
+    activation_root = project / ".chaos-engine-state/client-marketplace"
+    if activation_root.exists():
+        if is_link_or_reparse(activation_root) or not activation_root.is_dir():
+            raise ValueError("ChaosEngine activation marketplace collision")
+        shutil.rmtree(activation_root)
     receipt_path.unlink()
     anchor.unlink()
 
 
-def uninstall(project: Path) -> None:
+def uninstall(
+    project: Path,
+    *,
+    runner=subprocess.run,
+    which=shutil.which,
+) -> None:
     project = project.resolve()
     receipt_path = project / RECEIPT_NAME
     if read_file(project, receipt_path) is None:
         finalize_uninstall(project)
         return
-    prepare_uninstall(project)
+    prepare_uninstall(project, runner=runner, which=which)
     try:
         finalize_uninstall(project)
     except BaseException:
         if read_file(project, receipt_path) is not None:
-            cancel_uninstall(project)
+            cancel_uninstall(project, runner=runner, which=which)
         raise
