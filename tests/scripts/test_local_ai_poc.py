@@ -183,10 +183,22 @@ class ManifestAndSelectionTest(unittest.TestCase):
             "cpuCount": 8,
             "gpuVramGb": 0,
         }
+        production_profile = common | {
+            "totalRamGb": 32,
+            "availableRamGb": 20,
+            "effectiveRamGb": 20,
+            "freeDiskGb": 20,
+        }
+        self.assertIsNone(MODULE.recommend_model(self.manifest, production_profile))
+        research_manifest = json.loads(json.dumps(self.manifest))
+        for model in research_manifest["models"]:
+            if model["id"] in {"qwen3-1.7b-q8_0", "qwen3-4b-q4_k_m"}:
+                model["automatic"] = True
+
         self.assertEqual(
             "qwen3-1.7b-q8_0",
             MODULE.recommend_model(
-                self.manifest,
+                research_manifest,
                 common
                 | {"totalRamGb": 16, "availableRamGb": 8, "effectiveRamGb": 8, "freeDiskGb": 4},
             )["id"],
@@ -194,7 +206,7 @@ class ManifestAndSelectionTest(unittest.TestCase):
         self.assertEqual(
             "qwen3-4b-q4_k_m",
             MODULE.recommend_model(
-                self.manifest,
+                research_manifest,
                 common
                 | {
                     "totalRamGb": 24,
@@ -206,7 +218,7 @@ class ManifestAndSelectionTest(unittest.TestCase):
         )
         self.assertIsNone(
             MODULE.recommend_model(
-                self.manifest,
+                research_manifest,
                 common
                 | {
                     "totalRamGb": 32,
@@ -218,7 +230,7 @@ class ManifestAndSelectionTest(unittest.TestCase):
         )
         self.assertIsNone(
             MODULE.recommend_model(
-                self.manifest,
+                research_manifest,
                 common
                 | {
                     "totalRamGb": 32,
@@ -230,7 +242,7 @@ class ManifestAndSelectionTest(unittest.TestCase):
         )
         self.assertIsNone(
             MODULE.recommend_model(
-                self.manifest,
+                research_manifest,
                 common
                 | {
                     "platform": "unsupported-x",
@@ -243,7 +255,7 @@ class ManifestAndSelectionTest(unittest.TestCase):
         )
         self.assertIsNone(
             MODULE.recommend_model(
-                self.manifest,
+                research_manifest,
                 common
                 | {
                     "runtimeCompatible": False,
@@ -257,7 +269,7 @@ class ManifestAndSelectionTest(unittest.TestCase):
         self.assertEqual(
             "qwen3-1.7b-q8_0",
             MODULE.recommend_model(
-                self.manifest,
+                research_manifest,
                 common
                 | {
                     "cpuCount": 4,

@@ -53,17 +53,20 @@ public final class ManagedLocalAiService {
 
     /** Starts transparent provisioning and reports immutable phase snapshots to the caller. */
     public ManagedLocalAiOperation provision(Consumer<ManagedLocalAiSnapshot> progress) {
+        return provision(progress, true);
+    }
+
+    ManagedLocalAiOperation provision(Consumer<ManagedLocalAiSnapshot> progress, boolean allowDownloads) {
         Objects.requireNonNull(progress, "progress");
-        ManagedLocalAiSnapshot initial = inspect();
-        ManagedLocalAiSnapshot reviewedInitial = inspectReviewed();
+        Settings configured = Objects.requireNonNull(settings.get(), "managed local AI settings");
+        ManagedLocalAiSnapshot initial = inspect(true, configured);
+        ManagedLocalAiSnapshot reviewedInitial = inspect(false, configured);
         ManagedLocalAiOperation operation = new ManagedLocalAiOperation(initial);
         Thread worker = Thread.ofVirtual().name("shaft-managed-local-ai-provision").start(() -> {
             ProvisionResult provisioned = null;
-            Settings configured = null;
             try {
                 if (reviewedInitial.state() == ManagedLocalAiSnapshot.State.READY) {
                     publish(operation, progress, reviewedInitial);
-                    configured = Objects.requireNonNull(settings.get(), "managed local AI settings");
                     ManagedLocalAiManifest manifest = Objects.requireNonNull(manifests.get(),
                             "managed local AI manifest");
                     if (!publishActivation(operation, reviewedInitial, configured, manifest)) {
@@ -75,7 +78,9 @@ public final class ManagedLocalAiService {
                     throw new IllegalStateException("Managed local AI cannot be provisioned from state "
                             + reviewedInitial.state() + ".");
                 }
-                configured = Objects.requireNonNull(settings.get(), "managed local AI settings");
+                if (!allowDownloads) {
+                    throw new IOException("Managed local AI is not ready and offline setup cannot download artifacts.");
+                }
                 ManagedLocalAiManifest manifest = Objects.requireNonNull(manifests.get(), "managed local AI manifest");
                 ManagedLocalAiHardware.Profile profile = ManagedLocalAiHardware.profile(
                         reviewedInitial.cacheDirectory(), host);
@@ -90,7 +95,7 @@ public final class ManagedLocalAiService {
                 if (operation.isCancelled()) {
                     throw new InterruptedException("Managed local AI provisioning was cancelled.");
                 }
-                ManagedLocalAiSnapshot ready = inspectReviewed();
+                ManagedLocalAiSnapshot ready = inspect(false, configured);
                 if (ready.state() != ManagedLocalAiSnapshot.State.READY) {
                     throw new IllegalStateException("Managed local AI provisioning did not produce a ready cache.");
                 }
@@ -185,6 +190,10 @@ public final class ManagedLocalAiService {
 
     private ManagedLocalAiSnapshot inspect(boolean effectiveActivation) {
         Settings configured = Objects.requireNonNull(settings.get(), "managed local AI settings");
+        return inspect(effectiveActivation, configured);
+    }
+
+    private ManagedLocalAiSnapshot inspect(boolean effectiveActivation, Settings configured) {
         Path cache = resolveCache(configured.cacheDirectory());
         if (!configured.enabled()) {
             return snapshot(ManagedLocalAiSnapshot.State.DISABLED,

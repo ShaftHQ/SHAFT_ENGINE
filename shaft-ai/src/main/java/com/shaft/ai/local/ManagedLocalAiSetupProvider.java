@@ -204,7 +204,7 @@ public final class ManagedLocalAiSetupProvider implements SetupProvider {
         }
         ManagedLocalAiSnapshot ready = await(lifecycle.provision(snapshot -> progress.accept(SetupProgress.of(
                 SetupProfile.LOCAL_AI, snapshot.phase().name(), snapshot.completedBytes(),
-                snapshot.totalBytes()))), options);
+                snapshot.totalBytes())), !options.offline()), options);
         if (ready.state() != ManagedLocalAiSnapshot.State.READY) {
             throw new IOException("Managed local AI provisioning completed without a ready installation.");
         }
@@ -312,7 +312,7 @@ public final class ManagedLocalAiSetupProvider implements SetupProvider {
 
         ManagedLocalAiSnapshot inspectReviewed();
 
-        ManagedLocalAiOperation provision(Consumer<ManagedLocalAiSnapshot> progress);
+        ManagedLocalAiOperation provision(Consumer<ManagedLocalAiSnapshot> progress, boolean allowDownloads);
 
         boolean clean() throws Exception;
 
@@ -337,8 +337,8 @@ public final class ManagedLocalAiSetupProvider implements SetupProvider {
         }
 
         @Override
-        public ManagedLocalAiOperation provision(Consumer<ManagedLocalAiSnapshot> progress) {
-            return service.provision(progress);
+        public ManagedLocalAiOperation provision(Consumer<ManagedLocalAiSnapshot> progress, boolean allowDownloads) {
+            return service.provision(progress, allowDownloads);
         }
 
         @Override

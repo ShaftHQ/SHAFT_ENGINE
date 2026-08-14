@@ -55,12 +55,12 @@ Runtime grammar is defense in depth, not the trust boundary. The harness indepen
 | Candidate | Pinned artifact | Size | Provenance/license | Role |
 | --- | --- | ---: | --- | --- |
 | [Qwen3 0.6B](https://huggingface.co/Qwen/Qwen3-0.6B-GGUF) | Official Q8_0 GGUF | 639.45 MB | First-party, Apache-2.0 | Compact CPU benchmark failed Doctor quality gates; remains manual/ineligible for automatic use |
-| [Qwen3 1.7B](https://huggingface.co/Qwen/Qwen3-1.7B-GGUF) | Official Q8_0 GGUF | 1.83 GB | First-party, Apache-2.0 | Lite automatic candidate |
-| [Qwen3 4B](https://huggingface.co/Qwen/Qwen3-4B-GGUF) | Official Q4_K_M GGUF | 2.50 GB | First-party, Apache-2.0 | Balanced automatic candidate |
+| [Qwen3 1.7B](https://huggingface.co/Qwen/Qwen3-1.7B-GGUF) | Official Q8_0 GGUF | 1.83 GB | First-party, Apache-2.0 | Lite research candidate; manual-only until quality evidence passes |
+| [Qwen3 4B](https://huggingface.co/Qwen/Qwen3-4B-GGUF) | Official Q4_K_M GGUF | 2.50 GB | First-party, Apache-2.0 | Balanced research candidate; manual-only until quality evidence passes |
 | [Phi-4 Mini Instruct](https://huggingface.co/microsoft/Phi-4-mini-instruct) | Third-party Q4_K_M conversion | 2.49 GB | MIT base; conversion by Unsloth | Challenger only; automatic use blocked until quantization provenance policy exists |
 | [Gemma 4 E2B IT QAT](https://huggingface.co/google/gemma-4-E2B-it-qat-q4_0-gguf) | Official Q4_0 GGUF | 3.35 GB | First-party, Apache-2.0 | Quality and future multimodal challenger |
 
-The recommendation chooses the largest eligible automatic model using process-visible CPU count, current available/effectively constrained RAM (including cgroup v1/v2), a 2 GB OS/runtime reserve, current disk, platform and Linux glibc compatibility. It does not infer safe capacity from total RAM or a GPU marketing name.
+The recommendation algorithm can choose the largest eligible automatic model using process-visible CPU count, current available/effectively constrained RAM (including cgroup v1/v2), a 2 GB OS/runtime reserve, current disk, platform and Linux glibc compatibility. The tracked production manifest currently marks every candidate manual-only, so automatic recommendation returns no model and deterministic fallback remains authoritative. It does not infer safe capacity from total RAM or a GPU marketing name.
 
 Current thresholds are research defaults, not a production promise:
 

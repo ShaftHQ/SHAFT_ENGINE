@@ -182,6 +182,51 @@ class ManagedLocalAiServiceTest {
     }
 
     @Test
+    void provisioningRetainsTheCallingThreadsEffectiveSettings() throws Exception {
+        Path cache = temp.resolve("thread-local-provision-cache");
+        byte[] runtimeArchive = "thread-local-runtime".getBytes();
+        byte[] modelPayload = "thread-local-model".getBytes();
+        ManagedLocalAiManifest manifest = manifest(runtimeArchive, modelPayload);
+        FakeProvisioning provisioning = new FakeProvisioning(cache, manifest, runtimeArchive, modelPayload);
+        ManagedLocalAiService.Settings configured = new ManagedLocalAiService.Settings(
+                true, true, "test-model", cache.toString());
+        ThreadLocal<ManagedLocalAiService.Settings> local = new ThreadLocal<>();
+        local.set(configured);
+        ManagedLocalAiService service = new ManagedLocalAiService(
+                () -> local.get() == null
+                        ? new ManagedLocalAiService.Settings(false, false, "auto", temp.resolve("wrong").toString())
+                        : local.get(),
+                host("Windows 11", "amd64", "windows-msvc", "", 16 * GIB, 8, 64 * GIB),
+                () -> manifest, provisioning);
+
+        ManagedLocalAiSnapshot ready = service.provision(ignored -> { }).completion().get(5, TimeUnit.SECONDS);
+
+        assertEquals(ManagedLocalAiSnapshot.State.READY, ready.state());
+        assertEquals(cache.toAbsolutePath().normalize(), ready.cacheDirectory());
+        assertEquals(1, provisioning.runtimeDownloads);
+        assertEquals(1, provisioning.modelDownloads);
+    }
+
+    @Test
+    void offlineProvisioningRechecksReadinessWithoutCallingArtifactTransport() throws Exception {
+        Path cache = temp.resolve("offline-race-cache");
+        byte[] runtimeArchive = "offline-runtime".getBytes();
+        byte[] modelPayload = "offline-model".getBytes();
+        ManagedLocalAiManifest manifest = manifest(runtimeArchive, modelPayload);
+        FakeProvisioning provisioning = new FakeProvisioning(cache, manifest, runtimeArchive, modelPayload);
+        ManagedLocalAiService service = service(cache, true, "test-model",
+                host("Windows 11", "amd64", "windows-msvc", "", 16 * GIB, 8, 64 * GIB),
+                manifest, provisioning);
+
+        var failure = assertThrows(java.util.concurrent.ExecutionException.class,
+                () -> service.provision(ignored -> { }, false).completion().get(5, TimeUnit.SECONDS));
+
+        assertTrue(failure.getCause() instanceof IOException);
+        assertEquals(0, provisioning.runtimeDownloads);
+        assertEquals(0, provisioning.modelDownloads);
+    }
+
+    @Test
     void defaultProvisioningRunsTheRealCompositionAndRollsBackLateCancellationWithoutDeletingUnknowns()
             throws Exception {
         Path cache = temp.resolve("default-provision-cache");

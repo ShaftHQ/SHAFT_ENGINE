@@ -228,6 +228,20 @@ class ManagedLocalAiSetupProviderTest {
     }
 
     @Test
+    void offlineReadyPreflightCannotAuthorizeDownloadsAfterAReadinessRace(@TempDir Path temp) {
+        SetupOptions options = options(temp).withOffline(true);
+        FakeLifecycle lifecycle = new FakeLifecycle(snapshot(options, ManagedLocalAiSnapshot.State.READY));
+        lifecycle.provisioned = snapshot(options, ManagedLocalAiSnapshot.State.NOT_PROVISIONED);
+        InfrastructureSetupService setup = setup(lifecycle);
+        SetupPlan plan = setup.plan(options);
+
+        assertThrows(IOException.class, () -> setup.install(plan, approval(plan), options));
+
+        assertFalse(lifecycle.allowDownloads);
+        assertEquals(0, lifecycle.downloadAttempts.get());
+    }
+
+    @Test
     void cleanPlanningDoesNotDependOnEnablementOrHardwareEligibility(@TempDir Path temp) {
         SetupOptions options = options(temp);
         for (ManagedLocalAiSnapshot.State state : List.of(ManagedLocalAiSnapshot.State.DISABLED,
@@ -501,6 +515,7 @@ class ManagedLocalAiSetupProviderTest {
         private final AtomicInteger provisions = new AtomicInteger();
         private final AtomicInteger cleans = new AtomicInteger();
         private final AtomicInteger rollbacks = new AtomicInteger();
+        private final AtomicInteger downloadAttempts = new AtomicInteger();
         private ManagedLocalAiSnapshot provisioned;
         private ManagedLocalAiActivationHistory.Activation rollbackCandidate;
         private ManagedLocalAiSnapshot rollbackResult;
@@ -510,6 +525,7 @@ class ManagedLocalAiSetupProviderTest {
         private boolean leaveRunning;
         private final CountDownLatch provisionStarted = new CountDownLatch(1);
         private ManagedLocalAiOperation lastOperation;
+        private boolean allowDownloads = true;
 
         private FakeLifecycle(ManagedLocalAiSnapshot inspected) {
             this.inspected = inspected;
@@ -529,17 +545,23 @@ class ManagedLocalAiSetupProviderTest {
         }
 
         @Override
-        public ManagedLocalAiOperation provision(Consumer<ManagedLocalAiSnapshot> progress) {
+        public ManagedLocalAiOperation provision(Consumer<ManagedLocalAiSnapshot> progress, boolean allowDownloads) {
             provisions.incrementAndGet();
+            this.allowDownloads = allowDownloads;
             ManagedLocalAiOperation operation = new ManagedLocalAiOperation(inspected);
             lastOperation = operation;
             provisionStarted.countDown();
             if (leaveRunning) return operation;
-            if (failure instanceof CancellationException) {
+            if (!allowDownloads && provisioned.state() != ManagedLocalAiSnapshot.State.READY) {
+                operation.fail(new IOException("offline setup cannot download artifacts"));
+            } else if (failure instanceof CancellationException) {
                 operation.cancelled();
             } else if (failure != null) {
                 operation.fail(failure);
             } else {
+                if (provisioned.state() != ManagedLocalAiSnapshot.State.READY) {
+                    downloadAttempts.incrementAndGet();
+                }
                 progressSnapshots.forEach(progress);
                 progress.accept(provisioned);
                 operation.complete(provisioned);
