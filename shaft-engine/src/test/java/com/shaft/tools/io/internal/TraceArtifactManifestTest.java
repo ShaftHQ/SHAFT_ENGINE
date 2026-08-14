@@ -17,6 +17,87 @@ import java.util.zip.ZipFile;
 public class TraceArtifactManifestTest {
 
     @Test
+    public void retainingActionsShouldReleaseDroppedPhysicalDomResources() {
+        SeleniumTraceCapture.Result first = new SeleniumTraceCapture.Result(
+                "webdriver", "structural", "available", "", "action-dom-snapshot", "first", false);
+        SeleniumTraceCapture.Result second = new SeleniumTraceCapture.Result(
+                "webdriver", "structural", "available", "", "action-dom-snapshot", "second", false);
+        List<TraceArtifactManifest.SnapshotResource> snapshots = List.of(
+                new TraceArtifactManifest.SnapshotResource("snapshot-action-1-before", "action-1", "before",
+                        first, first.content().getBytes(StandardCharsets.UTF_8)),
+                new TraceArtifactManifest.SnapshotResource("snapshot-action-2-before", "action-2", "before",
+                        second, second.content().getBytes(StandardCharsets.UTF_8)));
+        try (TraceArtifactManifest manifest = TraceArtifactManifest.create(
+                "[]", Map.of(), snapshots, null, 1024, "omitted")) {
+            String retainedPath = manifest.references().stream()
+                    .filter(reference -> reference.id().equals("snapshot-action-1-before"))
+                    .findFirst().orElseThrow().path();
+
+            manifest.retainActionArtifacts(java.util.Set.of("snapshot-action-1-before"));
+
+            Assert.assertTrue(manifest.references().stream()
+                    .anyMatch(reference -> reference.id().equals("snapshot-action-1-before")));
+            Assert.assertFalse(manifest.references().stream()
+                    .anyMatch(reference -> reference.id().equals("snapshot-action-2-before")));
+            Assert.assertEquals(manifest.resourceBytes().keySet(), java.util.Set.of(retainedPath));
+        }
+    }
+
+    @Test
+    public void identicalDomSnapshotsShouldShareExactContentAddressedResource() throws Exception {
+        String html = "<html>same state</html>";
+        byte[] bytes = html.getBytes(StandardCharsets.UTF_8);
+        String sha256 = HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(bytes));
+        SeleniumTraceCapture.Result result = new SeleniumTraceCapture.Result(
+                "webdriver", "structural", "available", "", "action-dom-snapshot", html, false);
+        List<TraceArtifactManifest.SnapshotResource> snapshots = List.of(
+                new TraceArtifactManifest.SnapshotResource(
+                        "snapshot-action-1-before", "action-1", "before", result, bytes),
+                new TraceArtifactManifest.SnapshotResource(
+                        "snapshot-action-1-after", "action-1", "after", result, bytes));
+
+        try (TraceArtifactManifest manifest = TraceArtifactManifest.create(
+                "[]", Map.of(), snapshots, null, 1024, "omitted")) {
+            var references = manifest.references().stream()
+                    .filter(item -> item.kind().equals("dom-snapshot")).toList();
+            String expectedPath = "resources/" + sha256 + ".html";
+            Assert.assertEquals(references.get(0).path(), expectedPath);
+            Assert.assertEquals(references.get(1).path(), expectedPath);
+            Assert.assertEquals(references.get(0).metadata().get("sha256"), sha256);
+            Assert.assertEquals(references.get(0).metadata().get("sizeBytes"), String.valueOf(bytes.length));
+            Assert.assertEquals(manifest.resourceBytes().size(), 1);
+            Assert.assertEquals(manifest.resourceBytes().get(expectedPath), bytes);
+
+            Path directory = Files.createTempDirectory("shaft-deduplicated-dom-");
+            Path archive = directory.resolve("shaft-trace.zip");
+            String json = """
+                    {"session":{"artifacts":[
+                    {"id":"snapshot-action-1-before","path":"%s","omitted":false,"metadata":{}},
+                    {"id":"snapshot-action-1-after","path":"%s","omitted":false,"metadata":{}}]}}
+                    """.formatted(expectedPath, expectedPath);
+            try {
+                FailureTraceReporter.convergeTraceArchive(archive, json, "[]", Map.of(), manifest,
+                        1024 * 1024, 3L * 1024 * 1024, "omitted", List.of());
+                try (ZipFile zip = new ZipFile(archive.toFile())) {
+                    Assert.assertEquals(zip.stream().filter(entry -> entry.getName().equals(expectedPath)).count(),
+                            1L);
+                    Assert.assertEquals(zip.getInputStream(zip.getEntry(expectedPath)).readAllBytes(), bytes);
+                }
+            } finally {
+                try (var paths = Files.walk(directory)) {
+                    paths.sorted(java.util.Comparator.reverseOrder()).forEach(path -> {
+                        try {
+                            Files.deleteIfExists(path);
+                        } catch (IOException exception) {
+                            throw new java.io.UncheckedIOException(exception);
+                        }
+                    });
+                }
+            }
+        }
+    }
+
+    @Test
     public void identicalScreenshotBytesShouldShareOneContentAddressedArtifactWithIntegrityMetadata() throws Exception {
         byte[] screenshot = "same screenshot".getBytes(StandardCharsets.UTF_8);
         String sha256 = HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(screenshot));

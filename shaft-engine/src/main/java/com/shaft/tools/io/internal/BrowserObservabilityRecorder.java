@@ -27,9 +27,15 @@ import java.lang.ref.WeakReference;
  * Session-owned browser network, console, and capability metadata recorder for SHAFT trace artifacts.
  */
 public final class BrowserObservabilityRecorder {
-    private static final int BODY_PREVIEW_LIMIT = 2048;
     private static final int NETWORK_EVENT_LIMIT = 1000;
+    private static final int NETWORK_FIELD_LIMIT = 2048;
+    private static final int NETWORK_FIELD_UTF8_BYTE_LIMIT = NETWORK_FIELD_LIMIT * 4;
+    private static final String NETWORK_FIELD_OMITTED =
+            "[omitted because browser metadata exceeded the safe redaction boundary]";
+    private static final int NETWORK_HEADER_LIMIT = 64;
+    private static final int NETWORK_HEADER_CHARACTER_LIMIT = 8192;
     private static final int CONSOLE_EVENT_LIMIT = 1000;
+    private static final int WEBSOCKET_EVENT_LIMIT = 1000;
     private static final int WARNING_EVENT_LIMIT = 100;
     private static final int IN_FLIGHT_EXCHANGE_LIMIT = 1000;
     private static final ThreadLocal<ObservationSession> CURRENT = new ThreadLocal<>();
@@ -69,7 +75,8 @@ public final class BrowserObservabilityRecorder {
         try {
             byte[] requestBody = copyRequestBody(request);
             NetworkExchange exchange = new NetworkExchange(true, "network-" + index,
-                    value(request.getMethod().name()), value(request.getUri()), headers(request),
+                    retainedNetworkText(request.getMethod().name()), retainedNetworkText(request.getUri()),
+                    new LinkedHashMap<>(retainedHeaders(headers(request))),
                     requestBody.length, System.nanoTime());
             if (retainReservedExchange(exchange, owner)) {
                 return exchange;
@@ -130,22 +137,40 @@ public final class BrowserObservabilityRecorder {
 
     /** Records a network event into an explicitly captured observation session. */
     public static void recordNetwork(ObservationSession session, NetworkObservation observation) {
+        recordNetwork(session, observation, "selenium-http");
+    }
+
+    /** Records provider-labeled bounded metadata into an explicitly captured observation session. */
+    public static void recordNetwork(ObservationSession session, NetworkObservation observation, String provider) {
         ObservationSession owner = valid(session);
         if (owner == null || !owner.networkEnabled() || observation == null) {
             return;
         }
         owner.addNetwork(new NetworkEvent(
-                value(observation.method()),
-                value(observation.url()),
+                value(provider),
+                retainedNetworkText(observation.method()),
+                retainedNetworkText(observation.url()),
                 observation.status(),
-                sanitizedHeaders(observation.requestHeaders()),
-                sanitizedHeaders(observation.responseHeaders()),
+                retainedHeaders(observation.requestHeaders()),
+                retainedHeaders(observation.responseHeaders()),
                 Math.max(0, observation.durationMs()),
                 Math.max(0, observation.requestSize()),
                 Math.max(0, observation.responseSize()),
-                value(observation.failureReason()),
-                truncate(value(observation.bodyPreview())),
+                retainedNetworkText(observation.failureReason()),
+                retainedNetworkText(observation.bodyPreview()),
                 System.currentTimeMillis()));
+    }
+
+    /** Records one bounded CDP WebSocket lifecycle or frame observation. */
+    public static void recordWebSocket(ObservationSession session, WebSocketObservation observation) {
+        ObservationSession owner = valid(session);
+        if (owner == null || !owner.networkEnabled() || observation == null) return;
+        owner.addWebSocket(new WebSocketEvent(
+                retainedNetworkText(observation.requestId()), retainedNetworkText(observation.url()),
+                retainedNetworkText(observation.direction()), retainedNetworkText(observation.type()),
+                observation.opcode(), retainedNetworkText(observation.text()), validatedSha256(observation.sha256()),
+                Math.max(0, observation.sizeBytes()), retainedNetworkText(observation.status()),
+                retainedNetworkText(observation.reason()), System.currentTimeMillis()));
     }
 
     /**
@@ -296,18 +321,18 @@ public final class BrowserObservabilityRecorder {
             NetworkEvent event = events.get(i);
             snapshot.add(new NetworkSnapshotEntry(
                     i + 1,
-                    event.method(),
-                    event.url(),
+                    boundedNetworkText(event.method()),
+                    boundedNetworkText(event.url()),
                     event.status(),
-                    mimeType(event.responseHeaders()),
+                    boundedNetworkText(mimeType(event.responseHeaders())),
                     event.durationMs(),
                     event.requestSizeBytes(),
                     event.responseSizeBytes(),
-                    event.failureReason(),
+                    boundedNetworkText(event.failureReason()),
                     event.timestamp(),
-                    event.bodyPreview(),
-                    event.requestHeaders(),
-                    event.responseHeaders()));
+                    boundedNetworkText(event.bodyPreview()),
+                    boundedHeaders(event.requestHeaders()),
+                    boundedHeaders(event.responseHeaders())));
         }
         return List.copyOf(snapshot);
     }
@@ -368,8 +393,20 @@ public final class BrowserObservabilityRecorder {
 
     static String drainMetadataJson() {
         ObservationSession session = currentSession();
-        String json = metadataJson(session.takeWarnings());
+        MetadataBatch batch = session.takeMetadata();
+        String json = metadataJson(batch.warnings(), batch.webSockets());
         return json;
+    }
+
+    /** Returns immutable WebSocket evidence for an explicitly captured observation session. */
+    public static List<WebSocketSnapshotEntry> snapshotWebSockets(ObservationSession session) {
+        return (session == null ? List.<WebSocketEvent>of() : session.webSocketSnapshot()).stream()
+                .map(event -> new WebSocketSnapshotEntry(boundedNetworkText(event.requestId()),
+                        boundedNetworkText(event.url()), boundedNetworkText(event.direction()),
+                        boundedNetworkText(event.type()), event.opcode(), boundedNetworkText(event.text()),
+                        event.sha256(), event.sizeBytes(), boundedNetworkText(event.status()),
+                        boundedNetworkText(event.reason())))
+                .toList();
     }
 
     /**
@@ -479,17 +516,18 @@ public final class BrowserObservabilityRecorder {
                 json.append(",");
             }
             json.append("\n    {\n");
-            field(json, 3, "method", event.method(), true);
-            field(json, 3, "url", event.url(), true);
+            field(json, 3, "provider", boundedNetworkText(event.provider()), true);
+            field(json, 3, "method", boundedNetworkText(event.method()), true);
+            field(json, 3, "url", boundedNetworkText(event.url()), true);
             numberField(json, 3, "status", event.status(), true);
             numberField(json, 3, "timestamp", event.timestamp(), true);
             numberField(json, 3, "durationMs", event.durationMs(), true);
             numberField(json, 3, "requestSizeBytes", event.requestSizeBytes(), true);
             numberField(json, 3, "responseSizeBytes", event.responseSizeBytes(), true);
-            map(json, 3, "requestHeaders", event.requestHeaders(), true);
-            map(json, 3, "responseHeaders", event.responseHeaders(), true);
-            field(json, 3, "failureReason", event.failureReason(), true);
-            field(json, 3, "bodyPreview", event.bodyPreview(), false);
+            map(json, 3, "requestHeaders", boundedHeaders(event.requestHeaders()), true);
+            map(json, 3, "responseHeaders", boundedHeaders(event.responseHeaders()), true);
+            field(json, 3, "failureReason", boundedNetworkText(event.failureReason()), true);
+            field(json, 3, "bodyPreview", boundedNetworkText(event.bodyPreview()), false);
             indent(json, 2).append("}");
         }
         if (!events.isEmpty()) {
@@ -520,7 +558,7 @@ public final class BrowserObservabilityRecorder {
         return json.toString();
     }
 
-    private static String metadataJson(List<WarningEvent> warnings) {
+    private static String metadataJson(List<WarningEvent> warnings, List<WebSocketEvent> webSockets) {
         StringBuilder json = new StringBuilder("{\n");
         indent(json, 2).append("\"warnings\": [");
         for (int i = 0; i < warnings.size(); i++) {
@@ -529,11 +567,32 @@ public final class BrowserObservabilityRecorder {
                 json.append(", ");
             }
             json.append("{\"source\": \"")
-                    .append(escapeJson(FailureTraceReporter.redact(warning.source())))
+                    .append(escapeJson(FailureTraceReporter.redactSourceText(warning.source())))
                     .append("\", \"message\": \"")
-                    .append(escapeJson(FailureTraceReporter.redact(warning.message())))
+                    .append(escapeJson(FailureTraceReporter.redactSourceText(warning.message())))
                     .append("\"}");
         }
+        json.append("],\n");
+        indent(json, 2).append("\"webSockets\": [");
+        for (int i = 0; i < webSockets.size(); i++) {
+            WebSocketEvent event = webSockets.get(i);
+            if (i > 0) json.append(",");
+            json.append("\n    {\n");
+            field(json, 3, "provider", "cdp", true);
+            field(json, 3, "requestId", boundedNetworkText(event.requestId()), true);
+            field(json, 3, "url", boundedNetworkText(event.url()), true);
+            field(json, 3, "direction", boundedNetworkText(event.direction()), true);
+            field(json, 3, "type", boundedNetworkText(event.type()), true);
+            numberField(json, 3, "opcode", event.opcode(), true);
+            field(json, 3, "text", boundedNetworkText(event.text()), true);
+            field(json, 3, "sha256", event.sha256(), true);
+            numberField(json, 3, "sizeBytes", event.sizeBytes(), true);
+            field(json, 3, "status", boundedNetworkText(event.status()), true);
+            field(json, 3, "reason", boundedNetworkText(event.reason()), true);
+            numberField(json, 3, "timestamp", event.timestamp(), false);
+            indent(json, 2).append("}");
+        }
+        if (!webSockets.isEmpty()) json.append("\n  ");
         json.append("]\n");
         indent(json, 1).append("}");
         return json.toString();
@@ -602,15 +661,77 @@ public final class BrowserObservabilityRecorder {
         return headers;
     }
 
-    private static Map<String, String> sanitizedHeaders(Map<String, String> source) {
+    private static Map<String, String> retainedHeaders(Map<String, String> source) {
         if (source == null || source.isEmpty()) {
             return Map.of();
         }
         Map<String, String> sanitized = new LinkedHashMap<>();
-        source.forEach((key, value) -> sanitized.put(value(key), isSensitiveKey(key)
-                ? "********"
-                : FailureTraceReporter.redact(value(value))));
-        return sanitized;
+        int retainedCharacters = 0;
+        for (Map.Entry<String, String> entry : source.entrySet()) {
+            if (sanitized.size() >= NETWORK_HEADER_LIMIT
+                    || retainedCharacters >= NETWORK_HEADER_CHARACTER_LIMIT) {
+                break;
+            }
+            String key = retainedNetworkText(entry.getKey());
+            String headerValue = retainedNetworkHeaderValue(entry.getKey(), entry.getValue());
+            int required = key.length() + headerValue.length();
+            if (required > NETWORK_HEADER_CHARACTER_LIMIT - retainedCharacters) {
+                break;
+            }
+            sanitized.put(key, headerValue);
+            retainedCharacters += required;
+        }
+        return Map.copyOf(sanitized);
+    }
+
+    private static Map<String, String> boundedHeaders(Map<String, String> source) {
+        if (source == null || source.isEmpty()) {
+            return Map.of();
+        }
+        Map<String, String> sanitized = new LinkedHashMap<>();
+        int retainedCharacters = 0;
+        for (Map.Entry<String, String> entry : source.entrySet()) {
+            if (sanitized.size() >= NETWORK_HEADER_LIMIT || retainedCharacters >= NETWORK_HEADER_CHARACTER_LIMIT) {
+                break;
+            }
+            String key = boundedNetworkText(entry.getKey());
+            String headerValue = boundedNetworkHeaderValue(entry.getKey(), entry.getValue());
+            int remaining = NETWORK_HEADER_CHARACTER_LIMIT - retainedCharacters - key.length();
+            if (remaining < 0) {
+                break;
+            }
+            if (headerValue.length() > remaining) {
+                headerValue = headerValue.substring(0, remaining);
+            }
+            sanitized.put(key, headerValue);
+            retainedCharacters += key.length() + headerValue.length();
+        }
+        return Map.copyOf(sanitized);
+    }
+
+    /** Retains complete bounded callback text, or a fail-closed marker that cannot contain a partial credential. */
+    public static String retainedNetworkText(String source) {
+        String redacted = FailureTraceReporter.redact(value(source));
+        return redacted.length() <= NETWORK_FIELD_LIMIT ? redacted : NETWORK_FIELD_OMITTED;
+    }
+
+    /** Retains one bounded callback header value while masking known sensitive header names immediately. */
+    public static String retainedNetworkHeaderValue(String key, String source) {
+        return isSensitiveKey(key) ? "********" : retainedNetworkText(source);
+    }
+
+    public static String boundedNetworkText(String source) {
+        String redacted = FailureTraceReporter.redactSourceText(value(source));
+        return redacted.length() <= NETWORK_FIELD_LIMIT ? redacted : redacted.substring(0, NETWORK_FIELD_LIMIT);
+    }
+
+    public static String boundedNetworkHeaderValue(String key, String source) {
+        return isSensitiveKey(key) ? "********" : boundedNetworkText(source);
+    }
+
+    private static String validatedSha256(String source) {
+        String candidate = value(source);
+        return candidate.matches("(?i)[0-9a-f]{64}") ? candidate.toLowerCase(Locale.ROOT) : "";
     }
 
     private static void map(StringBuilder json, int indent, String key, Map<String, String> values, boolean comma) {
@@ -623,9 +744,9 @@ public final class BrowserObservabilityRecorder {
             json.append("\n");
             indent(json, indent + 1)
                     .append("\"")
-                    .append(escapeJson(FailureTraceReporter.redact(entry.getKey())))
+                    .append(escapeJson(FailureTraceReporter.redactSourceText(entry.getKey())))
                     .append("\": \"")
-                    .append(escapeJson(FailureTraceReporter.redact(entry.getValue())))
+                    .append(escapeJson(FailureTraceReporter.redactSourceText(entry.getValue())))
                     .append("\"");
         }
         if (!values.isEmpty()) {
@@ -637,9 +758,9 @@ public final class BrowserObservabilityRecorder {
 
     private static void field(StringBuilder json, int indent, String key, String value, boolean comma) {
         indent(json, indent).append("\"")
-                .append(escapeJson(FailureTraceReporter.redact(key)))
+                .append(escapeJson(FailureTraceReporter.redactSourceText(key)))
                 .append("\": \"")
-                .append(escapeJson(FailureTraceReporter.redact(value)))
+                .append(escapeJson(FailureTraceReporter.redactSourceText(value)))
                 .append("\"")
                 .append(comma ? "," : "")
                 .append("\n");
@@ -670,12 +791,11 @@ public final class BrowserObservabilityRecorder {
         if (bytes == null || bytes.length == 0) {
             return "";
         }
-        return truncate(new String(bytes, java.nio.charset.StandardCharsets.UTF_8));
-    }
-
-    private static String truncate(String value) {
-        String safe = value(value);
-        return safe.length() <= BODY_PREVIEW_LIMIT ? safe : safe.substring(0, BODY_PREVIEW_LIMIT);
+        if (bytes.length > NETWORK_FIELD_UTF8_BYTE_LIMIT) {
+            return NETWORK_FIELD_OMITTED;
+        }
+        String decoded = new String(bytes, java.nio.charset.StandardCharsets.UTF_8);
+        return decoded.length() > NETWORK_FIELD_LIMIT ? NETWORK_FIELD_OMITTED : retainedNetworkText(decoded);
     }
 
     private static StringBuilder indent(StringBuilder builder, int level) {
@@ -709,12 +829,14 @@ public final class BrowserObservabilityRecorder {
     public static final class ObservationSession implements AutoCloseable {
         private final List<NetworkEvent> network = new ArrayList<>();
         private final List<ConsoleEvent> console = new ArrayList<>();
+        private final List<WebSocketEvent> webSockets = new ArrayList<>();
         private final List<WarningEvent> warnings = new ArrayList<>();
         private int nextNetworkId;
         private boolean closed;
         private boolean exchangeLimitWarned;
         private boolean networkLimitWarned;
         private boolean consoleLimitWarned;
+        private boolean webSocketLimitWarned;
         private boolean warningLimitWarned;
         private final boolean traceEnabled = isTraceEnabled();
         private final boolean networkEnabled = traceEnabled && SHAFT.Properties.reporting.traceIncludeNetwork();
@@ -743,6 +865,15 @@ public final class BrowserObservabilityRecorder {
                 console.add(event);
             }
         }
+        private synchronized void addWebSocket(WebSocketEvent event) {
+            if (!closed) {
+                if (webSockets.size() >= WEBSOCKET_EVENT_LIMIT) {
+                    webSockets.removeFirst();
+                    webSocketLimitWarned = true;
+                }
+                webSockets.add(event);
+            }
+        }
         private synchronized void markConsoleLimit() {
             if (!closed && consoleEnabled) consoleLimitWarned = true;
         }
@@ -762,6 +893,7 @@ public final class BrowserObservabilityRecorder {
         }
         private synchronized List<NetworkEvent> networkSnapshot() { return List.copyOf(network); }
         private synchronized List<ConsoleEvent> consoleSnapshot() { return List.copyOf(console); }
+        private synchronized List<WebSocketEvent> webSocketSnapshot() { return List.copyOf(webSockets); }
         private synchronized List<NetworkEvent> takeNetwork() {
             List<NetworkEvent> result = List.copyOf(network);
             network.clear();
@@ -773,6 +905,18 @@ public final class BrowserObservabilityRecorder {
             console.clear();
             return result;
         }
+        private synchronized MetadataBatch takeMetadata() {
+            List<WarningEvent> warningSnapshot = effectiveWarnings();
+            List<WebSocketEvent> webSocketSnapshot = List.copyOf(webSockets);
+            warnings.clear();
+            webSockets.clear();
+            warningLimitWarned = false;
+            exchangeLimitWarned = false;
+            networkLimitWarned = false;
+            consoleLimitWarned = false;
+            webSocketLimitWarned = false;
+            return new MetadataBatch(warningSnapshot, webSocketSnapshot);
+        }
         private synchronized List<WarningEvent> takeWarnings() {
             List<WarningEvent> result = effectiveWarnings();
             warnings.clear();
@@ -780,11 +924,13 @@ public final class BrowserObservabilityRecorder {
             exchangeLimitWarned = false;
             networkLimitWarned = false;
             consoleLimitWarned = false;
+            webSocketLimitWarned = false;
             return result;
         }
         private synchronized List<WarningEvent> effectiveWarnings() {
             List<WarningEvent> result = new ArrayList<>(warnings);
             int markerCount = (networkLimitWarned ? 1 : 0) + (consoleLimitWarned ? 1 : 0)
+                    + (webSocketLimitWarned ? 1 : 0)
                     + (exchangeLimitWarned ? 1 : 0)
                     + (warningLimitWarned ? 1 : 0);
             while (result.size() + markerCount > WARNING_EVENT_LIMIT) result.removeFirst();
@@ -794,6 +940,8 @@ public final class BrowserObservabilityRecorder {
                     "The oldest network events were omitted because the session limit was reached."));
             if (consoleLimitWarned) result.add(new WarningEvent("console",
                     "The oldest console events were omitted because the session limit was reached."));
+            if (webSocketLimitWarned) result.add(new WarningEvent("websocket",
+                    "The oldest WebSocket events were omitted because the session limit was reached."));
             if (exchangeLimitWarned) result.add(new WarningEvent("network",
                     "A network exchange was omitted because the in-flight session limit was reached."));
             return List.copyOf(result);
@@ -805,10 +953,12 @@ public final class BrowserObservabilityRecorder {
             closed = true;
             network.clear();
             console.clear();
+            webSockets.clear();
             warnings.clear();
             nextNetworkId = 0;
             networkLimitWarned = false;
             consoleLimitWarned = false;
+            webSocketLimitWarned = false;
             warningLimitWarned = false;
             exchangeLimitWarned = false;
         }
@@ -869,10 +1019,22 @@ public final class BrowserObservabilityRecorder {
                                      long responseSize, String failureReason, String bodyPreview) {
     }
 
-    private record NetworkEvent(String method, String url, int status, Map<String, String> requestHeaders,
+    /** Bounded WebSocket lifecycle/frame metadata. */
+    public record WebSocketObservation(String requestId, String url, String direction, String type, int opcode,
+                                       String text, String sha256, long sizeBytes, String status, String reason) { }
+
+    /** Read-only WebSocket evidence used by focused diagnostics and tests. */
+    public record WebSocketSnapshotEntry(String requestId, String url, String direction, String type, int opcode,
+                                         String text, String sha256, long sizeBytes, String status, String reason) { }
+
+    private record NetworkEvent(String provider, String method, String url, int status, Map<String, String> requestHeaders,
                                 Map<String, String> responseHeaders, long durationMs, long requestSizeBytes,
                                 long responseSizeBytes, String failureReason, String bodyPreview, long timestamp) {
     }
+
+    private record WebSocketEvent(String requestId, String url, String direction, String type, int opcode,
+                                  String text, String sha256, long sizeBytes, String status, String reason,
+                                  long timestamp) { }
 
     /**
      * Read-only snapshot of one observed network transaction, safe to hand to a caller outside this
@@ -888,7 +1050,7 @@ public final class BrowserObservabilityRecorder {
      * @param responseSizeBytes  response body size in bytes
      * @param failureReason      safe failure reason, blank on success
      * @param timestamp          epoch millis when the exchange finished
-     * @param bodyPreview        truncated, redacted response body preview as recorded for trace/HAR output
+     * @param bodyPreview        bounded, redacted response preview, or an explicit safe-boundary omission marker
      * @param requestHeaders     sanitized request headers
      * @param responseHeaders    sanitized response headers
      */
@@ -897,6 +1059,8 @@ public final class BrowserObservabilityRecorder {
                                        String failureReason, long timestamp, String bodyPreview,
                                        Map<String, String> requestHeaders, Map<String, String> responseHeaders) {
     }
+
+    private record MetadataBatch(List<WarningEvent> warnings, List<WebSocketEvent> webSockets) { }
 
     private record ConsoleEvent(String source, String level, String message, long timestamp) {
     }
