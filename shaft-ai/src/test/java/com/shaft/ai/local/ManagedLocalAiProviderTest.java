@@ -9,6 +9,7 @@ import org.junit.jupiter.api.io.TempDir;
 import tools.jackson.databind.node.JsonNodeFactory;
 
 import java.nio.file.Path;
+import java.nio.file.Files;
 import java.net.URI;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -365,6 +366,72 @@ class ManagedLocalAiProviderTest {
     }
 
     @Test
+    void transparentCleanCacheProvisioningReachesLaunchAndInference() throws Exception {
+        byte[] runtimeBytes = "runtime-clean-host".getBytes(java.nio.charset.StandardCharsets.UTF_8);
+        byte[] modelBytes = "model-clean-host".getBytes(java.nio.charset.StandardCharsets.UTF_8);
+        ManagedLocalAiManifest manifest = manifest(runtimeBytes, modelBytes);
+        Path cache = temp.resolve("clean-host-cache");
+        AtomicInteger provisions = new AtomicInteger();
+        ManagedLocalAiService service = new ManagedLocalAiService(
+                () -> new ManagedLocalAiService.Settings(true, true, "test-model", cache.toString()), host(),
+                () -> manifest, (root, reviewed, profile, selected, settings, ignoredHost, cancelled, progress) -> {
+                    provisions.incrementAndGet();
+                    String runtimeId = ManagedLocalAiService.runtimeInstallationId(reviewed, profile.platform());
+                    String modelId = ManagedLocalAiService.modelInstallationId(selected);
+                    Path runtimeStage = root.resolve("staging/clean-runtime.extract-test");
+                    Files.createDirectories(runtimeStage);
+                    Files.write(runtimeStage.resolve("runtime.zip"), runtimeBytes);
+                    Files.writeString(runtimeStage.resolve("llama-server.exe"), "executable");
+                    Files.writeString(runtimeStage.resolve(".shaft-ready"), "");
+                    ManagedLocalAiCache.withLock(root, Duration.ofSeconds(1), () -> {
+                        ManagedLocalAiCache.adopt(root, runtimeId, runtimeStage);
+                        ManagedLocalAiCache.adopt(root, modelId,
+                                readyStage(root, "clean-model", "model.gguf", "model-clean-host"));
+                        return null;
+                    });
+                    return new ManagedLocalAiService.ProvisionResult(java.util.Set.of(runtimeId, modelId));
+                });
+        AtomicInteger launches = new AtomicInteger();
+        AtomicInteger inferences = new AtomicInteger();
+        CloseAwareProcess process = new CloseAwareProcess();
+        AiRequest request = AiRequest.builder("clean-host", JsonNodeFactory.instance.objectNode())
+                .timeout(Duration.ofSeconds(3)).build();
+        AiResponse expected = AiResponse.success("managed-local", "test-model",
+                JsonNodeFactory.instance.objectNode().put("answer", "local"), Duration.ofMillis(1),
+                AiUsage.empty(), request.deterministicFallback());
+        ManagedLocalAiProvider.RuntimeClient runtime = new ManagedLocalAiProvider.RuntimeClient() {
+            @Override
+            public ManagedLocalAiProcess.Session launch(ManagedLocalAiService.ReadyRuntime ready, Duration timeout,
+                                                        java.util.function.BooleanSupplier shuttingDown) {
+                launches.incrementAndGet();
+                assertTrue(Files.isRegularFile(ready.executable()));
+                assertTrue(Files.isRegularFile(ready.model()));
+                return new ManagedLocalAiProcess.Session(process, 18181, ready.alias(), "key", timeout);
+            }
+
+            @Override
+            public AiResponse infer(ManagedLocalAiProcess.Session session, AiRequest actual, long deadline) {
+                inferences.incrementAndGet();
+                assertSame(request, actual);
+                return expected;
+            }
+        };
+        ManagedLocalAiProvider provider = new ManagedLocalAiProvider(
+                (ManagedLocalAiProvider.Lifecycle) serviceLifecycle(service, runtime));
+
+        AiResponse actual = provider.execute(request);
+        ManagedLocalAiSnapshot after = service.inspect();
+        assertEquals(ManagedLocalAiSnapshot.State.READY, after.state(), after.toString());
+        ManagedLocalAiService.ReadyRuntime ready = service.readyRuntime();
+
+        assertEquals(1, provisions.get());
+        assertTrue(Files.isRegularFile(ready.executable()));
+        assertEquals(1, launches.get());
+        assertEquals(1, inferences.get());
+        assertSame(expected, actual);
+    }
+
+    @Test
     void expiredCleanupDoesNotMaskTimeoutOrDiscardLiveSession() throws Exception {
         ManagedLocalAiManifest manifest = manifest("runtime".getBytes(), "model".getBytes());
         AtomicInteger reads = new AtomicInteger();
@@ -630,6 +697,17 @@ class ManagedLocalAiProviderTest {
         return constructor.newInstance(service);
     }
 
+    private Object serviceLifecycle(ManagedLocalAiService service, ManagedLocalAiProvider.RuntimeClient runtime)
+            throws Exception {
+        Class<?> lifecycleType = java.util.Arrays.stream(ManagedLocalAiProvider.class.getDeclaredClasses())
+                .filter(type -> type.getSimpleName().equals("ServiceLifecycle"))
+                .findFirst().orElseThrow();
+        var constructor = lifecycleType.getDeclaredConstructor(
+                ManagedLocalAiService.class, ManagedLocalAiProvider.RuntimeClient.class);
+        constructor.setAccessible(true);
+        return constructor.newInstance(service, runtime);
+    }
+
     private boolean waitUntil(AtomicBoolean value, Duration timeout) throws InterruptedException {
         long deadline = System.nanoTime() + timeout.toNanos();
         while (!value.get() && System.nanoTime() < deadline) {
@@ -642,13 +720,15 @@ class ManagedLocalAiProviderTest {
         String runtimeHash = HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(runtimeBytes));
         String modelHash = HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(modelBytes));
         var asset = new ManagedLocalAiManifest.RuntimeAsset("windows-x86_64", "runtime.zip",
-                URI.create("https://example.invalid/runtime.zip"), runtimeBytes.length, runtimeHash,
+                URI.create("https://github.com/ggml-org/llama.cpp/releases/download/test/runtime.zip"),
+                runtimeBytes.length, runtimeHash,
                 "llama-server.exe", "windows-msvc", "");
         var runtime = new ManagedLocalAiManifest.RuntimeManifest("llama.cpp", "test", "MIT",
                 URI.create("https://example.invalid/runtime"), List.of(asset));
         var model = new ManagedLocalAiManifest.ModelManifest("test-model", "Test model", "lite", true, true,
                 "Apache-2.0", "owner/repo", "0123456789012345678901234567890123456789", "model.gguf",
-                URI.create("https://example.invalid/model.gguf"), modelBytes.length, modelHash, 1, 1, 1);
+                URI.create("https://huggingface.co/owner/repo/resolve/0123456789012345678901234567890123456789/"
+                        + "model.gguf"), modelBytes.length, modelHash, 1, 1, 1);
         return new ManagedLocalAiManifest(1, runtime, List.of(model));
     }
 

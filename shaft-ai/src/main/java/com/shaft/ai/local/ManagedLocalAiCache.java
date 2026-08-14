@@ -221,7 +221,7 @@ final class ManagedLocalAiCache {
                 deleteOwnedFromTrash(root, installation.root(), trash, installation.files());
                 clearTransaction(root);
             } catch (IOException | RuntimeException primary) {
-                rollbackClean(root, installation.root(), trash, primary);
+                rollbackClean(root, installation, trash, primary);
                 throw primary;
             }
         }
@@ -559,11 +559,25 @@ final class ManagedLocalAiCache {
         }
     }
 
-    private static void rollbackClean(Path cache, Path source, Path trash, Throwable primary) {
+    static void rollbackClean(Path cache, Installation installation, Path trash, Throwable primary) {
         try {
+            Path source = installation.root();
             if (Files.exists(trash, LinkOption.NOFOLLOW_LINKS)
                     && !Files.exists(source, LinkOption.NOFOLLOW_LINKS)) {
                 Files.move(trash, source, StandardCopyOption.ATOMIC_MOVE);
+            }
+            if (Files.exists(source, LinkOption.NOFOLLOW_LINKS)
+                    && !Files.exists(trash, LinkOption.NOFOLLOW_LINKS)) {
+                Map<String, Installation> owned = readOwnerManifest(cache);
+                Installation existing = owned.get(installation.id());
+                if (existing != null && !existing.equals(installation)) {
+                    throw new IllegalStateException("Cache clean rollback conflicts with the owner manifest.");
+                }
+                if (existing == null) {
+                    Map<String, Installation> restored = new LinkedHashMap<>(owned);
+                    restored.put(installation.id(), installation);
+                    writeOwnerManifest(cache, restored);
+                }
                 clearTransaction(cache);
             }
         } catch (IOException | RuntimeException rollback) {

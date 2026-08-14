@@ -178,8 +178,7 @@ public final class ManagedLocalAiSetupProvider implements SetupProvider {
                 if (failure instanceof IOException io) throw io;
                 throw new IOException("Managed local AI rollback failed.", failure);
             }
-            if (rolledBack.state() != ManagedLocalAiSnapshot.State.READY
-                    || !rolledBack.runtimeAssetSha256().equals(rollbackCandidate.runtimeSha256())) {
+            if (!matches(rolledBack, rollbackCandidate)) {
                 throw new IOException("Managed local AI rollback completed without the reviewed active pair.");
             }
             return new SetupReceipt(plan.digest(), Instant.now(), plan.actions());
@@ -203,10 +202,9 @@ public final class ManagedLocalAiSetupProvider implements SetupProvider {
         if (options.offline() && initial.state() != ManagedLocalAiSnapshot.State.READY) {
             throw new IOException("Managed local AI is not ready and offline setup cannot download artifacts.");
         }
-        ManagedLocalAiSnapshot ready = initial.state() == ManagedLocalAiSnapshot.State.READY
-                ? initial : await(lifecycle.provision(snapshot -> progress.accept(SetupProgress.of(
-                        SetupProfile.LOCAL_AI, snapshot.phase().name(), snapshot.completedBytes(),
-                        snapshot.totalBytes()))), options);
+        ManagedLocalAiSnapshot ready = await(lifecycle.provision(snapshot -> progress.accept(SetupProgress.of(
+                SetupProfile.LOCAL_AI, snapshot.phase().name(), snapshot.completedBytes(),
+                snapshot.totalBytes()))), options);
         if (ready.state() != ManagedLocalAiSnapshot.State.READY) {
             throw new IOException("Managed local AI provisioning completed without a ready installation.");
         }
@@ -230,8 +228,31 @@ public final class ManagedLocalAiSetupProvider implements SetupProvider {
     private static void requireCacheRoot(SetupOptions options, ManagedLocalAiSnapshot snapshot) {
         if (!snapshot.cacheDirectory().equals(options.paths().cacheRoot())) {
             throw new IllegalArgumentException("LOCAL_AI cache root must exactly match the effective managed local "
-                    + "AI cache used by inference: " + snapshot.cacheDirectory());
+                    + "AI cache used by inference.");
         }
+    }
+
+    private static boolean matches(ManagedLocalAiSnapshot snapshot,
+                                   ManagedLocalAiActivationHistory.Activation activation) {
+        ManagedLocalAiSnapshot.Model model = snapshot.models().get(snapshot.selectedModelId());
+        return snapshot.state() == ManagedLocalAiSnapshot.State.READY
+                && activation.modelArtifactId().equals(snapshot.selectedModelId())
+                && activation.runtimeVersion().equals(snapshot.runtimeVersion())
+                && activation.runtimePlatform().equals(snapshot.platform())
+                && activation.runtimeLicense().equals(snapshot.runtimeLicense())
+                && activation.runtimeFile().equals(snapshot.runtimeAssetFile())
+                && activation.runtimeSha256().equals(snapshot.runtimeAssetSha256())
+                && activation.runtimeArtifactBytes() == snapshot.runtimeAssetBytes()
+                && activation.runtimeExecutable().equals(snapshot.runtimeExecutable())
+                && model != null
+                && activation.modelName().equals(model.displayName())
+                && activation.modelTier().equals(model.tier())
+                && activation.modelLicense().equals(model.license())
+                && activation.modelRevision().equals(model.revision())
+                && activation.modelFile().equals(model.file())
+                && activation.modelSha256().equals(model.sha256())
+                && activation.modelArtifactBytes() == model.artifactBytes()
+                && activation.modelAutomatic() == model.automatic();
     }
 
     private static SetupReadiness artifactReadiness(ManagedLocalAiSnapshot snapshot,

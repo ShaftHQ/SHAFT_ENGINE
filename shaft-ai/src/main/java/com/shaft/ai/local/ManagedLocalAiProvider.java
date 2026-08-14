@@ -10,16 +10,12 @@ import com.shaft.pilot.ai.ProcessingLocation;
 
 import java.time.Duration;
 import java.util.Objects;
+import java.util.function.BooleanSupplier;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.ReentrantLock;
 
 /** SHAFT-owned provider entrypoint for managed local inference. */
 public final class ManagedLocalAiProvider implements AiProvider {
-    private static final ServiceLifecycle SERVICE_LIFECYCLE = new ServiceLifecycle(new ManagedLocalAiService());
-    static {
-        Runtime.getRuntime().addShutdownHook(Thread.ofPlatform().name("shaft-managed-local-ai-shutdown")
-                .unstarted(SERVICE_LIFECYCLE::closeSession));
-    }
     private final Lifecycle lifecycle;
 
     /** Creates the service-loadable managed provider. */
@@ -73,8 +69,37 @@ public final class ManagedLocalAiProvider implements AiProvider {
         AiResponse execute(AiRequest request);
     }
 
+    interface RuntimeClient {
+        ManagedLocalAiProcess.Session launch(ManagedLocalAiService.ReadyRuntime runtime, Duration timeout,
+                                             BooleanSupplier shuttingDown) throws Exception;
+        AiResponse infer(ManagedLocalAiProcess.Session session, AiRequest request, long deadline) throws Exception;
+    }
+
+    private static final RuntimeClient PROCESS_CLIENT = new RuntimeClient() {
+        @Override
+        public ManagedLocalAiProcess.Session launch(ManagedLocalAiService.ReadyRuntime runtime, Duration timeout,
+                                                    BooleanSupplier shuttingDown) throws Exception {
+            return ManagedLocalAiProcess.launch(runtime.cache(), runtime.executable(), runtime.model(), runtime.log(),
+                    runtime.alias(), runtime.threads(), timeout, shuttingDown, ManagedLocalAiProcess::start,
+                    (process, port, key, alias, identityTimeout) -> ManagedLocalAiProcess.requireIdentity(
+                            process, port, key, alias, identityTimeout, ManagedLocalAiProcess::requestIdentity));
+        }
+
+        @Override
+        public AiResponse infer(ManagedLocalAiProcess.Session session, AiRequest request, long deadline)
+                throws Exception {
+            return ManagedLocalAiProcess.infer(session, request, ManagedLocalAiProcess::requestInference, deadline);
+        }
+    };
+    private static final ServiceLifecycle SERVICE_LIFECYCLE = new ServiceLifecycle(new ManagedLocalAiService());
+    static {
+        Runtime.getRuntime().addShutdownHook(Thread.ofPlatform().name("shaft-managed-local-ai-shutdown")
+                .unstarted(SERVICE_LIFECYCLE::closeSession));
+    }
+
     private static final class ServiceLifecycle implements Lifecycle {
         private final ManagedLocalAiService service;
+        private final RuntimeClient runtimeClient;
         private final ReentrantLock executionLock = new ReentrantLock();
         private volatile ManagedLocalAiProcess.Session session;
         private volatile ManagedLocalAiOperation activeProvisioning;
@@ -82,7 +107,12 @@ public final class ManagedLocalAiProvider implements AiProvider {
         private volatile boolean shuttingDown;
 
         private ServiceLifecycle(ManagedLocalAiService service) {
+            this(service, PROCESS_CLIENT);
+        }
+
+        private ServiceLifecycle(ManagedLocalAiService service, RuntimeClient runtimeClient) {
             this.service = Objects.requireNonNull(service, "service");
+            this.runtimeClient = Objects.requireNonNull(runtimeClient, "runtimeClient");
         }
 
         @Override
@@ -151,17 +181,12 @@ public final class ManagedLocalAiProvider implements AiProvider {
                         || !session.matches(runtime.executable(), runtime.model(), runtime.alias(), runtime.threads())) {
                     closeSession(deadline);
                     Duration launchTimeout = min(runtime.launchTimeout(), ManagedLocalAiProcess.remaining(deadline));
-                    session = ManagedLocalAiProcess.launch(runtime.cache(), runtime.executable(), runtime.model(),
-                            runtime.log(), runtime.alias(), runtime.threads(), launchTimeout, () -> shuttingDown,
-                            ManagedLocalAiProcess::start,
-                            (process, port, key, alias, timeout) -> ManagedLocalAiProcess.requireIdentity(
-                                    process, port, key, alias, timeout, ManagedLocalAiProcess::requestIdentity));
+                    session = runtimeClient.launch(runtime, launchTimeout, () -> shuttingDown);
                     if (retireIfShuttingDown(deadline)) {
                         return unavailable(request, "Managed local inference is shutting down.");
                     }
                 }
-                AiResponse response = ManagedLocalAiProcess.infer(session, request,
-                        ManagedLocalAiProcess::requestInference, deadline);
+                AiResponse response = runtimeClient.infer(session, request, deadline);
                 if (!session.process().isAlive()) {
                     closeSession(deadline);
                 }

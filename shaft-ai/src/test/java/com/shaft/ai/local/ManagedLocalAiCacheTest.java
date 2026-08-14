@@ -3,6 +3,7 @@ package com.shaft.ai.local;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
+import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -79,6 +80,23 @@ class ManagedLocalAiCacheTest {
         assertFalse(Files.exists(installed.root()));
         assertTrue(Files.exists(unrelated));
         assertEquals(0, second.deletedFiles());
+    }
+
+    @Test
+    void failedCleanRollbackRestoresTheInstallationAndItsOwnerRecord() throws Exception {
+        Path cache = temp.resolve("rollback-cache");
+        ManagedLocalAiCache.Installation installed = ManagedLocalAiCache.withLock(cache,
+                Duration.ofSeconds(1), () -> ManagedLocalAiCache.adopt(cache, "model-rollback",
+                        readyStage(cache, "rollback-model", "weights")));
+        Path trash = cache.resolve("trash").resolve("model-rollback-test");
+        Files.createDirectories(trash.getParent());
+        Files.move(installed.root(), trash);
+        Files.writeString(cache.resolve("owner-manifest.json"), "{\"schemaVersion\":1,\"installations\":[]}");
+
+        ManagedLocalAiCache.rollbackClean(cache, installed, trash, new IOException("simulated delete failure"));
+
+        assertEquals(installed, ManagedLocalAiCache.verify(cache, installed.id()));
+        assertFalse(Files.exists(trash));
     }
 
     @Test

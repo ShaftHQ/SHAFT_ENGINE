@@ -172,6 +172,46 @@ class ManagedLocalAiSetupProviderTest {
     }
 
     @Test
+    void rollbackDoesNotIssueAReceiptForTheWrongEffectiveModel(@TempDir Path temp) throws Exception {
+        SetupOptions options = options(temp);
+        ManagedLocalAiSnapshot ready = snapshot(options, ManagedLocalAiSnapshot.State.READY);
+        FakeLifecycle lifecycle = new FakeLifecycle(ready);
+        lifecycle.rollbackCandidate = ManagedLocalAiActivationHistory.from(
+                ready, ManagedLocalAiManifest.loadDefault());
+        ManagedLocalAiSnapshot.Model model = ready.models().get(ready.selectedModelId());
+        ManagedLocalAiSnapshot.Model wrongModel = new ManagedLocalAiSnapshot.Model(
+                model.displayName(), model.tier(), model.license(), model.revision(), model.file(),
+                "0".repeat(64), model.automatic(), model.eligible(), model.reasons(),
+                model.requiredDiskBytes(), model.artifactBytes());
+        lifecycle.rollbackResult = new ManagedLocalAiSnapshot(ready.state(), ready.action(), ready.cacheDirectory(),
+                ready.enabled(), ready.transparentProvisioning(), ready.requestedModelId(), ready.selectedModelId(),
+                ready.platform(), ready.runtimeId(), ready.runtimeVersion(), ready.runtimeLicense(),
+                ready.runtimeAssetFile(), ready.runtimeAssetSha256(), ready.runtimeExecutable(),
+                ready.runtimeAssetBytes(), ready.runtimeCacheHealth(), ready.modelCacheHealth(), ready.phase(),
+                ready.completedBytes(), ready.totalBytes(), ready.effectiveMemoryBytes(), ready.cpuCount(),
+                ready.freeDiskBytes(), Map.of(ready.selectedModelId(), wrongModel));
+        InfrastructureSetupService setup = setup(lifecycle);
+        SetupPlan plan = setup.plan(options, SetupSelection.defaults(), SetupOperation.ROLLBACK);
+
+        assertThrows(IOException.class, () -> setup.install(plan, approval(plan), options));
+        assertEquals(1, lifecycle.rollbacks.get());
+        assertEquals(0, lifecycle.provisions.get());
+    }
+
+    @Test
+    void readyReviewedInstallRepublishesTheCurrentActivationAfterRollback(@TempDir Path temp) throws Exception {
+        SetupOptions options = options(temp);
+        FakeLifecycle lifecycle = new FakeLifecycle(snapshot(options, ManagedLocalAiSnapshot.State.READY));
+        InfrastructureSetupService setup = setup(lifecycle);
+        SetupPlan plan = setup.plan(options);
+
+        SetupReceipt receipt = setup.install(plan, approval(plan), options);
+
+        assertEquals(plan.actions(), receipt.completedActions());
+        assertEquals(1, lifecycle.provisions.get());
+    }
+
+    @Test
     void rolledBackEffectivePairDoesNotSatisfyAnOfflineCurrentInstall(@TempDir Path temp) {
         SetupOptions options = options(temp).withOffline(true);
         FakeLifecycle lifecycle = new FakeLifecycle(snapshot(options, ManagedLocalAiSnapshot.State.READY));
@@ -272,6 +312,8 @@ class ManagedLocalAiSetupProviderTest {
                 () -> setup.plan(options));
         assertTrue(status.getMessage().contains("cache root"));
         assertTrue(plan.getMessage().contains("cache root"));
+        assertFalse(status.getMessage().contains(elsewhere.cacheDirectory().toString()));
+        assertFalse(plan.getMessage().contains(elsewhere.cacheDirectory().toString()));
     }
 
     @Test
@@ -461,6 +503,7 @@ class ManagedLocalAiSetupProviderTest {
         private final AtomicInteger rollbacks = new AtomicInteger();
         private ManagedLocalAiSnapshot provisioned;
         private ManagedLocalAiActivationHistory.Activation rollbackCandidate;
+        private ManagedLocalAiSnapshot rollbackResult;
         private boolean cleanComplete = true;
         private List<ManagedLocalAiSnapshot> progressSnapshots = List.of();
         private Exception failure;
@@ -472,6 +515,7 @@ class ManagedLocalAiSetupProviderTest {
             this.inspected = inspected;
             this.reviewed = inspected;
             this.provisioned = inspected;
+            this.rollbackResult = inspected;
         }
 
         @Override
@@ -518,7 +562,7 @@ class ManagedLocalAiSetupProviderTest {
         public ManagedLocalAiSnapshot rollback(ManagedLocalAiActivationHistory.Activation expected) {
             assertEquals(rollbackCandidate, expected);
             rollbacks.incrementAndGet();
-            return inspected;
+            return rollbackResult;
         }
     }
 }
