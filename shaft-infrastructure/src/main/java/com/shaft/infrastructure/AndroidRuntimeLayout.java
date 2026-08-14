@@ -11,7 +11,8 @@ record AndroidRuntimeLayout(Path nodeExecutable, Path appiumEntryPoint, Path app
         String platformKey = platform.name().toLowerCase() + '-' + architecture.artifactName();
         Path nodeRoot = paths.tools().resolve("node").resolve(ReportingSetupPlanner.NODE_VERSION)
                 .resolve(platformKey);
-        Path node = executable(nodeRoot, "node", platform);
+        Path node = platform == SetupPlatform.WINDOWS ? nodeRoot.resolve("node.exe")
+                : nodeRoot.resolve("bin/node");
         Path appium = paths.tools().resolve("appium").resolve(AndroidSetupPlanner.APPIUM_VERSION);
         Path sdk = paths.tools().resolve("android-sdk").resolve(AndroidSetupPlanner.COMMAND_LINE_TOOLS_VERSION
                 + "-api" + request.apiLevel() + '-' + request.abi());

@@ -439,7 +439,10 @@ final class DefaultAndroidToolchainOperations implements AndroidToolchainOperati
                 .resolve(platform.name().toLowerCase() + '-' + architecture.artifactName());
     }
 
-    private Path nodeExecutable() { return executable(nodeRoot(), "node"); }
+    private Path nodeExecutable() {
+        return platform == SetupPlatform.WINDOWS ? nodeRoot().resolve("node.exe")
+                : nodeRoot().resolve("bin/node");
+    }
 
     private Path npmCli() {
         return platform == SetupPlatform.WINDOWS ? nodeRoot().resolve("node_modules/npm/bin/npm-cli.js")

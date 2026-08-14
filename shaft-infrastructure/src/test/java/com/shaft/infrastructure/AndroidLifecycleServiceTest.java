@@ -156,6 +156,7 @@ class AndroidLifecycleServiceTest {
         assertEquals(2, runtime.commands.size());
         assertTrue(runtime.commands.get(0).contains("-avd"));
         assertTrue(runtime.commands.get(0).contains(fixture.request().avdName()));
+        assertTrue(runtime.commands.get(1).getFirst().replace('\\', '/').endsWith("/linux-x64/bin/node"));
         assertTrue(runtime.commands.get(1).containsAll(List.of("--address", "127.0.0.1", "--port", "4823")));
         assertFalse(runtime.commands.get(1).contains("--relaxed-security"));
         assertEquals(List.of("emulator:emulator-5554", "appium:http://127.0.0.1:4823/"), health.events);
