@@ -2,11 +2,16 @@ package com.shaft.ai.local;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.json.JsonMapper;
 
+import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
+import java.util.List;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
@@ -79,6 +84,118 @@ class ManagedLocalAiCacheTest {
         assertFalse(Files.exists(installed.root()));
         assertTrue(Files.exists(unrelated));
         assertEquals(0, second.deletedFiles());
+    }
+
+    @Test
+    void lateBatchConflictRollsBackEveryStagedInstallationBeforeMetadataCommit() throws Exception {
+        Path cache = temp.resolve("batch-conflict-cache");
+        ManagedLocalAiCache.Installation first = ManagedLocalAiCache.withLock(cache, Duration.ofSeconds(1),
+                () -> ManagedLocalAiCache.adopt(cache, "a-runtime", readyStage(cache, "a-runtime", "runtime")));
+        ManagedLocalAiCache.Installation second = ManagedLocalAiCache.withLock(cache, Duration.ofSeconds(1),
+                () -> ManagedLocalAiCache.adopt(cache, "b-model", readyStage(cache, "b-model", "model")));
+        Path changed = second.root().resolve("bin/llama-server");
+
+        ManagedLocalAiCache.CleanResult result = ManagedLocalAiCache.withLock(cache, Duration.ofSeconds(1),
+                () -> ManagedLocalAiCache.clean(cache, null,
+                        () -> Files.writeString(changed, "changed-after-preflight"), () -> { }));
+
+        assertEquals(List.of("b-model"), result.conflicts());
+        assertEquals(first, ManagedLocalAiCache.verify(cache, first.id()));
+        assertEquals("changed-after-preflight", Files.readString(changed));
+        assertFalse(Files.exists(cache.resolve("clean-transaction.json")));
+    }
+
+    @Test
+    void committedBatchRecoversForwardAfterMetadataFailure() throws Exception {
+        Path cache = temp.resolve("batch-recovery-cache");
+        ManagedLocalAiCache.Installation installed = ManagedLocalAiCache.withLock(cache, Duration.ofSeconds(1),
+                () -> ManagedLocalAiCache.adopt(cache, "model-recovery",
+                        readyStage(cache, "model-recovery", "model")));
+
+        assertThrows(IOException.class, () -> ManagedLocalAiCache.withLock(cache, Duration.ofSeconds(1),
+                () -> ManagedLocalAiCache.clean(cache, null, () -> { },
+                        () -> { throw new IOException("simulated metadata failure"); })));
+        assertTrue(Files.exists(cache.resolve("clean-transaction.json")));
+
+        ManagedLocalAiCache.withLock(cache, Duration.ofSeconds(1), () -> null);
+
+        assertFalse(Files.exists(installed.root()));
+        assertFalse(ManagedLocalAiCache.ownsInstallation(cache, installed.id()));
+        assertFalse(Files.exists(cache.resolve("clean-transaction.json")));
+    }
+
+    @Test
+    void committedBatchRecoveryAcceptsTrashAlreadyDeletedEarlierInTheCleanupLoop() throws Exception {
+        Path cache = temp.resolve("partial-batch-recovery-cache");
+        ManagedLocalAiCache.Installation first = ManagedLocalAiCache.withLock(cache, Duration.ofSeconds(1),
+                () -> ManagedLocalAiCache.adopt(cache, "a-runtime", readyStage(cache, "partial-a", "runtime")));
+        ManagedLocalAiCache.Installation second = ManagedLocalAiCache.withLock(cache, Duration.ofSeconds(1),
+                () -> ManagedLocalAiCache.adopt(cache, "b-model", readyStage(cache, "partial-b", "model")));
+        var secondPayloads = new java.util.LinkedHashMap<String, byte[]>();
+        for (ManagedLocalAiCache.OwnedFile file : second.files()) {
+            Path owned = cache.resolve(file.path());
+            secondPayloads.put(second.root().relativize(owned).toString(), Files.readAllBytes(owned));
+        }
+        AtomicReference<byte[]> committedJournal = new AtomicReference<>();
+
+        ManagedLocalAiCache.withLock(cache, Duration.ofSeconds(1),
+                () -> ManagedLocalAiCache.clean(cache, null, () -> { },
+                        () -> committedJournal.set(Files.readAllBytes(cache.resolve("clean-transaction.json")))));
+        JsonNode journal = JsonMapper.builder().build().readTree(committedJournal.get());
+        JsonNode secondEntry = java.util.stream.StreamSupport.stream(journal.path("entries").spliterator(), false)
+                .filter(entry -> second.id().equals(entry.path("id").asText())).findFirst().orElseThrow();
+        Path remainingTrash = cache.resolve(secondEntry.path("target").asText());
+        for (var payload : secondPayloads.entrySet()) {
+            Path target = remainingTrash.resolve(payload.getKey());
+            Files.createDirectories(target.getParent());
+            Files.write(target, payload.getValue());
+        }
+        Files.write(cache.resolve("clean-transaction.json"), committedJournal.get());
+
+        ManagedLocalAiCache.withLock(cache, Duration.ofSeconds(1), () -> null);
+
+        assertFalse(Files.exists(first.root()));
+        assertFalse(Files.exists(remainingTrash));
+        assertFalse(Files.exists(cache.resolve("clean-transaction.json")));
+    }
+
+    @Test
+    void committedBatchRecoveryPreservesUnknownContentAlreadyRestoredToTheOriginalRoot() throws Exception {
+        Path cache = temp.resolve("unknown-content-recovery-cache");
+        ManagedLocalAiCache.Installation installed = ManagedLocalAiCache.withLock(cache, Duration.ofSeconds(1),
+                () -> ManagedLocalAiCache.adopt(cache, "model-unknown",
+                        readyStage(cache, "model-unknown", "model")));
+        AtomicReference<byte[]> committedJournal = new AtomicReference<>();
+        ManagedLocalAiCache.withLock(cache, Duration.ofSeconds(1),
+                () -> ManagedLocalAiCache.clean(cache, null, () -> { },
+                        () -> committedJournal.set(Files.readAllBytes(cache.resolve("clean-transaction.json")))));
+        Path unknown = installed.root().resolve("user-note.txt");
+        Files.createDirectories(unknown.getParent());
+        Files.writeString(unknown, "preserve-me");
+        Files.write(cache.resolve("clean-transaction.json"), committedJournal.get());
+
+        ManagedLocalAiCache.withLock(cache, Duration.ofSeconds(1), () -> null);
+
+        assertEquals("preserve-me", Files.readString(unknown));
+        assertFalse(ManagedLocalAiCache.ownsInstallation(cache, installed.id()));
+        assertFalse(Files.exists(cache.resolve("clean-transaction.json")));
+    }
+
+    @Test
+    void failedCleanRollbackRestoresTheInstallationAndItsOwnerRecord() throws Exception {
+        Path cache = temp.resolve("rollback-cache");
+        ManagedLocalAiCache.Installation installed = ManagedLocalAiCache.withLock(cache,
+                Duration.ofSeconds(1), () -> ManagedLocalAiCache.adopt(cache, "model-rollback",
+                        readyStage(cache, "rollback-model", "weights")));
+        Path trash = cache.resolve("trash").resolve("model-rollback-test");
+        Files.createDirectories(trash.getParent());
+        Files.move(installed.root(), trash);
+        Files.writeString(cache.resolve("owner-manifest.json"), "{\"schemaVersion\":1,\"installations\":[]}");
+
+        ManagedLocalAiCache.rollbackClean(cache, installed, trash, new IOException("simulated delete failure"));
+
+        assertEquals(installed, ManagedLocalAiCache.verify(cache, installed.id()));
+        assertFalse(Files.exists(trash));
     }
 
     @Test

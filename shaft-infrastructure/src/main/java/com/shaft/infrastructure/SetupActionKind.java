@@ -7,5 +7,7 @@ public enum SetupActionKind {
     INSTALL,
     PREWARM,
     CONFIGURE,
-    START
+    START,
+    CLEAN,
+    ROLLBACK
 }

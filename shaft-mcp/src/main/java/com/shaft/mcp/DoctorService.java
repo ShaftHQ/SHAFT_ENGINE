@@ -18,6 +18,8 @@ import com.shaft.doctor.repair.HealingLocatorProposal;
 import com.shaft.doctor.repair.HealingLocatorProposalRequest;
 import com.shaft.doctor.repair.HealingLocatorProposalService;
 import com.shaft.doctor.repair.RepairPublicationResult;
+import com.shaft.ai.local.ManagedLocalAiService;
+import com.shaft.ai.local.ManagedLocalAiSnapshot;
 import com.shaft.pilot.ai.ApprovalPolicy;
 import com.shaft.pilot.ai.EvidenceCategory;
 import com.shaft.pilot.config.PilotConfiguration;
@@ -34,6 +36,8 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.EnumSet;
+import java.util.Objects;
+import java.util.function.Supplier;
 
 /**
  * MCP adapter for deterministic SHAFT Doctor analysis with optional configured provider advisory.
@@ -43,17 +47,37 @@ public class DoctorService {
     private static final ObjectMapper JSON = new ObjectMapper();
     private final McpWorkspacePolicy workspacePolicy;
     private final McpDoctorRemediationService remediationService;
+    private final Supplier<ManagedLocalAiSnapshot> managedLocalAiStatus;
 
     /**
      * Creates the default local MCP Doctor service.
      */
     public DoctorService() {
-        this(McpWorkspacePolicy.current(), new McpDoctorRemediationService());
+        this(McpWorkspacePolicy.current(), new McpDoctorRemediationService(),
+                () -> new ManagedLocalAiService().inspect());
     }
 
     DoctorService(McpWorkspacePolicy workspacePolicy, McpDoctorRemediationService remediationService) {
+        this(workspacePolicy, remediationService, () -> new ManagedLocalAiService().inspect());
+    }
+
+    DoctorService(McpWorkspacePolicy workspacePolicy, McpDoctorRemediationService remediationService,
+                  Supplier<ManagedLocalAiSnapshot> managedLocalAiStatus) {
         this.workspacePolicy = workspacePolicy;
         this.remediationService = remediationService;
+        this.managedLocalAiStatus = Objects.requireNonNull(managedLocalAiStatus, "managedLocalAiStatus");
+    }
+
+    /**
+     * Returns the effective, credential-free managed local AI lifecycle status without provisioning or inference.
+     *
+     * @return a privacy-safe projection of the shared lifecycle snapshot
+     */
+    @Tool(name = "doctor_managed_local_ai_status",
+            description = "returns read-only managed local AI configuration, eligibility, cache health, runtime and model diagnostics")
+    public McpManagedLocalAiStatus managedLocalAiStatus() {
+        return McpManagedLocalAiStatus.from(
+                Objects.requireNonNull(managedLocalAiStatus.get(), "managed local AI status"));
     }
 
     /**

@@ -1,6 +1,7 @@
 package com.shaft.infrastructure;
 
 import java.io.IOException;
+import java.util.function.Consumer;
 
 /** Provider SPI used by Java, CLI, MCP, and IDE setup adapters. */
 public interface SetupProvider {
@@ -16,6 +17,15 @@ public interface SetupProvider {
         return plan(options, platform, architecture);
     }
 
+    default SetupPlan plan(SetupOptions options, SetupSelection selection, SetupOperation operation,
+                           SetupPlatform platform, SetupArchitecture architecture) {
+        java.util.Objects.requireNonNull(operation, "operation");
+        if (operation != SetupOperation.INSTALL) {
+            throw new IllegalArgumentException("Profile " + profile() + " does not support " + operation + '.');
+        }
+        return plan(options, selection, platform, architecture);
+    }
+
     SetupReport status(SetupOptions options, SetupPlatform platform, SetupArchitecture architecture);
 
     default SetupReport status(SetupOptions options, SetupSelection selection,
@@ -27,6 +37,12 @@ public interface SetupProvider {
     }
 
     SetupReceipt install(SetupPlan plan, SetupApproval approval, SetupOptions options) throws IOException;
+
+    default SetupReceipt install(SetupPlan plan, SetupApproval approval, SetupOptions options,
+                                 Consumer<SetupProgress> progress) throws IOException {
+        java.util.Objects.requireNonNull(progress, "progress");
+        return install(plan, approval, options);
+    }
 
     default ManagedEnvironment start(SetupPlan plan, SetupApproval approval, SetupOptions options)
             throws IOException {

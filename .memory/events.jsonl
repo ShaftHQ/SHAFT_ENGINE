@@ -1136,3 +1136,4 @@
 {"actor":"agent","event":"memory.created","id":"decision.managed-local-ai-baseline-is-pinned-llamacpp-behind-ai-execution-policy","timestamp":"2026-08-13T12:12:15+03:00"}
 {"actor":"agent","event":"memory.created","id":"gotcha.cleanup-without-explicit-ownership-leaves-orphans-and-dirty-knowledge-caches","timestamp":"2026-08-14T20:49:54+03:00"}
 {"actor":"agent","event":"memory.updated","id":"gotcha.cleanup-without-explicit-ownership-leaves-orphans-and-dirty-knowledge-caches","timestamp":"2026-08-14T20:52:33+03:00"}
+{"actor":"agent","event":"memory.updated","id":"decision.managed-local-ai-baseline-is-pinned-llamacpp-behind-ai-execution-policy","timestamp":"2026-08-14T22:59:38+03:00"}

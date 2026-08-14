@@ -9,7 +9,9 @@ import java.util.HashMap;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class ProviderConfigurationTest {
     @Test
@@ -77,6 +79,24 @@ class ProviderConfigurationTest {
         assertEquals("gemini-3.5-flash", configuration.model());
         assertEquals("GEMINI_API_KEY", configuration.apiKeyEnvironmentVariable());
         assertEquals(ProcessingLocation.REMOTE, configuration.processingLocation());
+        SHAFT.Properties.clearForCurrentThread();
+    }
+
+    @Test
+    void managedLocalEnablementSelectsManagedProviderAndGrantsOnlyLocalConsent() {
+        SHAFT.Properties.managedLocalAi.set().enabled(true).model("qwen3-1.7b-q8_0");
+
+        PilotConfiguration current = PilotConfiguration.current();
+        ProviderConfiguration managed = current.provider("managed-local");
+
+        assertTrue(current.enabled());
+        assertEquals("managed-local", current.provider());
+        assertTrue(current.approvalPolicy().localInferenceAllowed());
+        assertFalse(current.approvalPolicy().onPremInferenceAllowed());
+        assertFalse(current.approvalPolicy().remoteInferenceAllowed());
+        assertEquals("qwen3-1.7b-q8_0", managed.model());
+        assertEquals(ProcessingLocation.LOCAL, managed.processingLocation());
+        assertEquals("", managed.apiKeyEnvironmentVariable());
         SHAFT.Properties.clearForCurrentThread();
     }
 }

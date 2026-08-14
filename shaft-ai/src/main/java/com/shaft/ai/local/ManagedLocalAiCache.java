@@ -40,6 +40,7 @@ final class ManagedLocalAiCache {
     private static final String OWNER_MANIFEST = "owner-manifest.json";
     private static final String LOCK = ".managed-local-ai.lock";
     private static final String TRANSACTION = "transaction.json";
+    private static final String CLEAN_BATCH_TRANSACTION = "clean-transaction.json";
     private static final Pattern ID = Pattern.compile("[A-Za-z0-9][A-Za-z0-9._+-]{0,199}");
     private static final ObjectMapper JSON = JsonMapper.builder()
             .enable(StreamReadFeature.STRICT_DUPLICATE_DETECTION).build();
@@ -66,6 +67,7 @@ final class ManagedLocalAiCache {
                 }
                 if (lock != null) {
                     try (FileLock acquired = lock) {
+                        recoverCleanBatch(root);
                         recover(root);
                         return action.get();
                     }
@@ -79,42 +81,85 @@ final class ManagedLocalAiCache {
     }
 
     static Installation adopt(Path cache, String id, Path stage) throws IOException {
+        return adopt(cache, id, stage, null);
+    }
+
+    static Installation adopt(Path cache, String id, Path stage, List<Path> expectedFiles) throws IOException {
         validateId(id);
         Path root = cache.toAbsolutePath().normalize();
-        Path stagingRoot = root.resolve("staging");
-        Path source = stage.toAbsolutePath().normalize();
-        if (!source.getParent().equals(stagingRoot)
-                || !source.getFileName().toString().contains(".extract-")
-                || !Files.isDirectory(source, LinkOption.NOFOLLOW_LINKS)
-                || !Files.isRegularFile(source.resolve(".shaft-ready"), LinkOption.NOFOLLOW_LINKS)) {
-            throw new IllegalArgumentException("Installation stage is not a verified cache-owned stage.");
-        }
+        Path source = requireVerifiedStage(root, stage);
         validateTree(source);
+        List<String> expectedRelative = expectedRelativeFiles(source, expectedFiles);
         Path installations = root.resolve("installations");
         Files.createDirectories(installations);
         Path destination = installations.resolve(id + "-" + UUID.randomUUID());
         writeTransaction(root, new Transaction("ADOPT", id, relative(root, source), relative(root, destination),
                 List.of()));
-        try {
-            Files.move(source, destination, StandardCopyOption.ATOMIC_MOVE);
-        } catch (AtomicMoveNotSupportedException unsupported) {
-            throw new IOException("Cache filesystem does not support atomic installation adoption.", unsupported);
-        }
+        moveAdoptedStage(source, destination);
         Installation installation;
         try {
-            installation = inventory(root, id, destination);
-            Map<String, Installation> owned = readOwnerManifest(root);
-            if (owned.containsKey(id)) {
-                throw new IllegalStateException("An installation with this identifier is already owned.");
-            }
-            owned.put(id, installation);
-            writeOwnerManifest(root, owned);
+            installation = inventoryAdoption(root, id, destination, expectedRelative);
+            publishAdoption(root, id, installation);
             clearTransaction(root);
         } catch (IOException | RuntimeException primary) {
             rollbackAdopt(root, source, destination, primary);
             throw primary;
         }
         return installation;
+    }
+
+    private static Path requireVerifiedStage(Path root, Path stage) {
+        Path source = stage.toAbsolutePath().normalize();
+        if (!source.getParent().equals(root.resolve("staging"))
+                || !source.getFileName().toString().contains(".extract-")
+                || !Files.isDirectory(source, LinkOption.NOFOLLOW_LINKS)
+                || !Files.isRegularFile(source.resolve(".shaft-ready"), LinkOption.NOFOLLOW_LINKS)) {
+            throw new IllegalArgumentException("Installation stage is not a verified cache-owned stage.");
+        }
+        return source;
+    }
+
+    private static List<String> expectedRelativeFiles(Path source, List<Path> expectedFiles) throws IOException {
+        if (expectedFiles == null) {
+            return null;
+        }
+        List<String> expectedRelative = expectedFiles.stream().map(path -> expectedRelativeFile(source, path))
+                .distinct().sorted().toList();
+        requireExactStage(source, expectedRelative);
+        return expectedRelative;
+    }
+
+    private static String expectedRelativeFile(Path source, Path path) {
+        Path normalized = path.toAbsolutePath().normalize();
+        if (!normalized.startsWith(source) || normalized.equals(source)) {
+            throw new IllegalArgumentException("Expected installation file escapes its stage.");
+        }
+        return source.relativize(normalized).toString().replace('\\', '/');
+    }
+
+    private static void moveAdoptedStage(Path source, Path destination) throws IOException {
+        try {
+            Files.move(source, destination, StandardCopyOption.ATOMIC_MOVE);
+        } catch (AtomicMoveNotSupportedException unsupported) {
+            throw new IOException("Cache filesystem does not support atomic installation adoption.", unsupported);
+        }
+    }
+
+    private static Installation inventoryAdoption(Path root, String id, Path destination,
+                                                  List<String> expectedRelative) throws IOException {
+        if (expectedRelative == null) {
+            return inventory(root, id, destination);
+        }
+        return inventoryExact(root, id, destination, expectedRelative);
+    }
+
+    private static void publishAdoption(Path root, String id, Installation installation) throws IOException {
+        Map<String, Installation> owned = readOwnerManifest(root);
+        if (owned.containsKey(id)) {
+            throw new IllegalStateException("An installation with this identifier is already owned.");
+        }
+        owned.put(id, installation);
+        writeOwnerManifest(root, owned);
     }
 
     static Installation verify(Path cache, String id) throws IOException {
@@ -145,34 +190,125 @@ final class ManagedLocalAiCache {
     }
 
     static CleanResult clean(Path cache) throws IOException {
+        return clean(cache, null);
+    }
+
+    static CleanResult clean(Path cache, Set<String> installationIds) throws IOException {
+        return clean(cache, installationIds, () -> { }, () -> { });
+    }
+
+    static CleanResult clean(Path cache, Set<String> installationIds, IoRunnable afterPreflight,
+                             IoRunnable commitMetadata) throws IOException {
         Path root = cache.toAbsolutePath().normalize();
         Map<String, Installation> owned = readOwnerManifest(root);
-        int deleted = 0;
+        if (installationIds != null) {
+            installationIds.forEach(ManagedLocalAiCache::validateId);
+        }
         List<String> conflicts = new ArrayList<>();
-        Map<String, Installation> remaining = new LinkedHashMap<>(owned);
-        for (Installation installation : owned.values()) {
+        List<Installation> selected = owned.values().stream()
+                .filter(value -> installationIds == null || installationIds.contains(value.id())).toList();
+        for (Installation installation : selected) {
             if (!matches(root, installation, true)) {
                 conflicts.add(installation.id());
-                continue;
-            }
-            Path trashRoot = root.resolve("trash");
-            Files.createDirectories(trashRoot);
-            Path trash = trashRoot.resolve(installation.id() + "-" + UUID.randomUUID());
-            writeTransaction(root, new Transaction("CLEAN", installation.id(),
-                    relative(root, installation.root()), relative(root, trash), installation.files()));
-            try {
-                Files.move(installation.root(), trash, StandardCopyOption.ATOMIC_MOVE);
-                remaining.remove(installation.id());
-                writeOwnerManifest(root, remaining);
-                deleted += installation.files().size();
-                deleteOwnedFromTrash(root, installation.root(), trash, installation.files());
-                clearTransaction(root);
-            } catch (IOException | RuntimeException primary) {
-                rollbackClean(root, installation.root(), trash, primary);
-                throw primary;
             }
         }
-        return new CleanResult(deleted, List.copyOf(conflicts));
+        if (!conflicts.isEmpty()) {
+            return new CleanResult(0, List.copyOf(conflicts));
+        }
+        afterPreflight.run();
+        if (selected.isEmpty()) {
+            commitMetadata.run();
+            return new CleanResult(0, List.of());
+        }
+        Path trashRoot = root.resolve("trash");
+        Files.createDirectories(trashRoot);
+        List<CleanBatchEntry> entries = selected.stream().map(installation -> new CleanBatchEntry(installation,
+                trashRoot.resolve(installation.id() + "-" + UUID.randomUUID()))).toList();
+        writeCleanBatch(root, new CleanBatch("STAGING", entries), false);
+        List<CleanBatchEntry> staged = new ArrayList<>();
+        boolean committing = false;
+        try {
+            for (CleanBatchEntry entry : entries) {
+                if (!matches(root, entry.installation(), true)) {
+                    rollbackStagedBatch(staged);
+                    clearCleanBatch(root);
+                    return new CleanResult(0, List.of(entry.installation().id()));
+                }
+                Files.move(entry.installation().root(), entry.trash(), StandardCopyOption.ATOMIC_MOVE);
+                staged.add(entry);
+            }
+            writeCleanBatch(root, new CleanBatch("COMMITTING", entries), true);
+            committing = true;
+            commitCleanBatch(root, entries, owned, commitMetadata);
+        } catch (IOException | RuntimeException primary) {
+            if (!committing) {
+                try {
+                    rollbackStagedBatch(staged);
+                    clearCleanBatch(root);
+                } catch (IOException | RuntimeException rollback) {
+                    primary.addSuppressed(rollback);
+                }
+            }
+            throw primary;
+        }
+        return new CleanResult(selected.stream().mapToInt(value -> value.files().size()).sum(), List.of());
+    }
+
+    private static void commitCleanBatch(Path root, List<CleanBatchEntry> entries,
+                                         Map<String, Installation> owned, IoRunnable commitMetadata)
+            throws IOException {
+        commitMetadata.run();
+        Map<String, Installation> remaining = new LinkedHashMap<>(owned);
+        entries.forEach(entry -> remaining.remove(entry.installation().id()));
+        writeOwnerManifest(root, remaining);
+        for (CleanBatchEntry entry : entries) {
+            deleteOwnedFromTrash(root, entry.installation().root(), entry.trash(), entry.installation().files());
+        }
+        clearCleanBatch(root);
+    }
+
+    private static void rollbackStagedBatch(List<CleanBatchEntry> staged) throws IOException {
+        for (CleanBatchEntry entry : staged.reversed()) {
+            Path source = entry.installation().root();
+            if (Files.exists(entry.trash(), LinkOption.NOFOLLOW_LINKS)
+                    && !Files.exists(source, LinkOption.NOFOLLOW_LINKS)) {
+                Files.move(entry.trash(), source, StandardCopyOption.ATOMIC_MOVE);
+            } else if (Files.exists(entry.trash(), LinkOption.NOFOLLOW_LINKS)) {
+                throw new IllegalStateException("Cache batch rollback is conflicted; journal retained.");
+            }
+        }
+    }
+
+    private static void recoverCleanBatch(Path root) throws IOException {
+        CleanBatch batch = readCleanBatch(root);
+        if (batch == null) return;
+        Map<String, Installation> owned = readOwnerManifest(root);
+        for (CleanBatchEntry entry : batch.entries()) {
+            Installation recorded = owned.get(entry.installation().id());
+            if (recorded != null && !recorded.equals(entry.installation())) {
+                throw new IllegalStateException("Cache batch transaction does not match owned installation.");
+            }
+        }
+        if ("STAGING".equals(batch.phase())) {
+            rollbackStagedBatch(batch.entries().stream()
+                    .filter(entry -> Files.exists(entry.trash(), LinkOption.NOFOLLOW_LINKS)).toList());
+            clearCleanBatch(root);
+            return;
+        }
+        for (CleanBatchEntry entry : batch.entries()) {
+            boolean sourceExists = Files.exists(entry.installation().root(), LinkOption.NOFOLLOW_LINKS);
+            boolean trashExists = Files.exists(entry.trash(), LinkOption.NOFOLLOW_LINKS);
+            boolean stillOwned = owned.containsKey(entry.installation().id());
+            if (sourceExists && trashExists || stillOwned && (sourceExists || !trashExists)) {
+                throw new IllegalStateException("Committed cache batch has an invalid staged installation.");
+            }
+            ManagedLocalAiActivationHistory.clearIfReferencesLocked(root, entry.installation().id());
+        }
+        commitCleanBatch(root, batch.entries(), owned, () -> { });
+    }
+
+    private static void clearCleanBatch(Path root) throws IOException {
+        Files.deleteIfExists(root.resolve(CLEAN_BATCH_TRANSACTION));
     }
 
     static void recover(Path cache) throws IOException {
@@ -206,11 +342,14 @@ final class ManagedLocalAiCache {
             if (installation != null && Files.exists(target, LinkOption.NOFOLLOW_LINKS)
                     && !Files.exists(source, LinkOption.NOFOLLOW_LINKS)) {
                 Files.move(target, source, StandardCopyOption.ATOMIC_MOVE);
-            } else if (installation == null && Files.exists(target, LinkOption.NOFOLLOW_LINKS)
-                    && !Files.exists(source, LinkOption.NOFOLLOW_LINKS)) {
-                deleteOwnedFromTrash(root, source, target, transaction.files());
-            } else if (installation == null && Files.exists(source, LinkOption.NOFOLLOW_LINKS)) {
-                throw new IllegalStateException("Cache recovery source is unowned; journal retained.");
+            } else if (installation == null) {
+                if (Files.exists(source, LinkOption.NOFOLLOW_LINKS)) {
+                    throw new IllegalStateException("Cache recovery source is unowned; journal retained.");
+                }
+                ManagedLocalAiActivationHistory.clearIfReferencesLocked(root, transaction.id());
+                if (Files.exists(target, LinkOption.NOFOLLOW_LINKS)) {
+                    deleteOwnedFromTrash(root, source, target, transaction.files());
+                }
             }
         } else {
             throw new IllegalStateException("Cache transaction operation is invalid.");
@@ -248,6 +387,45 @@ final class ManagedLocalAiCache {
             throw new IllegalArgumentException("Installation stage contains no owned files.");
         }
         return new Installation(id, installationRoot, List.copyOf(files));
+    }
+
+    private static Installation inventoryExact(Path cache, String id, Path installationRoot,
+                                               List<String> expectedFiles) throws IOException {
+        requireExactStage(installationRoot, expectedFiles);
+        List<OwnedFile> files = new ArrayList<>();
+        for (String relative : expectedFiles) {
+            Path path = installationRoot.resolve(relative).normalize();
+            ensureNoLinks(installationRoot, path);
+            if (!Files.isRegularFile(path, LinkOption.NOFOLLOW_LINKS)) {
+                throw new IllegalStateException("Expected installation file is missing or changed.");
+            }
+            files.add(new OwnedFile(relative(cache, path), Files.size(path), sha256(path)));
+        }
+        files.sort(Comparator.comparing(OwnedFile::path));
+        if (files.isEmpty()) {
+            throw new IllegalArgumentException("Installation stage contains no owned files.");
+        }
+        return new Installation(id, installationRoot, List.copyOf(files));
+    }
+
+    private static void requireExactStage(Path root, List<String> expectedFiles) throws IOException {
+        Set<String> expected = new HashSet<>();
+        expected.add("");
+        for (String relative : expectedFiles) {
+            Path path = contained(root, relative);
+            Path cursor = path;
+            while (!cursor.equals(root)) {
+                expected.add(root.relativize(cursor).toString().replace('\\', '/'));
+                cursor = cursor.getParent();
+            }
+        }
+        try (Stream<Path> paths = Files.walk(root)) {
+            Set<String> actual = paths.map(path -> root.relativize(path).toString().replace('\\', '/'))
+                    .collect(java.util.stream.Collectors.toSet());
+            if (!actual.equals(expected)) {
+                throw new IllegalStateException("Installation stage contains unknown content.");
+            }
+        }
     }
 
     private static boolean matches(Path cache, Installation installation, boolean rejectUnknown) throws IOException {
@@ -407,6 +585,97 @@ final class ManagedLocalAiCache {
         }
     }
 
+    private static void writeCleanBatch(Path root, CleanBatch batch, boolean replace) throws IOException {
+        ObjectNode value = JSON.createObjectNode();
+        value.put("schemaVersion", 1);
+        value.put("phase", batch.phase());
+        ArrayNode items = value.putArray("entries");
+        for (CleanBatchEntry batchEntry : batch.entries()) {
+            Installation installation = batchEntry.installation();
+            ObjectNode entry = items.addObject();
+            entry.put("id", installation.id());
+            entry.put("source", relative(root, installation.root()));
+            entry.put("target", relative(root, batchEntry.trash()));
+            ArrayNode files = entry.putArray("files");
+            installation.files().forEach(file -> {
+                ObjectNode ownedFile = files.addObject();
+                ownedFile.put("path", file.path());
+                ownedFile.put("size", file.size());
+                ownedFile.put("sha256", file.sha256());
+            });
+        }
+        Path target = root.resolve(CLEAN_BATCH_TRANSACTION);
+        if (!replace && Files.exists(target, LinkOption.NOFOLLOW_LINKS)) {
+            throw new IllegalStateException("An unfinished cache clean transaction already exists.");
+        }
+        Path stage = root.resolve(CLEAN_BATCH_TRANSACTION + ".stage-" + UUID.randomUUID());
+        try {
+            Files.write(stage, JSON.writeValueAsBytes(value), StandardOpenOption.CREATE_NEW, StandardOpenOption.WRITE);
+            try (FileChannel channel = FileChannel.open(stage, StandardOpenOption.WRITE)) {
+                channel.force(true);
+            }
+            if (replace) {
+                Files.move(stage, target, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
+            } else {
+                Files.move(stage, target, StandardCopyOption.ATOMIC_MOVE);
+            }
+        } finally {
+            Files.deleteIfExists(stage);
+        }
+    }
+
+    private static CleanBatch readCleanBatch(Path root) throws IOException {
+        Path path = root.resolve(CLEAN_BATCH_TRANSACTION);
+        if (!Files.exists(path, LinkOption.NOFOLLOW_LINKS)) return null;
+        if (!Files.isRegularFile(path, LinkOption.NOFOLLOW_LINKS)) {
+            throw new IllegalStateException("Cache clean transaction journal is not a regular file.");
+        }
+        JsonNode value = JSON.readTree(Files.newInputStream(path));
+        if (value == null || !value.isObject() || value.size() != 3
+                || value.path("schemaVersion").asInt(-1) != 1 || !value.path("entries").isArray()) {
+            throw new IllegalStateException("Cache clean transaction journal is invalid.");
+        }
+        String phase = requiredText(value, "phase");
+        if (!Set.of("STAGING", "COMMITTING").contains(phase)) {
+            throw new IllegalStateException("Cache clean transaction phase is invalid.");
+        }
+        List<CleanBatchEntry> entries = new ArrayList<>();
+        for (JsonNode item : value.path("entries")) {
+            if (!item.isObject() || item.size() != 4 || !item.path("files").isArray()) {
+                throw new IllegalStateException("Cache clean transaction entry is invalid.");
+            }
+            String id = requiredText(item, "id");
+            validateId(id);
+            Path source = contained(root, requiredText(item, "source"));
+            Path target = contained(root, requiredText(item, "target"));
+            requireTransactionPath(root, source, "installations", id + "-");
+            requireTransactionPath(root, target, "trash", id + "-");
+            List<OwnedFile> files = new ArrayList<>();
+            for (JsonNode file : item.path("files")) {
+                if (!file.isObject() || file.size() != 3 || !file.path("size").isIntegralNumber()) {
+                    throw new IllegalStateException("Cache clean transaction file is invalid.");
+                }
+                String filePath = requiredText(file, "path");
+                contained(root, filePath);
+                long size = file.path("size").asLong(-1);
+                String digest = requiredText(file, "sha256");
+                if (size < 0 || !digest.matches("[0-9a-f]{64}")) {
+                    throw new IllegalStateException("Cache clean transaction file metadata is invalid.");
+                }
+                files.add(new OwnedFile(filePath, size, digest));
+            }
+            if (files.isEmpty()) {
+                throw new IllegalStateException("Cache clean transaction inventory is empty.");
+            }
+            entries.add(new CleanBatchEntry(new Installation(id, source, List.copyOf(files)), target));
+        }
+        if (entries.isEmpty() || entries.stream().map(entry -> entry.installation().id()).distinct().count()
+                != entries.size()) {
+            throw new IllegalStateException("Cache clean transaction inventory is invalid.");
+        }
+        return new CleanBatch(phase, List.copyOf(entries));
+    }
+
     private static Transaction readTransaction(Path cache) throws IOException {
         Path path = cache.resolve(TRANSACTION);
         if (!Files.exists(path, LinkOption.NOFOLLOW_LINKS)) {
@@ -467,11 +736,25 @@ final class ManagedLocalAiCache {
         }
     }
 
-    private static void rollbackClean(Path cache, Path source, Path trash, Throwable primary) {
+    static void rollbackClean(Path cache, Installation installation, Path trash, Throwable primary) {
         try {
+            Path source = installation.root();
             if (Files.exists(trash, LinkOption.NOFOLLOW_LINKS)
                     && !Files.exists(source, LinkOption.NOFOLLOW_LINKS)) {
                 Files.move(trash, source, StandardCopyOption.ATOMIC_MOVE);
+            }
+            if (Files.exists(source, LinkOption.NOFOLLOW_LINKS)
+                    && !Files.exists(trash, LinkOption.NOFOLLOW_LINKS)) {
+                Map<String, Installation> owned = readOwnerManifest(cache);
+                Installation existing = owned.get(installation.id());
+                if (existing != null && !existing.equals(installation)) {
+                    throw new IllegalStateException("Cache clean rollback conflicts with the owner manifest.");
+                }
+                if (existing == null) {
+                    Map<String, Installation> restored = new LinkedHashMap<>(owned);
+                    restored.put(installation.id(), installation);
+                    writeOwnerManifest(cache, restored);
+                }
                 clearTransaction(cache);
             }
         } catch (IOException | RuntimeException rollback) {
@@ -656,6 +939,11 @@ final class ManagedLocalAiCache {
         T get() throws Exception;
     }
 
+    @FunctionalInterface
+    interface IoRunnable {
+        void run() throws IOException;
+    }
+
     record Installation(String id, Path root, List<OwnedFile> files) {
     }
 
@@ -666,5 +954,11 @@ final class ManagedLocalAiCache {
     }
 
     record Transaction(String operation, String id, String source, String target, List<OwnedFile> files) {
+    }
+
+    record CleanBatch(String phase, List<CleanBatchEntry> entries) {
+    }
+
+    record CleanBatchEntry(Installation installation, Path trash) {
     }
 }

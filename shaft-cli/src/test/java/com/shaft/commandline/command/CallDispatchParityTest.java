@@ -62,4 +62,15 @@ class CallDispatchParityTest {
         assertEquals(0, exit);
         assertTrue(out.toString().contains("\"content\""), "raw output should include the JSON result");
     }
+
+    @Test
+    void doctorLocalAiStatusAliasDispatchesTheReadOnlyStatusTool() {
+        StringWriter out = new StringWriter();
+        int exit = new CommandLine(new DoctorCommand(connector))
+                .setOut(new PrintWriter(out, true))
+                .execute("local-ai-status");
+
+        assertEquals(0, exit);
+        assertTrue(out.toString().contains("called doctor_managed_local_ai_status"));
+    }
 }

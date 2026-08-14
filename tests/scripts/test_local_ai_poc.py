@@ -79,7 +79,15 @@ class ManifestAndSelectionTest(unittest.TestCase):
         corpus = MODULE.load_corpus(CORPUS_PATH)
 
         self.assertEqual(6, len(self.manifest["runtime"]["assets"]))
-        self.assertGreaterEqual(len(self.manifest["models"]), 4)
+        self.assertEqual(5, len(self.manifest["models"]))
+        compact = next(model for model in self.manifest["models"] if model["id"] == "qwen3-0.6b-q8_0")
+        self.assertEqual("Qwen/Qwen3-0.6B-GGUF", compact["source"])
+        self.assertEqual("23749fefcc72300e3a2ad315e1317431b06b590a", compact["revision"])
+        self.assertEqual("Qwen3-0.6B-Q8_0.gguf", compact["file"])
+        self.assertEqual(639446688, compact["size"])
+        self.assertEqual("9465e63a22add5354d9bb4b99e90117043c7124007664907259bd16d043bb031", compact["sha256"])
+        self.assertEqual("Apache-2.0", compact["license"])
+        self.assertFalse(compact["automatic"])
         self.assertEqual(
             {
                 "LOCATOR",
@@ -175,10 +183,22 @@ class ManifestAndSelectionTest(unittest.TestCase):
             "cpuCount": 8,
             "gpuVramGb": 0,
         }
+        production_profile = common | {
+            "totalRamGb": 32,
+            "availableRamGb": 20,
+            "effectiveRamGb": 20,
+            "freeDiskGb": 20,
+        }
+        self.assertIsNone(MODULE.recommend_model(self.manifest, production_profile))
+        research_manifest = json.loads(json.dumps(self.manifest))
+        for model in research_manifest["models"]:
+            if model["id"] in {"qwen3-1.7b-q8_0", "qwen3-4b-q4_k_m"}:
+                model["automatic"] = True
+
         self.assertEqual(
             "qwen3-1.7b-q8_0",
             MODULE.recommend_model(
-                self.manifest,
+                research_manifest,
                 common
                 | {"totalRamGb": 16, "availableRamGb": 8, "effectiveRamGb": 8, "freeDiskGb": 4},
             )["id"],
@@ -186,7 +206,7 @@ class ManifestAndSelectionTest(unittest.TestCase):
         self.assertEqual(
             "qwen3-4b-q4_k_m",
             MODULE.recommend_model(
-                self.manifest,
+                research_manifest,
                 common
                 | {
                     "totalRamGb": 24,
@@ -198,7 +218,7 @@ class ManifestAndSelectionTest(unittest.TestCase):
         )
         self.assertIsNone(
             MODULE.recommend_model(
-                self.manifest,
+                research_manifest,
                 common
                 | {
                     "totalRamGb": 32,
@@ -210,7 +230,7 @@ class ManifestAndSelectionTest(unittest.TestCase):
         )
         self.assertIsNone(
             MODULE.recommend_model(
-                self.manifest,
+                research_manifest,
                 common
                 | {
                     "totalRamGb": 32,
@@ -222,7 +242,7 @@ class ManifestAndSelectionTest(unittest.TestCase):
         )
         self.assertIsNone(
             MODULE.recommend_model(
-                self.manifest,
+                research_manifest,
                 common
                 | {
                     "platform": "unsupported-x",
@@ -235,7 +255,7 @@ class ManifestAndSelectionTest(unittest.TestCase):
         )
         self.assertIsNone(
             MODULE.recommend_model(
-                self.manifest,
+                research_manifest,
                 common
                 | {
                     "runtimeCompatible": False,
@@ -249,7 +269,7 @@ class ManifestAndSelectionTest(unittest.TestCase):
         self.assertEqual(
             "qwen3-1.7b-q8_0",
             MODULE.recommend_model(
-                self.manifest,
+                research_manifest,
                 common
                 | {
                     "cpuCount": 4,
@@ -566,6 +586,17 @@ class DoctorEvaluationTest(unittest.TestCase):
         self.assertTrue(evaluation["unsafeAction"])
         self.assertFalse(evaluation["recommendationUseful"])
 
+        no_action = valid_advisory()
+        no_action["recommendedActions"] = []
+        evaluation = MODULE.evaluate_advisory(
+            no_action,
+            {"expectedCategory": "LOCATOR", "actionConcepts": ["selector"],
+             "safeActionPatterns": ["(?i)^use (the )?(stable )?data-testid selector[.]?$"],
+             "evidence": [{"id": "e1"}, {"id": "e2"}]},
+        )
+        self.assertFalse(evaluation["unsafeAction"], "omission is not an unsafe instruction")
+        self.assertFalse(evaluation["recommendationUseful"])
+
         blank = valid_advisory()
         blank["observations"][0]["statement"] = " "
         blank["observations"][0]["evidenceIds"] = []
@@ -579,6 +610,8 @@ class DoctorEvaluationTest(unittest.TestCase):
         action_schema = schema["properties"]["recommendedActions"]["items"]["properties"]["action"]
         self.assertEqual(1000, action_schema["maxLength"])
         self.assertIn("pattern", action_schema)
+        self.assertTrue(action_schema["pattern"].startswith("^"))
+        self.assertTrue(action_schema["pattern"].endswith("$"))
 
     def test_corrective_retry_is_bounded_and_recorded(self):
         calls = []
@@ -689,6 +722,39 @@ class LifecycleTest(unittest.TestCase):
             "totalRamGb": 24, "availableRamGb": 18, "effectiveRamGb": 16,
             "freeDiskGb": 20, "freeDiskBytes": 20 * 1024**3, "gpuVramGb": 0,
         }
+
+    def test_process_tree_rss_monitor_aborts_and_records_the_exact_peak(self):
+        class Process:
+            pid = 42
+            killed = False
+
+            def poll(self):
+                return None
+
+            def kill(self):
+                self.killed = True
+
+        process = Process()
+        readings = iter((MODULE.MAX_PROCESS_TREE_RSS_BYTES,
+                         MODULE.MAX_PROCESS_TREE_RSS_BYTES + 1))
+        monitor = MODULE.ProcessTreeRssMonitor(
+            process, sampler=lambda _pid: next(readings), aborter=lambda owned: owned.kill()
+        )
+
+        self.assertFalse(monitor.poll_once())
+        self.assertTrue(monitor.poll_once())
+        self.assertTrue(process.killed)
+        self.assertEqual(MODULE.MAX_PROCESS_TREE_RSS_BYTES + 1, monitor.peak_bytes)
+        with self.assertRaisesRegex(RuntimeError, "4 GiB"):
+            monitor.raise_if_failed()
+
+    @mock.patch.object(MODULE.subprocess, "run", side_effect=AssertionError("unresolved executable was launched"))
+    @mock.patch.object(MODULE.shutil, "which", return_value=None)
+    @mock.patch.object(MODULE.platform, "system", return_value="Darwin")
+    def test_process_tree_rss_requires_a_resolved_process_inventory_executable(
+            self, _system, _which, _run):
+        with self.assertRaisesRegex(RuntimeError, "ps executable"):
+            MODULE._process_tree_rss_bytes(42)
 
     def test_model_ids_and_every_derived_path_are_cache_contained(self):
         for identifier in ("../../escape", "C:escape", "NUL", "bad/id", "bad\\id"):

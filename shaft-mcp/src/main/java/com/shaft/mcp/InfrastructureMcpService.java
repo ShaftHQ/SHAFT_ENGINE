@@ -3,6 +3,7 @@ package com.shaft.mcp;
 import com.shaft.infrastructure.InfrastructureSetupService;
 import com.shaft.infrastructure.SetupApproval;
 import com.shaft.infrastructure.SetupCatalog;
+import com.shaft.infrastructure.SetupOperation;
 import com.shaft.infrastructure.SetupPlan;
 import com.shaft.infrastructure.SetupPlanJson;
 import com.shaft.infrastructure.SetupProfile;
@@ -70,7 +71,10 @@ public final class InfrastructureMcpService {
             @ToolParam(description = "setup profile, ownership mode, paths, policy, and components")
             McpSetupRequest request) {
         McpSetupRequest value = requireRequest(request);
-        SetupPlan plan = coordinator.plan(value.options(), value.selection());
+        SetupOperation operation = value.setupOperation();
+        SetupPlan plan = operation == SetupOperation.INSTALL
+                ? coordinator.plan(value.options(), value.selection())
+                : coordinator.plan(value.options(), value.selection(), operation);
         return new McpSetupPlanResult(plan, SetupPlanJson.write(plan), plan.digest());
     }
 
@@ -86,6 +90,9 @@ public final class InfrastructureMcpService {
         if (planJson == null || planJson.isBlank()) throw new IllegalArgumentException("planJson must not be blank.");
         SetupPlan plan = parsePlan(planJson);
         McpSetupRequest value = requireRequest(request);
+        if (SetupOperation.fromPlan(plan) != value.setupOperation()) {
+            throw new IllegalArgumentException("Setup plan operation does not match the request.");
+        }
         SetupSelection selection = installSelection(plan, value);
         return coordinator.install(plan, new SetupApproval(approvedDigest, Instant.now(),
                 new LinkedHashSet<>(acceptedLicenses == null ? List.of() : acceptedLicenses)),

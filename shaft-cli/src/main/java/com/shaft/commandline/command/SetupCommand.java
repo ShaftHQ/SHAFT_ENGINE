@@ -5,6 +5,7 @@ import com.shaft.infrastructure.InfrastructureSetupService;
 import com.shaft.infrastructure.AndroidSetupRequest;
 import com.shaft.infrastructure.AndroidRuntimeManager;
 import com.shaft.infrastructure.SetupOptions;
+import com.shaft.infrastructure.SetupOperation;
 import com.shaft.infrastructure.SetupApproval;
 import com.shaft.infrastructure.SetupArchitecture;
 import com.shaft.infrastructure.SetupCatalog;
@@ -19,6 +20,7 @@ import com.shaft.infrastructure.SetupReport;
 import com.shaft.infrastructure.SetupSelection;
 import com.shaft.infrastructure.ShaftCachePaths;
 import com.shaft.commandline.util.Json;
+import com.shaft.ai.local.ManagedLocalAiService;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Mixin;
 import picocli.CommandLine.Option;
@@ -87,6 +89,9 @@ public final class SetupCommand implements Runnable {
         @Option(names = "--mode", defaultValue = "EXTERNAL", description = "Ownership mode.")
         private SetupMode mode;
 
+        @Option(names = "--operation", defaultValue = "INSTALL", description = "Plan operation.")
+        private SetupOperation operation;
+
         @Option(names = "--output", required = true, description = "Plan JSON output file.")
         private Path output;
 
@@ -112,11 +117,11 @@ public final class SetupCommand implements Runnable {
                 if (profile != SetupProfile.OCR && !languages.isEmpty()) {
                     throw new IllegalArgumentException("--language is supported only for profile OCR.");
                 }
-                SetupOptions options = policy.options(profile, mode, roots.paths());
+                SetupOptions options = policy.options(profile, mode, roots.paths(profile));
                 SetupSelection selection = selection(profile, languages, android.request(profile));
                 SetupPlan plan = InfrastructureSetupService.builtIn(
                         SetupPlatform.current(), SetupArchitecture.current())
-                        .plan(options, selection);
+                        .plan(options, selection, operation);
                 if (!output.isAbsolute()) {
                     spec.commandLine().getErr().println("--output must be an absolute path.");
                     return 2;
@@ -165,9 +170,12 @@ public final class SetupCommand implements Runnable {
                     throw new IllegalArgumentException("--language is supported only for profile OCR.");
                 }
                 SetupSelection selection = selectionFromPlan(plan, languages, android);
-                SetupOptions options = policy.options(plan.profile(), plan.mode(), roots.paths());
+                SetupOptions options = policy.options(plan.profile(), plan.mode(), roots.paths(plan.profile()));
                 var receipt = InfrastructureSetupService.builtIn().install(plan,
-                        new SetupApproval(approvedDigest, Instant.now(), acceptedLicenses), options, selection);
+                        new SetupApproval(approvedDigest, Instant.now(), acceptedLicenses), options, selection,
+                        progress -> spec.commandLine().getErr().println(progress.phase() + "\t"
+                                + progress.completedBytes() + "/" + progress.totalBytes() + "\t"
+                                + progress.percentage() + "%"));
                 if (json) spec.commandLine().getOut().println(Json.MAPPER.writerWithDefaultPrettyPrinter()
                         .writeValueAsString(receipt));
                 else spec.commandLine().getOut().println("Installed approved plan " + receipt.planDigest());
@@ -201,7 +209,7 @@ public final class SetupCommand implements Runnable {
                 SetupPlan plan = SetupPlanStore.read(planFile);
                 if (plan.profile() != SetupProfile.MOBILE_ANDROID) return unsupported(spec, plan.profile());
                 SetupSelection selection = selectionFromPlan(plan, languages, android);
-                SetupOptions options = policy.options(plan.profile(), plan.mode(), roots.paths());
+                SetupOptions options = policy.options(plan.profile(), plan.mode(), roots.paths(plan.profile()));
                 var environment = InfrastructureSetupService.builtIn().start(plan,
                         new SetupApproval(approvedDigest, Instant.now(), acceptedLicenses), options, selection);
                 if (json) spec.commandLine().getOut().println(Json.MAPPER.writerWithDefaultPrettyPrinter()
@@ -235,7 +243,7 @@ public final class SetupCommand implements Runnable {
         public Integer call() {
             try {
                 if (profile != SetupProfile.MOBILE_ANDROID) return unsupported(spec, profile);
-                ShaftCachePaths paths = roots.paths();
+                ShaftCachePaths paths = roots.paths(profile);
                 AndroidSetupRequest request = android.request(profile);
                 boolean stopped = AndroidRuntimeManager.stop(paths, SetupPlatform.current(),
                         SetupArchitecture.current(), request,
@@ -302,7 +310,7 @@ public final class SetupCommand implements Runnable {
                 if (profile != SetupProfile.OCR && !languages.isEmpty()) {
                     throw new IllegalArgumentException("--language is supported only for profile OCR.");
                 }
-                ShaftCachePaths paths = roots.paths();
+                ShaftCachePaths paths = roots.paths(profile);
                 SetupReport status = InfrastructureSetupService.builtIn().status(
                         policy.options(profile, mode, paths),
                         selection(profile, languages, android.request(profile)));
@@ -371,7 +379,17 @@ public final class SetupCommand implements Runnable {
         private Path dataRoot;
 
         ShaftCachePaths paths() {
-            if (cacheRoot == null && dataRoot == null) return ShaftCachePaths.current();
+            return paths(null);
+        }
+
+        ShaftCachePaths paths(SetupProfile profile) {
+            if (cacheRoot == null && dataRoot == null) {
+                ShaftCachePaths defaults = ShaftCachePaths.current();
+                if (profile != SetupProfile.LOCAL_AI) return defaults;
+                Path cache = new ManagedLocalAiService().effectiveCacheDirectory();
+                return new ShaftCachePaths(cache, defaults.dataRoot(), cache.resolve("downloads"), defaults.tools(),
+                        defaults.state(), defaults.receipts());
+            }
             if (cacheRoot == null || dataRoot == null) {
                 throw new IllegalArgumentException("--cache-root and --data-root must be supplied together.");
             }

@@ -9,10 +9,38 @@ import java.util.List;
 import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class SetupPlanTest {
+    @Test
+    void boundPlansUseSchemaFourAndSerializeArtifactBytes() {
+        SetupAction artifact = new SetupAction(SetupTarget.ALLURE, SetupActionKind.INSTALL, "2.34.1",
+                URI.create("https://example.invalid/allure"), checksum(), 123, false, Set.of());
+        SetupPlan release = plan(SetupPlatform.LINUX, SetupMode.MANAGED, artifact);
+        SetupPlan bound = SetupPlan.bind(release, "sha256:" + "1".repeat(64));
+        SetupPlan changedBytes = SetupPlan.bind(plan(SetupPlatform.LINUX, SetupMode.MANAGED,
+                new SetupAction(SetupTarget.ALLURE, SetupActionKind.INSTALL, "2.34.1",
+                        URI.create("https://example.invalid/allure"), checksum(), 124, false, Set.of())),
+                "sha256:" + "1".repeat(64));
+        String json = SetupPlanJson.write(bound);
+
+        assertEquals(4, bound.schemaVersion());
+        assertEquals(123, bound.actions().getFirst().artifactBytes());
+        assertNotEquals(bound.digest(), changedBytes.digest());
+        assertTrue(json.contains("\"artifactBytes\" : 123"));
+        assertThrows(IllegalArgumentException.class,
+                () -> SetupPlanJson.read(json.replaceFirst("(?m)^    \"artifactBytes\".*(?:\\R|$)", "")));
+        SetupPlan legacy = plan(SetupPlatform.LINUX, SetupMode.MANAGED,
+                action(SetupTarget.ALLURE, "2.34.1"));
+        assertFalse(SetupPlanJson.write(legacy).contains("artifactBytes"));
+        assertEquals(legacy, SetupPlanJson.read(SetupPlanJson.write(legacy)));
+        assertThrows(IllegalArgumentException.class, () -> new SetupPlan(2, release.profile(), release.platform(),
+                release.architecture(), release.mode(), release.actions(), "", release.digest()));
+    }
+
     @Test
     void digestIsDeterministicAndBindsEveryMutationRelevantField() {
         SetupAction action = action(SetupTarget.ALLURE, "2.34.1");

@@ -301,6 +301,12 @@
       "deprecated": false
     },
     {
+      "name": "doctor_managed_local_ai_status",
+      "mutation": false,
+      "sensitive": false,
+      "deprecated": false
+    },
+    {
       "name": "doctor_propose_advisory_locator",
       "mutation": false,
       "sensitive": false,

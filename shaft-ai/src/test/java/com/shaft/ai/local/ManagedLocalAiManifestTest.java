@@ -31,7 +31,17 @@ class ManagedLocalAiManifestTest {
         assertEquals("llama.cpp", manifest.runtime().id());
         assertEquals("b10400", manifest.runtime().version());
         assertEquals(6, manifest.runtime().assets().size());
-        assertEquals(4, manifest.models().size());
+        assertEquals(5, manifest.models().size());
+        ManagedLocalAiManifest.ModelManifest compact = manifest.models().stream()
+                .filter(model -> model.id().equals("qwen3-0.6b-q8_0")).findFirst().orElseThrow();
+        assertEquals("Qwen/Qwen3-0.6B-GGUF", compact.source());
+        assertEquals("23749fefcc72300e3a2ad315e1317431b06b590a", compact.revision());
+        assertEquals("Qwen3-0.6B-Q8_0.gguf", compact.file());
+        assertEquals(639446688L, compact.size());
+        assertEquals("9465e63a22add5354d9bb4b99e90117043c7124007664907259bd16d043bb031",
+                compact.sha256());
+        assertEquals("Apache-2.0", compact.license());
+        assertFalse(compact.automatic(), "the compact baseline remains manual until its benchmark passes");
     }
 
     @Test

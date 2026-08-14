@@ -305,6 +305,15 @@
       "mutation": false,
       "sensitive": false
     },
+    "doctor_managed_local_ai_status": {
+      "intentKeywords": [
+        "managed local ai status",
+        "local ai status",
+        "local model status"
+      ],
+      "mutation": false,
+      "sensitive": false
+    },
     "doctor_propose_advisory_locator": {
       "mutation": false,
       "sensitive": false

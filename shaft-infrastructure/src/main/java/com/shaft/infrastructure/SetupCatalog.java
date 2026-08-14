@@ -57,6 +57,12 @@ public record SetupCatalog(int schemaVersion, List<SetupTargetDefinition> target
                 target(SetupTarget.REPORT_PORTAL, "ReportPortal", "Explicit local-development ReportPortal containers.", SetupCapability.INSTALLABLE, SetupCapability.STARTABLE),
                 target(SetupTarget.BROWSERSTACK_LOCAL, "BrowserStack Local", "Vendor-supported private-network tunnel lifecycle.", SetupCapability.INSTALLABLE, SetupCapability.STARTABLE),
                 target(SetupTarget.AGENT_CLI, "Agent command-line tools", "Explicit user-cache installation of supported agent clients.", SetupCapability.INSTALLABLE),
+                target(SetupTarget.MANAGED_LOCAL_AI_RUNTIME, "Managed local AI runtime",
+                        "Pinned SHAFT-owned local inference runtime.", SetupCapability.INSTALLABLE,
+                        SetupCapability.CLEANABLE, SetupCapability.ROLLBACKABLE),
+                target(SetupTarget.MANAGED_LOCAL_AI_MODEL, "Managed local AI model",
+                        "Reviewed SHAFT-owned local inference model.", SetupCapability.INSTALLABLE,
+                        SetupCapability.CLEANABLE, SetupCapability.ROLLBACKABLE),
                 target(SetupTarget.OLLAMA, "Ollama", "Existing local Ollama runtime and approved model pulls.", SetupCapability.HOST_PREREQUISITE, SetupCapability.PREWARMABLE, SetupCapability.STARTABLE),
                 target(SetupTarget.JAVA, "Java", "Host Java runtime required to run SHAFT.", SetupCapability.HOST_PREREQUISITE),
                 target(SetupTarget.MAVEN, "Maven", "Host Maven runtime used for Java projects.", SetupCapability.HOST_PREREQUISITE),
@@ -91,7 +97,8 @@ public record SetupCatalog(int schemaVersion, List<SetupTargetDefinition> target
                 profile(SetupProfile.BROWSERSTACK_LOCAL, "BrowserStack Local", SetupTarget.BROWSERSTACK_LOCAL),
                 profile(SetupProfile.AGENT_TOOLS, "Agent tools", SetupTarget.JAVA, SetupTarget.MAVEN,
                         SetupTarget.PYTHON, SetupTarget.NODE, SetupTarget.AGENT_CLI),
-                profile(SetupProfile.LOCAL_AI, "Local AI", SetupTarget.OLLAMA, SetupTarget.LM_STUDIO));
+                profile(SetupProfile.LOCAL_AI, "Local AI", SetupTarget.MANAGED_LOCAL_AI_RUNTIME,
+                        SetupTarget.MANAGED_LOCAL_AI_MODEL));
         return new SetupCatalog(1, targets, profiles);
     }
 

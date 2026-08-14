@@ -45,6 +45,24 @@ class InfrastructureSetupServiceTest {
     }
 
     @Test
+    void builtInCoordinatorDiscoversOptionalSetupProviders(@TempDir Path temp) throws Exception {
+        Path descriptor = temp.resolve("META-INF/services/").resolve(SetupProvider.class.getName());
+        Files.createDirectories(descriptor.getParent());
+        Files.writeString(descriptor, DiscoveredLocalAiProvider.class.getName(), StandardCharsets.UTF_8);
+        ClassLoader prior = Thread.currentThread().getContextClassLoader();
+        try (var loader = new java.net.URLClassLoader(new java.net.URL[]{temp.toUri().toURL()}, prior)) {
+            Thread.currentThread().setContextClassLoader(loader);
+
+            InfrastructureSetupService service = InfrastructureSetupService.builtIn(
+                    SetupPlatform.WINDOWS, SetupArchitecture.X64);
+
+            assertTrue(service.supports(SetupProfile.LOCAL_AI));
+        } finally {
+            Thread.currentThread().setContextClassLoader(prior);
+        }
+    }
+
+    @Test
     void coordinatorUsesReleasePlannerAndReportsProviderStatus(@TempDir Path temp) {
         SetupOptions options = SetupOptions.defaults(SetupProfile.REPORTING, paths(temp))
                 .withMode(SetupMode.MANAGED);
@@ -406,6 +424,17 @@ class InfrastructureSetupServiceTest {
         public SetupReceipt install(SetupPlan plan, SetupApproval approval, SetupOptions options) {
             mutations.incrementAndGet();
             return new SetupReceipt(plan.digest(), Instant.EPOCH, plan.actions());
+        }
+    }
+
+    public static final class DiscoveredLocalAiProvider extends FakeProvider {
+        public DiscoveredLocalAiProvider() {
+            super();
+        }
+
+        @Override
+        public SetupProfile profile() {
+            return SetupProfile.LOCAL_AI;
         }
     }
 }

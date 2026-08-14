@@ -3,6 +3,8 @@ package com.shaft.infrastructure;
 import java.io.IOException;
 import java.util.List;
 import java.util.Objects;
+import java.util.ServiceLoader;
+import java.util.function.Consumer;
 
 /** Shared provider-neutral setup orchestration used by every public adapter. */
 public final class InfrastructureSetupService {
@@ -22,10 +24,13 @@ public final class InfrastructureSetupService {
     }
 
     public static InfrastructureSetupService builtIn(SetupPlatform platform, SetupArchitecture architecture) {
-        return new InfrastructureSetupService(new SetupProviderRegistry(List.of(
+        List<SetupProvider> providers = new java.util.ArrayList<>(List.of(
                 new ReportingSetupProvider(), new OcrSetupProvider(), new LighthouseSetupProvider(),
-                new PlaywrightSetupProvider(), new AndroidSetupProvider())),
-                platform, architecture);
+                new PlaywrightSetupProvider(), new AndroidSetupProvider()));
+        ClassLoader contextLoader = Thread.currentThread().getContextClassLoader();
+        ClassLoader loader = contextLoader == null ? InfrastructureSetupService.class.getClassLoader() : contextLoader;
+        ServiceLoader.load(SetupProvider.class, loader).forEach(providers::add);
+        return new InfrastructureSetupService(new SetupProviderRegistry(providers), platform, architecture);
     }
 
     public SetupCatalog catalog() {
@@ -47,9 +52,13 @@ public final class InfrastructureSetupService {
     }
 
     public SetupPlan plan(SetupOptions options, SetupSelection selection) {
+        return plan(options, selection, SetupOperation.INSTALL);
+    }
+
+    public SetupPlan plan(SetupOptions options, SetupSelection selection, SetupOperation operation) {
         SetupOptions value = Objects.requireNonNull(options, "options");
         SetupPlan plan = providers.require(value.profile()).plan(value, Objects.requireNonNull(selection, "selection"),
-                platform, architecture);
+                Objects.requireNonNull(operation, "operation"), platform, architecture);
         requirePlanIdentity(plan, value);
         return SetupPlan.bind(plan, value.policyDigest());
     }
@@ -103,9 +112,20 @@ public final class InfrastructureSetupService {
     }
 
     public SetupReceipt install(SetupPlan plan, SetupApproval approval, SetupOptions options,
+                                Consumer<SetupProgress> progress) throws IOException {
+        return install(plan, approval, options, SetupSelection.defaults(), progress);
+    }
+
+    public SetupReceipt install(SetupPlan plan, SetupApproval approval, SetupOptions options,
                                 SetupSelection selection) throws IOException {
+        return install(plan, approval, options, selection, ignored -> { });
+    }
+
+    public SetupReceipt install(SetupPlan plan, SetupApproval approval, SetupOptions options,
+                                SetupSelection selection, Consumer<SetupProgress> progress) throws IOException {
         SetupProvider provider = authorize(plan, approval, options, selection, "mutate the host");
-        SetupReceipt receipt = provider.install(plan, approval, options);
+        SetupReceipt receipt = provider.install(plan, approval, options,
+                Objects.requireNonNull(progress, "progress"));
         requireReceiptIdentity(receipt, plan);
         return receipt;
     }
@@ -164,7 +184,8 @@ public final class InfrastructureSetupService {
             throw new IllegalArgumentException("Plan does not match the requested setup options.");
         }
         SetupProvider provider = providers.require(options.profile());
-        SetupPlan expected = provider.plan(options, Objects.requireNonNull(selection, "selection"), platform, architecture);
+        SetupPlan expected = provider.plan(options, Objects.requireNonNull(selection, "selection"),
+                SetupOperation.fromPlan(plan), platform, architecture);
         requirePlanIdentity(expected, options);
         if (!SetupPlan.bind(expected, options.policyDigest()).equals(plan)) {
             throw new IllegalArgumentException("Plan does not match the provider manifest shipped with this release.");
