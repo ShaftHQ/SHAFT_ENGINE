@@ -7,12 +7,14 @@ import com.shaft.infrastructure.SetupApproval;
 import com.shaft.infrastructure.SetupArchitecture;
 import com.shaft.infrastructure.SetupMode;
 import com.shaft.infrastructure.SetupOptions;
+import com.shaft.infrastructure.SetupOperation;
 import com.shaft.infrastructure.SetupPlan;
 import com.shaft.infrastructure.SetupPlatform;
 import com.shaft.infrastructure.SetupProfile;
 import com.shaft.infrastructure.SetupReceipt;
 import com.shaft.infrastructure.SetupSelection;
 import com.shaft.infrastructure.SetupTarget;
+import com.shaft.infrastructure.ShaftCachePaths;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.mockito.ArgumentCaptor;
@@ -28,12 +30,19 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class InfrastructureMcpServiceTest {
+    @Test
+    void setupRequestExposesAnExplicitMaintenanceOperation() {
+        assertTrue(java.util.Arrays.stream(McpSetupRequest.class.getRecordComponents())
+                .anyMatch(component -> component.getName().equals("operation")));
+    }
+
     private static final String CHECKSUM = "sha256:" + "a".repeat(64);
 
     @TempDir
@@ -163,6 +172,104 @@ class InfrastructureMcpServiceTest {
         assertFalse(options.autoStart());
         assertTrue(options.preferSystemTools());
         assertTrue(options.reuseOwnedProcesses());
+    }
+
+    @Test
+    void maintenancePlanRoutesTheExplicitOperationAndInstallRejectsAMismatch() throws Exception {
+        InfrastructureSetupService coordinator = mock(InfrastructureSetupService.class);
+        SetupPlan clean = SetupPlan.create(SetupProfile.LOCAL_AI, SetupPlatform.WINDOWS,
+                SetupArchitecture.X64, SetupMode.MANAGED, List.of(
+                        new SetupAction(SetupTarget.MANAGED_LOCAL_AI_RUNTIME, SetupActionKind.CLEAN,
+                                "reviewed", URI.create("https://example.invalid/runtime"), CHECKSUM,
+                                false, Set.of())));
+        when(coordinator.plan(any(SetupOptions.class), any(SetupSelection.class), eq(SetupOperation.CLEAN)))
+                .thenReturn(clean);
+        InfrastructureMcpService service = new InfrastructureMcpService(coordinator);
+        McpSetupRequest request = new McpSetupRequest("LOCAL_AI", "MANAGED", temp.resolve("cache").toString(),
+                temp.resolve("data").toString(), false, false, true, true, "PT2M", "PT30S", "",
+                "CLEAN", List.of());
+
+        assertEquals(clean, service.setupPlan(request).plan());
+        verify(coordinator).plan(any(SetupOptions.class), any(SetupSelection.class), eq(SetupOperation.CLEAN));
+        McpSetupRequest installRequest = new McpSetupRequest("LOCAL_AI", "MANAGED",
+                temp.resolve("cache").toString(), temp.resolve("data").toString(), false, false, true, true,
+                "PT2M", "PT30S", "", "INSTALL", List.of());
+        assertThrows(IllegalArgumentException.class, () -> service.setupInstall(
+                com.shaft.infrastructure.SetupPlanJson.write(clean), clean.digest(), List.of(), installRequest));
+        verify(coordinator, never()).install(any(), any(), any(), any(SetupSelection.class));
+    }
+
+    @Test
+    void localAiRollbackRequestRoutesTheExplicitOperation() {
+        InfrastructureSetupService coordinator = mock(InfrastructureSetupService.class);
+        SetupPlan rollback = SetupPlan.create(SetupProfile.LOCAL_AI, SetupPlatform.WINDOWS,
+                SetupArchitecture.X64, SetupMode.MANAGED, List.of(
+                        new SetupAction(SetupTarget.MANAGED_LOCAL_AI_RUNTIME, SetupActionKind.ROLLBACK,
+                                "reviewed", URI.create("https://example.invalid/runtime"), CHECKSUM,
+                                false, Set.of("MIT"))));
+        when(coordinator.plan(any(SetupOptions.class), any(SetupSelection.class), eq(SetupOperation.ROLLBACK)))
+                .thenReturn(rollback);
+        InfrastructureMcpService service = new InfrastructureMcpService(coordinator);
+        McpSetupRequest request = new McpSetupRequest("LOCAL_AI", "MANAGED", temp.resolve("cache").toString(),
+                temp.resolve("data").toString(), false, false, true, true, "PT2M", "PT30S", "",
+                "ROLLBACK", List.of());
+
+        assertEquals(rollback, service.setupPlan(request).plan());
+        verify(coordinator).plan(any(SetupOptions.class), any(SetupSelection.class), eq(SetupOperation.ROLLBACK));
+    }
+
+    @Test
+    void omittedLocalAiRootsUseInferenceCacheButExplicitDefaultRootsRemainExact() {
+        Path inferenceCache = temp.resolve("managed-inference-cache").toAbsolutePath();
+        com.shaft.driver.SHAFT.Properties.managedLocalAi.set().cacheDirectory(inferenceCache.toString());
+        try {
+            McpSetupRequest omitted = new McpSetupRequest("LOCAL_AI", "MANAGED", "", "",
+                    false, false, true, true, "PT2M", "PT30S", "", List.of());
+            ShaftCachePaths defaults = ShaftCachePaths.current();
+            McpSetupRequest explicit = new McpSetupRequest("LOCAL_AI", "MANAGED",
+                    defaults.cacheRoot().toString(), defaults.dataRoot().toString(),
+                    false, false, true, true, "PT2M", "PT30S", "", List.of());
+
+            assertEquals(inferenceCache, omitted.options().paths().cacheRoot());
+            assertEquals(defaults.cacheRoot(), explicit.options().paths().cacheRoot());
+        } finally {
+            com.shaft.properties.internal.Properties.clearForCurrentThread();
+        }
+    }
+
+    @Test
+    void defaultServiceLoaderRunsLocalAiStatusPlanAndCleanInstall() throws Exception {
+        Path cache = temp.resolve("mcp-managed-ai-cache").toAbsolutePath();
+        Path data = temp.resolve("mcp-managed-ai-data").toAbsolutePath();
+        com.shaft.driver.SHAFT.Properties.managedLocalAi.set().enabled(true)
+                .model("qwen3-0.6b-q8_0").cacheDirectory(cache.toString());
+        try {
+            InfrastructureMcpService service = new InfrastructureMcpService();
+            McpSetupRequest request = new McpSetupRequest("LOCAL_AI", "MANAGED",
+                    cache.toString(), data.toString(), true, false, true, true,
+                    "PT2M", "PT30S", "", "CLEAN", List.of());
+
+            service.setupStatus(request);
+            McpSetupPlanResult planned = service.setupPlan(request);
+            assertTrue(planned.plan().actions().stream()
+                    .allMatch(action -> action.kind() == SetupActionKind.CLEAN));
+            assertTrue(planned.plan().actions().stream()
+                    .anyMatch(action -> action.target() == SetupTarget.MANAGED_LOCAL_AI_RUNTIME));
+            assertTrue(planned.plan().actions().stream()
+                    .anyMatch(action -> action.target() == SetupTarget.MANAGED_LOCAL_AI_MODEL));
+            assertFalse(java.nio.file.Files.exists(cache));
+            assertFalse(java.nio.file.Files.exists(data));
+            List<String> licenses = planned.plan().actions().stream()
+                    .flatMap(action -> action.requiredLicenses().stream()).distinct().toList();
+
+            SetupReceipt receipt = service.setupInstall(
+                    planned.planJson(), planned.digest(), licenses, request);
+
+            assertEquals(planned.digest(), receipt.planDigest());
+            assertEquals(planned.plan().actions(), receipt.completedActions());
+        } finally {
+            com.shaft.properties.internal.Properties.clearForCurrentThread();
+        }
     }
 
     @Test

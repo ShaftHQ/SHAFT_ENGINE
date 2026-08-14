@@ -25,7 +25,10 @@ final class ManagedLocalAiHardware {
     }
 
     static Profile profile(Path cache, HostAccess host) {
-        ManagedLocalAiManifest manifest = ManagedLocalAiManifest.loadDefault();
+        return profile(cache, host, ManagedLocalAiManifest.loadDefault());
+    }
+
+    static Profile profile(Path cache, HostAccess host, ManagedLocalAiManifest manifest) {
         String platform = platform(host.osName(), host.architecture());
         boolean compatible = manifest.supportsRuntime(
                 host.osName(), host.architecture(), host.abi(), host.abiVersion());

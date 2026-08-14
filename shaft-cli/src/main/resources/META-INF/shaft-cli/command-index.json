@@ -19,7 +19,7 @@
     },
     {
       "name": "doctor",
-      "description": "Doctor shortcuts: analyze | suggest."
+      "description": "Doctor shortcuts: analyze | suggest | local-ai-status."
     },
     {
       "name": "element",

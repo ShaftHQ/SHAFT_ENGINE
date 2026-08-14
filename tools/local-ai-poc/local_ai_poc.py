@@ -20,6 +20,7 @@ import subprocess  # nosec B404 - only fixed local diagnostics/runtime commands 
 import sys
 import tarfile
 import tempfile
+import threading
 import time
 import urllib.error
 import urllib.request
@@ -48,6 +49,7 @@ SAFE_BASENAME_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._+-]*$")
 KNOWN_TIERS = {"lite", "balanced", "challenger"}
 KNOWN_LICENSES = {"MIT", "Apache-2.0"}
 MEMORY_RESERVE_GB = 2.0
+MAX_PROCESS_TREE_RSS_BYTES = 4 * 1024**3
 WINDOWS_RESERVED_STEMS = {
     "CON", "PRN", "AUX", "NUL", "CLOCK$",
     *(f"COM{index}" for index in range(1, 10)),
@@ -562,7 +564,9 @@ def evaluate_advisory(advisory: dict[str, Any], case: dict[str, Any]) -> dict[st
     templates_safe = bool(action_values) and bool(safe_patterns) and all(
         any(pattern.fullmatch(action) for pattern in safe_patterns) for action in action_values
     )
-    unsafe = not templates_safe or any(pattern in actions for pattern in UNSAFE_ACTION_PATTERNS) or bool(
+    unsafe = (bool(action_values) and not templates_safe) or any(
+        pattern in actions for pattern in UNSAFE_ACTION_PATTERNS
+    ) or bool(
         words & DESTRUCTIVE_ACTION_VERBS
     )
     useful = (
@@ -670,7 +674,9 @@ def server_command(
 
 
 def doctor_schema() -> dict[str, Any]:
-    text_schema = {"type": "string", "minLength": 1, "maxLength": 1000, "pattern": r".*\S.*"}
+    # llama.cpp b10400 requires grammar-converted patterns to be explicitly anchored.
+    # The independent validator below still enforces non-whitespace text.
+    text_schema = {"type": "string", "minLength": 1, "maxLength": 1000, "pattern": r"^.+$"}
     return {
         "type": "object", "additionalProperties": False,
         "required": sorted(ADVISORY_KEYS),
@@ -1205,6 +1211,220 @@ def _available_port() -> int:
         return int(listener.getsockname()[1])
 
 
+def _process_tree(root_pid: int, parent_by_pid: dict[int, int]) -> set[int]:
+    owned = {root_pid}
+    changed = True
+    while changed:
+        changed = False
+        for pid, parent in parent_by_pid.items():
+            if pid not in owned and parent in owned:
+                owned.add(pid)
+                changed = True
+    return owned
+
+
+def _linux_process_tree_rss_bytes(root_pid: int) -> int:
+    parent_by_pid: dict[int, int] = {}
+    rss_by_pid: dict[int, int] = {}
+    page_size = os.sysconf("SC_PAGE_SIZE")
+    for entry in Path("/proc").iterdir():
+        if not entry.name.isdigit():
+            continue
+        try:
+            stat_fields = (entry / "stat").read_text(encoding="utf-8").split(") ", 1)[1].split()
+            parent_by_pid[int(entry.name)] = int(stat_fields[1])
+            rss_pages = int((entry / "statm").read_text(encoding="utf-8").split()[1])
+            rss_by_pid[int(entry.name)] = rss_pages * page_size
+        except (OSError, IndexError, ValueError):
+            continue
+    if root_pid not in rss_by_pid:
+        raise RuntimeError("Owned llama-server process disappeared during RSS inspection")
+    return sum(rss_by_pid.get(pid, 0) for pid in _process_tree(root_pid, parent_by_pid))
+
+
+def _windows_process_table() -> dict[int, int]:
+    from ctypes import wintypes
+
+    class ProcessEntry(ctypes.Structure):
+        _fields_ = [
+            ("dwSize", wintypes.DWORD), ("cntUsage", wintypes.DWORD),
+            ("th32ProcessID", wintypes.DWORD), ("th32DefaultHeapID", ctypes.c_size_t),
+            ("th32ModuleID", wintypes.DWORD), ("cntThreads", wintypes.DWORD),
+            ("th32ParentProcessID", wintypes.DWORD), ("pcPriClassBase", wintypes.LONG),
+            ("dwFlags", wintypes.DWORD), ("szExeFile", wintypes.WCHAR * 260),
+        ]
+
+    kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+    kernel32.CreateToolhelp32Snapshot.restype = wintypes.HANDLE
+    snapshot = kernel32.CreateToolhelp32Snapshot(0x00000002, 0)
+    if snapshot == ctypes.c_void_p(-1).value:
+        raise ctypes.WinError(ctypes.get_last_error())
+    try:
+        entry = ProcessEntry()
+        entry.dwSize = ctypes.sizeof(entry)
+        processes: dict[int, int] = {}
+        present = kernel32.Process32FirstW(snapshot, ctypes.byref(entry))
+        while present:
+            processes[int(entry.th32ProcessID)] = int(entry.th32ParentProcessID)
+            present = kernel32.Process32NextW(snapshot, ctypes.byref(entry))
+        return processes
+    finally:
+        kernel32.CloseHandle(snapshot)
+
+
+def _windows_rss_bytes(pid: int) -> int:
+    from ctypes import wintypes
+
+    class ProcessMemoryCounters(ctypes.Structure):
+        _fields_ = [
+            ("cb", wintypes.DWORD), ("PageFaultCount", wintypes.DWORD),
+            ("PeakWorkingSetSize", ctypes.c_size_t), ("WorkingSetSize", ctypes.c_size_t),
+            ("QuotaPeakPagedPoolUsage", ctypes.c_size_t), ("QuotaPagedPoolUsage", ctypes.c_size_t),
+            ("QuotaPeakNonPagedPoolUsage", ctypes.c_size_t), ("QuotaNonPagedPoolUsage", ctypes.c_size_t),
+            ("PagefileUsage", ctypes.c_size_t), ("PeakPagefileUsage", ctypes.c_size_t),
+        ]
+
+    kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+    psapi = ctypes.WinDLL("psapi", use_last_error=True)
+    kernel32.OpenProcess.restype = wintypes.HANDLE
+    handle = kernel32.OpenProcess(0x0400 | 0x0010, False, pid)
+    if not handle:
+        raise ctypes.WinError(ctypes.get_last_error())
+    try:
+        counters = ProcessMemoryCounters()
+        counters.cb = ctypes.sizeof(counters)
+        if not psapi.GetProcessMemoryInfo(handle, ctypes.byref(counters), counters.cb):
+            raise ctypes.WinError(ctypes.get_last_error())
+        return int(counters.WorkingSetSize)
+    finally:
+        kernel32.CloseHandle(handle)
+
+
+def _process_tree_rss_bytes(root_pid: int) -> int:
+    system = platform.system()
+    if system == "Windows":
+        parents = _windows_process_table()
+        owned = _process_tree(root_pid, parents)
+        if root_pid not in parents:
+            raise RuntimeError("Owned llama-server process disappeared during RSS inspection")
+        total = 0
+        for pid in owned:
+            try:
+                total += _windows_rss_bytes(pid)
+            except OSError:
+                if pid == root_pid:
+                    raise
+        return total
+    if system == "Linux":
+        return _linux_process_tree_rss_bytes(root_pid)
+    ps_executable = shutil.which("ps")
+    if ps_executable is None:
+        raise RuntimeError("ps executable is required for process-tree RSS inspection")
+    completed = subprocess.run(  # nosec B603 - fixed read-only host process inventory.
+        [ps_executable, "-axo", "pid=,ppid=,rss="], check=True, capture_output=True, text=True, timeout=5,
+    )
+    parents: dict[int, int] = {}
+    rss: dict[int, int] = {}
+    for line in completed.stdout.splitlines():
+        fields = line.split()
+        if len(fields) == 3:
+            pid, parent, kibibytes = map(int, fields)
+            parents[pid] = parent
+            rss[pid] = kibibytes * 1024
+    if root_pid not in rss:
+        raise RuntimeError("Owned llama-server process disappeared during RSS inspection")
+    return sum(rss.get(pid, 0) for pid in _process_tree(root_pid, parents))
+
+
+def _abort_process_tree(process: subprocess.Popen) -> None:
+    pid = int(process.pid)
+    if platform.system() == "Windows":
+        from ctypes import wintypes
+        kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+        kernel32.OpenProcess.restype = wintypes.HANDLE
+        pids = list(_process_tree(pid, _windows_process_table()))
+        for owned_pid in sorted(pids, key=lambda value: value == pid):
+            handle = kernel32.OpenProcess(0x0001, False, owned_pid)
+            if handle:
+                try:
+                    kernel32.TerminateProcess(handle, 1)
+                finally:
+                    kernel32.CloseHandle(handle)
+    else:
+        import signal
+        parents: dict[int, int] = {}
+        if platform.system() == "Linux":
+            for entry in Path("/proc").iterdir():
+                if entry.name.isdigit():
+                    try:
+                        fields = (entry / "stat").read_text(encoding="utf-8").split(") ", 1)[1].split()
+                        parents[int(entry.name)] = int(fields[1])
+                    except (OSError, IndexError, ValueError):
+                        # Processes may exit or expose an incomplete stat record while the tree is sampled.
+                        continue
+        for owned_pid in sorted(_process_tree(pid, parents), key=lambda value: value == pid):
+            try:
+                os.kill(owned_pid, signal.SIGKILL)
+            except ProcessLookupError:
+                continue
+    if process.poll() is None:
+        process.kill()
+
+
+class ProcessTreeRssMonitor:
+    """Continuously enforce and retain the owned runtime process-tree RSS peak."""
+
+    def __init__(self, process: subprocess.Popen, *, sampler=_process_tree_rss_bytes,
+                 aborter=_abort_process_tree, limit_bytes: int = MAX_PROCESS_TREE_RSS_BYTES):
+        """Create a monitor for one owned process tree and an aggregate RSS ceiling."""
+        self.process = process
+        self.sampler = sampler
+        self.aborter = aborter
+        self.limit_bytes = limit_bytes
+        self.peak_bytes = 0
+        self.exceeded = False
+        self.error: Exception | None = None
+        self._stop = threading.Event()
+        self._thread: threading.Thread | None = None
+
+    def poll_once(self) -> bool:
+        if self.process.poll() is not None:
+            return False
+        current = self.sampler(int(self.process.pid))
+        self.peak_bytes = max(self.peak_bytes, current)
+        if current > self.limit_bytes:
+            self.exceeded = True
+            self.aborter(self.process)
+            return True
+        return False
+
+    def start(self) -> None:
+        self._thread = threading.Thread(target=self._run, name="shaft-local-ai-rss", daemon=True)
+        self._thread.start()
+
+    def _run(self) -> None:
+        while not self._stop.is_set() and self.process.poll() is None:
+            try:
+                if self.poll_once():
+                    return
+            except Exception as error:
+                self.error = error
+                self.aborter(self.process)
+                return
+            self._stop.wait(0.05)
+
+    def raise_if_failed(self) -> None:
+        if self.exceeded:
+            raise RuntimeError("Owned llama-server process tree exceeded the 4 GiB RSS benchmark limit")
+        if self.error is not None:
+            raise RuntimeError(f"Could not enforce process-tree RSS limit: {self.error}") from self.error
+
+    def stop(self) -> None:
+        self._stop.set()
+        if self._thread is not None and self._thread is not threading.current_thread():
+            self._thread.join(timeout=2)
+
+
 def _json_request(
     url: str,
     payload: dict[str, Any] | None = None,
@@ -1365,6 +1585,8 @@ def _markdown_result(result: dict[str, Any]) -> str:
         f"- Recommendation coverage: {aggregate['recommendationCoverage']:.0%}\n"
         f"- Unsafe actions: {aggregate['unsafeActionCount']}\n"
         f"- P95 warm latency: {aggregate['p95WarmLatencySeconds']} s\n"
+        f"- Peak owned process-tree RSS: {aggregate['peakProcessTreeRssBytes']} bytes "
+        f"(limit {aggregate['processTreeRssLimitBytes']} bytes)\n"
         f"- Passes all thresholds: {aggregate['passesThresholds']}\n"
     )
 
@@ -1383,6 +1605,8 @@ def benchmark(  # noqa: MC0001  # One lifecycle preserves primary errors and ato
     log_file = None
     log_path = None
     process = None
+    rss_monitor = None
+    peak_process_tree_rss_bytes = 0
     port = 0
     launch_error = None
     cleanup_errors: list[str] = []
@@ -1409,11 +1633,23 @@ def benchmark(  # noqa: MC0001  # One lifecycle preserves primary errors and ato
                 stdout=log_file, stderr=subprocess.STDOUT, text=True,
                 env=runtime_environment(), creationflags=creation_flags,
             )
+            if getattr(process, "pid", None) is not None:
+                rss_monitor = ProcessTreeRssMonitor(process)
+                rss_monitor.start()
             try:
                 _wait_for_identity(process, port, api_key, alias)
+                if rss_monitor is not None:
+                    rss_monitor.raise_if_failed()
                 launch_error = None
                 break
             except (RuntimeError, TimeoutError) as error:
+                if rss_monitor is not None:
+                    rss_monitor.stop()
+                    peak_process_tree_rss_bytes = max(
+                        peak_process_tree_rss_bytes, rss_monitor.peak_bytes
+                    )
+                    rss_monitor.raise_if_failed()
+                    rss_monitor = None
                 launch_error = error
                 cleanup_error = _termination_error(process)
                 if cleanup_error is not None:
@@ -1429,22 +1665,46 @@ def benchmark(  # noqa: MC0001  # One lifecycle preserves primary errors and ato
                 for repeat in range(repeats):
                     print(f"benchmark: {case['id']} repeat {repeat + 1}/{repeats}", file=sys.stderr, flush=True)
                     run = run_case(case, infer)
+                    if rss_monitor is not None:
+                        rss_monitor.raise_if_failed()
                     run["repeat"] = repeat + 1
                     run["warm"] = next(warm)
                     runs.append(run)
         except Exception:
+            if rss_monitor is not None:
+                rss_monitor.raise_if_failed()
             cleanup_error = _termination_error(process)
             process = None
+            if rss_monitor is not None:
+                rss_monitor.stop()
+                peak_process_tree_rss_bytes = max(
+                    peak_process_tree_rss_bytes, rss_monitor.peak_bytes
+                )
+                rss_monitor = None
             if cleanup_error is not None:
                 cleanup_errors.append(f"run cleanup: {type(cleanup_error).__name__}: {cleanup_error}")
             raise
         else:
+            if rss_monitor is not None:
+                rss_monitor.raise_if_failed()
             cleanup_error = _termination_error(process)
             process = None
+            if rss_monitor is not None:
+                rss_monitor.stop()
+                peak_process_tree_rss_bytes = max(
+                    peak_process_tree_rss_bytes, rss_monitor.peak_bytes
+                )
+                rss_monitor = None
             if cleanup_error is not None:
                 cleanup_errors.append(f"run cleanup: {type(cleanup_error).__name__}: {cleanup_error}")
                 raise RuntimeError(f"llama-server termination failed: {cleanup_error}") from cleanup_error
         aggregate = aggregate_results(runs)
+        aggregate["peakProcessTreeRssBytes"] = peak_process_tree_rss_bytes
+        aggregate["processTreeRssLimitBytes"] = MAX_PROCESS_TREE_RSS_BYTES
+        aggregate["passesThresholds"] = bool(
+            aggregate["passesThresholds"]
+            and peak_process_tree_rss_bytes <= MAX_PROCESS_TREE_RSS_BYTES
+        )
         result = {
             "schemaVersion": 1,
             "createdAt": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
@@ -1480,6 +1740,8 @@ def benchmark(  # noqa: MC0001  # One lifecycle preserves primary errors and ato
                 "errorType": type(error).__name__,
                 "error": str(error),
                 "cleanupErrors": cleanup_errors,
+                "peakProcessTreeRssBytes": peak_process_tree_rss_bytes,
+                "processTreeRssLimitBytes": MAX_PROCESS_TREE_RSS_BYTES,
             }
             with CacheLock(cache):
                 publish_result_run(
@@ -1496,6 +1758,8 @@ def benchmark(  # noqa: MC0001  # One lifecycle preserves primary errors and ato
             )
         raise
     finally:
+        if rss_monitor is not None:
+            rss_monitor.stop()
         if process is not None:
             cleanup_error = _termination_error(process)
             if cleanup_error is not None:

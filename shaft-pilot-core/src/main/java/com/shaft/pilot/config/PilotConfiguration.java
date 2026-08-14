@@ -59,6 +59,8 @@ public record PilotConfiguration(
      */
     public static PilotConfiguration current() {
         var properties = SHAFT.Properties.pilot;
+        var managedLocal = SHAFT.Properties.managedLocalAi;
+        boolean managedEnabled = managedLocal.enabled();
         Set<EvidenceCategory> categories = parseCategories(properties.allowedEvidenceCategories());
         RedactionPolicy redactionPolicy = new RedactionPolicy(
                 split(properties.redactionAttributes(), ",").stream().collect(Collectors.toUnmodifiableSet()),
@@ -85,12 +87,14 @@ public record PilotConfiguration(
                                 "api-key-header", properties.ollamaApiKeyHeader(),
                                 "api-key-prefix", properties.ollamaApiKeyPrefix())),
                 "lmstudio", provider("lmstudio", properties.lmStudioEndpoint(), properties.lmStudioModel(),
-                        properties.lmStudioApiKeyEnvironmentVariable(), ProcessingLocation.LOCAL));
+                        properties.lmStudioApiKeyEnvironmentVariable(), ProcessingLocation.LOCAL),
+                "managed-local", provider("managed-local", "http://127.0.0.1", managedLocal.model(), "",
+                        ProcessingLocation.LOCAL));
         return new PilotConfiguration(
-                properties.enabled(),
-                normalize(properties.provider()),
+                properties.enabled() || managedEnabled,
+                managedEnabled ? "managed-local" : normalize(properties.provider()),
                 new ApprovalPolicy(
-                        properties.localConsent(),
+                        properties.localConsent() || managedEnabled,
                         properties.onPremConsent(),
                         properties.remoteConsent(),
                         categories),

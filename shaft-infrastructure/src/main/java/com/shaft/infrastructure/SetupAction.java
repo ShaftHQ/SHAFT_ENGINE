@@ -6,7 +6,7 @@ import java.util.Set;
 
 /** Fully bound setup operation used for review, digesting, and execution. */
 public record SetupAction(SetupTarget target, SetupActionKind kind, String version, URI source,
-                          String checksum, String dependencyLockChecksum,
+                          String checksum, long artifactBytes, String dependencyLockChecksum,
                           boolean privileged, Set<String> requiredLicenses) {
     public SetupAction {
         Objects.requireNonNull(target, "target");
@@ -15,6 +15,9 @@ public record SetupAction(SetupTarget target, SetupActionKind kind, String versi
         if (version == null || version.isBlank()) throw new IllegalArgumentException("Version must not be blank.");
         if (checksum == null || !checksum.matches("sha256:[0-9a-fA-F]{64}")) {
             throw new IllegalArgumentException("Checksum must be a SHA-256 digest.");
+        }
+        if (artifactBytes < 0) {
+            throw new IllegalArgumentException("Artifact bytes must not be negative.");
         }
         if (dependencyLockChecksum == null || (!dependencyLockChecksum.isBlank()
                 && !dependencyLockChecksum.matches("sha256:[0-9a-fA-F]{64}"))) {
@@ -27,7 +30,18 @@ public record SetupAction(SetupTarget target, SetupActionKind kind, String versi
     }
 
     public SetupAction(SetupTarget target, SetupActionKind kind, String version, URI source,
+                       String checksum, String dependencyLockChecksum,
+                       boolean privileged, Set<String> requiredLicenses) {
+        this(target, kind, version, source, checksum, 0, dependencyLockChecksum, privileged, requiredLicenses);
+    }
+
+    public SetupAction(SetupTarget target, SetupActionKind kind, String version, URI source,
                        String checksum, boolean privileged, Set<String> requiredLicenses) {
-        this(target, kind, version, source, checksum, "", privileged, requiredLicenses);
+        this(target, kind, version, source, checksum, 0, "", privileged, requiredLicenses);
+    }
+
+    public SetupAction(SetupTarget target, SetupActionKind kind, String version, URI source,
+                       String checksum, long artifactBytes, boolean privileged, Set<String> requiredLicenses) {
+        this(target, kind, version, source, checksum, artifactBytes, "", privileged, requiredLicenses);
     }
 }

@@ -921,6 +921,11 @@
       "description" : null
     } ]
   }, {
+    "name" : "doctor_managed_local_ai_status",
+    "service" : "DoctorService",
+    "description" : "returns read-only managed local AI configuration, eligibility, cache health, runtime and model diagnostics",
+    "params" : [ ]
+  }, {
     "name" : "doctor_propose_advisory_locator",
     "service" : "DoctorService",
     "description" : "maps a low-trust SHAFT Heal report to one reviewable advisory locator comment proposal without editing, replacing, or publishing",

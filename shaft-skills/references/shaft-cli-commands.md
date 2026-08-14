@@ -110,4 +110,4 @@ Shortcuts over `call`, same options:
 - `shaft-cli element click|type|hover` (session required)
 - `shaft-cli capture start|stop|status|code|step-delete|step-reorder` (session required)
 - `shaft-cli guide search` (stateless)
-- `shaft-cli doctor analyze|suggest` (stateless)
+- `shaft-cli doctor analyze|suggest|local-ai-status` (stateless)

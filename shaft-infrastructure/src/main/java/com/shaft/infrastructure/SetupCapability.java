@@ -5,6 +5,8 @@ public enum SetupCapability {
     INSTALLABLE,
     PREWARMABLE,
     STARTABLE,
+    CLEANABLE,
+    ROLLBACKABLE,
     HOST_PREREQUISITE,
     PROVIDED,
     PRIVILEGED

@@ -15,7 +15,7 @@ public record SetupPlan(int schemaVersion, SetupProfile profile, SetupPlatform p
                         SetupArchitecture architecture, SetupMode mode,
                         List<SetupAction> actions, String executionPolicyDigest, String digest) {
     public SetupPlan {
-        if (schemaVersion != 2 && schemaVersion != 3) {
+        if (schemaVersion != 2 && schemaVersion != 3 && schemaVersion != 4) {
             throw new IllegalArgumentException("Unsupported plan schema version: " + schemaVersion);
         }
         Objects.requireNonNull(profile, "profile");
@@ -25,7 +25,12 @@ public record SetupPlan(int schemaVersion, SetupProfile profile, SetupPlatform p
         actions = List.copyOf(Objects.requireNonNull(actions, "actions"));
         if (actions.isEmpty()) throw new IllegalArgumentException("Plan must contain at least one action.");
         if (schemaVersion == 2) executionPolicyDigest = "";
-        else requireSha256(executionPolicyDigest, "executionPolicyDigest");
+        else if (schemaVersion == 3 || executionPolicyDigest == null || !executionPolicyDigest.isBlank()) {
+            requireSha256(executionPolicyDigest, "executionPolicyDigest");
+        }
+        if (schemaVersion < 4 && actions.stream().anyMatch(action -> action.artifactBytes() != 0)) {
+            throw new IllegalArgumentException("Setup plan schemas 2 and 3 cannot bind artifact bytes.");
+        }
         validatePolicy(mode, actions);
         if (digest == null || digest.isBlank()) throw new IllegalArgumentException("Plan digest must not be blank.");
         String expected = calculateDigest(schemaVersion, profile, platform, architecture, mode, actions,
@@ -36,16 +41,17 @@ public record SetupPlan(int schemaVersion, SetupProfile profile, SetupPlatform p
     public static SetupPlan create(SetupProfile profile, SetupPlatform platform, SetupArchitecture architecture,
                                    SetupMode mode, List<SetupAction> actions) {
         List<SetupAction> immutable = List.copyOf(actions);
-        return new SetupPlan(2, profile, platform, architecture, mode, immutable,
-                "", calculateDigest(2, profile, platform, architecture, mode, immutable, ""));
+        int schemaVersion = immutable.stream().anyMatch(action -> action.artifactBytes() != 0) ? 4 : 2;
+        return new SetupPlan(schemaVersion, profile, platform, architecture, mode, immutable,
+                "", calculateDigest(schemaVersion, profile, platform, architecture, mode, immutable, ""));
     }
 
     /** Binds an existing release plan to caller execution policy and destination roots. */
     public static SetupPlan bind(SetupPlan plan, String executionPolicyDigest) {
         Objects.requireNonNull(plan, "plan");
         requireSha256(executionPolicyDigest, "executionPolicyDigest");
-        return new SetupPlan(3, plan.profile(), plan.platform(), plan.architecture(), plan.mode(), plan.actions(),
-                executionPolicyDigest, calculateDigest(3, plan.profile(), plan.platform(), plan.architecture(),
+        return new SetupPlan(4, plan.profile(), plan.platform(), plan.architecture(), plan.mode(), plan.actions(),
+                executionPolicyDigest, calculateDigest(4, plan.profile(), plan.platform(), plan.architecture(),
                 plan.mode(), plan.actions(), executionPolicyDigest));
     }
 
@@ -66,6 +72,7 @@ public record SetupPlan(int schemaVersion, SetupProfile profile, SetupPlatform p
             append(canonical, action.version());
             append(canonical, action.source().toString());
             append(canonical, action.checksum());
+            if (schemaVersion >= 4) append(canonical, Long.toString(action.artifactBytes()));
             append(canonical, action.dependencyLockChecksum());
             append(canonical, Boolean.toString(action.privileged()));
             append(canonical, Integer.toString(action.requiredLicenses().size()));
@@ -106,6 +113,8 @@ public record SetupPlan(int schemaVersion, SetupProfile profile, SetupPlatform p
                 case DOWNLOAD, INSTALL, CONFIGURE -> SetupCapability.INSTALLABLE;
                 case PREWARM -> SetupCapability.PREWARMABLE;
                 case START -> SetupCapability.STARTABLE;
+                case CLEAN -> SetupCapability.CLEANABLE;
+                case ROLLBACK -> SetupCapability.ROLLBACKABLE;
                 case DIAGNOSE -> null;
             };
             if (required != null && !capabilities.contains(required)) {

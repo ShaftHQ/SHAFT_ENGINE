@@ -27,6 +27,23 @@ class SetupCatalogTest {
     }
 
     @Test
+    void localAiCatalogAdvertisesShaftOwnedInstallableRuntimeAndModel() {
+        SetupCatalog catalog = SetupCatalog.builtIn();
+        SetupProfileDefinition localAi = catalog.profiles().stream()
+                .filter(profile -> profile.profile() == SetupProfile.LOCAL_AI)
+                .findFirst().orElseThrow();
+
+        assertEquals(List.of("MANAGED_LOCAL_AI_RUNTIME", "MANAGED_LOCAL_AI_MODEL"),
+                localAi.targets().stream().map(Enum::name).toList());
+        Set<SetupCapability> managed = Set.of(SetupCapability.INSTALLABLE, SetupCapability.CLEANABLE,
+                SetupCapability.ROLLBACKABLE);
+        assertEquals(List.of(managed, managed),
+                localAi.targets().stream().map(target -> catalog.targets().stream()
+                        .filter(definition -> definition.target() == target)
+                        .findFirst().orElseThrow().capabilities()).toList());
+    }
+
+    @Test
     void valueObjectsAreImmutableAndRejectAmbiguousInput() {
         var mutableTargets = new java.util.ArrayList<>(List.of(SetupTarget.JAVA));
         var profile = new SetupProfileDefinition(SetupProfile.AGENT_TOOLS, "Agent tools", mutableTargets);
@@ -76,6 +93,9 @@ class SetupCatalogTest {
                 SetupTarget.LIGHTHOUSE, SetupTarget.APPIUM_INSPECTOR_PLUGIN, SetupTarget.APPIUM_UIAUTOMATOR2_DRIVER,
                 SetupTarget.APPIUM_XCUITEST_DRIVER, SetupTarget.APPIUM_WINDOWS_DRIVER, SetupTarget.APPIUM_FLUTTER_DRIVER,
                 SetupTarget.ANDROID_SDK, SetupTarget.OCR_TESSDATA, SetupTarget.AGENT_CLI);
+        put(expected, Set.of(SetupCapability.INSTALLABLE, SetupCapability.CLEANABLE,
+                        SetupCapability.ROLLBACKABLE),
+                SetupTarget.MANAGED_LOCAL_AI_RUNTIME, SetupTarget.MANAGED_LOCAL_AI_MODEL);
         put(expected, Set.of(SetupCapability.INSTALLABLE, SetupCapability.STARTABLE), SetupTarget.APPIUM_SERVER,
                 SetupTarget.ANDROID_EMULATOR, SetupTarget.SELENIUM_GRID, SetupTarget.HEALENIUM,
                 SetupTarget.REPORT_PORTAL, SetupTarget.BROWSERSTACK_LOCAL);
@@ -117,7 +137,8 @@ class SetupCatalogTest {
         expected.put(SetupProfile.BROWSERSTACK_LOCAL, List.of(SetupTarget.BROWSERSTACK_LOCAL));
         expected.put(SetupProfile.AGENT_TOOLS, List.of(SetupTarget.JAVA, SetupTarget.MAVEN, SetupTarget.PYTHON,
                 SetupTarget.NODE, SetupTarget.AGENT_CLI));
-        expected.put(SetupProfile.LOCAL_AI, List.of(SetupTarget.OLLAMA, SetupTarget.LM_STUDIO));
+        expected.put(SetupProfile.LOCAL_AI, List.of(SetupTarget.MANAGED_LOCAL_AI_RUNTIME,
+                SetupTarget.MANAGED_LOCAL_AI_MODEL));
         return expected;
     }
 

@@ -12,6 +12,7 @@ import com.shaft.pilot.ai.AiRequest;
 import com.shaft.pilot.ai.AiResponse;
 import com.shaft.pilot.ai.AiUsage;
 import com.shaft.pilot.ai.ProcessingLocation;
+import com.shaft.ai.local.ManagedLocalAiSnapshot;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -31,6 +32,31 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class DoctorServiceTest {
     private final AiProviderRegistry registry = new AiProviderRegistry();
+
+    @Test
+    void managedLocalAiStatusReturnsTheSharedLifecycleSnapshot(@TempDir Path temp) {
+        ManagedLocalAiSnapshot expected = new ManagedLocalAiSnapshot(
+                ManagedLocalAiSnapshot.State.CORRUPT, "Clean the changed managed cache.",
+                temp.toAbsolutePath(), true, false, "auto", "qwen3-0.6b-q8_0", "windows-x86_64",
+                "llama.cpp", "b10400", "MIT", "runtime.zip", "a".repeat(64), "llama-server.exe",
+                10, ManagedLocalAiSnapshot.CacheHealth.CORRUPT, ManagedLocalAiSnapshot.CacheHealth.READY,
+                ManagedLocalAiSnapshot.Phase.IDLE, 0, 0, 4_000, 4, 8_000, Map.of("qwen3-0.6b-q8_0",
+                new ManagedLocalAiSnapshot.Model("Qwen3 0.6B", "lite", "Apache-2.0", "revision", "model.gguf",
+                        "b".repeat(64), false, true, List.of(), 2_000, 639_446_688)));
+        DoctorService service = new DoctorService(McpWorkspacePolicy.of(temp),
+                new McpDoctorRemediationService(), () -> expected);
+
+        McpManagedLocalAiStatus actual = service.managedLocalAiStatus();
+        assertEquals("CORRUPT", actual.state());
+        assertEquals("SHAFT_USER_CACHE", actual.storageClass());
+        assertEquals("qwen3-0.6b-q8_0", actual.selectedModelId());
+        assertEquals("b10400", actual.runtimeVersion());
+        assertEquals(10, actual.runtimeArtifactBytes());
+        assertEquals("Apache-2.0", actual.models().get("qwen3-0.6b-q8_0").license());
+        assertEquals(639_446_688, actual.models().get("qwen3-0.6b-q8_0").artifactBytes());
+        assertFalse(actual.toString().contains(temp.toString()), "MCP status must not expose the absolute cache path");
+        assertFalse(actual.toString().contains("8000"), "MCP status must not expose exact host resource values");
+    }
 
     @AfterEach
     void cleanup() {

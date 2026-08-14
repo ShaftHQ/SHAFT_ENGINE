@@ -38,7 +38,7 @@ final class ManagedLocalAiManifest {
     private final RuntimeManifest runtime;
     private final List<ModelManifest> models;
 
-    private ManagedLocalAiManifest(int schemaVersion, RuntimeManifest runtime, List<ModelManifest> models) {
+    ManagedLocalAiManifest(int schemaVersion, RuntimeManifest runtime, List<ModelManifest> models) {
         this.schemaVersion = schemaVersion;
         this.runtime = runtime;
         this.models = List.copyOf(models);
