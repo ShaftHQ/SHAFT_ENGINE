@@ -5,6 +5,7 @@ import org.junit.jupiter.api.io.TempDir;
 
 import java.net.HttpURLConnection;
 import java.net.Proxy;
+import java.net.Socket;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -49,6 +50,28 @@ class VerifiedArtifactMirrorTest {
                 URI.create("http://127.0.0.1:1234//builds/cft/browser.zip")));
         assertEquals("///builds/cft/browser.zip", VerifiedArtifactMirror.canonicalRequestPath(
                 URI.create("http://127.0.0.1:1234///builds/cft/browser.zip")));
+    }
+
+    @Test
+    void acceptsTheHeaderLimitAndRejectsOnlyRequestsBeyondIt(@TempDir Path temp) throws Exception {
+        Path artifact = Files.writeString(temp.resolve("browser.zip"), "verified archive");
+        try (VerifiedArtifactMirror mirror = VerifiedArtifactMirror.open(Map.of("/browser.zip", artifact))) {
+            assertEquals(200, rawRequestStatus(mirror.baseUri(), 100));
+            assertEquals(431, rawRequestStatus(mirror.baseUri(), 101));
+        }
+    }
+
+    private static int rawRequestStatus(URI base, int headerCount) throws Exception {
+        try (Socket socket = new Socket(base.getHost(), base.getPort())) {
+            StringBuilder request = new StringBuilder("GET /browser.zip HTTP/1.1\r\n");
+            for (int index = 0; index < headerCount; index++) {
+                request.append("X-Test-").append(index).append(": value\r\n");
+            }
+            request.append("\r\n");
+            socket.getOutputStream().write(request.toString().getBytes(StandardCharsets.US_ASCII));
+            String statusLine = new String(socket.getInputStream().readNBytes(32), StandardCharsets.US_ASCII);
+            return Integer.parseInt(statusLine.split(" ", 3)[1]);
+        }
     }
 
     private static Response request(URI uri, String method) throws Exception {

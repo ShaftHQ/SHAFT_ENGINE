@@ -85,20 +85,25 @@ final class VerifiedArtifactMirror implements AutoCloseable {
     }
 
     private void handle(Socket connection) throws IOException {
-        BufferedInputStream input = new BufferedInputStream(connection.getInputStream());
-        BufferedOutputStream output = new BufferedOutputStream(connection.getOutputStream());
+        try (BufferedInputStream input = new BufferedInputStream(connection.getInputStream());
+             BufferedOutputStream output = new BufferedOutputStream(connection.getOutputStream())) {
+            handle(input, output);
+        }
+    }
+
+    private void handle(BufferedInputStream input, BufferedOutputStream output) throws IOException {
         String requestLine = readLine(input);
         String[] request = requestLine.split(" ", 3);
         if (request.length != 3 || !request[2].startsWith("HTTP/1.")) {
             respond(output, 400, null);
             return;
         }
-        for (int count = 0; count < MAXIMUM_HTTP_HEADERS; count++) {
-            if (readLine(input).isEmpty()) break;
-            if (count == MAXIMUM_HTTP_HEADERS - 1) {
-                respond(output, 431, null);
-                return;
-            }
+        int headerCount = 0;
+        while (!readLine(input).isEmpty()) {
+            headerCount++;
+            if (headerCount <= MAXIMUM_HTTP_HEADERS) continue;
+            respond(output, 431, null);
+            return;
         }
         if (!"GET".equals(request[0])) {
             respond(output, 405, null);
