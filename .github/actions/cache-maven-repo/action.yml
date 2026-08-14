@@ -22,7 +22,7 @@ runs:
   using: 'composite'
   steps:
     - name: Restore ~/.m2/repository
-      uses: actions/cache@v4
+      uses: actions/cache@v5
       with:
         path: ~/.m2/repository
         key: shaft-m2-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('**/pom.xml') }}
