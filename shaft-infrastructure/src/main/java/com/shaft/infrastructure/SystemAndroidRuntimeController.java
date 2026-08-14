@@ -44,8 +44,11 @@ final class SystemAndroidRuntimeController implements AndroidRuntimeController {
     }
 
     private static String identity(ProcessHandle handle, String fallback) {
-        return handle.info().command().map(path -> Path.of(path).toAbsolutePath().normalize().toString())
+        String command = handle.info().command()
+                .map(path -> Path.of(path).toAbsolutePath().normalize().toString())
                 .orElseGet(() -> Path.of(fallback).toAbsolutePath().normalize().toString());
+        String[] arguments = handle.info().arguments().orElseGet(() -> new String[0]);
+        return command + '\0' + String.join("\0", arguments);
     }
 
     private record SystemOwnedProcess(ProcessHandle handle, String launchCommand) implements AndroidOwnedProcess {

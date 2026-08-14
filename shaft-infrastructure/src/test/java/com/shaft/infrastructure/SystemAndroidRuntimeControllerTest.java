@@ -41,6 +41,7 @@ class SystemAndroidRuntimeControllerTest {
                         "-XX:+UseSerialGC", "-cp", System.getProperty("java.class.path"), SleepingChild.class.getName()),
                 temp, Map.of(), Set.of(), log);
         try {
+            assertTrue(process.commandIdentity().contains(SleepingChild.class.getName()));
             Instant wrongStart = process.startInstant().plusMillis(1);
 
             assertThrows(java.io.IOException.class,
