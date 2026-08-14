@@ -1869,6 +1869,27 @@ public class FailureTraceReporterTest {
         }
     }
 
+    @Test(description = "An oversized native snapshot model should report budget omission for every request")
+    public void oversizedNativeSnapshotModelShouldRemainExplicit() throws Exception {
+        StringBuilder records = new StringBuilder(
+                "{\"version\":8,\"type\":\"context-options\",\"origin\":\"library\"}\n");
+        String padding = "x".repeat(1024 * 1024);
+        for (int index = 0; index < 9; index++) {
+            records.append("{\"type\":\"noop\",\"padding\":\"").append(padding).append("\"}\n");
+        }
+        Path archive = PlaywrightTraceTestFixtures.writeTrace(records.toString());
+        try {
+            Map<String, PlaywrightTraceOfflineAdapter.SnapshotDocument> documents =
+                    PlaywrightTraceOfflineAdapter.snapshotDocuments(
+                            PlaywrightTraceArchiveLoader.load(archive), List.of("before@call@1"), 128 * 1024);
+
+            Assert.assertEquals(documents.get("before@call@1").status(), "omitted-budget");
+            Assert.assertTrue(documents.get("before@call@1").content().isEmpty());
+        } finally {
+            Files.deleteIfExists(archive);
+        }
+    }
+
     @Test(description = "Unsupported Playwright traces should fail soft without losing SHAFT actions")
     public void unsupportedPlaywrightTraceShouldRemainExplicitAndKeepShaftActions() throws Exception {
         SHAFT.Properties.reporting.set().traceEnabled(true);

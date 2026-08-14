@@ -65,21 +65,31 @@ final class PlaywrightTraceOfflineAdapter {
 
     static Map<String, SnapshotDocument> snapshotDocuments(PlaywrightTraceArchiveLoader.LoadedArchive archive,
                                                             List<String> snapshotNames, int maximumBytesPerSnapshot) {
-        Model model = model(archive);
         Map<String, SnapshotDocument> documents = new LinkedHashMap<>();
+        Model model;
+        try {
+            model = model(archive);
+        } catch (IllegalArgumentException exception) {
+            String status = snapshotStatus(exception);
+            snapshotNames.forEach(snapshotName -> documents.put(snapshotName, new SnapshotDocument(status, "")));
+            return Map.copyOf(documents);
+        }
         for (String snapshotName : snapshotNames) {
             try {
                 documents.put(snapshotName, new SnapshotDocument("available",
                         snapshotDocument(model, snapshotName, maximumBytesPerSnapshot)));
             } catch (IllegalArgumentException exception) {
-                String message = exception.getMessage() == null ? "" : exception.getMessage();
-                String status = message.contains(" limit") || message.contains("exceeds")
-                        ? "omitted-budget" : message.startsWith("Main-frame Playwright snapshot is unavailable")
-                        ? "unavailable" : "malformed";
-                documents.put(snapshotName, new SnapshotDocument(status, ""));
+                documents.put(snapshotName, new SnapshotDocument(snapshotStatus(exception), ""));
             }
         }
         return Map.copyOf(documents);
+    }
+
+    private static String snapshotStatus(IllegalArgumentException exception) {
+        String message = exception.getMessage() == null ? "" : exception.getMessage();
+        return message.contains(" limit") || message.contains("exceeds")
+                ? "omitted-budget" : message.startsWith("Main-frame Playwright snapshot is unavailable")
+                ? "unavailable" : "malformed";
     }
 
     record SnapshotDocument(String status, String content) { }

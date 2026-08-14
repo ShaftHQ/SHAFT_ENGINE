@@ -1055,6 +1055,7 @@ public final class FailureTraceReporter {
                 const rangeLabel = document.getElementById('range-label');
                 function applyRangeInputs(historyMode = 'none'){
                   if (baseTime == null) return;
+                  selectedNativeAction = null;
                   const startOffset = Math.max(0, Math.min(traceDuration, Number(rangeStart.value)));
                   const endOffset = Math.max(0, Math.min(traceDuration, Number(rangeEnd.value)));
                   rangeStartMs = baseTime + Math.min(startOffset, endOffset);

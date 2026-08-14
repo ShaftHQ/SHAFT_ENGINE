@@ -190,6 +190,13 @@ public class TraceViewerBrowserAcceptanceTest {
             Assert.assertTrue(page.locator("#details-title").textContent().contains("Native only wait"));
             Assert.assertTrue(page.frameLocator("#comparison-before").locator("body").textContent()
                     .contains("native-only before"));
+            Assert.assertTrue(page.frameLocator("#comparison-after").locator("body").textContent()
+                    .contains("native-only after"));
+            page.locator("#range-start").evaluate("input => { input.value = 0; input.dispatchEvent(new Event('input', {bubbles:true})); }");
+            Assert.assertTrue(page.locator("#details-title").textContent().contains("CLICK"));
+            page.locator("button[data-tab=nativeEvidence]").click();
+            Assert.assertEquals(page.locator("#native-evidence-rows tr td:first-child").allTextContents(),
+                    List.of("Selected SHAFT action", "Native only"));
             page.navigate(html.toUri() + "#action-action-1?start=50&end=200");
             page.locator("button[data-tab=comparison]").click();
             Assert.assertTrue(page.frameLocator("#comparison-before").locator("body").textContent()
