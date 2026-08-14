@@ -108,6 +108,7 @@ public final class PlaywrightSetupService {
             Files.createDirectories(paths.state());
             try (FileChannel channel = FileChannel.open(lockPath, StandardOpenOption.CREATE, StandardOpenOption.WRITE);
                  FileLock ignored = channel.lock()) {
+                recoverInterruptedPublication();
                 SetupReceipt existing = readyReceipt();
                 if (existing != null) return existing;
                 return installLocked(plan);
@@ -325,11 +326,17 @@ public final class PlaywrightSetupService {
         }
     }
 
+    private void recoverInterruptedPublication() throws IOException {
+        Path destination = browserRoot();
+        Path receiptDestination = receiptPath();
+        recoverQuarantine(destination.resolveSibling(destination.getFileName() + ".quarantine"), destination);
+        recoverQuarantine(receiptDestination.resolveSibling(receiptDestination.getFileName() + ".quarantine"),
+                receiptDestination);
+    }
+
     private static void recoverQuarantine(Path quarantine, Path destination) throws IOException {
         if (!Files.exists(quarantine, java.nio.file.LinkOption.NOFOLLOW_LINKS)) return;
-        if (Files.exists(destination, java.nio.file.LinkOption.NOFOLLOW_LINKS)) {
-            throw new IOException("Unresolved Playwright setup quarantine requires manual recovery: " + quarantine);
-        }
+        deleteTree(destination);
         VerifiedArtifactStore.move(quarantine, destination);
     }
 

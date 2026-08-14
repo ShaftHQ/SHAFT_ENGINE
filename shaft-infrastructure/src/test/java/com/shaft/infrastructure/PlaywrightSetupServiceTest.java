@@ -273,6 +273,16 @@ class PlaywrightSetupServiceTest {
     }
 
     @Test
+    void recoversWhenBrowserPublishedBeforeReceipt(@TempDir Path temp) throws Exception {
+        assertInterruptedPublicationRecovery(temp, false);
+    }
+
+    @Test
+    void recoversWhenPublishedPairStillHasOldQuarantines(@TempDir Path temp) throws Exception {
+        assertInterruptedPublicationRecovery(temp, true);
+    }
+
+    @Test
     void installerReceivesOnlyTheRemainingSharedTransactionBudget(@TempDir Path temp) throws Exception {
         ShaftCachePaths paths = paths(temp);
         Path node = Files.writeString(temp.resolve("node.exe"), "node");
@@ -334,6 +344,46 @@ class PlaywrightSetupServiceTest {
                         || path.getFileName().toString().startsWith(".driver-")));
             }
         }
+    }
+
+    private static void assertInterruptedPublicationRecovery(Path temp, boolean receiptPublished) throws Exception {
+        ShaftCachePaths paths = paths(temp);
+        Path node = Files.writeString(temp.resolve("node.exe"), "node");
+        AtomicInteger installs = new AtomicInteger();
+        PlaywrightSetupService service = new PlaywrightSetupService(paths, SetupPlatform.WINDOWS,
+                SetupArchitecture.X64, readyNode(node), action -> Files.writeString(
+                temp.resolve(action.version().replace(':', '-') + ".zip"), action.version()),
+                (nodePath, destination) -> {
+                    Path cli = destination.resolve("package/cli.js");
+                    Files.createDirectories(cli.getParent());
+                    Files.writeString(cli, "cli");
+                },
+                (nodePath, driverRoot, browserRoot, archives, log, timeout) -> {
+                    installs.incrementAndGet();
+                    createReadyWindowsLayout(browserRoot);
+                });
+        SetupPlan plan = PlaywrightSetupPlanner.plan(SetupPlatform.WINDOWS, SetupArchitecture.X64,
+                SetupMode.MANAGED);
+        SetupApproval approval = new SetupApproval(plan.digest(), Instant.EPOCH, Set.of());
+        service.install(plan, approval);
+
+        Path browser = service.browserRoot();
+        Path browserQuarantine = browser.resolveSibling(browser.getFileName() + ".quarantine");
+        Path receipt = paths.receipts().resolve("playwright.json");
+        Path receiptQuarantine = receipt.resolveSibling(receipt.getFileName() + ".quarantine");
+        Files.move(browser, browserQuarantine);
+        Files.move(receipt, receiptQuarantine);
+        createReadyWindowsLayout(browser);
+        Files.writeString(browser.resolve("SHAFT_PLAYWRIGHT_VERSION"), PlaywrightSetupPlanner.PLAYWRIGHT_VERSION);
+        if (receiptPublished) Files.copy(receiptQuarantine, receipt);
+
+        SetupReceipt recovered = service.install(plan, approval);
+
+        assertEquals(plan.digest(), recovered.planDigest());
+        assertEquals(1, installs.get());
+        assertEquals(SetupReadiness.READY, service.status().readiness());
+        assertFalse(Files.exists(browserQuarantine));
+        assertFalse(Files.exists(receiptQuarantine));
     }
 
     private static PlaywrightSetupService.NodeOwner readyNode(Path node) {
