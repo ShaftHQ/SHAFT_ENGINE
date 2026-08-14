@@ -190,6 +190,27 @@ class SetupCommandTest {
     }
 
     @Test
+    void androidReadinessCommandsCanInspectManagedState(@TempDir Path temp) throws Exception {
+        Path cache = temp.resolve("cache").toAbsolutePath();
+        Path data = temp.resolve("data").toAbsolutePath();
+
+        for (String command : java.util.List.of("doctor", "status", "verify")) {
+            CommandResult result = execute("setup", command, "--profile", "MOBILE_ANDROID",
+                    "--mode", "MANAGED", "--cache-root", cache.toString(), "--data-root", data.toString(),
+                    "--json");
+
+            assertEquals(3, result.exitCode(), result.stderr());
+            JsonNode report = JSON.readTree(result.stdout());
+            assertEquals("MOBILE_ANDROID", report.get("profile").asText());
+            report.get("targets").forEach(target -> assertTrue(
+                    !target.get("detail").asText().contains("External mode is diagnostic-only"),
+                    command + " must inspect managed readiness instead of forcing EXTERNAL mode."));
+        }
+        assertTrue(Files.notExists(cache));
+        assertTrue(Files.notExists(data));
+    }
+
+    @Test
     void androidStopAndLogsReportMissingWithoutCreatingRuntimeState(@TempDir Path temp) {
         Path cache = temp.resolve("cache").toAbsolutePath();
         Path data = temp.resolve("data").toAbsolutePath();

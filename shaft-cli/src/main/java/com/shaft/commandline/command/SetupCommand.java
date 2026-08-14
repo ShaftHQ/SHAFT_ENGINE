@@ -285,8 +285,11 @@ public final class SetupCommand implements Runnable {
 
     static class ReadinessCommand implements Callable<Integer> {
         @Option(names = "--profile", required = true) private SetupProfile profile;
+        @Option(names = "--mode", defaultValue = "EXTERNAL", description = "Ownership mode.")
+        private SetupMode mode;
         @Option(names = "--json", description = "Print machine-readable JSON.") private boolean json;
         @Mixin private RootOptions roots;
+        @Mixin private PolicyOptions policy;
         @Mixin private AndroidOptions android;
         @Option(names = "--language", description = "OCR language code (repeatable).")
         private List<String> languages = new java.util.ArrayList<>();
@@ -299,8 +302,9 @@ public final class SetupCommand implements Runnable {
                 if (profile != SetupProfile.OCR && !languages.isEmpty()) {
                     throw new IllegalArgumentException("--language is supported only for profile OCR.");
                 }
+                ShaftCachePaths paths = roots.paths();
                 SetupReport status = InfrastructureSetupService.builtIn().status(
-                        SetupOptions.defaults(profile, roots.paths()),
+                        policy.options(profile, mode, paths),
                         selection(profile, languages, android.request(profile)));
                 if (json) spec.commandLine().getOut().println(Json.MAPPER.writerWithDefaultPrettyPrinter()
                         .writeValueAsString(status));
