@@ -28,6 +28,99 @@ def load(path: Path, name: str):
 
 
 class ChaosEngineHostsTest(unittest.TestCase):
+    def test_detected_client_plugins_are_registered_installed_and_verified(self):
+        module = load(HOSTS, "chaos_engine_plugin_activation")
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary) / "consumer"
+            project.mkdir()
+            manifest = project / "plugins/chaos-engine/.codex-plugin/plugin.json"
+            manifest.parent.mkdir(parents=True)
+            manifest.write_text(
+                json.dumps({"name": "chaos-engine", "version": "1.0.7"}),
+                encoding="utf-8",
+            )
+            for relative in ("hooks/guard.py", "skills/chaos-engine/SKILL.md"):
+                path = project / "plugins/chaos-engine" / relative
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_text(relative, encoding="utf-8")
+            activation_root, marketplace_name, plugin_id, version = module.activation_contract(project)
+            state = {
+                "codex_marketplace": False,
+                "codex_plugin": False,
+                "claude_marketplace": False,
+                "claude_plugin": False,
+            }
+            calls = []
+
+            def runner(command, **options):
+                calls.append((command, options.get("cwd")))
+                client = Path(command[0]).stem
+                joined = " ".join(command[1:])
+                key = f"{client}_marketplace"
+                plugin_key = f"{client}_plugin"
+                if "marketplace list" in joined:
+                    if client == "codex":
+                        value = {"marketplaces": [{"name": marketplace_name, "root": str(activation_root)}]} if state[key] else {"marketplaces": []}
+                    else:
+                        value = [{"name": marketplace_name, "path": str(activation_root)}] if state[key] else []
+                elif "marketplace add" in joined:
+                    state[key] = True
+                    value = {}
+                elif "marketplace remove" in joined:
+                    state[key] = False
+                    value = {}
+                elif "plugin list" in joined:
+                    if client == "codex":
+                        record = {"pluginId": plugin_id, "version": version, "installed": True, "enabled": True, "source": {"path": str(activation_root / "plugins/chaos-engine")}}
+                    else:
+                        record = {"id": plugin_id, "version": version, "enabled": True, "projectPath": str(project), "installPath": str(activation_root / "plugins/chaos-engine")}
+                    value = {"installed": [record] if state[plugin_key] else [], "available": []}
+                elif "plugin add" in joined or "plugin install" in joined:
+                    state[plugin_key] = True
+                    value = {}
+                elif "plugin remove" in joined or "plugin uninstall" in joined:
+                    state[plugin_key] = False
+                    value = {}
+                else:
+                    raise AssertionError(command)
+                return mock.Mock(returncode=0, stdout=json.dumps(value), stderr="")
+
+            receipt = module.activate_detected_plugins(
+                project,
+                runner=runner,
+                which=lambda name: name,
+            )
+            status = module.detected_plugin_status(
+                project,
+                runner=runner,
+                which=lambda name: name,
+            )
+
+            self.assertEqual({"codex", "claude"}, set(receipt["createdPlugins"]))
+            self.assertTrue(all(item["status"] == "healthy" for item in status.values()))
+            self.assertTrue(all(cwd == project for _, cwd in calls))
+
+            module.deactivate_created_plugins(project, receipt, runner=runner, which=lambda name: name)
+            self.assertFalse(any(state.values()))
+
+    def test_activation_marketplace_identity_is_collision_safe_across_projects(self):
+        module = load(HOSTS, "chaos_engine_plugin_identity")
+        with tempfile.TemporaryDirectory() as temporary:
+            first = Path(temporary) / "first"
+            second = Path(temporary) / "second"
+            for project in (first, second):
+                manifest = project / "plugins/chaos-engine/.codex-plugin/plugin.json"
+                manifest.parent.mkdir(parents=True)
+                manifest.write_text(
+                    json.dumps({"name": "chaos-engine", "version": "1.0.7"}),
+                    encoding="utf-8",
+                )
+
+            self.assertNotEqual(
+                module.activation_contract(first)[1],
+                module.activation_contract(second)[1],
+            )
+
     def setUp(self):
         self.runtime_state = tempfile.TemporaryDirectory()
         self.runtime_environment = mock.patch.dict(
@@ -153,9 +246,33 @@ class ChaosEngineHostsTest(unittest.TestCase):
             self.assertIn("wing: consumer", project.joinpath("mempalace.yaml").read_text())
             ignores = project.joinpath(".gitignore").read_text()
             self.assertIn(".chaos-engine-runtime/", ignores)
+            self.assertIn(".chaos-engine.lock", ignores)
+            self.assertIn(".chaos-engine-runtime.lock", ignores)
+            self.assertIn(".chaos-engine.backup/", ignores)
+            self.assertIn(".chaos-engine-owned-directory", ignores)
+            self.assertGreater(
+                ignores.rindex(".chaos-engine-owned-directory"),
+                ignores.index("!.codex/**"),
+            )
             self.assertIn("!.memory/config.json", ignores)
             self.assertIn("!.claude/**", ignores)
             self.assertIn("!.codex/**", ignores)
+            self.assertIn(".claude/settings.local.json", ignores)
+
+            hook_events = set(
+                json.loads(project.joinpath(".codex/hooks.json").read_text())["hooks"]
+            )
+            self.assertEqual(
+                {
+                    "SessionStart",
+                    "UserPromptSubmit",
+                    "PreToolUse",
+                    "PostToolUse",
+                    "Stop",
+                    "SubagentStop",
+                },
+                hook_events,
+            )
 
     def test_plugin_marketplace_preserves_unrelated_entries(self):
         module = load(HOSTS, "chaos_engine_marketplace_merge")

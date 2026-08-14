@@ -152,10 +152,11 @@ def install_latest(
     distribution: str = "portable",
     opener=urllib.request.urlopen,
     provisioner=None,
-) -> dict[str, str]:
+) -> dict[str, object]:
     project = Path(project).resolve()
     if not project.is_dir():
         raise ValueError(f"project is not a directory: {project}")
+    prior_install = (project / ".chaos-engine").exists()
     commit, resolved_branch = resolve_latest(repository, branch, opener=opener)
     encoded_repository = "/".join(urllib.parse.quote(part, safe="") for part in repository.split("/"))
     archive = read_response(
@@ -192,7 +193,30 @@ def install_latest(
                 source_record=provenance,
                 distribution=distribution,
             )
-    return {"status": "installed", "root": str(target), "commit": commit}
+    if skip_tools or provisioner is not None:
+        return {"status": "installed", "root": str(target), "commit": commit}
+    host_controller = installer.load_installed_controller(target, "hosts")
+    clients = None
+    try:
+        clients = host_controller.activate_detected_plugins(project)
+        doctor = installer.doctor_with_dependencies(project)
+        if doctor.get("status") != "healthy":
+            raise RuntimeError("ChaosEngine doctor did not report a healthy installation")
+    except BaseException:
+        if clients is not None:
+            host_controller.deactivate_created_plugins(project, clients)
+        if prior_install:
+            installer.rollback(project)
+        else:
+            installer.uninstall_with_dependencies(project)
+        raise
+    return {
+        "status": "installed",
+        "root": str(target),
+        "commit": commit,
+        "clients": clients,
+        "doctor": doctor,
+    }
 
 
 def parser() -> argparse.ArgumentParser:

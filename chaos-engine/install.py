@@ -1036,7 +1036,7 @@ def attach_component_status(
         result["status"] = "recovery-required"
 
 
-def status_with_dependencies(project: Path) -> dict[str, object]:
+def status_with_dependencies(project: Path, *, active_probes: bool = False) -> dict[str, object]:
     project = project.resolve()
     runtime = project / ".chaos-engine-runtime"
     with project_lock(project):
@@ -1082,13 +1082,29 @@ def status_with_dependencies(project: Path) -> dict[str, object]:
                 attach_component_status(result, project, target, "absent")
                 return result
             controller = load_dependency_controller(target)
-            result["dependencies"] = controller.status(
+            dependency_check = controller.doctor if active_probes else controller.status
+            result["dependencies"] = dependency_check(
                 runtime,
                 specification=controller.load_specification(target / "dependencies.json"),
             )
             dependency_health = str(result["dependencies"].get("status"))  # type: ignore[union-attr]
             attach_component_status(result, project, target, dependency_health)
             return result
+
+
+def doctor_with_dependencies(project: Path) -> dict[str, object]:
+    """Verify installed files and actively execute every dependency entrypoint probe."""
+    result = status_with_dependencies(project, active_probes=True)
+    target = project.resolve() / INSTALL_DIRECTORY
+    host_controller = load_installed_controller(target, "hosts")
+    clients = host_controller.detected_plugin_status(project.resolve())
+    result["clients"] = clients
+    if any(item.get("status") != "healthy" for item in clients.values()):
+        result["status"] = "recovery-required"
+        components = result.get("components")
+        if isinstance(components, dict) and isinstance(components.get("plugins"), dict):
+            components["plugins"]["status"] = "recovery-required"
+    return result
 
 
 def uninstall_with_dependencies(  # noqa: MC0001 - coordinated host, runtime, and core teardown.
@@ -1246,8 +1262,10 @@ def main() -> int:
                 )
             )
             result: object = {"status": "installed", "root": str(target)}
-        elif args.command in {"status", "doctor"}:
+        elif args.command == "status":
             result = status_with_dependencies(args.project)
+        elif args.command == "doctor":
+            result = doctor_with_dependencies(args.project)
         elif args.command == "rollback":
             result = {"status": "rolled-back", "root": str(rollback(args.project))}
         else:

@@ -23,6 +23,13 @@ POSIX_ABSOLUTE_PATH = re.compile(
 
 
 class ChaosEnginePortableCoreTest(unittest.TestCase):
+    def test_portable_profile_owns_a_real_routing_surface(self):
+        profile = ROOT / "chaos-engine/profiles/portable/entrypoint.md"
+        routing = ROOT / "chaos-engine/profiles/portable/references/routing.md"
+
+        self.assertTrue(routing.is_file())
+        self.assertIn("references/routing.md", profile.read_text(encoding="utf-8"))
+
     def test_portable_readme_uses_existing_contained_targets(self):
         readme = PORTABLE_README.read_text(encoding="utf-8")
         targets = re.findall(r'\[[^]]+\]\(([^)]+)\)', readme)

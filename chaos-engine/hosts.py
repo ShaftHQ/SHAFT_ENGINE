@@ -22,6 +22,7 @@ ACTIVE_ANCHOR_PREFIX = ".chaos-engine-hosts.active-"
 REMOVING_ANCHOR_PREFIX = ".chaos-engine-hosts.removing-"
 ANCHOR_TOKEN = re.compile(r"^[0-9a-f]{64}$")
 SCHEMA_VERSION = 1
+PLUGIN_NAME = "chaos-engine"
 LEGACY_MANAGED_PATHS = (
     ".agents/skills/chaos-engine/SKILL.md",
     ".claude/skills/chaos-engine/SKILL.md",
@@ -35,6 +36,315 @@ LEGACY_MANAGED_PATHS = (
     ".gemini/settings.json",
     ".codex/config.toml",
 )
+
+
+def client_command(
+    executable: str,
+    arguments: list[str],
+    project: Path,
+    runner=subprocess.run,
+) -> subprocess.CompletedProcess[str]:
+    result = runner(  # nosec B603 - executable is resolved by shutil.which.
+        [executable, *arguments],
+        cwd=project,
+        capture_output=True,
+        text=True,
+        check=False,
+        timeout=30,
+    )
+    if result.returncode != 0:
+        detail = (result.stderr or result.stdout).strip()
+        raise RuntimeError(f"client plugin command failed: {detail}")
+    return result
+
+
+def client_json(
+    executable: str,
+    arguments: list[str],
+    project: Path,
+    runner=subprocess.run,
+) -> object:
+    result = client_command(executable, arguments, project, runner=runner)
+    try:
+        return json.loads(result.stdout)
+    except json.JSONDecodeError as error:
+        raise RuntimeError("client plugin command returned invalid JSON") from error
+
+
+def same_path(left: object, right: Path) -> bool:
+    if not isinstance(left, str):
+        return False
+    try:
+        return os.path.normcase(str(Path(left).resolve())) == os.path.normcase(str(right.resolve()))
+    except OSError:
+        return False
+
+
+def activation_contract(project: Path) -> tuple[Path, str, str, str]:
+    project = project.resolve()
+    digest = hashlib.sha256(os.path.normcase(str(project)).encode()).hexdigest()[:12]
+    marketplace_name = f"chaos-engine-{digest}"
+    root = project / ".chaos-engine-state/client-marketplace"
+    manifest_path = project / "plugins/chaos-engine/.codex-plugin/plugin.json"
+    try:
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError) as error:
+        raise ValueError("ChaosEngine plugin manifest is unavailable") from error
+    version = manifest.get("version") if isinstance(manifest, dict) else None
+    if not isinstance(version, str) or re.fullmatch(r"\d+\.\d+\.\d+", version) is None:
+        raise ValueError("ChaosEngine plugin version is invalid")
+    return root, marketplace_name, f"{PLUGIN_NAME}@{marketplace_name}", version
+
+
+def prepare_activation_bundle(project: Path) -> tuple[Path, str, str, str]:
+    """Publish one path-unique generated marketplace without tracked machine paths."""
+    project = project.resolve()
+    root, marketplace_name, plugin_id, version = activation_contract(project)
+    source_plugin = project / "plugins/chaos-engine"
+    if not source_plugin.is_dir() or is_link_or_reparse(source_plugin):
+        raise ValueError("ChaosEngine plugin source is unavailable")
+    state_root = root.parent
+    state_root.mkdir(parents=True, exist_ok=True)
+    building = state_root / f".{root.name}.building-{secrets.token_hex(8)}"
+    backup = state_root / f".{root.name}.backup-{secrets.token_hex(8)}"
+    building.mkdir()
+    try:
+        shutil.copytree(source_plugin, building / "plugins/chaos-engine")
+        codex_marketplace = {
+            "name": marketplace_name,
+            "interface": {"displayName": "ChaosEngine Project"},
+            "plugins": [
+                {
+                    "name": PLUGIN_NAME,
+                    "source": {"source": "local", "path": "./plugins/chaos-engine"},
+                    "policy": {"installation": "INSTALLED_BY_DEFAULT", "authentication": "ON_INSTALL"},
+                    "category": "Developer Tools",
+                }
+            ],
+        }
+        claude_marketplace = {
+            "name": marketplace_name,
+            "owner": {"name": "ChaosEngine contributors"},
+            "description": "Neutral project-local agent harness.",
+            "plugins": [
+                {
+                    "name": PLUGIN_NAME,
+                    "source": "./plugins/chaos-engine",
+                    "description": "Neutral project-local agent harness.",
+                    "version": version,
+                }
+            ],
+        }
+        for relative, document in (
+            (".agents/plugins/marketplace.json", codex_marketplace),
+            (".codex-plugin/marketplace.json", codex_marketplace),
+            (".claude-plugin/marketplace.json", claude_marketplace),
+        ):
+            path = building / relative
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(json.dumps(document, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+        if root.exists() or is_link_or_reparse(root):
+            if is_link_or_reparse(root) or not root.is_dir():
+                raise ValueError("ChaosEngine activation marketplace collision")
+            root.replace(backup)
+        building.replace(root)
+        if backup.exists():
+            shutil.rmtree(backup)
+    except BaseException:
+        if building.exists():
+            shutil.rmtree(building)
+        if backup.exists() and not root.exists():
+            backup.replace(root)
+        raise
+    return root, marketplace_name, plugin_id, version
+
+
+def detected_plugin_status(
+    project: Path,
+    *,
+    runner=subprocess.run,
+    which=shutil.which,
+) -> dict[str, dict[str, str]]:
+    """Read back native plugin registration for every client installed on the host."""
+    project = project.resolve()
+    root, marketplace_name, plugin_id, version = activation_contract(project)
+    status: dict[str, dict[str, str]] = {}
+    for client in ("codex", "claude"):
+        executable = which(client)
+        if executable is None:
+            continue
+        if client == "codex":
+            marketplace_document = client_json(
+                executable, ["plugin", "marketplace", "list", "--json"], project, runner=runner
+            )
+            marketplaces = (
+                marketplace_document.get("marketplaces", [])
+                if isinstance(marketplace_document, dict)
+                else []
+            )
+            plugin_document = client_json(
+                executable, ["plugin", "list", "--available", "--json"], project, runner=runner
+            )
+            records = plugin_document.get("installed", []) if isinstance(plugin_document, dict) else []
+            marketplace_ok = any(
+                isinstance(item, dict)
+                and item.get("name") == marketplace_name
+                and same_path(item.get("root"), root)
+                for item in marketplaces
+            )
+            plugin_present = any(
+                isinstance(item, dict)
+                and item.get("pluginId") == plugin_id
+                and item.get("installed") is True
+                and item.get("enabled") is True
+                and isinstance(item.get("source"), dict)
+                and same_path(item["source"].get("path"), root / "plugins/chaos-engine")
+                for item in records
+            )
+            plugin_ok = plugin_present and any(
+                isinstance(item, dict)
+                and item.get("pluginId") == plugin_id
+                and item.get("version") == version
+                for item in records
+            )
+        else:
+            marketplaces = client_json(
+                executable, ["plugin", "marketplace", "list", "--json"], project, runner=runner
+            )
+            plugin_document = client_json(
+                executable, ["plugin", "list", "--available", "--json"], project, runner=runner
+            )
+            records = plugin_document.get("installed", []) if isinstance(plugin_document, dict) else []
+            marketplace_ok = isinstance(marketplaces, list) and any(
+                isinstance(item, dict)
+                and item.get("name") == marketplace_name
+                and same_path(item.get("path"), root)
+                for item in marketplaces
+            )
+            plugin_present = any(
+                isinstance(item, dict)
+                and item.get("id") == plugin_id
+                and item.get("enabled") is True
+                and same_path(item.get("projectPath"), project)
+                for item in records
+            )
+            plugin_ok = plugin_present and any(
+                isinstance(item, dict)
+                and item.get("id") == plugin_id
+                and item.get("version") == version
+                and same_path(item.get("projectPath"), project)
+                and cached_plugin_matches(item.get("installPath"), root / "plugins/chaos-engine")
+                for item in records
+            )
+        status[client] = {
+            "status": "healthy" if marketplace_ok and plugin_ok else "absent",
+            "marketplace": "healthy" if marketplace_ok else "absent",
+            "plugin": "healthy" if plugin_ok else ("stale" if plugin_present else "absent"),
+        }
+    return status
+
+
+def cached_plugin_matches(installed_path: object, source: Path) -> bool:
+    if not isinstance(installed_path, str):
+        return False
+    installed = Path(installed_path)
+    for relative in ("hooks/guard.py", "skills/chaos-engine/SKILL.md"):
+        cached = installed / relative
+        expected = source / relative
+        try:
+            if not cached.is_file() or cached.read_bytes() != expected.read_bytes():
+                return False
+        except OSError:
+            return False
+    return True
+
+
+def activate_detected_plugins(
+    project: Path,
+    *,
+    runner=subprocess.run,
+    which=shutil.which,
+) -> dict[str, object]:
+    """Register and install the project plugin for detected native clients."""
+    project = project.resolve()
+    root, marketplace_name, plugin_id, _ = prepare_activation_bundle(project)
+    created_marketplaces: list[str] = []
+    created_plugins: list[str] = []
+    commands = {
+        "codex": {
+            "marketplace": ["plugin", "marketplace", "add", str(root), "--json"],
+            "install": ["plugin", "add", plugin_id, "--json"],
+            "update": ["plugin", "add", plugin_id, "--json"],
+        },
+        "claude": {
+            "marketplace": ["plugin", "marketplace", "add", "--scope", "local", str(root)],
+            "install": ["plugin", "install", plugin_id, "--scope", "local"],
+            "update": ["plugin", "update", plugin_id, "--scope", "local"],
+        },
+    }
+    receipt: dict[str, object] = {
+        "createdMarketplaces": created_marketplaces,
+        "createdPlugins": created_plugins,
+        "marketplaceName": marketplace_name,
+    }
+    try:
+        for client in ("codex", "claude"):
+            executable = which(client)
+            if executable is None:
+                continue
+            selected_client = lambda name, selected=client, path=executable: path if name == selected else None
+            current = detected_plugin_status(project, runner=runner, which=selected_client)[client]
+            if current["marketplace"] != "healthy":
+                client_command(executable, commands[client]["marketplace"], project, runner=runner)
+                created_marketplaces.append(client)
+            current = detected_plugin_status(project, runner=runner, which=selected_client)[client]
+            if current["plugin"] == "absent":
+                client_command(executable, commands[client]["install"], project, runner=runner)
+                created_plugins.append(client)
+            elif current["plugin"] == "stale":
+                client_command(executable, commands[client]["update"], project, runner=runner)
+            verified = detected_plugin_status(project, runner=runner, which=selected_client)[client]
+            if verified["status"] != "healthy":
+                raise RuntimeError(f"{client} plugin activation did not verify")
+    except BaseException:
+        deactivate_created_plugins(project, receipt, runner=runner, which=which)
+        raise
+    return receipt
+
+
+def deactivate_created_plugins(
+    project: Path,
+    receipt: dict[str, object],
+    *,
+    runner=subprocess.run,
+    which=shutil.which,
+) -> None:
+    """Compensate only native registrations created by one activation call."""
+    project = project.resolve()
+    marketplace_name = receipt.get("marketplaceName")
+    if not isinstance(marketplace_name, str):
+        _, marketplace_name, _, _ = activation_contract(project)
+    plugin_id = f"{PLUGIN_NAME}@{marketplace_name}"
+    created_plugins = receipt.get("createdPlugins", [])
+    created_marketplaces = receipt.get("createdMarketplaces", [])
+    for client in reversed(created_plugins if isinstance(created_plugins, list) else []):
+        executable = which(str(client))
+        if executable is None:
+            continue
+        arguments = (
+            ["plugin", "remove", plugin_id, "--json"]
+            if client == "codex"
+            else ["plugin", "uninstall", plugin_id, "--scope", "local"]
+        )
+        client_command(executable, arguments, project, runner=runner)
+    for client in reversed(created_marketplaces if isinstance(created_marketplaces, list) else []):
+        executable = which(str(client))
+        if executable is None:
+            continue
+        arguments = ["plugin", "marketplace", "remove", marketplace_name]
+        if client == "claude":
+            arguments.extend(["--scope", "local"])
+        client_command(executable, arguments, project, runner=runner)
 MAVEN_TOOLS_MCP_VERSION = "3.2.0"
 MAVEN_TOOLS_MCP_COMMIT = "4475ff6c61f23ea9a93cb6d5665a63235ef2ef36"
 MAVEN_TOOLS_MCP_RECEIPT = "install-receipt.json"
@@ -551,10 +861,15 @@ def gitignore_content(before: bytes | None) -> bytes:
         raise ValueError("invalid gitignore configuration") from error
     block = (
         f"{GITIGNORE_START}\n"
-        ".chaos-engine-runtime/\n.chaos-engine-state/\ngraphify-out/\n"
-        ".chaos-engine-hosts.json\n.chaos-engine-hosts.active-*\n"
+        ".chaos-engine-runtime/\n.chaos-engine-runtime.lock\n.chaos-engine-runtime.*\n.chaos-engine-state/\n"
+        ".chaos-engine.lock\n.chaos-engine.transaction.json\n"
+        ".chaos-engine.backup/\n.chaos-engine.backup.*/\n"
+        ".chaos-engine-cross-rollback/\n.chaos-engine-uninstall-*\n"
+        ".chaos-engine-hosts.json\n.chaos-engine-hosts.*\n"
+        ".chaos-engine-directory-claim-*\ngraphify-out/\n"
         ".memory/*\n!.memory/\n!.memory/config.json\n"
-        "!.claude/\n!.claude/**\n!.codex/\n!.codex/**\n"
+        "!.claude/\n!.claude/**\n.claude/settings.local.json\n!.codex/\n!.codex/**\n"
+        ".chaos-engine-owned-directory\n"
         f"{GITIGNORE_END}\n"
     )
     if GITIGNORE_START in existing or GITIGNORE_END in existing:
@@ -569,6 +884,7 @@ def desired_content(
     before: dict[str, bytes | None],
     maven_runtime: tuple[Path, Path] | None | bool = False,
     project_name: str = "project",
+    plugin_version: str = "1.0.0",
 ) -> dict[str, bytes]:
     if maven_runtime is False:
         maven_runtime = discover_maven_tools_runtime()
@@ -622,7 +938,7 @@ def desired_content(
         "name": "chaos-engine",
         "source": "./plugins/chaos-engine",
         "description": "Neutral project-local agent harness.",
-        "version": "1.0.0",
+        "version": plugin_version,
     }
     claude_marketplace_before = before[".claude-plugin/marketplace.json"]
     if claude_marketplace_before is None:
@@ -660,7 +976,7 @@ def desired_content(
     ).encode()
     plugin_manifest = {
         "name": "chaos-engine",
-        "version": "1.0.0",
+        "version": plugin_version,
         "description": "Neutral project-local software agent working harness.",
         "author": {"name": "ChaosEngine contributors"},
         "skills": "./skills",
@@ -681,7 +997,7 @@ def desired_content(
         json.dumps(
             {
                 "name": "chaos-engine",
-                "version": "1.0.0",
+                "version": plugin_version,
                 "description": "Neutral project-local software agent working harness.",
                 "author": {"name": "ChaosEngine contributors"},
             },
@@ -692,32 +1008,24 @@ def desired_content(
     ).encode()
     command, prefix = interpreter()
     hook_command = " ".join([command, *prefix, '"${CLAUDE_PLUGIN_ROOT}/hooks/guard.py"'])
+    lifecycle_events = {
+        "SessionStart": "startup|resume|clear|compact",
+        "UserPromptSubmit": None,
+        "PreToolUse": "Bash|PowerShell|shell_command",
+        "PostToolUse": "Bash|PowerShell|shell_command",
+        "Stop": None,
+        "SubagentStop": None,
+    }
+    hooks: dict[str, list[dict[str, object]]] = {}
+    for event, matcher in lifecycle_events.items():
+        group: dict[str, object] = {
+            "hooks": [{"type": "command", "command": hook_command, "timeout": 5}]
+        }
+        if matcher is not None:
+            group["matcher"] = matcher
+        hooks[event] = [group]
     rendered_plugin_hooks = (
-        json.dumps(
-            {
-                "hooks": {
-                    "SessionStart": [
-                        {
-                            "matcher": "startup|resume|clear|compact",
-                            "hooks": [
-                                {"type": "command", "command": hook_command, "timeout": 5}
-                            ],
-                        }
-                    ],
-                    "PreToolUse": [
-                        {
-                            "matcher": "Bash|PowerShell|shell_command",
-                            "hooks": [
-                                {"type": "command", "command": hook_command, "timeout": 5}
-                            ],
-                        }
-                    ],
-                }
-            },
-            indent=2,
-            sort_keys=True,
-        )
-        + "\n"
+        json.dumps({"hooks": hooks}, indent=2, sort_keys=True) + "\n"
     ).encode()
     project_command = " ".join([command, *prefix, ".chaos-engine/hooks/guard.py"])
     project_hooks = json.loads(rendered_plugin_hooks)
@@ -1280,7 +1588,8 @@ def install(project: Path, core_commit: str | None = None) -> dict[str, object]:
         after = decode_images(receipt["after"], nullable=False)
         if receipt["phase"] == "installed":
             verify(project, receipt)
-            wanted = desired_content(before, project_name=project.name)
+            version = f"1.0.{int(core_commit[:8], 16)}" if core_commit and re.fullmatch(r"[0-9a-f]{40}", core_commit) else "1.0.0"
+            wanted = desired_content(before, project_name=project.name, plugin_version=version)
             if after == wanted and receipt.get("coreCommit") == core_commit:
                 return receipt
             next_receipt = dict(receipt)
@@ -1314,7 +1623,8 @@ def install(project: Path, core_commit: str | None = None) -> dict[str, object]:
         return receipt
 
     before = current_images(project)
-    after = desired_content(before, project_name=project.name)
+    version = f"1.0.{int(core_commit[:8], 16)}" if core_commit and re.fullmatch(r"[0-9a-f]{40}", core_commit) else "1.0.0"
+    after = desired_content(before, project_name=project.name, plugin_version=version)
     if existing_anchors and existing_anchors[0].name.startswith(REMOVING_ANCHOR_PREFIX):
         raise ValueError("ChaosEngine host removal recovery is required")
     anchor_path = host_anchor_path(project, create=True)

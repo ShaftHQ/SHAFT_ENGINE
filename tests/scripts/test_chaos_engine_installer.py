@@ -73,6 +73,29 @@ class ChaosEngineInstallerTest(unittest.TestCase):
 
         self.assertEqual("doctor", arguments.command)
 
+    def test_doctor_uses_active_dependency_probes(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary) / "consumer"
+            project.mkdir()
+            dependency_module = load_module(SOURCE / "dependencies.py")
+
+            def provision(runtime, specification):
+                return dependency_module.repair(
+                    runtime,
+                    specification,
+                    runner=ChaosEngineDependenciesRunner(runtime),
+                )
+
+            MODULE.install_with_dependencies(project, SOURCE, TEST_COMMIT, provisioner=provision)
+            controller = MODULE.load_dependency_controller(project / ".chaos-engine")
+            with mock.patch.object(
+                controller,
+                "doctor",
+                side_effect=RuntimeError("active probe failed"),
+            ), mock.patch.object(MODULE, "load_dependency_controller", return_value=controller):
+                with self.assertRaisesRegex(RuntimeError, "active probe failed"):
+                    MODULE.doctor_with_dependencies(project)
+
     def test_default_distribution_installs_only_neutral_portable_payload(self):
         with tempfile.TemporaryDirectory() as temporary:
             project = Path(temporary) / "consumer"

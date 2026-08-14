@@ -50,6 +50,57 @@ class Response(io.BytesIO):
 
 
 class ChaosEngineBootstrapTest(unittest.TestCase):
+    def test_public_full_flow_activates_clients_and_runs_doctor(self):
+        module = load()
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary) / "project"
+            project.mkdir()
+            opener, _ = self.opener([(COMMIT_ONE, "full")])
+            installer = mock.Mock()
+            installer.install_with_dependencies.return_value = project / ".chaos-engine"
+            installer.load_installed_controller.return_value.activate_detected_plugins.return_value = {
+                "createdPlugins": ["codex"]
+            }
+            installer.doctor_with_dependencies.return_value = {"status": "healthy"}
+
+            with mock.patch.object(module, "load_installer", return_value=installer):
+                result = module.install_latest(
+                    project,
+                    repository="Example/Project",
+                    branch="main",
+                    opener=opener,
+                )
+
+            installer.load_installed_controller.assert_called_once_with(
+                project / ".chaos-engine", "hosts"
+            )
+            installer.load_installed_controller.return_value.activate_detected_plugins.assert_called_once_with(project)
+            installer.doctor_with_dependencies.assert_called_once_with(project)
+            self.assertEqual("healthy", result["doctor"]["status"])
+
+    def test_failed_post_install_doctor_removes_new_activation_and_install(self):
+        module = load()
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary) / "project"
+            project.mkdir()
+            opener, _ = self.opener([(COMMIT_ONE, "full")])
+            installer = mock.Mock()
+            installer.install_with_dependencies.return_value = project / ".chaos-engine"
+            host = installer.load_installed_controller.return_value
+            host.activate_detected_plugins.return_value = {"createdPlugins": ["codex"]}
+            installer.doctor_with_dependencies.side_effect = RuntimeError("probe failed")
+
+            with mock.patch.object(module, "load_installer", return_value=installer):
+                with self.assertRaisesRegex(RuntimeError, "probe failed"):
+                    module.install_latest(
+                        project,
+                        repository="Example/Project",
+                        branch="main",
+                        opener=opener,
+                    )
+
+            host.deactivate_created_plugins.assert_called_once()
+            installer.uninstall_with_dependencies.assert_called_once_with(project)
     def opener(self, commits: list[tuple[str, str]]):
         calls: list[str] = []
 

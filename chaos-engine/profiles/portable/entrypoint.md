@@ -5,6 +5,7 @@ repository identity, branches, permissions, build commands, and companion
 projects from the adopter's live files and explicit instructions. It never
 assumes a product, organization, hosting provider, or repository layout.
 
-Route project-specific work through the portable playbooks in `references/`.
+Route project-specific work through the portable
+[routing table](references/routing.md).
 Keep canonical non-secret harness configuration tracked; keep generated
 runtime state, indexes, reports, and caches untracked.
