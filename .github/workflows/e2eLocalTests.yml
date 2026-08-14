@@ -502,8 +502,8 @@ jobs:
           codecov-token: ${{ secrets.CODECOV_TOKEN }}
 
   # Opt-in real acceptance for #4898. The packaged CLI performs the only installation
-  # mutation; the engine test requires that compatible receipt, starts SHAFT's AVD/Appium
-  # lease, creates a real UiAutomator2 session, and probes the pinned aapt2 executable.
+  # mutation; a packaged CLI process starts the receipt-bound AVD/Appium lease, the engine
+  # reuses it for a real UiAutomator2 session, and a later CLI process owns final shutdown.
   Ubuntu_Managed_Android:
     if: github.event_name == 'workflow_dispatch' && (github.event.inputs.jobs == 'all' || contains(format(',{0},', github.event.inputs.jobs), ',Ubuntu_Managed_Android,'))
     runs-on: ubuntu-22.04
@@ -541,7 +541,7 @@ jobs:
           java -jar "$cli_jar" setup plan --profile MOBILE_ANDROID --mode MANAGED \
             --output "$plan" --cache-root "$cache_root" --data-root "$data_root" \
             --startup-timeout PT8M --shutdown-timeout PT1M
-          digest="$(python3 -c "import json; print(json.load(open('$plan'))['digest'])")"
+          digest="$(python3 -c "import json,sys; print(json.load(open(sys.argv[1]))['digest'])" "$plan")"
           if ! java -jar "$cli_jar" setup install --plan "$plan" --approve "$digest" \
             --accept-license android-sdk-license --cache-root "$cache_root" --data-root "$data_root" \
             --startup-timeout PT8M --shutdown-timeout PT1M; then
@@ -549,6 +549,18 @@ jobs:
             test ! -f "$install_log" || cat "$install_log"
             exit 1
           fi
+      - name: Start the owned runtime from the packaged CLI
+        shell: bash
+        run: |
+          cli_jar="$(find shaft-cli/target -maxdepth 1 -name 'shaft-cli-*[0-9].jar' -print -quit)"
+          cache_root="$RUNNER_TEMP/shaft-android-cache"
+          data_root="$cache_root/data"
+          plan="$RUNNER_TEMP/shaft-android-plan.json"
+          digest="$(python3 -c "import json,sys; print(json.load(open(sys.argv[1]))['digest'])" "$plan")"
+          java -jar "$cli_jar" setup start --plan "$plan" --approve "$digest" \
+            --accept-license android-sdk-license --cache-root "$cache_root" --data-root "$data_root" \
+            --startup-timeout PT8M --shutdown-timeout PT1M
+          test -s "$data_root/state/mobile-android-runtime.json"
       - name: Run real emulator, UiAutomator2, and aapt2 acceptance
         continue-on-error: true
         run: >-
@@ -562,6 +574,17 @@ jobs:
           -Dinfrastructure.shutdownTimeout=PT1M
           -Dallure.automaticallyOpen=false
           -Dgpg.skip=true
+      - name: Stop the owned runtime from a later packaged CLI process
+        if: always()
+        shell: bash
+        run: |
+          cli_jar="$(find shaft-cli/target -maxdepth 1 -name 'shaft-cli-*[0-9].jar' -print -quit)"
+          cache_root="$RUNNER_TEMP/shaft-android-cache"
+          data_root="$cache_root/data"
+          test -s "$data_root/state/mobile-android-runtime.json"
+          java -jar "$cli_jar" setup stop --profile MOBILE_ANDROID \
+            --cache-root "$cache_root" --data-root "$data_root" --shutdown-timeout PT1M
+          test ! -e "$data_root/state/mobile-android-runtime.json"
       - name: Post-Test Report and Check
         id: post_test_report
         if: always()
