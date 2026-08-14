@@ -44,7 +44,13 @@ class DoctorServiceTest {
         DoctorService service = new DoctorService(McpWorkspacePolicy.of(temp),
                 new McpDoctorRemediationService(), () -> expected);
 
-        assertEquals(expected, service.managedLocalAiStatus());
+        McpManagedLocalAiStatus actual = service.managedLocalAiStatus();
+        assertEquals("CORRUPT", actual.state());
+        assertEquals("SHAFT_USER_CACHE", actual.storageClass());
+        assertEquals("qwen3-0.6b-q8_0", actual.selectedModelId());
+        assertEquals("b10400", actual.runtimeVersion());
+        assertFalse(actual.toString().contains(temp.toString()), "MCP status must not expose the absolute cache path");
+        assertFalse(actual.toString().contains("8000"), "MCP status must not expose exact host resource values");
     }
 
     @AfterEach

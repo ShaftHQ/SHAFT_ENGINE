@@ -71,12 +71,13 @@ public class DoctorService {
     /**
      * Returns the effective, credential-free managed local AI lifecycle status without provisioning or inference.
      *
-     * @return the shared lifecycle snapshot used by Java, CLI, MCP, Doctor, and IDE consumers
+     * @return a privacy-safe projection of the shared lifecycle snapshot
      */
     @Tool(name = "doctor_managed_local_ai_status",
             description = "returns read-only managed local AI configuration, eligibility, cache health, runtime and model diagnostics")
-    public ManagedLocalAiSnapshot managedLocalAiStatus() {
-        return Objects.requireNonNull(managedLocalAiStatus.get(), "managed local AI status");
+    public McpManagedLocalAiStatus managedLocalAiStatus() {
+        return McpManagedLocalAiStatus.from(
+                Objects.requireNonNull(managedLocalAiStatus.get(), "managed local AI status"));
     }
 
     /**
