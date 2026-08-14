@@ -977,7 +977,7 @@ final class ManagedLocalAiProcess {
             long deadline = System.nanoTime() + timeout.toNanos();
             boolean survivors = terminate(process, timeout, primary, retainedDescendants);
             Thread capture = logCapture;
-            if (capture != null && capture != Thread.currentThread()) {
+            if (capture != null && !capture.equals(Thread.currentThread())) {
                 try {
                     long remaining = deadline - System.nanoTime();
                     if (remaining > 0) {
@@ -1059,7 +1059,7 @@ final class ManagedLocalAiProcess {
 
         private void awaitLogCapture(long deadline, Throwable primary) {
             Thread capture = logCapture;
-            if (capture == null || capture == Thread.currentThread()) {
+            if (capture == null || capture.equals(Thread.currentThread())) {
                 return;
             }
             try {
