@@ -43,8 +43,6 @@ if str(ROOT) not in sys.path:
 
 from scripts.agents.guard import scan_for_nul_corruption  # noqa: E402
 
-UPSTREAM_BRANCH = "main"
-UPSTREAM_REF = f"origin/{UPSTREAM_BRANCH}"
 GIT_TIMEOUT_SECONDS = 30
 PULL_REQUEST_TIMEOUT_SECONDS = 30
 # A checkout with more linked worktrees than this is already the problem this
@@ -65,7 +63,85 @@ FOREIGN_WORKTREE_STALE_HOURS = 12
 # has a known activity floor; it is not silently treated as unknown.
 MAX_ACTIVITY_PATHS = 2000
 
-ADVISORY_STATES = ("corrupt", "abandoned", "superseded", "uncommitted", "unknown", "orphaned")
+ADVISORY_STATES = (
+    "corrupt",
+    "abandoned",
+    "superseded",
+    "uncommitted",
+    "unknown",
+    "orphaned",
+    "prunable",
+)
+
+
+def _short_remote_ref(ref: str | None) -> str | None:
+    """Return ``remote/branch`` for one remote-tracking reference."""
+    if ref is None:
+        return None
+    value = ref.strip()
+    prefix = "refs/remotes/"
+    return value.removeprefix(prefix) if value.startswith(prefix) else value
+
+
+def _verified_remote_ref(root: Path, candidate: str | None) -> str | None:
+    """Resolve a candidate only when it names an existing remote-tracking ref."""
+    if not candidate:
+        return None
+    full = (_git(root, "rev-parse", "--symbolic-full-name", candidate) or "").strip()
+    if not full.startswith("refs/remotes/"):
+        return None
+    if _git(root, "rev-parse", "--verify", "--quiet", full) is None:
+        return None
+    return _short_remote_ref(full)
+
+
+def resolve_upstream_ref(root: Path, explicit: str | None = None) -> str | None:
+    """Resolve an upstream without assuming a remote or default branch name."""
+    if explicit is not None:
+        return _verified_remote_ref(root, explicit)
+
+    remotes = (_git(root, "remote") or "").splitlines()
+    # The conventional remote is considered first when present, but no remote
+    # name is required. Ambiguous configured default branches fail closed.
+    ordered = sorted(
+        {item.strip() for item in remotes if item.strip()},
+        key=lambda item: item != "origin",
+    )
+    remote_heads = []
+    for remote in ordered:
+        symbolic = _git(root, "symbolic-ref", "--quiet", f"refs/remotes/{remote}/HEAD")
+        verified = _verified_remote_ref(root, symbolic)
+        if verified is not None:
+            remote_heads.append(verified)
+    if len(set(remote_heads)) == 1:
+        return remote_heads[0]
+
+    # Fixtures and offline mirrors may carry remote-tracking refs without a
+    # configured remote; honor a unique symbolic remote HEAD in that case.
+    symbolic_heads = _git(
+        root,
+        "for-each-ref",
+        "--format=%(refname) %(symref)",
+        "refs/remotes",
+    )
+    candidates = {
+        verified
+        for line in (symbolic_heads or "").splitlines()
+        if line.split(" ", 1)[0].endswith("/HEAD")
+        and (verified := _verified_remote_ref(root, line.partition(" ")[2])) is not None
+    }
+    if len(candidates) == 1:
+        return candidates.pop()
+
+    return None
+
+
+def _upstream_parts(upstream_ref: str | None) -> tuple[str | None, str | None]:
+    """Split ``remote/branch`` while allowing slashes in the branch name."""
+    if not upstream_ref or "/" not in upstream_ref:
+        return None, None
+    remote, branch = upstream_ref.split("/", 1)
+    return remote, branch
 
 
 def _git(cwd: Path, *arguments: str) -> str | None:
@@ -229,27 +305,33 @@ def _activity_epoch(
     return max(signals) if signals else None
 
 
-def _unique_commits(root: Path, committish: str | None) -> int | None:
+def _unique_commits(
+    root: Path, committish: str | None, upstream_ref: str | None
+) -> int | None:
     """Commits on `committish` whose patch is not already upstream, or None."""
     # `git cherry` marks a patch-identical commit with '-' even when its hash
     # differs, which is exactly the case ahead/behind gets wrong: a branch can
     # be one commit "ahead" of upstream and carry nothing new.
     if committish is None:
         return None
-    if _git(root, "rev-parse", "--verify", "--quiet", UPSTREAM_REF) is None:
+    if upstream_ref is None:
         return None
-    output = _git(root, "cherry", UPSTREAM_REF, committish)
+    if _git(root, "rev-parse", "--verify", "--quiet", upstream_ref) is None:
+        return None
+    output = _git(root, "cherry", upstream_ref, committish)
     if output is None:
         return None
     return len([line for line in output.splitlines() if line.startswith("+")])
 
 
-def _ahead_behind(root: Path, committish: str | None) -> tuple[int | None, int | None]:
+def _ahead_behind(
+    root: Path, committish: str | None, upstream_ref: str | None
+) -> tuple[int | None, int | None]:
     """Commit counts relative to upstream, or (None, None) when unknown."""
-    if committish is None:
+    if committish is None or upstream_ref is None:
         return None, None
     output = _git(
-        root, "rev-list", "--left-right", "--count", f"{UPSTREAM_REF}...{committish}"
+        root, "rev-list", "--left-right", "--count", f"{upstream_ref}...{committish}"
     )
     if output is None:
         return None, None
@@ -259,18 +341,28 @@ def _ahead_behind(root: Path, committish: str | None) -> tuple[int | None, int |
     return int(parts[1]), int(parts[0])  # ahead, behind
 
 
-def _remote_only_branch_names(root: Path, worktree_branches: set[str]) -> list[str]:
-    """Origin branches no linked worktree references, upstream excluded."""
+def _remote_only_branch_names(
+    root: Path, worktree_branches: set[str], upstream_ref: str | None
+) -> list[str]:
+    """Remote branches no linked worktree references, upstream excluded."""
     # `git worktree list` already accounts for every branch that has a
     # worktree; this only has to name the ones nothing local still holds.
-    output = _git(root, "for-each-ref", "--format=%(refname:strip=3)", "refs/remotes/origin")
+    remote, upstream_branch = _upstream_parts(upstream_ref)
+    if remote is None:
+        return []
+    output = _git(
+        root,
+        "for-each-ref",
+        "--format=%(refname:strip=3)",
+        f"refs/remotes/{remote}",
+    )
     if output is None:
         return []
     names = [line.strip() for line in output.splitlines() if line.strip()]
     return [
         name
         for name in names
-        if name and name not in (UPSTREAM_BRANCH, "HEAD") and name not in worktree_branches
+        if name and name not in (upstream_branch, "HEAD") and name not in worktree_branches
     ]
 
 
@@ -296,6 +388,7 @@ def _collect_remote_only_entries(
     root: Path,
     worktree_branches: set[str],
     *,
+    upstream_ref: str | None,
     open_pull_requests: Callable[[str], int] | None,
     stale_days: float,
     now: float | None,
@@ -305,9 +398,10 @@ def _collect_remote_only_entries(
     threshold = reference_time - (stale_days * SECONDS_PER_DAY)
 
     entries: list[dict] = []
-    names = _remote_only_branch_names(root, worktree_branches)
+    remote, _ = _upstream_parts(upstream_ref)
+    names = _remote_only_branch_names(root, worktree_branches, upstream_ref)
     for name in names[:MAX_REPORTED_WORKTREES]:
-        last_commit_epoch = _last_commit_epoch(root, f"refs/remotes/origin/{name}")
+        last_commit_epoch = _last_commit_epoch(root, f"refs/remotes/{remote}/{name}")
         if last_commit_epoch is None or last_commit_epoch >= threshold:
             continue  # too young to call idle, or git could not answer
 
@@ -319,7 +413,7 @@ def _collect_remote_only_entries(
                 pull_requests = None
 
         entry = {
-            "path": f"origin/{name}",
+            "path": f"{remote}/{name}",
             "branch": name,
             "is_main": False,
             "is_current": False,
@@ -328,6 +422,7 @@ def _collect_remote_only_entries(
             "last_commit_epoch": last_commit_epoch,
             "age_days": (reference_time - last_commit_epoch) / SECONDS_PER_DAY,
             "open_pull_requests": pull_requests,
+            "upstream": upstream_ref,
         }
         entry["state"] = _classify_remote_only(entry)
         if entry["state"] != "clean":
@@ -351,7 +446,7 @@ def open_pull_requests_via_gh(branch: str) -> int:
     return len(json.loads(completed.stdout or "[]"))
 
 
-def _classify(entry: dict) -> str:
+def _classify(entry: dict, upstream_branch: str | None) -> str:
     """Name the one condition that decides what to do with this worktree."""
     # Every verdict beyond "there are uncommitted files here" needs positive
     # evidence, because the advice attached to it is destructive. A worktree
@@ -395,7 +490,7 @@ def _classify(entry: dict) -> str:
     # mere absence of any.
     if (
         not protected
-        and entry["branch"] != UPSTREAM_BRANCH
+        and entry["branch"] != upstream_branch
         and carries_commits
         and already_upstream
     ):
@@ -408,6 +503,7 @@ def _classify(entry: dict) -> str:
 def collect_worktree_report(
     root: Path,
     *,
+    upstream: str | None = None,
     open_pull_requests: Callable[[str], int] | None = None,
     stale_days: float = DEFAULT_STALE_DAYS,
     now: float | None = None,
@@ -422,6 +518,8 @@ def collect_worktree_report(
     # Returns an empty list -- never an error -- when the directory is not a
     # repository or git cannot answer, so a caller can always report the
     # result.
+    upstream_ref = resolve_upstream_ref(root, upstream)
+    _, upstream_branch = _upstream_parts(upstream_ref)
     listing = _git(root, "worktree", "list", "--porcelain")
     if listing is None:
         return []
@@ -440,7 +538,21 @@ def collect_worktree_report(
     report: list[dict] = []
     for index, record in enumerate(_parse_worktree_list(listing)[:MAX_REPORTED_WORKTREES]):
         if record["prunable"]:
-            continue  # the directory is already gone; `git worktree prune` owns it
+            report.append(
+                {
+                    "path": Path(record["path"]).as_posix(),
+                    "branch": record["branch"],
+                    "is_main": index == 0,
+                    "is_current": False,
+                    "locked": record["locked"],
+                    "lock_reason": record["lock_reason"],
+                    "prunable": True,
+                    "is_remote_only": False,
+                    "upstream": upstream_ref,
+                    "state": "prunable",
+                }
+            )
+            continue
         worktree = Path(record["path"])
         try:
             resolved = worktree.resolve()
@@ -452,7 +564,7 @@ def collect_worktree_report(
         head = (_git(worktree, "rev-parse", "HEAD") or "").strip() or None
         committish = branch or head
         corrupt, _, scan_truncated = scan_for_nul_corruption(str(worktree))
-        ahead, behind = _ahead_behind(root, committish)
+        ahead, behind = _ahead_behind(root, committish, upstream_ref)
         uncommitted_paths = _uncommitted_paths(worktree)
         last_activity_epoch = _activity_epoch(root, worktree, committish, uncommitted_paths)
 
@@ -470,6 +582,9 @@ def collect_worktree_report(
             "is_current": resolved == current,
             "locked": record["locked"],
             "lock_reason": record["lock_reason"],
+            "prunable": False,
+            "is_remote_only": False,
+            "upstream": upstream_ref,
             "uncommitted_files": (
                 len(uncommitted_paths) if uncommitted_paths is not None else None
             ),
@@ -484,10 +599,10 @@ def collect_worktree_report(
             "scan_truncated": scan_truncated,
             "ahead": ahead,
             "behind": behind,
-            "unique_commits": _unique_commits(root, committish),
+            "unique_commits": _unique_commits(root, committish, upstream_ref),
             "open_pull_requests": pull_requests,
         }
-        entry["state"] = _classify(entry)
+        entry["state"] = _classify(entry, upstream_branch)
         report.append(entry)
 
     worktree_branches = {entry["branch"] for entry in report if entry["branch"]}
@@ -495,6 +610,7 @@ def collect_worktree_report(
         _collect_remote_only_entries(
             root,
             worktree_branches,
+            upstream_ref=upstream_ref,
             open_pull_requests=open_pull_requests,
             stale_days=stale_days,
             now=reference_time,
@@ -507,6 +623,14 @@ def _describe(entry: dict, check_pull_requests_command: str = "--check-pull-requ
     branch = entry["branch"] or "detached HEAD"
     location = entry["path"]
     uncommitted = entry.get("uncommitted_files")
+    upstream_ref = entry.get("upstream") or "the configured upstream"
+
+    if entry["state"] == "prunable":
+        return (
+            f"worktree-prunable: {location} ({branch}): Git reports stale "
+            "administrative metadata for a worktree whose directory is gone. "
+            "Inspect locks, then prune it only within the selected cleanup scope."
+        )
 
     if entry["state"] == "orphaned":
         age = int(entry["age_days"])
@@ -520,7 +644,7 @@ def _describe(entry: dict, check_pull_requests_command: str = "--check-pull-requ
             f"commit, no local worktree holds it, and {caveat}. This branch is "
             "invisible to every other hygiene check. This repository preserves PR "
             "ancestry with merge commits: run `git merge-base --is-ancestor <branch> "
-            f"{UPSTREAM_REF}`. Delete an ancestor; otherwise inspect its exact diff "
+            f"{upstream_ref}`. Delete an ancestor; otherwise inspect its exact diff "
             "and PR state before opening a pull request or deleting it."
         )
     if entry["state"] == "corrupt":
@@ -544,7 +668,7 @@ def _describe(entry: dict, check_pull_requests_command: str = "--check-pull-requ
         else:
             held = (
                 f"{uncommitted} uncommitted file(s) and no commit that is not "
-                f"already on {UPSTREAM_REF}"
+                f"already on {upstream_ref}"
             )
         caveat = (
             "" if entry["open_pull_requests"] is not None
@@ -560,7 +684,7 @@ def _describe(entry: dict, check_pull_requests_command: str = "--check-pull-requ
     if entry["state"] == "superseded":
         return (
             f"worktree-superseded: {location} ({branch}): clean, and all "
-            f"{entry['ahead']} of its commit(s) are already on {UPSTREAM_REF} "
+            f"{entry['ahead']} of its commit(s) are already on {upstream_ref} "
             "by content. Its work landed through another path. If no session "
             "is using it, remove the worktree and delete the branch."
         )
@@ -601,11 +725,97 @@ def format_advisories(
     return advisories
 
 
+def _active_git_operations(root: Path) -> list[str]:
+    """Return active operation markers from this worktree's Git directory."""
+    markers = {
+        "merge": "MERGE_HEAD",
+        "cherry-pick": "CHERRY_PICK_HEAD",
+        "revert": "REVERT_HEAD",
+        "bisect": "BISECT_LOG",
+        "rebase-apply": "rebase-apply",
+        "rebase-merge": "rebase-merge",
+    }
+    active = []
+    for name, marker in markers.items():
+        value = (_git(root, "rev-parse", "--git-path", marker) or "").strip()
+        if not value:
+            continue
+        candidate = Path(value)
+        if not candidate.is_absolute():
+            candidate = root / candidate
+        if candidate.exists():
+            active.append(name)
+    return active
+
+
+def verify_repository_state(root: Path, upstream: str | None = None) -> list[str]:
+    """Verify one clean checkout at the configured upstream tip."""
+    resolved_root = root.resolve()
+    upstream_ref = resolve_upstream_ref(resolved_root, upstream)
+    violations: list[str] = []
+    if upstream_ref is None:
+        return ["missing-upstream"]
+
+    report = collect_worktree_report(resolved_root, upstream=upstream_ref)
+    local_worktrees = [item for item in report if not item.get("is_remote_only")]
+    if any(item.get("prunable") for item in local_worktrees):
+        violations.append("prunable-worktree")
+    if len(local_worktrees) != 1:
+        violations.append("extra-worktrees")
+
+    local_branches_output = _git(
+        resolved_root, "for-each-ref", "--format=%(refname:short)", "refs/heads"
+    )
+    if local_branches_output is None:
+        violations.append("unknown-local-branches")
+        local_branches: set[str] = set()
+    else:
+        local_branches = {
+            line.strip() for line in local_branches_output.splitlines() if line.strip()
+        }
+    _, expected_branch = _upstream_parts(upstream_ref)
+    if expected_branch is None or local_branches != {expected_branch}:
+        violations.append("extra-local-branches")
+
+    current_branch = (_git(resolved_root, "branch", "--show-current") or "").strip()
+    if not current_branch:
+        violations.append("detached-head")
+    elif current_branch != expected_branch:
+        violations.append("wrong-branch")
+
+    head = (_git(resolved_root, "rev-parse", "HEAD") or "").strip()
+    upstream_tip = (_git(resolved_root, "rev-parse", upstream_ref) or "").strip()
+    if not head or not upstream_tip or head != upstream_tip:
+        violations.append("wrong-tip")
+
+    current_entry = next(
+        (item for item in local_worktrees if item.get("is_current")), None
+    )
+    if current_entry is None or current_entry.get("uncommitted_files") is None:
+        violations.append("unknown-status")
+    elif current_entry.get("uncommitted_files"):
+        violations.append("dirty-worktree")
+    if _active_git_operations(resolved_root):
+        violations.append("active-git-operation")
+    if any(item.get("locked") for item in local_worktrees):
+        violations.append("locked-worktree")
+    return list(dict.fromkeys(violations))
+
+
 def build_parser() -> argparse.ArgumentParser:
     """Build the command-line parser."""
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--root", type=Path, default=Path.cwd())
     parser.add_argument("--format", choices=("text", "json"), default="text")
+    parser.add_argument(
+        "--upstream",
+        help="Explicit remote-tracking ref; otherwise derive it from Git configuration.",
+    )
+    parser.add_argument(
+        "--verify",
+        action="store_true",
+        help="Exit nonzero unless exactly one clean checkout is at the upstream tip.",
+    )
     parser.add_argument(
         "--check-pull-requests",
         action="store_true",
@@ -615,31 +825,41 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def main() -> int:
-    """Run the CLI. Always exits 0: this reports, it does not gate."""
+    """Run the advisory reporter or the opt-in repository verification gate."""
     args = build_parser().parse_args()
+    resolved_root = args.root.resolve()
+    upstream_ref = resolve_upstream_ref(resolved_root, args.upstream)
     report = collect_worktree_report(
-        args.root.resolve(),
+        resolved_root,
+        upstream=args.upstream,
         open_pull_requests=open_pull_requests_via_gh if args.check_pull_requests else None,
+    )
+    violations = (
+        verify_repository_state(resolved_root, args.upstream) if args.verify else []
     )
     if args.format == "json":
         print(
             json.dumps(
                 {
                     "foreign_worktree_stale_hours": FOREIGN_WORKTREE_STALE_HOURS,
+                    "upstream": upstream_ref,
                     "worktrees": report,
                     "advisories": format_advisories(report),
+                    "violations": violations,
                 },
                 indent=2,
             )
         )
-        return 0
+        return 1 if violations else 0
     advisories = format_advisories(report)
-    if not advisories:
+    if not advisories and not violations:
         print(f"Worktree hygiene is clean: {len(report)} worktree(s), nothing to report.")
         return 0
     for advisory in advisories:
         print(advisory)
-    return 0
+    if violations:
+        print("repository-verification: " + ", ".join(violations))
+    return 1 if violations else 0
 
 
 if __name__ == "__main__":
