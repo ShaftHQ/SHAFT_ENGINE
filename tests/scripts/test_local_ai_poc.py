@@ -736,6 +736,14 @@ class LifecycleTest(unittest.TestCase):
         with self.assertRaisesRegex(RuntimeError, "4 GiB"):
             monitor.raise_if_failed()
 
+    @mock.patch.object(MODULE.subprocess, "run", side_effect=AssertionError("unresolved executable was launched"))
+    @mock.patch.object(MODULE.shutil, "which", return_value=None)
+    @mock.patch.object(MODULE.platform, "system", return_value="Darwin")
+    def test_process_tree_rss_requires_a_resolved_process_inventory_executable(
+            self, _system, _which, _run):
+        with self.assertRaisesRegex(RuntimeError, "ps executable"):
+            MODULE._process_tree_rss_bytes(42)
+
     def test_model_ids_and_every_derived_path_are_cache_contained(self):
         for identifier in ("../../escape", "C:escape", "NUL", "bad/id", "bad\\id"):
             mutated = json.loads(json.dumps(self.manifest))

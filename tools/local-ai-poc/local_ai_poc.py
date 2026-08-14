@@ -1317,8 +1317,11 @@ def _process_tree_rss_bytes(root_pid: int) -> int:
         return total
     if system == "Linux":
         return _linux_process_tree_rss_bytes(root_pid)
+    ps_executable = shutil.which("ps")
+    if ps_executable is None:
+        raise RuntimeError("ps executable is required for process-tree RSS inspection")
     completed = subprocess.run(  # nosec B603 - fixed read-only host process inventory.
-        ["ps", "-axo", "pid=,ppid=,rss="], check=True, capture_output=True, text=True, timeout=5,
+        [ps_executable, "-axo", "pid=,ppid=,rss="], check=True, capture_output=True, text=True, timeout=5,
     )
     parents: dict[int, int] = {}
     rss: dict[int, int] = {}
