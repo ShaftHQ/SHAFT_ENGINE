@@ -81,9 +81,11 @@ native JAR flow instead:
    `.codex/config.toml` with their resolved absolute paths. Upgrades repeat
    discovery, so another user's Java or data path is never inherited.
 5. Start a fresh client session and prove both the MCP initialize and tools/list
-   responses. The JAR launch includes `--spring.profiles.active=docker` only
-   because upstream uses that Spring profile to enable clean stdio; it does not
-   start or require Docker.
+   responses. The JAR launch includes
+   `--spring.profiles.active=docker,no-context7`: upstream's `docker` profile
+   enables clean stdio without starting or requiring Docker, while
+   `no-context7` keeps the receipt-pinned server's native tool surface independent
+   of a live downstream Context7 connection.
 
 If Java 25 or the verified JAR is absent, installation leaves this optional MCP
 server out of every host configuration. Maven CLI, repository files, Context7,
