@@ -235,6 +235,14 @@ public final class ReportingSetupService {
 
     static ProcessResult runProcess(List<String> command, Path log, Duration timeout,
                                     Path cacheRoot, Path nodeRoot, Path workingDirectory) throws IOException {
+        return runProcess(command, log, timeout, cacheRoot, nodeRoot, workingDirectory,
+                java.util.Map.of(), java.util.Set.of(), null);
+    }
+
+    static ProcessResult runProcess(List<String> command, Path log, Duration timeout,
+                                    Path cacheRoot, Path nodeRoot, Path workingDirectory,
+                                    java.util.Map<String, String> environment,
+                                    java.util.Set<String> removedEnvironment, String standardInput) throws IOException {
         ProcessBuilder builder = new ProcessBuilder(command).redirectErrorStream(true);
         if (workingDirectory != null) builder.directory(workingDirectory.toFile());
         String nodeBin = Files.isRegularFile(nodeRoot.resolve("node.exe"))
@@ -242,7 +250,22 @@ public final class ReportingSetupService {
         builder.environment().put("PATH", nodeBin + java.io.File.pathSeparator
                 + builder.environment().getOrDefault("PATH", ""));
         builder.environment().put("npm_config_cache", cacheRoot.resolve("npm").toString());
+        removedEnvironment.forEach(builder.environment()::remove);
+        builder.environment().putAll(environment);
         Process process = builder.start();
+        try {
+            if (standardInput != null) {
+                process.getOutputStream().write(standardInput.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            }
+            process.getOutputStream().close();
+        } catch (IOException inputFailure) {
+            try {
+                destroyProcessTree(process);
+            } catch (IOException cleanupFailure) {
+                inputFailure.addSuppressed(cleanupFailure);
+            }
+            throw inputFailure;
+        }
         long deadlineNanos = System.nanoTime() + timeout.toNanos();
         InputStream input = process.getInputStream();
         var outputFuture = java.util.concurrent.CompletableFuture.supplyAsync(() -> {

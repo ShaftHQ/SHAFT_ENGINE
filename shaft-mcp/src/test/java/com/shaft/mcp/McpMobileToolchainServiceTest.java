@@ -1,6 +1,9 @@
 package com.shaft.mcp;
 
 import com.shaft.properties.internal.Internal;
+import com.shaft.infrastructure.ManagedEnvironment;
+import com.shaft.infrastructure.SetupProfile;
+import com.shaft.infrastructure.SetupReceipt;
 import org.aeonbits.owner.ConfigFactory;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -8,12 +11,15 @@ import org.junit.jupiter.api.io.TempDir;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class McpMobileToolchainServiceTest {
@@ -127,6 +133,7 @@ class McpMobileToolchainServiceTest {
         assertEquals(4096, proposal.ramMb());
         assertTrue(proposal.sdkRoot().toString().contains("android-sdk"));
         assertTrue(proposal.sdkPackages().contains("platforms;android-36"));
+        assertTrue(proposal.sdkPackages().contains("build-tools;36.0.0"));
         assertTrue(proposal.commands().stream().anyMatch(command -> command.contains("sdkmanager")));
     }
 
@@ -170,7 +177,7 @@ class McpMobileToolchainServiceTest {
     }
 
     @Test
-    void ensureAppiumInstallsPinnedPackagesWithCurrentCliSyntax() throws Exception {
+    void androidEnsureAppiumDoesNotOwnMutableNpmOrExtensionInstallation() throws Exception {
         Path toolRoot = Files.createDirectories(temp.resolve("tools"));
         create(toolRoot.resolve(windowsNodeArchive()), "npm.cmd");
         create(toolRoot.resolve("appium/node_modules/.bin"), "appium.cmd");
@@ -180,20 +187,54 @@ class McpMobileToolchainServiceTest {
 
         service.ensureAppium("Android");
 
-        assertTrue(runner.commands.stream().anyMatch(command ->
-                command.contains("appium@" + INTERNAL.appiumServerVersion())));
-        assertTrue(runner.commands.stream().anyMatch(command -> command.equals(List.of(
-                toolRoot.resolve("appium/node_modules/.bin/appium.cmd").toString(),
-                "driver",
-                "install",
-                "--source=npm",
-                "appium-uiautomator2-driver@" + INTERNAL.appiumUiAutomator2DriverVersion()))));
-        assertTrue(runner.commands.stream().anyMatch(command -> command.equals(List.of(
-                toolRoot.resolve("appium/node_modules/.bin/appium.cmd").toString(),
-                "plugin",
-                "install",
-                "--source=npm",
-                "appium-inspector-plugin@" + INTERNAL.appiumInspectorPluginVersion()))));
+        assertTrue(runner.commands.isEmpty());
+    }
+
+    @Test
+    void confirmedAndroidProposalDoesNotRunLegacySdkmanagerOrLicenseCommands() throws Exception {
+        Path toolRoot = Files.createDirectories(temp.resolve("tools"));
+        create(toolRoot.resolve("android-sdk/cmdline-tools/latest/bin"), "sdkmanager.bat");
+        create(toolRoot.resolve("android-sdk/cmdline-tools/latest/bin"), "avdmanager.bat");
+        FakeRunner runner = new FakeRunner();
+        java.util.concurrent.atomic.AtomicInteger sharedInstalls = new java.util.concurrent.atomic.AtomicInteger();
+        McpMobileToolchainService service = new McpMobileToolchainService(runner,
+                Map.of("PATH", ""), toolRoot, "Windows 11", "amd64", new McpMobileToolchainService.AndroidSetupOwner() {
+                    @Override public Path sdkRoot(int apiLevel, String abi) { return toolRoot.resolve("shared-sdk"); }
+                    @Override public Path avdHome() { return toolRoot.resolve("shared-avd"); }
+                    @Override public void install(McpAndroidEmulatorProposal proposal) { sharedInstalls.incrementAndGet(); }
+                    @Override public ManagedEnvironment start(McpAndroidEmulatorProposal proposal) {
+                        throw new UnsupportedOperationException();
+                    }
+                });
+        McpAndroidEmulatorProposal proposal = service.defaultAndroidProposal("", 0, "", "", "", 0, 0);
+
+        service.ensureAndroidEmulator(proposal);
+
+        assertTrue(runner.commands.isEmpty());
+        assertEquals(1, sharedInstalls.get());
+    }
+
+    @Test
+    void androidRuntimeStartIsOwnedBySharedInfrastructureWithoutLegacyProcessLaunch() throws Exception {
+        Path toolRoot = Files.createDirectories(temp.resolve("tools"));
+        FakeRunner runner = new FakeRunner();
+        ManagedEnvironment expected = new ManagedEnvironment(SetupProfile.MOBILE_ANDROID,
+                new SetupReceipt("digest", Instant.EPOCH, List.of()),
+                Optional.of(java.net.URI.create("http://127.0.0.1:4723/")),
+                Map.of("ANDROID_SERIAL", "emulator-5554"), () -> { });
+        McpMobileToolchainService service = new McpMobileToolchainService(runner,
+                Map.of("PATH", ""), toolRoot, "Windows 11", "amd64", new McpMobileToolchainService.AndroidSetupOwner() {
+                    @Override public Path sdkRoot(int apiLevel, String abi) { return toolRoot.resolve("shared-sdk"); }
+                    @Override public Path avdHome() { return toolRoot.resolve("shared-avd"); }
+                    @Override public void install(McpAndroidEmulatorProposal proposal) { }
+                    @Override public ManagedEnvironment start(McpAndroidEmulatorProposal proposal) { return expected; }
+                });
+        McpAndroidEmulatorProposal proposal = service.defaultAndroidProposal("", 0, "", "", "", 0, 0);
+
+        ManagedEnvironment actual = service.startAndroidRuntime(proposal);
+
+        assertSame(expected, actual);
+        assertTrue(runner.commands.isEmpty());
     }
 
     private static String windowsNodeArchive() {
