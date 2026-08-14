@@ -136,24 +136,28 @@ its contract is enforced by `tests/scripts/test_chaos_engine_hosts.py`.
 
 ## Task isolation
 
-Before task-specific discovery or edits, main thread must successfully fetch
-and prune, then clear stale local state so the session starts from one known
-base. Create or verify a fresh configured task branch/worktree from the fetched
-configured default branch. Reuse it only for dependent work in the same user task. Never
-reuse that branch for a later user task. Stop and report if fetch or base
-verification fails.
+Canonical policy stays repository-, machine-, user-, agent-, and
+provider-agnostic. Concrete identities and locations belong in selected
+profiles, adapters, configuration, or integration playbooks.
 
-Cleanup order, and never out of order:
+Before edits, fetch and prune, verify the configured upstream, and isolate the
+task from that base. Stop if fetch or base verification fails. Apply the
+[cleanup scopes](../../references/cleanup-scopes.md) exactly.
 
-1. Push any local branch whose commits exist on no remote, so nothing is lost.
-2. Delete every other local branch and remove its worktree.
-3. Skip and report, never delete, a worktree that has uncommitted changes or
-   that another live session holds. Concurrent agents each own a worktree; one
-   session's cleanup must not strand another's work.
+### Task scope (default)
 
-Report what was pushed and what was deleted. Cleanup is bounded to this
-repository and never rewrites remote history.
-`scripts/ci/worktree_hygiene.py` surveys which worktrees those rules cover.
+Clean only state this task touched. Preserve and report all other state.
+
+### Repository scope (explicit)
+
+Only an explicit request widens cleanup to one repository. Normalize it and
+refresh native Memory, Graphify, and MemPalace; do not touch siblings.
+
+### Machine scope (approval-gated)
+
+The widest scope requires specific user approval and an exact validated
+manifest. Process only approved entries; halt on changed identity or live
+ownership. Approval never crosses target classes.
 
 ## Operating contract
 

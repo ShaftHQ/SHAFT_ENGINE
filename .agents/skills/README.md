@@ -133,6 +133,7 @@ sends you there; the rest by
 - [heuristics](../../chaos-engine/references/heuristics.md)
 - [orchestrator bootstrap](../../chaos-engine/references/orchestrator-bootstrap.md)
 - [verification-gap lens](../../chaos-engine/references/verification-gap-lens.md)
+- [cleanup scopes](../../chaos-engine/references/cleanup-scopes.md)
 - [work GitHub playbook](../../chaos-engine/references/work-github-playbook.md)
 - [work GitHub planning](../../chaos-engine/references/work-github-planning.md)
 - [graphify](../../chaos-engine/references/graphify.md)
