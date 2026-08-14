@@ -251,6 +251,7 @@ jobs:
               - '.github/workflows/e2eLocalTests.yml'
               - 'tests/scripts/test_ocr_infrastructure_boundary.py'
               - 'tests/scripts/test_lighthouse_infrastructure_boundary.py'
+              - 'tests/scripts/test_android_infrastructure_boundary.py'
             infra:
               - '.github/workflows/pr-gate.yml'
               # Composite actions this gate's jobs call (issue #4440 added
@@ -591,6 +592,10 @@ jobs:
           java -jar shaft-cli/target/shaft-cli-*[0-9].jar --help
           java -jar shaft-cli/target/shaft-cli-*[0-9].jar setup --help
           java -jar shaft-cli/target/shaft-cli-*[0-9].jar setup catalog --json
+          android_plan="$(mktemp --suffix=.json)"
+          java -jar shaft-cli/target/shaft-cli-*[0-9].jar setup plan --profile MOBILE_ANDROID \
+            --mode MANAGED --offline --output "$android_plan"
+          python3 -c "import json; p=json.load(open('$android_plan')); assert len(p['actions']) == 6; assert 'android-sdk-license' in p['actions'][4]['requiredLicenses']"
 
   capture-e2e:
     name: SHAFT Capture Browser E2E
@@ -854,7 +859,8 @@ jobs:
           python3 -m unittest
           tests.scripts.test_pilot_module_boundary
           tests.scripts.test_ocr_infrastructure_boundary
-          tests.scripts.test_lighthouse_infrastructure_boundary -v
+          tests.scripts.test_lighthouse_infrastructure_boundary
+          tests.scripts.test_android_infrastructure_boundary -v
 
   # Issue #4071: a TestNG suite XML file that no pom, workflow, or script
   # references is invisible -- unlike a failing test, nothing reports it, so
