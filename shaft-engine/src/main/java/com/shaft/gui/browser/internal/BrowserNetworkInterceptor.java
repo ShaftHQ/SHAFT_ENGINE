@@ -119,8 +119,7 @@ public class BrowserNetworkInterceptor implements AutoCloseable {
     public synchronized boolean startObserving() {
         requireOpen();
         if (!(driver instanceof HasDevTools)) {
-            BrowserObservabilityRecorder.recordWarning("network",
-                    "Network capture is not supported by this driver.");
+            startBidiFallback();
             return false;
         }
         observing = true;
@@ -130,10 +129,16 @@ public class BrowserNetworkInterceptor implements AutoCloseable {
         } catch (RuntimeException e) {
             observing = false;
             closeActiveInterceptor();
-            BrowserObservabilityRecorder.recordWarning("network",
-                    "Network capture could not start for this driver.");
+            startBidiFallback();
             return false;
         }
+    }
+
+    private void startBidiFallback() {
+        BidiNetworkActivitySource source = BidiNetworkActivitySource.forDriver(driver);
+        BrowserObservabilityRecorder.recordWarning("network", source != null && source.healthy()
+                ? "Detailed network capture is unavailable; bounded BiDi request metadata is active."
+                : "Network capture is not supported by this driver.");
     }
 
     /** Stops passive observation while preserving registered interception rules. */
@@ -282,6 +287,7 @@ public class BrowserNetworkInterceptor implements AutoCloseable {
     }
 
     private void closeActiveInterceptor() {
+        counter.deactivate();
         if (activeInterceptor != null) {
             try {
                 activeInterceptor.close();
@@ -320,6 +326,10 @@ public class BrowserNetworkInterceptor implements AutoCloseable {
 
         private synchronized void activate() {
             active = true;
+        }
+
+        private synchronized void deactivate() {
+            active = false;
         }
 
         private synchronized boolean active() {

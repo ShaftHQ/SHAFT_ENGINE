@@ -9,6 +9,7 @@ import org.mockito.MockedStatic;
 import org.mockito.Mockito;
 import org.openqa.selenium.*;
 import org.openqa.selenium.chromium.ChromiumDriver;
+import org.openqa.selenium.chromium.HasCdp;
 import org.openqa.selenium.devtools.DevToolsException;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
@@ -117,6 +118,38 @@ public class BrowserActionsHelperCoverageUnitTest {
                 .thenThrow(new DevToolsException("temporary issue"))
                 .thenReturn(Map.of("data", "snapshot-data"));
         Assert.assertEquals(helper.capturePageSnapshot(chromiumDriver), "snapshot-data");
+    }
+
+    @Test
+    public void augmentedRemoteCdpSessionShouldCaptureResourceCompleteMhtml() {
+        WebDriver augmentedRemote = mock(WebDriver.class,
+                Mockito.withSettings().extraInterfaces(HasCdp.class));
+        when(((HasCdp) augmentedRemote).executeCdpCommand(eq("Page.captureSnapshot"), anyMap()))
+                .thenReturn(Map.of("data", "From: <Saved by Blink>\nresource-complete"));
+        when(augmentedRemote.getPageSource()).thenReturn("<html>structural fallback only</html>");
+
+        String snapshot = helper.capturePageSnapshot(augmentedRemote);
+
+        Assert.assertEquals(snapshot, "From: <Saved by Blink>\nresource-complete");
+        verify((HasCdp) augmentedRemote).executeCdpCommand(eq("Page.captureSnapshot"), anyMap());
+        verify(augmentedRemote, Mockito.never()).getPageSource();
+    }
+
+    @Test
+    public void exhaustedRemoteCdpCaptureShouldUseStructuralPageSourceOnce() {
+        WebDriver augmentedRemote = mock(WebDriver.class,
+                Mockito.withSettings().extraInterfaces(HasCdp.class));
+        when(((HasCdp) augmentedRemote).executeCdpCommand(eq("Page.captureSnapshot"), anyMap()))
+                .thenThrow(new WebDriverException("first CDP failure"))
+                .thenThrow(new WebDriverException("second CDP failure"));
+        when(augmentedRemote.getPageSource()).thenReturn("<html>structural fallback</html>");
+
+        String snapshot = helper.capturePageSnapshot(augmentedRemote);
+
+        Assert.assertEquals(snapshot, "<html>structural fallback</html>");
+        verify((HasCdp) augmentedRemote, Mockito.times(2))
+                .executeCdpCommand(eq("Page.captureSnapshot"), anyMap());
+        verify(augmentedRemote).getPageSource();
     }
 
     @Test
