@@ -163,6 +163,7 @@ final class DefaultAndroidToolchainOperations implements AndroidToolchainOperati
                     AndroidSetupPlanner.INSPECTOR_PLUGIN_VERSION, log);
             requireExtension(staging, "driver", "uiautomator2", "appium-uiautomator2-driver",
                     AndroidSetupPlanner.UIAUTOMATOR2_VERSION, log);
+            clearAppiumExtensionCache(staging);
             ReportingSetupService.publish(staging, destination, VerifiedArtifactStore::move);
         } finally {
             deleteTree(staging);
@@ -284,6 +285,12 @@ final class DefaultAndroidToolchainOperations implements AndroidToolchainOperati
             throw new IOException("Appium " + type + ' ' + extensionName
                     + " is not registered at the approved version.");
         }
+    }
+
+    private static void clearAppiumExtensionCache(Path root) throws IOException {
+        Path cache = root.resolve("node_modules/.cache/appium");
+        VerifiedArtifactStore.requireUnlinkedAncestors(cache);
+        deleteTree(cache);
     }
 
     private SetupStatus sdkStatus(SetupAction action) throws IOException {

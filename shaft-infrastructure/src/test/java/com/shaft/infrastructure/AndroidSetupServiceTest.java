@@ -340,6 +340,13 @@ class AndroidSetupServiceTest {
         List<String> sdkPackageInputs = new ArrayList<>();
         AndroidCommandRunner runner = (command, workingDirectory, environment, removed, input, log, timeout) -> {
             commands.add(List.copyOf(command));
+            if (command.contains("driver") || command.contains("plugin")) {
+                Path extensionManifest = workingDirectory.resolve("node_modules/.cache/appium/extensions.yaml");
+                if (Files.notExists(extensionManifest)) {
+                    Files.createDirectories(extensionManifest.getParent());
+                    Files.writeString(extensionManifest, "installPath: " + workingDirectory);
+                }
+            }
             int prefix = command.indexOf("--prefix");
             if (command.contains("ci") && prefix >= 0) createAppiumFixture(Path.of(command.get(prefix + 1)));
             if (command.stream().anyMatch(part -> part.contains("sdkmanager"))
@@ -395,6 +402,10 @@ class AndroidSetupServiceTest {
         assertEquals(SetupReadiness.READY, service.status().readiness());
         assertTrue(Files.isRegularFile(paths.tools().resolve("android-sdk/15859902-api36-x86_64/"
                 + "build-tools/36.0.0/aapt2.exe")));
+        String extensionManifest = Files.readString(paths.tools().resolve(
+                "appium/3.6.0/node_modules/.cache/appium/extensions.yaml"));
+        assertFalse(extensionManifest.contains(".staging-"));
+        assertTrue(extensionManifest.contains(paths.tools().resolve("appium/3.6.0").toString()));
         assertTrue(commands.stream().noneMatch(command -> command.contains("--licenses")));
         assertEquals(List.of("y\n"), sdkPackageInputs);
         assertTrue(commands.stream().anyMatch(command -> command.contains("build-tools;36.0.0")));
