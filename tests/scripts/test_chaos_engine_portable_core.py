@@ -88,7 +88,7 @@ class ChaosEnginePortableCoreTest(unittest.TestCase):
                     )
                     self.assertNotIn("amber", description.lower())
 
-    def test_brand_v3_uses_the_quantum_mandate_geometry_and_palette(self):
+    def test_brand_v4_uses_the_polished_quantum_mandate_geometry_and_palette(self):
         brand = (BRAND_ASSETS / "BRAND.md").read_text(encoding="utf-8")
         palette = json.loads((BRAND_ASSETS / "palette.json").read_text(encoding="utf-8"))
         expected_palette = {
@@ -124,10 +124,12 @@ class ChaosEnginePortableCoreTest(unittest.TestCase):
             "specimen.svg": {"#06080D", "#10141C", "#F2F7FF", "#FF3B4D"},
         }
 
-        def groups_with_direct_children(root, child_count):
+        def groups_with_direct_children(
+            root, child_count, geometry_version="quantum-mandate-v4"
+        ):
             groups = []
             for element in root.iter():
-                if element.attrib.get("data-geometry") != "quantum-mandate-v3":
+                if element.attrib.get("data-geometry") != geometry_version:
                     continue
                 children = list(element)
                 if len(children) == child_count:
@@ -149,9 +151,26 @@ class ChaosEnginePortableCoreTest(unittest.TestCase):
             return tuple(signature)
 
         canonical_root = ET.parse(BRAND_ASSETS / "symbol-primary.svg").getroot()  # nosec B314
-        canonical_geometry = geometry_signature(groups_with_direct_children(canonical_root, 4)[0])
+        canonical_groups = groups_with_direct_children(canonical_root, 4)
+        self.assertTrue(canonical_groups, "canonical Quantum Mandate v4 geometry is missing")
+        canonical_children = canonical_groups[0]
+        canonical_geometry = geometry_signature(canonical_children)
+        canonical_paths = [element.attrib["d"] for element in canonical_children]
+        self.assertEqual(
+            "M332 116H600V260H410L282 388V636L410 764H600V908H332L126 702V322Z",
+            canonical_paths[0],
+        )
+        self.assertIn("H760L800 714H690Z", canonical_paths[1])
+        self.assertEqual(
+            "M478 456 518 416H578L618 456V516L578 556H518L478 516Z",
+            canonical_paths[2],
+        )
         micro_root = ET.parse(BRAND_ASSETS / "favicon-16.svg").getroot()  # nosec B314
-        micro_geometry = geometry_signature(groups_with_direct_children(micro_root, 4)[0])
+        micro_groups = groups_with_direct_children(
+            micro_root, 4, geometry_version="quantum-mandate-v3"
+        )
+        self.assertTrue(micro_groups, "dedicated Quantum Mandate v3 micro geometry is missing")
+        micro_geometry = geometry_signature(micro_groups[0])
         full_size_assets = {
             "symbol-primary.svg", "symbol-light.svg", "symbol-dark.svg",
             "lockup-light.svg", "lockup-dark.svg", "favicon.svg",
@@ -170,21 +189,47 @@ class ChaosEnginePortableCoreTest(unittest.TestCase):
             }
             with self.subTest(path=path.name):
                 self.assertNotIn("17d4c5c2b655f876", content)
-                self.assertIn("quantum-mandate-v3", content)
+                expected_geometry_version = (
+                    "quantum-mandate-v3"
+                    if path.name in {"favicon-16.svg", "favicon-16-dark.svg"}
+                    else "quantum-mandate-v4"
+                )
+                self.assertIn(expected_geometry_version, content)
                 self.assertEqual(allowed_colors[path.name], colors)
-                groups = groups_with_direct_children(root, 4)
+                groups = groups_with_direct_children(
+                    root, 4, geometry_version=expected_geometry_version
+                )
                 if path.name in full_size_assets:
                     self.assertIn(canonical_geometry, map(geometry_signature, groups))
                 if path.name in {"favicon-16.svg", "favicon-16-dark.svg"}:
                     self.assertEqual([micro_geometry], list(map(geometry_signature, groups)))
+                    self.assertEqual("crispEdges", root.attrib.get("shape-rendering"))
 
         specimen_root = ET.parse(BRAND_ASSETS / "specimen.svg").getroot()  # nosec B314
         specimen_groups = groups_with_direct_children(specimen_root, 4)
+        specimen_groups.extend(
+            groups_with_direct_children(
+                specimen_root, 4, geometry_version="quantum-mandate-v3"
+            )
+        )
         specimen_signatures = list(map(geometry_signature, specimen_groups))
         self.assertEqual(5, len(specimen_signatures))
         self.assertEqual(3, specimen_signatures.count(canonical_geometry))
         self.assertEqual(2, specimen_signatures.count(micro_geometry))
         self.assertEqual({canonical_geometry, micro_geometry}, set(specimen_signatures))
+        micro_specimens = [
+            element
+            for element in specimen_root.iter()
+            if element.attrib.get("data-geometry") == "quantum-mandate-v3"
+            and element.attrib.get("shape-rendering") == "crispEdges"
+        ]
+        self.assertEqual(2, len(micro_specimens))
+
+        for name in ("lockup-light.svg", "lockup-dark.svg"):
+            content = (BRAND_ASSETS / name).read_text(encoding="utf-8")
+            self.assertIn('d="M1610 0V130M1610 0H1680', content)
+            self.assertIn('d="M2220 0V130M2220 0H2290', content)
+
         self.assertIn("interface and data-visualization use only", brand)
 
     def test_chaos_engine_is_the_canonical_skill_and_act_as_mohab_is_only_an_alias(self):
