@@ -268,7 +268,13 @@ final class DefaultAndroidToolchainOperations implements AndroidToolchainOperati
         requireSuccess(result, "Appium " + type + " discovery failed");
         tools.jackson.databind.JsonNode extension;
         try {
-            extension = JSON.readTree(result.output()).path(extensionName);
+            String output = result.output();
+            int objectStart = output.indexOf('{');
+            int objectEnd = output.lastIndexOf('}');
+            if (objectStart < 0 || objectEnd < objectStart) {
+                throw new IOException("Appium " + type + " list did not contain a JSON object.");
+            }
+            extension = JSON.readTree(output.substring(objectStart, objectEnd + 1)).path(extensionName);
         } catch (tools.jackson.core.JacksonException invalid) {
             throw new IOException("Appium " + type + " list returned invalid JSON.", invalid);
         }

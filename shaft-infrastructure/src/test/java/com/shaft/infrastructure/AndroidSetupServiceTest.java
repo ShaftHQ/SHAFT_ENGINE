@@ -338,9 +338,11 @@ class AndroidSetupServiceTest {
                         + "build-tools;36.0.0 | 36.0.0 | fixture\n"
                         + "system-images;android-36;google_apis;x86_64 | 7 | fixture\n";
             } else if (command.contains("driver")) {
-                output = "{\"uiautomator2\":{\"pkgName\":\"appium-uiautomator2-driver\",\"version\":\"8.2.2\"}}";
+                output = "dbug Appium refreshed extension cache\n"
+                        + "{\"uiautomator2\":{\"pkgName\":\"appium-uiautomator2-driver\",\"version\":\"8.2.2\"}}";
             } else if (command.contains("plugin")) {
-                output = "{\"inspector\":{\"pkgName\":\"appium-inspector-plugin\",\"version\":\"2026.7.1\"}}";
+                output = "dbug Appium refreshed extension cache\n"
+                        + "{\"inspector\":{\"pkgName\":\"appium-inspector-plugin\",\"version\":\"2026.7.1\"}}";
             } else {
                 output = command.stream().anyMatch(part -> part.endsWith("appium/index.js")
                         || part.endsWith("appium\\index.js")) ? "3.6.0" : "v24.19.0";
