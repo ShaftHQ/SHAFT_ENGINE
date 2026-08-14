@@ -555,10 +555,10 @@ def validate_quality_configuration(root: Path = ROOT) -> list[str]:
         e2e_workflow.count('"-DincludeVisualTestRuntime"')
         + local_e2e_workflow.count('"-DincludeVisualTestRuntime"')
     )
-    if grid_install_count != 4 or local_install_count != 4 or activation_count != 8:
+    if grid_install_count != 4 or local_install_count != 4 or activation_count != 10:
         errors.append(
             "e2eTests.yml and e2eLocalTests.yml must prepare and activate the visual test runtime "
-            "for 4 grid/cloud and 4 local broad browser jobs"
+            "for 4 grid/cloud, 4 local broad-browser, and 2 OCR acceptance jobs"
         )
     for required_local_flow in (
         "Windows_SikuliX_Local",
