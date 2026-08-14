@@ -167,6 +167,8 @@ class ChaosEngineBootstrapTest(unittest.TestCase):
                     "memory",
                     "mempalace",
                     "graphify",
+                    "retrieval-config",
+                    "projection-policy",
                 },
                 set(status["components"]),
             )

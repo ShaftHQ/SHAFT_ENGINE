@@ -993,6 +993,49 @@ def install_with_dependencies(  # noqa: MC0001 - owned resources share one compe
         return target
 
 
+def attach_component_status(
+    result: dict[str, object], project: Path, target: Path, dependency_health: str
+) -> None:
+    component_paths = {
+        "core": [target / "skills/chaos-engine/SKILL.md"],
+        "skills": [project / ".agents/skills/chaos-engine/SKILL.md"],
+        "playbooks": [target / "references/work-github-playbook.md"],
+        "hooks": [
+            target / "hooks/guard.py",
+            project / ".codex/hooks.json",
+            project / "plugins/chaos-engine/hooks/hooks.json",
+        ],
+        "plugins": [
+            project / ".agents/plugins/marketplace.json",
+            project / ".claude-plugin/marketplace.json",
+            project / "plugins/chaos-engine/.codex-plugin/plugin.json",
+            project / "plugins/chaos-engine/.claude-plugin/plugin.json",
+        ],
+        "roles": [
+            *(project / ".claude/agents").glob("chaos-engine-*"),
+            *(project / ".codex/agents").glob("chaos-engine-*"),
+        ],
+        "mcps": [project / ".mcp.json", project / ".codex/config.toml"],
+        "retrieval-config": [
+            project / ".memory/config.json",
+            project / "mempalace.yaml",
+        ],
+        "projection-policy": [target / MANIFEST_NAME],
+    }
+    components: dict[str, dict[str, str]] = {}
+    for name, paths in component_paths.items():
+        expected_count = 10 if name == "roles" else len(paths)
+        healthy = len(paths) == expected_count and all(path.is_file() for path in paths)
+        components[name] = {"status": "healthy" if healthy else "absent"}
+    for name in ("tools", "memory", "mempalace", "graphify"):
+        components[name] = {"status": dependency_health}
+    result["components"] = components
+    if dependency_health != "healthy" or any(
+        item["status"] != "healthy" for item in components.values()
+    ):
+        result["status"] = "recovery-required"
+
+
 def status_with_dependencies(project: Path) -> dict[str, object]:
     project = project.resolve()
     runtime = project / ".chaos-engine-runtime"
@@ -1032,9 +1075,11 @@ def status_with_dependencies(project: Path) -> dict[str, object]:
                 for path in (removing, backup, building)
             ):
                 result["dependencies"] = {"status": "recovery-required"}
+                attach_component_status(result, project, target, "recovery-required")
                 return result
             if not runtime.exists():
                 result["dependencies"] = {"status": "absent"}
+                attach_component_status(result, project, target, "absent")
                 return result
             controller = load_dependency_controller(target)
             result["dependencies"] = controller.status(
@@ -1042,37 +1087,7 @@ def status_with_dependencies(project: Path) -> dict[str, object]:
                 specification=controller.load_specification(target / "dependencies.json"),
             )
             dependency_health = str(result["dependencies"].get("status"))  # type: ignore[union-attr]
-            component_paths = {
-                "core": [target / "skills/chaos-engine/SKILL.md"],
-                "skills": [project / ".agents/skills/chaos-engine/SKILL.md"],
-                "playbooks": [target / "references/work-github-playbook.md"],
-                "hooks": [
-                    target / "hooks/guard.py",
-                    project / ".codex/hooks.json",
-                    project / "plugins/chaos-engine/hooks/hooks.json",
-                ],
-                "plugins": [
-                    project / ".agents/plugins/marketplace.json",
-                    project / ".claude-plugin/marketplace.json",
-                    project / "plugins/chaos-engine/.codex-plugin/plugin.json",
-                    project / "plugins/chaos-engine/.claude-plugin/plugin.json",
-                ],
-                "roles": [
-                    *(project / ".claude/agents").glob("chaos-engine-*"),
-                    *(project / ".codex/agents").glob("chaos-engine-*"),
-                ],
-                "mcps": [project / ".mcp.json", project / ".codex/config.toml"],
-            }
-            components: dict[str, dict[str, str]] = {}
-            for name, paths in component_paths.items():
-                expected_count = 10 if name == "roles" else len(paths)
-                healthy = len(paths) == expected_count and all(path.is_file() for path in paths)
-                components[name] = {"status": "healthy" if healthy else "absent"}
-            for name in ("tools", "memory", "mempalace", "graphify"):
-                components[name] = {"status": dependency_health}
-            result["components"] = components
-            if any(item["status"] != "healthy" for item in components.values()):
-                result["status"] = "recovery-required"
+            attach_component_status(result, project, target, dependency_health)
             return result
 
 

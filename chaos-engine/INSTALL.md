@@ -30,6 +30,15 @@ coding agent while its working directory is the project you want to manage:
 > the installed ChaosEngine skill as the canonical harness and route any
 > existing agent guidance through it without deleting unrelated user content.
 
+That one agent command owns the complete flow: the bootstrap installs the
+neutral core, pinned local tools, Memory and isolated MemPalace MCP servers,
+Graphify CLI, skills, playbooks, five role adapters, lifecycle hooks, Codex and
+Claude plugin manifests/marketplaces, retrieval configuration, and runtime
+ignore rules. When a detected client requires marketplace registration, the
+agent registers the project marketplace and installs `chaos-engine` at project
+scope, then runs `doctor`. Generated indexes, caches, receipts, and runtimes
+remain untracked; canonical configuration and adapters remain trackable.
+
 The command is agent-oriented so the agent selects the available Python 3
 executable on Windows, macOS, or Linux and can report a blocked network or
 authentication boundary. For a direct terminal flow, save the bootstrap and
@@ -58,6 +67,11 @@ unchanged.
 The consumer folder may be a GitHub checkout, another Git checkout, or a
 non-Git directory. ChaosEngine installs project-locally and does not infer its
 upstream from the consumer repository.
+
+`doctor` reports each required component independently: core, projection
+policy, skills, playbooks, hooks, plugins, roles, MCPs, retrieval config, tools,
+Memory, MemPalace, and Graphify. Any missing selected component prevents a
+healthy verdict.
 
 ## Optional native Maven Tools MCP
 

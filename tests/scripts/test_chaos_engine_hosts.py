@@ -125,6 +125,9 @@ class ChaosEngineHostsTest(unittest.TestCase):
                 "plugins/chaos-engine/skills/chaos-engine/SKILL.md",
                 ".codex/hooks.json",
                 ".claude/settings.json",
+                ".memory/config.json",
+                "mempalace.yaml",
+                ".gitignore",
             }
             for role in ("orchestrator", "implementer", "reviewer", "tester", "mechanical-helper"):
                 required.add(f".claude/agents/chaos-engine-{role}.md")
@@ -145,6 +148,14 @@ class ChaosEngineHostsTest(unittest.TestCase):
                     project.joinpath(path).read_text(errors="ignore") for path in required
                 ),
             )
+            memory_config = json.loads(project.joinpath(".memory/config.json").read_text())
+            self.assertEqual("consumer", memory_config["project"]["name"])
+            self.assertIn("wing: consumer", project.joinpath("mempalace.yaml").read_text())
+            ignores = project.joinpath(".gitignore").read_text()
+            self.assertIn(".chaos-engine-runtime/", ignores)
+            self.assertIn("!.memory/config.json", ignores)
+            self.assertIn("!.claude/**", ignores)
+            self.assertIn("!.codex/**", ignores)
 
     def test_plugin_marketplace_preserves_unrelated_entries(self):
         module = load(HOSTS, "chaos_engine_marketplace_merge")
@@ -205,6 +216,7 @@ class ChaosEngineHostsTest(unittest.TestCase):
                 path = project / relative
                 if path.is_file():
                     path.unlink()
+            project.joinpath(".gitignore").write_text("user-owned-rule/\n", encoding="utf-8")
             project.joinpath(module.RECEIPT_NAME).write_bytes(
                 module.receipt_bytes(receipt, project)
             )
@@ -213,6 +225,7 @@ class ChaosEngineHostsTest(unittest.TestCase):
 
             self.assertEqual(set(module.managed_paths()), set(receipt["after"]))
             self.assertEqual("healthy", module.verify(project, core_commit="2" * 40)["status"])
+            self.assertTrue(project.joinpath(".gitignore").read_text().startswith("user-owned-rule/"))
 
     def test_codex_hooks_preserve_unrelated_events(self):
         module = load(HOSTS, "chaos_engine_hook_merge")
@@ -247,6 +260,38 @@ class ChaosEngineHostsTest(unittest.TestCase):
                 module.install(project)
             self.assertEqual(original, json.loads(path.read_text()))
             self.assertFalse(project.joinpath(module.RECEIPT_NAME).exists())
+
+    def test_gitignore_reincludes_tracked_memory_config_under_existing_parent_rule(self):
+        module = load(HOSTS, "chaos_engine_gitignore_memory")
+        before = {relative: None for relative in module.managed_paths()}
+        before[".gitignore"] = b".memory/\n"
+
+        rendered = module.desired_content(before)[".gitignore"].decode()
+
+        self.assertLess(rendered.index("!.memory/"), rendered.index("!.memory/config.json"))
+
+    def test_invalid_retrieval_configs_fail_before_mutation(self):
+        module = load(HOSTS, "chaos_engine_invalid_retrieval")
+        for relative, content, message in (
+            (".memory/config.json", "{}", "Memory configuration"),
+            ("mempalace.yaml", "arbitrary: value\n", "MemPalace configuration"),
+            (
+                "mempalace.yaml",
+                "wing: project\nrooms:\nexclude_patterns:\n",
+                "MemPalace configuration",
+            ),
+        ):
+            with self.subTest(relative=relative), tempfile.TemporaryDirectory() as temporary:
+                project = Path(temporary) / "consumer"
+                project.joinpath(".chaos-engine/skills/chaos-engine").mkdir(parents=True)
+                project.joinpath(".chaos-engine/skills/chaos-engine/SKILL.md").write_text("# C\n")
+                path = project / relative
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_text(content, encoding="utf-8")
+
+                with self.assertRaisesRegex(ValueError, message):
+                    module.install(project)
+                self.assertFalse(project.joinpath(module.RECEIPT_NAME).exists())
 
     def test_launcher_rendering_is_explicit_for_windows_and_posix(self):
         module = load(HOSTS, "chaos_engine_hosts")

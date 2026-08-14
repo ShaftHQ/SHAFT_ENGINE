@@ -53,6 +53,8 @@ INSTRUCTION = (
     "Use `.chaos-engine/tool.py` for the project-local Memory, MemPalace, and Graphify tools.\n"
     f"{END}\n"
 )
+GITIGNORE_START = "# CHAOSENGINE-RUNTIME:START"
+GITIGNORE_END = "# CHAOSENGINE-RUNTIME:END"
 
 
 def interpreter(platform_name: str | None = None) -> tuple[str, list[str]]:
@@ -219,6 +221,9 @@ def managed_paths() -> tuple[str, ...]:
         ".mcp.json",
         ".gemini/settings.json",
         ".codex/config.toml",
+        ".memory/config.json",
+        "mempalace.yaml",
+        ".gitignore",
     )
 
 
@@ -539,9 +544,31 @@ def hook_content(before: bytes | None, rendered: bytes, label: str) -> bytes:
     return (json.dumps(existing, indent=2, sort_keys=True) + "\n").encode()
 
 
+def gitignore_content(before: bytes | None) -> bytes:
+    try:
+        existing = before.decode("utf-8") if before is not None else ""
+    except UnicodeDecodeError as error:
+        raise ValueError("invalid gitignore configuration") from error
+    block = (
+        f"{GITIGNORE_START}\n"
+        ".chaos-engine-runtime/\n.chaos-engine-state/\ngraphify-out/\n"
+        ".chaos-engine-hosts.json\n.chaos-engine-hosts.active-*\n"
+        ".memory/*\n!.memory/\n!.memory/config.json\n"
+        "!.claude/\n!.claude/**\n!.codex/\n!.codex/**\n"
+        f"{GITIGNORE_END}\n"
+    )
+    if GITIGNORE_START in existing or GITIGNORE_END in existing:
+        if block not in existing:
+            raise ValueError("ChaosEngine gitignore collision")
+        return before  # type: ignore[return-value]
+    separator = "\n" if existing and not existing.endswith("\n") else ""
+    return (existing + separator + block).encode()
+
+
 def desired_content(
     before: dict[str, bytes | None],
     maven_runtime: tuple[Path, Path] | None | bool = False,
+    project_name: str = "project",
 ) -> dict[str, bytes]:
     if maven_runtime is False:
         maven_runtime = discover_maven_tools_runtime()
@@ -759,6 +786,76 @@ def desired_content(
             f'developer_instructions = {json.dumps(f"Load .chaos-engine/skills/chaos-engine/SKILL.md and follow .chaos-engine/references/roles.md#{role}. {responsibility}")}\n'
             f"{sandbox}"
         ).encode()
+    memory_before = before[".memory/config.json"]
+    if memory_before is None:
+        normalized_name = re.sub(r"[^a-z0-9]+", "-", project_name.casefold()).strip("-") or "project"
+        memory_config = {
+            "version": 4,
+            "project": {"id": f"project.{normalized_name}", "name": project_name},
+            "memory": {
+                "autoIndex": True,
+                "defaultTokenBudget": 6000,
+                "saveContextPacks": False,
+            },
+            "git": {"trackContextPacks": False},
+        }
+        after[".memory/config.json"] = (
+            json.dumps(memory_config, indent=2, sort_keys=True) + "\n"
+        ).encode()
+    else:
+        try:
+            memory_config = json.loads(memory_before)
+        except (UnicodeDecodeError, json.JSONDecodeError) as error:
+            raise ValueError("invalid Memory configuration") from error
+        project_config = memory_config.get("project") if isinstance(memory_config, dict) else None
+        memory_options = memory_config.get("memory") if isinstance(memory_config, dict) else None
+        git_options = memory_config.get("git") if isinstance(memory_config, dict) else None
+        if (
+            not isinstance(memory_config, dict)
+            or memory_config.get("version") != 4
+            or not isinstance(project_config, dict)
+            or not isinstance(project_config.get("id"), str)
+            or not isinstance(project_config.get("name"), str)
+            or not isinstance(memory_options, dict)
+            or not isinstance(git_options, dict)
+        ):
+            raise ValueError("invalid Memory configuration")
+        after[".memory/config.json"] = memory_before
+    mempalace_before = before["mempalace.yaml"]
+    if mempalace_before is None:
+        safe_name = re.sub(r"[^A-Za-z0-9_.-]+", "-", project_name).strip("-") or "project"
+        after["mempalace.yaml"] = (
+            f"wing: {safe_name}\n"
+            "rooms:\n  - name: general\n    description: Project source and documentation\n"
+            "    keywords: [project, source, documentation]\n"
+            "exclude_patterns:\n  - mempalace.yaml\n  - .memory/**\n"
+            "  - graphify-out/**\n  - .chaos-engine-runtime/**\n  - .chaos-engine-state/**\n"
+        ).encode()
+    else:
+        try:
+            mempalace_text = mempalace_before.decode("utf-8")
+        except UnicodeDecodeError as error:
+            raise ValueError("invalid MemPalace configuration") from error
+        wing_matches = re.findall(r"(?m)^wing:\s*([A-Za-z0-9_.-]+)\s*$", mempalace_text)
+        rooms = re.search(
+            r"(?ms)^rooms:\s*\n(?P<body>.*?)(?=^exclude_patterns:\s*$)",
+            mempalace_text,
+        )
+        excludes = re.search(
+            r"(?ms)^exclude_patterns:\s*\n(?P<body>.*)\Z",
+            mempalace_text,
+        )
+        if (
+            len(wing_matches) != 1
+            or rooms is None
+            or re.search(r"(?m)^\s{2}- name:\s*\S+\s*$", rooms.group("body")) is None
+            or re.search(r"(?m)^\s{4}description:\s*\S+.*$", rooms.group("body")) is None
+            or excludes is None
+            or re.search(r"(?m)^\s{2}-\s+\S+\s*$", excludes.group("body")) is None
+        ):
+            raise ValueError("invalid MemPalace configuration")
+        after["mempalace.yaml"] = mempalace_before
+    after[".gitignore"] = gitignore_content(before[".gitignore"])
     for relative in ("AGENTS.md", "CLAUDE.md", "GEMINI.md"):
         after[relative] = instruction_content(before[relative], INSTRUCTION)
     after[".github/copilot-instructions.md"] = instruction_content(
@@ -788,10 +885,12 @@ def encode_images(images: dict[str, bytes | None]) -> dict[str, str | None]:
 
 def decode_images(value: object, *, nullable: bool) -> dict[str, bytes | None]:
     keys = frozenset(value) if isinstance(value, dict) else frozenset()
-    if not isinstance(value, dict) or keys not in {
-        frozenset(managed_paths()),
-        frozenset(LEGACY_MANAGED_PATHS),
-    }:
+    current_keys = frozenset(managed_paths())
+    if (
+        not isinstance(value, dict)
+        or not frozenset(LEGACY_MANAGED_PATHS) <= keys
+        or not keys <= current_keys
+    ):
         raise ValueError("ChaosEngine host receipt ownership is invalid")
     result: dict[str, bytes | None] = {}
     try:
@@ -1094,6 +1193,17 @@ def read_receipt(project: Path) -> tuple[dict[str, object], bytes]:
         raise ValueError("ChaosEngine host receipt routes are invalid")
     decode_images(value.get("before"), nullable=True)
     decode_images(value.get("after"), nullable=False)
+    before_value = value.get("before")
+    after_value = value.get("after")
+    if isinstance(before_value, dict) and isinstance(after_value, dict):
+        missing = set(managed_paths()) - set(after_value)
+        if missing:
+            current = current_images(project)
+            for relative in missing:
+                if current[relative] is not None:
+                    encoded = base64.b64encode(current[relative]).decode("ascii")
+                    before_value[relative] = encoded
+                    after_value[relative] = encoded
     directories = receipt_directories(value)
     if directories:
         directory_marker(project, value, directories[0])
@@ -1170,7 +1280,7 @@ def install(project: Path, core_commit: str | None = None) -> dict[str, object]:
         after = decode_images(receipt["after"], nullable=False)
         if receipt["phase"] == "installed":
             verify(project, receipt)
-            wanted = desired_content(before)
+            wanted = desired_content(before, project_name=project.name)
             if after == wanted and receipt.get("coreCommit") == core_commit:
                 return receipt
             next_receipt = dict(receipt)
@@ -1191,6 +1301,10 @@ def install(project: Path, core_commit: str | None = None) -> dict[str, object]:
                 return next_receipt
             except BaseException:
                 reconcile(project, after, (after, wanted))
+                if new_directories:
+                    cleanup_receipt = dict(next_receipt)
+                    cleanup_receipt["createdDirectories"] = new_directories
+                    remove_created_directories(project, cleanup_receipt)
                 atomic_write(project, receipt_path, raw, read_file(project, receipt_path))
                 raise
         prepare_created_directories(project, receipt)
@@ -1200,7 +1314,7 @@ def install(project: Path, core_commit: str | None = None) -> dict[str, object]:
         return receipt
 
     before = current_images(project)
-    after = desired_content(before)
+    after = desired_content(before, project_name=project.name)
     if existing_anchors and existing_anchors[0].name.startswith(REMOVING_ANCHOR_PREFIX):
         raise ValueError("ChaosEngine host removal recovery is required")
     anchor_path = host_anchor_path(project, create=True)

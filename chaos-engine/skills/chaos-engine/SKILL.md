@@ -314,7 +314,7 @@ Do not confuse a diff with an outcome: run the real affected flow, review the
 actual diff, and keep external actions within granted authority.
 
 Opening a PR does not end the duty. Arm auto-merge once its review gate passes,
-then watch with `scripts/ci/watch_pr_checks.py` until the remote confirms
+then watch with `gh pr checks <n> --watch --fail-fast` until the remote confirms
 merged. Red and conflicting are yours to fix, not to hand back; stale emits no
 event, so ask for it. The duty survives compaction, a dead delegate, and the
 task that opened the PR:

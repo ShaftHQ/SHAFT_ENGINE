@@ -3,6 +3,10 @@
 Load the [canonical ChaosEngine entrypoint](../../skills/chaos-engine/SKILL.md)
 first. This profile adds only repository-specific facts and permissions.
 Its machine-readable identity is in [profile.json](profile.json).
+Repository contributors use the source-only
+[Graphify resolver](../../../tools/repository-map/resolve_graph_out.py), covered
+by its [tests](../../../tests/scripts/test_resolve_graph_out.py); adopters use
+the portable installed launcher instead.
 
 - Repository: `ShaftHQ/SHAFT_ENGINE`; default branch: `main`.
 - Task branches use `ChaosEngine/*` and start from fetched `origin/main`.

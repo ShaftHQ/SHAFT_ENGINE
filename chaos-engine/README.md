@@ -143,6 +143,9 @@ default; repository-specific distributions require an explicit selection.
 The installer records provenance and per-file ownership in the consumer
 project. Host adapters redirect to the canonical skill; they do not fork its
 policy into competing copies.
+It also creates trackable Memory and MemPalace configuration, provider-native
+role/plugin/hook adapters, and ignore rules that separate canonical harness
+files from generated runtimes, indexes, receipts, and Graphify output.
 
 ## Trust boundaries
 

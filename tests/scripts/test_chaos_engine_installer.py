@@ -193,6 +193,24 @@ class ChaosEngineInstallerTest(unittest.TestCase):
                 "portable", MODULE.status_with_dependencies(project)["distribution"]
             )
 
+    def test_full_status_is_not_healthy_when_runtime_is_absent(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary) / "consumer"
+            project.mkdir()
+            MODULE.install_with_dependencies(
+                project,
+                SOURCE,
+                TEST_COMMIT,
+                provisioner=lambda *_args, **_kwargs: None,
+            )
+
+            result = MODULE.status_with_dependencies(project)
+
+            self.assertEqual("recovery-required", result["status"])
+            self.assertEqual("absent", result["dependencies"]["status"])
+            self.assertIn("components", result)
+            self.assertEqual("absent", result["components"]["tools"]["status"])
+
     def test_project_lock_closes_descriptor_when_stream_creation_fails(self):
         with tempfile.TemporaryDirectory() as temporary:
             project = Path(temporary)
