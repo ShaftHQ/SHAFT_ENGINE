@@ -238,6 +238,41 @@ class InfrastructureMcpServiceTest {
     }
 
     @Test
+    void defaultServiceLoaderRunsLocalAiStatusPlanAndCleanInstall() throws Exception {
+        Path cache = temp.resolve("mcp-managed-ai-cache").toAbsolutePath();
+        Path data = temp.resolve("mcp-managed-ai-data").toAbsolutePath();
+        com.shaft.driver.SHAFT.Properties.managedLocalAi.set().enabled(true)
+                .model("qwen3-0.6b-q8_0").cacheDirectory(cache.toString());
+        try {
+            InfrastructureMcpService service = new InfrastructureMcpService();
+            McpSetupRequest request = new McpSetupRequest("LOCAL_AI", "MANAGED",
+                    cache.toString(), data.toString(), true, false, true, true,
+                    "PT2M", "PT30S", "", "CLEAN", List.of());
+
+            service.setupStatus(request);
+            McpSetupPlanResult planned = service.setupPlan(request);
+            assertTrue(planned.plan().actions().stream()
+                    .allMatch(action -> action.kind() == SetupActionKind.CLEAN));
+            assertTrue(planned.plan().actions().stream()
+                    .anyMatch(action -> action.target() == SetupTarget.MANAGED_LOCAL_AI_RUNTIME));
+            assertTrue(planned.plan().actions().stream()
+                    .anyMatch(action -> action.target() == SetupTarget.MANAGED_LOCAL_AI_MODEL));
+            assertFalse(java.nio.file.Files.exists(cache));
+            assertFalse(java.nio.file.Files.exists(data));
+            List<String> licenses = planned.plan().actions().stream()
+                    .flatMap(action -> action.requiredLicenses().stream()).distinct().toList();
+
+            SetupReceipt receipt = service.setupInstall(
+                    planned.planJson(), planned.digest(), licenses, request);
+
+            assertEquals(planned.digest(), receipt.planDigest());
+            assertEquals(planned.plan().actions(), receipt.completedActions());
+        } finally {
+            com.shaft.properties.internal.Properties.clearForCurrentThread();
+        }
+    }
+
+    @Test
     void malformedTimeoutNamesTheRejectedField() {
         McpSetupRequest request = new McpSetupRequest("REPORTING", "MANAGED",
                 temp.resolve("cache").toString(), temp.resolve("data").toString(),
