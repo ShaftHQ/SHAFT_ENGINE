@@ -495,22 +495,49 @@ public final class ReportingSetupService {
     }
 
     private static void extractTar(Path archive, Path destination) throws IOException {
+        List<DeferredArchiveLink> links = new ArrayList<>();
         try (InputStream raw = Files.newInputStream(archive);
              InputStream compressed = new GzipCompressorInputStream(raw);
              TarArchiveInputStream input = new TarArchiveInputStream(compressed)) {
             for (TarArchiveEntry entry; (entry = input.getNextEntry()) != null;) {
-                if (entry.isSymbolicLink() || entry.isLink()) throw new IOException("Archive links are not allowed.");
                 Path target = archiveTarget(destination, entry.getName());
                 if (target == null) continue;
-                if (entry.isDirectory()) Files.createDirectories(target);
+                if (entry.isLink()) throw new IOException("Archive hard links are not allowed: " + entry.getName());
+                if (entry.isSymbolicLink()) {
+                    links.add(new DeferredArchiveLink(target,
+                            containedRelativeLinkTarget(destination, target, entry.getLinkName()), entry.getMode()));
+                } else if (entry.isDirectory()) Files.createDirectories(target);
                 else if (entry.isFile()) {
                     Files.createDirectories(target.getParent());
                     Files.copy(input, target);
                     if ((entry.getMode() & 0111) != 0) makeExecutable(target);
-                }
+                } else throw new IOException("Archive special entries are not allowed: " + entry.getName());
             }
         }
+        for (DeferredArchiveLink link : links) {
+            if (!Files.isRegularFile(link.source(), java.nio.file.LinkOption.NOFOLLOW_LINKS)) {
+                throw new IOException("Archive link target is not an extracted regular file: " + link.source());
+            }
+            Files.createDirectories(link.target().getParent());
+            Files.copy(link.source(), link.target());
+            if ((link.mode() & 0111) != 0) makeExecutable(link.target());
+        }
     }
+
+    private static Path containedRelativeLinkTarget(Path destination, Path link, String rawTarget)
+            throws IOException {
+        String normalized = rawTarget == null ? "" : rawTarget.replace('\\', '/');
+        if (normalized.isBlank() || normalized.startsWith("/") || normalized.contains(":")) {
+            throw new IOException("Archive link target must be relative: " + rawTarget);
+        }
+        Path target = link.getParent().resolve(normalized).normalize();
+        if (!target.startsWith(destination)) {
+            throw new IOException("Archive link target escapes its destination: " + rawTarget);
+        }
+        return target;
+    }
+
+    private record DeferredArchiveLink(Path target, Path source, int mode) { }
 
     private static Path archiveTarget(Path destination, String name) throws IOException {
         String normalized = name.replace('\\', '/');

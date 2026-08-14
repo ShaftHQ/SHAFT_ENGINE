@@ -65,6 +65,40 @@ class ReportingSetupServiceTest {
     }
 
     @Test
+    void linuxNodeTarRejectsEscapingRelativeLink(@TempDir Path temp) throws Exception {
+        Path archive = temp.resolve("node-escape.tar.gz");
+        try (TarArchiveOutputStream output = new TarArchiveOutputStream(
+                new GzipCompressorOutputStream(Files.newOutputStream(archive)))) {
+            byte[] content = "binary".getBytes(StandardCharsets.UTF_8);
+            TarArchiveEntry node = new TarArchiveEntry("node-v24.19.0-linux-x64/bin/node");
+            node.setSize(content.length);
+            node.setMode(0755);
+            output.putArchiveEntry(node);
+            output.write(content);
+            output.closeArchiveEntry();
+            TarArchiveEntry link = new TarArchiveEntry("node-v24.19.0-linux-x64/bin/npm",
+                    TarArchiveEntry.LF_SYMLINK);
+            link.setLinkName("../../../outside");
+            output.putArchiveEntry(link);
+            output.closeArchiveEntry();
+        }
+        Path cache = temp.resolve("cache").toAbsolutePath();
+        Path data = temp.resolve("data").toAbsolutePath();
+        ShaftCachePaths paths = new ShaftCachePaths(cache, data, cache.resolve("downloads"),
+                data.resolve("tools"), data.resolve("state"), data.resolve("receipts"));
+        ReportingSetupService service = new ReportingSetupService(paths, SetupPlatform.LINUX,
+                SetupArchitecture.X64, action -> archive,
+                (command, log, timeout) -> new ReportingSetupService.ProcessResult(0, "v24.19.0"), false);
+
+        IOException failure = assertThrows(IOException.class, () -> service.installNodeAction(
+                ReportingSetupPlanner.plan(SetupPlatform.LINUX, SetupArchitecture.X64,
+                        SetupMode.MANAGED).actions().getFirst()));
+
+        assertTrue(failure.getMessage().contains("escapes"));
+        assertTrue(Files.notExists(temp.resolve("outside")));
+    }
+
+    @Test
     void verifiedArtifactStoreRejectsBadHashAndCachesGoodFile(@TempDir Path temp) throws Exception {
         Path source = temp.resolve("artifact.bin");
         Files.writeString(source, "verified");
@@ -427,6 +461,11 @@ class ReportingSetupServiceTest {
                 output.write(content);
                 output.closeArchiveEntry();
             }
+            TarArchiveEntry npmLink = new TarArchiveEntry("node-v24.19.0-linux-x64/bin/npm",
+                    TarArchiveEntry.LF_SYMLINK);
+            npmLink.setLinkName("../lib/node_modules/npm/bin/npm-cli.js");
+            output.putArchiveEntry(npmLink);
+            output.closeArchiveEntry();
         }
         return destination;
     }
