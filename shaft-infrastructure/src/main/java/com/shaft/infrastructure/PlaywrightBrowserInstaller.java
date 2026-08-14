@@ -45,7 +45,11 @@ final class PlaywrightBrowserInstaller {
         }
 
         Map<String, Path> mirrorPaths = validateArchives(archives, hostPlatform.requiredArtifacts());
-        if (log != null) java.nio.file.Files.createDirectories(log.toAbsolutePath().normalize().getParent());
+        if (log != null) {
+            Path normalizedLog = log.toAbsolutePath().normalize();
+            VerifiedArtifactStore.requireUnlinkedAncestors(normalizedLog);
+            java.nio.file.Files.createDirectories(normalizedLog.getParent());
+        }
         try (VerifiedArtifactMirror mirror = VerifiedArtifactMirror.open(mirrorPaths)) {
             String base = mirror.baseUri().toString();
             Map<String, String> environment = new LinkedHashMap<>();

@@ -16,8 +16,37 @@ import java.util.concurrent.atomic.AtomicReference;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 class PlaywrightBrowserInstallerTest {
+    @Test
+    void linkedLogAncestorIsRejectedBeforeProcessExecution(@TempDir Path temp) throws Exception {
+        Path node = Files.writeString(temp.resolve("node.exe"), "node");
+        Path cli = temp.resolve("driver/package/cli.js");
+        Files.createDirectories(cli.getParent());
+        Files.writeString(cli, "cli");
+        Map<PlaywrightArtifactManifest.Artifact, Path> archives = verifiedArchives(
+                temp, PlaywrightArtifactManifest.load().requirePlatform("win64"));
+        Path externalLogs = Files.createDirectory(temp.resolve("external-logs"));
+        Path linkedLogs = temp.resolve("linked-logs");
+        try {
+            Files.createSymbolicLink(linkedLogs, externalLogs);
+        } catch (UnsupportedOperationException | java.io.IOException unsupported) {
+            org.junit.jupiter.api.Assumptions.abort("Symbolic links unavailable: " + unsupported.getMessage());
+        }
+        PlaywrightBrowserInstaller installer = new PlaywrightBrowserInstaller(
+                (command, log, timeout, environment, removed) -> {
+                    throw new AssertionError("linked log path must fail before process execution");
+                });
+
+        java.io.IOException failure = assertThrows(java.io.IOException.class,
+                () -> installer.install(node, temp.resolve("driver"), temp.resolve("browsers"), archives,
+                        linkedLogs.resolve("install.log"), Duration.ofMinutes(3)));
+
+        assertTrue(failure.getMessage().contains("symbolic links"));
+        assertFalse(Files.exists(externalLogs.resolve("install.log")));
+    }
+
     @Test
     void acceptsTheExactUbuntuArtifactSetWithoutWinldd(@TempDir Path temp) throws Exception {
         Path node = Files.writeString(temp.resolve("node"), "node");

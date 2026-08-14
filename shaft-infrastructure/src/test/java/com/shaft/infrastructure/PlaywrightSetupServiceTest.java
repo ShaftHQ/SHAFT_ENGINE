@@ -12,6 +12,8 @@ import java.util.List;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -19,6 +21,53 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class PlaywrightSetupServiceTest {
+    @Test
+    void threeJvmWaitersConvergeOnOnePublishedReceipt(@TempDir Path temp) throws Exception {
+        ShaftCachePaths paths = paths(temp);
+        Path node = Files.writeString(temp.resolve("node.exe"), "node");
+        AtomicInteger fetches = new AtomicInteger();
+        AtomicInteger installs = new AtomicInteger();
+        CountDownLatch installerEntered = new CountDownLatch(1);
+        CountDownLatch allowPublication = new CountDownLatch(1);
+        PlaywrightSetupService.ArtifactFetcher fetcher = action -> Files.writeString(
+                temp.resolve("archive-" + fetches.incrementAndGet()), action.version());
+        PlaywrightSetupService.BrowserInstaller installer = (nodePath, driverRoot, browserRoot,
+                                                               archives, log, timeout) -> {
+            installs.incrementAndGet();
+            installerEntered.countDown();
+            try {
+                if (!allowPublication.await(5, TimeUnit.SECONDS)) throw new java.io.IOException("test timeout");
+            } catch (InterruptedException interrupted) {
+                Thread.currentThread().interrupt();
+                throw new java.io.IOException("test interrupted", interrupted);
+            }
+            createReadyWindowsLayout(browserRoot);
+        };
+        PlaywrightSetupService.DriverExtractor extractor = (nodePath, destination) -> {
+            Path cli = destination.resolve("package/cli.js");
+            Files.createDirectories(cli.getParent());
+            Files.writeString(cli, "cli");
+        };
+        List<PlaywrightSetupService> services = java.util.stream.IntStream.range(0, 3)
+                .mapToObj(ignored -> new PlaywrightSetupService(paths, SetupPlatform.WINDOWS,
+                        SetupArchitecture.X64, readyNode(node), fetcher, extractor, installer)).toList();
+        SetupPlan plan = PlaywrightSetupPlanner.plan(SetupPlatform.WINDOWS, SetupArchitecture.X64,
+                SetupMode.MANAGED);
+        SetupApproval approval = new SetupApproval(plan.digest(), Instant.EPOCH, Set.of());
+        try (var executor = java.util.concurrent.Executors.newFixedThreadPool(3)) {
+            List<java.util.concurrent.Future<SetupReceipt>> futures = services.stream()
+                    .map(service -> executor.submit(() -> service.install(plan, approval))).toList();
+            assertTrue(installerEntered.await(5, TimeUnit.SECONDS));
+            allowPublication.countDown();
+            List<SetupReceipt> receipts = new ArrayList<>();
+            for (var future : futures) receipts.add(future.get(10, TimeUnit.SECONDS));
+
+            assertEquals(1, installs.get());
+            assertEquals(6, fetches.get());
+            assertTrue(receipts.stream().allMatch(receipt -> receipt.equals(receipts.getFirst())));
+        }
+    }
+
     @Test
     void ubuntuInstallPublishesFiveArtifactLayoutAndBecomesReady(@TempDir Path temp) throws Exception {
         ShaftCachePaths paths = paths(temp);
