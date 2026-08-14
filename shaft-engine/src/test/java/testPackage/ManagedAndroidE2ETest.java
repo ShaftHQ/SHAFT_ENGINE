@@ -56,6 +56,6 @@ public class ManagedAndroidE2ETest {
         Process process = builder.redirectErrorStream(true).start();
         String output = new String(process.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
         Assert.assertEquals(process.waitFor(), 0, output);
-        Assert.assertTrue(output.toLowerCase().contains("aapt2"), output);
+        Assert.assertTrue(output.trim().startsWith("Android Asset Packaging Tool (aapt) 2."), output);
     }
 }
