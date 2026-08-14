@@ -310,9 +310,20 @@ final class DefaultAndroidToolchainOperations implements AndroidToolchainOperati
         if (!Files.isRegularFile(pointer, LinkOption.NOFOLLOW_LINKS)) {
             return missing(action, "SHAFT-owned AVD pointer is not published.");
         }
-        return Files.readString(pointer, StandardCharsets.UTF_8).equals(avdPointerContent(avdRoot()))
-                ? ready(action, action.version())
-                : degraded(action, "", "AVD pointer does not match the reviewed request.");
+        if (!Files.readString(pointer, StandardCharsets.UTF_8).equals(avdPointerContent(avdRoot()))) {
+            return degraded(action, "", "AVD pointer does not match the reviewed request.");
+        }
+        ReportingSetupService.ProcessResult acceleration = run(List.of(
+                        executable(sdkRoot().resolve("emulator"), "emulator").toString(), "-accel-check"),
+                sdkRoot(), null, null, Duration.ofSeconds(30), androidEnvironment(sdkRoot(), avdHome()));
+        if (acceleration.exitCode() != 0) {
+            String diagnostic = acceleration.output().strip();
+            if (diagnostic.length() > 512) diagnostic = diagnostic.substring(0, 512) + "...";
+            if (diagnostic.isEmpty()) diagnostic = "emulator -accel-check exited with code "
+                    + acceleration.exitCode() + '.';
+            return degraded(action, action.version(), "Android emulator acceleration is unavailable: " + diagnostic);
+        }
+        return ready(action, action.version());
     }
 
     private boolean avdDirectoryReady() throws IOException {

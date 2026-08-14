@@ -192,6 +192,43 @@ class AndroidSetupServiceTest {
     }
 
     @Test
+    void avdStatusUsesOfficialAccelerationProbeAndReportsMissingHostSupport(@TempDir Path temp) throws Exception {
+        ShaftCachePaths paths = paths(temp);
+        AndroidSetupRequest request = AndroidSetupRequest.defaults().resolve(SetupArchitecture.X64);
+        Path sdk = paths.tools().resolve("android-sdk/15859902-api36-x86_64");
+        createSdkFixture(sdk);
+        Path avdHome = paths.tools().resolve("android-avd");
+        Path avd = avdHome.resolve(request.avdName() + ".avd");
+        Files.createDirectories(avd);
+        Files.writeString(avd.resolve("config.ini"), "fixture");
+        Files.writeString(avd.resolve("shaft-request.properties"), requestMetadata(request));
+        Files.writeString(avdHome.resolve(request.avdName() + ".ini"),
+                "path=" + avd.toAbsolutePath().normalize() + System.lineSeparator()
+                        + "path.rel=avd/" + request.avdName() + ".avd" + System.lineSeparator()
+                        + "target=android-" + request.apiLevel() + System.lineSeparator());
+        List<List<String>> commands = new ArrayList<>();
+        AndroidCommandRunner runner = (command, workingDirectory, environment, removed, input, log, timeout) -> {
+            commands.add(List.copyOf(command));
+            if (command.contains("-accel-check")) {
+                return new ReportingSetupService.ProcessResult(1, "accel: host virtualization is unavailable");
+            }
+            return new ReportingSetupService.ProcessResult(0, "fixture");
+        };
+        DefaultAndroidToolchainOperations operations = new DefaultAndroidToolchainOperations(paths,
+                SetupPlatform.WINDOWS, SetupArchitecture.X64, request,
+                action -> { throw new AssertionError("Status must not fetch."); }, runner, false);
+        SetupAction avdAction = AndroidSetupPlanner.plan(SetupPlatform.WINDOWS, SetupArchitecture.X64,
+                SetupMode.MANAGED, request).actions().getLast();
+
+        SetupStatus status = operations.status(avdAction);
+
+        assertEquals(SetupReadiness.DEGRADED, status.readiness());
+        assertTrue(status.detail().contains("host virtualization is unavailable"));
+        assertTrue(commands.stream().anyMatch(command -> command.equals(List.of(
+                sdk.resolve("emulator/emulator.exe").toString(), "-accel-check"))));
+    }
+
+    @Test
     void wrongRegisteredAppiumExtensionFailsBeforePublication(@TempDir Path temp) throws Exception {
         ShaftCachePaths paths = paths(temp);
         Path nodeArchive = ReportingSetupServiceTest.createNodeZip(temp.resolve("node.zip"));
@@ -430,6 +467,12 @@ class AndroidSetupServiceTest {
             Files.createDirectories(file.getParent());
             Files.writeString(file, "fixture");
         }
+    }
+
+    private static String requestMetadata(AndroidSetupRequest request) {
+        return String.join("\n", "api=" + request.apiLevel(), "device=" + request.deviceProfile(),
+                "tag=" + request.imageTag(), "abi=" + request.abi(), "avd=" + request.avdName(),
+                "ramMb=" + request.ramMb(), "cores=" + request.cores(), "port=" + request.appiumPort()) + "\n";
     }
 
     private static void createLinuxSdkFixture(Path root) throws IOException {
