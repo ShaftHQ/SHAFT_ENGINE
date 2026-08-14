@@ -351,7 +351,7 @@ class ManagedLocalAiProviderTest {
                     throw new AssertionError("ready cache must not provision");
                 });
         Object lifecycle = serviceLifecycle(service);
-        SlowProcess process = new SlowProcess();
+        CloseAwareProcess process = new CloseAwareProcess();
         var session = lifecycle.getClass().getDeclaredField("session");
         session.setAccessible(true);
         session.set(lifecycle, new ManagedLocalAiProcess.Session(
@@ -359,7 +359,7 @@ class ManagedLocalAiProviderTest {
         ManagedLocalAiProvider provider = new ManagedLocalAiProvider((ManagedLocalAiProvider.Lifecycle) lifecycle);
 
         provider.execute(AiRequest.builder("changed-runtime", JsonNodeFactory.instance.objectNode())
-                .timeout(Duration.ofMillis(300)).build());
+                .timeout(Duration.ofSeconds(3)).build());
 
         assertFalse(process.isAlive(), "alias equality must not reuse a process from another runtime installation");
     }
