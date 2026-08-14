@@ -1,6 +1,10 @@
 package testPackage.properties;
 
 import com.shaft.driver.SHAFT;
+import com.shaft.properties.internal.ThreadLocalPropertiesManager;
+import com.shaft.properties.internal.Timeouts;
+import org.aeonbits.owner.Config.DefaultValue;
+import org.aeonbits.owner.Config.Key;
 import org.testng.Assert;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
@@ -65,14 +69,21 @@ public class TimeoutsTests {
 
     @Test
     public void dockerCommandTimeoutHasSupportedCompatibilityAccessor() {
-        var replacement = java.util.Arrays.stream(SHAFT.Properties.timeouts.getClass().getInterfaces())
-                .flatMap(type -> java.util.Arrays.stream(type.getMethods()))
-                .filter(method -> method.getName().equals("dockerCommandTimeoutSeconds"))
-                .findFirst()
-                .orElse(null);
+        try {
+            var getter = Timeouts.class.getMethod("dockerCommandTimeoutSeconds");
+            Assert.assertEquals(getter.getReturnType(), int.class);
+            Assert.assertEquals(getter.getAnnotation(Key.class).value(), "dockerCommandTimeout");
+            Assert.assertEquals(getter.getAnnotation(DefaultValue.class).value(), "30");
 
-        Assert.assertNotNull(replacement,
-                "The deprecated Docker timeout must have a supported seconds-based replacement.");
+            SHAFT.Properties.timeouts.set().dockerCommandTimeoutSeconds(47);
+
+            Assert.assertEquals(ThreadLocalPropertiesManager.getProperty("dockerCommandTimeout"), "47");
+            Assert.assertEquals(SHAFT.Properties.timeouts.dockerCommandTimeoutSeconds(), 47);
+        } catch (NoSuchMethodException exception) {
+            throw new AssertionError("The supported Docker timeout accessor is missing.", exception);
+        } finally {
+            SHAFT.Properties.timeouts.set().dockerCommandTimeoutSeconds(dockerCommandTimeout);
+        }
     }
 
     @Test

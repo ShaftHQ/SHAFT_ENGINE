@@ -7,8 +7,10 @@ import com.shaft.tools.io.internal.BrowserObservabilityRecorder;
 import org.mockito.Mockito;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.bidi.BiDi;
+import org.openqa.selenium.bidi.BiDiException;
 import org.openqa.selenium.bidi.HasBiDi;
 import org.openqa.selenium.bidi.module.LogInspector;
+import org.openqa.selenium.remote.RemoteWebDriver;
 import org.openqa.selenium.logging.LogEntries;
 import org.openqa.selenium.logging.LogEntry;
 import org.openqa.selenium.logging.Logs;
@@ -199,6 +201,22 @@ public class BidiConsoleLogSourceTest {
             Assert.assertTrue(BidiConsoleLogSource.isHealthy(driver));
             Assert.assertEquals(inspectors.constructed().size(), 1);
             BidiConsoleLogSource.closeAndRemove(driver);
+        }
+    }
+
+    @Test
+    public void unavailableBiDiHandleShouldNotPreventNetworkObservationDuringHelperInitialization() {
+        RemoteWebDriver driver = Mockito.mock(RemoteWebDriver.class);
+        Mockito.when(driver.getHandle()).thenThrow(new BiDiException("BiDi is not negotiated"));
+        SHAFT.Properties.reporting.set().traceEnabled(true).traceIncludeNetwork(true);
+
+        try (var interceptors = Mockito.mockConstruction(BrowserNetworkInterceptor.class,
+                (mock, context) -> Mockito.when(mock.startObserving()).thenReturn(true))) {
+            new DriverFactoryHelper(driver);
+
+            Assert.assertEquals(interceptors.constructed().size(), 1,
+                    "An unavailable optional BiDi channel must not skip independent network setup.");
+            Mockito.verify(interceptors.constructed().getFirst()).startObserving();
         }
     }
 

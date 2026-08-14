@@ -1016,7 +1016,7 @@ public class TerminalActions implements AutoCloseable {
         return command.toString();
     }
 
-    private boolean hasDockerTarget() {
+    boolean hasDockerTarget() {
         return !dockerName.isEmpty();
     }
 

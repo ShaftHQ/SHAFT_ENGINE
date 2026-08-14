@@ -198,6 +198,22 @@ public class FileActionsCoverageUnitTest {
     }
 
     @Test
+    public void nullDockerNameShouldFailBeforeSelectingHostOrSshCopy() {
+        FileActions actions = FileActions.getInstance(true);
+        TerminalActions terminal = new TerminalActions();
+        try {
+            var dockerName = TerminalActions.class.getDeclaredField("dockerName");
+            dockerName.setAccessible(true);
+            dockerName.set(terminal, null);
+        } catch (ReflectiveOperationException exception) {
+            throw new AssertionError("Could not arrange the legacy null Docker-name state.", exception);
+        }
+
+        Assert.expectThrows(NullPointerException.class, () ->
+                actions.copyFileToLocalMachine(terminal, "/var/log/", "app.log"));
+    }
+
+    @Test
     public void zipUnpackDownloadAndJarCopyShouldRoundTripTempFiles() throws Exception {
         FileActions actions = FileActions.getInstance();
         Path archiveSource = tempDirectory.resolve("archive-source");

@@ -3,10 +3,12 @@ package com.shaft.gui.driver;
 import com.microsoft.playwright.Browser;
 import com.microsoft.playwright.BrowserContext;
 import com.microsoft.playwright.Page;
+import com.shaft.driver.SHAFT;
 import com.shaft.gui.playwright.internal.PlaywrightSession;
 import com.shaft.gui.capabilities.AutomationFeature;
 import com.shaft.gui.capabilities.internal.AutomationCapabilityResolver;
 import com.shaft.gui.BidiTestSupport;
+import com.shaft.properties.internal.Properties;
 import io.appium.java_client.AppiumDriver;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
@@ -18,6 +20,7 @@ import org.openqa.selenium.remote.RemoteWebDriver;
 import org.openqa.selenium.remote.SessionId;
 import org.testng.Assert;
 import org.testng.annotations.Test;
+import org.testng.annotations.AfterMethod;
 
 import java.util.Arrays;
 import java.util.List;
@@ -35,6 +38,11 @@ import javax.tools.SimpleJavaFileObject;
 import javax.tools.ToolProvider;
 
 public class BrowserPermissionsNamespaceTest {
+    @AfterMethod(alwaysRun = true)
+    public void clearThreadProperties() {
+        Properties.clearForCurrentThread();
+    }
+
     @Test
     public void permissionsNamespaceShouldBeDiscoverableWithoutAddingFlatMethods() {
         boolean discoverable = Arrays.stream(BrowserActionsContract.class.getMethods())
@@ -162,16 +170,20 @@ public class BrowserPermissionsNamespaceTest {
         capabilities.setCapability("webSocketUrl", "ws://localhost/session");
         Mockito.when(driver.getSessionId()).thenReturn(new SessionId("selenium"));
         Mockito.when(driver.getCapabilities()).thenReturn(capabilities);
-        BidiTestSupport.connect(hasBiDi, bidi);
-        new com.shaft.gui.browser.BrowserActions(driver, true).permissions()
-                .grantFor("https://example.test", "geolocation");
-        new com.shaft.gui.browser.BrowserActions(driver, true).permissions().clear();
+        Mockito.when(hasBiDi.getHandle()).thenReturn(null, BidiTestSupport.handleFor(bidi));
+        SHAFT.Properties.reporting.set().traceEnabled(false).traceIncludeNetwork(false);
+        var browser = new com.shaft.gui.browser.BrowserActions(driver, true);
+        browser.permissions().grantFor("https://example.test", "geolocation");
+        browser.permissions().clear();
 
         ArgumentCaptor<Command> command = ArgumentCaptor.forClass(Command.class);
         Mockito.verify(bidi, Mockito.times(2)).send(command.capture());
         Assert.assertEquals(command.getAllValues().get(0).getMethod(), "permissions.setPermission");
         Assert.assertEquals(command.getAllValues().get(0).getParams().get("state"), "granted");
         Assert.assertEquals(command.getAllValues().get(1).getParams().get("state"), "prompt");
+        Assert.assertTrue(Arrays.stream(BidiTestSupport.class.getDeclaredMethods())
+                        .noneMatch(method -> Arrays.asList(method.getParameterTypes()).contains(HasBiDi.class)),
+                "The test bridge must expose only the supported opaque Handle transport.");
         Assert.assertTrue(AutomationCapabilityResolver.forWebDriver(driver).supports(AutomationFeature.PERMISSIONS));
     }
 
@@ -186,7 +198,7 @@ public class BrowserPermissionsNamespaceTest {
         capabilities.setCapability("webSocketUrl", "ws://localhost/session");
         Mockito.when(driver.getSessionId()).thenReturn(new SessionId("serialized"));
         Mockito.when(driver.getCapabilities()).thenReturn(capabilities);
-        BidiTestSupport.connect(hasBiDi, bidi);
+        Mockito.when(hasBiDi.getHandle()).thenReturn(BidiTestSupport.handleFor(bidi));
         AtomicInteger sends = new AtomicInteger();
         CountDownLatch clearEnteredProvider = new CountDownLatch(1);
         CountDownLatch releaseClear = new CountDownLatch(1);
