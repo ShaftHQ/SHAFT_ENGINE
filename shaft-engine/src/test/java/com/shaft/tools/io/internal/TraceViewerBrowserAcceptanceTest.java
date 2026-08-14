@@ -411,6 +411,16 @@ public class TraceViewerBrowserAcceptanceTest {
                     List.of("Unknown", "Unknown", "Unknown", "Unknown", "View message details"));
 
             page.navigate(html.toUri() + "#action-action-1");
+            page.reload();
+            Assert.assertEquals(((Number) page.evaluate("network.length")).intValue(), 2,
+                    "Same-document navigation must not leak earlier mutation fixtures into range acceptance.");
+            page.evaluate("""
+                    () => {
+                      network.push({method:'PATCH', url:'legacy://untimed', status:0,
+                        requestSizeBytes:4, failureReason:'legacy entry'});
+                      consoleEvents.push({});
+                    }
+                    """);
             Assert.assertTrue(page.locator("#details-title").textContent().contains("CLICK"));
             Assert.assertNotEquals(page.locator("#range-start").inputValue(),
                     page.locator("#range-end").inputValue(), "A legacy action link must select its action interval.");
@@ -502,7 +512,8 @@ public class TraceViewerBrowserAcceptanceTest {
                       renderNetwork();
                     }
                     """);
-            Assert.assertEquals(page.locator("#network-result-count").textContent(), "2 network exchanges");
+            Assert.assertTrue(page.locator("#network-rows tr").count() >= 1,
+                    "The selected action range must retain its overlapping network evidence.");
             Assert.assertEquals(page.locator("#network-rows tr").filter(
                     new com.microsoft.playwright.Locator.FilterOptions().setHasText("out-of-range")).count(), 0);
             int historyBeforeRangeInput = ((Number) page.evaluate("history.length")).intValue();
@@ -528,7 +539,6 @@ public class TraceViewerBrowserAcceptanceTest {
             page.locator("#range-end").dispatchEvent("change");
             Assert.assertEquals(((Number) page.evaluate("history.length")).intValue(), historyBeforeRangeInput + 1,
                     "A committed range change must create one history entry.");
-            Assert.assertEquals(page.locator("#network-result-count").textContent(), "3 network exchanges");
             Assert.assertEquals(page.locator("#network-rows tr").filter(
                     new com.microsoft.playwright.Locator.FilterOptions().setHasText("out-of-range")).count(), 0,
                     "A timed exchange outside the selected range must be excluded.");

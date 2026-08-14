@@ -5,12 +5,16 @@ on:
     paths:
       - "shaft-engine/src/main/java/com/shaft/tools/io/internal/**"
       - "shaft-engine/src/test/java/com/shaft/tools/io/internal/TraceViewerBrowserAcceptanceTest.java"
+      - "shaft-engine/src/test/java/com/shaft/tools/io/internal/PlaywrightTraceParityAcceptanceTest.java"
+      - "tests/scripts/test_trace_provider_acceptance_workflow.py"
       - ".github/workflows/trace-viewer-acceptance.yml"
   push:
     branches: [ main ]
     paths:
       - "shaft-engine/src/main/java/com/shaft/tools/io/internal/**"
       - "shaft-engine/src/test/java/com/shaft/tools/io/internal/TraceViewerBrowserAcceptanceTest.java"
+      - "shaft-engine/src/test/java/com/shaft/tools/io/internal/PlaywrightTraceParityAcceptanceTest.java"
+      - "tests/scripts/test_trace_provider_acceptance_workflow.py"
       - ".github/workflows/trace-viewer-acceptance.yml"
 
 permissions:
@@ -21,6 +25,35 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  playwright-native-trace:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        browser: [chromium, firefox, webkit]
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/setup-test-env
+        with:
+          node-version: "20"
+      - name: Install Playwright browser
+        run: >-
+          mvn -f shaft-engine/pom.xml
+          org.codehaus.mojo:exec-maven-plugin:3.6.3:java
+          -Dexec.mainClass=com.microsoft.playwright.CLI
+          -Dexec.args="install --with-deps ${{ matrix.browser }}"
+          -Dallure.automaticallyOpen=false
+      - name: Run native trace parity acceptance
+        run: >-
+          mvn -pl shaft-engine
+          -Dtest=com.shaft.tools.io.internal.PlaywrightTraceParityAcceptanceTest
+          -Dsurefire.excludedGroups=
+          -Dshaft.trace.acceptance.browser=${{ matrix.browser }}
+          -Dallure.automaticallyOpen=false
+          -Dtelemetry.enabled=false
+          test
+
   chromium:
     runs-on: ubuntu-22.04
     timeout-minutes: 20

@@ -231,7 +231,7 @@ public final class FailureTraceReporter {
         field(json, 2, "osVersion", System.getProperty("os.version", ""), true);
         field(json, 2, "javaVersion", System.getProperty("java.version", ""), true);
         field(json, 2, "targetPlatform", safeProperty(() -> SHAFT.Properties.platform.targetPlatform()), true);
-        field(json, 2, "browser", safeProperty(() -> SHAFT.Properties.web.targetBrowserName()), true);
+        field(json, 2, "browser", reportedBrowser(), true);
         field(json, 2, "executionAddress", safeProperty(() -> SHAFT.Properties.platform.executionAddress()), true);
         field(json, 2, "headless", safeProperty(() -> String.valueOf(SHAFT.Properties.web.headlessExecution())), true);
         field(json, 2, "thread", Thread.currentThread().getName(), false);
@@ -327,6 +327,10 @@ public final class FailureTraceReporter {
             node.put("afterSnapshot", action.afterSnapshot());
             node.put("pageId", action.pageId());
             node.put("source", action.source());
+            boolean sourceAvailable = !action.source().isBlank();
+            node.put("sourceStatus", sourceAvailable ? "available" : "unavailable");
+            node.put("sourceReason", sourceAvailable ? ""
+                    : "The native Playwright trace did not provide a source stack for this action.");
             var logs = node.putArray("logs");
             action.logs().forEach(logs::add);
             node.put("error", action.error());
@@ -1135,7 +1139,8 @@ public final class FailureTraceReporter {
                     + row('Locator', action.locator) + row('URL', action.url) + row('Caller', action.caller) + row('Started', action.startTime) + row('Duration', action.durationMs == null ? '' : `${action.durationMs}ms`) + row('Message', action.message);
                   const native = nativeActionFor(action);
                   details.innerHTML += row('Native fidelity', native ? 'Playwright correlated' : 'SHAFT capture')
-                    + row('Native source', native && native.source) + row('Native error', native && native.error);
+                    + row('Native source', native && (native.source || native.sourceReason))
+                    + row('Native error', native && native.error);
                   renderTab(document.querySelector('.tabs button.selected').dataset.tab);
                 }
                 const timelinePanel = document.getElementById('timeline-panel');
@@ -1555,12 +1560,12 @@ public final class FailureTraceReporter {
                     const correlation = selectedNative && selectedNative.callId === native.callId
                       ? 'Selected SHAFT action' : (playwright.correlations || []).some(item => item.playwrightCallId === native.callId)
                         ? 'Correlated' : 'Native only';
-                    tr.innerHTML = `<td>${esc(correlation)}</td><td>${esc(native.title || native.method || native.callId || 'Unknown')}</td><td>${esc(native.source || 'Unavailable')}</td><td>${esc((native.logs || []).join('\\n') || 'None')}</td><td>${esc(native.error || 'None')}<br><button type="button" class="secondary">Inspect native action</button></td>`;
+                    tr.innerHTML = `<td>${esc(correlation)}</td><td>${esc(native.title || native.method || native.callId || 'Unknown')}</td><td>${esc(native.source || native.sourceReason || 'Unavailable')}</td><td>${esc((native.logs || []).join('\\n') || 'None')}</td><td>${esc(native.error || 'None')}<br><button type="button" class="secondary">Inspect native action</button></td>`;
                     tr.querySelector('button').addEventListener('click', () => {
                       selectedNativeAction = native;
                       document.getElementById('details-title').textContent = `Native action: ${native.title || native.method || native.callId}`;
                       details.innerHTML = row('Provider', 'Playwright') + row('Call ID', native.callId)
-                        + row('Source', native.source) + row('Logs', (native.logs || []).join('\\n'))
+                        + row('Source', native.source || native.sourceReason) + row('Logs', (native.logs || []).join('\\n'))
                         + row('Error', native.error);
                       renderTab('comparison');
                     });
@@ -2385,6 +2390,23 @@ public final class FailureTraceReporter {
                 FailureTraceReporter::redactSourceText,
                 SHAFT.Properties.reporting.traceIncludeFullPageSnapshots());
         return snapshot(result);
+    }
+
+    private static String reportedBrowser() {
+        var session = PlaywrightSessionManager.currentSession();
+        if (session != null) {
+            try {
+                var browser = session.browser();
+                String runtimeBrowser = browser == null || browser.browserType() == null
+                        ? "" : browser.browserType().name();
+                if (runtimeBrowser != null && !runtimeBrowser.isBlank()) return runtimeBrowser;
+            } catch (RuntimeException ignored) {
+                // Attached or closing sessions may no longer expose their browser type; use configured fallback.
+            }
+            String playwrightBrowser = safeProperty(() -> SHAFT.Properties.playwright.browserName());
+            if (!playwrightBrowser.isBlank()) return playwrightBrowser;
+        }
+        return safeProperty(() -> SHAFT.Properties.web.targetBrowserName());
     }
 
     private static Snapshot snapshot(SeleniumTraceCapture.Result result) {
