@@ -4,6 +4,8 @@ import com.microsoft.playwright.Browser;
 import com.microsoft.playwright.BrowserType;
 import com.microsoft.playwright.Page;
 import com.microsoft.playwright.Playwright;
+import com.microsoft.playwright.options.ColorScheme;
+import com.microsoft.playwright.options.ReducedMotion;
 import com.shaft.driver.SHAFT;
 import com.shaft.gui.playwright.internal.PlaywrightTraceManager;
 import com.shaft.listeners.internal.TestExecutionInfo;
@@ -182,6 +184,18 @@ public class TraceViewerBrowserAcceptanceTest {
                     .contains("native input"));
             Assert.assertTrue(page.frameLocator("#comparison-after").locator("body").textContent()
                     .contains("native after"));
+            page.locator("button[data-tab=webSockets]").click();
+            Assert.assertEquals(page.locator("#websocket-result-count").textContent(), "3 WebSocket events");
+            Assert.assertEquals(page.locator("#websocket-rows tr td:first-child").allTextContents(),
+                    List.of("created", "frame", "closed"));
+            Assert.assertEquals(page.locator("#websocket-direction-filter option").count(), 3);
+            page.locator("#websocket-direction-filter").selectOption("received");
+            Assert.assertEquals(page.locator("#websocket-result-count").textContent(), "1 WebSocket event");
+            Assert.assertTrue(page.locator("#websocket-rows").textContent().contains("hello from socket"));
+            Assert.assertEquals(page.locator("#websocket-injection").count(), 0);
+            page.locator("#websocket-rows button").press("Enter");
+            Assert.assertTrue(page.locator("#websocket-detail").textContent().contains("socket-1"));
+            page.locator("#websocket-direction-filter").selectOption("");
 
             page.locator("#show-all-range").click();
             page.locator("button[data-tab=network]").click();
@@ -714,6 +728,32 @@ public class TraceViewerBrowserAcceptanceTest {
             Assert.assertTrue(page.locator("#native-trace-handoff").textContent().contains("is available"));
             Assert.assertTrue(page.locator("#truncation-banner").isHidden());
             page.screenshot(new Page.ScreenshotOptions().setPath(screenshot).setFullPage(true));
+
+            Assert.assertEquals(page.locator("main").count(), 1, "The viewer needs one primary landmark.");
+            Assert.assertEquals(page.locator("h1").count(), 1, "The viewer needs one page heading.");
+            Assert.assertEquals(page.locator("#action-search").getAttribute("aria-label"), "Search actions");
+            Assert.assertTrue((Boolean) page.locator("#action-tabs button").first()
+                    .evaluate("button => button.matches(':focus-visible') === false"));
+            String lightBackground = String.valueOf(page.locator("body")
+                    .evaluate("body => getComputedStyle(body).backgroundColor"));
+            page.emulateMedia(new Page.EmulateMediaOptions().setColorScheme(ColorScheme.DARK)
+                    .setReducedMotion(ReducedMotion.REDUCE));
+            Assert.assertTrue((Boolean) page.evaluate("matchMedia('(prefers-color-scheme: dark)').matches"));
+            Assert.assertTrue((Boolean) page.evaluate("matchMedia('(prefers-reduced-motion: reduce)').matches"));
+            Assert.assertNotEquals(page.locator("body").evaluate("body => getComputedStyle(body).backgroundColor"),
+                    lightBackground, "Dark mode must switch the report surface tokens.");
+            Assert.assertEquals(page.locator(".action").first()
+                    .evaluate("element => getComputedStyle(element).transitionDuration"), "0s");
+            page.setViewportSize(390, 844);
+            Assert.assertTrue((Boolean) page.evaluate(
+                    "document.documentElement.scrollWidth <= window.innerWidth"),
+                    "The phone layout must not introduce page-level horizontal overflow.");
+            Assert.assertEquals(((Number) page.locator(".trace-layout")
+                    .evaluate("element => getComputedStyle(element).gridTemplateColumns.split(' ').length"))
+                    .intValue(), 1, "The phone layout must collapse to one content column.");
+            page.setViewportSize(1440, 1000);
+            page.emulateMedia(new Page.EmulateMediaOptions().setColorScheme(ColorScheme.LIGHT)
+                    .setReducedMotion(ReducedMotion.NO_PREFERENCE));
             page.navigate(fixture.legacyHtml().toUri().toString());
             page.locator("button[data-tab=artifacts]").click();
             Assert.assertEquals(page.locator("#artifact-result-count").textContent(), "0 trace artifacts");
@@ -798,6 +838,17 @@ public class TraceViewerBrowserAcceptanceTest {
                     consoleBaseTime);
             BrowserObservabilityRecorder.recordConsole("worker", "INFO", "alpha scheduled",
                     consoleBaseTime + 1);
+            BrowserObservabilityRecorder.ObservationSession owner = BrowserObservabilityRecorder.captureSession();
+            BrowserObservabilityRecorder.recordWebSocket(owner,
+                    new BrowserObservabilityRecorder.WebSocketObservation("socket-1", "wss://example.test/socket",
+                            "", "created", 0, "", "", 0, "available", ""));
+            BrowserObservabilityRecorder.recordWebSocket(owner,
+                    new BrowserObservabilityRecorder.WebSocketObservation("socket-1", "wss://example.test/socket",
+                            "received", "frame", 1, "<img id=websocket-injection> hello from socket", "", 38,
+                            "available", ""));
+            BrowserObservabilityRecorder.recordWebSocket(owner,
+                    new BrowserObservabilityRecorder.WebSocketObservation("socket-1", "wss://example.test/socket",
+                            "", "closed", 0, "", "", 0, "available", ""));
 
             Method marker = TraceViewerBrowserAcceptanceTest.class.getDeclaredMethod("marker");
             TestExecutionInfo info = new TestExecutionInfo("trace-viewer-browser-acceptance", "customer.CheckoutTest",

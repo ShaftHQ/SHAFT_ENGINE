@@ -712,7 +712,7 @@ public final class FailureTraceReporter {
                 <div class="trace-layout">
                   <aside class="panel">
                     <h2>Actions</h2>
-                    <div class="toolbar"><input id="action-search" type="search" placeholder="Search actions"></div>
+                    <div class="toolbar"><input id="action-search" type="search" aria-label="Search actions" placeholder="Search actions"></div>
                     <div id="action-list"></div>
                   </aside>
                   <section class="panel">
@@ -733,6 +733,7 @@ public final class FailureTraceReporter {
                       <button data-tab="locatorHealth">Locator Health</button>
                        <button data-tab="network">Network</button>
                        <button data-tab="console">Console</button>
+                       <button data-tab="webSockets">WebSockets</button>
                        <button data-tab="mobile">Mobile</button>
                        <button data-tab="artifacts">Artifacts</button>
                        <button data-tab="browserObservability">Observability</button>
@@ -833,6 +834,19 @@ public final class FailureTraceReporter {
                      </tr></thead><tbody id="mobile-rows"></tbody></table>
                      <pre id="mobile-detail" hidden></pre>
                    </div>
+                   <div id="websocket-panel" hidden>
+                     <p class="muted" id="websocket-hint"></p>
+                     <div class="panel-controls">
+                       <label>Direction<select id="websocket-direction-filter"><option value="">All directions</option></select></label>
+                       <label>Type<select id="websocket-type-filter"><option value="">All event types</option></select></label>
+                       <label>Search<input id="websocket-text-filter" type="search" placeholder="URL, payload, digest, or reason"></label>
+                       <output id="websocket-result-count" class="result-count" aria-live="polite"></output>
+                     </div>
+                     <table class="trace-table"><thead><tr>
+                       <th>Type</th><th>Direction</th><th>URL</th><th>Opcode</th><th>Payload</th><th>Details</th>
+                     </tr></thead><tbody id="websocket-rows"></tbody></table>
+                     <pre id="websocket-detail" hidden></pre>
+                   </div>
                    <div id="artifact-panel" hidden>
                      <p class="muted" id="artifact-hint"></p>
                      <p class="muted" id="native-trace-handoff" hidden></p>
@@ -862,6 +876,10 @@ public final class FailureTraceReporter {
                 const nativeActions = Array.isArray(playwright.actions) ? playwright.actions : [];
                 const nativeSnapshots = playwright.snapshots && typeof playwright.snapshots === 'object'
                     ? playwright.snapshots : {};
+                const browserObservability = evidence.browserObservability && typeof evidence.browserObservability === 'object'
+                    ? evidence.browserObservability : {warnings:[], webSockets:[]};
+                const webSockets = Array.isArray(browserObservability.webSockets)
+                    ? browserObservability.webSockets : [];
                 const artifacts = Array.isArray(trace.session && trace.session.artifacts)
                     ? trace.session.artifacts : [];
                 const actionList = document.getElementById('action-list');
@@ -1315,6 +1333,45 @@ public final class FailureTraceReporter {
                   });
                   updateConsoleSortHeaders();
                 }
+                const websocketPanel = document.getElementById('websocket-panel');
+                const websocketRows = document.getElementById('websocket-rows');
+                const websocketDetail = document.getElementById('websocket-detail');
+                const websocketDirectionFilter = document.getElementById('websocket-direction-filter');
+                const websocketTypeFilter = document.getElementById('websocket-type-filter');
+                const websocketTextFilter = document.getElementById('websocket-text-filter');
+                function populateWebSocketFilters(){
+                  const add = (select, values) => values.forEach(value => {
+                    const option = document.createElement('option');
+                    option.value = value; option.textContent = value; select.appendChild(option);
+                  });
+                  add(websocketDirectionFilter, [...new Set(webSockets.map(entry => String(entry.direction || 'none')))].sort());
+                  add(websocketTypeFilter, [...new Set(webSockets.map(entry => String(entry.type || 'unknown')))].sort());
+                }
+                function renderWebSockets(){
+                  websocketRows.innerHTML = '';
+                  websocketDetail.hidden = true;
+                  const query = websocketTextFilter.value.trim().toLowerCase();
+                  const visible = webSockets.filter(entry =>
+                    (!websocketDirectionFilter.value || String(entry.direction || 'none') === websocketDirectionFilter.value)
+                    && (!websocketTypeFilter.value || String(entry.type || 'unknown') === websocketTypeFilter.value)
+                    && (!query || [entry.url, entry.text, entry.sha256, entry.reason]
+                      .filter(Boolean).join(' ').toLowerCase().includes(query)));
+                  document.getElementById('websocket-result-count').textContent = `${visible.length} WebSocket ${visible.length === 1 ? 'event' : 'events'}`;
+                  document.getElementById('websocket-hint').textContent = !webSockets.length
+                    ? 'WebSocket capture is unavailable for this provider or no socket activity was observed.'
+                    : !visible.length ? 'No WebSocket events match the active filters.'
+                    : 'Captured lifecycle and frame evidence is bounded and redacted before display.';
+                  visible.forEach(entry => {
+                    const tr = document.createElement('tr');
+                    const payload = entry.text || entry.sha256 || entry.reason || 'None';
+                    tr.innerHTML = `<td>${esc(entry.type || 'Unknown')}</td><td>${esc(entry.direction || 'None')}</td><td>${esc(entry.url || 'Unavailable')}</td><td>${esc(entry.opcode == null ? 'N/A' : entry.opcode)}</td><td>${esc(payload)}</td><td><button type="button" class="secondary">Inspect event</button></td>`;
+                    tr.querySelector('button').addEventListener('click', () => {
+                      websocketDetail.hidden = false;
+                      websocketDetail.textContent = JSON.stringify(entry, null, 2);
+                    });
+                    websocketRows.appendChild(tr);
+                  });
+                }
                 const mobileActions = () => actions.filter(action =>
                     String(action.category || '').startsWith('mobile/'));
                 const mobileRows = document.getElementById('mobile-rows');
@@ -1495,7 +1552,7 @@ public final class FailureTraceReporter {
                 }
                 function renderTab(tab){
                   const action = selected || {};
-                  const panels = {timeline: timelinePanel, nativeEvidence: nativeEvidencePanel, comparison: comparisonPanel, domSnapshot: domSnapshotPanel, screenshot: screenshotPanel, network: networkPanel, console: consolePanel, mobile: document.getElementById('mobile-panel'), artifacts: document.getElementById('artifact-panel')};
+                  const panels = {timeline: timelinePanel, nativeEvidence: nativeEvidencePanel, comparison: comparisonPanel, domSnapshot: domSnapshotPanel, screenshot: screenshotPanel, network: networkPanel, console: consolePanel, webSockets: websocketPanel, mobile: document.getElementById('mobile-panel'), artifacts: document.getElementById('artifact-panel')};
                   tabContent.hidden = tab in panels;
                   Object.entries(panels).forEach(([name, panel]) => panel.hidden = name !== tab);
                   if (tab === 'timeline') {
@@ -1512,6 +1569,8 @@ public final class FailureTraceReporter {
                     renderNetwork();
                   } else if (tab === 'console') {
                     renderConsole();
+                  } else if (tab === 'webSockets') {
+                    renderWebSockets();
                   } else if (tab === 'mobile') {
                     renderMobile();
                   } else if (tab === 'artifacts') {
@@ -1598,6 +1657,8 @@ public final class FailureTraceReporter {
                 }));
                 [consoleSourceFilter, consoleLevelFilter, consoleTextFilter]
                     .forEach(control => control.addEventListener('input', renderConsole));
+                [websocketDirectionFilter, websocketTypeFilter, websocketTextFilter]
+                    .forEach(control => control.addEventListener('input', renderWebSockets));
                 document.querySelectorAll('[data-console-sort]').forEach(button => button.addEventListener('click', () => {
                   const key = button.dataset.consoleSort;
                   consoleSort = consoleSort.key === key
@@ -1613,6 +1674,7 @@ public final class FailureTraceReporter {
                 document.querySelectorAll('#dom-snapshot-tabs button').forEach(button => button.addEventListener('click', () => { selectedDomSide = button.dataset.dom; renderDomSnapshot(); }));
                 populateNetworkFilters();
                 populateConsoleFilters();
+                populateWebSocketFilters();
                 renderSummary();
                 renderNavigator();
                 renderActions();
