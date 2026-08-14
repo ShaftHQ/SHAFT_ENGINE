@@ -85,51 +85,79 @@ final class ManagedLocalAiCache {
     static Installation adopt(Path cache, String id, Path stage, List<Path> expectedFiles) throws IOException {
         validateId(id);
         Path root = cache.toAbsolutePath().normalize();
-        Path stagingRoot = root.resolve("staging");
-        Path source = stage.toAbsolutePath().normalize();
-        if (!source.getParent().equals(stagingRoot)
-                || !source.getFileName().toString().contains(".extract-")
-                || !Files.isDirectory(source, LinkOption.NOFOLLOW_LINKS)
-                || !Files.isRegularFile(source.resolve(".shaft-ready"), LinkOption.NOFOLLOW_LINKS)) {
-            throw new IllegalArgumentException("Installation stage is not a verified cache-owned stage.");
-        }
+        Path source = requireVerifiedStage(root, stage);
         validateTree(source);
-        List<String> expectedRelative = expectedFiles == null ? null : expectedFiles.stream().map(path -> {
-            Path normalized = path.toAbsolutePath().normalize();
-            if (!normalized.startsWith(source) || normalized.equals(source)) {
-                throw new IllegalArgumentException("Expected installation file escapes its stage.");
-            }
-            return source.relativize(normalized).toString().replace('\\', '/');
-        }).distinct().sorted().toList();
-        if (expectedRelative != null) {
-            requireExactStage(source, expectedRelative);
-        }
+        List<String> expectedRelative = expectedRelativeFiles(source, expectedFiles);
         Path installations = root.resolve("installations");
         Files.createDirectories(installations);
         Path destination = installations.resolve(id + "-" + UUID.randomUUID());
         writeTransaction(root, new Transaction("ADOPT", id, relative(root, source), relative(root, destination),
                 List.of()));
-        try {
-            Files.move(source, destination, StandardCopyOption.ATOMIC_MOVE);
-        } catch (AtomicMoveNotSupportedException unsupported) {
-            throw new IOException("Cache filesystem does not support atomic installation adoption.", unsupported);
-        }
+        moveAdoptedStage(source, destination);
         Installation installation;
         try {
-            installation = expectedRelative == null ? inventory(root, id, destination)
-                    : inventoryExact(root, id, destination, expectedRelative);
-            Map<String, Installation> owned = readOwnerManifest(root);
-            if (owned.containsKey(id)) {
-                throw new IllegalStateException("An installation with this identifier is already owned.");
-            }
-            owned.put(id, installation);
-            writeOwnerManifest(root, owned);
+            installation = inventoryAdoption(root, id, destination, expectedRelative);
+            publishAdoption(root, id, installation);
             clearTransaction(root);
         } catch (IOException | RuntimeException primary) {
             rollbackAdopt(root, source, destination, primary);
             throw primary;
         }
         return installation;
+    }
+
+    private static Path requireVerifiedStage(Path root, Path stage) {
+        Path source = stage.toAbsolutePath().normalize();
+        if (!source.getParent().equals(root.resolve("staging"))
+                || !source.getFileName().toString().contains(".extract-")
+                || !Files.isDirectory(source, LinkOption.NOFOLLOW_LINKS)
+                || !Files.isRegularFile(source.resolve(".shaft-ready"), LinkOption.NOFOLLOW_LINKS)) {
+            throw new IllegalArgumentException("Installation stage is not a verified cache-owned stage.");
+        }
+        return source;
+    }
+
+    private static List<String> expectedRelativeFiles(Path source, List<Path> expectedFiles) throws IOException {
+        if (expectedFiles == null) {
+            return null;
+        }
+        List<String> expectedRelative = expectedFiles.stream().map(path -> expectedRelativeFile(source, path))
+                .distinct().sorted().toList();
+        requireExactStage(source, expectedRelative);
+        return expectedRelative;
+    }
+
+    private static String expectedRelativeFile(Path source, Path path) {
+        Path normalized = path.toAbsolutePath().normalize();
+        if (!normalized.startsWith(source) || normalized.equals(source)) {
+            throw new IllegalArgumentException("Expected installation file escapes its stage.");
+        }
+        return source.relativize(normalized).toString().replace('\\', '/');
+    }
+
+    private static void moveAdoptedStage(Path source, Path destination) throws IOException {
+        try {
+            Files.move(source, destination, StandardCopyOption.ATOMIC_MOVE);
+        } catch (AtomicMoveNotSupportedException unsupported) {
+            throw new IOException("Cache filesystem does not support atomic installation adoption.", unsupported);
+        }
+    }
+
+    private static Installation inventoryAdoption(Path root, String id, Path destination,
+                                                  List<String> expectedRelative) throws IOException {
+        if (expectedRelative == null) {
+            return inventory(root, id, destination);
+        }
+        return inventoryExact(root, id, destination, expectedRelative);
+    }
+
+    private static void publishAdoption(Path root, String id, Installation installation) throws IOException {
+        Map<String, Installation> owned = readOwnerManifest(root);
+        if (owned.containsKey(id)) {
+            throw new IllegalStateException("An installation with this identifier is already owned.");
+        }
+        owned.put(id, installation);
+        writeOwnerManifest(root, owned);
     }
 
     static Installation verify(Path cache, String id) throws IOException {
