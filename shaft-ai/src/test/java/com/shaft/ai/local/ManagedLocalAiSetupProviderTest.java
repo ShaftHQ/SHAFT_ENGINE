@@ -141,6 +141,53 @@ class ManagedLocalAiSetupProviderTest {
     }
 
     @Test
+    void reviewedRollbackPlanAndReceiptBindTheExactCachedPriorPair(@TempDir Path temp) throws Exception {
+        SetupOptions options = options(temp);
+        ManagedLocalAiSnapshot ready = snapshot(options, ManagedLocalAiSnapshot.State.READY);
+        FakeLifecycle lifecycle = new FakeLifecycle(ready);
+        lifecycle.rollbackCandidate = ManagedLocalAiActivationHistory.from(
+                ready, ManagedLocalAiManifest.loadDefault());
+        InfrastructureSetupService setup = setup(lifecycle);
+
+        SetupPlan plan = setup.plan(options, SetupSelection.defaults(), SetupOperation.ROLLBACK);
+
+        assertEquals(2, plan.actions().size());
+        assertTrue(plan.actions().stream().allMatch(action -> action.kind() == SetupActionKind.ROLLBACK));
+        assertEquals("sha256:" + lifecycle.rollbackCandidate.runtimeSha256(),
+                plan.actions().getFirst().checksum());
+        assertEquals(lifecycle.rollbackCandidate.runtimeUrl(), plan.actions().getFirst().source().toString());
+        assertEquals("sha256:" + lifecycle.rollbackCandidate.modelSha256(),
+                plan.actions().get(1).checksum());
+        assertEquals(Set.of(lifecycle.rollbackCandidate.runtimeLicense()),
+                plan.actions().getFirst().requiredLicenses());
+        assertEquals(Set.of(lifecycle.rollbackCandidate.modelLicense()),
+                plan.actions().get(1).requiredLicenses());
+
+        SetupReceipt receipt = setup.install(plan, approval(plan), options);
+
+        assertEquals(plan.actions(), receipt.completedActions());
+        assertEquals(1, lifecycle.rollbacks.get());
+        assertEquals(0, lifecycle.provisions.get());
+        assertEquals(0, lifecycle.cleans.get());
+    }
+
+    @Test
+    void rolledBackEffectivePairDoesNotSatisfyAnOfflineCurrentInstall(@TempDir Path temp) {
+        SetupOptions options = options(temp).withOffline(true);
+        FakeLifecycle lifecycle = new FakeLifecycle(snapshot(options, ManagedLocalAiSnapshot.State.READY));
+        lifecycle.reviewed = snapshot(options, ManagedLocalAiSnapshot.State.NOT_PROVISIONED);
+        InfrastructureSetupService setup = setup(lifecycle);
+        SetupPlan plan = setup.plan(options);
+
+        IOException failure = assertThrows(IOException.class,
+                () -> setup.install(plan, approval(plan), options));
+
+        assertTrue(failure.getMessage().contains("offline setup cannot download"));
+        assertEquals(0, lifecycle.provisions.get());
+        assertEquals(0, lifecycle.rollbacks.get());
+    }
+
+    @Test
     void cleanPlanningDoesNotDependOnEnablementOrHardwareEligibility(@TempDir Path temp) {
         SetupOptions options = options(temp);
         for (ManagedLocalAiSnapshot.State state : List.of(ManagedLocalAiSnapshot.State.DISABLED,
@@ -408,9 +455,12 @@ class ManagedLocalAiSetupProviderTest {
 
     private static final class FakeLifecycle implements ManagedLocalAiSetupProvider.Lifecycle {
         private final ManagedLocalAiSnapshot inspected;
+        private ManagedLocalAiSnapshot reviewed;
         private final AtomicInteger provisions = new AtomicInteger();
         private final AtomicInteger cleans = new AtomicInteger();
+        private final AtomicInteger rollbacks = new AtomicInteger();
         private ManagedLocalAiSnapshot provisioned;
+        private ManagedLocalAiActivationHistory.Activation rollbackCandidate;
         private boolean cleanComplete = true;
         private List<ManagedLocalAiSnapshot> progressSnapshots = List.of();
         private Exception failure;
@@ -420,12 +470,18 @@ class ManagedLocalAiSetupProviderTest {
 
         private FakeLifecycle(ManagedLocalAiSnapshot inspected) {
             this.inspected = inspected;
+            this.reviewed = inspected;
             this.provisioned = inspected;
         }
 
         @Override
         public ManagedLocalAiSnapshot inspect() {
             return inspected;
+        }
+
+        @Override
+        public ManagedLocalAiSnapshot inspectReviewed() {
+            return reviewed;
         }
 
         @Override
@@ -451,6 +507,18 @@ class ManagedLocalAiSetupProviderTest {
         public boolean clean() {
             cleans.incrementAndGet();
             return cleanComplete;
+        }
+
+        @Override
+        public ManagedLocalAiActivationHistory.Activation rollbackCandidate() {
+            return rollbackCandidate;
+        }
+
+        @Override
+        public ManagedLocalAiSnapshot rollback(ManagedLocalAiActivationHistory.Activation expected) {
+            assertEquals(rollbackCandidate, expected);
+            rollbacks.incrementAndGet();
+            return inspected;
         }
     }
 }

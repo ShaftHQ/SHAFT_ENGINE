@@ -65,9 +65,21 @@ public final class ManagedLocalAiSetupProvider implements SetupProvider {
             throw new IllegalArgumentException(operation + " requires MANAGED mode for profile LOCAL_AI.");
         }
         if (operation == SetupOperation.ROLLBACK) {
-            throw new IllegalStateException("No reviewed managed local AI rollback candidate is available in this release.");
+            Lifecycle lifecycle = lifecycles.create(options);
+            ManagedLocalAiSnapshot snapshot = lifecycle.inspect();
+            requireCacheRoot(options, snapshot);
+            try {
+                ManagedLocalAiActivationHistory.Activation candidate = lifecycle.rollbackCandidate();
+                if (candidate == null) {
+                    throw new IllegalStateException("No reviewed managed local AI rollback candidate is available.");
+                }
+                return rollbackPlan(options, platform, architecture, candidate);
+            } catch (IOException failure) {
+                throw new IllegalStateException("Managed local AI rollback candidate cannot be inspected.", failure);
+            }
         }
-        ManagedLocalAiSnapshot snapshot = inspect(options);
+        ManagedLocalAiSnapshot snapshot = operation == SetupOperation.INSTALL
+                ? inspectReviewed(options) : inspect(options);
         if (operation == SetupOperation.INSTALL && snapshot.selectedModelId() == null) {
             throw new IllegalStateException("Managed local AI cannot select a reviewed model: " + snapshot.action());
         }
@@ -136,17 +148,42 @@ public final class ManagedLocalAiSetupProvider implements SetupProvider {
         }
         SetupExecutor.validate(plan, approval);
         SetupOperation operation = SetupOperation.fromPlan(plan);
+        Lifecycle lifecycle = lifecycles.create(options);
+        ManagedLocalAiSnapshot initial = operation == SetupOperation.INSTALL
+                ? lifecycle.inspectReviewed() : lifecycle.inspect();
+        requireCacheRoot(options, initial);
+        ManagedLocalAiActivationHistory.Activation rollbackCandidate = null;
+        SetupPlan reviewed;
         if (operation == SetupOperation.ROLLBACK) {
-            throw new IllegalArgumentException("Managed local AI rollback is unavailable without a reviewed candidate.");
+            rollbackCandidate = lifecycle.rollbackCandidate();
+            if (rollbackCandidate == null) {
+                throw new IllegalArgumentException("Managed local AI rollback plan has no reviewed cached candidate.");
+            }
+            reviewed = rollbackPlan(options, plan.platform(), plan.architecture(), rollbackCandidate);
+        } else {
+            reviewed = plan(options, SetupSelection.defaults(), operation, plan.platform(), plan.architecture());
         }
-        SetupPlan expected = SetupPlan.bind(plan(options, SetupSelection.defaults(), operation,
-                plan.platform(), plan.architecture()), options.policyDigest());
+        SetupPlan expected = SetupPlan.bind(reviewed, options.policyDigest());
         if (!expected.equals(plan)) {
             throw new IllegalArgumentException("Managed local AI plan does not match the reviewed manifest and operation.");
         }
-        Lifecycle lifecycle = lifecycles.create(options);
-        ManagedLocalAiSnapshot initial = lifecycle.inspect();
-        requireCacheRoot(options, initial);
+        if (operation == SetupOperation.ROLLBACK) {
+            ManagedLocalAiSnapshot rolledBack;
+            try {
+                rolledBack = lifecycle.rollback(rollbackCandidate);
+            } catch (InterruptedException cancelled) {
+                Thread.currentThread().interrupt();
+                throw new IOException("Managed local AI rollback was interrupted.", cancelled);
+            } catch (Exception failure) {
+                if (failure instanceof IOException io) throw io;
+                throw new IOException("Managed local AI rollback failed.", failure);
+            }
+            if (rolledBack.state() != ManagedLocalAiSnapshot.State.READY
+                    || !rolledBack.runtimeAssetSha256().equals(rollbackCandidate.runtimeSha256())) {
+                throw new IOException("Managed local AI rollback completed without the reviewed active pair.");
+            }
+            return new SetupReceipt(plan.digest(), Instant.now(), plan.actions());
+        }
         if (operation == SetupOperation.CLEAN) {
             boolean cleaned;
             try {
@@ -183,6 +220,13 @@ public final class ManagedLocalAiSetupProvider implements SetupProvider {
         return snapshot;
     }
 
+    private ManagedLocalAiSnapshot inspectReviewed(SetupOptions options) {
+        Objects.requireNonNull(options, "options");
+        ManagedLocalAiSnapshot snapshot = lifecycles.create(options).inspectReviewed();
+        requireCacheRoot(options, snapshot);
+        return snapshot;
+    }
+
     private static void requireCacheRoot(SetupOptions options, ManagedLocalAiSnapshot snapshot) {
         if (!snapshot.cacheDirectory().equals(options.paths().cacheRoot())) {
             throw new IllegalArgumentException("LOCAL_AI cache root must exactly match the effective managed local "
@@ -201,6 +245,20 @@ public final class ManagedLocalAiSetupProvider implements SetupProvider {
             case CORRUPT -> SetupReadiness.DEGRADED;
             case MISSING, NOT_APPLICABLE -> SetupReadiness.MISSING;
         };
+    }
+
+    private static SetupPlan rollbackPlan(SetupOptions options, SetupPlatform platform,
+                                          SetupArchitecture architecture,
+                                          ManagedLocalAiActivationHistory.Activation candidate) {
+        return SetupPlan.create(SetupProfile.LOCAL_AI, platform, architecture, options.effectiveMode(), List.of(
+                new SetupAction(SetupTarget.MANAGED_LOCAL_AI_RUNTIME, SetupActionKind.ROLLBACK,
+                        candidate.runtimeVersion(), java.net.URI.create(candidate.runtimeUrl()),
+                        "sha256:" + candidate.runtimeSha256(), candidate.runtimeArtifactBytes(), false,
+                        Set.of(candidate.runtimeLicense())),
+                new SetupAction(SetupTarget.MANAGED_LOCAL_AI_MODEL, SetupActionKind.ROLLBACK,
+                        candidate.modelRevision(), java.net.URI.create(candidate.modelUrl()),
+                        "sha256:" + candidate.modelSha256(), candidate.modelArtifactBytes(), false,
+                        Set.of(candidate.modelLicense()))));
     }
 
     private static ManagedLocalAiSnapshot await(ManagedLocalAiOperation operation, SetupOptions options)
@@ -231,9 +289,15 @@ public final class ManagedLocalAiSetupProvider implements SetupProvider {
     interface Lifecycle {
         ManagedLocalAiSnapshot inspect();
 
+        ManagedLocalAiSnapshot inspectReviewed();
+
         ManagedLocalAiOperation provision(Consumer<ManagedLocalAiSnapshot> progress);
 
         boolean clean() throws Exception;
+
+        ManagedLocalAiActivationHistory.Activation rollbackCandidate() throws IOException;
+
+        ManagedLocalAiSnapshot rollback(ManagedLocalAiActivationHistory.Activation expected) throws Exception;
     }
 
     record ServiceLifecycle(ManagedLocalAiService service) implements Lifecycle {
@@ -247,6 +311,11 @@ public final class ManagedLocalAiSetupProvider implements SetupProvider {
         }
 
         @Override
+        public ManagedLocalAiSnapshot inspectReviewed() {
+            return service.inspectReviewed();
+        }
+
+        @Override
         public ManagedLocalAiOperation provision(Consumer<ManagedLocalAiSnapshot> progress) {
             return service.provision(progress);
         }
@@ -254,6 +323,16 @@ public final class ManagedLocalAiSetupProvider implements SetupProvider {
         @Override
         public boolean clean() throws Exception {
             return service.cleanReviewed();
+        }
+
+        @Override
+        public ManagedLocalAiActivationHistory.Activation rollbackCandidate() throws IOException {
+            return service.rollbackCandidate();
+        }
+
+        @Override
+        public ManagedLocalAiSnapshot rollback(ManagedLocalAiActivationHistory.Activation expected) throws Exception {
+            return service.rollbackReviewed(expected);
         }
     }
 }

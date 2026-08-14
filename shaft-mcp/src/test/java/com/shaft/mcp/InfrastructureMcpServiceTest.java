@@ -200,6 +200,25 @@ class InfrastructureMcpServiceTest {
     }
 
     @Test
+    void localAiRollbackRequestRoutesTheExplicitOperation() {
+        InfrastructureSetupService coordinator = mock(InfrastructureSetupService.class);
+        SetupPlan rollback = SetupPlan.create(SetupProfile.LOCAL_AI, SetupPlatform.WINDOWS,
+                SetupArchitecture.X64, SetupMode.MANAGED, List.of(
+                        new SetupAction(SetupTarget.MANAGED_LOCAL_AI_RUNTIME, SetupActionKind.ROLLBACK,
+                                "reviewed", URI.create("https://example.invalid/runtime"), CHECKSUM,
+                                false, Set.of("MIT"))));
+        when(coordinator.plan(any(SetupOptions.class), any(SetupSelection.class), eq(SetupOperation.ROLLBACK)))
+                .thenReturn(rollback);
+        InfrastructureMcpService service = new InfrastructureMcpService(coordinator);
+        McpSetupRequest request = new McpSetupRequest("LOCAL_AI", "MANAGED", temp.resolve("cache").toString(),
+                temp.resolve("data").toString(), false, false, true, true, "PT2M", "PT30S", "",
+                "ROLLBACK", List.of());
+
+        assertEquals(rollback, service.setupPlan(request).plan());
+        verify(coordinator).plan(any(SetupOptions.class), any(SetupSelection.class), eq(SetupOperation.ROLLBACK));
+    }
+
+    @Test
     void omittedLocalAiRootsUseInferenceCacheButExplicitDefaultRootsRemainExact() {
         Path inferenceCache = temp.resolve("managed-inference-cache").toAbsolutePath();
         com.shaft.driver.SHAFT.Properties.managedLocalAi.set().cacheDirectory(inferenceCache.toString());

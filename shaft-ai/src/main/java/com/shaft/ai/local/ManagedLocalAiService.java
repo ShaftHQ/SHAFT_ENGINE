@@ -55,40 +55,42 @@ public final class ManagedLocalAiService {
     public ManagedLocalAiOperation provision(Consumer<ManagedLocalAiSnapshot> progress) {
         Objects.requireNonNull(progress, "progress");
         ManagedLocalAiSnapshot initial = inspect();
+        ManagedLocalAiSnapshot reviewedInitial = inspectReviewed();
         ManagedLocalAiOperation operation = new ManagedLocalAiOperation(initial);
         Thread worker = Thread.ofVirtual().name("shaft-managed-local-ai-provision").start(() -> {
             ProvisionResult provisioned = null;
             Settings configured = null;
             try {
-                if (initial.state() == ManagedLocalAiSnapshot.State.READY) {
-                    publish(operation, progress, initial);
+                if (reviewedInitial.state() == ManagedLocalAiSnapshot.State.READY) {
+                    publish(operation, progress, reviewedInitial);
                     configured = Objects.requireNonNull(settings.get(), "managed local AI settings");
                     ManagedLocalAiManifest manifest = Objects.requireNonNull(manifests.get(),
                             "managed local AI manifest");
-                    if (!publishActivation(operation, initial, configured, manifest)) {
+                    if (!publishActivation(operation, reviewedInitial, configured, manifest)) {
                         operation.cancelled();
                     }
                     return;
                 }
-                if (initial.state() != ManagedLocalAiSnapshot.State.NOT_PROVISIONED) {
+                if (reviewedInitial.state() != ManagedLocalAiSnapshot.State.NOT_PROVISIONED) {
                     throw new IllegalStateException("Managed local AI cannot be provisioned from state "
-                            + initial.state() + ".");
+                            + reviewedInitial.state() + ".");
                 }
                 configured = Objects.requireNonNull(settings.get(), "managed local AI settings");
                 ManagedLocalAiManifest manifest = Objects.requireNonNull(manifests.get(), "managed local AI manifest");
-                ManagedLocalAiHardware.Profile profile = ManagedLocalAiHardware.profile(initial.cacheDirectory(), host);
+                ManagedLocalAiHardware.Profile profile = ManagedLocalAiHardware.profile(
+                        reviewedInitial.cacheDirectory(), host);
                 String requested = AUTOMATIC_MODEL.equalsIgnoreCase(configured.model()) ? null : configured.model();
                 ManagedLocalAiHardware.Selection selection = ManagedLocalAiHardware.select(manifest, profile, requested);
                 ManagedLocalAiManifest.ModelManifest model = manifest.models().stream()
                         .filter(candidate -> candidate.id().equals(selection.selectedModelId())).findFirst().orElseThrow();
-                provisioned = provisioning.provision(initial.cacheDirectory(), manifest, profile,
+                provisioned = provisioning.provision(reviewedInitial.cacheDirectory(), manifest, profile,
                         model, configured,
                         host, operation::isCancelled, phase -> publish(operation, progress,
-                                withProgress(initial, phase.phase(), phase.completedBytes(), phase.totalBytes())));
+                                withProgress(reviewedInitial, phase.phase(), phase.completedBytes(), phase.totalBytes())));
                 if (operation.isCancelled()) {
                     throw new InterruptedException("Managed local AI provisioning was cancelled.");
                 }
-                ManagedLocalAiSnapshot ready = inspect();
+                ManagedLocalAiSnapshot ready = inspectReviewed();
                 if (ready.state() != ManagedLocalAiSnapshot.State.READY) {
                     throw new IllegalStateException("Managed local AI provisioning did not produce a ready cache.");
                 }
@@ -174,6 +176,14 @@ public final class ManagedLocalAiService {
 
     /** Inspects configuration, hardware, reviewed inventory, and cache state without mutation. */
     public ManagedLocalAiSnapshot inspect() {
+        return inspect(true);
+    }
+
+    ManagedLocalAiSnapshot inspectReviewed() {
+        return inspect(false);
+    }
+
+    private ManagedLocalAiSnapshot inspect(boolean effectiveActivation) {
         Settings configured = Objects.requireNonNull(settings.get(), "managed local AI settings");
         Path cache = resolveCache(configured.cacheDirectory());
         if (!configured.enabled()) {
@@ -184,6 +194,16 @@ public final class ManagedLocalAiService {
 
         ManagedLocalAiManifest manifest = Objects.requireNonNull(manifests.get(), "managed local AI manifest");
         ManagedLocalAiHardware.Profile profile = ManagedLocalAiHardware.profile(cache, host);
+        if (effectiveActivation) {
+            try {
+                ManagedLocalAiActivationHistory.History history = ManagedLocalAiActivationHistory.readVerified(cache);
+                if (history != null) {
+                    return activationSnapshot(cache, configured, history.active());
+                }
+            } catch (IOException failure) {
+                throw new IllegalStateException("Managed-local activation history cannot be read.", failure);
+            }
+        }
         if (!profile.runtimeCompatible()) {
             return snapshot(ManagedLocalAiSnapshot.State.UNSUPPORTED,
                     "Use an external local provider or a supported desktop OS, architecture, and ABI.",
@@ -228,6 +248,24 @@ public final class ManagedLocalAiService {
         ManagedLocalAiSnapshot snapshot = inspect();
         if (snapshot.state() != ManagedLocalAiSnapshot.State.READY || snapshot.selectedModelId() == null) {
             throw new IllegalStateException("Managed local AI is not ready for inference.");
+        }
+        ManagedLocalAiActivationHistory.History history = ManagedLocalAiActivationHistory.readVerified(
+                snapshot.cacheDirectory());
+        if (history != null) {
+            ManagedLocalAiActivationHistory.Activation active = history.active();
+            ManagedLocalAiCache.Installation runtimeInstallation = ManagedLocalAiCache.verify(
+                    snapshot.cacheDirectory(), active.runtimeId());
+            ManagedLocalAiCache.Installation modelInstallation = ManagedLocalAiCache.verify(
+                    snapshot.cacheDirectory(), active.modelId());
+            int launchTimeoutSeconds = SHAFT.Properties.managedLocalAi.launchTimeoutSeconds();
+            if (launchTimeoutSeconds <= 0) {
+                throw new IllegalStateException("Managed local AI launch timeout must be positive.");
+            }
+            return new ReadyRuntime(snapshot.cacheDirectory(), requireOwnedNamedFile(snapshot.cacheDirectory(),
+                    runtimeInstallation, active.runtimeExecutable()), requireOwnedNamedFile(snapshot.cacheDirectory(),
+                    modelInstallation, active.modelFile()), inferenceLog(snapshot.cacheDirectory()),
+                    active.modelArtifactId(), Math.max(1, snapshot.cpuCount()),
+                    Duration.ofSeconds(launchTimeoutSeconds));
         }
         ManagedLocalAiManifest manifest = Objects.requireNonNull(manifests.get(), "managed local AI manifest");
         ManagedLocalAiManifest.RuntimeAsset asset = manifest.runtime().assets().stream()
@@ -276,11 +314,94 @@ public final class ManagedLocalAiService {
         return inventory;
     }
 
+    private ManagedLocalAiSnapshot activationSnapshot(Path cache, Settings configured,
+                                                       ManagedLocalAiActivationHistory.Activation active) {
+        ManagedLocalAiManifest.RuntimeAsset runtimeAsset = new ManagedLocalAiManifest.RuntimeAsset(
+                active.runtimePlatform(), active.runtimeFile(), java.net.URI.create(active.runtimeUrl()),
+                active.runtimeArtifactBytes(), active.runtimeSha256(), active.runtimeExecutable(),
+                active.runtimeAbi(), active.runtimeMinimumAbiVersion());
+        ManagedLocalAiManifest.RuntimeManifest runtime = new ManagedLocalAiManifest.RuntimeManifest(
+                "llama.cpp", active.runtimeVersion(), active.runtimeLicense(), java.net.URI.create(
+                "https://github.com/ggml-org/llama.cpp/releases/tag/" + active.runtimeVersion()),
+                List.of(runtimeAsset));
+        ManagedLocalAiManifest.ModelManifest model = new ManagedLocalAiManifest.ModelManifest(
+                active.modelArtifactId(), active.modelName(), active.modelTier(), active.modelAutomatic(),
+                active.modelFirstPartyQuantization(), active.modelLicense(), active.modelSource(),
+                active.modelRevision(), active.modelFile(), java.net.URI.create(active.modelUrl()),
+                active.modelArtifactBytes(), active.modelSha256(), active.modelMinimumRamGb(),
+                active.modelMinimumCpuCount(), active.modelMinimumFreeDiskGb());
+        ManagedLocalAiManifest historical = new ManagedLocalAiManifest(1, runtime, List.of(model));
+        ManagedLocalAiHardware.Profile profile = ManagedLocalAiHardware.profile(cache, host, historical);
+        ManagedLocalAiHardware.Selection selection = ManagedLocalAiHardware.select(
+                historical, profile, active.modelArtifactId());
+        ManagedLocalAiHardware.ModelEvaluation evaluation = selection.models().get(active.modelArtifactId());
+        Map<String, ManagedLocalAiSnapshot.Model> models = Map.of(active.modelArtifactId(),
+                new ManagedLocalAiSnapshot.Model(active.modelName(), active.modelTier(), active.modelLicense(),
+                        active.modelRevision(), active.modelFile(), active.modelSha256(), active.modelAutomatic(),
+                        evaluation.eligible(), evaluation.reasons(), evaluation.requiredDiskBytes(),
+                        active.modelArtifactBytes()));
+        boolean compatible = profile.platform().equals(active.runtimePlatform()) && evaluation.eligible();
+        return new ManagedLocalAiSnapshot(compatible ? ManagedLocalAiSnapshot.State.READY
+                : ManagedLocalAiSnapshot.State.EXCLUDED,
+                compatible ? "The exact reviewed managed-local activation is ready."
+                        : "The active reviewed rollback candidate no longer meets this host's eligibility limits.",
+                cache, configured.enabled(), configured.transparentProvisioning(), configured.model(),
+                compatible ? active.modelArtifactId() : null, active.runtimePlatform(), "llama.cpp",
+                active.runtimeVersion(), active.runtimeLicense(), active.runtimeFile(), active.runtimeSha256(),
+                active.runtimeExecutable(), active.runtimeArtifactBytes(), ManagedLocalAiSnapshot.CacheHealth.READY,
+                ManagedLocalAiSnapshot.CacheHealth.READY, ManagedLocalAiSnapshot.Phase.IDLE, 0, 0,
+                profile.effectiveMemoryBytes(), profile.cpuCount(), profile.freeDiskBytes(), models);
+    }
+
     private static ManagedLocalAiSnapshot snapshot(ManagedLocalAiSnapshot.State state, String action,
                                                    SnapshotContext context) {
         return snapshot(state, action, context,
                 ManagedLocalAiSnapshot.CacheHealth.NOT_APPLICABLE,
                 ManagedLocalAiSnapshot.CacheHealth.NOT_APPLICABLE);
+    }
+
+    ManagedLocalAiActivationHistory.Activation rollbackCandidate() throws IOException {
+        Settings configured = Objects.requireNonNull(settings.get(), "managed local AI settings");
+        Path cache = resolveCache(configured.cacheDirectory());
+        ManagedLocalAiActivationHistory.Activation candidate =
+                ManagedLocalAiActivationHistory.rollbackCandidate(cache);
+        if (candidate != null && activationSnapshot(cache, configured, candidate).state()
+                != ManagedLocalAiSnapshot.State.READY) {
+            throw new IllegalStateException("Reviewed managed-local rollback candidate is ineligible on this host.");
+        }
+        return candidate;
+    }
+
+    ManagedLocalAiSnapshot rollbackReviewed() throws Exception {
+        ManagedLocalAiActivationHistory.Activation candidate = rollbackCandidate();
+        if (candidate == null) {
+            throw new IllegalStateException("No reviewed managed-local rollback candidate is available.");
+        }
+        return rollbackReviewed(candidate);
+    }
+
+    ManagedLocalAiSnapshot rollbackReviewed(ManagedLocalAiActivationHistory.Activation expected) throws Exception {
+        Objects.requireNonNull(expected, "expected");
+        Settings configured = Objects.requireNonNull(settings.get(), "managed local AI settings");
+        Path cache = resolveCache(configured.cacheDirectory());
+        Duration lockTimeout = Duration.ofSeconds(configured.lockTimeoutSeconds());
+        java.util.concurrent.atomic.AtomicReference<ManagedLocalAiSnapshot> result =
+                new java.util.concurrent.atomic.AtomicReference<>();
+        ManagedLocalAiProcess.withLaunchExclusion(lockTimeout, () -> {
+            ManagedLocalAiCache.withLock(cache, lockTimeout, () -> {
+                ManagedLocalAiActivationHistory.rollbackLocked(cache, expected, () -> {
+                    ManagedLocalAiSnapshot eligible = activationSnapshot(cache, configured, expected);
+                    if (eligible.state() != ManagedLocalAiSnapshot.State.READY) {
+                        throw new IllegalStateException(
+                                "Reviewed managed-local rollback candidate is ineligible on this host.");
+                    }
+                    result.set(eligible);
+                    ManagedLocalAiProcess.terminateRetainedLaunches();
+                });
+                return null;
+            });
+        });
+        return result.get();
     }
 
     /** Returns the effective inference cache without inspecting hardware or mutating the host. */

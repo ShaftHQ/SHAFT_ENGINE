@@ -445,6 +445,30 @@ class SetupCommandTest {
         assertFalse(Files.exists(planFile));
     }
 
+    @Test
+    void localAiRollbackReachesTheProviderAndFailsClosedWithoutAReviewedCandidate(@TempDir Path temp)
+            throws Exception {
+        Path cache = temp.resolve("managed-ai-cache").toAbsolutePath();
+        Path data = temp.resolve("data").toAbsolutePath();
+        Path planFile = temp.resolve("local-ai-rollback-plan.json").toAbsolutePath();
+        Files.createDirectories(cache);
+        com.shaft.driver.SHAFT.Properties.managedLocalAi.set().enabled(true)
+                .model("qwen3-0.6b-q8_0").cacheDirectory(cache.toString());
+        try {
+            CommandResult result = execute("setup", "plan", "--profile", "LOCAL_AI", "--mode", "MANAGED",
+                    "--operation", "ROLLBACK", "--output", planFile.toString(),
+                    "--cache-root", cache.toString(), "--data-root", data.toString(), "--json");
+
+            assertEquals(5, result.exitCode(), result.stderr());
+            assertTrue(result.stderr().contains("No reviewed managed local AI rollback candidate"), result.stderr());
+            assertFalse(Files.exists(planFile));
+            assertDirectoryEmpty(cache);
+            assertFalse(Files.exists(data));
+        } finally {
+            com.shaft.properties.internal.Properties.clearForCurrentThread();
+        }
+    }
+
     private static CommandResult execute(String... arguments) {
         StringWriter stdout = new StringWriter();
         StringWriter stderr = new StringWriter();

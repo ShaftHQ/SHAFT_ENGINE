@@ -157,7 +157,7 @@ class ManagedLocalAiServiceTest {
         assertEquals(1, provisioning.runtimeDownloads, "a ready owned runtime must be reused");
         assertEquals(1, provisioning.modelDownloads, "a ready owned model must be reused");
 
-        ManagedLocalAiCache.withLock(cache, Duration.ofSeconds(1), () -> ManagedLocalAiCache.clean(cache));
+        service.clean();
         ManagedLocalAiCache.Installation prior = adopt(cache, "prior-owned",
                 new Payload("prior.bin", "prior".getBytes()));
         Path unknown = cache.resolve("user-note.txt");
@@ -424,7 +424,7 @@ class ManagedLocalAiServiceTest {
         Path historyFile = cache.resolve("activation-history.json");
         assertTrue(Files.isRegularFile(historyFile));
         var history = tools.jackson.databind.json.JsonMapper.builder().build().readTree(historyFile.toFile());
-        assertEquals(1, history.path("schemaVersion").asInt());
+        assertEquals(2, history.path("schemaVersion").asInt());
         assertEquals(ManagedLocalAiService.runtimeInstallationId(secondManifest, "windows-x86_64"),
                 history.path("active").path("runtimeId").asText());
         assertEquals(ManagedLocalAiService.modelInstallationId(secondManifest.models().getFirst()),
@@ -550,8 +550,7 @@ class ManagedLocalAiServiceTest {
         String tampered = Files.readString(history).replace("\"runtimeFile\":\"runtime.zip\"",
                 "\"runtimeFile\":\"../../outside\"");
         Files.writeString(history, tampered);
-        assertThrows(java.util.concurrent.ExecutionException.class,
-                () -> service.provision(ignored -> { }).completion().get(5, TimeUnit.SECONDS));
+        assertThrows(IllegalStateException.class, () -> service.provision(ignored -> { }));
 
         Files.delete(history);
         Files.createDirectory(history);
@@ -567,8 +566,7 @@ class ManagedLocalAiServiceTest {
         ManagedLocalAiService failed = service(lateFailure, true, "test-model",
                 host("Windows 11", "amd64", "windows-msvc", "", 16 * GIB, 8, 64 * GIB), manifest,
                 new FakeProvisioning(lateFailure, manifest, runtime, model));
-        assertThrows(java.util.concurrent.ExecutionException.class,
-                () -> failed.provision(ignored -> { }).completion().get(5, TimeUnit.SECONDS));
+        assertThrows(IllegalStateException.class, () -> failed.provision(ignored -> { }));
         assertFalse(ManagedLocalAiCache.ownsInstallation(lateFailure,
                 ManagedLocalAiService.runtimeInstallationId(manifest, "windows-x86_64")));
         assertFalse(ManagedLocalAiCache.ownsInstallation(lateFailure,
@@ -596,6 +594,74 @@ class ManagedLocalAiServiceTest {
 
         assertFalse(claimed.get());
         assertFalse(Files.exists(cache.resolve("activation-history.json")));
+    }
+
+    @Test
+    void reviewedRollbackAtomicallyActivatesTheExactPreviousPairAndCanUpdateAgain(@TempDir Path cache)
+            throws Exception {
+        ManagedLocalAiHardware.HostAccess host = host("Windows 11", "amd64", "windows-msvc", "",
+                16 * GIB, 8, 64 * GIB);
+        byte[] firstRuntime = "runtime-rollback-one".getBytes();
+        byte[] firstModel = "model-rollback-one".getBytes();
+        ManagedLocalAiManifest firstManifest = manifest(firstRuntime, firstModel);
+        ManagedLocalAiService first = service(cache, true, "test-model", host, firstManifest,
+                new FakeProvisioning(cache, firstManifest, firstRuntime, firstModel));
+        first.provision(ignored -> { }).completion().get(5, TimeUnit.SECONDS);
+
+        byte[] secondRuntime = "runtime-rollback-two".getBytes();
+        byte[] secondModel = "model-rollback-two".getBytes();
+        ManagedLocalAiManifest secondManifest = manifest(secondRuntime, secondModel);
+        FakeProvisioning secondProvisioning = new FakeProvisioning(cache, secondManifest, secondRuntime, secondModel);
+        ManagedLocalAiService second = service(cache, true, "test-model", host, secondManifest, secondProvisioning);
+        second.provision(ignored -> { }).completion().get(5, TimeUnit.SECONDS);
+
+        ManagedLocalAiSnapshot rolledBack = second.rollbackReviewed();
+
+        assertEquals(ManagedLocalAiSnapshot.State.READY, rolledBack.state());
+        assertEquals(firstManifest.runtime().assets().getFirst().sha256(), rolledBack.runtimeAssetSha256());
+        assertEquals(firstManifest.models().getFirst().sha256(),
+                rolledBack.models().get(rolledBack.selectedModelId()).sha256());
+        assertTrue(second.readyRuntime().executable().toString().contains(
+                ManagedLocalAiService.runtimeInstallationId(firstManifest, "windows-x86_64")));
+
+        ManagedLocalAiSnapshot updated = second.provision(ignored -> { }).completion().get(5, TimeUnit.SECONDS);
+        assertEquals(secondManifest.runtime().assets().getFirst().sha256(), updated.runtimeAssetSha256());
+        assertEquals(1, secondProvisioning.runtimeDownloads);
+        assertEquals(1, secondProvisioning.modelDownloads);
+    }
+
+    @Test
+    void rollbackRevalidatesHistoricalEligibilityInsideTheCommitLock(@TempDir Path cache) throws Exception {
+        java.util.concurrent.atomic.AtomicLong memory = new java.util.concurrent.atomic.AtomicLong(16 * GIB);
+        ManagedLocalAiHardware.HostAccess mutableHost = new ManagedLocalAiHardware.HostAccess() {
+            @Override public String osName() { return "Windows 11"; }
+            @Override public String architecture() { return "amd64"; }
+            @Override public String abi() { return "windows-msvc"; }
+            @Override public String abiVersion() { return ""; }
+            @Override public long availableMemoryBytes() { return memory.get(); }
+            @Override public int availableProcessors() { return 8; }
+            @Override public long usableSpace(Path ignored) { return 64 * GIB; }
+            @Override public String read(String ignored) { return ""; }
+        };
+        byte[] firstRuntime = "runtime-eligibility-one".getBytes();
+        byte[] firstModel = "model-eligibility-one".getBytes();
+        ManagedLocalAiManifest firstManifest = manifest(firstRuntime, firstModel);
+        service(cache, true, "test-model", mutableHost, firstManifest,
+                new FakeProvisioning(cache, firstManifest, firstRuntime, firstModel))
+                .provision(ignored -> { }).completion().get(5, TimeUnit.SECONDS);
+        byte[] secondRuntime = "runtime-eligibility-two".getBytes();
+        byte[] secondModel = "model-eligibility-two".getBytes();
+        ManagedLocalAiManifest secondManifest = manifest(secondRuntime, secondModel);
+        ManagedLocalAiService service = service(cache, true, "test-model", mutableHost, secondManifest,
+                new FakeProvisioning(cache, secondManifest, secondRuntime, secondModel));
+        service.provision(ignored -> { }).completion().get(5, TimeUnit.SECONDS);
+        ManagedLocalAiActivationHistory.Activation candidate = service.rollbackCandidate();
+        byte[] before = Files.readAllBytes(cache.resolve("activation-history.json"));
+
+        memory.set(1);
+
+        assertThrows(IllegalStateException.class, () -> service.rollbackReviewed(candidate));
+        assertArrayEquals(before, Files.readAllBytes(cache.resolve("activation-history.json")));
     }
 
     private static final class ThrowingHost implements ManagedLocalAiHardware.HostAccess {
