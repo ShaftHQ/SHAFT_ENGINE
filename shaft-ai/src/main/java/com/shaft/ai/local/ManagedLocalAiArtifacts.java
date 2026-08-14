@@ -257,54 +257,94 @@ final class ManagedLocalAiArtifacts {
             ratioLimit = MAXIMUM_EXPANDED_BYTES;
         }
         long byteLimit = Math.min(MAXIMUM_EXPANDED_BYTES, ratioLimit);
-        Set<String> memberPaths = new java.util.HashSet<>();
-        List<Path> executables = new ArrayList<>();
+        ExtractionState state = new ExtractionState(stage, byteLimit, files, directories);
         try (ArchiveInputStream<?> input = openArchive(archive)) {
-            int members = 0;
-            long expanded = 0;
             ArchiveEntry entry;
             while ((entry = input.getNextEntry()) != null) {
                 checkCancelled(cancelled);
-                if (++members > MAXIMUM_MEMBERS) {
-                    throw new IllegalArgumentException("Archive has too many members.");
-                }
-                validateEntry(entry);
-                Path target = contained(stage, entry.getName());
-                String portableIdentity = stage.relativize(target).toString().replace('\\', '/')
-                        .toLowerCase(Locale.ROOT);
-                if (!memberPaths.add(portableIdentity)) {
-                    throw new IllegalArgumentException("Archive contains a duplicate portable member path.");
-                }
-                if (entry.isDirectory()) {
-                    createDirectoriesTracked(stage, target, directories);
-                    continue;
-                }
-                long declared = entry.getSize();
-                if (declared != ArchiveEntry.SIZE_UNKNOWN && declared > byteLimit - expanded) {
-                    throw new IllegalArgumentException("Archive exceeds its expanded byte limit.");
-                }
-                createDirectoriesTracked(stage, target.getParent(), directories);
-                if (Files.exists(target, LinkOption.NOFOLLOW_LINKS)) {
-                    throw new IllegalArgumentException("Archive contains a duplicate member path.");
-                }
-                long written = copyBounded(input, target, byteLimit - expanded, cancelled, files);
-                if (declared != ArchiveEntry.SIZE_UNKNOWN && written != declared) {
-                    throw new IllegalArgumentException("Archive member size does not match its declaration.");
-                }
-                expanded = Math.addExact(expanded, written);
-                String basename = target.getFileName().toString();
-                if (basename.equals("llama-server") || basename.equals("llama-server.exe")) {
-                    executables.add(target);
-                }
+                state.extract(entry, input, cancelled);
             }
+            state.requireMembers();
+        }
+        return state.result();
+    }
+
+    private static final class ExtractionState {
+        private final Path stage;
+        private final long byteLimit;
+        private final List<Path> files;
+        private final List<Path> directories;
+        private final Set<String> memberPaths = new java.util.HashSet<>();
+        private final List<Path> executables = new ArrayList<>();
+        private int members;
+        private long expanded;
+
+        private ExtractionState(Path stage, long byteLimit, List<Path> files, List<Path> directories) {
+            this.stage = stage;
+            this.byteLimit = byteLimit;
+            this.files = files;
+            this.directories = directories;
+        }
+
+        private void extract(ArchiveEntry entry, ArchiveInputStream<?> input, BooleanSupplier cancelled)
+                throws IOException, InterruptedException {
+            if (++members > MAXIMUM_MEMBERS) {
+                throw new IllegalArgumentException("Archive has too many members.");
+            }
+            validateEntry(entry);
+            Path target = contained(stage, entry.getName());
+            requireUniquePortablePath(target);
+            if (entry.isDirectory()) {
+                createDirectoriesTracked(stage, target, directories);
+                return;
+            }
+            extractFile(entry, input, target, cancelled);
+        }
+
+        private void requireUniquePortablePath(Path target) {
+            String identity = stage.relativize(target).toString().replace('\\', '/').toLowerCase(Locale.ROOT);
+            if (!memberPaths.add(identity)) {
+                throw new IllegalArgumentException("Archive contains a duplicate portable member path.");
+            }
+        }
+
+        private void extractFile(ArchiveEntry entry, ArchiveInputStream<?> input, Path target,
+                                 BooleanSupplier cancelled) throws IOException, InterruptedException {
+            long declared = entry.getSize();
+            if (declared != ArchiveEntry.SIZE_UNKNOWN && declared > byteLimit - expanded) {
+                throw new IllegalArgumentException("Archive exceeds its expanded byte limit.");
+            }
+            createDirectoriesTracked(stage, target.getParent(), directories);
+            if (Files.exists(target, LinkOption.NOFOLLOW_LINKS)) {
+                throw new IllegalArgumentException("Archive contains a duplicate member path.");
+            }
+            long written = copyBounded(input, target, byteLimit - expanded, cancelled, files);
+            if (declared != ArchiveEntry.SIZE_UNKNOWN && written != declared) {
+                throw new IllegalArgumentException("Archive member size does not match its declaration.");
+            }
+            expanded = Math.addExact(expanded, written);
+            recordExecutable(target);
+        }
+
+        private void recordExecutable(Path target) {
+            String basename = target.getFileName().toString();
+            if (basename.equals("llama-server") || basename.equals("llama-server.exe")) {
+                executables.add(target);
+            }
+        }
+
+        private void requireMembers() {
             if (members == 0) {
                 throw new IllegalArgumentException("Archive must contain at least one member.");
             }
         }
-        if (executables.size() != 1) {
-            throw new IllegalArgumentException("Archive must contain exactly one reviewed runtime executable.");
+
+        private List<Path> result() {
+            if (executables.size() != 1) {
+                throw new IllegalArgumentException("Archive must contain exactly one reviewed runtime executable.");
+            }
+            return List.copyOf(executables);
         }
-        return List.copyOf(executables);
     }
 
     private static void createDirectoriesTracked(Path root, Path target, List<Path> directories) throws IOException {
