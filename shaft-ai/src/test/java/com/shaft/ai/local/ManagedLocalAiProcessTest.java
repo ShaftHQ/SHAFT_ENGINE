@@ -922,7 +922,7 @@ class ManagedLocalAiProcessTest {
         AiResponse invalidResponse = ManagedLocalAiProcess.infer(session, request,
                 (uri, bearer, body, timeout) -> new ManagedLocalAiProcess.InferenceResponse(200,
                         new ByteArrayInputStream(invalid.getBytes(StandardCharsets.UTF_8)) {
-                            @Override public void close() throws java.io.IOException {
+                            @Override public void close() throws IOException {
                                 closed.set(true);
                                 super.close();
                             }
@@ -936,7 +936,7 @@ class ManagedLocalAiProcessTest {
         AiResponse timedOut = ManagedLocalAiProcess.infer(session, request, (uri, bearer, body, timeout) -> {
             Thread.sleep(200);
             return new ManagedLocalAiProcess.InferenceResponse(200, new java.io.InputStream() {
-                @Override public int read() throws java.io.IOException {
+                @Override public int read() throws IOException {
                     try {
                         Thread.sleep(1_000);
                     } catch (InterruptedException interrupted) {
@@ -966,7 +966,7 @@ class ManagedLocalAiProcessTest {
         AiResponse authentication = ManagedLocalAiProcess.infer(session, request,
                 (uri, bearer, body, timeout) -> new ManagedLocalAiProcess.InferenceResponse(401,
                         new java.io.InputStream() {
-                            @Override public int read() throws java.io.IOException {
+                            @Override public int read() throws IOException {
                                 try {
                                     Thread.sleep(1_000);
                                 } catch (InterruptedException interrupted) {
@@ -1091,7 +1091,7 @@ class ManagedLocalAiProcessTest {
     private static boolean fileIsEmpty(Path path) {
         try {
             return Files.size(path) == 0;
-        } catch (java.io.IOException missing) {
+        } catch (IOException missing) {
             return true;
         }
     }
@@ -1176,7 +1176,7 @@ class ManagedLocalAiProcessTest {
             return false;
         }
         @Override public int exitValue() { throw new IllegalThreadStateException(); }
-        @Override public void destroy() { }
+        @Override public void destroy() { /* Simulates a process that ignores graceful termination. */ }
         @Override public Process destroyForcibly() { return this; }
         @Override public boolean isAlive() { return true; }
     }
@@ -1194,7 +1194,7 @@ class ManagedLocalAiProcessTest {
             return forciblyDestroyed;
         }
         @Override public int exitValue() { if (!forciblyDestroyed) throw new IllegalThreadStateException(); return -1; }
-        @Override public void destroy() { }
+        @Override public void destroy() { /* Simulates a process that ignores graceful termination. */ }
         @Override public Process destroyForcibly() { forciblyDestroyed = true; return this; }
         @Override public boolean isAlive() { return !forciblyDestroyed; }
     }
@@ -1214,7 +1214,7 @@ class ManagedLocalAiProcessTest {
         @Override public int waitFor() { return alive ? 0 : -1; }
         @Override public boolean waitFor(long timeout, java.util.concurrent.TimeUnit unit) { return !alive; }
         @Override public int exitValue() { if (alive) throw new IllegalThreadStateException(); return -1; }
-        @Override public void destroy() { }
+        @Override public void destroy() { /* Simulates a process that ignores graceful termination. */ }
         @Override public Process destroyForcibly() { alive = false; return this; }
         @Override public boolean isAlive() { return alive; }
         @Override public ProcessHandle toHandle() { return new ParentHandle(this); }

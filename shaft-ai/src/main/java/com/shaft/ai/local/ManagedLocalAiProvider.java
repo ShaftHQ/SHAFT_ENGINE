@@ -134,7 +134,7 @@ public final class ManagedLocalAiProvider implements AiProvider {
                     activeProvisioning = provisioningOperation;
                     snapshot = provisioningOperation.completion()
                             .get(ManagedLocalAiProcess.remaining(deadline).toNanos(),
-                                    java.util.concurrent.TimeUnit.NANOSECONDS);
+                                    TimeUnit.NANOSECONDS);
                     if (retireIfShuttingDown(deadline)) {
                         return unavailable(request, "Managed local inference is shutting down.");
                     }

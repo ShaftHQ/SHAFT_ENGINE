@@ -687,7 +687,7 @@ class ManagedLocalAiProviderTest {
             return false;
         }
         @Override public int exitValue() { if (alive) throw new IllegalThreadStateException(); return -1; }
-        @Override public void destroy() { }
+        @Override public void destroy() { /* Simulates a process that ignores graceful termination. */ }
         @Override public Process destroyForcibly() { alive = false; return this; }
         @Override public boolean isAlive() { return alive; }
     }
@@ -713,7 +713,7 @@ class ManagedLocalAiProviderTest {
         @Override public int waitFor() throws InterruptedException { Thread.currentThread().join(); return -1; }
         @Override public boolean waitFor(long timeout, java.util.concurrent.TimeUnit unit) { return false; }
         @Override public int exitValue() { throw new IllegalThreadStateException(); }
-        @Override public void destroy() { }
+        @Override public void destroy() { /* Simulates a process that ignores graceful termination. */ }
         @Override public Process destroyForcibly() { forceKillRequested = true; return this; }
         @Override public boolean isAlive() { return true; }
     }
@@ -738,7 +738,7 @@ class ManagedLocalAiProviderTest {
             return !alive;
         }
         @Override public int exitValue() { if (alive) throw new IllegalThreadStateException(); return -1; }
-        @Override public void destroy() { }
+        @Override public void destroy() { /* Simulates a process that ignores graceful termination. */ }
         @Override public Process destroyForcibly() {
             forceKillRequested = true;
             Thread.ofVirtual().start(() -> {
@@ -781,7 +781,7 @@ class ManagedLocalAiProviderTest {
         @Override public int waitFor() throws InterruptedException { Thread.currentThread().join(); return -1; }
         @Override public boolean waitFor(long timeout, java.util.concurrent.TimeUnit unit) { return !alive; }
         @Override public int exitValue() { if (alive) throw new IllegalThreadStateException(); return -1; }
-        @Override public void destroy() { }
+        @Override public void destroy() { /* Simulates a process that ignores graceful termination. */ }
         @Override public Process destroyForcibly() { alive = false; return this; }
         @Override public boolean isAlive() { return alive; }
         @Override public ProcessHandle toHandle() { return new ExitingParentHandle(this); }

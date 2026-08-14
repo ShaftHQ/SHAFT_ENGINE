@@ -1372,6 +1372,7 @@ class ProcessTreeRssMonitor:
 
     def __init__(self, process: subprocess.Popen, *, sampler=_process_tree_rss_bytes,
                  aborter=_abort_process_tree, limit_bytes: int = MAX_PROCESS_TREE_RSS_BYTES):
+        """Create a monitor for one owned process tree and an aggregate RSS ceiling."""
         self.process = process
         self.sampler = sampler
         self.aborter = aborter
