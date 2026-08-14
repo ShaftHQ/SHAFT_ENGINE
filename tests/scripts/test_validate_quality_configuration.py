@@ -4,6 +4,7 @@ from pathlib import Path
 
 from scripts.ci.validate_quality_configuration import (
     validate_browser_matrix_scope_policy,
+    validate_codeql_build_mode,
     validate_maven_jvm_configuration,
     validate_quality_configuration,
     validate_surefire_jacoco_arg_lines,
@@ -76,6 +77,29 @@ def missing_coverage_error(workflow: str, job: str) -> str:
 class ValidateQualityConfigurationTest(unittest.TestCase):
     def test_repository_configuration_is_valid(self):
         self.assertEqual(validate_quality_configuration(), [])
+
+    def test_codeql_uses_explicit_manual_build_mode(self):
+        root = Path(__file__).resolve().parents[2]
+        security_workflow = (root / ".github" / "workflows" / "security.yml").read_text(
+            encoding="utf-8"
+        )
+
+        self.assertIn("          build-mode: manual", security_workflow)
+
+    def test_codeql_validator_rejects_missing_or_different_build_mode(self):
+        workflow = (
+            "jobs:\n"
+            "  codeql:\n"
+            "    steps:\n"
+            "      - uses: github/codeql-action/init@v4\n"
+            "        with:\n"
+            "          languages: java\n"
+        )
+
+        error = ["CodeQL initialization must use explicit manual build mode"]
+        self.assertEqual(validate_codeql_build_mode(workflow), error)
+        self.assertEqual(validate_codeql_build_mode(f"{workflow}          build-mode: none\n"), error)
+        self.assertEqual(validate_codeql_build_mode(f"{workflow}          build-mode: manual\n"), [])
 
     def test_local_browser_matrix_excludes_pr_gate_owned_unit_tests(self):
         root = Path(__file__).resolve().parents[2]
