@@ -19,14 +19,15 @@ import java.util.concurrent.Callable;
  * Curated doctor shortcuts. Pure alias over {@code call}; stateless (runs one-shot without a session).
  */
 @Command(mixinStandardHelpOptions = true,
-        name = "doctor", description = "Doctor shortcuts: analyze | suggest.")
+        name = "doctor", description = "Doctor shortcuts: analyze | suggest | local-ai-status.")
 public final class DoctorCommand implements Callable<Integer> {
 
     private static final Map<String, String> ACTIONS = Map.of(
             "analyze", "doctor_analyze_trace",
-            "suggest", "doctor_suggest_fix");
+            "suggest", "doctor_suggest_fix",
+            "local-ai-status", "doctor_managed_local_ai_status");
 
-    @Parameters(index = "0", paramLabel = "ACTION", description = "analyze | suggest")
+    @Parameters(index = "0", paramLabel = "ACTION", description = "analyze | suggest | local-ai-status")
     private String action;
 
     @Parameters(index = "1..*", paramLabel = "key=value", description = "Arguments as key=value pairs.")
