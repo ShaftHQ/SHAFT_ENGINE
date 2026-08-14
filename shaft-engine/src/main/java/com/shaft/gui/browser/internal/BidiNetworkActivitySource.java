@@ -84,6 +84,7 @@ public class BidiNetworkActivitySource implements AutoCloseable {
      */
     static final Duration IN_FLIGHT_AGE_OUT_WINDOW = Duration.ofSeconds(10);
     private static final int TRACE_REQUEST_LIMIT = 1000;
+    private static final int TRACE_FIELD_CHARACTER_LIMIT = 2048;
     private static final int TRACE_HEADER_LIMIT = 64;
     private static final int TRACE_HEADER_CHARACTER_LIMIT = 8192;
 
@@ -115,7 +116,7 @@ public class BidiNetworkActivitySource implements AutoCloseable {
         this.observationBinding = BrowserObservabilityRecorder.captureBinding();
     }
 
-    private BidiNetworkActivitySource(WebDriver driver, LongSupplier nanoTimeSource) {
+    BidiNetworkActivitySource(WebDriver driver, LongSupplier nanoTimeSource) {
         this.nanoTimeSource = nanoTimeSource;
         this.detailedObservationActive = () -> BrowserNetworkInterceptor.observationCountIfPresent(driver).isPresent();
         this.observationBinding = BrowserObservabilityRecorder.captureBinding();
@@ -268,14 +269,14 @@ public class BidiNetworkActivitySource implements AutoCloseable {
         BrowserObservabilityRecorder.ObservationSession owner =
                 BrowserObservabilityRecorder.resolveSession(observationBinding);
         BoundedHeaders requestHeaders = headers(request.getHeaders());
-        String method = BrowserObservabilityRecorder.boundedNetworkText(request.getMethod());
-        String url = BrowserObservabilityRecorder.boundedNetworkText(request.getUrl());
+        RetainedText method = retainedText(request.getMethod());
+        RetainedText url = retainedText(request.getUrl());
         if (metadataWasBounded(request, method, url, requestHeaders)) {
             warnMetadataLimit(owner);
         }
-        TraceRequest traceRequest = new TraceRequest(owner, method, url,
-                requestHeaders.values(), Math.max(0L, request.getBodySize() == null ? 0L : request.getBodySize()),
-                nanoTimeSource.getAsLong());
+        TraceRequest traceRequest = new TraceRequest(owner, method.value(), url.value(), requestHeaders.values(),
+                method.context(), url.context(), requestHeaders.contexts(),
+                Math.max(0L, request.getBodySize() == null ? 0L : request.getBodySize()), nanoTimeSource.getAsLong());
         if (longLived) {
             publish(traceRequest, null, "BiDi long-lived request observed; completion metadata is unavailable.");
             return;
@@ -310,24 +311,27 @@ public class BidiNetworkActivitySource implements AutoCloseable {
         long elapsed = now >= request.startNanos() ? now - request.startNanos() : 0L;
         long responseSize = response == null ? 0L : Math.max(0L,
                 response.getBodySize() == null ? response.getBytesReceived() : response.getBodySize());
-        BoundedHeaders responseHeaders = response == null ? new BoundedHeaders(Map.of(), false)
+        BoundedHeaders responseHeaders = response == null ? new BoundedHeaders(Map.of(), Map.of(), false)
                 : headers(response.getHeaders());
         if (responseHeaders.truncated()) {
             warnMetadataLimit(request.owner());
         }
         BrowserObservabilityRecorder.recordNetwork(request.owner(),
-                new BrowserObservabilityRecorder.NetworkObservation(request.method(), request.url(),
-                        response == null ? 0 : response.getStatus(), request.requestHeaders(),
-                        responseHeaders.values(),
+                new BrowserObservabilityRecorder.NetworkObservation(
+                        completeText(request.method(), request.methodContext()),
+                        completeText(request.url(), request.urlContext()), response == null ? 0 : response.getStatus(),
+                        completeHeaders(request.requestHeaders(), request.requestHeaderContexts()),
+                        completeHeaders(responseHeaders.values(), responseHeaders.contexts()),
                         java.util.concurrent.TimeUnit.NANOSECONDS.toMillis(elapsed), request.requestSize(),
                         responseSize, failureReason, ""), "bidi");
     }
 
-    private static BoundedHeaders headers(List<Header> source) {
+    static BoundedHeaders headers(List<Header> source) {
         if (source == null || source.isEmpty()) {
-            return new BoundedHeaders(Map.of(), false);
+            return new BoundedHeaders(Map.of(), Map.of(), false);
         }
         Map<String, String> values = new LinkedHashMap<>();
+        Map<String, HeaderContext> contexts = new LinkedHashMap<>();
         int retainedCharacters = 0;
         boolean truncated = false;
         for (Header header : source) {
@@ -336,31 +340,60 @@ public class BidiNetworkActivitySource implements AutoCloseable {
                 break;
             }
             if (header != null && header.getName() != null && header.getValue() != null) {
-                String name = BrowserObservabilityRecorder.boundedNetworkText(header.getName());
-                if (!name.equals(header.getName())) {
+                RetainedText name = retainedText(header.getName());
+                RetainedText value = isSensitiveHeader(header.getName())
+                        ? new RetainedText("********", "")
+                        : retainedText(safe(header.getValue().getValue()));
+                boolean sensitive = isSensitiveHeader(header.getName());
+                if (!name.value().equals(header.getName()) || !name.context().isEmpty()
+                        || (!sensitive && (!value.value().equals(safe(header.getValue().getValue()))
+                        || !value.context().isEmpty()))) {
                     truncated = true;
                 }
-                String value = BrowserObservabilityRecorder.boundedNetworkHeaderValue(
-                        header.getName(), safe(header.getValue().getValue()));
-                int remaining = TRACE_HEADER_CHARACTER_LIMIT - retainedCharacters - name.length();
-                if (remaining < 0) {
+                int required = name.value().length() + value.value().length();
+                if (required > TRACE_HEADER_CHARACTER_LIMIT - retainedCharacters) {
                     truncated = true;
                     break;
                 }
-                if (value.length() > remaining) {
-                    value = value.substring(0, remaining);
-                    truncated = true;
+                values.put(name.value(), value.value());
+                if (!name.context().isEmpty() || !value.context().isEmpty()) {
+                    contexts.put(name.value(), new HeaderContext(name.context(), value.context()));
                 }
-                values.put(name, value);
-                retainedCharacters += name.length() + value.length();
+                retainedCharacters += required;
             }
         }
-        return new BoundedHeaders(Map.copyOf(values), truncated || values.size() < source.size());
+        return new BoundedHeaders(Map.copyOf(values), Map.copyOf(contexts), truncated || values.size() < source.size());
     }
 
-    private static boolean metadataWasBounded(org.openqa.selenium.bidi.network.RequestData request, String method,
-                                              String url, BoundedHeaders headers) {
-        return !method.equals(safe(request.getMethod())) || !url.equals(safe(request.getUrl())) || headers.truncated();
+    private static boolean metadataWasBounded(org.openqa.selenium.bidi.network.RequestData request,
+                                              RetainedText method, RetainedText url, BoundedHeaders headers) {
+        return !method.value().equals(safe(request.getMethod())) || !method.context().isEmpty()
+                || !url.value().equals(safe(request.getUrl())) || !url.context().isEmpty() || headers.truncated();
+    }
+
+    private static RetainedText retainedText(String source) {
+        String retained = BrowserObservabilityRecorder.retainedNetworkText(source);
+        int boundary = Math.min(TRACE_FIELD_CHARACTER_LIMIT, retained.length());
+        return new RetainedText(retained.substring(0, boundary), retained.substring(boundary));
+    }
+
+    private static String completeText(String value, String context) {
+        return safe(value) + safe(context);
+    }
+
+    private static Map<String, String> completeHeaders(Map<String, String> values,
+                                                        Map<String, HeaderContext> contexts) {
+        if (values.isEmpty()) return values;
+        Map<String, String> completed = new LinkedHashMap<>();
+        values.forEach((name, value) -> {
+            HeaderContext context = contexts.getOrDefault(name, new HeaderContext("", ""));
+            completed.put(name + context.name(), value + context.value());
+        });
+        return Map.copyOf(completed);
+    }
+
+    private static boolean isSensitiveHeader(String key) {
+        return "********".equals(BrowserObservabilityRecorder.retainedNetworkHeaderValue(key, "probe"));
     }
 
     private void warnMetadataLimit(BrowserObservabilityRecorder.ObservationSession owner) {
@@ -473,9 +506,16 @@ public class BidiNetworkActivitySource implements AutoCloseable {
     }
 
     private record TraceRequest(BrowserObservabilityRecorder.ObservationSession owner, String method, String url,
-                                Map<String, String> requestHeaders, long requestSize, long startNanos) {
+                                Map<String, String> requestHeaders, String methodContext, String urlContext,
+                                Map<String, HeaderContext> requestHeaderContexts, long requestSize, long startNanos) {
     }
 
-    private record BoundedHeaders(Map<String, String> values, boolean truncated) {
+    private record RetainedText(String value, String context) {
+    }
+
+    record HeaderContext(String name, String value) {
+    }
+
+    record BoundedHeaders(Map<String, String> values, Map<String, HeaderContext> contexts, boolean truncated) {
     }
 }

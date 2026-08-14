@@ -1203,7 +1203,7 @@ public class FailureTraceReporterTest {
             JsonNode eventMarker = compactEvents.get(compactEvents.size() - 1);
             Assert.assertEquals(eventMarker.path("id").asText(), "session-budget/action-budget");
             Assert.assertFalse(eventMarker.path("startedAt").asText().isBlank(), eventMarker.toPrettyString());
-            java.time.Instant.parse(eventMarker.path("startedAt").asText());
+            Instant.parse(eventMarker.path("startedAt").asText());
             Assert.assertEquals(eventMarker.path("durationMs").asLong(-1), 0L);
             Assert.assertTrue(eventMarker.has("source"), eventMarker.toPrettyString());
             Assert.assertTrue(eventMarker.has("target"), eventMarker.toPrettyString());

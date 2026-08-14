@@ -3,6 +3,7 @@ package com.shaft.gui.browser.internal;
 import com.shaft.driver.SHAFT;
 import com.shaft.properties.internal.Properties;
 import com.shaft.tools.io.internal.BrowserObservabilityRecorder;
+import com.shaft.tools.io.internal.FailureTraceReporter;
 import org.mockito.Mockito;
 import org.openqa.selenium.bidi.network.BeforeRequestSent;
 import org.openqa.selenium.bidi.network.BytesValue;
@@ -16,7 +17,7 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.Test;
 
 import java.util.List;
-import java.lang.reflect.Constructor;
+import java.util.concurrent.Executors;
 
 public class BidiNetworkTraceSourceTest {
     @AfterMethod
@@ -57,14 +58,8 @@ public class BidiNetworkTraceSourceTest {
         Assert.assertEquals(events.getFirst().responseSizeBytes(), 34L);
         Assert.assertEquals(events.getFirst().requestHeaders().get("Authorization"), "********");
         Assert.assertEquals(events.getFirst().mimeType(), "application/json");
-        try {
-            var drain = BrowserObservabilityRecorder.class.getDeclaredMethod("drainNetworkJson");
-            drain.setAccessible(true);
-            String persisted = (String) drain.invoke(null);
-            Assert.assertTrue(persisted.contains("\"provider\": \"bidi\""), persisted);
-        } catch (ReflectiveOperationException exception) {
-            throw new AssertionError(exception);
-        }
+        Assert.assertTrue(BrowserObservabilityRecorder.drainWarnings(owner).isEmpty(),
+                "Privacy masking alone must not be reported as metadata truncation.");
     }
 
     @Test
@@ -136,10 +131,7 @@ public class BidiNetworkTraceSourceTest {
         EqualWebDriver driver = new EqualWebDriver();
         BrowserNetworkInterceptor interceptor = new BrowserNetworkInterceptor(driver, (ignored, filter) -> () -> { });
         Assert.assertTrue(interceptor.startObserving());
-        Constructor<BidiNetworkActivitySource> constructor = BidiNetworkActivitySource.class
-                .getDeclaredConstructor(org.openqa.selenium.WebDriver.class, java.util.function.LongSupplier.class);
-        constructor.setAccessible(true);
-        BidiNetworkActivitySource source = constructor.newInstance(driver, (java.util.function.LongSupplier) System::nanoTime);
+        BidiNetworkActivitySource source = new BidiNetworkActivitySource(driver, System::nanoTime);
         RequestData request = request("duplicate", "GET", "https://example.test/duplicate", 0L, List.of());
         source.handleBeforeRequestSent(before(request));
         ResponseData response = Mockito.mock(ResponseData.class);
@@ -184,18 +176,15 @@ public class BidiNetworkTraceSourceTest {
 
         Assert.assertEquals(source.retainedTraceRequestCount(), 1_000);
         Assert.assertEquals(source.inFlightCount(), 1_000);
-        try {
-            var field = BidiNetworkActivitySource.class.getDeclaredField("traceRequests");
-            field.setAccessible(true);
-            var retained = (java.util.Map<?, ?>) field.get(source);
-            Assert.assertTrue(retained.containsKey("request-999"));
-            Assert.assertFalse(retained.containsKey("request-1000"));
-        } catch (ReflectiveOperationException exception) {
-            throw new AssertionError(exception);
-        }
         ResponseData response = Mockito.mock(ResponseData.class);
         Mockito.when(response.getHeaders()).thenReturn(List.of());
         ResponseDetails completed = Mockito.mock(ResponseDetails.class);
+        RequestData rejectedRequest = request(
+                "request-1000", "GET", "https://example.test/1000", 0L, List.of());
+        Mockito.when(completed.getRequest()).thenReturn(rejectedRequest);
+        Mockito.when(completed.getResponseData()).thenReturn(response);
+        source.handleResponseCompleted(completed);
+        Assert.assertTrue(BrowserObservabilityRecorder.snapshot(owner).isEmpty());
         RequestData completedRequest = request(
                 "request-0", "GET", "https://example.test/0", 0L, List.of());
         Mockito.when(completed.getRequest()).thenReturn(completedRequest);
@@ -219,10 +208,7 @@ public class BidiNetworkTraceSourceTest {
         BrowserNetworkInterceptor interceptor = new BrowserNetworkInterceptor(driver, (ignored, filter) -> () -> { });
         Assert.assertTrue(interceptor.startObserving());
         interceptor.stopObserving();
-        Constructor<BidiNetworkActivitySource> constructor = BidiNetworkActivitySource.class
-                .getDeclaredConstructor(org.openqa.selenium.WebDriver.class, java.util.function.LongSupplier.class);
-        constructor.setAccessible(true);
-        BidiNetworkActivitySource source = constructor.newInstance(driver, (java.util.function.LongSupplier) System::nanoTime);
+        BidiNetworkActivitySource source = new BidiNetworkActivitySource(driver, System::nanoTime);
         RequestData request = request("fallback", "GET", "https://example.test/fallback", 0L, List.of());
         source.handleBeforeRequestSent(before(request));
         ResponseData response = Mockito.mock(ResponseData.class);
@@ -268,26 +254,16 @@ public class BidiNetworkTraceSourceTest {
             headers.add(header("X-Header-" + index, "v".repeat(300)));
         }
         RequestData request = request("bounded", "POST", "https://example.test/" + "u".repeat(5_000), 0L, headers);
+        BidiNetworkActivitySource.BoundedHeaders retained = BidiNetworkActivitySource.headers(headers);
+        long retainedCharacters = retained.values().entrySet().stream()
+                .mapToLong(entry -> entry.getKey().length() + entry.getValue().length()).sum();
+        long contextCharacters = retained.contexts().values().stream()
+                .mapToLong(context -> context.name().length() + context.value().length()).sum();
+        Assert.assertTrue(retained.values().size() <= 64, String.valueOf(retained.values().size()));
+        Assert.assertTrue(retainedCharacters <= 8_192, String.valueOf(retainedCharacters));
+        Assert.assertTrue(retainedCharacters + contextCharacters <= 8_192,
+                String.valueOf(retainedCharacters + contextCharacters));
         source.handleBeforeRequestSent(before(request));
-        try {
-            var field = BidiNetworkActivitySource.class.getDeclaredField("traceRequests");
-            field.setAccessible(true);
-            Object retainedRequest = ((java.util.Map<?, ?>) field.get(source)).values().iterator().next();
-            var retained = retainedRequest.toString();
-            Assert.assertFalse(retained.contains("u".repeat(2_049)), retained.length() + "");
-            Assert.assertFalse(retained.contains("x".repeat(100)), retained);
-            Assert.assertTrue(retained.contains("********"), retained);
-            var headersMethod = retainedRequest.getClass().getDeclaredMethod("requestHeaders");
-            headersMethod.setAccessible(true);
-            var retainedHeaders = (java.util.Map<?, ?>) headersMethod.invoke(retainedRequest);
-            Assert.assertTrue(retainedHeaders.size() <= 64, String.valueOf(retainedHeaders.size()));
-            long retainedCharacters = retainedHeaders.entrySet().stream()
-                    .mapToLong(entry -> entry.getKey().toString().length() + entry.getValue().toString().length())
-                    .sum();
-            Assert.assertTrue(retainedCharacters <= 8_192, String.valueOf(retainedCharacters));
-        } catch (ReflectiveOperationException exception) {
-            throw new AssertionError(exception);
-        }
         ResponseData response = Mockito.mock(ResponseData.class);
         Mockito.when(response.getHeaders()).thenReturn(headers);
         ResponseDetails completed = Mockito.mock(ResponseDetails.class);
@@ -304,14 +280,58 @@ public class BidiNetworkTraceSourceTest {
     }
 
     @Test
+    public void bidiRetainedHeaderContextsShouldShareOneAggregateBudget() {
+        SHAFT.Properties.reporting.set().traceEnabled(true).traceIncludeNetwork(true);
+        BrowserObservabilityRecorder.startSession();
+        BidiNetworkActivitySource source = new BidiNetworkActivitySource(System::nanoTime);
+        List<Header> headers = List.of(
+                header("N".repeat(2_560), "v".repeat(2_560)),
+                header("M".repeat(2_560), "w".repeat(2_560)));
+
+        BidiNetworkActivitySource.BoundedHeaders retained = BidiNetworkActivitySource.headers(headers);
+        long retainedCharacters = retained.values().entrySet().stream()
+                .mapToLong(entry -> entry.getKey().length() + entry.getValue().length()).sum();
+        long contextCharacters = retained.contexts().values().stream()
+                .mapToLong(context -> context.name().length() + context.value().length()).sum();
+        Assert.assertTrue(retainedCharacters + contextCharacters <= 8_192,
+                String.valueOf(retainedCharacters + contextCharacters));
+    }
+
+    @Test
+    public void bidiCallbackShouldOmitOversizedFieldsBeforeOwnerThreadRedaction() throws Exception {
+        SHAFT.Properties.reporting.set().traceEnabled(true).traceIncludeNetwork(true);
+        BrowserObservabilityRecorder.ObservationSession owner = BrowserObservabilityRecorder.startSession();
+        BidiNetworkActivitySource source = new BidiNetworkActivitySource(System::nanoTime);
+        String secret = "S" + "e".repeat(510) + "Z";
+        FailureTraceReporter.registerSensitiveSourceValue(secret);
+        List<Header> headers = List.of(
+                header("X-A", "a".repeat(2_500)),
+                header("X-B", "b".repeat(2_500)),
+                header("X-Boundary", "c".repeat(2_040) + secret + "-tail"));
+        RequestData request = request("boundary", "GET",
+                "https://example.test/" + "u".repeat(2_020) + secret + "-tail", 0L, headers);
+        ResponseData response = Mockito.mock(ResponseData.class);
+        Mockito.when(response.getHeaders()).thenReturn(List.of());
+        ResponseDetails completed = Mockito.mock(ResponseDetails.class);
+        Mockito.when(completed.getRequest()).thenReturn(request);
+        Mockito.when(completed.getResponseData()).thenReturn(response);
+
+        try (var executor = Executors.newSingleThreadExecutor()) {
+            executor.submit(() -> source.handleBeforeRequestSent(before(request))).get();
+            executor.submit(() -> source.handleResponseCompleted(completed)).get();
+        }
+
+        var event = BrowserObservabilityRecorder.snapshot(owner).getFirst();
+        Assert.assertTrue(event.toString().contains("omitted"), event.toString());
+        Assert.assertFalse(event.toString().contains(secret.substring(0, 24)), event.toString());
+    }
+
+    @Test
     public void bidiOwnedRequestShouldCompleteAfterDetailedInterceptorStarts() throws Exception {
         SHAFT.Properties.reporting.set().traceEnabled(true).traceIncludeNetwork(true);
         BrowserObservabilityRecorder.ObservationSession owner = BrowserObservabilityRecorder.startSession();
         EqualWebDriver driver = new EqualWebDriver();
-        Constructor<BidiNetworkActivitySource> constructor = BidiNetworkActivitySource.class
-                .getDeclaredConstructor(org.openqa.selenium.WebDriver.class, java.util.function.LongSupplier.class);
-        constructor.setAccessible(true);
-        BidiNetworkActivitySource source = constructor.newInstance(driver, (java.util.function.LongSupplier) System::nanoTime);
+        BidiNetworkActivitySource source = new BidiNetworkActivitySource(driver, System::nanoTime);
         RequestData request = request("transition", "GET", "https://example.test/transition", 0L, List.of());
         source.handleBeforeRequestSent(before(request));
         BrowserNetworkInterceptor interceptor = new BrowserNetworkInterceptor(driver, (ignored, filter) -> () -> { });

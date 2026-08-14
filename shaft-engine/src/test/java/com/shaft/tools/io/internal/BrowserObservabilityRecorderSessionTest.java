@@ -1,5 +1,7 @@
 package com.shaft.tools.io.internal;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.shaft.driver.SHAFT;
 import com.shaft.gui.browser.internal.BrowserNetworkInterceptor;
 import com.shaft.properties.internal.Properties;
@@ -21,6 +23,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicReference;
 import org.openqa.selenium.remote.http.Contents;
+import java.util.LinkedHashMap;
 import java.util.Map;
 
 public class BrowserObservabilityRecorderSessionTest {
@@ -106,6 +109,33 @@ public class BrowserObservabilityRecorderSessionTest {
     }
 
     @Test
+    public void pendingDetailedExchangeShouldRetainOnlyBoundedRedactedMetadata() {
+        SHAFT.Properties.reporting.set().traceEnabled(true).traceIncludeNetwork(true);
+        BrowserObservabilityRecorder.ObservationSession owner = BrowserObservabilityRecorder.startSession();
+        HttpRequest request = new HttpRequest(HttpMethod.GET,
+                "https://example.com/" + "u".repeat(5_000));
+        request.addHeader("Authorization", "Bearer raw-pending-secret");
+        for (int index = 0; index < 100; index++) {
+            request.addHeader("X-Pending-" + index, "v".repeat(300));
+        }
+
+        BrowserObservabilityRecorder.NetworkExchange exchange =
+                BrowserObservabilityRecorder.startNetwork(owner, request);
+
+        Assert.assertTrue(exchange.enabled());
+        Assert.assertTrue(exchange.url().length() <= 2_048, String.valueOf(exchange.url().length()));
+        Assert.assertTrue(exchange.url().contains("omitted"), exchange.url());
+        Assert.assertTrue(exchange.requestHeaders().containsValue("********"), exchange.requestHeaders().toString());
+        Assert.assertFalse(exchange.requestHeaders().toString().contains("raw-pending-secret"));
+        Assert.assertTrue(exchange.requestHeaders().size() <= 64,
+                String.valueOf(exchange.requestHeaders().size()));
+        long retainedHeaderCharacters = exchange.requestHeaders().entrySet().stream()
+                .mapToLong(entry -> entry.getKey().length() + entry.getValue().length())
+                .sum();
+        Assert.assertTrue(retainedHeaderCharacters <= 8_192, String.valueOf(retainedHeaderCharacters));
+    }
+
+    @Test
     public void sessionShouldBoundNetworkEvidenceAndReportOldestEventOmission() {
         SHAFT.Properties.reporting.set().traceEnabled(true).traceIncludeNetwork(true);
         BrowserObservabilityRecorder.ObservationSession session = BrowserObservabilityRecorder.startSession();
@@ -143,6 +173,90 @@ public class BrowserObservabilityRecorderSessionTest {
         Assert.assertEquals(BrowserObservabilityRecorder.snapshotConsole(owner).size(), 1);
         Assert.assertTrue(BrowserObservabilityRecorder.snapshot(sibling).isEmpty());
         Assert.assertTrue(BrowserObservabilityRecorder.snapshotConsole(sibling).isEmpty());
+    }
+
+    @Test
+    public void callbackCaptureShouldOmitOversizedFieldsAndRedactCompleteFields() throws Exception {
+        SHAFT.Properties.reporting.set().traceEnabled(true).traceIncludeNetwork(true);
+        BrowserObservabilityRecorder.ObservationSession owner = BrowserObservabilityRecorder.startSession();
+        String secret = "BOUNDARY_NETWORK_SECRET_984271";
+        FailureTraceReporter.registerSensitiveSourceValue(secret);
+        String bodyPrefix = "b".repeat(2040);
+        LinkedHashMap<String, String> headers = new LinkedHashMap<>();
+        headers.put("X-A", "a".repeat(2500));
+        headers.put("X-B", "b".repeat(2500));
+        headers.put("X-C", "c".repeat(2500));
+        headers.put("X-Boundary", "d".repeat(650) + secret + "-header-tail");
+
+        try (var callbackExecutor = Executors.newSingleThreadExecutor()) {
+            callbackExecutor.submit(() -> BrowserObservabilityRecorder.recordNetwork(owner,
+                    new BrowserObservabilityRecorder.NetworkObservation("POST", "https://example.com/boundary",
+                            200, headers, Map.of(), 1, 0, 0, "", bodyPrefix + secret + "-body-tail"))).get();
+        }
+
+        JsonNode event = new ObjectMapper().readTree(BrowserObservabilityRecorder.drainNetworkJson()).get(0);
+        String body = event.path("bodyPreview").asText();
+        String header = event.path("requestHeaders").path("X-Boundary").asText();
+        Assert.assertTrue(body.contains("omitted"), body);
+        Assert.assertTrue(header.isEmpty() || header.contains("omitted") || header.contains("********"), header);
+        Assert.assertFalse(body.contains("BOUNDARY_N"));
+        Assert.assertFalse(header.contains("BOUNDARY_N"));
+        Assert.assertTrue(body.length() <= 2048);
+        int retainedHeaderCharacters = 0;
+        var fields = event.path("requestHeaders").fields();
+        while (fields.hasNext()) {
+            var field = fields.next();
+            retainedHeaderCharacters += field.getKey().length() + field.getValue().asText().length();
+        }
+        Assert.assertTrue(retainedHeaderCharacters <= 8192);
+    }
+
+    @Test
+    public void cumulativeSourceRedactionShouldNeverPublishAPartialLaterCredential() throws Exception {
+        SHAFT.Properties.reporting.set().traceEnabled(true).traceIncludeNetwork(true);
+        BrowserObservabilityRecorder.ObservationSession owner = BrowserObservabilityRecorder.startSession();
+        String first = "FIRST-" + "a".repeat(500) + "-END";
+        String second = "SECOND-" + "b".repeat(499) + "-END";
+        String later = "LATER-" + "z".repeat(500) + "-END";
+        FailureTraceReporter.registerSensitiveSourceValue(first);
+        FailureTraceReporter.registerSensitiveSourceValue(second);
+        FailureTraceReporter.registerSensitiveSourceValue(later);
+        LinkedHashMap<String, String> headers = new LinkedHashMap<>();
+        headers.put("A", first);
+        headers.put("B", second);
+        headers.put("C", "c".repeat(2048));
+        headers.put("D", "d".repeat(2048));
+        headers.put("E", "e".repeat(2048));
+        headers.put("F", "f".repeat(1400) + later + "-tail");
+
+        try (var callbackExecutor = Executors.newSingleThreadExecutor()) {
+            callbackExecutor.submit(() -> BrowserObservabilityRecorder.recordNetwork(owner,
+                    new BrowserObservabilityRecorder.NetworkObservation("GET", "https://example.com/cumulative",
+                            200, headers, Map.of(), 1, 0, 0, "", ""))).get();
+        }
+
+        String persisted = BrowserObservabilityRecorder.drainNetworkJson();
+        Assert.assertFalse(persisted.contains("LATER-"), persisted);
+        Assert.assertFalse(persisted.contains(later.substring(0, 24)), persisted);
+    }
+
+    @Test
+    public void publicSnapshotShouldRedactSourceSensitiveMimeTypeOnOwnerThread() throws Exception {
+        SHAFT.Properties.reporting.set().traceEnabled(true).traceIncludeNetwork(true);
+        BrowserObservabilityRecorder.ObservationSession owner = BrowserObservabilityRecorder.startSession();
+        String secret = "mime-secret-771923";
+        FailureTraceReporter.registerSensitiveSourceValue(secret);
+
+        try (var callbackExecutor = Executors.newSingleThreadExecutor()) {
+            callbackExecutor.submit(() -> BrowserObservabilityRecorder.recordNetwork(owner,
+                    new BrowserObservabilityRecorder.NetworkObservation("GET", "https://example.com/mime", 200,
+                            Map.of(), Map.of("Content-Type", "application/" + secret + "; charset=utf-8"),
+                            1, 0, 0, "", ""))).get();
+        }
+
+        String mimeType = BrowserObservabilityRecorder.snapshot(owner).getFirst().mimeType();
+        Assert.assertTrue(mimeType.contains("********"), mimeType);
+        Assert.assertFalse(mimeType.contains(secret), mimeType);
     }
 
     @Test

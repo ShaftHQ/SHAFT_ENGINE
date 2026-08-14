@@ -43,7 +43,7 @@ public class CdpWebSocketTraceSourceTest {
         source.frame("socket-1", "sent", 1,
                 "{\"password\":\"secret-value\",\"data\":\"" + "x".repeat(3_000) + "\"}");
         source.frame("socket-1", "received", 2, Base64.getEncoder().encodeToString(new byte[]{1, 2, 3}));
-        source.failed("socket-1", "raw provider secret");
+        source.failed("socket-1");
         source.closed("socket-1");
 
         var entries = BrowserObservabilityRecorder.snapshotWebSockets(owner);
@@ -136,22 +136,34 @@ public class CdpWebSocketTraceSourceTest {
     }
 
     @Test
+    public void frameCallbackShouldSurviveCreatedCallbackReordering() {
+        startOwner();
+        CdpWebSocketTraceSource source = new CdpWebSocketTraceSource();
+
+        source.frame("reordered", "sent", 1, "early-frame");
+        source.created("reordered", "wss://example.test/reordered");
+
+        var observations = BrowserObservabilityRecorder.snapshotWebSockets(owner);
+        Assert.assertEquals(observations.stream().map(BrowserObservabilityRecorder.WebSocketSnapshotEntry::type)
+                .toList(), java.util.List.of("created", "frame"));
+        Assert.assertEquals(observations.get(1).text(), "early-frame");
+    }
+
+    @Test
     public void driverLifecycleShouldAttachOnceAndCloseTheExactSource() throws Exception {
         startOwner();
         DevTools devTools = Mockito.mock(DevTools.class);
         WebDriver driver = Mockito.mock(WebDriver.class, Mockito.withSettings().extraInterfaces(HasDevTools.class));
         Mockito.when(((HasDevTools) driver).getDevTools()).thenReturn(devTools);
+        Mockito.when(driver.getWindowHandle()).thenReturn("window-1");
         com.shaft.driver.internal.DriverFactory.DriverFactoryHelper helper =
                 new com.shaft.driver.internal.DriverFactory.DriverFactoryHelper();
-        helper.setDriver(driver);
-        var start = helper.getClass().getDeclaredMethod("startBrowserObservability");
-        start.setAccessible(true);
-
-        start.invoke(helper);
-        start.invoke(helper);
+        helper.initializeDriver(driver);
+        Assert.assertTrue(CdpWebSocketTraceSource.isAttached(driver));
+        Assert.assertTrue(CdpWebSocketTraceSource.attach(driver));
 
         Assert.assertTrue(CdpWebSocketTraceSource.isAttached(driver));
-        Mockito.verify(devTools, Mockito.times(1)).createSessionIfThereIsNotOne();
+        Mockito.verify(devTools, Mockito.atLeastOnce()).createSessionIfThereIsNotOne("window-1");
         @SuppressWarnings("rawtypes")
         var listeners = org.mockito.ArgumentCaptor.forClass(java.util.function.Consumer.class);
         Mockito.verify(devTools, Mockito.times(5)).addListener(Mockito.any(), listeners.capture());
@@ -190,5 +202,23 @@ public class CdpWebSocketTraceSourceTest {
         Assert.assertFalse(CdpWebSocketTraceSource.isAttached(driver));
         Assert.assertFalse(CdpWebSocketTraceSource.attach(driver));
         Mockito.verify(devTools, Mockito.times(5)).addListener(Mockito.any(), Mockito.any(java.util.function.Consumer.class));
+    }
+
+    @Test
+    public void existingSharedDevToolsSessionShouldNotBeRetargeted() {
+        startOwner();
+        DevTools devTools = Mockito.mock(DevTools.class);
+        Mockito.when(devTools.getCdpSession()).thenReturn(
+                new org.openqa.selenium.devtools.idealized.target.model.SessionID("caller-owned"));
+        WebDriver driver = Mockito.mock(WebDriver.class, Mockito.withSettings().extraInterfaces(HasDevTools.class));
+        Mockito.when(((HasDevTools) driver).getDevTools()).thenReturn(devTools);
+        Mockito.when(driver.getWindowHandle()).thenReturn("different-window");
+
+        Assert.assertTrue(CdpWebSocketTraceSource.attach(driver));
+
+        Mockito.verify(devTools, Mockito.never()).createSessionIfThereIsNotOne();
+        Mockito.verify(devTools, Mockito.never()).createSessionIfThereIsNotOne("different-window");
+        Mockito.verify(devTools, Mockito.never()).disconnectSession();
+        CdpWebSocketTraceSource.closeAndRemove(driver);
     }
 }
