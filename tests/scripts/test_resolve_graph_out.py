@@ -331,6 +331,67 @@ if (-not ($resolverOk -and $queryOk -and $auditOk)) {
 
         self._assert_mandatory_graphify_cli_route(guidance)
 
+    def _assert_graphify_contention_is_a_degraded_continuation(self, files):
+        graphify = re.sub(r"\s+", " ", files["graphify"])
+        retrieval = re.sub(r"\s+", " ", files["retrieval"])
+        entrypoint = re.sub(r"\s+", " ", files["entrypoint"])
+
+        for required in (
+            "The primary checkout is the sole Graphify refresh owner.",
+            "A linked-worktree revision mismatch or an active refresh lock is an expected "
+            "degraded state after G1 through G4, not an implementation blocker.",
+            "must not refresh, wait or retry-loop, clear or replace the lock, freshness "
+            "marker, or cache, or switch, reset, or overwrite the primary checkout",
+            "Continue with native Memory, MemPalace, and targeted live `rg`.",
+            "Only the primary owner may schedule one later refresh when the primary "
+            "checkout and shared cache are uncontested.",
+        ):
+            self.assertIn(required, graphify)
+
+        self.assertIn(
+            "Graphify contention is the narrow exception to implementation waiting",
+            retrieval,
+        )
+        self.assertIn(
+            "a complete degraded Graphify receipt permits implementation to continue",
+            entrypoint,
+        )
+
+    def test_graphify_contention_degrades_without_shared_state_mutation(self):
+        files = {
+            "graphify": (ROOT / "chaos-engine/references/graphify.md").read_text(
+                encoding="utf-8"
+            ),
+            "retrieval": (
+                ROOT / "chaos-engine/references/retrieve-first.md"
+            ).read_text(encoding="utf-8"),
+            "entrypoint": (
+                ROOT / "chaos-engine/skills/chaos-engine/SKILL.md"
+            ).read_text(encoding="utf-8"),
+        }
+
+        self._assert_graphify_contention_is_a_degraded_continuation(files)
+
+        mutations = {
+            "linked refresh allowed": files["graphify"].replace(
+                "must not refresh, wait or retry-loop",
+                "may refresh or wait and retry-loop",
+            ),
+            "contention blocks implementation": files["graphify"].replace(
+                "not an implementation blocker",
+                "an implementation blocker",
+            ),
+            "primary ownership removed": files["graphify"].replace(
+                "The primary checkout is the sole Graphify refresh owner.",
+                "Any checkout may own a Graphify refresh.",
+            ),
+        }
+        for name, graphify_mutation in mutations.items():
+            with self.subTest(name=name), self.assertRaises(AssertionError):
+                self._assert_graphify_contention_is_a_degraded_continuation(
+                    {**files, "graphify": graphify_mutation}
+                )
+
     def test_graphify_cli_route_contract_rejects_bypass_mutations(self):
         guidance = (
             ROOT / "chaos-engine/references/graphify.md"

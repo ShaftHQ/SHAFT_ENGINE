@@ -83,6 +83,15 @@ mode: use targeted `rg` plus other knowledge sources, and flag a
 primary-checkout refresh. Never rebuild or record the cache from a linked
 worktree, and never commit `graphify-out/`.
 
+The primary checkout is the sole Graphify refresh owner. A linked-worktree
+revision mismatch or an active refresh lock is an expected degraded state after
+G1 through G4, not an implementation blocker. The linked worktree or losing
+refresh session must not refresh, wait or retry-loop, clear or replace the lock,
+freshness marker, or cache, or switch, reset, or overwrite the primary checkout
+to satisfy freshness. Continue with native Memory, MemPalace, and targeted live
+`rg`. Only the primary owner may schedule one later refresh when the primary
+checkout and shared cache are uncontested.
+
 From the primary checkout, the same portable repository-owned controller owns
 refresh:
 
