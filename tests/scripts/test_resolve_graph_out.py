@@ -433,7 +433,7 @@ if (-not ($resolverOk -and $queryOk -and $auditOk)) {
             env["GRAPHIFY_FAKE_GRAPH_OUT"] = str(graph_out)
             env["GRAPHIFY_FAKE_SRC"] = "AGENTS.md"
 
-            completed = subprocess.run(
+            completed = subprocess.run(  # nosec B603 - fixed local PowerShell executable and test-owned script.
                 [powershell, "-NoProfile", "-NonInteractive", "-Command", flow],
                 cwd=ROOT,
                 env=env,
@@ -448,7 +448,7 @@ if (-not ($resolverOk -and $queryOk -and $auditOk)) {
             )
             calls = log.read_text(encoding="utf-8").splitlines()
             env["GRAPHIFY_FAKE_SRC"] = "missing/from/graph.java"
-            missing_path = subprocess.run(
+            missing_path = subprocess.run(  # nosec B603 - fixed local PowerShell executable and test-owned script.
                 [powershell, "-NoProfile", "-NonInteractive", "-Command", flow],
                 cwd=ROOT,
                 env=env,
@@ -464,7 +464,7 @@ if (-not ($resolverOk -and $queryOk -and $auditOk)) {
             outside = temp / "outside.txt"
             outside.write_text("outside", encoding="utf-8")
             env["GRAPHIFY_FAKE_SRC"] = str(outside)
-            escaped_path = subprocess.run(
+            escaped_path = subprocess.run(  # nosec B603 - fixed local PowerShell executable and test-owned script.
                 [powershell, "-NoProfile", "-NonInteractive", "-Command", flow],
                 cwd=ROOT,
                 env=env,
