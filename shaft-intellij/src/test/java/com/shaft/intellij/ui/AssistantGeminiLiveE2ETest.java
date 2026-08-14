@@ -24,6 +24,11 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
 
 class AssistantGeminiLiveE2ETest {
+    private static final String LIVE_CANARY_TOKEN = "SHAFT_GEMINI_LIVE_OK";
+    private static final String LIVE_CANARY_PROMPT = "Return exactly the ASCII token " + LIVE_CANARY_TOKEN
+            + " as the entire response. Do not include any other words, punctuation, quotes, markdown, code fences,"
+            + " or leading/trailing whitespace.";
+
     @Test
     void livePluginMcpGeminiPromptReturnsExpectedProviderResponse() throws Exception {
         Assumptions.assumeTrue(Boolean.getBoolean("shaft.intellij.liveGemini"),
@@ -63,7 +68,7 @@ class AssistantGeminiLiveE2ETest {
         assertTrue(options.contains("-Dpilot.ai.gemini.model=" + model));
 
         AssistantCommand.Invocation invocation = AssistantCommand.fromPrompt(
-                "Reply with the exact token SHAFT_GEMINI_LIVE_OK.",
+                LIVE_CANARY_PROMPT,
                 AssistantCommand.Selection.cloud("", ""),
                 "ASK",
                 workspace.toString(),
@@ -95,7 +100,7 @@ class AssistantGeminiLiveE2ETest {
         assertEquals("gemini", response.get("provider").getAsString());
         assertTrue(response.get("model").getAsString().startsWith(model), response.get("model").getAsString());
         assertEquals("ASK", response.get("mode").getAsString());
-        assertEquals("SHAFT_GEMINI_LIVE_OK", answer.trim(), answer);
+        assertEquals(LIVE_CANARY_TOKEN, answer, answer);
     }
 
     @SuppressWarnings("unchecked")
