@@ -29,6 +29,7 @@ import java.lang.ref.WeakReference;
 public final class BrowserObservabilityRecorder {
     private static final int NETWORK_EVENT_LIMIT = 1000;
     private static final int NETWORK_FIELD_LIMIT = 2048;
+    private static final int NETWORK_FIELD_UTF8_BYTE_LIMIT = NETWORK_FIELD_LIMIT * 4;
     private static final String NETWORK_FIELD_OMITTED =
             "[omitted because browser metadata exceeded the safe redaction boundary]";
     private static final int NETWORK_HEADER_LIMIT = 64;
@@ -790,7 +791,11 @@ public final class BrowserObservabilityRecorder {
         if (bytes == null || bytes.length == 0) {
             return "";
         }
-        return retainedNetworkText(new String(bytes, java.nio.charset.StandardCharsets.UTF_8));
+        if (bytes.length > NETWORK_FIELD_UTF8_BYTE_LIMIT) {
+            return NETWORK_FIELD_OMITTED;
+        }
+        String decoded = new String(bytes, java.nio.charset.StandardCharsets.UTF_8);
+        return decoded.length() > NETWORK_FIELD_LIMIT ? NETWORK_FIELD_OMITTED : retainedNetworkText(decoded);
     }
 
     private static StringBuilder indent(StringBuilder builder, int level) {
@@ -1045,7 +1050,7 @@ public final class BrowserObservabilityRecorder {
      * @param responseSizeBytes  response body size in bytes
      * @param failureReason      safe failure reason, blank on success
      * @param timestamp          epoch millis when the exchange finished
-     * @param bodyPreview        truncated, redacted response body preview as recorded for trace/HAR output
+     * @param bodyPreview        bounded, redacted response preview, or an explicit safe-boundary omission marker
      * @param requestHeaders     sanitized request headers
      * @param responseHeaders    sanitized response headers
      */

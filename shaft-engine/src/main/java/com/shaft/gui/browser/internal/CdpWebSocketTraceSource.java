@@ -35,6 +35,7 @@ public final class CdpWebSocketTraceSource implements AutoCloseable {
     private BrowserObservabilityRecorder.ObservationSession socketLimitWarningOwner;
     private BrowserObservabilityRecorder.ObservationSession pendingFrameLimitWarningOwner;
     private BrowserObservabilityRecorder.ObservationSession pendingCloseLimitWarningOwner;
+    private BrowserObservabilityRecorder.ObservationSession suppressedCreationWarningOwner;
     private boolean closed;
 
     CdpWebSocketTraceSource() { }
@@ -106,31 +107,62 @@ public final class CdpWebSocketTraceSource implements AutoCloseable {
     synchronized void created(String id, String url) {
         if (closed || id == null) return;
         BrowserObservabilityRecorder.ObservationSession owner = BrowserObservabilityRecorder.resolveSession(binding);
-        if (id.length() > 2_048 || sockets.size() >= ACTIVE_SOCKET_LIMIT) {
-            if (!java.util.Objects.equals(socketLimitWarningOwner, owner)) {
-                socketLimitWarningOwner = owner;
-                BrowserObservabilityRecorder.recordWarning(owner, "websocket",
-                        "A CDP WebSocket was omitted because the active-socket trace limit was reached.");
-            }
+        if (creationLimitReached(id, owner)) {
             return;
         }
         String safeUrl = BrowserObservabilityRecorder.retainedNetworkText(url);
         BrowserObservabilityRecorder.ObservationSession closedOwner = pendingClosed.remove(id);
         if (pendingCloseOverflow && closedOwner == null) {
+            warnSuppressedCreation(owner);
             return;
         }
         sockets.put(id, new SocketOwner(safeUrl));
         List<PendingFrame> reordered = pendingFrames.remove(id);
-        BrowserObservabilityRecorder.ObservationSession createdOwner = reordered == null || reordered.isEmpty()
-                ? (closedOwner == null ? owner : closedOwner) : reordered.getFirst().owner();
+        BrowserObservabilityRecorder.ObservationSession createdOwner =
+                creationOwner(owner, closedOwner, reordered);
         add(createdOwner, new Entry(id, safeUrl, "", "created", 0, "", "", 0, "available", ""));
-        if (reordered != null) {
-            pendingFrameCount -= reordered.size();
-            reordered.forEach(frame -> add(frame.owner(), frame.entry(id, safeUrl)));
-        }
+        publishReorderedFrames(id, safeUrl, reordered);
         if (closedOwner != null) {
             recordClosed(id, sockets.remove(id), closedOwner);
         }
+    }
+
+    private boolean creationLimitReached(String id, BrowserObservabilityRecorder.ObservationSession owner) {
+        if (id.length() <= 2_048 && sockets.size() < ACTIVE_SOCKET_LIMIT) {
+            return false;
+        }
+        if (!java.util.Objects.equals(socketLimitWarningOwner, owner)) {
+            socketLimitWarningOwner = owner;
+            BrowserObservabilityRecorder.recordWarning(owner, "websocket",
+                    "A CDP WebSocket was omitted because the active-socket trace limit was reached.");
+        }
+        return true;
+    }
+
+    private void warnSuppressedCreation(BrowserObservabilityRecorder.ObservationSession owner) {
+        if (!java.util.Objects.equals(suppressedCreationWarningOwner, owner)) {
+            suppressedCreationWarningOwner = owner;
+            BrowserObservabilityRecorder.recordWarning(owner, "websocket",
+                    "CDP WebSocket creation was omitted after a pending-close overflow made ordering ambiguous.");
+        }
+    }
+
+    private static BrowserObservabilityRecorder.ObservationSession creationOwner(
+            BrowserObservabilityRecorder.ObservationSession owner,
+            BrowserObservabilityRecorder.ObservationSession closedOwner,
+            List<PendingFrame> reordered) {
+        if (reordered != null && !reordered.isEmpty()) {
+            return reordered.getFirst().owner();
+        }
+        return closedOwner == null ? owner : closedOwner;
+    }
+
+    private void publishReorderedFrames(String id, String safeUrl, List<PendingFrame> reordered) {
+        if (reordered == null) {
+            return;
+        }
+        pendingFrameCount -= reordered.size();
+        reordered.forEach(frame -> add(frame.owner(), frame.entry(id, safeUrl)));
     }
 
     synchronized void frame(String id, String direction, int opcode, String payload) {
@@ -269,6 +301,7 @@ public final class CdpWebSocketTraceSource implements AutoCloseable {
         socketLimitWarningOwner = null;
         pendingFrameLimitWarningOwner = null;
         pendingCloseLimitWarningOwner = null;
+        suppressedCreationWarningOwner = null;
     }
 
     record Entry(String requestId, String url, String direction, String type, int opcode,

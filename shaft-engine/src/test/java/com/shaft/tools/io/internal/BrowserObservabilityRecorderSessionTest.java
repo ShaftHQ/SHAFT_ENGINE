@@ -261,6 +261,22 @@ public class BrowserObservabilityRecorderSessionTest {
     }
 
     @Test
+    public void largeResponsePreviewShouldBeOmittedBeforeFullPayloadRedaction() throws Exception {
+        SHAFT.Properties.reporting.set().traceEnabled(true).traceIncludeNetwork(true);
+        BrowserObservabilityRecorder.ObservationSession owner = BrowserObservabilityRecorder.startSession();
+        BrowserObservabilityRecorder.NetworkExchange exchange = BrowserObservabilityRecorder.startNetwork(owner,
+                new HttpRequest(HttpMethod.GET, "https://example.com/large-response"));
+        HttpResponse response = new HttpResponse().setStatus(200)
+                .setContent(Contents.utf8String("large-response-".repeat(100_000)));
+
+        try (var callbackExecutor = Executors.newSingleThreadExecutor()) {
+            callbackExecutor.submit(() -> BrowserObservabilityRecorder.finishNetwork(exchange, response, "")).get();
+        }
+
+        Assert.assertTrue(BrowserObservabilityRecorder.snapshot(owner).getFirst().bodyPreview().contains("omitted"));
+    }
+
+    @Test
     public void publicSnapshotShouldRedactSourceSensitiveMimeTypeOnOwnerThread() throws Exception {
         SHAFT.Properties.reporting.set().traceEnabled(true).traceIncludeNetwork(true);
         BrowserObservabilityRecorder.ObservationSession owner = BrowserObservabilityRecorder.startSession();

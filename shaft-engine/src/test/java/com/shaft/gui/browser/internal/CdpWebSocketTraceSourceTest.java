@@ -177,6 +177,35 @@ public class CdpWebSocketTraceSourceTest {
     }
 
     @Test
+    public void reorderedCloseShouldNotCrossObservationSessionRollover() {
+        startOwner();
+        CdpWebSocketTraceSource source = new CdpWebSocketTraceSource();
+        source.closed("reordered-close-rollover");
+
+        owner = BrowserObservabilityRecorder.startSession();
+        source.created("reordered-close-rollover", "wss://example.test/reordered-close-rollover");
+
+        Assert.assertTrue(BrowserObservabilityRecorder.snapshotWebSockets(owner).isEmpty());
+        Assert.assertEquals(source.activeSocketCount(), 0);
+    }
+
+    @Test
+    public void pendingCloseOverflowShouldWarnEachSuppressedSession() {
+        startOwner();
+        CdpWebSocketTraceSource source = new CdpWebSocketTraceSource();
+        for (int index = 0; index <= 1_000; index++) {
+            source.closed("overflow-session-a-" + index);
+        }
+
+        owner = BrowserObservabilityRecorder.startSession();
+        source.created("ordinary-session-b", "wss://example.test/session-b");
+
+        Assert.assertTrue(BrowserObservabilityRecorder.snapshotWebSockets(owner).isEmpty());
+        Assert.assertEquals(BrowserObservabilityRecorder.drainWarnings(owner).stream()
+                .filter(warning -> warning.contains("ordering ambiguous")).count(), 1L);
+    }
+
+    @Test
     public void driverLifecycleShouldAttachOnceAndCloseTheExactSource() throws Exception {
         startOwner();
         DevTools devTools = Mockito.mock(DevTools.class);

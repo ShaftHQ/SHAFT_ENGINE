@@ -4,7 +4,8 @@ import java.util.Map;
 
 /**
  * One observed network transaction's detail returned by {@code browser_network_requests} when called
- * with an {@code id}, including headers and a truncated, redacted response body preview as recorded
+ * with an {@code id}, including headers and a bounded, redacted response preview (or explicit
+ * safe-boundary omission) as recorded
  * by trace capture.
  *
  * <p>Full, untruncated request/response bodies are not available from this tool; they require a
@@ -23,7 +24,7 @@ import java.util.Map;
  * @param failureReason     safe failure reason, blank on success
  * @param requestHeaders    sanitized request headers
  * @param responseHeaders   sanitized response headers
- * @param bodyPreview       truncated, redacted response body preview
+ * @param bodyPreview       bounded, redacted response preview or explicit safe-boundary omission
  */
 public record McpNetworkTransactionDetail(
         int id,
