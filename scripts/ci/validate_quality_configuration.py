@@ -430,7 +430,18 @@ def validate_browser_matrix_scope_policy(root: Path = ROOT) -> list[str]:
 
 def validate_codeql_build_mode(workflow: str) -> list[str]:
     document = yaml.safe_load(workflow) or {}
-    steps = document.get("jobs", {}).get("codeql", {}).get("steps", [])
+    error = ["CodeQL initialization must use explicit manual build mode"]
+    if not isinstance(document, dict):
+        return error
+    jobs = document.get("jobs")
+    if not isinstance(jobs, dict):
+        return error
+    codeql = jobs.get("codeql")
+    if not isinstance(codeql, dict):
+        return error
+    steps = codeql.get("steps")
+    if not isinstance(steps, list) or any(not isinstance(step, dict) for step in steps):
+        return error
     init = next(
         (
             step
@@ -439,8 +450,9 @@ def validate_codeql_build_mode(workflow: str) -> list[str]:
         ),
         {},
     )
-    if init.get("with", {}).get("build-mode") != "manual":
-        return ["CodeQL initialization must use explicit manual build mode"]
+    inputs = init.get("with")
+    if not isinstance(inputs, dict) or inputs.get("build-mode") != "manual":
+        return error
     return []
 
 

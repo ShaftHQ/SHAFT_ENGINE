@@ -84,7 +84,7 @@ class ValidateQualityConfigurationTest(unittest.TestCase):
             encoding="utf-8"
         )
 
-        self.assertIn("          build-mode: manual", security_workflow)
+        self.assertEqual(validate_codeql_build_mode(security_workflow), [])
 
     def test_codeql_validator_rejects_missing_or_different_build_mode(self):
         workflow = (
@@ -100,6 +100,51 @@ class ValidateQualityConfigurationTest(unittest.TestCase):
         self.assertEqual(validate_codeql_build_mode(workflow), error)
         self.assertEqual(validate_codeql_build_mode(f"{workflow}          build-mode: none\n"), error)
         self.assertEqual(validate_codeql_build_mode(f"{workflow}          build-mode: manual\n"), [])
+
+    def test_codeql_validator_returns_error_for_malformed_workflow_shapes(self):
+        error = ["CodeQL initialization must use explicit manual build mode"]
+        malformed_workflows = {
+            "null jobs": "jobs:\n",
+            "scalar jobs": "jobs: codeql\n",
+            "null codeql job": "jobs:\n  codeql:\n",
+            "scalar codeql job": "jobs:\n  codeql: analyze\n",
+            "null steps": "jobs:\n  codeql:\n    steps:\n",
+            "scalar steps": "jobs:\n  codeql:\n    steps: init\n",
+            "scalar step": "jobs:\n  codeql:\n    steps:\n      - init\n",
+            "null with": (
+                "jobs:\n"
+                "  codeql:\n"
+                "    steps:\n"
+                "      - uses: github/codeql-action/init@v4\n"
+                "        with:\n"
+            ),
+            "scalar with": (
+                "jobs:\n"
+                "  codeql:\n"
+                "    steps:\n"
+                "      - uses: github/codeql-action/init@v4\n"
+                "        with: manual\n"
+            ),
+        }
+
+        for scenario, workflow in malformed_workflows.items():
+            with self.subTest(scenario=scenario):
+                self.assertEqual(validate_codeql_build_mode(workflow), error)
+
+    def test_codeql_validator_rejects_yaml_boolean_build_mode(self):
+        workflow = (
+            "jobs:\n"
+            "  codeql:\n"
+            "    steps:\n"
+            "      - uses: github/codeql-action/init@v4\n"
+            "        with:\n"
+            "          build-mode: yes\n"
+        )
+
+        self.assertEqual(
+            validate_codeql_build_mode(workflow),
+            ["CodeQL initialization must use explicit manual build mode"],
+        )
 
     def test_local_browser_matrix_excludes_pr_gate_owned_unit_tests(self):
         root = Path(__file__).resolve().parents[2]
