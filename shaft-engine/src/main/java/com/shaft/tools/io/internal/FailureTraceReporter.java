@@ -14,6 +14,7 @@ import org.apache.logging.log4j.Level;
 import org.openqa.selenium.WebDriver;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.node.ArrayNode;
 import tools.jackson.databind.node.ObjectNode;
 
 import java.io.ByteArrayOutputStream;
@@ -54,7 +55,7 @@ public final class FailureTraceReporter {
     private static final Pattern COOKIE_PATTERN = Pattern.compile("(?i)(cookie|set-cookie)(\\s*[:=]\\s*)[^\\n\\r]+");
     private static final Pattern URL_CREDENTIAL_PATTERN = Pattern.compile("(?i)(://[^:/\\s]+:)[^@/\\s]+(@)");
     private static final Pattern SECRET_ASSIGNMENT_PATTERN = Pattern.compile(
-            "(?i)(password|passwd|pwd|secret|token|access[_-]?key|api[_-]?key)(\\s*[:=]\\s*)[^\\s,;&\"'<>]+");
+            "(?i)(password|passwd|pwd|secret|token|access[_-]?key|api[_-]?key)(\\s*[:=]\\s*)[^\\s,;&\"'<>()\\[\\]{}]+");
     private static final Pattern SECRET_ATTRIBUTE_PATTERN = Pattern.compile(
             "(?i)((?:password|passwd|pwd|secret|token|access[_-]?key|api[_-]?key)\\s*=\\s*[\"'])[^\"']*([\"'])");
     private static final Pattern SECRET_JSON_PATTERN = Pattern.compile(
@@ -85,6 +86,8 @@ public final class FailureTraceReporter {
     private static final int NUMERIC_TOKEN_LIMIT = 256;
     private static final int NUMERIC_TOKEN_LENGTH_LIMIT = 128;
     private static final int MAX_PLAYWRIGHT_EVIDENCE_BYTES = 512 * 1024;
+    private static final int MAX_PLAYWRIGHT_SNAPSHOT_BYTES = 128 * 1024;
+    private static final int MAX_PLAYWRIGHT_SNAPSHOTS = 16;
     private static final String SENSITIVE_BOUNDS_OMISSION =
             "[evidence omitted because sensitive-value bounds were exceeded]";
     private static final ConcurrentMap<String, AtomicInteger> ATTEMPT_COUNTERS = new ConcurrentHashMap<>();
@@ -172,12 +175,17 @@ public final class FailureTraceReporter {
         boolean suppressBrowserArtifacts = shouldOmitSensitiveBrowserEvidence()
                 || containsSensitiveThrowable(throwable);
         Snapshot snapshot = suppressBrowserArtifacts
-                ? new Snapshot("omitted-sensitive", "")
+                ? new Snapshot("none", "omitted", "omitted-sensitive",
+                "Browser snapshot was omitted at the sensitive-data boundary.", "omitted-sensitive", "", 0, false)
                 : snapshot();
         List<TraceEventRecorder.ActionEvent> actions = TraceEventRecorder.drain();
+        Map<String, TraceEventRecorder.ActionSnapshots> actionSnapshots = TraceEventRecorder.drainActionSnapshots();
+        actions = actions.stream().map(FailureTraceReporter::resanitizeActionDom).toList();
+        actionSnapshots = resanitizeActionSnapshots(actionSnapshots);
         Path nativeTrace = suppressBrowserArtifacts ? null : PlaywrightTraceManager.getLastTracePath();
         if (suppressBrowserArtifacts) {
             actions = actions.stream().map(FailureTraceReporter::withoutBrowserEvidence).toList();
+            actionSnapshots = Map.of();
         }
         CURRENT_SCREENSHOTS.set(decodeScreenshots(actions));
         if (suppressBrowserArtifacts) {
@@ -195,7 +203,7 @@ public final class FailureTraceReporter {
         String omissionMarker = "Omitted because artifact exceeded shaft.trace.maxArtifactMb="
                 + SHAFT.Properties.reporting.traceMaxArtifactMb();
         TraceArtifactManifest manifest = TraceArtifactManifest.create(networkJson, CURRENT_SCREENSHOTS.get(),
-                nativeTrace, maxBytes, omissionMarker);
+                snapshotResources(actions, actionSnapshots), nativeTrace, maxBytes, omissionMarker);
         CURRENT_ARTIFACT_MANIFEST.set(manifest);
         PlaywrightEvidence playwrightEvidence = importPlaywrightEvidence(actions, manifest.stagedNativeTrace(),
                 nativeTrace != null, suppressBrowserArtifacts);
@@ -223,7 +231,7 @@ public final class FailureTraceReporter {
         field(json, 2, "osVersion", System.getProperty("os.version", ""), true);
         field(json, 2, "javaVersion", System.getProperty("java.version", ""), true);
         field(json, 2, "targetPlatform", safeProperty(() -> SHAFT.Properties.platform.targetPlatform()), true);
-        field(json, 2, "browser", safeProperty(() -> SHAFT.Properties.web.targetBrowserName()), true);
+        field(json, 2, "browser", reportedBrowser(), true);
         field(json, 2, "executionAddress", safeProperty(() -> SHAFT.Properties.platform.executionAddress()), true);
         field(json, 2, "headless", safeProperty(() -> String.valueOf(SHAFT.Properties.web.headlessExecution())), true);
         field(json, 2, "thread", Thread.currentThread().getName(), false);
@@ -237,8 +245,14 @@ public final class FailureTraceReporter {
         field(json, 2, "fileContent", source.fileContent(), false);
         objectEnd(json, 1, true);
         objectStart(json, 1, "snapshot");
+        field(json, 2, "provider", snapshot.provider(), true);
+        field(json, 2, "fidelity", snapshot.fidelity(), true);
+        field(json, 2, "status", snapshot.status(), true);
+        field(json, 2, "reason", snapshot.reason(), true);
         field(json, 2, "type", snapshot.type(), true);
-        field(json, 2, "content", snapshot.content(), false);
+        field(json, 2, "content", snapshot.content(), true);
+        field(json, 2, "byteCount", String.valueOf(snapshot.byteCount()), true);
+        field(json, 2, "truncated", String.valueOf(snapshot.truncated()), false);
         objectEnd(json, 1, true);
         rawObject(json, 1, "locatorHealth", locatorHealthJson(), true);
         objectStart(json, 1, "evidence");
@@ -266,8 +280,9 @@ public final class FailureTraceReporter {
             return new PlaywrightEvidence(actions, playwrightEvidenceJson("unavailable", reason));
         }
         try {
-            PlaywrightTraceImporter.ImportedTrace imported = PlaywrightTraceImporter.importTrace(nativeTrace, actions);
-            String json = availablePlaywrightEvidenceJson(imported);
+            PlaywrightTraceArchiveLoader.LoadedArchive loaded = PlaywrightTraceArchiveLoader.load(nativeTrace);
+            PlaywrightTraceImporter.ImportedTrace imported = PlaywrightTraceImporter.importTrace(loaded, actions);
+            String json = availablePlaywrightEvidenceJson(imported, loaded);
             if (json == null) {
                 return new PlaywrightEvidence(actions, playwrightEvidenceJson("omitted-budget",
                         "Playwright action evidence exceeded its bounded report budget."));
@@ -291,7 +306,8 @@ public final class FailureTraceReporter {
         return JSON.writeValueAsString(root);
     }
 
-    private static String availablePlaywrightEvidenceJson(PlaywrightTraceImporter.ImportedTrace imported) {
+    private static String availablePlaywrightEvidenceJson(PlaywrightTraceImporter.ImportedTrace imported,
+                                                           PlaywrightTraceArchiveLoader.LoadedArchive archive) {
         BoundedJson json = new BoundedJson(MAX_PLAYWRIGHT_EVIDENCE_BYTES);
         if (!json.append("{\"status\":\"available\",\"reason\":\"\",\"actions\":[")) {
             return null;
@@ -311,6 +327,10 @@ public final class FailureTraceReporter {
             node.put("afterSnapshot", action.afterSnapshot());
             node.put("pageId", action.pageId());
             node.put("source", action.source());
+            boolean sourceAvailable = !action.source().isBlank();
+            node.put("sourceStatus", sourceAvailable ? "available" : "unavailable");
+            node.put("sourceReason", sourceAvailable ? ""
+                    : "The native Playwright trace did not provide a source stack for this action.");
             var logs = node.putArray("logs");
             action.logs().forEach(logs::add);
             node.put("error", action.error());
@@ -331,7 +351,54 @@ public final class FailureTraceReporter {
                 return null;
             }
         }
-        return json.append("]}") ? json.toString() : null;
+        List<String> allSnapshotNames = imported.actions().stream()
+                .flatMap(action -> java.util.stream.Stream.of(
+                        action.beforeSnapshot(), action.inputSnapshot(), action.afterSnapshot()))
+                .filter(name -> name != null && !name.isBlank())
+                .distinct()
+                .toList();
+        List<String> snapshotNames = allSnapshotNames.stream().limit(MAX_PLAYWRIGHT_SNAPSHOTS).toList();
+        int omittedSnapshotCount = allSnapshotNames.size() - snapshotNames.size();
+        if (!json.append("],\"snapshotOmission\":{\"status\":\""
+                + (omittedSnapshotCount > 0 ? "omitted-budget" : "available")
+                + "\",\"omittedCount\":" + omittedSnapshotCount + "},\"snapshots\":{")) {
+            return null;
+        }
+        Map<String, PlaywrightTraceOfflineAdapter.SnapshotDocument> documents;
+        try {
+            documents = PlaywrightTraceOfflineAdapter.snapshotDocuments(
+                    archive, snapshotNames, MAX_PLAYWRIGHT_SNAPSHOT_BYTES);
+        } catch (IllegalArgumentException exception) {
+            documents = Map.of();
+        }
+        for (int index = 0; index < snapshotNames.size(); index++) {
+            String snapshotName = snapshotNames.get(index);
+            ObjectNode snapshot = JSON.createObjectNode();
+            PlaywrightTraceOfflineAdapter.SnapshotDocument document = documents.get(snapshotName);
+            if (document == null || !"available".equals(document.status())) {
+                snapshot.put("status", document == null ? "unavailable" : document.status());
+                snapshot.put("fidelity", "omitted");
+                snapshot.put("content", "");
+            } else {
+                snapshot.put("status", "available");
+                snapshot.put("fidelity", "native-offline");
+                snapshot.put("content", document.content());
+            }
+            String property = (index == 0 ? "" : ",") + JSON.writeValueAsString(snapshotName)
+                    + ":" + JSON.writeValueAsString(snapshot);
+            if (!json.append(property)) {
+                ObjectNode omitted = JSON.createObjectNode();
+                omitted.put("status", "omitted-budget");
+                omitted.put("fidelity", "omitted");
+                omitted.put("content", "");
+                String fallback = (index == 0 ? "" : ",") + JSON.writeValueAsString(snapshotName)
+                        + ":" + JSON.writeValueAsString(omitted);
+                if (!json.append(fallback)) {
+                    return null;
+                }
+            }
+        }
+        return json.append("}}") ? json.toString() : null;
     }
 
     private static final class BoundedJson {
@@ -418,6 +485,64 @@ public final class FailureTraceReporter {
             }
         }
         return screenshots;
+    }
+
+    private static TraceEventRecorder.ActionEvent resanitizeActionDom(TraceEventRecorder.ActionEvent action) {
+        return new TraceEventRecorder.ActionEvent(action.id(), action.backend(), action.category(), action.name(),
+                action.status(), action.startTime(), action.durationMs(), action.locator(), action.url(), action.caller(),
+                action.message(), action.exceptionType(), action.exceptionMessage(), action.attachments(),
+                action.metadata(), action.actionability(), redactSourceText(action.domSnapshotBefore()),
+                redactSourceText(action.domSnapshotAfter()), action.screenshot());
+    }
+
+    private static Map<String, TraceEventRecorder.ActionSnapshots> resanitizeActionSnapshots(
+            Map<String, TraceEventRecorder.ActionSnapshots> snapshots) {
+        Map<String, TraceEventRecorder.ActionSnapshots> sanitized = new LinkedHashMap<>();
+        snapshots.forEach((actionId, phases) -> sanitized.put(actionId, new TraceEventRecorder.ActionSnapshots(
+                resanitizeSnapshot(phases.before()), resanitizeSnapshot(phases.after()))));
+        return Map.copyOf(sanitized);
+    }
+
+    private static SeleniumTraceCapture.Result resanitizeSnapshot(SeleniumTraceCapture.Result result) {
+        if (result == null || result.content().isEmpty()) {
+            return result;
+        }
+        SeleniumTraceCapture.Result sanitized = SeleniumTraceCapture.fromContent(
+                result.provider(), result.fidelity(), result.type(), result.content(),
+                FailureTraceReporter::redactSourceText);
+        boolean preserveTruncation = result.truncated() && "available".equals(sanitized.status());
+        return new SeleniumTraceCapture.Result(sanitized.provider(),
+                preserveTruncation ? result.fidelity() : sanitized.fidelity(),
+                preserveTruncation ? result.status() : sanitized.status(),
+                preserveTruncation ? result.reason() : sanitized.reason(), sanitized.type(), sanitized.content(),
+                result.truncated() || sanitized.truncated());
+    }
+
+    private static List<TraceArtifactManifest.SnapshotResource> snapshotResources(
+            List<TraceEventRecorder.ActionEvent> actions,
+            Map<String, TraceEventRecorder.ActionSnapshots> snapshotsByAction) {
+        List<TraceArtifactManifest.SnapshotResource> resources = new ArrayList<>();
+        Map<String, byte[]> canonicalBytes = new java.util.HashMap<>();
+        for (TraceEventRecorder.ActionEvent action : actions) {
+            TraceEventRecorder.ActionSnapshots snapshots = snapshotsByAction.get(action.id());
+            addSnapshotResource(resources, canonicalBytes, action.id(), "before",
+                    snapshots == null ? null : snapshots.before());
+            addSnapshotResource(resources, canonicalBytes, action.id(), "after",
+                    snapshots == null ? null : snapshots.after());
+        }
+        return List.copyOf(resources);
+    }
+
+    private static void addSnapshotResource(List<TraceArtifactManifest.SnapshotResource> resources,
+                                            Map<String, byte[]> canonicalBytes, String actionId, String phase,
+                                            SeleniumTraceCapture.Result snapshot) {
+        if (snapshot == null) {
+            return;
+        }
+        byte[] bytes = canonicalBytes.computeIfAbsent(snapshot.content(),
+                content -> content.getBytes(StandardCharsets.UTF_8));
+        resources.add(new TraceArtifactManifest.SnapshotResource(
+                "snapshot-" + actionId + "-" + phase, actionId, phase, snapshot, bytes));
     }
 
     static boolean shouldAttachTrace(TestExecutionInfo info) {
@@ -596,7 +721,7 @@ public final class FailureTraceReporter {
                 <div class="trace-layout">
                   <aside class="panel">
                     <h2>Actions</h2>
-                    <div class="toolbar"><input id="action-search" type="search" placeholder="Search actions"></div>
+                    <div class="toolbar"><input id="action-search" type="search" aria-label="Search actions" placeholder="Search actions"></div>
                     <div id="action-list"></div>
                   </aside>
                   <section class="panel">
@@ -610,12 +735,14 @@ public final class FailureTraceReporter {
                       <button data-tab="exception">Exception</button>
                       <button data-tab="source">Source</button>
                       <button data-tab="snapshot">Snapshot</button>
+                      <button data-tab="nativeEvidence">Native evidence</button>
                       <button data-tab="comparison">Comparison</button>
                       <button data-tab="domSnapshot">DOM Snapshot</button>
                       <button data-tab="screenshot">Screenshot</button>
                       <button data-tab="locatorHealth">Locator Health</button>
                        <button data-tab="network">Network</button>
                        <button data-tab="console">Console</button>
+                       <button data-tab="webSockets">WebSockets</button>
                        <button data-tab="mobile">Mobile</button>
                        <button data-tab="artifacts">Artifacts</button>
                        <button data-tab="browserObservability">Observability</button>
@@ -653,9 +780,15 @@ public final class FailureTraceReporter {
                     <div id="comparison-panel" hidden>
                       <div class="comparison-grid">
                         <section><h3>Before action</h3><iframe id="comparison-before" title="Before action DOM snapshot" sandbox=""></iframe><p id="comparison-before-empty" class="muted" hidden>No before-action snapshot was captured.</p></section>
-                        <section><h3>Action state</h3><img id="comparison-action" alt="Screenshot captured during the selected action"><p id="comparison-action-empty" class="muted" hidden>No action screenshot was captured.</p></section>
+                        <section><h3>Action state</h3><iframe id="comparison-input" title="Native action-state DOM snapshot" sandbox=""></iframe><img id="comparison-action" alt="Screenshot captured during the selected action"><p id="comparison-action-empty" class="muted" hidden>No action-state snapshot or screenshot was captured.</p></section>
                         <section><h3>After action</h3><iframe id="comparison-after" title="After action DOM snapshot" sandbox=""></iframe><p id="comparison-after-empty" class="muted" hidden>No after-action snapshot was captured.</p></section>
                       </div>
+                    </div>
+                    <div id="native-evidence-panel" hidden>
+                      <p class="muted" id="native-evidence-hint"></p>
+                      <table class="trace-table"><thead><tr>
+                        <th>Correlation</th><th>Operation</th><th>Source</th><th>Logs</th><th>Error</th>
+                      </tr></thead><tbody id="native-evidence-rows"></tbody></table>
                     </div>
                     <div id="network-panel" hidden>
                       <p class="muted" id="network-hint"></p>
@@ -710,6 +843,19 @@ public final class FailureTraceReporter {
                      </tr></thead><tbody id="mobile-rows"></tbody></table>
                      <pre id="mobile-detail" hidden></pre>
                    </div>
+                   <div id="websocket-panel" hidden>
+                     <p class="muted" id="websocket-hint"></p>
+                     <div class="panel-controls">
+                       <label>Direction<select id="websocket-direction-filter"><option value="">All directions</option></select></label>
+                       <label>Type<select id="websocket-type-filter"><option value="">All event types</option></select></label>
+                       <label>Search<input id="websocket-text-filter" type="search" placeholder="URL, payload, digest, or reason"></label>
+                       <output id="websocket-result-count" class="result-count" aria-live="polite"></output>
+                     </div>
+                     <table class="trace-table"><thead><tr>
+                       <th>Type</th><th>Direction</th><th>URL</th><th>Opcode</th><th>Payload</th><th>Details</th>
+                     </tr></thead><tbody id="websocket-rows"></tbody></table>
+                     <pre id="websocket-detail" hidden></pre>
+                   </div>
                    <div id="artifact-panel" hidden>
                      <p class="muted" id="artifact-hint"></p>
                      <p class="muted" id="native-trace-handoff" hidden></p>
@@ -734,6 +880,15 @@ public final class FailureTraceReporter {
                 const actions = Array.isArray(evidence.actions) ? evidence.actions : [];
                 const network = Array.isArray(evidence.network) ? evidence.network : [];
                 const consoleEvents = Array.isArray(evidence.console) ? evidence.console : [];
+                const playwright = evidence.playwright && typeof evidence.playwright === 'object'
+                    ? evidence.playwright : {status:'unavailable', reason:'', actions:[], correlations:[], snapshots:{}};
+                const nativeActions = Array.isArray(playwright.actions) ? playwright.actions : [];
+                const nativeSnapshots = playwright.snapshots && typeof playwright.snapshots === 'object'
+                    ? playwright.snapshots : {};
+                const browserObservability = evidence.browserObservability && typeof evidence.browserObservability === 'object'
+                    ? evidence.browserObservability : {warnings:[], webSockets:[]};
+                const webSockets = Array.isArray(browserObservability.webSockets)
+                    ? browserObservability.webSockets : [];
                 const artifacts = Array.isArray(trace.session && trace.session.artifacts)
                     ? trace.session.artifacts : [];
                 const actionList = document.getElementById('action-list');
@@ -759,7 +914,9 @@ public final class FailureTraceReporter {
                 let selected = actionFromHash()
                     || [...actions].reverse().find(action => action.status !== 'passed')
                     || actions[0] || null;
+                let selectedNativeAction = null;
                 function selectAction(action, selectItsRange = true, historyMode = 'push'){
+                  selectedNativeAction = null;
                   selected = action;
                   if (selectItsRange && action) {
                     const start = actionStartMs(action);
@@ -902,6 +1059,7 @@ public final class FailureTraceReporter {
                 const rangeLabel = document.getElementById('range-label');
                 function applyRangeInputs(historyMode = 'none'){
                   if (baseTime == null) return;
+                  selectedNativeAction = null;
                   const startOffset = Math.max(0, Math.min(traceDuration, Number(rangeStart.value)));
                   const endOffset = Math.max(0, Math.min(traceDuration, Number(rangeEnd.value)));
                   rangeStartMs = baseTime + Math.min(startOffset, endOffset);
@@ -967,6 +1125,11 @@ public final class FailureTraceReporter {
                   });
                 }
                 function row(name, value){ return value ? `<dt>${esc(name)}</dt><dd>${esc(value)}</dd>` : ''; }
+                function nativeActionFor(action){
+                  if (selectedNativeAction) return selectedNativeAction;
+                  const callId = action && action.metadata && action.metadata.playwrightCallId;
+                  return callId ? nativeActions.find(candidate => candidate.callId === callId) || null : null;
+                }
                 function renderDetails(){
                   const action = selected || {};
                   document.getElementById('details-title').textContent = action.name ? `Action: ${action.name}` : 'Trace Details';
@@ -974,6 +1137,10 @@ public final class FailureTraceReporter {
                   details.innerHTML = row('Status', action.status) + row('Category', action.category)
                     + row('Expected', metadata.expected) + row('Actual', metadata.actual)
                     + row('Locator', action.locator) + row('URL', action.url) + row('Caller', action.caller) + row('Started', action.startTime) + row('Duration', action.durationMs == null ? '' : `${action.durationMs}ms`) + row('Message', action.message);
+                  const native = nativeActionFor(action);
+                  details.innerHTML += row('Native fidelity', native ? 'Playwright correlated' : 'SHAFT capture')
+                    + row('Native source', native && (native.source || native.sourceReason))
+                    + row('Native error', native && native.error);
                   renderTab(document.querySelector('.tabs button.selected').dataset.tab);
                 }
                 const timelinePanel = document.getElementById('timeline-panel');
@@ -1180,6 +1347,45 @@ public final class FailureTraceReporter {
                   });
                   updateConsoleSortHeaders();
                 }
+                const websocketPanel = document.getElementById('websocket-panel');
+                const websocketRows = document.getElementById('websocket-rows');
+                const websocketDetail = document.getElementById('websocket-detail');
+                const websocketDirectionFilter = document.getElementById('websocket-direction-filter');
+                const websocketTypeFilter = document.getElementById('websocket-type-filter');
+                const websocketTextFilter = document.getElementById('websocket-text-filter');
+                function populateWebSocketFilters(){
+                  const add = (select, values) => values.forEach(value => {
+                    const option = document.createElement('option');
+                    option.value = value; option.textContent = value; select.appendChild(option);
+                  });
+                  add(websocketDirectionFilter, [...new Set(webSockets.map(entry => String(entry.direction || 'none')))].sort());
+                  add(websocketTypeFilter, [...new Set(webSockets.map(entry => String(entry.type || 'unknown')))].sort());
+                }
+                function renderWebSockets(){
+                  websocketRows.innerHTML = '';
+                  websocketDetail.hidden = true;
+                  const query = websocketTextFilter.value.trim().toLowerCase();
+                  const visible = webSockets.filter(entry =>
+                    (!websocketDirectionFilter.value || String(entry.direction || 'none') === websocketDirectionFilter.value)
+                    && (!websocketTypeFilter.value || String(entry.type || 'unknown') === websocketTypeFilter.value)
+                    && (!query || [entry.url, entry.text, entry.sha256, entry.reason]
+                      .filter(Boolean).join(' ').toLowerCase().includes(query)));
+                  document.getElementById('websocket-result-count').textContent = `${visible.length} WebSocket ${visible.length === 1 ? 'event' : 'events'}`;
+                  document.getElementById('websocket-hint').textContent = !webSockets.length
+                    ? 'WebSocket capture is unavailable for this provider or no socket activity was observed.'
+                    : !visible.length ? 'No WebSocket events match the active filters.'
+                    : 'Captured lifecycle and frame evidence is bounded and redacted before display.';
+                  visible.forEach(entry => {
+                    const tr = document.createElement('tr');
+                    const payload = entry.text || entry.sha256 || entry.reason || 'None';
+                    tr.innerHTML = `<td>${esc(entry.type || 'Unknown')}</td><td>${esc(entry.direction || 'None')}</td><td>${esc(entry.url || 'Unavailable')}</td><td>${esc(entry.opcode == null ? 'N/A' : entry.opcode)}</td><td>${esc(payload)}</td><td><button type="button" class="secondary">Inspect event</button></td>`;
+                    tr.querySelector('button').addEventListener('click', () => {
+                      websocketDetail.hidden = false;
+                      websocketDetail.textContent = JSON.stringify(entry, null, 2);
+                    });
+                    websocketRows.appendChild(tr);
+                  });
+                }
                 const mobileActions = () => actions.filter(action =>
                     String(action.category || '').startsWith('mobile/'));
                 const mobileRows = document.getElementById('mobile-rows');
@@ -1279,12 +1485,25 @@ public final class FailureTraceReporter {
                     resourceAttributes.forEach(attribute => element.removeAttribute(attribute)));
                   return snapshotCsp + parsed.documentElement.outerHTML;
                 }
+                function nativeSnapshot(name){
+                  const snapshot = name && nativeSnapshots[name];
+                  return snapshot && snapshot.status === 'available' && snapshot.content
+                    ? snapshot.content : '';
+                }
+                function preferredSnapshot(action, side){
+                  const native = nativeActionFor(action);
+                  const nativeName = native && native[side + 'Snapshot'];
+                  const content = nativeSnapshot(nativeName);
+                  if (content) return snapshotCsp + content;
+                  const fallback = side === 'after' ? action.domSnapshotAfter : action.domSnapshotBefore;
+                  return fallback ? snapshotDocument(fallback) : '';
+                }
                 let selectedDomSide = 'before';
                 function renderDomSnapshot(){
                   const action = selected || {};
-                  const html = domSnapshotFrame && (selectedDomSide === 'after' ? action.domSnapshotAfter : action.domSnapshotBefore);
+                  const html = domSnapshotFrame && preferredSnapshot(action, selectedDomSide);
                   if (domSnapshotFrame) {
-                    domSnapshotFrame.srcdoc = snapshotDocument(html);
+                    domSnapshotFrame.srcdoc = html || snapshotDocument('');
                   }
                   document.querySelectorAll('#dom-snapshot-tabs button').forEach(button =>
                       button.classList.toggle('selected', button.dataset.dom === selectedDomSide));
@@ -1303,30 +1522,65 @@ public final class FailureTraceReporter {
                 }
                 const comparisonPanel = document.getElementById('comparison-panel');
                 const comparisonBefore = document.getElementById('comparison-before');
+                const comparisonInput = document.getElementById('comparison-input');
                 const comparisonAction = document.getElementById('comparison-action');
                 const comparisonAfter = document.getElementById('comparison-after');
                 function renderComparison(){
                   const action = selected || {};
-                  const hasBefore = Boolean(action.domSnapshotBefore);
-                  const hasAction = Boolean(action.screenshot);
-                  const hasAfter = Boolean(action.domSnapshotAfter);
+                  const native = nativeActionFor(action);
+                  const before = preferredSnapshot(action, 'before');
+                  const input = nativeSnapshot(native && native.inputSnapshot);
+                  const after = preferredSnapshot(action, 'after');
+                  const hasBefore = Boolean(before);
+                  const hasInput = Boolean(input);
+                  const hasAction = hasInput || Boolean(action.screenshot);
+                  const hasAfter = Boolean(after);
                   comparisonBefore.hidden = !hasBefore;
                   document.getElementById('comparison-before-empty').hidden = hasBefore;
-                  comparisonBefore.srcdoc = snapshotDocument(hasBefore ? action.domSnapshotBefore : '');
-                  comparisonAction.hidden = !hasAction;
+                  comparisonBefore.srcdoc = before;
+                  comparisonInput.hidden = !hasInput;
+                  comparisonInput.srcdoc = hasInput ? snapshotCsp + input : '';
+                  comparisonAction.hidden = hasInput || !action.screenshot;
                   document.getElementById('comparison-action-empty').hidden = hasAction;
-                  comparisonAction.src = hasAction ? 'data:image/png;base64,' + action.screenshot : '';
+                  comparisonAction.src = !hasInput && action.screenshot ? 'data:image/png;base64,' + action.screenshot : '';
                   comparisonAfter.hidden = !hasAfter;
                   document.getElementById('comparison-after-empty').hidden = hasAfter;
-                  comparisonAfter.srcdoc = snapshotDocument(hasAfter ? action.domSnapshotAfter : '');
+                  comparisonAfter.srcdoc = after;
+                }
+                const nativeEvidencePanel = document.getElementById('native-evidence-panel');
+                const nativeEvidenceRows = document.getElementById('native-evidence-rows');
+                function renderNativeEvidence(){
+                  nativeEvidenceRows.innerHTML = '';
+                  document.getElementById('native-evidence-hint').textContent = playwright.status === 'available'
+                    ? `${nativeActions.length} native Playwright ${nativeActions.length === 1 ? 'action' : 'actions'} retained offline.`
+                    : `Native Playwright evidence ${playwright.status || 'unavailable'}${playwright.reason ? ': ' + playwright.reason : '.'}`;
+                  const selectedNative = nativeActionFor(selected || {});
+                  nativeActions.forEach(native => {
+                    const tr = document.createElement('tr');
+                    const correlation = selectedNative && selectedNative.callId === native.callId
+                      ? 'Selected SHAFT action' : (playwright.correlations || []).some(item => item.playwrightCallId === native.callId)
+                        ? 'Correlated' : 'Native only';
+                    tr.innerHTML = `<td>${esc(correlation)}</td><td>${esc(native.title || native.method || native.callId || 'Unknown')}</td><td>${esc(native.source || native.sourceReason || 'Unavailable')}</td><td>${esc((native.logs || []).join('\\n') || 'None')}</td><td>${esc(native.error || 'None')}<br><button type="button" class="secondary">Inspect native action</button></td>`;
+                    tr.querySelector('button').addEventListener('click', () => {
+                      selectedNativeAction = native;
+                      document.getElementById('details-title').textContent = `Native action: ${native.title || native.method || native.callId}`;
+                      details.innerHTML = row('Provider', 'Playwright') + row('Call ID', native.callId)
+                        + row('Source', native.source || native.sourceReason) + row('Logs', (native.logs || []).join('\\n'))
+                        + row('Error', native.error);
+                      renderTab('comparison');
+                    });
+                    nativeEvidenceRows.appendChild(tr);
+                  });
                 }
                 function renderTab(tab){
                   const action = selected || {};
-                  const panels = {timeline: timelinePanel, comparison: comparisonPanel, domSnapshot: domSnapshotPanel, screenshot: screenshotPanel, network: networkPanel, console: consolePanel, mobile: document.getElementById('mobile-panel'), artifacts: document.getElementById('artifact-panel')};
+                  const panels = {timeline: timelinePanel, nativeEvidence: nativeEvidencePanel, comparison: comparisonPanel, domSnapshot: domSnapshotPanel, screenshot: screenshotPanel, network: networkPanel, console: consolePanel, webSockets: websocketPanel, mobile: document.getElementById('mobile-panel'), artifacts: document.getElementById('artifact-panel')};
                   tabContent.hidden = tab in panels;
                   Object.entries(panels).forEach(([name, panel]) => panel.hidden = name !== tab);
                   if (tab === 'timeline') {
                     renderTimeline();
+                  } else if (tab === 'nativeEvidence') {
+                    renderNativeEvidence();
                   } else if (tab === 'comparison') {
                     renderComparison();
                   } else if (tab === 'domSnapshot') {
@@ -1337,6 +1591,8 @@ public final class FailureTraceReporter {
                     renderNetwork();
                   } else if (tab === 'console') {
                     renderConsole();
+                  } else if (tab === 'webSockets') {
+                    renderWebSockets();
                   } else if (tab === 'mobile') {
                     renderMobile();
                   } else if (tab === 'artifacts') {
@@ -1423,6 +1679,8 @@ public final class FailureTraceReporter {
                 }));
                 [consoleSourceFilter, consoleLevelFilter, consoleTextFilter]
                     .forEach(control => control.addEventListener('input', renderConsole));
+                [websocketDirectionFilter, websocketTypeFilter, websocketTextFilter]
+                    .forEach(control => control.addEventListener('input', renderWebSockets));
                 document.querySelectorAll('[data-console-sort]').forEach(button => button.addEventListener('click', () => {
                   const key = button.dataset.consoleSort;
                   consoleSort = consoleSort.key === key
@@ -1438,6 +1696,7 @@ public final class FailureTraceReporter {
                 document.querySelectorAll('#dom-snapshot-tabs button').forEach(button => button.addEventListener('click', () => { selectedDomSide = button.dataset.dom; renderDomSnapshot(); }));
                 populateNetworkFilters();
                 populateConsoleFilters();
+                populateWebSocketFilters();
                 renderSummary();
                 renderNavigator();
                 renderActions();
@@ -1494,6 +1753,11 @@ public final class FailureTraceReporter {
                     ? TraceArchiveWriter.Entry.omitted(path, omittedReasons.get(path))
                     : TraceArchiveWriter.Entry.optionalBytes(path, entry.getValue()));
         }
+        if (manifest != null) {
+            manifest.resourceBytes().forEach((path, bytes) -> entries.add(omittedReasons.containsKey(path)
+                    ? TraceArchiveWriter.Entry.omitted(path, omittedReasons.get(path))
+                    : TraceArchiveWriter.Entry.optionalBytes(path, bytes)));
+        }
         if (nativeEntry != null) {
             entries.add(omittedReasons.containsKey(nativeEntry.name())
                     ? TraceArchiveWriter.Entry.omitted(nativeEntry.name(), omittedReasons.get(nativeEntry.name()))
@@ -1514,15 +1778,37 @@ public final class FailureTraceReporter {
         List<String> omitted = List.copyOf(plannedOmissions);
         String currentJson = json;
         String html = renderTraceHtml(currentJson, omitted);
+        Map<String, byte[]> currentScreenshots = screenshots;
         int optionalEntries = manifest == null ? 0 : manifest.references().size();
         for (int pass = 0; pass <= optionalEntries; pass++) {
+            if (hasSnapshotContent(currentJson)
+                    && (utf8Size(currentJson) > maxEntryBytes || utf8Size(html) > maxEntryBytes)) {
+                currentJson = omitSnapshotForBudget(currentJson);
+                html = renderTraceHtml(currentJson, omitted);
+            }
+            if (hasInlineActionSnapshots(currentJson)
+                    && (utf8Size(currentJson) > maxEntryBytes || utf8Size(html) > maxEntryBytes)) {
+                currentJson = omitInlineActionSnapshotsForBudget(currentJson, manifest);
+                html = renderTraceHtml(currentJson, omitted);
+            }
             if (hasAvailablePlaywrightEvidence(currentJson)
                     && (utf8Size(currentJson) > maxEntryBytes || utf8Size(html) > maxEntryBytes)) {
                 currentJson = omitPlaywrightEvidenceForBudget(currentJson);
                 html = renderTraceHtml(currentJson, omitted);
             }
+            if (hasActionEvidence(currentJson)
+                    && (utf8Size(currentJson) > maxEntryBytes || utf8Size(html) > maxEntryBytes)) {
+                ActionCompaction compacted = compactActionEvidenceForBudget(currentJson, omitted, maxEntryBytes);
+                currentJson = compacted.json();
+                omitted = omitted.stream().filter(path -> !compacted.removedArtifactPaths().contains(path)).toList();
+                if (manifest != null) {
+                    manifest.retainActionArtifacts(compacted.retainedArtifactIds());
+                }
+                currentScreenshots = filterScreenshots(currentScreenshots, compacted.retainedArtifactIds());
+                html = renderTraceHtml(currentJson, omitted);
+            }
             TraceArchiveWriter.Entry nativeEntry = manifest == null ? null : manifest.nativeEntry();
-            List<String> actual = renderTraceZip(target, currentJson, html, networkJson, screenshots,
+            List<String> actual = renderTraceZip(target, currentJson, html, networkJson, currentScreenshots,
                     nativeEntry, manifest, maxEntryBytes, maxTotalBytes, omissionMarker, omissionMarker);
             List<String> merged = mergeOmitted(omitted, actual);
             if (merged.equals(omitted)) {
@@ -1548,6 +1834,38 @@ public final class FailureTraceReporter {
         }
     }
 
+    private static boolean hasSnapshotContent(String json) {
+        try {
+            return !JSON.readTree(json).path("snapshot").path("content").asText().isEmpty();
+        } catch (RuntimeException exception) {
+            return false;
+        }
+    }
+
+    private static boolean hasInlineActionSnapshots(String json) {
+        try {
+            for (JsonNode action : JSON.readTree(json).path("evidence").path("actions")) {
+                if (!action.path("domSnapshotBefore").asText().isEmpty()
+                        || !action.path("domSnapshotAfter").asText().isEmpty()) {
+                    return true;
+                }
+            }
+            return false;
+        } catch (RuntimeException exception) {
+            return false;
+        }
+    }
+
+    private static boolean hasActionEvidence(String json) {
+        try {
+            JsonNode root = JSON.readTree(json);
+            return !root.path("evidence").path("actions").isEmpty()
+                    || !root.path("session").path("events").isEmpty();
+        } catch (RuntimeException exception) {
+            return false;
+        }
+    }
+
     private static long utf8Size(String value) {
         return value.getBytes(StandardCharsets.UTF_8).length;
     }
@@ -1566,6 +1884,216 @@ public final class FailureTraceReporter {
         removePlaywrightCorrelationMetadata(evidence.path("actions"));
         removePlaywrightCorrelationMetadata(root.path("session").path("events"));
         return JSON.writeValueAsString(root);
+    }
+
+    private static String omitSnapshotForBudget(String json) {
+        JsonNode parsed = JSON.readTree(json);
+        if (!(parsed instanceof ObjectNode root) || !(root.path("snapshot") instanceof ObjectNode snapshot)) {
+            return json;
+        }
+        snapshot.put("fidelity", "omitted");
+        snapshot.put("status", "omitted-budget");
+        snapshot.put("reason", "Browser snapshot exceeded the bounded report budget.");
+        snapshot.put("type", "omitted-budget");
+        snapshot.put("content", "");
+        snapshot.put("byteCount", "0");
+        snapshot.put("truncated", "false");
+        return JSON.writeValueAsString(root);
+    }
+
+    private static String omitInlineActionSnapshotsForBudget(String json, TraceArtifactManifest manifest) {
+        JsonNode parsed = JSON.readTree(json);
+        if (!(parsed instanceof ObjectNode root)) {
+            return json;
+        }
+        JsonNode actions = root.path("evidence").path("actions");
+        if (!actions.isArray()) {
+            return json;
+        }
+        Set<String> resourceActions = manifest == null ? Set.of() : manifest.references().stream()
+                .filter(reference -> "dom-snapshot".equals(reference.kind()))
+                .filter(reference -> !reference.omitted())
+                .map(reference -> reference.metadata().getOrDefault("actionId", ""))
+                .filter(actionId -> !actionId.isEmpty())
+                .collect(java.util.stream.Collectors.toUnmodifiableSet());
+        actions.forEach(action -> {
+            if (!(action instanceof ObjectNode object)) {
+                return;
+            }
+            boolean hadSnapshot = !object.path("domSnapshotBefore").asText().isEmpty()
+                    || !object.path("domSnapshotAfter").asText().isEmpty();
+            if (!hadSnapshot) {
+                return;
+            }
+            object.put("domSnapshotBefore", "");
+            object.put("domSnapshotAfter", "");
+            object.put("domSnapshotInlineStatus",
+                    resourceActions.contains(object.path("id").asText()) ? "resource-only" : "omitted-budget");
+            object.put("domSnapshotInlineReason",
+                    "Inline DOM snapshots exceeded the bounded report entry budget.");
+        });
+        return JSON.writeValueAsString(root);
+    }
+
+    private static ActionCompaction compactActionEvidenceForBudget(String json, List<String> omitted,
+                                                                    long maxEntryBytes) {
+        JsonNode parsed = JSON.readTree(json);
+        if (!(parsed instanceof ObjectNode root)) {
+            return new ActionCompaction(json, Set.of(), Set.of());
+        }
+        List<JsonNode> actions = withoutOmissionMarker(copyNodes(root.path("evidence").path("actions")));
+        List<JsonNode> events = withoutOmissionMarker(copyNodes(root.path("session").path("events")));
+        int priorOmitted = Math.max(omittedActionCount(root.path("evidence").path("actions")),
+                omittedActionCount(root.path("session").path("events")));
+        int total = Math.max(actions.size(), events.size());
+        int low = 0;
+        int high = total;
+        ActionCompaction best = null;
+        while (low <= high) {
+            int retained = low + (high - low) / 2;
+            ActionCompaction candidate = compactedActionJson(root, actions, events, retained, total, priorOmitted);
+            List<String> candidateOmissions = omitted.stream()
+                    .filter(path -> !candidate.removedArtifactPaths().contains(path)).toList();
+            String candidateHtml = renderTraceHtml(candidate.json(), candidateOmissions);
+            if (utf8Size(candidate.json()) <= maxEntryBytes && utf8Size(candidateHtml) <= maxEntryBytes) {
+                best = candidate;
+                low = retained + 1;
+            } else {
+                high = retained - 1;
+            }
+        }
+        if (best == null) {
+            throw new IllegalStateException("Trace action metadata exceeded the required entry budget after bounded compaction.");
+        }
+        return best;
+    }
+
+    private static List<JsonNode> withoutOmissionMarker(List<JsonNode> values) {
+        if (values.isEmpty() || !isActionOmissionMarker(values.getLast())) {
+            return values;
+        }
+        return List.copyOf(values.subList(0, values.size() - 1));
+    }
+
+    private static int omittedActionCount(JsonNode values) {
+        if (!values.isArray() || values.isEmpty()) {
+            return 0;
+        }
+        JsonNode last = values.get(values.size() - 1);
+        return isActionOmissionMarker(last)
+                ? last.path("metadata").path("omittedCount").asInt(0) : 0;
+    }
+
+    private static boolean isActionOmissionMarker(JsonNode value) {
+        String id = value.path("id").asText();
+        boolean ownedId = "action-limit".equals(id) || "action-budget".equals(id)
+                || id.endsWith("/action-limit") || id.endsWith("/action-budget");
+        return ownedId && "omitted-actions".equals(value.path("name").asText())
+                && positiveInteger(value.path("metadata").path("omittedCount").asText());
+    }
+
+    private static boolean positiveInteger(String value) {
+        try {
+            return Integer.parseInt(value) > 0;
+        } catch (NumberFormatException exception) {
+            return false;
+        }
+    }
+
+    private static List<JsonNode> copyNodes(JsonNode array) {
+        if (!array.isArray()) {
+            return List.of();
+        }
+        List<JsonNode> values = new ArrayList<>();
+        array.forEach(value -> values.add(value.deepCopy()));
+        return List.copyOf(values);
+    }
+
+    private static ActionCompaction compactedActionJson(ObjectNode original, List<JsonNode> actions,
+                                                        List<JsonNode> events, int retained, int total,
+                                                        int priorOmitted) {
+        ObjectNode copy = original.deepCopy();
+        var compactActions = copy.withObject("evidence").putArray("actions");
+        for (int index = 0; index < Math.min(retained, actions.size()); index++) {
+            compactActions.add(actions.get(index));
+        }
+        var compactEvents = copy.withObject("session").putArray("events");
+        for (int index = 0; index < Math.min(retained, events.size()); index++) {
+            compactEvents.add(events.get(index));
+        }
+        Set<String> retainedArtifactIds = new LinkedHashSet<>();
+        compactEvents.forEach(event -> event.path("artifactIds").forEach(id -> retainedArtifactIds.add(id.asText())));
+        Set<String> originalActionArtifactPaths = new LinkedHashSet<>();
+        Set<String> retainedActionArtifactPaths = new LinkedHashSet<>();
+        if (copy.path("session").path("artifacts") instanceof ArrayNode artifacts) {
+            List<JsonNode> originalArtifacts = copyNodes(artifacts);
+            originalArtifacts.stream().filter(FailureTraceReporter::isActionArtifact)
+                    .forEach(artifact -> originalActionArtifactPaths.add(artifact.path("path").asText()));
+            List<JsonNode> kept = originalArtifacts.stream().filter(artifact -> {
+                String kind = artifact.path("kind").asText();
+                return !("dom-snapshot".equals(kind) || "screenshot".equals(kind))
+                        || retainedArtifactIds.contains(artifact.path("id").asText());
+            }).toList();
+            kept.stream().filter(FailureTraceReporter::isActionArtifact)
+                    .forEach(artifact -> retainedActionArtifactPaths.add(artifact.path("path").asText()));
+            artifacts.removeAll();
+            kept.forEach(artifacts::add);
+        }
+        if (retained < total) {
+            int omittedCount = priorOmitted + total - retained;
+            compactActions.add(actionOmissionNode(omittedCount));
+            compactEvents.add(eventOmissionNode(copy.path("session").path("id").asText(), omittedCount));
+        }
+        originalActionArtifactPaths.removeAll(retainedActionArtifactPaths);
+        return new ActionCompaction(JSON.writeValueAsString(copy), Set.copyOf(retainedArtifactIds),
+                Set.copyOf(originalActionArtifactPaths));
+    }
+
+    private static boolean isActionArtifact(JsonNode artifact) {
+        String kind = artifact.path("kind").asText();
+        return "dom-snapshot".equals(kind) || "screenshot".equals(kind);
+    }
+
+    private static ObjectNode actionOmissionNode(int omittedCount) {
+        ObjectNode marker = JSON.createObjectNode();
+        marker.put("id", "action-budget");
+        marker.put("category", "trace");
+        marker.put("name", "omitted-actions");
+        marker.put("status", "skipped");
+        marker.put("message", omittedCount + " newest actions were omitted to fit the trace report budget.");
+        marker.putObject("metadata").put("omittedCount", String.valueOf(omittedCount));
+        return marker;
+    }
+
+    private static ObjectNode eventOmissionNode(String sessionId, int omittedCount) {
+        ObjectNode marker = JSON.createObjectNode();
+        marker.put("id", (sessionId == null || sessionId.isBlank() ? "session" : sessionId) + "/action-budget");
+        marker.put("backend", "UNKNOWN");
+        marker.put("category", "trace");
+        marker.put("name", "omitted-actions");
+        marker.put("status", "SKIPPED");
+        marker.put("startedAt", Instant.EPOCH.toString());
+        marker.put("durationMs", 0L);
+        marker.put("source", "");
+        marker.put("target", "");
+        marker.put("message", omittedCount + " newest actions were omitted to fit the trace report budget.");
+        marker.putArray("artifactIds");
+        marker.putObject("metadata").put("omittedCount", String.valueOf(omittedCount));
+        return marker;
+    }
+
+    private static Map<String, byte[]> filterScreenshots(Map<String, byte[]> screenshots,
+                                                         Set<String> retainedArtifactIds) {
+        Map<String, byte[]> retained = new LinkedHashMap<>();
+        screenshots.forEach((id, bytes) -> {
+            if (retainedArtifactIds.contains("screenshot-" + id)) {
+                retained.put(id, bytes);
+            }
+        });
+        return Map.copyOf(retained);
+    }
+
+    private record ActionCompaction(String json, Set<String> retainedArtifactIds, Set<String> removedArtifactPaths) {
     }
 
     private static void removePlaywrightCorrelationMetadata(JsonNode actions) {
@@ -1612,16 +2140,44 @@ public final class FailureTraceReporter {
         if (!sessionArtifacts.isArray()) {
             throw new IllegalStateException("Trace session artifacts must be an array.");
         }
-        Map<String, TraceArtifactReference> byPath = new LinkedHashMap<>();
-        artifacts.forEach(reference -> byPath.put(reference.path(), reference));
+        Map<String, TraceArtifactReference> byId = new LinkedHashMap<>();
+        artifacts.forEach(reference -> byId.put(reference.id(), reference));
         sessionArtifacts.forEach(node -> {
-            TraceArtifactReference reference = byPath.get(node.path("path").asText());
+            TraceArtifactReference reference = byId.get(node.path("id").asText());
             if (reference != null && node instanceof ObjectNode object) {
                 object.put("omitted", reference.omitted());
                 object.set("metadata", JSON.valueToTree(reference.metadata()));
             }
         });
+        if (root instanceof ObjectNode objectRoot) {
+            refreshInlineDomStatus(objectRoot, artifacts);
+        }
         return JSON.writeValueAsString(root);
+    }
+
+    private static void refreshInlineDomStatus(ObjectNode root, List<TraceArtifactReference> artifacts) {
+        Map<String, Boolean> availableByAction = new LinkedHashMap<>();
+        artifacts.stream().filter(reference -> "dom-snapshot".equals(reference.kind())).forEach(reference -> {
+            String actionId = reference.metadata().getOrDefault("actionId", "");
+            if (!actionId.isEmpty()) {
+                availableByAction.merge(actionId, !reference.omitted(), Boolean::logicalOr);
+            }
+        });
+        JsonNode actions = root.path("evidence").path("actions");
+        if (!actions.isArray()) {
+            return;
+        }
+        actions.forEach(action -> {
+            if (!(action instanceof ObjectNode object) || !object.has("domSnapshotInlineStatus")) {
+                return;
+            }
+            boolean available = availableByAction.getOrDefault(object.path("id").asText(), false);
+            object.put("domSnapshotInlineStatus", available ? "resource-only" : "omitted-budget");
+            if (!available) {
+                object.put("domSnapshotInlineReason",
+                        "Inline and resource DOM snapshots exceeded the bounded trace archive budget.");
+            }
+        });
     }
 
     private static void closeArtifactManifest() {
@@ -1805,26 +2361,58 @@ public final class FailureTraceReporter {
     private static Snapshot snapshot() {
         if (!SHAFT.Properties.reporting.traceIncludeFullPageSnapshots()
                 && !SHAFT.Properties.reporting.traceIncludeNativePageSource()) {
-            return new Snapshot("disabled", "");
+            return new Snapshot("none", "disabled", "disabled", "", "disabled", "", 0, false);
         }
         try {
             Page page = PlaywrightSessionManager.currentPage();
             if (page != null && SHAFT.Properties.reporting.traceIncludeFullPageSnapshots()) {
-                return new Snapshot("playwright-html", redact(page.content()));
+                return snapshot(SeleniumTraceCapture.fromContent("playwright", "structural", "playwright-html",
+                        page.content(), FailureTraceReporter::redactSourceText));
             }
         } catch (RuntimeException ignored) {
             // Snapshot collection is best-effort; trace generation must never hide the original failure.
         }
         WebDriver driver = DriverFactoryHelper.getActiveDriver();
         if (driver == null) {
-            return new Snapshot("unavailable", "No active browser or native driver was registered for this thread.");
+            return new Snapshot("none", "unavailable", "unavailable",
+                    "No active browser or native driver was registered for this thread.", "unavailable", "", 0, false);
         }
-        try {
-            return new Snapshot(DriverFactoryHelper.isMobileNativeExecution() ? "native-page-source" : "webdriver-page-source",
-                    redact(driver.getPageSource()));
-        } catch (RuntimeException e) {
-            return new Snapshot("unavailable", "Snapshot capture failed: " + e.getMessage());
+        if (DriverFactoryHelper.isMobileNativeExecution()) {
+            try {
+                return snapshot(SeleniumTraceCapture.fromContent("appium", "structural", "native-page-source",
+                        driver.getPageSource(), FailureTraceReporter::redactSourceText));
+            } catch (RuntimeException ignored) {
+                return new Snapshot("appium", "unavailable", "unavailable", "Snapshot capture failed.",
+                        "unavailable", "", 0, false);
+            }
         }
+        SeleniumTraceCapture.Result result = SeleniumTraceCapture.capture(driver,
+                FailureTraceReporter::redactSourceText,
+                SHAFT.Properties.reporting.traceIncludeFullPageSnapshots());
+        return snapshot(result);
+    }
+
+    private static String reportedBrowser() {
+        var session = PlaywrightSessionManager.currentSession();
+        if (session != null) {
+            try {
+                var browser = session.browser();
+                String runtimeBrowser = browser == null || browser.browserType() == null
+                        ? "" : browser.browserType().name();
+                if (runtimeBrowser != null && !runtimeBrowser.isBlank()) return runtimeBrowser;
+            } catch (RuntimeException ignored) {
+                // Attached or closing sessions may no longer expose their browser type; use configured fallback.
+            }
+            String playwrightBrowser = safeProperty(() -> SHAFT.Properties.playwright.browserName());
+            if (!playwrightBrowser.isBlank()) return playwrightBrowser;
+        }
+        return safeProperty(() -> SHAFT.Properties.web.targetBrowserName());
+    }
+
+    private static Snapshot snapshot(SeleniumTraceCapture.Result result) {
+        String content = result.content();
+        return new Snapshot(result.provider(), result.fidelity(), result.status(), result.reason(), result.type(),
+                content, content.getBytes(StandardCharsets.UTF_8).length, result.truncated());
     }
 
     private static SourceContext sourceContext(TestExecutionInfo info) {
@@ -2497,6 +3085,7 @@ public final class FailureTraceReporter {
         }
     }
 
-    private record Snapshot(String type, String content) {
+    private record Snapshot(String provider, String fidelity, String status, String reason, String type, String content,
+                            int byteCount, boolean truncated) {
     }
 }

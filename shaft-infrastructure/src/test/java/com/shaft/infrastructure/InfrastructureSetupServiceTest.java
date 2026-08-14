@@ -96,6 +96,73 @@ class InfrastructureSetupServiceTest {
     }
 
     @Test
+    void builtInCoordinatorProvidesReadOnlyPlaywrightStatusAndExactManagedPlan(@TempDir Path temp) {
+        ShaftCachePaths paths = paths(temp);
+        InfrastructureSetupService service = InfrastructureSetupService.builtIn(
+                SetupPlatform.WINDOWS, SetupArchitecture.X64);
+        SetupOptions external = SetupOptions.defaults(SetupProfile.PLAYWRIGHT, paths);
+        SetupOptions managed = external.withMode(SetupMode.MANAGED);
+
+        assertTrue(service.supports(SetupProfile.PLAYWRIGHT));
+        SetupReport report = service.status(external);
+        SetupPlan plan = service.plan(managed);
+
+        assertEquals(SetupProfile.PLAYWRIGHT, report.profile());
+        assertEquals(SetupReadiness.MISSING, report.readiness());
+        assertEquals(List.of(SetupTarget.NODE, SetupTarget.PLAYWRIGHT_CHROMIUM,
+                SetupTarget.PLAYWRIGHT_FIREFOX, SetupTarget.PLAYWRIGHT_WEBKIT, SetupTarget.FFMPEG),
+                report.targets().stream().map(SetupStatus::target).toList());
+        assertEquals(SetupProfile.PLAYWRIGHT, plan.profile());
+        assertEquals(List.of(SetupTarget.NODE, SetupTarget.PLAYWRIGHT_CHROMIUM,
+                SetupTarget.PLAYWRIGHT_FIREFOX, SetupTarget.PLAYWRIGHT_WEBKIT, SetupTarget.FFMPEG),
+                plan.actions().stream().map(SetupAction::target).toList());
+        assertTrue(plan.actions().stream().allMatch(action -> action.kind() == SetupActionKind.INSTALL));
+        assertTrue(Files.notExists(paths.cacheRoot()));
+        assertTrue(Files.notExists(paths.dataRoot()));
+    }
+
+    @Test
+    void coldOfflinePlaywrightInstallRejectsBeforeCreatingState(@TempDir Path temp) {
+        ShaftCachePaths paths = paths(temp);
+        InfrastructureSetupService service = InfrastructureSetupService.builtIn(
+                SetupPlatform.WINDOWS, SetupArchitecture.X64);
+        SetupOptions options = SetupOptions.defaults(SetupProfile.PLAYWRIGHT, paths)
+                .withMode(SetupMode.MANAGED).withOffline(true);
+        SetupPlan plan = service.plan(options);
+
+        assertThrows(java.io.IOException.class, () -> service.install(plan,
+                new SetupApproval(plan.digest(), Instant.EPOCH, Set.of()), options));
+
+        assertTrue(Files.notExists(paths.cacheRoot()));
+        assertTrue(Files.notExists(paths.dataRoot()));
+    }
+
+    @Test
+    void builtInCoordinatorProvidesCompleteAndroidPlanIncludingBuildToolsLicense(@TempDir Path temp) {
+        ShaftCachePaths paths = paths(temp);
+        InfrastructureSetupService service = InfrastructureSetupService.builtIn(
+                SetupPlatform.LINUX, SetupArchitecture.X64);
+        SetupOptions options = SetupOptions.defaults(SetupProfile.MOBILE_ANDROID, paths)
+                .withMode(SetupMode.MANAGED);
+
+        assertTrue(service.supports(SetupProfile.MOBILE_ANDROID));
+        SetupPlan plan = service.plan(options);
+
+        assertEquals(SetupProfile.MOBILE_ANDROID, plan.profile());
+        assertEquals(List.of(SetupTarget.NODE, SetupTarget.APPIUM_SERVER,
+                SetupTarget.APPIUM_INSPECTOR_PLUGIN, SetupTarget.APPIUM_UIAUTOMATOR2_DRIVER,
+                SetupTarget.ANDROID_SDK, SetupTarget.ANDROID_EMULATOR), plan.actions().stream()
+                .map(SetupAction::target).toList());
+        assertTrue(plan.actions().stream().allMatch(action -> action.kind() == SetupActionKind.INSTALL));
+        SetupAction androidSdk = plan.actions().get(4);
+        assertTrue(androidSdk.version().contains("build-tools;"),
+                "The reviewed Android package set must bind build-tools so aapt2 is present.");
+        assertTrue(androidSdk.requiredLicenses().contains("android-sdk-license"));
+        assertTrue(Files.notExists(paths.cacheRoot()));
+        assertTrue(Files.notExists(paths.dataRoot()));
+    }
+
+    @Test
     void bundledLighthouseManifestMatchesTheApprovedLock() throws Exception {
         byte[] packageJson;
         byte[] lock;

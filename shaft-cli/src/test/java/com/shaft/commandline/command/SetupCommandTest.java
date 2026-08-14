@@ -16,6 +16,15 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class SetupCommandTest {
+    @Test
+    void failureDetailsPreserveOuterActionAndNestedCause() {
+        RuntimeException failure = new RuntimeException("Setup action failed",
+                new IllegalStateException("Appium manifest is invalid", new java.io.IOException("lock mismatch")));
+
+        assertEquals("Setup action failed: Appium manifest is invalid: lock mismatch",
+                SetupCommand.failureDetails(failure));
+    }
+
     private static final JsonMapper JSON = JsonMapper.builder().build();
 
     @Test
@@ -103,6 +112,37 @@ class SetupCommandTest {
     }
 
     @Test
+    void playwrightProfileUsesTheRegisteredProviderWithoutMutatingOnStatus(@TempDir Path temp) throws Exception {
+        Path cache = temp.resolve("cache").toAbsolutePath();
+        Path data = temp.resolve("data").toAbsolutePath();
+        CommandResult status = execute("setup", "status", "--profile", "PLAYWRIGHT",
+                "--cache-root", cache.toString(), "--data-root", data.toString(), "--json");
+        Path planFile = temp.resolve("playwright-plan.json").toAbsolutePath();
+        CommandResult plan = execute("setup", "plan", "--profile", "PLAYWRIGHT", "--mode", "MANAGED",
+                "--output", planFile.toString(), "--cache-root", cache.toString(),
+                "--data-root", data.toString(), "--json");
+
+        if (status.exitCode() == 3) {
+            JsonNode report = JSON.readTree(status.stdout());
+            assertEquals("PLAYWRIGHT", report.get("profile").asText());
+            assertEquals(5, report.get("targets").size());
+        } else {
+            assertEquals(2, status.exitCode(), status.stderr());
+            assertTrue(status.stderr().contains("Unsupported Playwright host"), status.stderr());
+        }
+        if (plan.exitCode() == 0) {
+            JsonNode planned = JSON.readTree(plan.stdout());
+            assertEquals("PLAYWRIGHT", planned.get("profile").asText());
+            assertEquals(5, planned.get("actions").size());
+        } else {
+            assertEquals(2, plan.exitCode(), plan.stderr());
+            assertTrue(plan.stderr().contains("Unsupported Playwright host"), plan.stderr());
+        }
+        assertTrue(Files.notExists(cache));
+        assertTrue(Files.notExists(data));
+    }
+
+    @Test
     void ocrProfileHasProviderBackedStatusAndPlan(@TempDir Path temp) throws Exception {
         Path cache = temp.resolve("cache").toAbsolutePath();
         Path data = temp.resolve("data").toAbsolutePath();
@@ -137,6 +177,93 @@ class SetupCommandTest {
         assertEquals(5, installWithoutRepeatedLanguages.exitCode());
         assertTrue(installWithoutRepeatedLanguages.stderr().contains("offline cache"),
                 installWithoutRepeatedLanguages.stderr());
+    }
+
+    @Test
+    void androidRequestIsBoundIntoPlanAndRecoveredByInstallWithoutRepeatedSelectors(@TempDir Path temp)
+            throws Exception {
+        Path cache = temp.resolve("cache").toAbsolutePath();
+        Path data = temp.resolve("data").toAbsolutePath();
+        Path planFile = temp.resolve("android-plan.json").toAbsolutePath();
+
+        CommandResult planned = execute("setup", "plan", "--profile", "MOBILE_ANDROID", "--mode", "MANAGED",
+                "--output", planFile.toString(), "--cache-root", cache.toString(), "--data-root", data.toString(),
+                "--offline", "--avd-name", "cli_avd", "--ram-mb", "6144", "--cores", "4",
+                "--port", "4823", "--json");
+
+        assertEquals(0, planned.exitCode(), planned.stderr());
+        JsonNode plan = JSON.readTree(planned.stdout());
+        assertEquals("MOBILE_ANDROID", plan.get("profile").asText());
+        assertEquals(6, plan.get("actions").size());
+        String request = plan.get("actions").get(5).get("version").asText();
+        assertTrue(request.contains("avd=cli_avd"));
+        assertTrue(request.contains("ramMb=6144"));
+        assertTrue(request.contains("cores=4"));
+        assertTrue(request.contains("port=4823"));
+        assertTrue(plan.get("actions").get(4).get("requiredLicenses").toString()
+                .contains("android-sdk-license"));
+
+        CommandResult install = execute("setup", "install", "--plan", planFile.toString(),
+                "--approve", plan.get("digest").asText(), "--accept-license", "android-sdk-license",
+                "--cache-root", cache.toString(), "--data-root", data.toString(), "--offline");
+        assertEquals(5, install.exitCode(), install.stderr());
+        assertTrue(install.stderr().contains("complete verified installation"), install.stderr());
+        assertTrue(Files.notExists(cache));
+        assertTrue(Files.notExists(data));
+
+        CommandResult start = execute("setup", "start", "--plan", planFile.toString(),
+                "--approve", plan.get("digest").asText(), "--accept-license", "android-sdk-license",
+                "--cache-root", cache.toString(), "--data-root", data.toString(), "--offline");
+        assertEquals(5, start.exitCode(), start.stderr());
+        assertTrue(start.stderr().contains("install receipt"), start.stderr());
+        assertTrue(Files.notExists(cache));
+        assertTrue(Files.notExists(data));
+    }
+
+    @Test
+    void androidReadinessCommandsCanInspectManagedState(@TempDir Path temp) throws Exception {
+        Path cache = temp.resolve("cache").toAbsolutePath();
+        Path data = temp.resolve("data").toAbsolutePath();
+
+        for (String command : java.util.List.of("doctor", "status", "verify")) {
+            CommandResult result = execute("setup", command, "--profile", "MOBILE_ANDROID",
+                    "--mode", "MANAGED", "--cache-root", cache.toString(), "--data-root", data.toString(),
+                    "--json");
+
+            assertEquals(3, result.exitCode(), result.stderr());
+            JsonNode report = JSON.readTree(result.stdout());
+            assertEquals("MOBILE_ANDROID", report.get("profile").asText());
+            report.get("targets").forEach(target -> assertTrue(
+                    !target.get("detail").asText().contains("External mode is diagnostic-only"),
+                    command + " must inspect managed readiness instead of forcing EXTERNAL mode."));
+        }
+        assertTrue(Files.notExists(cache));
+        assertTrue(Files.notExists(data));
+    }
+
+    @Test
+    void androidStopAndLogsReportMissingWithoutCreatingRuntimeState(@TempDir Path temp) {
+        Path cache = temp.resolve("cache").toAbsolutePath();
+        Path data = temp.resolve("data").toAbsolutePath();
+        CommandResult stop = execute("setup", "stop", "--profile", "MOBILE_ANDROID",
+                "--cache-root", cache.toString(), "--data-root", data.toString());
+        CommandResult logs = execute("setup", "logs", "--profile", "MOBILE_ANDROID",
+                "--cache-root", cache.toString(), "--data-root", data.toString());
+
+        assertEquals(3, stop.exitCode(), stop.stderr());
+        assertEquals(3, logs.exitCode(), logs.stderr());
+        assertTrue(Files.notExists(cache));
+        assertTrue(Files.notExists(data));
+    }
+
+    @Test
+    void androidSelectorsAreRejectedForUnrelatedProfiles(@TempDir Path temp) {
+        CommandResult result = execute("setup", "status", "--profile", "REPORTING", "--port", "4823",
+                "--cache-root", temp.resolve("cache").toAbsolutePath().toString(),
+                "--data-root", temp.resolve("data").toAbsolutePath().toString());
+
+        assertEquals(2, result.exitCode());
+        assertTrue(result.stderr().contains("only for profile MOBILE_ANDROID"), result.stderr());
     }
 
     @Test

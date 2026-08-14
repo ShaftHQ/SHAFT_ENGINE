@@ -127,6 +127,7 @@ sends you there; the rest by
 [routing](../../chaos-engine/profiles/shaft/references/routing.md).
 
 - [routing](../../chaos-engine/profiles/shaft/references/routing.md)
+- [ethical conduct](../../chaos-engine/references/ethical-conduct.md)
 - [delegation](../../chaos-engine/references/delegation.md)
 - [roles](../../chaos-engine/references/roles.md)
 - [heuristics](../../chaos-engine/references/heuristics.md)

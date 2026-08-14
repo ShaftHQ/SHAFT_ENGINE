@@ -12,10 +12,13 @@ import java.nio.file.StandardCopyOption;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.HexFormat;
+import java.time.Duration;
 
 /** Download cache that publishes an artifact only after its approved SHA-256 matches. */
 public final class VerifiedArtifactStore {
     static final long MAX_ARTIFACT_BYTES = 128L * 1024 * 1024;
+    private static final long MAX_ANDROID_SDK_BYTES = 256L * 1024 * 1024;
+    private static final long MAX_PLAYWRIGHT_BROWSER_BYTES = 512L * 1024 * 1024;
     private final Path downloads;
 
     public VerifiedArtifactStore(Path downloads) {
@@ -27,6 +30,17 @@ public final class VerifiedArtifactStore {
     }
 
     public Path fetch(SetupAction action, boolean offline) throws IOException {
+        return fetchInternal(action, offline, null);
+    }
+
+    Path fetch(SetupAction action, boolean offline, Duration timeout) throws IOException {
+        if (timeout == null || timeout.isZero() || timeout.isNegative()) {
+            throw new IllegalArgumentException("timeout must be positive.");
+        }
+        return fetchInternal(action, offline, timeout);
+    }
+
+    private Path fetchInternal(SetupAction action, boolean offline, Duration timeout) throws IOException {
         requireUnlinkedAncestors(downloads);
         String expected = action.checksum().substring("sha256:".length()).toLowerCase();
         String sourcePath = action.source().getPath();
@@ -43,9 +57,11 @@ public final class VerifiedArtifactStore {
         }
         Path temporary = Files.createTempFile(downloads, sourceName, ".part");
         Path quarantine = downloads.resolve(destination.getFileName() + ".quarantine");
-        try (InputStream input = open(action.source());
+        long deadline = timeout == null ? Long.MAX_VALUE
+                : Math.addExact(System.nanoTime(), timeout.toNanos());
+        try (InputStream input = open(action.source(), deadline);
              OutputStream output = Files.newOutputStream(temporary)) {
-            copyBounded(input, output, action.source());
+            copyBounded(input, output, action.source(), maximumArtifactBytes(action.target()), deadline);
             String actual = digest(temporary);
             if (!expected.equals(actual)) {
                 throw new IOException("SHA-256 mismatch for " + action.source() + ": expected " + expected
@@ -92,13 +108,26 @@ public final class VerifiedArtifactStore {
         void move(Path source, Path destination) throws IOException;
     }
 
-    private static void copyBounded(InputStream input, OutputStream output, URI source) throws IOException {
+    static long maximumArtifactBytes(SetupTarget target) {
+        return switch (target) {
+            case ANDROID_SDK -> MAX_ANDROID_SDK_BYTES;
+            case PLAYWRIGHT_CHROMIUM, PLAYWRIGHT_FIREFOX, PLAYWRIGHT_WEBKIT ->
+                    MAX_PLAYWRIGHT_BROWSER_BYTES;
+            default -> MAX_ARTIFACT_BYTES;
+        };
+    }
+
+    private static void copyBounded(InputStream input, OutputStream output, URI source, long maximum,
+                                    long deadline) throws IOException {
         byte[] buffer = new byte[64 * 1024];
         long total = 0;
         for (int read; (read = input.read(buffer)) >= 0;) {
+            if (deadline != Long.MAX_VALUE && System.nanoTime() >= deadline) {
+                throw new IOException("Artifact download exceeded its shared setup deadline: " + source);
+            }
             total += read;
-            if (total > MAX_ARTIFACT_BYTES) {
-                throw new IOException("Artifact exceeds the " + MAX_ARTIFACT_BYTES + " byte safety limit: " + source);
+            if (total > maximum) {
+                throw new IOException("Artifact exceeds the " + maximum + " byte safety limit: " + source);
             }
             output.write(buffer, 0, read);
         }
@@ -118,14 +147,14 @@ public final class VerifiedArtifactStore {
         }
     }
 
-    private static InputStream open(URI source) throws IOException {
+    private static InputStream open(URI source, long deadline) throws IOException {
         if ("file".equalsIgnoreCase(source.getScheme())) return Files.newInputStream(Path.of(source));
         if (!"https".equalsIgnoreCase(source.getScheme())) {
             throw new IOException("Only HTTPS and file setup artifacts are supported: " + source);
         }
         HttpURLConnection connection = (HttpURLConnection) source.toURL().openConnection();
-        connection.setConnectTimeout(30_000);
-        connection.setReadTimeout(120_000);
+        connection.setConnectTimeout(boundedTimeoutMillis(deadline, 30_000));
+        connection.setReadTimeout(boundedTimeoutMillis(deadline, 120_000));
         connection.setInstanceFollowRedirects(true);
         int status = connection.getResponseCode();
         if (status < 200 || status >= 300) {
@@ -133,6 +162,14 @@ public final class VerifiedArtifactStore {
             throw new IOException("Artifact download failed with HTTP " + status + ": " + source);
         }
         return connection.getInputStream();
+    }
+
+    private static int boundedTimeoutMillis(long deadline, int maximum) throws IOException {
+        if (deadline == Long.MAX_VALUE) return maximum;
+        long remainingNanos = deadline - System.nanoTime();
+        if (remainingNanos <= 0) throw new IOException("Artifact download exceeded its shared setup deadline.");
+        long remainingMillis = Math.max(1, java.util.concurrent.TimeUnit.NANOSECONDS.toMillis(remainingNanos));
+        return (int) Math.min(maximum, remainingMillis);
     }
 
     public static String digest(Path file) throws IOException {

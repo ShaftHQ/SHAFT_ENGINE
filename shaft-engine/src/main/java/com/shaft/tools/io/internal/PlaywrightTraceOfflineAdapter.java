@@ -9,6 +9,7 @@ import java.util.ArrayList;
 import java.util.Base64;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -59,13 +60,51 @@ final class PlaywrightTraceOfflineAdapter {
 
     static String snapshotDocument(PlaywrightTraceArchiveLoader.LoadedArchive archive, String snapshotName) {
         Model model = model(archive);
+        return snapshotDocument(model, snapshotName, MAX_RENDER_BYTES);
+    }
+
+    static Map<String, SnapshotDocument> snapshotDocuments(PlaywrightTraceArchiveLoader.LoadedArchive archive,
+                                                            List<String> snapshotNames, int maximumBytesPerSnapshot) {
+        Map<String, SnapshotDocument> documents = new LinkedHashMap<>();
+        Model model;
+        try {
+            model = model(archive);
+        } catch (IllegalArgumentException exception) {
+            String status = snapshotStatus(exception);
+            snapshotNames.forEach(snapshotName -> documents.put(snapshotName, new SnapshotDocument(status, "")));
+            return Map.copyOf(documents);
+        }
+        for (String snapshotName : snapshotNames) {
+            try {
+                documents.put(snapshotName, new SnapshotDocument("available",
+                        snapshotDocument(model, snapshotName, maximumBytesPerSnapshot)));
+            } catch (IllegalArgumentException exception) {
+                documents.put(snapshotName, new SnapshotDocument(snapshotStatus(exception), ""));
+            }
+        }
+        return Map.copyOf(documents);
+    }
+
+    private static String snapshotStatus(IllegalArgumentException exception) {
+        String message = exception.getMessage() == null ? "" : exception.getMessage();
+        return message.contains(" limit") || message.contains("exceeds")
+                ? "omitted-budget" : message.startsWith("Main-frame Playwright snapshot is unavailable")
+                ? "unavailable" : "malformed";
+    }
+
+    record SnapshotDocument(String status, String content) { }
+
+    private static String snapshotDocument(Model model, String snapshotName, int maximumBytes) {
+        if (maximumBytes <= 0 || maximumBytes > MAX_RENDER_BYTES) {
+            throw new IllegalArgumentException("Invalid Playwright snapshot render limit.");
+        }
         SnapshotContext selected = model.snapshots().stream()
                 .filter(context -> snapshotName.equals(context.snapshot().path("snapshotName").asText()))
                 .filter(context -> context.snapshot().path("isMainFrame").asBoolean(false))
                 .findFirst()
                 .orElseThrow(() -> new IllegalArgumentException(
                         "Main-frame Playwright snapshot is unavailable: " + snapshotName));
-        RenderBudget output = new RenderBudget();
+        RenderBudget output = new RenderBudget(maximumBytes);
         renderNode(selected.snapshot().path("html"), selected, selected, model, output, 0);
         String doctype = selected.snapshot().path("doctype").asText().replaceAll("[^a-zA-Z0-9]", "");
         return (doctype.isBlank() ? "" : "<!DOCTYPE " + doctype + ">") + output.value();
@@ -136,7 +175,7 @@ final class PlaywrightTraceOfflineAdapter {
                                    SnapshotContext resourceContext, Model model, RenderBudget output, int depth) {
         output.visit(depth);
         if (node.isString()) {
-            output.append(escapeText(node.asText()));
+            output.append(escapeText(FailureTraceReporter.redactSourceText(node.asText())));
             return;
         }
         if (!node.isArray() || node.isEmpty()) {
@@ -196,6 +235,9 @@ final class PlaywrightTraceOfflineAdapter {
                     continue;
                 }
                 String value = attribute.getValue().asText();
+                boolean passwordValue = "INPUT".equals(upper) && "value".equals(lower)
+                        && "password".equalsIgnoreCase(attributes.path("type").asText());
+                value = passwordValue ? "********" : FailureTraceReporter.redactSourceText(value);
                 if (URL_ATTRIBUTES.contains(lower)) {
                     if (lower.equals("href") || lower.equals("xlink:href") || lower.equals("action")
                             || lower.equals("formaction")) {
@@ -301,12 +343,12 @@ final class PlaywrightTraceOfflineAdapter {
             boolean hasImport = importMatcher.find(offset);
             boolean hasUrl = urlMatcher.find(offset);
             if (!hasImport && !hasUrl) {
-                rewritten.append(safe.substring(offset));
+                rewritten.append(FailureTraceReporter.redactSourceText(safe.substring(offset)));
                 break;
             }
             boolean useImport = hasImport && (!hasUrl || importMatcher.start() <= urlMatcher.start());
             Matcher match = useImport ? importMatcher : urlMatcher;
-            rewritten.append(safe.substring(offset, match.start()));
+            rewritten.append(FailureTraceReporter.redactSourceText(safe.substring(offset, match.start())));
             String importUrl = useImport ? firstNonBlank(match.group(2), match.group(3), match.group(5))
                     : match.group(2);
             String absolute = resolveUrl(baseUrl, importUrl);
@@ -314,7 +356,7 @@ final class PlaywrightTraceOfflineAdapter {
             if (useImport) {
                 if (resource != null && resource.mimeType().toLowerCase(Locale.ROOT).startsWith("text/css")
                         && imports.add(absolute)) {
-                    String condition = match.group(6).trim();
+                    String condition = FailureTraceReporter.redactSourceText(match.group(6).trim());
                     int conditionBlocks = openImportConditions(condition, rewritten);
                     rewriteCss(resource.text(rewritten.remainingBytes(), sources), absolute, model, context,
                             rewritten, sources, imports, depth + 1);
@@ -573,8 +615,17 @@ final class PlaywrightTraceOfflineAdapter {
     private static final class RenderBudget {
         private final StringBuilder value = new StringBuilder();
         private final CssSourceBudget cssSources = new CssSourceBudget();
+        private final int maximumBytes;
         private int bytes;
         private int nodes;
+
+        private RenderBudget() {
+            this(MAX_RENDER_BYTES);
+        }
+
+        private RenderBudget(int maximumBytes) {
+            this.maximumBytes = maximumBytes;
+        }
 
         void visit(int depth) {
             nodes++;
@@ -585,7 +636,7 @@ final class PlaywrightTraceOfflineAdapter {
 
         RenderBudget append(String text) {
             bytes = Math.addExact(bytes, text.getBytes(StandardCharsets.UTF_8).length);
-            if (bytes > MAX_RENDER_BYTES) {
+            if (bytes > maximumBytes) {
                 throw new IllegalArgumentException("Rendered Playwright snapshot exceeds the offline render limit.");
             }
             value.append(text);
@@ -597,7 +648,7 @@ final class PlaywrightTraceOfflineAdapter {
         }
 
         int remainingBytes() {
-            return MAX_RENDER_BYTES - bytes;
+            return maximumBytes - bytes;
         }
 
         CssSourceBudget cssSources() {

@@ -2,6 +2,7 @@ package testPackage.properties;
 
 import com.shaft.driver.SHAFT;
 import com.shaft.infrastructure.SetupApproval;
+import com.shaft.infrastructure.AndroidSetupRequest;
 import com.shaft.infrastructure.SetupMode;
 import com.shaft.infrastructure.SetupPlan;
 import com.shaft.infrastructure.SetupProfile;
@@ -148,4 +149,21 @@ public class InfrastructurePropertiesTests {
         Assert.assertEquals(SHAFT.Infrastructure.status(options, selection).profile(), SetupProfile.OCR);
         Assert.assertEquals(SHAFT.Infrastructure.verify(options, selection).profile(), SetupProfile.OCR);
     }
+
+    @Test
+    public void typedAndroidRequestIsAvailableThroughTheShaftFacade() throws Exception {
+        Path root = Files.createTempDirectory("shaft-infrastructure-android-").toAbsolutePath();
+        SHAFT.Properties.infrastructure.set().mode(SetupMode.MANAGED).profile(SetupProfile.MOBILE_ANDROID)
+                .cacheDirectory(root.toString());
+        var options = SHAFT.Infrastructure.options();
+        var request = new AndroidSetupRequest(36, "pixel_8", "google_apis", "host",
+                "facade_avd", 6144, 4, 4823);
+
+        SetupPlan plan = SHAFT.Infrastructure.plan(options, request);
+
+        Assert.assertEquals(AndroidSetupRequest.fromPlan(plan).avdName(), "facade_avd");
+        Assert.assertEquals(SHAFT.Infrastructure.status(options, request).profile(), SetupProfile.MOBILE_ANDROID);
+        Assert.assertEquals(SHAFT.Infrastructure.verify(options, request).profile(), SetupProfile.MOBILE_ANDROID);
+    }
+
 }

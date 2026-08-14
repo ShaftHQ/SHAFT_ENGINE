@@ -90,15 +90,16 @@ class SetupCatalogTest {
                 Set.of(SetupCapability.HOST_PREREQUISITE, SetupCapability.PREWARMABLE));
         expected.put(SetupTarget.XCODE,
                 Set.of(SetupCapability.HOST_PREREQUISITE, SetupCapability.PRIVILEGED));
-        put(expected, SetupCapability.PROVIDED, SetupTarget.FFMPEG, SetupTarget.OPENCV);
+        expected.put(SetupTarget.FFMPEG, Set.of(SetupCapability.INSTALLABLE, SetupCapability.PROVIDED));
+        put(expected, SetupCapability.PROVIDED, SetupTarget.OPENCV);
         return expected;
     }
 
     private static Map<SetupProfile, List<SetupTarget>> expectedProfiles() {
         Map<SetupProfile, List<SetupTarget>> expected = new EnumMap<>(SetupProfile.class);
         expected.put(SetupProfile.WEB_LOCAL, List.of(SetupTarget.SELENIUM_BROWSER));
-        expected.put(SetupProfile.PLAYWRIGHT, List.of(SetupTarget.PLAYWRIGHT_CHROMIUM,
-                SetupTarget.PLAYWRIGHT_FIREFOX, SetupTarget.PLAYWRIGHT_WEBKIT));
+        expected.put(SetupProfile.PLAYWRIGHT, List.of(SetupTarget.NODE, SetupTarget.PLAYWRIGHT_CHROMIUM,
+                SetupTarget.PLAYWRIGHT_FIREFOX, SetupTarget.PLAYWRIGHT_WEBKIT, SetupTarget.FFMPEG));
         expected.put(SetupProfile.LIGHTHOUSE, List.of(SetupTarget.NODE, SetupTarget.LIGHTHOUSE));
         expected.put(SetupProfile.MOBILE_ANDROID, List.of(SetupTarget.NODE, SetupTarget.APPIUM_SERVER,
                 SetupTarget.APPIUM_INSPECTOR_PLUGIN, SetupTarget.APPIUM_UIAUTOMATOR2_DRIVER,

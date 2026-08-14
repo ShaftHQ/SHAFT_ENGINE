@@ -8,8 +8,11 @@ import com.shaft.gui.browser.internal.BrowserNetworkInterceptor;
 import com.shaft.gui.capabilities.AutomationBackend;
 import com.shaft.gui.internal.locator.LocatorHealthReporter;
 import com.shaft.gui.playwright.internal.PlaywrightTraceManager;
+import com.shaft.gui.playwright.internal.PlaywrightSession;
+import com.shaft.gui.playwright.internal.PlaywrightSessionManager;
 import com.shaft.listeners.internal.TestExecutionInfo;
 import com.shaft.properties.internal.Properties;
+import com.shaft.tools.io.trace.TraceArtifactReference;
 import io.appium.java_client.android.AndroidDriver;
 import io.qameta.allure.Allure;
 import io.qameta.allure.model.Attachment;
@@ -23,6 +26,7 @@ import org.openqa.selenium.ScreenOrientation;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.WebDriverException;
 import org.openqa.selenium.WebElement;
+import org.openqa.selenium.chromium.HasCdp;
 import org.openqa.selenium.devtools.HasDevTools;
 import org.openqa.selenium.devtools.NetworkInterceptor;
 import org.openqa.selenium.remote.DesiredCapabilities;
@@ -35,6 +39,7 @@ import org.testng.Assert;
 import org.testng.annotations.Test;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.node.ObjectNode;
 
 import java.io.IOException;
 import java.lang.reflect.Method;
@@ -57,6 +62,32 @@ import java.util.zip.ZipEntry;
 @Test(singleThreaded = true)
 public class FailureTraceReporterTest {
     private static final ObjectMapper JSON = new ObjectMapper();
+
+    @Test(description = "The runtime Playwright engine should win over stale configured browser names")
+    public void attachedPlaywrightSessionShouldReportRuntimeBrowserType() throws Exception {
+        var session = Mockito.mock(PlaywrightSession.class);
+        var browser = Mockito.mock(com.microsoft.playwright.Browser.class);
+        var browserType = Mockito.mock(com.microsoft.playwright.BrowserType.class);
+        Mockito.when(session.browser()).thenReturn(browser);
+        Mockito.when(browser.browserType()).thenReturn(browserType);
+        Mockito.when(browserType.name()).thenReturn("firefox");
+        SHAFT.Properties.playwright.set().browserName("chromium");
+        SHAFT.Properties.reporting.set().traceEnabled(true);
+
+        try (MockedStatic<PlaywrightSessionManager> sessions = Mockito.mockStatic(PlaywrightSessionManager.class)) {
+            sessions.when(PlaywrightSessionManager::currentSession).thenReturn(session);
+            sessions.when(PlaywrightSessionManager::currentPage).thenReturn(null);
+
+            JsonNode root = JSON.readTree(FailureTraceReporter.renderTraceJson(
+                    info("attachedPlaywrightRuntimeBrowser", failure()), "log", List.of()));
+
+            Assert.assertEquals(root.path("environment").path("browser").asText(), "firefox");
+        } finally {
+            TraceEventRecorder.clear();
+            BrowserObservabilityRecorder.clear();
+            Properties.clearForCurrentThread();
+        }
+    }
 
     @Test(description = "Configured artifact MiB values should convert without integer overflow")
     public void configuredArtifactBudgetShouldUseLongArithmetic() {
@@ -252,6 +283,24 @@ public class FailureTraceReporterTest {
 
             Assert.assertTrue(json.contains("\"domSnapshotBefore\": \"<html><body>before</body></html>\""), json);
             Assert.assertTrue(json.contains("\"domSnapshotAfter\": \"<html><body>after</body></html>\""), json);
+            JsonNode session = JSON.readTree(json).path("session");
+            JsonNode before = findArtifact(session, "snapshot-action-1-before");
+            JsonNode after = findArtifact(session, "snapshot-action-1-after");
+            Assert.assertEquals(before.path("kind").asText(), "dom-snapshot", before.toPrettyString());
+            Assert.assertEquals(after.path("kind").asText(), "dom-snapshot", after.toPrettyString());
+            Assert.assertTrue(before.path("path").asText().matches("resources/[0-9a-f]{64}\\.html"),
+                    before.toPrettyString());
+            Assert.assertTrue(after.path("path").asText().matches("resources/[0-9a-f]{64}\\.html"),
+                    after.toPrettyString());
+            Assert.assertEquals(before.path("metadata").path("actionId").asText(), "action-1");
+            Assert.assertEquals(before.path("metadata").path("phase").asText(), "before");
+            Assert.assertEquals(before.path("metadata").path("provider").asText(), "webdriver");
+            Assert.assertEquals(before.path("metadata").path("fidelity").asText(), "structural");
+            Assert.assertEquals(before.path("metadata").path("status").asText(), "available");
+            Assert.assertEquals(after.path("metadata").path("actionId").asText(), "action-1");
+            Assert.assertEquals(after.path("metadata").path("phase").asText(), "after");
+            Assert.assertEquals(session.path("events").get(0).path("artifactIds"), JSON.readTree(
+                    "[\"snapshot-action-1-before\",\"snapshot-action-1-after\"]"));
         } finally {
             TraceEventRecorder.clear();
             Properties.clearForCurrentThread();
@@ -546,6 +595,13 @@ public class FailureTraceReporterTest {
             BrowserObservabilityRecorder.recordConsole("browser", "SEVERE",
                     "Uncaught token=raw-token", 123L);
             BrowserObservabilityRecorder.recordWarning("network", "Network capture is not supported by this driver.");
+            BrowserObservabilityRecorder.recordWebSocket(BrowserObservabilityRecorder.captureSession(),
+                    new BrowserObservabilityRecorder.WebSocketObservation("socket-1", "wss://example.test/socket",
+                            "received", "frame", 1, "hello", "", 5, "available", ""));
+            BrowserObservabilityRecorder.recordWebSocket(BrowserObservabilityRecorder.captureSession(),
+                    new BrowserObservabilityRecorder.WebSocketObservation("socket-1", "wss://example.test/socket",
+                            "sent", "frame", 2, "", "039058c6f2c0cb492c533b0a4d14ef77cc0f78abccced5287d84a1a2011cfb81",
+                            3, "malformed", "CDP WebSocket binary frame was malformed."));
 
             String json = FailureTraceReporter.renderTraceJson(info("failingScenario", failure()), "failed", List.of());
             var root = new tools.jackson.databind.ObjectMapper().readTree(json);
@@ -559,6 +615,27 @@ public class FailureTraceReporterTest {
             Assert.assertTrue(json.contains("\"level\": \"SEVERE\""), json);
             Assert.assertTrue(json.contains("\"browserObservability\""), json);
             Assert.assertTrue(json.contains("Network capture is not supported by this driver."), json);
+            Assert.assertEquals(root.path("evidence").path("browserObservability").path("webSockets")
+                    .get(0).path("provider").asText(), "cdp", json);
+            Assert.assertEquals(root.path("evidence").path("browserObservability").path("webSockets")
+                    .get(0).path("text").asText(), "hello", json);
+            var binary = root.path("evidence").path("browserObservability").path("webSockets").get(1);
+            Assert.assertEquals(binary.path("requestId").asText(), "socket-1", json);
+            Assert.assertEquals(binary.path("url").asText(), "wss://example.test/socket", json);
+            Assert.assertEquals(binary.path("direction").asText(), "sent", json);
+            Assert.assertEquals(binary.path("type").asText(), "frame", json);
+            Assert.assertEquals(binary.path("opcode").asInt(), 2, json);
+            Assert.assertEquals(binary.path("sha256").asText(),
+                    "039058c6f2c0cb492c533b0a4d14ef77cc0f78abccced5287d84a1a2011cfb81", json);
+            Assert.assertEquals(binary.path("sizeBytes").asLong(), 3L, json);
+            Assert.assertEquals(binary.path("status").asText(), "malformed", json);
+            Assert.assertEquals(binary.path("reason").asText(), "CDP WebSocket binary frame was malformed.", json);
+            Assert.assertTrue(binary.path("timestamp").asLong() > 0L, json);
+            BrowserObservabilityRecorder.recordWebSocket(BrowserObservabilityRecorder.captureSession(),
+                    new BrowserObservabilityRecorder.WebSocketObservation("socket", "", "", "frame", 2,
+                            "", "private-value".repeat(1_000), 0, "available", ""));
+            Assert.assertTrue(BrowserObservabilityRecorder.snapshotWebSockets(
+                    BrowserObservabilityRecorder.captureSession()).getFirst().sha256().isEmpty());
             Assert.assertFalse(json.contains("raw-token"), json);
             Assert.assertFalse(json.contains("raw-cookie"), json);
             Assert.assertFalse(json.contains("raw-password"), json);
@@ -943,6 +1020,749 @@ public class FailureTraceReporterTest {
         Assert.assertTrue(evidence.path("browserObservability").path("warnings").isArray(), root.toPrettyString());
     }
 
+    @Test(description = "Automatic terminal snapshots should avoid unbounded CDP MHTML and persist structural evidence")
+    public void terminalSnapshotShouldOmitUnboundedCdpMhtmlCapability() throws Exception {
+        boolean originalFullPage = SHAFT.Properties.reporting.traceIncludeFullPageSnapshots();
+        boolean originalNativeSource = SHAFT.Properties.reporting.traceIncludeNativePageSource();
+        int originalRetries = SHAFT.Properties.flags.retryMaximumNumberOfAttempts();
+        DriverFactoryHelper helper = new DriverFactoryHelper();
+        try {
+            SHAFT.Properties.reporting.set()
+                    .traceEnabled(true)
+                    .traceMode("auto")
+                    .traceIncludeFullPageSnapshots(true)
+                    .traceIncludeNativePageSource(true);
+            SHAFT.Properties.flags.set().retryMaximumNumberOfAttempts(1);
+            WebDriver augmentedRemote = Mockito.mock(WebDriver.class,
+                    Mockito.withSettings().extraInterfaces(HasCdp.class));
+            Mockito.when(((HasCdp) augmentedRemote)
+                            .executeCdpCommand(Mockito.eq("Page.captureSnapshot"), Mockito.anyMap()))
+                    .thenReturn(Map.of("data", "From: <Saved by Blink>\nresource-complete"));
+            Mockito.when(augmentedRemote.getPageSource()).thenReturn("<html>structural fallback</html>");
+            helper.setDriver(augmentedRemote);
+
+            JsonNode snapshot = JSON.readTree(FailureTraceReporter.renderTraceJson(
+                    info("failingScenario", failure()), "failed", List.of())).path("snapshot");
+
+            Assert.assertEquals(snapshot.path("provider").asText(), "webdriver", snapshot.toPrettyString());
+            Assert.assertEquals(snapshot.path("fidelity").asText(), "structural", snapshot.toPrettyString());
+            Assert.assertEquals(snapshot.path("status").asText(), "available", snapshot.toPrettyString());
+            Assert.assertEquals(snapshot.path("content").asText(),
+                    "<html>structural fallback</html>", snapshot.toPrettyString());
+            Assert.assertTrue(snapshot.path("reason").asText().contains("no enforceable response-size bound"),
+                    snapshot.toPrettyString());
+            Mockito.verify(augmentedRemote).getPageSource();
+            Mockito.verify((HasCdp) augmentedRemote, Mockito.never())
+                    .executeCdpCommand(Mockito.anyString(), Mockito.anyMap());
+        } finally {
+            helper.setDriver(null);
+            SHAFT.Properties.flags.set().retryMaximumNumberOfAttempts(originalRetries);
+            SHAFT.Properties.reporting.set()
+                    .traceIncludeFullPageSnapshots(originalFullPage)
+                    .traceIncludeNativePageSource(originalNativeSource);
+            TraceEventRecorder.clear();
+            Properties.clearForCurrentThread();
+        }
+    }
+
+    @Test(description = "Action DOM snapshot resources should be published with their exact phase bytes")
+    public void failureModeShouldPersistActionDomSnapshotResources() throws Exception {
+        TestExecutionInfo failingInfo = info("domResourceScenario", failure());
+        Path traceDirectory = FailureTraceReporter.traceDirectory(failingInfo);
+        try {
+            deleteDirectory(traceDirectory);
+            SHAFT.Properties.reporting.set().traceEnabled(true).traceMode("failure")
+                    .traceIncludeDomSnapshots(true);
+            RecordingJavascriptExecutorDriver driver = new RecordingJavascriptExecutorDriver(
+                    "<html><body>before resource</body></html>",
+                    "<html><body>after resource</body></html>");
+            TraceEventRecorder.Event event = TraceEventRecorder.start("element", "CLICK", By.id("pay"), driver);
+            TraceEventRecorder.finish(event, "failed", "Click failed", failure(), Map.of(), List.of());
+
+            FailureTraceReporter.attachOnFailure(failingInfo, "failed", List.of());
+
+            try (ZipFile zip = new ZipFile(traceDirectory.resolve("shaft-trace.zip").toFile())) {
+                JsonNode session = JSON.readTree(zip.getInputStream(zip.getEntry("shaft-trace.json")))
+                        .path("session");
+                String beforePath = findArtifact(session, "snapshot-action-1-before").path("path").asText();
+                String afterPath = findArtifact(session, "snapshot-action-1-after").path("path").asText();
+                Assert.assertEquals(new String(zip.getInputStream(zip.getEntry(beforePath)).readAllBytes(),
+                        StandardCharsets.UTF_8), "<html><body>before resource</body></html>");
+                Assert.assertEquals(new String(zip.getInputStream(zip.getEntry(afterPath)).readAllBytes(),
+                        StandardCharsets.UTF_8), "<html><body>after resource</body></html>");
+            }
+        } finally {
+            TraceEventRecorder.clear();
+            deleteDirectory(traceDirectory);
+            Properties.clearForCurrentThread();
+        }
+    }
+
+    @Test(description = "Action DOM snapshots should redact before their bounded cutoff")
+    public void actionDomSnapshotsShouldRedactBeforeTruncation() throws Exception {
+        String secret = "ACTION_BOUNDARY_SECRET";
+        try {
+            SHAFT.Properties.reporting.set().traceEnabled(true).traceMode("failure")
+                    .traceIncludeDomSnapshots(true);
+            FailureTraceReporter.registerSensitiveSourceValue(secret);
+            RecordingJavascriptExecutorDriver driver = new RecordingJavascriptExecutorDriver(
+                    "x".repeat(199_990) + secret + "tail", "<html>after</html>");
+            TraceEventRecorder.Event event = TraceEventRecorder.start("element", "CLICK", By.id("pay"), driver);
+            TraceEventRecorder.finish(event, "failed", "Click failed", failure(), Map.of(), List.of());
+
+            JsonNode action = JSON.readTree(FailureTraceReporter.renderTraceJson(
+                    info("failingScenario", failure()), "failed", List.of()))
+                    .path("evidence").path("actions").get(0);
+
+            Assert.assertFalse(action.path("domSnapshotBefore").asText().contains(secret), action.toPrettyString());
+            Assert.assertFalse(action.path("domSnapshotBefore").asText().endsWith("ACTION_BOU"),
+                    action.toPrettyString());
+        } finally {
+            TraceEventRecorder.clear();
+            FailureTraceReporter.clearSensitiveValues();
+            Properties.clearForCurrentThread();
+        }
+    }
+
+    @Test(description = "Report-time sensitive values should resanitize earlier action DOM snapshots")
+    public void actionDomSnapshotsShouldResanitizeAtReportTime() throws Exception {
+        TestExecutionInfo failingInfo = info("lateSensitiveDomScenario", failure());
+        Path traceDirectory = FailureTraceReporter.traceDirectory(failingInfo);
+        String secret = "LATE_REGISTERED_ACTION_SECRET";
+        try {
+            deleteDirectory(traceDirectory);
+            SHAFT.Properties.reporting.set().traceEnabled(true).traceMode("failure")
+                    .traceIncludeDomSnapshots(true);
+            RecordingJavascriptExecutorDriver driver = new RecordingJavascriptExecutorDriver(
+                    "<html>" + secret + " before</html>", "<html>" + secret + " after</html>");
+            TraceEventRecorder.Event event = TraceEventRecorder.start("element", "CLICK", By.id("pay"), driver);
+            FailureTraceReporter.registerSensitiveSourceValue(secret);
+            TraceEventRecorder.finish(event, "failed", "Click failed", failure(), Map.of(), List.of());
+
+            FailureTraceReporter.attachOnFailure(failingInfo, "failed", List.of());
+
+            try (ZipFile zip = new ZipFile(traceDirectory.resolve("shaft-trace.zip").toFile())) {
+                String json = readZipEntry(zip, "shaft-trace.json");
+                Assert.assertFalse(json.contains(secret), json);
+                JsonNode root = JSON.readTree(json);
+                Assert.assertTrue(root.path("evidence").path("actions").get(0)
+                        .path("domSnapshotBefore").asText().contains("********"), json);
+                JsonNode session = root.path("session");
+                int availableDomArtifacts = 0;
+                for (JsonNode artifact : session.path("artifacts")) {
+                    if (!"dom-snapshot".equals(artifact.path("kind").asText()) || artifact.path("omitted").asBoolean()) {
+                        continue;
+                    }
+                    availableDomArtifacts++;
+                    Assert.assertTrue(artifact.path("id").asText().equals("snapshot-action-1-before")
+                            || artifact.path("id").asText().equals("snapshot-action-1-after"), artifact.toPrettyString());
+                    String content = readZipEntry(zip, artifact.path("path").asText());
+                    Assert.assertFalse(content.contains(secret), content);
+                    Assert.assertTrue(content.contains("********"), content);
+                }
+                Assert.assertEquals(availableDomArtifacts, 2);
+            }
+        } finally {
+            TraceEventRecorder.clear();
+            FailureTraceReporter.clearSensitiveValues();
+            deleteDirectory(traceDirectory);
+            Properties.clearForCurrentThread();
+        }
+    }
+
+    @Test(description = "Minimum-budget archive should compact action evidence consistently")
+    public void actionOverflowShouldStillPublishWithinMinimumBudget() throws Exception {
+        Path archive = Files.createTempFile("shaft-action-budget-", ".zip");
+        ObjectNode root = JSON.createObjectNode();
+        root.put("schemaVersion", "3.0");
+        ObjectNode session = root.putObject("session");
+        session.put("schemaVersion", "2.0");
+        session.put("id", "session-budget");
+        var events = session.putArray("events");
+        var artifacts = session.putArray("artifacts");
+        ObjectNode evidence = root.putObject("evidence");
+        var actions = evidence.putArray("actions");
+        evidence.putArray("network");
+        evidence.putArray("console");
+        evidence.putObject("browserObservability");
+        evidence.putObject("playwright");
+        root.putObject("snapshot").put("content", "");
+        int totalActions = 12_000;
+        for (int index = 0; index < totalActions; index++) {
+            ObjectNode action = actions.addObject();
+            action.put("id", "action-" + index);
+            action.put("name", index == totalActions - 1 ? "omitted-actions" : "click-" + index);
+            action.put("message", "x".repeat(128));
+            ObjectNode event = events.addObject();
+            event.put("id", "session/action-" + index);
+            event.put("name", index == totalActions - 1 ? "omitted-actions" : "click-" + index);
+            event.put("message", "x".repeat(128));
+            event.putArray("artifactIds").add("snapshot-action-" + index + "-before");
+            ObjectNode artifact = artifacts.addObject();
+            artifact.put("id", "snapshot-action-" + index + "-before");
+            artifact.put("kind", "dom-snapshot");
+            artifact.put("path", "resources/" + String.format("%064x", index) + ".html");
+            artifact.put("mimeType", "text/html");
+            artifact.put("omitted", true);
+            artifact.putObject("metadata").put("actionId", "action-" + index)
+                    .put("reason", "x".repeat(64));
+        }
+        try {
+            List<String> plannedOmissions = new ArrayList<>();
+            for (int index = 0; index < totalActions; index++) {
+                plannedOmissions.add("resources/" + String.format("%064x", index) + ".html");
+            }
+            String prunedOmission = plannedOmissions.getLast();
+            FailureTraceReporter.TraceArchiveBundle bundle = FailureTraceReporter.convergeTraceArchive(
+                    archive, JSON.writeValueAsString(root), "[]", Map.of(), null,
+                    1024L * 1024L, 4L * 1024L * 1024L, "omitted", plannedOmissions);
+            JsonNode compacted = JSON.readTree(bundle.json());
+            JsonNode compactActions = compacted.path("evidence").path("actions");
+            JsonNode compactEvents = compacted.path("session").path("events");
+            JsonNode compactArtifacts = compacted.path("session").path("artifacts");
+            Assert.assertTrue(compactActions.size() < totalActions, String.valueOf(compactActions.size()));
+            Assert.assertEquals(compactActions.get(compactActions.size() - 1).path("name").asText(),
+                    "omitted-actions");
+            int retainedRealActions = compactActions.size() - 1;
+            Assert.assertEquals(compactActions.get(compactActions.size() - 1)
+                    .path("metadata").path("omittedCount").asInt(), totalActions - retainedRealActions);
+            Assert.assertEquals(compactEvents.get(compactEvents.size() - 1).path("name").asText(),
+                    "omitted-actions");
+            JsonNode eventMarker = compactEvents.get(compactEvents.size() - 1);
+            Assert.assertEquals(eventMarker.path("id").asText(), "session-budget/action-budget");
+            Assert.assertFalse(eventMarker.path("startedAt").asText().isBlank(), eventMarker.toPrettyString());
+            Instant.parse(eventMarker.path("startedAt").asText());
+            Assert.assertEquals(eventMarker.path("durationMs").asLong(-1), 0L);
+            Assert.assertTrue(eventMarker.has("source"), eventMarker.toPrettyString());
+            Assert.assertTrue(eventMarker.has("target"), eventMarker.toPrettyString());
+            Assert.assertTrue(compactArtifacts.size() <= compactEvents.size() - 1,
+                    compactArtifacts.toPrettyString());
+            Assert.assertFalse(bundle.omitted().contains(prunedOmission), bundle.omitted().toString());
+            try (ZipFile zip = new ZipFile(archive.toFile())) {
+                Assert.assertTrue(zip.getEntry("shaft-trace.json").getSize() <= 1024L * 1024L);
+                Assert.assertTrue(zip.getEntry("SHAFT Trace Report.html").getSize() <= 1024L * 1024L);
+            }
+        } finally {
+            Files.deleteIfExists(archive);
+        }
+    }
+
+    @Test(description = "Report-time resanitization should preserve truncated action snapshot metadata")
+    public void actionDomResanitizationShouldPreserveTruncatedMetadata() throws Exception {
+        try {
+            SHAFT.Properties.reporting.set().traceEnabled(true).traceMode("failure")
+                    .traceIncludeDomSnapshots(true);
+            RecordingJavascriptExecutorDriver driver = new RecordingJavascriptExecutorDriver(
+                    "x".repeat(201_100), "<html>after</html>");
+            TraceEventRecorder.Event event = TraceEventRecorder.start("element", "CLICK", By.id("pay"), driver);
+            TraceEventRecorder.finish(event, "failed", "Click failed", failure(), Map.of(), List.of());
+
+            JsonNode artifacts = JSON.readTree(FailureTraceReporter.renderTraceJson(
+                    info("truncatedActionDom", failure()), "failed", List.of()))
+                    .path("session").path("artifacts");
+            JsonNode before = findArtifact(JSON.createObjectNode().set("artifacts", artifacts),
+                    "snapshot-action-1-before");
+            Assert.assertEquals(before.path("metadata").path("status").asText(), "truncated",
+                    before.toPrettyString());
+            Assert.assertTrue(before.path("metadata").path("truncated").asBoolean(), before.toPrettyString());
+            Assert.assertFalse(before.path("metadata").path("reason").asText().isBlank(), before.toPrettyString());
+        } finally {
+            TraceEventRecorder.clear();
+            Properties.clearForCurrentThread();
+        }
+    }
+
+    @Test(description = "Action DOM capture should enforce one cumulative per-report byte budget")
+    public void actionDomSnapshotsShouldRespectCumulativeBudget() throws Exception {
+        int originalMax = SHAFT.Properties.reporting.traceMaxArtifactMb();
+        try {
+            SHAFT.Properties.reporting.set().traceEnabled(true).traceMode("failure")
+                    .traceIncludeDomSnapshots(true).traceMaxArtifactMb(1);
+            RecordingJavascriptExecutorDriver driver = new RecordingJavascriptExecutorDriver(
+                    "1" + "x".repeat(199_999), "2" + "x".repeat(199_999),
+                    "3" + "x".repeat(199_999), "4" + "x".repeat(199_999),
+                    "5" + "x".repeat(199_999), "6" + "x".repeat(199_999));
+            for (int index = 0; index < 3; index++) {
+                TraceEventRecorder.Event event = TraceEventRecorder.start(
+                        "element", "CLICK", By.id("pay-" + index), driver);
+                TraceEventRecorder.finish(event, "failed", "Click failed", failure(), Map.of(), List.of());
+            }
+
+            JsonNode artifacts = JSON.readTree(FailureTraceReporter.renderTraceJson(
+                    info("failingScenario", failure()), "failed", List.of()))
+                    .path("session").path("artifacts");
+            long retainedBytes = 0;
+            int omitted = 0;
+            for (JsonNode artifact : artifacts) {
+                if (!"dom-snapshot".equals(artifact.path("kind").asText())) {
+                    continue;
+                }
+                if ("omitted-budget".equals(artifact.path("metadata").path("status").asText())) {
+                    omitted++;
+                } else {
+                    retainedBytes += artifact.path("metadata").path("sizeBytes").asLong();
+                }
+            }
+            Assert.assertTrue(omitted > 0, artifacts.toPrettyString());
+            Assert.assertTrue(retainedBytes <= 1024L * 1024L, artifacts.toPrettyString());
+        } finally {
+            SHAFT.Properties.reporting.set().traceMaxArtifactMb(originalMax);
+            TraceEventRecorder.clear();
+            Properties.clearForCurrentThread();
+        }
+    }
+
+    @Test(description = "Action recording should stay bounded and report omitted actions")
+    public void actionRecorderShouldBoundAndReportOverflow() throws Exception {
+        try {
+            SHAFT.Properties.reporting.set().traceEnabled(true).traceMode("failure")
+                    .traceIncludeDomSnapshots(false);
+            for (int index = 0; index <= 10_000; index++) {
+                TraceEventRecorder.Event event = TraceEventRecorder.startForBackend(
+                        "element", "click-" + index, "button", AutomationBackend.MICROSOFT_PLAYWRIGHT);
+                TraceEventRecorder.finish(event, "passed", "clicked", null, Map.of(), List.of());
+            }
+
+            String json = FailureTraceReporter.renderTraceJson(
+                    info("failingScenario", failure()), "failed", List.of());
+            JsonNode actions = JSON.readTree(json).path("evidence").path("actions");
+
+            Assert.assertEquals(actions.size(), 10_000, actions.size());
+            Assert.assertEquals(actions.get(0).path("name").asText(), "click-0");
+            Assert.assertEquals(actions.get(actions.size() - 2).path("name").asText(), "click-9998");
+            Assert.assertEquals(actions.get(actions.size() - 1).path("name").asText(), "omitted-actions");
+            Assert.assertTrue(actions.get(actions.size() - 1).path("message").asText().contains("limit"));
+            Assert.assertEquals(actions.get(actions.size() - 1).path("metadata").path("omitted").asText(),
+                    "newest-tail");
+            Assert.assertEquals(actions.get(actions.size() - 1).path("metadata").path("omittedCount").asInt(), 2);
+
+            Path archive = Files.createTempFile("shaft-action-limit-budget-", ".zip");
+            try {
+                FailureTraceReporter.TraceArchiveBundle bundle = FailureTraceReporter.convergeTraceArchive(
+                        archive, json, "[]", Map.of(), null, 1024L * 1024L, 4L * 1024L * 1024L,
+                        "omitted", List.of());
+                JsonNode compacted = JSON.readTree(bundle.json());
+                JsonNode compactActions = compacted.path("evidence").path("actions");
+                JsonNode marker = compactActions.get(compactActions.size() - 1);
+                int retainedRealActions = compactActions.size() - 1;
+                Assert.assertEquals(marker.path("name").asText(), "omitted-actions");
+                Assert.assertEquals(marker.path("metadata").path("omittedCount").asInt(),
+                        10_001 - retainedRealActions, marker.toPrettyString());
+            } finally {
+                Files.deleteIfExists(archive);
+            }
+        } finally {
+            TraceEventRecorder.clear();
+            Properties.clearForCurrentThread();
+        }
+    }
+
+    @Test(description = "Required entry convergence should move large inline DOM evidence to resources")
+    public void expandedInlineActionDomShouldConvergeToResourceOnly() throws Exception {
+        Path archive = Files.createTempFile("shaft-inline-dom-budget-", ".zip");
+        String json = """
+                {"schemaVersion":"3.0","session":{"schemaVersion":"2.0","events":[],"artifacts":[]},
+                "snapshot":{"content":""},"evidence":{"actions":[{"id":"action-1",
+                "domSnapshotBefore":"%s","domSnapshotAfter":"<html>after</html>"}],
+                "network":[],"console":[],"browserObservability":{},"playwright":{}}}
+                """.formatted("&".repeat(220_000));
+        String html = "&".repeat(220_000);
+        byte[] bytes = html.getBytes(StandardCharsets.UTF_8);
+        SeleniumTraceCapture.Result result = new SeleniumTraceCapture.Result(
+                "webdriver", "structural", "available", "", "action-dom-snapshot", html, false);
+        try (TraceArtifactManifest manifest = TraceArtifactManifest.create("[]", Map.of(), List.of(
+                new TraceArtifactManifest.SnapshotResource(
+                        "snapshot-action-1-before", "action-1", "before", result, bytes)),
+                null, 1024L * 1024L, "omitted")) {
+            FailureTraceReporter.TraceArchiveBundle bundle = FailureTraceReporter.convergeTraceArchive(
+                    archive, json, "[]", Map.of(), manifest,
+                    1024L * 1024L, 4L * 1024L * 1024L, "omitted", List.of());
+            JsonNode action = JSON.readTree(bundle.json()).path("evidence").path("actions").get(0);
+            Assert.assertTrue(action.path("domSnapshotBefore").asText().isEmpty(), action.toPrettyString());
+            Assert.assertTrue(action.path("domSnapshotAfter").asText().isEmpty(), action.toPrettyString());
+            Assert.assertEquals(action.path("domSnapshotInlineStatus").asText(), "resource-only");
+            try (ZipFile zip = new ZipFile(archive.toFile())) {
+                Assert.assertTrue(zip.getEntry("shaft-trace.json").getSize() <= 1024L * 1024L);
+                Assert.assertTrue(zip.getEntry("SHAFT Trace Report.html").getSize() <= 1024L * 1024L);
+            }
+        } finally {
+            Files.deleteIfExists(archive);
+        }
+    }
+
+    @Test(description = "Shared omitted DOM paths should retain each reference's action and phase ownership")
+    public void sharedDomOmissionShouldPreserveReferenceOwnership() {
+        String path = "resources/" + "a".repeat(64) + ".html";
+        List<TraceArtifactReference> references = List.of(
+                new TraceArtifactReference("snapshot-action-1-before", "dom-snapshot", path, "text/html", true,
+                        Map.of("actionId", "action-1", "phase", "before", "omissionReason", "aggregate")),
+                new TraceArtifactReference("snapshot-action-1-after", "dom-snapshot", path, "text/html", true,
+                        Map.of("actionId", "action-1", "phase", "after", "omissionReason", "aggregate")));
+        String json = """
+                {"session":{"artifacts":[
+                {"id":"snapshot-action-1-before","path":"%s","omitted":false,"metadata":{}},
+                {"id":"snapshot-action-1-after","path":"%s","omitted":false,"metadata":{}}]}}
+                """.formatted(path, path);
+
+        JsonNode artifacts = JSON.readTree(FailureTraceReporter.reconcileArtifactOmissions(json, references))
+                .path("session").path("artifacts");
+
+        Assert.assertEquals(artifacts.get(0).path("metadata").path("phase").asText(), "before");
+        Assert.assertEquals(artifacts.get(1).path("metadata").path("phase").asText(), "after");
+        Assert.assertEquals(artifacts.get(0).path("metadata").path("actionId").asText(), "action-1");
+        Assert.assertTrue(artifacts.get(0).path("omitted").asBoolean());
+        Assert.assertTrue(artifacts.get(1).path("omitted").asBoolean());
+    }
+
+    @Test(description = "Aggregate DOM omission should replace a stale resource-only inline status")
+    public void aggregateDomOmissionShouldRefreshInlineStatus() {
+        String path = "resources/" + "b".repeat(64) + ".html";
+        List<TraceArtifactReference> references = List.of(new TraceArtifactReference(
+                "snapshot-action-1-before", "dom-snapshot", path, "text/html", true,
+                Map.of("actionId", "action-1", "phase", "before", "omissionReason", "aggregate")));
+        String json = """
+                {"session":{"artifacts":[{"id":"snapshot-action-1-before","path":"%s",
+                "omitted":false,"metadata":{}}]},"evidence":{"actions":[{"id":"action-1",
+                "domSnapshotBefore":"","domSnapshotAfter":"","domSnapshotInlineStatus":"resource-only"}]}}
+                """.formatted(path);
+
+        JsonNode action = JSON.readTree(FailureTraceReporter.reconcileArtifactOmissions(json, references))
+                .path("evidence").path("actions").get(0);
+
+        Assert.assertEquals(action.path("domSnapshotInlineStatus").asText(), "omitted-budget",
+                action.toPrettyString());
+        Assert.assertTrue(action.path("domSnapshotInlineReason").asText().contains("resource"),
+                action.toPrettyString());
+    }
+
+    @Test(description = "Sensitive suppression should discard captured action DOM sidecar resources")
+    public void sensitiveTraceShouldSuppressActionDomResources() throws Exception {
+        TestExecutionInfo failingInfo = info("sensitiveDomResourceScenario", failure());
+        Path traceDirectory = FailureTraceReporter.traceDirectory(failingInfo);
+        String secret = "PRIVATE_ACTION_DOM_SECRET";
+        try {
+            deleteDirectory(traceDirectory);
+            SHAFT.Properties.reporting.set().traceEnabled(true).traceMode("failure")
+                    .traceIncludeDomSnapshots(true);
+            RecordingJavascriptExecutorDriver driver = new RecordingJavascriptExecutorDriver(
+                    "<html>" + secret + " before</html>", "<html>" + secret + " after</html>");
+            TraceEventRecorder.Event event = TraceEventRecorder.start("element", "CLICK", By.id("pay"), driver);
+            TraceEventRecorder.finish(event, "failed", "Click failed", failure(), Map.of(), List.of());
+            FailureTraceReporter.suppressSensitiveBrowserArtifacts();
+
+            FailureTraceReporter.attachOnFailure(failingInfo, "failed", List.of());
+
+            try (ZipFile zip = new ZipFile(traceDirectory.resolve("shaft-trace.zip").toFile())) {
+                String json = readZipEntry(zip, "shaft-trace.json");
+                JsonNode artifacts = JSON.readTree(json).path("session").path("artifacts");
+                Assert.assertFalse(json.contains(secret), json);
+                for (JsonNode artifact : artifacts) {
+                    Assert.assertNotEquals(artifact.path("kind").asText(), "dom-snapshot",
+                            artifacts.toPrettyString());
+                }
+                Assert.assertEquals(zip.stream().filter(entry -> entry.getName().startsWith("resources/")
+                        && entry.getName().endsWith(".html")).count(), 0L);
+            }
+        } finally {
+            TraceEventRecorder.clear();
+            FailureTraceReporter.clearSensitiveValues();
+            deleteDirectory(traceDirectory);
+            Properties.clearForCurrentThread();
+        }
+    }
+
+    @Test(description = "Terminal Selenium snapshots should report structural fallback after bounded CDP failure")
+    public void terminalSnapshotShouldReportBoundedStructuralFallback() throws Exception {
+        boolean originalFullPage = SHAFT.Properties.reporting.traceIncludeFullPageSnapshots();
+        boolean originalNativeSource = SHAFT.Properties.reporting.traceIncludeNativePageSource();
+        DriverFactoryHelper helper = new DriverFactoryHelper();
+        try {
+            SHAFT.Properties.reporting.set()
+                    .traceEnabled(true)
+                    .traceMode("failure")
+                    .traceIncludeFullPageSnapshots(true)
+                    .traceIncludeNativePageSource(true);
+            WebDriver augmentedRemote = Mockito.mock(WebDriver.class,
+                    Mockito.withSettings().extraInterfaces(HasCdp.class));
+            Mockito.when(augmentedRemote.getPageSource()).thenReturn("<html>structural fallback</html>");
+            helper.setDriver(augmentedRemote);
+
+            JsonNode snapshot = JSON.readTree(FailureTraceReporter.renderTraceJson(
+                    info("failingScenario", failure()), "failed", List.of())).path("snapshot");
+
+            Assert.assertEquals(snapshot.path("provider").asText(), "webdriver", snapshot.toPrettyString());
+            Assert.assertEquals(snapshot.path("fidelity").asText(), "structural", snapshot.toPrettyString());
+            Assert.assertEquals(snapshot.path("status").asText(), "available", snapshot.toPrettyString());
+            Assert.assertEquals(snapshot.path("content").asText(),
+                    "<html>structural fallback</html>", snapshot.toPrettyString());
+            Mockito.verify((HasCdp) augmentedRemote, Mockito.never())
+                    .executeCdpCommand(Mockito.anyString(), Mockito.anyMap());
+            Mockito.verify(augmentedRemote).getPageSource();
+        } finally {
+            helper.setDriver(null);
+            SHAFT.Properties.reporting.set()
+                    .traceIncludeFullPageSnapshots(originalFullPage)
+                    .traceIncludeNativePageSource(originalNativeSource);
+            TraceEventRecorder.clear();
+            Properties.clearForCurrentThread();
+        }
+    }
+
+    @Test(description = "Disabling full-page snapshots should prevent CDP MHTML while retaining structural source")
+    public void terminalSnapshotShouldHonorIndependentFullPageGate() throws Exception {
+        boolean originalFullPage = SHAFT.Properties.reporting.traceIncludeFullPageSnapshots();
+        boolean originalNativeSource = SHAFT.Properties.reporting.traceIncludeNativePageSource();
+        DriverFactoryHelper helper = new DriverFactoryHelper();
+        try {
+            SHAFT.Properties.reporting.set().traceEnabled(true).traceMode("failure")
+                    .traceIncludeFullPageSnapshots(false).traceIncludeNativePageSource(true);
+            WebDriver augmentedRemote = Mockito.mock(WebDriver.class,
+                    Mockito.withSettings().extraInterfaces(HasCdp.class));
+            Mockito.when(augmentedRemote.getPageSource()).thenReturn("<html>structural only</html>");
+            helper.setDriver(augmentedRemote);
+
+            JsonNode snapshot = JSON.readTree(FailureTraceReporter.renderTraceJson(
+                    info("failingScenario", failure()), "failed", List.of())).path("snapshot");
+
+            Assert.assertEquals(snapshot.path("provider").asText(), "webdriver", snapshot.toPrettyString());
+            Assert.assertEquals(snapshot.path("type").asText(), "webdriver-page-source", snapshot.toPrettyString());
+            Assert.assertEquals(snapshot.path("content").asText(), "<html>structural only</html>");
+            Mockito.verify((HasCdp) augmentedRemote, Mockito.never())
+                    .executeCdpCommand(Mockito.eq("Page.captureSnapshot"), Mockito.anyMap());
+            Mockito.verify(augmentedRemote).getPageSource();
+        } finally {
+            helper.setDriver(null);
+            SHAFT.Properties.reporting.set().traceIncludeFullPageSnapshots(originalFullPage)
+                    .traceIncludeNativePageSource(originalNativeSource);
+            TraceEventRecorder.clear();
+            Properties.clearForCurrentThread();
+        }
+    }
+
+    @Test(description = "Resource-complete capture should degrade before CDP when the browser estimate exceeds the cap")
+    public void terminalSnapshotShouldPreflightResourceCompleteProviderWork() throws Exception {
+        boolean originalFullPage = SHAFT.Properties.reporting.traceIncludeFullPageSnapshots();
+        DriverFactoryHelper helper = new DriverFactoryHelper();
+        try {
+            SHAFT.Properties.reporting.set().traceEnabled(true).traceMode("failure")
+                    .traceIncludeFullPageSnapshots(true);
+            WebDriver augmentedRemote = Mockito.mock(WebDriver.class,
+                    Mockito.withSettings().extraInterfaces(HasCdp.class));
+            Mockito.when(augmentedRemote.getPageSource()).thenReturn("<html>bounded structural fallback</html>");
+            helper.setDriver(augmentedRemote);
+
+            JsonNode snapshot = JSON.readTree(FailureTraceReporter.renderTraceJson(
+                    info("failingScenario", failure()), "failed", List.of())).path("snapshot");
+
+            Assert.assertEquals(snapshot.path("provider").asText(), "webdriver", snapshot.toPrettyString());
+            Assert.assertEquals(snapshot.path("fidelity").asText(), "structural", snapshot.toPrettyString());
+            Mockito.verify((HasCdp) augmentedRemote, Mockito.never())
+                    .executeCdpCommand(Mockito.anyString(), Mockito.anyMap());
+            Mockito.verify(augmentedRemote).getPageSource();
+        } finally {
+            helper.setDriver(null);
+            SHAFT.Properties.reporting.set().traceIncludeFullPageSnapshots(originalFullPage);
+            TraceEventRecorder.clear();
+            Properties.clearForCurrentThread();
+        }
+    }
+
+    @Test(description = "Bounded terminal snapshots should redact before truncation and report partial fidelity")
+    public void terminalSnapshotShouldRedactBeforeHonestTruncation() throws Exception {
+        boolean originalFullPage = SHAFT.Properties.reporting.traceIncludeFullPageSnapshots();
+        boolean originalNativeSource = SHAFT.Properties.reporting.traceIncludeNativePageSource();
+        DriverFactoryHelper helper = new DriverFactoryHelper();
+        String secret = "BOUNDARY_SECRET_VALUE";
+        try {
+            SHAFT.Properties.reporting.set()
+                    .traceEnabled(true)
+                    .traceMode("failure")
+                    .traceIncludeFullPageSnapshots(true)
+                    .traceIncludeNativePageSource(true);
+            FailureTraceReporter.registerSensitiveSourceValue(secret);
+            WebDriver augmentedRemote = Mockito.mock(WebDriver.class,
+                    Mockito.withSettings().extraInterfaces(HasCdp.class));
+            String mhtml = "x".repeat(199_990) + secret + "tail";
+            Mockito.when(augmentedRemote.getPageSource()).thenReturn(mhtml);
+            helper.setDriver(augmentedRemote);
+
+            JsonNode snapshot = JSON.readTree(FailureTraceReporter.renderTraceJson(
+                    info("failingScenario", failure()), "failed", List.of())).path("snapshot");
+
+            Assert.assertEquals(snapshot.path("provider").asText(), "webdriver", snapshot.toPrettyString());
+            Assert.assertEquals(snapshot.path("fidelity").asText(), "partial", snapshot.toPrettyString());
+            Assert.assertEquals(snapshot.path("status").asText(), "truncated", snapshot.toPrettyString());
+            Assert.assertTrue(snapshot.path("truncated").asBoolean(), snapshot.toPrettyString());
+            Assert.assertFalse(snapshot.path("content").asText().contains(secret), snapshot.toPrettyString());
+            Assert.assertFalse(snapshot.path("content").asText().endsWith("BOUNDARY_S"), snapshot.toPrettyString());
+            Assert.assertFalse(snapshot.path("content").asText().contains("ECRET_VALUE"), snapshot.toPrettyString());
+        } finally {
+            helper.setDriver(null);
+            SHAFT.Properties.reporting.set()
+                    .traceIncludeFullPageSnapshots(originalFullPage)
+                    .traceIncludeNativePageSource(originalNativeSource);
+            TraceEventRecorder.clear();
+            FailureTraceReporter.clearSensitiveValues();
+            Properties.clearForCurrentThread();
+        }
+    }
+
+    @Test(description = "A truncated snapshot should fail closed for an unterminated sensitive field")
+    public void terminalSnapshotShouldOmitUnterminatedSensitiveBoundary() throws Exception {
+        boolean originalFullPage = SHAFT.Properties.reporting.traceIncludeFullPageSnapshots();
+        DriverFactoryHelper helper = new DriverFactoryHelper();
+        try {
+            SHAFT.Properties.reporting.set().traceEnabled(true).traceMode("failure")
+                    .traceIncludeFullPageSnapshots(true);
+            WebDriver augmentedRemote = Mockito.mock(WebDriver.class,
+                    Mockito.withSettings().extraInterfaces(HasCdp.class));
+            String mhtml = "x".repeat(199_990) + "\"password\":\"" + "s".repeat(5_000) + "\"";
+            Mockito.when(augmentedRemote.getPageSource()).thenReturn(mhtml);
+            helper.setDriver(augmentedRemote);
+
+            JsonNode snapshot = JSON.readTree(FailureTraceReporter.renderTraceJson(
+                    info("failingScenario", failure()), "failed", List.of())).path("snapshot");
+
+            Assert.assertEquals(snapshot.path("status").asText(), "omitted-sensitive-boundary",
+                    snapshot.toPrettyString());
+            Assert.assertTrue(snapshot.path("content").asText().isEmpty(), snapshot.toPrettyString());
+        } finally {
+            helper.setDriver(null);
+            SHAFT.Properties.reporting.set().traceIncludeFullPageSnapshots(originalFullPage);
+            TraceEventRecorder.clear();
+            FailureTraceReporter.clearSensitiveValues();
+            Properties.clearForCurrentThread();
+        }
+    }
+
+    @Test(description = "Escaped quotes must not terminate a sensitive field at the snapshot boundary")
+    public void terminalSnapshotShouldOmitEscapedSensitiveBoundary() throws Exception {
+        boolean originalFullPage = SHAFT.Properties.reporting.traceIncludeFullPageSnapshots();
+        DriverFactoryHelper helper = new DriverFactoryHelper();
+        try {
+            SHAFT.Properties.reporting.set().traceEnabled(true).traceMode("failure")
+                    .traceIncludeFullPageSnapshots(true);
+            WebDriver driver = Mockito.mock(WebDriver.class);
+            String source = "x".repeat(199_000) + "\"password\":\"aaa\\\""
+                    + "s".repeat(500) + "\"" + "tail".repeat(500);
+            Mockito.when(driver.getPageSource()).thenReturn(source);
+            helper.setDriver(driver);
+
+            JsonNode snapshot = JSON.readTree(FailureTraceReporter.renderTraceJson(
+                    info("failingScenario", failure()), "failed", List.of())).path("snapshot");
+
+            Assert.assertEquals(snapshot.path("status").asText(), "omitted-sensitive-boundary",
+                    snapshot.toPrettyString());
+            Assert.assertTrue(snapshot.path("content").asText().isEmpty(), snapshot.toPrettyString());
+        } finally {
+            helper.setDriver(null);
+            SHAFT.Properties.reporting.set().traceIncludeFullPageSnapshots(originalFullPage);
+            TraceEventRecorder.clear();
+            FailureTraceReporter.clearSensitiveValues();
+            Properties.clearForCurrentThread();
+        }
+    }
+
+    @Test(description = "Normal-sized structural snapshots should fail closed for escaped sensitive delimiters")
+    public void terminalSnapshotShouldOmitEscapedSensitiveContentWithoutTruncation() throws Exception {
+        DriverFactoryHelper helper = new DriverFactoryHelper();
+        try {
+            SHAFT.Properties.reporting.set().traceEnabled(true).traceMode("failure")
+                    .traceIncludeFullPageSnapshots(true);
+            WebDriver driver = Mockito.mock(WebDriver.class);
+            Mockito.when(driver.getPageSource())
+                    .thenReturn("<script>{\"password\":\"aaa\\\"SECRET_SUFFIX\"}</script>");
+            helper.setDriver(driver);
+
+            JsonNode snapshot = JSON.readTree(FailureTraceReporter.renderTraceJson(
+                    info("failingScenario", failure()), "failed", List.of())).path("snapshot");
+
+            Assert.assertEquals(snapshot.path("status").asText(), "omitted-sensitive-boundary",
+                    snapshot.toPrettyString());
+            Assert.assertTrue(snapshot.path("content").asText().isEmpty(), snapshot.toPrettyString());
+        } finally {
+            helper.setDriver(null);
+            TraceEventRecorder.clear();
+            FailureTraceReporter.clearSensitiveValues();
+            Properties.clearForCurrentThread();
+        }
+    }
+
+    @Test(description = "A normal host port at the end of structural HTML should not be treated as credentials")
+    public void terminalSnapshotShouldRetainNormalHostPort() throws Exception {
+        DriverFactoryHelper helper = new DriverFactoryHelper();
+        try {
+            SHAFT.Properties.reporting.set().traceEnabled(true).traceMode("failure")
+                    .traceIncludeFullPageSnapshots(true);
+            WebDriver driver = Mockito.mock(WebDriver.class);
+            Mockito.when(driver.getPageSource()).thenReturn("service=http://localhost:8080");
+            helper.setDriver(driver);
+
+            JsonNode snapshot = JSON.readTree(FailureTraceReporter.renderTraceJson(
+                    info("failingScenario", failure()), "failed", List.of())).path("snapshot");
+
+            Assert.assertEquals(snapshot.path("status").asText(), "available", snapshot.toPrettyString());
+            Assert.assertEquals(snapshot.path("content").asText(), "service=http://localhost:8080");
+        } finally {
+            helper.setDriver(null);
+            TraceEventRecorder.clear();
+            Properties.clearForCurrentThread();
+        }
+    }
+
+    @Test(description = "A URL credential split by the structural snapshot bound should fail closed")
+    public void terminalSnapshotShouldOmitTruncatedUrlCredentials() throws Exception {
+        DriverFactoryHelper helper = new DriverFactoryHelper();
+        try {
+            SHAFT.Properties.reporting.set().traceEnabled(true).traceMode("failure")
+                    .traceIncludeFullPageSnapshots(true);
+            WebDriver driver = Mockito.mock(WebDriver.class);
+            String source = "x".repeat(199_990) + " href=https://user:"
+                    + "s".repeat(2_000) + "@example.test/resource";
+            Mockito.when(driver.getPageSource()).thenReturn(source);
+            helper.setDriver(driver);
+
+            JsonNode snapshot = JSON.readTree(FailureTraceReporter.renderTraceJson(
+                    info("failingScenario", failure()), "failed", List.of())).path("snapshot");
+
+            Assert.assertEquals(snapshot.path("status").asText(), "omitted-sensitive-boundary",
+                    snapshot.toPrettyString());
+            Assert.assertTrue(snapshot.path("content").asText().isEmpty(), snapshot.toPrettyString());
+        } finally {
+            helper.setDriver(null);
+            TraceEventRecorder.clear();
+            FailureTraceReporter.clearSensitiveValues();
+            Properties.clearForCurrentThread();
+        }
+    }
+
+    @Test(description = "Snapshot HTML expansion should omit payload instead of rejecting required trace entries")
+    public void expandedTerminalSnapshotShouldConvergeToBudgetOmission() throws Exception {
+        Path archive = Files.createTempFile("shaft-snapshot-budget-", ".zip");
+        String json = """
+                {"schemaVersion":"3.0","session":{"schemaVersion":"2.0","events":[],"artifacts":[]},
+                "snapshot":{"provider":"webdriver","fidelity":"structural","status":"available","reason":"",
+                "type":"webdriver-page-source","content":"%s","byteCount":"199000","truncated":"false"},
+                "evidence":{"actions":[],"network":[],"console":[],"browserObservability":{},"playwright":{}}}
+                """.formatted("&".repeat(199_000));
+        try {
+            FailureTraceReporter.TraceArchiveBundle bundle = FailureTraceReporter.convergeTraceArchive(
+                    archive, json, "[]", Map.of(), null,
+                    1024L * 1024L, 4L * 1024L * 1024L, "omitted", List.of());
+            JsonNode snapshot = JSON.readTree(bundle.json()).path("snapshot");
+
+            Assert.assertEquals(snapshot.path("status").asText(), "omitted-budget", snapshot.toPrettyString());
+            Assert.assertEquals(snapshot.path("fidelity").asText(), "omitted", snapshot.toPrettyString());
+            Assert.assertTrue(snapshot.path("content").asText().isEmpty(), snapshot.toPrettyString());
+            try (ZipFile zip = new ZipFile(archive.toFile())) {
+                Assert.assertTrue(zip.getEntry("shaft-trace.json").getSize() <= 1024L * 1024L);
+                Assert.assertTrue(zip.getEntry("SHAFT Trace Report.html").getSize() <= 1024L * 1024L);
+            }
+        } finally {
+            Files.deleteIfExists(archive);
+        }
+    }
+
     @Test(description = "Persisted private v3 evidence should import and correlate the active Playwright trace")
     public void persistedTraceShouldImportAndCorrelatePlaywrightEvidence() throws Exception {
         SHAFT.Properties.reporting.set().traceEnabled(true);
@@ -955,15 +1775,34 @@ public class FailureTraceReporterTest {
                         + "\"wallTime\":" + actionStart + ",\"monotonicTime\":100}\n"
                         + "{\"type\":\"before\",\"callId\":\"call@1\",\"startTime\":100,"
                         + "\"class\":\"Frame\",\"method\":\"click\",\"title\":\"Click Save\","
-                        + "\"params\":{},\"stepId\":\"step@1\",\"beforeSnapshot\":\"before@call@1\"}\n"
+                        + "\"params\":{},\"stepId\":\"step@1\",\"beforeSnapshot\":\"before@call@1\","
+                        + "\"stack\":[{\"file\":\"CheckoutTest.java\",\"line\":42,\"column\":7}]}\n"
                         + "{\"type\":\"log\",\"callId\":\"call@1\",\"message\":\"attempting click\"}\n"
                         + "{\"type\":\"after\",\"callId\":\"call@1\",\"endTime\":110,"
-                        + "\"afterSnapshot\":\"after@call@1\"}\n");
+                        + "\"inputSnapshot\":\"input@call@1\",\"afterSnapshot\":\"after@call@1\","
+                        + "\"error\":{\"message\":\"button moved\"}}\n"
+                        + "{\"type\":\"frame-snapshot\",\"snapshot\":{\"callId\":\"call@1\","
+                        + "\"snapshotName\":\"before@call@1\",\"pageId\":\"page@1\","
+                        + "\"frameId\":\"frame@1\",\"frameUrl\":\"https://example.test/checkout\","
+                        + "\"html\":[\"HTML\",{},[\"BODY\",{},[\"BUTTON\",{\"id\":\"save\"},"
+                        + "\"Save before\"],[\"INPUT\",{\"type\":\"password\","
+                        + "\"__playwright_value_\":\"raw-native-password\"}]]],"
+                        + "\"timestamp\":101,\"isMainFrame\":true}}\n"
+                        + "{\"type\":\"frame-snapshot\",\"snapshot\":{\"callId\":\"call@1\","
+                        + "\"snapshotName\":\"input@call@1\",\"pageId\":\"page@1\","
+                        + "\"frameId\":\"frame@1\",\"frameUrl\":\"https://example.test/checkout\","
+                        + "\"html\":[\"HTML\",{},[\"BODY\",{},\"Save input\"]],"
+                        + "\"timestamp\":105,\"isMainFrame\":true}}\n"
+                        + "{\"type\":\"frame-snapshot\",\"snapshot\":{\"callId\":\"call@1\","
+                        + "\"snapshotName\":\"after@call@1\",\"pageId\":\"page@1\","
+                        + "\"frameId\":\"frame@1\",\"frameUrl\":\"https://example.test/checkout\","
+                        + "\"html\":[\"HTML\",{},[\"BODY\",{},\"Save after\"]],"
+                        + "\"timestamp\":109,\"isMainFrame\":true}}\n");
         try (MockedStatic<PlaywrightTraceManager> traceManager = Mockito.mockStatic(PlaywrightTraceManager.class);
-             MockedStatic<PlaywrightTraceImporter> importer = Mockito.mockStatic(PlaywrightTraceImporter.class,
+             MockedStatic<PlaywrightTraceArchiveLoader> loader = Mockito.mockStatic(PlaywrightTraceArchiveLoader.class,
                      Mockito.CALLS_REAL_METHODS)) {
             traceManager.when(PlaywrightTraceManager::getLastTracePath).thenReturn(archive);
-            importer.when(() -> PlaywrightTraceImporter.importTrace(Mockito.any(Path.class), Mockito.anyList()))
+            loader.when(() -> PlaywrightTraceArchiveLoader.load(Mockito.any(Path.class)))
                     .thenAnswer(invocation -> {
                         Files.deleteIfExists(archive);
                         return invocation.callRealMethod();
@@ -978,6 +1817,27 @@ public class FailureTraceReporterTest {
             Assert.assertEquals(playwright.path("actions").get(0).path("callId").asText(), "call@1");
             Assert.assertEquals(playwright.path("actions").get(0).path("logs").get(0).asText(),
                     "attempting click");
+            Assert.assertEquals(playwright.path("actions").get(0).path("source").asText(),
+                    "CheckoutTest.java:42:7");
+            Assert.assertEquals(playwright.path("actions").get(0).path("sourceStatus").asText(), "available");
+            Assert.assertTrue(playwright.path("actions").get(0).path("sourceReason").asText().isEmpty());
+            Assert.assertEquals(playwright.path("actions").get(0).path("error").asText(), "button moved");
+            Assert.assertEquals(playwright.path("snapshots").size(), 3, root.toPrettyString());
+            Assert.assertEquals(playwright.path("snapshotOmission").path("status").asText(), "available");
+            Assert.assertEquals(playwright.path("snapshotOmission").path("omittedCount").asInt(), 0);
+            Assert.assertEquals(playwright.path("snapshots").path("before@call@1").path("status").asText(),
+                    "available", root.toPrettyString());
+            Assert.assertEquals(playwright.path("snapshots").path("before@call@1").path("fidelity").asText(),
+                    "native-offline", root.toPrettyString());
+            Assert.assertTrue(playwright.path("snapshots").path("before@call@1").path("content").asText()
+                    .contains("Save before"), root.toPrettyString());
+            Assert.assertFalse(root.toString().contains("raw-native-password"), root.toPrettyString());
+            Assert.assertTrue(playwright.path("snapshots").path("before@call@1").path("content").asText()
+                    .contains("value=\"********\""), root.toPrettyString());
+            Assert.assertTrue(playwright.path("snapshots").path("input@call@1").path("content").asText()
+                    .contains("Save input"), root.toPrettyString());
+            Assert.assertTrue(playwright.path("snapshots").path("after@call@1").path("content").asText()
+                    .contains("Save after"), root.toPrettyString());
             Assert.assertEquals(playwright.path("correlations").size(), 1, root.toPrettyString());
             Assert.assertEquals(playwright.path("correlations").get(0).path("shaftActionId").asText(), "action-1");
             Assert.assertEquals(playwright.path("correlations").get(0).path("playwrightCallId").asText(), "call@1");
@@ -986,6 +1846,8 @@ public class FailureTraceReporterTest {
             Assert.assertEquals(root.path("session").path("schemaVersion").asText(), "2.0");
             Assert.assertEquals(root.path("session").path("events").get(0).path("metadata")
                     .path("playwrightCallId").asText(), "call@1");
+            Assert.assertFalse(root.path("session").path("events").get(0).path("metadata")
+                    .has("playwrightSnapshot"), root.toPrettyString());
             traceManager.verify(PlaywrightTraceManager::getLastTracePath, Mockito.times(1));
             Assert.assertFalse(Files.exists(archive),
                     "The original generation must be removable after manifest staging and before import.");
@@ -993,6 +1855,68 @@ public class FailureTraceReporterTest {
             Files.deleteIfExists(archive);
             TraceEventRecorder.clear();
             Properties.clearForCurrentThread();
+        }
+    }
+
+    @Test(description = "Native snapshot fan-out should stop at the reconstruction ceiling with an explicit receipt")
+    public void nativeSnapshotFanOutShouldRemainBoundedAndExplicit() throws Exception {
+        SHAFT.Properties.reporting.set().traceEnabled(true);
+        StringBuilder records = new StringBuilder(
+                "{\"version\":8,\"type\":\"context-options\",\"origin\":\"library\","
+                        + "\"wallTime\":10000,\"monotonicTime\":100}\n");
+        for (int index = 0; index < 17; index++) {
+            String callId = "call@" + index;
+            String snapshotName = "before@" + callId;
+            records.append("{\"type\":\"before\",\"callId\":\"").append(callId)
+                    .append("\",\"startTime\":").append(100 + index)
+                    .append(",\"class\":\"Frame\",\"method\":\"click\",\"title\":\"Click\","
+                            + "\"params\":{},\"stepId\":\"step@").append(index)
+                    .append("\",\"beforeSnapshot\":\"").append(snapshotName).append("\"}\n")
+                    .append("{\"type\":\"after\",\"callId\":\"").append(callId)
+                    .append("\",\"endTime\":").append(101 + index).append("}\n")
+                    .append("{\"type\":\"frame-snapshot\",\"snapshot\":{\"callId\":\"")
+                    .append(callId).append("\",\"snapshotName\":\"").append(snapshotName)
+                    .append("\",\"pageId\":\"page@1\",\"frameId\":\"frame@1\","
+                            + "\"frameUrl\":\"https://example.test/\",\"html\":[\"HTML\",{},"
+                            + "[\"BODY\",{},\"bounded\"]],\"timestamp\":")
+                    .append(100 + index).append(",\"isMainFrame\":true}}\n");
+        }
+        Path archive = PlaywrightTraceTestFixtures.writeTrace(records.toString());
+        try (MockedStatic<PlaywrightTraceManager> traceManager = Mockito.mockStatic(PlaywrightTraceManager.class)) {
+            traceManager.when(PlaywrightTraceManager::getLastTracePath).thenReturn(archive);
+            String json = FailureTraceReporter.renderTraceJson(info("snapshotFanOut", failure()), "log", List.of());
+            JsonNode playwright = JSON.readTree(json).path("evidence").path("playwright");
+            Assert.assertEquals(playwright.path("status").asText(), "available", json);
+            Assert.assertEquals(playwright.path("snapshots").size(), 16, json);
+            Assert.assertEquals(playwright.path("snapshotOmission").path("status").asText(), "omitted-budget");
+            Assert.assertEquals(playwright.path("snapshotOmission").path("omittedCount").asInt(), 1);
+            Assert.assertTrue(json.getBytes(java.nio.charset.StandardCharsets.UTF_8).length <= 512 * 1024,
+                    "Private Playwright evidence must stay inside its aggregate report budget.");
+        } finally {
+            Files.deleteIfExists(archive);
+            TraceEventRecorder.clear();
+            Properties.clearForCurrentThread();
+        }
+    }
+
+    @Test(description = "An oversized native snapshot model should report budget omission for every request")
+    public void oversizedNativeSnapshotModelShouldRemainExplicit() throws Exception {
+        StringBuilder records = new StringBuilder(
+                "{\"version\":8,\"type\":\"context-options\",\"origin\":\"library\"}\n");
+        String padding = "x".repeat(1024 * 1024);
+        for (int index = 0; index < 9; index++) {
+            records.append("{\"type\":\"noop\",\"padding\":\"").append(padding).append("\"}\n");
+        }
+        Path archive = PlaywrightTraceTestFixtures.writeTrace(records.toString());
+        try {
+            Map<String, PlaywrightTraceOfflineAdapter.SnapshotDocument> documents =
+                    PlaywrightTraceOfflineAdapter.snapshotDocuments(
+                            PlaywrightTraceArchiveLoader.load(archive), List.of("before@call@1"), 128 * 1024);
+
+            Assert.assertEquals(documents.get("before@call@1").status(), "omitted-budget");
+            Assert.assertTrue(documents.get("before@call@1").content().isEmpty());
+        } finally {
+            Files.deleteIfExists(archive);
         }
     }
 
@@ -1056,6 +1980,10 @@ public class FailureTraceReporterTest {
     public void sensitiveTraceShouldSuppressPlaywrightNativeEvidence() throws Exception {
         SHAFT.Properties.reporting.set().traceEnabled(true);
         FailureTraceReporter.suppressSensitiveBrowserArtifacts();
+        DriverFactoryHelper helper = new DriverFactoryHelper();
+        WebDriver hostileDriver = Mockito.mock(WebDriver.class,
+                Mockito.withSettings().extraInterfaces(HasCdp.class));
+        helper.setDriver(hostileDriver);
         Path archive = PlaywrightTraceTestFixtures.writeTrace(
                 "{\"version\":8,\"type\":\"context-options\",\"origin\":\"library\","
                         + "\"wallTime\":10000,\"monotonicTime\":100}\n"
@@ -1067,14 +1995,23 @@ public class FailureTraceReporterTest {
 
             String json = FailureTraceReporter.renderTraceJson(
                     info("sensitivePlaywrightScenario", failure()), "log", List.of());
+            JsonNode snapshot = JSON.readTree(json).path("snapshot");
             JsonNode playwright = JSON.readTree(json).path("evidence").path("playwright");
 
+            Assert.assertEquals(snapshot.path("provider").asText(), "none", json);
+            Assert.assertEquals(snapshot.path("fidelity").asText(), "omitted", json);
+            Assert.assertEquals(snapshot.path("status").asText(), "omitted-sensitive", json);
+            Assert.assertEquals(snapshot.path("type").asText(), "omitted-sensitive", json);
+            Assert.assertTrue(snapshot.path("content").asText().isEmpty(), json);
             Assert.assertEquals(playwright.path("status").asText(), "suppressed-sensitive", json);
             Assert.assertTrue(playwright.path("actions").isEmpty(), json);
             Assert.assertTrue(playwright.path("correlations").isEmpty(), json);
             Assert.assertFalse(json.contains("PRIVATE_NATIVE_SECRET"), json);
             traceManager.verify(PlaywrightTraceManager::getLastTracePath, Mockito.times(0));
+            Mockito.verifyNoInteractions((HasCdp) hostileDriver);
+            Mockito.verify(hostileDriver, Mockito.never()).getPageSource();
         } finally {
+            helper.setDriver(null);
             Files.deleteIfExists(archive);
             TraceEventRecorder.clear();
             FailureTraceReporter.clearSensitiveValues();

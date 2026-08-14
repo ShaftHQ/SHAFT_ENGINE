@@ -43,7 +43,7 @@ class InfrastructureMcpServiceTest {
     void planReturnsTheExactCoordinatorPlanAndPolicy() {
         InfrastructureSetupService coordinator = mock(InfrastructureSetupService.class);
         SetupPlan plan = plan(SetupProfile.OCR);
-        when(coordinator.plan(any(), any())).thenReturn(plan);
+        when(coordinator.plan(any(SetupOptions.class), any(SetupSelection.class))).thenReturn(plan);
         InfrastructureMcpService service = new InfrastructureMcpService(coordinator);
 
         McpSetupPlanResult result = service.setupPlan(request("OCR", "MANAGED", List.of("fra", "deu")));
@@ -63,7 +63,8 @@ class InfrastructureMcpServiceTest {
         InfrastructureSetupService coordinator = mock(InfrastructureSetupService.class);
         SetupPlan plan = plan(SetupProfile.OCR);
         SetupReceipt receipt = new SetupReceipt(plan.digest(), Instant.EPOCH, plan.actions());
-        when(coordinator.install(any(), any(), any(), any())).thenReturn(receipt);
+        when(coordinator.install(any(SetupPlan.class), any(SetupApproval.class), any(SetupOptions.class),
+                any(SetupSelection.class))).thenReturn(receipt);
         InfrastructureMcpService service = new InfrastructureMcpService(coordinator);
 
         SetupReceipt result = service.setupInstall(
@@ -86,7 +87,7 @@ class InfrastructureMcpServiceTest {
         assertThrows(IllegalArgumentException.class,
                 () -> service.setupPlan(request("REPORTING", "MANAGED", List.of("fra"))));
 
-        verify(coordinator, never()).plan(any(), any());
+        verify(coordinator, never()).plan(any(SetupOptions.class), any(SetupSelection.class));
     }
 
     @Test
@@ -129,7 +130,8 @@ class InfrastructureMcpServiceTest {
                 com.shaft.infrastructure.SetupPlanJson.write(plan), plan.digest(), List.of(),
                 request("OCR", "MANAGED", List.of("deu"))));
 
-        verify(coordinator, never()).install(any(), any(), any(), any());
+        verify(coordinator, never()).install(any(SetupPlan.class), any(SetupApproval.class), any(SetupOptions.class),
+                any(SetupSelection.class));
     }
 
     @Test
@@ -144,7 +146,7 @@ class InfrastructureMcpServiceTest {
                 () -> service.setupPlan(request));
 
         assertTrue(failure.getMessage().contains("supplied together"));
-        verify(coordinator, never()).plan(any(), any());
+        verify(coordinator, never()).plan(any(SetupOptions.class), any(SetupSelection.class));
     }
 
     @Test
