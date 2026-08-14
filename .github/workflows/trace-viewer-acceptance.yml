@@ -1,0 +1,41 @@
+name: Trace Viewer Browser Acceptance
+
+on:
+  pull_request:
+    paths:
+      - "shaft-engine/src/main/java/com/shaft/tools/io/internal/**"
+      - "shaft-engine/src/test/java/com/shaft/tools/io/internal/TraceViewerBrowserAcceptanceTest.java"
+      - ".github/workflows/trace-viewer-acceptance.yml"
+  push:
+    branches: [ main ]
+    paths:
+      - "shaft-engine/src/main/java/com/shaft/tools/io/internal/**"
+      - "shaft-engine/src/test/java/com/shaft/tools/io/internal/TraceViewerBrowserAcceptanceTest.java"
+      - ".github/workflows/trace-viewer-acceptance.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: trace-viewer-acceptance-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  chromium:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/setup-test-env
+        with:
+          node-version: "20"
+      - name: Run offline trace viewer acceptance
+        run: >-
+          mvn -pl shaft-engine
+          -Dtest=com.shaft.tools.io.internal.TraceViewerBrowserAcceptanceTest
+          -Dsurefire.excludedGroups=
+          -Dshaft.trace.viewer.chrome=/usr/bin/google-chrome
+          -Dshaft.trace.viewer.screenshot=target/trace-viewer-browser-acceptance.png
+          -Dallure.automaticallyOpen=false
+          -Dtelemetry.enabled=false
+          test
