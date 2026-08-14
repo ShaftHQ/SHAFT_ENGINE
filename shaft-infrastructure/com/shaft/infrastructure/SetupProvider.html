@@ -51,9 +51,11 @@
 <li><a href="#profile()" tabindex="0">profile()</a></li>
 <li><a href="#plan(com.shaft.infrastructure.SetupOptions,com.shaft.infrastructure.SetupPlatform,com.shaft.infrastructure.SetupArchitecture)" tabindex="0">plan(SetupOptions, SetupPlatform, SetupArchitecture)</a></li>
 <li><a href="#plan(com.shaft.infrastructure.SetupOptions,com.shaft.infrastructure.SetupSelection,com.shaft.infrastructure.SetupPlatform,com.shaft.infrastructure.SetupArchitecture)" tabindex="0">plan(SetupOptions, SetupSelection, SetupPlatform, SetupArchitecture)</a></li>
+<li><a href="#plan(com.shaft.infrastructure.SetupOptions,com.shaft.infrastructure.SetupSelection,com.shaft.infrastructure.SetupOperation,com.shaft.infrastructure.SetupPlatform,com.shaft.infrastructure.SetupArchitecture)" tabindex="0">plan(SetupOptions, SetupSelection, SetupOperation, SetupPlatform, SetupArchitecture)</a></li>
 <li><a href="#status(com.shaft.infrastructure.SetupOptions,com.shaft.infrastructure.SetupPlatform,com.shaft.infrastructure.SetupArchitecture)" tabindex="0">status(SetupOptions, SetupPlatform, SetupArchitecture)</a></li>
 <li><a href="#status(com.shaft.infrastructure.SetupOptions,com.shaft.infrastructure.SetupSelection,com.shaft.infrastructure.SetupPlatform,com.shaft.infrastructure.SetupArchitecture)" tabindex="0">status(SetupOptions, SetupSelection, SetupPlatform, SetupArchitecture)</a></li>
 <li><a href="#install(com.shaft.infrastructure.SetupPlan,com.shaft.infrastructure.SetupApproval,com.shaft.infrastructure.SetupOptions)" tabindex="0">install(SetupPlan, SetupApproval, SetupOptions)</a></li>
+<li><a href="#install(com.shaft.infrastructure.SetupPlan,com.shaft.infrastructure.SetupApproval,com.shaft.infrastructure.SetupOptions,java.util.function.Consumer)" tabindex="0">install(SetupPlan, SetupApproval, SetupOptions, Consumer)</a></li>
 <li><a href="#start(com.shaft.infrastructure.SetupPlan,com.shaft.infrastructure.SetupApproval,com.shaft.infrastructure.SetupOptions)" tabindex="0">start(SetupPlan, SetupApproval, SetupOptions)</a></li>
 </ol>
 </li>
@@ -89,11 +91,24 @@
  <a href="SetupApproval.html" title="class in com.shaft.infrastructure">SetupApproval</a>&nbsp;approval,
  <a href="SetupOptions.html" title="class in com.shaft.infrastructure">SetupOptions</a>&nbsp;options)</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">&nbsp;</div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="SetupPlan.html" title="class in com.shaft.infrastructure">SetupPlan</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#plan(com.shaft.infrastructure.SetupOptions,com.shaft.infrastructure.SetupPlatform,com.shaft.infrastructure.SetupArchitecture)" class="member-name-link">plan</a><wbr>(<a href="SetupOptions.html" title="class in com.shaft.infrastructure">SetupOptions</a>&nbsp;options,
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code>default <a href="SetupReceipt.html" title="class in com.shaft.infrastructure">SetupReceipt</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#install(com.shaft.infrastructure.SetupPlan,com.shaft.infrastructure.SetupApproval,com.shaft.infrastructure.SetupOptions,java.util.function.Consumer)" class="member-name-link">install</a><wbr>(<a href="SetupPlan.html" title="class in com.shaft.infrastructure">SetupPlan</a>&nbsp;plan,
+ <a href="SetupApproval.html" title="class in com.shaft.infrastructure">SetupApproval</a>&nbsp;approval,
+ <a href="SetupOptions.html" title="class in com.shaft.infrastructure">SetupOptions</a>&nbsp;options,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/function/Consumer.html" title="class or interface in java.util.function" class="external-link">Consumer</a>&lt;<a href="SetupProgress.html" title="class in com.shaft.infrastructure">SetupProgress</a>&gt;&nbsp;progress)</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5">&nbsp;</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="SetupPlan.html" title="class in com.shaft.infrastructure">SetupPlan</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#plan(com.shaft.infrastructure.SetupOptions,com.shaft.infrastructure.SetupPlatform,com.shaft.infrastructure.SetupArchitecture)" class="member-name-link">plan</a><wbr>(<a href="SetupOptions.html" title="class in com.shaft.infrastructure">SetupOptions</a>&nbsp;options,
  <a href="SetupPlatform.html" title="enum class in com.shaft.infrastructure">SetupPlatform</a>&nbsp;platform,
  <a href="SetupArchitecture.html" title="enum class in com.shaft.infrastructure">SetupArchitecture</a>&nbsp;architecture)</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">&nbsp;</div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">&nbsp;</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code>default <a href="SetupPlan.html" title="class in com.shaft.infrastructure">SetupPlan</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#plan(com.shaft.infrastructure.SetupOptions,com.shaft.infrastructure.SetupSelection,com.shaft.infrastructure.SetupOperation,com.shaft.infrastructure.SetupPlatform,com.shaft.infrastructure.SetupArchitecture)" class="member-name-link">plan</a><wbr>(<a href="SetupOptions.html" title="class in com.shaft.infrastructure">SetupOptions</a>&nbsp;options,
+ <a href="SetupSelection.html" title="class in com.shaft.infrastructure">SetupSelection</a>&nbsp;selection,
+ <a href="SetupOperation.html" title="enum class in com.shaft.infrastructure">SetupOperation</a>&nbsp;operation,
+ <a href="SetupPlatform.html" title="enum class in com.shaft.infrastructure">SetupPlatform</a>&nbsp;platform,
+ <a href="SetupArchitecture.html" title="enum class in com.shaft.infrastructure">SetupArchitecture</a>&nbsp;architecture)</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5">&nbsp;</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code>default <a href="SetupPlan.html" title="class in com.shaft.infrastructure">SetupPlan</a></code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#plan(com.shaft.infrastructure.SetupOptions,com.shaft.infrastructure.SetupSelection,com.shaft.infrastructure.SetupPlatform,com.shaft.infrastructure.SetupArchitecture)" class="member-name-link">plan</a><wbr>(<a href="SetupOptions.html" title="class in com.shaft.infrastructure">SetupOptions</a>&nbsp;options,
  <a href="SetupSelection.html" title="class in com.shaft.infrastructure">SetupSelection</a>&nbsp;selection,
@@ -163,6 +178,18 @@
 </section>
 </li>
 <li>
+<section class="detail" id="plan(com.shaft.infrastructure.SetupOptions,com.shaft.infrastructure.SetupSelection,com.shaft.infrastructure.SetupOperation,com.shaft.infrastructure.SetupPlatform,com.shaft.infrastructure.SetupArchitecture)">
+<h3>plan</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">default</span>&nbsp;<span class="return-type"><a href="SetupPlan.html" title="class in com.shaft.infrastructure">SetupPlan</a></span>&nbsp;<span class="element-name">plan</span><wbr><span class="parameters">(<a href="SetupOptions.html" title="class in com.shaft.infrastructure">SetupOptions</a>&nbsp;options,
+ <a href="SetupSelection.html" title="class in com.shaft.infrastructure">SetupSelection</a>&nbsp;selection,
+ <a href="SetupOperation.html" title="enum class in com.shaft.infrastructure">SetupOperation</a>&nbsp;operation,
+ <a href="SetupPlatform.html" title="enum class in com.shaft.infrastructure">SetupPlatform</a>&nbsp;platform,
+ <a href="SetupArchitecture.html" title="enum class in com.shaft.infrastructure">SetupArchitecture</a>&nbsp;architecture)</span></div>
+</div>
+</section>
+</li>
+<li>
 <section class="detail" id="status(com.shaft.infrastructure.SetupOptions,com.shaft.infrastructure.SetupPlatform,com.shaft.infrastructure.SetupArchitecture)">
 <h3>status</h3>
 <div class="horizontal-scroll">
@@ -191,6 +218,22 @@
  <a href="SetupApproval.html" title="class in com.shaft.infrastructure">SetupApproval</a>&nbsp;approval,
  <a href="SetupOptions.html" title="class in com.shaft.infrastructure">SetupOptions</a>&nbsp;options)</span>
               throws <span class="exceptions"><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/io/IOException.html" title="class or interface in java.io" class="external-link">IOException</a></span></div>
+<dl class="notes">
+<dt>Throws:</dt>
+<dd><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/io/IOException.html" title="class or interface in java.io" class="external-link">IOException</a></code></dd>
+</dl>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="install(com.shaft.infrastructure.SetupPlan,com.shaft.infrastructure.SetupApproval,com.shaft.infrastructure.SetupOptions,java.util.function.Consumer)">
+<h3>install</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">default</span>&nbsp;<span class="return-type"><a href="SetupReceipt.html" title="class in com.shaft.infrastructure">SetupReceipt</a></span>&nbsp;<span class="element-name">install</span><wbr><span class="parameters">(<a href="SetupPlan.html" title="class in com.shaft.infrastructure">SetupPlan</a>&nbsp;plan,
+ <a href="SetupApproval.html" title="class in com.shaft.infrastructure">SetupApproval</a>&nbsp;approval,
+ <a href="SetupOptions.html" title="class in com.shaft.infrastructure">SetupOptions</a>&nbsp;options,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/function/Consumer.html" title="class or interface in java.util.function" class="external-link">Consumer</a>&lt;<a href="SetupProgress.html" title="class in com.shaft.infrastructure">SetupProgress</a>&gt;&nbsp;progress)</span>
+                      throws <span class="exceptions"><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/io/IOException.html" title="class or interface in java.io" class="external-link">IOException</a></span></div>
 <dl class="notes">
 <dt>Throws:</dt>
 <dd><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/io/IOException.html" title="class or interface in java.io" class="external-link">IOException</a></code></dd>

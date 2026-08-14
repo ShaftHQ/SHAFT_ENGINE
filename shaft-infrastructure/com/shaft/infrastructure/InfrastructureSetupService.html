@@ -60,6 +60,7 @@
 <li><a href="#supports(com.shaft.infrastructure.SetupProfile)" tabindex="0">supports(SetupProfile)</a></li>
 <li><a href="#plan(com.shaft.infrastructure.SetupOptions)" tabindex="0">plan(SetupOptions)</a></li>
 <li><a href="#plan(com.shaft.infrastructure.SetupOptions,com.shaft.infrastructure.SetupSelection)" tabindex="0">plan(SetupOptions, SetupSelection)</a></li>
+<li><a href="#plan(com.shaft.infrastructure.SetupOptions,com.shaft.infrastructure.SetupSelection,com.shaft.infrastructure.SetupOperation)" tabindex="0">plan(SetupOptions, SetupSelection, SetupOperation)</a></li>
 <li><a href="#plan(com.shaft.infrastructure.SetupOptions,com.shaft.infrastructure.AndroidSetupRequest)" tabindex="0">plan(SetupOptions, AndroidSetupRequest)</a></li>
 <li><a href="#doctor(com.shaft.infrastructure.SetupOptions)" tabindex="0">doctor(SetupOptions)</a></li>
 <li><a href="#status(com.shaft.infrastructure.SetupOptions)" tabindex="0">status(SetupOptions)</a></li>
@@ -69,7 +70,9 @@
 <li><a href="#verify(com.shaft.infrastructure.SetupOptions,com.shaft.infrastructure.SetupSelection)" tabindex="0">verify(SetupOptions, SetupSelection)</a></li>
 <li><a href="#verify(com.shaft.infrastructure.SetupOptions,com.shaft.infrastructure.AndroidSetupRequest)" tabindex="0">verify(SetupOptions, AndroidSetupRequest)</a></li>
 <li><a href="#install(com.shaft.infrastructure.SetupPlan,com.shaft.infrastructure.SetupApproval,com.shaft.infrastructure.SetupOptions)" tabindex="0">install(SetupPlan, SetupApproval, SetupOptions)</a></li>
+<li><a href="#install(com.shaft.infrastructure.SetupPlan,com.shaft.infrastructure.SetupApproval,com.shaft.infrastructure.SetupOptions,java.util.function.Consumer)" tabindex="0">install(SetupPlan, SetupApproval, SetupOptions, Consumer)</a></li>
 <li><a href="#install(com.shaft.infrastructure.SetupPlan,com.shaft.infrastructure.SetupApproval,com.shaft.infrastructure.SetupOptions,com.shaft.infrastructure.SetupSelection)" tabindex="0">install(SetupPlan, SetupApproval, SetupOptions, SetupSelection)</a></li>
+<li><a href="#install(com.shaft.infrastructure.SetupPlan,com.shaft.infrastructure.SetupApproval,com.shaft.infrastructure.SetupOptions,com.shaft.infrastructure.SetupSelection,java.util.function.Consumer)" tabindex="0">install(SetupPlan, SetupApproval, SetupOptions, SetupSelection, Consumer)</a></li>
 <li><a href="#install(com.shaft.infrastructure.SetupPlan,com.shaft.infrastructure.SetupApproval,com.shaft.infrastructure.SetupOptions,com.shaft.infrastructure.AndroidSetupRequest)" tabindex="0">install(SetupPlan, SetupApproval, SetupOptions, AndroidSetupRequest)</a></li>
 <li><a href="#start(com.shaft.infrastructure.SetupPlan,com.shaft.infrastructure.SetupApproval,com.shaft.infrastructure.SetupOptions)" tabindex="0">start(SetupPlan, SetupApproval, SetupOptions)</a></li>
 <li><a href="#start(com.shaft.infrastructure.SetupPlan,com.shaft.infrastructure.SetupApproval,com.shaft.infrastructure.SetupOptions,com.shaft.infrastructure.SetupSelection)" tabindex="0">start(SetupPlan, SetupApproval, SetupOptions, SetupSelection)</a></li>
@@ -154,6 +157,19 @@
  <a href="SetupOptions.html" title="class in com.shaft.infrastructure">SetupOptions</a>&nbsp;options,
  <a href="SetupSelection.html" title="class in com.shaft.infrastructure">SetupSelection</a>&nbsp;selection)</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="SetupReceipt.html" title="class in com.shaft.infrastructure">SetupReceipt</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#install(com.shaft.infrastructure.SetupPlan,com.shaft.infrastructure.SetupApproval,com.shaft.infrastructure.SetupOptions,com.shaft.infrastructure.SetupSelection,java.util.function.Consumer)" class="member-name-link">install</a><wbr>(<a href="SetupPlan.html" title="class in com.shaft.infrastructure">SetupPlan</a>&nbsp;plan,
+ <a href="SetupApproval.html" title="class in com.shaft.infrastructure">SetupApproval</a>&nbsp;approval,
+ <a href="SetupOptions.html" title="class in com.shaft.infrastructure">SetupOptions</a>&nbsp;options,
+ <a href="SetupSelection.html" title="class in com.shaft.infrastructure">SetupSelection</a>&nbsp;selection,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/function/Consumer.html" title="class or interface in java.util.function" class="external-link">Consumer</a>&lt;<a href="SetupProgress.html" title="class in com.shaft.infrastructure">SetupProgress</a>&gt;&nbsp;progress)</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="SetupReceipt.html" title="class in com.shaft.infrastructure">SetupReceipt</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#install(com.shaft.infrastructure.SetupPlan,com.shaft.infrastructure.SetupApproval,com.shaft.infrastructure.SetupOptions,java.util.function.Consumer)" class="member-name-link">install</a><wbr>(<a href="SetupPlan.html" title="class in com.shaft.infrastructure">SetupPlan</a>&nbsp;plan,
+ <a href="SetupApproval.html" title="class in com.shaft.infrastructure">SetupApproval</a>&nbsp;approval,
+ <a href="SetupOptions.html" title="class in com.shaft.infrastructure">SetupOptions</a>&nbsp;options,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/function/Consumer.html" title="class or interface in java.util.function" class="external-link">Consumer</a>&lt;<a href="SetupProgress.html" title="class in com.shaft.infrastructure">SetupProgress</a>&gt;&nbsp;progress)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="SetupPlan.html" title="class in com.shaft.infrastructure">SetupPlan</a></code></div>
 <div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#plan(com.shaft.infrastructure.SetupOptions)" class="member-name-link">plan</a><wbr>(<a href="SetupOptions.html" title="class in com.shaft.infrastructure">SetupOptions</a>&nbsp;options)</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
@@ -167,56 +183,61 @@
 <div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#plan(com.shaft.infrastructure.SetupOptions,com.shaft.infrastructure.SetupSelection)" class="member-name-link">plan</a><wbr>(<a href="SetupOptions.html" title="class in com.shaft.infrastructure">SetupOptions</a>&nbsp;options,
  <a href="SetupSelection.html" title="class in com.shaft.infrastructure">SetupSelection</a>&nbsp;selection)</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="ManagedEnvironment.html" title="class in com.shaft.infrastructure">ManagedEnvironment</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#start(com.shaft.infrastructure.SetupPlan,com.shaft.infrastructure.SetupApproval,com.shaft.infrastructure.SetupOptions)" class="member-name-link">start</a><wbr>(<a href="SetupPlan.html" title="class in com.shaft.infrastructure">SetupPlan</a>&nbsp;plan,
- <a href="SetupApproval.html" title="class in com.shaft.infrastructure">SetupApproval</a>&nbsp;approval,
- <a href="SetupOptions.html" title="class in com.shaft.infrastructure">SetupOptions</a>&nbsp;options)</code></div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="SetupPlan.html" title="class in com.shaft.infrastructure">SetupPlan</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#plan(com.shaft.infrastructure.SetupOptions,com.shaft.infrastructure.SetupSelection,com.shaft.infrastructure.SetupOperation)" class="member-name-link">plan</a><wbr>(<a href="SetupOptions.html" title="class in com.shaft.infrastructure">SetupOptions</a>&nbsp;options,
+ <a href="SetupSelection.html" title="class in com.shaft.infrastructure">SetupSelection</a>&nbsp;selection,
+ <a href="SetupOperation.html" title="enum class in com.shaft.infrastructure">SetupOperation</a>&nbsp;operation)</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="ManagedEnvironment.html" title="class in com.shaft.infrastructure">ManagedEnvironment</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#start(com.shaft.infrastructure.SetupPlan,com.shaft.infrastructure.SetupApproval,com.shaft.infrastructure.SetupOptions,com.shaft.infrastructure.AndroidSetupRequest)" class="member-name-link">start</a><wbr>(<a href="SetupPlan.html" title="class in com.shaft.infrastructure">SetupPlan</a>&nbsp;plan,
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#start(com.shaft.infrastructure.SetupPlan,com.shaft.infrastructure.SetupApproval,com.shaft.infrastructure.SetupOptions)" class="member-name-link">start</a><wbr>(<a href="SetupPlan.html" title="class in com.shaft.infrastructure">SetupPlan</a>&nbsp;plan,
+ <a href="SetupApproval.html" title="class in com.shaft.infrastructure">SetupApproval</a>&nbsp;approval,
+ <a href="SetupOptions.html" title="class in com.shaft.infrastructure">SetupOptions</a>&nbsp;options)</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="ManagedEnvironment.html" title="class in com.shaft.infrastructure">ManagedEnvironment</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#start(com.shaft.infrastructure.SetupPlan,com.shaft.infrastructure.SetupApproval,com.shaft.infrastructure.SetupOptions,com.shaft.infrastructure.AndroidSetupRequest)" class="member-name-link">start</a><wbr>(<a href="SetupPlan.html" title="class in com.shaft.infrastructure">SetupPlan</a>&nbsp;plan,
  <a href="SetupApproval.html" title="class in com.shaft.infrastructure">SetupApproval</a>&nbsp;approval,
  <a href="SetupOptions.html" title="class in com.shaft.infrastructure">SetupOptions</a>&nbsp;options,
  <a href="AndroidSetupRequest.html" title="class in com.shaft.infrastructure">AndroidSetupRequest</a>&nbsp;request)</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Starts one exact typed Android emulator request from its verified install receipt.</div>
 </div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="ManagedEnvironment.html" title="class in com.shaft.infrastructure">ManagedEnvironment</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#start(com.shaft.infrastructure.SetupPlan,com.shaft.infrastructure.SetupApproval,com.shaft.infrastructure.SetupOptions,com.shaft.infrastructure.SetupSelection)" class="member-name-link">start</a><wbr>(<a href="SetupPlan.html" title="class in com.shaft.infrastructure">SetupPlan</a>&nbsp;plan,
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="ManagedEnvironment.html" title="class in com.shaft.infrastructure">ManagedEnvironment</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#start(com.shaft.infrastructure.SetupPlan,com.shaft.infrastructure.SetupApproval,com.shaft.infrastructure.SetupOptions,com.shaft.infrastructure.SetupSelection)" class="member-name-link">start</a><wbr>(<a href="SetupPlan.html" title="class in com.shaft.infrastructure">SetupPlan</a>&nbsp;plan,
  <a href="SetupApproval.html" title="class in com.shaft.infrastructure">SetupApproval</a>&nbsp;approval,
  <a href="SetupOptions.html" title="class in com.shaft.infrastructure">SetupOptions</a>&nbsp;options,
  <a href="SetupSelection.html" title="class in com.shaft.infrastructure">SetupSelection</a>&nbsp;selection)</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="SetupReport.html" title="class in com.shaft.infrastructure">SetupReport</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#status(com.shaft.infrastructure.SetupOptions)" class="member-name-link">status</a><wbr>(<a href="SetupOptions.html" title="class in com.shaft.infrastructure">SetupOptions</a>&nbsp;options)</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="SetupReport.html" title="class in com.shaft.infrastructure">SetupReport</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#status(com.shaft.infrastructure.SetupOptions)" class="member-name-link">status</a><wbr>(<a href="SetupOptions.html" title="class in com.shaft.infrastructure">SetupOptions</a>&nbsp;options)</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="SetupReport.html" title="class in com.shaft.infrastructure">SetupReport</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#status(com.shaft.infrastructure.SetupOptions,com.shaft.infrastructure.AndroidSetupRequest)" class="member-name-link">status</a><wbr>(<a href="SetupOptions.html" title="class in com.shaft.infrastructure">SetupOptions</a>&nbsp;options,
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#status(com.shaft.infrastructure.SetupOptions,com.shaft.infrastructure.AndroidSetupRequest)" class="member-name-link">status</a><wbr>(<a href="SetupOptions.html" title="class in com.shaft.infrastructure">SetupOptions</a>&nbsp;options,
  <a href="AndroidSetupRequest.html" title="class in com.shaft.infrastructure">AndroidSetupRequest</a>&nbsp;request)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Reports readiness for one exact typed Android emulator request.</div>
 </div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="SetupReport.html" title="class in com.shaft.infrastructure">SetupReport</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#status(com.shaft.infrastructure.SetupOptions,com.shaft.infrastructure.SetupSelection)" class="member-name-link">status</a><wbr>(<a href="SetupOptions.html" title="class in com.shaft.infrastructure">SetupOptions</a>&nbsp;options,
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="SetupReport.html" title="class in com.shaft.infrastructure">SetupReport</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#status(com.shaft.infrastructure.SetupOptions,com.shaft.infrastructure.SetupSelection)" class="member-name-link">status</a><wbr>(<a href="SetupOptions.html" title="class in com.shaft.infrastructure">SetupOptions</a>&nbsp;options,
  <a href="SetupSelection.html" title="class in com.shaft.infrastructure">SetupSelection</a>&nbsp;selection)</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>boolean</code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#supports(com.shaft.infrastructure.SetupProfile)" class="member-name-link">supports</a><wbr>(<a href="SetupProfile.html" title="enum class in com.shaft.infrastructure">SetupProfile</a>&nbsp;profile)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>boolean</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#supports(com.shaft.infrastructure.SetupProfile)" class="member-name-link">supports</a><wbr>(<a href="SetupProfile.html" title="enum class in com.shaft.infrastructure">SetupProfile</a>&nbsp;profile)</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Returns whether this coordinator has an executable provider for the profile.</div>
 </div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="SetupReport.html" title="class in com.shaft.infrastructure">SetupReport</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#verify(com.shaft.infrastructure.SetupOptions)" class="member-name-link">verify</a><wbr>(<a href="SetupOptions.html" title="class in com.shaft.infrastructure">SetupOptions</a>&nbsp;options)</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="SetupReport.html" title="class in com.shaft.infrastructure">SetupReport</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#verify(com.shaft.infrastructure.SetupOptions,com.shaft.infrastructure.AndroidSetupRequest)" class="member-name-link">verify</a><wbr>(<a href="SetupOptions.html" title="class in com.shaft.infrastructure">SetupOptions</a>&nbsp;options,
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#verify(com.shaft.infrastructure.SetupOptions)" class="member-name-link">verify</a><wbr>(<a href="SetupOptions.html" title="class in com.shaft.infrastructure">SetupOptions</a>&nbsp;options)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="SetupReport.html" title="class in com.shaft.infrastructure">SetupReport</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#verify(com.shaft.infrastructure.SetupOptions,com.shaft.infrastructure.AndroidSetupRequest)" class="member-name-link">verify</a><wbr>(<a href="SetupOptions.html" title="class in com.shaft.infrastructure">SetupOptions</a>&nbsp;options,
  <a href="AndroidSetupRequest.html" title="class in com.shaft.infrastructure">AndroidSetupRequest</a>&nbsp;request)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Verifies one exact typed Android emulator request.</div>
 </div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="SetupReport.html" title="class in com.shaft.infrastructure">SetupReport</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#verify(com.shaft.infrastructure.SetupOptions,com.shaft.infrastructure.SetupSelection)" class="member-name-link">verify</a><wbr>(<a href="SetupOptions.html" title="class in com.shaft.infrastructure">SetupOptions</a>&nbsp;options,
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="SetupReport.html" title="class in com.shaft.infrastructure">SetupReport</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#verify(com.shaft.infrastructure.SetupOptions,com.shaft.infrastructure.SetupSelection)" class="member-name-link">verify</a><wbr>(<a href="SetupOptions.html" title="class in com.shaft.infrastructure">SetupOptions</a>&nbsp;options,
  <a href="SetupSelection.html" title="class in com.shaft.infrastructure">SetupSelection</a>&nbsp;selection)</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
 </div>
 </div>
 </div>
@@ -310,6 +331,16 @@
 </section>
 </li>
 <li>
+<section class="detail" id="plan(com.shaft.infrastructure.SetupOptions,com.shaft.infrastructure.SetupSelection,com.shaft.infrastructure.SetupOperation)">
+<h3>plan</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="SetupPlan.html" title="class in com.shaft.infrastructure">SetupPlan</a></span>&nbsp;<span class="element-name">plan</span><wbr><span class="parameters">(<a href="SetupOptions.html" title="class in com.shaft.infrastructure">SetupOptions</a>&nbsp;options,
+ <a href="SetupSelection.html" title="class in com.shaft.infrastructure">SetupSelection</a>&nbsp;selection,
+ <a href="SetupOperation.html" title="enum class in com.shaft.infrastructure">SetupOperation</a>&nbsp;operation)</span></div>
+</div>
+</section>
+</li>
+<li>
 <section class="detail" id="plan(com.shaft.infrastructure.SetupOptions,com.shaft.infrastructure.AndroidSetupRequest)">
 <h3>plan</h3>
 <div class="horizontal-scroll">
@@ -397,6 +428,22 @@
 </section>
 </li>
 <li>
+<section class="detail" id="install(com.shaft.infrastructure.SetupPlan,com.shaft.infrastructure.SetupApproval,com.shaft.infrastructure.SetupOptions,java.util.function.Consumer)">
+<h3>install</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="SetupReceipt.html" title="class in com.shaft.infrastructure">SetupReceipt</a></span>&nbsp;<span class="element-name">install</span><wbr><span class="parameters">(<a href="SetupPlan.html" title="class in com.shaft.infrastructure">SetupPlan</a>&nbsp;plan,
+ <a href="SetupApproval.html" title="class in com.shaft.infrastructure">SetupApproval</a>&nbsp;approval,
+ <a href="SetupOptions.html" title="class in com.shaft.infrastructure">SetupOptions</a>&nbsp;options,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/function/Consumer.html" title="class or interface in java.util.function" class="external-link">Consumer</a>&lt;<a href="SetupProgress.html" title="class in com.shaft.infrastructure">SetupProgress</a>&gt;&nbsp;progress)</span>
+                     throws <span class="exceptions"><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/io/IOException.html" title="class or interface in java.io" class="external-link">IOException</a></span></div>
+<dl class="notes">
+<dt>Throws:</dt>
+<dd><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/io/IOException.html" title="class or interface in java.io" class="external-link">IOException</a></code></dd>
+</dl>
+</div>
+</section>
+</li>
+<li>
 <section class="detail" id="install(com.shaft.infrastructure.SetupPlan,com.shaft.infrastructure.SetupApproval,com.shaft.infrastructure.SetupOptions,com.shaft.infrastructure.SetupSelection)">
 <h3>install</h3>
 <div class="horizontal-scroll">
@@ -404,6 +451,23 @@
  <a href="SetupApproval.html" title="class in com.shaft.infrastructure">SetupApproval</a>&nbsp;approval,
  <a href="SetupOptions.html" title="class in com.shaft.infrastructure">SetupOptions</a>&nbsp;options,
  <a href="SetupSelection.html" title="class in com.shaft.infrastructure">SetupSelection</a>&nbsp;selection)</span>
+                     throws <span class="exceptions"><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/io/IOException.html" title="class or interface in java.io" class="external-link">IOException</a></span></div>
+<dl class="notes">
+<dt>Throws:</dt>
+<dd><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/io/IOException.html" title="class or interface in java.io" class="external-link">IOException</a></code></dd>
+</dl>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="install(com.shaft.infrastructure.SetupPlan,com.shaft.infrastructure.SetupApproval,com.shaft.infrastructure.SetupOptions,com.shaft.infrastructure.SetupSelection,java.util.function.Consumer)">
+<h3>install</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="SetupReceipt.html" title="class in com.shaft.infrastructure">SetupReceipt</a></span>&nbsp;<span class="element-name">install</span><wbr><span class="parameters">(<a href="SetupPlan.html" title="class in com.shaft.infrastructure">SetupPlan</a>&nbsp;plan,
+ <a href="SetupApproval.html" title="class in com.shaft.infrastructure">SetupApproval</a>&nbsp;approval,
+ <a href="SetupOptions.html" title="class in com.shaft.infrastructure">SetupOptions</a>&nbsp;options,
+ <a href="SetupSelection.html" title="class in com.shaft.infrastructure">SetupSelection</a>&nbsp;selection,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/function/Consumer.html" title="class or interface in java.util.function" class="external-link">Consumer</a>&lt;<a href="SetupProgress.html" title="class in com.shaft.infrastructure">SetupProgress</a>&gt;&nbsp;progress)</span>
                      throws <span class="exceptions"><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/io/IOException.html" title="class or interface in java.io" class="external-link">IOException</a></span></div>
 <dl class="notes">
 <dt>Throws:</dt>
