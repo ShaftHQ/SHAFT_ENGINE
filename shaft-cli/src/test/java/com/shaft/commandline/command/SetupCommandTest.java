@@ -13,6 +13,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class SetupCommandTest {
@@ -372,6 +373,54 @@ class SetupCommandTest {
         assertEquals(expected.policyDigest(), plan.executionPolicyDigest());
     }
 
+    @Test
+    void localAiStatusPlanAndRejectedOfflineInstallUseTheSharedProvider(@TempDir Path temp) throws Exception {
+        Path cache = temp.resolve("managed-ai-cache").toAbsolutePath();
+        Path data = temp.resolve("data").toAbsolutePath();
+        Path planFile = temp.resolve("local-ai-plan.json").toAbsolutePath();
+        Files.createDirectories(cache);
+        com.shaft.driver.SHAFT.Properties.managedLocalAi.set().enabled(true)
+                .model("qwen3-0.6b-q8_0").cacheDirectory(cache.toString());
+        try {
+            var lifecycle = new com.shaft.ai.local.ManagedLocalAiService().inspect();
+            CommandResult status = execute("setup", "status", "--profile", "LOCAL_AI", "--mode", "MANAGED",
+                    "--cache-root", cache.toString(), "--data-root", data.toString(), "--json");
+            assertEquals(3, status.exitCode(), status.stderr());
+            assertTrue(status.stdout().contains("MANAGED_LOCAL_AI_RUNTIME"));
+            assertTrue(status.stdout().contains("MANAGED_LOCAL_AI_MODEL"));
+            assertDirectoryEmpty(cache);
+            assertFalse(Files.exists(data));
+
+            CommandResult planned = execute("setup", "plan", "--profile", "LOCAL_AI", "--mode", "MANAGED",
+                    "--output", planFile.toString(), "--cache-root", cache.toString(),
+                    "--data-root", data.toString(), "--offline", "--json");
+            if (lifecycle.selectedModelId() == null) {
+                assertEquals(5, planned.exitCode(), planned.stderr());
+                assertTrue(planned.stderr().contains("cannot select a reviewed model"));
+                assertDirectoryEmpty(cache);
+                assertFalse(Files.exists(data));
+                return;
+            }
+            assertEquals(0, planned.exitCode(), planned.stderr());
+            com.shaft.infrastructure.SetupPlan plan = com.shaft.infrastructure.SetupPlanStore.read(planFile);
+            assertEquals(java.util.List.of(com.shaft.infrastructure.SetupTarget.MANAGED_LOCAL_AI_RUNTIME,
+                            com.shaft.infrastructure.SetupTarget.MANAGED_LOCAL_AI_MODEL),
+                    plan.actions().stream().map(com.shaft.infrastructure.SetupAction::target).toList());
+            assertDirectoryEmpty(cache);
+            assertFalse(Files.exists(data));
+
+            CommandResult install = execute("setup", "install", "--plan", planFile.toString(),
+                    "--approve", plan.digest(), "--accept-license", "MIT", "--accept-license", "Apache-2.0",
+                    "--cache-root", cache.toString(), "--data-root", data.toString(), "--offline");
+            assertEquals(5, install.exitCode(), install.stderr());
+            assertTrue(install.stderr().contains("offline setup cannot download"));
+            assertDirectoryEmpty(cache);
+            assertFalse(Files.exists(data));
+        } finally {
+            com.shaft.properties.internal.Properties.clearForCurrentThread();
+        }
+    }
+
     private static CommandResult execute(String... arguments) {
         StringWriter stdout = new StringWriter();
         StringWriter stderr = new StringWriter();
@@ -380,6 +429,12 @@ class SetupCommandTest {
                 .setErr(new PrintWriter(stderr, true))
                 .execute(arguments);
         return new CommandResult(exitCode, stdout.toString(), stderr.toString());
+    }
+
+    private static void assertDirectoryEmpty(Path directory) throws Exception {
+        try (var entries = Files.list(directory)) {
+            assertTrue(entries.findAny().isEmpty());
+        }
     }
 
     private record CommandResult(int exitCode, String stdout, String stderr) { }

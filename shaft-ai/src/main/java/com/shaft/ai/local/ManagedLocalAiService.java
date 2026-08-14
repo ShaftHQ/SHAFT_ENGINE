@@ -231,6 +231,12 @@ public final class ManagedLocalAiService {
                 ManagedLocalAiSnapshot.CacheHealth.NOT_APPLICABLE);
     }
 
+    /** Returns the effective inference cache without inspecting hardware or mutating the host. */
+    public Path effectiveCacheDirectory() {
+        Settings configured = Objects.requireNonNull(settings.get(), "managed local AI settings");
+        return resolveCache(configured.cacheDirectory());
+    }
+
     private static ManagedLocalAiSnapshot snapshot(ManagedLocalAiSnapshot.State state, String action,
                                                    SnapshotContext context,
                                                    ManagedLocalAiSnapshot.CacheHealth runtimeHealth,

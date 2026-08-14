@@ -13,6 +13,7 @@ import com.shaft.infrastructure.SetupProfile;
 import com.shaft.infrastructure.SetupReceipt;
 import com.shaft.infrastructure.SetupSelection;
 import com.shaft.infrastructure.SetupTarget;
+import com.shaft.infrastructure.ShaftCachePaths;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.mockito.ArgumentCaptor;
@@ -163,6 +164,25 @@ class InfrastructureMcpServiceTest {
         assertFalse(options.autoStart());
         assertTrue(options.preferSystemTools());
         assertTrue(options.reuseOwnedProcesses());
+    }
+
+    @Test
+    void omittedLocalAiRootsUseInferenceCacheButExplicitDefaultRootsRemainExact() {
+        Path inferenceCache = temp.resolve("managed-inference-cache").toAbsolutePath();
+        com.shaft.driver.SHAFT.Properties.managedLocalAi.set().cacheDirectory(inferenceCache.toString());
+        try {
+            McpSetupRequest omitted = new McpSetupRequest("LOCAL_AI", "MANAGED", "", "",
+                    false, false, true, true, "PT2M", "PT30S", "", List.of());
+            ShaftCachePaths defaults = ShaftCachePaths.current();
+            McpSetupRequest explicit = new McpSetupRequest("LOCAL_AI", "MANAGED",
+                    defaults.cacheRoot().toString(), defaults.dataRoot().toString(),
+                    false, false, true, true, "PT2M", "PT30S", "", List.of());
+
+            assertEquals(inferenceCache, omitted.options().paths().cacheRoot());
+            assertEquals(defaults.cacheRoot(), explicit.options().paths().cacheRoot());
+        } finally {
+            com.shaft.properties.internal.Properties.clearForCurrentThread();
+        }
     }
 
     @Test

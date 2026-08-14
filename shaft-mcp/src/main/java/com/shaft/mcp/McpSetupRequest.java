@@ -1,5 +1,6 @@
 package com.shaft.mcp;
 
+import com.shaft.ai.local.ManagedLocalAiService;
 import com.shaft.infrastructure.SetupMode;
 import com.shaft.infrastructure.SetupOptions;
 import com.shaft.infrastructure.SetupProfile;
@@ -42,7 +43,7 @@ public record McpSetupRequest(String profile, String mode, String cacheRoot, Str
 
     SetupOptions options() {
         SetupProfile selectedProfile = setupProfile();
-        SetupOptions defaults = SetupOptions.defaults(selectedProfile, paths());
+        SetupOptions defaults = SetupOptions.defaults(selectedProfile, paths(selectedProfile));
         SetupMode selectedMode = mode == null || mode.isBlank()
                 ? SetupMode.EXTERNAL : parseMode(mode);
         SetupOptions options = defaults.withMode(selectedMode)
@@ -60,10 +61,16 @@ public record McpSetupRequest(String profile, String mode, String cacheRoot, Str
         return options;
     }
 
-    private ShaftCachePaths paths() {
+    private ShaftCachePaths paths(SetupProfile selectedProfile) {
         boolean cacheBlank = cacheRoot == null || cacheRoot.isBlank();
         boolean dataBlank = dataRoot == null || dataRoot.isBlank();
-        if (cacheBlank && dataBlank) return ShaftCachePaths.current();
+        if (cacheBlank && dataBlank) {
+            ShaftCachePaths defaults = ShaftCachePaths.current();
+            if (selectedProfile != SetupProfile.LOCAL_AI) return defaults;
+            Path cache = new ManagedLocalAiService().effectiveCacheDirectory();
+            return new ShaftCachePaths(cache, defaults.dataRoot(), cache.resolve("downloads"), defaults.tools(),
+                    defaults.state(), defaults.receipts());
+        }
         if (cacheBlank || dataBlank) {
             throw new IllegalArgumentException("cacheRoot and dataRoot must be supplied together.");
         }
