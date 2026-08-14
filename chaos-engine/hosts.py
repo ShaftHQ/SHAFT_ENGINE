@@ -25,6 +25,7 @@ SCHEMA_VERSION = 1
 MAVEN_TOOLS_MCP_VERSION = "3.2.0"
 MAVEN_TOOLS_MCP_COMMIT = "4475ff6c61f23ea9a93cb6d5665a63235ef2ef36"
 MAVEN_TOOLS_MCP_RECEIPT = "install-receipt.json"
+MAVEN_TOOLS_MCP_PROFILE = "docker,no-context7"
 LEGACY_MAVEN_TOOLS_SERVER = {
     "command": "docker",
     "args": ["run", "-i", "--rm", "arvindand/maven-tools-mcp:3.2.0"],
@@ -87,11 +88,10 @@ def verified_maven_tools_jar(candidate: Path) -> Path | None:
 
 def discover_maven_tools_runtime() -> tuple[Path, Path] | None:
     configured_jar = os.environ.get("CHAOSENGINE_MAVEN_TOOLS_MCP_JAR")
-    data_root = Path(
-        os.environ.get("LOCALAPPDATA", "")
-        or os.environ.get("XDG_DATA_HOME", "")
-        or Path.home() / ".local/share"
+    configured_data_root = os.environ.get(
+        "LOCALAPPDATA" if os.name == "nt" else "XDG_DATA_HOME", ""
     )
+    data_root = Path(configured_data_root or Path.home() / ".local/share")
     jar_candidates = [
         Path(configured_jar).expanduser() if configured_jar else None,
         data_root
@@ -158,7 +158,11 @@ def owned_servers(
         java, jar = maven_runtime
         servers["maven-tools-mcp"] = {
             "command": str(java),
-            "args": ["-jar", str(jar), "--spring.profiles.active=docker"],
+            "args": [
+                "-jar",
+                str(jar),
+                f"--spring.profiles.active={MAVEN_TOOLS_MCP_PROFILE}",
+            ],
         }
     return servers
 
@@ -463,7 +467,7 @@ def codex_content(
             '[mcp_servers."maven-tools-mcp"]\n'
             f"command = {json.dumps(str(java))}\n"
             f'args = ["-jar", {json.dumps(str(jar))}, '
-            '"--spring.profiles.active=docker"]\n'
+            f'"--spring.profiles.active={MAVEN_TOOLS_MCP_PROFILE}"]\n'
             "# CHAOSENGINE:END\n",
         )
     if "# CHAOSENGINE:START" in existing or "# CHAOSENGINE:END" in existing:

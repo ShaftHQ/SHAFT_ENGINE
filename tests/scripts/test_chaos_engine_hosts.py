@@ -127,7 +127,7 @@ class ChaosEngineHostsTest(unittest.TestCase):
 
         self.assertEqual(str(java), maven["command"])
         self.assertEqual(
-            ["-jar", str(jar), "--spring.profiles.active=docker"],
+            ["-jar", str(jar), "--spring.profiles.active=docker,no-context7"],
             maven["args"],
         )
         self.assertNotEqual("docker", Path(str(maven["command"])).name.casefold())
@@ -144,7 +144,7 @@ class ChaosEngineHostsTest(unittest.TestCase):
 
         self.assertEqual(str(java), claude["mcpServers"]["maven-tools-mcp"]["command"])
         self.assertIn(str(jar).replace("\\", "\\\\"), codex)
-        self.assertIn("--spring.profiles.active=docker", codex)
+        self.assertIn("--spring.profiles.active=docker,no-context7", codex)
 
     def test_native_maven_tools_runtime_discovers_user_paths(self):
         module = load(HOSTS, "chaos_engine_hosts_native_maven_discovery")
@@ -179,17 +179,62 @@ class ChaosEngineHostsTest(unittest.TestCase):
                     os.environ,
                     {
                         "LOCALAPPDATA": str(root / "data"),
+                        "XDG_DATA_HOME": str(root / "other-data"),
                         "CHAOSENGINE_JAVA": str(java),
                         "CHAOSENGINE_MAVEN_TOOLS_MCP_JAR": "",
                     },
                     clear=False,
-                ):
+                ), mock.patch.object(module.os, "name", "nt"):
                     self.assertEqual(
                         (java.resolve(), jar.resolve()),
                         module.discover_maven_tools_runtime(),
                     )
             finally:
                 globals_["java_major"] = prior
+
+    def test_posix_runtime_ignores_localappdata_when_xdg_is_set(self):
+        module = load(HOSTS, "chaos_engine_hosts_native_maven_posix_data_root")
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            java = root / "jdk-25/bin/java"
+            jar = (
+                root
+                / "xdg-data/ChaosEngine/tools/maven-tools-mcp/3.2.0"
+                / "maven-tools-mcp-3.2.0.jar"
+            )
+            java.parent.mkdir(parents=True)
+            jar.parent.mkdir(parents=True)
+            java.write_bytes(b"java")
+            jar.write_bytes(b"jar")
+            jar.with_name("install-receipt.json").write_text(
+                json.dumps(
+                    {
+                        "version": "3.2.0",
+                        "commit": "4475ff6c61f23ea9a93cb6d5665a63235ef2ef36",
+                        "jar": jar.name,
+                        "sha256": hashlib.sha256(jar.read_bytes()).hexdigest(),
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            with mock.patch.dict(
+                os.environ,
+                {
+                    "LOCALAPPDATA": str(root / "windows-data"),
+                    "XDG_DATA_HOME": str(root / "xdg-data"),
+                    "CHAOSENGINE_JAVA": str(java),
+                    "CHAOSENGINE_MAVEN_TOOLS_MCP_JAR": "",
+                    "JAVA_HOME": "",
+                },
+                clear=False,
+            ), mock.patch.object(module.os, "name", "posix"), mock.patch.object(
+                module, "Path", type(root)
+            ), mock.patch.object(module, "java_major", return_value=25):
+                self.assertEqual(
+                    (java.resolve(), jar.resolve()),
+                    module.discover_maven_tools_runtime(),
+                )
 
     def test_native_maven_tools_runtime_rejects_unreceipted_or_changed_jar(self):
         module = load(HOSTS, "chaos_engine_hosts_native_maven_receipt")
