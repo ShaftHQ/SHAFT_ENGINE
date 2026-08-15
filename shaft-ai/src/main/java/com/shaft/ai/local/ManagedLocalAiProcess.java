@@ -137,6 +137,12 @@ final class ManagedLocalAiProcess {
     }
 
     private static Session launchLocked(LaunchRequest request, LaunchHooks hooks, long deadline) throws Exception {
+        validateLaunchOwnership();
+        LaunchPlan plan = prepareLaunch(request);
+        return retryLaunch(plan, hooks, deadline);
+    }
+
+    private static void validateLaunchOwnership() {
         Session failedLaunch = FAILED_LAUNCH.get();
         if (failedLaunch != null && failedLaunch.hasSurvivors()) {
             throw new IllegalStateException("A prior managed local AI launch still owns a surviving process tree.");
@@ -147,14 +153,20 @@ final class ManagedLocalAiProcess {
             throw new IllegalStateException("A managed local AI process tree is already active.");
         }
         ACTIVE_LAUNCH.compareAndSet(activeLaunch, null);
+    }
+
+    private static LaunchPlan prepareLaunch(LaunchRequest request) throws Exception {
         RuntimeFiles files = request.files();
-        RuntimeSpec runtime = request.runtime();
         Path verifiedExecutable = ManagedLocalAiCache.verifyOwnedFile(files.cache(), files.executable());
         Path verifiedModel = ManagedLocalAiCache.verifyOwnedFile(files.cache(), files.model());
         requireContainedLog(files.cache(), files.log());
         Files.createDirectories(files.log().toAbsolutePath().normalize().getParent());
         requireContainedLog(files.cache(), files.log());
         reserveLog(files.log());
+        return new LaunchPlan(request, verifiedExecutable, verifiedModel);
+    }
+
+    private static Session retryLaunch(LaunchPlan plan, LaunchHooks hooks, long deadline) throws Exception {
         Exception lastFailure = null;
         for (int attempt = 0; attempt < MAX_LAUNCH_ATTEMPTS; attempt++) {
             try {
@@ -163,89 +175,128 @@ final class ManagedLocalAiProcess {
                 lastFailure = expired;
                 break;
             }
-            String key = secret();
-            Path keyFile = createKeyFile(files.cache(), key);
-            Process process = null;
-            Session candidate = null;
-            LaunchReservation reservation = new LaunchReservation(Thread.currentThread());
             try {
-                remaining(deadline);
-                if (!PENDING_LAUNCH.compareAndSet(null, reservation)) {
-                    throw new IllegalStateException("Managed local AI process start is already pending.");
+                return launchAttempt(plan, hooks, deadline);
+            } catch (AttemptFailure failed) {
+                lastFailure = failed.failure();
+                if (failed.resourceFailure() != null) {
+                    throw failed.resourceFailure();
                 }
-                if (request.cancelled().getAsBoolean() || reservation.cancelled()) {
-                    throw new IllegalStateException("Managed local AI launch was cancelled before process start.");
-                }
-                process = hooks.starter().start(
-                        command(verifiedExecutable, verifiedModel, 0, runtime.alias(), keyFile, runtime.threads()),
-                        runtimeEnvironment(System.getenv()), files.log());
-                synchronized (reservation) {
-                    reservation.bind(process);
-                    candidate = new Session(process, 0, runtime.alias(), key, request.timeout(), verifiedExecutable,
-                            verifiedModel, runtime.threads(), hooks.rssSampler());
-                    if (!ACTIVE_LAUNCH.compareAndSet(null, candidate)) {
-                        throw new IllegalStateException("Managed local AI process ownership is already registered.");
-                    }
-                }
-                candidate.awaitFirstResourceSample(remaining(deadline));
-                if (request.cancelled().getAsBoolean() || reservation.cancelled()) {
-                    throw new IllegalStateException("Managed local AI launch was cancelled during process start.");
-                }
-                reservation.resolve();
-                PENDING_LAUNCH.compareAndSet(reservation, null);
-                StartupObservation startup = awaitStartup(process, remaining(deadline));
-                candidate.bindLogCapture(captureLog(
-                        files.cache(), process.getInputStream(), files.log(), startup.captured(), key));
-                if (startup.port() == null) {
-                    throw new IOException("Managed local AI did not report its child-owned loopback endpoint.");
-                }
-                int port = startup.port();
-                candidate.bindPort(port);
-                hooks.identity().await(process, port, key, runtime.alias(), remaining(deadline));
-                candidate.requireResourceWithinLimit();
-                if (!process.isAlive()) {
-                    throw new IllegalStateException("Managed local AI process exited during identity verification.");
-                }
-                deleteKeyFile(keyFile, null);
-                return candidate;
-            } catch (InterruptedException cancelled) {
-                if (candidate != null) {
-                    candidate.close(cleanupTimeout(deadline), cancelled);
-                    retainFailedLaunch(candidate);
-                } else if (process != null) {
-                    terminate(process, cleanupTimeout(deadline), cancelled);
-                }
-                deleteKeyFile(keyFile, cancelled);
-                Thread.currentThread().interrupt();
-                throw cancelled;
-            } catch (Exception failure) {
-                lastFailure = failure;
-                boolean survivors = false;
-                IllegalStateException resourceFailure = null;
-                if (candidate != null) {
-                    candidate.close(cleanupTimeout(deadline), failure);
-                    resourceFailure = candidate.resourceFailure();
-                    survivors = candidate.hasSurvivors();
-                    if (survivors) {
-                        retainFailedLaunch(candidate);
-                    }
-                } else if (process != null) {
-                    terminate(process, cleanupTimeout(deadline), failure);
-                }
-                deleteKeyFile(keyFile, failure);
-                if (resourceFailure != null) {
-                    throw resourceFailure;
-                }
-                if (survivors) {
+                if (failed.survivors()) {
                     break;
                 }
-            } finally {
-                reservation.resolve();
-                PENDING_LAUNCH.compareAndSet(reservation, null);
             }
         }
         throw new IllegalStateException("Managed local AI process could not establish its authenticated identity.",
                 lastFailure);
+    }
+
+    private static Session launchAttempt(LaunchPlan plan, LaunchHooks hooks, long deadline) throws Exception {
+        AttemptState state = new AttemptState(plan.request().files().cache());
+        try {
+            publishPendingLaunch(plan.request(), state, deadline);
+            startCandidate(plan, hooks, state);
+            awaitCandidate(plan, hooks, state, deadline);
+            deleteKeyFile(state.keyFile, null);
+            return state.candidate;
+        } catch (InterruptedException cancelled) {
+            cleanupInterruptedAttempt(state, deadline, cancelled);
+            throw cancelled;
+        } catch (Exception failure) {
+            throw cleanupFailedAttempt(state, deadline, failure);
+        } finally {
+            state.reservation.resolve();
+            PENDING_LAUNCH.compareAndSet(state.reservation, null);
+        }
+    }
+
+    private static void publishPendingLaunch(LaunchRequest request, AttemptState state, long deadline)
+            throws Exception {
+        remaining(deadline);
+        if (!PENDING_LAUNCH.compareAndSet(null, state.reservation)) {
+            throw new IllegalStateException("Managed local AI process start is already pending.");
+        }
+        requireNotCancelled(request, state.reservation, "before process start");
+    }
+
+    private static void startCandidate(LaunchPlan plan, LaunchHooks hooks, AttemptState state) throws Exception {
+        LaunchRequest request = plan.request();
+        RuntimeSpec runtime = request.runtime();
+        RuntimeFiles files = request.files();
+        state.process = hooks.starter().start(
+                command(plan.executable(), plan.model(), 0, runtime.alias(), state.keyFile, runtime.threads()),
+                runtimeEnvironment(System.getenv()), files.log());
+        synchronized (state.reservation) {
+            state.reservation.bind(state.process);
+            state.candidate = new Session(state.process, 0, runtime.alias(), state.key, request.timeout(),
+                    plan.executable(), plan.model(), runtime.threads(), hooks.rssSampler());
+            if (!ACTIVE_LAUNCH.compareAndSet(null, state.candidate)) {
+                throw new IllegalStateException("Managed local AI process ownership is already registered.");
+            }
+        }
+    }
+
+    private static void awaitCandidate(LaunchPlan plan, LaunchHooks hooks, AttemptState state, long deadline)
+            throws Exception {
+        LaunchRequest request = plan.request();
+        state.candidate.awaitFirstResourceSample(remaining(deadline));
+        requireNotCancelled(request, state.reservation, "during process start");
+        state.reservation.resolve();
+        PENDING_LAUNCH.compareAndSet(state.reservation, null);
+        StartupObservation startup = awaitStartup(state.process, remaining(deadline));
+        state.candidate.bindLogCapture(captureLog(request.files().cache(), state.process.getInputStream(),
+                request.files().log(), startup.captured(), state.key));
+        int port = requireStartupPort(startup);
+        state.candidate.bindPort(port);
+        hooks.identity().await(state.process, port, state.key, request.runtime().alias(), remaining(deadline));
+        state.candidate.requireResourceWithinLimit();
+        if (!state.process.isAlive()) {
+            throw new IllegalStateException("Managed local AI process exited during identity verification.");
+        }
+    }
+
+    private static void requireNotCancelled(LaunchRequest request, LaunchReservation reservation, String phase) {
+        if (request.cancelled().getAsBoolean() || reservation.cancelled()) {
+            throw new IllegalStateException("Managed local AI launch was cancelled " + phase + '.');
+        }
+    }
+
+    private static int requireStartupPort(StartupObservation startup) throws IOException {
+        if (startup.port() == null) {
+            throw new IOException("Managed local AI did not report its child-owned loopback endpoint.");
+        }
+        return startup.port();
+    }
+
+    private static void cleanupInterruptedAttempt(AttemptState state, long deadline,
+                                                  InterruptedException cancelled) throws IOException {
+        cleanupAttemptProcess(state, deadline, cancelled, true);
+        deleteKeyFile(state.keyFile, cancelled);
+        Thread.currentThread().interrupt();
+    }
+
+    private static AttemptFailure cleanupFailedAttempt(AttemptState state, long deadline, Exception failure)
+            throws IOException {
+        cleanupAttemptProcess(state, deadline, failure, false);
+        deleteKeyFile(state.keyFile, failure);
+        IllegalStateException resourceFailure = state.candidate == null ? null : state.candidate.resourceFailure();
+        boolean survivors = state.candidate != null && state.candidate.hasSurvivors();
+        if (survivors) {
+            retainFailedLaunch(state.candidate);
+        }
+        return new AttemptFailure(failure, resourceFailure, survivors);
+    }
+
+    private static void cleanupAttemptProcess(AttemptState state, long deadline, Throwable primary,
+                                              boolean retainInterruptedCandidate) {
+        if (state.candidate != null) {
+            state.candidate.close(cleanupTimeout(deadline), primary);
+            if (retainInterruptedCandidate) {
+                retainFailedLaunch(state.candidate);
+            }
+        } else if (state.process != null) {
+            terminate(state.process, cleanupTimeout(deadline), primary);
+        }
     }
 
     private static Duration cleanupTimeout(long deadline) {
@@ -1314,6 +1365,46 @@ final class ManagedLocalAiProcess {
         LaunchHooks {
             Objects.requireNonNull(starter, "starter");
             Objects.requireNonNull(identity, "identity");
+        }
+    }
+
+    private record LaunchPlan(LaunchRequest request, Path executable, Path model) {
+    }
+
+    private static final class AttemptState {
+        private final String key = secret();
+        private final Path keyFile;
+        private final LaunchReservation reservation = new LaunchReservation(Thread.currentThread());
+        private Process process;
+        private Session candidate;
+
+        private AttemptState(Path cache) throws IOException {
+            keyFile = createKeyFile(cache, key);
+        }
+    }
+
+    private static final class AttemptFailure extends Exception {
+        private final Exception failure;
+        private final IllegalStateException resourceFailure;
+        private final boolean survivors;
+
+        private AttemptFailure(Exception failure, IllegalStateException resourceFailure, boolean survivors) {
+            super(failure);
+            this.failure = failure;
+            this.resourceFailure = resourceFailure;
+            this.survivors = survivors;
+        }
+
+        private Exception failure() {
+            return failure;
+        }
+
+        private IllegalStateException resourceFailure() {
+            return resourceFailure;
+        }
+
+        private boolean survivors() {
+            return survivors;
         }
     }
 
