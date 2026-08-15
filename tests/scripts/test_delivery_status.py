@@ -32,6 +32,102 @@ def merged() -> dict:
     return {"repository": "ShaftHQ/SHAFT_ENGINE", "number": 7, "headOid": "abc", "state": "CLOSED", "isDraft": False, "autoMergeRequest": None, "mergeStateStatus": "UNKNOWN", "mergedAt": "2026-08-12T12:00:00Z", "auditDecision": "allow"}
 
 
+class _CleanupScenario:
+    def __init__(self):
+        self.temporary = tempfile.TemporaryDirectory()
+        self.root = Path(self.temporary.name)
+        self.task = self.root / "task"
+        self.unrelated = self.root / "unrelated"
+        self.task.mkdir()
+        self.unrelated.mkdir()
+        self.plan = manifest()
+        self.plan["cleanup"]["repositories"][0].update(
+            root=str(self.root),
+            taskWorktrees=[str(self.task)],
+            taskBranches=["ChaosEngine/task"],
+            unrelatedDirtyWorktrees=[],
+            degradedResidues=[{
+                "repository": "ShaftHQ/SHAFT_ENGINE",
+                "pullRequest": 7,
+                "worktree": str(self.task),
+                "branch": "ChaosEngine/task",
+            }],
+        )
+        self.state = {
+            "dirty": False, "unique": False, "locked": False, "pruned": False,
+            "prune_on_remove": False, "head": "abc", "repository": "ShaftHQ/SHAFT_ENGINE",
+            "default_remote_head": "same", "branch_present": True,
+            "unexpected_dirty_worktree": False, "change_remote_on_remove": False,
+            "desync_primary_on_remove": False, "drop_branch_on_remove": False,
+            "add_dirty_worktree_on_remove": False, "denial": "host policy denied",
+        }
+        self.removal_calls = []
+
+    def close(self):
+        self.temporary.cleanup()
+
+    def inspect(self, statuses=None):
+        return inspect_cleanup(
+            self.plan, [merged()] if statuses is None else statuses,
+            runner=self, executable="git",
+        )
+
+    def __call__(self, command, **kwargs):
+        joined = " ".join(command)
+        if "remote get-url origin" in joined:
+            return subprocess.CompletedProcess(command, 0, f"https://github.com/{self.state['repository']}.git\n", "")
+        if "rev-parse" in joined:
+            return self._rev_parse(command)
+        if "worktree list" in joined:
+            return self._worktree_list(command)
+        if "branch --format" in joined:
+            task_branch = "ChaosEngine/task\n" if self.state["branch_present"] else ""
+            return subprocess.CompletedProcess(command, 0, f"main\n{task_branch}", "")
+        if "status --porcelain" in joined:
+            is_unrelated = Path(kwargs["cwd"]) == self.unrelated
+            dirty = self.state["dirty"] or (self.state["unexpected_dirty_worktree"] and is_unrelated)
+            return subprocess.CompletedProcess(command, 0, " M file\n" if dirty else "", "")
+        if "cherry origin/main ChaosEngine/task" in joined:
+            return subprocess.CompletedProcess(command, 0, "+ abc\n" if self.state["unique"] else "- abc\n", "")
+        if "worktree remove --" in joined:
+            return self._remove(command)
+        raise AssertionError(command)
+
+    def _rev_parse(self, command):
+        if command[-1] in {"ChaosEngine/task", "HEAD"}:
+            return subprocess.CompletedProcess(command, 0, f"{self.state['head']}\n", "")
+        if command[-1] == "origin/main":
+            return subprocess.CompletedProcess(command, 0, f"{self.state['default_remote_head']}\n", "")
+        return subprocess.CompletedProcess(command, 0, "same\n", "")
+
+    def _worktree_list(self, command):
+        if self.state["pruned"]:
+            return subprocess.CompletedProcess(command, 0, f"worktree {self.root}\nbranch refs/heads/main\n", "")
+        locked = "\nlocked active-owner" if self.state["locked"] else ""
+        unrelated = (
+            f"\n\nworktree {self.unrelated}\nbranch refs/heads/unrelated"
+            if self.state["unexpected_dirty_worktree"] else ""
+        )
+        output = (
+            f"worktree {self.root}\nbranch refs/heads/main\n\nworktree {self.task}"
+            f"\nbranch refs/heads/ChaosEngine/task{locked}{unrelated}\n"
+        )
+        return subprocess.CompletedProcess(command, 0, output, "")
+
+    def _remove(self, command):
+        self.removal_calls.append(command)
+        for trigger, mutation, value in (
+            ("prune_on_remove", "pruned", True),
+            ("change_remote_on_remove", "repository", "evil/other"),
+            ("desync_primary_on_remove", "default_remote_head", "changed"),
+            ("drop_branch_on_remove", "branch_present", False),
+            ("add_dirty_worktree_on_remove", "unexpected_dirty_worktree", True),
+        ):
+            if self.state[trigger]:
+                self.state[mutation] = value
+        return subprocess.CompletedProcess(command, 1, "", self.state["denial"])
+
+
 class DeliveryStatusTest(unittest.TestCase):
     cleanup = {"primarySynced": True, "taskWorktreesAbsent": True, "taskBranchesAbsent": True, "unrelatedDirtyPreserved": True, "repositories": []}
 
@@ -209,95 +305,15 @@ class DeliveryStatusTest(unittest.TestCase):
             self.assertFalse(inspect_cleanup(plan, runner=runner, executable="git")["unrelatedDirtyPreserved"])
 
     def test_degraded_residue_requires_clean_nonunique_unlocked_single_owner_and_denial(self):
-        with tempfile.TemporaryDirectory() as temporary:
-            root = Path(temporary)
-            task = root / "task"
-            unrelated = root / "unrelated"
-            task.mkdir()
-            unrelated.mkdir()
-            plan = manifest()
-            target = plan["cleanup"]["repositories"][0]
-            target.update(
-                root=str(root),
-                taskWorktrees=[str(task)],
-                taskBranches=["ChaosEngine/task"],
-                unrelatedDirtyWorktrees=[],
-                degradedResidues=[{
-                    "repository": "ShaftHQ/SHAFT_ENGINE",
-                    "pullRequest": 7,
-                    "worktree": str(task),
-                    "branch": "ChaosEngine/task",
-                }],
-            )
-            state = {
-                "dirty": False,
-                "unique": False,
-                "locked": False,
-                "pruned": False,
-                "prune_on_remove": False,
-                "head": "abc",
-                "repository": "ShaftHQ/SHAFT_ENGINE",
-                "default_remote_head": "same",
-                "branch_present": True,
-                "unexpected_dirty_worktree": False,
-                "change_remote_on_remove": False,
-                "desync_primary_on_remove": False,
-                "drop_branch_on_remove": False,
-                "add_dirty_worktree_on_remove": False,
-                "denial": "host policy denied",
-            }
-            removal_calls = []
+        scenario = _CleanupScenario()
+        self.addCleanup(scenario.close)
+        plan = scenario.plan
+        target = plan["cleanup"]["repositories"][0]
+        state = scenario.state
+        removal_calls = scenario.removal_calls
+        runner = scenario
 
-            def runner(command, **kwargs):
-                joined = " ".join(command)
-                if "remote get-url origin" in joined:
-                    return subprocess.CompletedProcess(command, 0, f"https://github.com/{state['repository']}.git\n", "")
-                if "rev-parse" in joined:
-                    if command[-1] in {"ChaosEngine/task", "HEAD"}:
-                        return subprocess.CompletedProcess(command, 0, f"{state['head']}\n", "")
-                    if command[-1] == "origin/main":
-                        return subprocess.CompletedProcess(command, 0, f"{state['default_remote_head']}\n", "")
-                    return subprocess.CompletedProcess(command, 0, "same\n", "")
-                if "worktree list" in joined:
-                    if state["pruned"]:
-                        return subprocess.CompletedProcess(
-                            command, 0, f"worktree {root}\nbranch refs/heads/main\n", ""
-                        )
-                    locked = "\nlocked active-owner" if state["locked"] else ""
-                    unrelated_record = (
-                        f"\n\nworktree {unrelated}\nbranch refs/heads/unrelated"
-                        if state["unexpected_dirty_worktree"] else ""
-                    )
-                    return subprocess.CompletedProcess(
-                        command,
-                        0,
-                        f"worktree {root}\nbranch refs/heads/main\n\nworktree {task}\nbranch refs/heads/ChaosEngine/task{locked}{unrelated_record}\n",
-                        "",
-                    )
-                if "branch --format" in joined:
-                    task_branch = "ChaosEngine/task\n" if state["branch_present"] else ""
-                    return subprocess.CompletedProcess(command, 0, f"main\n{task_branch}", "")
-                if "status --porcelain" in joined:
-                    is_unrelated = Path(kwargs["cwd"]) == unrelated
-                    dirty = state["dirty"] or (state["unexpected_dirty_worktree"] and is_unrelated)
-                    return subprocess.CompletedProcess(command, 0, " M file\n" if dirty else "", "")
-                if "cherry origin/main ChaosEngine/task" in joined:
-                    return subprocess.CompletedProcess(command, 0, "+ abc\n" if state["unique"] else "- abc\n", "")
-                if "worktree remove --" in joined:
-                    removal_calls.append(command)
-                    if state["prune_on_remove"]:
-                        state["pruned"] = True
-                    if state["change_remote_on_remove"]:
-                        state["repository"] = "evil/other"
-                    if state["desync_primary_on_remove"]:
-                        state["default_remote_head"] = "changed"
-                    if state["drop_branch_on_remove"]:
-                        state["branch_present"] = False
-                    if state["add_dirty_worktree_on_remove"]:
-                        state["unexpected_dirty_worktree"] = True
-                    return subprocess.CompletedProcess(command, 1, "", state["denial"])
-                raise AssertionError(command)
-
+        with self.subTest(contract="degraded-cleanup-state-matrix"):
             observed = inspect_cleanup(plan, [merged()], runner=runner, executable="git")
             self.assertEqual("degraded", observed.get("outcome"))
             self.assertTrue(observed.get("residueSafe"))

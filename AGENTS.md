@@ -77,6 +77,12 @@ reuse IDs, delete dead entries, and never create diaries.
 
 Use smallest non-redundant check after edits/rebases/dependency changes:
 
+During planning, offer tests created or edited only, the recommended balanced
+scope of those tests plus directly impacted tests, or the full suite. For a CI
+failure, inspect the failing job, fix its exact cause, rerun only tests created
+or edited for that fix, then push. Never rerun an entire suite merely because a
+CI job failed.
+
 - Guidance/memory: `py -3 scripts/ci/validate_agent_setup.py --skip-external`.
 - Local code: affected tests, then one affected compile/package.
 - Shared API/build/release: targeted check, then full compile/package.

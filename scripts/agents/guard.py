@@ -3287,7 +3287,7 @@ def _tool_result_explicitly_successful(tool_result: object) -> bool:
         return False
     if status and status not in successful_statuses:
         return False
-    if not ((exit_present and exit_code == 0) or status in successful_statuses):
+    if not exit_present and not status:
         return False
     return not any(
         tool_result.get(field) is not None and tool_result.get(field) != ""

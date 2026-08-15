@@ -24,6 +24,13 @@ POSIX_ABSOLUTE_PATH = re.compile(
 
 
 class ChaosEnginePortableCoreTest(unittest.TestCase):
+    def test_validation_scope_recommends_balanced_and_ci_reruns_only_changed_tests(self):
+        guidance = CANONICAL_SKILL.read_text(encoding="utf-8")
+
+        self.assertIn("balanced default", guidance)
+        self.assertIn("only tests created or edited", guidance)
+        self.assertIn("Do not rerun an entire test suite merely because CI failed", guidance)
+
     def test_portable_graphify_retrieval_is_read_only_and_ordered(self):
         guidance = (CORE / "references/graphify.md").read_text(encoding="utf-8")
         retrieval = guidance.split("## Refresh", 1)[0]

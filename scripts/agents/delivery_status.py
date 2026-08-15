@@ -265,6 +265,249 @@ def collect_delivery(manifest: dict, *, default_root: Path) -> list[dict]:
     return statuses
 
 
+def _git_read(runner, git: str, root: Path, *arguments: str) -> str:
+    result = runner(
+        [git, *arguments], cwd=root, capture_output=True, text=True, timeout=10, check=False
+    )
+    if result.returncode:
+        raise ValueError(result.stderr.strip() or f"git {' '.join(arguments)} failed")
+    return result.stdout
+
+
+def _worktree_records(output: str) -> dict[str, dict[str, object]]:
+    records: dict[str, dict[str, object]] = {}
+    for block in output.strip().split("\n\n"):
+        record: dict[str, object] = {"branch": None, "locked": False}
+        record_path = None
+        for line in block.splitlines():
+            if line.startswith("worktree "):
+                record_path = _normalized_path(line.removeprefix("worktree "))
+            elif line.startswith("branch "):
+                record["branch"] = line.removeprefix("branch refs/heads/")
+            elif line.startswith("locked"):
+                record["locked"] = True
+        if record_path:
+            records[record_path] = record
+    return records
+
+
+def _dirty_worktrees(runner, git: str, worktrees: set[str]) -> set[str]:
+    dirty_worktrees = set()
+    for value in worktrees:
+        path = Path(value)
+        result = runner(
+            [git, "status", "--porcelain"],
+            cwd=path,
+            capture_output=True,
+            text=True,
+            timeout=10,
+            check=False,
+        )
+        if result.returncode:
+            raise ValueError(result.stderr.strip() or f"cannot inspect unrelated worktree {path}")
+        if result.stdout.strip():
+            dirty_worktrees.add(value)
+    return dirty_worktrees
+
+
+def _cleanup_snapshot(
+    runner,
+    git: str,
+    root: Path,
+    branch: str,
+    named_worktrees: list[str],
+) -> dict[str, object]:
+    worktree_output = _git_read(runner, git, root, "worktree", "list", "--porcelain")
+    records = _worktree_records(worktree_output)
+    present = set(records)
+    unrelated = present - {_normalized_path(root)} - set(named_worktrees)
+    return {
+        "local": _git_read(runner, git, root, "rev-parse", branch).strip(),
+        "remoteHead": _git_read(runner, git, root, "rev-parse", f"origin/{branch}").strip(),
+        "repository": _github_repository(
+            _git_read(runner, git, root, "remote", "get-url", "origin")
+        ),
+        "records": records,
+        "branches": _git_read(
+            runner, git, root, "branch", "--format=%(refname:short)"
+        ).splitlines(),
+        "dirtyUnrelated": _dirty_worktrees(runner, git, unrelated),
+    }
+
+
+def _residue_head_is_safe(
+    runner,
+    git: str,
+    root: Path,
+    worktree: Path,
+    default_branch: str,
+    residue_branch: str,
+    expected_head: str,
+) -> bool:
+    dirty = runner([git, "status", "--porcelain"], cwd=worktree, capture_output=True, text=True, timeout=10, check=False)
+    cherry = runner([git, "cherry", f"origin/{default_branch}", residue_branch], cwd=root, capture_output=True, text=True, timeout=10, check=False)
+    branch_head = runner([git, "rev-parse", residue_branch], cwd=root, capture_output=True, text=True, timeout=10, check=False)
+    worktree_head = runner([git, "rev-parse", "HEAD"], cwd=worktree, capture_output=True, text=True, timeout=10, check=False)
+    return all((
+        dirty.returncode == 0,
+        not dirty.stdout.strip(),
+        cherry.returncode == 0,
+        not any(line.startswith("+") for line in cherry.stdout.splitlines()),
+        branch_head.returncode == 0,
+        branch_head.stdout.strip() == expected_head,
+        worktree_head.returncode == 0,
+        worktree_head.stdout.strip() == expected_head,
+    ))
+
+
+def _policy_denied(result) -> bool:
+    lines = [
+        line.strip().casefold()
+        for line in f"{result.stderr}\n{result.stdout}".splitlines()
+        if line.strip()
+    ]
+    return result.returncode != 0 and lines in [[value] for value in (
+        "policy denied",
+        "denied by policy",
+        "blocked by policy",
+        "blocked by host policy",
+        "host policy denied",
+    )]
+
+
+def _residue_scope_is_safe(
+    *,
+    delivery_authorized: bool,
+    normalized_worktree: str,
+    named_worktrees: list[str],
+    residue_branch: object,
+    named_branches: list[str],
+    root: Path,
+    default_branch: str,
+    residue_repository: object,
+    residue_pull_request: object,
+    live_repository: object,
+    expected_head: object,
+    record: object,
+) -> bool:
+    return all((
+        delivery_authorized,
+        normalized_worktree in named_worktrees,
+        residue_branch in named_branches,
+        normalized_worktree != _normalized_path(root),
+        residue_branch != default_branch,
+        isinstance(residue_pull_request, int),
+        not isinstance(residue_pull_request, bool),
+        _text(residue_repository),
+        isinstance(live_repository, str),
+        str(live_repository).casefold() == str(residue_repository).casefold(),
+        _text(expected_head),
+        isinstance(record, dict),
+        record.get("branch") == residue_branch if isinstance(record, dict) else False,
+        record.get("locked") is False if isinstance(record, dict) else False,
+    ))
+
+
+def _post_denial_is_safe(
+    runner,
+    git: str,
+    root: Path,
+    default_branch: str,
+    named_worktrees: list[str],
+    unrelated_expected: set[str],
+    residue_repository: object,
+    residue_branch: str,
+    worktree: Path,
+    normalized_worktree: str,
+    expected_head: str,
+) -> bool:
+    snapshot = _cleanup_snapshot(runner, git, root, default_branch, named_worktrees)
+    record = snapshot["records"].get(normalized_worktree)
+    return all((
+        snapshot["local"] == snapshot["remoteHead"],
+        isinstance(snapshot["repository"], str),
+        str(snapshot["repository"]).casefold() == str(residue_repository).casefold(),
+        residue_branch in snapshot["branches"],
+        snapshot["dirtyUnrelated"] == unrelated_expected,
+        isinstance(record, dict),
+        record.get("branch") == residue_branch if isinstance(record, dict) else False,
+        record.get("locked") is False if isinstance(record, dict) else False,
+        _residue_head_is_safe(
+            runner, git, root, worktree, default_branch, residue_branch, expected_head
+        ) if isinstance(record, dict) else False,
+    ))
+
+
+def _inspect_degraded_residue(
+    residue: object,
+    *,
+    manifest: dict,
+    delivery_authorized: bool,
+    snapshot: dict[str, object],
+    runner,
+    git: str,
+    root: Path,
+    default_branch: str,
+    named_worktrees: list[str],
+    named_branches: list[str],
+    unrelated_expected: set[str],
+) -> dict[str, object] | None:
+    if not isinstance(residue, dict):
+        return None
+    worktree_value = residue.get("worktree")
+    residue_branch = residue.get("branch")
+    residue_repository = residue.get("repository")
+    residue_pull_request = residue.get("pullRequest")
+    if not _text(worktree_value) or not _text(residue_branch):
+        return None
+    normalized_worktree = _normalized_path(worktree_value)
+    owner = next((
+        item for item in manifest.get("ownedPullRequests", [])
+        if isinstance(item, dict)
+        and item.get("repository") == residue_repository
+        and item.get("number") == residue_pull_request
+    ), None)
+    expected_head = owner.get("headOid") if isinstance(owner, dict) else None
+    record = snapshot["records"].get(normalized_worktree)
+    if not _residue_scope_is_safe(
+        delivery_authorized=delivery_authorized,
+        normalized_worktree=normalized_worktree,
+        named_worktrees=named_worktrees,
+        residue_branch=residue_branch,
+        named_branches=named_branches,
+        root=root,
+        default_branch=default_branch,
+        residue_repository=residue_repository,
+        residue_pull_request=residue_pull_request,
+        live_repository=snapshot["repository"],
+        expected_head=expected_head,
+        record=record,
+    ):
+        return None
+    resolved_worktree = Path(worktree_value).resolve()
+    if not _residue_head_is_safe(
+        runner, git, root, resolved_worktree, default_branch, residue_branch, expected_head
+    ):
+        return None
+    removal = runner(
+        [git, "worktree", "remove", "--", str(resolved_worktree)],
+        cwd=root, capture_output=True, text=True, timeout=10, check=False,
+    )
+    if not _policy_denied(removal) or not _post_denial_is_safe(
+        runner, git, root, default_branch, named_worktrees, unrelated_expected,
+        residue_repository, residue_branch, resolved_worktree, normalized_worktree,
+        expected_head,
+    ):
+        return None
+    return {
+        "repository": residue_repository,
+        "pullRequest": residue_pull_request,
+        "worktree": str(resolved_worktree),
+        "branch": residue_branch,
+        "reasonCode": "removal-denied",
+    }
+
+
 def inspect_cleanup(
     manifest: dict,
     statuses: object = None,
@@ -272,7 +515,7 @@ def inspect_cleanup(
     runner=None,
     executable: str | None = None,
 ) -> dict:
-    """Inspect named cleanup targets and make at most one safe removal attempt per residue."""
+    """Inspect named cleanup targets and make at most one safe removal attempt in total."""
     if not isinstance(manifest, dict):
         raise ValueError("delivery manifest must be an object")
     cleanup = manifest.get("cleanup")
@@ -322,55 +565,19 @@ def inspect_cleanup(
             or not all(_text(value) for value in unrelated_values)
         ):
             raise ValueError("cleanup scope must explicitly name task worktrees and branches")
-        def git_read(*arguments):
-            result = runner([git, *arguments], cwd=root, capture_output=True, text=True, timeout=10, check=False)
-            if result.returncode:
-                raise ValueError(result.stderr.strip() or f"git {' '.join(arguments)} failed")
-            return result.stdout
         branch = target["defaultBranch"]
-        local = git_read("rev-parse", branch).strip()
-        remote_head = git_read("rev-parse", f"origin/{branch}").strip()
-        live_repository = _github_repository(git_read("remote", "get-url", "origin"))
-        synced = local == remote_head
-        worktree_output = git_read("worktree", "list", "--porcelain")
-        present_worktrees = {
-            _normalized_path(line.removeprefix("worktree "))
-            for line in worktree_output.splitlines() if line.startswith("worktree ")
-        }
         named_worktrees = [_normalized_path(value) for value in named_worktree_values]
+        snapshot = _cleanup_snapshot(runner, git, root, branch, named_worktrees)
+        present_worktrees = set(snapshot["records"])
+        synced = snapshot["local"] == snapshot["remoteHead"]
         worktrees_absent = not any(value in present_worktrees for value in named_worktrees)
-        branch_output = git_read("branch", "--format=%(refname:short)").splitlines()
-        branches_absent = not any(value in branch_output for value in named_branches)
+        branches_absent = not any(value in snapshot["branches"] for value in named_branches)
         unrelated_expected = {_normalized_path(value) for value in unrelated_values}
-        unrelated_live = present_worktrees - {_normalized_path(root)} - set(named_worktrees)
-        observed_dirty = set()
-        for value in unrelated_live:
-            path = Path(value)
-            dirty = runner([git, "status", "--porcelain"], cwd=path, capture_output=True, text=True, timeout=10, check=False)
-            if dirty.returncode:
-                raise ValueError(dirty.stderr.strip() or f"cannot inspect unrelated worktree {path}")
-            if dirty.stdout.strip():
-                observed_dirty.add(value)
-        dirty_preserved = observed_dirty == unrelated_expected
-
-        worktree_records: dict[str, dict[str, object]] = {}
-        for block in worktree_output.strip().split("\n\n"):
-            record: dict[str, object] = {"branch": None, "locked": False}
-            record_path = None
-            for line in block.splitlines():
-                if line.startswith("worktree "):
-                    record_path = _normalized_path(line.removeprefix("worktree "))
-                elif line.startswith("branch "):
-                    record["branch"] = line.removeprefix("branch refs/heads/")
-                elif line.startswith("locked"):
-                    record["locked"] = True
-            if record_path:
-                worktree_records[record_path] = record
+        dirty_preserved = snapshot["dirtyUnrelated"] == unrelated_expected
 
         requested_residues = target.get("degradedResidues")
         if requested_residues is not None:
             degraded_requested = True
-            owned = manifest.get("ownedPullRequests")
             if (
                 not isinstance(requested_residues, list)
                 or len(requested_residues) != 1
@@ -379,161 +586,18 @@ def inspect_cleanup(
                 all_residue_safe = False
                 warnings.append("cleanup-residue-receipt-missing")
             else:
-                for residue in requested_residues:
-                    safe = isinstance(residue, dict)
-                    worktree_value = residue.get("worktree") if safe else None
-                    residue_branch = residue.get("branch") if safe else None
-                    residue_repository = residue.get("repository") if safe else None
-                    residue_pull_request = residue.get("pullRequest") if safe else None
-                    normalized_worktree = (
-                        _normalized_path(worktree_value)
-                        if _text(worktree_value)
-                        else ""
-                    )
-                    record = worktree_records.get(normalized_worktree)
-                    owner = next(
-                        (
-                            item for item in owned or []
-                            if isinstance(item, dict)
-                            and item.get("repository") == residue_repository
-                            and item.get("number") == residue_pull_request
-                        ),
-                        None,
-                    )
-                    expected_head = owner.get("headOid") if isinstance(owner, dict) else None
-                    safe = bool(
-                        safe
-                        and delivery_authorized
-                        and normalized_worktree in named_worktrees
-                        and residue_branch in named_branches
-                        and normalized_worktree != _normalized_path(root)
-                        and residue_branch != branch
-                        and isinstance(residue_pull_request, int)
-                        and not isinstance(residue_pull_request, bool)
-                        and _text(residue_repository)
-                        and live_repository is not None
-                        and live_repository.casefold() == str(residue_repository).casefold()
-                        and _text(expected_head)
-                        and record is not None
-                        and record.get("branch") == residue_branch
-                        and record.get("locked") is False
-                    )
-                    if safe:
-                        resolved_worktree = Path(worktree_value).resolve()
-                        dirty = runner([git, "status", "--porcelain"], cwd=resolved_worktree, capture_output=True, text=True, timeout=10, check=False)
-                        cherry = runner([git, "cherry", f"origin/{branch}", residue_branch], cwd=root, capture_output=True, text=True, timeout=10, check=False)
-                        branch_head = runner([git, "rev-parse", residue_branch], cwd=root, capture_output=True, text=True, timeout=10, check=False)
-                        worktree_head = runner([git, "rev-parse", "HEAD"], cwd=resolved_worktree, capture_output=True, text=True, timeout=10, check=False)
-                        safe = bool(
-                            dirty.returncode == 0
-                            and not dirty.stdout.strip()
-                            and cherry.returncode == 0
-                            and not any(line.startswith("+") for line in cherry.stdout.splitlines())
-                            and branch_head.returncode == 0
-                            and branch_head.stdout.strip() == expected_head
-                            and worktree_head.returncode == 0
-                            and worktree_head.stdout.strip() == expected_head
-                        )
-                    if safe:
-                        removal = runner(
-                            [git, "worktree", "remove", "--", str(resolved_worktree)],
-                            cwd=root,
-                            capture_output=True,
-                            text=True,
-                            timeout=10,
-                            check=False,
-                        )
-                        denial_lines = [
-                            line.strip().casefold()
-                            for line in f"{removal.stderr}\n{removal.stdout}".splitlines()
-                            if line.strip()
-                        ]
-                        denied = (
-                            removal.returncode != 0
-                            and len(denial_lines) == 1
-                            and denial_lines[0] in {
-                            "policy denied",
-                            "denied by policy",
-                            "blocked by policy",
-                            "blocked by host policy",
-                            "host policy denied",
-                            }
-                        )
-                        post_output = git_read("worktree", "list", "--porcelain")
-                        post_local = git_read("rev-parse", branch).strip()
-                        post_remote_head = git_read("rev-parse", f"origin/{branch}").strip()
-                        post_live_repository = _github_repository(git_read("remote", "get-url", "origin"))
-                        post_branch_output = git_read("branch", "--format=%(refname:short)").splitlines()
-                        post_records: dict[str, dict[str, object]] = {}
-                        for block in post_output.strip().split("\n\n"):
-                            post_record: dict[str, object] = {"branch": None, "locked": False}
-                            post_path = None
-                            for line in block.splitlines():
-                                if line.startswith("worktree "):
-                                    post_path = _normalized_path(line.removeprefix("worktree "))
-                                elif line.startswith("branch "):
-                                    post_record["branch"] = line.removeprefix("branch refs/heads/")
-                                elif line.startswith("locked"):
-                                    post_record["locked"] = True
-                            if post_path:
-                                post_records[post_path] = post_record
-                        post_present_worktrees = set(post_records)
-                        post_unrelated_live = post_present_worktrees - {_normalized_path(root)} - set(named_worktrees)
-                        post_observed_dirty = set()
-                        for value in post_unrelated_live:
-                            path = Path(value)
-                            post_unrelated_dirty = runner(
-                                [git, "status", "--porcelain"],
-                                cwd=path,
-                                capture_output=True,
-                                text=True,
-                                timeout=10,
-                                check=False,
-                            )
-                            if post_unrelated_dirty.returncode:
-                                raise ValueError(
-                                    post_unrelated_dirty.stderr.strip()
-                                    or f"cannot inspect unrelated worktree {path}"
-                                )
-                            if post_unrelated_dirty.stdout.strip():
-                                post_observed_dirty.add(value)
-                        post_record = post_records.get(normalized_worktree)
-                        post_dirty = runner([git, "status", "--porcelain"], cwd=resolved_worktree, capture_output=True, text=True, timeout=10, check=False) if post_record else None
-                        post_cherry = runner([git, "cherry", f"origin/{branch}", residue_branch], cwd=root, capture_output=True, text=True, timeout=10, check=False)
-                        post_branch_head = runner([git, "rev-parse", residue_branch], cwd=root, capture_output=True, text=True, timeout=10, check=False)
-                        post_worktree_head = runner([git, "rev-parse", "HEAD"], cwd=resolved_worktree, capture_output=True, text=True, timeout=10, check=False) if post_record else None
-                        safe = bool(
-                            denied
-                            and post_local == post_remote_head
-                            and post_live_repository is not None
-                            and post_live_repository.casefold() == str(residue_repository).casefold()
-                            and residue_branch in post_branch_output
-                            and post_observed_dirty == unrelated_expected
-                            and post_record is not None
-                            and post_record.get("branch") == residue_branch
-                            and post_record.get("locked") is False
-                            and post_dirty is not None
-                            and post_dirty.returncode == 0
-                            and not post_dirty.stdout.strip()
-                            and post_cherry.returncode == 0
-                            and not any(line.startswith("+") for line in post_cherry.stdout.splitlines())
-                            and post_branch_head.returncode == 0
-                            and post_branch_head.stdout.strip() == expected_head
-                            and post_worktree_head is not None
-                            and post_worktree_head.returncode == 0
-                            and post_worktree_head.stdout.strip() == expected_head
-                        )
-                    all_residue_safe &= safe
-                    if safe:
-                        residues.append({
-                            "repository": residue_repository,
-                            "pullRequest": residue_pull_request,
-                            "worktree": str(resolved_worktree),
-                            "branch": residue_branch,
-                            "reasonCode": "removal-denied",
-                        })
-                        if "cleanup-residue-remains" not in warnings:
-                            warnings.append("cleanup-residue-remains")
+                residue_record = _inspect_degraded_residue(
+                    requested_residues[0], manifest=manifest,
+                    delivery_authorized=delivery_authorized, snapshot=snapshot,
+                    runner=runner, git=git, root=root, default_branch=branch,
+                    named_worktrees=named_worktrees, named_branches=named_branches,
+                    unrelated_expected=unrelated_expected,
+                )
+                safe = residue_record is not None
+                all_residue_safe &= safe
+                if residue_record:
+                    residues.append(residue_record)
+                    warnings.append("cleanup-residue-remains")
         all_synced &= synced
         all_worktrees_absent &= worktrees_absent
         all_branches_absent &= branches_absent
