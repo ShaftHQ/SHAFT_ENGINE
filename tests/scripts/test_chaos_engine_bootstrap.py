@@ -61,6 +61,10 @@ class ChaosEngineBootstrapTest(unittest.TestCase):
         self.assertEqual(lines[0], lines[1])
         source = lines[0][len('py -3 -c "') : -1]
         outer = ast.parse(source)
+        rendered = ast.unparse(outer)
+        self.assertIn("os.environ['CHAOS_ENGINE_REPOSITORY']", rendered)
+        self.assertNotIn("'S' + 'haftHQ'", rendered)
+        self.assertNotIn("'S' + 'HAFT_ENGINE'", rendered)
         embedded_call = next(
             node
             for node in ast.walk(outer)

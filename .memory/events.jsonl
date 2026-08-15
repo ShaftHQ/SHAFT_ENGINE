@@ -1139,3 +1139,5 @@
 {"actor":"agent","event":"memory.updated","id":"decision.managed-local-ai-baseline-is-pinned-llamacpp-behind-ai-execution-policy","timestamp":"2026-08-14T22:59:38+03:00"}
 {"actor":"agent","event":"memory.created","id":"gotcha.intellij-shared-run-templates-require-one-configuration-per-file","timestamp":"2026-08-15T07:06:50+03:00"}
 {"actor":"agent","event":"memory.created","id":"gotcha.windows-linked-worktree-creation-requires-forward-slashes-and-longpaths","timestamp":"2026-08-15T11:53:59+03:00"}
+{"actor":"agent","event":"memory.created","id":"gotcha.portable-token-scans-and-doctor-probes-do-not-prove-the-real-generated-launch-boundary","timestamp":"2026-08-15T18:44:59+03:00"}
+{"actor":"agent","event":"memory.updated","id":"gotcha.portable-token-scans-and-doctor-probes-do-not-prove-the-real-generated-launch-boundary","timestamp":"2026-08-15T18:49:23+03:00"}
