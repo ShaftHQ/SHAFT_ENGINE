@@ -5,5 +5,12 @@
     "mempalace": {"package": "mempalace==3.7.1", "commands": ["mempalace", "mempalace-mcp"]},
     "graphify": {"package": "graphifyy==0.9.43", "with": ["tree-sitter-sql==0.3.11"], "commands": ["graphify"]},
     "memory": {"package": "@aictx/memory@0.2.1", "commands": ["memory", "memory-mcp"]}
+  },
+  "components": {
+    "tools": {"owner": "installer", "scope": "project", "lifecycle": "receipt-owned", "taskImpact": "required"},
+    "memory": {"owner": "project", "scope": "project", "lifecycle": "persistent-data", "taskImpact": "advisory"},
+    "mempalace": {"owner": "project", "scope": "project", "lifecycle": "persistent-data", "taskImpact": "advisory"},
+    "graphify": {"owner": "project", "scope": "repository", "lifecycle": "derived-single-writer", "taskImpact": "advisory"},
+    "maven-tools-mcp": {"owner": "user", "scope": "user", "lifecycle": "user-managed-cache", "taskImpact": "optional"}
   }
 }

@@ -8,7 +8,7 @@ import unittest
 
 from pathlib import Path
 
-from scripts.agents.delivery_status import evaluate_delivery, inspect_cleanup, validate_authority
+from scripts.agents.delivery_status import _normalized_path, evaluate_delivery, inspect_cleanup, validate_authority
 
 
 def manifest() -> dict:
@@ -39,6 +39,63 @@ class DeliveryStatusTest(unittest.TestCase):
         receipt = evaluate_delivery(manifest(), [merged()], self.cleanup, execution_repository="ShaftHQ/SHAFT_ENGINE", execution_head="abc")
         self.assertEqual("allow", receipt["decision"])
         self.assertEqual(1, receipt["mergedCount"])
+        self.assertEqual("complete", receipt["cleanupDecision"])
+
+    def test_merged_delivery_reports_safe_denied_cleanup_as_degraded(self):
+        cleanup = {
+            **self.cleanup,
+            "taskWorktreesAbsent": False,
+            "taskBranchesAbsent": False,
+            "outcome": "degraded",
+            "residueSafe": True,
+            "residues": [
+                {
+                    "repository": "ShaftHQ/SHAFT_ENGINE",
+                    "pullRequest": 7,
+                    "worktree": "C:/task",
+                    "branch": "ChaosEngine/task",
+                    "reasonCode": "removal-denied",
+                }
+            ],
+            "warnings": ["cleanup-residue-remains"],
+        }
+
+        receipt = evaluate_delivery(manifest(), [merged()], cleanup)
+
+        self.assertEqual("allow", receipt["decision"])
+        self.assertEqual("allow", receipt["deliveryDecision"])
+        self.assertEqual("degraded", receipt["cleanupDecision"])
+        self.assertEqual(cleanup["residues"], receipt["cleanup"]["residues"])
+
+    def test_cleanup_unavailability_does_not_hide_successful_delivery(self):
+        receipt = evaluate_delivery(manifest(), [merged()], None)
+
+        self.assertEqual("unavailable", receipt["decision"])
+        self.assertEqual("allow", receipt["deliveryDecision"])
+        self.assertEqual("unavailable", receipt["cleanupDecision"])
+
+    def test_degraded_cleanup_rejects_unmerged_or_unsafe_residue(self):
+        base = {
+            **self.cleanup,
+            "taskWorktreesAbsent": False,
+            "taskBranchesAbsent": False,
+            "outcome": "degraded",
+            "residueSafe": True,
+            "residues": [{"repository": "ShaftHQ/SHAFT_ENGINE", "pullRequest": 7, "worktree": "C:/task", "branch": "ChaosEngine/task", "reasonCode": "removal-denied"}],
+            "warnings": ["cleanup-residue-remains"],
+        }
+        open_status = {**merged(), "state": "OPEN", "mergedAt": None}
+        self.assertEqual("block", evaluate_delivery(manifest(), [open_status], base)["decision"])
+        for field, value in (
+            ("residueSafe", False),
+            ("residues", []),
+            ("warnings", []),
+            ("residues", [{"repository": "ShaftHQ/SHAFT_ENGINE", "pullRequest": 7, "worktree": "C:/task", "branch": "ChaosEngine/task", "reason": "token=secret"}]),
+            ("warnings", ["token=secret"]),
+        ):
+            with self.subTest(field=field):
+                cleanup = {**base, field: value}
+                self.assertEqual("block", evaluate_delivery(manifest(), [merged()], cleanup)["decision"])
 
     def test_open_draft_armed_green_or_missing_merged_at_never_counts_as_delivered(self):
         for field, value in (("state", "OPEN"), ("isDraft", True), ("autoMergeRequest", {"enabledAt": "now"}), ("mergedAt", None)):
@@ -131,6 +188,8 @@ class DeliveryStatusTest(unittest.TestCase):
             )
             def runner(command, **kwargs):
                 joined = " ".join(command)
+                if "remote get-url origin" in joined:
+                    return subprocess.CompletedProcess(command, 0, "https://github.com/ShaftHQ/SHAFT_ENGINE.git\n", "")
                 if "rev-parse" in joined:
                     return subprocess.CompletedProcess(command, 0, "same\n", "")
                 if "worktree list" in joined:
@@ -148,6 +207,174 @@ class DeliveryStatusTest(unittest.TestCase):
 
             plan["cleanup"]["repositories"][0]["unrelatedDirtyWorktrees"] = []
             self.assertFalse(inspect_cleanup(plan, runner=runner, executable="git")["unrelatedDirtyPreserved"])
+
+    def test_degraded_residue_requires_clean_nonunique_unlocked_single_owner_and_denial(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            task = root / "task"
+            unrelated = root / "unrelated"
+            task.mkdir()
+            unrelated.mkdir()
+            plan = manifest()
+            target = plan["cleanup"]["repositories"][0]
+            target.update(
+                root=str(root),
+                taskWorktrees=[str(task)],
+                taskBranches=["ChaosEngine/task"],
+                unrelatedDirtyWorktrees=[],
+                degradedResidues=[{
+                    "repository": "ShaftHQ/SHAFT_ENGINE",
+                    "pullRequest": 7,
+                    "worktree": str(task),
+                    "branch": "ChaosEngine/task",
+                }],
+            )
+            state = {
+                "dirty": False,
+                "unique": False,
+                "locked": False,
+                "pruned": False,
+                "prune_on_remove": False,
+                "head": "abc",
+                "repository": "ShaftHQ/SHAFT_ENGINE",
+                "default_remote_head": "same",
+                "branch_present": True,
+                "unexpected_dirty_worktree": False,
+                "change_remote_on_remove": False,
+                "desync_primary_on_remove": False,
+                "drop_branch_on_remove": False,
+                "add_dirty_worktree_on_remove": False,
+            }
+            removal_calls = []
+
+            def runner(command, **kwargs):
+                joined = " ".join(command)
+                if "remote get-url origin" in joined:
+                    return subprocess.CompletedProcess(command, 0, f"https://github.com/{state['repository']}.git\n", "")
+                if "rev-parse" in joined:
+                    if command[-1] in {"ChaosEngine/task", "HEAD"}:
+                        return subprocess.CompletedProcess(command, 0, f"{state['head']}\n", "")
+                    if command[-1] == "origin/main":
+                        return subprocess.CompletedProcess(command, 0, f"{state['default_remote_head']}\n", "")
+                    return subprocess.CompletedProcess(command, 0, "same\n", "")
+                if "worktree list" in joined:
+                    if state["pruned"]:
+                        return subprocess.CompletedProcess(
+                            command, 0, f"worktree {root}\nbranch refs/heads/main\n", ""
+                        )
+                    locked = "\nlocked active-owner" if state["locked"] else ""
+                    unrelated_record = (
+                        f"\n\nworktree {unrelated}\nbranch refs/heads/unrelated"
+                        if state["unexpected_dirty_worktree"] else ""
+                    )
+                    return subprocess.CompletedProcess(
+                        command,
+                        0,
+                        f"worktree {root}\nbranch refs/heads/main\n\nworktree {task}\nbranch refs/heads/ChaosEngine/task{locked}{unrelated_record}\n",
+                        "",
+                    )
+                if "branch --format" in joined:
+                    task_branch = "ChaosEngine/task\n" if state["branch_present"] else ""
+                    return subprocess.CompletedProcess(command, 0, f"main\n{task_branch}", "")
+                if "status --porcelain" in joined:
+                    is_unrelated = Path(kwargs["cwd"]) == unrelated
+                    dirty = state["dirty"] or (state["unexpected_dirty_worktree"] and is_unrelated)
+                    return subprocess.CompletedProcess(command, 0, " M file\n" if dirty else "", "")
+                if "cherry origin/main ChaosEngine/task" in joined:
+                    return subprocess.CompletedProcess(command, 0, "+ abc\n" if state["unique"] else "- abc\n", "")
+                if "worktree remove --" in joined:
+                    removal_calls.append(command)
+                    if state["prune_on_remove"]:
+                        state["pruned"] = True
+                    if state["change_remote_on_remove"]:
+                        state["repository"] = "evil/other"
+                    if state["desync_primary_on_remove"]:
+                        state["default_remote_head"] = "changed"
+                    if state["drop_branch_on_remove"]:
+                        state["branch_present"] = False
+                    if state["add_dirty_worktree_on_remove"]:
+                        state["unexpected_dirty_worktree"] = True
+                    return subprocess.CompletedProcess(command, 1, "", "host policy denied; token=secret")
+                raise AssertionError(command)
+
+            observed = inspect_cleanup(plan, [merged()], runner=runner, executable="git")
+            self.assertEqual("degraded", observed.get("outcome"))
+            self.assertTrue(observed.get("residueSafe"))
+            self.assertTrue(observed.get("warnings"))
+            self.assertEqual(1, len(removal_calls))
+            self.assertEqual("removal-denied", observed["residues"][0]["reasonCode"])
+            self.assertNotIn("secret", json.dumps(observed))
+
+            for field in ("dirty", "unique", "locked"):
+                with self.subTest(field=field):
+                    state[field] = True
+                    self.assertFalse(
+                        inspect_cleanup(plan, [merged()], runner=runner, executable="git").get("residueSafe")
+                    )
+                    state[field] = False
+
+            state["head"] = "wrong"
+            before_wrong_head = len(removal_calls)
+            self.assertFalse(
+                inspect_cleanup(plan, [merged()], runner=runner, executable="git")["residueSafe"]
+            )
+            self.assertEqual(before_wrong_head, len(removal_calls))
+            state["head"] = "abc"
+
+            state["repository"] = "evil/other"
+            before_wrong_repository = len(removal_calls)
+            self.assertFalse(
+                inspect_cleanup(plan, [merged()], runner=runner, executable="git")["residueSafe"]
+            )
+            self.assertEqual(before_wrong_repository, len(removal_calls))
+            state["repository"] = "ShaftHQ/SHAFT_ENGINE"
+
+            state["change_remote_on_remove"] = True
+            changed_remote = inspect_cleanup(plan, [merged()], runner=runner, executable="git")
+            self.assertFalse(changed_remote["residueSafe"])
+            self.assertEqual([], changed_remote["residues"])
+            state["change_remote_on_remove"] = False
+            state["repository"] = "ShaftHQ/SHAFT_ENGINE"
+
+            for trigger, mutated, restored in (
+                ("desync_primary_on_remove", "default_remote_head", "same"),
+                ("drop_branch_on_remove", "branch_present", True),
+                ("add_dirty_worktree_on_remove", "unexpected_dirty_worktree", False),
+            ):
+                with self.subTest(post_denial_mutation=trigger):
+                    state[trigger] = True
+                    changed = inspect_cleanup(plan, [merged()], runner=runner, executable="git")
+                    self.assertFalse(changed["residueSafe"])
+                    self.assertEqual([], changed["residues"])
+                    state[trigger] = False
+                    state[mutated] = restored
+
+            before_unmerged = len(removal_calls)
+            unsafe = inspect_cleanup(plan, [{**merged(), "mergedAt": None}], runner=runner, executable="git")
+            self.assertFalse(unsafe["residueSafe"])
+            self.assertEqual(before_unmerged, len(removal_calls))
+
+            for status in (
+                {**merged(), "headOid": "wrong"},
+                {**merged(), "auditDecision": "block"},
+            ):
+                with self.subTest(status=status):
+                    before_unauthorized = len(removal_calls)
+                    self.assertFalse(
+                        inspect_cleanup(plan, [status], runner=runner, executable="git")["residueSafe"]
+                    )
+                    self.assertEqual(before_unauthorized, len(removal_calls))
+
+            state["prune_on_remove"] = True
+            partial = inspect_cleanup(plan, [merged()], runner=runner, executable="git")
+            self.assertFalse(partial["residueSafe"])
+            self.assertEqual([], partial["residues"])
+
+    def test_cleanup_path_normalization_preserves_posix_case(self):
+        self.assertNotEqual(
+            _normalized_path("/repo/Task", "posix"),
+            _normalized_path("/repo/task", "posix"),
+        )
 
 
 if __name__ == "__main__":

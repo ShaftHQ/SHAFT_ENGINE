@@ -191,7 +191,7 @@ def build_parser() -> argparse.ArgumentParser:
     authority.add_argument("--manifest", type=Path, required=True)
     authority.add_argument("--head", required=True)
     authority.add_argument("--receipt-out", type=Path, required=True)
-    commands.add_parser("mcp", help="serve the read-only operations over MCP stdio")
+    commands.add_parser("mcp", help="serve bounded repository operations over MCP stdio")
     return parser
 
 
@@ -243,7 +243,7 @@ def _tool_schemas() -> list[dict]:
         },
         {
             "name": "delivery_status",
-            "description": "Verify all owned pull requests are live-merged and scoped cleanup is complete.",
+            "description": "Verify live merge and cleanup; a named safe residue permits one exact worktree removal attempt.",
             "inputSchema": {
                 "type": "object", "properties": {
                     "manifest": {"type": "object"}, "root": {"type": "string"},
@@ -324,8 +324,9 @@ def call_tool(name: str, arguments: dict) -> dict:
             if not isinstance(manifest, dict):
                 raise RepositoryContextError("delivery manifest must be an object")
             context = context_from_arguments(_namespace({"root": arguments.get("root")}))
+            statuses = collect_delivery(manifest, default_root=context.root)
             payload = evaluate_delivery(
-                manifest, collect_delivery(manifest, default_root=context.root), inspect_cleanup(manifest),
+                manifest, statuses, inspect_cleanup(manifest, statuses),
                 execution_repository=context.repo, execution_head=local_head(context),
             )
             return {
@@ -484,8 +485,9 @@ def main(argv: list[str] | None = None) -> int:
                 explicit_repo=None, pr=None,
                 explicit_root=parsed.root.resolve(), cwd=parsed.root.resolve(),
             )
+            statuses = collect_delivery(manifest, default_root=context.root)
             payload = evaluate_delivery(
-                manifest, collect_delivery(manifest, default_root=context.root), inspect_cleanup(manifest),
+                manifest, statuses, inspect_cleanup(manifest, statuses),
                 execution_repository=context.repo, execution_head=local_head(context),
             )
             parsed.receipt_out.parent.mkdir(parents=True, exist_ok=True)

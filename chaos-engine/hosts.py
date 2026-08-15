@@ -4,6 +4,9 @@
 from __future__ import annotations
 
 import base64
+from contextlib import contextmanager
+import ctypes
+import errno
 import hashlib
 import hmac
 import json
@@ -1049,6 +1052,8 @@ MAVEN_TOOLS_MCP_VERSION = "3.2.0"
 MAVEN_TOOLS_MCP_COMMIT = "4475ff6c61f23ea9a93cb6d5665a63235ef2ef36"
 MAVEN_TOOLS_MCP_RECEIPT = "install-receipt.json"
 MAVEN_TOOLS_MCP_PROFILE = "docker,no-context7"
+MAVEN_TOOLS_CACHE_LOCK = ".cache.lock"
+MAVEN_TOOLS_CACHE_LOCK_MAGIC = b"chaos-engine-maven-tools-cache-lock-v1\n"
 LEGACY_MAVEN_TOOLS_SERVER = {
     "command": "docker",
     "args": ["run", "-i", "--rm", "arvindand/maven-tools-mcp:3.2.0"],
@@ -1104,6 +1109,11 @@ def verified_maven_tools_jar(candidate: Path) -> Path | None:
     if not receipt_path.is_file() or is_link_or_reparse(receipt_path):
         return None
     try:
+        if os.stat(jar, follow_symlinks=False).st_nlink != 1 or os.stat(receipt_path, follow_symlinks=False).st_nlink != 1:
+            return None
+    except OSError:
+        return None
+    try:
         receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
     except (OSError, UnicodeDecodeError, json.JSONDecodeError):
         return None
@@ -1120,16 +1130,299 @@ def verified_maven_tools_jar(candidate: Path) -> Path | None:
     return jar if receipt == expected else None
 
 
+def maven_tools_data_root() -> Path:
+    configured = os.environ.get("LOCALAPPDATA" if os.name == "nt" else "XDG_DATA_HOME", "")
+    return Path(configured or Path.home() / ".local/share").absolute()
+
+
+def maven_tools_cache_root() -> Path:
+    return maven_tools_data_root() / "ChaosEngine/tools/maven-tools-mcp"
+
+
+def _validate_cache_path(path: Path, anchor: Path) -> None:
+    path = path.absolute()
+    anchor = anchor.absolute()
+    try:
+        relative = path.relative_to(anchor)
+    except ValueError as error:
+        raise ValueError("Maven Tools MCP cache path escapes its data root") from error
+    current = anchor
+    for part in (Path(), *relative.parts):
+        current = current / part
+        if is_link_or_reparse(current):
+            raise ValueError(f"Maven Tools MCP cache path is linked: {current}")
+
+
+def _cache_anchor(root: Path | None) -> Path:
+    selected = maven_tools_cache_root() if root is None else Path(root).absolute()
+    return Path(selected.anchor)
+
+
+def _rename_no_replace(source: Path, target: Path) -> None:
+    """Atomically rename a directory and fail if the target exists."""
+    if os.name == "nt":
+        os.rename(source, target)
+        return
+    libc = ctypes.CDLL(None, use_errno=True)
+    source_bytes = os.fsencode(source)
+    target_bytes = os.fsencode(target)
+    if sys.platform == "darwin":
+        rename = getattr(libc, "renamex_np", None)
+        if rename is None:
+            raise RuntimeError("atomic no-overwrite rename is unavailable")
+        rename.argtypes = [ctypes.c_char_p, ctypes.c_char_p, ctypes.c_uint]
+        rename.restype = ctypes.c_int
+        result = rename(source_bytes, target_bytes, 0x00000004)
+    else:
+        rename = getattr(libc, "renameat2", None)
+        if rename is None:
+            raise RuntimeError("atomic no-overwrite rename is unavailable")
+        rename.argtypes = [
+            ctypes.c_int,
+            ctypes.c_char_p,
+            ctypes.c_int,
+            ctypes.c_char_p,
+            ctypes.c_uint,
+        ]
+        rename.restype = ctypes.c_int
+        result = rename(-100, source_bytes, -100, target_bytes, 1)
+    if result != 0:
+        error_number = ctypes.get_errno()
+        raise OSError(error_number, os.strerror(error_number), str(target))
+
+
+def _maven_tools_version_directory(root: Path, version: str) -> Path:
+    if version != MAVEN_TOOLS_MCP_VERSION:
+        raise ValueError(f"unsupported Maven Tools MCP cache version: {version}")
+    return root.absolute() / version
+
+
+@contextmanager
+def maven_tools_cache_lock(root: Path | None = None, *, anchor: Path | None = None):
+    root = (root or maven_tools_cache_root()).absolute()
+    anchor = anchor or _cache_anchor(root)
+    _validate_cache_path(root, anchor)
+    root.mkdir(parents=True, exist_ok=True)
+    _validate_cache_path(root, anchor)
+    lock_path = root / MAVEN_TOOLS_CACHE_LOCK
+    flags = os.O_RDWR | getattr(os, "O_BINARY", 0)
+    created = False
+    try:
+        descriptor = os.open(lock_path, flags | os.O_CREAT | os.O_EXCL, 0o600)
+        created = True
+    except FileExistsError:
+        if is_link_or_reparse(lock_path):
+            raise ValueError(f"Maven Tools MCP cache lock is linked: {lock_path}")
+        descriptor = os.open(lock_path, flags)
+    try:
+        stream = os.fdopen(descriptor, "r+b", closefd=True)
+    except BaseException:
+        os.close(descriptor)
+        raise
+    try:
+        opened = os.fstat(stream.fileno())
+        named = os.stat(lock_path, follow_symlinks=False)
+        if (opened.st_dev, opened.st_ino) != (named.st_dev, named.st_ino) or named.st_nlink != 1:
+            raise ValueError(f"Maven Tools MCP cache lock collision: {lock_path}")
+        if created:
+            stream.write(MAVEN_TOOLS_CACHE_LOCK_MAGIC)
+            stream.flush()
+            os.fsync(stream.fileno())
+        else:
+            stream.seek(0)
+            if stream.read() != MAVEN_TOOLS_CACHE_LOCK_MAGIC:
+                raise ValueError(f"Maven Tools MCP cache lock collision: {lock_path}")
+        stream.seek(0)
+        if os.name == "nt":
+            import msvcrt  # pylint: disable=import-outside-toplevel
+
+            msvcrt.locking(stream.fileno(), msvcrt.LK_NBLCK, 1)
+        else:
+            import fcntl  # pylint: disable=import-outside-toplevel,import-error
+
+            fcntl.flock(stream.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except OSError as error:
+        stream.close()
+        raise RuntimeError("another Maven Tools MCP cache operation is already running") from error
+    except BaseException:
+        stream.close()
+        raise
+    try:
+        yield
+    finally:
+        try:
+            stream.seek(0)
+            if os.name == "nt":
+                msvcrt.locking(stream.fileno(), msvcrt.LK_UNLCK, 1)
+            else:
+                fcntl.flock(stream.fileno(), fcntl.LOCK_UN)
+        finally:
+            stream.close()
+
+
+def _maven_tools_cache_status_unlocked(
+    root: Path, version: str, *, anchor: Path
+) -> dict[str, str]:
+    version_root = _maven_tools_version_directory(root, version)
+    result = {"component": "maven-tools-mcp", "version": version, "path": str(version_root)}
+    _validate_cache_path(version_root, anchor)
+    tombstone = root / f".purging-{version}"
+    purge_claims = tuple(root.glob(f".purged-{version}-*")) if root.is_dir() else ()
+    if tombstone.exists() or is_link_or_reparse(tombstone) or purge_claims:
+        return {**result, "status": "invalid", "reason": "cache purge recovery is required"}
+    if not version_root.exists() and not is_link_or_reparse(version_root):
+        return {**result, "status": "absent"}
+    if is_link_or_reparse(root) or is_link_or_reparse(version_root) or not version_root.is_dir():
+        return {**result, "status": "invalid", "reason": "cache path is linked or invalid"}
+    expected_names = {
+        f"maven-tools-mcp-{version}.jar",
+        MAVEN_TOOLS_MCP_RECEIPT,
+    }
+    try:
+        names = {path.name for path in version_root.iterdir()}
+    except OSError:
+        return {**result, "status": "invalid", "reason": "cache directory is inaccessible"}
+    if names != expected_names:
+        return {**result, "status": "invalid", "reason": "cache contains unknown or missing files"}
+    jar = version_root / f"maven-tools-mcp-{version}.jar"
+    if verified_maven_tools_jar(jar) is None:
+        return {**result, "status": "invalid", "reason": "JAR receipt validation failed"}
+    return {**result, "status": "healthy", "commit": MAVEN_TOOLS_MCP_COMMIT}
+
+
+def _unlink_stable_cache_file(path: Path, expected: os.stat_result) -> None:
+    current = os.stat(path, follow_symlinks=False)
+    if (
+        (current.st_dev, current.st_ino, current.st_nlink)
+        != (expected.st_dev, expected.st_ino, 1)
+        or is_link_or_reparse(path)
+    ):
+        raise ValueError("Maven Tools MCP cache changed before purge")
+    path.unlink()
+
+
+def _rmdir_stable_cache_directory(path: Path, expected: os.stat_result) -> None:
+    current = os.stat(path, follow_symlinks=False)
+    if (
+        (current.st_dev, current.st_ino) != (expected.st_dev, expected.st_ino)
+        or is_link_or_reparse(path)
+    ):
+        raise ValueError("Maven Tools MCP cache directory changed before purge")
+    path.rmdir()
+
+
+def maven_tools_cache_status(
+    version: str = MAVEN_TOOLS_MCP_VERSION, *, root: Path | None = None
+) -> dict[str, str]:
+    cache_root = (root or maven_tools_cache_root()).absolute()
+    anchor = _cache_anchor(cache_root)
+    version_root = _maven_tools_version_directory(cache_root, version)
+    try:
+        _validate_cache_path(version_root, anchor)
+    except ValueError:
+        return {"component": "maven-tools-mcp", "version": version, "path": str(version_root), "status": "invalid", "reason": "cache path is linked or invalid"}
+    if not cache_root.exists() and not is_link_or_reparse(cache_root):
+        return {"component": "maven-tools-mcp", "version": version, "path": str(version_root), "status": "absent"}
+    try:
+        with maven_tools_cache_lock(cache_root, anchor=anchor):
+            return _maven_tools_cache_status_unlocked(cache_root, version, anchor=anchor)
+    except RuntimeError:
+        return {"component": "maven-tools-mcp", "version": version, "path": str(version_root), "status": "busy"}
+    except ValueError:
+        return {"component": "maven-tools-mcp", "version": version, "path": str(version_root), "status": "invalid", "reason": "cache lock is linked or invalid"}
+
+
+def purge_maven_tools_cache(
+    version: str, *, root: Path | None = None
+) -> dict[str, str]:
+    cache_root = (root or maven_tools_cache_root()).absolute()
+    anchor = _cache_anchor(cache_root)
+    version_root = _maven_tools_version_directory(cache_root, version)
+    if not cache_root.exists() and not is_link_or_reparse(cache_root):
+        return {"component": "maven-tools-mcp", "version": version, "path": str(version_root), "status": "absent"}
+    with maven_tools_cache_lock(cache_root, anchor=anchor):
+        observed = _maven_tools_cache_status_unlocked(cache_root, version, anchor=anchor)
+        if observed["status"] == "absent":
+            return observed
+        if observed["status"] != "healthy":
+            raise ValueError(f"Maven Tools MCP cache purge refused: {observed.get('reason', 'invalid cache')}")
+        jar = version_root / f"maven-tools-mcp-{version}.jar"
+        receipt = version_root / MAVEN_TOOLS_MCP_RECEIPT
+        identities = {
+            jar.name: os.stat(jar, follow_symlinks=False),
+            receipt.name: os.stat(receipt, follow_symlinks=False),
+        }
+        directory_identity = os.stat(version_root, follow_symlinks=False)
+        tombstone = cache_root / f".purging-{version}"
+        if tombstone.exists() or is_link_or_reparse(tombstone):
+            raise ValueError("Maven Tools MCP cache purge recovery is required")
+        try:
+            _rename_no_replace(version_root, tombstone)
+        except FileExistsError as error:
+            raise ValueError("Maven Tools MCP cache purge recovery is required") from error
+        removed_any = False
+        try:
+            tombstone_jar = tombstone / jar.name
+            tombstone_receipt = tombstone / receipt.name
+            if (
+                verified_maven_tools_jar(tombstone_jar) is None
+                or {path.name for path in tombstone.iterdir()} != {jar.name, receipt.name}
+            ):
+                raise ValueError("Maven Tools MCP cache changed before purge")
+            _unlink_stable_cache_file(tombstone_jar, identities[jar.name])
+            removed_any = True
+            _unlink_stable_cache_file(tombstone_receipt, identities[receipt.name])
+            claim = cache_root / f".purged-{version}-{secrets.token_hex(16)}"
+            _rename_no_replace(tombstone, claim)
+            _rmdir_stable_cache_directory(claim, directory_identity)
+        except BaseException:
+            if not removed_any and tombstone.exists() and not version_root.exists():
+                _rename_no_replace(tombstone, version_root)
+            raise
+        return {**observed, "status": "purged"}
+
+
+def publish_maven_tools_cache(staging: Path, *, root: Path | None = None) -> Path:
+    staging = staging.absolute()
+    cache_root = (root or maven_tools_cache_root()).absolute()
+    anchor = _cache_anchor(cache_root)
+    version = MAVEN_TOOLS_MCP_VERSION
+    common_root = Path(os.path.commonpath((staging, cache_root)))
+    _validate_cache_path(staging, common_root)
+    _validate_cache_path(cache_root, common_root)
+    if is_link_or_reparse(staging) or not staging.is_dir():
+        raise ValueError("Maven Tools MCP staging directory is invalid")
+    jar = staging / f"maven-tools-mcp-{version}.jar"
+    expected_names = {jar.name, MAVEN_TOOLS_MCP_RECEIPT}
+    try:
+        names = {path.name for path in staging.iterdir()}
+    except OSError as error:
+        raise ValueError("Maven Tools MCP staging pair is inaccessible") from error
+    if names != expected_names or verified_maven_tools_jar(jar) is None:
+        raise ValueError("Maven Tools MCP staging pair is invalid")
+    cache_root.mkdir(parents=True, exist_ok=True)
+    with maven_tools_cache_lock(cache_root, anchor=anchor):
+        target = _maven_tools_version_directory(cache_root, version)
+        if target.exists() or is_link_or_reparse(target):
+            raise ValueError(f"Maven Tools MCP cache version already exists: {target}")
+        if os.stat(staging).st_dev != os.stat(cache_root).st_dev:
+            raise ValueError("Maven Tools MCP staging directory must use the cache filesystem")
+        try:
+            _rename_no_replace(staging, target)
+        except FileExistsError as error:
+            raise ValueError(f"Maven Tools MCP cache version already exists: {target}") from error
+        except OSError as error:
+            if error.errno == errno.EEXIST:
+                raise ValueError(f"Maven Tools MCP cache version already exists: {target}") from error
+            raise
+        return target
+
+
 def discover_maven_tools_runtime() -> tuple[Path, Path] | None:
     configured_jar = os.environ.get("CHAOSENGINE_MAVEN_TOOLS_MCP_JAR")
-    configured_data_root = os.environ.get(
-        "LOCALAPPDATA" if os.name == "nt" else "XDG_DATA_HOME", ""
-    )
-    data_root = Path(configured_data_root or Path.home() / ".local/share")
     jar_candidates = [
         Path(configured_jar).expanduser() if configured_jar else None,
-        data_root
-        / "ChaosEngine/tools/maven-tools-mcp"
+        maven_tools_cache_root()
         / MAVEN_TOOLS_MCP_VERSION
         / f"maven-tools-mcp-{MAVEN_TOOLS_MCP_VERSION}.jar",
     ]
@@ -2257,6 +2550,12 @@ def read_receipt(project: Path) -> tuple[dict[str, object], bytes]:
         raise ValueError("ChaosEngine host receipt integrity drift detected")
     if value.get("phase") not in {"installing", "installed", "removing"}:
         raise ValueError("ChaosEngine host receipt phase is invalid")
+    capability_digest = value.get("capabilityPolicySha256")
+    if capability_digest is not None and (
+        not isinstance(capability_digest, str)
+        or re.fullmatch(r"[0-9a-f]{64}", capability_digest) is None
+    ):
+        raise ValueError("ChaosEngine host receipt capability policy is invalid")
     if value.get("hosts") != host_routes():
         raise ValueError("ChaosEngine host receipt routes are invalid")
     decode_images(value.get("before"), nullable=True)
@@ -2331,8 +2630,14 @@ def reconcile(  # noqa: MC0001 - one ordered pass retains rollback images for ev
         raise
 
 
-def install(project: Path, core_commit: str | None = None) -> dict[str, object]:
+def install(
+    project: Path,
+    core_commit: str | None = None,
+    capability_policy_digest: str | None = None,
+) -> dict[str, object]:
     project = project.resolve()
+    if capability_policy_digest is not None and re.fullmatch(r"[0-9a-f]{64}", capability_policy_digest) is None:
+        raise ValueError("ChaosEngine capability policy digest is invalid")
     receipt_path = project / RECEIPT_NAME
     receipt_exists = receipt_path.exists() or is_link_or_reparse(receipt_path)
     existing_anchors = host_anchor_paths(project, allow_unbound=receipt_exists)
@@ -2348,17 +2653,24 @@ def install(project: Path, core_commit: str | None = None) -> dict[str, object]:
         after = decode_images(receipt["after"], nullable=False)
         if receipt["phase"] == "installed":
             verify(project, receipt)
+            desired_capability_digest = capability_policy_digest or receipt.get("capabilityPolicySha256")
             version = plugin_cache_version(core_commit)
             wanted = desired_content(
                 before,
                 project_name=project_identity_name(project),
                 plugin_version=version,
             )
-            if after == wanted and receipt.get("coreCommit") == core_commit:
+            if (
+                after == wanted
+                and receipt.get("coreCommit") == core_commit
+                and receipt.get("capabilityPolicySha256") == desired_capability_digest
+            ):
                 return receipt
             next_receipt = dict(receipt)
             next_receipt["phase"] = "installing"
             next_receipt["coreCommit"] = core_commit
+            if desired_capability_digest is not None:
+                next_receipt["capabilityPolicySha256"] = desired_capability_digest
             next_receipt["after"] = encode_images(wanted)
             new_directories = created_directories(project)
             next_receipt["createdDirectories"] = sorted(
@@ -2401,6 +2713,7 @@ def install(project: Path, core_commit: str | None = None) -> dict[str, object]:
         "phase": "installing",
         "hosts": host_routes(),
         "coreCommit": core_commit,
+        **({"capabilityPolicySha256": capability_policy_digest} if capability_policy_digest else {}),
         "createdDirectories": created_directories(project),
         "directoryNonce": secrets.token_hex(16),
         "rollbackIntent": None,
