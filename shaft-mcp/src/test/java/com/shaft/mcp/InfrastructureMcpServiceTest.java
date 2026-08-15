@@ -37,6 +37,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 class InfrastructureMcpServiceTest {
@@ -116,9 +117,9 @@ class InfrastructureMcpServiceTest {
         McpSetupRequest request = request("REPORTING", "MANAGED", List.of());
         String json = com.shaft.infrastructure.SetupPlanJson.write(plan);
 
-        McpSetupLifecycleResult started = service.setupStart(json, plan.digest(), List.of(), request);
-        McpSetupLifecycleResult stopped = service.setupStop(json, plan.digest(), List.of(), request);
-        McpSetupLifecycleResult logs = service.setupLogs(request);
+        McpSetupLifecycleResult started = service.setupStart(null, json, plan.digest(), List.of(), request);
+        McpSetupLifecycleResult stopped = service.setupStop(null, json, plan.digest(), List.of(), request);
+        McpSetupLifecycleResult logs = service.setupLogs(null, request);
 
         assertTrue(started.supported());
         assertEquals("http://127.0.0.1:4723/", started.endpoint());
@@ -132,12 +133,17 @@ class InfrastructureMcpServiceTest {
 
     @Test
     @SuppressWarnings("deprecation")
-    void legacyProfileOnlyLifecycleOverloadsRemainExplicitlyUnsupported() {
-        InfrastructureMcpService service = new InfrastructureMcpService(mock(InfrastructureSetupService.class));
+    void legacyProfileOnlyLifecycleOverloadsRemainExplicitlyUnsupported() throws Exception {
+        InfrastructureSetupService coordinator = mock(InfrastructureSetupService.class);
+        InfrastructureMcpService service = new InfrastructureMcpService(coordinator);
 
         assertFalse(service.setupStart("REPORTING").supported());
         assertFalse(service.setupStop("REPORTING").supported());
         assertFalse(service.setupLogs("REPORTING").supported());
+        assertFalse(service.setupStart("REPORTING", null, null, null, null).supported());
+        assertFalse(service.setupStop("REPORTING", null, null, null, null).supported());
+        assertFalse(service.setupLogs("REPORTING", null).supported());
+        verifyNoInteractions(coordinator);
     }
 
     @Test

@@ -1653,11 +1653,16 @@
   }, {
     "name" : "setup_logs",
     "service" : "InfrastructureMcpService",
-    "description" : "reads bounded logs for a SHAFT-owned setup service without mutating the host",
+    "description" : "reads bounded logs for a SHAFT-owned setup service without mutating the host; profile-only calls remain supported as legacy capability queries",
     "params" : [ {
+      "name" : "profile",
+      "type" : "string",
+      "required" : false,
+      "description" : "legacy setup profile capability query"
+    }, {
       "name" : "request",
       "type" : "object",
-      "required" : true,
+      "required" : false,
       "description" : "setup profile, owned paths, policy, and components"
     } ]
   }, {
@@ -1673,7 +1678,7 @@
   }, {
     "name" : "setup_start",
     "service" : "InfrastructureMcpService",
-    "description" : "starts one managed service from an exact reviewed setup plan",
+    "description" : "starts one managed service from an exact reviewed setup plan; profile-only calls remain supported as legacy capability queries",
     "params" : [ {
       "name" : "acceptedLicenses",
       "type" : "array",
@@ -1682,17 +1687,22 @@
     }, {
       "name" : "approvedDigest",
       "type" : "string",
-      "required" : true,
+      "required" : false,
       "description" : "exact plan digest explicitly approved by the caller"
     }, {
       "name" : "planJson",
       "type" : "string",
-      "required" : true,
+      "required" : false,
       "description" : "exact plan JSON returned by setup_plan"
+    }, {
+      "name" : "profile",
+      "type" : "string",
+      "required" : false,
+      "description" : "legacy setup profile capability query"
     }, {
       "name" : "request",
       "type" : "object",
-      "required" : true,
+      "required" : false,
       "description" : "the same paths and execution policy used to create the plan"
     } ]
   }, {
@@ -1708,7 +1718,7 @@
   }, {
     "name" : "setup_stop",
     "service" : "InfrastructureMcpService",
-    "description" : "stops one SHAFT-owned service using an exact reviewed setup plan",
+    "description" : "stops one SHAFT-owned service using an exact reviewed setup plan; profile-only calls remain supported as legacy capability queries",
     "params" : [ {
       "name" : "acceptedLicenses",
       "type" : "array",
@@ -1717,17 +1727,22 @@
     }, {
       "name" : "approvedDigest",
       "type" : "string",
-      "required" : true,
+      "required" : false,
       "description" : "exact plan digest explicitly approved by the caller"
     }, {
       "name" : "planJson",
       "type" : "string",
-      "required" : true,
+      "required" : false,
       "description" : "exact plan JSON returned by setup_plan"
+    }, {
+      "name" : "profile",
+      "type" : "string",
+      "required" : false,
+      "description" : "legacy setup profile capability query"
     }, {
       "name" : "request",
       "type" : "object",
-      "required" : true,
+      "required" : false,
       "description" : "the same paths and execution policy used to create the plan"
     } ]
   }, {

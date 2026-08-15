@@ -103,19 +103,31 @@ public final class InfrastructureMcpService {
     }
 
     @Tool(name = "setup_start",
-            description = "starts one managed service from an exact reviewed setup plan")
+            description = "starts one managed service from an exact reviewed setup plan; profile-only calls remain "
+                    + "supported as legacy capability queries")
     public McpSetupLifecycleResult setupStart(
-            @ToolParam(description = "exact plan JSON returned by setup_plan") String planJson,
-            @ToolParam(description = "exact plan digest explicitly approved by the caller") String approvedDigest,
+            @ToolParam(required = false, description = "legacy setup profile capability query") String profile,
+            @ToolParam(required = false, description = "exact plan JSON returned by setup_plan") String planJson,
+            @ToolParam(required = false, description = "exact plan digest explicitly approved by the caller")
+            String approvedDigest,
             @ToolParam(required = false, description = "explicitly accepted license identifiers")
             List<String> acceptedLicenses,
-            @ToolParam(description = "the same paths and execution policy used to create the plan")
+            @ToolParam(required = false, description = "the same paths and execution policy used to create the plan")
             McpSetupRequest request) throws IOException {
+        if (planJson == null || planJson.isBlank()) return setupStart(profile);
+        requireMatchingOptionalProfile(profile, request);
+        return setupStart(planJson, approvedDigest, acceptedLicenses, request);
+    }
+
+    public McpSetupLifecycleResult setupStart(
+            String planJson, String approvedDigest, List<String> acceptedLicenses, McpSetupRequest request)
+            throws IOException {
         SetupPlan plan = reviewedLifecyclePlan(planJson, request);
         McpSetupRequest value = requireRequest(request);
         try {
             ManagedEnvironment environment = coordinator.start(plan, approval(approvedDigest, acceptedLicenses),
                     value.options(), lifecycleSelection(plan, value));
+            // The MCP operation establishes a persistent provider lease; setup_stop owns its explicit release.
             return new McpSetupLifecycleResult(true, plan.profile().name(), "start",
                     "Started the SHAFT-owned managed service.",
                     environment.endpoint().map(Object::toString).orElse(""),
@@ -126,14 +138,25 @@ public final class InfrastructureMcpService {
     }
 
     @Tool(name = "setup_stop",
-            description = "stops one SHAFT-owned service using an exact reviewed setup plan")
+            description = "stops one SHAFT-owned service using an exact reviewed setup plan; profile-only calls "
+                    + "remain supported as legacy capability queries")
     public McpSetupLifecycleResult setupStop(
-            @ToolParam(description = "exact plan JSON returned by setup_plan") String planJson,
-            @ToolParam(description = "exact plan digest explicitly approved by the caller") String approvedDigest,
+            @ToolParam(required = false, description = "legacy setup profile capability query") String profile,
+            @ToolParam(required = false, description = "exact plan JSON returned by setup_plan") String planJson,
+            @ToolParam(required = false, description = "exact plan digest explicitly approved by the caller")
+            String approvedDigest,
             @ToolParam(required = false, description = "explicitly accepted license identifiers")
             List<String> acceptedLicenses,
-            @ToolParam(description = "the same paths and execution policy used to create the plan")
+            @ToolParam(required = false, description = "the same paths and execution policy used to create the plan")
             McpSetupRequest request) throws IOException {
+        if (planJson == null || planJson.isBlank()) return setupStop(profile);
+        requireMatchingOptionalProfile(profile, request);
+        return setupStop(planJson, approvedDigest, acceptedLicenses, request);
+    }
+
+    public McpSetupLifecycleResult setupStop(
+            String planJson, String approvedDigest, List<String> acceptedLicenses, McpSetupRequest request)
+            throws IOException {
         SetupPlan plan = reviewedLifecyclePlan(planJson, request);
         McpSetupRequest value = requireRequest(request);
         try {
@@ -149,9 +172,18 @@ public final class InfrastructureMcpService {
     }
 
     @Tool(name = "setup_logs",
-            description = "reads bounded logs for a SHAFT-owned setup service without mutating the host")
+            description = "reads bounded logs for a SHAFT-owned setup service without mutating the host; "
+                    + "profile-only calls remain supported as legacy capability queries")
     public McpSetupLifecycleResult setupLogs(
-            @ToolParam(description = "setup profile, owned paths, policy, and components")
+            @ToolParam(required = false, description = "legacy setup profile capability query") String profile,
+            @ToolParam(required = false, description = "setup profile, owned paths, policy, and components")
+            McpSetupRequest request) throws IOException {
+        if (request == null) return setupLogs(profile);
+        requireMatchingOptionalProfile(profile, request);
+        return setupLogs(request);
+    }
+
+    public McpSetupLifecycleResult setupLogs(
             McpSetupRequest request) throws IOException {
         McpSetupRequest value = requireRequest(request);
         try {
@@ -184,6 +216,13 @@ public final class InfrastructureMcpService {
 
     private static McpSetupRequest requireRequest(McpSetupRequest request) {
         return Objects.requireNonNull(request, "request");
+    }
+
+    private static void requireMatchingOptionalProfile(String profile, McpSetupRequest request) {
+        if (profile == null || profile.isBlank()) return;
+        if (parseProfile(profile) != requireRequest(request).setupProfile()) {
+            throw new IllegalArgumentException("profile does not match the lifecycle request.");
+        }
     }
 
     private static SetupPlan parsePlan(String planJson) {
@@ -241,13 +280,16 @@ public final class InfrastructureMcpService {
 
     private static McpSetupLifecycleResult unsupported(String profile, String operation) {
         if (profile == null || profile.isBlank()) throw new IllegalArgumentException("profile must not be blank.");
-        SetupProfile parsed;
+        SetupProfile parsed = parseProfile(profile);
+        return new McpSetupLifecycleResult(false, parsed.name(), operation,
+                "Profile " + parsed + " does not currently own a " + operation + " lifecycle through MCP.");
+    }
+
+    private static SetupProfile parseProfile(String profile) {
         try {
-            parsed = SetupProfile.valueOf(profile.trim().toUpperCase(Locale.ROOT));
+            return SetupProfile.valueOf(profile.trim().toUpperCase(Locale.ROOT));
         } catch (IllegalArgumentException invalid) {
             throw new IllegalArgumentException("Unsupported setup profile: " + profile, invalid);
         }
-        return new McpSetupLifecycleResult(false, parsed.name(), operation,
-                "Profile " + parsed + " does not currently own a " + operation + " lifecycle through MCP.");
     }
 }
