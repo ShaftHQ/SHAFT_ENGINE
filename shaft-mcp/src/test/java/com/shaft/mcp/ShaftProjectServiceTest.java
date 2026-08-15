@@ -2,14 +2,20 @@ package com.shaft.mcp;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.w3c.dom.Element;
+
+import javax.xml.XMLConstants;
+import javax.xml.parsers.DocumentBuilderFactory;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
@@ -58,6 +64,31 @@ class ShaftProjectServiceTest {
         assertTrue(pom.contains("<artifactId>shaft-sikulix</artifactId>"));
         assertTrue(Files.exists(generated.resolve(".github/workflows/api.yml")));
         assertTrue(Files.exists(generated.resolve(".github/dependabot.yml")));
+    }
+
+    @Test
+    void generatedProjectsUseOneShortenedIntellijTemplatePerSharedFile() throws Exception {
+        ShaftProjectService service = new ShaftProjectService(
+                McpWorkspacePolicy.of(temp),
+                new FakeRunner(),
+                temp.resolve("upgrade_to_modular_shaft.py"),
+                List.of("python"),
+                () -> "10.3.20260809");
+
+        Path junit = service.createProject(
+                "junit", "JUnit", "api", "com.example", "junit", "1.0.0", null,
+                List.of(), false, false, true).projectDirectory();
+        Path testng = service.createProject(
+                "testng", "TestNG", "api", "com.example", "testng", "1.0.0", null,
+                List.of(), false, false, true).projectDirectory();
+        Path cucumber = service.createProject(
+                "cucumber", "Cucumber", "web", "com.example", "cucumber", "1.0.0", null,
+                List.of(), false, false, true).projectDirectory();
+
+        assertIntellijRunTemplates(junit, Set.of("Application", "JUnit", "TestNG"));
+        assertIntellijRunTemplates(testng, Set.of("Application", "JUnit", "TestNG"));
+        assertIntellijRunTemplates(cucumber,
+                Set.of("Application", "CucumberJavaRunConfigurationType", "JUnit", "TestNG"));
     }
 
     @Test
@@ -410,6 +441,40 @@ class ShaftProjectServiceTest {
 
         assertThrows(IllegalArgumentException.class, () -> service.initAgents("codex", "../outside", true));
         assertFalse(Files.exists(temp.getParent().resolve("outside/AGENTS.md")));
+    }
+
+    private static void assertIntellijRunTemplates(Path project, Set<String> expectedTypes) throws Exception {
+        Path templateDirectory = project.resolve(".idea/runConfigurations");
+        assertTrue(Files.isDirectory(templateDirectory), "Missing IntelliJ template directory: " + project);
+        List<Path> templateFiles;
+        try (var paths = Files.list(templateDirectory)) {
+            templateFiles = paths.filter(path -> path.getFileName().toString().endsWith(".xml"))
+                    .sorted()
+                    .toList();
+        }
+        assertEquals(expectedTypes.size(), templateFiles.size(),
+                "Each IntelliJ configuration template must have its own shared XML file");
+
+        Set<String> actualTypes = new LinkedHashSet<>();
+        for (Path templateFile : templateFiles) {
+            DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
+            factory.setFeature(XMLConstants.FEATURE_SECURE_PROCESSING, true);
+            factory.setAttribute(XMLConstants.ACCESS_EXTERNAL_DTD, "");
+            factory.setAttribute(XMLConstants.ACCESS_EXTERNAL_SCHEMA, "");
+            Element root = factory.newDocumentBuilder().parse(templateFile.toFile()).getDocumentElement();
+            assertEquals("ProjectRunConfigurationManager", root.getAttribute("name"), templateFile.toString());
+            var configurations = root.getElementsByTagName("configuration");
+            assertEquals(1, configurations.getLength(),
+                    "IntelliJ loads only the first configuration from each shared XML file: " + templateFile);
+            Element configuration = (Element) configurations.item(0);
+            assertEquals("true", configuration.getAttribute("default"), templateFile.toString());
+            assertTrue(actualTypes.add(configuration.getAttribute("type")),
+                    "Duplicate IntelliJ template type: " + configuration.getAttribute("type"));
+            var shorteners = configuration.getElementsByTagName("shortenClasspath");
+            assertEquals(1, shorteners.getLength(), templateFile.toString());
+            assertEquals("ARGS_FILE", ((Element) shorteners.item(0)).getAttribute("name"), templateFile.toString());
+        }
+        assertEquals(expectedTypes, actualTypes);
     }
 
     private static void assertHostAdapter(Path adapter, String routerPath) throws Exception {

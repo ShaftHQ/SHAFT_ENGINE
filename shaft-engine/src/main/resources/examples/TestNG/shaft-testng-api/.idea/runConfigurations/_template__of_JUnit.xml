@@ -1,6 +1,7 @@
 <component name="ProjectRunConfigurationManager">
-  <configuration default="true" type="Application" factoryName="Application">
+  <configuration default="true" type="JUnit" factoryName="JUnit">
     <shortenClasspath name="ARGS_FILE" />
+    <option name="TEST_OBJECT" value="class" />
     <method v="2">
       <option name="Make" enabled="true" />
     </method>

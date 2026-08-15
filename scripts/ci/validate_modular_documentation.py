@@ -27,7 +27,7 @@ EXPECTED_OPTIONAL = {
     "shaft-junit-web": "shaft-visual",
     "shaft-testng-web": "shaft-visual",
 }
-INTELLIJ_RUN_TEMPLATE = ".idea/runConfigurations/SHAFT_Run_Templates.xml"
+INTELLIJ_RUN_TEMPLATE_DIRECTORY = ".idea/runConfigurations"
 INTELLIJ_SHORT_COMMAND_TYPES = {"Application", "JUnit", "TestNG"}
 
 
@@ -46,47 +46,70 @@ def parse_trusted_xml(path: Path):
 
 
 def validate_intellij_run_template(project: Path, artifact: str) -> None:
-    template = project / INTELLIJ_RUN_TEMPLATE
-    if not template.is_file():
-        fail(f"{project}: missing IntelliJ run template {INTELLIJ_RUN_TEMPLATE}")
-
-    root = parse_trusted_xml(template)
-    if root.tag != "component" or root.get("name") != "ProjectRunConfigurationManager":
-        fail(f"{template}: root must be ProjectRunConfigurationManager")
-
     expected_types = set(INTELLIJ_SHORT_COMMAND_TYPES)
     if artifact == "shaft-cucumber-web":
         expected_types.add("CucumberJavaRunConfigurationType")
-    configurations = {
-        node.get("type"): node
-        for node in root.findall("configuration")
-        if node.get("default") == "true"
-    }
-    for config_type in expected_types:
-        configuration = configurations.get(config_type)
-        if configuration is None:
-            fail(f"{template}: missing default {config_type} template")
+
+    template_directory = project / INTELLIJ_RUN_TEMPLATE_DIRECTORY
+    templates = sorted(template_directory.glob("*.xml"))
+    if not templates:
+        fail(f"{project}: missing IntelliJ run templates in {INTELLIJ_RUN_TEMPLATE_DIRECTORY}")
+
+    configurations = {}
+    for template in templates:
+        root = parse_trusted_xml(template)
+        if root.tag != "component" or root.get("name") != "ProjectRunConfigurationManager":
+            fail(f"{template}: root must be ProjectRunConfigurationManager")
+        nodes = root.findall("configuration")
+        if len(nodes) != 1:
+            fail(f"{template}: shared IntelliJ template files must contain exactly one configuration")
+        configuration = nodes[0]
+        config_type = configuration.get("type")
+        if configuration.get("default") != "true":
+            fail(f"{template}: {config_type} must be a default configuration template")
+        if not config_type or config_type in configurations:
+            fail(f"{template}: duplicate or missing IntelliJ configuration type {config_type}")
+        configurations[config_type] = configuration
         shortener = configuration.find("shortenClasspath")
         if shortener is None or shortener.get("name") != "ARGS_FILE":
             fail(f"{template}: {config_type} must use ARGS_FILE command shortening")
+
+    if set(configurations) != expected_types:
+        fail(
+            f"{template_directory}: expected IntelliJ templates {sorted(expected_types)}, "
+            f"found {sorted(configurations)}"
+        )
 
     gitignore = (project / ".gitignore").read_text(encoding="utf-8")
     for required in ("!.idea/runConfigurations/", "!.idea/runConfigurations/*.xml"):
         if required not in gitignore:
             fail(f"{project / '.gitignore'}: must keep shared IntelliJ run templates unignored")
-    relative_template = template.relative_to(ROOT).as_posix()
     try:
-        ignore_check = subprocess.run(
-            ["git", "check-ignore", "--no-index", "--quiet", "--", relative_template],
-            cwd=ROOT,
-            check=False,
-        )
+        ignore_checks = [
+            (
+                template,
+                subprocess.run(
+                    [
+                        "git",
+                        "check-ignore",
+                        "--no-index",
+                        "--quiet",
+                        "--",
+                        template.relative_to(ROOT).as_posix(),
+                    ],
+                    cwd=ROOT,
+                    check=False,
+                ),
+            )
+            for template in templates
+        ]
     except FileNotFoundError:
         fail("git executable is required to validate generated-project .gitignore rules")
-    if ignore_check.returncode == 0:
-        fail(f"{project / '.gitignore'}: {INTELLIJ_RUN_TEMPLATE} is still ignored")
-    if ignore_check.returncode != 1:
-        fail(f"git check-ignore failed for {relative_template}")
+    for template, ignore_check in ignore_checks:
+        if ignore_check.returncode == 0:
+            fail(f"{project / '.gitignore'}: {template.relative_to(project)} is still ignored")
+        if ignore_check.returncode != 1:
+            fail(f"git check-ignore failed for {template.relative_to(ROOT).as_posix()}")
 
 
 def main() -> None:
