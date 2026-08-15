@@ -1,9 +1,6 @@
 import unittest
 from pathlib import Path
 
-import yaml
-
-
 ROOT = Path(__file__).resolve().parents[2]
 
 
@@ -32,14 +29,10 @@ class LighthouseInfrastructureBoundaryTest(unittest.TestCase):
         pr_gate = (ROOT / ".github/workflows/pr-gate.yml").read_text(encoding="utf-8")
         local_e2e_path = ROOT / ".github/workflows/e2eLocalTests.yml"
         local_e2e = local_e2e_path.read_text(encoding="utf-8")
-        lighthouse_steps = yaml.safe_load(local_e2e)["jobs"]["Windows_Managed_Lighthouse"]["steps"]
-        setup_script = next(step["run"] for step in lighthouse_steps
-                            if step.get("name") == "Plan, approve, install, and verify managed Lighthouse")
-
         self.assertIn("tests.scripts.test_lighthouse_infrastructure_boundary", pr_gate)
-        plan_index = setup_script.index("setup plan --profile LIGHTHOUSE --mode MANAGED")
-        install_index = setup_script.index("setup install --plan $plan --approve $digest")
-        verify_index = setup_script.index("setup verify --profile LIGHTHOUSE --mode MANAGED")
+        plan_index = local_e2e.index("setup plan --profile LIGHTHOUSE --mode MANAGED")
+        install_index = local_e2e.index("setup install --plan $plan --approve $digest")
+        verify_index = local_e2e.index("setup verify --profile LIGHTHOUSE --mode MANAGED")
         self.assertLess(plan_index, install_index)
         self.assertLess(install_index, verify_index)
         self.assertIn("-DrunManagedLighthouseE2E=true", local_e2e)
