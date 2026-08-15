@@ -7,6 +7,7 @@ import errno
 import hashlib
 import json
 import os
+import sqlite3
 import subprocess  # nosec B404 - fixed Git acceptance commands.
 import tempfile
 import unittest
@@ -26,6 +27,66 @@ def load(path: Path, name: str):
     module = importlib.util.module_from_spec(specification)
     specification.loader.exec_module(module)
     return module
+
+
+def create_sqlite_exact_state(path: Path) -> None:
+    database = sqlite3.connect(path)
+    try:
+        database.executescript(
+            """
+            PRAGMA journal_mode=WAL;
+            CREATE TABLE meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
+            CREATE TABLE collections (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT NOT NULL UNIQUE,
+                dimension INTEGER,
+                created_at TEXT NOT NULL
+            );
+            CREATE TABLE documents (
+                collection_id INTEGER NOT NULL,
+                id TEXT NOT NULL,
+                document TEXT NOT NULL,
+                metadata_json TEXT NOT NULL,
+                embedding BLOB NOT NULL,
+                dim INTEGER NOT NULL,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL,
+                PRIMARY KEY (collection_id, id),
+                FOREIGN KEY(collection_id) REFERENCES collections(id) ON DELETE CASCADE
+            );
+            CREATE INDEX idx_documents_collection ON documents(collection_id);
+            INSERT INTO collections(name, created_at)
+            VALUES ('mempalace_drawers', '2026-08-15T00:00:00Z');
+            """
+        )
+        database.commit()
+    finally:
+        database.close()
+
+
+def create_chroma_state(path: Path) -> None:
+    database = sqlite3.connect(path)
+    try:
+        database.executescript(
+            """
+            CREATE TABLE collections (
+                id TEXT PRIMARY KEY, name TEXT NOT NULL, dimension INTEGER,
+                database_id TEXT NOT NULL, config_json_str TEXT, schema_str TEXT
+            );
+            CREATE TABLE segments (
+                id TEXT PRIMARY KEY, type TEXT NOT NULL, scope TEXT NOT NULL,
+                collection TEXT NOT NULL
+            );
+            CREATE TABLE embeddings_queue (
+                seq_id INTEGER PRIMARY KEY, created_at TIMESTAMP NOT NULL,
+                operation INTEGER NOT NULL, topic TEXT NOT NULL, id TEXT NOT NULL,
+                vector BLOB, encoding TEXT, metadata TEXT
+            );
+            """
+        )
+        database.commit()
+    finally:
+        database.close()
 
 
 class ChaosEngineHostsTest(unittest.TestCase):
@@ -264,9 +325,15 @@ class ChaosEngineHostsTest(unittest.TestCase):
                     if os.name == "nt":
                         self.assertEqual("-3", server["args"][0])
                     self.assertIn(".chaos-engine/tool.py", server["args"])
+                mempalace = servers["chaosengine-mempalace"]
+                self.assertEqual(
+                    ["--backend", "sqlite_exact"],
+                    mempalace["args"][-2:],
+                )
             self.assertIn('[mcp_servers."chaosengine-memory"]', codex)
             self.assertIn('".chaos-engine/tool.py", "memory-mcp"]', codex)
             self.assertIn(".chaos-engine-state/mempalace", str(claude))
+            self.assertIn('"--backend", "sqlite_exact"', codex)
 
     def test_complete_host_harness_installs_inventory_roles_hooks_and_plugin(self):
         module = load(HOSTS, "chaos_engine_complete_hosts")
@@ -691,31 +758,354 @@ class ChaosEngineHostsTest(unittest.TestCase):
 
     def test_mcp_runtime_executes_both_initialize_handshakes(self):
         module = load(HOSTS, "chaos_engine_mcp_runtime")
-        response = mock.Mock(
+        memory_response = mock.Mock(
             returncode=0,
             stdout=json.dumps({"jsonrpc": "2.0", "id": 1, "result": {}}) + "\n",
+        )
+        mempalace_response = mock.Mock(
+            returncode=0,
+            stdout="\n".join(
+                (
+                    json.dumps({"jsonrpc": "2.0", "id": 1, "result": {}}),
+                    json.dumps(
+                        {
+                            "jsonrpc": "2.0",
+                            "id": 2,
+                            "result": {
+                                "content": [
+                                    {
+                                        "type": "text",
+                                        "text": json.dumps(
+                                            {
+                                                "total_drawers": 0,
+                                                "backend": "sqlite_exact",
+                                            }
+                                        ),
+                                    }
+                                ]
+                            },
+                        }
+                    ),
+                )
+            )
+            + "\n",
         )
         with tempfile.TemporaryDirectory() as temporary:
             project = Path(temporary)
             project.joinpath(".chaos-engine").mkdir()
             project.joinpath(".chaos-engine/tool.py").write_text("# owned\n")
+            module.initialize_mempalace_runtime(project)
             with mock.patch.object(
                 module.subprocess,
                 "run",
-                side_effect=[response, response],
+                side_effect=[memory_response, mempalace_response],
             ) as run:
                 self.assertTrue(module.mcp_runtime_healthy(project))
 
             self.assertEqual(2, run.call_count)
+            self.assertEqual(
+                ["--backend", "sqlite_exact"],
+                run.call_args_list[1].args[0][-2:],
+            )
             for call in run.call_args_list:
-                request = json.loads(call.kwargs["input"])
-                self.assertEqual("initialize", request["method"])
+                requests = [
+                    json.loads(line) for line in call.kwargs["input"].splitlines()
+                ]
+                self.assertEqual("initialize", requests[0]["method"])
                 self.assertEqual(project, call.kwargs["cwd"])
                 self.assertEqual("1", call.kwargs["env"]["PYTHONDONTWRITEBYTECODE"])
+            mempalace_requests = run.call_args_list[1].kwargs["input"].splitlines()
+            self.assertEqual(3, len(mempalace_requests))
+            self.assertEqual(
+                "mempalace_status",
+                json.loads(mempalace_requests[2])["params"]["name"],
+            )
+
+            backend_error = mock.Mock(
+                returncode=0,
+                stdout="\n".join(
+                    (
+                        json.dumps({"jsonrpc": "2.0", "id": 1, "result": {}}),
+                        json.dumps(
+                            {
+                                "jsonrpc": "2.0",
+                                "id": 2,
+                                "result": {
+                                    "content": [
+                                        {
+                                            "type": "text",
+                                            "text": json.dumps(
+                                                {
+                                                    "error": "Backend open failed",
+                                                    "backend": "sqlite_exact",
+                                                }
+                                            ),
+                                        }
+                                    ]
+                                },
+                            }
+                        ),
+                    )
+                ),
+            )
+            with mock.patch.object(
+                module.subprocess,
+                "run",
+                side_effect=[memory_response, backend_error],
+            ):
+                self.assertFalse(module.mcp_runtime_healthy(project))
 
             invalid = mock.Mock(returncode=0, stdout="not-json\n")
             with mock.patch.object(module.subprocess, "run", return_value=invalid):
                 self.assertFalse(module.mcp_runtime_healthy(project))
+
+    def test_mempalace_runtime_state_is_fail_closed_before_native_launch(self):
+        module = load(HOSTS, "chaos_engine_mempalace_runtime_state")
+        self.assertTrue(hasattr(module, "mempalace_runtime_status"))
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary)
+            palace = project / ".chaos-engine-state/mempalace"
+
+            self.assertEqual(
+                "initialization-required",
+                module.mempalace_runtime_status(project)["status"],
+            )
+
+            palace.mkdir(parents=True)
+            exact = palace / "sqlite_exact.sqlite3"
+            wal = Path(f"{exact}-wal")
+            shared_memory = Path(f"{exact}-shm")
+            wal.write_bytes(b"orphan WAL")
+            shared_memory.write_bytes(b"orphan shared memory")
+            self.assertEqual(
+                "recovery-required",
+                module.mempalace_runtime_status(project)["status"],
+            )
+            wal.unlink()
+            shared_memory.unlink()
+
+            database = sqlite3.connect(exact)
+            database.execute("CREATE TABLE unrelated (secret TEXT)")
+            database.commit()
+            database.close()
+            self.assertEqual(
+                "recovery-required",
+                module.mempalace_runtime_status(project)["status"],
+            )
+            exact.unlink()
+
+            database = sqlite3.connect(exact)
+            database.executescript(
+                """
+                CREATE TABLE meta (key TEXT PRIMARY KEY, value TEXT);
+                CREATE TABLE collections (
+                    id INTEGER PRIMARY KEY, name TEXT, dimension INTEGER,
+                    created_at TEXT
+                );
+                CREATE TABLE documents (
+                    collection_id INTEGER, id TEXT, document TEXT,
+                    metadata_json TEXT, embedding BLOB, dim INTEGER,
+                    created_at TEXT, updated_at TEXT,
+                    PRIMARY KEY (collection_id, id)
+                );
+                INSERT INTO collections(name, created_at)
+                VALUES ('mempalace_drawers', '2026-08-15T00:00:00Z');
+                """
+            )
+            database.commit()
+            database.close()
+            self.assertEqual(
+                "recovery-required",
+                module.mempalace_runtime_status(project)["status"],
+            )
+            exact.unlink()
+
+            create_sqlite_exact_state(exact)
+            self.assertFalse(wal.exists())
+            self.assertFalse(shared_memory.exists())
+            self.assertEqual(
+                "healthy",
+                module.mempalace_runtime_status(project)["status"],
+            )
+            self.assertFalse(wal.exists())
+            self.assertFalse(shared_memory.exists())
+
+            database = sqlite3.connect(exact)
+            database.execute("DROP INDEX idx_documents_collection")
+            database.commit()
+            database.close()
+            self.assertEqual(
+                "recovery-required",
+                module.mempalace_runtime_status(project)["status"],
+            )
+            exact.unlink()
+            create_sqlite_exact_state(exact)
+
+            wal.write_bytes(b"partial sidecar")
+            self.assertEqual(
+                "recovery-required",
+                module.mempalace_runtime_status(project)["status"],
+            )
+            self.assertFalse(shared_memory.exists())
+            wal.unlink()
+
+            writer = sqlite3.connect(exact)
+            try:
+                writer.execute("INSERT INTO meta(key, value) VALUES ('live-wal', '1')")
+                writer.commit()
+                self.assertTrue(wal.is_file())
+                self.assertTrue(shared_memory.is_file())
+                self.assertEqual(
+                    "healthy",
+                    module.mempalace_runtime_status(project)["status"],
+                )
+            finally:
+                writer.close()
+
+            exact.write_bytes(b"SQLite format 3\x00" + b"truncated")
+            self.assertEqual(
+                "recovery-required",
+                module.mempalace_runtime_status(project)["status"],
+            )
+
+            exact.unlink()
+            chroma = palace / "chroma.sqlite3"
+            chroma.write_bytes(b"SQLite format 3\x00")
+            self.assertEqual(
+                "recovery-required",
+                module.mempalace_runtime_status(project)["status"],
+            )
+            chroma.unlink()
+
+            create_chroma_state(chroma)
+            (palace / "00000000-0000-0000-0000-000000000001").mkdir()
+            state = module.mempalace_runtime_status(project)
+            self.assertEqual("migration-required", state["status"])
+            self.assertIn("Chroma", state["detail"])
+
+            with mock.patch.object(module.subprocess, "run") as run:
+                self.assertFalse(module.mcp_runtime_healthy(project))
+            run.assert_not_called()
+
+            unknown = palace / "unknown.sqlite3"
+            unknown.write_bytes(b"preserve")
+            self.assertEqual(
+                "recovery-required",
+                module.mempalace_runtime_status(project)["status"],
+            )
+            unknown.unlink()
+
+            create_sqlite_exact_state(exact)
+            self.assertEqual(
+                "recovery-required",
+                module.mempalace_runtime_status(project)["status"],
+            )
+
+    def test_mempalace_runtime_rejects_reparse_state_before_native_launch(self):
+        module = load(HOSTS, "chaos_engine_mempalace_reparse_state")
+        self.assertTrue(hasattr(module, "mempalace_runtime_status"))
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary)
+            palace = project / ".chaos-engine-state/mempalace"
+            palace.mkdir(parents=True)
+            exact = palace / "sqlite_exact.sqlite3"
+            exact.write_bytes(b"SQLite format 3\x00")
+
+            with mock.patch.object(
+                module,
+                "is_link_or_reparse",
+                side_effect=lambda path: path == exact,
+            ):
+                state = module.mempalace_runtime_status(project)
+
+            self.assertEqual("recovery-required", state["status"])
+            self.assertIn("link or reparse", state["detail"])
+
+    def test_mempalace_runtime_rejects_unrecognized_state_before_native_launch(self):
+        module = load(HOSTS, "chaos_engine_mempalace_unknown_state")
+        self.assertTrue(hasattr(module, "mempalace_runtime_status"))
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary)
+            palace = project / ".chaos-engine-state/mempalace"
+            palace.mkdir(parents=True)
+
+            for relative, content in (
+                ("legacy-segment-uuid", None),
+                ("chroma.sqlite3-wal", b"recoverable legacy WAL"),
+                ("unknown.sqlite3", b"recoverable unknown database"),
+            ):
+                path = palace / relative
+                if content is None:
+                    path.mkdir()
+                else:
+                    path.write_bytes(content)
+                try:
+                    state = module.mempalace_runtime_status(project)
+                    self.assertEqual("recovery-required", state["status"])
+                    self.assertIn("unrecognized", state["detail"])
+                    with mock.patch.object(module.subprocess, "run") as run:
+                        self.assertFalse(module.mcp_runtime_healthy(project))
+                    run.assert_not_called()
+                finally:
+                    if path.is_dir():
+                        path.rmdir()
+                    else:
+                        path.unlink()
+
+    def test_fresh_mempalace_state_initializes_once_without_claiming_user_data(self):
+        module = load(HOSTS, "chaos_engine_mempalace_initialize")
+        self.assertTrue(hasattr(module, "initialize_mempalace_runtime"))
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary)
+            self.assertEqual(
+                "initialization-required",
+                module.mempalace_runtime_status(project)["status"],
+            )
+
+            module.initialize_mempalace_runtime(project)
+            database = project / ".chaos-engine-state/mempalace/sqlite_exact.sqlite3"
+            self.assertTrue(database.is_file())
+            self.assertEqual(
+                "healthy",
+                module.mempalace_runtime_status(project)["status"],
+            )
+            before = database.read_bytes()
+            module.initialize_mempalace_runtime(project)
+            self.assertEqual(before, database.read_bytes())
+
+            database.unlink()
+            (database.parent / "user-owned.bin").write_bytes(b"preserve")
+            module.initialize_mempalace_runtime(project)
+            self.assertEqual(
+                b"preserve",
+                (database.parent / "user-owned.bin").read_bytes(),
+            )
+
+    def test_fresh_mempalace_initializer_revalidates_paths_after_creation(self):
+        module = load(HOSTS, "chaos_engine_mempalace_initialize_race")
+        self.assertTrue(hasattr(module, "initialize_mempalace_runtime"))
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary)
+            palace = project / ".chaos-engine-state/mempalace"
+            real_validate = module.validate_path
+            calls = 0
+
+            def reject_post_creation(root, path):
+                nonlocal calls
+                calls += 1
+                real_validate(root, path)
+                if calls == 2:
+                    raise ValueError("simulated link or reparse point swap")
+
+            with mock.patch.object(
+                module,
+                "validate_path",
+                side_effect=reject_post_creation,
+            ):
+                with self.assertRaisesRegex(ValueError, "link or reparse"):
+                    module.initialize_mempalace_runtime(project)
+
+            self.assertFalse((palace / "sqlite_exact.sqlite3").exists())
 
     def test_launcher_rendering_is_explicit_for_windows_and_posix(self):
         module = load(HOSTS, "chaos_engine_hosts")
@@ -1430,6 +1820,83 @@ class ChaosEngineHostsTest(unittest.TestCase):
                         self.assertEqual(0, module.main())
 
             self.assertEqual("1", call.call_args.kwargs["env"]["PYTHONDONTWRITEBYTECODE"])
+
+    def test_tool_launcher_blocks_unhealthy_mempalace_state_before_native_launch(self):
+        module = load(TOOL, "chaos_engine_guarded_mempalace_tool")
+        self.assertTrue(hasattr(module, "guard_mempalace_mcp"))
+        with tempfile.TemporaryDirectory() as temporary:
+            argv = [
+                "tool.py",
+                "mempalace-mcp",
+                "--palace",
+                ".chaos-engine-state/mempalace",
+                "--backend",
+                "sqlite_exact",
+            ]
+
+            for status in ("migration-required", "recovery-required"):
+                project = Path(temporary) / status
+                core = project / ".chaos-engine"
+                runtime = project / ".chaos-engine-runtime/bin"
+                palace = project / ".chaos-engine-state/mempalace"
+                core.mkdir(parents=True)
+                runtime.mkdir(parents=True)
+                palace.mkdir(parents=True)
+                core.joinpath("hosts.py").write_bytes(HOSTS.read_bytes())
+                command = runtime / (
+                    "mempalace-mcp.exe" if os.name == "nt" else "mempalace-mcp"
+                )
+                command.write_text("tool\n", encoding="utf-8")
+                if status == "migration-required":
+                    create_chroma_state(palace / "chroma.sqlite3")
+                    palace.joinpath("00000000-0000-0000-0000-000000000001").mkdir()
+                else:
+                    palace.joinpath("unknown.sqlite3").write_bytes(b"preserve")
+                with self.subTest(status=status):
+                    with mock.patch.object(module, "__file__", str(core / "tool.py")):
+                        with mock.patch.object(module.sys, "argv", argv):
+                            with mock.patch.object(module, "resolve_command", return_value=command):
+                                with mock.patch.object(module.sys, "dont_write_bytecode", False):
+                                    with mock.patch.object(module.subprocess, "call") as call:
+                                        self.assertEqual(1, module.main())
+                    call.assert_not_called()
+                    self.assertFalse(core.joinpath("__pycache__").exists())
+
+            healthy = Path(temporary) / "healthy"
+            core = healthy / ".chaos-engine"
+            runtime = healthy / ".chaos-engine-runtime/bin"
+            palace = healthy / ".chaos-engine-state/mempalace"
+            core.mkdir(parents=True)
+            runtime.mkdir(parents=True)
+            palace.mkdir(parents=True)
+            core.joinpath("hosts.py").write_bytes(HOSTS.read_bytes())
+            create_sqlite_exact_state(palace / "sqlite_exact.sqlite3")
+            command = runtime / (
+                "mempalace-mcp.exe" if os.name == "nt" else "mempalace-mcp"
+            )
+            command.write_text("tool\n", encoding="utf-8")
+            with mock.patch.object(module, "__file__", str(core / "tool.py")):
+                with mock.patch.object(module.sys, "argv", argv):
+                    with mock.patch.object(module, "resolve_command", return_value=command):
+                        with mock.patch.object(module.sys, "dont_write_bytecode", False):
+                            with mock.patch.object(module.subprocess, "call", return_value=0) as call:
+                                self.assertEqual(0, module.main())
+            call.assert_called_once()
+            self.assertFalse(core.joinpath("__pycache__").exists())
+
+            invalid_arguments = (
+                [*argv, "--backend=chroma"],
+                [*argv, "--palace=external"],
+                [*argv, "--read-only"],
+                [*argv[:-1], "chroma"],
+            )
+            for invalid in invalid_arguments:
+                with self.subTest(arguments=invalid):
+                    with mock.patch.object(module, "__file__", str(core / "tool.py")):
+                        with mock.patch.object(module.sys, "argv", invalid):
+                            with mock.patch.object(module.subprocess, "call") as call:
+                                self.assertEqual(1, module.main())
+                    call.assert_not_called()
 
     def test_host_tests_are_reached_by_pull_request_gate(self):
         budget = json.loads(

@@ -1,0 +1,58 @@
+{
+  "body_path": "memory/gotchas/portable-token-scans-and-doctor-probes-do-not-prove-the-real-generated-launch-boundary.md",
+  "content_hash": "sha256:ce161a00a290daea0a2c11f0a37ec7bd825d6352b7e3e950d6ee2231124e010d",
+  "created_at": "2026-08-15T18:44:59+03:00",
+  "evidence": [
+    {
+      "id": "chaos-engine/hosts.py",
+      "kind": "file"
+    },
+    {
+      "id": "chaos-engine/tool.py",
+      "kind": "file"
+    },
+    {
+      "id": "chaos-engine/INSTALL.md",
+      "kind": "file"
+    },
+    {
+      "id": "chaos-engine/README.md",
+      "kind": "file"
+    }
+  ],
+  "facets": {
+    "applies_to": [
+      "chaos-engine/hosts.py",
+      "chaos-engine/tool.py",
+      "chaos-engine/INSTALL.md",
+      "chaos-engine/README.md",
+      "tests/scripts/test_chaos_engine_hosts.py",
+      "tests/scripts/test_chaos_engine_installer.py"
+    ],
+    "category": "testing"
+  },
+  "id": "gotcha.portable-token-scans-and-doctor-probes-do-not-prove-the-real-generated-launch-boundary",
+  "scope": {
+    "branch": null,
+    "kind": "project",
+    "project": "project.shaft-engine",
+    "task": null
+  },
+  "source": {
+    "kind": "agent",
+    "task": "Route the correct independent-review stop from ChaosEngine integration review"
+  },
+  "status": "active",
+  "tags": [
+    "chaos-engine",
+    "review",
+    "launch-boundary",
+    "portability",
+    "token-scan",
+    "bytecode-cache",
+    "argument-parsing"
+  ],
+  "title": "Portable scans and helper probes do not prove the generated launch boundary",
+  "type": "gotcha",
+  "updated_at": "2026-08-15T18:49:23+03:00"
+}

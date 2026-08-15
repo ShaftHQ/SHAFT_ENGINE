@@ -42,11 +42,13 @@ installer also merges receipt-bound LF attributes for canonical harness paths,
 so Windows Git checkouts retain the exact owned bytes while unrelated
 `.gitattributes` rules remain untouched.
 
-For a literal one-command terminal flow from the adopter project, use this on
-Windows PowerShell:
+Configure `CHAOS_ENGINE_REPOSITORY` in the caller's host environment with the
+canonical `owner/repository` source. The installer reads it without copying the
+source identity into the adopter payload. Then use this literal one-command
+terminal flow from the adopter project on Windows PowerShell:
 
 ```powershell
-py -3 -c "import email.utils,pathlib,runpy,sys,tempfile,time,urllib.error,urllib.request; o='S'+'haftHQ'; r='S'+'HAFT_ENGINE'; repo=f'{o}/{r}'; d=tempfile.TemporaryDirectory(prefix='chaos-engine-bootstrap-'); p=pathlib.Path(d.name)/'bootstrap.py'; ns={'url':f'https://raw.githubusercontent.com/{repo}/main/chaos-engine/bootstrap.py','retry_header':'Retry-After','transient':{408,425,429,500,502,503,504}}; exec('for attempt in range(4):\n delay=2**attempt\n try:\n  with urllib.request.urlopen(url,timeout=30) as response: content=response.read()\n  break\n except urllib.error.HTTPError as error:\n  retry_after=error.headers.get(retry_header) if error.headers is not None else None\n  error.close()\n  if (error.code not in transient and not (error.code==403 and retry_after is not None)) or attempt==3: raise\n  if retry_after is not None:\n   try: delay=float(retry_after)\n   except ValueError: delay=max(0,email.utils.parsedate_to_datetime(retry_after).timestamp()-time.time())\n   if not 0<=delay<=60: raise\n  elif error.code==429: delay=60\n except (ConnectionError,TimeoutError,urllib.error.URLError):\n  if attempt==3: raise\n time.sleep(delay)',globals(),ns); p.write_bytes(ns['content']); sys.argv=[str(p),'--project','.','--repository',repo]; runpy.run_path(str(p),run_name='__main__')"
+py -3 -c "import email.utils,os,pathlib,runpy,sys,tempfile,time,urllib.error,urllib.request; repo=os.environ['CHAOS_ENGINE_REPOSITORY']; d=tempfile.TemporaryDirectory(prefix='chaos-engine-bootstrap-'); p=pathlib.Path(d.name)/'bootstrap.py'; ns={'url':f'https://raw.githubusercontent.com/{repo}/main/chaos-engine/bootstrap.py','retry_header':'Retry-After','transient':{408,425,429,500,502,503,504}}; exec('for attempt in range(4):\n delay=2**attempt\n try:\n  with urllib.request.urlopen(url,timeout=30) as response: content=response.read()\n  break\n except urllib.error.HTTPError as error:\n  retry_after=error.headers.get(retry_header) if error.headers is not None else None\n  error.close()\n  if (error.code not in transient and not (error.code==403 and retry_after is not None)) or attempt==3: raise\n  if retry_after is not None:\n   try: delay=float(retry_after)\n   except ValueError: delay=max(0,email.utils.parsedate_to_datetime(retry_after).timestamp()-time.time())\n   if not 0<=delay<=60: raise\n  elif error.code==429: delay=60\n except (ConnectionError,TimeoutError,urllib.error.URLError):\n  if attempt==3: raise\n time.sleep(delay)',globals(),ns); p.write_bytes(ns['content']); sys.argv=[str(p),'--project','.','--repository',repo]; runpy.run_path(str(p),run_name='__main__')"
 ```
 
 On macOS or Linux, replace `py -3` with `python3`. Inspect the
@@ -72,6 +74,25 @@ Installations created before distribution-bound manifests are reported as
 convert them with an explicit uninstall followed by the portable bootstrap.
 The installer refuses an in-place legacy conversion and leaves the old tree
 unchanged.
+
+ChaosEngine-created MemPalace MCP servers use MemPalace's bundled
+`sqlite_exact` backend explicitly. It keeps the complete local MCP contract but
+has no native HNSW index, so separate agent sessions cannot enter Chroma's
+process-crash and derived-index-corruption path. An upgrade never converts or
+deletes existing generated memory state silently. After dependency provisioning,
+a fresh install creates only the empty SQLite-exact schema and default collection;
+it never files adopter content. Passive `status` and active `doctor` validate
+that state through read-only SQLite queries. A structurally valid legacy Chroma
+palace reports `migration-required` before any MCP launch; corrupt, unrecognized,
+or incomplete state reports `recovery-required`. ChaosEngine does not migrate,
+archive, rename, delete, or claim receipt ownership of palace state, so install
+rollback and uninstall deliberately leave initialized or user-generated state unchanged.
+Migration remains an explicit operator-owned MemPalace procedure and must use a
+verified backup plus the upstream workflow appropriate to that MemPalace
+version. `doctor` stays blocked until the operator supplies a fresh or valid
+SQLite-exact palace. This containment avoids the native HNSW path for generated
+clients; it does not repair the upstream Chroma/HNSW defect. Never remove a
+writer lock or rename an HNSW segment while a MemPalace process is live.
 
 The consumer folder may be a GitHub checkout, another Git checkout, or a
 non-Git directory. ChaosEngine installs project-locally and does not infer its
