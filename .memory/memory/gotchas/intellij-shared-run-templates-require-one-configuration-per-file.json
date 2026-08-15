@@ -1,0 +1,45 @@
+{
+  "body_path": "memory/gotchas/intellij-shared-run-templates-require-one-configuration-per-file.md",
+  "content_hash": "sha256:a6d9f998919ac4e58e77b13bbb9b62b81428be4d62156f6f306a91bf208517dd",
+  "created_at": "2026-08-15T07:06:50+03:00",
+  "evidence": [
+    {
+      "id": "https://github.com/JetBrains/intellij-community/blob/7f52589ea61fada013038489dcbce03434c0470a/platform/execution-impl/src/com/intellij/execution/impl/RunConfigurationSchemeManager.kt",
+      "kind": "source"
+    },
+    {
+      "id": "https://github.com/ShaftHQ/SHAFT_ENGINE/issues/4923",
+      "kind": "task"
+    }
+  ],
+  "facets": {
+    "applies_to": [
+      "shaft-engine/src/main/resources/examples/**/.idea/runConfigurations/*.xml",
+      "shaft-mcp/src/test/java/com/shaft/mcp/ShaftProjectServiceTest.java",
+      "scripts/ci/validate_modular_documentation.py"
+    ],
+    "category": "gotcha"
+  },
+  "id": "gotcha.intellij-shared-run-templates-require-one-configuration-per-file",
+  "scope": {
+    "branch": null,
+    "kind": "project",
+    "project": "project.shaft-engine",
+    "task": null
+  },
+  "source": {
+    "kind": "agent",
+    "task": "Record the durable root-cause constraint discovered while fixing GitHub issue #4923."
+  },
+  "status": "active",
+  "tags": [
+    "intellij",
+    "project-generator",
+    "run-configuration",
+    "argfile",
+    "issue-4923"
+  ],
+  "title": "IntelliJ shared run templates require one configuration per file",
+  "type": "gotcha",
+  "updated_at": "2026-08-15T07:06:50+03:00"
+}
