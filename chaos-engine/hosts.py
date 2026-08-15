@@ -1214,7 +1214,7 @@ def gitignore_content(before: bytes | None) -> bytes:
         "!.memory/schema/\n!.memory/schema/*.schema.json\n"
         "!.memory/memory/\n.memory/memory/*\n!.memory/memory/.gitkeep\n"
         "!.memory/relations/\n.memory/relations/*\n!.memory/relations/.gitkeep\n"
-        "!.chaos-engine/\n!.chaos-engine/**\n"
+        "!.chaos-engine/\n!.chaos-engine/**\n.chaos-engine/**/__pycache__/\n"
         "!.agents/\n!.agents/plugins/\n!.agents/plugins/marketplace.json\n"
         "!.agents/skills/\n!.agents/skills/README.md\n"
         "!.agents/skills/chaos-engine/\n!.agents/skills/chaos-engine/**\n"
