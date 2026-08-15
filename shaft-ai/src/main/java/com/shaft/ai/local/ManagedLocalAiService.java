@@ -2,22 +2,25 @@ package com.shaft.ai.local;
 
 import com.shaft.driver.SHAFT;
 
-import java.nio.file.Path;
 import java.io.IOException;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.time.Duration;
+import java.util.ArrayList;
 import java.util.HexFormat;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
-import java.util.function.Supplier;
+import java.util.UUID;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
-import java.time.Duration;
-import java.util.UUID;
+import java.util.function.Supplier;
 
 /** Public batteries-included lifecycle boundary for SHAFT-managed local inference. */
 public final class ManagedLocalAiService {
@@ -62,72 +65,112 @@ public final class ManagedLocalAiService {
         ManagedLocalAiSnapshot initial = inspect(true, configured);
         ManagedLocalAiSnapshot reviewedInitial = inspect(false, configured);
         ManagedLocalAiOperation operation = new ManagedLocalAiOperation(initial);
-        Thread worker = Thread.ofVirtual().name("shaft-managed-local-ai-provision").start(() -> {
-            ProvisionResult provisioned = null;
-            try {
-                if (reviewedInitial.state() == ManagedLocalAiSnapshot.State.READY) {
-                    publish(operation, progress, reviewedInitial);
-                    ManagedLocalAiManifest manifest = Objects.requireNonNull(manifests.get(),
-                            "managed local AI manifest");
-                    if (!publishActivation(operation, reviewedInitial, configured, manifest)) {
-                        operation.cancelled();
-                    }
-                    return;
-                }
-                if (reviewedInitial.state() != ManagedLocalAiSnapshot.State.NOT_PROVISIONED) {
-                    throw new IllegalStateException("Managed local AI cannot be provisioned from state "
-                            + reviewedInitial.state() + ".");
-                }
-                if (!allowDownloads) {
-                    throw new IOException("Managed local AI is not ready and offline setup cannot download artifacts.");
-                }
-                ManagedLocalAiManifest manifest = Objects.requireNonNull(manifests.get(), "managed local AI manifest");
-                ManagedLocalAiHardware.Profile profile = ManagedLocalAiHardware.profile(
-                        reviewedInitial.cacheDirectory(), host);
-                String requested = AUTOMATIC_MODEL.equalsIgnoreCase(configured.model()) ? null : configured.model();
-                ManagedLocalAiHardware.Selection selection = ManagedLocalAiHardware.select(manifest, profile, requested);
-                ManagedLocalAiManifest.ModelManifest model = manifest.models().stream()
-                        .filter(candidate -> candidate.id().equals(selection.selectedModelId())).findFirst().orElseThrow();
-                provisioned = provisioning.provision(reviewedInitial.cacheDirectory(), manifest, profile,
-                        model, configured,
-                        host, operation::isCancelled, phase -> publish(operation, progress,
-                                withProgress(reviewedInitial, phase.phase(), phase.completedBytes(), phase.totalBytes())));
-                if (operation.isCancelled()) {
-                    throw new InterruptedException("Managed local AI provisioning was cancelled.");
-                }
-                ManagedLocalAiSnapshot ready = inspect(false, configured);
-                if (ready.state() != ManagedLocalAiSnapshot.State.READY) {
-                    throw new IllegalStateException("Managed local AI provisioning did not produce a ready cache.");
-                }
-                operation.publish(ready);
-                try {
-                    progress.accept(ready);
-                } catch (RuntimeException observerFailure) {
-                    // Lifecycle ownership and rollback must not depend on an observer callback.
-                }
-                if (!publishActivation(operation, ready, configured, manifest)) {
-                    rollbackCancellation(initial.cacheDirectory(), configured, provisioned.installationIds());
-                    operation.cancelled();
-                }
-            } catch (InterruptedException cancelled) {
-                if (provisioned != null) {
-                    rollbackCancellation(initial.cacheDirectory(), configured, provisioned.installationIds());
-                }
-                Thread.currentThread().interrupt();
-                operation.cancelled();
-            } catch (Exception failure) {
-                if (provisioned != null) {
-                    try {
-                        rollback(initial.cacheDirectory(), configured, provisioned.installationIds());
-                    } catch (Exception cleanup) {
-                        failure.addSuppressed(cleanup);
-                    }
-                }
-                operation.fail(failure);
-            }
-        });
+        ProvisionContext context = new ProvisionContext(
+                configured, initial, reviewedInitial, operation, progress, allowDownloads);
+        Thread worker = Thread.ofVirtual().name("shaft-managed-local-ai-provision")
+                .start(() -> runProvisioning(context));
         operation.attach(worker);
         return operation;
+    }
+
+    private void runProvisioning(ProvisionContext context) {
+        ProvisionResult provisioned = null;
+        try {
+            if (context.reviewed().state() == ManagedLocalAiSnapshot.State.READY) {
+                completeExisting(context);
+                return;
+            }
+            ProvisionPlan plan = planProvisioning(context);
+            provisioned = provision(context, plan);
+            requireActive(context);
+            publishProvisioned(context, plan.manifest(), provisioned);
+        } catch (InterruptedException cancelled) {
+            cancelProvisioning(context, provisioned);
+        } catch (Exception failure) {
+            failProvisioning(context, provisioned, failure);
+        }
+    }
+
+    private void completeExisting(ProvisionContext context) throws Exception {
+        publish(context.operation(), context.progress(), context.reviewed());
+        ManagedLocalAiManifest manifest = Objects.requireNonNull(manifests.get(), "managed local AI manifest");
+        if (!publishActivation(context.operation(), context.reviewed(), context.settings(), manifest)) {
+            context.operation().cancelled();
+        }
+    }
+
+    private ProvisionPlan planProvisioning(ProvisionContext context) throws IOException {
+        if (context.reviewed().state() != ManagedLocalAiSnapshot.State.NOT_PROVISIONED) {
+            throw new IllegalStateException("Managed local AI cannot be provisioned from state "
+                    + context.reviewed().state() + ".");
+        }
+        if (!context.allowDownloads()) {
+            throw new IOException("Managed local AI is not ready and offline setup cannot download artifacts.");
+        }
+        ManagedLocalAiManifest manifest = Objects.requireNonNull(manifests.get(), "managed local AI manifest");
+        ManagedLocalAiHardware.Profile profile = ManagedLocalAiHardware.profile(
+                context.reviewed().cacheDirectory(), host);
+        String requested = AUTOMATIC_MODEL.equalsIgnoreCase(context.settings().model())
+                ? null : context.settings().model();
+        ManagedLocalAiHardware.Selection selection = ManagedLocalAiHardware.select(manifest, profile, requested);
+        ManagedLocalAiManifest.ModelManifest model = manifest.models().stream()
+                .filter(candidate -> candidate.id().equals(selection.selectedModelId())).findFirst().orElseThrow();
+        return new ProvisionPlan(manifest, profile, model);
+    }
+
+    private ProvisionResult provision(ProvisionContext context, ProvisionPlan plan) throws Exception {
+        return provisioning.provision(context.reviewed().cacheDirectory(), plan.manifest(),
+                plan.profile(), plan.model(), context.settings(), host, context.operation()::isCancelled,
+                phase -> publish(context.operation(), context.progress(), withProgress(context.reviewed(),
+                        phase.phase(), phase.completedBytes(), phase.totalBytes())));
+    }
+
+    private static void requireActive(ProvisionContext context) throws InterruptedException {
+        if (context.operation().isCancelled()) {
+            throw new InterruptedException("Managed local AI provisioning was cancelled.");
+        }
+    }
+
+    private void publishProvisioned(ProvisionContext context, ManagedLocalAiManifest manifest,
+                                    ProvisionResult provisioned) throws Exception {
+        ManagedLocalAiSnapshot ready = inspect(false, context.settings());
+        if (ready.state() != ManagedLocalAiSnapshot.State.READY) {
+            throw new IllegalStateException("Managed local AI provisioning did not produce a ready cache.");
+        }
+        context.operation().publish(ready);
+        notifyProgress(context.progress(), ready);
+        if (!publishActivation(context.operation(), ready, context.settings(), manifest)) {
+            rollbackCancellation(context.initial().cacheDirectory(), context.settings(), provisioned.installationIds());
+            context.operation().cancelled();
+        }
+    }
+
+    private static void notifyProgress(Consumer<ManagedLocalAiSnapshot> progress, ManagedLocalAiSnapshot ready) {
+        try {
+            progress.accept(ready);
+        } catch (RuntimeException observerFailure) {
+            // Lifecycle ownership and rollback must not depend on an observer callback.
+        }
+    }
+
+    private static void cancelProvisioning(ProvisionContext context, ProvisionResult provisioned) {
+        if (provisioned != null) {
+            rollbackCancellation(
+                    context.initial().cacheDirectory(), context.settings(), provisioned.installationIds());
+        }
+        Thread.currentThread().interrupt();
+        context.operation().cancelled();
+    }
+
+    private static void failProvisioning(ProvisionContext context, ProvisionResult provisioned, Exception failure) {
+        if (provisioned != null) {
+            try {
+                rollback(context.initial().cacheDirectory(), context.settings(), provisioned.installationIds());
+            } catch (Exception cleanup) {
+                failure.addSuppressed(cleanup);
+            }
+        }
+        context.operation().fail(failure);
     }
 
     private static boolean publishActivation(ManagedLocalAiOperation operation, ManagedLocalAiSnapshot ready,
@@ -163,11 +206,10 @@ public final class ManagedLocalAiService {
         ManagedLocalAiManifest manifest = Objects.requireNonNull(manifests.get(), "managed local AI manifest");
         Path cache = resolveCache(configured.cacheDirectory());
         Duration lockTimeout = Duration.ofSeconds(configured.lockTimeoutSeconds());
-        Set<String> reviewed = new java.util.LinkedHashSet<>();
+        Set<String> reviewed = new LinkedHashSet<>();
         manifest.runtime().assets().forEach(asset -> reviewed.add(runtimeInstallationId(manifest, asset.platform())));
         manifest.models().forEach(model -> reviewed.add(modelInstallationId(model)));
-        java.util.concurrent.atomic.AtomicReference<ManagedLocalAiCache.CleanResult> result =
-                new java.util.concurrent.atomic.AtomicReference<>();
+        AtomicReference<ManagedLocalAiCache.CleanResult> result = new AtomicReference<>();
         ManagedLocalAiProcess.withLaunchExclusion(lockTimeout, () -> {
             ManagedLocalAiProcess.terminateRetainedLaunches();
             ManagedLocalAiCache.withLock(cache, lockTimeout, () -> {
@@ -198,24 +240,15 @@ public final class ManagedLocalAiService {
     private ManagedLocalAiSnapshot inspect(boolean effectiveActivation, Settings configured) {
         Path cache = resolveCache(configured.cacheDirectory());
         if (!configured.enabled()) {
-            return snapshot(ManagedLocalAiSnapshot.State.DISABLED,
-                    "Enable managed local AI to provision a local model.",
-                    new SnapshotContext(cache, configured, "", null, null, null, Map.of()));
+            return disabledSnapshot(cache, configured);
         }
 
         ManagedLocalAiManifest manifest = Objects.requireNonNull(manifests.get(), "managed local AI manifest");
         ManagedLocalAiHardware.Profile profile = ManagedLocalAiHardware.profile(cache, host);
         if (effectiveActivation) {
-            ManagedLocalAiActivationHistory.History history;
-            try {
-                history = ManagedLocalAiActivationHistory.readVerified(cache);
-            } catch (ManagedLocalAiActivationHistory.ActiveArtifactDrift changedActivation) {
-                history = null;
-            } catch (IOException failure) {
-                throw new IllegalStateException("Managed-local activation history cannot be read.", failure);
-            }
-            if (history != null) {
-                return activationSnapshot(cache, configured, history.active());
+            ManagedLocalAiSnapshot active = inspectActivation(cache, configured);
+            if (active != null) {
+                return active;
             }
         }
         if (!profile.runtimeCompatible()) {
@@ -223,7 +256,29 @@ public final class ManagedLocalAiService {
                     "Use an external local provider or a supported desktop OS, architecture, and ABI.",
                     new SnapshotContext(cache, configured, profile.platform(), profile, manifest, null, Map.of()));
         }
+        return inspectSelection(cache, configured, manifest, profile);
+    }
 
+    private static ManagedLocalAiSnapshot disabledSnapshot(Path cache, Settings configured) {
+        return snapshot(ManagedLocalAiSnapshot.State.DISABLED,
+                "Enable managed local AI to provision a local model.",
+                new SnapshotContext(cache, configured, "", null, null, null, Map.of()));
+    }
+
+    private ManagedLocalAiSnapshot inspectActivation(Path cache, Settings configured) {
+        try {
+            ManagedLocalAiActivationHistory.History history = ManagedLocalAiActivationHistory.readVerified(cache);
+            return history == null ? null : activationSnapshot(cache, configured, history.active());
+        } catch (ManagedLocalAiActivationHistory.ActiveArtifactDrift changedActivation) {
+            return null;
+        } catch (IOException failure) {
+            throw new IllegalStateException("Managed-local activation history cannot be read.", failure);
+        }
+    }
+
+    private static ManagedLocalAiSnapshot inspectSelection(Path cache, Settings configured,
+                                                           ManagedLocalAiManifest manifest,
+                                                           ManagedLocalAiHardware.Profile profile) {
         String requested = AUTOMATIC_MODEL.equalsIgnoreCase(configured.model()) ? null : configured.model();
         ManagedLocalAiHardware.Selection selection = ManagedLocalAiHardware.select(manifest, profile, requested);
         Map<String, ManagedLocalAiSnapshot.Model> models = modelInventory(manifest, selection);
@@ -239,6 +294,13 @@ public final class ManagedLocalAiService {
                 .filter(candidate -> candidate.platform().equals(profile.platform())).findFirst().orElseThrow();
         ManagedLocalAiSnapshot.CacheHealth runtimeStatus = inspectRuntime(cache, manifest, asset);
         ManagedLocalAiSnapshot.CacheHealth modelStatus = inspectModel(cache, model);
+        SelectionContext context = new SelectionContext(cache, configured, profile, manifest, model, models);
+        return cacheSnapshot(context, runtimeStatus, modelStatus);
+    }
+
+    private static ManagedLocalAiSnapshot cacheSnapshot(SelectionContext context,
+                                                        ManagedLocalAiSnapshot.CacheHealth runtimeStatus,
+                                                        ManagedLocalAiSnapshot.CacheHealth modelStatus) {
         ManagedLocalAiSnapshot.State state;
         String action;
         if (runtimeStatus == ManagedLocalAiSnapshot.CacheHealth.CORRUPT
@@ -254,7 +316,8 @@ public final class ManagedLocalAiService {
             action = "Provision the reviewed managed runtime and model.";
         }
         return snapshot(state, action,
-                new SnapshotContext(cache, configured, profile.platform(), profile, manifest, model, models),
+                new SnapshotContext(context.cache(), context.settings(), context.profile().platform(),
+                        context.profile(), context.manifest(), context.model(), context.models()),
                 runtimeStatus, modelStatus);
     }
 
@@ -399,8 +462,7 @@ public final class ManagedLocalAiService {
         Settings configured = Objects.requireNonNull(settings.get(), "managed local AI settings");
         Path cache = resolveCache(configured.cacheDirectory());
         Duration lockTimeout = Duration.ofSeconds(configured.lockTimeoutSeconds());
-        java.util.concurrent.atomic.AtomicReference<ManagedLocalAiSnapshot> result =
-                new java.util.concurrent.atomic.AtomicReference<>();
+        AtomicReference<ManagedLocalAiSnapshot> result = new AtomicReference<>();
         ManagedLocalAiProcess.withLaunchExclusion(lockTimeout, () -> {
             ManagedLocalAiCache.withLock(cache, lockTimeout, () -> {
                 ManagedLocalAiActivationHistory.rollbackLocked(cache, expected, () -> {
@@ -446,6 +508,11 @@ public final class ManagedLocalAiService {
                                    ManagedLocalAiHardware.Profile profile, ManagedLocalAiManifest manifest,
                                    ManagedLocalAiManifest.ModelManifest model,
                                    Map<String, ManagedLocalAiSnapshot.Model> models) {
+    }
+
+    private record SelectionContext(Path cache, Settings settings, ManagedLocalAiHardware.Profile profile,
+                                    ManagedLocalAiManifest manifest, ManagedLocalAiManifest.ModelManifest model,
+                                    Map<String, ManagedLocalAiSnapshot.Model> models) {
     }
 
     private record RuntimeDetails(String id, String version, String license, String file, String sha256,
@@ -589,7 +656,7 @@ public final class ManagedLocalAiService {
         }
     }
 
-    private static void rollback(Path cache, Settings settings, java.util.Set<String> installationIds)
+    private static void rollback(Path cache, Settings settings, Set<String> installationIds)
             throws Exception {
         if (!installationIds.isEmpty()) {
             boolean interrupted = Thread.interrupted();
@@ -605,12 +672,21 @@ public final class ManagedLocalAiService {
     }
 
     private static void rollbackCancellation(Path cache, Settings settings,
-                                             java.util.Set<String> installationIds) {
+                                             Set<String> installationIds) {
         try {
             rollback(cache, settings, installationIds);
         } catch (Exception cleanup) {
             // Cancellation stays primary; incomplete cleanup remains discoverable through cache status/recovery.
         }
+    }
+
+    private record ProvisionContext(Settings settings, ManagedLocalAiSnapshot initial,
+                                    ManagedLocalAiSnapshot reviewed, ManagedLocalAiOperation operation,
+                                    Consumer<ManagedLocalAiSnapshot> progress, boolean allowDownloads) {
+    }
+
+    private record ProvisionPlan(ManagedLocalAiManifest manifest, ManagedLocalAiHardware.Profile profile,
+                                 ManagedLocalAiManifest.ModelManifest model) {
     }
 
     record Settings(boolean enabled, boolean transparentProvisioning, String model, String cacheDirectory,
@@ -646,9 +722,9 @@ public final class ManagedLocalAiService {
     record Progress(ManagedLocalAiSnapshot.Phase phase, long completedBytes, long totalBytes) {
     }
 
-    record ProvisionResult(java.util.Set<String> installationIds) {
+    record ProvisionResult(Set<String> installationIds) {
         ProvisionResult {
-            installationIds = java.util.Set.copyOf(installationIds);
+            installationIds = Set.copyOf(installationIds);
         }
     }
 
@@ -728,7 +804,7 @@ public final class ManagedLocalAiService {
                 rollbackFailedProvision(context.cache(), runtimeId, installedRuntime, primary, interrupted);
                 throw primary;
             }
-            java.util.Set<String> installed = new java.util.LinkedHashSet<>();
+            Set<String> installed = new LinkedHashSet<>();
             if (installedRuntime) {
                 installed.add(runtimeId);
             }
@@ -768,7 +844,7 @@ public final class ManagedLocalAiService {
             Thread.interrupted();
             if (installedRuntime) {
                 try {
-                    ManagedLocalAiCache.clean(cache, java.util.Set.of(runtimeId));
+                    ManagedLocalAiCache.clean(cache, Set.of(runtimeId));
                 } catch (Exception rollback) {
                     primary.addSuppressed(rollback);
                 }
@@ -793,8 +869,8 @@ public final class ManagedLocalAiService {
             Files.createDirectories(staging);
             Path archive = staging.resolve(id + ".archive-" + UUID.randomUUID() + "-" + asset.file());
             Path stage = null;
-            List<Path> ownedFiles = new java.util.ArrayList<>();
-            List<Path> ownedDirectories = new java.util.ArrayList<>();
+            List<Path> ownedFiles = new ArrayList<>();
+            List<Path> ownedDirectories = new ArrayList<>();
             Throwable primary = null;
             try {
                 artifacts.download(asset, archive, Duration.ofSeconds(settings.downloadTimeoutSeconds()), cancelled);
@@ -825,7 +901,7 @@ public final class ManagedLocalAiService {
             Files.createDirectories(staging);
             Path stage = staging.resolve(id + ".extract-" + UUID.randomUUID());
             Files.createDirectory(stage);
-            List<Path> ownedFiles = new java.util.ArrayList<>();
+            List<Path> ownedFiles = new ArrayList<>();
             List<Path> ownedDirectories = List.of(stage);
             Throwable primary = null;
             try {
