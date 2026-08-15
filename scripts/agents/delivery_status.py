@@ -300,6 +300,12 @@ def inspect_cleanup(
             "taskBranchesAbsent": True,
         },
     )["deliveryDecision"] == "allow"
+    requested_residue_total = sum(
+        len(value)
+        for target in repositories if isinstance(target, dict)
+        for value in [target.get("degradedResidues")]
+        if isinstance(value, list)
+    )
     for target in repositories:
         if not isinstance(target, dict) or not _text(target.get("root")) or not _text(target.get("defaultBranch")):
             raise ValueError("invalid cleanup repository target")
@@ -365,7 +371,11 @@ def inspect_cleanup(
         if requested_residues is not None:
             degraded_requested = True
             owned = manifest.get("ownedPullRequests")
-            if not isinstance(requested_residues, list) or not requested_residues:
+            if (
+                not isinstance(requested_residues, list)
+                or len(requested_residues) != 1
+                or requested_residue_total != 1
+            ):
                 all_residue_safe = False
                 warnings.append("cleanup-residue-receipt-missing")
             else:
@@ -433,17 +443,21 @@ def inspect_cleanup(
                             timeout=10,
                             check=False,
                         )
-                        denial_text = f"{removal.stderr}\n{removal.stdout}".casefold()
-                        denied = removal.returncode != 0 and any(
-                            marker in denial_text
-                            for marker in (
-                                "permission denied",
-                                "access is denied",
-                                "operation not permitted",
-                                "policy denied",
-                                "denied by policy",
-                                "blocked by policy",
-                            )
+                        denial_lines = [
+                            line.strip().casefold()
+                            for line in f"{removal.stderr}\n{removal.stdout}".splitlines()
+                            if line.strip()
+                        ]
+                        denied = (
+                            removal.returncode != 0
+                            and len(denial_lines) == 1
+                            and denial_lines[0] in {
+                            "policy denied",
+                            "denied by policy",
+                            "blocked by policy",
+                            "blocked by host policy",
+                            "host policy denied",
+                            }
                         )
                         post_output = git_read("worktree", "list", "--porcelain")
                         post_local = git_read("rev-parse", branch).strip()

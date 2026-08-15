@@ -1301,6 +1301,27 @@ class ChaosEngineHostsTest(unittest.TestCase):
                 with self.assertRaisesRegex(RuntimeError, "already running"):
                     module.purge_maven_tools_cache(module.MAVEN_TOOLS_MCP_VERSION, root=root)
 
+    def test_maven_tools_cache_status_maps_inaccessible_lock_to_invalid(self):
+        module = load(HOSTS, "chaos_engine_hosts_maven_cache_inaccessible")
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary) / "cache"
+            root.mkdir()
+            with mock.patch.object(module.os, "open", side_effect=PermissionError("denied")):
+                observed = module.maven_tools_cache_status(root=root)
+            self.assertEqual("invalid", observed["status"])
+            self.assertNotIn("denied", json.dumps(observed))
+
+    def test_maven_tools_cache_status_maps_accessibility_race_to_invalid(self):
+        module = load(HOSTS, "chaos_engine_hosts_maven_cache_accessibility_race")
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary) / "cache"
+            with mock.patch.object(module, "_validate_cache_path"), mock.patch.object(
+                module, "is_link_or_reparse", side_effect=PermissionError("denied")
+            ):
+                observed = module.maven_tools_cache_status(root=root)
+            self.assertEqual("invalid", observed["status"])
+            self.assertNotIn("denied", json.dumps(observed))
+
     def test_maven_tools_cache_rejects_linked_version_directory(self):
         module = load(HOSTS, "chaos_engine_hosts_maven_cache_link")
         with tempfile.TemporaryDirectory() as temporary:

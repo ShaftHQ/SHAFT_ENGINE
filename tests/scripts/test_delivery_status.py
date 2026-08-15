@@ -244,6 +244,7 @@ class DeliveryStatusTest(unittest.TestCase):
                 "desync_primary_on_remove": False,
                 "drop_branch_on_remove": False,
                 "add_dirty_worktree_on_remove": False,
+                "denial": "host policy denied",
             }
             removal_calls = []
 
@@ -294,7 +295,7 @@ class DeliveryStatusTest(unittest.TestCase):
                         state["branch_present"] = False
                     if state["add_dirty_worktree_on_remove"]:
                         state["unexpected_dirty_worktree"] = True
-                    return subprocess.CompletedProcess(command, 1, "", "host policy denied; token=secret")
+                    return subprocess.CompletedProcess(command, 1, "", state["denial"])
                 raise AssertionError(command)
 
             observed = inspect_cleanup(plan, [merged()], runner=runner, executable="git")
@@ -303,7 +304,31 @@ class DeliveryStatusTest(unittest.TestCase):
             self.assertTrue(observed.get("warnings"))
             self.assertEqual(1, len(removal_calls))
             self.assertEqual("removal-denied", observed["residues"][0]["reasonCode"])
-            self.assertNotIn("secret", json.dumps(observed))
+
+            target["degradedResidues"] *= 2
+            before_duplicate = len(removal_calls)
+            duplicate = inspect_cleanup(plan, [merged()], runner=runner, executable="git")
+            self.assertFalse(duplicate["residueSafe"])
+            self.assertEqual(before_duplicate, len(removal_calls))
+            target["degradedResidues"] = target["degradedResidues"][:1]
+
+            state["denial"] = "Access is denied"
+            access_denied = inspect_cleanup(plan, [merged()], runner=runner, executable="git")
+            self.assertFalse(access_denied["residueSafe"])
+            self.assertEqual([], access_denied["residues"])
+            state["denial"] = "not blocked by host policy; Access is denied by concurrent owner"
+            negated_policy = inspect_cleanup(plan, [merged()], runner=runner, executable="git")
+            self.assertFalse(negated_policy["residueSafe"])
+            self.assertEqual([], negated_policy["residues"])
+            for mixed_denial in (
+                "host policy denied\nAccess is denied by concurrent owner",
+                "not blocked by host policy\nhost policy denied",
+            ):
+                state["denial"] = mixed_denial
+                mixed = inspect_cleanup(plan, [merged()], runner=runner, executable="git")
+                self.assertFalse(mixed["residueSafe"])
+                self.assertEqual([], mixed["residues"])
+            state["denial"] = "host policy denied"
 
             for field in ("dirty", "unique", "locked"):
                 with self.subTest(field=field):

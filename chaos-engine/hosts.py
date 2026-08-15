@@ -1319,16 +1319,13 @@ def maven_tools_cache_status(
     version_root = _maven_tools_version_directory(cache_root, version)
     try:
         _validate_cache_path(version_root, anchor)
-    except ValueError:
-        return {"component": "maven-tools-mcp", "version": version, "path": str(version_root), "status": "invalid", "reason": "cache path is linked or invalid"}
-    if not cache_root.exists() and not is_link_or_reparse(cache_root):
-        return {"component": "maven-tools-mcp", "version": version, "path": str(version_root), "status": "absent"}
-    try:
+        if not cache_root.exists() and not is_link_or_reparse(cache_root):
+            return {"component": "maven-tools-mcp", "version": version, "path": str(version_root), "status": "absent"}
         with maven_tools_cache_lock(cache_root, anchor=anchor):
             return _maven_tools_cache_status_unlocked(cache_root, version, anchor=anchor)
     except RuntimeError:
         return {"component": "maven-tools-mcp", "version": version, "path": str(version_root), "status": "busy"}
-    except ValueError:
+    except (OSError, ValueError):
         return {"component": "maven-tools-mcp", "version": version, "path": str(version_root), "status": "invalid", "reason": "cache lock is linked or invalid"}
 
 

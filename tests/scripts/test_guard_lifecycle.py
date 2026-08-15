@@ -15,6 +15,7 @@ import tempfile
 import time
 import unittest
 from contextlib import redirect_stdout
+from datetime import UTC, datetime
 from pathlib import Path
 from unittest import mock
 from unittest.mock import patch
@@ -2624,6 +2625,78 @@ class DeliveryCompleteStopGateTest(unittest.TestCase):
             guard, "_checkpoint_identity", return_value=task
         ):
             self.assertIsNone(guard.check_r29_delivery_complete({"session_id": "s"}))
+
+    def test_degraded_cleanup_receipt_records_successful_delivery(self):
+        identity = ("consumer/project", "main", "b" * 40)
+        root = Path(guard.__file__).resolve().parents[2]
+        runtime = root / "scripts/agents/act_as_mohab_cli.py"
+        with tempfile.TemporaryDirectory() as temporary:
+            receipt_path = Path(temporary) / "delivery.json"
+            receipt_path.write_text(json.dumps({
+                "schemaVersion": 1,
+                "kind": "delivery-status",
+                "repository": identity[0],
+                "headOid": identity[2],
+                "decision": "allow",
+                "deliveryDecision": "allow",
+                "cleanupDecision": "degraded",
+                "reasons": [],
+                "mergedCount": 1,
+                "observedAt": datetime.now(UTC).isoformat(),
+                "pullRequests": [{
+                    "repository": identity[0],
+                    "number": 7,
+                    "headOid": "a" * 40,
+                    "mergedAt": datetime.now(UTC).isoformat(),
+                }],
+                "cleanup": {
+                    "outcome": "degraded",
+                    "primarySynced": True,
+                    "taskWorktreesAbsent": False,
+                    "taskBranchesAbsent": False,
+                    "unrelatedDirtyPreserved": True,
+                    "residueSafe": True,
+                    "residues": [{
+                        "repository": identity[0],
+                        "pullRequest": 7,
+                        "worktree": "task-worktree",
+                        "branch": "ChaosEngine/task",
+                        "reasonCode": "removal-denied",
+                    }],
+                    "warnings": ["cleanup-residue-remains"],
+                },
+            }), encoding="utf-8")
+            command = f'py -3 "{runtime}" delivery-status --receipt-out "{receipt_path}"'
+            with mock.patch.object(guard, "_checkpoint_identity", return_value=identity), mock.patch.object(
+                guard, "_trusted_executable_token", return_value=True
+            ):
+                event = guard._successful_delivery_event({"cwd": str(root)}, command)
+                receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
+                for residue_update in (
+                    {"repository": "token=secret"},
+                    {"pullRequest": True},
+                    {"worktree": ""},
+                    {"branch": ""},
+                    {"pullRequest": 8},
+                    {"worktree": "api_key=abcdefgh"},
+                    {"branch": "Bearer abcdefgh"},
+                ):
+                    malformed = json.loads(json.dumps(receipt))
+                    malformed["cleanup"]["residues"][0].update(residue_update)
+                    receipt_path.write_text(json.dumps(malformed), encoding="utf-8")
+                    self.assertIsNone(
+                        guard._successful_delivery_event({"cwd": str(root)}, command),
+                        residue_update,
+                    )
+                for field in ("schemaVersion", "mergedCount"):
+                    malformed = json.loads(json.dumps(receipt))
+                    malformed[field] = True
+                    receipt_path.write_text(json.dumps(malformed), encoding="utf-8")
+                    self.assertIsNone(
+                        guard._successful_delivery_event({"cwd": str(root)}, command),
+                        field,
+                    )
+        self.assertIsNotNone(event)
 
     def test_unrelated_delivery_event_cannot_complete_this_task(self):
         task = ("consumer/project", "ChaosEngine/task", "a" * 40)

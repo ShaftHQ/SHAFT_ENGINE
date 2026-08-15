@@ -760,12 +760,25 @@ def install(  # noqa: MC0001 - publication and compensation form one transaction
             current = verify_install(target)
             current_commit = current["source"]["commit"]  # type: ignore[index]
             current_distribution = current.get("distribution")
-            if not isinstance(current_distribution, dict) or current_distribution.get("id") != distribution:
+            legacy_distribution = (
+                isinstance(current_distribution, dict)
+                and current_distribution.get("id") == "legacy"
+            )
+            if (
+                not isinstance(current_distribution, dict)
+                or (
+                    current_distribution.get("id") != distribution
+                    and not (legacy_distribution and distribution == DEFAULT_DISTRIBUTION)
+                )
+            ):
                 raise ValueError(
                     "installed ChaosEngine distribution differs; uninstall before changing it"
                 )
             if current_commit == commit:
-                if current_distribution.get("policySha256") != policy_digest:
+                if (
+                    not legacy_distribution
+                    and current_distribution.get("policySha256") != policy_digest
+                ):
                     raise ValueError(
                         "same commit resolved to a different ChaosEngine distribution policy"
                     )
@@ -774,9 +787,23 @@ def install(  # noqa: MC0001 - publication and compensation form one transaction
                 if current["source"] == desired_source:
                     current_capabilities = current.get("capabilities")
                     current_capability_digest = current.get("capabilityPolicySha256")
+                    manifest_changed = False
+                    if legacy_distribution:
+                        current["distribution"] = {
+                            "id": distribution,
+                            "policySha256": policy_digest,
+                        }
+                        manifest_changed = True
                     if current_capabilities is None and current_capability_digest is None:
                         current["capabilities"] = capabilities
                         current["capabilityPolicySha256"] = capability_digest
+                        manifest_changed = True
+                    elif (
+                        current_capabilities != capabilities
+                        or current_capability_digest != capability_digest
+                    ):
+                        raise ValueError("same commit resolved to a different capability policy")
+                    if manifest_changed:
                         temporary_manifest = target / f"{MANIFEST_NAME}.upgrade-{secrets.token_hex(8)}"
                         try:
                             temporary_manifest.write_text(
@@ -787,11 +814,6 @@ def install(  # noqa: MC0001 - publication and compensation form one transaction
                         finally:
                             if temporary_manifest.exists():
                                 temporary_manifest.unlink()
-                    elif (
-                        current_capabilities != capabilities
-                        or current_capability_digest != capability_digest
-                    ):
-                        raise ValueError("same commit resolved to a different capability policy")
                     return target
                 if current["source"].get("kind") != "local":  # type: ignore[union-attr]
                     raise ValueError("same commit resolved from different ChaosEngine provenance")

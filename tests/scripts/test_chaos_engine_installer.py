@@ -552,7 +552,7 @@ class ChaosEngineInstallerTest(unittest.TestCase):
             self.assertEqual(before, tree_digest(project / ".chaos-engine"))
             self.assertFalse(project.joinpath(".chaos-engine.backup").exists())
 
-    def test_legacy_manifest_is_verified_but_requires_explicit_reinstall(self):
+    def test_distributionless_legacy_manifest_upgrades_in_place(self):
         with tempfile.TemporaryDirectory() as temporary:
             project = Path(temporary) / "consumer"
             project.mkdir()
@@ -563,10 +563,10 @@ class ChaosEngineInstallerTest(unittest.TestCase):
             manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
 
             self.assertEqual("legacy", MODULE.status(project)["distribution"])
-            before = tree_digest(project / ".chaos-engine")
-            with self.assertRaisesRegex(ValueError, "uninstall before changing"):
-                MODULE.install(project, SOURCE, "2" * 40)
-            self.assertEqual(before, tree_digest(project / ".chaos-engine"))
+            MODULE.install(project, SOURCE, "2" * 40)
+            upgraded = MODULE.status(project)
+            self.assertEqual("portable", upgraded["distribution"])
+            self.assertEqual("2" * 40, upgraded["commit"])
 
     def test_distribution_rejects_a_missing_profile_before_mutation(self):
         with tempfile.TemporaryDirectory() as temporary:

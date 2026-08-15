@@ -2748,27 +2748,102 @@ def _successful_delivery_event(hook_input: dict, command: str) -> str | None:
         receipt_age = (datetime.now(UTC) - observed.astimezone(UTC)).total_seconds()
     except (AttributeError, TypeError, ValueError):
         return None
+    def safe_receipt_text(value: object) -> bool:
+        return bool(
+            isinstance(value, str)
+            and value.strip()
+            and len(value) <= 2048
+            and "\r" not in value
+            and "\n" not in value
+            and not re.search(
+                r"(?i)(?:"
+                r"(?<![A-Za-z0-9])(?:gh[oprsu]_|github_pat_|sk-|api[_-]?key|password|secret|token)"
+                r"[A-Za-z0-9_:=./+\-]{8,}|"
+                r"\b(?:token|password|secret|api[_-]?key)\b\s*(?::|=|is|used)\s*"
+                r"(?:bearer\s+)?[A-Za-z0-9_./+\-]{8,}|"
+                r"\bauthorization\s*:\s*bearer\s+[A-Za-z0-9_./+\-]{8,}|"
+                r"\bbearer\s+[A-Za-z0-9_./+\-]{8,}|"
+                r"https?://[^/\s]+@"
+                r")",
+                value,
+            )
+        )
+
+    pull_request_pairs = {
+        (item.get("repository"), item.get("number"))
+        for item in pull_requests or [] if isinstance(item, dict)
+    }
+    cleanup_complete = bool(
+        isinstance(cleanup, dict)
+        and receipt.get("cleanupDecision") == "complete"
+        and cleanup.get("outcome", "complete") == "complete"
+        and all(cleanup.get(field) is True for field in (
+            "primarySynced", "taskWorktreesAbsent", "taskBranchesAbsent",
+            "unrelatedDirtyPreserved",
+        ))
+    )
+    degraded_residues = cleanup.get("residues") if isinstance(cleanup, dict) else None
+    cleanup_degraded = bool(
+        isinstance(cleanup, dict)
+        and receipt.get("cleanupDecision") == "degraded"
+        and cleanup.get("outcome") == "degraded"
+        and cleanup.get("primarySynced") is True
+        and cleanup.get("unrelatedDirtyPreserved") is True
+        and cleanup.get("residueSafe") is True
+        and isinstance(degraded_residues, list)
+        and len(degraded_residues) == 1
+        and isinstance(degraded_residues[0], dict)
+        and set(degraded_residues[0]) == {
+            "repository", "pullRequest", "worktree", "branch", "reasonCode",
+        }
+        and re.fullmatch(
+            r"[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+",
+            str(degraded_residues[0].get("repository", "")),
+        ) is not None
+        and isinstance(degraded_residues[0].get("pullRequest"), int)
+        and not isinstance(degraded_residues[0].get("pullRequest"), bool)
+        and degraded_residues[0].get("pullRequest") > 0
+        and (
+            degraded_residues[0].get("repository"),
+            degraded_residues[0].get("pullRequest"),
+        ) in pull_request_pairs
+        and safe_receipt_text(degraded_residues[0].get("worktree"))
+        and safe_receipt_text(degraded_residues[0].get("branch"))
+        and degraded_residues[0].get("reasonCode") == "removal-denied"
+        and receipt.get("cleanup", {}).get("warnings") == ["cleanup-residue-remains"]
+    )
     if (
         identity is None
         or not isinstance(receipt, dict)
+        or type(receipt.get("schemaVersion")) is not int
         or receipt.get("schemaVersion") != 1
         or receipt.get("kind") != "delivery-status"
         or receipt.get("repository") != identity[0]
         or receipt.get("headOid") != identity[2]
         or receipt.get("decision") != "allow"
+        or receipt.get("deliveryDecision") != "allow"
         or receipt.get("reasons") != []
         or not isinstance(pull_requests, list)
         or not pull_requests
+        or type(receipt.get("mergedCount")) is not int
         or receipt.get("mergedCount") != len(pull_requests)
         or any(
             not isinstance(item.get("mergedAt"), str) or not item["mergedAt"].strip()
             for item in pull_requests if isinstance(item, dict)
         )
+        or any(
+            re.fullmatch(
+                r"[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+",
+                str(item.get("repository", "")),
+            ) is None
+            or not isinstance(item.get("number"), int)
+            or isinstance(item.get("number"), bool)
+            or item.get("number") <= 0
+            or re.fullmatch(r"[0-9a-f]{40}", str(item.get("headOid", ""))) is None
+            for item in pull_requests if isinstance(item, dict)
+        )
         or any(not isinstance(item, dict) for item in pull_requests)
-        or not isinstance(cleanup, dict)
-        or any(cleanup.get(field) is not True for field in (
-            "primarySynced", "taskWorktreesAbsent", "taskBranchesAbsent", "unrelatedDirtyPreserved"
-        ))
+        or not (cleanup_complete or cleanup_degraded)
         or not -60 <= receipt_age <= 600
     ):
         return None
