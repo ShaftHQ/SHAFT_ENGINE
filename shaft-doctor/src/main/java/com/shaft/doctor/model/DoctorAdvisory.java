@@ -56,7 +56,7 @@ public record DoctorAdvisory(
         /**
          * Current provider analysis schema version.
          */
-        public static final String CURRENT_SCHEMA_VERSION = "1.0";
+        public static final String CURRENT_SCHEMA_VERSION = "2.0";
 
         /**
          * Creates immutable provider analysis.
@@ -138,7 +138,58 @@ public record DoctorAdvisory(
             String title,
             String action,
             List<String> evidenceIds,
-            boolean cited) {
+            boolean cited,
+            ActionOperation operation,
+            ActionTarget target) {
+        /** Allowlisted advisory action targets. */
+        public enum ActionTarget {
+            DOM_SNAPSHOT,
+            RUNTIME_CONFIGURATION,
+            TEST_LOCATOR,
+            WAIT_CONDITION,
+            TEST_DATA,
+            INFRASTRUCTURE_STATUS
+        }
+
+        /** Allowlisted operations with their only valid target and SHAFT-owned display text. */
+        @SuppressWarnings("PMD.SingularField") // Enum constants retain their immutable action definition.
+        public enum ActionOperation {
+            COLLECT_EVIDENCE(ActionTarget.DOM_SNAPSHOT, "Collect current DOM evidence",
+                    "Capture a current DOM snapshot and rerun deterministic Doctor analysis."),
+            REVIEW_CONFIGURATION(ActionTarget.RUNTIME_CONFIGURATION, "Review runtime configuration",
+                    "Compare the effective runtime configuration with the reviewed project settings."),
+            UPDATE_TEST_LOCATOR(ActionTarget.TEST_LOCATOR, "Review the test locator",
+                    "Compare the typed test locator with the current application DOM."),
+            ADD_EXPLICIT_WAIT(ActionTarget.WAIT_CONDITION, "Review the wait condition",
+                    "Add or adjust an explicit condition only after confirming the observed timing boundary."),
+            REVIEW_TEST_DATA(ActionTarget.TEST_DATA, "Review test data",
+                    "Compare the failing test data with the deterministic evidence and product state."),
+            RETRY_INFRASTRUCTURE_CHECK(ActionTarget.INFRASTRUCTURE_STATUS, "Recheck infrastructure",
+                    "Recheck the reported infrastructure dependency before rerunning the test.");
+
+            private final ActionTarget target;
+            private final String title;
+            private final String displayText;
+
+            ActionOperation(ActionTarget target, String title, String displayText) {
+                this.target = target;
+                this.title = title;
+                this.displayText = displayText;
+            }
+
+            private ActionTarget allowedTarget() {
+                return target;
+            }
+
+            private String actionTitle() {
+                return title;
+            }
+
+            private String actionDisplayText() {
+                return displayText;
+            }
+        }
+
         /**
          * Creates an immutable recommended action.
          */
@@ -146,6 +197,38 @@ public record DoctorAdvisory(
             title = DoctorModelSupport.requireText(title, "Advisory action title");
             action = DoctorModelSupport.requireText(action, "Advisory action");
             evidenceIds = DoctorModelSupport.list(evidenceIds);
+            if ((operation == null) != (target == null)) {
+                throw new IllegalArgumentException("Advisory operation and target must be supplied together.");
+            }
+            if (operation != null) {
+                if (operation.allowedTarget() != target) {
+                    throw new IllegalArgumentException("Advisory operation and target pair is not allowlisted.");
+                }
+                title = operation.actionTitle();
+                action = operation.actionDisplayText();
+            }
+        }
+
+        /**
+         * Retains source compatibility for callers that construct display-only legacy actions.
+         */
+        public RecommendedAction(String title, String action, List<String> evidenceIds, boolean cited) {
+            this(title, action, evidenceIds, cited, null, null);
+        }
+
+        /**
+         * Creates an allowlisted action whose display text is owned by SHAFT.
+         */
+        public RecommendedAction(ActionOperation operation, ActionTarget target,
+                                 List<String> evidenceIds, boolean cited) {
+            this(operation == null ? "Invalid action" : operation.actionTitle(),
+                    operation == null ? "Invalid action" : operation.actionDisplayText(),
+                    evidenceIds, cited, operation, target);
+        }
+
+        /** Returns whether this action came from the structured allowlist. */
+        public boolean structured() {
+            return operation != null;
         }
     }
 

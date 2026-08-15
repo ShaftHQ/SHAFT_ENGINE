@@ -2,6 +2,7 @@ package com.shaft.pilot.ai;
 
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
+import com.shaft.pilot.audit.AiAuditEvent;
 import com.shaft.pilot.config.PilotConfiguration;
 import org.junit.jupiter.api.Test;
 
@@ -248,6 +249,37 @@ class AiExecutionServiceTest {
 
             assertEquals(AiResponseStatus.SUCCESS, response.status());
             assertTrue(response.warnings().contains("Safe AI audit metadata could not be recorded."));
+        } finally {
+            registry.clearForCurrentThread();
+        }
+    }
+
+    @Test
+    void semanticAttemptNumberIsRecordedWithoutPromptOrEvidence() {
+        StubProvider provider = new StubProvider(ProcessingLocation.REMOTE);
+        AiProviderRegistry registry = new AiProviderRegistry();
+        AtomicReference<AiAuditEvent> captured = new AtomicReference<>();
+        registry.registerForCurrentThread(provider);
+        try {
+            AiExecutionService service = new AiExecutionService(registry,
+                    () -> PilotTestConfiguration.enabled("stub", ProcessingLocation.REMOTE), captured::set);
+            AiRequest request = request(approved(ProcessingLocation.REMOTE));
+            AiRequest corrective = AiRequest.builder(request.purpose(), request.desiredResponseSchema())
+                    .requestId("doctor-attempt-2")
+                    .text(request.text())
+                    .attemptNumber(2)
+                    .budget(request.budget())
+                    .approvalPolicy(request.approvalPolicy())
+                    .deterministicFallback(request.deterministicFallback())
+                    .timeout(request.timeout())
+                    .build();
+
+            AiResponse response = service.execute(corrective);
+
+            assertEquals(AiResponseStatus.SUCCESS, response.status());
+            assertEquals(2, captured.get().attemptNumber());
+            assertFalse(captured.get().toString().contains("top-secret"));
+            assertEquals("test-model", captured.get().model());
         } finally {
             registry.clearForCurrentThread();
         }

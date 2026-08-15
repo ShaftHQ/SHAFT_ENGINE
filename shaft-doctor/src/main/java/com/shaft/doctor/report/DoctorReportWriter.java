@@ -245,6 +245,8 @@ public final class DoctorReportWriter {
             for (DoctorAdvisory.RecommendedAction action : advisory.analysis().recommendedActions()) {
                 report.append("1. **").append(markdown(action.title())).append("**: ")
                         .append(markdown(action.action()))
+                        .append(" (`").append(action.operation()).append("` → `")
+                        .append(action.target()).append("`)")
                         .append(" Evidence: ").append(references(action.evidenceIds()))
                         .append(action.cited() ? "" : " (uncited)")
                         .append("\n");

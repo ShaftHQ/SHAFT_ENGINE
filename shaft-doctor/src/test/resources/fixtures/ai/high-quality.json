@@ -1,5 +1,5 @@
 {
-  "schemaVersion": "1.0",
+  "schemaVersion": "2.0",
   "observations": [
     {
       "statement": "The failure contains a locator-not-found exception.",
@@ -23,8 +23,8 @@
   ],
   "recommendedActions": [
     {
-      "title": "Inspect the locator",
-      "action": "Compare the locator with the current application DOM before changing synchronization.",
+      "operation": "UPDATE_TEST_LOCATOR",
+      "target": "TEST_LOCATOR",
       "evidenceIds": [
         "evidence-1"
       ]

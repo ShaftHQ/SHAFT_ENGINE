@@ -16,6 +16,7 @@ import java.time.Instant;
  * @param redactionSummary safe redaction counts
  * @param duration elapsed duration
  * @param status normalized outcome
+ * @param attemptNumber caller-owned semantic attempt number
  */
 public record AiAuditEvent(
         Instant timestamp,
@@ -25,7 +26,8 @@ public record AiAuditEvent(
         String model,
         String redactionSummary,
         Duration duration,
-        AiResponseStatus status) {
+        AiResponseStatus status,
+        int attemptNumber) {
     /**
      * Normalizes user-controlled metadata before it reaches logs.
      */
@@ -35,6 +37,15 @@ public record AiAuditEvent(
         provider = safe(provider, 64);
         model = safe(model, 128);
         redactionSummary = safe(redactionSummary, 256);
+        if (attemptNumber < 1) {
+            throw new IllegalArgumentException("AI audit attempt number must be positive.");
+        }
+    }
+
+    /** Retains source compatibility for single-attempt audit producers. */
+    public AiAuditEvent(Instant timestamp, String requestId, String purpose, String provider, String model,
+                        String redactionSummary, Duration duration, AiResponseStatus status) {
+        this(timestamp, requestId, purpose, provider, model, redactionSummary, duration, status, 1);
     }
 
     private static String safe(String value, int limit) {
