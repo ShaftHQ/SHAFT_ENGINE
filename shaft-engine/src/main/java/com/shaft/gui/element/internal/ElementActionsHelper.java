@@ -494,8 +494,11 @@ public class ElementActionsHelper {
             if (resolution != null) {
                 return recoveredElementInformation(driver, elementLocator, resolution);
             }
-            var causeMessage = timeoutException.getCause().getMessage();
-            causeMessage = !causeMessage.isBlank() && causeMessage.contains("\n") ? timeoutException.getMessage() + " || " + causeMessage.substring(0, causeMessage.indexOf("\n")) : timeoutException.getMessage();
+            var cause = timeoutException.getCause();
+            var causeMessage = cause == null ? null : cause.getMessage();
+            causeMessage = causeMessage != null && !causeMessage.isBlank() && causeMessage.contains("\n")
+                    ? timeoutException.getMessage() + " || " + causeMessage.substring(0, causeMessage.indexOf("\n"))
+                    : timeoutException.getMessage();
             ReportManager.logDiscrete(causeMessage);
             var elementInformation = new ArrayList<>();
             elementInformation.add(0);
