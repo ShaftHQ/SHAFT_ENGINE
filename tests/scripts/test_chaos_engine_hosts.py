@@ -856,6 +856,7 @@ class ChaosEngineHostsTest(unittest.TestCase):
 
     def test_mempalace_runtime_state_is_fail_closed_before_native_launch(self):
         module = load(HOSTS, "chaos_engine_mempalace_runtime_state")
+        self.assertTrue(hasattr(module, "mempalace_runtime_status"))
         with tempfile.TemporaryDirectory() as temporary:
             project = Path(temporary)
             palace = project / ".chaos-engine-state/mempalace"
@@ -997,6 +998,7 @@ class ChaosEngineHostsTest(unittest.TestCase):
 
     def test_mempalace_runtime_rejects_reparse_state_before_native_launch(self):
         module = load(HOSTS, "chaos_engine_mempalace_reparse_state")
+        self.assertTrue(hasattr(module, "mempalace_runtime_status"))
         with tempfile.TemporaryDirectory() as temporary:
             project = Path(temporary)
             palace = project / ".chaos-engine-state/mempalace"
@@ -1016,6 +1018,7 @@ class ChaosEngineHostsTest(unittest.TestCase):
 
     def test_mempalace_runtime_rejects_unrecognized_state_before_native_launch(self):
         module = load(HOSTS, "chaos_engine_mempalace_unknown_state")
+        self.assertTrue(hasattr(module, "mempalace_runtime_status"))
         with tempfile.TemporaryDirectory() as temporary:
             project = Path(temporary)
             palace = project / ".chaos-engine-state/mempalace"
@@ -1075,6 +1078,7 @@ class ChaosEngineHostsTest(unittest.TestCase):
 
     def test_fresh_mempalace_initializer_revalidates_paths_after_creation(self):
         module = load(HOSTS, "chaos_engine_mempalace_initialize_race")
+        self.assertTrue(hasattr(module, "initialize_mempalace_runtime"))
         with tempfile.TemporaryDirectory() as temporary:
             project = Path(temporary)
             palace = project / ".chaos-engine-state/mempalace"

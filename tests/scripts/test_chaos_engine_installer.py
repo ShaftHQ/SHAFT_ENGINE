@@ -135,6 +135,7 @@ class ChaosEngineInstallerTest(unittest.TestCase):
             )
 
             controller = MODULE.load_installed_controller(project / ".chaos-engine", "hosts")
+            self.assertTrue(hasattr(controller, "mempalace_runtime_status"))
             self.assertEqual(
                 "healthy",
                 controller.mempalace_runtime_status(project)["status"],
@@ -237,6 +238,10 @@ class ChaosEngineInstallerTest(unittest.TestCase):
                 TEST_COMMIT,
                 provisioner=lambda *_args, **_kwargs: None,
             )
+            controller = MODULE.load_installed_controller(
+                project / ".chaos-engine", "hosts"
+            )
+            self.assertTrue(hasattr(controller, "mempalace_runtime_status"))
             palace = project / ".chaos-engine-state/mempalace"
             palace.joinpath("sqlite_exact.sqlite3").unlink()
             create_chroma_state(palace / "chroma.sqlite3")
@@ -247,7 +252,6 @@ class ChaosEngineInstallerTest(unittest.TestCase):
                 "migration-required",
                 passive["components"]["mempalace"]["status"],
             )
-            controller = MODULE.load_installed_controller(project / ".chaos-engine", "hosts")
             with mock.patch.object(
                 controller,
                 "retrieval_runtime_healthy",
