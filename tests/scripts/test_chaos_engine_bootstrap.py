@@ -7,9 +7,11 @@ import importlib.util
 import io
 import json
 import subprocess  # nosec B404 - tests run fixed local Git commands only.
+import sys
 import tempfile
 import unittest
 import unittest.mock as mock
+import urllib.error
 from pathlib import Path
 from types import SimpleNamespace
 from urllib.parse import unquote, urlparse
@@ -50,6 +52,250 @@ class Response(io.BytesIO):
 
 
 class ChaosEngineBootstrapTest(unittest.TestCase):
+    def test_documented_command_retries_its_initial_bootstrap_fetch(self):
+        document = (ROOT / "chaos-engine/README.md").read_text(encoding="utf-8")
+        line = next(item for item in document.splitlines() if item.startswith("py -3 -c "))
+        source = line[len('py -3 -c "') : -1]
+        opener = mock.Mock(side_effect=(ConnectionResetError("reset"), Response(b"pass")))
+        run_path = mock.Mock()
+        namespace: dict[str, object] = {}
+
+        with (
+            mock.patch("urllib.request.urlopen", opener),
+            mock.patch("time.sleep"),
+            mock.patch("runpy.run_path", run_path),
+            mock.patch.object(sys, "argv", ["test"]),
+        ):
+            try:
+                exec(source, namespace)  # nosec B102 - tracked command is the test subject.
+            except ConnectionResetError:
+                pass
+        namespace["d"].cleanup()
+
+        self.assertEqual(2, opener.call_count)
+        run_path.assert_called_once()
+
+    def test_documented_command_honors_http_date_retry_after(self):
+        document = (ROOT / "chaos-engine/README.md").read_text(encoding="utf-8")
+        line = next(item for item in document.splitlines() if item.startswith("py -3 -c "))
+        source = line[len('py -3 -c "') : -1]
+        rate_limited = urllib.error.HTTPError(
+            "https://example.invalid/bootstrap.py",
+            429,
+            "Too Many Requests",
+            {"Retry-After": "Thu, 01 Jan 1970 00:00:05 GMT"},
+            None,
+        )
+        opener = mock.Mock(side_effect=(rate_limited, Response(b"pass")))
+        run_path = mock.Mock()
+        sleeper = mock.Mock()
+        namespace: dict[str, object] = {}
+
+        with (
+            mock.patch("urllib.request.urlopen", opener),
+            mock.patch("time.sleep", sleeper),
+            mock.patch("time.time", return_value=0),
+            mock.patch("runpy.run_path", run_path),
+            mock.patch.object(sys, "argv", ["test"]),
+        ):
+            try:
+                exec(source, namespace)  # nosec B102 - tracked command is the test subject.
+            except (RuntimeError, ValueError):
+                pass
+        namespace["d"].cleanup()
+
+        self.assertEqual(2, opener.call_count)
+        sleeper.assert_called_once_with(5.0)
+        run_path.assert_called_once()
+
+    def test_read_response_retries_a_transient_http_failure(self):
+        module = load()
+        transient = urllib.error.HTTPError(
+            "https://example.invalid/bootstrap.py",
+            503,
+            "Service Unavailable",
+            {},
+            None,
+        )
+        opener = mock.Mock(side_effect=(transient, Response(b"ready")))
+        sleeper = mock.Mock()
+
+        try:
+            value = module.read_response(
+                opener,
+                "https://example.invalid/bootstrap.py",
+                sleeper=sleeper,
+            )
+        except RuntimeError:
+            value = b""
+
+        self.assertEqual(b"ready", value)
+        self.assertEqual(2, opener.call_count)
+        sleeper.assert_called_once_with(module.RETRY_BASE_SECONDS)
+
+    def test_read_response_closes_a_transient_http_error(self):
+        module = load()
+        body = io.BytesIO(b"temporary response")
+        transient = urllib.error.HTTPError(
+            "https://example.invalid/bootstrap.py",
+            503,
+            "Service Unavailable",
+            {},
+            body,
+        )
+        opener = mock.Mock(side_effect=(transient, Response(b"ready")))
+
+        module.read_response(
+            opener,
+            "https://example.invalid/bootstrap.py",
+            sleeper=mock.Mock(),
+        )
+
+        self.assertTrue(body.closed)
+
+    def test_read_response_retries_a_connection_reset(self):
+        module = load()
+        opener = mock.Mock(side_effect=(ConnectionResetError("reset"), Response(b"ready")))
+        sleeper = mock.Mock()
+
+        try:
+            value = module.read_response(
+                opener,
+                "https://example.invalid/bootstrap.py",
+                sleeper=sleeper,
+            )
+        except RuntimeError:
+            value = b""
+
+        self.assertEqual(b"ready", value)
+        self.assertEqual(2, opener.call_count)
+        sleeper.assert_called_once_with(module.RETRY_BASE_SECONDS)
+
+    def test_read_response_exhausts_bounded_transient_retries(self):
+        module = load()
+        failures = tuple(
+            urllib.error.HTTPError(
+                "https://example.invalid/bootstrap.py",
+                503,
+                "Service Unavailable",
+                {},
+                None,
+            )
+            for _ in range(module.MAX_READ_ATTEMPTS)
+        )
+        opener = mock.Mock(side_effect=failures)
+        sleeper = mock.Mock()
+
+        with self.assertRaisesRegex(RuntimeError, "resolve latest ChaosEngine"):
+            module.read_response(
+                opener,
+                "https://example.invalid/bootstrap.py",
+                sleeper=sleeper,
+            )
+
+        self.assertEqual(module.MAX_READ_ATTEMPTS, opener.call_count)
+        self.assertEqual(
+            [
+                mock.call(module.RETRY_BASE_SECONDS),
+                mock.call(module.RETRY_BASE_SECONDS * 2),
+                mock.call(module.RETRY_BASE_SECONDS * 4),
+            ],
+            sleeper.call_args_list,
+        )
+
+    def test_read_response_does_not_retry_a_permanent_http_failure(self):
+        module = load()
+        opener = mock.Mock(
+            side_effect=urllib.error.HTTPError(
+                "https://example.invalid/missing.py",
+                404,
+                "Not Found",
+                {},
+                None,
+            )
+        )
+        sleeper = mock.Mock()
+
+        with self.assertRaisesRegex(RuntimeError, "resolve latest ChaosEngine"):
+            module.read_response(
+                opener,
+                "https://example.invalid/missing.py",
+                sleeper=sleeper,
+            )
+
+        opener.assert_called_once()
+        sleeper.assert_not_called()
+
+    def test_read_response_honors_bounded_retry_after(self):
+        module = load()
+        transient = urllib.error.HTTPError(
+            "https://example.invalid/bootstrap.py",
+            429,
+            "Too Many Requests",
+            {"Retry-After": "7"},
+            None,
+        )
+        opener = mock.Mock(side_effect=(transient, Response(b"ready")))
+        sleeper = mock.Mock()
+
+        value = module.read_response(
+            opener,
+            "https://example.invalid/bootstrap.py",
+            sleeper=sleeper,
+        )
+
+        self.assertEqual(b"ready", value)
+        sleeper.assert_called_once_with(7.0)
+
+    def test_read_response_honors_http_date_retry_after(self):
+        module = load()
+        transient = urllib.error.HTTPError(
+            "https://example.invalid/bootstrap.py",
+            429,
+            "Too Many Requests",
+            {"Retry-After": "Thu, 01 Jan 1970 00:00:05 GMT"},
+            None,
+        )
+        opener = mock.Mock(side_effect=(transient, Response(b"ready")))
+        sleeper = mock.Mock()
+
+        with mock.patch.object(module.time, "time", return_value=0):
+            try:
+                value = module.read_response(
+                    opener,
+                    "https://example.invalid/bootstrap.py",
+                    sleeper=sleeper,
+                )
+            except RuntimeError:
+                value = b""
+
+        self.assertEqual(b"ready", value)
+        sleeper.assert_called_once_with(5.0)
+
+    def test_read_response_retries_a_rate_limit_signaled_403(self):
+        module = load()
+        rate_limited = urllib.error.HTTPError(
+            "https://example.invalid/bootstrap.py",
+            403,
+            "Forbidden",
+            {"Retry-After": "5"},
+            None,
+        )
+        opener = mock.Mock(side_effect=(rate_limited, Response(b"ready")))
+        sleeper = mock.Mock()
+
+        try:
+            value = module.read_response(
+                opener,
+                "https://example.invalid/bootstrap.py",
+                sleeper=sleeper,
+            )
+        except RuntimeError:
+            value = b""
+
+        self.assertEqual(b"ready", value)
+        sleeper.assert_called_once_with(5.0)
+
     def test_documented_one_command_contains_valid_python_source(self):
         for relative in ("chaos-engine/README.md", "chaos-engine/INSTALL.md"):
             document = ROOT.joinpath(relative).read_text(encoding="utf-8")

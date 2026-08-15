@@ -46,7 +46,7 @@ For a literal one-command terminal flow from the adopter project, use this on
 Windows PowerShell:
 
 ```powershell
-py -3 -c "import pathlib,runpy,sys,tempfile,urllib.request; o='S'+'haftHQ'; r='S'+'HAFT_ENGINE'; repo=f'{o}/{r}'; d=tempfile.TemporaryDirectory(prefix='chaos-engine-bootstrap-'); p=pathlib.Path(d.name)/'bootstrap.py'; p.write_bytes(urllib.request.urlopen(f'https://raw.githubusercontent.com/{repo}/main/chaos-engine/bootstrap.py').read()); sys.argv=[str(p),'--project','.','--repository',repo]; runpy.run_path(str(p),run_name='__main__')"
+py -3 -c "import email.utils,pathlib,runpy,sys,tempfile,time,urllib.error,urllib.request; o='S'+'haftHQ'; r='S'+'HAFT_ENGINE'; repo=f'{o}/{r}'; d=tempfile.TemporaryDirectory(prefix='chaos-engine-bootstrap-'); p=pathlib.Path(d.name)/'bootstrap.py'; ns={'url':f'https://raw.githubusercontent.com/{repo}/main/chaos-engine/bootstrap.py','retry_header':'Retry-After','transient':{408,425,429,500,502,503,504}}; exec('for attempt in range(4):\n delay=2**attempt\n try:\n  with urllib.request.urlopen(url,timeout=30) as response: content=response.read()\n  break\n except urllib.error.HTTPError as error:\n  retry_after=error.headers.get(retry_header) if error.headers is not None else None\n  error.close()\n  if (error.code not in transient and not (error.code==403 and retry_after is not None)) or attempt==3: raise\n  if retry_after is not None:\n   try: delay=float(retry_after)\n   except ValueError: delay=max(0,email.utils.parsedate_to_datetime(retry_after).timestamp()-time.time())\n   if not 0<=delay<=60: raise\n  elif error.code==429: delay=60\n except (ConnectionError,TimeoutError,urllib.error.URLError):\n  if attempt==3: raise\n time.sleep(delay)',globals(),ns); p.write_bytes(ns['content']); sys.argv=[str(p),'--project','.','--repository',repo]; runpy.run_path(str(p),run_name='__main__')"
 ```
 
 On macOS or Linux, replace `py -3` with `python3`. Inspect the
@@ -63,7 +63,9 @@ immutable provenance digests and the commit in `.chaos-engine/manifest.json`.
 The public default is always the neutral `portable` distribution; a source
 repository's contributor profile requires an explicit non-default selection. Re-running the
 same command upgrades to the latest resolved commit; an offline or invalid
-download leaves the last verified installation unchanged.
+download leaves the last verified installation unchanged. The bootstrap retries
+transient timeout, connection, rate-limit, and server responses with bounded
+backoff, while permanent client errors fail immediately.
 
 Installations created before distribution-bound manifests are reported as
 `legacy`. To prevent repository-specific content from surviving in a backup,
