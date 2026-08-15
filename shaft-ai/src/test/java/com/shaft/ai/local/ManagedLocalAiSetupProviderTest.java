@@ -316,7 +316,7 @@ class ManagedLocalAiSetupProviderTest {
     @Test
     void planAndStatusRejectACacheRootDifferentFromInference(@TempDir Path temp) {
         SetupOptions options = options(temp);
-        ManagedLocalAiSnapshot elsewhere = snapshot(options, ManagedLocalAiSnapshot.State.NOT_PROVISIONED,
+        ManagedLocalAiSnapshot elsewhere = snapshot(ManagedLocalAiSnapshot.State.NOT_PROVISIONED,
                 temp.resolve("other-managed-cache").toAbsolutePath());
         InfrastructureSetupService setup = setup(new FakeLifecycle(elsewhere));
 
@@ -466,11 +466,10 @@ class ManagedLocalAiSetupProviderTest {
     }
 
     private static ManagedLocalAiSnapshot snapshot(SetupOptions options, ManagedLocalAiSnapshot.State state) {
-        return snapshot(options, state, options.paths().cacheRoot());
+        return snapshot(state, options.paths().cacheRoot());
     }
 
-    private static ManagedLocalAiSnapshot snapshot(SetupOptions options, ManagedLocalAiSnapshot.State state,
-                                                   Path cache) {
+    private static ManagedLocalAiSnapshot snapshot(ManagedLocalAiSnapshot.State state, Path cache) {
         ManagedLocalAiManifest manifest = ManagedLocalAiManifest.loadDefault();
         ManagedLocalAiManifest.RuntimeAsset runtime = manifest.runtime().assets().stream()
                 .filter(asset -> asset.platform().equals("windows-x86_64")).findFirst().orElseThrow();
