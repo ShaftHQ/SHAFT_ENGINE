@@ -26,6 +26,7 @@ import java.util.UUID;
  * @param timeout request timeout
  * @param budget request budget
  * @param approvalPolicy explicit processing and evidence approval
+ * @param attemptNumber caller-owned semantic attempt number for safe audit correlation
  * @param deterministicFallback caller-owned deterministic result
  */
 public record AiRequest(
@@ -39,6 +40,7 @@ public record AiRequest(
         Duration timeout,
         AiBudget budget,
         ApprovalPolicy approvalPolicy,
+        int attemptNumber,
         JsonNode deterministicFallback) {
     public static final String CURRENT_SCHEMA_VERSION = "1.0";
 
@@ -64,9 +66,21 @@ public record AiRequest(
         }
         budget = budget == null ? new AiBudget(0, 0, BigDecimal.ZERO) : budget;
         approvalPolicy = approvalPolicy == null ? ApprovalPolicy.denyAll() : approvalPolicy;
+        if (attemptNumber < 1) {
+            throw new IllegalArgumentException("AI request attempt number must be positive.");
+        }
         deterministicFallback = deterministicFallback == null
                 ? NullNode.getInstance()
                 : deterministicFallback.deepCopy();
+    }
+
+    /** Retains source compatibility for single-attempt callers. */
+    public AiRequest(String requestId, String purpose, String schemaVersion, String text,
+                     List<EvidenceReference> evidence, List<AiImage> images, JsonNode desiredResponseSchema,
+                     Duration timeout, AiBudget budget, ApprovalPolicy approvalPolicy,
+                     JsonNode deterministicFallback) {
+        this(requestId, purpose, schemaVersion, text, evidence, images, desiredResponseSchema,
+                timeout, budget, approvalPolicy, 1, deterministicFallback);
     }
 
     /**
@@ -104,7 +118,7 @@ public record AiRequest(
      */
     public AiRequest withSanitizedContent(String sanitizedText, List<EvidenceReference> sanitizedEvidence) {
         return new AiRequest(requestId, purpose, schemaVersion, sanitizedText, sanitizedEvidence, images,
-                desiredResponseSchema, timeout, budget, approvalPolicy, deterministicFallback);
+                desiredResponseSchema, timeout, budget, approvalPolicy, attemptNumber, deterministicFallback);
     }
 
     /**
@@ -115,7 +129,8 @@ public record AiRequest(
      */
     public AiRequest withTimeout(Duration effectiveTimeout) {
         return new AiRequest(requestId, purpose, schemaVersion, text, evidence, images,
-                desiredResponseSchema, effectiveTimeout, budget, approvalPolicy, deterministicFallback);
+                desiredResponseSchema, effectiveTimeout, budget, approvalPolicy, attemptNumber,
+                deterministicFallback);
     }
 
     /**
@@ -131,6 +146,7 @@ public record AiRequest(
         private Duration timeout = Duration.ofSeconds(30);
         private AiBudget budget = new AiBudget(0, 0, BigDecimal.ZERO);
         private ApprovalPolicy approvalPolicy = ApprovalPolicy.denyAll();
+        private int attemptNumber = 1;
         private JsonNode deterministicFallback = NullNode.getInstance();
 
         private Builder(String purpose, JsonNode responseSchema) {
@@ -215,6 +231,12 @@ public record AiRequest(
             return this;
         }
 
+        /** Sets the caller-owned semantic attempt number recorded in safe audit metadata. */
+        public Builder attemptNumber(int value) {
+            attemptNumber = value;
+            return this;
+        }
+
         /**
          * Sets the deterministic result returned on failure.
          *
@@ -233,7 +255,7 @@ public record AiRequest(
          */
         public AiRequest build() {
             return new AiRequest(requestId, purpose, CURRENT_SCHEMA_VERSION, text, evidence, images,
-                    responseSchema, timeout, budget, approvalPolicy, deterministicFallback);
+                    responseSchema, timeout, budget, approvalPolicy, attemptNumber, deterministicFallback);
         }
     }
 }

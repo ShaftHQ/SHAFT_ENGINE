@@ -78,6 +78,11 @@ class DoctorAiAnalysisServiceTest {
         assertTrue(advisory.analysis().observations().getFirst().statement().contains("[REDACTED]"));
         assertTrue(advisory.metadata().warnings().stream()
                 .anyMatch(value -> value.contains("redacted")));
+        DoctorAdvisory.RecommendedAction action = advisory.analysis().recommendedActions().getFirst();
+        assertTrue(action.structured());
+        assertEquals(DoctorAdvisory.RecommendedAction.ActionOperation.UPDATE_TEST_LOCATOR, action.operation());
+        assertEquals(DoctorAdvisory.RecommendedAction.ActionTarget.TEST_LOCATOR, action.target());
+        assertEquals("Review the test locator", action.title());
     }
 
     @Test
@@ -111,11 +116,71 @@ class DoctorAiAnalysisServiceTest {
     }
 
     @Test
-    void contradictoryAndUncitedClaimsAreMarkedWithoutChangingBaseline(@TempDir Path temp) throws Exception {
+    void proseOnlyRecommendedActionIsRejected(@TempDir Path temp) throws Exception {
+        AtomicInteger calls = new AtomicInteger();
+        DoctorAiAnalysisService service = service(request -> {
+            calls.incrementAndGet();
+            ObjectNode proseOnly = (ObjectNode) fixtureUnchecked("high-quality.json").deepCopy();
+            proseOnly.put("schemaVersion", "1.0");
+            ObjectNode action = (ObjectNode) proseOnly.withArray("recommendedActions").get(0);
+            action.remove("operation");
+            action.remove("target");
+            action.put("title", "Inspect the locator");
+            action.put("action", "Rewrite files based on generated prose.");
+            return success(request, proseOnly);
+        });
+
+        DoctorAdvisory advisory = service.analyze(bundle(), diagnosis(),
+                DoctorAiAnalysisRequest.defaults(APPROVED), temp);
+
+        assertEquals(DoctorAdvisory.Status.FALLBACK, advisory.status());
+        assertEquals(AiResponseStatus.INVALID_RESPONSE, advisory.metadata().providerStatus());
+        assertEquals(2, calls.get());
+    }
+
+    @Test
+    void oneCorrectiveRetryCanRecoverAValidStructuredAction(@TempDir Path temp) throws Exception {
+        AtomicInteger calls = new AtomicInteger();
+        AtomicReference<AiRequest> correction = new AtomicReference<>();
+        DoctorAiAnalysisService service = service(request -> {
+            int attempt = calls.incrementAndGet();
+            if (attempt == 1) {
+                return success(request, JSON.createObjectNode().put("schemaVersion", "2.0"));
+            }
+            correction.set(request);
+            return success(request, fixtureUnchecked("high-quality.json"));
+        });
+
+        DoctorAdvisory advisory = service.analyze(bundle(), diagnosis(),
+                DoctorAiAnalysisRequest.defaults(APPROVED), temp);
+
+        assertEquals(DoctorAdvisory.Status.SUCCESS, advisory.status(), advisory.metadata().fallbackReason());
+        assertEquals(2, calls.get());
+        assertEquals(2, correction.get().attemptNumber());
+        assertTrue(correction.get().text().contains("previous response was invalid"));
+    }
+
+    @Test
+    void mismatchedOperationAndTargetAreRejected(@TempDir Path temp) throws Exception {
+        AtomicInteger calls = new AtomicInteger();
+        ObjectNode payload = (ObjectNode) fixture("high-quality.json").deepCopy();
+        ((ObjectNode) payload.withArray("recommendedActions").get(0))
+                .put("target", "RUNTIME_CONFIGURATION");
+        DoctorAiAnalysisService service = service(request -> {
+            calls.incrementAndGet();
+            return success(request, payload);
+        });
+
+        DoctorAdvisory advisory = service.analyze(bundle(), diagnosis(),
+                DoctorAiAnalysisRequest.defaults(APPROVED), temp);
+
+        assertEquals(DoctorAdvisory.Status.FALLBACK, advisory.status());
+        assertEquals(2, calls.get());
+    }
+
+    @Test
+    void contradictoryCitedClaimsAreMarkedWithoutChangingBaseline(@TempDir Path temp) throws Exception {
         ObjectNode payload = (ObjectNode) fixture("contradictory.json").deepCopy();
-        payload.withArray("observations").addObject()
-                .put("statement", "The test may also have stale data.")
-                .putArray("evidenceIds");
         DoctorAiAnalysisService service = service(request -> success(request, payload));
 
         DoctorAdvisory advisory = service.analyze(bundle(), diagnosis(),
@@ -123,12 +188,26 @@ class DoctorAiAnalysisServiceTest {
 
         assertEquals(DoctorAdvisory.Status.SUCCESS, advisory.status());
         assertTrue(advisory.analysis().hypotheses().getFirst().contradictsDeterministic());
-        assertFalse(advisory.analysis().observations().getLast().cited());
         assertTrue(advisory.metadata().warnings().stream()
                 .anyMatch(value -> value.contains("contradicts")));
-        assertTrue(advisory.metadata().warnings().stream()
-                .anyMatch(value -> value.contains("uncited")));
         assertEquals(CauseCategory.LOCATOR, diagnosis().primaryCause());
+    }
+
+    @Test
+    void uncitedFactualClaimIsRejectedAfterOneCorrection(@TempDir Path temp) throws Exception {
+        AtomicInteger calls = new AtomicInteger();
+        ObjectNode payload = (ObjectNode) fixture("high-quality.json").deepCopy();
+        ((ObjectNode) payload.withArray("observations").get(0)).putArray("evidenceIds");
+        DoctorAiAnalysisService service = service(request -> {
+            calls.incrementAndGet();
+            return success(request, payload);
+        });
+
+        DoctorAdvisory advisory = service.analyze(bundle(), diagnosis(),
+                DoctorAiAnalysisRequest.defaults(APPROVED), temp);
+
+        assertEquals(DoctorAdvisory.Status.FALLBACK, advisory.status());
+        assertEquals(2, calls.get());
     }
 
     @ParameterizedTest
@@ -372,7 +451,7 @@ class DoctorAiAnalysisServiceTest {
     }
 
     @Test
-    void uncitedProposedFixScoresInLowBand(@TempDir Path temp) throws Exception {
+    void uncitedProposedFixIsRejected(@TempDir Path temp) throws Exception {
         ObjectNode payload = (ObjectNode) fixture("high-quality.json").deepCopy();
         // Modify all actions to have no evidence references, simulating uncited recommendations.
         payload.withArray("recommendedActions").forEach(action -> {
@@ -383,11 +462,8 @@ class DoctorAiAnalysisServiceTest {
         DoctorAdvisory advisory = service.analyze(bundle(), diagnosis(),
                 DoctorAiAnalysisRequest.defaults(APPROVED), temp);
 
-        assertEquals(DoctorAdvisory.Status.SUCCESS, advisory.status());
-        assertTrue(advisory.confidence() < 40,
-                "Uncited proposed fix should score <40 (Low band), got: " + advisory.confidence());
-        assertTrue(advisory.confidenceRationale().contains("action") || advisory.confidenceRationale().contains("uncited"),
-                "Rationale should explain low citation: " + advisory.confidenceRationale());
+        assertEquals(DoctorAdvisory.Status.FALLBACK, advisory.status());
+        assertEquals(AiResponseStatus.INVALID_RESPONSE, advisory.metadata().providerStatus());
     }
 
     @Test

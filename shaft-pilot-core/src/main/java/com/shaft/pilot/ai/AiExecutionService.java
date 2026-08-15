@@ -248,7 +248,7 @@ public final class AiExecutionService {
                 request.deterministicFallback());
         try {
             auditSink.record(new AiAuditEvent(Instant.now(), request.requestId(), request.purpose(), provider,
-                    normalized.model(), redactionSummary, duration, normalized.status()));
+                    normalized.model(), redactionSummary, duration, normalized.status(), request.attemptNumber()));
             return normalized;
         } catch (RuntimeException auditFailure) {
             java.util.ArrayList<String> warnings = new java.util.ArrayList<>(normalized.warnings());

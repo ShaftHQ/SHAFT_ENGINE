@@ -47,7 +47,8 @@ import java.util.function.Supplier;
  * Builds minimized Doctor provider requests and validates separately rendered advisories.
  */
 public final class DoctorAiAnalysisService {
-    private static final String SCHEMA_RESOURCE = "/schema/shaft-doctor-advisory-1.0.schema.json";
+    private static final String SCHEMA_RESOURCE = "/schema/shaft-doctor-advisory-2.0.schema.json";
+    private static final int MAX_PROVIDER_ATTEMPTS = 2;
     private static final int MAX_TEXT_LENGTH = 2_000;
     private static final ObjectMapper JSON = JsonMapper.builder()
             .enable(SerializationFeature.ORDER_MAP_ENTRIES_BY_KEYS)
@@ -124,77 +125,84 @@ public final class DoctorAiAnalysisService {
             }
         }
 
-        AiRequest providerRequest = providerRequest(bundle, diagnosis, request, evidence, identity);
-        AiResponse response;
-        try {
-            response = executor.apply(providerRequest);
-        } catch (RuntimeException exception) {
-            return fallback(AiResponseStatus.ERROR, identity.provider(), identity.model(),
-                    identity.identifier(), Duration.ZERO, AiUsage.empty(),
-                    "Provider execution failed.", cacheWarning(ignoredCacheEntry));
+        AnalysisContext context = new AnalysisContext(
+                evidence, diagnosis, request, identity, cachePath, ignoredCacheEntry);
+        AiResponse lastResponse = null;
+        String validationReason = "Provider output failed Doctor advisory validation.";
+        for (int attempt = 1; attempt <= MAX_PROVIDER_ATTEMPTS; attempt++) {
+            AiRequest providerRequest = providerRequest(
+                    bundle, diagnosis, request, evidence, identity, attempt, attempt > 1);
+            try {
+                lastResponse = executor.apply(providerRequest);
+            } catch (RuntimeException exception) {
+                return fallback(AiResponseStatus.ERROR, identity.provider(), identity.model(),
+                        identity.identifier(), Duration.ZERO, AiUsage.empty(),
+                        "Provider execution failed.", cacheWarning(ignoredCacheEntry));
+            }
+            DoctorAdvisory terminal = terminalProviderFailure(lastResponse, context);
+            if (terminal != null) {
+                return terminal;
+            }
+            try {
+                return accept(lastResponse, context);
+            } catch (JacksonException | IllegalArgumentException invalid) {
+                validationReason = safeFallbackReason(invalid.getMessage());
+                if (attempt == MAX_PROVIDER_ATTEMPTS) {
+                    break;
+                }
+            }
         }
+        return fallback(AiResponseStatus.INVALID_RESPONSE, safe(lastResponse.provider()), safe(lastResponse.model()),
+                identity.identifier(), lastResponse.duration(), lastResponse.usage(),
+                "Provider output failed Doctor advisory validation: " + validationReason
+                        + " One corrective retry was exhausted.",
+                cacheWarning(ignoredCacheEntry));
+    }
+
+    private static DoctorAdvisory terminalProviderFailure(AiResponse response, AnalysisContext context) {
         if (response == null) {
-            return fallback(AiResponseStatus.ERROR, identity.provider(), identity.model(),
-                    identity.identifier(), Duration.ZERO, AiUsage.empty(),
-                    "Provider did not return a result.", cacheWarning(ignoredCacheEntry));
+            return fallback(AiResponseStatus.ERROR, context.identity().provider(), context.identity().model(),
+                    context.identity().identifier(), Duration.ZERO, AiUsage.empty(),
+                    "Provider did not return a result.", cacheWarning(context.ignoredCacheEntry()));
         }
-        if (!response.successful()) {
-            return fallback(response.status(), safe(response.provider()), safe(response.model()),
-                    identity.identifier(), response.duration(), response.usage(),
-                    safeFallbackReason(response.fallbackReason()),
-                    responseWarnings(response, ignoredCacheEntry));
+        if (response.successful()) {
+            return null;
         }
+        return fallback(response.status(), safe(response.provider()), safe(response.model()),
+                context.identity().identifier(), response.duration(), response.usage(),
+                safeFallbackReason(response.fallbackReason()),
+                responseWarnings(response, context.ignoredCacheEntry()));
+    }
 
-        try {
-            byte[] responseBytes = JSON.writeValueAsBytes(response.structuredPayload());
-            if (responseBytes.length > request.maxResponseBytes()) {
-                return fallback(AiResponseStatus.INVALID_RESPONSE, safe(response.provider()), safe(response.model()),
-                        identity.identifier(), response.duration(), response.usage(),
-                        "Provider output exceeded the Doctor response size limit.",
-                        cacheWarning(ignoredCacheEntry));
-            }
-            List<String> schemaErrors = JsonSchemaValidator.validate(RESPONSE_SCHEMA, response.structuredPayload());
-            if (!schemaErrors.isEmpty()) {
-                return fallback(AiResponseStatus.INVALID_RESPONSE, safe(response.provider()), safe(response.model()),
-                        identity.identifier(), response.duration(), response.usage(),
-                        "Provider output did not match the Doctor advisory schema.",
-                        cacheWarning(ignoredCacheEntry));
-            }
-
-            DoctorRedactor redactor = new DoctorRedactor();
-            JsonNode sanitized = redactor.redact(response.structuredPayload());
-            List<String> warnings = new ArrayList<>(responseWarnings(response, ignoredCacheEntry));
-            if (!sanitized.equals(response.structuredPayload())) {
-                warnings.add("Sensitive-looking provider text was redacted before advisory rendering.");
-            }
-            DoctorAdvisory.ProviderAnalysis analysis =
-                    parse(sanitized, evidence, diagnosis, warnings);
-            DoctorConfidenceScorer.ConfidenceResult confidenceResult = DoctorConfidenceScorer.score(analysis);
-            DoctorAdvisory advisory = new DoctorAdvisory(
-                    DoctorAdvisory.CURRENT_SCHEMA_VERSION,
-                    DoctorAdvisory.Status.SUCCESS,
-                    analysis,
-                    new DoctorAdvisory.Metadata(
-                            AiResponseStatus.SUCCESS,
-                            safe(response.provider()),
-                            safe(response.model()),
-                            identity.identifier(),
-                            millis(response.duration()),
-                            response.usage(),
-                            "",
-                            false,
-                            warnings),
-                    confidenceResult.score(),
-                    confidenceResult.rationale());
-            if (request.cacheEnabled() && cachePath != null) {
-                writeCache(cachePath, advisory);
-            }
-            return advisory;
-        } catch (JacksonException | IllegalArgumentException exception) {
-            return fallback(AiResponseStatus.INVALID_RESPONSE, safe(response.provider()), safe(response.model()),
-                    identity.identifier(), response.duration(), response.usage(),
-                    "Provider output failed Doctor advisory validation.", cacheWarning(ignoredCacheEntry));
+    private static DoctorAdvisory accept(AiResponse response, AnalysisContext context) throws JacksonException {
+        byte[] responseBytes = JSON.writeValueAsBytes(response.structuredPayload());
+        if (responseBytes.length > context.request().maxResponseBytes()) {
+            throw new IllegalArgumentException("Provider output exceeded the Doctor response size limit.");
         }
+        List<String> schemaErrors = JsonSchemaValidator.validate(RESPONSE_SCHEMA, response.structuredPayload());
+        if (!schemaErrors.isEmpty()) {
+            throw new IllegalArgumentException("Provider output did not match the Doctor advisory schema.");
+        }
+        DoctorRedactor redactor = new DoctorRedactor();
+        JsonNode sanitized = redactor.redact(response.structuredPayload());
+        List<String> warnings = new ArrayList<>(
+                responseWarnings(response, context.ignoredCacheEntry()));
+        if (!sanitized.equals(response.structuredPayload())) {
+            warnings.add("Sensitive-looking provider text was redacted before advisory rendering.");
+        }
+        DoctorAdvisory.ProviderAnalysis analysis =
+                parse(sanitized, context.evidence(), context.diagnosis(), warnings);
+        DoctorConfidenceScorer.ConfidenceResult confidenceResult = DoctorConfidenceScorer.score(analysis);
+        DoctorAdvisory advisory = new DoctorAdvisory(
+                DoctorAdvisory.CURRENT_SCHEMA_VERSION, DoctorAdvisory.Status.SUCCESS, analysis,
+                new DoctorAdvisory.Metadata(AiResponseStatus.SUCCESS, safe(response.provider()),
+                        safe(response.model()), context.identity().identifier(), millis(response.duration()),
+                        response.usage(), "", false, warnings),
+                confidenceResult.score(), confidenceResult.rationale());
+        if (context.request().cacheEnabled() && context.cachePath() != null) {
+            writeCache(context.cachePath(), advisory);
+        }
+        return advisory;
     }
 
     private static AiRequest providerRequest(
@@ -202,7 +210,9 @@ public final class DoctorAiAnalysisService {
             Diagnosis diagnosis,
             DoctorAiAnalysisRequest request,
             List<EvidenceReference> evidence,
-            ConfigurationIdentity identity) {
+            ConfigurationIdentity identity,
+            int attempt,
+            boolean corrective) {
         ObjectNode fallback = JSON.createObjectNode();
         fallback.put("schemaVersion", DoctorAdvisory.ProviderAnalysis.CURRENT_SCHEMA_VERSION);
         fallback.putArray("observations");
@@ -213,21 +223,26 @@ public final class DoctorAiAnalysisService {
 
         AiRequest.Builder builder = AiRequest.builder("shaft-doctor-advisory", RESPONSE_SCHEMA)
                 .requestId("doctor-advisory-" + shortValue(bundle.bundleId())
-                        + "-" + shortValue(identity.identifier()))
-                .text(prompt(diagnosis))
+                        + "-" + shortValue(identity.identifier()) + "-attempt-" + attempt)
+                .text(prompt(diagnosis, corrective))
                 .timeout(request.timeout())
                 .budget(request.budget())
                 .approvalPolicy(request.approvalPolicy())
+                .attemptNumber(attempt)
                 .deterministicFallback(fallback);
         evidence.forEach(builder::evidence);
         return builder.build();
     }
 
-    private static String prompt(Diagnosis diagnosis) {
-        return """
+    private static String prompt(Diagnosis diagnosis, boolean corrective) {
+        String correction = corrective
+                ? "Your previous response was invalid. Correct only the JSON contract; do not add evidence or prose actions.\n"
+                : "";
+        return correction + """
                 Analyze only the submitted redacted evidence and deterministic SHAFT Doctor diagnosis.
                 Return conclusions in the requested JSON schema. Do not include chain-of-thought, hidden reasoning,
                 credentials, patches, test-status changes, or evidence IDs that were not submitted.
+                Recommended actions must use only an allowlisted operation and its matching target.
                 The deterministic diagnosis remains authoritative; identify uncertainty and contradictions explicitly.
 
                 Deterministic diagnosis:
@@ -318,15 +333,12 @@ public final class DoctorAiAnalysisService {
         List<DoctorAdvisory.RecommendedAction> actions = new ArrayList<>();
         for (JsonNode item : payload.path("recommendedActions")) {
             List<String> evidenceIds = evidenceIds(item.path("evidenceIds"), allowedIds);
-            boolean cited = !evidenceIds.isEmpty();
-            if (!cited) {
-                warnings.add("Provider recommended action is uncited.");
-            }
+            DoctorAdvisory.RecommendedAction.ActionOperation operation =
+                    DoctorAdvisory.RecommendedAction.ActionOperation.valueOf(item.path("operation").asText());
+            DoctorAdvisory.RecommendedAction.ActionTarget target =
+                    DoctorAdvisory.RecommendedAction.ActionTarget.valueOf(item.path("target").asText());
             actions.add(new DoctorAdvisory.RecommendedAction(
-                    safeText(item.path("title").asText(), "action title"),
-                    safeText(item.path("action").asText(), "action"),
-                    evidenceIds,
-                    cited));
+                    operation, target, evidenceIds, true));
         }
 
         return new DoctorAdvisory.ProviderAnalysis(
@@ -464,6 +476,9 @@ public final class DoctorAiAnalysisService {
         advisory.analysis().recommendedActions().forEach(value -> {
             safeText(value.title(), "cached action title");
             safeText(value.action(), "cached action");
+            if (!value.structured()) {
+                throw new IllegalArgumentException("Cached advisory contains a prose-only action.");
+            }
             validateCachedIds(value.evidenceIds(), allowedIds);
         });
         advisory.analysis().missingEvidence().forEach(value -> safeText(value, "cached missing evidence"));
@@ -666,5 +681,10 @@ public final class DoctorAiAnalysisService {
     }
 
     private record ConfigurationIdentity(String provider, String model, String identifier) {
+    }
+
+    private record AnalysisContext(List<EvidenceReference> evidence, Diagnosis diagnosis,
+                                   DoctorAiAnalysisRequest request, ConfigurationIdentity identity,
+                                   Path cachePath, boolean ignoredCacheEntry) {
     }
 }
