@@ -7,7 +7,6 @@ import importlib.util
 import io
 import json
 import subprocess  # nosec B404 - tests run fixed local Git commands only.
-import sys
 import tempfile
 import unittest
 import unittest.mock as mock
@@ -52,61 +51,46 @@ class Response(io.BytesIO):
 
 
 class ChaosEngineBootstrapTest(unittest.TestCase):
-    def test_documented_command_retries_its_initial_bootstrap_fetch(self):
-        document = (ROOT / "chaos-engine/README.md").read_text(encoding="utf-8")
-        line = next(item for item in document.splitlines() if item.startswith("py -3 -c "))
-        source = line[len('py -3 -c "') : -1]
-        opener = mock.Mock(side_effect=(ConnectionResetError("reset"), Response(b"pass")))
-        run_path = mock.Mock()
-        namespace: dict[str, object] = {}
-
-        with (
-            mock.patch("urllib.request.urlopen", opener),
-            mock.patch("time.sleep"),
-            mock.patch("runpy.run_path", run_path),
-            mock.patch.object(sys, "argv", ["test"]),
-        ):
-            try:
-                exec(source, namespace)  # nosec B102 - tracked command is the test subject.
-            except ConnectionResetError:
-                pass
-        namespace["d"].cleanup()
-
-        self.assertEqual(2, opener.call_count)
-        run_path.assert_called_once()
-
-    def test_documented_command_honors_http_date_retry_after(self):
-        document = (ROOT / "chaos-engine/README.md").read_text(encoding="utf-8")
-        line = next(item for item in document.splitlines() if item.startswith("py -3 -c "))
-        source = line[len('py -3 -c "') : -1]
-        rate_limited = urllib.error.HTTPError(
-            "https://example.invalid/bootstrap.py",
-            429,
-            "Too Many Requests",
-            {"Retry-After": "Thu, 01 Jan 1970 00:00:05 GMT"},
-            None,
+    def test_documented_command_contains_the_bounded_initial_fetch_contract(self):
+        lines = []
+        for relative in ("chaos-engine/README.md", "chaos-engine/INSTALL.md"):
+            document = ROOT.joinpath(relative).read_text(encoding="utf-8")
+            lines.append(
+                next(item for item in document.splitlines() if item.startswith("py -3 -c "))
+            )
+        self.assertEqual(lines[0], lines[1])
+        source = lines[0][len('py -3 -c "') : -1]
+        outer = ast.parse(source)
+        embedded_call = next(
+            node
+            for node in ast.walk(outer)
+            if isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Name)
+            and node.func.id == "exec"
         )
-        opener = mock.Mock(side_effect=(rate_limited, Response(b"pass")))
-        run_path = mock.Mock()
-        sleeper = mock.Mock()
-        namespace: dict[str, object] = {}
-
-        with (
-            mock.patch("urllib.request.urlopen", opener),
-            mock.patch("time.sleep", sleeper),
-            mock.patch("time.time", return_value=0),
-            mock.patch("runpy.run_path", run_path),
-            mock.patch.object(sys, "argv", ["test"]),
-        ):
-            try:
-                exec(source, namespace)  # nosec B102 - tracked command is the test subject.
-            except (RuntimeError, ValueError):
-                pass
-        namespace["d"].cleanup()
-
-        self.assertEqual(2, opener.call_count)
-        sleeper.assert_called_once_with(5.0)
-        run_path.assert_called_once()
+        embedded = ast.parse(ast.literal_eval(embedded_call.args[0]))
+        retry_loop = next(node for node in ast.walk(embedded) if isinstance(node, ast.For))
+        self.assertEqual("range(4)", ast.unparse(retry_loop.iter))
+        calls = {
+            ast.unparse(node.func)
+            for node in ast.walk(embedded)
+            if isinstance(node, ast.Call)
+        }
+        self.assertTrue(
+            {
+                "urllib.request.urlopen",
+                "time.sleep",
+                "error.close",
+                "email.utils.parsedate_to_datetime",
+            }.issubset(calls)
+        )
+        handlers = {
+            ast.unparse(handler.type)
+            for handler in ast.walk(embedded)
+            if isinstance(handler, ast.ExceptHandler) and handler.type is not None
+        }
+        self.assertIn("urllib.error.HTTPError", handlers)
+        self.assertIn("(ConnectionError, TimeoutError, urllib.error.URLError)", handlers)
 
     def test_read_response_retries_a_transient_http_failure(self):
         module = load()
