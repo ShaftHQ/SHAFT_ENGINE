@@ -1110,10 +1110,17 @@ def doctor_with_dependencies(
 ) -> dict[str, object]:
     """Verify installed files and actively execute every dependency entrypoint probe."""
     result = status_with_dependencies(project, active_probes=True)
-    if not verify_clients:
-        return result
     target = project.resolve() / INSTALL_DIRECTORY
     host_controller = load_installed_controller(target, "hosts")
+    if not host_controller.retrieval_runtime_healthy(project.resolve()):
+        result["status"] = "recovery-required"
+        components = result.get("components")
+        if isinstance(components, dict) and isinstance(
+            components.get("retrieval-config"), dict
+        ):
+            components["retrieval-config"]["status"] = "recovery-required"
+    if not verify_clients:
+        return result
     clients = host_controller.detected_plugin_status(project.resolve())
     result["clients"] = clients
     if any(item.get("status") != "healthy" for item in clients.values()):

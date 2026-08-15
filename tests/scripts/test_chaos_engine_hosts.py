@@ -289,6 +289,14 @@ class ChaosEngineHostsTest(unittest.TestCase):
                 ".codex/hooks.json",
                 ".claude/settings.json",
                 ".memory/config.json",
+                ".memory/schema/config.schema.json",
+                ".memory/schema/object.schema.json",
+                ".memory/schema/relation.schema.json",
+                ".memory/schema/event.schema.json",
+                ".memory/schema/patch.schema.json",
+                ".memory/events.jsonl",
+                ".memory/memory/.gitkeep",
+                ".memory/relations/.gitkeep",
                 "mempalace.yaml",
                 ".gitignore",
             }
@@ -313,7 +321,9 @@ class ChaosEngineHostsTest(unittest.TestCase):
             )
             memory_config = json.loads(project.joinpath(".memory/config.json").read_text())
             self.assertEqual(5, memory_config["version"])
+            self.assertEqual({"version", "project", "memory"}, set(memory_config))
             self.assertEqual("consumer", memory_config["project"]["name"])
+            self.assertTrue(module.retrieval_configs_healthy(project))
             self.assertIn("wing: consumer", project.joinpath("mempalace.yaml").read_text())
             ignores = project.joinpath(".gitignore").read_text()
             self.assertIn(".chaos-engine-runtime/", ignores)
@@ -326,6 +336,8 @@ class ChaosEngineHostsTest(unittest.TestCase):
                 ignores.index("!.codex/**"),
             )
             self.assertIn("!.memory/config.json", ignores)
+            self.assertIn("!.memory/schema/*.schema.json", ignores)
+            self.assertIn("!.memory/events.jsonl", ignores)
             self.assertIn("!.claude/**", ignores)
             self.assertIn("!.codex/**", ignores)
             self.assertIn(".claude/settings.local.json", ignores)
@@ -550,6 +562,36 @@ class ChaosEngineHostsTest(unittest.TestCase):
             memory = json.loads(project.joinpath(".memory/config.json").read_text())
             self.assertEqual("actual-project", memory["project"]["name"])
             self.assertIn("wing: actual-project", project.joinpath("mempalace.yaml").read_text())
+
+    def test_retrieval_runtime_executes_memory_status_and_check(self):
+        module = load(HOSTS, "chaos_engine_retrieval_runtime")
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary)
+            project.joinpath(".chaos-engine").mkdir()
+            project.joinpath(".chaos-engine/tool.py").write_text("# owned\n")
+            responses = [
+                mock.Mock(returncode=0, stdout=json.dumps({"ok": True})),
+                mock.Mock(
+                    returncode=0,
+                    stdout=json.dumps({"ok": True, "data": {"valid": True}}),
+                ),
+            ]
+            with mock.patch.object(module.subprocess, "run", side_effect=responses) as run:
+                self.assertTrue(module.retrieval_runtime_healthy(project))
+
+            self.assertEqual(2, run.call_count)
+            self.assertEqual(project, run.call_args_list[0].kwargs["cwd"])
+
+            invalid = mock.Mock(
+                returncode=0,
+                stdout=json.dumps({"ok": True, "data": {"valid": False}}),
+            )
+            with mock.patch.object(
+                module.subprocess,
+                "run",
+                side_effect=[responses[0], invalid],
+            ):
+                self.assertFalse(module.retrieval_runtime_healthy(project))
 
     def test_launcher_rendering_is_explicit_for_windows_and_posix(self):
         module = load(HOSTS, "chaos_engine_hosts")
