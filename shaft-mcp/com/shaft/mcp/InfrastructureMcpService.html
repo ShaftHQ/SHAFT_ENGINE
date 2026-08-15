@@ -60,6 +60,12 @@
 <li><a href="#setupVerify(com.shaft.mcp.McpSetupRequest)" tabindex="0">setupVerify(McpSetupRequest)</a></li>
 <li><a href="#setupPlan(com.shaft.mcp.McpSetupRequest)" tabindex="0">setupPlan(McpSetupRequest)</a></li>
 <li><a href="#setupInstall(java.lang.String,java.lang.String,java.util.List,com.shaft.mcp.McpSetupRequest)" tabindex="0">setupInstall(String, String, List, McpSetupRequest)</a></li>
+<li><a href="#setupStart(java.lang.String,java.lang.String,java.lang.String,java.util.List,com.shaft.mcp.McpSetupRequest)" tabindex="0">setupStart(String, String, String, List, McpSetupRequest)</a></li>
+<li><a href="#setupStart(java.lang.String,java.lang.String,java.util.List,com.shaft.mcp.McpSetupRequest)" tabindex="0">setupStart(String, String, List, McpSetupRequest)</a></li>
+<li><a href="#setupStop(java.lang.String,java.lang.String,java.lang.String,java.util.List,com.shaft.mcp.McpSetupRequest)" tabindex="0">setupStop(String, String, String, List, McpSetupRequest)</a></li>
+<li><a href="#setupStop(java.lang.String,java.lang.String,java.util.List,com.shaft.mcp.McpSetupRequest)" tabindex="0">setupStop(String, String, List, McpSetupRequest)</a></li>
+<li><a href="#setupLogs(java.lang.String,com.shaft.mcp.McpSetupRequest)" tabindex="0">setupLogs(String, McpSetupRequest)</a></li>
+<li><a href="#setupLogs(com.shaft.mcp.McpSetupRequest)" tabindex="0">setupLogs(McpSetupRequest)</a></li>
 <li><a href="#setupStart(java.lang.String)" tabindex="0">setupStart(String)</a></li>
 <li><a href="#setupStop(java.lang.String)" tabindex="0">setupStop(String)</a></li>
 <li><a href="#setupLogs(java.lang.String)" tabindex="0">setupLogs(String)</a></li>
@@ -104,7 +110,7 @@
 <section class="method-summary" id="method-summary">
 <h2>Method Summary</h2>
 <div id="method-summary-table">
-<div class="table-tabs" role="tablist" aria-orientation="horizontal"><button id="method-summary-table-tab0" role="tab" aria-selected="true" aria-controls="method-summary-table.tabpanel" tabindex="0" onkeydown="switchTab(event)" onclick="show('method-summary-table', 'method-summary-table', 3)" class="active-table-tab">All Methods</button><button id="method-summary-table-tab2" role="tab" aria-selected="false" aria-controls="method-summary-table.tabpanel" tabindex="-1" onkeydown="switchTab(event)" onclick="show('method-summary-table', 'method-summary-table-tab2', 3)" class="table-tab">Instance Methods</button><button id="method-summary-table-tab4" role="tab" aria-selected="false" aria-controls="method-summary-table.tabpanel" tabindex="-1" onkeydown="switchTab(event)" onclick="show('method-summary-table', 'method-summary-table-tab4', 3)" class="table-tab">Concrete Methods</button></div>
+<div class="table-tabs" role="tablist" aria-orientation="horizontal"><button id="method-summary-table-tab0" role="tab" aria-selected="true" aria-controls="method-summary-table.tabpanel" tabindex="0" onkeydown="switchTab(event)" onclick="show('method-summary-table', 'method-summary-table', 3)" class="active-table-tab">All Methods</button><button id="method-summary-table-tab2" role="tab" aria-selected="false" aria-controls="method-summary-table.tabpanel" tabindex="-1" onkeydown="switchTab(event)" onclick="show('method-summary-table', 'method-summary-table-tab2', 3)" class="table-tab">Instance Methods</button><button id="method-summary-table-tab4" role="tab" aria-selected="false" aria-controls="method-summary-table.tabpanel" tabindex="-1" onkeydown="switchTab(event)" onclick="show('method-summary-table', 'method-summary-table-tab4', 3)" class="table-tab">Concrete Methods</button><button id="method-summary-table-tab6" role="tab" aria-selected="false" aria-controls="method-summary-table.tabpanel" tabindex="-1" onkeydown="switchTab(event)" onclick="show('method-summary-table', 'method-summary-table-tab6', 3)" class="table-tab">Deprecated Methods</button></div>
 <div id="method-summary-table.tabpanel" role="tabpanel" aria-labelledby="method-summary-table-tab0">
 <div class="summary-table three-column-summary">
 <div class="table-header col-first">Modifier and Type</div>
@@ -123,19 +129,64 @@
  <a href="McpSetupRequest.html" title="class in com.shaft.mcp">McpSetupRequest</a>&nbsp;request)</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="McpSetupLifecycleResult.html" title="class in com.shaft.mcp">McpSetupLifecycleResult</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#setupLogs(java.lang.String)" class="member-name-link">setupLogs</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;profile)</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#setupLogs(com.shaft.mcp.McpSetupRequest)" class="member-name-link">setupLogs</a><wbr>(<a href="McpSetupRequest.html" title="class in com.shaft.mcp">McpSetupRequest</a>&nbsp;request)</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4 method-summary-table-tab6"><code><a href="McpSetupLifecycleResult.html" title="class in com.shaft.mcp">McpSetupLifecycleResult</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4 method-summary-table-tab6"><code><a href="#setupLogs(java.lang.String)" class="member-name-link">setupLogs</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;profile)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4 method-summary-table-tab6">
+<div class="block"><span class="deprecated-label">Deprecated.</span>
+<div class="deprecation-comment">Profile-only lifecycle calls cannot identify provider-owned paths safely.</div>
+</div>
+</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="McpSetupLifecycleResult.html" title="class in com.shaft.mcp">McpSetupLifecycleResult</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#setupLogs(java.lang.String,com.shaft.mcp.McpSetupRequest)" class="member-name-link">setupLogs</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;profile,
+ <a href="McpSetupRequest.html" title="class in com.shaft.mcp">McpSetupRequest</a>&nbsp;request)</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="McpSetupPlanResult.html" title="class in com.shaft.mcp">McpSetupPlanResult</a></code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#setupPlan(com.shaft.mcp.McpSetupRequest)" class="member-name-link">setupPlan</a><wbr>(<a href="McpSetupRequest.html" title="class in com.shaft.mcp">McpSetupRequest</a>&nbsp;request)</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4 method-summary-table-tab6"><code><a href="McpSetupLifecycleResult.html" title="class in com.shaft.mcp">McpSetupLifecycleResult</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4 method-summary-table-tab6"><code><a href="#setupStart(java.lang.String)" class="member-name-link">setupStart</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;profile)</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4 method-summary-table-tab6">
+<div class="block"><span class="deprecated-label">Deprecated.</span>
+<div class="deprecation-comment">Profile-only lifecycle calls cannot carry an exact reviewed plan and approval.</div>
+</div>
+</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="McpSetupLifecycleResult.html" title="class in com.shaft.mcp">McpSetupLifecycleResult</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#setupStart(java.lang.String,java.lang.String,java.lang.String,java.util.List,com.shaft.mcp.McpSetupRequest)" class="member-name-link">setupStart</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;profile,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;planJson,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;approvedDigest,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&gt;&nbsp;acceptedLicenses,
+ <a href="McpSetupRequest.html" title="class in com.shaft.mcp">McpSetupRequest</a>&nbsp;request)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="McpSetupLifecycleResult.html" title="class in com.shaft.mcp">McpSetupLifecycleResult</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#setupStart(java.lang.String)" class="member-name-link">setupStart</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;profile)</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#setupStart(java.lang.String,java.lang.String,java.util.List,com.shaft.mcp.McpSetupRequest)" class="member-name-link">setupStart</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;planJson,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;approvedDigest,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&gt;&nbsp;acceptedLicenses,
+ <a href="McpSetupRequest.html" title="class in com.shaft.mcp">McpSetupRequest</a>&nbsp;request)</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="https://shafthq.github.io/shaft-infrastructure/apidocs/com/shaft/infrastructure/SetupReport.html" title="class or interface in com.shaft.infrastructure" class="external-link">SetupReport</a></code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#setupStatus(com.shaft.mcp.McpSetupRequest)" class="member-name-link">setupStatus</a><wbr>(<a href="McpSetupRequest.html" title="class in com.shaft.mcp">McpSetupRequest</a>&nbsp;request)</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4 method-summary-table-tab6"><code><a href="McpSetupLifecycleResult.html" title="class in com.shaft.mcp">McpSetupLifecycleResult</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4 method-summary-table-tab6"><code><a href="#setupStop(java.lang.String)" class="member-name-link">setupStop</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;profile)</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4 method-summary-table-tab6">
+<div class="block"><span class="deprecated-label">Deprecated.</span>
+<div class="deprecation-comment">Profile-only lifecycle calls cannot carry an exact reviewed plan and approval.</div>
+</div>
+</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="McpSetupLifecycleResult.html" title="class in com.shaft.mcp">McpSetupLifecycleResult</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#setupStop(java.lang.String,java.lang.String,java.lang.String,java.util.List,com.shaft.mcp.McpSetupRequest)" class="member-name-link">setupStop</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;profile,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;planJson,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;approvedDigest,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&gt;&nbsp;acceptedLicenses,
+ <a href="McpSetupRequest.html" title="class in com.shaft.mcp">McpSetupRequest</a>&nbsp;request)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="McpSetupLifecycleResult.html" title="class in com.shaft.mcp">McpSetupLifecycleResult</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#setupStop(java.lang.String)" class="member-name-link">setupStop</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;profile)</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#setupStop(java.lang.String,java.lang.String,java.util.List,com.shaft.mcp.McpSetupRequest)" class="member-name-link">setupStop</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;planJson,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;approvedDigest,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&gt;&nbsp;acceptedLicenses,
+ <a href="McpSetupRequest.html" title="class in com.shaft.mcp">McpSetupRequest</a>&nbsp;request)</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="https://shafthq.github.io/shaft-infrastructure/apidocs/com/shaft/infrastructure/SetupReport.html" title="class or interface in com.shaft.infrastructure" class="external-link">SetupReport</a></code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#setupVerify(com.shaft.mcp.McpSetupRequest)" class="member-name-link">setupVerify</a><wbr>(<a href="McpSetupRequest.html" title="class in com.shaft.mcp">McpSetupRequest</a>&nbsp;request)</code></div>
@@ -250,13 +301,126 @@
 </section>
 </li>
 <li>
-<section class="detail" id="setupStart(java.lang.String)">
+<section class="detail" id="setupStart(java.lang.String,java.lang.String,java.lang.String,java.util.List,com.shaft.mcp.McpSetupRequest)">
 <h3>setupStart</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="annotations">@Tool(name="setup_start",
-      description="reports whether the selected setup profile owns a startable managed service")
-</span><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="McpSetupLifecycleResult.html" title="class in com.shaft.mcp">McpSetupLifecycleResult</a></span>&nbsp;<span class="element-name">setupStart</span><wbr><span class="parameters">(@ToolParam(description="setup profile")
- <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;profile)</span></div>
+      description="starts one managed service from an exact reviewed setup plan; profile-only calls remain supported as legacy capability queries")
+</span><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="McpSetupLifecycleResult.html" title="class in com.shaft.mcp">McpSetupLifecycleResult</a></span>&nbsp;<span class="element-name">setupStart</span><wbr><span class="parameters">(@ToolParam(required=false,description="legacy setup profile capability query")
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;profile,
+ @ToolParam(required=false,description="exact plan JSON returned by setup_plan")
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;planJson,
+ @ToolParam(required=false,description="exact plan digest explicitly approved by the caller")
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;approvedDigest,
+ @ToolParam(required=false,description="explicitly accepted license identifiers")
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&gt;&nbsp;acceptedLicenses,
+ @ToolParam(required=false,description="the same paths and execution policy used to create the plan")
+ <a href="McpSetupRequest.html" title="class in com.shaft.mcp">McpSetupRequest</a>&nbsp;request)</span>
+                                   throws <span class="exceptions"><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/io/IOException.html" title="class or interface in java.io" class="external-link">IOException</a></span></div>
+<dl class="notes">
+<dt>Throws:</dt>
+<dd><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/io/IOException.html" title="class or interface in java.io" class="external-link">IOException</a></code></dd>
+</dl>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="setupStart(java.lang.String,java.lang.String,java.util.List,com.shaft.mcp.McpSetupRequest)">
+<h3>setupStart</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="McpSetupLifecycleResult.html" title="class in com.shaft.mcp">McpSetupLifecycleResult</a></span>&nbsp;<span class="element-name">setupStart</span><wbr><span class="parameters">(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;planJson,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;approvedDigest,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&gt;&nbsp;acceptedLicenses,
+ <a href="McpSetupRequest.html" title="class in com.shaft.mcp">McpSetupRequest</a>&nbsp;request)</span>
+                                   throws <span class="exceptions"><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/io/IOException.html" title="class or interface in java.io" class="external-link">IOException</a></span></div>
+<dl class="notes">
+<dt>Throws:</dt>
+<dd><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/io/IOException.html" title="class or interface in java.io" class="external-link">IOException</a></code></dd>
+</dl>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="setupStop(java.lang.String,java.lang.String,java.lang.String,java.util.List,com.shaft.mcp.McpSetupRequest)">
+<h3>setupStop</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="annotations">@Tool(name="setup_stop",
+      description="stops one SHAFT-owned service using an exact reviewed setup plan; profile-only calls remain supported as legacy capability queries")
+</span><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="McpSetupLifecycleResult.html" title="class in com.shaft.mcp">McpSetupLifecycleResult</a></span>&nbsp;<span class="element-name">setupStop</span><wbr><span class="parameters">(@ToolParam(required=false,description="legacy setup profile capability query")
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;profile,
+ @ToolParam(required=false,description="exact plan JSON returned by setup_plan")
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;planJson,
+ @ToolParam(required=false,description="exact plan digest explicitly approved by the caller")
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;approvedDigest,
+ @ToolParam(required=false,description="explicitly accepted license identifiers")
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&gt;&nbsp;acceptedLicenses,
+ @ToolParam(required=false,description="the same paths and execution policy used to create the plan")
+ <a href="McpSetupRequest.html" title="class in com.shaft.mcp">McpSetupRequest</a>&nbsp;request)</span>
+                                  throws <span class="exceptions"><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/io/IOException.html" title="class or interface in java.io" class="external-link">IOException</a></span></div>
+<dl class="notes">
+<dt>Throws:</dt>
+<dd><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/io/IOException.html" title="class or interface in java.io" class="external-link">IOException</a></code></dd>
+</dl>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="setupStop(java.lang.String,java.lang.String,java.util.List,com.shaft.mcp.McpSetupRequest)">
+<h3>setupStop</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="McpSetupLifecycleResult.html" title="class in com.shaft.mcp">McpSetupLifecycleResult</a></span>&nbsp;<span class="element-name">setupStop</span><wbr><span class="parameters">(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;planJson,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;approvedDigest,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&gt;&nbsp;acceptedLicenses,
+ <a href="McpSetupRequest.html" title="class in com.shaft.mcp">McpSetupRequest</a>&nbsp;request)</span>
+                                  throws <span class="exceptions"><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/io/IOException.html" title="class or interface in java.io" class="external-link">IOException</a></span></div>
+<dl class="notes">
+<dt>Throws:</dt>
+<dd><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/io/IOException.html" title="class or interface in java.io" class="external-link">IOException</a></code></dd>
+</dl>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="setupLogs(java.lang.String,com.shaft.mcp.McpSetupRequest)">
+<h3>setupLogs</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="annotations">@Tool(name="setup_logs",
+      description="reads bounded logs for a SHAFT-owned setup service without mutating the host; profile-only calls remain supported as legacy capability queries")
+</span><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="McpSetupLifecycleResult.html" title="class in com.shaft.mcp">McpSetupLifecycleResult</a></span>&nbsp;<span class="element-name">setupLogs</span><wbr><span class="parameters">(@ToolParam(required=false,description="legacy setup profile capability query")
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;profile,
+ @ToolParam(required=false,description="setup profile, owned paths, policy, and components")
+ <a href="McpSetupRequest.html" title="class in com.shaft.mcp">McpSetupRequest</a>&nbsp;request)</span>
+                                  throws <span class="exceptions"><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/io/IOException.html" title="class or interface in java.io" class="external-link">IOException</a></span></div>
+<dl class="notes">
+<dt>Throws:</dt>
+<dd><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/io/IOException.html" title="class or interface in java.io" class="external-link">IOException</a></code></dd>
+</dl>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="setupLogs(com.shaft.mcp.McpSetupRequest)">
+<h3>setupLogs</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="McpSetupLifecycleResult.html" title="class in com.shaft.mcp">McpSetupLifecycleResult</a></span>&nbsp;<span class="element-name">setupLogs</span><wbr><span class="parameters">(<a href="McpSetupRequest.html" title="class in com.shaft.mcp">McpSetupRequest</a>&nbsp;request)</span>
+                                  throws <span class="exceptions"><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/io/IOException.html" title="class or interface in java.io" class="external-link">IOException</a></span></div>
+<dl class="notes">
+<dt>Throws:</dt>
+<dd><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/io/IOException.html" title="class or interface in java.io" class="external-link">IOException</a></code></dd>
+</dl>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="setupStart(java.lang.String)">
+<h3>setupStart</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="annotations"><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Deprecated.html" title="class or interface in java.lang" class="external-link">@Deprecated</a>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Deprecated.html#since()" title="class or interface in java.lang" class="external-link">since</a>="10.3",
+            <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Deprecated.html#forRemoval()" title="class or interface in java.lang" class="external-link">forRemoval</a>=false)
+</span><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="McpSetupLifecycleResult.html" title="class in com.shaft.mcp">McpSetupLifecycleResult</a></span>&nbsp;<span class="element-name">setupStart</span><wbr><span class="parameters">(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;profile)</span></div>
+<div class="deprecation-block"><span class="deprecated-label">Deprecated.</span>
+<div class="deprecation-comment">Profile-only lifecycle calls cannot carry an exact reviewed plan and approval.</div>
+</div>
 </div>
 </section>
 </li>
@@ -264,10 +428,12 @@
 <section class="detail" id="setupStop(java.lang.String)">
 <h3>setupStop</h3>
 <div class="horizontal-scroll">
-<div class="member-signature"><span class="annotations">@Tool(name="setup_stop",
-      description="reports whether the selected setup profile owns a stoppable managed service lease")
-</span><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="McpSetupLifecycleResult.html" title="class in com.shaft.mcp">McpSetupLifecycleResult</a></span>&nbsp;<span class="element-name">setupStop</span><wbr><span class="parameters">(@ToolParam(description="setup profile")
- <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;profile)</span></div>
+<div class="member-signature"><span class="annotations"><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Deprecated.html" title="class or interface in java.lang" class="external-link">@Deprecated</a>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Deprecated.html#since()" title="class or interface in java.lang" class="external-link">since</a>="10.3",
+            <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Deprecated.html#forRemoval()" title="class or interface in java.lang" class="external-link">forRemoval</a>=false)
+</span><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="McpSetupLifecycleResult.html" title="class in com.shaft.mcp">McpSetupLifecycleResult</a></span>&nbsp;<span class="element-name">setupStop</span><wbr><span class="parameters">(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;profile)</span></div>
+<div class="deprecation-block"><span class="deprecated-label">Deprecated.</span>
+<div class="deprecation-comment">Profile-only lifecycle calls cannot carry an exact reviewed plan and approval.</div>
+</div>
 </div>
 </section>
 </li>
@@ -275,10 +441,12 @@
 <section class="detail" id="setupLogs(java.lang.String)">
 <h3>setupLogs</h3>
 <div class="horizontal-scroll">
-<div class="member-signature"><span class="annotations">@Tool(name="setup_logs",
-      description="reports whether the selected setup profile exposes owned service logs")
-</span><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="McpSetupLifecycleResult.html" title="class in com.shaft.mcp">McpSetupLifecycleResult</a></span>&nbsp;<span class="element-name">setupLogs</span><wbr><span class="parameters">(@ToolParam(description="setup profile")
- <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;profile)</span></div>
+<div class="member-signature"><span class="annotations"><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Deprecated.html" title="class or interface in java.lang" class="external-link">@Deprecated</a>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Deprecated.html#since()" title="class or interface in java.lang" class="external-link">since</a>="10.3",
+            <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Deprecated.html#forRemoval()" title="class or interface in java.lang" class="external-link">forRemoval</a>=false)
+</span><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="McpSetupLifecycleResult.html" title="class in com.shaft.mcp">McpSetupLifecycleResult</a></span>&nbsp;<span class="element-name">setupLogs</span><wbr><span class="parameters">(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;profile)</span></div>
+<div class="deprecation-block"><span class="deprecated-label">Deprecated.</span>
+<div class="deprecation-comment">Profile-only lifecycle calls cannot identify provider-owned paths safely.</div>
+</div>
 </div>
 </section>
 </li>

@@ -77,6 +77,10 @@
 <li><a href="#start(com.shaft.infrastructure.SetupPlan,com.shaft.infrastructure.SetupApproval,com.shaft.infrastructure.SetupOptions)" tabindex="0">start(SetupPlan, SetupApproval, SetupOptions)</a></li>
 <li><a href="#start(com.shaft.infrastructure.SetupPlan,com.shaft.infrastructure.SetupApproval,com.shaft.infrastructure.SetupOptions,com.shaft.infrastructure.SetupSelection)" tabindex="0">start(SetupPlan, SetupApproval, SetupOptions, SetupSelection)</a></li>
 <li><a href="#start(com.shaft.infrastructure.SetupPlan,com.shaft.infrastructure.SetupApproval,com.shaft.infrastructure.SetupOptions,com.shaft.infrastructure.AndroidSetupRequest)" tabindex="0">start(SetupPlan, SetupApproval, SetupOptions, AndroidSetupRequest)</a></li>
+<li><a href="#stop(com.shaft.infrastructure.SetupPlan,com.shaft.infrastructure.SetupApproval,com.shaft.infrastructure.SetupOptions)" tabindex="0">stop(SetupPlan, SetupApproval, SetupOptions)</a></li>
+<li><a href="#stop(com.shaft.infrastructure.SetupPlan,com.shaft.infrastructure.SetupApproval,com.shaft.infrastructure.SetupOptions,com.shaft.infrastructure.SetupSelection)" tabindex="0">stop(SetupPlan, SetupApproval, SetupOptions, SetupSelection)</a></li>
+<li><a href="#logs(com.shaft.infrastructure.SetupOptions)" tabindex="0">logs(SetupOptions)</a></li>
+<li><a href="#logs(com.shaft.infrastructure.SetupOptions,com.shaft.infrastructure.SetupSelection)" tabindex="0">logs(SetupOptions, SetupSelection)</a></li>
 </ol>
 </li>
 </ol>
@@ -170,6 +174,17 @@
  <a href="SetupOptions.html" title="class in com.shaft.infrastructure">SetupOptions</a>&nbsp;options,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/function/Consumer.html" title="class or interface in java.util.function" class="external-link">Consumer</a>&lt;<a href="SetupProgress.html" title="class in com.shaft.infrastructure">SetupProgress</a>&gt;&nbsp;progress)</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#logs(com.shaft.infrastructure.SetupOptions)" class="member-name-link">logs</a><wbr>(<a href="SetupOptions.html" title="class in com.shaft.infrastructure">SetupOptions</a>&nbsp;options)</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Reads bounded logs for the default selection of one setup profile.</div>
+</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#logs(com.shaft.infrastructure.SetupOptions,com.shaft.infrastructure.SetupSelection)" class="member-name-link">logs</a><wbr>(<a href="SetupOptions.html" title="class in com.shaft.infrastructure">SetupOptions</a>&nbsp;options,
+ <a href="SetupSelection.html" title="class in com.shaft.infrastructure">SetupSelection</a>&nbsp;selection)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Reads bounded logs owned by one exact provider selection without mutating the host.</div>
+</div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="SetupPlan.html" title="class in com.shaft.infrastructure">SetupPlan</a></code></div>
 <div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#plan(com.shaft.infrastructure.SetupOptions)" class="member-name-link">plan</a><wbr>(<a href="SetupOptions.html" title="class in com.shaft.infrastructure">SetupOptions</a>&nbsp;options)</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
@@ -220,6 +235,21 @@
 <div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#status(com.shaft.infrastructure.SetupOptions,com.shaft.infrastructure.SetupSelection)" class="member-name-link">status</a><wbr>(<a href="SetupOptions.html" title="class in com.shaft.infrastructure">SetupOptions</a>&nbsp;options,
  <a href="SetupSelection.html" title="class in com.shaft.infrastructure">SetupSelection</a>&nbsp;selection)</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>boolean</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#stop(com.shaft.infrastructure.SetupPlan,com.shaft.infrastructure.SetupApproval,com.shaft.infrastructure.SetupOptions)" class="member-name-link">stop</a><wbr>(<a href="SetupPlan.html" title="class in com.shaft.infrastructure">SetupPlan</a>&nbsp;plan,
+ <a href="SetupApproval.html" title="class in com.shaft.infrastructure">SetupApproval</a>&nbsp;approval,
+ <a href="SetupOptions.html" title="class in com.shaft.infrastructure">SetupOptions</a>&nbsp;options)</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Stops the exact SHAFT-owned service represented by an approved plan.</div>
+</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>boolean</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#stop(com.shaft.infrastructure.SetupPlan,com.shaft.infrastructure.SetupApproval,com.shaft.infrastructure.SetupOptions,com.shaft.infrastructure.SetupSelection)" class="member-name-link">stop</a><wbr>(<a href="SetupPlan.html" title="class in com.shaft.infrastructure">SetupPlan</a>&nbsp;plan,
+ <a href="SetupApproval.html" title="class in com.shaft.infrastructure">SetupApproval</a>&nbsp;approval,
+ <a href="SetupOptions.html" title="class in com.shaft.infrastructure">SetupOptions</a>&nbsp;options,
+ <a href="SetupSelection.html" title="class in com.shaft.infrastructure">SetupSelection</a>&nbsp;selection)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Stops the exact selected SHAFT-owned service represented by an approved plan.</div>
+</div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>boolean</code></div>
 <div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#supports(com.shaft.infrastructure.SetupProfile)" class="member-name-link">supports</a><wbr>(<a href="SetupProfile.html" title="enum class in com.shaft.infrastructure">SetupProfile</a>&nbsp;profile)</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
@@ -534,6 +564,68 @@
  <a href="AndroidSetupRequest.html" title="class in com.shaft.infrastructure">AndroidSetupRequest</a>&nbsp;request)</span>
                          throws <span class="exceptions"><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/io/IOException.html" title="class or interface in java.io" class="external-link">IOException</a></span></div>
 <div class="block">Starts one exact typed Android emulator request from its verified install receipt.</div>
+<dl class="notes">
+<dt>Throws:</dt>
+<dd><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/io/IOException.html" title="class or interface in java.io" class="external-link">IOException</a></code></dd>
+</dl>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="stop(com.shaft.infrastructure.SetupPlan,com.shaft.infrastructure.SetupApproval,com.shaft.infrastructure.SetupOptions)">
+<h3>stop</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type">boolean</span>&nbsp;<span class="element-name">stop</span><wbr><span class="parameters">(<a href="SetupPlan.html" title="class in com.shaft.infrastructure">SetupPlan</a>&nbsp;plan,
+ <a href="SetupApproval.html" title="class in com.shaft.infrastructure">SetupApproval</a>&nbsp;approval,
+ <a href="SetupOptions.html" title="class in com.shaft.infrastructure">SetupOptions</a>&nbsp;options)</span>
+             throws <span class="exceptions"><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/io/IOException.html" title="class or interface in java.io" class="external-link">IOException</a></span></div>
+<div class="block">Stops the exact SHAFT-owned service represented by an approved plan.</div>
+<dl class="notes">
+<dt>Throws:</dt>
+<dd><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/io/IOException.html" title="class or interface in java.io" class="external-link">IOException</a></code></dd>
+</dl>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="stop(com.shaft.infrastructure.SetupPlan,com.shaft.infrastructure.SetupApproval,com.shaft.infrastructure.SetupOptions,com.shaft.infrastructure.SetupSelection)">
+<h3>stop</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type">boolean</span>&nbsp;<span class="element-name">stop</span><wbr><span class="parameters">(<a href="SetupPlan.html" title="class in com.shaft.infrastructure">SetupPlan</a>&nbsp;plan,
+ <a href="SetupApproval.html" title="class in com.shaft.infrastructure">SetupApproval</a>&nbsp;approval,
+ <a href="SetupOptions.html" title="class in com.shaft.infrastructure">SetupOptions</a>&nbsp;options,
+ <a href="SetupSelection.html" title="class in com.shaft.infrastructure">SetupSelection</a>&nbsp;selection)</span>
+             throws <span class="exceptions"><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/io/IOException.html" title="class or interface in java.io" class="external-link">IOException</a></span></div>
+<div class="block">Stops the exact selected SHAFT-owned service represented by an approved plan.</div>
+<dl class="notes">
+<dt>Throws:</dt>
+<dd><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/io/IOException.html" title="class or interface in java.io" class="external-link">IOException</a></code></dd>
+</dl>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="logs(com.shaft.infrastructure.SetupOptions)">
+<h3>logs</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></span>&nbsp;<span class="element-name">logs</span><wbr><span class="parameters">(<a href="SetupOptions.html" title="class in com.shaft.infrastructure">SetupOptions</a>&nbsp;options)</span>
+            throws <span class="exceptions"><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/io/IOException.html" title="class or interface in java.io" class="external-link">IOException</a></span></div>
+<div class="block">Reads bounded logs for the default selection of one setup profile.</div>
+<dl class="notes">
+<dt>Throws:</dt>
+<dd><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/io/IOException.html" title="class or interface in java.io" class="external-link">IOException</a></code></dd>
+</dl>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="logs(com.shaft.infrastructure.SetupOptions,com.shaft.infrastructure.SetupSelection)">
+<h3>logs</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></span>&nbsp;<span class="element-name">logs</span><wbr><span class="parameters">(<a href="SetupOptions.html" title="class in com.shaft.infrastructure">SetupOptions</a>&nbsp;options,
+ <a href="SetupSelection.html" title="class in com.shaft.infrastructure">SetupSelection</a>&nbsp;selection)</span>
+            throws <span class="exceptions"><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/io/IOException.html" title="class or interface in java.io" class="external-link">IOException</a></span></div>
+<div class="block">Reads bounded logs owned by one exact provider selection without mutating the host.</div>
 <dl class="notes">
 <dt>Throws:</dt>
 <dd><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/io/IOException.html" title="class or interface in java.io" class="external-link">IOException</a></code></dd>
