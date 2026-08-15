@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import importlib.util
 import json
+import os
 import shutil
 import sqlite3
 import subprocess  # nosec B404 - tests run the fixed local installer only.
@@ -94,6 +95,232 @@ def create_chroma_state(path: Path) -> None:
 
 
 class ChaosEngineInstallerTest(unittest.TestCase):
+    def test_cache_commands_are_public_and_component_scoped(self):
+        status = MODULE.parser().parse_args(
+            ["cache", "status", "--component", "maven-tools-mcp"]
+        )
+        purge = MODULE.parser().parse_args(
+            [
+                "cache", "purge", "--component", "maven-tools-mcp",
+                "--version", "3.2.0",
+            ]
+        )
+
+        self.assertEqual(("cache", "status", "maven-tools-mcp"), (status.command, status.cache_command, status.component))
+        self.assertEqual("3.2.0", purge.version)
+
+    def test_status_exposes_validated_capability_metadata_for_every_component(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary) / "consumer"
+            project.mkdir()
+            MODULE.install_with_dependencies(
+                project, SOURCE, TEST_COMMIT, provisioner=lambda *_args: None
+            )
+
+            result = MODULE.status_with_dependencies(project)
+            manifest = json.loads((project / ".chaos-engine/manifest.json").read_text(encoding="utf-8"))
+            host_receipt = json.loads((project / ".chaos-engine-hosts.json").read_text(encoding="utf-8"))
+
+            expected = {
+                "core", "skills", "playbooks", "hooks", "plugins", "roles", "mcps",
+                "retrieval-config", "projection-policy", "tools", "memory", "mempalace",
+                "graphify", "maven-tools-mcp",
+            }
+            self.assertEqual(expected, set(result["components"]))
+            for component in result["components"].values():
+                self.assertIn(component["owner"], {"installer", "project", "user"})
+                self.assertIn(component["scope"], {"project", "repository", "user"})
+                self.assertIn(component["lifecycle"], {"receipt-owned", "persistent-data", "derived-single-writer", "user-managed-cache"})
+                self.assertIn(component["taskImpact"], {"required", "advisory", "optional"})
+            for name in ("memory", "mempalace", "graphify"):
+                self.assertEqual("advisory", result["components"][name]["taskImpact"])
+            self.assertEqual("optional", result["components"]["maven-tools-mcp"]["taskImpact"])
+            self.assertEqual("user-managed-cache", result["components"]["maven-tools-mcp"]["lifecycle"])
+            self.assertEqual("recovery-required", result["status"])
+            self.assertEqual(manifest["capabilityPolicySha256"], host_receipt["capabilityPolicySha256"])
+            self.assertEqual(manifest["capabilities"], MODULE.legacy_capability_policy())
+
+    def test_new_manifest_binds_capabilities_and_legacy_v1_upgrades_in_place(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary) / "consumer"
+            project.mkdir()
+            target = MODULE.install(project, SOURCE, TEST_COMMIT)
+            manifest_path = target / MODULE.MANIFEST_NAME
+            manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+            self.assertRegex(manifest["capabilityPolicySha256"], r"^[0-9a-f]{64}$")
+            self.assertTrue(manifest["capabilities"])
+
+            manifest.pop("capabilities")
+            manifest.pop("capabilityPolicySha256")
+            manifest_path.write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+            MODULE.install(project, SOURCE, TEST_COMMIT)
+
+            upgraded = json.loads(manifest_path.read_text(encoding="utf-8"))
+            self.assertTrue(upgraded["capabilities"])
+            self.assertRegex(upgraded["capabilityPolicySha256"], r"^[0-9a-f]{64}$")
+
+    def test_legacy_manifest_upgrade_failure_does_not_roll_back_the_core_generation(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary) / "consumer"
+            project.mkdir()
+            prior_commit = "0" * 40
+            MODULE.install_with_dependencies(
+                project, SOURCE, prior_commit, provisioner=lambda *_args: None
+            )
+            MODULE.install_with_dependencies(
+                project, SOURCE, TEST_COMMIT, provisioner=lambda *_args: None
+            )
+            manifest_path = project / ".chaos-engine/manifest.json"
+            manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+            manifest.pop("capabilities")
+            manifest.pop("capabilityPolicySha256")
+            manifest_path.write_text(
+                json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+            )
+
+            with self.assertRaisesRegex(RuntimeError, "provision failed"):
+                MODULE.install_with_dependencies(
+                    project,
+                    SOURCE,
+                    TEST_COMMIT,
+                    provisioner=lambda *_args: (_ for _ in ()).throw(RuntimeError("provision failed")),
+                )
+
+            self.assertEqual(TEST_COMMIT, MODULE.status(project)["commit"])
+
+    def test_public_status_reads_legacy_manifest_before_in_place_upgrade(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary) / "consumer"
+            project.mkdir()
+            MODULE.install_with_dependencies(
+                project, SOURCE, TEST_COMMIT, provisioner=lambda *_args: None
+            )
+            manifest_path = project / ".chaos-engine/manifest.json"
+            legacy = json.loads(manifest_path.read_text(encoding="utf-8"))
+            legacy.pop("capabilities")
+            legacy.pop("capabilityPolicySha256")
+            manifest_path.write_text(
+                json.dumps(legacy, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+            )
+
+            observed = MODULE.status_with_dependencies(project)
+
+            self.assertEqual("advisory", observed["components"]["memory"]["taskImpact"])
+            self.assertEqual("optional", observed["components"]["maven-tools-mcp"]["taskImpact"])
+            doctor = MODULE.doctor_with_dependencies(project, verify_clients=False)
+            self.assertEqual("advisory", doctor["components"]["graphify"]["taskImpact"])
+            self.assertNotIn("capabilities", json.loads(manifest_path.read_text(encoding="utf-8")))
+            MODULE.install_with_dependencies(
+                project, SOURCE, TEST_COMMIT, provisioner=lambda *_args: None
+            )
+            self.assertIn(
+                "capabilities", json.loads(manifest_path.read_text(encoding="utf-8"))
+            )
+
+    def test_invalid_capability_descriptor_is_rejected(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            source = copy_source(Path(temporary) / "source")
+            catalog_path = source / "distributions.json"
+            catalog = json.loads(catalog_path.read_text(encoding="utf-8"))
+            catalog["distributions"]["portable"]["components"] = {
+                "core": {"owner": "nobody", "scope": "project", "lifecycle": "receipt-owned", "taskImpact": "required"}
+            }
+            catalog_path.write_text(json.dumps(catalog), encoding="utf-8")
+
+            with self.assertRaisesRegex(ValueError, "capability"):
+                MODULE.load_capability_policy(source, "portable")
+
+    def test_project_uninstall_preserves_user_managed_maven_cache(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            project = root / "consumer"
+            project.mkdir()
+            data = root / "data"
+            cache = data / "ChaosEngine/tools/maven-tools-mcp/3.2.0"
+            cache.mkdir(parents=True)
+            jar = cache / "maven-tools-mcp-3.2.0.jar"
+            jar.write_bytes(b"jar")
+            receipt = cache / "install-receipt.json"
+            receipt.write_text(json.dumps({
+                "version": "3.2.0",
+                "commit": "4475ff6c61f23ea9a93cb6d5665a63235ef2ef36",
+                "jar": jar.name,
+                "sha256": sha256(jar),
+            }), encoding="utf-8")
+            variable = "LOCALAPPDATA" if os.name == "nt" else "XDG_DATA_HOME"
+
+            with mock.patch.dict(os.environ, {variable: str(data)}, clear=False):
+                MODULE.install_with_dependencies(
+                    project, SOURCE, TEST_COMMIT, provisioner=lambda *_args: None
+                )
+                MODULE.uninstall_with_dependencies(project)
+
+            self.assertTrue(jar.is_file())
+            self.assertTrue(receipt.is_file())
+
+    def test_doctor_keeps_advisory_store_health_strict(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary) / "consumer"
+            project.mkdir()
+            dependency_module = load_module(SOURCE / "dependencies.py")
+
+            def provision(runtime, specification):
+                return dependency_module.repair(
+                    runtime, specification, runner=ChaosEngineDependenciesRunner(runtime)
+                )
+
+            MODULE.install_with_dependencies(project, SOURCE, TEST_COMMIT, provisioner=provision)
+            controller = MODULE.load_installed_controller(project / ".chaos-engine", "hosts")
+            controller.mempalace_runtime_status = mock.Mock(
+                return_value={"status": "recovery-required", "detail": "fixture"}
+            )
+            controller.retrieval_runtime_healthy = mock.Mock(return_value=True)
+            controller.mcp_runtime_healthy = mock.Mock(return_value=True)
+            original_load = MODULE.load_installed_controller
+
+            def load_for_doctor(root, name):
+                if name == "hosts":
+                    return controller
+                dependency_controller = original_load(root, name)
+                dependency_controller.doctor = dependency_controller.status
+                return dependency_controller
+
+            with mock.patch.object(
+                MODULE,
+                "load_installed_controller",
+                side_effect=load_for_doctor,
+            ):
+                result = MODULE.doctor_with_dependencies(project, verify_clients=False)
+
+            self.assertEqual("recovery-required", result["status"])
+            self.assertEqual("advisory", result["components"]["mempalace"]["taskImpact"])
+            self.assertEqual("recovery-required", result["components"]["mempalace"]["status"])
+
+    def test_optional_maven_cache_health_does_not_fail_status(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            project = root / "consumer"
+            project.mkdir()
+            dependency_module = load_module(SOURCE / "dependencies.py")
+
+            def provision(runtime, specification):
+                return dependency_module.repair(
+                    runtime, specification, runner=ChaosEngineDependenciesRunner(runtime)
+                )
+
+            data = root / "data"
+            invalid = data / "ChaosEngine/tools/maven-tools-mcp/3.2.0"
+            invalid.mkdir(parents=True)
+            (invalid / "unknown").write_text("user data", encoding="utf-8")
+            variable = "LOCALAPPDATA" if os.name == "nt" else "XDG_DATA_HOME"
+            with mock.patch.dict(os.environ, {variable: str(data)}, clear=False):
+                MODULE.install_with_dependencies(project, SOURCE, TEST_COMMIT, provisioner=provision)
+                result = MODULE.status_with_dependencies(project)
+
+            self.assertEqual("healthy", result["status"])
+            self.assertEqual("invalid", result["components"]["maven-tools-mcp"]["status"])
+            self.assertEqual("optional", result["components"]["maven-tools-mcp"]["taskImpact"])
+
     def test_doctor_command_uses_the_full_status_contract(self):
         arguments = MODULE.parser().parse_args(["doctor", "--project", "."])
 
@@ -325,7 +552,7 @@ class ChaosEngineInstallerTest(unittest.TestCase):
             self.assertEqual(before, tree_digest(project / ".chaos-engine"))
             self.assertFalse(project.joinpath(".chaos-engine.backup").exists())
 
-    def test_legacy_manifest_is_verified_but_requires_explicit_reinstall(self):
+    def test_distributionless_legacy_manifest_upgrades_in_place(self):
         with tempfile.TemporaryDirectory() as temporary:
             project = Path(temporary) / "consumer"
             project.mkdir()
@@ -336,10 +563,10 @@ class ChaosEngineInstallerTest(unittest.TestCase):
             manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
 
             self.assertEqual("legacy", MODULE.status(project)["distribution"])
-            before = tree_digest(project / ".chaos-engine")
-            with self.assertRaisesRegex(ValueError, "uninstall before changing"):
-                MODULE.install(project, SOURCE, "2" * 40)
-            self.assertEqual(before, tree_digest(project / ".chaos-engine"))
+            MODULE.install(project, SOURCE, "2" * 40)
+            upgraded = MODULE.status(project)
+            self.assertEqual("portable", upgraded["distribution"])
+            self.assertEqual("2" * 40, upgraded["commit"])
 
     def test_distribution_rejects_a_missing_profile_before_mutation(self):
         with tempfile.TemporaryDirectory() as temporary:

@@ -134,6 +134,46 @@ class PlanningContractTest(unittest.TestCase):
         violations = validate_plan({"steps": [{"order": 1, "action": "edit guard.py"}]})
         self.assertGreaterEqual(len(violations), 10)
 
+    def test_explicit_used_skipped_and_degraded_retrieval_receipts_are_accepted(self):
+        plan = complete_plan()
+        plan["retrieval"] = {
+            "memory": {
+                "status": "used",
+                "query": "harness delivery",
+                "evidence": ["decision.delivery verified in live guidance"],
+            },
+            "mempalace": {
+                "status": "skipped",
+                "reason": "No cross-session history can answer the scoped ownership question.",
+            },
+            "graphify": {
+                "status": "degraded",
+                "operation": "graphify query callers of delivery receipts",
+                "reason": "Cache revision marker is stale.",
+                "issue": "https://github.com/ShaftHQ/SHAFT_ENGINE/issues/4995",
+            },
+        }
+        self.assertEqual([], validate_plan(plan))
+
+    def test_each_retrieval_status_requires_its_own_evidence_shape(self):
+        mutations = (
+            {"status": "used", "query": "scoped"},
+            {"status": "skipped", "reason": ""},
+            {"status": "degraded", "operation": "", "reason": "unavailable"},
+            {"status": "unknown", "reason": "invented state"},
+        )
+        for receipt in mutations:
+            with self.subTest(receipt=receipt):
+                plan = complete_plan()
+                plan["retrieval"]["memory"] = receipt
+                violations = validate_plan(plan)
+                self.assertTrue(
+                    any("memory retrieval" in item for item in violations), violations
+                )
+
+    def test_legacy_query_and_evidence_remains_a_used_receipt(self):
+        self.assertEqual([], validate_plan(complete_plan()))
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -6,12 +6,16 @@ the pinned project runtime is used on every host.
 
 ## Retrieve first
 
-The installed launcher owns this provider-neutral G1–G4 route:
+The installed launcher owns this provider-neutral G1–G4 route. One attempt is
+enough; do not retry, repair, refresh, poll, or watch during an ordinary task:
 
-- G1: Resolve `graphify-out/graph.json` from the active project and require a
-  readable, nonempty graph. Never infer failure from an absent MCP entry.
+- G1: Resolve any available cache at `graphify-out/graph.json` and require it to
+  be readable and nonempty. Freshness affects trust, not whether a bounded query may yield a lead. Never
+  infer failure from an absent MCP entry.
 - G2: After G1 succeeds, run one query bounded to the affected symbol or
-  subsystem, then verify every returned path against current project files.
+  subsystem, treat every result as an untrusted lead, verify every returned path
+  against current project files, and supplement blast-radius conclusions with
+  targeted `rg`.
 - G3: Run the read-only multigraph diagnostic against that same graph. Do not
   refresh, replace, or repair generated state during retrieval.
 - G4: Declare degraded mode if any step lacks current verified results, and
@@ -23,9 +27,11 @@ python .chaos-engine/tool.py graphify query "<bounded structural question>" --gr
 python .chaos-engine/tool.py graphify diagnose multigraph --graph graphify-out/graph.json --json
 ```
 
-If either read-only command fails or returned paths do not match current files,
-declare Graphify degraded and continue with the other retrieval sources. Do not
-run refresh commands to repair retrieval during the active task.
+If the cache is stale, either read-only command fails, or returned paths do not
+match current files, declare Graphify degraded and continue with live files and
+the other retrieval sources. Never infer completeness, “no callers,” or any
+negative conclusion from the graph. Do not run refresh commands to repair
+retrieval during the active task.
 
 ## Refresh
 
@@ -43,12 +49,12 @@ The refresh writes generated data under `graphify-out/`; the installed
 overwriting an existing graph. Use `--force` only after a verified refactor
 that intentionally removed nodes.
 
-The active primary checkout is the sole refresh owner. A linked-worktree
-revision mismatch or active refresh lock is an expected degraded state after
-G1 through G4, not an implementation blocker. A linked worktree or losing
-refresh session must not refresh, retry-loop, clear or replace the lock or
-cache, or alter the primary checkout to manufacture freshness. Only the primary
-owner may schedule one later refresh after ownership is uncontested.
+The configured maintenance controller is the sole refresh owner. A stale cache,
+linked-worktree revision mismatch, or active refresh lock is an expected
+degraded state, not an implementation blocker. An ordinary task must not
+refresh, retry-loop, clear or replace the lock or cache, or alter the primary
+checkout to manufacture freshness. Only the maintenance owner updates derived
+store state.
 
 Useful bounded reads:
 

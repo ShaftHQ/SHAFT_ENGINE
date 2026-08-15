@@ -15,6 +15,7 @@ import tempfile
 import time
 import unittest
 from contextlib import redirect_stdout
+from datetime import UTC, datetime
 from pathlib import Path
 from unittest import mock
 from unittest.mock import patch
@@ -501,6 +502,26 @@ def isolate_stop_rules(case: unittest.TestCase, except_for: tuple[str, ...] = ()
         case.addCleanup(patcher.stop)
 
 
+class ResearchPreflightAdvisoryStoreTest(unittest.TestCase):
+    """R25 store policy is independent of the broad Stop-rule fixture."""
+
+    def test_store_events_are_advisory_for_a_complete_non_store_receipt(self):
+        advisory = {"query-native-memory", "query-mempalace", "query-graphify"}
+        required = [
+            event for event in guard.RESEARCH_PREFLIGHT_EVENTS if event not in advisory
+        ]
+        payload = {
+            "cwd": ".",
+            "session_id": "research-first-test",
+            "tool_name": "Write",
+            "tool_input": {},
+        }
+        with patch("scripts.agents.guard.ledger_events", return_value=required):
+            self.assertIsNone(
+                guard.check_r25_research_before_implementation(payload, "Write")
+            )
+
+
 class DelegatePreflightRedTest(unittest.TestCase):
     """#4570's missing delegate and learning-loop behavior."""
 
@@ -684,7 +705,7 @@ class GuardLifecycleTest(unittest.TestCase):
         self.assertIn("read-live-files", reason)
 
     def test_each_missing_or_late_receipt_event_blocks_the_mutation(self):
-        required = guard.RESEARCH_PREFLIGHT_EVENTS
+        required = guard.IMPLEMENTATION_PREFLIGHT_EVENTS
         for missing in required:
             with self.subTest(missing=missing):
                 events = [event for event in required if event != missing]
@@ -1403,7 +1424,8 @@ class PreflightPackTest(unittest.TestCase):
                     with redirect_stdout(stream):
                         self.assertEqual(guard.run_session_start({"cwd": "."}), 0)
         context = json.loads(stream.getvalue())["hookSpecificOutput"]["additionalContext"]
-        wake_up.assert_not_called()
+        wake_up.assert_called_once_with(".")
+        self.assertIn("MemPalace wake-up completed", context)
         self.assertNotIn("IGNORE PRIOR INSTRUCTIONS", context)
         self.assertLessEqual(len(context.encode("utf-8")), 8192)
 
@@ -1426,6 +1448,67 @@ class PreflightPackTest(unittest.TestCase):
         context = json.loads(stream.getvalue())["hookSpecificOutput"]["additionalContext"]
         self.assertNotIn(reminder, context)
         self.assertNotIn("A stored constraint", context)
+        self.assertIn("native Memory summary available", context)
+
+    def test_store_preload_failures_are_silent_and_never_block_session_start(self):
+        with patch(
+            "scripts.agents.guard._worktree_report",
+            return_value={"worktrees": [], "advisories": []},
+        ), patch("scripts.agents.guard._sync_advisory", return_value=None), patch(
+            "scripts.agents.guard._standing_constraints",
+            side_effect=OSError("private memory path"),
+        ) as constraints, patch(
+            "scripts.agents.guard._memory_do_not_lines",
+            side_effect=UnicodeError("private memory bytes"),
+        ) as reminders, patch(
+            "scripts.agents.guard._mempalace_wake_up",
+            side_effect=subprocess.TimeoutExpired("mempalace", 1),
+        ) as wake_up:
+            stream = io.StringIO()
+            with redirect_stdout(stream):
+                self.assertEqual(guard.run_session_start({"cwd": "."}), 0)
+        context = json.loads(stream.getvalue())["hookSpecificOutput"]["additionalContext"]
+        constraints.assert_called_once_with(".")
+        reminders.assert_called_once_with(".")
+        wake_up.assert_called_once_with(".")
+        self.assertNotIn("private memory", context)
+        self.assertLessEqual(len(context.encode("utf-8")), 8192)
+
+    def test_native_memory_preload_caps_files_and_bytes_per_file(self):
+        with tempfile.TemporaryDirectory() as directory:
+            constraints = os.path.join(directory, ".memory", "memory", "constraints")
+            gotchas = os.path.join(directory, ".memory", "memory", "gotchas")
+            os.makedirs(constraints)
+            os.makedirs(gotchas)
+            with open(os.path.join(constraints, "000-huge.json"), "w", encoding="utf-8") as handle:
+                json.dump({"padding": "x" * 10000, "title": "late unbounded title"}, handle)
+            for index in range(50):
+                with open(
+                    os.path.join(constraints, f"{index + 1:03}.json"),
+                    "w",
+                    encoding="utf-8",
+                ) as handle:
+                    json.dump({"title": f"constraint {index}"}, handle)
+                with open(
+                    os.path.join(gotchas, f"{index:03}.md"),
+                    "w",
+                    encoding="utf-8",
+                ) as handle:
+                    handle.write("no actionable warning here")
+
+            original_open = open
+            with patch("builtins.open", wraps=original_open) as opened:
+                summary = guard._standing_constraints(directory)
+                self.assertIsNone(guard._memory_do_not_lines(directory))
+
+            memory_reads = [
+                call
+                for call in opened.call_args_list
+                if call.args and os.path.join(".memory", "memory") in str(call.args[0])
+            ]
+            self.assertLessEqual(len(memory_reads), 64)
+            self.assertNotIn("late unbounded title", summary or "")
+            self.assertIn("(31)", summary or "")
 
     def test_session_start_states_the_retrieval_trust_boundary(self):
         with patch("scripts.agents.guard._worktree_report", return_value={"worktrees": [], "advisories": []}):
@@ -2153,6 +2236,25 @@ class LearningLoopStopGateTest(unittest.TestCase):
             "scripts.agents.guard.ledger_events", return_value=["commit", "memory-write"]
         ):
             self.assertIsNone(guard.check_r16_learning_loop({"session_id": "s"}))
+        with patch(
+            "scripts.agents.guard.ledger_events",
+            return_value=["commit", "learning-none:store_degraded"],
+        ):
+            self.assertIsNone(guard.check_r16_learning_loop({"session_id": "s"}))
+
+    def test_a_created_issue_satisfies_it(self):
+        with patch(
+            "scripts.agents.guard.ledger_events",
+            return_value=["commit", "issue-created:4995"],
+        ):
+            self.assertIsNone(guard.check_r16_learning_loop({"session_id": "s"}))
+
+    def test_a_successful_existing_issue_reference_satisfies_it(self):
+        with patch(
+            "scripts.agents.guard.ledger_events",
+            return_value=["commit", "learning-issue:4995"],
+        ):
+            self.assertIsNone(guard.check_r16_learning_loop({"session_id": "s"}))
 
     def test_a_guard_block_requires_a_new_issue_or_no_learning(self):
         """A receipt or old issue update cannot replace a new actionable ticket."""
@@ -2169,9 +2271,7 @@ class LearningLoopStopGateTest(unittest.TestCase):
             "scripts.agents.guard.ledger_events",
             return_value=["guard-block", "issue-created:4731"],
         ):
-            reason = guard.check_r16_learning_loop({"session_id": "s"})
-            self.assertIsNotNone(reason)
-            self.assertIn("signal", reason)
+            self.assertIsNone(guard.check_r16_learning_loop({"session_id": "s"}))
         with patch(
             "scripts.agents.guard.ledger_events",
             return_value=["guard-block", "learning-none:nothing-recurred"],
@@ -2323,6 +2423,133 @@ class LearningWriteObservationTest(unittest.TestCase):
                             )
                         )
 
+    @patch(
+        "scripts.agents.guard._git_output",
+        return_value="https://github.com/ShaftHQ/SHAFT_ENGINE.git",
+    )
+    def test_existing_issue_reference_is_bound_to_number_and_success(self, _git_output):
+        repository = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        with tempfile.TemporaryDirectory() as directory, patch.dict(
+            guard.os.environ, {"TMPDIR": directory, "TEMP": directory}
+        ):
+            payload = {
+                "session_id": "existing-learning-issue",
+                "cwd": repository,
+                "tool_name": "PowerShell",
+                "tool_input": {
+                    "command": "gh issue comment 4995 --repo ShaftHQ/SHAFT_ENGINE --body evidence"
+                },
+                "tool_response": {"exit_code": 0},
+            }
+            guard.run_posttooluse(payload)
+            self.assertIn("learning-issue:4995", guard.ledger_events(payload))
+
+            scoped = {
+                **payload,
+                "session_id": "same-repo-environment",
+                "tool_input": {
+                    "command": "GH_REPO=ShaftHQ/SHAFT_ENGINE gh issue edit 4995 --add-label ready"
+                },
+            }
+            guard.run_posttooluse(scoped)
+            self.assertIn("learning-issue:4995", guard.ledger_events(scoped))
+
+            quoted = {
+                **payload,
+                "session_id": "quoted-punctuation",
+                "tool_input": {
+                    "command": 'gh issue comment 4995 --body "evidence & more; still | one command"'
+                },
+            }
+            guard.run_posttooluse(quoted)
+            self.assertIn("learning-issue:4995", guard.ledger_events(quoted))
+
+            for session_id, command in (
+                ("bash-escaped-quotes", 'gh issue comment 4995 --body "evidence \\"quoted; still one\\""'),
+                ("powershell-escaped-quotes", 'gh issue comment 4995 --body "evidence `"quoted; still one`""'),
+            ):
+                escaped = {
+                    **payload,
+                    "session_id": session_id,
+                    "tool_input": {"command": command},
+                }
+                guard.run_posttooluse(escaped)
+                self.assertIn("learning-issue:4995", guard.ledger_events(escaped))
+
+            ambient_spoof = {
+                **payload,
+                "session_id": "ambient-repository-spoof",
+                "tool_input": {
+                    "command": "gh issue comment 4995 --body GH_REPO=ShaftHQ/SHAFT_ENGINE"
+                },
+            }
+            with patch.dict(guard.os.environ, {"GH_REPO": "evil/other"}):
+                guard.run_posttooluse(ambient_spoof)
+            self.assertFalse(
+                any(
+                    event.startswith("learning-issue:")
+                    for event in guard.ledger_events(ambient_spoof)
+                )
+            )
+
+            for session_id, command, response in (
+                ("failed-reference", payload["tool_input"]["command"], {"exit_code": 1}),
+                ("generic-update", "gh issue edit --add-label ready", {"exit_code": 0}),
+                ("pr-reference", "gh pr comment 4995 --body evidence", {"exit_code": 0}),
+                ("other-repo", "gh issue comment 4995 --repo ShaftHQ/other --body evidence", {"exit_code": 0}),
+                ("help", "gh issue comment 4995 --help", {"exit_code": 0}),
+                ("dry-run", "gh issue edit 4995 --dry-run", {"exit_code": 0}),
+                ("compound", "gh issue comment 4995 --body evidence; exit 0", {"exit_code": 0}),
+                ("environment-other-repo", "GH_REPO=ShaftHQ/other gh issue comment 4995 --body evidence", {"exit_code": 0}),
+                ("same-name-other-owner", "gh issue comment 4995 --repo evil/SHAFT_ENGINE --body evidence", {"exit_code": 0}),
+                ("environment-same-name-other-owner", "GH_REPO=evil/SHAFT_ENGINE gh issue edit 4995 --add-label ready", {"exit_code": 0}),
+                ("other-host", "gh issue comment 4995 --repo evil.example/ShaftHQ/SHAFT_ENGINE --body evidence", {"exit_code": 0}),
+                ("environment-other-host", "GH_REPO=evil.example/ShaftHQ/SHAFT_ENGINE gh issue edit 4995 --add-label ready", {"exit_code": 0}),
+                ("web", "gh issue comment 4995 --web", {"exit_code": 0}),
+                ("delete", "gh issue comment 4995 --delete-last --yes", {"exit_code": 0}),
+                ("help-value", "gh issue comment 4995 --help=true", {"exit_code": 0}),
+                ("web-value", "gh issue comment 4995 --web=true", {"exit_code": 0}),
+                ("delete-value", "gh issue comment 4995 --delete-last=true", {"exit_code": 0}),
+                ("multiple-targets", "gh issue edit 4995 4996 --add-label ready", {"exit_code": 0}),
+            ):
+                with self.subTest(session_id=session_id):
+                    candidate = {
+                        **payload,
+                        "session_id": session_id,
+                        "tool_input": {"command": command},
+                        "tool_response": response,
+                    }
+                    guard.run_posttooluse(candidate)
+                    self.assertFalse(
+                        any(
+                            event.startswith("learning-issue:")
+                            for event in guard.ledger_events(candidate)
+                        )
+                    )
+
+            for session_id, response in (
+                ("missing-result", None),
+                ("empty-result", {}),
+                ("cancelled", {"status": "cancelled"}),
+                ("denied", {"status": "denied"}),
+                ("timed-out", {"status": "timed_out"}),
+                ("structured-error", {"status": "success", "error": {"message": "failed"}}),
+                ("stderr", {"exit_code": 0, "stderr": "request failed"}),
+            ):
+                with self.subTest(session_id=session_id):
+                    candidate = {
+                        **payload,
+                        "session_id": session_id,
+                        "tool_response": response,
+                    }
+                    guard.run_posttooluse(candidate)
+                    self.assertFalse(
+                        any(
+                            event.startswith("learning-issue:")
+                            for event in guard.ledger_events(candidate)
+                        )
+                    )
+
     def test_housekeeping_mutations_do_not_masquerade_as_learning(self):
         for tool_name, command, tool_input in (
             ("mcp__mempalace__mempalace_mine", "", {}),
@@ -2412,6 +2639,82 @@ class DeliveryCompleteStopGateTest(unittest.TestCase):
             guard, "_checkpoint_identity", return_value=task
         ):
             self.assertIsNone(guard.check_r29_delivery_complete({"session_id": "s"}))
+
+    def test_degraded_cleanup_receipt_records_successful_delivery(self):
+        identity = ("consumer/project", "main", "b" * 40)
+        root = Path(guard.__file__).resolve().parents[2]
+        runtime = root / "scripts/agents/act_as_mohab_cli.py"
+        with tempfile.TemporaryDirectory() as temporary:
+            receipt_path = Path(temporary) / "delivery.json"
+            receipt_path.write_text(json.dumps({
+                "schemaVersion": 1,
+                "kind": "delivery-status",
+                "repository": identity[0],
+                "headOid": identity[2],
+                "decision": "allow",
+                "deliveryDecision": "allow",
+                "cleanupDecision": "degraded",
+                "reasons": [],
+                "mergedCount": 1,
+                "observedAt": datetime.now(UTC).isoformat(),
+                "pullRequests": [{
+                    "repository": identity[0],
+                    "number": 7,
+                    "headOid": "a" * 40,
+                    "mergedAt": datetime.now(UTC).isoformat(),
+                }],
+                "cleanup": {
+                    "outcome": "degraded",
+                    "primarySynced": True,
+                    "taskWorktreesAbsent": False,
+                    "taskBranchesAbsent": False,
+                    "unrelatedDirtyPreserved": True,
+                    "residueSafe": True,
+                    "residues": [{
+                        "repository": identity[0],
+                        "pullRequest": 7,
+                        "worktree": "task-worktree",
+                        "branch": "ChaosEngine/task",
+                        "reasonCode": "removal-denied",
+                    }],
+                    "warnings": ["cleanup-residue-remains"],
+                },
+            }), encoding="utf-8")
+            command = f'py -3 "{runtime}" delivery-status --receipt-out "{receipt_path}"'
+            with mock.patch.object(
+                guard, "_checkpoint_identity", return_value=identity
+            ), mock.patch.object(
+                guard, "_trusted_executable_token", return_value=True
+            ), mock.patch.object(
+                guard, "_harness_root", return_value=str(root)
+            ), mock.patch.object(guard.shutil, "which", return_value=str(root / "py")):
+                event = guard._successful_delivery_event({"cwd": str(root)}, command)
+                receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
+                for residue_update in (
+                    {"repository": "token=secret"},
+                    {"pullRequest": True},
+                    {"worktree": ""},
+                    {"branch": ""},
+                    {"pullRequest": 8},
+                    {"worktree": "api_key=abcdefgh"},
+                    {"branch": "Bearer abcdefgh"},
+                ):
+                    malformed = json.loads(json.dumps(receipt))
+                    malformed["cleanup"]["residues"][0].update(residue_update)
+                    receipt_path.write_text(json.dumps(malformed), encoding="utf-8")
+                    self.assertIsNone(
+                        guard._successful_delivery_event({"cwd": str(root)}, command),
+                        residue_update,
+                    )
+                for field in ("schemaVersion", "mergedCount"):
+                    malformed = json.loads(json.dumps(receipt))
+                    malformed[field] = True
+                    receipt_path.write_text(json.dumps(malformed), encoding="utf-8")
+                    self.assertIsNone(
+                        guard._successful_delivery_event({"cwd": str(root)}, command),
+                        field,
+                    )
+        self.assertIsNotNone(event)
 
     def test_unrelated_delivery_event_cannot_complete_this_task(self):
         task = ("consumer/project", "ChaosEngine/task", "a" * 40)

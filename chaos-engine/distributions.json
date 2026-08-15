@@ -4,11 +4,27 @@
   "distributions": {
     "portable": {
       "profile": "portable",
-      "forbiddenTokens": ["shaft", "mohab", "act-as-mohab", "act as mohab"]
+      "forbiddenTokens": ["shaft", "mohab", "act-as-mohab", "act as mohab"],
+      "components": {
+        "core": {"owner": "installer", "scope": "project", "lifecycle": "receipt-owned", "taskImpact": "required"},
+        "skills": {"owner": "installer", "scope": "project", "lifecycle": "receipt-owned", "taskImpact": "required"},
+        "hooks": {"owner": "installer", "scope": "project", "lifecycle": "receipt-owned", "taskImpact": "required"},
+        "plugins": {"owner": "installer", "scope": "project", "lifecycle": "receipt-owned", "taskImpact": "required"},
+        "roles": {"owner": "installer", "scope": "project", "lifecycle": "receipt-owned", "taskImpact": "required"},
+        "mcps": {"owner": "project", "scope": "project", "lifecycle": "receipt-owned", "taskImpact": "required"}
+      }
     },
     "repository": {
       "profile": "shaft",
-      "forbiddenTokens": []
+      "forbiddenTokens": [],
+      "components": {
+        "core": {"owner": "installer", "scope": "project", "lifecycle": "receipt-owned", "taskImpact": "required"},
+        "skills": {"owner": "installer", "scope": "project", "lifecycle": "receipt-owned", "taskImpact": "required"},
+        "hooks": {"owner": "installer", "scope": "project", "lifecycle": "receipt-owned", "taskImpact": "required"},
+        "plugins": {"owner": "installer", "scope": "project", "lifecycle": "receipt-owned", "taskImpact": "required"},
+        "roles": {"owner": "installer", "scope": "project", "lifecycle": "receipt-owned", "taskImpact": "required"},
+        "mcps": {"owner": "project", "scope": "project", "lifecycle": "receipt-owned", "taskImpact": "required"}
+      }
     }
   }
 }

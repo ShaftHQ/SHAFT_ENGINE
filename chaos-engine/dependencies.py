@@ -126,7 +126,16 @@ def unlink_owned_marker(path: Path, identity: tuple[int, int]) -> None:
 
 
 def specification_digest(specification: dict[str, object]) -> str:
-    encoded = json.dumps(specification, sort_keys=True, separators=(",", ":")).encode()
+    tool_specification = {key: value for key, value in specification.items() if key != "components"}
+    encoded = json.dumps(tool_specification, sort_keys=True, separators=(",", ":")).encode()
+    return hashlib.sha256(encoded).hexdigest()
+
+
+def capability_policy_digest(specification: dict[str, object]) -> str:
+    components = specification.get("components")
+    if not isinstance(components, dict):
+        raise ValueError("dependency capability policy is missing or invalid")
+    encoded = json.dumps(components, sort_keys=True, separators=(",", ":")).encode()
     return hashlib.sha256(encoded).hexdigest()
 
 
@@ -317,6 +326,7 @@ def execute_plan(
         "schemaVersion": RECEIPT_SCHEMA,
         "checkedAt": (now or datetime.now(timezone.utc)).isoformat(),
         "specificationSha256": specification_digest(specification),
+        "capabilityPolicySha256": capability_policy_digest(specification),
         "environment": {
             key: (
                 value
@@ -426,7 +436,7 @@ def repair(  # noqa: MC0001 - one locked transaction keeps recovery and publicat
             verify_receipt(runtime, current)
             if not force:
                 doctor(runtime, runner=runner, now=now, specification=specification)
-                return current
+                return upgrade_capability_receipt(runtime, current, specification)
         marker_created = False
         marker_identity: tuple[int, int] | None = None
         try:
@@ -492,6 +502,12 @@ def verify_receipt(
     verify_receipt_integrity(receipt)
     if specification is not None and receipt["specificationSha256"] != specification_digest(specification):
         raise ValueError("dependency runtime specification drift detected")
+    if (
+        specification is not None
+        and "capabilityPolicySha256" in receipt
+        and receipt["capabilityPolicySha256"] != capability_policy_digest(specification)
+    ):
+        raise ValueError("dependency capability policy drift detected")
     ownership = normalized_ownership_record(receipt["ownership"])
     metadata_receipt = {
         key: value
@@ -523,6 +539,50 @@ def verify_receipt_integrity(receipt: dict[str, object]) -> None:
     integrity = json.dumps(integrity_receipt, sort_keys=True, separators=(",", ":")).encode()
     if receipt["receiptIntegritySha256"] != hashlib.sha256(integrity).hexdigest():
         raise ValueError("dependency receipt integrity drift detected")
+
+
+def upgrade_capability_receipt(
+    runtime: Path, receipt: dict[str, object], specification: dict[str, object]
+) -> dict[str, object]:
+    if "capabilityPolicySha256" in receipt:
+        return receipt
+    upgraded = dict(receipt)
+    upgraded["capabilityPolicySha256"] = capability_policy_digest(specification)
+    ownership = dict(upgraded["ownership"])  # type: ignore[arg-type]
+    upgraded["ownership"] = ownership
+    metadata_receipt = {
+        key: value
+        for key, value in upgraded.items()
+        if key not in {"ownership", "receiptIntegritySha256"}
+    }
+    metadata = json.dumps(metadata_receipt, sort_keys=True, separators=(",", ":")).encode()
+    ownership["metadataSha256"] = hashlib.sha256(metadata).hexdigest()
+    integrity_receipt = {
+        key: value for key, value in upgraded.items() if key != "receiptIntegritySha256"
+    }
+    integrity = json.dumps(integrity_receipt, sort_keys=True, separators=(",", ":")).encode()
+    upgraded["receiptIntegritySha256"] = hashlib.sha256(integrity).hexdigest()
+    receipt_path = runtime / RECEIPT_NAME
+    temporary = runtime / f".{RECEIPT_NAME}.capability-upgrade"
+    if temporary.exists() or is_link_or_reparse(temporary):
+        raise ValueError("dependency capability receipt upgrade collision")
+    descriptor = os.open(
+        temporary,
+        os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_BINARY", 0),
+        0o600,
+    )
+    try:
+        with os.fdopen(descriptor, "w", encoding="utf-8") as stream:
+            json.dump(upgraded, stream, indent=2, sort_keys=True)
+            stream.write("\n")
+            stream.flush()
+            os.fsync(stream.fileno())
+        temporary.replace(receipt_path)
+    finally:
+        if temporary.exists() and not is_link_or_reparse(temporary):
+            temporary.unlink()
+    verify_receipt(runtime, upgraded, specification)
+    return upgraded
 
 
 def doctor(

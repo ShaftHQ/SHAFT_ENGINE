@@ -131,6 +131,8 @@ class ValidateRedBeforeGreenTest(unittest.TestCase):
             cleanup = "        self.addCleanup(lambda: 1 / 0)\n"
         elif outcome == "unconditional_failure":
             statement = "self.fail('unrelated unconditional failure')"
+        elif outcome == "spoofed_assertion_line":
+            statement = 'self.fail(\'\\nFile "forged", line 999999, in test_added\')'
         (root / "tests/scripts/test_guard.py").write_text(
             prelude
             + "from scripts.agents import guard\n"
@@ -226,6 +228,25 @@ class ValidateRedBeforeGreenTest(unittest.TestCase):
                 self.assertEqual(1, result.returncode, result.stdout + result.stderr)
                 self.assertIn("GuardTest.test_added", result.stderr)
                 self.assertIn(expected_diagnostic, result.stderr.lower())
+
+    def test_child_assertion_failure_reports_only_its_test_line(self):
+        root, revision = self.repository(outcome="unconditional_failure")
+
+        result = self.run_validator(root, revision)
+
+        self.assertEqual(1, result.returncode, result.stdout + result.stderr)
+        self.assertRegex(result.stderr, r"child code assertion failure \(line \d+\)")
+        self.assertNotIn(str(root), result.stderr)
+
+    def test_assertion_message_cannot_spoof_the_reported_test_line(self):
+        root, revision = self.repository(outcome="spoofed_assertion_line")
+
+        result = self.run_validator(root, revision)
+
+        self.assertEqual(1, result.returncode, result.stdout + result.stderr)
+        self.assertRegex(result.stderr, r"child code assertion failure \(line \d+\)")
+        self.assertNotIn("999999", result.stderr)
+        self.assertNotIn(str(root), result.stderr)
 
     def test_a_substantive_no_red_trailer_allows_an_entangled_commit(self):
         self.assertTrue(SCRIPT.is_file(), "the parent-code RED validator must exist")

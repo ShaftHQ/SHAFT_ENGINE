@@ -219,7 +219,18 @@ def run_parent_code_test(
         if len(failures) == 1:
             if failures[0]["id"] != target:
                 return ParentTestOutcome("wrong target", failures[0]["id"])
-            return ParentTestOutcome("assertion failure")
+            traceback_frames = re.split(
+                r"(?m)^AssertionError(?::|$)",
+                failures[0]["traceback"],
+                maxsplit=1,
+            )[0]
+            assertion_lines = re.findall(
+                rf'^\s*File "[^"]+", line (\d+), in {re.escape(method_name)}\s*$',
+                traceback_frames,
+                re.MULTILINE,
+            )
+            details = f"line {assertion_lines[-1]}" if assertion_lines else ""
+            return ParentTestOutcome("assertion failure", details)
         if failures:
             return ParentTestOutcome("multiple failures", str(len(failures)))
         return ParentTestOutcome("pass")

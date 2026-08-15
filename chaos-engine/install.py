@@ -38,6 +38,43 @@ UNINSTALL_CURRENT_NAME = ".chaos-engine-uninstall-current"
 UNINSTALL_OLD_BACKUP_NAME = ".chaos-engine-uninstall-old-backup"
 DEPENDENCY_LOCK_MAGIC = b"chaos-engine-dependencies-lock-v1\n"
 CROSS_ROLLBACK_JOURNAL_NAME = ".chaos-engine-cross-rollback"
+CAPABILITY_FIELDS = {"owner", "scope", "lifecycle", "taskImpact"}
+CAPABILITY_ENUMS = {
+    "owner": {"installer", "project", "user"},
+    "scope": {"project", "repository", "user"},
+    "lifecycle": {"receipt-owned", "persistent-data", "derived-single-writer", "user-managed-cache"},
+    "taskImpact": {"required", "advisory", "optional"},
+}
+CAPABILITY_COMPONENTS = {
+    "core", "skills", "playbooks", "hooks", "plugins", "roles", "mcps",
+    "retrieval-config", "projection-policy", "tools", "memory", "mempalace",
+    "graphify", "maven-tools-mcp",
+}
+
+
+def legacy_capability_policy() -> dict[str, dict[str, str]]:
+    """Return the immutable schema-v1 compatibility view; new installs use tracked contracts."""
+    result = {
+        name: {
+            "owner": "installer",
+            "scope": "project",
+            "lifecycle": "receipt-owned",
+            "taskImpact": "required",
+        }
+        for name in CAPABILITY_COMPONENTS
+    }
+    result["playbooks"]["scope"] = "repository"
+    result["mcps"]["owner"] = "project"
+    result["retrieval-config"].update(owner="project", lifecycle="persistent-data")
+    result["memory"].update(owner="project", lifecycle="persistent-data", taskImpact="advisory")
+    result["mempalace"].update(owner="project", lifecycle="persistent-data", taskImpact="advisory")
+    result["graphify"].update(
+        owner="project", scope="repository", lifecycle="derived-single-writer", taskImpact="advisory"
+    )
+    result["maven-tools-mcp"].update(
+        owner="user", scope="user", lifecycle="user-managed-cache", taskImpact="optional"
+    )
+    return _validated_capabilities(result)
 
 
 def file_sha256(path: Path) -> str:
@@ -142,6 +179,44 @@ def load_distribution(source: Path, distribution: str) -> tuple[dict[str, object
     return policy, hashlib.sha256(encoded).hexdigest()
 
 
+def _validated_capabilities(value: object) -> dict[str, dict[str, str]]:
+    if not isinstance(value, dict):
+        raise ValueError("ChaosEngine capability policy is invalid")
+    result: dict[str, dict[str, str]] = {}
+    for name, descriptor in value.items():
+        if (
+            not isinstance(name, str)
+            or not isinstance(descriptor, dict)
+            or set(descriptor) != CAPABILITY_FIELDS
+            or any(descriptor.get(field) not in allowed for field, allowed in CAPABILITY_ENUMS.items())
+        ):
+            raise ValueError("ChaosEngine capability policy is invalid")
+        result[name] = {field: str(descriptor[field]) for field in sorted(CAPABILITY_FIELDS)}
+    return result
+
+
+def load_capability_policy(source: Path, distribution: str) -> tuple[dict[str, dict[str, str]], str]:
+    policy, _ = load_distribution(source, distribution)
+    profile_name = str(policy["profile"])
+    try:
+        profile = json.loads((source / "profiles" / profile_name / "profile.json").read_text(encoding="utf-8"))
+        dependencies = json.loads((source / "dependencies.json").read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError, TypeError) as error:
+        raise ValueError("ChaosEngine capability policy is invalid") from error
+    if not isinstance(profile, dict) or not isinstance(dependencies, dict):
+        raise ValueError("ChaosEngine capability policy is invalid")
+    merged: dict[str, dict[str, str]] = {}
+    for raw in (policy.get("components"), profile.get("components"), dependencies.get("components")):
+        selected = _validated_capabilities(raw)
+        if set(merged) & set(selected):
+            raise ValueError("ChaosEngine capability policy contains duplicate components")
+        merged.update(selected)
+    if set(merged) != CAPABILITY_COMPONENTS:
+        raise ValueError("ChaosEngine capability policy does not cover every component")
+    encoded = json.dumps(merged, sort_keys=True, separators=(",", ":")).encode()
+    return merged, hashlib.sha256(encoded).hexdigest()
+
+
 def source_files(source: Path, distribution: str = DEFAULT_DISTRIBUTION) -> tuple[Path, ...]:
     reject_link_or_reparse(source)
     if not (source / "skills/chaos-engine/SKILL.md").is_file():
@@ -198,6 +273,8 @@ def load_manifest(target: Path) -> dict[str, object]:
     files = manifest.get("files")
     host_token = manifest.get("hostToken")
     distribution = manifest.get("distribution")
+    capabilities = manifest.get("capabilities")
+    capability_digest = manifest.get("capabilityPolicySha256")
     if distribution is None and manifest.get("schemaVersion") == 1:
         distribution = {"id": "legacy", "policySha256": "0" * 64}
         manifest["distribution"] = distribution
@@ -213,8 +290,18 @@ def load_manifest(target: Path) -> dict[str, object]:
         or not isinstance(host_token, str)
         or re.fullmatch(r"[0-9a-f]{64}", host_token) is None
         or any(not isinstance(path, str) or not isinstance(digest, str) for path, digest in files.items())
+        or ((capabilities is None) != (capability_digest is None))
     ):
         raise ValueError("ChaosEngine manifest has an invalid ownership record")
+    if capabilities is not None:
+        validated = _validated_capabilities(capabilities)
+        encoded = json.dumps(validated, sort_keys=True, separators=(",", ":")).encode()
+        if (
+            set(validated) != CAPABILITY_COMPONENTS
+            or capability_digest != hashlib.sha256(encoded).hexdigest()
+        ):
+            raise ValueError("ChaosEngine manifest has an invalid capability policy")
+        manifest["capabilities"] = validated
     manifest["source"] = normalized_source
     return manifest
 
@@ -658,6 +745,7 @@ def install(  # noqa: MC0001 - publication and compensation form one transaction
     if (source / MANIFEST_NAME).exists():
         raise ValueError(f"source contains the reserved manifest path: {MANIFEST_NAME}")
     _, policy_digest = load_distribution(source, distribution)
+    capabilities, capability_digest = load_capability_policy(source, distribution)
     files = source_files(source, distribution)
     ownership = {path.relative_to(source).as_posix(): file_sha256(path) for path in files}
     target = project / INSTALL_DIRECTORY
@@ -672,18 +760,60 @@ def install(  # noqa: MC0001 - publication and compensation form one transaction
             current = verify_install(target)
             current_commit = current["source"]["commit"]  # type: ignore[index]
             current_distribution = current.get("distribution")
-            if not isinstance(current_distribution, dict) or current_distribution.get("id") != distribution:
+            legacy_distribution = (
+                isinstance(current_distribution, dict)
+                and current_distribution.get("id") == "legacy"
+            )
+            if (
+                not isinstance(current_distribution, dict)
+                or (
+                    current_distribution.get("id") != distribution
+                    and not (legacy_distribution and distribution == DEFAULT_DISTRIBUTION)
+                )
+            ):
                 raise ValueError(
                     "installed ChaosEngine distribution differs; uninstall before changing it"
                 )
             if current_commit == commit:
-                if current_distribution.get("policySha256") != policy_digest:
+                if (
+                    not legacy_distribution
+                    and current_distribution.get("policySha256") != policy_digest
+                ):
                     raise ValueError(
                         "same commit resolved to a different ChaosEngine distribution policy"
                     )
                 if current["files"] != ownership:
                     raise ValueError("same commit resolved to a different ChaosEngine payload")
                 if current["source"] == desired_source:
+                    current_capabilities = current.get("capabilities")
+                    current_capability_digest = current.get("capabilityPolicySha256")
+                    manifest_changed = False
+                    if legacy_distribution:
+                        current["distribution"] = {
+                            "id": distribution,
+                            "policySha256": policy_digest,
+                        }
+                        manifest_changed = True
+                    if current_capabilities is None and current_capability_digest is None:
+                        current["capabilities"] = capabilities
+                        current["capabilityPolicySha256"] = capability_digest
+                        manifest_changed = True
+                    elif (
+                        current_capabilities != capabilities
+                        or current_capability_digest != capability_digest
+                    ):
+                        raise ValueError("same commit resolved to a different capability policy")
+                    if manifest_changed:
+                        temporary_manifest = target / f"{MANIFEST_NAME}.upgrade-{secrets.token_hex(8)}"
+                        try:
+                            temporary_manifest.write_text(
+                                json.dumps(current, indent=2, sort_keys=True) + "\n",
+                                encoding="utf-8",
+                            )
+                            temporary_manifest.replace(target / MANIFEST_NAME)
+                        finally:
+                            if temporary_manifest.exists():
+                                temporary_manifest.unlink()
                     return target
                 if current["source"].get("kind") != "local":  # type: ignore[union-attr]
                     raise ValueError("same commit resolved from different ChaosEngine provenance")
@@ -700,6 +830,8 @@ def install(  # noqa: MC0001 - publication and compensation form one transaction
             manifest = {
                 "schemaVersion": SCHEMA_VERSION,
                 "distribution": {"id": distribution, "policySha256": policy_digest},
+                "capabilities": capabilities,
+                "capabilityPolicySha256": capability_digest,
                 "source": desired_source,
                 "files": ownership,
                 "hostToken": (
@@ -802,7 +934,12 @@ def rollback(  # noqa: MC0001 - cross-resource rollback is one journaled state m
                 rollback(project, _locked=True)
             try:
                 previous_hosts = load_installed_controller(target, "hosts")
-                previous_hosts.install(project, core_commit=desired_commit)
+                desired_manifest = verify_install(target)
+                previous_hosts.install(
+                    project,
+                    core_commit=desired_commit,
+                    capability_policy_digest=desired_manifest.get("capabilityPolicySha256"),
+                )
                 restored_host_receipt, _ = previous_hosts.read_receipt(project)
                 if isinstance(restored_host_receipt.get("clientActivation"), dict):
                     previous_hosts.activate_detected_plugins(project)
@@ -954,7 +1091,16 @@ def install_with_dependencies(  # noqa: MC0001 - owned resources share one compe
             source_record=source_record,
             distribution=distribution,
         )
-        core_changed = old_manifest is None or verify_install(target) != old_manifest
+        installed_manifest = verify_install(target)
+        core_changed = old_manifest is None or {
+            key: value
+            for key, value in installed_manifest.items()
+            if key not in {"capabilities", "capabilityPolicySha256"}
+        } != {
+            key: value
+            for key, value in old_manifest.items()
+            if key not in {"capabilities", "capabilityPolicySha256"}
+        }
         host_controller = load_installed_controller(target, "hosts")
         host_receipt = project / host_controller.RECEIPT_NAME
         host_existed = host_receipt.exists() or is_link_or_reparse(host_receipt)
@@ -964,7 +1110,11 @@ def install_with_dependencies(  # noqa: MC0001 - owned resources share one compe
         controller = None
         specification = None
         try:
-            host_controller.install(project, core_commit=commit)
+            host_controller.install(
+                project,
+                core_commit=commit,
+                capability_policy_digest=installed_manifest.get("capabilityPolicySha256"),
+            )
             host_created = not host_existed
             controller = load_dependency_controller(target)
             specification = controller.load_specification(target / "dependencies.json")
@@ -1016,6 +1166,10 @@ def attach_component_status(
     dependency_health: str,
     host_controller: object,
 ) -> None:
+    manifest = load_manifest(target)
+    capabilities = manifest.get("capabilities")
+    if not isinstance(capabilities, dict):
+        capabilities = legacy_capability_policy()
     component_paths = {
         "core": [target / "skills/chaos-engine/SKILL.md"],
         "skills": [project / ".agents/skills/chaos-engine/SKILL.md"],
@@ -1042,21 +1196,27 @@ def attach_component_status(
         ],
         "projection-policy": [target / MANIFEST_NAME],
     }
-    components: dict[str, dict[str, str]] = {}
+    components: dict[str, dict[str, object]] = {}
     for name, paths in component_paths.items():
         expected_count = 10 if name == "roles" else len(paths)
         healthy = len(paths) == expected_count and all(path.is_file() for path in paths)
         if name == "retrieval-config" and healthy:
             healthy = bool(host_controller.retrieval_configs_healthy(project))
-        components[name] = {"status": "healthy" if healthy else "absent"}
+        components[name] = {"status": "healthy" if healthy else "absent", **capabilities[name]}
     for name in ("tools", "memory", "mempalace", "graphify"):
-        components[name] = {"status": dependency_health}
+        components[name] = {"status": dependency_health, **capabilities[name]}
     mempalace_state = host_controller.mempalace_runtime_status(project)
     if mempalace_state.get("status") != "healthy":
-        components["mempalace"] = mempalace_state
+        components["mempalace"] = {**mempalace_state, **capabilities["mempalace"]}
+    cache_state = host_controller.maven_tools_cache_status()
+    components["maven-tools-mcp"] = {
+        **cache_state,
+        **capabilities["maven-tools-mcp"],
+    }
     result["components"] = components
-    if dependency_health != "healthy" or any(
-        item["status"] != "healthy" for item in components.values()
+    if any(
+        item["status"] != "healthy" and item["taskImpact"] != "optional"
+        for item in components.values()
     ):
         result["status"] = "recovery-required"
 
@@ -1284,6 +1444,13 @@ def parser() -> argparse.ArgumentParser:
     for name in ("status", "doctor", "rollback", "uninstall"):
         command = commands.add_parser(name)
         command.add_argument("--project", required=True, type=Path)
+    cache = commands.add_parser("cache")
+    cache_commands = cache.add_subparsers(dest="cache_command", required=True)
+    cache_status = cache_commands.add_parser("status")
+    cache_status.add_argument("--component", choices=("maven-tools-mcp",), required=True)
+    cache_purge = cache_commands.add_parser("purge")
+    cache_purge.add_argument("--component", choices=("maven-tools-mcp",), required=True)
+    cache_purge.add_argument("--version", required=True)
     return result
 
 
@@ -1307,6 +1474,13 @@ def main() -> int:
                 )
             )
             result: object = {"status": "installed", "root": str(target)}
+        elif args.command == "cache":
+            controller = load_source_controller("hosts")
+            result = (
+                controller.maven_tools_cache_status()
+                if args.cache_command == "status"
+                else controller.purge_maven_tools_cache(args.version)
+            )
         elif args.command == "status":
             result = status_with_dependencies(args.project)
         elif args.command == "doctor":

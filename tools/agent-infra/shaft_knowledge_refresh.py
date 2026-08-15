@@ -304,13 +304,27 @@ def refresh(requested_root: Path, requested_sentinel: Path) -> None:
         run([git_exe, "clean", "-ffd"], root, git_env)
         environment = git_env.copy()
         environment["SHAFT_GRAPHIFY_OUT"] = str(root / "graphify-out")
-        with trusted_graph_output(root / "graphify-out"):
-            run([str(Path(sys.executable).resolve()),
-                 "tools/repository-map/graphify_maintenance.py", "refresh", "--root", str(root)],
-                root, environment)
-        run([mempalace, "sync", str(root), "--wing", WING, "--apply"], root, git_env)
-        run([mempalace, "mine", str(root), "--wing", WING,
-             "--agent", "scheduled-refresh"], root, git_env)
+        outcomes: dict[str, str] = {}
+        try:
+            with trusted_graph_output(root / "graphify-out"):
+                run([str(Path(sys.executable).resolve()),
+                     "tools/repository-map/graphify_maintenance.py", "refresh", "--root", str(root)],
+                    root, environment)
+        except (OSError, ValueError, RuntimeError, subprocess.SubprocessError):
+            outcomes["Graphify"] = "failed"
+        else:
+            outcomes["Graphify"] = "healthy"
+        try:
+            run([mempalace, "sync", str(root), "--wing", WING, "--apply"], root, git_env)
+            run([mempalace, "mine", str(root), "--wing", WING,
+                 "--agent", "scheduled-refresh"], root, git_env)
+        except (OSError, ValueError, RuntimeError, subprocess.SubprocessError):
+            outcomes["MemPalace"] = "failed"
+        else:
+            outcomes["MemPalace"] = "healthy"
+        summary = "; ".join(f"{name}={status}" for name, status in outcomes.items())
+        if "failed" in outcomes.values():
+            raise RuntimeError(f"knowledge store maintenance failed: {summary}")
         print(f"SHAFT knowledge refresh complete at {fetched}")
 
 

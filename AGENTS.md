@@ -69,12 +69,19 @@ PowerShell quote property arguments and tokens containing `{}`, `@`, `;`,
 
 ## Memory and validation
 
-Current files beat every index. Query native `.memory/`, MemPalace, and
-Graphify through ChaosEngine before broad manual discovery; verify with
-targeted `rg`. Store durable decisions/gotchas once with evidence, reuse IDs,
-delete dead entries, and never create diaries.
+Current files beat every index. Query native `.memory/`, MemPalace, or Graphify
+through ChaosEngine only when one can answer a concrete task question; make one
+bounded attempt and verify useful leads with targeted `rg`. Store failures are
+advisory for ordinary tasks. Store durable decisions/gotchas once with evidence,
+reuse IDs, delete dead entries, and never create diaries.
 
 Use smallest non-redundant check after edits/rebases/dependency changes:
+
+During planning, offer tests created or edited only, the recommended balanced
+scope of those tests plus directly impacted tests, or the full suite. For a CI
+failure, inspect the failing job, fix its exact cause, rerun only tests created
+or edited for that fix, then push. Never rerun an entire suite merely because a
+CI job failed.
 
 - Guidance/memory: `py -3 scripts/ci/validate_agent_setup.py --skip-external`.
 - Local code: affected tests, then one affected compile/package.
@@ -89,5 +96,6 @@ user-level host directories and are never synced.
 
 ## Completion
 
-Report outcomes, exact checks, and Learning Loop result: native Memory,
-MemPalace/Graphify refresh, skill/playbook correction, issue filed, or none.
+Report outcomes, exact checks, and Learning Loop result: store write, degraded
+store disposition, issue reference, explicit nothing durable, or guidance fix.
+Do not refresh, mine, poll, or watch knowledge stores after an ordinary task.

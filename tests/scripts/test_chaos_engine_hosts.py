@@ -7,6 +7,7 @@ import errno
 import hashlib
 import json
 import os
+import shutil
 import sqlite3
 import subprocess  # nosec B404 - fixed Git acceptance commands.
 import tempfile
@@ -1260,6 +1261,312 @@ class ChaosEngineHostsTest(unittest.TestCase):
             self.assertEqual(jar.resolve(), module.verified_maven_tools_jar(jar))
             jar.write_bytes(b"changed")
             self.assertIsNone(module.verified_maven_tools_jar(jar))
+
+    def test_maven_tools_cache_status_and_purge_are_receipt_bounded(self):
+        module = load(HOSTS, "chaos_engine_hosts_maven_cache")
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary) / "cache"
+            version = root / module.MAVEN_TOOLS_MCP_VERSION
+            jar = version / f"maven-tools-mcp-{module.MAVEN_TOOLS_MCP_VERSION}.jar"
+
+            self.assertEqual("absent", module.maven_tools_cache_status(root=root)["status"])
+            version.mkdir(parents=True)
+            jar.write_bytes(b"jar")
+            (version / module.MAVEN_TOOLS_MCP_RECEIPT).write_text(
+                json.dumps({
+                    "version": module.MAVEN_TOOLS_MCP_VERSION,
+                    "commit": module.MAVEN_TOOLS_MCP_COMMIT,
+                    "jar": jar.name,
+                    "sha256": hashlib.sha256(jar.read_bytes()).hexdigest(),
+                }),
+                encoding="utf-8",
+            )
+
+            self.assertEqual("healthy", module.maven_tools_cache_status(root=root)["status"])
+            (version / "unknown.txt").write_text("unknown", encoding="utf-8")
+            self.assertEqual("invalid", module.maven_tools_cache_status(root=root)["status"])
+            with self.assertRaisesRegex(ValueError, "unknown"):
+                module.purge_maven_tools_cache(module.MAVEN_TOOLS_MCP_VERSION, root=root)
+            (version / "unknown.txt").unlink()
+            self.assertEqual("purged", module.purge_maven_tools_cache(module.MAVEN_TOOLS_MCP_VERSION, root=root)["status"])
+            self.assertEqual("absent", module.purge_maven_tools_cache(module.MAVEN_TOOLS_MCP_VERSION, root=root)["status"])
+
+    def test_maven_tools_cache_reports_nonwaiting_lock_contention(self):
+        module = load(HOSTS, "chaos_engine_hosts_maven_cache_lock")
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary) / "cache"
+            root.mkdir()
+            with module.maven_tools_cache_lock(root):
+                self.assertEqual("busy", module.maven_tools_cache_status(root=root)["status"])
+                with self.assertRaisesRegex(RuntimeError, "already running"):
+                    module.purge_maven_tools_cache(module.MAVEN_TOOLS_MCP_VERSION, root=root)
+
+    def test_maven_tools_cache_status_maps_inaccessible_lock_to_invalid(self):
+        module = load(HOSTS, "chaos_engine_hosts_maven_cache_inaccessible")
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary) / "cache"
+            root.mkdir()
+            with mock.patch.object(module.os, "open", side_effect=PermissionError("denied")):
+                observed = module.maven_tools_cache_status(root=root)
+            self.assertEqual("invalid", observed["status"])
+            self.assertNotIn("denied", json.dumps(observed))
+
+    def test_maven_tools_cache_status_maps_accessibility_race_to_invalid(self):
+        module = load(HOSTS, "chaos_engine_hosts_maven_cache_accessibility_race")
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary) / "cache"
+            with mock.patch.object(module, "_validate_cache_path"), mock.patch.object(
+                module, "is_link_or_reparse", side_effect=PermissionError("denied")
+            ):
+                observed = module.maven_tools_cache_status(root=root)
+            self.assertEqual("invalid", observed["status"])
+            self.assertNotIn("denied", json.dumps(observed))
+
+    def test_maven_tools_cache_rejects_linked_version_directory(self):
+        module = load(HOSTS, "chaos_engine_hosts_maven_cache_link")
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary) / "cache"
+            outside = Path(temporary) / "outside"
+            root.mkdir()
+            outside.mkdir()
+            version = root / module.MAVEN_TOOLS_MCP_VERSION
+            try:
+                version.symlink_to(outside, target_is_directory=True)
+            except OSError as error:
+                self.skipTest(f"directory links unavailable: {error}")
+
+            self.assertEqual("invalid", module.maven_tools_cache_status(root=root)["status"])
+            with self.assertRaisesRegex(ValueError, "linked|invalid"):
+                module.purge_maven_tools_cache(module.MAVEN_TOOLS_MCP_VERSION, root=root)
+            self.assertTrue(outside.exists())
+
+    def test_maven_tools_cache_status_reports_linked_root_as_invalid(self):
+        module = load(HOSTS, "chaos_engine_hosts_maven_cache_root_link")
+        with tempfile.TemporaryDirectory() as temporary:
+            outside = Path(temporary) / "outside"
+            root = Path(temporary) / "cache-link"
+            outside.mkdir()
+            try:
+                root.symlink_to(outside, target_is_directory=True)
+            except OSError as error:
+                self.skipTest(f"directory links unavailable: {error}")
+
+            self.assertEqual("invalid", module.maven_tools_cache_status(root=root)["status"])
+
+    def test_maven_tools_cache_status_reports_foreign_lock_as_invalid(self):
+        module = load(HOSTS, "chaos_engine_hosts_maven_cache_foreign_lock")
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary) / "cache"
+            root.mkdir()
+            (root / module.MAVEN_TOOLS_CACHE_LOCK).write_text("foreign", encoding="utf-8")
+
+            self.assertEqual("invalid", module.maven_tools_cache_status(root=root)["status"])
+
+    def test_maven_tools_cache_rejects_linked_ancestor_and_hard_linked_pair(self):
+        module = load(HOSTS, "chaos_engine_hosts_maven_cache_link_boundaries")
+        with tempfile.TemporaryDirectory() as temporary:
+            base = Path(temporary)
+            data = base / "data"
+            outside_component = base / "outside/ChaosEngine"
+            version = outside_component / "tools/maven-tools-mcp" / module.MAVEN_TOOLS_MCP_VERSION
+            version.mkdir(parents=True)
+            jar = version / f"maven-tools-mcp-{module.MAVEN_TOOLS_MCP_VERSION}.jar"
+            jar.write_bytes(b"jar")
+            receipt = version / module.MAVEN_TOOLS_MCP_RECEIPT
+            receipt.write_text(json.dumps({
+                "version": module.MAVEN_TOOLS_MCP_VERSION,
+                "commit": module.MAVEN_TOOLS_MCP_COMMIT,
+                "jar": jar.name,
+                "sha256": hashlib.sha256(jar.read_bytes()).hexdigest(),
+            }), encoding="utf-8")
+            data.mkdir()
+            try:
+                (data / "ChaosEngine").symlink_to(outside_component, target_is_directory=True)
+            except OSError as error:
+                self.skipTest(f"directory links unavailable: {error}")
+            apparent_root = data / "ChaosEngine/tools/maven-tools-mcp"
+
+            self.assertEqual("invalid", module.maven_tools_cache_status(root=apparent_root)["status"])
+            with self.assertRaises(ValueError):
+                module.purge_maven_tools_cache(module.MAVEN_TOOLS_MCP_VERSION, root=apparent_root)
+            self.assertTrue(jar.exists())
+
+            (data / "ChaosEngine").unlink()
+            real_root = data / "ChaosEngine/tools/maven-tools-mcp"
+            shutil.copytree(outside_component / "tools/maven-tools-mcp", real_root)
+            hard_link = base / "jar-hard-link"
+            try:
+                os.link(real_root / module.MAVEN_TOOLS_MCP_VERSION / jar.name, hard_link)
+            except OSError as error:
+                self.skipTest(f"hard links unavailable: {error}")
+            self.assertEqual("invalid", module.maven_tools_cache_status(root=real_root)["status"])
+            with self.assertRaises(ValueError):
+                module.purge_maven_tools_cache(module.MAVEN_TOOLS_MCP_VERSION, root=real_root)
+            self.assertTrue(hard_link.exists())
+
+    def test_default_maven_cache_rejects_link_above_configured_data_root(self):
+        module = load(HOSTS, "chaos_engine_hosts_maven_cache_default_ancestor")
+        with tempfile.TemporaryDirectory() as temporary:
+            base = Path(temporary)
+            outside = base / "outside"
+            alias = base / "alias"
+            version = outside / "data/ChaosEngine/tools/maven-tools-mcp" / module.MAVEN_TOOLS_MCP_VERSION
+            version.mkdir(parents=True)
+            jar = version / f"maven-tools-mcp-{module.MAVEN_TOOLS_MCP_VERSION}.jar"
+            jar.write_bytes(b"jar")
+            (version / module.MAVEN_TOOLS_MCP_RECEIPT).write_text(json.dumps({
+                "version": module.MAVEN_TOOLS_MCP_VERSION,
+                "commit": module.MAVEN_TOOLS_MCP_COMMIT,
+                "jar": jar.name,
+                "sha256": hashlib.sha256(jar.read_bytes()).hexdigest(),
+            }), encoding="utf-8")
+            try:
+                alias.symlink_to(outside, target_is_directory=True)
+            except OSError as error:
+                self.skipTest(f"directory links unavailable: {error}")
+            variable = "LOCALAPPDATA" if os.name == "nt" else "XDG_DATA_HOME"
+            with mock.patch.dict(os.environ, {variable: str(alias / "data")}, clear=False):
+                self.assertEqual("invalid", module.maven_tools_cache_status()["status"])
+                with self.assertRaises(ValueError):
+                    module.purge_maven_tools_cache(module.MAVEN_TOOLS_MCP_VERSION)
+            self.assertTrue(jar.exists())
+
+    def test_manual_maven_cache_publication_is_atomic_and_no_overwrite(self):
+        module = load(HOSTS, "chaos_engine_hosts_maven_cache_publish")
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary) / "cache"
+            staging = Path(temporary) / "staging-unique"
+            staging.mkdir()
+            jar = staging / f"maven-tools-mcp-{module.MAVEN_TOOLS_MCP_VERSION}.jar"
+            jar.write_bytes(b"jar")
+            (staging / module.MAVEN_TOOLS_MCP_RECEIPT).write_text(
+                json.dumps({
+                    "version": module.MAVEN_TOOLS_MCP_VERSION,
+                    "commit": module.MAVEN_TOOLS_MCP_COMMIT,
+                    "jar": jar.name,
+                    "sha256": hashlib.sha256(jar.read_bytes()).hexdigest(),
+                }),
+                encoding="utf-8",
+            )
+
+            target = module.publish_maven_tools_cache(staging, root=root)
+            self.assertEqual(root / module.MAVEN_TOOLS_MCP_VERSION, target)
+            self.assertFalse(staging.exists())
+            replacement = Path(temporary) / "staging-replacement"
+            shutil.copytree(target, replacement)
+            with self.assertRaisesRegex(ValueError, "already exists"):
+                module.publish_maven_tools_cache(replacement, root=root)
+
+    def test_manual_maven_cache_publication_refuses_last_moment_target(self):
+        module = load(HOSTS, "chaos_engine_hosts_maven_cache_publish_race")
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary) / "cache"
+            staging = Path(temporary) / "staging-unique"
+            staging.mkdir()
+            jar = staging / f"maven-tools-mcp-{module.MAVEN_TOOLS_MCP_VERSION}.jar"
+            jar.write_bytes(b"jar")
+            (staging / module.MAVEN_TOOLS_MCP_RECEIPT).write_text(json.dumps({
+                "version": module.MAVEN_TOOLS_MCP_VERSION,
+                "commit": module.MAVEN_TOOLS_MCP_COMMIT,
+                "jar": jar.name,
+                "sha256": hashlib.sha256(jar.read_bytes()).hexdigest(),
+            }), encoding="utf-8")
+
+            def collide(_source, target):
+                target.mkdir()
+                raise FileExistsError(target)
+
+            with mock.patch.object(module, "_rename_no_replace", side_effect=collide):
+                with self.assertRaisesRegex(ValueError, "already exists"):
+                    module.publish_maven_tools_cache(staging, root=root)
+            self.assertTrue(staging.exists())
+            self.assertTrue((root / module.MAVEN_TOOLS_MCP_VERSION).exists())
+
+    def test_native_no_replace_rename_preserves_both_directories(self):
+        module = load(HOSTS, "chaos_engine_hosts_native_no_replace")
+        with tempfile.TemporaryDirectory() as temporary:
+            source = Path(temporary) / "source"
+            target = Path(temporary) / "target"
+            source.mkdir()
+            target.mkdir()
+
+            with self.assertRaises(OSError):
+                module._rename_no_replace(source, target)
+
+            self.assertTrue(source.is_dir())
+            self.assertTrue(target.is_dir())
+
+    def test_maven_cache_purge_does_not_remove_replacement_directory(self):
+        module = load(HOSTS, "chaos_engine_hosts_maven_cache_purge_directory_race")
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary) / "cache"
+            version = root / module.MAVEN_TOOLS_MCP_VERSION
+            version.mkdir(parents=True)
+            jar = version / f"maven-tools-mcp-{module.MAVEN_TOOLS_MCP_VERSION}.jar"
+            jar.write_bytes(b"jar")
+            (version / module.MAVEN_TOOLS_MCP_RECEIPT).write_text(json.dumps({
+                "version": module.MAVEN_TOOLS_MCP_VERSION,
+                "commit": module.MAVEN_TOOLS_MCP_COMMIT,
+                "jar": jar.name,
+                "sha256": hashlib.sha256(jar.read_bytes()).hexdigest(),
+            }), encoding="utf-8")
+            owned_empty = Path(temporary) / "owned-empty"
+            original = module._rmdir_stable_cache_directory
+
+            def replace_before_remove(path, expected):
+                path.rename(owned_empty)
+                path.mkdir()
+                return original(path, expected)
+
+            with mock.patch.object(module, "_rmdir_stable_cache_directory", side_effect=replace_before_remove):
+                with self.assertRaisesRegex(ValueError, "changed before purge"):
+                    module.purge_maven_tools_cache(module.MAVEN_TOOLS_MCP_VERSION, root=root)
+            self.assertTrue(owned_empty.is_dir())
+            self.assertTrue(any(path.is_dir() for path in root.iterdir() if path.name.startswith(".purged-")))
+            self.assertEqual("invalid", module.maven_tools_cache_status(root=root)["status"])
+
+    def test_two_projects_reuse_one_immutable_maven_cache_pair(self):
+        module = load(HOSTS, "chaos_engine_hosts_maven_cache_consumers")
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            data = root / "data"
+            cache = data / "ChaosEngine/tools/maven-tools-mcp"
+            version = cache / module.MAVEN_TOOLS_MCP_VERSION
+            version.mkdir(parents=True)
+            jar = version / f"maven-tools-mcp-{module.MAVEN_TOOLS_MCP_VERSION}.jar"
+            jar.write_bytes(b"jar")
+            (version / module.MAVEN_TOOLS_MCP_RECEIPT).write_text(
+                json.dumps({
+                    "version": module.MAVEN_TOOLS_MCP_VERSION,
+                    "commit": module.MAVEN_TOOLS_MCP_COMMIT,
+                    "jar": jar.name,
+                    "sha256": hashlib.sha256(jar.read_bytes()).hexdigest(),
+                }), encoding="utf-8"
+            )
+            java = root / "java.exe"
+            java.write_bytes(b"java")
+            projects = [root / "one", root / "two"]
+            for project in projects:
+                skill = project / ".chaos-engine/skills/chaos-engine/SKILL.md"
+                skill.parent.mkdir(parents=True)
+                skill.write_text("skill", encoding="utf-8")
+            data_variable = "LOCALAPPDATA" if os.name == "nt" else "XDG_DATA_HOME"
+            before = hashlib.sha256(jar.read_bytes()).hexdigest()
+
+            with mock.patch.dict(
+                os.environ,
+                {data_variable: str(data), "CHAOSENGINE_JAVA": str(java), "CHAOSENGINE_MAVEN_TOOLS_MCP_JAR": ""},
+                clear=False,
+            ), mock.patch.object(module, "java_major", return_value=25), mock.patch.object(
+                module, "project_identity_name", side_effect=("one", "two")
+            ):
+                for project in projects:
+                    module.install(project, core_commit="1" * 40)
+
+            for project in projects:
+                configured = json.loads((project / ".mcp.json").read_text(encoding="utf-8"))
+                self.assertEqual(str(jar.resolve()), configured["mcpServers"]["maven-tools-mcp"]["args"][1])
+            self.assertEqual(before, hashlib.sha256(jar.read_bytes()).hexdigest())
 
     def test_native_maven_tools_runtime_resolves_path_java_symlink(self):
         module = load(HOSTS, "chaos_engine_hosts_native_maven_java_symlink")

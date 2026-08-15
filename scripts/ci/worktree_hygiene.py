@@ -30,6 +30,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import shutil
 import subprocess  # nosec B404 - fixed, read-only git and gh queries.
 import sys
@@ -151,6 +152,8 @@ def _git(cwd: Path, *arguments: str) -> str | None:
     # `.memory/**` paths, and a failed status query would otherwise read as
     # "clean".
     try:
+        environment = os.environ.copy()
+        environment["GIT_OPTIONAL_LOCKS"] = "0"
         completed = subprocess.run(  # nosec B603 B607 - fixed read-only git query.
             ["git", "-c", "core.longpaths=true", *arguments],
             cwd=cwd,
@@ -158,6 +161,7 @@ def _git(cwd: Path, *arguments: str) -> str | None:
             text=True,
             timeout=GIT_TIMEOUT_SECONDS,
             check=False,
+            env=environment,
         )
     except (OSError, subprocess.SubprocessError):
         return None

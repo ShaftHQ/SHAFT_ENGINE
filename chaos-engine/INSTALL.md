@@ -98,10 +98,11 @@ The consumer folder may be a GitHub checkout, another Git checkout, or a
 non-Git directory. ChaosEngine installs project-locally and does not infer its
 upstream from the consumer repository.
 
-`doctor` reports each required component independently: core, projection
-policy, skills, playbooks, hooks, plugins, roles, MCPs, retrieval config, tools,
-Memory, MemPalace, and Graphify. Any missing selected component prevents a
-healthy verdict.
+`status` and `doctor` report every component with its `owner`, `scope`,
+`lifecycle`, and `taskImpact`. Memory, MemPalace, and Graphify are advisory to
+ordinary tasks but remain strict in `doctor`; an unhealthy selected store still
+returns `recovery-required`. The optional Maven Tools MCP cache is user-owned
+and does not make project health fail.
 
 ## Optional native Maven Tools MCP
 
@@ -120,7 +121,9 @@ native JAR flow instead:
    wrapper supplies Maven; Java 25 and Git are prerequisites. Upstream does not
    publish a JAR release asset, so do not invent a download URL or silently
    fall back to Docker.
-3. Put `maven-tools-mcp-3.2.0.jar` under the current user's data directory at
+3. Stage `maven-tools-mcp-3.2.0.jar` under a fresh unique directory on the same
+   filesystem as the current user's data directory, then publish that directory
+   with a no-overwrite rename to
    `ChaosEngine/tools/maven-tools-mcp/3.2.0/`. On Windows the data directory is
    `%LOCALAPPDATA%`; elsewhere it is `$XDG_DATA_HOME`, or `~/.local/share` when
    that variable is unset. `CHAOSENGINE_MAVEN_TOOLS_MCP_JAR` may name a
@@ -128,7 +131,9 @@ native JAR flow instead:
    these keys: `version` = `3.2.0`, `commit` = the pinned commit above, `jar` =
    the installed filename, and `sha256` = the lowercase SHA-256 of its bytes.
    Discovery recomputes the digest and rejects a missing, malformed, stale, or
-   differently pinned receipt.
+   differently pinned receipt. The version directory is an immutable,
+   user-managed cache: parallel projects may read the verified pair, while
+   project uninstall never changes or removes it.
 4. Run the ChaosEngine bootstrap again. Host installation discovers both files
    and atomically rewrites `.mcp.json`, `.gemini/settings.json`, and
    `.codex/config.toml` with their resolved absolute paths. Upgrades repeat
@@ -144,14 +149,28 @@ If Java 25 or the verified JAR is absent, installation leaves this optional MCP
 server out of every host configuration. Maven CLI, repository files, Context7,
 and authoritative Maven Central sources remain the no-Docker fallback.
 
+Inspect or remove the exact supported cache version with:
+
+```text
+python .chaos-engine/install.py cache status --component maven-tools-mcp
+python .chaos-engine/install.py cache purge --component maven-tools-mcp --version 3.2.0
+```
+
+`cache status` returns `healthy`, `absent`, `invalid`, or `busy`. `cache purge`
+takes a non-waiting user-cache lock and removes only the verified receipt-owned
+JAR and receipt. It refuses modified, linked, unknown, broad, or busy targets;
+an absent version is already successful.
+
 An installing agent can use this PowerShell sequence after the source build:
 
 ```powershell
 $version = '3.2.0'
 $commit = '4475ff6c61f23ea9a93cb6d5665a63235ef2ef36'
-$toolDir = Join-Path $env:LOCALAPPDATA "ChaosEngine\tools\maven-tools-mcp\$version"
-$jar = Join-Path $toolDir "maven-tools-mcp-$version.jar"
-New-Item -ItemType Directory -Force -Path $toolDir | Out-Null
+$cacheRoot = Join-Path $env:LOCALAPPDATA "ChaosEngine\tools\maven-tools-mcp"
+$staging = Join-Path $cacheRoot (".staging-" + [guid]::NewGuid().ToString('N'))
+$jar = Join-Path $staging "maven-tools-mcp-$version.jar"
+New-Item -ItemType Directory -Force -Path $cacheRoot | Out-Null
+New-Item -ItemType Directory -Path $staging | Out-Null
 Copy-Item -LiteralPath "target\maven-tools-mcp-$version.jar" -Destination $jar
 $receipt = [ordered]@{
   version = $version
@@ -159,7 +178,8 @@ $receipt = [ordered]@{
   jar = [IO.Path]::GetFileName($jar)
   sha256 = (Get-FileHash -Algorithm SHA256 -LiteralPath $jar).Hash.ToLowerInvariant()
 }
-$receipt | ConvertTo-Json | Set-Content -Encoding utf8NoBOM (Join-Path $toolDir 'install-receipt.json')
+$receipt | ConvertTo-Json | Set-Content -Encoding utf8NoBOM (Join-Path $staging 'install-receipt.json')
+py -3 -c "import runpy,sys; from pathlib import Path; api=runpy.run_path('.chaos-engine/hosts.py'); api.get('publish_maven_tools_cache')(Path(sys.argv[1]), root=Path(sys.argv[2]))" $staging $cacheRoot
 ```
 
 The equivalent POSIX installation is:
@@ -168,12 +188,14 @@ The equivalent POSIX installation is:
 version=3.2.0
 commit=4475ff6c61f23ea9a93cb6d5665a63235ef2ef36
 data_root=${XDG_DATA_HOME:-"$HOME/.local/share"}
-tool_dir="$data_root/ChaosEngine/tools/maven-tools-mcp/$version"
-jar="$tool_dir/maven-tools-mcp-$version.jar"
-mkdir -p "$tool_dir"
+cache_root="$data_root/ChaosEngine/tools/maven-tools-mcp"
+mkdir -p "$cache_root"
+staging=$(mktemp -d "$cache_root/.staging.XXXXXXXX")
+jar="$staging/maven-tools-mcp-$version.jar"
 cp "target/maven-tools-mcp-$version.jar" "$jar"
 sha=$(python3 -c 'import hashlib,pathlib,sys; print(hashlib.sha256(pathlib.Path(sys.argv[1]).read_bytes()).hexdigest())' "$jar")
 printf '{"version":"%s","commit":"%s","jar":"%s","sha256":"%s"}\n' \
   "$version" "$commit" "maven-tools-mcp-$version.jar" "$sha" \
-  > "$tool_dir/install-receipt.json"
+  > "$staging/install-receipt.json"
+python3 -c "import runpy,sys; from pathlib import Path; api=runpy.run_path('.chaos-engine/hosts.py'); api.get('publish_maven_tools_cache')(Path(sys.argv[1]), root=Path(sys.argv[2]))" "$staging" "$cache_root"
 ```

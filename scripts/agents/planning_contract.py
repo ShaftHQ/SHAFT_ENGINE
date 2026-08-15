@@ -35,6 +35,24 @@ def _source_discoverable_question(value: str) -> bool:
     ))
 
 
+def _valid_retrieval_receipt(value: object) -> bool:
+    if not isinstance(value, dict):
+        return False
+    status = value.get("status")
+    if status is None:  # Schema-v1 compatibility: query plus evidence meant "used".
+        return _text(value.get("query")) and _texts(value.get("evidence"))
+    if status == "used":
+        return _text(value.get("query")) and _texts(value.get("evidence"))
+    if status == "skipped":
+        return _text(value.get("reason"))
+    if status == "degraded":
+        return (
+            _text(value.get("operation") or value.get("query"))
+            and _text(value.get("reason"))
+        )
+    return False
+
+
 def validate_plan(plan: object) -> list[str]:  # noqa: MC0001
     """Return deterministic violations for one consequential-work plan."""
     if not isinstance(plan, dict):
@@ -91,8 +109,8 @@ def validate_plan(plan: object) -> list[str]:  # noqa: MC0001
     retrieval = plan.get("retrieval")
     for store in ("memory", "mempalace", "graphify"):
         receipt = retrieval.get(store) if isinstance(retrieval, dict) else None
-        if not isinstance(receipt, dict) or not _text(receipt.get("query")) or not _texts(receipt.get("evidence")):
-            violations.append(f"missing {store} retrieval receipt")
+        if not _valid_retrieval_receipt(receipt):
+            violations.append(f"missing or invalid {store} retrieval receipt")
 
     research = plan.get("research")
     if not isinstance(research, list) or not research:

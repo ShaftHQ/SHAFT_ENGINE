@@ -480,14 +480,18 @@ class ChaosEngineBootstrapTest(unittest.TestCase):
                     "memory",
                     "mempalace",
                     "graphify",
+                    "maven-tools-mcp",
                     "retrieval-config",
                     "projection-policy",
                 },
                 set(status["components"]),
             )
-            self.assertTrue(
-                all(component["status"] == "healthy" for component in status["components"].values())
-            )
+            self.assertEqual("absent", status["components"]["maven-tools-mcp"]["status"])
+            self.assertTrue(all(
+                component["status"] == "healthy"
+                for name, component in status["components"].items()
+                if name != "maven-tools-mcp"
+            ))
             self.assertTrue(project.joinpath(".agents/skills/chaos-engine/SKILL.md").is_file())
             self.assertTrue(project.joinpath(".mcp.json").is_file())
 

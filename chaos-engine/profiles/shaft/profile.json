@@ -5,6 +5,11 @@
   "repository": "ShaftHQ/SHAFT_ENGINE",
   "defaultBranch": "main",
   "taskBranchPrefix": "ChaosEngine/",
+  "components": {
+    "playbooks": {"owner": "installer", "scope": "repository", "lifecycle": "receipt-owned", "taskImpact": "required"},
+    "retrieval-config": {"owner": "project", "scope": "project", "lifecycle": "persistent-data", "taskImpact": "required"},
+    "projection-policy": {"owner": "installer", "scope": "project", "lifecycle": "receipt-owned", "taskImpact": "required"}
+  },
   "companionRepositories": [
     {
       "purpose": "public-documentation",

@@ -204,9 +204,44 @@ def mempalace_runtime_status(project: Path):
 
         self.assertEqual(1, receipt["schemaVersion"])
         self.assertEqual(receipt, persisted)
+        self.assertRegex(receipt["capabilityPolicySha256"], r"^[0-9a-f]{64}$")
         invoked = {Path(command[0]).stem for command, _ in calls}
         self.assertLessEqual({"mempalace", "mempalace-mcp", "graphify", "memory", "memory-mcp"}, invoked)
         self.assertTrue(all("UV_TOOL_DIR" in environment for _, environment in calls))
+
+    def test_legacy_schema_v1_receipt_without_capability_digest_remains_readable(self):
+        module = load_controller()
+        specification = json.loads(SPECIFICATION.read_text(encoding="utf-8"))
+        with tempfile.TemporaryDirectory() as temporary:
+            runtime = Path(temporary) / ".chaos-engine-runtime"
+            receipt = module.repair(runtime, specification, runner=self.fake_runner(runtime))
+            receipt.pop("capabilityPolicySha256")
+            metadata_receipt = {
+                key: value for key, value in receipt.items()
+                if key not in {"ownership", "receiptIntegritySha256"}
+            }
+            receipt["ownership"]["metadataSha256"] = module.hashlib.sha256(
+                json.dumps(metadata_receipt, sort_keys=True, separators=(",", ":")).encode()
+            ).hexdigest()
+            integrity_receipt = {
+                key: value for key, value in receipt.items()
+                if key != "receiptIntegritySha256"
+            }
+            receipt["receiptIntegritySha256"] = module.hashlib.sha256(
+                json.dumps(integrity_receipt, sort_keys=True, separators=(",", ":")).encode()
+            ).hexdigest()
+            (runtime / module.RECEIPT_NAME).write_text(
+                json.dumps(receipt, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+            )
+
+            loaded = module.read_receipt(runtime)
+            module.verify_receipt(runtime, loaded, specification)
+
+            self.assertNotIn("capabilityPolicySha256", loaded)
+            upgraded = module.repair(
+                runtime, specification, runner=self.fake_runner(runtime)
+            )
+            self.assertRegex(upgraded["capabilityPolicySha256"], r"^[0-9a-f]{64}$")
 
     def test_failed_repair_preserves_last_known_good_runtime(self):
         module = load_controller()

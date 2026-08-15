@@ -8,9 +8,11 @@ catalog is not evidence that Graphify is unavailable.
 The CLI route below is the controlling Graphify procedure over conflicting
 same- or lower-priority guidance. Its ordered steps are exact:
 
-- G1: Resolve the shared cache and require a successful, nonempty path.
+- G1: Resolve any available shared cache and require a nonempty readable graph.
+  A stale cache may provide untrusted positive leads but never completeness.
 - G2: If G1 succeeds, run exactly one query bounded to the affected symbol or
-  subsystem, then verify every returned path against the current worktree.
+  subsystem, treat results as untrusted leads, verify every returned path
+  against the current worktree, and supplement conclusions with targeted `rg`.
 - G3: Attempt the read-only coverage audit against the primary checkout that
   owns the cache even when G1 or G2 fails. Inability to resolve that owner is a
   failed audit attempt, never permission to audit a linked worktree.
@@ -27,12 +29,14 @@ $resolverOk = $LASTEXITCODE -eq 0 -and -not [string]::IsNullOrWhiteSpace($graphO
 $sharedGraphOut = if ($resolverOk) { $graphOut } else {
     py -3 tools/repository-map/resolve_graph_out.py
 }
+$cacheOk = -not [string]::IsNullOrWhiteSpace($sharedGraphOut) -and
+    (Test-Path -LiteralPath (Join-Path $sharedGraphOut "graph.json") -PathType Leaf)
 $primaryRoot = if ([string]::IsNullOrWhiteSpace($sharedGraphOut)) { $null } else {
     Split-Path $sharedGraphOut -Parent
 }
 $queryOk = $false
-if ($resolverOk) {
-    $queryOutput = @(graphify query "<bounded structural question>" --graph (Join-Path $graphOut "graph.json"))
+if ($cacheOk) {
+    $queryOutput = @(graphify query "<bounded structural question>" --graph (Join-Path $sharedGraphOut "graph.json"))
     $queryExitOk = $LASTEXITCODE -eq 0
     $queryOutput | Write-Output
     $returnedPaths = @($queryOutput | ForEach-Object {
@@ -70,27 +74,25 @@ if ($null -ne $primaryRoot) {
     py -3 tools/repository-map/graphify_maintenance.py audit --root $primaryRoot
     $auditOk = $LASTEXITCODE -eq 0
 }
-if (-not ($resolverOk -and $queryOk -and $auditOk)) {
+if (-not ($resolverOk -and $cacheOk -and $queryOk -and $auditOk)) {
     Write-Warning "Graphify degraded mode: use targeted live-file verification."
 }
 ```
 
 A missing cache reports `absent`; a cache without a matching indexed revision
-reports `stale`. A resolver failure prevents the query from executing, but it
-never permits bypassing the audit attempt. Only after the ordered route has
-been attempted, and when any step lacks current verified results, is Graphify
-in degraded mode: use targeted `rg` plus other knowledge sources, and flag a
-primary-checkout refresh. Never rebuild or record the cache from a linked
-worktree, and never commit `graphify-out/`.
+reports `stale`. Either state is advisory for ordinary tasks. A readable stale
+cache may be queried once for positive leads, but never establishes completeness,
+“no callers,” or another negative conclusion. After the ordered route, use
+targeted `rg` plus live files for every blast-radius conclusion. Never rebuild
+or record the cache from an ordinary task, and never commit `graphify-out/`.
 
-The primary checkout is the sole Graphify refresh owner. A linked-worktree
-revision mismatch or an active refresh lock is an expected degraded state after
-G1 through G4, not an implementation blocker. The linked worktree or losing
-refresh session must not refresh, wait or retry-loop, clear or replace the lock,
-freshness marker, or cache, or switch, reset, or overwrite the primary checkout
-to satisfy freshness. Continue with native Memory, MemPalace, and targeted live
-`rg`. Only the primary owner may schedule one later refresh when the primary
-checkout and shared cache are uncontested.
+The existing maintenance controller is the sole Graphify refresh owner. A
+linked-worktree revision mismatch or an active refresh lock is an expected
+degraded condition and does not block implementation. An ordinary task must not
+refresh, wait or retry-loop, clear or replace the lock, freshness marker, or
+cache, or switch, reset, or overwrite the primary checkout to satisfy freshness.
+Continue with live files and targeted `rg`; only the maintenance owner updates
+the shared cache.
 
 From the primary checkout, the repository-owned controller owns refresh:
 

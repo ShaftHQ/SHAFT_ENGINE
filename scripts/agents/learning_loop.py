@@ -32,7 +32,13 @@ ORIGINS = frozenset({"user", "tool", "reviewer", "agent"})
 RISK_TIERS = frozenset({"ordinary", "kernel"})
 EVIDENCE_KINDS = frozenset({"test", "guard", "review", "tool", "issue", "trace", "file"})
 NO_LEARNING_REASONS = frozenset(
-    {"no_new_evidence", "duplicate_evidence", "trivial_interaction", "already_routed"}
+    {
+        "no_new_evidence",
+        "duplicate_evidence",
+        "trivial_interaction",
+        "already_routed",
+        "store_degraded",
+    }
 )
 SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 GIT_REF_RE = re.compile(r"^[0-9a-f]{40}$")

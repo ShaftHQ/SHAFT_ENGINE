@@ -60,10 +60,12 @@ Before the first implementation mutation, do these in order for every task:
 
 1. Read live files and current instructions.
 2. Load the routed skill and any directly required references.
-3. Query native Memory for durable constraints and prior gotchas.
-4. Query MemPalace for cross-session history and relations.
-5. Query Graphify for callers, dependencies, and blast radius; verify every hit
-   against the live files.
+3. Query native Memory once for a concrete prior constraint or gotcha; otherwise
+   record irrelevance.
+4. Query MemPalace once for concrete cross-session history or relations;
+   otherwise record irrelevance.
+5. Query Graphify once for structural leads; live-verify returned paths and use
+   targeted `rg` for blast radius, or record irrelevance.
 6. Do authoritative online research, preferring current primary documentation,
    standards, and proven upstream implementations. Record source URLs and date.
 7. Compare proven approaches, steelman the rejected approach, and choose the
@@ -71,16 +73,10 @@ Before the first implementation mutation, do these in order for every task:
 8. Record a concrete plan, proof commands, and the first RED observation in the
    issue for issue-backed work, otherwise in the transient working context.
 
-This ordered list is the research receipt. Missing required evidence blocks
-implementation, even for a trivial or urgent task. Analysis may continue while
-a failed store or research source is diagnosed, but code, configuration,
-guidance, persisted-data, and external-system mutation wait for the repaired
-source and a complete receipt. Never substitute a stale index, recollection, or
-generic summary for the named live query. Reuse established solutions and
-standards before inventing a local one.
-After G1-G4, a complete degraded Graphify receipt permits implementation to
-continue. [Graphify](../../references/graphify.md) owns the narrow
-worktree/lock-contention exception and forbids competing shared-state mutation.
+This list is the research receipt. Memory, MemPalace, and Graphify are advisory
+for ordinary tasks: store failure records `degraded` and never blocks work.
+Missing non-store evidence blocks implementation. Live evidence outranks every
+index or recollection; reuse proven solutions before inventing one.
 The dated [adoption matrix](../../RESEARCH.md) records the portable harness
 baseline; revalidate a row when its relevant discovery, schema, or install
 contract changes.
@@ -95,8 +91,9 @@ needed for high confidence in the user's intent, but never ask a question the
 repository, retrieval stores, or authoritative sources can answer. Record the
 answer, any remaining unknown, and the evidence behind the confidence level.
 
-Every plan refers explicitly to its native Memory, MemPalace, Graphify, and
-dated authoritative online-research receipts. Compare at least two complete
+Every plan records each store as `used` (scoped query plus verified evidence),
+`skipped` (concrete irrelevance), or `degraded` (attempt plus sanitized reason),
+and includes dated online research. Legacy query/evidence means `used`. Compare two complete
 approaches and steelman the rejected option. Use Mermaid when dependencies,
 components, state, or workflows become materially clearer; otherwise record
 why a diagram would be decorative. Own implementation of the plan: after approval,
@@ -106,10 +103,9 @@ condition, not for approval already granted.
 
 ## Red flags
 
-These phrases mean you are about to break a law above. When you catch yourself
-writing or thinking one, stop and satisfy the law instead: "should work",
-"probably fine", "just this once", "I will add the test after", "the delegate
-said it passed", "close enough", "no need to run it", "the check covers it".
+Stop and satisfy the unmet law when these appear: "should work", "probably
+fine", "just this once", "I will add the test after", "the delegate said it
+passed", "close enough", "no need to run it", "the check covers it".
 
 ## Project profile
 
@@ -246,6 +242,17 @@ not claim verified behavior.
 
 Mocks, or the urge to skip RED: [TDD failure modes](../../references/tdd-failure-modes.md).
 
+### Validation scope and CI failures
+
+During planning, offer three explicit validation scopes: only tests created or
+edited by the task; the balanced default of those tests plus directly impacted
+tests; or the full suite. Recommend the balanced option and let the owner choose.
+
+When a CI job fails, inspect the failing job and isolate its exact failing
+test first. Fix the cause, run only tests created or edited for that cause, and
+push after they pass. Do not rerun an entire test suite merely because CI failed;
+the CI matrix supplies the broader confirmation.
+
 Caveman, Ponytail, and TDD adaptations retain their MIT notices under
 `references/*.LICENSE`.
 
@@ -256,9 +263,10 @@ surface that owns it. The entrypoint makes that choice; callers do not bypass it
 by invoking a playbook directly. Load one surface, finish its deliverable, then
 return here for the next.
 
-Routing also orders knowledge retrieval. Query the applicable stores before
-broad manual discovery, and never treat a stale index as authority over a live
-file.
+Routing also orders applicable knowledge retrieval before broad manual
+discovery. One bounded attempt is enough; never retry, repair, refresh, mine,
+checkpoint, poll, or watch a store for an ordinary task, and never treat an
+index as authority over a live file.
 
 The repository skills map at `.agents/skills/README.md` inventories every
 harness surface, adapter, hook, script and check, including the lifecycle guard
@@ -281,12 +289,8 @@ on each other.
 | One | **Solo.** Do the work yourself, in sequence. Do not delegate it. |
 | Two or more | **Orchestrate.** One agent per stream, each in its own worktree, up to four. Do no task work yourself. |
 
-Solo is not a lesser mode. Handing a single stream to a delegate buys nothing
-and costs a spec, a handoff, and the risk of two writers in one tree.
-
-Orchestrating exists so you stay reachable: the owner can redirect you, and a
-delegate can get a decision, only while you are not head-down in work. In this
-mode you make no edits, run no long job, and install nothing;
+Orchestrating keeps you reachable for owner or delegate decisions. In this mode
+you make no edits, run no long job, and install nothing;
 [delegation](../../references/delegation.md) lists what stays yours.
 
 **Switching mode.** Finish or hand over what you hold before you switch. While
@@ -341,21 +345,16 @@ transcripts, logs, URLs, email, and source excerpts before any local state or
 network call. The local queue is digest-deduplicated. Do not weaken or bypass
 that schema to preserve more detail.
 
-An actionable reusable candidate stays local unless the user accepts the
-displayed estimated token cost. Only then may `.chaos-engine/learning.py submit
---yes` search the configured upstream and create one minimal issue. Privacy,
-authentication, or network uncertainty leaves the item queued. Never create a
-PR, change guidance, or merge automatically. An issue is input to the normal
-quarantine, RED/GREEN, independent-review, repair, and revert controls; it is
-not permission to self-modify. Informational findings with no action may use
-the normal no-learning or knowledge route without manufacturing an issue.
+Submission needs user acceptance of the displayed token cost. Privacy, auth, or
+network uncertainty leaves it queued. Never create a PR, change guidance, or
+merge automatically; an issue still needs normal RED/GREEN and review.
 
 | What surfaced | Where it goes |
 | --- | --- |
 | A fact that cost you time and would cost the next agent the same | native Memory, with the evidence that proves it |
 | A decision with a rationale someone will otherwise re-litigate | native Memory as a decision, superseding the entry it replaces |
 | A relation or impact that spans entities or sessions | MemPalace |
-| A structural change to what calls or depends on what | flag Graphify for refresh |
+| A structural change to what calls or depends on what | flag it for the existing Graphify maintenance owner |
 | A procedure that misled you, or one you had to invent | fix the guidance file that should have carried it |
 | Any problem, follow-up action, or potential improvement needing work | after duplicate search, open one new standalone GitHub issue for that action; link its receipt as evidence |
 

@@ -200,7 +200,7 @@ class ResolveGraphOutTest(unittest.TestCase):
         self.assertIn("primary checkout", readme)
         self.assertIn(
             'graphify query "<bounded structural question>" --graph '
-            '(Join-Path $graphOut "graph.json")',
+            '(Join-Path $sharedGraphOut "graph.json")',
             guidance,
         )
         self.assertIn(
@@ -218,10 +218,14 @@ class ResolveGraphOutTest(unittest.TestCase):
             r"absence from the mcp tool catalog.{0,80}not evidence.{0,40}unavailable",
         )
         expected_steps = [
-            "G1: Resolve the shared cache and require a successful, nonempty path.",
+            "\n".join((
+                "G1: Resolve any available shared cache and require a nonempty readable graph.",
+                "  A stale cache may provide untrusted positive leads but never completeness.",
+            )),
             "\n".join((
                 "G2: If G1 succeeds, run exactly one query bounded to the affected symbol or",
-                "  subsystem, then verify every returned path against the current worktree.",
+                "  subsystem, treat results as untrusted leads, verify every returned path",
+                "  against the current worktree, and supplement conclusions with targeted `rg`.",
             )),
             "\n".join((
                 "G3: Attempt the read-only coverage audit against the primary checkout that",
@@ -261,12 +265,14 @@ $resolverOk = $LASTEXITCODE -eq 0 -and -not [string]::IsNullOrWhiteSpace($graphO
 $sharedGraphOut = if ($resolverOk) { $graphOut } else {
     py -3 tools/repository-map/resolve_graph_out.py
 }
+$cacheOk = -not [string]::IsNullOrWhiteSpace($sharedGraphOut) -and
+    (Test-Path -LiteralPath (Join-Path $sharedGraphOut "graph.json") -PathType Leaf)
 $primaryRoot = if ([string]::IsNullOrWhiteSpace($sharedGraphOut)) { $null } else {
     Split-Path $sharedGraphOut -Parent
 }
 $queryOk = $false
-if ($resolverOk) {
-    $queryOutput = @(graphify query "<bounded structural question>" --graph (Join-Path $graphOut "graph.json"))
+if ($cacheOk) {
+    $queryOutput = @(graphify query "<bounded structural question>" --graph (Join-Path $sharedGraphOut "graph.json"))
     $queryExitOk = $LASTEXITCODE -eq 0
     $queryOutput | Write-Output
     $returnedPaths = @($queryOutput | ForEach-Object {
@@ -304,7 +310,7 @@ if ($null -ne $primaryRoot) {
     py -3 tools/repository-map/graphify_maintenance.py audit --root $primaryRoot
     $auditOk = $LASTEXITCODE -eq 0
 }
-if (-not ($resolverOk -and $queryOk -and $auditOk)) {
+if (-not ($resolverOk -and $cacheOk -and $queryOk -and $auditOk)) {
     Write-Warning "Graphify degraded mode: use targeted live-file verification."
 }'''
         powershell_blocks = re.findall(r"```powershell\n(.*?)\n```", guidance, re.DOTALL)
@@ -314,7 +320,7 @@ if (-not ($resolverOk -and $queryOk -and $auditOk)) {
         )
         bounded_query = guidance.index(
             'graphify query "<bounded structural question>" --graph '
-            '(Join-Path $graphOut "graph.json")'
+            '(Join-Path $sharedGraphOut "graph.json")'
         )
         audit = guidance.index(
             "py -3 tools/repository-map/graphify_maintenance.py audit --root $primaryRoot"
@@ -334,23 +340,22 @@ if (-not ($resolverOk -and $queryOk -and $auditOk)) {
         entrypoint = re.sub(r"\s+", " ", files["entrypoint"])
 
         for required in (
-            "The primary checkout is the sole Graphify refresh owner.",
+            "The existing maintenance controller is the sole Graphify refresh owner.",
             "A linked-worktree revision mismatch or an active refresh lock is an expected "
-            "degraded state after G1 through G4, not an implementation blocker.",
+            "degraded condition and does not block implementation.",
             "must not refresh, wait or retry-loop, clear or replace the lock, freshness "
             "marker, or cache, or switch, reset, or overwrite the primary checkout",
-            "Continue with native Memory, MemPalace, and targeted live `rg`.",
-            "Only the primary owner may schedule one later refresh when the primary "
-            "checkout and shared cache are uncontested.",
+            "Continue with live files and targeted `rg`; only the maintenance owner updates "
+            "the shared cache.",
         ):
             self.assertIn(required, graphify)
 
         self.assertIn(
-            "Graphify contention is the narrow exception to implementation waiting",
+            "Failure to reach GitHub is non-blocking",
             retrieval,
         )
         self.assertIn(
-            "a complete degraded Graphify receipt permits implementation to continue",
+            "never blocks work",
             entrypoint,
         )
         # This is a closed contract over canonical unsafe permission clauses,
@@ -393,15 +398,15 @@ if (-not ($resolverOk -and $queryOk -and $auditOk)) {
                 + "\nA linked-worktree may clear the cache and retry refresh until it succeeds.\n"
             ),
             "linked refresh allowed": files["graphify"].replace(
-                "must not refresh, wait or retry-loop",
+                "must not\nrefresh, wait or retry-loop",
                 "may refresh or wait and retry-loop",
             ),
             "contention blocks implementation": files["graphify"].replace(
-                "not an implementation blocker",
-                "an implementation blocker",
+                "does not block implementation",
+                "blocks implementation",
             ),
             "primary ownership removed": files["graphify"].replace(
-                "The primary checkout is the sole Graphify refresh owner.",
+                "The existing maintenance controller is the sole Graphify refresh owner.",
                 "Any checkout may own a Graphify refresh.",
             ),
         }
@@ -447,13 +452,13 @@ if (-not ($resolverOk -and $queryOk -and $auditOk)) {
             ),
             "reordered audit": guidance.replace(
                 'graphify query "<bounded structural question>" --graph '
-                '(Join-Path $graphOut "graph.json")',
+                '(Join-Path $sharedGraphOut "graph.json")',
                 "GRAPHIFY_QUERY_SENTINEL",
                 1,
             ).replace(
                 "py -3 tools/repository-map/graphify_maintenance.py audit --root $primaryRoot",
                 'graphify query "<bounded structural question>" --graph '
-                '(Join-Path $graphOut "graph.json")',
+                '(Join-Path $sharedGraphOut "graph.json")',
                 1,
             ).replace(
                 "GRAPHIFY_QUERY_SENTINEL",
@@ -494,6 +499,8 @@ if (-not ($resolverOk -and $queryOk -and $auditOk)) {
                 (temp / "py.cmd").write_text(
                     "@echo off\r\n"
                     "echo py %*>>\"%GRAPHIFY_CALL_LOG%\"\r\n"
+                    "echo %*| findstr /C:\"resolve_graph_out.py --check\" >nul\r\n"
+                    "if not errorlevel 1 if \"%GRAPHIFY_FAKE_CHECK_FAIL%\"==\"1\" exit /b 1\r\n"
                     "echo %*| findstr /C:\"resolve_graph_out.py\" >nul\r\n"
                     "if not errorlevel 1 echo %GRAPHIFY_FAKE_GRAPH_OUT%\r\n"
                     "exit /b 0\r\n",
@@ -508,6 +515,8 @@ if (-not ($resolverOk -and $queryOk -and $auditOk)) {
                 (temp / "py").write_text(
                     "#!/bin/sh\n"
                     "printf 'py %s\\n' \"$*\" >>\"$GRAPHIFY_CALL_LOG\"\n"
+                    "case \"$*\" in *'resolve_graph_out.py --check'*) "
+                    "[ \"$GRAPHIFY_FAKE_CHECK_FAIL\" = 1 ] && exit 1;; esac\n"
                     "case \"$*\" in *resolve_graph_out.py*) "
                     "printf '%s\\n' \"$GRAPHIFY_FAKE_GRAPH_OUT\";; esac\n",
                     encoding="utf-8",
@@ -570,6 +579,28 @@ if (-not ($resolverOk -and $queryOk -and $auditOk)) {
             self.assertIn(
                 "Graphify degraded mode", escaped_path.stdout + escaped_path.stderr
             )
+            before_stale = len(log.read_text(encoding="utf-8").splitlines())
+            env["GRAPHIFY_FAKE_CHECK_FAIL"] = "1"
+            env["GRAPHIFY_FAKE_SRC"] = "stale/missing/from/graph.java"
+            stale_cache = subprocess.run(  # nosec B603 - fixed local PowerShell executable and test-owned script.
+                [powershell, "-NoProfile", "-NonInteractive", "-Command", flow],
+                cwd=ROOT,
+                env=env,
+                capture_output=True,
+                text=True,
+                timeout=30,
+                check=False,
+            )
+            self.assertEqual(0, stale_cache.returncode, stale_cache.stderr)
+            self.assertIn(
+                "Graphify degraded mode", stale_cache.stdout + stale_cache.stderr
+            )
+            stale_calls = log.read_text(encoding="utf-8").splitlines()[before_stale:]
+            self.assertEqual(4, len(stale_calls), stale_calls)
+            self.assertIn("resolve_graph_out.py --check", stale_calls[0])
+            self.assertRegex(stale_calls[1], r"resolve_graph_out.py\s*$")
+            self.assertIn("graphify query", stale_calls[2])
+            self.assertIn("graphify_maintenance.py audit", stale_calls[3])
         self.assertEqual(3, len(calls), calls)
         self.assertIn("resolve_graph_out.py --check", calls[0])
         self.assertRegex(
