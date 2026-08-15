@@ -383,8 +383,27 @@ class GraphifyMaintenanceTest(TestCase):
                 return
             original_run_stage(name, command, root)
 
+        refresh_error = None
         with mock.patch.object(module, "run_stage", side_effect=run_fixture_stage):
-            module.refresh(primary, Path("graphify-out"))
+            try:
+                module.refresh(primary, Path("graphify-out"))
+            except RuntimeError as error:
+                cause = error.__cause__
+                expected_parent_failure = (
+                    str(error) == "Graphify record stage failed with exit 2"
+                    and isinstance(cause, subprocess.CalledProcessError)
+                    and cause.cmd
+                    == [
+                        sys.executable,
+                        "tools/repository-map/resolve_graph_out.py",
+                        "--record-current",
+                    ]
+                )
+                if not expected_parent_failure:
+                    raise
+                refresh_error = error
+
+        self.assertIsNone(refresh_error, f"external refresh failed: {refresh_error}")
 
         marker = json.loads(
             (output / ".shaft-source-revision.json").read_text(encoding="utf-8")
