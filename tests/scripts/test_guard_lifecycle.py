@@ -90,6 +90,18 @@ class CheckpointPullRequestGateTest(unittest.TestCase):
             separators=(",", ":"),
         )
 
+    @staticmethod
+    def snapshot(head="b" * 40):
+        return (
+            "## Summary\nReviewed checkpoint is ready for delivery.\n\n"
+            f"Current exact head: `{head}`.\n\n"
+            "## Checks\n- focused lifecycle test passed\n\n"
+            f"## Continuation\n- Head: `{head}`\n"
+            "- State: pushed to the open draft PR\n"
+            "- Blockers: remote checks pending\n"
+            "- Next action: watch checks and repair any failure\n"
+        )
+
     def test_successful_reviewed_retained_commit_records_exact_identity(self):
         events: list[str] = []
         before = "a" * 40
@@ -252,6 +264,56 @@ class CheckpointPullRequestGateTest(unittest.TestCase):
                     "unavailable",
                 )
 
+    def test_exact_head_pr_without_resumable_snapshot_blocks_mapping(self):
+        identity = ("ShaftHQ/SHAFT_ENGINE", "ChaosEngine/r27", "b" * 40)
+        pull_request = {
+            "number": 4800,
+            "url": "https://example.invalid/4800",
+            "isDraft": True,
+            "baseRefName": "main",
+            "issueNumbers": [4745],
+            "body": "Closes #4745",
+        }
+        with patch("scripts.agents.guard._checkpoint_identity", return_value=identity):
+            with patch("scripts.agents.guard.ledger_events", return_value=[self.checkpoint()]):
+                with patch("scripts.agents.guard._exact_head_pull_request", return_value=("exact", pull_request)):
+                    reason = guard.check_r27_checkpoint_pull_request(
+                        {"tool_input": {"file_path": "shaft-engine/X.java"}}, "Write"
+                    )
+        self.assertIsNotNone(reason)
+        self.assertIn("snapshot", reason.lower())
+        violations = []
+        for index, body in enumerate((
+            self.snapshot().replace("b" * 40, "a" * 40),
+            self.snapshot().replace("## Summary", "## Overview"),
+            self.snapshot().replace("## Checks", "## Evidence"),
+            self.snapshot().replace("## Continuation", "## Handoff"),
+            self.snapshot().replace("- Head: `" + "b" * 40, "- Head: `" + "a" * 40),
+            self.snapshot().replace("- State:", "- Status:"),
+            self.snapshot().replace("- Blockers:", "- Risks:"),
+            self.snapshot().replace("- Next action:", "- Later:"),
+            self.snapshot().replace("pushed to the open draft PR", "x"),
+            self.snapshot().replace("watch checks and repair any failure", "x"),
+            "```markdown\n" + self.snapshot() + "```\n",
+            "<!--\n" + self.snapshot() + "-->\n",
+            "<pre class=\"handoff\">\n" + self.snapshot() + "</pre>\n",
+            "<code>\n" + self.snapshot(),
+            (
+                self.snapshot("a" * 40)
+                .replace("Current exact head: `" + "a" * 40, "Current exact head: `" + "b" * 40)
+            ),
+        )):
+            pull_request["body"] = body
+            with patch("scripts.agents.guard._checkpoint_identity", return_value=identity):
+                with patch("scripts.agents.guard.ledger_events", return_value=[self.checkpoint()]):
+                    with patch("scripts.agents.guard._exact_head_pull_request", return_value=("exact", pull_request)):
+                        reason = guard.check_r27_checkpoint_pull_request(
+                            {"tool_input": {"file_path": "shaft-engine/X.java"}}, "Write"
+                        )
+            if reason is None or "snapshot" not in reason.lower():
+                violations.append(index)
+        self.assertEqual(violations, [])
+
     def test_exact_head_pr_without_closing_issue_is_unmapped(self):
         response = [{
             "number": 4800, "url": "https://example.invalid/4800", "state": "OPEN",
@@ -355,6 +417,7 @@ class CheckpointPullRequestGateTest(unittest.TestCase):
         pull_request = {
             "number": 4800, "url": "https://example.invalid/4800", "isDraft": True,
             "baseRefName": "ChaosEngine/issue-4726-portable-runtime", "issueNumbers": [4745],
+            "body": self.snapshot(),
         }
         with patch("scripts.agents.guard._checkpoint_identity", return_value=identity):
             with patch("scripts.agents.guard.ledger_events", return_value=[self.checkpoint()]):

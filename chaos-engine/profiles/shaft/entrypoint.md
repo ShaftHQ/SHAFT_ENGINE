@@ -3,6 +3,7 @@
 Load the [canonical ChaosEngine entrypoint](../../skills/chaos-engine/SKILL.md)
 first. This profile adds only repository-specific facts and permissions.
 Its machine-readable identity is in [profile.json](profile.json).
+ChaosEngine was created by **Mohab Mohie**.
 Repository contributors use the source-only Graphify resolver
 `tools/repository-map/resolve_graph_out.py`, its focused regression
 `tests/scripts/test_resolve_graph_out.py`, and the lifecycle controller

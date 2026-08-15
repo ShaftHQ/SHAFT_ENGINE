@@ -3467,10 +3467,72 @@ def _r27_recovery_command(
     return False, None
 
 
+def _visible_markdown(text: str) -> str:
+    """Remove comments and rendered code blocks before reading PR-body state."""
+    without_comments = re.sub(r"(?s)<!--.*?(?:-->|\Z)", "", text)
+    without_comments = re.sub(
+        r"(?is)<(?P<tag>pre|code)\b[^>]*>.*?(?:</(?P=tag)\s*>|\Z)",
+        "",
+        without_comments,
+    )
+    visible: list[str] = []
+    fence: tuple[str, int] | None = None
+    for line in without_comments.splitlines():
+        marker = re.match(r"^[ \t]*([`~]{3,})", line)
+        if fence is None and marker:
+            token = marker.group(1)
+            fence = (token[0], len(token))
+            continue
+        if fence is not None:
+            if re.fullmatch(rf"[ \t]*{re.escape(fence[0])}{{{fence[1]},}}[ \t]*", line):
+                fence = None
+            continue
+        if line.startswith("    ") or line.startswith("\t"):
+            continue
+        visible.append(line)
+    return "\n".join(visible)
+
+
+def _checkpoint_snapshot_complete(body: object, head: str) -> bool:
+    """Require one visible exact-head, structured continuation snapshot."""
+    if not isinstance(body, str):
+        return False
+    visible = _visible_markdown(body)
+    if len(visible.strip()) < 200:
+        return False
+
+    sections: dict[str, str] = {}
+    for name in ("Summary", "Checks", "Continuation"):
+        match = re.search(
+            rf"(?ims)^##[ \t]+{name}[ \t]*\r?\n(.*?)(?=^##[ \t]+|\Z)",
+            visible,
+        )
+        if match is None or len(match.group(1).strip()) < 20:
+            return False
+        sections[name] = match.group(1)
+    continuation = sections["Continuation"]
+    fields: dict[str, str] = {}
+    for label in ("Head", "State", "Blockers", "Next action"):
+        match = re.search(
+            rf"(?im)^[ \t]*(?:[-*][ \t]*)?{label}:[ \t]*(\S.*)$",
+            continuation,
+        )
+        if match is None:
+            return False
+        fields[label] = match.group(1).strip()
+    if fields["Head"].strip("` ").lower() != head.lower():
+        return False
+    return (
+        len(fields["State"]) >= 8
+        and (fields["Blockers"].casefold() == "none" or len(fields["Blockers"]) >= 8)
+        and len(fields["Next action"]) >= 8
+    )
+
+
 def check_r27_checkpoint_pull_request(
     hook_input: dict, tool_name: str | None = None, *, stopping: bool = False
 ) -> str | None:
-    """Require the first reviewed retained checkpoint to have an exact-head PR."""
+    """Require every reviewed retained checkpoint to have an exact-head PR snapshot."""
     identity = _checkpoint_identity(hook_input)
     if identity is None:
         return None
@@ -3530,6 +3592,14 @@ def check_r27_checkpoint_pull_request(
         )
     status, pull_request = _exact_head_pull_request(repository, branch, head)
     if status == "exact" and pull_request is not None:
+        if not _checkpoint_snapshot_complete(pull_request.get("body"), head):
+            return (
+                "R27 blocked: the exact-head PR lacks a resumable checkpoint snapshot. "
+                "Update its body with nonempty `## Summary`, "
+                "`## Checks`, and `## Continuation` sections; Continuation must state "
+                "the full current `Head:` plus meaningful `State:`, `Blockers:`, and "
+                "`Next action:` fields. Hidden comments and code blocks do not count."
+            )
         recorded = ledger_record(
             hook_input,
             _checkpoint_json_event(
