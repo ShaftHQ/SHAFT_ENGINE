@@ -31,9 +31,10 @@ plan.
 
 - Fetch and prune, then branch from the checked default branch (`main` is not
   universal; companion documentation repositories use `master`).
-- Track every sub-item plus docs, the knowledge-store disposition, any structural
-  change flagged for the existing maintenance owner, push, PR, and merge. Update
-  task status as work proceeds; ordinary tasks never refresh a derived store.
+- Track every sub-item plus docs, skill updates, the knowledge-store disposition,
+  any structural change flagged for the existing maintenance owner, push, PR,
+  and merge. Update task status as work proceeds; ordinary tasks never refresh a
+  derived store.
 - Keep one issue as a work stream; only dispatch independently scoped work.
 
 ## 3. Work items in dependency order, front-loading risk
