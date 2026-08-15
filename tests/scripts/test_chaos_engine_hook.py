@@ -52,6 +52,41 @@ class ChaosEngineHookTest(unittest.TestCase):
                 self.assertEqual(2, result.returncode)
                 self.assertEqual("block", json.loads(result.stdout)["decision"])
 
+    def test_current_host_shell_aliases_preserve_catastrophic_guard(self):
+        events = (
+            {
+                "hook_event_name": "PreToolUse",
+                "tool_name": "exec_command",
+                "tool_input": {"cmd": "git reset --hard HEAD~1"},
+            },
+            {
+                "hook_event_name": "PreToolUse",
+                "tool_name": "functions.exec",
+                "tool_input": 'await tools.exec_command({cmd:"git reset --hard HEAD~1"});',
+            },
+            {
+                "hook_event_name": "PreToolUse",
+                "tool_name": "functions.exec",
+                "tool_input": "const bad = 'git reset --hard HEAD~1'; "
+                "await tools.exec_command({cmd: bad});",
+            },
+            {
+                "hook_event_name": "PreToolUse",
+                "tool_name": "functions.exec",
+                "tool_input": 'await tools.exec_command({cmd:"echo safe"}); '
+                "const bad = 'git reset --hard HEAD~1'; "
+                "await tools.exec_command({cmd: bad});",
+            },
+        )
+        results = [self.run_hook(event) for event in events]
+        self.assertEqual(
+            [
+                (result.returncode, json.loads(result.stdout).get("decision"))
+                for result in results
+            ],
+            [(2, "block"), (2, "block"), (2, "block"), (2, "block")],
+        )
+
     def test_first_stop_event_requires_completion_gate_then_avoids_a_loop(self):
         first = self.run_hook({"hook_event_name": "Stop", "stop_hook_active": False})
         repeated = self.run_hook({"hook_event_name": "Stop", "stop_hook_active": True})

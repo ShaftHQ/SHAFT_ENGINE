@@ -3,7 +3,7 @@
   "hooks": {
     "PreToolUse": [
       {
-        "matcher": "Task|Agent|Read|Grep|Bash|PowerShell|shell_command|Write|Edit|NotebookEdit|apply_patch|WebSearch|WebFetch|web__run|update_plan|mcp__shaft-memory__(?:remember_memory|save_memory_patch)|mcp__mempalace__.*|mcp__graphify__.*",
+        "matcher": "Task|Agent|Read|Grep|Bash|PowerShell|shell_command|exec_command|functions[.]exec|Write|Edit|NotebookEdit|apply_patch|WebSearch|WebFetch|web__run|update_plan|mcp__shaft[-_]memory__(?:remember_memory|save_memory_patch)|mcp__mempalace__.*|mcp__graphify__.*",
         "hooks": [
           {
             "type": "command",
@@ -16,7 +16,7 @@
     ],
     "PostToolUse": [
       {
-        "matcher": "Read|Grep|Bash|PowerShell|shell_command|WebSearch|WebFetch|web__run|update_plan|mcp__shaft-memory__.*|mcp__mempalace__.*|mcp__graphify__.*",
+        "matcher": "Read|Grep|Bash|PowerShell|shell_command|exec_command|functions[.]exec|WebSearch|WebFetch|web__run|update_plan|mcp__shaft[-_]memory__.*|mcp__mempalace__.*|mcp__graphify__.*",
         "hooks": [
           {
             "type": "command",

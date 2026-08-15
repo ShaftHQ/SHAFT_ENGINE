@@ -57,7 +57,9 @@
 
 from __future__ import annotations
 
+import contextlib
 import hashlib
+import io
 import json
 import os
 import posixpath
@@ -1356,6 +1358,8 @@ _MEMORY_WRITE_TOOLS = frozenset(
     {
         "mcp__shaft-memory__remember_memory",
         "mcp__shaft-memory__save_memory_patch",
+        "mcp__shaft_memory__remember_memory",
+        "mcp__shaft_memory__save_memory_patch",
     }
 )
 
@@ -1512,6 +1516,8 @@ _TOOL_ALIASES = {
     "powershell": "PowerShell",
     "shell_command": "PowerShell",
     "shellcommand": "PowerShell",
+    "exec_command": "PowerShell",
+    "execcommand": "PowerShell",
     "read": "Read",
     "grep": "Grep",
     "edit": "Edit",
@@ -1521,6 +1527,7 @@ _TOOL_ALIASES = {
     "applypatch": "apply_patch",
     "apply_patch": "apply_patch",
 }
+_SHELL_TOOLS = frozenset({"Bash", "PowerShell", "shell_command", "exec_command"})
 
 
 def normalize_hook_input(raw: dict) -> dict:
@@ -1557,7 +1564,7 @@ def hook_host(raw: dict) -> str:
 
 def _extract_command(hook_input: dict) -> str:
     tool_input = hook_input.get("tool_input") or {}
-    command = tool_input.get("command")
+    command = tool_input.get("command") or tool_input.get("cmd")
     if isinstance(command, str):
         return command
     return ""
@@ -1701,17 +1708,19 @@ def _hook_working_directory(hook_input: dict) -> str | None:
 
 
 def _print_deny(reason: str, host: str) -> None:
+    print(json.dumps(_deny_output(reason, host)))
+
+
+def _deny_output(reason: str, host: str) -> dict:
     if host == "grok":
-        output = {"decision": "deny", "reason": reason}
-    else:
-        output = {
-            "hookSpecificOutput": {
-                "hookEventName": "PreToolUse",
-                "permissionDecision": "deny",
-                "permissionDecisionReason": reason,
-            }
+        return {"decision": "deny", "reason": reason}
+    return {
+        "hookSpecificOutput": {
+            "hookEventName": "PreToolUse",
+            "permissionDecision": "deny",
+            "permissionDecisionReason": reason,
         }
-    print(json.dumps(output))
+    }
 
 
 def _record_guard_block_and_deny(hook_input: dict, reason: str, host: str) -> None:
@@ -1744,7 +1753,12 @@ RESEARCH_PREFLIGHT_EVENTS = (
     "record-plan",
 )
 _NATIVE_MEMORY_WRITE_TOOLS = frozenset(
-    {"mcp__shaft-memory__remember_memory", "mcp__shaft-memory__save_memory_patch"}
+    {
+        "mcp__shaft-memory__remember_memory",
+        "mcp__shaft-memory__save_memory_patch",
+        "mcp__shaft_memory__remember_memory",
+        "mcp__shaft_memory__save_memory_patch",
+    }
 )
 _MEMPALACE_WRITE_TOOLS = frozenset(
     {
@@ -1932,6 +1946,64 @@ def _has_primary_source_url(tool_result: object) -> bool:
     return False
 
 
+def _wrapped_exec_commands(source: str) -> tuple[str, ...]:
+    """Extract literal cmd/command strings from wrapped exec_command calls."""
+    commands: list[str] = []
+    for match in re.finditer(
+        r'''\btools\.exec_command\s*\(\s*\{.*?\b(?:cmd|command)\s*:\s*(?P<literal>"(?:\\.|[^"\\])*")''',
+        source,
+        re.DOTALL,
+    ):
+        try:
+            command = json.loads(match.group("literal"))
+        except (json.JSONDecodeError, ValueError):
+            continue
+        if isinstance(command, str) and command:
+            commands.append(command)
+    return tuple(commands)
+
+
+def _wrapped_exec_call_count(source: str) -> int:
+    return len(re.findall(r"\btools\.exec_command\s*\(", source))
+
+
+def _shell_requests_primary_source(segment: str) -> bool:
+    if re.match(
+        r"\s*(?:&\s*)?(?:curl(?:\.exe)?|invoke-webrequest|iwr)\b",
+        segment,
+        re.IGNORECASE,
+    ) is None:
+        return False
+    tokens = _segment_tokens(segment)
+    head_index = next(
+        (
+            index
+            for index, token in enumerate(tokens)
+            if re.split(r"[/\\]", token.strip("\"'"))[-1].lower()
+            in {"curl", "curl.exe", "invoke-webrequest", "iwr"}
+        ),
+        None,
+    )
+    if head_index is None:
+        return False
+    head = re.split(r"[/\\]", tokens[head_index].strip("\"'"))[-1].lower()
+    candidates: list[str] = []
+    arguments = tokens[head_index + 1 :]
+    if arguments and re.match(r"https?://", arguments[0], re.IGNORECASE):
+        candidates.append(arguments[0])
+    request_flags = {"--url"} if head in {"curl", "curl.exe"} else {"-uri"}
+    for index, token in enumerate(arguments):
+        lowered = token.lower()
+        if any(lowered.startswith(flag + "=") for flag in request_flags):
+            candidates.append(token.split("=", 1)[1])
+        if lowered in request_flags and index + 1 < len(arguments):
+            candidates.append(arguments[index + 1])
+    for candidate in candidates:
+        if _has_primary_source_url({"request_url": candidate}):
+            return True
+    return False
+
+
 def _invokes_research_cli(command: str, executable: str, verbs: tuple[str, ...]) -> bool:
     """Recognize bare, quoted full-path, and project-launcher CLI invocations."""
     name = re.escape(executable) + (
@@ -1945,7 +2017,7 @@ def _invokes_research_cli(command: str, executable: str, verbs: tuple[str, ...])
     verb_pattern = "|".join(re.escape(verb) for verb in verbs)
     return bool(
         re.search(
-            rf"(?:^|[\s&]){executable_pattern}\s+(?:{verb_pattern})\b",
+            rf"^\s*(?:&\s*)?{executable_pattern}\s+(?:{verb_pattern})\b",
             command,
             re.IGNORECASE,
         )
@@ -1957,15 +2029,17 @@ def _research_preflight_events(
 ) -> tuple[str, ...]:
     """Map one successful native-client tool call to receipt events in observed order."""
     details = tool_input if isinstance(tool_input, dict) else {}
-    rendered = json.dumps(details, sort_keys=True).lower()
+    source = tool_input if isinstance(tool_input, str) else json.dumps(details, sort_keys=True)
+    rendered = source.lower()
     events: list[str] = []
     if tool_name in {"Read", "Grep"}:
         events.append("read-live-files")
         if "skill.md" in rendered:
             events.append("load-routed-skill")
-    if tool_name in {"Bash", "PowerShell", "shell_command"}:
-        command = str(details.get("command") or "").lower()
-        for segment in _command_segments(command):
+    if tool_name in _SHELL_TOOLS:
+        command = str(details.get("command") or details.get("cmd") or "").lower()
+        segments = _command_segments(command)
+        for segment in segments:
             lowered = segment.lower()
             if re.search(r"(?:^|\s)(?:rg|grep|get-content|git\s+(?:show|diff))\b", lowered):
                 events.append("read-live-files")
@@ -1985,6 +2059,18 @@ def _research_preflight_events(
                 lowered, "graphify", ("query", "explain", "affected", "path", "diagnose")
             ):
                 events.append("query-graphify")
+            if len(segments) == 1 and _shell_requests_primary_source(lowered):
+                events.append("authoritative-online-research")
+    if tool_name == "functions.exec":
+        wrapped_commands = _wrapped_exec_commands(source)
+        wrapped_call_count = _wrapped_exec_call_count(source)
+        if wrapped_call_count == 1 and len(wrapped_commands) == 1:
+            command = wrapped_commands[0]
+            events.extend(
+                _research_preflight_events(
+                    "exec_command", {"cmd": command}, tool_result
+                )
+            )
     lowered_name = tool_name.lower()
     if ("shaft-memory" in lowered_name or "shaft_memory" in lowered_name) and any(
         verb in lowered_name for verb in ("search", "load", "inspect")
@@ -2012,8 +2098,8 @@ def _research_preflight_events(
         plan = details.get("plan")
         if isinstance(plan, list) and plan:
             events.append("record-plan")
-    if tool_name in {"Bash", "PowerShell"} and _is_plan_receipt_command(
-        str(details.get("command") or "")
+    if tool_name in _SHELL_TOOLS and _is_plan_receipt_command(
+        str(details.get("command") or details.get("cmd") or "")
     ):
         events.append("record-plan")
     return tuple(dict.fromkeys(events))
@@ -2033,8 +2119,10 @@ def _implementation_targets(tool_name: str, tool_input: object) -> tuple[str, ..
                 r"(?m)^\*\*\* (?:Add|Update|Delete) File:\s*(.+?)\s*$", patch_text
             )
         )
-    if tool_name in {"Bash", "PowerShell"}:
-        return _shell_mutation_targets(str(details.get("command") or ""))
+    if tool_name in _SHELL_TOOLS:
+        return _shell_mutation_targets(
+            str(details.get("command") or details.get("cmd") or "")
+        )
     return ()
 
 
@@ -2086,6 +2174,27 @@ def _shell_is_mutation(command: str) -> bool:
     return False
 
 
+def _functions_exec_is_mutation(tool_input: object) -> bool:
+    source = tool_input if isinstance(tool_input, str) else ""
+    if re.search(r"\btools\.apply_patch\s*\(", source):
+        return True
+    if re.search(r"\btools\.exec_command\s*\(", source):
+        commands = _wrapped_exec_commands(source)
+        if _wrapped_exec_call_count(source) != len(commands):
+            return True
+        return any(_shell_is_mutation(command) for command in commands)
+    return False
+
+
+def _hook_commands(hook_input: dict, tool_name: str) -> tuple[str, ...]:
+    if tool_name in _SHELL_TOOLS:
+        command = _extract_command(hook_input)
+        return (command,) if command else ()
+    if tool_name == "functions.exec":
+        return _wrapped_exec_commands(hook_input.get("tool_input", ""))
+    return ()
+
+
 def _is_git_commit_command(command: str) -> bool:
     """True when a shell command contains an actual git commit invocation."""
     for segment in _git_segments(command):
@@ -2115,9 +2224,13 @@ def _is_implementation_mutation(tool_name: str, tool_input: object) -> bool:
         return True
     if tool_name in _NATIVE_MEMORY_WRITE_TOOLS or tool_name in _MEMPALACE_WRITE_TOOLS:
         return True
-    if tool_name in {"Bash", "PowerShell"}:
+    if tool_name in _SHELL_TOOLS:
         details = tool_input if isinstance(tool_input, dict) else {}
-        return _shell_is_mutation(str(details.get("command") or ""))
+        return _shell_is_mutation(
+            str(details.get("command") or details.get("cmd") or "")
+        )
+    if tool_name == "functions.exec":
+        return _functions_exec_is_mutation(tool_input)
     return False
 
 
@@ -2149,13 +2262,17 @@ def check_r25_research_before_implementation(
     root = _act_as_mohab_root(cwd)
     if not root:
         return None
-    if tool_name in _FILE_MUTATION_TOOLS or tool_name in {"Bash", "PowerShell"}:
+    if tool_name in _FILE_MUTATION_TOOLS or tool_name in _SHELL_TOOLS:
         targets = _implementation_targets(tool_name, tool_input)
         if targets and all(not _path_is_inside(path, root, cwd) for path in targets):
             return None
     events = ledger_events(hook_input)
     if _is_plan_receipt_command(
-        str((tool_input if isinstance(tool_input, dict) else {}).get("command") or "")
+        str(
+            (tool_input if isinstance(tool_input, dict) else {}).get("command")
+            or (tool_input if isinstance(tool_input, dict) else {}).get("cmd")
+            or ""
+        )
     ):
         required_prefix = RESEARCH_PREFLIGHT_EVENTS[:-1]
         cursor = -1
@@ -3393,15 +3510,16 @@ def check_r27_checkpoint_pull_request(
         for payload in (_checkpoint_event_payload(event, "checkpoint-pr") for event in events)
     ):
         return None
-    if not stopping and tool_name in {"Bash", "PowerShell"}:
-        recovery, recovery_error = _r27_recovery_command(
-            _extract_command(hook_input),
-            allow_checkpoint_repair=uncertified_commit,
-        )
-        if recovery_error:
-            return recovery_error
-        if recovery:
-            return None
+    if not stopping:
+        for command in _hook_commands(hook_input, tool_name or ""):
+            recovery, recovery_error = _r27_recovery_command(
+                command,
+                allow_checkpoint_repair=uncertified_commit,
+            )
+            if recovery_error:
+                return recovery_error
+            if recovery:
+                return None
     if not stopping and not _is_implementation_mutation(tool_name or "", hook_input.get("tool_input")):
         return None
     if uncertified_commit:
@@ -3534,10 +3652,14 @@ def check_r19_fresh_base(hook_input: dict, tool_name: str) -> str | None:
     the abnormal case -- so an ordinary edit costs exactly the one subprocess
     it cost before, which is what keeps this inside HOOK_BUDGET_SECONDS.
     """
-    if tool_name not in _FILE_MUTATION_TOOLS and tool_name not in {"Bash", "PowerShell"}:
+    if (
+        tool_name not in _FILE_MUTATION_TOOLS
+        and tool_name not in _SHELL_TOOLS
+        and not _functions_exec_is_mutation(hook_input.get("tool_input"))
+    ):
         return None
     targets = _implementation_targets(tool_name, hook_input.get("tool_input"))
-    if tool_name in {"Bash", "PowerShell"} and not targets:
+    if tool_name in _SHELL_TOOLS and not targets:
         return None
     cwd = _hook_working_directory(hook_input)
     branch = _current_branch(cwd)
@@ -3605,39 +3727,58 @@ def run_pretooluse(hook_input: dict, host: str = "portable") -> int:
         _record_guard_block_and_deny(hook_input, reason, host)
         return 0
 
-    if tool_name in ("Bash", "PowerShell"):
-        command = _extract_command(hook_input)
-        if not command:
-            return 0
-        reason = evaluate_command(command)
-        if reason is None:
-            reason = check_r9_worktree_add(command, tool_name)
-        if reason is None:
-            reason = check_r10_nul_corruption(command, _hook_working_directory(hook_input))
-        if reason is None:
-            reason = check_r13_push_before_delete(
-                command, tool_name, _hook_working_directory(hook_input)
-            )
-        if reason is None:
-            reason = check_r15_review_before_arming(command, tool_name, hook_input)
-        if reason is None:
-            reason = check_r28_pr_audit_before_arming(command, tool_name, hook_input)
-        if reason is None:
-            reason = check_r30_merge_authority_before_arming(command, tool_name, hook_input)
-        if reason is None:
-            reason = check_r14_hard_reset(
-                command, tool_name, _hook_working_directory(hook_input)
-            )
-        if reason is not None:
-            _record_guard_block_and_deny(hook_input, reason, host)
-            return 0
-        # Observed, not judged. R12 reads this ledger; recording here is the
-        # only place a test run is visible, since a later hook invocation is a
-        # fresh process with no memory of it.
-        if looks_like_a_test_run(command):
-            ledger_record(hook_input, "test-run")
-        if _updates_a_tracked_issue(command, _hook_working_directory(hook_input)):
-            ledger_record(hook_input, "issue-update")
+    commands = _hook_commands(hook_input, tool_name)
+    if (
+        tool_name == "functions.exec"
+        and isinstance(hook_input.get("tool_input"), str)
+        and _wrapped_exec_call_count(hook_input["tool_input"]) != len(commands)
+    ):
+        _record_guard_block_and_deny(
+            hook_input,
+            "Wrapped exec command cannot inspect a dynamic or unsupported command payload; use one literal cmd string.",
+            host,
+        )
+        return 0
+    if commands:
+        command_tool = "PowerShell" if tool_name == "functions.exec" else tool_name
+        for command in commands:
+            reason = evaluate_command(command)
+            if reason is None:
+                reason = check_r9_worktree_add(command, command_tool)
+            if reason is None:
+                reason = check_r10_nul_corruption(
+                    command, _hook_working_directory(hook_input)
+                )
+            if reason is None:
+                reason = check_r13_push_before_delete(
+                    command, command_tool, _hook_working_directory(hook_input)
+                )
+            if reason is None:
+                reason = check_r15_review_before_arming(
+                    command, command_tool, hook_input
+                )
+            if reason is None:
+                reason = check_r28_pr_audit_before_arming(
+                    command, command_tool, hook_input
+                )
+            if reason is None:
+                reason = check_r30_merge_authority_before_arming(
+                    command, command_tool, hook_input
+                )
+            if reason is None:
+                reason = check_r14_hard_reset(
+                    command, command_tool, _hook_working_directory(hook_input)
+                )
+            if reason is not None:
+                _record_guard_block_and_deny(hook_input, reason, host)
+                return 0
+            # Observed, not judged. R12 reads this ledger; recording here is the
+            # only place a test run is visible, since a later hook invocation is a
+            # fresh process with no memory of it.
+            if looks_like_a_test_run(command):
+                ledger_record(hook_input, "test-run")
+            if _updates_a_tracked_issue(command, _hook_working_directory(hook_input)):
+                ledger_record(hook_input, "issue-update")
         return 0
 
     return 0  # not a tool this hook checks
@@ -3661,8 +3802,7 @@ def run_posttooluse(hook_input: dict) -> int:
         tool_name in _NATIVE_MEMORY_WRITE_TOOLS or tool_name in _MEMPALACE_LEARNING_TOOLS
     ):
         ledger_record(hook_input, "memory-write")
-    if tool_name in ("Bash", "PowerShell"):
-        command = _extract_command(hook_input)
+    for command in _hook_commands(hook_input, tool_name):
         if not result_failed and _is_git_commit_command(command):
             _record_successful_commit_checkpoint(hook_input)
             ledger_record(hook_input, "commit")
@@ -5811,6 +5951,51 @@ def run_r11_memory_write_self_test() -> int:
     return 0
 
 
+HOOK_PROTOCOL_ERROR = "Lifecycle hook produced invalid JSON output."
+
+
+def _reject_json_constant(value: str):
+    raise ValueError(f"non-standard JSON constant: {value}")
+
+
+def _strict_json_loads(rendered: str):
+    return json.loads(rendered, parse_constant=_reject_json_constant)
+
+
+def _protocol_fallback(event: str, host: str) -> dict:
+    if event == "PreToolUse":
+        return _deny_output(HOOK_PROTOCOL_ERROR, host)
+    if event in {"Stop", "SubagentStop"}:
+        return {"decision": "block", "reason": HOOK_PROTOCOL_ERROR}
+    return {}
+
+
+def _write_hook_json(output: dict) -> None:
+    sys.stdout.write(
+        json.dumps(output, separators=(",", ":"), allow_nan=False) + "\n"
+    )
+
+
+def _run_hook_protocol(event: str, callback, host: str = "portable") -> int:
+    """Contain callback stdout and emit exactly one JSON object."""
+    captured = io.StringIO()
+    result = 0
+    try:
+        with contextlib.redirect_stdout(captured):
+            result = callback()
+        rendered = captured.getvalue().strip()
+        output = {} if not rendered else _strict_json_loads(rendered)
+        if not isinstance(output, dict):
+            raise ValueError("hook output is not a JSON object")
+        json.dumps(output, allow_nan=False)
+    except Exception as error:
+        print(f"Hook protocol error: {error}", file=sys.stderr)
+        output = _protocol_fallback(event, host)
+        result = 0
+    _write_hook_json(output)
+    return result
+
+
 def main(argv: list[str]) -> int:
     if "--self-test" in argv:
         command_result = run_self_test()
@@ -5833,30 +6018,41 @@ def main(argv: list[str]) -> int:
 
     raw = sys.stdin.read()
     if not raw.strip():
+        _write_hook_json({})
         return 0
     try:
-        raw_hook_input = json.loads(raw)
-    except json.JSONDecodeError:
-        return 0  # malformed input: fail open (allow), nothing to safely block on
+        raw_hook_input = _strict_json_loads(raw)
+    except (json.JSONDecodeError, ValueError, RecursionError):
+        _write_hook_json({})
+        return 0
 
     if not isinstance(raw_hook_input, dict):
+        _write_hook_json({})
         return 0
     hook_input = normalize_hook_input(raw_hook_input)
     # One window per invocation, opened before any rule runs. Without it each
     # helper got its own ceiling and a single decision could queue far past
     # the host's hook timeout, which fails open and skips every rule here.
     start_hook_budget()
-    event = hook_input.get("hook_event_name") or "PreToolUse"
+    raw_event = hook_input.get("hook_event_name")
+    if raw_event is not None and not isinstance(raw_event, str):
+        _write_hook_json({})
+        return 0
+    event = raw_event or "PreToolUse"
+    host = hook_host(raw_hook_input)
     if event == "SessionStart":
-        return run_session_start(hook_input)
+        return _run_hook_protocol(event, lambda: run_session_start(hook_input), host)
     if event == "UserPromptSubmit":
-        return run_user_prompt_submit(hook_input)
+        return _run_hook_protocol(event, lambda: run_user_prompt_submit(hook_input), host)
     if event in {"Stop", "SubagentStop"}:
-        return run_stop(hook_input)
+        return _run_hook_protocol(event, lambda: run_stop(hook_input), host)
     if event == "PreToolUse":
-        return run_pretooluse(hook_input, hook_host(raw_hook_input))
+        return _run_hook_protocol(
+            event, lambda: run_pretooluse(hook_input, host), host
+        )
     if event == "PostToolUse":
-        return run_posttooluse(hook_input)
+        return _run_hook_protocol(event, lambda: run_posttooluse(hook_input), host)
+    _write_hook_json({})
     return 0
 
 

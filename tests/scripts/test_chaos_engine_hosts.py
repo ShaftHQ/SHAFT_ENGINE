@@ -357,6 +357,11 @@ class ChaosEngineHostsTest(unittest.TestCase):
                 },
                 hook_events,
             )
+            lifecycle = json.loads(project.joinpath(".codex/hooks.json").read_text())["hooks"]
+            for event in ("PreToolUse", "PostToolUse"):
+                matcher = lifecycle[event][0]["matcher"]
+                self.assertIn("exec_command", matcher)
+                self.assertIn("functions[.]exec", matcher)
 
     def test_plugin_marketplace_preserves_unrelated_entries(self):
         module = load(HOSTS, "chaos_engine_marketplace_merge")
