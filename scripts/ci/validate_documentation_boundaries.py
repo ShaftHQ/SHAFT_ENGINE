@@ -76,6 +76,7 @@ FORBIDDEN_LINK_FRAGMENTS = (
     "github.com/ShaftHQ/SHAFT_ENGINE/tree/main/docs/",
 )
 IGNORED_DIRECTORIES = {
+    ".chaos-engine-runtime",
     ".git",
     ".idea",
     "allure-report",

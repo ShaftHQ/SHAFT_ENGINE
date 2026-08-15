@@ -113,6 +113,27 @@ flowchart LR
 
         self.assertEqual(validate_repository(self.root), [])
 
+    def test_ignores_exact_runtime_directory_at_every_traversal_depth(self):
+        self.write(
+            ".chaos-engine-runtime/docs/generated.md",
+            "# Generated runtime documentation\n",
+        )
+        self.write(
+            "nested/.chaos-engine-runtime/cache/generated.md",
+            "# Nested generated runtime documentation\n",
+        )
+
+        self.assertEqual(validate_repository(self.root), [])
+
+        self.write(
+            ".chaos-engine-runtime-copy/docs/not-generated.md",
+            "# Unapproved documentation\n",
+        )
+        self.assertIn(
+            "public or unapproved Markdown remains: .chaos-engine-runtime-copy/docs/not-generated.md",
+            validate_repository(self.root),
+        )
+
     def test_rejects_unapproved_nested_readme(self):
         self.write(".github/other/README.md", "# Other\n")
 

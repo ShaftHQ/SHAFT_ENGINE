@@ -128,6 +128,42 @@ class WorktreeHygieneTest(unittest.TestCase):
         self.assertEqual(report[0]["state"], "clean")
         self.assertEqual(format_advisories(report), [])
 
+    def test_every_read_only_git_query_disables_optional_locks_without_touching_index(self):
+        index = Path(git(self.main, "rev-parse", "--git-path", "index").stdout.strip())
+        if not index.is_absolute():
+            index = self.main / index
+        before_bytes = index.read_bytes()
+        before_mtime = index.stat().st_mtime_ns
+        real_run = subprocess.run
+        observed = []
+
+        def capture(*args, **kwargs):
+            observed.append((args, kwargs))
+            return real_run(*args, **kwargs)
+
+        with patch.dict(
+            os.environ,
+            {"HARNESS_CALLER_ENV": "preserved", "GIT_OPTIONAL_LOCKS": "1"},
+        ), patch("scripts.ci.worktree_hygiene.subprocess.run", side_effect=capture):
+            collect_worktree_report(self.main)
+
+        git_calls = [
+            kwargs
+            for args, kwargs in observed
+            if args
+            and len(args[0]) >= 3
+            and Path(args[0][0]).name.lower() in {"git", "git.exe"}
+            and args[0][1:3] == ["-c", "core.longpaths=true"]
+        ]
+        self.assertTrue(git_calls)
+        for kwargs in git_calls:
+            environment = kwargs.get("env")
+            self.assertIsNotNone(environment)
+            self.assertEqual(environment["GIT_OPTIONAL_LOCKS"], "0")
+            self.assertEqual(environment["HARNESS_CALLER_ENV"], "preserved")
+        self.assertEqual(index.read_bytes(), before_bytes)
+        self.assertEqual(index.stat().st_mtime_ns, before_mtime)
+
     def test_local_worktree_exposes_its_activity_age(self):
         """#4546: foreign-worktree Stop reporting needs a reporter-owned clock."""
         worktree = self.add_worktree("active", "ChaosEngine/active")

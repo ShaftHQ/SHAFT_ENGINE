@@ -779,6 +779,10 @@ class AgentPluginClientSmokeTest(unittest.TestCase):
         self.assertIn("          OPENAI_API_KEY", live_step)
         self.assertIn("if: always()", live)
         self.assertIn("actions/upload-artifact@v7", live)
+        agent_evidence_upload = pr_gate.split(
+            "      - name: Upload native client smoke evidence", 1
+        )[1].split("\n      - name:", 1)[0]
+        self.assertNotIn("retention-days:", agent_evidence_upload)
         for client in CLIENTS.values():
             self.assertIn(client["npm_package"], pr_gate)
             self.assertIn(client["npm_package"], live)

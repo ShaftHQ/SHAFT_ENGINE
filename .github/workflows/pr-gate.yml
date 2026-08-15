@@ -443,7 +443,6 @@ jobs:
           name: agent-plugin-client-smoke-${{ runner.os }}
           path: agent-plugin-client-evidence*.json
           if-no-files-found: error
-          retention-days: 14
       - name: Run the portable PreToolUse guard self-test
         run: python scripts/agents/guard.py --self-test
 
