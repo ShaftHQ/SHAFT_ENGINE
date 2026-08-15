@@ -312,6 +312,7 @@ class ChaosEngineHostsTest(unittest.TestCase):
                 ),
             )
             memory_config = json.loads(project.joinpath(".memory/config.json").read_text())
+            self.assertEqual(5, memory_config["version"])
             self.assertEqual("consumer", memory_config["project"]["name"])
             self.assertIn("wing: consumer", project.joinpath("mempalace.yaml").read_text())
             ignores = project.joinpath(".gitignore").read_text()
@@ -492,6 +493,18 @@ class ChaosEngineHostsTest(unittest.TestCase):
         module = load(HOSTS, "chaos_engine_invalid_retrieval")
         for relative, content, message in (
             (".memory/config.json", "{}", "Memory configuration"),
+            (
+                ".memory/config.json",
+                json.dumps(
+                    {
+                        "version": 4,
+                        "project": {"id": "project.consumer", "name": "consumer"},
+                        "memory": {},
+                        "git": {},
+                    }
+                ),
+                "Memory configuration",
+            ),
             ("mempalace.yaml", "arbitrary: value\n", "MemPalace configuration"),
             (
                 "mempalace.yaml",
@@ -510,6 +523,33 @@ class ChaosEngineHostsTest(unittest.TestCase):
                 with self.assertRaisesRegex(ValueError, message):
                     module.install(project)
                 self.assertFalse(project.joinpath(module.RECEIPT_NAME).exists())
+
+    def test_repository_remote_defines_identity_in_a_named_worktree(self):
+        module = load(HOSTS, "chaos_engine_repository_identity")
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary) / "feature-worktree"
+            project.mkdir()
+            subprocess.run(["git", "init", "-q", str(project)], check=True)
+            subprocess.run(
+                [
+                    "git",
+                    "-C",
+                    str(project),
+                    "remote",
+                    "add",
+                    "origin",
+                    "ssh://git.example/team/actual-project.git",
+                ],
+                check=True,
+            )
+            project.joinpath(".chaos-engine/skills/chaos-engine").mkdir(parents=True)
+            project.joinpath(".chaos-engine/skills/chaos-engine/SKILL.md").write_text("# C\n")
+
+            module.install(project)
+
+            memory = json.loads(project.joinpath(".memory/config.json").read_text())
+            self.assertEqual("actual-project", memory["project"]["name"])
+            self.assertIn("wing: actual-project", project.joinpath("mempalace.yaml").read_text())
 
     def test_launcher_rendering_is_explicit_for_windows_and_posix(self):
         module = load(HOSTS, "chaos_engine_hosts")

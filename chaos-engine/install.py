@@ -997,7 +997,11 @@ def install_with_dependencies(  # noqa: MC0001 - owned resources share one compe
 
 
 def attach_component_status(
-    result: dict[str, object], project: Path, target: Path, dependency_health: str
+    result: dict[str, object],
+    project: Path,
+    target: Path,
+    dependency_health: str,
+    host_controller: object,
 ) -> None:
     component_paths = {
         "core": [target / "skills/chaos-engine/SKILL.md"],
@@ -1029,6 +1033,8 @@ def attach_component_status(
     for name, paths in component_paths.items():
         expected_count = 10 if name == "roles" else len(paths)
         healthy = len(paths) == expected_count and all(path.is_file() for path in paths)
+        if name == "retrieval-config" and healthy:
+            healthy = bool(host_controller.retrieval_configs_healthy(project))
         components[name] = {"status": "healthy" if healthy else "absent"}
     for name in ("tools", "memory", "mempalace", "graphify"):
         components[name] = {"status": dependency_health}
@@ -1078,11 +1084,13 @@ def status_with_dependencies(project: Path, *, active_probes: bool = False) -> d
                 for path in (removing, backup, building)
             ):
                 result["dependencies"] = {"status": "recovery-required"}
-                attach_component_status(result, project, target, "recovery-required")
+                attach_component_status(
+                    result, project, target, "recovery-required", host_controller
+                )
                 return result
             if not runtime.exists():
                 result["dependencies"] = {"status": "absent"}
-                attach_component_status(result, project, target, "absent")
+                attach_component_status(result, project, target, "absent", host_controller)
                 return result
             controller = load_dependency_controller(target)
             dependency_check = controller.doctor if active_probes else controller.status
@@ -1091,7 +1099,9 @@ def status_with_dependencies(project: Path, *, active_probes: bool = False) -> d
                 specification=controller.load_specification(target / "dependencies.json"),
             )
             dependency_health = str(result["dependencies"].get("status"))  # type: ignore[union-attr]
-            attach_component_status(result, project, target, dependency_health)
+            attach_component_status(
+                result, project, target, dependency_health, host_controller
+            )
             return result
 
 
