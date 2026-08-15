@@ -501,6 +501,26 @@ class ChaosEngineHostsTest(unittest.TestCase):
 
             self.assertEqual(1, result.returncode, result.stdout)
 
+    def test_gitignore_keeps_generated_python_bytecode_untracked(self):
+        module = load(HOSTS, "chaos_engine_gitignore_bytecode")
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary)
+            project.joinpath(".gitignore").write_bytes(module.gitignore_content(None))
+            generated = ".chaos-engine/__pycache__/hosts.cpython-314.pyc"
+            path = project / generated
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_bytes(b"generated")
+            subprocess.run(["git", "init", "-q", str(project)], check=True)
+
+            result = subprocess.run(
+                ["git", "-C", str(project), "check-ignore", generated],
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+
+            self.assertEqual(0, result.returncode, result.stdout)
+
     def test_invalid_retrieval_configs_fail_before_mutation(self):
         module = load(HOSTS, "chaos_engine_invalid_retrieval")
         for relative, content, message in (
