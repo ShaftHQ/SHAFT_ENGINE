@@ -82,6 +82,14 @@ final class AndroidLifecycleService {
     Path emulatorLog() { return layout.emulatorLog(); }
     Path appiumLog() { return layout.appiumLog(); }
 
+    String logs() throws IOException {
+        Optional<AndroidRuntimeLease> current = readLease();
+        if (current.isEmpty()) return "";
+        requireLeaseRequest(current.orElseThrow());
+        return section("emulator", OwnedLogReader.read("Android emulator", layout.emulatorLog()))
+                + section("appium", OwnedLogReader.read("Appium server", layout.appiumLog()));
+    }
+
     boolean stop(Duration timeout) throws IOException {
         Path lockPath = paths.state().resolve("mobile-android-runtime.lock").toAbsolutePath().normalize();
         VerifiedArtifactStore.requireUnlinkedAncestors(lockPath);
@@ -318,6 +326,11 @@ final class AndroidLifecycleService {
     }
 
     private Path leasePath() { return paths.state().resolve("mobile-android-runtime.json"); }
+
+    private static String section(String role, String content) {
+        if (content.isEmpty()) return "";
+        return "== " + role + " ==" + System.lineSeparator() + content + System.lineSeparator();
+    }
 
     private static IOException stopStarted(AndroidOwnedProcess appium, AndroidOwnedProcess emulator,
                                            Duration timeout) {

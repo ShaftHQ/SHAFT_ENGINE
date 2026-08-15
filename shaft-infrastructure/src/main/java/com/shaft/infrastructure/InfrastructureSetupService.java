@@ -169,6 +169,31 @@ public final class InfrastructureSetupService {
         return start(plan, approval, options, Objects.requireNonNull(request, "request").toSelection());
     }
 
+    /** Stops the exact SHAFT-owned service represented by an approved plan. */
+    public boolean stop(SetupPlan plan, SetupApproval approval, SetupOptions options) throws IOException {
+        return stop(plan, approval, options, SetupSelection.defaults());
+    }
+
+    /** Stops the exact selected SHAFT-owned service represented by an approved plan. */
+    public boolean stop(SetupPlan plan, SetupApproval approval, SetupOptions options,
+                        SetupSelection selection) throws IOException {
+        SetupProvider provider = authorize(plan, approval, options, selection, "stop a managed service");
+        return provider.stop(plan, approval, options);
+    }
+
+    /** Reads bounded logs for the default selection of one setup profile. */
+    public String logs(SetupOptions options) throws IOException {
+        return logs(options, SetupSelection.defaults());
+    }
+
+    /** Reads bounded logs owned by one exact provider selection without mutating the host. */
+    public String logs(SetupOptions options, SetupSelection selection) throws IOException {
+        SetupOptions value = Objects.requireNonNull(options, "options");
+        String logs = providers.require(value.profile()).logs(value,
+                Objects.requireNonNull(selection, "selection"), platform, architecture);
+        return Objects.requireNonNull(logs, "Setup provider returned null logs.");
+    }
+
     private SetupProvider authorize(SetupPlan plan, SetupApproval approval, SetupOptions options,
                                     SetupSelection selection, String operation) {
         Objects.requireNonNull(plan, "plan");

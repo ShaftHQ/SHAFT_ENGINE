@@ -107,9 +107,9 @@ Agents should use these exact tool names instead of guessing or listing tools at
 - `setup_verify` — verifies exact setup readiness without mutating the host
 - `setup_plan` — creates an exact reviewable setup plan and approval digest without mutating the host
 - `setup_install` — installs one reviewed setup plan after exact digest and license approval
-- `setup_start` — reports whether the selected setup profile owns a startable managed service
-- `setup_stop` — reports whether the selected setup profile owns a stoppable managed service lease
-- `setup_logs` — reports whether the selected setup profile exposes owned service logs
+- `setup_start` — starts one managed service from an exact reviewed setup plan; profile-only calls remain supported as legacy capability queries
+- `setup_stop` — stops one SHAFT-owned service using an exact reviewed setup plan; profile-only calls remain supported as legacy capability queries
+- `setup_logs` — reads bounded logs for a SHAFT-owned setup service without mutating the host; profile-only calls remain supported as legacy capability queries
 
 ## Mobile (MobileService)
 

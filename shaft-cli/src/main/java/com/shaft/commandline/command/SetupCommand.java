@@ -207,7 +207,6 @@ public final class SetupCommand implements Runnable {
         public Integer call() {
             try {
                 SetupPlan plan = SetupPlanStore.read(planFile);
-                if (plan.profile() != SetupProfile.MOBILE_ANDROID) return unsupported(spec, plan.profile());
                 SetupSelection selection = selectionFromPlan(plan, languages, android);
                 SetupOptions options = policy.options(plan.profile(), plan.mode(), roots.paths(plan.profile()));
                 var environment = InfrastructureSetupService.builtIn().start(plan,
@@ -233,7 +232,13 @@ public final class SetupCommand implements Runnable {
     @Command(name = "stop", mixinStandardHelpOptions = true,
             description = "Stop a SHAFT-owned service identified by its lease.")
     static final class Stop implements Callable<Integer> {
-        @Option(names = "--profile", required = true) private SetupProfile profile;
+        @Option(names = "--plan") private Path planFile;
+        @Option(names = "--approve") private String approvedDigest;
+        @Option(names = "--accept-license") private Set<String> acceptedLicenses = new LinkedHashSet<>();
+        @Option(names = "--profile", description = "Deprecated profile-only compatibility input.")
+        private SetupProfile legacyProfile;
+        @Option(names = "--json") private boolean json;
+        @Option(names = "--language") private List<String> languages = new java.util.ArrayList<>();
         @Mixin private RootOptions roots;
         @Mixin private PolicyOptions policy;
         @Mixin private AndroidOptions android;
@@ -242,17 +247,25 @@ public final class SetupCommand implements Runnable {
         @Override
         public Integer call() {
             try {
-                if (profile != SetupProfile.MOBILE_ANDROID) return unsupported(spec, profile);
-                ShaftCachePaths paths = roots.paths(profile);
-                AndroidSetupRequest request = android.request(profile);
-                boolean stopped = AndroidRuntimeManager.stop(paths, SetupPlatform.current(),
-                        SetupArchitecture.current(), request,
-                        policy.options(profile, SetupMode.MANAGED, paths).shutdownTimeout());
+                if (planFile == null || approvedDigest == null || approvedDigest.isBlank()) {
+                    throw new IllegalArgumentException("setup stop requires --plan and --approve; profile-only stop "
+                            + "cannot satisfy exact approval.");
+                }
+                SetupPlan plan = SetupPlanStore.read(planFile);
+                SetupSelection selection = selectionFromPlan(plan, languages, android);
+                ShaftCachePaths paths = roots.paths(plan.profile());
+                SetupOptions options = policy.options(plan.profile(), plan.mode(), paths);
+                boolean stopped = InfrastructureSetupService.builtIn().stop(plan,
+                        new SetupApproval(approvedDigest, Instant.now(), acceptedLicenses), options, selection);
                 if (!stopped) {
-                    spec.commandLine().getErr().println("No live owned Android runtime exists.");
+                    spec.commandLine().getErr().println("No live owned service exists for profile "
+                            + plan.profile() + '.');
                     return 3;
                 }
-                spec.commandLine().getOut().println("Stopped the owned Android runtime.");
+                if (json) spec.commandLine().getOut().println(Json.MAPPER.writeValueAsString(
+                        java.util.Map.of("profile", plan.profile(), "stopped", true,
+                                "planDigest", plan.digest())));
+                else spec.commandLine().getOut().println("Stopped the owned service for profile " + plan.profile() + '.');
                 return 0;
             } catch (IllegalArgumentException failure) {
                 spec.commandLine().getErr().println(failure.getMessage());
@@ -269,19 +282,22 @@ public final class SetupCommand implements Runnable {
     static final class Logs implements Callable<Integer> {
         @Option(names = "--profile", required = true) private SetupProfile profile;
         @Mixin private RootOptions roots;
+        @Mixin private PolicyOptions policy;
         @Mixin private AndroidOptions android;
         @Spec private CommandSpec spec;
 
         @Override
         public Integer call() throws Exception {
+            if (!InfrastructureSetupService.builtIn().supports(profile)) return unsupported(spec, profile);
+            ShaftCachePaths paths = roots.paths(profile);
             String content;
-            if (profile == SetupProfile.REPORTING) {
-                Path log = service(roots).logFile();
-                content = Files.notExists(log) ? "" : Files.readString(log);
-            } else if (profile == SetupProfile.MOBILE_ANDROID) {
-                content = AndroidRuntimeManager.logs(roots.paths(), SetupPlatform.current(),
-                        SetupArchitecture.current(), android.request(profile));
-            } else return unsupported(spec, profile);
+            try {
+                content = InfrastructureSetupService.builtIn().logs(
+                        policy.options(profile, SetupMode.EXTERNAL, paths),
+                        selection(profile, List.of(), android.request(profile)));
+            } catch (UnsupportedOperationException unsupported) {
+                return unsupported(spec, profile);
+            }
             if (content.isEmpty()) {
                 spec.commandLine().getErr().println("No owned logs exist for profile " + profile + '.');
                 return 3;

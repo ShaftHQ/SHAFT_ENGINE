@@ -1,6 +1,8 @@
 package com.shaft.mcp;
 
 import com.shaft.infrastructure.InfrastructureSetupService;
+import com.shaft.infrastructure.AndroidSetupRequest;
+import com.shaft.infrastructure.ManagedEnvironment;
 import com.shaft.infrastructure.SetupApproval;
 import com.shaft.infrastructure.SetupCatalog;
 import com.shaft.infrastructure.SetupOperation;
@@ -20,6 +22,7 @@ import java.time.Instant;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Objects;
 
 /** MCP adapter over the provider-neutral setup coordinator. */
@@ -100,25 +103,126 @@ public final class InfrastructureMcpService {
     }
 
     @Tool(name = "setup_start",
-            description = "reports whether the selected setup profile owns a startable managed service")
-    public McpSetupLifecycleResult setupStart(@ToolParam(description = "setup profile") String profile) {
-        return unsupported(profile, "start");
+            description = "starts one managed service from an exact reviewed setup plan; profile-only calls remain "
+                    + "supported as legacy capability queries")
+    public McpSetupLifecycleResult setupStart(
+            @ToolParam(required = false, description = "legacy setup profile capability query") String profile,
+            @ToolParam(required = false, description = "exact plan JSON returned by setup_plan") String planJson,
+            @ToolParam(required = false, description = "exact plan digest explicitly approved by the caller")
+            String approvedDigest,
+            @ToolParam(required = false, description = "explicitly accepted license identifiers")
+            List<String> acceptedLicenses,
+            @ToolParam(required = false, description = "the same paths and execution policy used to create the plan")
+            McpSetupRequest request) throws IOException {
+        if (planJson == null || planJson.isBlank()) return setupStart(profile);
+        requireMatchingOptionalProfile(profile, request);
+        return setupStart(planJson, approvedDigest, acceptedLicenses, request);
+    }
+
+    public McpSetupLifecycleResult setupStart(
+            String planJson, String approvedDigest, List<String> acceptedLicenses, McpSetupRequest request)
+            throws IOException {
+        SetupPlan plan = reviewedLifecyclePlan(planJson, request);
+        McpSetupRequest value = requireRequest(request);
+        try {
+            ManagedEnvironment environment = coordinator.start(plan, approval(approvedDigest, acceptedLicenses),
+                    value.options(), lifecycleSelection(plan, value));
+            // The MCP operation establishes a persistent provider lease; setup_stop owns its explicit release.
+            return new McpSetupLifecycleResult(true, plan.profile().name(), "start",
+                    "Started the SHAFT-owned managed service.",
+                    environment.endpoint().map(Object::toString).orElse(""),
+                    environment.connectionProperties(), environment.receipt().planDigest(), "");
+        } catch (UnsupportedOperationException unsupported) {
+            return unsupported(plan.profile().name(), "start");
+        }
     }
 
     @Tool(name = "setup_stop",
-            description = "reports whether the selected setup profile owns a stoppable managed service lease")
-    public McpSetupLifecycleResult setupStop(@ToolParam(description = "setup profile") String profile) {
-        return unsupported(profile, "stop");
+            description = "stops one SHAFT-owned service using an exact reviewed setup plan; profile-only calls "
+                    + "remain supported as legacy capability queries")
+    public McpSetupLifecycleResult setupStop(
+            @ToolParam(required = false, description = "legacy setup profile capability query") String profile,
+            @ToolParam(required = false, description = "exact plan JSON returned by setup_plan") String planJson,
+            @ToolParam(required = false, description = "exact plan digest explicitly approved by the caller")
+            String approvedDigest,
+            @ToolParam(required = false, description = "explicitly accepted license identifiers")
+            List<String> acceptedLicenses,
+            @ToolParam(required = false, description = "the same paths and execution policy used to create the plan")
+            McpSetupRequest request) throws IOException {
+        if (planJson == null || planJson.isBlank()) return setupStop(profile);
+        requireMatchingOptionalProfile(profile, request);
+        return setupStop(planJson, approvedDigest, acceptedLicenses, request);
+    }
+
+    public McpSetupLifecycleResult setupStop(
+            String planJson, String approvedDigest, List<String> acceptedLicenses, McpSetupRequest request)
+            throws IOException {
+        SetupPlan plan = reviewedLifecyclePlan(planJson, request);
+        McpSetupRequest value = requireRequest(request);
+        try {
+            boolean stopped = coordinator.stop(plan, approval(approvedDigest, acceptedLicenses),
+                    value.options(), lifecycleSelection(plan, value));
+            return new McpSetupLifecycleResult(true, plan.profile().name(), "stop",
+                    stopped ? "Stopped the SHAFT-owned managed service."
+                            : "No live SHAFT-owned managed service exists.",
+                    "", Map.of(), plan.digest(), "");
+        } catch (UnsupportedOperationException unsupported) {
+            return unsupported(plan.profile().name(), "stop");
+        }
     }
 
     @Tool(name = "setup_logs",
-            description = "reports whether the selected setup profile exposes owned service logs")
-    public McpSetupLifecycleResult setupLogs(@ToolParam(description = "setup profile") String profile) {
+            description = "reads bounded logs for a SHAFT-owned setup service without mutating the host; "
+                    + "profile-only calls remain supported as legacy capability queries")
+    public McpSetupLifecycleResult setupLogs(
+            @ToolParam(required = false, description = "legacy setup profile capability query") String profile,
+            @ToolParam(required = false, description = "setup profile, owned paths, policy, and components")
+            McpSetupRequest request) throws IOException {
+        if (request == null) return setupLogs(profile);
+        requireMatchingOptionalProfile(profile, request);
+        return setupLogs(request);
+    }
+
+    public McpSetupLifecycleResult setupLogs(
+            McpSetupRequest request) throws IOException {
+        McpSetupRequest value = requireRequest(request);
+        try {
+            String logs = coordinator.logs(value.options(), value.selection());
+            return new McpSetupLifecycleResult(true, value.setupProfile().name(), "logs",
+                    logs.isEmpty() ? "No owned logs exist." : "Read bounded SHAFT-owned logs.",
+                    "", Map.of(), "", logs);
+        } catch (UnsupportedOperationException unsupported) {
+            return unsupported(value.setupProfile().name(), "logs");
+        }
+    }
+
+    /** @deprecated Profile-only lifecycle calls cannot carry an exact reviewed plan and approval. */
+    @Deprecated(since = "10.3", forRemoval = false)
+    public McpSetupLifecycleResult setupStart(String profile) {
+        return unsupported(profile, "start");
+    }
+
+    /** @deprecated Profile-only lifecycle calls cannot carry an exact reviewed plan and approval. */
+    @Deprecated(since = "10.3", forRemoval = false)
+    public McpSetupLifecycleResult setupStop(String profile) {
+        return unsupported(profile, "stop");
+    }
+
+    /** @deprecated Profile-only lifecycle calls cannot identify provider-owned paths safely. */
+    @Deprecated(since = "10.3", forRemoval = false)
+    public McpSetupLifecycleResult setupLogs(String profile) {
         return unsupported(profile, "logs");
     }
 
     private static McpSetupRequest requireRequest(McpSetupRequest request) {
         return Objects.requireNonNull(request, "request");
+    }
+
+    private static void requireMatchingOptionalProfile(String profile, McpSetupRequest request) {
+        if (profile == null || profile.isBlank()) return;
+        if (parseProfile(profile) != requireRequest(request).setupProfile()) {
+            throw new IllegalArgumentException("profile does not match the lifecycle request.");
+        }
     }
 
     private static SetupPlan parsePlan(String planJson) {
@@ -127,6 +231,35 @@ public final class InfrastructureMcpService {
         } catch (RuntimeException invalid) {
             throw new IllegalArgumentException("planJson is not a valid strict setup plan.", invalid);
         }
+    }
+
+    private static SetupPlan reviewedLifecyclePlan(String planJson, McpSetupRequest request) {
+        if (planJson == null || planJson.isBlank()) throw new IllegalArgumentException("planJson must not be blank.");
+        SetupPlan plan = parsePlan(planJson);
+        McpSetupRequest value = requireRequest(request);
+        if (value.setupOperation() != SetupOperation.INSTALL || SetupOperation.fromPlan(plan) != SetupOperation.INSTALL) {
+            throw new IllegalArgumentException("Managed service lifecycle requires an INSTALL setup plan.");
+        }
+        if (plan.profile() != value.setupProfile()) {
+            throw new IllegalArgumentException("Setup plan profile does not match the request.");
+        }
+        return plan;
+    }
+
+    private static SetupApproval approval(String approvedDigest, List<String> acceptedLicenses) {
+        return new SetupApproval(approvedDigest, Instant.now(),
+                new LinkedHashSet<>(acceptedLicenses == null ? List.of() : acceptedLicenses));
+    }
+
+    private static SetupSelection lifecycleSelection(SetupPlan plan, McpSetupRequest request) {
+        if (plan.profile() == SetupProfile.MOBILE_ANDROID) {
+            SetupSelection selected = AndroidSetupRequest.fromPlan(plan).toSelection();
+            if (!request.components().isEmpty() && !selected.equals(request.selection())) {
+                throw new IllegalArgumentException("components do not match the reviewed Android plan.");
+            }
+            return selected;
+        }
+        return request.selection();
     }
 
     private static SetupSelection installSelection(SetupPlan plan, McpSetupRequest request) {
@@ -147,13 +280,16 @@ public final class InfrastructureMcpService {
 
     private static McpSetupLifecycleResult unsupported(String profile, String operation) {
         if (profile == null || profile.isBlank()) throw new IllegalArgumentException("profile must not be blank.");
-        SetupProfile parsed;
+        SetupProfile parsed = parseProfile(profile);
+        return new McpSetupLifecycleResult(false, parsed.name(), operation,
+                "Profile " + parsed + " does not currently own a " + operation + " lifecycle through MCP.");
+    }
+
+    private static SetupProfile parseProfile(String profile) {
         try {
-            parsed = SetupProfile.valueOf(profile.trim().toUpperCase(Locale.ROOT));
+            return SetupProfile.valueOf(profile.trim().toUpperCase(Locale.ROOT));
         } catch (IllegalArgumentException invalid) {
             throw new IllegalArgumentException("Unsupported setup profile: " + profile, invalid);
         }
-        return new McpSetupLifecycleResult(false, parsed.name(), operation,
-                "Profile " + parsed + " does not currently own a " + operation + " lifecycle through MCP.");
     }
 }
