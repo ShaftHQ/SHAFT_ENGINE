@@ -9,4 +9,3 @@ The upstream package is MIT-licensed. Keep this directory synchronized with
 the pinned package: update the dependency and all five schemas in one change,
 then prove `memory status --json` and `memory check --json` in a fresh adopter
 project.
-
