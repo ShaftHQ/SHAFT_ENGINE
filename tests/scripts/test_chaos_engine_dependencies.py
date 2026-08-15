@@ -28,6 +28,36 @@ def load_controller():
 
 
 class ChaosEngineDependenciesTest(unittest.TestCase):
+    @staticmethod
+    def write_legacy_receipt_with_cache(module, runtime: Path) -> None:
+        receipt_path = runtime / module.RECEIPT_NAME
+        receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
+        ownership = receipt["ownership"]
+        cache_directory = "bin/__pycache__"
+        cache_file = f"{cache_directory}/graphify.cpython-314.pyc"
+        ownership["directories"] = sorted(
+            set(ownership["directories"]) | {cache_directory}
+        )
+        ownership["files"][cache_file] = module.sha256(runtime / cache_file)
+        digest = module.hashlib.sha256()
+        for relative, file_digest in sorted(ownership["files"].items()):
+            digest.update(relative.encode())
+            digest.update(b"\0")
+            digest.update(bytes.fromhex(file_digest))
+        ownership["sha256"] = digest.hexdigest()
+        integrity_receipt = {
+            key: value
+            for key, value in receipt.items()
+            if key != "receiptIntegritySha256"
+        }
+        encoded = json.dumps(
+            integrity_receipt, sort_keys=True, separators=(",", ":")
+        ).encode()
+        receipt["receiptIntegritySha256"] = module.hashlib.sha256(encoded).hexdigest()
+        receipt_path.write_text(
+            json.dumps(receipt, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+        )
+
     def test_runtime_lock_closes_descriptor_when_stream_creation_fails(self):
         module = load_controller()
         with tempfile.TemporaryDirectory() as temporary:
@@ -205,6 +235,127 @@ class ChaosEngineDependenciesTest(unittest.TestCase):
             module.repair(runtime, specification, runner=self.fake_runner(runtime))
             module.remove(runtime, specification)
             self.assertFalse(runtime.exists())
+
+    def test_status_ignores_direct_generated_python_cache_files(self):
+        module = load_controller()
+        specification = json.loads(SPECIFICATION.read_text(encoding="utf-8"))
+        with tempfile.TemporaryDirectory() as temporary:
+            runtime = Path(temporary) / ".chaos-engine-runtime"
+            module.repair(runtime, specification, runner=self.fake_runner(runtime))
+            cache = runtime / "bin/__pycache__"
+            cache.mkdir()
+            (cache / "graphify.cpython-314.pyc").write_bytes(b"generated")
+
+            try:
+                result = module.status(runtime, specification)
+            except ValueError as error:
+                self.fail(f"generated cache rejected by status: {error}")
+
+        self.assertEqual("healthy", result["status"])
+
+    def test_new_receipt_excludes_direct_generated_python_cache_files(self):
+        module = load_controller()
+        specification = json.loads(SPECIFICATION.read_text(encoding="utf-8"))
+        with tempfile.TemporaryDirectory() as temporary:
+            runtime = Path(temporary) / ".chaos-engine-runtime"
+            runner = self.fake_runner(runtime)
+
+            def cache_creating_runner(command, environment):
+                result = runner(command, environment)
+                cache = runtime / "bin/__pycache__"
+                cache.mkdir(parents=True, exist_ok=True)
+                (cache / "graphify.cpython-314.pyc").write_bytes(b"generated")
+                return result
+
+            receipt = module.repair(runtime, specification, runner=cache_creating_runner)
+
+        self.assertNotIn("bin/__pycache__", receipt["ownership"]["directories"])
+        self.assertNotIn(
+            "bin/__pycache__/graphify.cpython-314.pyc",
+            receipt["ownership"]["files"],
+        )
+
+    def test_legacy_receipt_cache_entries_are_normalized_during_verification(self):
+        module = load_controller()
+        specification = json.loads(SPECIFICATION.read_text(encoding="utf-8"))
+        with tempfile.TemporaryDirectory() as temporary:
+            runtime = Path(temporary) / ".chaos-engine-runtime"
+            module.repair(runtime, specification, runner=self.fake_runner(runtime))
+            cache = runtime / "bin/__pycache__"
+            cache.mkdir()
+            bytecode = cache / "graphify.cpython-314.pyc"
+            bytecode.write_bytes(b"legacy")
+            self.write_legacy_receipt_with_cache(module, runtime)
+            bytecode.write_bytes(b"regenerated")
+
+            try:
+                result = module.status(runtime, specification)
+            except ValueError as error:
+                self.fail(f"legacy generated cache rejected by status: {error}")
+
+        self.assertEqual("healthy", result["status"])
+
+    def test_unknown_file_inside_python_cache_directory_still_fails_closed(self):
+        module = load_controller()
+        specification = json.loads(SPECIFICATION.read_text(encoding="utf-8"))
+        with tempfile.TemporaryDirectory() as temporary:
+            runtime = Path(temporary) / ".chaos-engine-runtime"
+            module.repair(runtime, specification, runner=self.fake_runner(runtime))
+            cache = runtime / "bin/__pycache__"
+            cache.mkdir()
+            (cache / "graphify.cpython-314.pyc").write_bytes(b"generated")
+            unknown = cache / "keep.txt"
+            unknown.write_text("mine\n", encoding="utf-8")
+
+            with self.assertRaisesRegex(ValueError, "ownership drift"):
+                module.status(runtime, specification)
+            self.assertEqual("mine\n", unknown.read_text(encoding="utf-8"))
+
+    def test_changed_owned_file_still_fails_closed(self):
+        module = load_controller()
+        specification = json.loads(SPECIFICATION.read_text(encoding="utf-8"))
+        with tempfile.TemporaryDirectory() as temporary:
+            runtime = Path(temporary) / ".chaos-engine-runtime"
+            module.repair(runtime, specification, runner=self.fake_runner(runtime))
+            entrypoint = Path(module.probe_plan(runtime)["graphify"][0][0])
+            entrypoint.write_text("changed\n", encoding="utf-8")
+
+            with self.assertRaisesRegex(ValueError, "ownership drift"):
+                module.status(runtime, specification)
+
+    def test_remove_deletes_direct_generated_python_cache_files(self):
+        module = load_controller()
+        specification = json.loads(SPECIFICATION.read_text(encoding="utf-8"))
+        with tempfile.TemporaryDirectory() as temporary:
+            runtime = Path(temporary) / ".chaos-engine-runtime"
+            module.repair(runtime, specification, runner=self.fake_runner(runtime))
+            cache = runtime / "bin/__pycache__"
+            cache.mkdir()
+            (cache / "graphify.cpython-314.pyc").write_bytes(b"generated")
+
+            try:
+                module.remove(runtime, specification)
+            except ValueError as error:
+                self.fail(f"generated cache rejected by remove: {error}")
+
+            self.assertFalse(runtime.exists())
+
+    def test_remove_rejects_unknown_file_inside_python_cache_directory(self):
+        module = load_controller()
+        specification = json.loads(SPECIFICATION.read_text(encoding="utf-8"))
+        with tempfile.TemporaryDirectory() as temporary:
+            runtime = Path(temporary) / ".chaos-engine-runtime"
+            module.repair(runtime, specification, runner=self.fake_runner(runtime))
+            cache = runtime / "bin/__pycache__"
+            cache.mkdir()
+            (cache / "graphify.cpython-314.pyc").write_bytes(b"generated")
+            unknown = cache / "keep.txt"
+            unknown.write_text("mine\n", encoding="utf-8")
+
+            with self.assertRaisesRegex(ValueError, "ownership drift"):
+                module.remove(runtime, specification)
+
+            self.assertEqual("mine\n", unknown.read_text(encoding="utf-8"))
 
     def test_upgrade_accepts_a_new_specification_and_receipts_uv(self):
         module = load_controller()
