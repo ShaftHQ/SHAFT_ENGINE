@@ -113,8 +113,9 @@ said it passed", "close enough", "no need to run it", "the check covers it".
 
 ## Project profile
 
-Load the adapter-selected project profile before task-specific work. The
-portable selection contract lives in the [profiles catalog](../../profiles/README.md); the
+Load the adapter-selected project profile before task work. The public default
+is the [portable profile](../../profiles/portable/entrypoint.md); selection
+rules are in the [profiles catalog](../../profiles/README.md). The
 core never assumes a repository, default branch, local root, or companion
 project. A standalone distribution that bundles exactly one profile selects
 that profile automatically and must link it from its discoverable skill.

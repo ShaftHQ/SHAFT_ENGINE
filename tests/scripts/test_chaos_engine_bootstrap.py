@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
+import ast
 import importlib.util
 import io
-import ast
 import json
 import subprocess  # nosec B404 - tests run fixed local Git commands only.
 import tempfile
@@ -83,7 +83,9 @@ class ChaosEngineBootstrapTest(unittest.TestCase):
             installer.load_installed_controller.assert_called_once_with(
                 project / ".chaos-engine", "hosts"
             )
-            installer.load_installed_controller.return_value.activate_detected_plugins.assert_called_once_with(project)
+            installer.load_installed_controller.return_value.activate_detected_plugins.assert_called_once_with(
+                project.resolve()
+            )
             installer.doctor_with_dependencies.assert_called_once_with(
                 project, verify_clients=False
             )
@@ -111,7 +113,8 @@ class ChaosEngineBootstrapTest(unittest.TestCase):
                     )
 
             host.activate_detected_plugins.assert_not_called()
-            installer.uninstall_with_dependencies.assert_called_once_with(project)
+            installer.uninstall_with_dependencies.assert_called_once_with(project.resolve())
+
     def opener(self, commits: list[tuple[str, str]]):
         calls: list[str] = []
 

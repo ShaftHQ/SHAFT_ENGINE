@@ -120,7 +120,7 @@ BUDGET = ROOT / "scripts/ci/agent_guidance_budget.json"
 # from the boundary was invisible. Equality makes shrinking the boundary a
 # deliberate two-line edit that shows up in review, which is the only place the
 # question "why is the harness smaller today" gets asked.
-EXPECTED_ELEMENT_COUNT = 202
+EXPECTED_ELEMENT_COUNT = 207
 
 ATX_HEADING = re.compile(r"(?m)^#{1,6}\s+(.+?)\s*$")
 
@@ -770,7 +770,7 @@ class EntrypointDutyTest(unittest.TestCase):
             "auto-merge",
             "arm",
             "watch",
-            "`scripts/ci/watch_pr_checks.py`",
+            "`gh pr checks <n> --watch --fail-fast`",
             "merged",
             "red",
             "conflicting",
@@ -781,6 +781,11 @@ class EntrypointDutyTest(unittest.TestCase):
         ):
             with self.subTest(clause=clause):
                 self.assertIn(clause, compact.lower() if clause.islower() else compact)
+
+        repository_profile = (ROOT / "chaos-engine/profiles/shaft/entrypoint.md").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn("`scripts/ci/watch_pr_checks.py`", repository_profile)
 
     def test_the_pr_duty_cannot_be_qualified_into_something_optional(self):
         """A presence pin catches deletion and renaming, never weakening (#4469).
