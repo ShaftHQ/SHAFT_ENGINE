@@ -48,4 +48,32 @@ public interface SetupProvider {
             throws IOException {
         throw new UnsupportedOperationException("Profile " + profile() + " does not own a startable service.");
     }
+
+    /**
+     * Stops the exact SHAFT-owned service represented by an approved plan.
+     *
+     * @param plan exact provider plan
+     * @param approval approval bound to {@code plan}
+     * @param options execution policy and owned roots
+     * @return {@code true} when an owned service was stopped
+     * @throws IOException when an owned service cannot be stopped safely
+     */
+    default boolean stop(SetupPlan plan, SetupApproval approval, SetupOptions options) throws IOException {
+        throw new UnsupportedOperationException("Profile " + profile() + " does not own a stoppable service.");
+    }
+
+    /**
+     * Reads bounded logs owned by this provider without mutating the host.
+     *
+     * @param options execution policy and owned roots
+     * @param selection exact profile selection
+     * @param platform selected host platform
+     * @param architecture selected host architecture
+     * @return log text, or an empty string when no owned logs exist
+     * @throws IOException when owned logs cannot be read safely
+     */
+    default String logs(SetupOptions options, SetupSelection selection, SetupPlatform platform,
+                        SetupArchitecture architecture) throws IOException {
+        throw new UnsupportedOperationException("Profile " + profile() + " does not expose owned logs.");
+    }
 }

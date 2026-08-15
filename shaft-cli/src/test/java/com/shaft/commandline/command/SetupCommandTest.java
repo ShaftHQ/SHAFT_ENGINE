@@ -244,16 +244,28 @@ class SetupCommandTest {
     }
 
     @Test
-    void androidStopAndLogsReportMissingWithoutCreatingRuntimeState(@TempDir Path temp) {
+    void androidStopRequiresAnExactPlanAndLogsReportMissingWithoutCreatingRuntimeState(@TempDir Path temp)
+            throws Exception {
         Path cache = temp.resolve("cache").toAbsolutePath();
         Path data = temp.resolve("data").toAbsolutePath();
-        CommandResult stop = execute("setup", "stop", "--profile", "MOBILE_ANDROID",
+        Path planFile = temp.resolve("android-stop-plan.json");
+        CommandResult planned = execute("setup", "plan", "--profile", "MOBILE_ANDROID", "--mode", "MANAGED",
+                "--output", planFile.toString(), "--cache-root", cache.toString(), "--data-root", data.toString(),
+                "--json");
+        JsonNode plan = JSON.readTree(planned.stdout());
+        CommandResult stop = execute("setup", "stop", "--plan", planFile.toString(),
+                "--approve", plan.get("digest").asText(), "--accept-license", "android-sdk-license",
                 "--cache-root", cache.toString(), "--data-root", data.toString());
         CommandResult logs = execute("setup", "logs", "--profile", "MOBILE_ANDROID",
                 "--cache-root", cache.toString(), "--data-root", data.toString());
+        CommandResult unsafeCompatibility = execute("setup", "stop", "--profile", "MOBILE_ANDROID",
+                "--cache-root", cache.toString(), "--data-root", data.toString());
 
+        assertEquals(0, planned.exitCode(), planned.stderr());
         assertEquals(3, stop.exitCode(), stop.stderr());
         assertEquals(3, logs.exitCode(), logs.stderr());
+        assertEquals(2, unsafeCompatibility.exitCode(), unsafeCompatibility.stderr());
+        assertTrue(unsafeCompatibility.stderr().contains("--plan"), unsafeCompatibility.stderr());
         assertTrue(Files.notExists(cache));
         assertTrue(Files.notExists(data));
     }

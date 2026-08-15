@@ -3,6 +3,7 @@ package com.shaft.infrastructure;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
+import java.io.IOException;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -382,6 +383,131 @@ class InfrastructureSetupServiceTest {
         assertThrows(IllegalStateException.class, () -> service.start(plan,
                 new SetupApproval(plan.digest(), Instant.EPOCH, Set.of()), options));
         assertEquals(1, releases.get());
+    }
+
+    @Test
+    void approvedStopUsesTheProviderNeutralLifecycleContract(@TempDir Path temp) throws Exception {
+        AtomicInteger stops = new AtomicInteger();
+        SetupOptions options = SetupOptions.defaults(SetupProfile.REPORTING, paths(temp))
+                .withMode(SetupMode.MANAGED);
+        SetupProvider provider = new FakeProvider() {
+            @Override
+            public boolean stop(SetupPlan plan, SetupApproval approval, SetupOptions ignored) {
+                stops.incrementAndGet();
+                return true;
+            }
+        };
+        InfrastructureSetupService service = new InfrastructureSetupService(
+                new SetupProviderRegistry(List.of(provider)), SetupPlatform.LINUX, SetupArchitecture.X64);
+        SetupPlan plan = service.plan(options);
+
+        assertTrue(service.stop(plan, new SetupApproval(plan.digest(), Instant.EPOCH, Set.of()), options));
+        assertEquals(1, stops.get());
+    }
+
+    @Test
+    void staleStopApprovalReachesNoProviderMutation(@TempDir Path temp) {
+        AtomicInteger stops = new AtomicInteger();
+        SetupOptions options = SetupOptions.defaults(SetupProfile.REPORTING, paths(temp))
+                .withMode(SetupMode.MANAGED);
+        SetupProvider provider = new FakeProvider() {
+            @Override
+            public boolean stop(SetupPlan plan, SetupApproval approval, SetupOptions ignored) {
+                stops.incrementAndGet();
+                return true;
+            }
+        };
+        InfrastructureSetupService service = new InfrastructureSetupService(
+                new SetupProviderRegistry(List.of(provider)), SetupPlatform.LINUX, SetupArchitecture.X64);
+        SetupPlan plan = service.plan(options);
+
+        assertThrows(IllegalArgumentException.class, () -> service.stop(plan,
+                new SetupApproval("sha256:" + "0".repeat(64), Instant.EPOCH, Set.of()), options));
+        assertEquals(0, stops.get());
+    }
+
+    @Test
+    void logsUseTheProviderNeutralReadOnlyContract(@TempDir Path temp) throws Exception {
+        SetupOptions options = SetupOptions.defaults(SetupProfile.REPORTING, paths(temp));
+        SetupProvider provider = new FakeProvider() {
+            @Override
+            public String logs(SetupOptions ignored, SetupSelection selection, SetupPlatform platform,
+                               SetupArchitecture architecture) {
+                return "owned log";
+            }
+        };
+        InfrastructureSetupService service = new InfrastructureSetupService(
+                new SetupProviderRegistry(List.of(provider)), SetupPlatform.LINUX, SetupArchitecture.X64);
+
+        assertEquals("owned log", service.logs(options, SetupSelection.defaults()));
+    }
+
+    @Test
+    void builtInReportingLogsUseTheProviderContractWithoutCreatingRoots(@TempDir Path temp) throws Exception {
+        SetupOptions options = SetupOptions.defaults(SetupProfile.REPORTING, paths(temp));
+
+        assertEquals("", InfrastructureSetupService.builtIn(SetupPlatform.LINUX, SetupArchitecture.X64)
+                .logs(options));
+        assertFalse(java.nio.file.Files.exists(options.paths().cacheRoot()));
+        assertFalse(java.nio.file.Files.exists(options.paths().dataRoot()));
+    }
+
+    @Test
+    void builtInAndroidStopUsesTheProviderContract(@TempDir Path temp) throws Exception {
+        SetupOptions options = SetupOptions.defaults(SetupProfile.MOBILE_ANDROID, paths(temp))
+                .withMode(SetupMode.MANAGED);
+        InfrastructureSetupService service = InfrastructureSetupService.builtIn(
+                SetupPlatform.LINUX, SetupArchitecture.X64);
+        SetupPlan plan = service.plan(options, AndroidSetupRequest.defaults());
+        SetupApproval approval = new SetupApproval(plan.digest(), Instant.EPOCH,
+                plan.actions().stream().flatMap(action -> action.requiredLicenses().stream())
+                        .collect(java.util.stream.Collectors.toSet()));
+
+        assertFalse(service.stop(plan, approval, options, AndroidSetupRequest.defaults().toSelection()));
+    }
+
+    @Test
+    void androidProviderRejectsStaleApprovalBeforeReadingTheLease(@TempDir Path temp) {
+        SetupOptions options = SetupOptions.defaults(SetupProfile.MOBILE_ANDROID, paths(temp))
+                .withMode(SetupMode.MANAGED);
+        SetupPlan plan = SetupPlan.bind(AndroidSetupPlanner.plan(SetupPlatform.LINUX, SetupArchitecture.X64,
+                SetupMode.MANAGED, AndroidSetupRequest.defaults()), options.policyDigest());
+
+        assertThrows(IllegalArgumentException.class, () -> new AndroidSetupProvider().stop(plan,
+                new SetupApproval("sha256:" + "0".repeat(64), Instant.EPOCH, Set.of()), options));
+        assertFalse(java.nio.file.Files.exists(options.paths().state()));
+    }
+
+    @Test
+    void androidLogsRequireAnOwnedLeaseEvenWhenOldLogFilesRemain(@TempDir Path temp) throws Exception {
+        SetupOptions options = SetupOptions.defaults(SetupProfile.MOBILE_ANDROID, paths(temp));
+        Path logs = options.paths().state().resolve("logs");
+        java.nio.file.Files.createDirectories(logs);
+        java.nio.file.Files.writeString(logs.resolve("android-emulator.log"), "old emulator log");
+        java.nio.file.Files.writeString(logs.resolve("appium-server.log"), "old appium log");
+
+        assertEquals("", InfrastructureSetupService.builtIn(SetupPlatform.LINUX, SetupArchitecture.X64)
+                .logs(options, AndroidSetupRequest.defaults().toSelection()));
+    }
+
+    @Test
+    void reportingLogsRejectFinalSymlinksAndOversizedFiles(@TempDir Path temp) throws Exception {
+        SetupOptions options = SetupOptions.defaults(SetupProfile.REPORTING, paths(temp));
+        Path log = options.paths().state().resolve("logs/reporting-install.log");
+        java.nio.file.Files.createDirectories(log.getParent());
+        java.nio.file.Files.write(log, new byte[2 * 1024 * 1024 + 1]);
+        InfrastructureSetupService service = InfrastructureSetupService.builtIn(
+                SetupPlatform.LINUX, SetupArchitecture.X64);
+        assertThrows(IOException.class, () -> service.logs(options));
+
+        java.nio.file.Files.delete(log);
+        Path outside = java.nio.file.Files.writeString(temp.resolve("outside.log"), "outside");
+        try {
+            java.nio.file.Files.createSymbolicLink(log, outside);
+        } catch (UnsupportedOperationException | IOException unsupported) {
+            org.junit.jupiter.api.Assumptions.abort("Symbolic links unavailable: " + unsupported.getMessage());
+        }
+        assertThrows(IOException.class, () -> service.logs(options));
     }
 
     private static ShaftCachePaths paths(Path temp) {

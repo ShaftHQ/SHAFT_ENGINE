@@ -75,4 +75,18 @@ final class AndroidSetupProvider implements SetupProvider {
         return new ManagedEnvironment(profile(), receipt, inner.endpoint(), inner.connectionProperties(), inner::close);
     }
 
+    @Override
+    public boolean stop(SetupPlan plan, SetupApproval approval, SetupOptions options) throws IOException {
+        SetupExecutor.validate(plan, approval);
+        return AndroidRuntimeManager.stop(options.paths(), plan.platform(), plan.architecture(),
+                AndroidSetupRequest.fromPlan(plan), options.shutdownTimeout());
+    }
+
+    @Override
+    public String logs(SetupOptions options, SetupSelection selection, SetupPlatform platform,
+                       SetupArchitecture architecture) throws IOException {
+        return AndroidRuntimeManager.logs(options.paths(), platform, architecture,
+                AndroidSetupRequest.fromSelection(selection));
+    }
+
 }

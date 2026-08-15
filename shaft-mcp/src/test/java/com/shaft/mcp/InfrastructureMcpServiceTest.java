@@ -1,6 +1,7 @@
 package com.shaft.mcp;
 
 import com.shaft.infrastructure.InfrastructureSetupService;
+import com.shaft.infrastructure.ManagedEnvironment;
 import com.shaft.infrastructure.SetupAction;
 import com.shaft.infrastructure.SetupActionKind;
 import com.shaft.infrastructure.SetupApproval;
@@ -23,6 +24,8 @@ import java.net.URI;
 import java.nio.file.Path;
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -100,7 +103,36 @@ class InfrastructureMcpServiceTest {
     }
 
     @Test
-    void lifecycleToolsAreExplicitlyUnsupportedWithoutAnOwnedService() {
+    void lifecycleToolsDelegateExactPlansAndOwnedLogsToTheCoordinator() throws Exception {
+        InfrastructureSetupService coordinator = mock(InfrastructureSetupService.class);
+        SetupPlan plan = plan(SetupProfile.REPORTING);
+        SetupReceipt receipt = new SetupReceipt(plan.digest(), Instant.EPOCH, plan.actions());
+        ManagedEnvironment environment = new ManagedEnvironment(plan.profile(), receipt,
+                Optional.of(URI.create("http://127.0.0.1:4723/")), Map.of("appium", "ready"), () -> { });
+        when(coordinator.start(any(), any(), any(), any(SetupSelection.class))).thenReturn(environment);
+        when(coordinator.stop(any(), any(), any(), any(SetupSelection.class))).thenReturn(true);
+        when(coordinator.logs(any(), any(SetupSelection.class))).thenReturn("owned logs");
+        InfrastructureMcpService service = new InfrastructureMcpService(coordinator);
+        McpSetupRequest request = request("REPORTING", "MANAGED", List.of());
+        String json = com.shaft.infrastructure.SetupPlanJson.write(plan);
+
+        McpSetupLifecycleResult started = service.setupStart(json, plan.digest(), List.of(), request);
+        McpSetupLifecycleResult stopped = service.setupStop(json, plan.digest(), List.of(), request);
+        McpSetupLifecycleResult logs = service.setupLogs(request);
+
+        assertTrue(started.supported());
+        assertEquals("http://127.0.0.1:4723/", started.endpoint());
+        assertEquals(plan.digest(), started.planDigest());
+        assertTrue(stopped.supported());
+        assertEquals("owned logs", logs.logs());
+        verify(coordinator).start(any(), any(), any(), any(SetupSelection.class));
+        verify(coordinator).stop(any(), any(), any(), any(SetupSelection.class));
+        verify(coordinator).logs(any(), any(SetupSelection.class));
+    }
+
+    @Test
+    @SuppressWarnings("deprecation")
+    void legacyProfileOnlyLifecycleOverloadsRemainExplicitlyUnsupported() {
         InfrastructureMcpService service = new InfrastructureMcpService(mock(InfrastructureSetupService.class));
 
         assertFalse(service.setupStart("REPORTING").supported());

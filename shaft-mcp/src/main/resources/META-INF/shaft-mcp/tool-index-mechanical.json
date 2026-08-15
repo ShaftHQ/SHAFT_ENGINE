@@ -1653,12 +1653,12 @@
   }, {
     "name" : "setup_logs",
     "service" : "InfrastructureMcpService",
-    "description" : "reports whether the selected setup profile exposes owned service logs",
+    "description" : "reads bounded logs for a SHAFT-owned setup service without mutating the host",
     "params" : [ {
-      "name" : "profile",
-      "type" : "string",
+      "name" : "request",
+      "type" : "object",
       "required" : true,
-      "description" : "setup profile"
+      "description" : "setup profile, owned paths, policy, and components"
     } ]
   }, {
     "name" : "setup_plan",
@@ -1673,12 +1673,27 @@
   }, {
     "name" : "setup_start",
     "service" : "InfrastructureMcpService",
-    "description" : "reports whether the selected setup profile owns a startable managed service",
+    "description" : "starts one managed service from an exact reviewed setup plan",
     "params" : [ {
-      "name" : "profile",
+      "name" : "acceptedLicenses",
+      "type" : "array",
+      "required" : false,
+      "description" : "explicitly accepted license identifiers"
+    }, {
+      "name" : "approvedDigest",
       "type" : "string",
       "required" : true,
-      "description" : "setup profile"
+      "description" : "exact plan digest explicitly approved by the caller"
+    }, {
+      "name" : "planJson",
+      "type" : "string",
+      "required" : true,
+      "description" : "exact plan JSON returned by setup_plan"
+    }, {
+      "name" : "request",
+      "type" : "object",
+      "required" : true,
+      "description" : "the same paths and execution policy used to create the plan"
     } ]
   }, {
     "name" : "setup_status",
@@ -1693,12 +1708,27 @@
   }, {
     "name" : "setup_stop",
     "service" : "InfrastructureMcpService",
-    "description" : "reports whether the selected setup profile owns a stoppable managed service lease",
+    "description" : "stops one SHAFT-owned service using an exact reviewed setup plan",
     "params" : [ {
-      "name" : "profile",
+      "name" : "acceptedLicenses",
+      "type" : "array",
+      "required" : false,
+      "description" : "explicitly accepted license identifiers"
+    }, {
+      "name" : "approvedDigest",
       "type" : "string",
       "required" : true,
-      "description" : "setup profile"
+      "description" : "exact plan digest explicitly approved by the caller"
+    }, {
+      "name" : "planJson",
+      "type" : "string",
+      "required" : true,
+      "description" : "exact plan JSON returned by setup_plan"
+    }, {
+      "name" : "request",
+      "type" : "object",
+      "required" : true,
+      "description" : "the same paths and execution policy used to create the plan"
     } ]
   }, {
     "name" : "setup_verify",
