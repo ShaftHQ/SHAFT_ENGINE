@@ -16,7 +16,30 @@ import java.util.concurrent.locks.ReentrantLock;
 
 /** SHAFT-owned provider entrypoint for managed local inference. */
 public final class ManagedLocalAiProvider implements AiProvider {
-    private final Lifecycle lifecycle;
+    private static final RuntimeClient PROCESS_CLIENT = new RuntimeClient() {
+        @Override
+        public ManagedLocalAiProcess.Session launch(ManagedLocalAiService.ReadyRuntime runtime, Duration timeout,
+                                                    BooleanSupplier shuttingDown) throws Exception {
+            return ManagedLocalAiProcess.launchManaged(runtime.cache(), runtime.executable(), runtime.model(),
+                    runtime.log(), runtime.alias(), runtime.threads(), timeout, shuttingDown,
+                    ManagedLocalAiProcess::start, (process, port, key, alias, identityTimeout) ->
+                            ManagedLocalAiProcess.requireIdentity(process, port, key, alias, identityTimeout,
+                                    ManagedLocalAiProcess::requestIdentity));
+        }
+
+        @Override
+        public AiResponse infer(ManagedLocalAiProcess.Session session, AiRequest request, long deadline)
+                throws Exception {
+            return ManagedLocalAiProcess.infer(session, request, ManagedLocalAiProcess::requestInference, deadline);
+        }
+    };
+    private static final ServiceLifecycle SERVICE_LIFECYCLE = new ServiceLifecycle(new ManagedLocalAiService());
+    static {
+        Runtime.getRuntime().addShutdownHook(Thread.ofPlatform().name("shaft-managed-local-ai-shutdown")
+                .unstarted(SERVICE_LIFECYCLE::shutdown));
+    }
+
+    final Lifecycle lifecycle;
 
     /** Creates the service-loadable managed provider. */
     public ManagedLocalAiProvider() {
@@ -75,43 +98,20 @@ public final class ManagedLocalAiProvider implements AiProvider {
         AiResponse infer(ManagedLocalAiProcess.Session session, AiRequest request, long deadline) throws Exception;
     }
 
-    private static final RuntimeClient PROCESS_CLIENT = new RuntimeClient() {
-        @Override
-        public ManagedLocalAiProcess.Session launch(ManagedLocalAiService.ReadyRuntime runtime, Duration timeout,
-                                                    BooleanSupplier shuttingDown) throws Exception {
-            return ManagedLocalAiProcess.launchManaged(runtime.cache(), runtime.executable(), runtime.model(),
-                    runtime.log(), runtime.alias(), runtime.threads(), timeout, shuttingDown,
-                    ManagedLocalAiProcess::start, (process, port, key, alias, identityTimeout) ->
-                            ManagedLocalAiProcess.requireIdentity(process, port, key, alias, identityTimeout,
-                                    ManagedLocalAiProcess::requestIdentity));
-        }
-
-        @Override
-        public AiResponse infer(ManagedLocalAiProcess.Session session, AiRequest request, long deadline)
-                throws Exception {
-            return ManagedLocalAiProcess.infer(session, request, ManagedLocalAiProcess::requestInference, deadline);
-        }
-    };
-    private static final ServiceLifecycle SERVICE_LIFECYCLE = new ServiceLifecycle(new ManagedLocalAiService());
-    static {
-        Runtime.getRuntime().addShutdownHook(Thread.ofPlatform().name("shaft-managed-local-ai-shutdown")
-                .unstarted(SERVICE_LIFECYCLE::closeSession));
-    }
-
-    private static final class ServiceLifecycle implements Lifecycle {
+    static final class ServiceLifecycle implements Lifecycle {
         private final ManagedLocalAiService service;
         private final RuntimeClient runtimeClient;
-        private final ReentrantLock executionLock = new ReentrantLock();
-        private volatile ManagedLocalAiProcess.Session session;
+        final ReentrantLock executionLock = new ReentrantLock();
+        volatile ManagedLocalAiProcess.Session session;
         private volatile ManagedLocalAiOperation activeProvisioning;
         private volatile Thread activeExecutionThread;
         private volatile boolean shuttingDown;
 
-        private ServiceLifecycle(ManagedLocalAiService service) {
+        ServiceLifecycle(ManagedLocalAiService service) {
             this(service, PROCESS_CLIENT);
         }
 
-        private ServiceLifecycle(ManagedLocalAiService service, RuntimeClient runtimeClient) {
+        ServiceLifecycle(ManagedLocalAiService service, RuntimeClient runtimeClient) {
             this.service = Objects.requireNonNull(service, "service");
             this.runtimeClient = Objects.requireNonNull(runtimeClient, "runtimeClient");
         }
@@ -284,7 +284,7 @@ public final class ManagedLocalAiProvider implements AiProvider {
             }
         }
 
-        private void closeSession() {
+        void shutdown() {
             shuttingDown = true;
             cancel(activeProvisioning);
             Thread executing = activeExecutionThread;
