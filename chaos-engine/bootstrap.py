@@ -9,20 +9,20 @@ import json
 import os
 import re
 import runpy
-import shutil
 import sys
 import tempfile
 import types
 import urllib.error
 import urllib.parse
 import urllib.request
-import zipfile
 from pathlib import Path, PurePosixPath
 
 
 REPOSITORY = re.compile(r"[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+")
 COMMIT = re.compile(r"[0-9a-f]{40}")
-MAX_ARCHIVE_BYTES = 50 * 1024 * 1024
+MAX_RESPONSE_BYTES = 10 * 1024 * 1024
+MAX_SOURCE_BYTES = 10 * 1024 * 1024
+MAX_FILE_BYTES = 2 * 1024 * 1024
 MAX_FILES = 2000
 
 
@@ -48,14 +48,14 @@ def valid_branch(branch: str) -> bool:
     )
 
 
-def read_response(opener, url: str) -> bytes:
+def read_response(opener, url: str, *, limit: int = MAX_RESPONSE_BYTES) -> bytes:
     try:
         with opener(request(url), timeout=30) as response:
-            value = response.read(MAX_ARCHIVE_BYTES + 1)
+            value = response.read(limit + 1)
     except (OSError, TimeoutError, urllib.error.URLError) as error:
         raise RuntimeError("unable to resolve latest ChaosEngine from the configured upstream") from error
-    if len(value) > MAX_ARCHIVE_BYTES:
-        raise ValueError("ChaosEngine archive exceeds the download limit")
+    if len(value) > limit:
+        raise ValueError("ChaosEngine upstream response exceeds the download limit")
     return value
 
 
@@ -96,45 +96,77 @@ def resolve_latest(repository: str, branch: str | None, opener=urllib.request.ur
     return commit, branch
 
 
-def extract_source(archive: bytes, destination: Path) -> Path:
-    archive_path = destination / "source.zip"
-    archive_path.write_bytes(archive)
+def download_source(
+    repository: str,
+    commit: str,
+    destination: Path,
+    *,
+    opener=urllib.request.urlopen,
+) -> Path:
+    """Download only the bounded ChaosEngine subtree, never the whole repository."""
+    encoded_repository = "/".join(
+        urllib.parse.quote(part, safe="") for part in repository.split("/")
+    )
+    document = read_response(
+        opener,
+        f"https://api.github.com/repos/{encoded_repository}/git/trees/{commit}?recursive=1",
+    )
+    try:
+        value = json.loads(document)
+    except (UnicodeDecodeError, json.JSONDecodeError) as error:
+        raise ValueError("GitHub returned an invalid ChaosEngine source tree") from error
+    if not isinstance(value, dict) or value.get("truncated") is not False:
+        raise ValueError("GitHub returned an incomplete ChaosEngine source tree")
+    tree = value.get("tree")
+    if not isinstance(tree, list):
+        raise ValueError("GitHub returned an invalid ChaosEngine source tree")
+
+    selected: list[tuple[PurePosixPath, int]] = []
+    total = 0
+    for entry in tree:
+        if not isinstance(entry, dict) or not isinstance(entry.get("path"), str):
+            raise ValueError("GitHub returned an invalid ChaosEngine source tree")
+        path = PurePosixPath(entry["path"])
+        if path.is_absolute() or ".." in path.parts or not path.parts:
+            raise ValueError("ChaosEngine source tree contains an unsafe path")
+        if path.parts[0] != "chaos-engine":
+            continue
+        if entry.get("type") == "tree":
+            continue
+        if entry.get("type") != "blob" or entry.get("mode") not in {"100644", "100755"}:
+            raise ValueError("ChaosEngine source tree contains an unsupported entry")
+        size = entry.get("size")
+        if not isinstance(size, int) or size < 0 or size > MAX_FILE_BYTES:
+            raise ValueError("ChaosEngine source file exceeds the download limit")
+        relative = PurePosixPath(*path.parts[1:])
+        if not relative.parts:
+            raise ValueError("ChaosEngine source tree has an unexpected layout")
+        selected.append((relative, size))
+        total += size
+
+    if not selected:
+        raise ValueError("ChaosEngine source tree has an unexpected layout")
+    if len(selected) > MAX_FILES:
+        raise ValueError("ChaosEngine source tree contains too many files")
+    if total > MAX_SOURCE_BYTES:
+        raise ValueError("ChaosEngine source tree exceeds the download limit")
+
     source = destination / "chaos-engine"
     source.mkdir()
-    try:
-        with zipfile.ZipFile(archive_path) as package:
-            infos = package.infolist()
-            if len(infos) > MAX_FILES:
-                raise ValueError("ChaosEngine archive contains too many files")
-            if sum(info.file_size for info in infos) > MAX_ARCHIVE_BYTES:
-                raise ValueError("ChaosEngine archive expands beyond the size limit")
-            roots: set[str] = set()
-            selected = []
-            for info in infos:
-                path = PurePosixPath(info.filename)
-                if path.is_absolute() or ".." in path.parts or not path.parts:
-                    raise ValueError("ChaosEngine archive contains an unsafe path")
-                if (info.external_attr >> 16) & 0o170000 == 0o120000:
-                    raise ValueError("ChaosEngine archive contains a link")
-                if len(path.parts) >= 3 and path.parts[1] == "chaos-engine":
-                    roots.add(path.parts[0])
-                    selected.append((info, Path(*path.parts[2:])))
-            if len(roots) != 1 or not selected:
-                raise ValueError("ChaosEngine archive has an unexpected layout")
-            for info, relative in selected:
-                if not relative.parts:
-                    continue
-                target = source / relative
-                if info.is_dir():
-                    target.mkdir(parents=True, exist_ok=True)
-                    continue
-                target.parent.mkdir(parents=True, exist_ok=True)
-                with package.open(info) as input_stream, target.open("xb") as output_stream:
-                    shutil.copyfileobj(input_stream, output_stream)
-    except zipfile.BadZipFile as error:
-        raise ValueError("ChaosEngine archive is invalid") from error
+    for relative, expected_size in selected:
+        encoded_path = "/".join(urllib.parse.quote(part, safe="") for part in relative.parts)
+        content = read_response(
+            opener,
+            f"https://raw.githubusercontent.com/{encoded_repository}/{commit}/chaos-engine/{encoded_path}",
+            limit=MAX_FILE_BYTES,
+        )
+        if len(content) != expected_size:
+            raise ValueError("ChaosEngine source file does not match the resolved tree")
+        target = source.joinpath(*relative.parts)
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_bytes(content)
     if not (source / "skills/chaos-engine/SKILL.md").is_file():
-        raise ValueError("ChaosEngine archive is incomplete")
+        raise ValueError("ChaosEngine source tree is incomplete")
     return source
 
 
@@ -158,13 +190,8 @@ def install_latest(
         raise ValueError(f"project is not a directory: {project}")
     prior_install = (project / ".chaos-engine").exists()
     commit, resolved_branch = resolve_latest(repository, branch, opener=opener)
-    encoded_repository = "/".join(urllib.parse.quote(part, safe="") for part in repository.split("/"))
-    archive = read_response(
-        opener,
-        f"https://codeload.github.com/{encoded_repository}/zip/{commit}",
-    )
     with tempfile.TemporaryDirectory(prefix="chaos-engine-bootstrap-") as temporary:
-        source = extract_source(archive, Path(temporary))
+        source = download_source(repository, commit, Path(temporary), opener=opener)
         installer = load_installer(source)
         if distribution == "portable":
             provenance = {
