@@ -1290,6 +1290,23 @@ class ChaosEngineHostsTest(unittest.TestCase):
 
             self.assertEqual(second / ".chaos-engine-runtime/bin" / command.name, resolved)
 
+    def test_tool_launcher_suppresses_runtime_bytecode_caches(self):
+        module = load(TOOL, "chaos_engine_tool_environment")
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary)
+            core = project / ".chaos-engine"
+            runtime = project / ".chaos-engine-runtime/bin"
+            core.mkdir()
+            runtime.mkdir(parents=True)
+            command = runtime / ("mempalace.exe" if os.name == "nt" else "mempalace")
+            command.write_text("tool\n", encoding="utf-8")
+            with mock.patch.object(module.sys, "argv", ["tool.py", "mempalace", "status"]):
+                with mock.patch.object(module, "resolve_command", return_value=command):
+                    with mock.patch.object(module.subprocess, "call", return_value=0) as call:
+                        self.assertEqual(0, module.main())
+
+            self.assertEqual("1", call.call_args.kwargs["env"]["PYTHONDONTWRITEBYTECODE"])
+
     def test_host_tests_are_reached_by_pull_request_gate(self):
         budget = json.loads(
             (ROOT / "scripts/ci/agent_guidance_budget.json").read_text(encoding="utf-8")

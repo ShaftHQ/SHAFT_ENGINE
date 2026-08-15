@@ -41,7 +41,12 @@ def main() -> int:
         return 2
     try:
         command = resolve_command(Path(__file__).resolve().parent, sys.argv[1])
-        return subprocess.call([str(command), *sys.argv[2:]])  # nosec B603
+        environment = os.environ.copy()
+        environment["PYTHONDONTWRITEBYTECODE"] = "1"
+        return subprocess.call(  # nosec B603
+            [str(command), *sys.argv[2:]],
+            env=environment,
+        )
     except (OSError, ValueError) as error:
         print(str(error), file=sys.stderr)
         return 1
