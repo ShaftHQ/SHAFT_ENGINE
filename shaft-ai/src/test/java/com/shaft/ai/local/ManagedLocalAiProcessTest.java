@@ -49,6 +49,16 @@ class ManagedLocalAiProcessTest {
     }
 
     @Test
+    void supervisorRejectsMalformedParentIdentityBeforeLaunching() {
+        IllegalArgumentException failure = assertThrows(IllegalArgumentException.class,
+                () -> ManagedLocalAiProcessSupervisor.main(new String[]{
+                        "not-a-pid", java.time.Instant.EPOCH.toString(), temp.toAbsolutePath().toString(),
+                        temp.resolve("must-not-start").toString()}));
+
+        assertTrue(failure.getMessage().contains("parent PID"));
+    }
+
+    @Test
     void supervisorTerminatesPublishedChildWhenItsParentExits() throws Exception {
         Path helper = sleepingProcessJar();
         Path parentMarker = temp.resolve("parent.pid");

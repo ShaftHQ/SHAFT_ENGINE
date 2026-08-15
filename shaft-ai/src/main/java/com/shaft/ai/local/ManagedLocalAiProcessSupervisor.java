@@ -41,7 +41,11 @@ public final class ManagedLocalAiProcessSupervisor {
 
     private record ParentIdentity(long parentPid, Instant parentStartedAt) {
         private static ParentIdentity parse(String[] arguments) {
-            return new ParentIdentity(Long.parseLong(arguments[0]), Instant.parse(arguments[1]));
+            try {
+                return new ParentIdentity(Long.parseLong(arguments[0]), Instant.parse(arguments[1]));
+            } catch (NumberFormatException invalidPid) {
+                throw new IllegalArgumentException("Managed local AI parent PID is invalid.", invalidPid);
+            }
         }
     }
 
