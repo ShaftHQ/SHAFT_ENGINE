@@ -46,15 +46,19 @@
 <div class="toc-header">Contents&nbsp;<input type="text" class="filter-input" disabled placeholder="Filter contents (type .)" aria-label="Filter table of contents" autocomplete="off" spellcheck="false"><input type="reset" class="reset-filter" disabled tabindex="-1" value="Reset"></div>
 <ol class="toc-list" tabindex="-1">
 <li><a href="#" tabindex="0">Description</a></li>
+<li><a href="#nested-class-summary" tabindex="0">Nested Class Summary</a></li>
 <li><a href="#constructor-summary" tabindex="0">Constructor Summary</a></li>
 <li><a href="#method-summary" tabindex="0">Method Summary</a></li>
 <li><a href="#constructor-detail" tabindex="0">Constructor Details</a>
 <ol class="toc-list">
+<li><a href="#%3Cinit%3E(java.lang.String,java.lang.String,java.util.List,boolean,com.shaft.doctor.model.DoctorAdvisory.RecommendedAction.ActionOperation,com.shaft.doctor.model.DoctorAdvisory.RecommendedAction.ActionTarget)" tabindex="0">RecommendedAction(String, String, List, boolean, DoctorAdvisory.RecommendedAction.ActionOperation, DoctorAdvisory.RecommendedAction.ActionTarget)</a></li>
 <li><a href="#%3Cinit%3E(java.lang.String,java.lang.String,java.util.List,boolean)" tabindex="0">RecommendedAction(String, String, List, boolean)</a></li>
+<li><a href="#%3Cinit%3E(com.shaft.doctor.model.DoctorAdvisory.RecommendedAction.ActionOperation,com.shaft.doctor.model.DoctorAdvisory.RecommendedAction.ActionTarget,java.util.List,boolean)" tabindex="0">RecommendedAction(DoctorAdvisory.RecommendedAction.ActionOperation, DoctorAdvisory.RecommendedAction.ActionTarget, List, boolean)</a></li>
 </ol>
 </li>
 <li><a href="#method-detail" tabindex="0">Method Details</a>
 <ol class="toc-list">
+<li><a href="#structured()" tabindex="0">structured()</a></li>
 <li><a href="#toString()" tabindex="0">toString()</a></li>
 <li><a href="#hashCode()" tabindex="0">hashCode()</a></li>
 <li><a href="#equals(java.lang.Object)" tabindex="0">equals(Object)</a></li>
@@ -62,6 +66,8 @@
 <li><a href="#action()" tabindex="0">action()</a></li>
 <li><a href="#evidenceIds()" tabindex="0">evidenceIds()</a></li>
 <li><a href="#cited()" tabindex="0">cited()</a></li>
+<li><a href="#operation()" tabindex="0">operation()</a></li>
+<li><a href="#target()" tabindex="0">target()</a></li>
 </ol>
 </li>
 </ol>
@@ -90,13 +96,35 @@
 </dl>
 <hr>
 <div class="horizontal-scroll">
-<div class="type-signature"><span class="modifiers">public static record </span><span class="element-name type-name-label">DoctorAdvisory.RecommendedAction</span>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;title, <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;action, <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&gt;&nbsp;evidenceIds, boolean&nbsp;cited)
+<div class="type-signature"><span class="modifiers">public static record </span><span class="element-name type-name-label">DoctorAdvisory.RecommendedAction</span>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;title, <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;action, <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&gt;&nbsp;evidenceIds, boolean&nbsp;cited, <a href="DoctorAdvisory.RecommendedAction.ActionOperation.html" title="enum class in com.shaft.doctor.model">DoctorAdvisory.RecommendedAction.ActionOperation</a>&nbsp;operation, <a href="DoctorAdvisory.RecommendedAction.ActionTarget.html" title="enum class in com.shaft.doctor.model">DoctorAdvisory.RecommendedAction.ActionTarget</a>&nbsp;target)
 <span class="extends-implements">extends <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Record.html" title="class or interface in java.lang" class="external-link">Record</a></span></div>
 <div class="block">One provider-recommended action.</div>
 </div>
 </section>
 <section class="summary">
 <ul class="summary-list">
+<!-- ======== NESTED CLASS SUMMARY ======== -->
+<li>
+<section class="nested-class-summary" id="nested-class-summary">
+<h2>Nested Class Summary</h2>
+<div class="caption"><span>Nested Classes</span></div>
+<div class="summary-table three-column-summary">
+<div class="table-header col-first">Modifier and Type</div>
+<div class="table-header col-second">Class</div>
+<div class="table-header col-last">Description</div>
+<div class="col-first even-row-color"><code>static enum&nbsp;</code></div>
+<div class="col-second even-row-color"><code><a href="DoctorAdvisory.RecommendedAction.ActionOperation.html" class="type-name-link" title="enum class in com.shaft.doctor.model">DoctorAdvisory.RecommendedAction.ActionOperation</a></code></div>
+<div class="col-last even-row-color">
+<div class="block">Allowlisted operations with their only valid target and SHAFT-owned display text.</div>
+</div>
+<div class="col-first odd-row-color"><code>static enum&nbsp;</code></div>
+<div class="col-second odd-row-color"><code><a href="DoctorAdvisory.RecommendedAction.ActionTarget.html" class="type-name-link" title="enum class in com.shaft.doctor.model">DoctorAdvisory.RecommendedAction.ActionTarget</a></code></div>
+<div class="col-last odd-row-color">
+<div class="block">Allowlisted advisory action targets.</div>
+</div>
+</div>
+</section>
+</li>
 <!-- ======== CONSTRUCTOR SUMMARY ======== -->
 <li>
 <section class="constructor-summary" id="constructor-summary">
@@ -105,10 +133,26 @@
 <div class="summary-table two-column-summary">
 <div class="table-header col-first">Constructor</div>
 <div class="table-header col-last">Description</div>
-<div class="col-constructor-name even-row-color"><code><a href="#%3Cinit%3E(java.lang.String,java.lang.String,java.util.List,boolean)" class="member-name-link">RecommendedAction</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;title,
+<div class="col-constructor-name even-row-color"><code><a href="#%3Cinit%3E(com.shaft.doctor.model.DoctorAdvisory.RecommendedAction.ActionOperation,com.shaft.doctor.model.DoctorAdvisory.RecommendedAction.ActionTarget,java.util.List,boolean)" class="member-name-link">RecommendedAction</a><wbr>(<a href="DoctorAdvisory.RecommendedAction.ActionOperation.html" title="enum class in com.shaft.doctor.model">DoctorAdvisory.RecommendedAction.ActionOperation</a>&nbsp;operation,
+ <a href="DoctorAdvisory.RecommendedAction.ActionTarget.html" title="enum class in com.shaft.doctor.model">DoctorAdvisory.RecommendedAction.ActionTarget</a>&nbsp;target,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&gt;&nbsp;evidenceIds,
+ boolean&nbsp;cited)</code></div>
+<div class="col-last even-row-color">
+<div class="block">Creates an allowlisted action whose display text is owned by SHAFT.</div>
+</div>
+<div class="col-constructor-name odd-row-color"><code><a href="#%3Cinit%3E(java.lang.String,java.lang.String,java.util.List,boolean)" class="member-name-link">RecommendedAction</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;title,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;action,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&gt;&nbsp;evidenceIds,
  boolean&nbsp;cited)</code></div>
+<div class="col-last odd-row-color">
+<div class="block">Retains source compatibility for callers that construct display-only legacy actions.</div>
+</div>
+<div class="col-constructor-name even-row-color"><code><a href="#%3Cinit%3E(java.lang.String,java.lang.String,java.util.List,boolean,com.shaft.doctor.model.DoctorAdvisory.RecommendedAction.ActionOperation,com.shaft.doctor.model.DoctorAdvisory.RecommendedAction.ActionTarget)" class="member-name-link">RecommendedAction</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;title,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;action,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&gt;&nbsp;evidenceIds,
+ boolean&nbsp;cited,
+ <a href="DoctorAdvisory.RecommendedAction.ActionOperation.html" title="enum class in com.shaft.doctor.model">DoctorAdvisory.RecommendedAction.ActionOperation</a>&nbsp;operation,
+ <a href="DoctorAdvisory.RecommendedAction.ActionTarget.html" title="enum class in com.shaft.doctor.model">DoctorAdvisory.RecommendedAction.ActionTarget</a>&nbsp;target)</code></div>
 <div class="col-last even-row-color">
 <div class="block">Creates an immutable recommended action.</div>
 </div>
@@ -151,14 +195,29 @@
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Returns a hash code value for this object.</div>
 </div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#title()" class="member-name-link">title</a>()</code></div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="DoctorAdvisory.RecommendedAction.ActionOperation.html" title="enum class in com.shaft.doctor.model">DoctorAdvisory.RecommendedAction.ActionOperation</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#operation()" class="member-name-link">operation</a>()</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Returns the value of the <code>operation</code> record component.</div>
+</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>boolean</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#structured()" class="member-name-link">structured</a>()</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Returns whether this action came from the structured allowlist.</div>
+</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="DoctorAdvisory.RecommendedAction.ActionTarget.html" title="enum class in com.shaft.doctor.model">DoctorAdvisory.RecommendedAction.ActionTarget</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#target()" class="member-name-link">target</a>()</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Returns the value of the <code>target</code> record component.</div>
+</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#title()" class="member-name-link">title</a>()</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Returns the value of the <a href="#param-title"><code>title</code></a> record component.</div>
 </div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>final <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#toString()" class="member-name-link">toString</a>()</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>final <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#toString()" class="member-name-link">toString</a>()</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Returns a string representation of this record class.</div>
 </div>
 </div>
@@ -179,6 +238,20 @@
 <h2>Constructor Details</h2>
 <ul class="member-list">
 <li>
+<section class="detail" id="&lt;init&gt;(java.lang.String,java.lang.String,java.util.List,boolean,com.shaft.doctor.model.DoctorAdvisory.RecommendedAction.ActionOperation,com.shaft.doctor.model.DoctorAdvisory.RecommendedAction.ActionTarget)">
+<h3>RecommendedAction</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="element-name">RecommendedAction</span><wbr><span class="parameters">(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;title,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;action,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&gt;&nbsp;evidenceIds,
+ boolean&nbsp;cited,
+ <a href="DoctorAdvisory.RecommendedAction.ActionOperation.html" title="enum class in com.shaft.doctor.model">DoctorAdvisory.RecommendedAction.ActionOperation</a>&nbsp;operation,
+ <a href="DoctorAdvisory.RecommendedAction.ActionTarget.html" title="enum class in com.shaft.doctor.model">DoctorAdvisory.RecommendedAction.ActionTarget</a>&nbsp;target)</span></div>
+<div class="block">Creates an immutable recommended action.</div>
+</div>
+</section>
+</li>
+<li>
 <section class="detail" id="&lt;init&gt;(java.lang.String,java.lang.String,java.util.List,boolean)">
 <h3>RecommendedAction</h3>
 <div class="horizontal-scroll">
@@ -186,7 +259,19 @@
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;action,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&gt;&nbsp;evidenceIds,
  boolean&nbsp;cited)</span></div>
-<div class="block">Creates an immutable recommended action.</div>
+<div class="block">Retains source compatibility for callers that construct display-only legacy actions.</div>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="&lt;init&gt;(com.shaft.doctor.model.DoctorAdvisory.RecommendedAction.ActionOperation,com.shaft.doctor.model.DoctorAdvisory.RecommendedAction.ActionTarget,java.util.List,boolean)">
+<h3>RecommendedAction</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="element-name">RecommendedAction</span><wbr><span class="parameters">(<a href="DoctorAdvisory.RecommendedAction.ActionOperation.html" title="enum class in com.shaft.doctor.model">DoctorAdvisory.RecommendedAction.ActionOperation</a>&nbsp;operation,
+ <a href="DoctorAdvisory.RecommendedAction.ActionTarget.html" title="enum class in com.shaft.doctor.model">DoctorAdvisory.RecommendedAction.ActionTarget</a>&nbsp;target,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&gt;&nbsp;evidenceIds,
+ boolean&nbsp;cited)</span></div>
+<div class="block">Creates an allowlisted action whose display text is owned by SHAFT.</div>
 </div>
 </section>
 </li>
@@ -198,6 +283,15 @@
 <section class="method-details" id="method-detail">
 <h2>Method Details</h2>
 <ul class="member-list">
+<li>
+<section class="detail" id="structured()">
+<h3>structured</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type">boolean</span>&nbsp;<span class="element-name">structured</span>()</div>
+<div class="block">Returns whether this action came from the structured allowlist.</div>
+</div>
+</section>
+</li>
 <li>
 <section class="detail" id="toString()">
 <h3>toString</h3>
@@ -293,6 +387,32 @@
 <dl class="notes">
 <dt>Returns:</dt>
 <dd>the value of the <a href="#param-cited"><code>cited</code></a> record component</dd>
+</dl>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="operation()">
+<h3>operation</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="DoctorAdvisory.RecommendedAction.ActionOperation.html" title="enum class in com.shaft.doctor.model">DoctorAdvisory.RecommendedAction.ActionOperation</a></span>&nbsp;<span class="element-name">operation</span>()</div>
+<div class="block">Returns the value of the <code>operation</code> record component.</div>
+<dl class="notes">
+<dt>Returns:</dt>
+<dd>the value of the <code>operation</code> record component</dd>
+</dl>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="target()">
+<h3>target</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="DoctorAdvisory.RecommendedAction.ActionTarget.html" title="enum class in com.shaft.doctor.model">DoctorAdvisory.RecommendedAction.ActionTarget</a></span>&nbsp;<span class="element-name">target</span>()</div>
+<div class="block">Returns the value of the <code>target</code> record component.</div>
+<dl class="notes">
+<dt>Returns:</dt>
+<dd>the value of the <code>target</code> record component</dd>
 </dl>
 </div>
 </section>
