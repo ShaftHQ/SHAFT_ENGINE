@@ -242,19 +242,32 @@ class ChaosEngineInstallerTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temporary:
             project = Path(temporary) / "consumer"
             project.mkdir()
-            MODULE.install_with_dependencies(
-                project,
-                SOURCE,
-                TEST_COMMIT,
-                provisioner=lambda *_args, **_kwargs: None,
-            )
+            original_load = MODULE.load_installed_controller
+            controllers = []
+
+            def load_with_initializer(installed_root, name):
+                controller = original_load(installed_root, name)
+                if name == "hosts":
+                    controller.initialize_mempalace_runtime = mock.Mock()
+                    controllers.append(controller)
+                return controller
+
+            with mock.patch.object(
+                MODULE,
+                "load_installed_controller",
+                side_effect=load_with_initializer,
+            ):
+                MODULE.install_with_dependencies(
+                    project,
+                    SOURCE,
+                    TEST_COMMIT,
+                    provisioner=lambda *_args, **_kwargs: None,
+                )
             palace = project / ".chaos-engine-state/mempalace"
             palace.mkdir(parents=True, exist_ok=True)
             create_chroma_state(palace / "chroma.sqlite3")
             palace.joinpath("00000000-0000-0000-0000-000000000001").mkdir()
-            controller = MODULE.load_installed_controller(
-                project / ".chaos-engine", "hosts"
-            )
+            controller = controllers[-1]
             controller.mempalace_runtime_status = mock.Mock(
                 return_value={
                     "status": "migration-required",
