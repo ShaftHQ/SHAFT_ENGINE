@@ -142,81 +142,105 @@ public final class ManagedLocalAiProvider implements AiProvider {
             if (shuttingDown) {
                 return unavailable(request, "Managed local inference is shutting down.");
             }
-            long deadline = System.nanoTime() + request.timeout().toNanos();
-            ManagedLocalAiOperation provisioningOperation = null;
-            boolean locked = false;
+            ExecutionContext context = new ExecutionContext(request);
             try {
-                locked = executionLock.tryLock(ManagedLocalAiProcess.remaining(deadline).toNanos(),
-                        TimeUnit.NANOSECONDS);
-                if (!locked) {
+                if (!acquire(context)) {
                     return timedOut(request);
                 }
-                activeExecutionThread = Thread.currentThread();
-                if (shuttingDown) {
-                    return unavailable(request, "Managed local inference is shutting down.");
-                }
-                ManagedLocalAiSnapshot snapshot = service.inspect();
-                if (retireIfShuttingDown(deadline)) {
-                    return unavailable(request, "Managed local inference is shutting down.");
-                }
-                if (snapshot.state() == ManagedLocalAiSnapshot.State.NOT_PROVISIONED
-                        && snapshot.transparentProvisioning()) {
-                    provisioningOperation = service.provision(ignored -> { });
-                    activeProvisioning = provisioningOperation;
-                    snapshot = provisioningOperation.completion()
-                            .get(ManagedLocalAiProcess.remaining(deadline).toNanos(),
-                                    TimeUnit.NANOSECONDS);
-                    if (retireIfShuttingDown(deadline)) {
-                        return unavailable(request, "Managed local inference is shutting down.");
-                    }
-                }
-                if (snapshot.state() != ManagedLocalAiSnapshot.State.READY) {
-                    closeSession(deadline);
-                    return unavailable(request, snapshot.action());
-                }
-                ManagedLocalAiService.ReadyRuntime runtime = service.readyRuntime();
-                if (retireIfShuttingDown(deadline)) {
-                    return unavailable(request, "Managed local inference is shutting down.");
-                }
-                if (session == null || !session.process().isAlive()
-                        || !session.matches(runtime.executable(), runtime.model(), runtime.alias(), runtime.threads())) {
-                    closeSession(deadline);
-                    Duration launchTimeout = min(runtime.launchTimeout(), ManagedLocalAiProcess.remaining(deadline));
-                    session = runtimeClient.launch(runtime, launchTimeout, () -> shuttingDown);
-                    if (retireIfShuttingDown(deadline)) {
-                        return unavailable(request, "Managed local inference is shutting down.");
-                    }
-                }
-                AiResponse response = runtimeClient.infer(session, request, deadline);
-                if (!session.process().isAlive() || session.resourceFailure() != null) {
-                    closeSession(deadline);
-                }
-                return response;
-            } catch (java.util.concurrent.TimeoutException timeout) {
-                cancel(provisioningOperation);
-                closeSession(locked, deadline, timeout);
-                return timedOut(request);
-            } catch (ManagedLocalAiProcess.DeadlineExceededException timeout) {
-                cancel(provisioningOperation);
-                closeSession(locked, deadline, timeout);
+                return executeOwned(context);
+            } catch (java.util.concurrent.TimeoutException
+                     | ManagedLocalAiProcess.DeadlineExceededException timeout) {
+                cancel(context.provisioning);
+                closeSession(context.locked, context.deadline, timeout);
                 return timedOut(request);
             } catch (InterruptedException interrupted) {
-                cancel(provisioningOperation);
-                closeSession(locked, deadline, interrupted);
+                cancel(context.provisioning);
+                closeSession(context.locked, context.deadline, interrupted);
                 Thread.currentThread().interrupt();
                 return AiResponse.failure(AiResponseStatus.ERROR, "managed-local", "",
                         "Managed local inference was interrupted.", Duration.ZERO,
                         request.deterministicFallback());
             } catch (Exception failure) {
-                closeSession(locked, deadline, failure);
+                closeSession(context.locked, context.deadline, failure);
                 return unavailable(request, "Managed local inference is unavailable.");
             } finally {
-                if (locked) {
-                    activeProvisioning = null;
-                    activeExecutionThread = null;
-                    executionLock.unlock();
-                }
+                release(context);
             }
+        }
+
+        private boolean acquire(ExecutionContext context) throws InterruptedException {
+            context.locked = executionLock.tryLock(
+                    ManagedLocalAiProcess.remaining(context.deadline).toNanos(), TimeUnit.NANOSECONDS);
+            if (context.locked) {
+                activeExecutionThread = Thread.currentThread();
+            }
+            return context.locked;
+        }
+
+        private AiResponse executeOwned(ExecutionContext context) throws Exception {
+            if (shuttingDown) {
+                return unavailable(context.request, "Managed local inference is shutting down.");
+            }
+            ManagedLocalAiSnapshot snapshot = service.inspect();
+            if (retireIfShuttingDown(context.deadline)) {
+                return unavailable(context.request, "Managed local inference is shutting down.");
+            }
+            snapshot = provisionIfNeeded(context, snapshot);
+            if (retireIfShuttingDown(context.deadline)) {
+                return unavailable(context.request, "Managed local inference is shutting down.");
+            }
+            if (snapshot.state() != ManagedLocalAiSnapshot.State.READY) {
+                closeSession(context.deadline);
+                return unavailable(context.request, snapshot.action());
+            }
+            ManagedLocalAiService.ReadyRuntime runtime = service.readyRuntime();
+            if (retireIfShuttingDown(context.deadline)) {
+                return unavailable(context.request, "Managed local inference is shutting down.");
+            }
+            ensureSession(runtime, context.deadline);
+            if (retireIfShuttingDown(context.deadline)) {
+                return unavailable(context.request, "Managed local inference is shutting down.");
+            }
+            return infer(context);
+        }
+
+        private ManagedLocalAiSnapshot provisionIfNeeded(ExecutionContext context, ManagedLocalAiSnapshot snapshot)
+                throws Exception {
+            if (snapshot.state() != ManagedLocalAiSnapshot.State.NOT_PROVISIONED
+                    || !snapshot.transparentProvisioning()) {
+                return snapshot;
+            }
+            context.provisioning = service.provision(ignored -> { });
+            activeProvisioning = context.provisioning;
+            return context.provisioning.completion().get(
+                    ManagedLocalAiProcess.remaining(context.deadline).toNanos(), TimeUnit.NANOSECONDS);
+        }
+
+        private void ensureSession(ManagedLocalAiService.ReadyRuntime runtime, long deadline) throws Exception {
+            if (session != null && session.process().isAlive()
+                    && session.matches(runtime.executable(), runtime.model(), runtime.alias(), runtime.threads())) {
+                return;
+            }
+            closeSession(deadline);
+            Duration launchTimeout = min(runtime.launchTimeout(), ManagedLocalAiProcess.remaining(deadline));
+            session = runtimeClient.launch(runtime, launchTimeout, () -> shuttingDown);
+        }
+
+        private AiResponse infer(ExecutionContext context) throws Exception {
+            AiResponse response = runtimeClient.infer(session, context.request, context.deadline);
+            if (!session.process().isAlive() || session.resourceFailure() != null) {
+                closeSession(context.deadline);
+            }
+            return response;
+        }
+
+        private void release(ExecutionContext context) {
+            if (!context.locked) {
+                return;
+            }
+            activeProvisioning = null;
+            activeExecutionThread = null;
+            executionLock.unlock();
         }
 
         private static AiResponse timedOut(AiRequest request) {
@@ -317,6 +341,18 @@ public final class ManagedLocalAiProvider implements AiProvider {
                 if (locked) {
                     executionLock.unlock();
                 }
+            }
+        }
+
+        private static final class ExecutionContext {
+            private final AiRequest request;
+            private final long deadline;
+            private ManagedLocalAiOperation provisioning;
+            private boolean locked;
+
+            private ExecutionContext(AiRequest request) {
+                this.request = request;
+                this.deadline = System.nanoTime() + request.timeout().toNanos();
             }
         }
     }
