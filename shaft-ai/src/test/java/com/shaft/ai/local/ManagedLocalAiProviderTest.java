@@ -578,7 +578,7 @@ class ManagedLocalAiProviderTest {
         AiResponse response = active.get(2, java.util.concurrent.TimeUnit.SECONDS);
 
         assertEquals(com.shaft.pilot.ai.AiResponseStatus.PROVIDER_UNAVAILABLE, response.status());
-        assertFalse(java.nio.file.Files.exists(cache.resolve("staging/logs")),
+        assertFalse(Files.exists(cache.resolve("staging/logs")),
                 "an execution released after shutdown must not begin a process launch");
     }
 
@@ -638,9 +638,9 @@ class ManagedLocalAiProviderTest {
 
     private Path readyStage(Path cache, String prefix, String fileName, String content) throws Exception {
         Path stage = cache.resolve("staging/" + prefix + ".extract-test");
-        java.nio.file.Files.createDirectories(stage);
-        java.nio.file.Files.writeString(stage.resolve(fileName), content);
-        java.nio.file.Files.writeString(stage.resolve(".shaft-ready"), "");
+        Files.createDirectories(stage);
+        Files.writeString(stage.resolve(fileName), content);
+        Files.writeString(stage.resolve(".shaft-ready"), "");
         return stage;
     }
 

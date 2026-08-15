@@ -15,6 +15,8 @@ import java.util.List;
 import java.util.Locale;
 
 /** Machine-readable setup policy accepted by the MCP adapter. */
+// The canonical constructor mirrors the stable MCP wire schema; grouping these fields would break transport clients.
+@SuppressWarnings("PMD.ExcessiveParameterList")
 public record McpSetupRequest(String profile, String mode, String cacheRoot, String dataRoot,
                               Boolean offline, Boolean autoStart, Boolean preferSystemTools,
                               Boolean reuseOwnedProcesses, String startupTimeout, String shutdownTimeout,
