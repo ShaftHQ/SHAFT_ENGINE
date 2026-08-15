@@ -668,6 +668,142 @@ class GuardLifecycleTest(unittest.TestCase):
                     guard._research_preflight_events(tool_name, tool_input, tool_result),
                 )
 
+    def test_current_host_research_aliases_map_to_the_receipt_vocabulary(self):
+        fixtures = (
+            (
+                "shell_command",
+                {"command": "memory search guard; mempalace status; graphify query guard"},
+                None,
+                ("query-native-memory", "query-mempalace", "query-graphify"),
+            ),
+            (
+                "shell_command",
+                {"command": r'& "C:\\tools\\memory.exe" search guard'},
+                None,
+                ("query-native-memory",),
+            ),
+            (
+                "shell_command",
+                {"command": r'& "C:\\project\\.chaos-engine\\memory.cmd" query guard'},
+                None,
+                ("query-native-memory",),
+            ),
+            (
+                "shell_command",
+                {"command": r'& "C:\\tools\\mempalace.exe" status'},
+                None,
+                ("query-mempalace",),
+            ),
+            (
+                "shell_command",
+                {"command": r'& "C:\\project\\.chaos-engine\\mempalace.ps1" search guard'},
+                None,
+                ("query-mempalace",),
+            ),
+            (
+                "shell_command",
+                {"command": r'& "C:\\tools\\graphify.exe" query guard'},
+                None,
+                ("query-graphify",),
+            ),
+            (
+                "shell_command",
+                {"command": r'& "C:\\project\\.chaos-engine\\graphify.bat" query guard'},
+                None,
+                ("query-graphify",),
+            ),
+            (
+                "mcp__shaft_memory__search_memory",
+                {"query": "guard"},
+                None,
+                ("query-native-memory",),
+            ),
+            (
+                "web__run",
+                {"open": [{"ref_id": "https://docs.python.org/3/using/cmdline.html"}]},
+                {"content": [{"type": "text", "text": "official source opened"}]},
+                ("authoritative-online-research",),
+            ),
+        )
+        for tool_name, tool_input, tool_result, expected in fixtures:
+            with self.subTest(tool_name=tool_name, tool_input=tool_input):
+                events = guard._research_preflight_events(
+                    tool_name, tool_input, tool_result
+                )
+                for event in expected:
+                    self.assertIn(event, events)
+        self.assertEqual(
+            guard._research_preflight_events(
+                "shell_command", {"command": "memory.txt search guard"}
+            ),
+            (),
+        )
+        for command in (
+            "memory.cmd.exe query guard",
+            "memory.ps1.exe search guard",
+            "graphify.bat.exe query guard",
+        ):
+            with self.subTest(command=command):
+                self.assertEqual(
+                    guard._research_preflight_events(
+                        "shell_command", {"command": command}
+                    ),
+                    (),
+                )
+        self.assertNotIn(
+            "authoritative-online-research",
+            guard._research_preflight_events(
+                "web__run",
+                {"open": [{"ref_id": "https://example.com/opinion"}]},
+                {"content": [{"type": "text", "text": "opened"}]},
+            ),
+        )
+        self.assertNotIn(
+            "authoritative-online-research",
+            guard._research_preflight_events(
+                "web__run",
+                {
+                    "search_query": [
+                        {"q": "discuss https://docs.python.org on example.com"}
+                    ]
+                },
+                {"results": [{"url": "https://example.com/opinion"}]},
+            ),
+        )
+
+    def test_failed_current_host_research_calls_do_not_certify_success(self):
+        fixtures = (
+            (
+                "PowerShell",
+                {"command": "memory search guard"},
+                {"status": "failed", "exit_code": 1},
+            ),
+            (
+                "mcp__shaft-memory__search_memory",
+                {"query": "guard"},
+                {"isError": True},
+            ),
+            (
+                "web__run",
+                {"open": [{"ref_id": "https://docs.python.org/3/using/cmdline.html"}]},
+                {"status": "failed", "url": "https://docs.python.org/3/using/cmdline.html"},
+            ),
+        )
+        observed = []
+        with patch(
+            "scripts.agents.guard.ledger_record",
+            side_effect=lambda _payload, event: observed.append(event),
+        ):
+            for tool_name, tool_input, tool_response in fixtures:
+                guard.run_posttooluse(
+                    {
+                        "tool_name": tool_name,
+                        "tool_input": tool_input,
+                        "tool_response": tool_response,
+                    }
+                )
+        self.assertEqual(observed, [])
+
     def test_portable_hook_matchers_observe_receipt_and_mutation_tools(self):
         for relative in (".claude/settings.json", ".codex/hooks.json"):
             with self.subTest(relative=relative):

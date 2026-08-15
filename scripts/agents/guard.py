@@ -1932,6 +1932,26 @@ def _has_primary_source_url(tool_result: object) -> bool:
     return False
 
 
+def _invokes_research_cli(command: str, executable: str, verbs: tuple[str, ...]) -> bool:
+    """Recognize bare, quoted full-path, and project-launcher CLI invocations."""
+    name = re.escape(executable) + (
+        r"(?:\.(?:exe|cmd|bat|ps1))?(?!\.(?:exe|cmd|bat|ps1))"
+    )
+    executable_pattern = (
+        rf'(?:"[^"\r\n]*[\\/]{name}(?:\.exe)?"|'
+        rf"'[^'\r\n]*[\\/]{name}(?:\.exe)?'|"
+        rf"(?:[^\s\"';&|]*[\\/])?{name}(?:\.exe)?)"
+    )
+    verb_pattern = "|".join(re.escape(verb) for verb in verbs)
+    return bool(
+        re.search(
+            rf"(?:^|[\s&]){executable_pattern}\s+(?:{verb_pattern})\b",
+            command,
+            re.IGNORECASE,
+        )
+    )
+
+
 def _research_preflight_events(
     tool_name: str, tool_input: object, tool_result: object = None
 ) -> tuple[str, ...]:
@@ -1943,7 +1963,7 @@ def _research_preflight_events(
         events.append("read-live-files")
         if "skill.md" in rendered:
             events.append("load-routed-skill")
-    if tool_name in {"Bash", "PowerShell"}:
+    if tool_name in {"Bash", "PowerShell", "shell_command"}:
         command = str(details.get("command") or "").lower()
         for segment in _command_segments(command):
             lowered = segment.lower()
@@ -1951,14 +1971,22 @@ def _research_preflight_events(
                 events.append("read-live-files")
                 if "skill.md" in lowered:
                     events.append("load-routed-skill")
-            if re.search(r"(?:^|\s)memory\s+(?:search|load|inspect)\b", lowered):
+            if _invokes_research_cli(
+                lowered, "memory", ("query", "search", "load", "inspect")
+            ):
                 events.append("query-native-memory")
-            if re.search(r"(?:^|\s)mempalace\s+(?:search|recall|wake-up|status|inspect)\b", lowered):
+            if _invokes_research_cli(
+                lowered,
+                "mempalace",
+                ("search", "recall", "wake-up", "status", "inspect"),
+            ):
                 events.append("query-mempalace")
-            if "graphify" in lowered:
+            if _invokes_research_cli(
+                lowered, "graphify", ("query", "explain", "affected", "path", "diagnose")
+            ):
                 events.append("query-graphify")
     lowered_name = tool_name.lower()
-    if "shaft-memory" in lowered_name and any(
+    if ("shaft-memory" in lowered_name or "shaft_memory" in lowered_name) and any(
         verb in lowered_name for verb in ("search", "load", "inspect")
     ):
         events.append("query-native-memory")
@@ -1968,8 +1996,13 @@ def _research_preflight_events(
         events.append("query-mempalace")
     if "graphify" in lowered_name:
         events.append("query-graphify")
+    web_evidence = (
+        {"open": details.get("open"), "response": tool_result}
+        if tool_name == "web__run"
+        else tool_result
+    )
     if tool_name in {"WebSearch", "WebFetch", "web__run"} and _has_primary_source_url(
-        tool_result
+        web_evidence
     ):
         events.append("authoritative-online-research")
     if tool_name == "update_plan":
@@ -3652,10 +3685,11 @@ def run_posttooluse(hook_input: dict) -> int:
             )
             if issue_event:
                 ledger_record(hook_input, issue_event)
-    for event in _research_preflight_events(
-        tool_name, hook_input.get("tool_input"), result
-    ):
-        ledger_record(hook_input, event)
+    if not result_failed:
+        for event in _research_preflight_events(
+            tool_name, hook_input.get("tool_input"), result
+        ):
+            ledger_record(hook_input, event)
     return 0
 
 
