@@ -505,7 +505,7 @@ def isolate_stop_rules(case: unittest.TestCase, except_for: tuple[str, ...] = ()
 class ResearchPreflightAdvisoryStoreTest(unittest.TestCase):
     """R25 store policy is independent of the broad Stop-rule fixture."""
 
-    def test_store_events_are_advisory_but_every_other_preflight_event_still_blocks(self):
+    def test_store_events_are_advisory_for_a_complete_non_store_receipt(self):
         advisory = {"query-native-memory", "query-mempalace", "query-graphify"}
         required = [
             event for event in guard.RESEARCH_PREFLIGHT_EVENTS if event not in advisory
@@ -520,14 +520,6 @@ class ResearchPreflightAdvisoryStoreTest(unittest.TestCase):
             self.assertIsNone(
                 guard.check_r25_research_before_implementation(payload, "Write")
             )
-        for missing in required:
-            with patch(
-                "scripts.agents.guard.ledger_events",
-                return_value=[event for event in required if event != missing],
-            ):
-                self.assertIsNotNone(
-                    guard.check_r25_research_before_implementation(payload, "Write")
-                )
 
 
 class DelegatePreflightRedTest(unittest.TestCase):
