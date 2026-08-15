@@ -2683,7 +2683,9 @@ class DeliveryCompleteStopGateTest(unittest.TestCase):
                 guard, "_checkpoint_identity", return_value=identity
             ), mock.patch.object(
                 guard, "_trusted_executable_token", return_value=True
-            ), mock.patch.object(guard, "_harness_root", return_value=str(root)):
+            ), mock.patch.object(
+                guard, "_harness_root", return_value=str(root)
+            ), mock.patch.object(guard.shutil, "which", return_value=str(root / "py")):
                 event = guard._successful_delivery_event({"cwd": str(root)}, command)
                 receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
                 for residue_update in (
