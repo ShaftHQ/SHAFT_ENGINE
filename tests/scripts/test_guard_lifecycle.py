@@ -502,6 +502,34 @@ def isolate_stop_rules(case: unittest.TestCase, except_for: tuple[str, ...] = ()
         case.addCleanup(patcher.stop)
 
 
+class ResearchPreflightAdvisoryStoreTest(unittest.TestCase):
+    """R25 store policy is independent of the broad Stop-rule fixture."""
+
+    def test_store_events_are_advisory_but_every_other_preflight_event_still_blocks(self):
+        advisory = {"query-native-memory", "query-mempalace", "query-graphify"}
+        required = [
+            event for event in guard.RESEARCH_PREFLIGHT_EVENTS if event not in advisory
+        ]
+        payload = {
+            "cwd": ".",
+            "session_id": "research-first-test",
+            "tool_name": "Write",
+            "tool_input": {"file_path": ".agents/skills/act-as-mohab/SKILL.md"},
+        }
+        with patch("scripts.agents.guard.ledger_events", return_value=required):
+            self.assertIsNone(
+                guard.check_r25_research_before_implementation(payload, "Write")
+            )
+        for missing in required:
+            with patch(
+                "scripts.agents.guard.ledger_events",
+                return_value=[event for event in required if event != missing],
+            ):
+                self.assertIsNotNone(
+                    guard.check_r25_research_before_implementation(payload, "Write")
+                )
+
+
 class DelegatePreflightRedTest(unittest.TestCase):
     """#4570's missing delegate and learning-loop behavior."""
 
@@ -707,24 +735,6 @@ class GuardLifecycleTest(unittest.TestCase):
             self.assertIsNone(
                 guard.check_r25_research_before_implementation(self.payload(), "Write")
             )
-
-    def test_store_events_are_advisory_but_every_other_preflight_event_still_blocks(self):
-        advisory = {"query-native-memory", "query-mempalace", "query-graphify"}
-        required = [
-            event for event in guard.RESEARCH_PREFLIGHT_EVENTS if event not in advisory
-        ]
-        with patch("scripts.agents.guard.ledger_events", return_value=required):
-            self.assertIsNone(
-                guard.check_r25_research_before_implementation(self.payload(), "Write")
-            )
-        for missing in required:
-            with patch(
-                "scripts.agents.guard.ledger_events",
-                return_value=[event for event in required if event != missing],
-            ):
-                self.assertIsNotNone(
-                    guard.check_r25_research_before_implementation(self.payload(), "Write")
-                )
 
     def test_analysis_tools_are_not_blocked(self):
         with patch("scripts.agents.guard.ledger_events", return_value=[]):
