@@ -299,6 +299,7 @@ class ChaosEngineHostsTest(unittest.TestCase):
                 ".memory/relations/.gitkeep",
                 "mempalace.yaml",
                 ".gitignore",
+                ".gitattributes",
             }
             for role in ("orchestrator", "implementer", "reviewer", "tester", "mechanical-helper"):
                 required.add(f".claude/agents/chaos-engine-{role}.md")
@@ -520,6 +521,76 @@ class ChaosEngineHostsTest(unittest.TestCase):
             )
 
             self.assertEqual(0, result.returncode, result.stdout)
+
+    def test_gitattributes_pins_canonical_harness_text_to_lf(self):
+        module = load(HOSTS, "chaos_engine_gitattributes_eol")
+        before = {relative: None for relative in module.managed_paths()}
+
+        rendered = module.desired_content(before)
+
+        self.assertIn(".gitattributes", rendered)
+        attributes = rendered[".gitattributes"].decode()
+        for pattern in (
+            "/.chaos-engine/** text eol=lf",
+            "/.agents/** text eol=lf",
+            "/.memory/** text eol=lf",
+            "/plugins/chaos-engine/** text eol=lf",
+            "/.gitattributes text eol=lf",
+        ):
+            self.assertIn(pattern, attributes)
+
+    def test_gitattributes_preserves_unrelated_rules_and_rejects_marker_drift(self):
+        module = load(HOSTS, "chaos_engine_gitattributes_merge")
+        before = {relative: None for relative in module.managed_paths()}
+        before[".gitattributes"] = b"*.png binary\n"
+
+        rendered = module.desired_content(before)[".gitattributes"]
+
+        self.assertTrue(rendered.startswith(b"*.png binary\n"))
+        self.assertEqual(rendered, module.gitattributes_content(rendered))
+        with self.assertRaisesRegex(ValueError, "gitattributes collision"):
+            module.gitattributes_content(b"# CHAOSENGINE-EOL:START\nchanged\n")
+
+    def test_gitattributes_preserves_core_bytes_in_autocrlf_clone(self):
+        module = load(HOSTS, "chaos_engine_gitattributes_clone")
+        with tempfile.TemporaryDirectory() as temporary:
+            source = Path(temporary) / "source"
+            clone = Path(temporary) / "clone"
+            skill = source / ".chaos-engine/skills/chaos-engine/SKILL.md"
+            skill.parent.mkdir(parents=True)
+            skill.write_bytes(b"# Canonical\n\nLine two\n")
+            core = source / ".chaos-engine/install.py"
+            core.write_bytes(b"print('one')\nprint('two')\n")
+            module.install(source)
+            subprocess.run(  # nosec B603 B607
+                ["git", "init", "-q", str(source)], check=True
+            )
+            subprocess.run(  # nosec B603 B607
+                ["git", "-C", str(source), "add", "-A"], check=True
+            )
+            subprocess.run(  # nosec B603 B607
+                [
+                    "git",
+                    "-C",
+                    str(source),
+                    "-c",
+                    "user.name=ChaosEngine test",
+                    "-c",
+                    "user.email=chaos-engine@example.invalid",
+                    "commit",
+                    "-qm",
+                    "fixture",
+                ],
+                check=True,
+            )
+
+            subprocess.run(  # nosec B603 B607
+                ["git", "-c", "core.autocrlf=true", "clone", "-q", str(source), str(clone)],
+                check=True,
+            )
+
+            self.assertEqual(core.read_bytes(), clone.joinpath(".chaos-engine/install.py").read_bytes())
+            self.assertNotIn(b"\r\n", clone.joinpath(".chaos-engine/install.py").read_bytes())
 
     def test_invalid_retrieval_configs_fail_before_mutation(self):
         module = load(HOSTS, "chaos_engine_invalid_retrieval")

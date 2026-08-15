@@ -693,6 +693,8 @@ INSTRUCTION = (
 )
 GITIGNORE_START = "# CHAOSENGINE-RUNTIME:START"
 GITIGNORE_END = "# CHAOSENGINE-RUNTIME:END"
+GITATTRIBUTES_START = "# CHAOSENGINE-EOL:START"
+GITATTRIBUTES_END = "# CHAOSENGINE-EOL:END"
 
 
 def interpreter(platform_name: str | None = None) -> tuple[str, list[str]]:
@@ -877,6 +879,7 @@ def managed_paths() -> tuple[str, ...]:
         ".memory/relations/.gitkeep",
         "mempalace.yaml",
         ".gitignore",
+        ".gitattributes",
     )
 
 
@@ -1224,13 +1227,48 @@ def gitignore_content(before: bytes | None) -> bytes:
         "!.github/\n!.github/copilot-instructions.md\n!.github/skills/\n"
         "!.github/skills/chaos-engine/\n!.github/skills/chaos-engine/**\n"
         "!plugins/\n!plugins/chaos-engine/\n!plugins/chaos-engine/**\n"
-        "!.mcp.json\n!mempalace.yaml\n!AGENTS.md\n!CLAUDE.md\n!GEMINI.md\n"
+        "!.mcp.json\n!mempalace.yaml\n!AGENTS.md\n!CLAUDE.md\n!GEMINI.md\n!.gitattributes\n"
         ".chaos-engine-owned-directory\n"
         f"{GITIGNORE_END}\n"
     )
     if GITIGNORE_START in existing or GITIGNORE_END in existing:
         if block not in existing:
             raise ValueError("ChaosEngine gitignore collision")
+        return before  # type: ignore[return-value]
+    separator = "\n" if existing and not existing.endswith("\n") else ""
+    return (existing + separator + block).encode()
+
+
+def gitattributes_content(before: bytes | None) -> bytes:
+    try:
+        existing = before.decode("utf-8") if before is not None else ""
+    except UnicodeDecodeError as error:
+        raise ValueError("invalid gitattributes configuration") from error
+    repository_root_anchor = "/"
+    block = (
+        f"{GITATTRIBUTES_START}\n"
+        f"{repository_root_anchor}.agents/** text eol=lf\n"
+        f"{repository_root_anchor}.chaos-engine/** text eol=lf\n"
+        f"{repository_root_anchor}.claude-plugin/** text eol=lf\n"
+        f"{repository_root_anchor}.claude/** text eol=lf\n"
+        f"{repository_root_anchor}.codex/** text eol=lf\n"
+        f"{repository_root_anchor}.gemini/** text eol=lf\n"
+        f"{repository_root_anchor}.github/copilot-instructions.md text eol=lf\n"
+        f"{repository_root_anchor}.github/skills/chaos-engine/** text eol=lf\n"
+        f"{repository_root_anchor}.mcp.json text eol=lf\n"
+        f"{repository_root_anchor}.memory/** text eol=lf\n"
+        f"{repository_root_anchor}plugins/chaos-engine/** text eol=lf\n"
+        f"{repository_root_anchor}AGENTS.md text eol=lf\n"
+        f"{repository_root_anchor}CLAUDE.md text eol=lf\n"
+        f"{repository_root_anchor}GEMINI.md text eol=lf\n"
+        f"{repository_root_anchor}mempalace.yaml text eol=lf\n"
+        f"{repository_root_anchor}.gitignore text eol=lf\n"
+        f"{repository_root_anchor}.gitattributes text eol=lf\n"
+        f"{GITATTRIBUTES_END}\n"
+    )
+    if GITATTRIBUTES_START in existing or GITATTRIBUTES_END in existing:
+        if block not in existing:
+            raise ValueError("ChaosEngine gitattributes collision")
         return before  # type: ignore[return-value]
     separator = "\n" if existing and not existing.endswith("\n") else ""
     return (existing + separator + block).encode()
@@ -1524,6 +1562,7 @@ def desired_content(
     after[".codex/config.toml"] = codex_content(
         before[".codex/config.toml"], maven_runtime=maven_runtime
     )
+    after[".gitattributes"] = gitattributes_content(before[".gitattributes"])
     return after
 
 
