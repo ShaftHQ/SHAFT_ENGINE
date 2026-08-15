@@ -132,6 +132,7 @@ sends you there; the rest by
 - [roles](../../chaos-engine/references/roles.md)
 - [heuristics](../../chaos-engine/references/heuristics.md)
 - [orchestrator bootstrap](../../chaos-engine/references/orchestrator-bootstrap.md)
+- [task isolation](../../chaos-engine/references/task-isolation.md)
 - [verification-gap lens](../../chaos-engine/references/verification-gap-lens.md)
 - [cleanup scopes](../../chaos-engine/references/cleanup-scopes.md)
 - [work GitHub playbook](../../chaos-engine/references/work-github-playbook.md)
