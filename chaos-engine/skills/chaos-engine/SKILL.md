@@ -140,9 +140,9 @@ Canonical policy stays repository-, machine-, user-, agent-, and
 provider-agnostic. Concrete identities and locations belong in selected
 profiles, adapters, configuration, or integration playbooks.
 
-Before edits, fetch and prune, verify the configured upstream, and isolate the
-task from that base. Stop if fetch or base verification fails. Apply the
-[cleanup scopes](../../references/cleanup-scopes.md) exactly.
+Follow [task isolation](../../references/task-isolation.md) before task-specific
+planning or discovery. Its fresh-primary gate and continuation exception are
+mandatory. Apply the [cleanup scopes](../../references/cleanup-scopes.md) exactly.
 
 ### Task scope (default)
 
