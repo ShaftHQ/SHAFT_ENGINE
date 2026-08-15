@@ -10,6 +10,7 @@ import subprocess  # nosec B404 - tests run fixed local Git commands only.
 import tempfile
 import unittest
 import unittest.mock as mock
+import urllib.error
 from pathlib import Path
 from types import SimpleNamespace
 from urllib.parse import unquote, urlparse
@@ -50,6 +51,235 @@ class Response(io.BytesIO):
 
 
 class ChaosEngineBootstrapTest(unittest.TestCase):
+    def test_documented_command_contains_the_bounded_initial_fetch_contract(self):
+        lines = []
+        for relative in ("chaos-engine/README.md", "chaos-engine/INSTALL.md"):
+            document = ROOT.joinpath(relative).read_text(encoding="utf-8")
+            lines.append(
+                next(item for item in document.splitlines() if item.startswith("py -3 -c "))
+            )
+        self.assertEqual(lines[0], lines[1])
+        source = lines[0][len('py -3 -c "') : -1]
+        outer = ast.parse(source)
+        embedded_call = next(
+            node
+            for node in ast.walk(outer)
+            if isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Name)
+            and node.func.id == "exec"
+        )
+        embedded = ast.parse(ast.literal_eval(embedded_call.args[0]))
+        retry_loop = next(node for node in ast.walk(embedded) if isinstance(node, ast.For))
+        self.assertEqual("range(4)", ast.unparse(retry_loop.iter))
+        calls = {
+            ast.unparse(node.func)
+            for node in ast.walk(embedded)
+            if isinstance(node, ast.Call)
+        }
+        self.assertTrue(
+            {
+                "urllib.request.urlopen",
+                "time.sleep",
+                "error.close",
+                "email.utils.parsedate_to_datetime",
+            }.issubset(calls)
+        )
+        handlers = {
+            ast.unparse(handler.type)
+            for handler in ast.walk(embedded)
+            if isinstance(handler, ast.ExceptHandler) and handler.type is not None
+        }
+        self.assertIn("urllib.error.HTTPError", handlers)
+        self.assertIn("(ConnectionError, TimeoutError, urllib.error.URLError)", handlers)
+
+    def test_read_response_retries_a_transient_http_failure(self):
+        module = load()
+        transient = urllib.error.HTTPError(
+            "https://example.invalid/bootstrap.py",
+            503,
+            "Service Unavailable",
+            {},
+            None,
+        )
+        opener = mock.Mock(side_effect=(transient, Response(b"ready")))
+        sleeper = mock.Mock()
+
+        try:
+            value = module.read_response(
+                opener,
+                "https://example.invalid/bootstrap.py",
+                sleeper=sleeper,
+            )
+        except RuntimeError:
+            value = b""
+
+        self.assertEqual(b"ready", value)
+        self.assertEqual(2, opener.call_count)
+        sleeper.assert_called_once_with(module.RETRY_BASE_SECONDS)
+
+    def test_read_response_closes_a_transient_http_error(self):
+        module = load()
+        body = io.BytesIO(b"temporary response")
+        transient = urllib.error.HTTPError(
+            "https://example.invalid/bootstrap.py",
+            503,
+            "Service Unavailable",
+            {},
+            body,
+        )
+        opener = mock.Mock(side_effect=(transient, Response(b"ready")))
+
+        module.read_response(
+            opener,
+            "https://example.invalid/bootstrap.py",
+            sleeper=mock.Mock(),
+        )
+
+        self.assertTrue(body.closed)
+
+    def test_read_response_retries_a_connection_reset(self):
+        module = load()
+        opener = mock.Mock(side_effect=(ConnectionResetError("reset"), Response(b"ready")))
+        sleeper = mock.Mock()
+
+        try:
+            value = module.read_response(
+                opener,
+                "https://example.invalid/bootstrap.py",
+                sleeper=sleeper,
+            )
+        except RuntimeError:
+            value = b""
+
+        self.assertEqual(b"ready", value)
+        self.assertEqual(2, opener.call_count)
+        sleeper.assert_called_once_with(module.RETRY_BASE_SECONDS)
+
+    def test_read_response_exhausts_bounded_transient_retries(self):
+        module = load()
+        failures = tuple(
+            urllib.error.HTTPError(
+                "https://example.invalid/bootstrap.py",
+                503,
+                "Service Unavailable",
+                {},
+                None,
+            )
+            for _ in range(module.MAX_READ_ATTEMPTS)
+        )
+        opener = mock.Mock(side_effect=failures)
+        sleeper = mock.Mock()
+
+        with self.assertRaisesRegex(RuntimeError, "resolve latest ChaosEngine"):
+            module.read_response(
+                opener,
+                "https://example.invalid/bootstrap.py",
+                sleeper=sleeper,
+            )
+
+        self.assertEqual(module.MAX_READ_ATTEMPTS, opener.call_count)
+        self.assertEqual(
+            [
+                mock.call(module.RETRY_BASE_SECONDS),
+                mock.call(module.RETRY_BASE_SECONDS * 2),
+                mock.call(module.RETRY_BASE_SECONDS * 4),
+            ],
+            sleeper.call_args_list,
+        )
+
+    def test_read_response_does_not_retry_a_permanent_http_failure(self):
+        module = load()
+        opener = mock.Mock(
+            side_effect=urllib.error.HTTPError(
+                "https://example.invalid/missing.py",
+                404,
+                "Not Found",
+                {},
+                None,
+            )
+        )
+        sleeper = mock.Mock()
+
+        with self.assertRaisesRegex(RuntimeError, "resolve latest ChaosEngine"):
+            module.read_response(
+                opener,
+                "https://example.invalid/missing.py",
+                sleeper=sleeper,
+            )
+
+        opener.assert_called_once()
+        sleeper.assert_not_called()
+
+    def test_read_response_honors_bounded_retry_after(self):
+        module = load()
+        transient = urllib.error.HTTPError(
+            "https://example.invalid/bootstrap.py",
+            429,
+            "Too Many Requests",
+            {"Retry-After": "7"},
+            None,
+        )
+        opener = mock.Mock(side_effect=(transient, Response(b"ready")))
+        sleeper = mock.Mock()
+
+        value = module.read_response(
+            opener,
+            "https://example.invalid/bootstrap.py",
+            sleeper=sleeper,
+        )
+
+        self.assertEqual(b"ready", value)
+        sleeper.assert_called_once_with(7.0)
+
+    def test_read_response_honors_http_date_retry_after(self):
+        module = load()
+        transient = urllib.error.HTTPError(
+            "https://example.invalid/bootstrap.py",
+            429,
+            "Too Many Requests",
+            {"Retry-After": "Thu, 01 Jan 1970 00:00:05 GMT"},
+            None,
+        )
+        opener = mock.Mock(side_effect=(transient, Response(b"ready")))
+        sleeper = mock.Mock()
+
+        with mock.patch.object(module.time, "time", return_value=0):
+            try:
+                value = module.read_response(
+                    opener,
+                    "https://example.invalid/bootstrap.py",
+                    sleeper=sleeper,
+                )
+            except RuntimeError:
+                value = b""
+
+        self.assertEqual(b"ready", value)
+        sleeper.assert_called_once_with(5.0)
+
+    def test_read_response_retries_a_rate_limit_signaled_403(self):
+        module = load()
+        rate_limited = urllib.error.HTTPError(
+            "https://example.invalid/bootstrap.py",
+            403,
+            "Forbidden",
+            {"Retry-After": "5"},
+            None,
+        )
+        opener = mock.Mock(side_effect=(rate_limited, Response(b"ready")))
+        sleeper = mock.Mock()
+
+        try:
+            value = module.read_response(
+                opener,
+                "https://example.invalid/bootstrap.py",
+                sleeper=sleeper,
+            )
+        except RuntimeError:
+            value = b""
+
+        self.assertEqual(b"ready", value)
+        sleeper.assert_called_once_with(5.0)
+
     def test_documented_one_command_contains_valid_python_source(self):
         for relative in ("chaos-engine/README.md", "chaos-engine/INSTALL.md"):
             document = ROOT.joinpath(relative).read_text(encoding="utf-8")

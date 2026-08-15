@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import email.utils
 import hashlib
 import json
 import os
@@ -11,6 +12,7 @@ import re
 import runpy
 import sys
 import tempfile
+import time
 import types
 import urllib.error
 import urllib.parse
@@ -24,6 +26,26 @@ MAX_RESPONSE_BYTES = 10 * 1024 * 1024
 MAX_SOURCE_BYTES = 10 * 1024 * 1024
 MAX_FILE_BYTES = 2 * 1024 * 1024
 MAX_FILES = 2000
+MAX_READ_ATTEMPTS = 4
+MAX_RETRY_AFTER_SECONDS = 60.0
+RETRY_BASE_SECONDS = 1.0
+TRANSIENT_HTTP_STATUS = frozenset({408, 425, 429, 500, 502, 503, 504})
+
+
+def parse_retry_after(value: str) -> float | None:
+    try:
+        delay = float(value)
+    except ValueError:
+        try:
+            parsed = email.utils.parsedate_to_datetime(value)
+        except (TypeError, ValueError, OverflowError):
+            return None
+        if parsed is None or parsed.tzinfo is None:
+            return None
+        delay = max(0.0, parsed.timestamp() - time.time())
+    if not 0 <= delay <= MAX_RETRY_AFTER_SECONDS:
+        return None
+    return delay
 
 
 def request(url: str) -> urllib.request.Request:
@@ -48,12 +70,49 @@ def valid_branch(branch: str) -> bool:
     )
 
 
-def read_response(opener, url: str, *, limit: int = MAX_RESPONSE_BYTES) -> bytes:
-    try:
-        with opener(request(url), timeout=30) as response:
-            value = response.read(limit + 1)
-    except (OSError, TimeoutError, urllib.error.URLError) as error:
-        raise RuntimeError("unable to resolve latest ChaosEngine from the configured upstream") from error
+def retry_delay(error: BaseException, attempt: int) -> float | None:
+    if isinstance(error, urllib.error.HTTPError):
+        retry_after = error.headers.get("Retry-After") if error.headers is not None else None
+        if error.code not in TRANSIENT_HTTP_STATUS and not (
+            error.code == 403 and retry_after is not None
+        ):
+            return None
+        if retry_after is not None:
+            delay = parse_retry_after(retry_after)
+            if delay is None:
+                return None
+            return delay
+        if error.code == 429:
+            return MAX_RETRY_AFTER_SECONDS
+    elif not isinstance(error, (ConnectionError, TimeoutError, urllib.error.URLError)):
+        return None
+    return RETRY_BASE_SECONDS * (2**attempt)
+
+
+def read_response(
+    opener,
+    url: str,
+    *,
+    limit: int = MAX_RESPONSE_BYTES,
+    sleeper=None,
+) -> bytes:
+    sleeper = time.sleep if sleeper is None else sleeper
+    for attempt in range(MAX_READ_ATTEMPTS):
+        try:
+            with opener(request(url), timeout=30) as response:
+                value = response.read(limit + 1)
+            break
+        except (OSError, TimeoutError, urllib.error.URLError) as error:
+            try:
+                delay = retry_delay(error, attempt)
+            finally:
+                if isinstance(error, urllib.error.HTTPError):
+                    error.close()
+            if delay is None or attempt + 1 == MAX_READ_ATTEMPTS:
+                raise RuntimeError(
+                    "unable to resolve latest ChaosEngine from the configured upstream"
+                ) from error
+            sleeper(delay)
     if len(value) > limit:
         raise ValueError("ChaosEngine upstream response exceeds the download limit")
     return value
