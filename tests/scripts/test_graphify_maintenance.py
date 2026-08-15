@@ -1,7 +1,9 @@
 """Coverage and orchestration tests for repository-owned Graphify maintenance."""
 
+from contextlib import redirect_stdout
 import importlib.util
 import hashlib
+import io
 import json
 import os
 import shutil
@@ -356,7 +358,6 @@ class GraphifyMaintenanceTest(TestCase):
         )
 
         module = self.load_module()
-        original_run_stage = module.run_stage
         output = primary / "graphify-out"
         events = []
 
@@ -381,10 +382,23 @@ class GraphifyMaintenanceTest(TestCase):
                 return
             if name == "cluster":
                 return
-            original_run_stage(name, command, root)
+            try:
+                subprocess.run(  # nosec B603 - controlled fixture command from production.
+                    command,
+                    cwd=root,
+                    check=True,
+                    capture_output=True,
+                    text=True,
+                )
+            except subprocess.CalledProcessError as error:
+                raise RuntimeError(
+                    f"Graphify {name} stage failed with exit {error.returncode}"
+                ) from error
 
         refresh_error = None
-        with mock.patch.object(module, "run_stage", side_effect=run_fixture_stage):
+        with mock.patch.object(
+            module, "run_stage", side_effect=run_fixture_stage
+        ), redirect_stdout(io.StringIO()):
             try:
                 module.refresh(primary, Path("graphify-out"))
             except RuntimeError as error:
