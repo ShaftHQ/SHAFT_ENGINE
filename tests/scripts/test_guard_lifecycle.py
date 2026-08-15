@@ -718,7 +718,7 @@ class GuardLifecycleTest(unittest.TestCase):
                 guard.check_r25_research_before_implementation(self.payload(), "Write")
             )
         for missing in required:
-            with self.subTest(missing=missing), patch(
+            with patch(
                 "scripts.agents.guard.ledger_events",
                 return_value=[event for event in required if event != missing],
             ):
