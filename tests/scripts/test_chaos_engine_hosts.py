@@ -295,7 +295,7 @@ class ChaosEngineHostsTest(unittest.TestCase):
             for role in ("orchestrator", "implementer", "reviewer", "tester", "mechanical-helper"):
                 required.add(f".claude/agents/chaos-engine-{role}.md")
                 required.add(f".codex/agents/chaos-engine-{role}.toml")
-            self.assertTrue(required <= set(receipt["after"]))
+            self.assertLessEqual(required, set(receipt["after"]))
             for relative in required:
                 self.assertTrue(project.joinpath(relative).is_file(), relative)
             marketplace = json.loads(
