@@ -113,8 +113,9 @@ said it passed", "close enough", "no need to run it", "the check covers it".
 
 ## Project profile
 
-Load the adapter-selected project profile before task-specific work. The
-portable selection contract lives at `chaos-engine/profiles/README.md`; the
+Load the adapter-selected profile before task work. The
+[portable profile](../../profiles/portable/entrypoint.md) is default;
+the [profiles catalog](../../profiles/README.md) owns selection. The
 core never assumes a repository, default branch, local root, or companion
 project. A standalone distribution that bundles exactly one profile selects
 that profile automatically and must link it from its discoverable skill.
@@ -314,7 +315,7 @@ Do not confuse a diff with an outcome: run the real affected flow, review the
 actual diff, and keep external actions within granted authority.
 
 Opening a PR does not end the duty. Arm auto-merge once its review gate passes,
-then watch with `scripts/ci/watch_pr_checks.py` until the remote confirms
+then watch with `gh pr checks <n> --watch --fail-fast` until the remote confirms
 merged. Red and conflicting are yours to fix, not to hand back; stale emits no
 event, so ask for it. The duty survives compaction, a dead delegate, and the
 task that opened the PR:

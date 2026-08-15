@@ -22,6 +22,467 @@ ACTIVE_ANCHOR_PREFIX = ".chaos-engine-hosts.active-"
 REMOVING_ANCHOR_PREFIX = ".chaos-engine-hosts.removing-"
 ANCHOR_TOKEN = re.compile(r"^[0-9a-f]{64}$")
 SCHEMA_VERSION = 1
+PLUGIN_NAME = "chaos-engine"
+LEGACY_MANAGED_PATHS = (
+    ".agents/skills/chaos-engine/SKILL.md",
+    ".claude/skills/chaos-engine/SKILL.md",
+    ".gemini/skills/chaos-engine/SKILL.md",
+    ".github/skills/chaos-engine/SKILL.md",
+    "AGENTS.md",
+    "CLAUDE.md",
+    "GEMINI.md",
+    ".github/copilot-instructions.md",
+    ".mcp.json",
+    ".gemini/settings.json",
+    ".codex/config.toml",
+)
+
+
+def client_command(
+    executable: str,
+    arguments: list[str],
+    project: Path,
+    runner=subprocess.run,
+) -> subprocess.CompletedProcess[str]:
+    result = runner(  # nosec B603 - executable is resolved by shutil.which.
+        [executable, *arguments],
+        cwd=project,
+        capture_output=True,
+        text=True,
+        check=False,
+        timeout=30,
+    )
+    if result.returncode != 0:
+        detail = (result.stderr or result.stdout).strip()
+        raise RuntimeError(f"client plugin command failed: {detail}")
+    return result
+
+
+def client_json(
+    executable: str,
+    arguments: list[str],
+    project: Path,
+    runner=subprocess.run,
+) -> object:
+    result = client_command(executable, arguments, project, runner=runner)
+    try:
+        return json.loads(result.stdout)
+    except json.JSONDecodeError as error:
+        raise RuntimeError("client plugin command returned invalid JSON") from error
+
+
+def same_path(left: object, right: Path) -> bool:
+    if not isinstance(left, str):
+        return False
+    try:
+        return os.path.normcase(str(Path(left).resolve())) == os.path.normcase(str(right.resolve()))
+    except OSError:
+        return False
+
+
+def activation_contract(project: Path) -> tuple[Path, str, str, str]:
+    project = project.resolve()
+    digest = hashlib.sha256(os.path.normcase(str(project)).encode()).hexdigest()[:12]
+    marketplace_name = f"chaos-engine-{digest}"
+    root = project / ".chaos-engine-state/client-marketplace"
+    manifest_path = project / "plugins/chaos-engine/.codex-plugin/plugin.json"
+    try:
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError) as error:
+        raise ValueError("ChaosEngine plugin manifest is unavailable") from error
+    version = manifest.get("version") if isinstance(manifest, dict) else None
+    if not isinstance(version, str) or re.fullmatch(r"\d+\.\d+\.\d+", version) is None:
+        raise ValueError("ChaosEngine plugin version is invalid")
+    return root, marketplace_name, f"{PLUGIN_NAME}@{marketplace_name}", version
+
+
+def prepare_activation_bundle(project: Path) -> tuple[Path, str, str, str]:
+    """Publish one path-unique generated marketplace without tracked machine paths."""
+    project = project.resolve()
+    root, marketplace_name, plugin_id, version = activation_contract(project)
+    source_plugin = project / "plugins/chaos-engine"
+    if not source_plugin.is_dir() or is_link_or_reparse(source_plugin):
+        raise ValueError("ChaosEngine plugin source is unavailable")
+    state_root = root.parent
+    state_root.mkdir(parents=True, exist_ok=True)
+    building = state_root / f".{root.name}.building-{secrets.token_hex(8)}"
+    backup = state_root / f".{root.name}.backup-{secrets.token_hex(8)}"
+    building.mkdir()
+    try:
+        shutil.copytree(source_plugin, building / "plugins/chaos-engine")
+        codex_marketplace = {
+            "name": marketplace_name,
+            "interface": {"displayName": "ChaosEngine Project"},
+            "plugins": [
+                {
+                    "name": PLUGIN_NAME,
+                    "source": {"source": "local", "path": "./plugins/chaos-engine"},
+                    "policy": {"installation": "INSTALLED_BY_DEFAULT", "authentication": "ON_INSTALL"},
+                    "category": "Developer Tools",
+                }
+            ],
+        }
+        claude_marketplace = {
+            "name": marketplace_name,
+            "owner": {"name": "ChaosEngine contributors"},
+            "description": "Neutral project-local agent harness.",
+            "plugins": [
+                {
+                    "name": PLUGIN_NAME,
+                    "source": "./plugins/chaos-engine",
+                    "description": "Neutral project-local agent harness.",
+                    "version": version,
+                }
+            ],
+        }
+        for relative, document in (
+            (".agents/plugins/marketplace.json", codex_marketplace),
+            (".codex-plugin/marketplace.json", codex_marketplace),
+            (".claude-plugin/marketplace.json", claude_marketplace),
+        ):
+            path = building / relative
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(json.dumps(document, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+        if root.exists() or is_link_or_reparse(root):
+            if is_link_or_reparse(root) or not root.is_dir():
+                raise ValueError("ChaosEngine activation marketplace collision")
+            root.replace(backup)
+        building.replace(root)
+        if backup.exists():
+            shutil.rmtree(backup)
+    except BaseException:
+        if building.exists():
+            shutil.rmtree(building)
+        if backup.exists() and not root.exists():
+            backup.replace(root)
+        raise
+    return root, marketplace_name, plugin_id, version
+
+
+def detected_plugin_status(
+    project: Path,
+    *,
+    runner=subprocess.run,
+    which=shutil.which,
+) -> dict[str, dict[str, str]]:
+    """Read back native plugin registration for every client installed on the host."""
+    project = project.resolve()
+    root, marketplace_name, plugin_id, version = activation_contract(project)
+    status: dict[str, dict[str, str]] = {}
+    for client in ("codex", "claude"):
+        executable = which(client)
+        if executable is None:
+            continue
+        if client == "codex":
+            marketplace_document = client_json(
+                executable, ["plugin", "marketplace", "list", "--json"], project, runner=runner
+            )
+            marketplaces = (
+                marketplace_document.get("marketplaces", [])
+                if isinstance(marketplace_document, dict)
+                else []
+            )
+            plugin_document = client_json(
+                executable, ["plugin", "list", "--available", "--json"], project, runner=runner
+            )
+            records = plugin_document.get("installed", []) if isinstance(plugin_document, dict) else []
+            marketplace_ok = any(
+                isinstance(item, dict)
+                and item.get("name") == marketplace_name
+                and same_path(item.get("root"), root)
+                for item in marketplaces
+            )
+            plugin_present = any(
+                isinstance(item, dict)
+                and item.get("pluginId") == plugin_id
+                and item.get("installed") is True
+                and item.get("enabled") is True
+                and isinstance(item.get("source"), dict)
+                and same_path(item["source"].get("path"), root / "plugins/chaos-engine")
+                for item in records
+            )
+            plugin_ok = plugin_present and any(
+                isinstance(item, dict)
+                and item.get("pluginId") == plugin_id
+                and item.get("version") == version
+                for item in records
+            )
+        else:
+            marketplaces = client_json(
+                executable, ["plugin", "marketplace", "list", "--json"], project, runner=runner
+            )
+            plugin_document = client_json(
+                executable, ["plugin", "list", "--available", "--json"], project, runner=runner
+            )
+            records = plugin_document.get("installed", []) if isinstance(plugin_document, dict) else []
+            marketplace_ok = isinstance(marketplaces, list) and any(
+                isinstance(item, dict)
+                and item.get("name") == marketplace_name
+                and same_path(item.get("path"), root)
+                for item in marketplaces
+            )
+            plugin_present = any(
+                isinstance(item, dict)
+                and item.get("id") == plugin_id
+                and item.get("enabled") is True
+                and same_path(item.get("projectPath"), project)
+                for item in records
+            )
+            plugin_ok = plugin_present and any(
+                isinstance(item, dict)
+                and item.get("id") == plugin_id
+                and item.get("version") == version
+                and same_path(item.get("projectPath"), project)
+                and cached_plugin_matches(item.get("installPath"), root / "plugins/chaos-engine")
+                for item in records
+            )
+        status[client] = {
+            "status": "healthy" if marketplace_ok and plugin_ok else "absent",
+            "marketplace": "healthy" if marketplace_ok else "absent",
+            "plugin": "healthy" if plugin_ok else ("stale" if plugin_present else "absent"),
+        }
+    return status
+
+
+def cached_plugin_matches(installed_path: object, source: Path) -> bool:
+    if not isinstance(installed_path, str):
+        return False
+    installed = Path(installed_path)
+    for relative in ("hooks/guard.py", "skills/chaos-engine/SKILL.md"):
+        cached = installed / relative
+        expected = source / relative
+        try:
+            if not cached.is_file() or cached.read_bytes() != expected.read_bytes():
+                return False
+        except OSError:
+            return False
+    return True
+
+
+def activation_commands(root: Path, plugin_id: str) -> dict[str, dict[str, list[str]]]:
+    return {
+        "codex": {
+            "marketplace": ["plugin", "marketplace", "add", str(root), "--json"],
+            "install": ["plugin", "add", plugin_id, "--json"],
+            "remove": ["plugin", "remove", plugin_id, "--json"],
+            "removeMarketplace": ["plugin", "marketplace", "remove", plugin_id.split("@", 1)[1]],
+        },
+        "claude": {
+            "marketplace": ["plugin", "marketplace", "add", "--scope", "local", str(root)],
+            "install": ["plugin", "install", plugin_id, "--scope", "local"],
+            "remove": ["plugin", "uninstall", plugin_id, "--scope", "local"],
+            "removeMarketplace": [
+                "plugin", "marketplace", "remove", plugin_id.split("@", 1)[1], "--scope", "local"
+            ],
+        },
+    }
+
+
+def record_client_activation(project: Path, activation: dict[str, object]) -> None:
+    receipt_path = project / RECEIPT_NAME
+    if read_file(project, receipt_path) is None:
+        return
+    receipt, raw = read_receipt(project)
+    if receipt.get("phase") != "installed":
+        raise ValueError("ChaosEngine host activation requires an installed receipt")
+    receipt["clientActivation"] = {
+        "marketplaceName": activation["marketplaceName"],
+        "ownedClients": activation["ownedClients"],
+        "pluginVersion": activation["pluginVersion"],
+        "claudeLocalBefore": activation["claudeLocalBefore"],
+    }
+    write_receipt(project, receipt, raw)
+
+
+def restore_claude_local_before(project: Path, activation: dict[str, object]) -> None:
+    encoded = activation.get("claudeLocalBefore")
+    if encoded is not None and not isinstance(encoded, str):
+        raise ValueError("ChaosEngine client activation receipt is invalid")
+    before = base64.b64decode(encoded, validate=True) if isinstance(encoded, str) else None
+    path = project / ".claude/settings.local.json"
+    current = read_file(project, path)
+    if before is None:
+        if current is not None:
+            atomic_remove(project, path, current)
+    elif current != before:
+        atomic_write(project, path, before, current)
+
+
+def remove_client_activation(
+    project: Path,
+    clients: list[str],
+    *,
+    runner=subprocess.run,
+    which=shutil.which,
+) -> None:
+    root, _, plugin_id, _ = activation_contract(project)
+    commands = activation_commands(root, plugin_id)
+    for client in reversed(clients):
+        executable = which(client)
+        if executable is None:
+            continue
+        selected = lambda name, chosen=client, path=executable: path if name == chosen else None
+        current = detected_plugin_status(project, runner=runner, which=selected).get(client, {})
+        if current.get("plugin") in {"healthy", "stale"}:
+            client_command(executable, commands[client]["remove"], project, runner=runner)
+        current = detected_plugin_status(project, runner=runner, which=selected).get(client, {})
+        if current.get("marketplace") == "healthy":
+            client_command(
+                executable, commands[client]["removeMarketplace"], project, runner=runner
+            )
+
+
+def restore_client_activation(
+    project: Path,
+    activation: dict[str, object] | None,
+    *,
+    runner=subprocess.run,
+    which=shutil.which,
+) -> None:
+    if activation is None:
+        return
+    clients = activation.get("ownedClients")
+    if not isinstance(clients, list) or not all(item in {"codex", "claude"} for item in clients):
+        raise ValueError("ChaosEngine client activation receipt is invalid")
+    root, _, plugin_id, _ = activation_contract(project)
+    commands = activation_commands(root, plugin_id)
+    for client in clients:
+        executable = which(client)
+        if executable is None:
+            continue
+        client_command(executable, commands[client]["marketplace"], project, runner=runner)
+        client_command(executable, commands[client]["install"], project, runner=runner)
+
+
+def activate_detected_plugins(
+    project: Path,
+    *,
+    runner=subprocess.run,
+    which=shutil.which,
+) -> dict[str, object]:
+    """Register and install the project plugin for detected native clients."""
+    project = project.resolve()
+    old_root, _, _, _ = activation_contract(project)
+    prior_activation = None
+    if read_file(project, project / RECEIPT_NAME) is not None:
+        prior_receipt, _ = read_receipt(project)
+        candidate = prior_receipt.get("clientActivation")
+        prior_activation = candidate if isinstance(candidate, dict) else None
+    claude_local_before = read_file(project, project / ".claude/settings.local.json")
+    original_local = (
+        prior_activation.get("claudeLocalBefore")
+        if prior_activation is not None and "claudeLocalBefore" in prior_activation
+        else (
+            base64.b64encode(claude_local_before).decode("ascii")
+            if claude_local_before is not None
+            else None
+        )
+    )
+    snapshot = old_root.parent / f".{old_root.name}.activation-backup-{secrets.token_hex(8)}"
+    if old_root.exists():
+        if is_link_or_reparse(old_root) or not old_root.is_dir():
+            raise ValueError("ChaosEngine activation marketplace collision")
+        shutil.copytree(old_root, snapshot)
+    root, marketplace_name, plugin_id, _ = prepare_activation_bundle(project)
+    created_marketplaces: list[str] = []
+    created_plugins: list[str] = []
+    commands = activation_commands(root, plugin_id)
+    touched_clients: list[str] = []
+    receipt: dict[str, object] = {
+        "createdMarketplaces": created_marketplaces,
+        "createdPlugins": created_plugins,
+        "marketplaceName": marketplace_name,
+    }
+    try:
+        for client in ("codex", "claude"):
+            executable = which(client)
+            if executable is None:
+                continue
+            touched_clients.append(client)
+            selected_client = lambda name, selected=client, path=executable: path if name == selected else None
+            current = detected_plugin_status(project, runner=runner, which=selected_client)[client]
+            if current["marketplace"] != "healthy":
+                client_command(executable, commands[client]["marketplace"], project, runner=runner)
+                created_marketplaces.append(client)
+            current = detected_plugin_status(project, runner=runner, which=selected_client)[client]
+            if current["plugin"] == "absent":
+                client_command(executable, commands[client]["install"], project, runner=runner)
+                created_plugins.append(client)
+            elif current["plugin"] == "stale":
+                client_command(executable, commands[client]["remove"], project, runner=runner)
+                client_command(executable, commands[client]["install"], project, runner=runner)
+            verified = detected_plugin_status(project, runner=runner, which=selected_client)[client]
+            if verified["status"] != "healthy":
+                raise RuntimeError(f"{client} plugin activation did not verify")
+        verified_clients = detected_plugin_status(project, runner=runner, which=which)
+        receipt["ownedClients"] = touched_clients
+        receipt["pluginVersion"] = activation_contract(project)[3]
+        receipt["clients"] = verified_clients
+        receipt["claudeLocalBefore"] = original_local
+        record_client_activation(project, receipt)
+        if snapshot.exists():
+            shutil.rmtree(snapshot)
+    except BaseException:
+        rollback_errors: list[BaseException] = []
+        try:
+            remove_client_activation(project, touched_clients, runner=runner, which=which)
+        except BaseException as error:
+            rollback_errors.append(error)
+        try:
+            if snapshot.exists():
+                if root.exists():
+                    shutil.rmtree(root)
+                snapshot.replace(root)
+                restore_client_activation(
+                    project, prior_activation, runner=runner, which=which
+                )
+            elif root.exists():
+                shutil.rmtree(root)
+            if prior_activation is None:
+                restore_claude_local_before(
+                    project, {"claudeLocalBefore": original_local}
+                )
+        except BaseException as error:
+            rollback_errors.append(error)
+        if rollback_errors:
+            raise rollback_errors[0]
+        raise
+    return receipt
+
+
+def deactivate_created_plugins(
+    project: Path,
+    receipt: dict[str, object],
+    *,
+    runner=subprocess.run,
+    which=shutil.which,
+) -> None:
+    """Compensate only native registrations created by one activation call."""
+    project = project.resolve()
+    marketplace_name = receipt.get("marketplaceName")
+    if not isinstance(marketplace_name, str):
+        _, marketplace_name, _, _ = activation_contract(project)
+    plugin_id = f"{PLUGIN_NAME}@{marketplace_name}"
+    created_plugins = receipt.get("createdPlugins", [])
+    created_marketplaces = receipt.get("createdMarketplaces", [])
+    for client in reversed(created_plugins if isinstance(created_plugins, list) else []):
+        executable = which(str(client))
+        if executable is None:
+            continue
+        arguments = (
+            ["plugin", "remove", plugin_id, "--json"]
+            if client == "codex"
+            else ["plugin", "uninstall", plugin_id, "--scope", "local"]
+        )
+        client_command(executable, arguments, project, runner=runner)
+    for client in reversed(created_marketplaces if isinstance(created_marketplaces, list) else []):
+        executable = which(str(client))
+        if executable is None:
+            continue
+        arguments = ["plugin", "marketplace", "remove", marketplace_name]
+        if client == "claude":
+            arguments.extend(["--scope", "local"])
+        client_command(executable, arguments, project, runner=runner)
 MAVEN_TOOLS_MCP_VERSION = "3.2.0"
 MAVEN_TOOLS_MCP_COMMIT = "4475ff6c61f23ea9a93cb6d5665a63235ef2ef36"
 MAVEN_TOOLS_MCP_RECEIPT = "install-receipt.json"
@@ -40,11 +501,20 @@ INSTRUCTION = (
     "Use `.chaos-engine/tool.py` for the project-local Memory, MemPalace, and Graphify tools.\n"
     f"{END}\n"
 )
+GITIGNORE_START = "# CHAOSENGINE-RUNTIME:START"
+GITIGNORE_END = "# CHAOSENGINE-RUNTIME:END"
 
 
 def interpreter(platform_name: str | None = None) -> tuple[str, list[str]]:
     platform_name = platform_name or os.name
     return ("py", ["-3"]) if platform_name == "nt" else ("python3", [])
+
+
+def plugin_cache_version(core_commit: str | None) -> str:
+    """Return a cache-busting SemVer; stale activation is reinstalled, never ordered."""
+    if core_commit and re.fullmatch(r"[0-9a-f]{40}", core_commit):
+        return f"1.0.{int(core_commit[:8], 16)}"
+    return "1.0.0"
 
 
 def java_major(java: Path) -> int | None:
@@ -149,7 +619,13 @@ def owned_servers(
         },
         "chaosengine-mempalace": {
             "command": command,
-            "args": [*prefix, ".chaos-engine/tool.py", "mempalace-mcp"],
+            "args": [
+                *prefix,
+                ".chaos-engine/tool.py",
+                "mempalace-mcp",
+                "--palace",
+                ".chaos-engine-state/mempalace",
+            ],
             "cwd": ".",
             "env": {"MEMPALACE_EMBEDDING_MODEL": "minilm"},
         },
@@ -173,6 +649,26 @@ def managed_paths() -> tuple[str, ...]:
         ".claude/skills/chaos-engine/SKILL.md",
         ".gemini/skills/chaos-engine/SKILL.md",
         ".github/skills/chaos-engine/SKILL.md",
+        ".agents/skills/README.md",
+        ".agents/plugins/marketplace.json",
+        ".claude-plugin/marketplace.json",
+        "plugins/chaos-engine/.codex-plugin/plugin.json",
+        "plugins/chaos-engine/.claude-plugin/plugin.json",
+        "plugins/chaos-engine/hooks/hooks.json",
+        "plugins/chaos-engine/hooks/guard.py",
+        "plugins/chaos-engine/skills/chaos-engine/SKILL.md",
+        ".codex/hooks.json",
+        ".claude/settings.json",
+        ".claude/agents/chaos-engine-orchestrator.md",
+        ".claude/agents/chaos-engine-implementer.md",
+        ".claude/agents/chaos-engine-reviewer.md",
+        ".claude/agents/chaos-engine-tester.md",
+        ".claude/agents/chaos-engine-mechanical-helper.md",
+        ".codex/agents/chaos-engine-orchestrator.toml",
+        ".codex/agents/chaos-engine-implementer.toml",
+        ".codex/agents/chaos-engine-reviewer.toml",
+        ".codex/agents/chaos-engine-tester.toml",
+        ".codex/agents/chaos-engine-mechanical-helper.toml",
         "AGENTS.md",
         "CLAUDE.md",
         "GEMINI.md",
@@ -180,6 +676,9 @@ def managed_paths() -> tuple[str, ...]:
         ".mcp.json",
         ".gemini/settings.json",
         ".codex/config.toml",
+        ".memory/config.json",
+        "mempalace.yaml",
+        ".gitignore",
     )
 
 
@@ -456,7 +955,8 @@ def codex_content(
         f'[mcp_servers."chaosengine-memory"]\ncommand = "{command}"\n'
         f'args = [{prefix_text}".chaos-engine/tool.py", "memory-mcp"]\ncwd = ".."\n\n'
         f'[mcp_servers."chaosengine-mempalace"]\ncommand = "{command}"\n'
-        f'args = [{prefix_text}".chaos-engine/tool.py", "mempalace-mcp"]\ncwd = ".."\n'
+        f'args = [{prefix_text}".chaos-engine/tool.py", "mempalace-mcp", "--palace", '
+        '".chaos-engine-state/mempalace"]\ncwd = ".."\n'
         'env = { MEMPALACE_EMBEDDING_MODEL = "minilm" }\n# CHAOSENGINE:END\n'
     )
     if maven_runtime is not None:
@@ -481,9 +981,65 @@ def codex_content(
     return (existing + separator + block).encode()
 
 
+def hook_content(before: bytes | None, rendered: bytes, label: str) -> bytes:
+    try:
+        existing = json.loads(before) if before is not None else {"hooks": {}}
+        desired = json.loads(rendered)
+    except (UnicodeDecodeError, json.JSONDecodeError) as error:
+        raise ValueError(f"invalid {label} hook configuration") from error
+    if not isinstance(existing, dict) or not isinstance(existing.get("hooks"), dict):
+        raise ValueError(f"invalid {label} hook configuration")
+    for event, groups in desired["hooks"].items():
+        current = existing["hooks"].setdefault(event, [])
+        if not isinstance(current, list):
+            raise ValueError(f"invalid {label} hook configuration")
+        for group in groups:
+            if group not in current:
+                current.append(group)
+    return (json.dumps(existing, indent=2, sort_keys=True) + "\n").encode()
+
+
+def gitignore_content(before: bytes | None) -> bytes:
+    try:
+        existing = before.decode("utf-8") if before is not None else ""
+    except UnicodeDecodeError as error:
+        raise ValueError("invalid gitignore configuration") from error
+    block = (
+        f"{GITIGNORE_START}\n"
+        ".chaos-engine-runtime/\n.chaos-engine-runtime.lock\n.chaos-engine-runtime.*\n.chaos-engine-state/\n"
+        ".chaos-engine.lock\n.chaos-engine.transaction.json\n"
+        ".chaos-engine.backup/\n.chaos-engine.backup.*/\n"
+        ".chaos-engine-cross-rollback/\n.chaos-engine-uninstall-*\n"
+        ".chaos-engine-hosts.json\n.chaos-engine-hosts.*\n"
+        ".chaos-engine-directory-claim-*\ngraphify-out/\n"
+        ".memory/*\n!.memory/\n!.memory/config.json\n"
+        "!.chaos-engine/\n!.chaos-engine/**\n"
+        "!.agents/\n!.agents/plugins/\n!.agents/plugins/marketplace.json\n"
+        "!.agents/skills/\n!.agents/skills/README.md\n"
+        "!.agents/skills/chaos-engine/\n!.agents/skills/chaos-engine/**\n"
+        "!.claude/\n!.claude/**\n.claude/settings.local.json\n!.codex/\n!.codex/**\n"
+        "!.gemini/\n!.gemini/settings.json\n!.gemini/skills/\n"
+        "!.gemini/skills/chaos-engine/\n!.gemini/skills/chaos-engine/**\n"
+        "!.github/\n!.github/copilot-instructions.md\n!.github/skills/\n"
+        "!.github/skills/chaos-engine/\n!.github/skills/chaos-engine/**\n"
+        "!plugins/\n!plugins/chaos-engine/\n!plugins/chaos-engine/**\n"
+        "!.mcp.json\n!mempalace.yaml\n!AGENTS.md\n!CLAUDE.md\n!GEMINI.md\n"
+        ".chaos-engine-owned-directory\n"
+        f"{GITIGNORE_END}\n"
+    )
+    if GITIGNORE_START in existing or GITIGNORE_END in existing:
+        if block not in existing:
+            raise ValueError("ChaosEngine gitignore collision")
+        return before  # type: ignore[return-value]
+    separator = "\n" if existing and not existing.endswith("\n") else ""
+    return (existing + separator + block).encode()
+
+
 def desired_content(
     before: dict[str, bytes | None],
     maven_runtime: tuple[Path, Path] | None | bool = False,
+    project_name: str = "project",
+    plugin_version: str = "1.0.0",
 ) -> dict[str, bytes]:
     if maven_runtime is False:
         maven_runtime = discover_maven_tools_runtime()
@@ -493,6 +1049,276 @@ def desired_content(
         "Follow the [canonical ChaosEngine](../../../.chaos-engine/skills/chaos-engine/SKILL.md).\n"
     ).encode()
     after = {relative: skill for relative in adapters}
+    after[".agents/skills/README.md"] = (
+        "# Installed agent harness\n\n"
+        "- `chaos-engine/`: canonical skill adapter.\n"
+        "- `../../plugins/chaos-engine/`: installed plugin and lifecycle hook.\n"
+        "- `.chaos-engine/`: canonical skills, playbooks, tools, and policy.\n"
+    ).encode()
+    plugin_entry = {
+        "name": "chaos-engine",
+        "source": {"source": "local", "path": "./plugins/chaos-engine"},
+        "policy": {
+            "installation": "INSTALLED_BY_DEFAULT",
+            "authentication": "ON_INSTALL",
+        },
+        "category": "Developer Tools",
+    }
+    marketplace_before = before[".agents/plugins/marketplace.json"]
+    if marketplace_before is None:
+        marketplace = {
+            "name": "chaos-engine-project",
+            "interface": {"displayName": "ChaosEngine Project"},
+            "plugins": [],
+        }
+    else:
+        try:
+            marketplace = json.loads(marketplace_before)
+        except (UnicodeDecodeError, json.JSONDecodeError) as error:
+            raise ValueError("invalid plugin marketplace configuration") from error
+        if not isinstance(marketplace, dict) or not isinstance(marketplace.get("plugins"), list):
+            raise ValueError("invalid plugin marketplace configuration")
+    existing_plugin = next(
+        (item for item in marketplace["plugins"] if isinstance(item, dict) and item.get("name") == "chaos-engine"),
+        None,
+    )
+    if existing_plugin is not None and existing_plugin != plugin_entry:
+        raise ValueError("ChaosEngine plugin marketplace collision")
+    if existing_plugin is None:
+        marketplace["plugins"].append(plugin_entry)
+    after[".agents/plugins/marketplace.json"] = (
+        json.dumps(marketplace, indent=2, sort_keys=True) + "\n"
+    ).encode()
+    claude_plugin_entry = {
+        "name": "chaos-engine",
+        "source": "./plugins/chaos-engine",
+        "description": "Neutral project-local agent harness.",
+        "version": plugin_version,
+    }
+    claude_marketplace_before = before[".claude-plugin/marketplace.json"]
+    if claude_marketplace_before is None:
+        claude_marketplace = {
+            "name": "chaos-engine-project",
+            "owner": {"name": "ChaosEngine contributors"},
+            "description": "Neutral project-local agent harness.",
+            "plugins": [],
+        }
+    else:
+        try:
+            claude_marketplace = json.loads(claude_marketplace_before)
+        except (UnicodeDecodeError, json.JSONDecodeError) as error:
+            raise ValueError("invalid Claude marketplace configuration") from error
+        if (
+            not isinstance(claude_marketplace, dict)
+            or claude_marketplace.get("name") != "chaos-engine-project"
+            or not isinstance(claude_marketplace.get("plugins"), list)
+        ):
+            raise ValueError("ChaosEngine Claude marketplace collision")
+    existing_claude_plugin = next(
+        (
+            item
+            for item in claude_marketplace["plugins"]
+            if isinstance(item, dict) and item.get("name") == "chaos-engine"
+        ),
+        None,
+    )
+    if existing_claude_plugin is not None and existing_claude_plugin != claude_plugin_entry:
+        raise ValueError("ChaosEngine Claude marketplace collision")
+    if existing_claude_plugin is None:
+        claude_marketplace["plugins"].append(claude_plugin_entry)
+    after[".claude-plugin/marketplace.json"] = (
+        json.dumps(claude_marketplace, indent=2, sort_keys=True) + "\n"
+    ).encode()
+    plugin_manifest = {
+        "name": "chaos-engine",
+        "version": plugin_version,
+        "description": "Neutral project-local software agent working harness.",
+        "author": {"name": "ChaosEngine contributors"},
+        "skills": "./skills",
+        "interface": {
+            "displayName": "ChaosEngine",
+            "shortDescription": "Neutral project working harness",
+            "longDescription": "A neutral project-local harness for research, planning, implementation, verification, and durable learning.",
+            "developerName": "ChaosEngine contributors",
+            "category": "Developer Tools",
+            "capabilities": ["Instructions", "Lifecycle hooks", "MCP servers"],
+            "defaultPrompt": ["Use ChaosEngine for this task."],
+        },
+    }
+    after["plugins/chaos-engine/.codex-plugin/plugin.json"] = (
+        json.dumps(plugin_manifest, indent=2, sort_keys=True) + "\n"
+    ).encode()
+    after["plugins/chaos-engine/.claude-plugin/plugin.json"] = (
+        json.dumps(
+            {
+                "name": "chaos-engine",
+                "version": plugin_version,
+                "description": "Neutral project-local software agent working harness.",
+                "author": {"name": "ChaosEngine contributors"},
+            },
+            indent=2,
+            sort_keys=True,
+        )
+        + "\n"
+    ).encode()
+    command, prefix = interpreter()
+    hook_command = " ".join([command, *prefix, '"${CLAUDE_PLUGIN_ROOT}/hooks/guard.py"'])
+    lifecycle_events = {
+        "SessionStart": "startup|resume|clear|compact",
+        "UserPromptSubmit": None,
+        "PreToolUse": "Bash|PowerShell|shell_command",
+        "PostToolUse": "Bash|PowerShell|shell_command",
+        "Stop": None,
+        "SubagentStop": None,
+    }
+    hooks: dict[str, list[dict[str, object]]] = {}
+    for event, matcher in lifecycle_events.items():
+        group: dict[str, object] = {
+            "hooks": [{"type": "command", "command": hook_command, "timeout": 5}]
+        }
+        if matcher is not None:
+            group["matcher"] = matcher
+        hooks[event] = [group]
+    rendered_plugin_hooks = (
+        json.dumps({"hooks": hooks}, indent=2, sort_keys=True) + "\n"
+    ).encode()
+    project_command = " ".join([command, *prefix, ".chaos-engine/hooks/guard.py"])
+    project_hooks = json.loads(rendered_plugin_hooks)
+    for groups in project_hooks["hooks"].values():
+        for group in groups:
+            for hook in group["hooks"]:
+                hook["command"] = project_command
+    rendered_project_hooks = (json.dumps(project_hooks, indent=2, sort_keys=True) + "\n").encode()
+    after["plugins/chaos-engine/hooks/hooks.json"] = hook_content(
+        before["plugins/chaos-engine/hooks/hooks.json"], rendered_plugin_hooks, "plugin"
+    )
+    after[".codex/hooks.json"] = hook_content(
+        before[".codex/hooks.json"], rendered_project_hooks, "Codex"
+    )
+    after["plugins/chaos-engine/hooks/guard.py"] = (
+        Path(__file__).resolve().parent / "hooks/guard.py"
+    ).read_bytes()
+    after["plugins/chaos-engine/skills/chaos-engine/SKILL.md"] = (
+        "---\nname: chaos-engine\ndescription: Load the canonical installed ChaosEngine before every task.\n---\n\n"
+        "From the active project root, load `.chaos-engine/skills/chaos-engine/SKILL.md` before every task.\n"
+    ).encode()
+    claude_settings = before[".claude/settings.json"]
+    try:
+        settings = json.loads(claude_settings) if claude_settings is not None else {}
+    except (UnicodeDecodeError, json.JSONDecodeError) as error:
+        raise ValueError("invalid Claude settings") from error
+    if not isinstance(settings, dict):
+        raise ValueError("invalid Claude settings")
+    enabled = settings.setdefault("enabledPlugins", {})
+    marketplaces = settings.setdefault("extraKnownMarketplaces", {})
+    if not isinstance(enabled, dict) or not isinstance(marketplaces, dict):
+        raise ValueError("invalid Claude settings")
+    plugin_id = "chaos-engine@chaos-engine-project"
+    if plugin_id in enabled and enabled[plugin_id] is not True:
+        raise ValueError("ChaosEngine Claude plugin collision")
+    desired_marketplace = {
+        "source": {"source": "directory", "path": "."}
+    }
+    if "chaos-engine-project" in marketplaces and marketplaces["chaos-engine-project"] != desired_marketplace:
+        raise ValueError("ChaosEngine Claude marketplace collision")
+    enabled[plugin_id] = True
+    marketplaces["chaos-engine-project"] = desired_marketplace
+    after[".claude/settings.json"] = (
+        json.dumps(settings, indent=2, sort_keys=True) + "\n"
+    ).encode()
+    roles = {
+        "orchestrator": "Own planning, architecture, synthesis, and final verification.",
+        "implementer": "Implement one bounded specification with test-driven development.",
+        "reviewer": "Perform an independent read-only adversarial review; never edit.",
+        "tester": "Reproduce behavior and produce regression and acceptance evidence.",
+        "mechanical-helper": "Perform deterministic reversible spec-exact work; stop on ambiguity.",
+    }
+    for role, responsibility in roles.items():
+        slug = f"chaos-engine-{role}"
+        tools = "Read, Grep, Glob, Bash" if role == "reviewer" else "Read, Grep, Glob, Bash, Write, Edit"
+        after[f".claude/agents/{slug}.md"] = (
+            f"---\nname: {slug}\ndescription: {responsibility}\n"
+            f"tools: {tools}\n---\n\n"
+            f"Load `.chaos-engine/skills/chaos-engine/SKILL.md` and follow "
+            f"`.chaos-engine/references/roles.md#{role}`. {responsibility}\n"
+        ).encode()
+        sandbox = 'sandbox_mode = "read-only"\n' if role == "reviewer" else ""
+        after[f".codex/agents/{slug}.toml"] = (
+            f'name = "{slug}"\n'
+            f'description = {json.dumps(responsibility)}\n'
+            f'developer_instructions = {json.dumps(f"Load .chaos-engine/skills/chaos-engine/SKILL.md and follow .chaos-engine/references/roles.md#{role}. {responsibility}")}\n'
+            f"{sandbox}"
+        ).encode()
+    memory_before = before[".memory/config.json"]
+    if memory_before is None:
+        normalized_name = re.sub(r"[^a-z0-9]+", "-", project_name.casefold()).strip("-") or "project"
+        memory_config = {
+            "version": 4,
+            "project": {"id": f"project.{normalized_name}", "name": project_name},
+            "memory": {
+                "autoIndex": True,
+                "defaultTokenBudget": 6000,
+                "saveContextPacks": False,
+            },
+            "git": {"trackContextPacks": False},
+        }
+        after[".memory/config.json"] = (
+            json.dumps(memory_config, indent=2, sort_keys=True) + "\n"
+        ).encode()
+    else:
+        try:
+            memory_config = json.loads(memory_before)
+        except (UnicodeDecodeError, json.JSONDecodeError) as error:
+            raise ValueError("invalid Memory configuration") from error
+        project_config = memory_config.get("project") if isinstance(memory_config, dict) else None
+        memory_options = memory_config.get("memory") if isinstance(memory_config, dict) else None
+        git_options = memory_config.get("git") if isinstance(memory_config, dict) else None
+        if (
+            not isinstance(memory_config, dict)
+            or memory_config.get("version") != 4
+            or not isinstance(project_config, dict)
+            or not isinstance(project_config.get("id"), str)
+            or not isinstance(project_config.get("name"), str)
+            or not isinstance(memory_options, dict)
+            or not isinstance(git_options, dict)
+        ):
+            raise ValueError("invalid Memory configuration")
+        after[".memory/config.json"] = memory_before
+    mempalace_before = before["mempalace.yaml"]
+    if mempalace_before is None:
+        safe_name = re.sub(r"[^A-Za-z0-9_.-]+", "-", project_name).strip("-") or "project"
+        after["mempalace.yaml"] = (
+            f"wing: {safe_name}\n"
+            "rooms:\n  - name: general\n    description: Project source and documentation\n"
+            "    keywords: [project, source, documentation]\n"
+            "exclude_patterns:\n  - mempalace.yaml\n  - .memory/**\n"
+            "  - graphify-out/**\n  - .chaos-engine-runtime/**\n  - .chaos-engine-state/**\n"
+        ).encode()
+    else:
+        try:
+            mempalace_text = mempalace_before.decode("utf-8")
+        except UnicodeDecodeError as error:
+            raise ValueError("invalid MemPalace configuration") from error
+        wing_matches = re.findall(r"(?m)^wing:\s*([A-Za-z0-9_.-]+)\s*$", mempalace_text)
+        rooms = re.search(
+            r"(?ms)^rooms:\s*\n(?P<body>.*?)(?=^exclude_patterns:\s*$)",
+            mempalace_text,
+        )
+        excludes = re.search(
+            r"(?ms)^exclude_patterns:\s*\n(?P<body>.*)\Z",
+            mempalace_text,
+        )
+        if (
+            len(wing_matches) != 1
+            or rooms is None
+            or re.search(r"(?m)^\s{2}- name:\s*\S+\s*$", rooms.group("body")) is None
+            or re.search(r"(?m)^\s{4}description:\s*\S+.*$", rooms.group("body")) is None
+            or excludes is None
+            or re.search(r"(?m)^\s{2}-\s+\S+\s*$", excludes.group("body")) is None
+        ):
+            raise ValueError("invalid MemPalace configuration")
+        after["mempalace.yaml"] = mempalace_before
+    after[".gitignore"] = gitignore_content(before[".gitignore"])
     for relative in ("AGENTS.md", "CLAUDE.md", "GEMINI.md"):
         after[relative] = instruction_content(before[relative], INSTRUCTION)
     after[".github/copilot-instructions.md"] = instruction_content(
@@ -521,7 +1347,13 @@ def encode_images(images: dict[str, bytes | None]) -> dict[str, str | None]:
 
 
 def decode_images(value: object, *, nullable: bool) -> dict[str, bytes | None]:
-    if not isinstance(value, dict) or set(value) != set(managed_paths()):
+    keys = frozenset(value) if isinstance(value, dict) else frozenset()
+    current_keys = frozenset(managed_paths())
+    if (
+        not isinstance(value, dict)
+        or not frozenset(LEGACY_MANAGED_PATHS) <= keys
+        or not keys <= current_keys
+    ):
         raise ValueError("ChaosEngine host receipt ownership is invalid")
     result: dict[str, bytes | None] = {}
     try:
@@ -534,6 +1366,8 @@ def decode_images(value: object, *, nullable: bool) -> dict[str, bytes | None]:
                 raise ValueError
     except (ValueError, TypeError) as error:
         raise ValueError("ChaosEngine host receipt content is invalid") from error
+    for relative in managed_paths():
+        result.setdefault(relative, None)
     return result
 
 
@@ -822,6 +1656,17 @@ def read_receipt(project: Path) -> tuple[dict[str, object], bytes]:
         raise ValueError("ChaosEngine host receipt routes are invalid")
     decode_images(value.get("before"), nullable=True)
     decode_images(value.get("after"), nullable=False)
+    before_value = value.get("before")
+    after_value = value.get("after")
+    if isinstance(before_value, dict) and isinstance(after_value, dict):
+        missing = set(managed_paths()) - set(after_value)
+        if missing:
+            current = current_images(project)
+            for relative in missing:
+                if current[relative] is not None:
+                    encoded = base64.b64encode(current[relative]).decode("ascii")
+                    before_value[relative] = encoded
+                    after_value[relative] = encoded
     directories = receipt_directories(value)
     if directories:
         directory_marker(project, value, directories[0])
@@ -898,21 +1743,32 @@ def install(project: Path, core_commit: str | None = None) -> dict[str, object]:
         after = decode_images(receipt["after"], nullable=False)
         if receipt["phase"] == "installed":
             verify(project, receipt)
-            wanted = desired_content(before)
+            version = plugin_cache_version(core_commit)
+            wanted = desired_content(before, project_name=project.name, plugin_version=version)
             if after == wanted and receipt.get("coreCommit") == core_commit:
                 return receipt
             next_receipt = dict(receipt)
             next_receipt["phase"] = "installing"
             next_receipt["coreCommit"] = core_commit
             next_receipt["after"] = encode_images(wanted)
+            new_directories = created_directories(project)
+            next_receipt["createdDirectories"] = sorted(
+                set(receipt_directories(receipt)) | set(new_directories),
+                key=lambda item: (len(Path(item).parts), item),
+            )
             next_raw = write_receipt(project, next_receipt, raw)
             try:
+                prepare_created_directories(project, next_receipt)
                 reconcile(project, wanted, (after, wanted))
                 next_receipt["phase"] = "installed"
                 write_receipt(project, next_receipt, next_raw)
                 return next_receipt
             except BaseException:
                 reconcile(project, after, (after, wanted))
+                if new_directories:
+                    cleanup_receipt = dict(next_receipt)
+                    cleanup_receipt["createdDirectories"] = new_directories
+                    remove_created_directories(project, cleanup_receipt)
                 atomic_write(project, receipt_path, raw, read_file(project, receipt_path))
                 raise
         prepare_created_directories(project, receipt)
@@ -922,7 +1778,8 @@ def install(project: Path, core_commit: str | None = None) -> dict[str, object]:
         return receipt
 
     before = current_images(project)
-    after = desired_content(before)
+    version = plugin_cache_version(core_commit)
+    after = desired_content(before, project_name=project.name, plugin_version=version)
     if existing_anchors and existing_anchors[0].name.startswith(REMOVING_ANCHOR_PREFIX):
         raise ValueError("ChaosEngine host removal recovery is required")
     anchor_path = host_anchor_path(project, create=True)
@@ -1019,18 +1876,42 @@ def restore_snapshot(project: Path, saved: dict[str, object]) -> None:
     atomic_write(project, project / RECEIPT_NAME, raw, current_raw)
 
 
-def prepare_uninstall(project: Path) -> dict[str, object]:
+def prepare_uninstall(
+    project: Path,
+    *,
+    runner=subprocess.run,
+    which=shutil.which,
+) -> dict[str, object]:
     project = project.resolve()
     receipt, raw = read_receipt(project)
     before = decode_images(receipt["before"], nullable=True)
     after = decode_images(receipt["after"], nullable=False)
     if receipt["phase"] == "installed":
         verify(project, receipt)
-        receipt["phase"] = "removing"
-        write_receipt(project, receipt, raw)
+        activation = receipt.get("clientActivation")
+        removed_activation = False
+        try:
+            if isinstance(activation, dict):
+                clients = activation.get("ownedClients")
+                if not isinstance(clients, list):
+                    raise ValueError("ChaosEngine client activation receipt is invalid")
+                remove_client_activation(project, clients, runner=runner, which=which)
+                removed_activation = True
+                restore_claude_local_before(project, activation)
+            receipt["clientActivationRemoved"] = removed_activation
+            receipt["phase"] = "removing"
+            write_receipt(project, receipt, raw)
+        except BaseException:
+            if removed_activation and isinstance(activation, dict):
+                restore_client_activation(project, activation, runner=runner, which=which)
+            raise
     elif receipt["phase"] != "removing":
         raise ValueError("ChaosEngine host installation recovery is required")
-    reconcile(project, before, (before, after))
+    try:
+        reconcile(project, before, (before, after))
+    except BaseException:
+        cancel_uninstall(project, runner=runner, which=which)
+        raise
     return receipt
 
 
@@ -1070,7 +1951,12 @@ def remove_created_directories(project: Path, receipt: dict[str, object]) -> Non
             claim.unlink()
 
 
-def cancel_uninstall(project: Path) -> None:
+def cancel_uninstall(
+    project: Path,
+    *,
+    runner=subprocess.run,
+    which=shutil.which,
+) -> None:
     project = project.resolve()
     receipt, raw = read_receipt(project)
     if receipt["phase"] != "removing":
@@ -1079,6 +1965,10 @@ def cancel_uninstall(project: Path) -> None:
     after = decode_images(receipt["after"], nullable=False)
     prepare_created_directories(project, receipt)
     reconcile(project, after, (before, after))
+    activation = receipt.get("clientActivation")
+    if receipt.get("clientActivationRemoved") is True and isinstance(activation, dict):
+        restore_client_activation(project, activation, runner=runner, which=which)
+    receipt["clientActivationRemoved"] = False
     receipt["phase"] = "installed"
     write_receipt(project, receipt, raw)
     anchor = host_anchor_path(project)
@@ -1106,20 +1996,30 @@ def finalize_uninstall(project: Path) -> None:
     anchor = host_anchor_path(project)
     if anchor.name.startswith(ACTIVE_ANCHOR_PREFIX):
         anchor = move_anchor(project, anchor, REMOVING_ANCHOR_PREFIX)
+    activation_root = project / ".chaos-engine-state/client-marketplace"
+    if activation_root.exists():
+        if is_link_or_reparse(activation_root) or not activation_root.is_dir():
+            raise ValueError("ChaosEngine activation marketplace collision")
+        shutil.rmtree(activation_root)
     receipt_path.unlink()
     anchor.unlink()
 
 
-def uninstall(project: Path) -> None:
+def uninstall(
+    project: Path,
+    *,
+    runner=subprocess.run,
+    which=shutil.which,
+) -> None:
     project = project.resolve()
     receipt_path = project / RECEIPT_NAME
     if read_file(project, receipt_path) is None:
         finalize_uninstall(project)
         return
-    prepare_uninstall(project)
+    prepare_uninstall(project, runner=runner, which=which)
     try:
         finalize_uninstall(project)
     except BaseException:
         if read_file(project, receipt_path) is not None:
-            cancel_uninstall(project)
+            cancel_uninstall(project, runner=runner, which=which)
         raise

@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 import re
@@ -148,12 +149,14 @@ def install_latest(
     repository: str,
     branch: str | None = None,
     skip_tools: bool = False,
+    distribution: str = "portable",
     opener=urllib.request.urlopen,
     provisioner=None,
-) -> dict[str, str]:
+) -> dict[str, object]:
     project = Path(project).resolve()
     if not project.is_dir():
         raise ValueError(f"project is not a directory: {project}")
+    prior_install = (project / ".chaos-engine").exists()
     commit, resolved_branch = resolve_latest(repository, branch, opener=opener)
     encoded_repository = "/".join(urllib.parse.quote(part, safe="") for part in repository.split("/"))
     archive = read_response(
@@ -163,14 +166,24 @@ def install_latest(
     with tempfile.TemporaryDirectory(prefix="chaos-engine-bootstrap-") as temporary:
         source = extract_source(archive, Path(temporary))
         installer = load_installer(source)
-        provenance = {
-            "kind": "git",
-            "repository": repository,
-            "branch": resolved_branch,
-            "commit": commit,
-        }
+        if distribution == "portable":
+            provenance = {
+                "kind": "git-digest",
+                "repositorySha256": hashlib.sha256(repository.casefold().encode()).hexdigest(),
+                "branchSha256": hashlib.sha256(resolved_branch.encode()).hexdigest(),
+                "commit": commit,
+            }
+        else:
+            provenance = {
+                "kind": "git",
+                "repository": repository,
+                "branch": resolved_branch,
+                "commit": commit,
+            }
         if skip_tools:
-            target = installer.install(project, source, commit, source_record=provenance)
+            target = installer.install(
+                project, source, commit, source_record=provenance, distribution=distribution
+            )
         else:
             target = installer.install_with_dependencies(
                 project,
@@ -178,8 +191,30 @@ def install_latest(
                 commit,
                 provisioner=provisioner,
                 source_record=provenance,
+                distribution=distribution,
             )
-    return {"status": "installed", "root": str(target), "commit": commit}
+    if skip_tools or provisioner is not None:
+        return {"status": "installed", "root": str(target), "commit": commit}
+    host_controller = installer.load_installed_controller(target, "hosts")
+    try:
+        doctor = installer.doctor_with_dependencies(project, verify_clients=False)
+        if doctor.get("status") != "healthy":
+            raise RuntimeError("ChaosEngine doctor did not report a healthy installation")
+        clients = host_controller.activate_detected_plugins(project)
+        doctor["clients"] = clients.get("clients", {})
+    except BaseException:
+        if prior_install:
+            installer.rollback(project)
+        else:
+            installer.uninstall_with_dependencies(project)
+        raise
+    return {
+        "status": "installed",
+        "root": str(target),
+        "commit": commit,
+        "clients": clients,
+        "doctor": doctor,
+    }
 
 
 def parser() -> argparse.ArgumentParser:
@@ -187,6 +222,7 @@ def parser() -> argparse.ArgumentParser:
     result.add_argument("--project", type=Path, default=Path.cwd())
     result.add_argument("--repository", required=True)
     result.add_argument("--branch")
+    result.add_argument("--distribution", default="portable")
     result.add_argument("--skip-tools", action="store_true", help=argparse.SUPPRESS)
     return result
 
@@ -199,6 +235,7 @@ def main() -> int:
             repository=args.repository,
             branch=args.branch,
             skip_tools=args.skip_tools,
+            distribution=args.distribution,
         )
     except (OSError, RuntimeError, ValueError) as error:
         print(str(error), file=sys.stderr)

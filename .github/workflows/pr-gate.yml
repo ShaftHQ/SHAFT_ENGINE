@@ -339,6 +339,7 @@ jobs:
           tests.scripts.test_chaos_engine_dependencies
           # Source: tests/scripts/test_chaos_engine_hosts.py
           tests.scripts.test_chaos_engine_hosts
+          tests.scripts.test_chaos_engine_hook
           # Source: tests/scripts/test_chaos_engine_learning.py
           tests.scripts.test_chaos_engine_learning
           # Source: tests/scripts/test_chaos_engine_research.py

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import ast
 import importlib.util
 import io
 import json
@@ -50,6 +51,70 @@ class Response(io.BytesIO):
 
 
 class ChaosEngineBootstrapTest(unittest.TestCase):
+    def test_documented_one_command_contains_valid_python_source(self):
+        for relative in ("chaos-engine/README.md", "chaos-engine/INSTALL.md"):
+            document = ROOT.joinpath(relative).read_text(encoding="utf-8")
+            line = next(item for item in document.splitlines() if item.startswith("py -3 -c "))
+            self.assertTrue(line.startswith('py -3 -c "') and line.endswith('"'))
+            self.assertNotIn('\\"', line)
+            ast.parse(line[len('py -3 -c "') : -1])
+
+    def test_public_full_flow_activates_clients_and_runs_doctor(self):
+        module = load()
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary) / "project"
+            project.mkdir()
+            opener, _ = self.opener([(COMMIT_ONE, "full")])
+            installer = mock.Mock()
+            installer.install_with_dependencies.return_value = project / ".chaos-engine"
+            installer.load_installed_controller.return_value.activate_detected_plugins.return_value = {
+                "createdPlugins": ["codex"]
+            }
+            installer.doctor_with_dependencies.return_value = {"status": "healthy"}
+
+            with mock.patch.object(module, "load_installer", return_value=installer):
+                result = module.install_latest(
+                    project,
+                    repository="Example/Project",
+                    branch="main",
+                    opener=opener,
+                )
+
+            installer.load_installed_controller.assert_called_once_with(
+                project / ".chaos-engine", "hosts"
+            )
+            installer.load_installed_controller.return_value.activate_detected_plugins.assert_called_once_with(
+                project.resolve()
+            )
+            installer.doctor_with_dependencies.assert_called_once_with(
+                project.resolve(), verify_clients=False
+            )
+            self.assertEqual("healthy", result["doctor"]["status"])
+
+    def test_failed_post_install_doctor_removes_new_activation_and_install(self):
+        module = load()
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary) / "project"
+            project.mkdir()
+            opener, _ = self.opener([(COMMIT_ONE, "full")])
+            installer = mock.Mock()
+            installer.install_with_dependencies.return_value = project / ".chaos-engine"
+            host = installer.load_installed_controller.return_value
+            host.activate_detected_plugins.return_value = {"createdPlugins": ["codex"]}
+            installer.doctor_with_dependencies.side_effect = RuntimeError("probe failed")
+
+            with mock.patch.object(module, "load_installer", return_value=installer):
+                with self.assertRaisesRegex(RuntimeError, "probe failed"):
+                    module.install_latest(
+                        project,
+                        repository="Example/Project",
+                        branch="main",
+                        opener=opener,
+                    )
+
+            host.activate_detected_plugins.assert_not_called()
+            installer.uninstall_with_dependencies.assert_called_once_with(project.resolve())
+
     def opener(self, commits: list[tuple[str, str]]):
         calls: list[str] = []
 
@@ -82,9 +147,16 @@ class ChaosEngineBootstrapTest(unittest.TestCase):
             self.assertEqual(COMMIT_ONE, first["commit"])
             manifest = json.loads((project / ".chaos-engine/manifest.json").read_text(encoding="utf-8"))
             self.assertEqual(
-                {"kind": "git", "repository": "shafthq/shaft_engine", "branch": "main", "commit": COMMIT_ONE},
+                {
+                    "kind": "git-digest",
+                    "repositorySha256": mock.ANY,
+                    "branchSha256": mock.ANY,
+                    "commit": COMMIT_ONE,
+                },
                 manifest["source"],
             )
+            self.assertEqual("portable", manifest["distribution"]["id"])
+            self.assertNotIn("shaft", (project / ".chaos-engine/manifest.json").read_text().casefold())
             self.assertTrue(any("api.github.com/repos/ShaftHQ/SHAFT_ENGINE/commits/main" in call for call in calls))
 
             open_two, _ = self.opener([(COMMIT_TWO, "two")])
@@ -147,6 +219,27 @@ class ChaosEngineBootstrapTest(unittest.TestCase):
             self.assertEqual("healthy", status["status"])
             self.assertEqual("healthy", status["hosts"]["status"])
             self.assertEqual("healthy", status["dependencies"]["status"])
+            self.assertEqual(
+                {
+                    "core",
+                    "skills",
+                    "playbooks",
+                    "hooks",
+                    "plugins",
+                    "roles",
+                    "mcps",
+                    "tools",
+                    "memory",
+                    "mempalace",
+                    "graphify",
+                    "retrieval-config",
+                    "projection-policy",
+                },
+                set(status["components"]),
+            )
+            self.assertTrue(
+                all(component["status"] == "healthy" for component in status["components"].values())
+            )
             self.assertTrue(project.joinpath(".agents/skills/chaos-engine/SKILL.md").is_file())
             self.assertTrue(project.joinpath(".mcp.json").is_file())
 
@@ -188,8 +281,8 @@ class ChaosEngineBootstrapTest(unittest.TestCase):
             backup = json.loads(
                 (project / ".chaos-engine.backup/manifest.json").read_text(encoding="utf-8")
             )
-            self.assertEqual("git", current["source"]["kind"])
-            self.assertEqual("example/project", current["source"]["repository"])
+            self.assertEqual("git-digest", current["source"]["kind"])
+            self.assertNotIn("repository", current["source"])
             self.assertEqual(before, backup)
 
     def test_failed_full_migration_restores_the_prior_local_manifest(self):

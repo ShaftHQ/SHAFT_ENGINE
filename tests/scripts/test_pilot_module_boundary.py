@@ -6,7 +6,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 NS = {"m": "http://maven.apache.org/POM/4.0.0"}
-PROVIDER_SOURCE = ROOT / "shaft-ai/src/main/java/com/shaft/ai/provider"
+PROVIDER_SOURCE = ROOT / "shaft-ai/src/main/java/com/shaft/ai"
 PROVIDER_SERVICE = (
     ROOT / "shaft-ai/src/main/resources/META-INF/services/com.shaft.pilot.ai.AiProvider"
 )
@@ -40,11 +40,23 @@ def concrete_provider_classes() -> list[str]:
     change the answer. `AbstractHttpAiProvider` matches `*Provider.java` and is
     excluded here for the same reason ServiceLoader could not construct it.
     """
-    return sorted(
-        f"com.shaft.ai.provider.{path.stem}"
-        for path in PROVIDER_SOURCE.glob("*Provider.java")
-        if "abstract" not in class_declaration(path)
-    )
+    providers = []
+    for path in PROVIDER_SOURCE.rglob("*Provider.java"):
+        declaration = class_declaration(path)
+        content = path.read_text(encoding="utf-8")
+        if "abstract" in declaration:
+            continue
+        if path.parent.name != "provider" and not re.search(
+            rf"\bclass\s+{re.escape(path.stem)}\b[^{{]*\bimplements\s+AiProvider\b",
+            content,
+        ):
+            continue
+        providers.append(
+            ".".join(
+                ("com", "shaft", "ai", *path.relative_to(PROVIDER_SOURCE).with_suffix("").parts)
+            )
+        )
+    return sorted(providers)
 
 
 class PilotModuleBoundaryTest(unittest.TestCase):

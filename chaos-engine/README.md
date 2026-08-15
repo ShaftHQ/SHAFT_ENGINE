@@ -71,24 +71,29 @@ flow resolves a configured upstream branch to an immutable commit, downloads
 that exact archive, validates its paths, and installs ChaosEngine inside the
 target project.
 
-For a direct terminal flow, first save the upstream `bootstrap.py`, then run:
+From the adopter project, run one copy/paste command. On Windows PowerShell:
 
-```text
-python bootstrap.py --project . --repository owner/repository
-python .chaos-engine/install.py status --project .
+```powershell
+py -3 -c "import pathlib,runpy,sys,tempfile,urllib.request; o='S'+'haftHQ'; r='S'+'HAFT_ENGINE'; repo=f'{o}/{r}'; d=tempfile.TemporaryDirectory(prefix='chaos-engine-bootstrap-'); p=pathlib.Path(d.name)/'bootstrap.py'; p.write_bytes(urllib.request.urlopen(f'https://raw.githubusercontent.com/{repo}/main/chaos-engine/bootstrap.py').read()); sys.argv=[str(p),'--project','.','--repository',repo]; runpy.run_path(str(p),run_name='__main__')"
 ```
 
-Use the Python 3 launcher available on the host. Supply `--branch branch` only
-when the upstream's configured default branch is not the intended source.
+On macOS or Linux, use the same command with `python3` instead of `py -3`.
+Inspect the linked bootstrap first when your trust policy requires review before
+execution. The public default is the neutral `portable` distribution.
 
-A healthy status reports the resolved 40-character commit plus healthy core,
-host adapters, and local tools. Installation is project-local: it does not
-replace global tools or infer its upstream from the consumer repository.
+A successful command reports the resolved 40-character commit and a healthy
+active doctor result for core, adapters, local tools, hooks, and every detected
+client plugin. Restart an already-running client so it loads the new plugin.
+Runtime dependencies remain project-local; detected clients receive a
+path-unique local marketplace registration and cached plugin.
 
 ### Upgrade, recover, or remove
 
 - **Upgrade:** run the same bootstrap command again. A failed or invalid
   download leaves the last verified installation unchanged.
+- **Legacy migration:** if status reports `legacy`, uninstall first and then
+  run the portable bootstrap. This deliberate reinstall prevents old
+  repository-specific payloads from surviving in the rollback backup.
 - **Inspect:** run
   `python .chaos-engine/install.py status --project .`.
 - **Roll back:** run
@@ -116,8 +121,9 @@ entrypoint will:
 Projects select one profile after loading the portable core. A profile supplies
 repository-specific facts such as the upstream, default branch, task-branch
 prefix, companion repositories, and routing table. The
-<a href="profiles/README.md">profiles catalog</a> and included
-<a href="profiles/shaft/entrypoint.md">SHAFT profile</a> show the complete shape.
+<a href="profiles/README.md">profiles catalog</a> and included neutral profile
+show the complete shape. The public install path selects the neutral profile by
+default; repository-specific distributions require an explicit selection.
 
 ## What gets installed
 
@@ -129,6 +135,7 @@ prefix, companion repositories, and routing table. The
 | [`install.py`](install.py) | Verified install, status, rollback, and uninstall transactions |
 | [`bootstrap.py`](bootstrap.py) | Mutable-branch resolution to an immutable upstream commit |
 | [`hosts.py`](hosts.py) | Thin native host adapters and ownership receipts |
+| [`hooks/guard.py`](hooks/guard.py) | Portable lifecycle activation and catastrophic-scope guard |
 | [`dependencies.py`](dependencies.py) | Project-local dependency doctor, repair, and upgrade flow |
 | [`tool.py`](tool.py) | Relocatable launcher for ChaosEngine-owned local tools |
 | [`learning.py`](learning.py) | Privacy-gated queue for reusable improvement candidates |
@@ -138,6 +145,9 @@ prefix, companion repositories, and routing table. The
 The installer records provenance and per-file ownership in the consumer
 project. Host adapters redirect to the canonical skill; they do not fork its
 policy into competing copies.
+It also creates trackable Memory and MemPalace configuration, provider-native
+role/plugin/hook adapters, and ignore rules that separate canonical harness
+files from generated runtimes, indexes, receipts, and Graphify output.
 
 ## Trust boundaries
 
@@ -173,8 +183,7 @@ space, asset selection, and geometry constraints are documented in the
 ## Develop and verify
 
 Changes to the portable harness must preserve one canonical policy body and
-its thin adapters. From the SHAFT Engine source repository, the focused checks
-are:
+its thin adapters. From the upstream source repository, the focused checks are:
 
 ```text
 py -3 -m unittest tests.scripts.test_chaos_engine_portable_core

@@ -1,0 +1,14 @@
+{
+  "schemaVersion": 1,
+  "default": "portable",
+  "distributions": {
+    "portable": {
+      "profile": "portable",
+      "forbiddenTokens": ["shaft", "act-as-mohab"]
+    },
+    "repository": {
+      "profile": "shaft",
+      "forbiddenTokens": []
+    }
+  }
+}
