@@ -94,51 +94,38 @@ final class ManagedLocalAiProcess {
                 "--api-key-file", apiKeyFile.toAbsolutePath().toString(), "--threads", Integer.toString(threads));
     }
 
-    static Session launch(Path cache, Path executable, Path model, Path log, String alias, int threads,
-                          Duration timeout, ProcessStarter starter,
-                          IdentityProbe identity) throws Exception {
-        return launch(cache, executable, model, log, alias, threads, timeout, () -> false, null, starter, identity);
+    static Session launch(LaunchRequest request, ProcessStarter starter, IdentityProbe identity) throws Exception {
+        return launch(request, new LaunchHooks(null, starter, identity));
     }
 
-    static Session launch(Path cache, Path executable, Path model, Path log, String alias, int threads,
-                          Duration timeout, java.util.function.BooleanSupplier cancelled,
-                          ProcessStarter starter, IdentityProbe identity) throws Exception {
-        return launch(cache, executable, model, log, alias, threads, timeout, cancelled, null, starter, identity);
+    static Session launch(LaunchRequest request, LaunchHooks hooks) throws Exception {
+        return launchWithOwnership(request, hooks);
     }
 
-    static Session launchManaged(Path cache, Path executable, Path model, Path log, String alias, int threads,
-                                 Duration timeout, java.util.function.BooleanSupplier cancelled,
+    static Session launchManaged(LaunchRequest request, ProcessStarter starter, IdentityProbe identity)
+            throws Exception {
+        return launch(request, new LaunchHooks(ManagedLocalAiProcessTreeRss::sample, starter, identity));
+    }
+
+    static Session launchManaged(LaunchRequest request, ProcessTreeRssSampler rssSampler,
                                  ProcessStarter starter, IdentityProbe identity) throws Exception {
-        return launch(cache, executable, model, log, alias, threads, timeout, cancelled,
-                ManagedLocalAiProcessTreeRss::sample, starter, identity);
+        return launch(request, new LaunchHooks(Objects.requireNonNull(rssSampler, "rssSampler"), starter, identity));
     }
 
-    static Session launchManaged(Path cache, Path executable, Path model, Path log, String alias, int threads,
-                                 Duration timeout, java.util.function.BooleanSupplier cancelled,
-                                 ProcessTreeRssSampler rssSampler,
-                                 ProcessStarter starter, IdentityProbe identity) throws Exception {
-        return launch(cache, executable, model, log, alias, threads, timeout, cancelled,
-                Objects.requireNonNull(rssSampler, "rssSampler"), starter, identity);
-    }
-
-    private static Session launch(Path cache, Path executable, Path model, Path log, String alias, int threads,
-                          Duration timeout, java.util.function.BooleanSupplier cancelled,
-                          ProcessTreeRssSampler rssSampler,
-                          ProcessStarter starter, IdentityProbe identity) throws Exception {
-        Objects.requireNonNull(timeout, "timeout");
-        Objects.requireNonNull(cancelled, "cancelled");
-        if (timeout.isNegative() || timeout.isZero()) {
+    private static Session launchWithOwnership(LaunchRequest request, LaunchHooks hooks) throws Exception {
+        Objects.requireNonNull(request, "request");
+        Objects.requireNonNull(hooks, "hooks");
+        if (request.timeout().isNegative() || request.timeout().isZero()) {
             throw new IllegalArgumentException("Launch timeout must be positive.");
         }
-        long deadline = System.nanoTime() + timeout.toNanos();
+        long deadline = System.nanoTime() + request.timeout().toNanos();
         boolean locked = false;
         try {
             locked = LAUNCH_LOCK.tryLock(remaining(deadline).toNanos(), TimeUnit.NANOSECONDS);
             if (!locked) {
                 throw new DeadlineExceededException();
             }
-            return launchLocked(cache, executable, model, log, alias, threads, timeout, deadline, cancelled,
-                    rssSampler, starter, identity);
+            return launchLocked(request, hooks, deadline);
         } catch (InterruptedException interrupted) {
             Thread.currentThread().interrupt();
             throw interrupted;
@@ -149,11 +136,7 @@ final class ManagedLocalAiProcess {
         }
     }
 
-    private static Session launchLocked(Path cache, Path executable, Path model, Path log, String alias, int threads,
-                                        Duration timeout, long deadline, java.util.function.BooleanSupplier cancellation,
-                                        ProcessTreeRssSampler rssSampler,
-                                        ProcessStarter starter,
-                                        IdentityProbe identity) throws Exception {
+    private static Session launchLocked(LaunchRequest request, LaunchHooks hooks, long deadline) throws Exception {
         Session failedLaunch = FAILED_LAUNCH.get();
         if (failedLaunch != null && failedLaunch.hasSurvivors()) {
             throw new IllegalStateException("A prior managed local AI launch still owns a surviving process tree.");
@@ -164,12 +147,14 @@ final class ManagedLocalAiProcess {
             throw new IllegalStateException("A managed local AI process tree is already active.");
         }
         ACTIVE_LAUNCH.compareAndSet(activeLaunch, null);
-        Path verifiedExecutable = ManagedLocalAiCache.verifyOwnedFile(cache, executable);
-        Path verifiedModel = ManagedLocalAiCache.verifyOwnedFile(cache, model);
-        requireContainedLog(cache, log);
-        Files.createDirectories(log.toAbsolutePath().normalize().getParent());
-        requireContainedLog(cache, log);
-        reserveLog(log);
+        RuntimeFiles files = request.files();
+        RuntimeSpec runtime = request.runtime();
+        Path verifiedExecutable = ManagedLocalAiCache.verifyOwnedFile(files.cache(), files.executable());
+        Path verifiedModel = ManagedLocalAiCache.verifyOwnedFile(files.cache(), files.model());
+        requireContainedLog(files.cache(), files.log());
+        Files.createDirectories(files.log().toAbsolutePath().normalize().getParent());
+        requireContainedLog(files.cache(), files.log());
+        reserveLog(files.log());
         Exception lastFailure = null;
         for (int attempt = 0; attempt < MAX_LAUNCH_ATTEMPTS; attempt++) {
             try {
@@ -179,7 +164,7 @@ final class ManagedLocalAiProcess {
                 break;
             }
             String key = secret();
-            Path keyFile = createKeyFile(cache, key);
+            Path keyFile = createKeyFile(files.cache(), key);
             Process process = null;
             Session candidate = null;
             LaunchReservation reservation = new LaunchReservation(Thread.currentThread());
@@ -188,33 +173,35 @@ final class ManagedLocalAiProcess {
                 if (!PENDING_LAUNCH.compareAndSet(null, reservation)) {
                     throw new IllegalStateException("Managed local AI process start is already pending.");
                 }
-                if (cancellation.getAsBoolean() || reservation.cancelled()) {
+                if (request.cancelled().getAsBoolean() || reservation.cancelled()) {
                     throw new IllegalStateException("Managed local AI launch was cancelled before process start.");
                 }
-                process = starter.start(command(verifiedExecutable, verifiedModel, 0, alias, keyFile, threads),
-                        runtimeEnvironment(System.getenv()), log);
+                process = hooks.starter().start(
+                        command(verifiedExecutable, verifiedModel, 0, runtime.alias(), keyFile, runtime.threads()),
+                        runtimeEnvironment(System.getenv()), files.log());
                 synchronized (reservation) {
                     reservation.bind(process);
-                    candidate = new Session(process, 0, alias, key, timeout, verifiedExecutable, verifiedModel,
-                            threads, rssSampler);
+                    candidate = new Session(process, 0, runtime.alias(), key, request.timeout(), verifiedExecutable,
+                            verifiedModel, runtime.threads(), hooks.rssSampler());
                     if (!ACTIVE_LAUNCH.compareAndSet(null, candidate)) {
                         throw new IllegalStateException("Managed local AI process ownership is already registered.");
                     }
                 }
                 candidate.awaitFirstResourceSample(remaining(deadline));
-                if (cancellation.getAsBoolean() || reservation.cancelled()) {
+                if (request.cancelled().getAsBoolean() || reservation.cancelled()) {
                     throw new IllegalStateException("Managed local AI launch was cancelled during process start.");
                 }
                 reservation.resolve();
                 PENDING_LAUNCH.compareAndSet(reservation, null);
                 StartupObservation startup = awaitStartup(process, remaining(deadline));
-                candidate.bindLogCapture(captureLog(cache, process.getInputStream(), log, startup.captured(), key));
+                candidate.bindLogCapture(captureLog(
+                        files.cache(), process.getInputStream(), files.log(), startup.captured(), key));
                 if (startup.port() == null) {
                     throw new IOException("Managed local AI did not report its child-owned loopback endpoint.");
                 }
                 int port = startup.port();
                 candidate.bindPort(port);
-                identity.await(process, port, key, alias, remaining(deadline));
+                hooks.identity().await(process, port, key, runtime.alias(), remaining(deadline));
                 candidate.requireResourceWithinLimit();
                 if (!process.isAlive()) {
                     throw new IllegalStateException("Managed local AI process exited during identity verification.");
@@ -368,70 +355,95 @@ final class ManagedLocalAiProcess {
         }
         revokeSupervisorOwnership(process, primary);
         if (SUPERVISED_PROCESSES.contains(process)) {
-            try {
-                boolean exited = process.waitFor(timeout.toNanos(), TimeUnit.NANOSECONDS);
-                if (exited || !process.isAlive()) {
-                    SUPERVISED_PROCESSES.remove(process);
-                    return false;
-                }
-            } catch (InterruptedException interrupted) {
-                Thread.currentThread().interrupt();
-                if (primary != null) {
-                    primary.addSuppressed(interrupted);
-                }
-            }
-            return true;
+            return awaitSupervisorExit(process, timeout, primary);
         }
+        return terminateDirectly(process, timeout, primary, retainedDescendants);
+    }
+
+    private static boolean awaitSupervisorExit(Process process, Duration timeout, Throwable primary) {
+        try {
+            boolean exited = process.waitFor(timeout.toNanos(), TimeUnit.NANOSECONDS);
+            if (exited || !process.isAlive()) {
+                SUPERVISED_PROCESSES.remove(process);
+                return false;
+            }
+        } catch (InterruptedException interrupted) {
+            Thread.currentThread().interrupt();
+            suppress(primary, interrupted);
+        }
+        return true;
+    }
+
+    private static boolean terminateDirectly(Process process, Duration timeout, Throwable primary,
+                                             Set<ProcessHandle> retainedDescendants) {
+        Set<ProcessHandle> descendants = discoverDescendants(process, retainedDescendants, primary);
+        long deadline = System.nanoTime() + timeout.toNanos();
+        RuntimeException survivorFailure = null;
+        try {
+            survivorFailure = stopProcessTree(process, descendants, deadline);
+        } catch (InterruptedException interrupted) {
+            forceAfterInterruption(process, descendants, interrupted);
+            Thread.currentThread().interrupt();
+            suppress(primary, interrupted);
+        } catch (Exception cleanup) {
+            suppress(primary, cleanup);
+        }
+        boolean survivors = retainSurvivors(process, descendants, retainedDescendants);
+        reportSurvivorFailure(primary, survivorFailure);
+        return survivors;
+    }
+
+    private static Set<ProcessHandle> discoverDescendants(Process process, Set<ProcessHandle> retainedDescendants,
+                                                          Throwable primary) {
         Set<ProcessHandle> discovered = new java.util.LinkedHashSet<>(retainedDescendants);
         try {
             discovered.addAll(process.toHandle().descendants().toList());
             discovered.forEach(ProcessHandle::destroy);
         } catch (Exception cleanup) {
-            if (primary != null) {
-                primary.addSuppressed(cleanup);
-            }
+            suppress(primary, cleanup);
         }
-        Set<ProcessHandle> descendants = discovered;
-        RuntimeException survivorFailure = null;
-        long deadline = System.nanoTime() + timeout.toNanos();
+        return discovered;
+    }
+
+    private static RuntimeException stopProcessTree(Process process, Set<ProcessHandle> descendants, long deadline)
+            throws InterruptedException {
+        process.destroy();
+        boolean parentExited = process.waitFor(Math.max(0, deadline - System.nanoTime()), TimeUnit.NANOSECONDS);
+        descendants.stream().filter(ProcessHandle::isAlive).forEach(ProcessHandle::destroyForcibly);
+        while (descendants.stream().anyMatch(ProcessHandle::isAlive) && System.nanoTime() < deadline) {
+            Thread.sleep(10);
+        }
+        RuntimeException failure = descendants.stream().anyMatch(ProcessHandle::isAlive)
+                ? new IllegalStateException("Managed local AI descendant did not terminate.") : null;
+        if (parentExited) {
+            return failure;
+        }
+        process.destroyForcibly();
+        boolean forcedExit = process.waitFor(Math.max(0, deadline - System.nanoTime()), TimeUnit.NANOSECONDS);
+        return forcedExit && !process.isAlive()
+                ? failure : new IllegalStateException("Managed local AI process did not terminate.");
+    }
+
+    private static void forceAfterInterruption(Process process, Set<ProcessHandle> descendants,
+                                               InterruptedException interrupted) {
         try {
-            process.destroy();
-            boolean parentExited = process.waitFor(Math.max(0, deadline - System.nanoTime()), TimeUnit.NANOSECONDS);
             descendants.stream().filter(ProcessHandle::isAlive).forEach(ProcessHandle::destroyForcibly);
-            while (descendants.stream().anyMatch(ProcessHandle::isAlive) && System.nanoTime() < deadline) {
-                Thread.sleep(10);
-            }
-            if (descendants.stream().anyMatch(ProcessHandle::isAlive)) {
-                survivorFailure = new IllegalStateException("Managed local AI descendant did not terminate.");
-            }
-            if (!parentExited) {
+            if (process.isAlive()) {
                 process.destroyForcibly();
-                boolean forcedExit = process.waitFor(Math.max(0, deadline - System.nanoTime()), TimeUnit.NANOSECONDS);
-                if (!forcedExit || process.isAlive()) {
-                    survivorFailure = new IllegalStateException("Managed local AI process did not terminate.");
-                }
-            }
-        } catch (InterruptedException interrupted) {
-            try {
-                descendants.stream().filter(ProcessHandle::isAlive).forEach(ProcessHandle::destroyForcibly);
-                if (process.isAlive()) {
-                    process.destroyForcibly();
-                }
-            } catch (Exception cleanup) {
-                interrupted.addSuppressed(cleanup);
-            }
-            Thread.currentThread().interrupt();
-            if (primary != null) {
-                primary.addSuppressed(interrupted);
             }
         } catch (Exception cleanup) {
-            if (primary != null) {
-                primary.addSuppressed(cleanup);
-            }
+            interrupted.addSuppressed(cleanup);
         }
+    }
+
+    private static boolean retainSurvivors(Process process, Set<ProcessHandle> descendants,
+                                           Set<ProcessHandle> retainedDescendants) {
         retainedDescendants.clear();
         descendants.stream().filter(ProcessHandle::isAlive).forEach(retainedDescendants::add);
-        boolean survivors = process.isAlive() || !retainedDescendants.isEmpty();
+        return process.isAlive() || !retainedDescendants.isEmpty();
+    }
+
+    private static void reportSurvivorFailure(Throwable primary, RuntimeException survivorFailure) {
         if (survivorFailure != null) {
             if (primary != null) {
                 primary.addSuppressed(survivorFailure);
@@ -439,7 +451,12 @@ final class ManagedLocalAiProcess {
                 throw survivorFailure;
             }
         }
-        return survivors;
+    }
+
+    private static void suppress(Throwable primary, Throwable cleanup) {
+        if (primary != null) {
+            primary.addSuppressed(cleanup);
+        }
     }
 
     private static void revokeSupervisorOwnership(Process process, Throwable primary) {
@@ -1266,6 +1283,38 @@ final class ManagedLocalAiProcess {
 
     @FunctionalInterface interface ProcessTreeRssSampler {
         long sample(Process process, Set<ProcessHandle> retainedDescendants) throws Exception;
+    }
+
+    record RuntimeFiles(Path cache, Path executable, Path model, Path log) {
+        RuntimeFiles {
+            Objects.requireNonNull(cache, "cache");
+            Objects.requireNonNull(executable, "executable");
+            Objects.requireNonNull(model, "model");
+            Objects.requireNonNull(log, "log");
+        }
+    }
+
+    record RuntimeSpec(String alias, int threads) {
+        RuntimeSpec {
+            Objects.requireNonNull(alias, "alias");
+        }
+    }
+
+    record LaunchRequest(RuntimeFiles files, RuntimeSpec runtime, Duration timeout,
+                         java.util.function.BooleanSupplier cancelled) {
+        LaunchRequest {
+            Objects.requireNonNull(files, "files");
+            Objects.requireNonNull(runtime, "runtime");
+            Objects.requireNonNull(timeout, "timeout");
+            Objects.requireNonNull(cancelled, "cancelled");
+        }
+    }
+
+    record LaunchHooks(ProcessTreeRssSampler rssSampler, ProcessStarter starter, IdentityProbe identity) {
+        LaunchHooks {
+            Objects.requireNonNull(starter, "starter");
+            Objects.requireNonNull(identity, "identity");
+        }
     }
 
     private static final class LaunchReservation {

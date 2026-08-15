@@ -20,9 +20,12 @@ public final class ManagedLocalAiProvider implements AiProvider {
         @Override
         public ManagedLocalAiProcess.Session launch(ManagedLocalAiService.ReadyRuntime runtime, Duration timeout,
                                                     BooleanSupplier shuttingDown) throws Exception {
-            return ManagedLocalAiProcess.launchManaged(runtime.cache(), runtime.executable(), runtime.model(),
-                    runtime.log(), runtime.alias(), runtime.threads(), timeout, shuttingDown,
-                    ManagedLocalAiProcess::start, (process, port, key, alias, identityTimeout) ->
+            var files = new ManagedLocalAiProcess.RuntimeFiles(
+                    runtime.cache(), runtime.executable(), runtime.model(), runtime.log());
+            var spec = new ManagedLocalAiProcess.RuntimeSpec(runtime.alias(), runtime.threads());
+            var request = new ManagedLocalAiProcess.LaunchRequest(files, spec, timeout, shuttingDown);
+            return ManagedLocalAiProcess.launchManaged(request, ManagedLocalAiProcess::start,
+                    (process, port, key, alias, identityTimeout) ->
                             ManagedLocalAiProcess.requireIdentity(process, port, key, alias, identityTimeout,
                                     ManagedLocalAiProcess::requestIdentity));
         }
@@ -168,7 +171,8 @@ public final class ManagedLocalAiProvider implements AiProvider {
             }
         }
 
-        private boolean acquire(ExecutionContext context) throws InterruptedException {
+        private boolean acquire(ExecutionContext context)
+                throws InterruptedException, ManagedLocalAiProcess.DeadlineExceededException {
             context.locked = executionLock.tryLock(
                     ManagedLocalAiProcess.remaining(context.deadline).toNanos(), TimeUnit.NANOSECONDS);
             if (context.locked) {
