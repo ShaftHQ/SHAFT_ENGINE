@@ -14,6 +14,27 @@ MATRIX = ROOT / "chaos-engine/RESEARCH.md"
 
 
 class ChaosEngineResearchTest(unittest.TestCase):
+    def test_deepseek_harness_adoption_is_pinned_selective_and_dated(self):
+        content = MATRIX.read_text(encoding="utf-8")
+        self.assertIn("Accessed: 2026-08-15", content)
+        self.assertIn("47f943859bef60e4160492346772ded9b24f765a", content)
+        for adopted in (
+            "capability ownership",
+            "declarative composition",
+            "orthogonal outcomes",
+            "bounded asynchronous behavior",
+            "quiescent teardown",
+        ):
+            self.assertIn(adopted, content.lower())
+        for rejected in (
+            "node runtime",
+            "agent loop",
+            "session log",
+            "goals/todos",
+            "everything is a plugin",
+        ):
+            self.assertIn(rejected, content.lower())
+
     def test_top_ten_matrix_is_dated_primary_sourced_and_actionable(self):
         content = MATRIX.read_text(encoding="utf-8")
         self.assertIn("Accessed: 2026-08-12", content)

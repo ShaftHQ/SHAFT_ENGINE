@@ -29,7 +29,7 @@ class ChaosEnginePortableCoreTest(unittest.TestCase):
         retrieval = guidance.split("## Refresh", 1)[0]
         query = retrieval.find('graphify query "<bounded structural question>"')
         diagnostic = retrieval.find("graphify diagnose multigraph")
-        degraded = retrieval.find("If either read-only command fails")
+        degraded = retrieval.find("If the cache is stale")
 
         self.assertEqual(
             {
@@ -402,7 +402,7 @@ class ChaosEnginePortableCoreTest(unittest.TestCase):
             with self.subTest(forbidden=label):
                 self.assertIsNone(pattern.search(task_isolation_router + cleanup_scopes))
 
-    def test_task_isolation_gates_planning_on_a_refreshed_primary_checkout(self):
+    def test_task_isolation_gates_planning_on_a_clean_primary_checkout(self):
         canonical = CANONICAL_SKILL.read_text(encoding="utf-8")
         task_isolation_router = canonical.split("## Task isolation", 1)[1].split(
             "## Operating contract", 1
@@ -418,8 +418,7 @@ class ChaosEnginePortableCoreTest(unittest.TestCase):
             "fetch and prune the configured upstream",
             "local default branch",
             "immutable upstream tip",
-            "Refresh and validate native Memory, MemPalace, and Graphify from that exact revision",
-            "Only after this gate",
+            "After this gate",
             "dedicated `ChaosEngine/*` branch and linked worktree",
             "perform planning, discovery, and implementation there",
             "explicit continuation",
@@ -433,10 +432,48 @@ class ChaosEnginePortableCoreTest(unittest.TestCase):
 
         self.assertRegex(
             normalized,
-            r"fetch and prune the configured upstream.*"
-            r"Refresh and validate native Memory, MemPalace, and Graphify.*"
-            r"Only after this gate",
+            r"fetch and prune the configured upstream.*After this gate.*"
+            r"Ordinary tasks launch no background store processes",
         )
+
+    def test_ordinary_tasks_do_not_maintain_or_wait_for_knowledge_stores(self):
+        canonical = CANONICAL_SKILL.read_text(encoding="utf-8")
+        task_isolation = TASK_ISOLATION.read_text(encoding="utf-8")
+        retrieval = (CORE / "references/retrieve-first.md").read_text(encoding="utf-8")
+        graphify = (CORE / "references/graphify.md").read_text(encoding="utf-8")
+        planning = (CORE / "references/work-github-planning.md").read_text(encoding="utf-8")
+        combined = " ".join((canonical, task_isolation, retrieval, graphify, planning)).lower()
+
+        self.assertNotIn(
+            "refresh and validate native memory, mempalace, and graphify from that exact revision",
+            task_isolation.lower(),
+        )
+        for phrase in (
+            "advisory for ordinary tasks",
+            "one attempt",
+            "no retries",
+            "no background store processes",
+            "materially new sanitized evidence",
+            "failure to reach github is non-blocking",
+        ):
+            self.assertIn(phrase, combined)
+        self.assertIn("status", retrieval.lower())
+        self.assertIn("doctor", retrieval.lower())
+        self.assertIn("strict", retrieval.lower())
+        self.assertNotIn("graphify refresh", planning.lower())
+        self.assertIn("maintenance owner", planning.lower())
+
+    def test_graphify_cache_is_only_an_untrusted_positive_lead(self):
+        graphify = (CORE / "references/graphify.md").read_text(encoding="utf-8").lower()
+        for phrase in (
+            "any available cache",
+            "untrusted lead",
+            "verify every returned path",
+            "targeted `rg`",
+            "never infer completeness",
+            "no callers",
+        ):
+            self.assertIn(phrase, graphify)
 
     def test_posix_absolute_path_guard_is_non_vacuous(self):
         self.assertRegex("cache at /opt/private/agent-cache", POSIX_ABSOLUTE_PATH)

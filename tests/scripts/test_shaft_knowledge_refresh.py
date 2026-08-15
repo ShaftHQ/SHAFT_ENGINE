@@ -106,6 +106,75 @@ class ShaftKnowledgeRefreshTest(unittest.TestCase):
             self.assertEqual("1", environment["GIT_CONFIG_NOSYSTEM"])
         self.assertEqual(["enter", "exit"], graph_guard)
 
+    def test_store_maintenance_reports_both_outcomes_when_either_store_fails(self):
+        module = self.module()
+        root = Path(tempfile.mkdtemp()) / "SHAFT_ENGINE-main"
+        sentinel = root.parent / ".shaft-nightly-maintenance.json"
+        commands = []
+
+        def run(arguments, cwd, environment=None, allowed_exit_codes=(0,)):
+            del cwd, environment, allowed_exit_codes
+            commands.append(arguments)
+            if arguments[1:2] == ["rev-parse"]:
+                return SHA + "\n"
+            if arguments[1:2] == ["ls-remote"]:
+                return f"{SHA}\trefs/heads/main\n"
+            if any(value.endswith("graphify_maintenance.py") for value in arguments):
+                raise subprocess.CalledProcessError(7, arguments)
+            return ""
+
+        with mock.patch.object(
+            module, "validate_owned_clone", return_value=(root.resolve(), sentinel.resolve())
+        ), mock.patch.object(
+            module, "validate_owned_paths", return_value=(root.resolve(), sentinel.resolve())
+        ), mock.patch.object(
+            module, "required", side_effect=lambda value: value
+        ), mock.patch.object(module, "run", side_effect=run), mock.patch.object(
+            module, "job_lock", return_value=nullcontext()
+        ), mock.patch.object(
+            module, "trusted_graph_output", return_value=nullcontext()
+        ):
+            with self.assertRaisesRegex(RuntimeError, "Graphify=failed.*MemPalace=healthy"):
+                module.refresh(root, sentinel)
+
+        self.assertTrue(any(command[0:2] == ["mempalace", "sync"] for command in commands))
+        self.assertTrue(any(command[0:2] == ["mempalace", "mine"] for command in commands))
+
+    def test_mempalace_failure_keeps_the_successful_graphify_outcome(self):
+        module = self.module()
+        root = Path(tempfile.mkdtemp()) / "SHAFT_ENGINE-main"
+        sentinel = root.parent / ".shaft-nightly-maintenance.json"
+        commands = []
+
+        def run(arguments, cwd, environment=None, allowed_exit_codes=(0,)):
+            del cwd, environment, allowed_exit_codes
+            commands.append(arguments)
+            if arguments[1:2] == ["rev-parse"]:
+                return SHA + "\n"
+            if arguments[1:2] == ["ls-remote"]:
+                return f"{SHA}\trefs/heads/main\n"
+            if arguments[0:2] == ["mempalace", "sync"]:
+                raise subprocess.CalledProcessError(9, arguments)
+            return ""
+
+        with mock.patch.object(
+            module, "validate_owned_clone", return_value=(root.resolve(), sentinel.resolve())
+        ), mock.patch.object(
+            module, "validate_owned_paths", return_value=(root.resolve(), sentinel.resolve())
+        ), mock.patch.object(
+            module, "required", side_effect=lambda value: value
+        ), mock.patch.object(module, "run", side_effect=run), mock.patch.object(
+            module, "job_lock", return_value=nullcontext()
+        ), mock.patch.object(
+            module, "trusted_graph_output", return_value=nullcontext()
+        ):
+            with self.assertRaisesRegex(RuntimeError, "Graphify=healthy.*MemPalace=failed"):
+                module.refresh(root, sentinel)
+
+        self.assertTrue(
+            any(value.endswith("graphify_maintenance.py") for command in commands for value in command)
+        )
+
     def test_local_url_rewrite_stops_before_fetch(self):
         module = self.module()
         root = Path(tempfile.mkdtemp()) / "SHAFT_ENGINE-main"

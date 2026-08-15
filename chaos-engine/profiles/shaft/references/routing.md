@@ -24,10 +24,15 @@ before broad manual discovery, not all of them by reflex.
 
 | Question you actually have | Store | Query it when |
 | --- | --- | --- |
-| Has this constraint or gotcha already bitten us? | native Memory | Required before any non-trivial change, and before filing an issue. |
+| Has this constraint or gotcha already bitten us? | native Memory | A concrete prior constraint or gotcha would change the task decision. |
 | What happened around this before, and what does it touch? | MemPalace | The change spans entities, sessions, or a history you were not part of. |
 | What calls or depends on this? | [Graphify](../../../references/graphify.md) | Blast radius is unknown, or you are about to change a shared symbol. |
 | What does the code do right now? | targeted `rg` and exact reads | Always. This is the only source that settles a disagreement. |
+
+Each selected store gets one attempt through the existing host timeout. Record
+irrelevant stores as skipped and unavailable stores as degraded; neither blocks
+ordinary implementation or completion. Explicit install, upgrade, maintenance,
+`status`, and `doctor` operations remain strict.
 
 The native store is source-controlled, and its contract travels with it:
 `.memory/config.json` declares the project and store version, and

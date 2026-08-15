@@ -11,13 +11,13 @@ depth off that answer rather than judging it twice.
 
 | Triage result | Retrieve |
 | --- | --- |
-| One file, reversible | Query native Memory, MemPalace, and Graphify with a narrow task phrase; keep the receipt concise. |
-| One module, reversible | Query native Memory, MemPalace, and Graphify for the subsystem and affected callers. |
-| Public contract, many callers, or hard to reverse | All three, then verify every hit against the live file. |
+| One file, reversible | Select only a store that can answer a concrete question; keep the receipt concise. |
+| One module, reversible | Select stores relevant to the subsystem or affected callers. |
+| Public contract, many callers, or hard to reverse | Use every relevant store, then verify every useful hit against live files. |
 
-The first row is the load-bearing one. A rule that demands three queries before
-a typo is a rule nobody keeps, and the harness would rather have a coarse rule
-everyone follows than a thorough one everyone routes around.
+Memory, MemPalace, and Graphify are advisory for ordinary tasks. Irrelevance is
+recorded as `skipped`; a missing, corrupt, stale, timed-out, or inaccessible
+store is `degraded`. Neither state blocks implementation or completion.
 
 ## What each store is for
 
@@ -43,43 +43,47 @@ task scope nor the evidence needed to earn authority.
 `memory load` compiles a whole context pack and will exceed a tool-result
 budget on a store of any size; `memory search` is the one to reach for.
 
-## Before discovery, not after
+## Bounded retrieval
 
-The point is the ordering. Querying a store after `rg` has already answered the
-question costs the same tokens and buys nothing, because by then the expensive
-part — deciding where to look — is done. The stores are worth most when they
-tell you a path is a dead end before you walk it.
+When a store can answer a concrete question, query it before broad discovery.
+Allow one attempt through the existing host timeout, with no retries, repair,
+refresh, mining, checkpointing, polling, or watching. Ordinary tasks launch no
+background store processes. Preserve bounded SessionStart Memory summaries and
+the MemPalace wake-up as best-effort preload only; any failure is silent to task
+control.
+
+Install, upgrade, explicit maintenance, `status`, and `doctor` are not ordinary
+retrieval. They remain strict, and an unhealthy selected component still makes
+a requested doctor result `recovery-required`.
 
 ## The completion half
 
 The [learning loop](work-github-playbook.md#learned-lessons-workflow) routes
-each learning to its home. That is where a *fact* goes. It is not what keeps
-the stores usable:
+each learning to its home. That is where a *fact* goes. It does not make the
+task responsible for keeping derived stores usable:
 
 - `memory remember` for a durable fact or decision, with the evidence.
-- Flag a Graphify refresh when the change alters what calls or depends on what.
-  A structure graph that describes last week's tree is worse than none, because
-  it reads as current.
-- Mine the session into MemPalace when it produced relations spanning entities
-  or sessions.
+- A structural change may be flagged for the configured Graphify maintenance
+  owner; the task does not refresh or watch it.
+- A cross-session relation may be written when useful; the task never mines the
+  project as a completion condition.
 
 Nothing durable is a valid result. Say so; do not manufacture an entry.
 
-## Degraded mode
+## Degraded mode and issue noise
 
 Configuration is source-controlled and travels; a built index does not, and
 generated indexes are never committed. A machine with no MCP servers still has
 the tracked entrypoint and its static retrieval trust boundary, which is the
 floor rather than a failure.
 
-If a required store is unavailable, **name the degraded mode**, diagnose its
-root owner, and continue analysis with the remaining sources. Implementation
-waits until the store works and the receipt is complete. Skipping a store
-silently is the failure this gate exists to prevent.
+Name the attempted operation and a sanitized reason, then continue with live
+files and the remaining sources. When issue tracking is available, search for
+an open issue for that store. Open one if absent; comment on an existing issue
+only with materially new sanitized evidence. Never close or automatically
+recover a store issue, and never put issue management in a hook or scheduler.
+Failure to reach GitHub is non-blocking.
 
-Graphify contention is the narrow exception to implementation waiting. After
-the required G1 through G4 attempts, a linked-worktree revision mismatch or an
-active refresh lock completes the Graphify receipt in explicit degraded mode;
-continue implementation with the remaining sources. The canonical
-[Graphify procedure](graphify.md) owns the sole-refresh-owner, forbidden-action,
-live-verification, and later-safe-refresh rules.
+The Learning Loop accepts a successful store write, a non-blocking degraded
+disposition, an issue reference, or an explicit “nothing durable.” It never
+demands a retry or derived-store refresh.

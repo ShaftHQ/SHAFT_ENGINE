@@ -8,10 +8,11 @@ default branch, then fast-forward the local default branch to the immutable
 upstream tip. Stop on dirty, concurrently owned, locked, divergent, unfetched,
 or unverifiable state.
 
-Refresh and validate native Memory, MemPalace, and Graphify from that exact
-revision in the primary checkout. Only after this gate, freeze the base commit,
-create a dedicated `ChaosEngine/*` branch and linked worktree rooted at it, and
-perform planning, discovery, and implementation there.
+After this gate, freeze the base commit, create a dedicated `ChaosEngine/*`
+branch and linked worktree rooted at it, and perform planning, discovery, and
+implementation there. Ordinary tasks launch no background store processes and
+do not refresh or validate every knowledge store; the configured maintenance
+owner remains responsible for derived-store updates.
 
 An explicit continuation of a named local or remote task branch is the sole
 fresh-default exception. Fetch when a remote exists, verify the named branch

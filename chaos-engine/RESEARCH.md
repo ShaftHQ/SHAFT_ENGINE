@@ -17,6 +17,26 @@ code was copied by this review.
 | 9 | [SLSA 1.2](https://slsa.dev/spec/v1.2/) | Resolve mutable source to immutable provenance and verify the installed artifact against it | Adopted | Latest-main installation records the resolved 40-character commit and per-file SHA-256 ownership in `.chaos-engine/manifest.json`. |
 | 10 | [GitHub issue CLI](https://cli.github.com/manual/gh_issue_create) | Make reviewable, minimal upstream contributions through issues with explicit repository selection | Adopted | `learning.py` deduplicates by a privacy-safe digest, asks with an estimated token cost, queues offline/auth failures, and can create an issue; it never opens a PR. |
 
+## DeepSeek Harness adoption — Accessed: 2026-08-15
+
+Primary source: [DeepSeek Harness architecture at commit
+`47f943859bef60e4160492346772ded9b24f765a`](https://github.com/deepseek-ai/deepseek-harness/blob/47f943859bef60e4160492346772ded9b24f765a/docs/architecture.md).
+
+| Capability | Decision | ChaosEngine ownership |
+| --- | --- | --- |
+| Capability ownership | Adopted | Keep service definition, provider, and consumer responsibilities explicit in validated component descriptors. |
+| Declarative composition | Adopted | Continue composing one canonical entrypoint with profiles and thin host adapters. |
+| Orthogonal outcomes | Adopted | Report task delivery, cleanup, and each knowledge-store outcome independently. |
+| Bounded asynchronous behavior | Adopted | Bound optional retrieval to one attempt and keep maintenance with its existing owner. |
+| Quiescent teardown | Adopted | Delivery and cleanup receipts prove owned processes/resources are stopped or narrowly degraded. |
+
+Rejected runtime scope: the duplicate Node runtime, agent loop, session log,
+goals/todos, and “everything is a plugin” overhead. Cordis offers a strong
+replaceable plugin ecosystem with reversible effects and one event model, but
+importing it would create a second execution and persistence stack without a
+current consumer. ChaosEngine adopts the architectural invariants, not the
+preview runtime.
+
 ## Architecture decision
 
 ### Selected approach

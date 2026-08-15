@@ -475,6 +475,13 @@ class StructuredLearningReceiptTest(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "meaningful signals"):
                 learning_loop.attest_no_learning(state, "s", "no_new_evidence")
 
+    def test_degraded_store_is_an_explicit_non_blocking_disposition(self):
+        learning_loop = self.controller()
+        with tempfile.TemporaryDirectory() as directory:
+            state = Path(directory)
+            result = learning_loop.attest_no_learning(state, "s", "store_degraded")
+            self.assertEqual("store_degraded", result["reason_code"])
+
     def test_new_signal_invalidates_a_prior_no_learning_attestation(self):
         learning_loop = self.controller()
         with tempfile.TemporaryDirectory() as directory:
