@@ -372,6 +372,34 @@ def mempalace_runtime_status(project: Path) -> dict[str, str]:
     return {"status": "initialization-required", "backend": "sqlite_exact"}
 
 
+def _cleanup_failed_mempalace_initialization(
+    *,
+    connection,
+    descriptor: int | None,
+    database: Path,
+    identity: tuple[int, int] | None,
+    palace: Path,
+    palace_created: bool,
+    state_root: Path,
+    state_root_created: bool,
+) -> None:
+    """Remove only state created by the failed initializer transaction."""
+    if connection is not None:
+        connection.close()
+    if descriptor is not None:
+        os.close(descriptor)
+    try:
+        current = os.stat(database, follow_symlinks=False)
+    except OSError:
+        current = None
+    if current is not None and identity == (current.st_dev, current.st_ino):
+        database.unlink()
+    if palace_created and palace.exists() and not any(palace.iterdir()):
+        palace.rmdir()
+    if state_root_created and state_root.exists() and not any(state_root.iterdir()):
+        state_root.rmdir()
+
+
 def initialize_mempalace_runtime(project: Path) -> None:
     """Create only a fresh empty sqlite_exact collection; never migrate user state."""
     project = project.resolve()
@@ -451,20 +479,16 @@ def initialize_mempalace_runtime(project: Path) -> None:
         if mempalace_runtime_status(project)["status"] != "healthy":
             raise ValueError("fresh SQLite-exact MemPalace state failed validation")
     except BaseException:
-        if connection is not None:
-            connection.close()
-        if descriptor is not None:
-            os.close(descriptor)
-        try:
-            current = os.stat(database, follow_symlinks=False)
-        except OSError:
-            current = None
-        if current is not None and identity == (current.st_dev, current.st_ino):
-            database.unlink()
-        if palace_created and palace.exists() and not any(palace.iterdir()):
-            palace.rmdir()
-        if state_root_created and state_root.exists() and not any(state_root.iterdir()):
-            state_root.rmdir()
+        _cleanup_failed_mempalace_initialization(
+            connection=connection,
+            descriptor=descriptor,
+            database=database,
+            identity=identity,
+            palace=palace,
+            palace_created=palace_created,
+            state_root=state_root,
+            state_root_created=state_root_created,
+        )
         raise
 
 
