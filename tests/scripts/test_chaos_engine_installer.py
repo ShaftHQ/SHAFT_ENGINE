@@ -149,6 +149,35 @@ class ChaosEngineInstallerTest(unittest.TestCase):
                 result["components"]["retrieval-config"]["status"],
             )
 
+    def test_doctor_rejects_an_mcp_runtime_that_cannot_initialize(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary) / "consumer"
+            project.mkdir()
+            MODULE.install_with_dependencies(
+                project,
+                SOURCE,
+                TEST_COMMIT,
+                provisioner=lambda *_args, **_kwargs: None,
+            )
+            controller = MODULE.load_installed_controller(project / ".chaos-engine", "hosts")
+            with mock.patch.object(
+                controller,
+                "retrieval_runtime_healthy",
+                return_value=True,
+            ), mock.patch.object(
+                controller,
+                "mcp_runtime_healthy",
+                return_value=False,
+            ), mock.patch.object(
+                MODULE,
+                "load_installed_controller",
+                return_value=controller,
+            ):
+                result = MODULE.doctor_with_dependencies(project, verify_clients=False)
+
+            self.assertEqual("recovery-required", result["status"])
+            self.assertEqual("recovery-required", result["components"]["mcps"]["status"])
+
     def test_default_distribution_installs_only_neutral_portable_payload(self):
         with tempfile.TemporaryDirectory() as temporary:
             project = Path(temporary) / "consumer"

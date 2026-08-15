@@ -170,6 +170,64 @@ def retrieval_runtime_healthy(project: Path) -> bool:
     return True
 
 
+def mcp_runtime_healthy(project: Path) -> bool:
+    request = json.dumps(
+        {
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "initialize",
+            "params": {
+                "protocolVersion": "2025-06-18",
+                "capabilities": {},
+                "clientInfo": {"name": "chaos-engine-doctor", "version": "1"},
+            },
+        }
+    ) + "\n"
+    tool = project / ".chaos-engine/tool.py"
+    environment = os.environ.copy()
+    environment["PYTHONDONTWRITEBYTECODE"] = "1"
+    environment["MEMPALACE_EMBEDDING_MODEL"] = "minilm"
+    commands = (
+        [sys.executable, str(tool), "memory-mcp"],
+        [
+            sys.executable,
+            str(tool),
+            "mempalace-mcp",
+            "--palace",
+            ".chaos-engine-state/mempalace",
+        ],
+    )
+    for command in commands:
+        result = subprocess.run(  # nosec B603 - fixed owned launcher and arguments.
+            command,
+            cwd=project,
+            input=request,
+            capture_output=True,
+            text=True,
+            check=False,
+            env=environment,
+            timeout=30,
+        )
+        if result.returncode != 0:
+            return False
+        try:
+            responses = [
+                json.loads(line)
+                for line in result.stdout.splitlines()
+                if line.strip().startswith("{")
+            ]
+        except json.JSONDecodeError:
+            return False
+        if not any(
+            isinstance(response, dict)
+            and response.get("id") == 1
+            and isinstance(response.get("result"), dict)
+            for response in responses
+        ):
+            return False
+    return True
+
+
 def client_command(
     executable: str,
     arguments: list[str],
