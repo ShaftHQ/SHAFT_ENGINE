@@ -47,12 +47,13 @@ final class AiCandidateReranker {
         } catch (RuntimeException exception) {
             return fallback(candidates, "AI configuration is invalid.");
         }
-        ObjectNode responseSchema = responseSchema();
+        ObjectNode responseSchema = responseSchema(candidates);
         ObjectNode deterministicFallback = rankingPayload(candidates, false);
         AiRequest.Builder builder = AiRequest.builder("shaft-heal-candidate-rerank", responseSchema)
                 .text("""
                         Rerank only the supplied SHAFT Heal candidates. Never invent a candidate ID or locator.
-                        Scores must be between 0 and 1 and must be based only on the minimized evidence.
+                        Confidence must be between 0 and 1 and must be based only on the minimized evidence.
+                        Cite one or more feature names supplied for that candidate.
                         """)
                 .timeout(Duration.ofSeconds(Math.max(1, pilotConfiguration.timeout().toSeconds())))
                 .approvalPolicy(pilotConfiguration.approvalPolicy())
@@ -129,18 +130,33 @@ final class AiCandidateReranker {
     }
 
     private static Map<String, Double> parse(JsonNode payload, List<RankedCandidate> candidates) {
-        Set<String> allowed = candidates.stream()
-                .map(candidate -> candidate.report().candidateId())
-                .collect(java.util.stream.Collectors.toUnmodifiableSet());
+        Map<String, RankedCandidate> allowed = candidates.stream()
+                .collect(java.util.stream.Collectors.toUnmodifiableMap(
+                        candidate -> candidate.report().candidateId(),
+                        candidate -> candidate));
         Map<String, Double> scores = new HashMap<>();
         for (JsonNode item : payload.path("ranking")) {
             String candidateId = item.path("candidateId").asText();
-            double score = item.path("score").asDouble(Double.NaN);
-            if (!allowed.contains(candidateId)) {
+            double score = item.path("confidence").asDouble(Double.NaN);
+            RankedCandidate candidate = allowed.get(candidateId);
+            if (candidate == null) {
                 throw new IllegalArgumentException("Provider referenced an unknown candidate.");
             }
             if (!Double.isFinite(score) || score < 0 || score > 1) {
-                throw new IllegalArgumentException("Provider returned an invalid score.");
+                throw new IllegalArgumentException("Provider returned an invalid confidence.");
+            }
+            Set<String> citedFeatures = new HashSet<>();
+            for (JsonNode citedFeature : item.path("citedFeatures")) {
+                String feature = citedFeature.asText();
+                if (!allowedFeatures(candidate).contains(feature)) {
+                    throw new IllegalArgumentException("Provider cited an unknown feature.");
+                }
+                if (!citedFeatures.add(feature)) {
+                    throw new IllegalArgumentException("Provider cited a duplicate feature.");
+                }
+            }
+            if (citedFeatures.isEmpty()) {
+                throw new IllegalArgumentException("Provider returned no cited features.");
             }
             if (scores.put(candidateId, score) != null) {
                 throw new IllegalArgumentException("Provider returned a duplicate candidate.");
@@ -152,23 +168,54 @@ final class AiCandidateReranker {
         return Map.copyOf(scores);
     }
 
-    private static ObjectNode responseSchema() {
+    private static Set<String> allowedFeatures(RankedCandidate candidate) {
+        Set<String> features = new HashSet<>(candidate.report().score().evidenceScores().keySet());
+        features.add("deterministicScore");
+        features.add("unique");
+        features.add("visible");
+        features.add("interactable");
+        features.add("contextMatched");
+        if (candidate.report().score().visualScore() != null) {
+            features.add("visualScore");
+        }
+        return Set.copyOf(features);
+    }
+
+    private static ObjectNode responseSchema(List<RankedCandidate> candidates) {
         ObjectNode root = JSON.createObjectNode();
         root.put("type", "object");
         ObjectNode properties = root.putObject("properties");
         ObjectNode ranking = properties.putObject("ranking");
         ranking.put("type", "array");
+        ranking.put("minItems", 1);
+        ranking.put("maxItems", candidates.size());
         ObjectNode item = ranking.putObject("items");
         item.put("type", "object");
         ObjectNode itemProperties = item.putObject("properties");
-        itemProperties.putObject("candidateId").put("type", "string");
-        ObjectNode score = itemProperties.putObject("score");
+        ObjectNode candidateId = itemProperties.putObject("candidateId");
+        candidateId.put("type", "string");
+        ArrayNode candidateIds = candidateId.putArray("enum");
+        candidates.forEach(candidate -> candidateIds.add(candidate.report().candidateId()));
+        ObjectNode score = itemProperties.putObject("confidence");
         score.put("type", "number");
         score.put("minimum", 0);
         score.put("maximum", 1);
+        ObjectNode citedFeatures = itemProperties.putObject("citedFeatures");
+        citedFeatures.put("type", "array");
+        citedFeatures.put("minItems", 1);
+        citedFeatures.put("uniqueItems", true);
+        ObjectNode citedFeature = citedFeatures.putObject("items");
+        citedFeature.put("type", "string");
+        ArrayNode featureNames = citedFeature.putArray("enum");
+        candidates.stream()
+                .flatMap(candidate -> allowedFeatures(candidate).stream())
+                .distinct()
+                .sorted()
+                .forEach(featureNames::add);
         ArrayNode requiredItem = item.putArray("required");
         requiredItem.add("candidateId");
-        requiredItem.add("score");
+        requiredItem.add("confidence");
+        requiredItem.add("citedFeatures");
         item.put("additionalProperties", false);
         root.putArray("required").add("ranking");
         root.put("additionalProperties", false);
@@ -181,9 +228,10 @@ final class AiCandidateReranker {
         candidates.forEach(candidate -> {
             ObjectNode item = ranking.addObject();
             item.put("candidateId", candidate.report().candidateId());
-            item.put("score", providerScore && candidate.report().score().providerScore() != null
+            item.put("confidence", providerScore && candidate.report().score().providerScore() != null
                     ? candidate.report().score().providerScore()
                     : candidate.report().score().deterministicScore());
+            item.putArray("citedFeatures").add("deterministicScore");
         });
         return root;
     }
