@@ -299,11 +299,11 @@ def mempalace_runtime_status(project: Path) -> dict[str, str]:
     try:
         children = list(palace.iterdir())
     except OSError:
-        children = []
-        unreadable = True
-    else:
-        unreadable = False
-    if unreadable or any(is_link_or_reparse(child) for child in children):
+        return {
+            "status": "recovery-required",
+            "detail": "MemPalace state is unreadable or contains a link or reparse point",
+        }
+    if any(is_link_or_reparse(child) for child in children):
         return {
             "status": "recovery-required",
             "detail": "MemPalace state is unreadable or contains a link or reparse point",
