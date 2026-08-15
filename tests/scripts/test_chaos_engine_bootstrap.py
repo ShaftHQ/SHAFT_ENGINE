@@ -87,7 +87,7 @@ class ChaosEngineBootstrapTest(unittest.TestCase):
                 project.resolve()
             )
             installer.doctor_with_dependencies.assert_called_once_with(
-                project, verify_clients=False
+                project.resolve(), verify_clients=False
             )
             self.assertEqual("healthy", result["doctor"]["status"])
 
