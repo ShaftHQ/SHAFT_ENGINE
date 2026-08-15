@@ -10,9 +10,9 @@ import subprocess  # nosec B404 - tests run fixed local Git commands only.
 import tempfile
 import unittest
 import unittest.mock as mock
-import zipfile
 from pathlib import Path
 from types import SimpleNamespace
+from urllib.parse import unquote, urlparse
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -30,16 +30,15 @@ def load():
     return module
 
 
-def archive(commit: str, marker: str) -> bytes:
-    stream = io.BytesIO()
-    with zipfile.ZipFile(stream, "w") as output:
-        prefix = f"SHAFT_ENGINE-{commit[:7]}/chaos-engine/"
-        for path in (ROOT / "chaos-engine").rglob("*"):
-            if path.is_file() and "__pycache__" not in path.parts and path.suffix != ".pyc":
-                output.writestr(prefix + path.relative_to(ROOT / "chaos-engine").as_posix(), path.read_bytes())
-        if marker:
-            output.writestr(prefix + "bootstrap-marker.txt", marker)
-    return stream.getvalue()
+def source_payload(marker: str) -> dict[str, bytes]:
+    payload = {
+        path.relative_to(ROOT / "chaos-engine").as_posix(): path.read_bytes()
+        for path in (ROOT / "chaos-engine").rglob("*")
+        if path.is_file() and "__pycache__" not in path.parts and path.suffix != ".pyc"
+    }
+    if marker:
+        payload["bootstrap-marker.txt"] = marker.encode()
+    return payload
 
 
 class Response(io.BytesIO):
@@ -119,13 +118,28 @@ class ChaosEngineBootstrapTest(unittest.TestCase):
         calls: list[str] = []
 
         def open_url(request, timeout=0):
+            del timeout
             url = request.full_url if hasattr(request, "full_url") else str(request)
             calls.append(url)
             commit, marker = commits[0]
             if "/commits/" in url:
                 return Response(json.dumps({"sha": commit}).encode())
-            self.assertIn(commit, url)
-            return Response(archive(commit, marker))
+            payload = source_payload(marker)
+            if "/git/trees/" in url:
+                tree = [
+                    {
+                        "path": f"chaos-engine/{relative}",
+                        "mode": "100644",
+                        "type": "blob",
+                        "size": len(content),
+                    }
+                    for relative, content in payload.items()
+                ]
+                return Response(json.dumps({"tree": tree, "truncated": False}).encode())
+            self.assertEqual("raw.githubusercontent.com", urlparse(url).netloc)
+            prefix = f"/{commit}/chaos-engine/"
+            encoded_path = urlparse(url).path.split(prefix, 1)[1]
+            return Response(payload[unquote(encoded_path)])
 
         return open_url, calls
 
@@ -419,18 +433,23 @@ class ChaosEngineBootstrapTest(unittest.TestCase):
         opener = mock.Mock(return_value=Response(json.dumps({"sha": COMMIT_ONE}).encode()))
         self.assertEqual((COMMIT_ONE, "@"), module.resolve_latest("example/project", "@", opener=opener))
 
-    def test_archive_escape_and_unexpected_layout_are_rejected_before_install(self):
+    def test_source_tree_escape_truncation_and_unexpected_layout_are_rejected(self):
         module = load()
-        for name in ("../escape.txt", "unexpected/file.txt"):
-            with self.subTest(name=name), tempfile.TemporaryDirectory() as temporary:
-                stream = io.BytesIO()
-                with zipfile.ZipFile(stream, "w") as output:
-                    output.writestr(name, "bad")
+        cases = (
+            ({"tree": [{"path": "chaos-engine/../escape.txt"}], "truncated": False}, "unsafe"),
+            ({"tree": [{"path": "unexpected/file.txt"}], "truncated": False}, "layout"),
+            ({"tree": [], "truncated": True}, "incomplete"),
+        )
+        for tree, message in cases:
+            with self.subTest(message=message), tempfile.TemporaryDirectory() as temporary:
                 responses = iter(
-                    (Response(json.dumps({"sha": COMMIT_ONE}).encode()), Response(stream.getvalue()))
+                    (
+                        Response(json.dumps({"sha": COMMIT_ONE}).encode()),
+                        Response(json.dumps(tree).encode()),
+                    )
                 )
 
-                with self.assertRaisesRegex(ValueError, "archive"):
+                with self.assertRaisesRegex(ValueError, message):
                     module.install_latest(
                         Path(temporary),
                         repository="ShaftHQ/SHAFT_ENGINE",
