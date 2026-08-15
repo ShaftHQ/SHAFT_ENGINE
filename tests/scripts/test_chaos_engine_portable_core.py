@@ -11,6 +11,7 @@ ROOT = Path(__file__).resolve().parents[2]
 CORE = ROOT / "chaos-engine"
 CANONICAL_SKILL = CORE / "skills/chaos-engine/SKILL.md"
 CLEANUP_SCOPES = CORE / "references/cleanup-scopes.md"
+TASK_ISOLATION = CORE / "references/task-isolation.md"
 REPOSITORY_ADAPTER = ROOT / ".agents/skills/chaos-engine/SKILL.md"
 COMPATIBILITY_ALIAS = ROOT / ".agents/skills/act-as-mohab/SKILL.md"
 SHAFT_PROFILE = CORE / "profiles/shaft/profile.json"
@@ -333,6 +334,7 @@ class ChaosEnginePortableCoreTest(unittest.TestCase):
                 )
 
         assert_cleanup_contract(cleanup_scopes)
+
         weakening_mutations = (
             cleanup_scopes.replace(
                 "even if the task touches it.",
@@ -367,6 +369,42 @@ class ChaosEnginePortableCoreTest(unittest.TestCase):
         for label, pattern in forbidden.items():
             with self.subTest(forbidden=label):
                 self.assertIsNone(pattern.search(task_isolation_router + cleanup_scopes))
+
+    def test_task_isolation_gates_planning_on_a_refreshed_primary_checkout(self):
+        canonical = CANONICAL_SKILL.read_text(encoding="utf-8")
+        task_isolation_router = canonical.split("## Task isolation", 1)[1].split(
+            "## Operating contract", 1
+        )[0]
+        self.assertIn("../../references/task-isolation.md", task_isolation_router)
+        task_isolation = TASK_ISOLATION.read_text(encoding="utf-8")
+        normalized = " ".join(task_isolation.split())
+
+        required = (
+            "Before task-specific planning or discovery",
+            "verified primary checkout",
+            "clean, unlocked, exclusive state",
+            "fetch and prune the configured upstream",
+            "local default branch",
+            "immutable upstream tip",
+            "Refresh and validate native Memory, MemPalace, and Graphify from that exact revision",
+            "Only after this gate",
+            "dedicated `ChaosEngine/*` branch and linked worktree",
+            "perform planning, discovery, and implementation there",
+            "explicit continuation",
+            "local or remote task branch",
+            "never silently restart it from the default branch",
+            "process working directory",
+        )
+        for phrase in required:
+            with self.subTest(phrase=phrase):
+                self.assertIn(phrase, normalized)
+
+        self.assertRegex(
+            normalized,
+            r"fetch and prune the configured upstream.*"
+            r"Refresh and validate native Memory, MemPalace, and Graphify.*"
+            r"Only after this gate",
+        )
 
     def test_posix_absolute_path_guard_is_non_vacuous(self):
         self.assertRegex("cache at /opt/private/agent-cache", POSIX_ABSOLUTE_PATH)
