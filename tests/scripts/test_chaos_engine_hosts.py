@@ -562,9 +562,13 @@ class ChaosEngineHostsTest(unittest.TestCase):
             core = source / ".chaos-engine/install.py"
             core.write_bytes(b"print('one')\nprint('two')\n")
             module.install(source)
-            subprocess.run(["git", "init", "-q", str(source)], check=True)
-            subprocess.run(["git", "-C", str(source), "add", "-A"], check=True)
-            subprocess.run(
+            subprocess.run(  # nosec B603 B607
+                ["git", "init", "-q", str(source)], check=True
+            )
+            subprocess.run(  # nosec B603 B607
+                ["git", "-C", str(source), "add", "-A"], check=True
+            )
+            subprocess.run(  # nosec B603 B607
                 [
                     "git",
                     "-C",
@@ -580,7 +584,7 @@ class ChaosEngineHostsTest(unittest.TestCase):
                 check=True,
             )
 
-            subprocess.run(
+            subprocess.run(  # nosec B603 B607
                 ["git", "-c", "core.autocrlf=true", "clone", "-q", str(source), str(clone)],
                 check=True,
             )
