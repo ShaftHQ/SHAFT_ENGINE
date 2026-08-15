@@ -1,6 +1,7 @@
 """Coverage and orchestration tests for repository-owned Graphify maintenance."""
 
 import importlib.util
+import hashlib
 import json
 import os
 import shutil
@@ -328,6 +329,90 @@ class GraphifyMaintenanceTest(TestCase):
             ],
             commands[0],
         )
+
+    def test_external_primary_uses_bundled_resolver_and_records_target_revision(self):
+        git = shutil.which("git")
+        self.assertIsNotNone(git)
+        primary = Path(self.temporary.name) / "external-primary"
+        primary.mkdir()
+
+        def run_git(*args):
+            return subprocess.run(  # nosec B603 - resolved Git and controlled fixture paths.
+                [git, *args],
+                cwd=primary,
+                check=True,
+                capture_output=True,
+                text=True,
+            )
+
+        run_git("init")
+        run_git("config", "user.email", "graphify@example.invalid")
+        run_git("config", "user.name", "Graphify Test")
+        (primary / "tracked.txt").write_text("tracked\n", encoding="utf-8")
+        run_git("add", "tracked.txt")
+        run_git("commit", "-m", "fixture")
+        self.assertFalse(
+            (primary / "tools/repository-map/resolve_graph_out.py").exists()
+        )
+
+        module = self.load_module()
+        original_run_stage = module.run_stage
+        output = primary / "graphify-out"
+        events = []
+
+        def run_fixture_stage(name, command, root):
+            events.append(name)
+            if name == "build":
+                output.mkdir()
+                (output / "manifest.json").write_text(
+                    json.dumps({"tracked.txt": {}}), encoding="utf-8"
+                )
+                (output / "graph.json").write_text(
+                    json.dumps(
+                        {
+                            "nodes": [
+                                {"id": "tracked", "source_file": "tracked.txt"}
+                            ],
+                            "links": [],
+                        }
+                    ),
+                    encoding="utf-8",
+                )
+                return
+            if name == "cluster":
+                return
+            original_run_stage(name, command, root)
+
+        with mock.patch.object(module, "run_stage", side_effect=run_fixture_stage):
+            module.refresh(primary, Path("graphify-out"))
+
+        marker = json.loads(
+            (output / ".shaft-source-revision.json").read_text(encoding="utf-8")
+        )
+        self.assertEqual(["build", "cluster", "record"], events)
+        self.assertEqual(run_git("rev-parse", "HEAD").stdout.strip(), marker["indexed_revision"])
+        self.assertEqual(
+            hashlib.sha256((output / "manifest.json").read_bytes()).hexdigest(),
+            marker["manifest_sha256"],
+        )
+
+    def test_missing_bundled_resolver_fails_before_cache_mutation(self):
+        module = self.load_module()
+        marker = self.write_default_marker()
+        stages = []
+        missing_controller = self.repository / "bundled/graphify_maintenance.py"
+        missing_controller.parent.mkdir()
+
+        with mock.patch.object(module, "__file__", str(missing_controller)), mock.patch.object(
+            module, "require_primary_checkout", return_value=self.repository
+        ), mock.patch.object(module.shutil, "which", return_value="uv"), mock.patch.object(
+            module, "run_stage", side_effect=lambda name, command, root: stages.append(name)
+        ), mock.patch.object(module, "run_audit", return_value={}):
+            with self.assertRaisesRegex(ValueError, "bundled Graphify resolver"):
+                module.refresh(self.repository, Path("graphify-out"))
+
+        self.assertEqual([], stages)
+        self.assertTrue(marker.exists())
 
     def test_wrapper_is_thin_and_has_no_checkout_specific_path(self):
         wrapper = (ROOT / "tools/agent-infra/graphify-refresh.cmd").read_text(
