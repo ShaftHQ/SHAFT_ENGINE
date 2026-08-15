@@ -139,6 +139,11 @@ public final class DoctorAiAnalysisService {
                         identity.identifier(), Duration.ZERO, AiUsage.empty(),
                         "Provider execution failed.", cacheWarning(ignoredCacheEntry));
             }
+            if (lastResponse == null) {
+                return fallback(AiResponseStatus.ERROR, identity.provider(), identity.model(),
+                        identity.identifier(), Duration.ZERO, AiUsage.empty(),
+                        "Provider did not return a result.", cacheWarning(ignoredCacheEntry));
+            }
             DoctorAdvisory terminal = terminalProviderFailure(lastResponse, context);
             if (terminal != null) {
                 return terminal;
@@ -160,11 +165,6 @@ public final class DoctorAiAnalysisService {
     }
 
     private static DoctorAdvisory terminalProviderFailure(AiResponse response, AnalysisContext context) {
-        if (response == null) {
-            return fallback(AiResponseStatus.ERROR, context.identity().provider(), context.identity().model(),
-                    context.identity().identifier(), Duration.ZERO, AiUsage.empty(),
-                    "Provider did not return a result.", cacheWarning(context.ignoredCacheEntry()));
-        }
         if (response.successful()) {
             return null;
         }

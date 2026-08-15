@@ -152,6 +152,7 @@ public record DoctorAdvisory(
         }
 
         /** Allowlisted operations with their only valid target and SHAFT-owned display text. */
+        @SuppressWarnings("PMD.SingularField") // Enum constants retain their immutable action definition.
         public enum ActionOperation {
             COLLECT_EVIDENCE(ActionTarget.DOM_SNAPSHOT, "Collect current DOM evidence",
                     "Capture a current DOM snapshot and rerun deterministic Doctor analysis."),
@@ -164,7 +165,7 @@ public record DoctorAdvisory(
             REVIEW_TEST_DATA(ActionTarget.TEST_DATA, "Review test data",
                     "Compare the failing test data with the deterministic evidence and product state."),
             RETRY_INFRASTRUCTURE_CHECK(ActionTarget.INFRASTRUCTURE_STATUS, "Recheck infrastructure",
-                    "Recheck the reported infrastructure dependency before rerunning the test." );
+                    "Recheck the reported infrastructure dependency before rerunning the test.");
 
             private final ActionTarget target;
             private final String title;
@@ -174,6 +175,18 @@ public record DoctorAdvisory(
                 this.target = target;
                 this.title = title;
                 this.displayText = displayText;
+            }
+
+            private ActionTarget allowedTarget() {
+                return target;
+            }
+
+            private String actionTitle() {
+                return title;
+            }
+
+            private String actionDisplayText() {
+                return displayText;
             }
         }
 
@@ -188,11 +201,11 @@ public record DoctorAdvisory(
                 throw new IllegalArgumentException("Advisory operation and target must be supplied together.");
             }
             if (operation != null) {
-                if (operation.target != target) {
+                if (operation.allowedTarget() != target) {
                     throw new IllegalArgumentException("Advisory operation and target pair is not allowlisted.");
                 }
-                title = operation.title;
-                action = operation.displayText;
+                title = operation.actionTitle();
+                action = operation.actionDisplayText();
             }
         }
 
@@ -208,8 +221,8 @@ public record DoctorAdvisory(
          */
         public RecommendedAction(ActionOperation operation, ActionTarget target,
                                  List<String> evidenceIds, boolean cited) {
-            this(operation == null ? "Invalid action" : operation.title,
-                    operation == null ? "Invalid action" : operation.displayText,
+            this(operation == null ? "Invalid action" : operation.actionTitle(),
+                    operation == null ? "Invalid action" : operation.actionDisplayText(),
                     evidenceIds, cited, operation, target);
         }
 

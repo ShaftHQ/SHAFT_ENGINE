@@ -75,6 +75,7 @@ public record AiRequest(
     }
 
     /** Retains source compatibility for single-attempt callers. */
+    @SuppressWarnings("PMD.ExcessiveParameterList") // Mirrors the pre-existing public record constructor.
     public AiRequest(String requestId, String purpose, String schemaVersion, String text,
                      List<EvidenceReference> evidence, List<AiImage> images, JsonNode desiredResponseSchema,
                      Duration timeout, AiBudget budget, ApprovalPolicy approvalPolicy,

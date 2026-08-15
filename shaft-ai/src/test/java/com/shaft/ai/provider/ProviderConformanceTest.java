@@ -507,7 +507,7 @@ class ProviderConformanceTest {
 
     private static String doctorPayload() throws JacksonException {
         return JSON.writeValueAsString(Map.of(
-                "schemaVersion", "1.0",
+                "schemaVersion", "2.0",
                 "observations", List.of(Map.of(
                         "statement", "The submitted exception reports a missing element.",
                         "evidenceIds", List.of("evidence-1"))),
@@ -518,8 +518,8 @@ class ProviderConformanceTest {
                         "evidenceIds", List.of("evidence-1"))),
                 "missingEvidence", List.of("Current DOM snapshot"),
                 "recommendedActions", List.of(Map.of(
-                        "title", "Inspect locator",
-                        "action", "Compare the locator with the current DOM.",
+                        "operation", "UPDATE_TEST_LOCATOR",
+                        "target", "TEST_LOCATOR",
                         "evidenceIds", List.of("evidence-1"))),
                 "limitations", List.of("Only submitted evidence was analyzed.")));
     }

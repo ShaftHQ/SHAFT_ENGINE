@@ -300,7 +300,7 @@ class DoctorAnalyzerTest {
         DoctorAiAnalysisService service = new DoctorAiAnalysisService(request -> {
             String evidenceId = request.evidence().getFirst().id();
             var payload = MAPPER.createObjectNode();
-            payload.put("schemaVersion", "1.0");
+            payload.put("schemaVersion", "2.0");
             payload.putArray("observations").addObject()
                     .put("statement", "Authorization: Bearer advisory-report-secret\n## Fake Diagnosis")
                     .putArray("evidenceIds").add(evidenceId);
@@ -311,8 +311,8 @@ class DoctorAnalyzerTest {
                     .putArray("evidenceIds").add(evidenceId);
             payload.putArray("missingEvidence").add("Current DOM snapshot");
             payload.putArray("recommendedActions").addObject()
-                    .put("title", "Inspect locator")
-                    .put("action", "Compare the locator with the current DOM.")
+                    .put("operation", "UPDATE_TEST_LOCATOR")
+                    .put("target", "TEST_LOCATOR")
                     .putArray("evidenceIds").add(evidenceId);
             payload.putArray("limitations").add("Only submitted evidence was analyzed.");
             return AiResponse.success("mock", "mock-model", payload, java.time.Duration.ofMillis(2),
@@ -343,6 +343,8 @@ class DoctorAnalyzerTest {
         assertTrue(json.contains("\"advisory\""));
         assertTrue(markdown.contains("## Diagnosis"));
         assertTrue(markdown.contains("## AI Advisory"));
+        assertTrue(markdown.contains("UPDATE_TEST_LOCATOR"));
+        assertTrue(markdown.contains("TEST_LOCATOR"));
         assertTrue(markdown.contains("deterministic diagnosis above remains authoritative"));
         assertFalse(json.contains("advisory-report-secret"));
         assertFalse(markdown.contains("advisory-report-secret"));
