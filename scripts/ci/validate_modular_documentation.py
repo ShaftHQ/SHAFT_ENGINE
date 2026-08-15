@@ -88,7 +88,7 @@ def validate_intellij_run_template(project: Path, artifact: str) -> None:
         ignore_checks = [
             (
                 template,
-                subprocess.run(
+                subprocess.run(  # nosec B603 B607 - fixed read-only Git command.
                     [
                         "git",
                         "check-ignore",
