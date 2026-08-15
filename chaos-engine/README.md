@@ -68,8 +68,8 @@ guidance out of the always-loaded context until it is needed.
 
 Start with the full [installation and upgrade guide](INSTALL.md). The safest
 flow resolves a configured upstream branch to an immutable commit, downloads
-that exact archive, validates its paths, and installs ChaosEngine inside the
-target project.
+only that commit's validated `chaos-engine/` subtree, and installs ChaosEngine
+inside the target project.
 
 From the adopter project, run one copy/paste command. On Windows PowerShell:
 
@@ -148,6 +148,15 @@ policy into competing copies.
 It also creates trackable Memory and MemPalace configuration, provider-native
 role/plugin/hook adapters, and ignore rules that separate canonical harness
 files from generated runtimes, indexes, receipts, and Graphify output.
+Memory's canonical store is bootstrapped from the pinned v5
+[schema bundle](assets/memory-v5/SCHEMAS.md):
+[config](assets/memory-v5/config.schema.json),
+[object](assets/memory-v5/object.schema.json),
+[relation](assets/memory-v5/relation.schema.json),
+[event](assets/memory-v5/event.schema.json), and
+[patch](assets/memory-v5/patch.schema.json) schemas. The active doctor runs
+Memory status and validation inside the adopter project instead of treating a
+launchable CLI as proof of a usable store.
 
 ## Trust boundaries
 

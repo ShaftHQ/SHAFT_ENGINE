@@ -48,14 +48,14 @@ py -3 -c "import pathlib,runpy,sys,tempfile,urllib.request; o='S'+'haftHQ'; r='S
 
 On macOS or Linux, replace `py -3` with `python3`. Inspect the
 bootstrap source in this upstream repository first when policy requires review
-before execution. The temporary bootstrap
-resolves the default branch to an immutable commit; `portable` is already the
-default and need not be supplied. Restart any client that was open during
+before execution. The temporary bootstrap resolves the default branch to an
+immutable commit and downloads only its validated `chaos-engine/` subtree;
+`portable` is already the default and need not be supplied. Restart any client that was open during
 installation so it loads its verified local plugin cache.
 
 Add `--branch branch` to override the repository's configured default branch. The
 bootstrap resolves that mutable branch through the GitHub API, downloads the
-exact commit archive, rejects unsafe archive entries, and records repository,
+exact commit's declared harness files, rejects unsafe tree entries, and records repository,
 immutable provenance digests and the commit in `.chaos-engine/manifest.json`.
 The public default is always the neutral `portable` distribution; a source
 repository's contributor profile requires an explicit non-default selection. Re-running the

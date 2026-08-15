@@ -13,6 +13,7 @@ import secrets
 import shutil
 import stat
 import subprocess  # nosec B404 - probes a resolved local Java executable.
+import sys
 from pathlib import Path
 
 
@@ -23,6 +24,13 @@ REMOVING_ANCHOR_PREFIX = ".chaos-engine-hosts.removing-"
 ANCHOR_TOKEN = re.compile(r"^[0-9a-f]{64}$")
 SCHEMA_VERSION = 1
 PLUGIN_NAME = "chaos-engine"
+MEMORY_SCHEMA_FILES = (
+    "config.schema.json",
+    "object.schema.json",
+    "relation.schema.json",
+    "event.schema.json",
+    "patch.schema.json",
+)
 LEGACY_MANAGED_PATHS = (
     ".agents/skills/chaos-engine/SKILL.md",
     ".claude/skills/chaos-engine/SKILL.md",
@@ -64,19 +72,49 @@ def validate_memory_config(content: bytes) -> None:
         raise ValueError("invalid Memory configuration") from error
     project_config = config.get("project") if isinstance(config, dict) else None
     memory_options = config.get("memory") if isinstance(config, dict) else None
-    git_options = config.get("git") if isinstance(config, dict) else None
     if (
         not isinstance(config, dict)
+        or set(config) != {"version", "project", "memory"}
         or config.get("version") != 5
         or not isinstance(project_config, dict)
+        or set(project_config) != {"id", "name"}
         or not isinstance(project_config.get("id"), str)
-        or not project_config["id"].strip()
+        or re.fullmatch(r"project\.[a-z0-9][a-z0-9-]*", project_config["id"]) is None
         or not isinstance(project_config.get("name"), str)
         or not project_config["name"].strip()
         or not isinstance(memory_options, dict)
-        or not isinstance(git_options, dict)
+        or set(memory_options) != {"autoIndex", "defaultTokenBudget"}
+        or not isinstance(memory_options.get("autoIndex"), bool)
+        or not isinstance(memory_options.get("defaultTokenBudget"), int)
+        or isinstance(memory_options.get("defaultTokenBudget"), bool)
+        or not 501 <= memory_options["defaultTokenBudget"] <= 50000
     ):
         raise ValueError("invalid Memory configuration")
+
+
+def memory_schema_assets() -> Path:
+    return Path(__file__).resolve().parent / "assets/memory-v5"
+
+
+def validate_memory_storage(project: Path) -> None:
+    schema_root = project / ".memory/schema"
+    for name in MEMORY_SCHEMA_FILES:
+        try:
+            schema = json.loads((schema_root / name).read_bytes())
+        except (OSError, UnicodeDecodeError, json.JSONDecodeError) as error:
+            raise ValueError("invalid Memory storage") from error
+        if not isinstance(schema, (dict, bool)):
+            raise ValueError("invalid Memory storage")
+    for relative in (".memory/memory", ".memory/relations"):
+        if not (project / relative).is_dir():
+            raise ValueError("invalid Memory storage")
+    try:
+        events = (project / ".memory/events.jsonl").read_text(encoding="utf-8")
+        for line in events.splitlines():
+            if line.strip() and not isinstance(json.loads(line), dict):
+                raise ValueError("invalid Memory storage")
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError) as error:
+        raise ValueError("invalid Memory storage") from error
 
 
 def validate_mempalace_config(content: bytes) -> None:
@@ -101,9 +139,34 @@ def validate_mempalace_config(content: bytes) -> None:
 def retrieval_configs_healthy(project: Path) -> bool:
     try:
         validate_memory_config((project / ".memory/config.json").read_bytes())
+        validate_memory_storage(project)
         validate_mempalace_config((project / "mempalace.yaml").read_bytes())
     except (OSError, ValueError):
         return False
+    return True
+
+
+def retrieval_runtime_healthy(project: Path) -> bool:
+    tool = project / ".chaos-engine/tool.py"
+    for arguments in (("status", "--json"), ("check", "--json")):
+        result = subprocess.run(  # nosec B603 - fixed owned launcher and arguments.
+            [sys.executable, str(tool), "memory", *arguments],
+            cwd=project,
+            capture_output=True,
+            text=True,
+            check=False,
+            timeout=30,
+        )
+        if result.returncode != 0:
+            return False
+        try:
+            payload = json.loads(result.stdout)
+        except json.JSONDecodeError:
+            return False
+        if not isinstance(payload, dict) or payload.get("ok") is not True:
+            return False
+        if arguments[0] == "check" and payload.get("data", {}).get("valid") is not True:
+            return False
     return True
 
 
@@ -746,6 +809,14 @@ def managed_paths() -> tuple[str, ...]:
         ".gemini/settings.json",
         ".codex/config.toml",
         ".memory/config.json",
+        ".memory/schema/config.schema.json",
+        ".memory/schema/object.schema.json",
+        ".memory/schema/relation.schema.json",
+        ".memory/schema/event.schema.json",
+        ".memory/schema/patch.schema.json",
+        ".memory/events.jsonl",
+        ".memory/memory/.gitkeep",
+        ".memory/relations/.gitkeep",
         "mempalace.yaml",
         ".gitignore",
     )
@@ -1081,7 +1152,10 @@ def gitignore_content(before: bytes | None) -> bytes:
         ".chaos-engine-cross-rollback/\n.chaos-engine-uninstall-*\n"
         ".chaos-engine-hosts.json\n.chaos-engine-hosts.*\n"
         ".chaos-engine-directory-claim-*\ngraphify-out/\n"
-        ".memory/*\n!.memory/\n!.memory/config.json\n"
+        ".memory/*\n!.memory/\n!.memory/config.json\n!.memory/events.jsonl\n"
+        "!.memory/schema/\n!.memory/schema/*.schema.json\n"
+        "!.memory/memory/\n.memory/memory/*\n!.memory/memory/.gitkeep\n"
+        "!.memory/relations/\n.memory/relations/*\n!.memory/relations/.gitkeep\n"
         "!.chaos-engine/\n!.chaos-engine/**\n"
         "!.agents/\n!.agents/plugins/\n!.agents/plugins/marketplace.json\n"
         "!.agents/skills/\n!.agents/skills/README.md\n"
@@ -1327,9 +1401,7 @@ def desired_content(
             "memory": {
                 "autoIndex": True,
                 "defaultTokenBudget": 6000,
-                "saveContextPacks": False,
             },
-            "git": {"trackContextPacks": False},
         }
         after[".memory/config.json"] = (
             json.dumps(memory_config, indent=2, sort_keys=True) + "\n"
@@ -1337,6 +1409,36 @@ def desired_content(
     else:
         validate_memory_config(memory_before)
         after[".memory/config.json"] = memory_before
+    schema_assets = memory_schema_assets()
+    for name in MEMORY_SCHEMA_FILES:
+        relative = f".memory/schema/{name}"
+        existing = before[relative]
+        if existing is None:
+            after[relative] = (schema_assets / name).read_bytes()
+        else:
+            try:
+                schema = json.loads(existing)
+            except (UnicodeDecodeError, json.JSONDecodeError) as error:
+                raise ValueError("invalid Memory storage") from error
+            if not isinstance(schema, (dict, bool)):
+                raise ValueError("invalid Memory storage")
+            after[relative] = existing
+    events = before[".memory/events.jsonl"]
+    if events is None:
+        after[".memory/events.jsonl"] = b""
+    else:
+        try:
+            for line in events.decode("utf-8").splitlines():
+                if line.strip() and not isinstance(json.loads(line), dict):
+                    raise ValueError("invalid Memory storage")
+        except (UnicodeDecodeError, json.JSONDecodeError) as error:
+            raise ValueError("invalid Memory storage") from error
+        after[".memory/events.jsonl"] = events
+    for relative in (".memory/memory/.gitkeep", ".memory/relations/.gitkeep"):
+        existing = before[relative]
+        if existing not in (None, b""):
+            raise ValueError("invalid Memory storage")
+        after[relative] = b""
     mempalace_before = before["mempalace.yaml"]
     if mempalace_before is None:
         safe_name = re.sub(r"[^A-Za-z0-9_.-]+", "-", project_name).strip("-") or "project"
