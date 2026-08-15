@@ -2234,17 +2234,25 @@ class LearningLoopStopGateTest(unittest.TestCase):
             "scripts.agents.guard.ledger_events", return_value=["commit", "memory-write"]
         ):
             self.assertIsNone(guard.check_r16_learning_loop({"session_id": "s"}))
-
-    def test_a_degraded_store_disposition_or_issue_reference_satisfies_it(self):
-        for disposition in (
-            "learning-none:store_degraded",
-            "issue-created:4995",
-            "learning-issue:4995",
+        with patch(
+            "scripts.agents.guard.ledger_events",
+            return_value=["commit", "learning-none:store_degraded"],
         ):
-            with self.subTest(disposition=disposition), patch(
-                "scripts.agents.guard.ledger_events", return_value=["commit", disposition]
-            ):
-                self.assertIsNone(guard.check_r16_learning_loop({"session_id": "s"}))
+            self.assertIsNone(guard.check_r16_learning_loop({"session_id": "s"}))
+
+    def test_a_created_issue_satisfies_it(self):
+        with patch(
+            "scripts.agents.guard.ledger_events",
+            return_value=["commit", "issue-created:4995"],
+        ):
+            self.assertIsNone(guard.check_r16_learning_loop({"session_id": "s"}))
+
+    def test_a_successful_existing_issue_reference_satisfies_it(self):
+        with patch(
+            "scripts.agents.guard.ledger_events",
+            return_value=["commit", "learning-issue:4995"],
+        ):
+            self.assertIsNone(guard.check_r16_learning_loop({"session_id": "s"}))
 
     def test_a_guard_block_requires_a_new_issue_or_no_learning(self):
         """A receipt or old issue update cannot replace a new actionable ticket."""
@@ -2413,7 +2421,11 @@ class LearningWriteObservationTest(unittest.TestCase):
                             )
                         )
 
-    def test_existing_issue_reference_is_bound_to_number_and_success(self):
+    @patch(
+        "scripts.agents.guard._git_output",
+        return_value="https://github.com/ShaftHQ/SHAFT_ENGINE.git",
+    )
+    def test_existing_issue_reference_is_bound_to_number_and_success(self, _git_output):
         repository = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
         with tempfile.TemporaryDirectory() as directory, patch.dict(
             guard.os.environ, {"TMPDIR": directory, "TEMP": directory}
