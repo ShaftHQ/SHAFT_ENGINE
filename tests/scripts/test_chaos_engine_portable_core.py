@@ -30,6 +30,7 @@ class ChaosEnginePortableCoreTest(unittest.TestCase):
         self.assertIn("balanced default", guidance)
         self.assertIn("only tests created or edited", guidance)
         self.assertIn("Do not rerun an entire test suite merely because CI failed", guidance)
+        self.assertNotIn("shaft", guidance.casefold())
 
     def test_portable_graphify_retrieval_is_read_only_and_ordered(self):
         guidance = (CORE / "references/graphify.md").read_text(encoding="utf-8")

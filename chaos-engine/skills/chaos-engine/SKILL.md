@@ -238,7 +238,7 @@ During planning, offer three explicit validation scopes: only tests created or
 edited by the task; the balanced default of those tests plus directly impacted
 tests; or the full suite. Recommend the balanced option and let the owner choose.
 
-When a SHAFT CI job fails, inspect the failing job and isolate its exact failing
+When a CI job fails, inspect the failing job and isolate its exact failing
 test first. Fix the cause, run only tests created or edited for that cause, and
 push after they pass. Do not rerun an entire test suite merely because CI failed;
 the CI matrix supplies the broader confirmation.
