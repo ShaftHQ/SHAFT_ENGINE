@@ -24,6 +24,31 @@ POSIX_ABSOLUTE_PATH = re.compile(
 
 
 class ChaosEnginePortableCoreTest(unittest.TestCase):
+    def test_portable_graphify_retrieval_is_read_only_and_ordered(self):
+        guidance = (CORE / "references/graphify.md").read_text(encoding="utf-8")
+        retrieval = guidance.split("## Refresh", 1)[0]
+        query = retrieval.find('graphify query "<bounded structural question>"')
+        diagnostic = retrieval.find("graphify diagnose multigraph")
+        degraded = retrieval.find("If either read-only command fails")
+
+        self.assertEqual(
+            {
+                "query_exists": True,
+                "diagnostic_follows_query": True,
+                "degraded_follows_diagnostic": True,
+                "contains_mutation": False,
+            },
+            {
+                "query_exists": query >= 0,
+                "diagnostic_follows_query": diagnostic > query,
+                "degraded_follows_diagnostic": degraded > diagnostic,
+                "contains_mutation": any(
+                    token in retrieval
+                    for token in ("graphify update", " refresh --", "--force")
+                ),
+            },
+        )
+
     def test_portable_profile_owns_a_real_routing_surface(self):
         profile = ROOT / "chaos-engine/profiles/portable/entrypoint.md"
         routing = ROOT / "chaos-engine/profiles/portable/references/routing.md"

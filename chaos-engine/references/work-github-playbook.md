@@ -18,11 +18,11 @@ A subagent's report describes intent, not necessarily its actual work. Before re
 Commit one reviewed sub-item at a time using the repository's normal message
 convention, including its issue number.
 
-### First retained checkpoint: make delivery visible immediately
+### Every retained checkpoint: make delivery visible immediately
 
 After the first reviewed implementation commit succeeds and remains at `HEAD`,
 stop behavior work and make that exact checkpoint visible before another
-behavior change or commit:
+behavior change or commit. Repeat this gate after every later retained commit:
 
 1. Resolve repository identity from the active worktree, then bind the full
    `HEAD` SHA and implementation branch. Never infer an issue number from a
@@ -38,7 +38,12 @@ behavior change or commit:
    body supplies the fallback issue mapping until the stack reaches the
    default branch; titles, branch names, ordinary references, and malformed or
    cross-repository clauses never do.
-4. Keep the PR body/checklist and linked tracker current as later commits land.
+4. Update the PR body for that exact head with nonempty `## Summary`, `## Checks`,
+   and `## Continuation` sections. Visible Continuation text states the full
+   current `Head:`, plus meaningful `State:`, `Blockers:`, and `Next action:`
+   fields so a new owner can resume without reconstructing the session. Hidden
+   comments and code blocks do not count. Keep the linked tracker current as
+   later commits land.
 
 Read-only work, failed commit attempts, and sessions with no retained
 implementation commit owe no PR. For an already-running session whose first

@@ -130,10 +130,51 @@ def specification_digest(specification: dict[str, object]) -> str:
     return hashlib.sha256(encoded).hexdigest()
 
 
+def is_generated_python_cache(relative: str, *, directory: bool = False) -> bool:
+    parts = relative.split("/")
+    if directory:
+        return bool(parts) and parts[-1] == "__pycache__"
+    return len(parts) >= 2 and parts[-2] == "__pycache__" and parts[-1].endswith(".pyc")
+
+
+def ownership_digest(files: dict[str, str]) -> str:
+    digest = hashlib.sha256()
+    for relative, file_digest in sorted(files.items()):
+        digest.update(relative.encode())
+        digest.update(b"\0")
+        digest.update(bytes.fromhex(file_digest))
+    return digest.hexdigest()
+
+
+def normalized_ownership_record(ownership: object) -> object:
+    if not isinstance(ownership, dict):
+        return ownership
+    directories = ownership.get("directories")
+    files = ownership.get("files")
+    if (
+        not isinstance(directories, list)
+        or not all(isinstance(path, str) for path in directories)
+        or not isinstance(files, dict)
+        or not all(isinstance(path, str) and isinstance(digest, str) for path, digest in files.items())
+    ):
+        return ownership
+    normalized = dict(ownership)
+    normalized["directories"] = [
+        path for path in directories if not is_generated_python_cache(path, directory=True)
+    ]
+    normalized_files = {
+        path: digest
+        for path, digest in files.items()
+        if not is_generated_python_cache(path)
+    }
+    normalized["files"] = normalized_files
+    normalized["sha256"] = ownership_digest(normalized_files)
+    return normalized
+
+
 def ownership_record(runtime: Path) -> dict[str, object]:
     if is_link_or_reparse(runtime):
         raise ValueError(f"dependency runtime is a link or reparse point: {runtime}")
-    digest = hashlib.sha256()
     files: dict[str, str] = {}
     directories: list[str] = []
     for path in sorted(runtime.rglob("*")):
@@ -141,14 +182,12 @@ def ownership_record(runtime: Path) -> dict[str, object]:
         if is_link_or_reparse(path):
             raise ValueError(f"dependency runtime contains a link: {relative}")
         if path.is_dir():
-            directories.append(relative)
+            if not is_generated_python_cache(relative, directory=True):
+                directories.append(relative)
         elif path.is_file() and relative != RECEIPT_NAME:
-            digest.update(relative.encode())
-            digest.update(b"\0")
-            file_digest = sha256(path)
-            digest.update(bytes.fromhex(file_digest))
-            files[relative] = file_digest
-    return {"directories": directories, "files": files, "sha256": digest.hexdigest()}
+            if not is_generated_python_cache(relative):
+                files[relative] = sha256(path)
+    return {"directories": directories, "files": files, "sha256": ownership_digest(files)}
 
 
 def install_plan(runtime: Path, specification: dict[str, object]) -> dict[str, list[list[str]]]:
@@ -453,7 +492,7 @@ def verify_receipt(
     verify_receipt_integrity(receipt)
     if specification is not None and receipt["specificationSha256"] != specification_digest(specification):
         raise ValueError("dependency runtime specification drift detected")
-    ownership = receipt["ownership"]
+    ownership = normalized_ownership_record(receipt["ownership"])
     metadata_receipt = {
         key: value
         for key, value in receipt.items()
@@ -546,22 +585,25 @@ def remove(
             verify_receipt_integrity(receipt)
         else:
             verify_receipt(removing, receipt, specification)
-        ownership = receipt["ownership"]
+        ownership = normalized_ownership_record(receipt["ownership"])
         files = ownership.get("files") if isinstance(ownership, dict) else None
         directories = ownership.get("directories") if isinstance(ownership, dict) else None
         if not isinstance(files, dict) or not isinstance(directories, list):
             raise ValueError("dependency removal ownership record is invalid")
-        allowed = set(files) | {RECEIPT_NAME}
         present = {
             path.relative_to(removing).as_posix()
             for path in removing.rglob("*")
             if path.is_file()
         }
+        generated_files = {
+            relative for relative in present if is_generated_python_cache(relative)
+        }
+        allowed = set(files) | generated_files | {RECEIPT_NAME}
         if not present <= allowed:
             raise ValueError("dependency removal contains an unowned file")
         for relative in sorted(present - {RECEIPT_NAME}):
             path = removing / relative
-            if sha256(path) != files[relative]:
+            if relative not in generated_files and sha256(path) != files[relative]:
                 raise ValueError("dependency removal ownership drift detected")
             path.unlink()
         present_directories = {
@@ -569,7 +611,11 @@ def remove(
             for path in removing.rglob("*")
             if path.is_dir()
         }
-        expected_directories = set(directories)
+        expected_directories = set(directories) | {
+            relative
+            for relative in present_directories
+            if is_generated_python_cache(relative, directory=True)
+        }
         if not present_directories <= expected_directories:
             raise ValueError("dependency removal directory ownership drift detected")
         for directory in sorted(

@@ -4,7 +4,7 @@
   "distributions": {
     "portable": {
       "profile": "portable",
-      "forbiddenTokens": ["shaft", "act-as-mohab"]
+      "forbiddenTokens": ["shaft", "mohab", "act-as-mohab", "act as mohab"]
     },
     "repository": {
       "profile": "shaft",

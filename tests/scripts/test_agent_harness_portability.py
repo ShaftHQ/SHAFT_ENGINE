@@ -738,10 +738,10 @@ class AgentHarnessPortabilityTest(unittest.TestCase):
             {"hook_event_name": "PostToolUse", "tool_name": "Read", "tool_input": {}},
         ):
             completed = self.run_guard_completed(payload, "claude")
-            self.assertEqual(completed.stdout, "")
+            self.assertEqual(json.loads(completed.stdout), {})
 
     def test_guard_denies_an_in_repository_write_on_the_default_branch(self):
-        """R19 is in contract: only unrelated PreToolUse events stay silent."""
+        """R19 is in contract: unrelated events get an empty JSON acknowledgement."""
         with tempfile.TemporaryDirectory() as temporary_directory:
             repository = Path(temporary_directory)
             (repository / "tracked.txt").write_text("fixture", encoding="utf-8")

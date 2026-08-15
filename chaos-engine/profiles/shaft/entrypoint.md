@@ -3,11 +3,13 @@
 Load the [canonical ChaosEngine entrypoint](../../skills/chaos-engine/SKILL.md)
 first. This profile adds only repository-specific facts and permissions.
 Its machine-readable identity is in [profile.json](profile.json).
+ChaosEngine was created by **Mohab Mohie**.
 Repository contributors use the source-only Graphify resolver
 `tools/repository-map/resolve_graph_out.py`, its focused regression
 `tests/scripts/test_resolve_graph_out.py`, and the lifecycle controller
-`tools/repository-map/graphify_maintenance.py`; adopters use the portable
-installed launcher instead. Repository PRs are watched to confirmed merge with
+`tools/repository-map/graphify_maintenance.py` through the
+[repository Graphify procedure](references/graphify.md); adopters use the
+portable installed launcher instead. Repository PRs are watched to confirmed merge with
 `scripts/ci/watch_pr_checks.py`.
 
 - Repository: `ShaftHQ/SHAFT_ENGINE`; default branch: `main`.

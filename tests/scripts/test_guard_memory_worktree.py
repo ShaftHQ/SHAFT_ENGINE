@@ -486,7 +486,7 @@ class MemoryWriteFromLinkedWorktreeTest(unittest.TestCase):
             check=False,
         )
         self.assertEqual(completed.returncode, 0, completed.stderr)
-        self.assertEqual(completed.stdout.strip(), "", completed.stdout)
+        self.assertEqual(json.loads(completed.stdout), {}, completed.stdout)
 
     def test_a_payload_without_cwd_falls_back_to_the_process_directory(self):
         # Not every host sends `cwd`. `_hook_working_directory` then falls back

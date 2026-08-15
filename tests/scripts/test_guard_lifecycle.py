@@ -90,6 +90,18 @@ class CheckpointPullRequestGateTest(unittest.TestCase):
             separators=(",", ":"),
         )
 
+    @staticmethod
+    def snapshot(head="b" * 40):
+        return (
+            "## Summary\nReviewed checkpoint is ready for delivery.\n\n"
+            f"Current exact head: `{head}`.\n\n"
+            "## Checks\n- focused lifecycle test passed\n\n"
+            f"## Continuation\n- Head: `{head}`\n"
+            "- State: pushed to the open draft PR\n"
+            "- Blockers: remote checks pending\n"
+            "- Next action: watch checks and repair any failure\n"
+        )
+
     def test_successful_reviewed_retained_commit_records_exact_identity(self):
         events: list[str] = []
         before = "a" * 40
@@ -252,6 +264,56 @@ class CheckpointPullRequestGateTest(unittest.TestCase):
                     "unavailable",
                 )
 
+    def test_exact_head_pr_without_resumable_snapshot_blocks_mapping(self):
+        identity = ("ShaftHQ/SHAFT_ENGINE", "ChaosEngine/r27", "b" * 40)
+        pull_request = {
+            "number": 4800,
+            "url": "https://example.invalid/4800",
+            "isDraft": True,
+            "baseRefName": "main",
+            "issueNumbers": [4745],
+            "body": "Closes #4745",
+        }
+        with patch("scripts.agents.guard._checkpoint_identity", return_value=identity):
+            with patch("scripts.agents.guard.ledger_events", return_value=[self.checkpoint()]):
+                with patch("scripts.agents.guard._exact_head_pull_request", return_value=("exact", pull_request)):
+                    reason = guard.check_r27_checkpoint_pull_request(
+                        {"tool_input": {"file_path": "shaft-engine/X.java"}}, "Write"
+                    )
+        self.assertIsNotNone(reason)
+        self.assertIn("snapshot", reason.lower())
+        violations = []
+        for index, body in enumerate((
+            self.snapshot().replace("b" * 40, "a" * 40),
+            self.snapshot().replace("## Summary", "## Overview"),
+            self.snapshot().replace("## Checks", "## Evidence"),
+            self.snapshot().replace("## Continuation", "## Handoff"),
+            self.snapshot().replace("- Head: `" + "b" * 40, "- Head: `" + "a" * 40),
+            self.snapshot().replace("- State:", "- Status:"),
+            self.snapshot().replace("- Blockers:", "- Risks:"),
+            self.snapshot().replace("- Next action:", "- Later:"),
+            self.snapshot().replace("pushed to the open draft PR", "x"),
+            self.snapshot().replace("watch checks and repair any failure", "x"),
+            "```markdown\n" + self.snapshot() + "```\n",
+            "<!--\n" + self.snapshot() + "-->\n",
+            "<pre class=\"handoff\">\n" + self.snapshot() + "</pre>\n",
+            "<code>\n" + self.snapshot(),
+            (
+                self.snapshot("a" * 40)
+                .replace("Current exact head: `" + "a" * 40, "Current exact head: `" + "b" * 40)
+            ),
+        )):
+            pull_request["body"] = body
+            with patch("scripts.agents.guard._checkpoint_identity", return_value=identity):
+                with patch("scripts.agents.guard.ledger_events", return_value=[self.checkpoint()]):
+                    with patch("scripts.agents.guard._exact_head_pull_request", return_value=("exact", pull_request)):
+                        reason = guard.check_r27_checkpoint_pull_request(
+                            {"tool_input": {"file_path": "shaft-engine/X.java"}}, "Write"
+                        )
+            if reason is None or "snapshot" not in reason.lower():
+                violations.append(index)
+        self.assertEqual(violations, [])
+
     def test_exact_head_pr_without_closing_issue_is_unmapped(self):
         response = [{
             "number": 4800, "url": "https://example.invalid/4800", "state": "OPEN",
@@ -355,6 +417,7 @@ class CheckpointPullRequestGateTest(unittest.TestCase):
         pull_request = {
             "number": 4800, "url": "https://example.invalid/4800", "isDraft": True,
             "baseRefName": "ChaosEngine/issue-4726-portable-runtime", "issueNumbers": [4745],
+            "body": self.snapshot(),
         }
         with patch("scripts.agents.guard._checkpoint_identity", return_value=identity):
             with patch("scripts.agents.guard.ledger_events", return_value=[self.checkpoint()]):
@@ -667,6 +730,242 @@ class GuardLifecycleTest(unittest.TestCase):
                     expected,
                     guard._research_preflight_events(tool_name, tool_input, tool_result),
                 )
+        self.assertEqual(
+            guard._research_preflight_events(
+                "shell_command", {"command": "memory.txt search guard"}
+            ),
+            (),
+        )
+        for command in (
+            "memory.cmd.exe query guard",
+            "memory.ps1.exe search guard",
+            "graphify.bat.exe query guard",
+        ):
+            with self.subTest(command=command):
+                self.assertEqual(
+                    guard._research_preflight_events(
+                        "shell_command", {"command": command}
+                    ),
+                    (),
+                )
+
+    def test_shell_command_maps_research_clis_in_command_order(self):
+        self.assertEqual(
+            guard._research_preflight_events(
+                "shell_command",
+                {"command": "memory search guard; mempalace status; graphify query guard"},
+            ),
+            ("query-native-memory", "query-mempalace", "query-graphify"),
+        )
+
+    def test_full_path_memory_exe_maps_native_memory(self):
+        self.assertEqual(
+            guard._research_preflight_events(
+                "shell_command", {"command": r'& "C:\\tools\\memory.exe" search guard'}
+            ),
+            ("query-native-memory",),
+        )
+
+    def test_pinned_memory_cmd_query_maps_native_memory(self):
+        self.assertEqual(
+            guard._research_preflight_events(
+                "shell_command",
+                {"command": r'& "C:\\project\\.chaos-engine\\memory.cmd" query guard'},
+            ),
+            ("query-native-memory",),
+        )
+
+    def test_full_path_mempalace_exe_maps_mempalace(self):
+        self.assertEqual(
+            guard._research_preflight_events(
+                "shell_command", {"command": r'& "C:\\tools\\mempalace.exe" status'}
+            ),
+            ("query-mempalace",),
+        )
+
+    def test_pinned_mempalace_ps1_maps_mempalace(self):
+        self.assertEqual(
+            guard._research_preflight_events(
+                "shell_command",
+                {"command": r'& "C:\\project\\.chaos-engine\\mempalace.ps1" search guard'},
+            ),
+            ("query-mempalace",),
+        )
+
+    def test_full_path_graphify_exe_maps_graphify(self):
+        self.assertEqual(
+            guard._research_preflight_events(
+                "shell_command", {"command": r'& "C:\\tools\\graphify.exe" query guard'}
+            ),
+            ("query-graphify",),
+        )
+
+    def test_pinned_graphify_bat_maps_graphify(self):
+        self.assertEqual(
+            guard._research_preflight_events(
+                "shell_command",
+                {"command": r'& "C:\\project\\.chaos-engine\\graphify.bat" query guard'},
+            ),
+            ("query-graphify",),
+        )
+
+    def test_underscore_memory_mcp_name_maps_native_memory(self):
+        self.assertEqual(
+            guard._research_preflight_events(
+                "mcp__shaft_memory__search_memory", {"query": "guard"}
+            ),
+            ("query-native-memory",),
+        )
+
+    def test_web_run_structural_open_maps_allowlisted_official_source(self):
+        self.assertEqual(
+            guard._research_preflight_events(
+                "web__run",
+                {"open": [{"ref_id": "https://docs.python.org/3/using/cmdline.html"}]},
+                {"content": [{"type": "text", "text": "official source opened"}]},
+            ),
+            ("authoritative-online-research",),
+        )
+
+    def test_exec_command_maps_cmd_research_in_command_order(self):
+        self.assertEqual(
+            guard._research_preflight_events(
+                "exec_command",
+                {
+                    "cmd": "memory search guard; mempalace wake-up --wing x; "
+                    "graphify query guard"
+                },
+            ),
+            (
+                "query-native-memory",
+                "query-mempalace",
+                "query-graphify",
+            ),
+        )
+        self.assertEqual(
+            guard.normalize_hook_input(
+                {"tool_name": "exec_command", "tool_input": {"cmd": "Set-Content x y"}}
+            )["tool_name"],
+            "PowerShell",
+        )
+        output = io.StringIO()
+        wrapped = {
+            "tool_name": "functions.exec",
+            "tool_input": 'await tools.exec_command({cmd:"git reset --hard HEAD~1"});',
+            "cwd": ".",
+            "session_id": "wrapped-command-safety",
+        }
+        with patch(
+            "scripts.agents.guard.ledger_events",
+            return_value=list(guard.RESEARCH_PREFLIGHT_EVENTS),
+        ):
+            with patch("scripts.agents.guard.check_r19_fresh_base", return_value=None):
+                with patch(
+                    "scripts.agents.guard.check_r27_checkpoint_pull_request",
+                    return_value=None,
+                ):
+                    with patch(
+                        "scripts.agents.guard._uncommitted_file_count",
+                        return_value=1,
+                    ):
+                        with redirect_stdout(output):
+                            guard.run_pretooluse(wrapped)
+        self.assertIn("R14", output.getvalue())
+        dynamic_output = io.StringIO()
+        dynamic = {
+            "tool_name": "functions.exec",
+            "tool_input": "const bad = 'git reset --hard HEAD~1'; "
+            "await tools.exec_command({cmd: bad});",
+            "cwd": ".",
+            "session_id": "wrapped-dynamic-command",
+        }
+        with patch(
+            "scripts.agents.guard.ledger_events",
+            return_value=list(guard.RESEARCH_PREFLIGHT_EVENTS),
+        ):
+            with patch("scripts.agents.guard.check_r19_fresh_base", return_value=None):
+                with patch(
+                    "scripts.agents.guard.check_r27_checkpoint_pull_request",
+                    return_value=None,
+                ):
+                    with redirect_stdout(dynamic_output):
+                        guard.run_pretooluse(dynamic)
+        self.assertIn("cannot inspect", dynamic_output.getvalue())
+        mixed_output = io.StringIO()
+        mixed = {
+            **dynamic,
+            "tool_input": 'await tools.exec_command({cmd:"echo safe"}); '
+            "const bad = 'git reset --hard HEAD~1'; "
+            "await tools.exec_command({cmd: bad});",
+        }
+        with patch(
+            "scripts.agents.guard.ledger_events",
+            return_value=list(guard.RESEARCH_PREFLIGHT_EVENTS),
+        ):
+            with patch("scripts.agents.guard.check_r19_fresh_base", return_value=None):
+                with patch(
+                    "scripts.agents.guard.check_r27_checkpoint_pull_request",
+                    return_value=None,
+                ):
+                    with redirect_stdout(mixed_output):
+                        guard.run_pretooluse(mixed)
+        self.assertIn("cannot inspect", mixed_output.getvalue())
+
+    def test_wrapped_functions_exec_command_maps_official_source(self):
+        self.assertEqual(
+            guard._research_preflight_events(
+                "functions.exec",
+                'const result = await tools.exec_command({cmd:"curl.exe --url '
+                'https://docs.python.org/3/library/json.html -o NUL"}); text(result);',
+                {"exit_code": 0},
+            ),
+            ("authoritative-online-research",),
+        )
+
+    def test_exec_command_maps_isolated_primary_source_fetch(self):
+        self.assertEqual(
+            guard._research_preflight_events(
+                "exec_command",
+                {
+                    "cmd": "curl.exe --url "
+                    "https://docs.python.org/3/library/json.html -o NUL"
+                },
+            ),
+            ("authoritative-online-research",),
+        )
+
+    def test_failed_current_host_research_calls_do_not_certify_success(self):
+        fixtures = (
+            (
+                "PowerShell",
+                {"command": "memory search guard"},
+                {"status": "failed", "exit_code": 1},
+            ),
+            (
+                "mcp__shaft-memory__search_memory",
+                {"query": "guard"},
+                {"isError": True},
+            ),
+            (
+                "web__run",
+                {"open": [{"ref_id": "https://docs.python.org/3/using/cmdline.html"}]},
+                {"status": "failed", "url": "https://docs.python.org/3/using/cmdline.html"},
+            ),
+        )
+        observed = []
+        with patch(
+            "scripts.agents.guard.ledger_record",
+            side_effect=lambda _payload, event: observed.append(event),
+        ):
+            for tool_name, tool_input, tool_response in fixtures:
+                guard.run_posttooluse(
+                    {
+                        "tool_name": tool_name,
+                        "tool_input": tool_input,
+                        "tool_response": tool_response,
+                    }
+                )
+        self.assertEqual(observed, [])
 
     def test_portable_hook_matchers_observe_receipt_and_mutation_tools(self):
         for relative in (".claude/settings.json", ".codex/hooks.json"):
@@ -675,10 +974,31 @@ class GuardLifecycleTest(unittest.TestCase):
                 for tool in ("Read", "WebSearch", "WebFetch", "update_plan", "apply_patch"):
                     self.assertIn(tool, text)
                 self.assertIn("PostToolUse", text)
+        codex = (Path(__file__).resolve().parents[2] / ".codex/hooks.json").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn("exec_command", codex)
+        self.assertIn("functions[.]exec", codex)
+        self.assertIn("shaft[-_]memory", codex)
+        hooks = json.loads(codex)["hooks"]
+        self.assertIn("functions[.]exec", hooks["PreToolUse"][0]["matcher"])
+        self.assertIn("functions[.]exec", hooks["PostToolUse"][0]["matcher"])
 
     def test_every_live_mutation_lane_requires_the_receipt(self):
         fixtures = (
             ("PowerShell", {"command": "Set-Content scripts/x.py changed"}),
+            ("exec_command", {"cmd": "Set-Content scripts/x.py changed"}),
+            ("functions.exec", 'const p = "x"; await tools.apply_patch(p);'),
+            (
+                "functions.exec",
+                'await tools.exec_command({cmd:"echo safe"}); '
+                "const bad = 'git reset --hard HEAD~1'; "
+                "await tools.exec_command({cmd: bad});",
+            ),
+            (
+                "mcp__shaft_memory__remember_memory",
+                {"content": "durable"},
+            ),
             ("PowerShell", {"command": "Clear-Content scripts/x.py"}),
             ("PowerShell", {"command": "Copy-Item source.txt scripts/x.py"}),
             ("PowerShell", {"command": "Rename-Item old.txt scripts/x.py"}),
@@ -715,6 +1035,18 @@ class GuardLifecycleTest(unittest.TestCase):
             self.assertIsNone(
                 guard.check_r25_research_before_implementation(outside, "apply_patch")
             )
+        wrapped = {
+            "cwd": ".",
+            "tool_input": 'const p = "patch"; await tools.apply_patch(p);',
+        }
+        with patch("scripts.agents.guard._current_branch", return_value="main"):
+            with patch(
+                "scripts.agents.guard._repository_root",
+                return_value=os.path.realpath("."),
+            ):
+                self.assertIsNotNone(
+                    guard.check_r19_fresh_base(wrapped, "functions.exec")
+                )
 
     def test_only_successful_post_tool_events_certify_research(self):
         payload = {
@@ -769,6 +1101,91 @@ class GuardLifecycleTest(unittest.TestCase):
         )
         self.assertNotIn("authoritative-online-research", generic)
         self.assertIn("authoritative-online-research", primary)
+        self.assertNotIn(
+            "authoritative-online-research",
+            guard._research_preflight_events(
+                "web__run",
+                {"open": [{"ref_id": "https://example.com/opinion"}]},
+                {"content": [{"type": "text", "text": "opened"}]},
+            ),
+        )
+        self.assertNotIn(
+            "authoritative-online-research",
+            guard._research_preflight_events(
+                "web__run",
+                {
+                    "search_query": [
+                        {"q": "discuss https://docs.python.org on example.com"}
+                    ]
+                },
+                {"results": [{"url": "https://example.com/opinion"}]},
+            ),
+        )
+        self.assertNotIn(
+            "authoritative-online-research",
+            guard._research_preflight_events(
+                "functions.exec",
+                "text('https://docs.python.org/3/library/json.html')",
+                {"output": "https://docs.python.org/3/library/json.html"},
+            ),
+        )
+        self.assertNotIn(
+            "authoritative-online-research",
+            guard._research_preflight_events(
+                "exec_command",
+                {
+                    "cmd": "curl.exe https://example.com -H "
+                    "'Referer: https://docs.python.org/3/library/json.html'"
+                },
+            ),
+        )
+        self.assertNotIn(
+            "query-native-memory",
+            guard._research_preflight_events(
+                "exec_command", {"cmd": "echo memory search guard"}
+            ),
+        )
+        self.assertNotIn(
+            "authoritative-online-research",
+            guard._research_preflight_events(
+                "functions.exec",
+                'await tools.exec_command({cmd:"curl.exe '
+                'https://docs.python.org/3/library/json.html"}); '
+                'await tools.exec_command({cmd:"echo complete"});',
+                {"exit_code": 0},
+            ),
+        )
+        for command in (
+            "curl.exe https://example.com -o https://docs.python.org/result",
+            "curl.exe https://example.com --proxy https://docs.python.org/proxy",
+            "curl.exe --url https://docs.python.org/3/library/json.html || true",
+        ):
+            with self.subTest(command=command):
+                self.assertNotIn(
+                    "authoritative-online-research",
+                    guard._research_preflight_events(
+                        "exec_command", {"cmd": command}
+                    ),
+                )
+        self.assertNotIn(
+            "authoritative-online-research",
+            guard._research_preflight_events(
+                "functions.exec",
+                "const result = await tools.web__run({open: [{ref_id: "
+                "'https://example.com/opinion'}]}); text(result);",
+                {"output": "https://example.com/opinion"},
+            ),
+        )
+        self.assertNotIn(
+            "authoritative-online-research",
+            guard._research_preflight_events(
+                "functions.exec",
+                "const result = await tools.web__run({open: [{ref_id: "
+                "'https://example.com/opinion'}]}); "
+                "text('https://docs.python.org/3/library/json.html');",
+                {"output": "https://docs.python.org/3/library/json.html"},
+            ),
+        )
 
     def test_shell_file_targets_share_main_and_outside_scoping(self):
         inside = {"cwd": ".", "tool_input": {"command": "Set-Content scripts/x.py x"}}
@@ -1253,6 +1670,132 @@ class RemediesAreNotBlockedByAnotherRuleTest(unittest.TestCase):
             reason = guard.check_r14_hard_reset("git reset --hard HEAD~1", "Bash", ".")
         self.assertIsNotNone(reason)
         self.assertNotIn("stash deliberately", reason)
+
+
+class HookJsonProtocolTest(unittest.TestCase):
+    """#4993: the host wire contract is one JSON object per hook invocation."""
+
+    @staticmethod
+    def invoke(payload: object) -> str:
+        raw = payload if isinstance(payload, str) else json.dumps(payload)
+        output = io.StringIO()
+        with patch("sys.stdin", io.StringIO(raw)):
+            with redirect_stdout(output):
+                try:
+                    guard.main([])
+                except Exception as error:
+                    return f"EXCEPTION:{type(error).__name__}\n"
+        return output.getvalue()
+
+    def test_main_emits_one_json_object_for_every_lifecycle_event(self):
+        callbacks = {
+            "SessionStart": "run_session_start",
+            "UserPromptSubmit": "run_user_prompt_submit",
+            "Stop": "run_stop",
+            "SubagentStop": "run_stop",
+            "PreToolUse": "run_pretooluse",
+            "PostToolUse": "run_posttooluse",
+        }
+        observed = []
+        for event, callback in callbacks.items():
+            with patch.object(guard, callback, return_value=0):
+                observed.append((event, self.invoke({"hook_event_name": event})))
+        decisions = (
+            (
+                "PreToolUse",
+                "run_pretooluse",
+                {"hookSpecificOutput": {"permissionDecision": "deny"}},
+            ),
+            (
+                "PreToolUse",
+                "run_pretooluse",
+                {"hookSpecificOutput": {"permissionDecision": "allow"}},
+            ),
+            ("Stop", "run_stop", {"decision": "block", "reason": "unfinished"}),
+            (
+                "SessionStart",
+                "run_session_start",
+                {"hookSpecificOutput": {"additionalContext": "ready"}},
+            ),
+        )
+        for event, callback, decision in decisions:
+            with patch.object(
+                guard, callback, side_effect=lambda *_args, value=decision: print(json.dumps(value))
+            ):
+                observed.append((event, self.invoke({"hook_event_name": event})))
+        expected = [(event, "{}\n") for event in callbacks]
+        expected.extend(
+            (event, json.dumps(decision, separators=(",", ":")) + "\n")
+            for event, _callback, decision in decisions
+        )
+        self.assertEqual(observed, expected)
+
+    def test_main_contains_invalid_callback_stdout_with_a_deny(self):
+        observed = []
+        for rendered in ("junk", "{}\n{}", "[]", '{"value":NaN}', '{"value":Infinity}'):
+            with patch.object(guard, "run_pretooluse", side_effect=lambda: None) as callback:
+                callback.side_effect = lambda *_args, value=rendered: print(value)
+                observed.append(
+                    self.invoke({"hook_event_name": "PreToolUse", "tool_name": "Write"})
+                )
+        with patch.object(guard, "run_pretooluse", side_effect=RuntimeError("crash")):
+            observed.append(
+                self.invoke({"hook_event_name": "PreToolUse", "tool_name": "Write"})
+            )
+        expected = json.dumps(
+            {
+                "hookSpecificOutput": {
+                    "hookEventName": "PreToolUse",
+                    "permissionDecision": "deny",
+                    "permissionDecisionReason": "Lifecycle hook produced invalid JSON output.",
+                }
+            },
+            separators=(",", ":"),
+        ) + "\n"
+        stop_outputs = []
+        for event in ("Stop", "SubagentStop"):
+            with patch.object(guard, "run_stop", side_effect=lambda *_args: print("junk")):
+                stop_outputs.append(self.invoke({"hook_event_name": event}))
+        observational_outputs = []
+        for event, callback in (
+            ("SessionStart", "run_session_start"),
+            ("PostToolUse", "run_posttooluse"),
+            ("UserPromptSubmit", "run_user_prompt_submit"),
+        ):
+            with patch.object(guard, callback, side_effect=lambda *_args: print("junk")):
+                observational_outputs.append(self.invoke({"hook_event_name": event}))
+        with patch.object(guard, "run_pretooluse", side_effect=lambda *_args: print("junk")):
+            grok = self.invoke({"hookEventName": "PreToolUse", "toolName": "Write"})
+        block = (
+            json.dumps(
+                {"decision": "block", "reason": "Lifecycle hook produced invalid JSON output."},
+                separators=(",", ":"),
+            )
+            + "\n"
+        )
+        grok_deny = (
+            json.dumps(
+                {"decision": "deny", "reason": "Lifecycle hook produced invalid JSON output."},
+                separators=(",", ":"),
+            )
+            + "\n"
+        )
+        self.assertEqual(
+            observed + stop_outputs + observational_outputs + [grok],
+            [expected] * 6 + [block] * 2 + ["{}\n"] * 3 + [grok_deny],
+        )
+
+    def test_main_frames_empty_malformed_nonobject_and_unknown_input(self):
+        recursive = self.invoke("[" * 20_000 + "0" + "]" * 20_000)
+        observed = [
+            self.invoke(""),
+            self.invoke("{"),
+            self.invoke("[]"),
+            self.invoke({"hook_event_name": "Unknown"}),
+            self.invoke({"hook_event_name": {"invalid": True}}),
+            recursive,
+        ]
+        self.assertEqual(observed, ["{}\n"] * 6)
 
 
 class HookBudgetTest(unittest.TestCase):

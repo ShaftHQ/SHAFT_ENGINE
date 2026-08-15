@@ -138,6 +138,7 @@ sends you there; the rest by
 - [work GitHub playbook](../../chaos-engine/references/work-github-playbook.md)
 - [work GitHub planning](../../chaos-engine/references/work-github-planning.md)
 - [graphify](../../chaos-engine/references/graphify.md)
+- [repository Graphify procedure](../../chaos-engine/profiles/shaft/references/graphify.md)
 - [TDD failure modes](../../chaos-engine/references/tdd-failure-modes.md)
 
 Caveman, Ponytail and the TDD cycle are not references — they live in the

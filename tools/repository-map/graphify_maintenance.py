@@ -173,6 +173,9 @@ def refresh(root: Path, graph_out: Path) -> None:
             raise ValueError(
                 "SHAFT_GRAPHIFY_OUT must match the refresh checkout graphify-out"
             )
+    resolver = Path(__file__).resolve().with_name("resolve_graph_out.py")
+    if not resolver.is_file():
+        raise ValueError(f"bundled Graphify resolver is absent: {resolver}")
     common_dir = require_primary_checkout(root)
     uv = shutil.which("uv")
     if uv is None:
@@ -198,7 +201,7 @@ def refresh(root: Path, graph_out: Path) -> None:
         run_stage("cluster", [uv, *graphify[1:], "cluster-only", "."], root)
         run_stage(
             "record",
-            [sys.executable, "tools/repository-map/resolve_graph_out.py", "--record-current"],
+            [sys.executable, str(resolver), "--record-current"],
             root,
         )
 

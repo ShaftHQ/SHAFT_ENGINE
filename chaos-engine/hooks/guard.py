@@ -98,23 +98,59 @@ def catastrophic_posix(command: str) -> bool:
     return bool(re.search(r": ?\(\)\s*\{", command))
 
 
+def wrapped_exec_commands(source: str) -> tuple[str, ...]:
+    commands: list[str] = []
+    for match in re.finditer(
+        r'''\btools\.exec_command\s*\(\s*\{.*?\b(?:cmd|command)\s*:\s*(?P<literal>"(?:\\.|[^"\\])*")''',
+        source,
+        re.DOTALL,
+    ):
+        try:
+            command = json.loads(match.group("literal"))
+        except (json.JSONDecodeError, ValueError):
+            continue
+        if isinstance(command, str) and command:
+            commands.append(command)
+    return tuple(commands)
+
+
+def wrapped_exec_call_count(source: str) -> int:
+    return len(re.findall(r"\btools\.exec_command\s*\(", source))
+
+
 def main() -> int:
     try:
         event = json.load(sys.stdin)
     except (json.JSONDecodeError, OSError):
         event = {}
     tool_input = event.get("tool_input", {}) if isinstance(event, dict) else {}
-    command = str(tool_input.get("command", "")) if isinstance(tool_input, dict) else ""
+    tool_name = str(event.get("tool_name", "")) if isinstance(event, dict) else ""
+    if isinstance(tool_input, dict):
+        command = str(tool_input.get("command") or tool_input.get("cmd") or "")
+        commands = (command,) if command else ()
+    elif tool_name == "functions.exec" and isinstance(tool_input, str):
+        commands = wrapped_exec_commands(tool_input)
+    else:
+        commands = ()
     event_name = str(event.get("hook_event_name", "")) if isinstance(event, dict) else ""
-    lowered = command.casefold()
-    destructive = (
-        catastrophic_posix(command)
-        or "git reset --hard" in lowered
+    uninspectable = (
+        tool_name == "functions.exec"
+        and isinstance(tool_input, str)
+        and wrapped_exec_call_count(tool_input) != len(commands)
+    )
+    destructive = uninspectable or any(
+        catastrophic_posix(candidate)
+        or "git reset --hard" in candidate.casefold()
         or (
-            "remove-item" in lowered
-            and "-recurse" in lowered
-            and (ROOT_DRIVE.search(command) is not None or "$home" in lowered or "~" in command)
+            "remove-item" in candidate.casefold()
+            and "-recurse" in candidate.casefold()
+            and (
+                ROOT_DRIVE.search(candidate) is not None
+                or "$home" in candidate.casefold()
+                or "~" in candidate
+            )
         )
+        for candidate in commands
     )
     if destructive:
         print(

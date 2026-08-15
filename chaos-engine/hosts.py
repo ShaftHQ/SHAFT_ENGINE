@@ -1405,8 +1405,8 @@ def desired_content(
     lifecycle_events = {
         "SessionStart": "startup|resume|clear|compact",
         "UserPromptSubmit": None,
-        "PreToolUse": "Bash|PowerShell|shell_command",
-        "PostToolUse": "Bash|PowerShell|shell_command",
+        "PreToolUse": "Bash|PowerShell|shell_command|exec_command|functions[.]exec",
+        "PostToolUse": "Bash|PowerShell|shell_command|exec_command|functions[.]exec",
         "Stop": None,
         "SubagentStop": None,
     }

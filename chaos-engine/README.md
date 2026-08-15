@@ -12,10 +12,10 @@
 
 # ChaosEngine
 
-ChaosEngine is a provider-neutral operating system for agentic software work,
-developed by Mohab Mohie. It gives an agent one canonical entrypoint for
-research, planning, implementation, verification, review, delivery, and
-learning—without tying the project to one model, client, or marketplace.
+ChaosEngine is a provider-neutral operating system for agentic software work.
+It gives an agent one canonical entrypoint for research, planning,
+implementation, verification, review, delivery, and learning—without tying the
+project to one model, client, marketplace, maintainer, or source repository.
 
 It is not a code generator or a replacement for a project's own engineering
 rules. It is the control layer that discovers those rules, routes each task to
@@ -219,5 +219,4 @@ reports, caches, runtime indexes, or `graphify-out/`.
 - [Research and adoption matrix](RESEARCH.md)
 - [Identity and brand rules](assets/brand/BRAND.md)
 
-ChaosEngine is developed by **Mohab Mohie** for rigorous, evidence-led software
-delivery. Gambaru.
+ChaosEngine supports rigorous, evidence-led software delivery. Gambaru.

@@ -13,6 +13,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 SCRIPT = ROOT / "tools/repository-map/resolve_graph_out.py"
+GRAPHIFY_GUIDANCE = ROOT / "chaos-engine/profiles/shaft/references/graphify.md"
 
 
 class ResolveGraphOutTest(unittest.TestCase):
@@ -186,9 +187,7 @@ class ResolveGraphOutTest(unittest.TestCase):
 
     def test_pr_gate_and_guidance_use_the_freshness_check(self):
         workflow = (ROOT / ".github/workflows/pr-gate.yml").read_text(encoding="utf-8")
-        guidance = (
-            ROOT / "chaos-engine/references/graphify.md"
-        ).read_text(encoding="utf-8")
+        guidance = GRAPHIFY_GUIDANCE.read_text(encoding="utf-8")
         readme = (ROOT / "tools/repository-map/README.md").read_text(encoding="utf-8")
 
         self.assertIn("tests.scripts.test_resolve_graph_out", workflow)
@@ -325,9 +324,7 @@ if (-not ($resolverOk -and $queryOk -and $auditOk)) {
         self.assertLess(audit, degraded)
 
     def test_missing_mcp_catalog_entry_cannot_bypass_the_graphify_cli_route(self):
-        guidance = (
-            ROOT / "chaos-engine/references/graphify.md"
-        ).read_text(encoding="utf-8")
+        guidance = GRAPHIFY_GUIDANCE.read_text(encoding="utf-8")
 
         self._assert_mandatory_graphify_cli_route(guidance)
 
@@ -375,9 +372,7 @@ if (-not ($resolverOk -and $queryOk -and $auditOk)) {
 
     def test_graphify_contention_degrades_without_shared_state_mutation(self):
         files = {
-            "graphify": (ROOT / "chaos-engine/references/graphify.md").read_text(
-                encoding="utf-8"
-            ),
+            "graphify": GRAPHIFY_GUIDANCE.read_text(encoding="utf-8"),
             "retrieval": (
                 ROOT / "chaos-engine/references/retrieve-first.md"
             ).read_text(encoding="utf-8"),
@@ -430,9 +425,7 @@ if (-not ($resolverOk -and $queryOk -and $auditOk)) {
                 )
 
     def test_graphify_cli_route_contract_rejects_bypass_mutations(self):
-        guidance = (
-            ROOT / "chaos-engine/references/graphify.md"
-        ).read_text(encoding="utf-8")
+        guidance = GRAPHIFY_GUIDANCE.read_text(encoding="utf-8")
         mutations = {
             "optional route": guidance.replace(
                 "The CLI route below is the controlling Graphify procedure",
@@ -476,9 +469,7 @@ if (-not ($resolverOk -and $queryOk -and $auditOk)) {
                     self._assert_mandatory_graphify_cli_route(mutation)
 
     def test_graphify_cli_route_precedence_resolves_lower_priority_conflicts(self):
-        guidance = (
-            ROOT / "chaos-engine/references/graphify.md"
-        ).read_text(encoding="utf-8")
+        guidance = GRAPHIFY_GUIDANCE.read_text(encoding="utf-8")
         conflicting_lower_priority_text = (
             guidance + "\nThe route is optional and the audit may be omitted.\n"
         )
@@ -489,9 +480,7 @@ if (-not ($resolverOk -and $queryOk -and $auditOk)) {
         powershell = shutil.which("pwsh") or shutil.which("powershell")
         if powershell is None:
             self.skipTest("PowerShell is unavailable")
-        guidance = (
-            ROOT / "chaos-engine/references/graphify.md"
-        ).read_text(encoding="utf-8")
+        guidance = GRAPHIFY_GUIDANCE.read_text(encoding="utf-8")
         flow = re.findall(r"```powershell\n(.*?)\n```", guidance, re.DOTALL)[0]
         flow = flow.replace("<bounded structural question>", "agent guidance callers")
 

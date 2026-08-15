@@ -199,6 +199,8 @@ class ChaosEngineInstallerTest(unittest.TestCase):
             self.assertNotIn("shaft", owned_text)
             self.assertNotIn("act-as-mohab", owned_paths)
             self.assertNotIn("act-as-mohab", owned_text)
+            self.assertNotIn("mohab", owned_paths)
+            self.assertNotIn("mohab", owned_text)
 
     def test_distribution_cannot_change_during_an_update(self):
         with tempfile.TemporaryDirectory() as temporary:
