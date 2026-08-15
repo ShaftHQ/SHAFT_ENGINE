@@ -1,5 +1,6 @@
 package com.shaft.mcp;
 
+import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 import com.shaft.driver.SHAFT;
 import com.shaft.doctor.model.CauseCategory;
@@ -34,28 +35,92 @@ class DoctorServiceTest {
     private final AiProviderRegistry registry = new AiProviderRegistry();
 
     @Test
-    void managedLocalAiStatusReturnsTheSharedLifecycleSnapshot(@TempDir Path temp) {
+    void managedLocalAiStatusReturnsTheSharedLifecycleSnapshot(@TempDir Path temp) throws Exception {
         ManagedLocalAiSnapshot expected = new ManagedLocalAiSnapshot(
                 ManagedLocalAiSnapshot.State.CORRUPT, "Clean the changed managed cache.",
-                temp.toAbsolutePath(), true, false, "auto", "qwen3-0.6b-q8_0", "windows-x86_64",
-                "llama.cpp", "b10400", "MIT", "runtime.zip", "a".repeat(64), "llama-server.exe",
-                10, ManagedLocalAiSnapshot.CacheHealth.CORRUPT, ManagedLocalAiSnapshot.CacheHealth.READY,
-                ManagedLocalAiSnapshot.Phase.IDLE, 0, 0, 4_000, 4, 8_000, Map.of("qwen3-0.6b-q8_0",
-                new ManagedLocalAiSnapshot.Model("Qwen3 0.6B", "lite", "Apache-2.0", "revision", "model.gguf",
-                        "b".repeat(64), false, true, List.of(), 2_000, 639_446_688)));
+                temp.resolve("private-cache-4927").toAbsolutePath(), true, false, "auto", "eligible-lite",
+                "private-platform-4927", "llama.cpp", "b10400", "MIT", "private-runtime-file-4927.zip",
+                "a".repeat(64), "private-runtime-executable-4927.exe", 1_010,
+                ManagedLocalAiSnapshot.CacheHealth.CORRUPT, ManagedLocalAiSnapshot.CacheHealth.READY,
+                ManagedLocalAiSnapshot.Phase.IDLE, 11, 22, 7_101_101_101L, 37, 7_202_202_202L,
+                Map.of(
+                        "eligible-lite", new ManagedLocalAiSnapshot.Model("Eligible Lite", "lite", "Apache-2.0",
+                                "eligible-revision", "private-eligible-file-4927.gguf", "b".repeat(64), true,
+                                true, List.of(), 7_303_303_303L, 2_020),
+                        "excluded-heavy", new ManagedLocalAiSnapshot.Model("Excluded Heavy", "heavy", "MIT",
+                                "excluded-revision", "private-excluded-file-4927.gguf", "c".repeat(64), false,
+                                false, List.of("insufficient-memory", "manual-only"), 7_404_404_404L, 3_030)));
         DoctorService service = new DoctorService(McpWorkspacePolicy.of(temp),
                 new McpDoctorRemediationService(), () -> expected);
 
         McpManagedLocalAiStatus actual = service.managedLocalAiStatus();
-        assertEquals("CORRUPT", actual.state());
-        assertEquals("SHAFT_USER_CACHE", actual.storageClass());
-        assertEquals("qwen3-0.6b-q8_0", actual.selectedModelId());
-        assertEquals("b10400", actual.runtimeVersion());
-        assertEquals(10, actual.runtimeArtifactBytes());
-        assertEquals("Apache-2.0", actual.models().get("qwen3-0.6b-q8_0").license());
-        assertEquals(639_446_688, actual.models().get("qwen3-0.6b-q8_0").artifactBytes());
-        assertFalse(actual.toString().contains(temp.toString()), "MCP status must not expose the absolute cache path");
-        assertFalse(actual.toString().contains("8000"), "MCP status must not expose exact host resource values");
+        ObjectMapper mapper = new ObjectMapper();
+        JsonNode wire = mapper.readTree(mapper.writeValueAsString(actual));
+
+        assertEquals(Set.of("state", "action", "enabled", "transparentProvisioning", "storageClass",
+                "requestedModelId", "selectedModelId", "runtimeId", "runtimeVersion", "runtimeLicense",
+                "runtimeArtifactBytes", "runtimeCacheHealth", "modelCacheHealth", "phase", "completedBytes",
+                "totalBytes", "eligibleModels", "modelExclusions", "models"), Set.copyOf(wire.propertyNames()));
+        assertEquals("CORRUPT", wire.path("state").asText());
+        assertEquals("Clean the changed managed cache.", wire.path("action").asText());
+        assertTrue(wire.path("enabled").asBoolean());
+        assertFalse(wire.path("transparentProvisioning").asBoolean());
+        assertEquals("SHAFT_USER_CACHE", wire.path("storageClass").asText());
+        assertEquals("auto", wire.path("requestedModelId").asText());
+        assertEquals("eligible-lite", wire.path("selectedModelId").asText());
+        assertEquals("llama.cpp", wire.path("runtimeId").asText());
+        assertEquals("b10400", wire.path("runtimeVersion").asText());
+        assertEquals("MIT", wire.path("runtimeLicense").asText());
+        assertEquals(1_010, wire.path("runtimeArtifactBytes").asLong());
+        assertEquals("CORRUPT", wire.path("runtimeCacheHealth").asText());
+        assertEquals("READY", wire.path("modelCacheHealth").asText());
+        assertEquals("IDLE", wire.path("phase").asText());
+        assertEquals(11, wire.path("completedBytes").asLong());
+        assertEquals(22, wire.path("totalBytes").asLong());
+        assertEquals(List.of("eligible-lite"), mapper.treeToValue(wire.path("eligibleModels"), List.class));
+        assertEquals(List.of("insufficient-memory", "manual-only"),
+                mapper.treeToValue(wire.path("modelExclusions").path("excluded-heavy"), List.class));
+
+        JsonNode eligible = wire.path("models").path("eligible-lite");
+        JsonNode excluded = wire.path("models").path("excluded-heavy");
+        Set<String> modelFields = Set.of("displayName", "tier", "license", "revision", "artifactBytes",
+                "automatic", "eligible", "reasons");
+        assertEquals(modelFields, Set.copyOf(eligible.propertyNames()));
+        assertEquals(modelFields, Set.copyOf(excluded.propertyNames()));
+        assertEquals("Eligible Lite", eligible.path("displayName").asText());
+        assertEquals("lite", eligible.path("tier").asText());
+        assertEquals("Apache-2.0", eligible.path("license").asText());
+        assertEquals("eligible-revision", eligible.path("revision").asText());
+        assertEquals(2_020, eligible.path("artifactBytes").asLong());
+        assertTrue(eligible.path("automatic").asBoolean());
+        assertTrue(eligible.path("eligible").asBoolean());
+        assertTrue(eligible.path("reasons").isEmpty());
+        assertEquals("Excluded Heavy", excluded.path("displayName").asText());
+        assertEquals("heavy", excluded.path("tier").asText());
+        assertEquals("MIT", excluded.path("license").asText());
+        assertEquals("excluded-revision", excluded.path("revision").asText());
+        assertEquals(3_030, excluded.path("artifactBytes").asLong());
+        assertFalse(excluded.path("automatic").asBoolean());
+        assertFalse(excluded.path("eligible").asBoolean());
+        assertEquals(List.of("insufficient-memory", "manual-only"),
+                mapper.treeToValue(excluded.path("reasons"), List.class));
+
+        String serialized = wire.toString();
+        for (String sensitiveValue : List.of("private-cache-4927", "private-platform-4927",
+                "private-runtime-file-4927.zip", "private-runtime-executable-4927.exe", "a".repeat(64),
+                "private-eligible-file-4927.gguf", "b".repeat(64), "private-excluded-file-4927.gguf",
+                "c".repeat(64), "7101101101", "37", "7202202202", "7303303303", "7404404404")) {
+            assertFalse(serialized.contains(sensitiveValue), () -> "MCP status exposed sensitive value: " + sensitiveValue);
+        }
+        for (String sensitiveField : Set.of("cacheDirectory", "platform", "runtimeAssetFile",
+                "runtimeAssetSha256", "runtimeExecutable", "effectiveMemoryBytes", "cpuCount", "freeDiskBytes")) {
+            assertFalse(wire.has(sensitiveField), () -> "MCP status exposed sensitive field: " + sensitiveField);
+        }
+        for (JsonNode model : wire.path("models")) {
+            for (String sensitiveField : Set.of("file", "sha256", "requiredDiskBytes")) {
+                assertFalse(model.has(sensitiveField), () -> "MCP model exposed sensitive field: " + sensitiveField);
+            }
+        }
     }
 
     @AfterEach
