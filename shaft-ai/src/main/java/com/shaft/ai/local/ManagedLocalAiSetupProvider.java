@@ -22,6 +22,7 @@ import com.shaft.infrastructure.SetupSelection;
 
 import java.io.IOException;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 import java.util.Objects;
@@ -56,6 +57,21 @@ public final class ManagedLocalAiSetupProvider implements SetupProvider {
     @Override
     public SetupPlan plan(SetupOptions options, SetupSelection selection, SetupOperation operation,
                           SetupPlatform platform, SetupArchitecture architecture) {
+        validatePlanRequest(options, selection, operation);
+        if (operation == SetupOperation.ROLLBACK) {
+            return planRollback(options, platform, architecture);
+        }
+        ManagedLocalAiSnapshot snapshot = operation == SetupOperation.INSTALL
+                ? inspectReviewed(options) : inspect(options);
+        if (operation == SetupOperation.INSTALL && snapshot.selectedModelId() == null) {
+            throw new IllegalStateException("Managed local AI cannot select a reviewed model: " + snapshot.action());
+        }
+        return artifactPlan(options, operation, platform, architecture, snapshot,
+                ManagedLocalAiManifest.loadDefault());
+    }
+
+    private static void validatePlanRequest(SetupOptions options, SetupSelection selection,
+                                            SetupOperation operation) {
         Objects.requireNonNull(selection, "selection");
         Objects.requireNonNull(operation, "operation");
         if (!selection.components().isEmpty()) {
@@ -64,26 +80,25 @@ public final class ManagedLocalAiSetupProvider implements SetupProvider {
         if (operation != SetupOperation.INSTALL && options.effectiveMode() != SetupMode.MANAGED) {
             throw new IllegalArgumentException(operation + " requires MANAGED mode for profile LOCAL_AI.");
         }
-        if (operation == SetupOperation.ROLLBACK) {
-            Lifecycle lifecycle = lifecycles.create(options);
-            ManagedLocalAiSnapshot snapshot = lifecycle.inspect();
-            requireCacheRoot(options, snapshot);
-            try {
-                ManagedLocalAiActivationHistory.Activation candidate = lifecycle.rollbackCandidate();
-                if (candidate == null) {
-                    throw new IllegalStateException("No reviewed managed local AI rollback candidate is available.");
-                }
-                return rollbackPlan(options, platform, architecture, candidate);
-            } catch (IOException failure) {
-                throw new IllegalStateException("Managed local AI rollback candidate cannot be inspected.", failure);
+    }
+
+    private SetupPlan planRollback(SetupOptions options, SetupPlatform platform, SetupArchitecture architecture) {
+        Lifecycle lifecycle = lifecycles.create(options);
+        requireCacheRoot(options, lifecycle.inspect());
+        try {
+            ManagedLocalAiActivationHistory.Activation candidate = lifecycle.rollbackCandidate();
+            if (candidate == null) {
+                throw new IllegalStateException("No reviewed managed local AI rollback candidate is available.");
             }
+            return rollbackPlan(options, platform, architecture, candidate);
+        } catch (IOException failure) {
+            throw new IllegalStateException("Managed local AI rollback candidate cannot be inspected.", failure);
         }
-        ManagedLocalAiSnapshot snapshot = operation == SetupOperation.INSTALL
-                ? inspectReviewed(options) : inspect(options);
-        if (operation == SetupOperation.INSTALL && snapshot.selectedModelId() == null) {
-            throw new IllegalStateException("Managed local AI cannot select a reviewed model: " + snapshot.action());
-        }
-        ManagedLocalAiManifest manifest = ManagedLocalAiManifest.loadDefault();
+    }
+
+    private static SetupPlan artifactPlan(SetupOptions options, SetupOperation operation,
+                                          SetupPlatform platform, SetupArchitecture architecture,
+                                          ManagedLocalAiSnapshot snapshot, ManagedLocalAiManifest manifest) {
         SetupActionKind kind = options.effectiveMode() == SetupMode.EXTERNAL
                 ? SetupActionKind.DIAGNOSE
                 : operation == SetupOperation.CLEAN ? SetupActionKind.CLEAN : SetupActionKind.INSTALL;
@@ -97,7 +112,7 @@ public final class ManagedLocalAiSetupProvider implements SetupProvider {
                 ? manifest.models()
                 : manifest.models().stream().filter(candidate -> candidate.id().equals(snapshot.selectedModelId()))
                 .toList();
-        java.util.ArrayList<SetupAction> actions = new java.util.ArrayList<>();
+        ArrayList<SetupAction> actions = new ArrayList<>();
         runtimes.forEach(runtime -> actions.add(new SetupAction(SetupTarget.MANAGED_LOCAL_AI_RUNTIME, kind,
                 manifest.runtime().version(), runtime.url(), "sha256:" + runtime.sha256(), runtime.size(), false,
                 runtimeLicenses)));
@@ -137,6 +152,17 @@ public final class ManagedLocalAiSetupProvider implements SetupProvider {
     @Override
     public SetupReceipt install(SetupPlan plan, SetupApproval approval, SetupOptions options,
                                 Consumer<SetupProgress> progress) throws IOException {
+        validateInstallRequest(plan, approval, options, progress);
+        ReviewedInstall reviewed = reviewInstall(plan, options);
+        return switch (reviewed.operation()) {
+            case ROLLBACK -> installRollback(plan, reviewed);
+            case CLEAN -> installClean(plan, reviewed);
+            case INSTALL -> installProvision(plan, options, progress, reviewed);
+        };
+    }
+
+    private static void validateInstallRequest(SetupPlan plan, SetupApproval approval, SetupOptions options,
+                                               Consumer<SetupProgress> progress) {
         Objects.requireNonNull(options, "options");
         Objects.requireNonNull(progress, "progress");
         if (plan.profile() != SetupProfile.LOCAL_AI || options.profile() != SetupProfile.LOCAL_AI
@@ -147,6 +173,9 @@ public final class ManagedLocalAiSetupProvider implements SetupProvider {
             throw new IllegalArgumentException("External local AI setup is diagnostic-only.");
         }
         SetupExecutor.validate(plan, approval);
+    }
+
+    private ReviewedInstall reviewInstall(SetupPlan plan, SetupOptions options) throws IOException {
         SetupOperation operation = SetupOperation.fromPlan(plan);
         Lifecycle lifecycle = lifecycles.create(options);
         ManagedLocalAiSnapshot initial = operation == SetupOperation.INSTALL
@@ -167,48 +196,69 @@ public final class ManagedLocalAiSetupProvider implements SetupProvider {
         if (!expected.equals(plan)) {
             throw new IllegalArgumentException("Managed local AI plan does not match the reviewed manifest and operation.");
         }
-        if (operation == SetupOperation.ROLLBACK) {
-            ManagedLocalAiSnapshot rolledBack;
-            try {
-                rolledBack = lifecycle.rollback(rollbackCandidate);
-            } catch (InterruptedException cancelled) {
-                Thread.currentThread().interrupt();
-                throw new IOException("Managed local AI rollback was interrupted.", cancelled);
-            } catch (Exception failure) {
-                if (failure instanceof IOException io) throw io;
-                throw new IOException("Managed local AI rollback failed.", failure);
-            }
-            if (!matches(rolledBack, rollbackCandidate)) {
-                throw new IOException("Managed local AI rollback completed without the reviewed active pair.");
-            }
-            return new SetupReceipt(plan.digest(), Instant.now(), plan.actions());
+        return new ReviewedInstall(operation, lifecycle, initial, rollbackCandidate);
+    }
+
+    private static SetupReceipt installRollback(SetupPlan plan, ReviewedInstall reviewed) throws IOException {
+        ManagedLocalAiSnapshot rolledBack;
+        try {
+            rolledBack = reviewed.lifecycle().rollback(reviewed.rollbackCandidate());
+        } catch (IOException failure) {
+            throw failure;
+        } catch (InterruptedException cancelled) {
+            Thread.currentThread().interrupt();
+            throw new IOException("Managed local AI rollback was interrupted.", cancelled);
+        } catch (Exception failure) {
+            throw new IOException("Managed local AI rollback failed.", failure);
         }
-        if (operation == SetupOperation.CLEAN) {
-            boolean cleaned;
-            try {
-                cleaned = lifecycle.clean();
-            } catch (InterruptedException cancelled) {
-                Thread.currentThread().interrupt();
-                throw new IOException("Managed local AI clean was interrupted.", cancelled);
-            } catch (Exception failure) {
-                if (failure instanceof IOException io) throw io;
-                throw new IOException("Managed local AI clean failed.", failure);
-            }
-            if (!cleaned) {
-                throw new IOException("Managed local AI clean preserved changed or unknown owned content; no receipt was created.");
-            }
-            return new SetupReceipt(plan.digest(), Instant.now(), plan.actions());
+        if (!matches(rolledBack, reviewed.rollbackCandidate())) {
+            throw new IOException("Managed local AI rollback completed without the reviewed active pair.");
         }
-        if (options.offline() && initial.state() != ManagedLocalAiSnapshot.State.READY) {
+        return receipt(plan);
+    }
+
+    private static SetupReceipt installClean(SetupPlan plan, ReviewedInstall reviewed) throws IOException {
+        boolean cleaned;
+        try {
+            cleaned = reviewed.lifecycle().clean();
+        } catch (IOException failure) {
+            throw failure;
+        } catch (InterruptedException cancelled) {
+            Thread.currentThread().interrupt();
+            throw new IOException("Managed local AI clean was interrupted.", cancelled);
+        } catch (Exception failure) {
+            throw new IOException("Managed local AI clean failed.", failure);
+        }
+        if (!cleaned) {
+            throw new IOException(
+                    "Managed local AI clean preserved changed or unknown owned content; no receipt was created.");
+        }
+        return receipt(plan);
+    }
+
+    private static SetupReceipt installProvision(SetupPlan plan, SetupOptions options,
+                                                 Consumer<SetupProgress> progress, ReviewedInstall reviewed)
+            throws IOException {
+        if (options.offline() && reviewed.initial().state() != ManagedLocalAiSnapshot.State.READY) {
             throw new IOException("Managed local AI is not ready and offline setup cannot download artifacts.");
         }
-        ManagedLocalAiSnapshot ready = await(lifecycle.provision(snapshot -> progress.accept(SetupProgress.of(
+        ManagedLocalAiSnapshot ready = await(reviewed.lifecycle().provision(
+                snapshot -> progress.accept(SetupProgress.of(
                 SetupProfile.LOCAL_AI, snapshot.phase().name(), snapshot.completedBytes(),
                 snapshot.totalBytes())), !options.offline()), options);
         if (ready.state() != ManagedLocalAiSnapshot.State.READY) {
             throw new IOException("Managed local AI provisioning completed without a ready installation.");
         }
+        return receipt(plan);
+    }
+
+    private static SetupReceipt receipt(SetupPlan plan) {
         return new SetupReceipt(plan.digest(), Instant.now(), plan.actions());
+    }
+
+    private record ReviewedInstall(SetupOperation operation, Lifecycle lifecycle,
+                                   ManagedLocalAiSnapshot initial,
+                                   ManagedLocalAiActivationHistory.Activation rollbackCandidate) {
     }
 
     private ManagedLocalAiSnapshot inspect(SetupOptions options) {

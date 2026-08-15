@@ -22,29 +22,114 @@ public final class ManagedLocalAiProcessSupervisor {
         if (arguments.length < 4) {
             System.exit(2);
         }
-        long parentPid = Long.parseLong(arguments[0]);
-        Instant parentStartedAt = Instant.parse(arguments[1]);
-        ProcessHandle parent = ProcessHandle.of(parentPid)
+        ParentIdentity identity = ParentIdentity.parse(arguments);
+        ProcessHandle parent = findParent(identity.parentPid(), identity.parentStartedAt());
+        if (parent != null) {
+            Invocation invocation = Invocation.parse(arguments);
+            new Ownership(parent, invocation.workingDirectory(), invocation.command()).run();
+        }
+    }
+
+    private static ProcessHandle findParent(long parentPid, Instant parentStartedAt) {
+        return ProcessHandle.of(parentPid)
                 .filter(ProcessHandle::isAlive)
                 .filter(candidate -> candidate.info().startInstant()
                         .map(parentStartedAt::equals)
                         .orElse(false))
                 .orElse(null);
-        if (parent == null) {
-            return;
+    }
+
+    private record ParentIdentity(long parentPid, Instant parentStartedAt) {
+        private static ParentIdentity parse(String[] arguments) {
+            try {
+                return new ParentIdentity(Long.parseLong(arguments[0]), Instant.parse(arguments[1]));
+            } catch (NumberFormatException invalidPid) {
+                throw new IllegalArgumentException("Managed local AI parent PID is invalid.", invalidPid);
+            }
         }
-        Path workingDirectory = validatedWorkingDirectory(arguments[2], arguments[3]);
-        List<String> command = new ArrayList<>(List.of(arguments).subList(3, arguments.length));
-        Object gate = new Object();
-        AtomicBoolean parentExited = new AtomicBoolean();
-        AtomicBoolean launchResolved = new AtomicBoolean();
-        AtomicReference<Process> child = new AtomicReference<>();
-        Set<ProcessHandle> retainedDescendants = java.util.concurrent.ConcurrentHashMap.newKeySet();
-        Thread monitor = Thread.ofVirtual().name("shaft-local-ai-parent-monitor").start(() -> {
-            parent.onExit().join();
-            terminateOnOwnerLoss(gate, parentExited, child, retainedDescendants);
-        });
-        Thread control = Thread.ofVirtual().name("shaft-local-ai-control-monitor").start(() -> {
+    }
+
+    private record Invocation(Path workingDirectory, List<String> command) {
+        private static Invocation parse(String[] arguments) throws java.io.IOException {
+            Path workingDirectory = validatedWorkingDirectory(arguments[2], arguments[3]);
+            List<String> command = List.copyOf(new ArrayList<>(List.of(arguments).subList(3, arguments.length)));
+            return new Invocation(workingDirectory, command);
+        }
+    }
+
+    private static final class Ownership {
+        private final ProcessHandle parent;
+        private final Path workingDirectory;
+        private final List<String> command;
+        private final Object gate = new Object();
+        private final AtomicBoolean parentExited = new AtomicBoolean();
+        private final AtomicBoolean launchResolved = new AtomicBoolean();
+        private final AtomicReference<Process> child = new AtomicReference<>();
+        private final Set<ProcessHandle> retainedDescendants =
+                java.util.concurrent.ConcurrentHashMap.newKeySet();
+        private Thread parentMonitor;
+        private Thread controlMonitor;
+        private Thread treeMonitor;
+
+        private Ownership(ProcessHandle parent, Path workingDirectory, List<String> command) {
+            this.parent = parent;
+            this.workingDirectory = workingDirectory;
+            this.command = command;
+        }
+
+        private void run() throws Exception {
+            startMonitors();
+            if (!launch()) {
+                return;
+            }
+            awaitChild();
+        }
+
+        private void startMonitors() {
+            parentMonitor = Thread.ofVirtual().name("shaft-local-ai-parent-monitor").start(() -> {
+                parent.onExit().join();
+                ownerLost();
+            });
+            controlMonitor = Thread.ofVirtual().name("shaft-local-ai-control-monitor").start(() -> {
+                awaitControlPipeClosure();
+                ownerLost();
+            });
+            treeMonitor = Thread.ofVirtual().name("shaft-local-ai-tree-monitor").start(this::monitorTree);
+        }
+
+        private boolean launch() throws java.io.IOException {
+            synchronized (gate) {
+                if (parentExited.get() || !parent.isAlive()) {
+                    launchResolved.set(true);
+                    return false;
+                }
+                ProcessBuilder builder = new ProcessBuilder(command).directory(workingDirectory.toFile())
+                        .redirectErrorStream(true);
+                builder.environment().remove("CLASSPATH");
+                builder.inheritIO();
+                try {
+                    child.set(builder.start());
+                    return true;
+                } finally {
+                    launchResolved.set(true);
+                }
+            }
+        }
+
+        private void awaitChild() throws InterruptedException {
+            try {
+                child.get().waitFor();
+            } finally {
+                parentMonitor.interrupt();
+                controlMonitor.interrupt();
+                synchronized (gate) {
+                    terminate(child.get(), Duration.ofSeconds(2), retainedDescendants);
+                }
+                treeMonitor.interrupt();
+            }
+        }
+
+        private void awaitControlPipeClosure() {
             try {
                 while (System.in.read() != -1) {
                     // The private control pipe carries no data; EOF revokes launch ownership.
@@ -52,9 +137,9 @@ public final class ManagedLocalAiProcessSupervisor {
             } catch (java.io.IOException ignored) {
                 // A broken control pipe has the same meaning as EOF.
             }
-            terminateOnOwnerLoss(gate, parentExited, child, retainedDescendants);
-        });
-        Thread treeMonitor = Thread.ofVirtual().name("shaft-local-ai-tree-monitor").start(() -> {
+        }
+
+        private void monitorTree() {
             while (true) {
                 Process current = child.get();
                 if (current != null) {
@@ -65,38 +150,24 @@ public final class ManagedLocalAiProcessSupervisor {
                 } else if (launchResolved.get()) {
                     return;
                 }
-                try {
-                    Thread.sleep(1);
-                } catch (InterruptedException interrupted) {
-                    Thread.currentThread().interrupt();
+                if (!pauseTreeMonitor()) {
                     return;
                 }
             }
-        });
-        synchronized (gate) {
-            if (parentExited.get() || !parent.isAlive()) {
-                launchResolved.set(true);
-                return;
-            }
-            ProcessBuilder builder = new ProcessBuilder(command).directory(workingDirectory.toFile())
-                    .redirectErrorStream(true);
-            builder.environment().remove("CLASSPATH");
-            builder.inheritIO();
+        }
+
+        private boolean pauseTreeMonitor() {
             try {
-                child.set(builder.start());
-            } finally {
-                launchResolved.set(true);
+                Thread.sleep(1);
+                return true;
+            } catch (InterruptedException interrupted) {
+                Thread.currentThread().interrupt();
+                return false;
             }
         }
-        try {
-            child.get().waitFor();
-        } finally {
-            monitor.interrupt();
-            control.interrupt();
-            synchronized (gate) {
-                terminate(child.get(), Duration.ofSeconds(2), retainedDescendants);
-            }
-            treeMonitor.interrupt();
+
+        private void ownerLost() {
+            terminateOnOwnerLoss(gate, parentExited, child, retainedDescendants);
         }
     }
 

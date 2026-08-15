@@ -85,27 +85,18 @@ class ManagedLocalAiProviderTest {
     }
 
     @Test
-    void productionLifecycleIsExecutable() throws Exception {
-        Class<?> lifecycleType = java.util.Arrays.stream(ManagedLocalAiProvider.class.getDeclaredClasses())
-                .filter(type -> type.getSimpleName().equals("ServiceLifecycle"))
-                .findFirst().orElseThrow();
-        var constructor = lifecycleType.getDeclaredConstructor(ManagedLocalAiService.class);
-        constructor.setAccessible(true);
-        Object lifecycle = constructor.newInstance(new ManagedLocalAiService());
-        var executable = lifecycleType.getDeclaredMethod("executable");
-        executable.setAccessible(true);
+    void productionLifecycleIsExecutable() {
+        var lifecycle = new ManagedLocalAiProvider.ServiceLifecycle(new ManagedLocalAiService());
 
-        assertTrue((boolean) executable.invoke(lifecycle));
+        assertTrue(lifecycle.executable());
     }
 
     @Test
-    void serviceLoadedProvidersShareOneProcessLifecycleOwner() throws Exception {
+    void serviceLoadedProvidersShareOneProcessLifecycleOwner() {
         ManagedLocalAiProvider first = new ManagedLocalAiProvider();
         ManagedLocalAiProvider second = new ManagedLocalAiProvider();
-        var lifecycle = ManagedLocalAiProvider.class.getDeclaredField("lifecycle");
-        lifecycle.setAccessible(true);
 
-        assertSame(lifecycle.get(first), lifecycle.get(second));
+        assertSame(first.lifecycle, second.lifecycle);
     }
 
     @Test
@@ -133,14 +124,12 @@ class ManagedLocalAiProviderTest {
         ManagedLocalAiService service = new ManagedLocalAiService(
                 () -> new ManagedLocalAiService.Settings(true, true, "test-model", temp.toString()),
                 host(), () -> manifest, provisioning);
-        Object lifecycle = serviceLifecycle(service);
-        var execute = lifecycle.getClass().getDeclaredMethod("execute", AiRequest.class);
-        execute.setAccessible(true);
+        var lifecycle = serviceLifecycle(service);
         AiRequest request = AiRequest.builder("provision-timeout", JsonNodeFactory.instance.objectNode())
                 .timeout(Duration.ofMillis(50)).build();
 
         try {
-            AiResponse response = (AiResponse) execute.invoke(lifecycle, request);
+            AiResponse response = lifecycle.execute(request);
             assertTrue(started.await(1, java.util.concurrent.TimeUnit.SECONDS));
             assertEquals(com.shaft.pilot.ai.AiResponseStatus.TIMEOUT, response.status());
             assertTrue(waitUntil(cancellationObserved, Duration.ofSeconds(1)),
@@ -174,15 +163,13 @@ class ManagedLocalAiProviderTest {
                     }
                     throw new InterruptedException("provisioning stopped");
                 });
-        Object lifecycle = serviceLifecycle(service);
-        var execute = lifecycle.getClass().getDeclaredMethod("execute", AiRequest.class);
-        execute.setAccessible(true);
+        var lifecycle = serviceLifecycle(service);
         AiRequest request = AiRequest.builder("preflight-timeout", JsonNodeFactory.instance.objectNode())
                 .timeout(Duration.ofMillis(200)).build();
         long started = System.nanoTime();
 
         try {
-            AiResponse response = (AiResponse) execute.invoke(lifecycle, request);
+            AiResponse response = lifecycle.execute(request);
             assertEquals(com.shaft.pilot.ai.AiResponseStatus.TIMEOUT, response.status());
             assertTrue(Duration.ofNanos(System.nanoTime() - started).toMillis() < 450,
                     "expired synchronous preflight must not be followed by a stale full wait");
@@ -206,16 +193,14 @@ class ManagedLocalAiProviderTest {
                     }
                     throw new InterruptedException("provisioning stopped");
                 });
-        Object lifecycle = serviceLifecycle(service);
-        var execute = lifecycle.getClass().getDeclaredMethod("execute", AiRequest.class);
-        execute.setAccessible(true);
+        var lifecycle = serviceLifecycle(service);
         AiRequest longRequest = AiRequest.builder("long", JsonNodeFactory.instance.objectNode())
                 .timeout(Duration.ofSeconds(1)).build();
         AiRequest shortRequest = AiRequest.builder("short", JsonNodeFactory.instance.objectNode())
                 .timeout(Duration.ofMillis(50)).build();
-        var first = java.util.concurrent.CompletableFuture.supplyAsync(() -> invoke(execute, lifecycle, longRequest));
+        var first = java.util.concurrent.CompletableFuture.supplyAsync(() -> invoke(lifecycle, longRequest));
         assertTrue(provisioningStarted.await(1, java.util.concurrent.TimeUnit.SECONDS));
-        var second = java.util.concurrent.CompletableFuture.supplyAsync(() -> invoke(execute, lifecycle, shortRequest));
+        var second = java.util.concurrent.CompletableFuture.supplyAsync(() -> invoke(lifecycle, shortRequest));
 
         try {
             Thread.sleep(150);
@@ -232,18 +217,14 @@ class ManagedLocalAiProviderTest {
     void failureCleanupUsesCurrentRequestBudgetInsteadOfPriorSessionBudget() throws Exception {
         ManagedLocalAiService service = new ManagedLocalAiService(
                 () -> { throw new IllegalStateException("inspection failed"); }, host());
-        Object lifecycle = serviceLifecycle(service);
-        var session = lifecycle.getClass().getDeclaredField("session");
-        session.setAccessible(true);
-        session.set(lifecycle, new ManagedLocalAiProcess.Session(
-                new SlowProcess(), 18181, "prior", "key", Duration.ofMillis(300)));
-        var execute = lifecycle.getClass().getDeclaredMethod("execute", AiRequest.class);
-        execute.setAccessible(true);
+        var lifecycle = serviceLifecycle(service);
+        lifecycle.session = new ManagedLocalAiProcess.Session(
+                new SlowProcess(), 18181, "prior", "key", Duration.ofMillis(300));
         AiRequest request = AiRequest.builder("short-cleanup", JsonNodeFactory.instance.objectNode())
                 .timeout(Duration.ofMillis(50)).build();
         long started = System.nanoTime();
 
-        AiResponse response = (AiResponse) execute.invoke(lifecycle, request);
+        AiResponse response = lifecycle.execute(request);
 
         assertEquals(com.shaft.pilot.ai.AiResponseStatus.PROVIDER_UNAVAILABLE, response.status());
         assertTrue(Duration.ofNanos(System.nanoTime() - started).toMillis() < 180,
@@ -258,13 +239,11 @@ class ManagedLocalAiProviderTest {
                     inspections.incrementAndGet();
                     return new ManagedLocalAiService.Settings(false, false, "auto", temp.toString());
                 }, host());
-        Object lifecycle = serviceLifecycle(service);
+        var lifecycle = serviceLifecycle(service);
         CloseAwareProcess process = new CloseAwareProcess();
-        var session = lifecycle.getClass().getDeclaredField("session");
-        session.setAccessible(true);
-        session.set(lifecycle, new ManagedLocalAiProcess.Session(
-                process, 18181, "prior", "key", Duration.ofMillis(100)));
-        ManagedLocalAiProvider provider = new ManagedLocalAiProvider((ManagedLocalAiProvider.Lifecycle) lifecycle);
+        lifecycle.session = new ManagedLocalAiProcess.Session(
+                process, 18181, "prior", "key", Duration.ofMillis(100));
+        ManagedLocalAiProvider provider = new ManagedLocalAiProvider(lifecycle);
 
         AiProviderAvailability availability = provider.availability();
 
@@ -277,13 +256,11 @@ class ManagedLocalAiProviderTest {
     void availabilityInspectionFailureRetiresAnIdleSession() throws Exception {
         ManagedLocalAiService service = new ManagedLocalAiService(
                 () -> { throw new IllegalStateException("settings unavailable"); }, host());
-        Object lifecycle = serviceLifecycle(service);
+        var lifecycle = serviceLifecycle(service);
         CloseAwareProcess process = new CloseAwareProcess();
-        var session = lifecycle.getClass().getDeclaredField("session");
-        session.setAccessible(true);
-        session.set(lifecycle, new ManagedLocalAiProcess.Session(
-                process, 18181, "prior", "key", Duration.ofMillis(100)));
-        ManagedLocalAiProvider provider = new ManagedLocalAiProvider((ManagedLocalAiProvider.Lifecycle) lifecycle);
+        lifecycle.session = new ManagedLocalAiProcess.Session(
+                process, 18181, "prior", "key", Duration.ofMillis(100));
+        ManagedLocalAiProvider provider = new ManagedLocalAiProvider(lifecycle);
 
         AiProviderAvailability availability = provider.availability();
 
@@ -295,15 +272,11 @@ class ManagedLocalAiProviderTest {
     void anotherThreadsUnavailableConfigurationDoesNotKillAnActiveRequest() throws Exception {
         ManagedLocalAiService service = new ManagedLocalAiService(
                 () -> new ManagedLocalAiService.Settings(false, false, "auto", temp.toString()), host());
-        Object lifecycle = serviceLifecycle(service);
+        var lifecycle = serviceLifecycle(service);
         CloseAwareProcess process = new CloseAwareProcess();
-        var session = lifecycle.getClass().getDeclaredField("session");
-        session.setAccessible(true);
-        session.set(lifecycle, new ManagedLocalAiProcess.Session(
-                process, 18181, "prior", "key", Duration.ofMillis(100)));
-        var lockField = lifecycle.getClass().getDeclaredField("executionLock");
-        lockField.setAccessible(true);
-        var lock = (java.util.concurrent.locks.ReentrantLock) lockField.get(lifecycle);
+        lifecycle.session = new ManagedLocalAiProcess.Session(
+                process, 18181, "prior", "key", Duration.ofMillis(100));
+        var lock = lifecycle.executionLock;
         var lockHeld = new java.util.concurrent.CountDownLatch(1);
         var release = new java.util.concurrent.CountDownLatch(1);
         var active = java.util.concurrent.CompletableFuture.runAsync(() -> {
@@ -318,7 +291,7 @@ class ManagedLocalAiProviderTest {
             }
         });
         assertTrue(lockHeld.await(1, java.util.concurrent.TimeUnit.SECONDS));
-        ManagedLocalAiProvider provider = new ManagedLocalAiProvider((ManagedLocalAiProvider.Lifecycle) lifecycle);
+        ManagedLocalAiProvider provider = new ManagedLocalAiProvider(lifecycle);
 
         try {
             assertFalse(provider.availability().available());
@@ -351,13 +324,11 @@ class ManagedLocalAiProviderTest {
                                          ignoredHost, cancelled, progress) -> {
                     throw new AssertionError("ready cache must not provision");
                 });
-        Object lifecycle = serviceLifecycle(service);
+        var lifecycle = serviceLifecycle(service);
         CloseAwareProcess process = new CloseAwareProcess();
-        var session = lifecycle.getClass().getDeclaredField("session");
-        session.setAccessible(true);
-        session.set(lifecycle, new ManagedLocalAiProcess.Session(
-                process, 18181, "test-model", "key", Duration.ofMillis(100)));
-        ManagedLocalAiProvider provider = new ManagedLocalAiProvider((ManagedLocalAiProvider.Lifecycle) lifecycle);
+        lifecycle.session = new ManagedLocalAiProcess.Session(
+                process, 18181, "test-model", "key", Duration.ofMillis(100));
+        ManagedLocalAiProvider provider = new ManagedLocalAiProvider(lifecycle);
 
         provider.execute(AiRequest.builder("changed-runtime", JsonNodeFactory.instance.objectNode())
                 .timeout(Duration.ofSeconds(3)).build());
@@ -416,8 +387,7 @@ class ManagedLocalAiProviderTest {
                 return expected;
             }
         };
-        ManagedLocalAiProvider provider = new ManagedLocalAiProvider(
-                (ManagedLocalAiProvider.Lifecycle) serviceLifecycle(service, runtime));
+        ManagedLocalAiProvider provider = new ManagedLocalAiProvider(serviceLifecycle(service, runtime));
 
         AiResponse actual = provider.execute(request);
         ManagedLocalAiSnapshot after = service.inspect();
@@ -449,13 +419,11 @@ class ManagedLocalAiProviderTest {
                     while (!cancelled.getAsBoolean()) Thread.sleep(5);
                     throw new InterruptedException("cancelled");
                 });
-        Object lifecycle = serviceLifecycle(service);
+        var lifecycle = serviceLifecycle(service);
         AsyncForceProcess process = new AsyncForceProcess();
-        var session = lifecycle.getClass().getDeclaredField("session");
-        session.setAccessible(true);
-        session.set(lifecycle, new ManagedLocalAiProcess.Session(
-                process, 18181, "prior", "key", Duration.ofMillis(300)));
-        ManagedLocalAiProvider provider = new ManagedLocalAiProvider((ManagedLocalAiProvider.Lifecycle) lifecycle);
+        lifecycle.session = new ManagedLocalAiProcess.Session(
+                process, 18181, "prior", "key", Duration.ofMillis(300));
+        ManagedLocalAiProvider provider = new ManagedLocalAiProvider(lifecycle);
         AiRequest request = AiRequest.builder("expired-cleanup", JsonNodeFactory.instance.objectNode())
                 .timeout(Duration.ofMillis(30)).build();
 
@@ -463,7 +431,7 @@ class ManagedLocalAiProviderTest {
 
         assertEquals(com.shaft.pilot.ai.AiResponseStatus.TIMEOUT, response.status());
         assertTrue(process.forceKillRequested);
-        assertSame(process, ((ManagedLocalAiProcess.Session) session.get(lifecycle)).process(),
+        assertSame(process, lifecycle.session.process(),
                 "a still-live process must retain a lifecycle owner");
     }
 
@@ -479,22 +447,12 @@ class ManagedLocalAiProviderTest {
                     while (!release.get() && !cancelled.getAsBoolean()) Thread.sleep(5);
                     throw new InterruptedException("stopped");
                 });
-        Object lifecycle = serviceLifecycle(service);
-        var execute = lifecycle.getClass().getDeclaredMethod("execute", AiRequest.class);
-        execute.setAccessible(true);
-        var close = lifecycle.getClass().getDeclaredMethod("closeSession");
-        close.setAccessible(true);
-        var active = java.util.concurrent.CompletableFuture.supplyAsync(() -> invoke(execute, lifecycle,
+        var lifecycle = serviceLifecycle(service);
+        var active = java.util.concurrent.CompletableFuture.supplyAsync(() -> invoke(lifecycle,
                 AiRequest.builder("active", JsonNodeFactory.instance.objectNode())
                         .timeout(Duration.ofSeconds(1)).build()));
         assertTrue(provisioningStarted.await(1, java.util.concurrent.TimeUnit.SECONDS));
-        var shutdown = java.util.concurrent.CompletableFuture.runAsync(() -> {
-            try {
-                close.invoke(lifecycle);
-            } catch (ReflectiveOperationException failure) {
-                throw new java.util.concurrent.CompletionException(failure);
-            }
-        });
+        var shutdown = java.util.concurrent.CompletableFuture.runAsync(lifecycle::shutdown);
 
         try {
             Thread.sleep(200);
@@ -508,26 +466,14 @@ class ManagedLocalAiProviderTest {
 
     @Test
     void shutdownLockTimeoutStillForceKillsExistingSession() throws Exception {
-        Object lifecycle = serviceLifecycle(new ManagedLocalAiService(
+        var lifecycle = serviceLifecycle(new ManagedLocalAiService(
                 () -> { throw new IllegalStateException("unused"); }, host()));
         DelayedExitProcess process = new DelayedExitProcess();
-        var session = lifecycle.getClass().getDeclaredField("session");
-        session.setAccessible(true);
-        session.set(lifecycle, new ManagedLocalAiProcess.Session(
-                process, 18181, "prior", "key", Duration.ofMillis(300)));
-        var lockField = lifecycle.getClass().getDeclaredField("executionLock");
-        lockField.setAccessible(true);
-        var lock = (java.util.concurrent.locks.ReentrantLock) lockField.get(lifecycle);
-        var close = lifecycle.getClass().getDeclaredMethod("closeSession");
-        close.setAccessible(true);
+        lifecycle.session = new ManagedLocalAiProcess.Session(
+                process, 18181, "prior", "key", Duration.ofMillis(300));
+        var lock = lifecycle.executionLock;
         lock.lock();
-        var shutdown = java.util.concurrent.CompletableFuture.runAsync(() -> {
-            try {
-                close.invoke(lifecycle);
-            } catch (ReflectiveOperationException failure) {
-                throw new java.util.concurrent.CompletionException(failure);
-            }
-        });
+        var shutdown = java.util.concurrent.CompletableFuture.runAsync(lifecycle::shutdown);
 
         try {
             shutdown.get(3, java.util.concurrent.TimeUnit.SECONDS);
@@ -543,30 +489,18 @@ class ManagedLocalAiProviderTest {
 
     @Test
     void shutdownFallbackDoesNotWaitForConcurrentSessionCleanup() throws Exception {
-        Object lifecycle = serviceLifecycle(new ManagedLocalAiService(
+        var lifecycle = serviceLifecycle(new ManagedLocalAiService(
                 () -> { throw new IllegalStateException("unused"); }, host()));
         BlockingCloseProcess process = new BlockingCloseProcess();
         ManagedLocalAiProcess.Session owned = new ManagedLocalAiProcess.Session(
                 process, 18181, "prior", "key", Duration.ofSeconds(5));
-        var session = lifecycle.getClass().getDeclaredField("session");
-        session.setAccessible(true);
-        session.set(lifecycle, owned);
-        var lockField = lifecycle.getClass().getDeclaredField("executionLock");
-        lockField.setAccessible(true);
-        var lock = (java.util.concurrent.locks.ReentrantLock) lockField.get(lifecycle);
-        var close = lifecycle.getClass().getDeclaredMethod("closeSession");
-        close.setAccessible(true);
+        lifecycle.session = owned;
+        var lock = lifecycle.executionLock;
         var requestCleanup = java.util.concurrent.CompletableFuture.runAsync(() ->
                 owned.close(Duration.ofSeconds(5), new IllegalStateException("request cleanup")));
         assertTrue(process.destroyEntered.await(1, java.util.concurrent.TimeUnit.SECONDS));
         lock.lock();
-        var shutdown = java.util.concurrent.CompletableFuture.runAsync(() -> {
-            try {
-                close.invoke(lifecycle);
-            } catch (ReflectiveOperationException failure) {
-                throw new java.util.concurrent.CompletionException(failure);
-            }
-        });
+        var shutdown = java.util.concurrent.CompletableFuture.runAsync(lifecycle::shutdown);
 
         try {
             Thread.sleep(2_500);
@@ -589,11 +523,9 @@ class ManagedLocalAiProviderTest {
             inspections.incrementAndGet();
             return new ManagedLocalAiService.Settings(false, false, "auto", temp.toString());
         }, host());
-        Object lifecycle = serviceLifecycle(service);
-        var close = lifecycle.getClass().getDeclaredMethod("closeSession");
-        close.setAccessible(true);
-        close.invoke(lifecycle);
-        ManagedLocalAiProvider provider = new ManagedLocalAiProvider((ManagedLocalAiProvider.Lifecycle) lifecycle);
+        var lifecycle = serviceLifecycle(service);
+        lifecycle.shutdown();
+        ManagedLocalAiProvider provider = new ManagedLocalAiProvider(lifecycle);
 
         provider.execute(AiRequest.builder("after-shutdown", JsonNodeFactory.instance.objectNode()).build());
 
@@ -634,29 +566,19 @@ class ManagedLocalAiProviderTest {
                                      ignoredHost, cancelled, progress) -> {
             throw new AssertionError("ready cache must not provision");
         });
-        Object lifecycle = serviceLifecycle(service);
-        var execute = lifecycle.getClass().getDeclaredMethod("execute", AiRequest.class);
-        execute.setAccessible(true);
-        var close = lifecycle.getClass().getDeclaredMethod("closeSession");
-        close.setAccessible(true);
-        var active = java.util.concurrent.CompletableFuture.supplyAsync(() -> invoke(execute, lifecycle,
+        var lifecycle = serviceLifecycle(service);
+        var active = java.util.concurrent.CompletableFuture.supplyAsync(() -> invoke(lifecycle,
                 AiRequest.builder("shutdown-race", JsonNodeFactory.instance.objectNode())
                         .timeout(Duration.ofSeconds(10)).build()));
         assertTrue(inspectionStarted.await(1, java.util.concurrent.TimeUnit.SECONDS));
 
-        var shutdown = java.util.concurrent.CompletableFuture.runAsync(() -> {
-            try {
-                close.invoke(lifecycle);
-            } catch (ReflectiveOperationException failure) {
-                throw new java.util.concurrent.CompletionException(failure);
-            }
-        });
+        var shutdown = java.util.concurrent.CompletableFuture.runAsync(lifecycle::shutdown);
         shutdown.get(3, java.util.concurrent.TimeUnit.SECONDS);
         releaseInspection.countDown();
         AiResponse response = active.get(2, java.util.concurrent.TimeUnit.SECONDS);
 
         assertEquals(com.shaft.pilot.ai.AiResponseStatus.PROVIDER_UNAVAILABLE, response.status());
-        assertFalse(java.nio.file.Files.exists(cache.resolve("staging/logs")),
+        assertFalse(Files.exists(cache.resolve("staging/logs")),
                 "an execution released after shutdown must not begin a process launch");
     }
 
@@ -664,48 +586,30 @@ class ManagedLocalAiProviderTest {
     void exitedParentWithLiveDescendantRetainsLifecycleOwnership() throws Exception {
         ManagedLocalAiService service = new ManagedLocalAiService(
                 () -> { throw new IllegalStateException("inspection failed"); }, host());
-        Object lifecycle = serviceLifecycle(service);
+        var lifecycle = serviceLifecycle(service);
         ParentExitProcess process = new ParentExitProcess();
-        var session = lifecycle.getClass().getDeclaredField("session");
-        session.setAccessible(true);
-        session.set(lifecycle, new ManagedLocalAiProcess.Session(
-                process, 18181, "prior", "key", Duration.ZERO));
+        lifecycle.session = new ManagedLocalAiProcess.Session(process, 18181, "prior", "key", Duration.ZERO);
         process.alive = false;
-        ManagedLocalAiProvider provider = new ManagedLocalAiProvider((ManagedLocalAiProvider.Lifecycle) lifecycle);
+        ManagedLocalAiProvider provider = new ManagedLocalAiProvider(lifecycle);
 
         provider.execute(AiRequest.builder("descendant-cleanup", JsonNodeFactory.instance.objectNode()).build());
 
         assertTrue(process.descendant.forceKillRequested);
-        assertTrue(session.get(lifecycle) != null,
+        assertTrue(lifecycle.session != null,
                 "a surviving descendant must keep the session under lifecycle ownership");
     }
 
-    private AiResponse invoke(java.lang.reflect.Method execute, Object lifecycle, AiRequest request) {
-        try {
-            return (AiResponse) execute.invoke(lifecycle, request);
-        } catch (ReflectiveOperationException failure) {
-            throw new java.util.concurrent.CompletionException(failure);
-        }
+    private AiResponse invoke(ManagedLocalAiProvider.ServiceLifecycle lifecycle, AiRequest request) {
+        return lifecycle.execute(request);
     }
 
-    private Object serviceLifecycle(ManagedLocalAiService service) throws Exception {
-        Class<?> lifecycleType = java.util.Arrays.stream(ManagedLocalAiProvider.class.getDeclaredClasses())
-                .filter(type -> type.getSimpleName().equals("ServiceLifecycle"))
-                .findFirst().orElseThrow();
-        var constructor = lifecycleType.getDeclaredConstructor(ManagedLocalAiService.class);
-        constructor.setAccessible(true);
-        return constructor.newInstance(service);
+    private ManagedLocalAiProvider.ServiceLifecycle serviceLifecycle(ManagedLocalAiService service) {
+        return new ManagedLocalAiProvider.ServiceLifecycle(service);
     }
 
-    private Object serviceLifecycle(ManagedLocalAiService service, ManagedLocalAiProvider.RuntimeClient runtime)
-            throws Exception {
-        Class<?> lifecycleType = java.util.Arrays.stream(ManagedLocalAiProvider.class.getDeclaredClasses())
-                .filter(type -> type.getSimpleName().equals("ServiceLifecycle"))
-                .findFirst().orElseThrow();
-        var constructor = lifecycleType.getDeclaredConstructor(
-                ManagedLocalAiService.class, ManagedLocalAiProvider.RuntimeClient.class);
-        constructor.setAccessible(true);
-        return constructor.newInstance(service, runtime);
+    private ManagedLocalAiProvider.ServiceLifecycle serviceLifecycle(ManagedLocalAiService service,
+                                                                      ManagedLocalAiProvider.RuntimeClient runtime) {
+        return new ManagedLocalAiProvider.ServiceLifecycle(service, runtime);
     }
 
     private boolean waitUntil(AtomicBoolean value, Duration timeout) throws InterruptedException {
@@ -734,9 +638,9 @@ class ManagedLocalAiProviderTest {
 
     private Path readyStage(Path cache, String prefix, String fileName, String content) throws Exception {
         Path stage = cache.resolve("staging/" + prefix + ".extract-test");
-        java.nio.file.Files.createDirectories(stage);
-        java.nio.file.Files.writeString(stage.resolve(fileName), content);
-        java.nio.file.Files.writeString(stage.resolve(".shaft-ready"), "");
+        Files.createDirectories(stage);
+        Files.writeString(stage.resolve(fileName), content);
+        Files.writeString(stage.resolve(".shaft-ready"), "");
         return stage;
     }
 

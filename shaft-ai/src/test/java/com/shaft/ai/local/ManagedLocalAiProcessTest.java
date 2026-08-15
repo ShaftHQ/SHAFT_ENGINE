@@ -49,6 +49,16 @@ class ManagedLocalAiProcessTest {
     }
 
     @Test
+    void supervisorRejectsMalformedParentIdentityBeforeLaunching() {
+        IllegalArgumentException failure = assertThrows(IllegalArgumentException.class,
+                () -> ManagedLocalAiProcessSupervisor.main(new String[]{
+                        "not-a-pid", java.time.Instant.EPOCH.toString(), temp.toAbsolutePath().toString(),
+                        temp.resolve("must-not-start").toString()}));
+
+        assertTrue(failure.getMessage().contains("parent PID"));
+    }
+
+    @Test
     void supervisorTerminatesPublishedChildWhenItsParentExits() throws Exception {
         Path helper = sleepingProcessJar();
         Path parentMarker = temp.resolve("parent.pid");
@@ -211,9 +221,9 @@ class ManagedLocalAiProcessTest {
         java.util.concurrent.CountDownLatch sampled = new java.util.concurrent.CountDownLatch(1);
 
         IllegalStateException failure = assertThrows(IllegalStateException.class,
-                () -> ManagedLocalAiProcess.launchManaged(cache, runtime.root().resolve("server"),
+                () -> ManagedLocalAiProcess.launchManaged(launchRequest(cache, runtime.root().resolve("server"),
                         model.root().resolve("model.gguf"), cache.resolve("staging/logs/rss-startup.log"),
-                        "expected", 2, Duration.ofSeconds(1), () -> false,
+                        new ManagedLocalAiProcess.RuntimeSpec("expected", 2), Duration.ofSeconds(1)),
                         (ignoredProcess, ignoredDescendants) -> {
                             sampled.countDown();
                             throw new IOException("inventory unavailable");
@@ -243,9 +253,9 @@ class ManagedLocalAiProcessTest {
         var releaseSample = new java.util.concurrent.CountDownLatch(1);
         var launch = java.util.concurrent.CompletableFuture.supplyAsync(() -> {
             try {
-                return ManagedLocalAiProcess.launchManaged(cache, runtime.root().resolve("server"),
+                return ManagedLocalAiProcess.launchManaged(launchRequest(cache, runtime.root().resolve("server"),
                         model.root().resolve("model.gguf"), cache.resolve("staging/logs/rss-first-sample.log"),
-                        "expected", 2, Duration.ofSeconds(2), () -> false,
+                        new ManagedLocalAiProcess.RuntimeSpec("expected", 2), Duration.ofSeconds(2)),
                         (ignoredProcess, ignoredDescendants) -> {
                             sampleEntered.countDown();
                             assertTrue(releaseSample.await(1, TimeUnit.SECONDS));
@@ -282,9 +292,10 @@ class ManagedLocalAiProcessTest {
 
         try {
             assertThrows(IllegalStateException.class,
-                    () -> unexpected.set(ManagedLocalAiProcess.launchManaged(cache, runtime.root().resolve("server"),
-                            model.root().resolve("model.gguf"), cache.resolve("staging/logs/rss-first-timeout.log"),
-                            "expected", 2, Duration.ofMillis(100), () -> false,
+                    () -> unexpected.set(ManagedLocalAiProcess.launchManaged(launchRequest(
+                            cache, runtime.root().resolve("server"), model.root().resolve("model.gguf"),
+                            cache.resolve("staging/logs/rss-first-timeout.log"),
+                            new ManagedLocalAiProcess.RuntimeSpec("expected", 2), Duration.ofMillis(100)),
                             (ignoredProcess, ignoredDescendants) -> {
                                 neverRelease.await();
                                 return 1;
@@ -334,9 +345,9 @@ class ManagedLocalAiProcessTest {
         var releaseFirst = new java.util.concurrent.CountDownLatch(1);
         var first = java.util.concurrent.CompletableFuture.supplyAsync(() -> {
             try {
-                return ManagedLocalAiProcess.launch(cache, runtime.root().resolve("server"),
+                return ManagedLocalAiProcess.launch(launchRequest(cache, runtime.root().resolve("server"),
                         model.root().resolve("model.gguf"), cache.resolve("staging/logs/first-queued.log"),
-                        "expected", 2, Duration.ofSeconds(1),
+                        new ManagedLocalAiProcess.RuntimeSpec("expected", 2), Duration.ofSeconds(1)),
                         (command, environment, log) -> {
                             firstStarted.countDown();
                             releaseFirst.await();
@@ -351,9 +362,9 @@ class ManagedLocalAiProcessTest {
                 .execute(releaseFirst::countDown);
 
         assertThrows(ManagedLocalAiProcess.DeadlineExceededException.class,
-                () -> ManagedLocalAiProcess.launch(cache, runtime.root().resolve("server"),
+                () -> ManagedLocalAiProcess.launch(launchRequest(cache, runtime.root().resolve("server"),
                         model.root().resolve("model.gguf"), cache.resolve("staging/logs/second-queued.log"),
-                        "expected", 2, Duration.ofMillis(50),
+                        new ManagedLocalAiProcess.RuntimeSpec("expected", 2), Duration.ofMillis(50)),
                         (command, environment, log) -> new FakeProcess(null),
                         (process, port, key, alias, timeout) -> { }));
 
@@ -382,9 +393,9 @@ class ManagedLocalAiProcessTest {
         ManagedLocalAiProcess.Session session = null;
 
         try {
-            session = ManagedLocalAiProcess.launch(cache, runtime.root().resolve("server"),
+            session = ManagedLocalAiProcess.launch(launchRequest(cache, runtime.root().resolve("server"),
                     model.root().resolve("model.gguf"), cache.resolve("staging/logs/port-theft.log"),
-                    "expected-alias", 2, Duration.ofSeconds(3),
+                    new ManagedLocalAiProcess.RuntimeSpec("expected-alias", 2), Duration.ofSeconds(3)),
                     (command, environment, log) -> ManagedLocalAiProcess.start(
                             childRuntimeCommand("expected-alias"), environment, log),
                     (process, port, key, alias, timeout) -> ManagedLocalAiProcess.requireIdentity(
@@ -446,8 +457,9 @@ class ManagedLocalAiProcessTest {
         ManagedLocalAiProcess.Session session = null;
 
         try {
-            session = ManagedLocalAiProcess.launch(cache, runtime.root().resolve("server"),
-                    model.root().resolve("model.gguf"), log, "expected-alias", 2, Duration.ofSeconds(3),
+            session = ManagedLocalAiProcess.launch(launchRequest(cache, runtime.root().resolve("server"),
+                    model.root().resolve("model.gguf"), log,
+                    new ManagedLocalAiProcess.RuntimeSpec("expected-alias", 2), Duration.ofSeconds(3)),
                     (command, environment, ignored) -> ManagedLocalAiProcess.start(
                             childRuntimeCommand("expected-alias"), environment, log),
                     (process, port, key, alias, timeout) -> ManagedLocalAiProcess.requireIdentity(
@@ -477,9 +489,10 @@ class ManagedLocalAiProcessTest {
                 () -> ManagedLocalAiCache.adopt(cache, "model-clean-live",
                         readyStage(cache, "model-clean-live", "model.gguf", "weights")));
         FakeProcess process = new FakeProcess(null, "srv  llama_server: listening on http://127.0.0.1:19191\n");
-        ManagedLocalAiProcess.Session session = ManagedLocalAiProcess.launch(cache,
+        ManagedLocalAiProcess.Session session = ManagedLocalAiProcess.launch(launchRequest(cache,
                 runtime.root().resolve("server"), model.root().resolve("model.gguf"),
-                cache.resolve("staging/logs/clean-live.log"), "expected", 2, Duration.ofSeconds(1),
+                cache.resolve("staging/logs/clean-live.log"),
+                new ManagedLocalAiProcess.RuntimeSpec("expected", 2), Duration.ofSeconds(1)),
                 (command, environment, log) -> process,
                 (started, port, key, alias, timeout) -> { });
         ManagedLocalAiService service = new ManagedLocalAiService(
@@ -525,9 +538,10 @@ class ManagedLocalAiProcessTest {
         FakeProcess process = new FakeProcess(null, "srv  llama_server: listening on http://127.0.0.1:19191\n");
         var launch = java.util.concurrent.CompletableFuture.supplyAsync(() -> {
             try {
-                return ManagedLocalAiProcess.launch(cache, runtime.root().resolve("server"),
+                return ManagedLocalAiProcess.launch(launchRequest(cache, runtime.root().resolve("server"),
                         model.root().resolve("model.gguf"), cache.resolve("staging/logs/clean-race.log"),
-                        "expected", 2, Duration.ofSeconds(3), (command, environment, log) -> {
+                        new ManagedLocalAiProcess.RuntimeSpec("expected", 2), Duration.ofSeconds(3)),
+                        (command, environment, log) -> {
                             startEntered.countDown();
                             releaseStart.await();
                             return process;
@@ -585,9 +599,10 @@ class ManagedLocalAiProcessTest {
                         readyStage(cache, "model-missing-port", "model.gguf", "weights")));
         AtomicBoolean identityCalled = new AtomicBoolean();
 
-        assertThrows(IllegalStateException.class, () -> ManagedLocalAiProcess.launch(cache,
+        assertThrows(IllegalStateException.class, () -> ManagedLocalAiProcess.launch(launchRequest(cache,
                 runtime.root().resolve("server"), model.root().resolve("model.gguf"),
-                cache.resolve("staging/logs/missing-port.log"), "expected", 2, Duration.ofMillis(300),
+                cache.resolve("staging/logs/missing-port.log"),
+                new ManagedLocalAiProcess.RuntimeSpec("expected", 2), Duration.ofMillis(300)),
                 (command, environment, log) -> new FakeProcess(null),
                 (process, port, key, alias, timeout) -> {
                     identityCalled.set(true);
@@ -607,9 +622,10 @@ class ManagedLocalAiProcessTest {
                 () -> ManagedLocalAiCache.adopt(cache, "model-oversized-port",
                         readyStage(cache, "model-oversized-port", "model.gguf", "weights")));
 
-        IllegalStateException failure = assertThrows(IllegalStateException.class, () -> ManagedLocalAiProcess.launch(
-                cache, runtime.root().resolve("server"), model.root().resolve("model.gguf"),
-                cache.resolve("staging/logs/oversized-port.log"), "expected", 2, Duration.ofMillis(300),
+        IllegalStateException failure = assertThrows(IllegalStateException.class,
+                () -> ManagedLocalAiProcess.launch(launchRequest(cache, runtime.root().resolve("server"),
+                model.root().resolve("model.gguf"), cache.resolve("staging/logs/oversized-port.log"),
+                new ManagedLocalAiProcess.RuntimeSpec("expected", 2), Duration.ofMillis(300)),
                 (command, environment, log) -> new FakeProcess(null,
                         "srv  llama_server: listening on http://127.0.0.1:999999999999999999999999\n"),
                 (process, port, key, alias, timeout) -> { }));
@@ -628,9 +644,10 @@ class ManagedLocalAiProcessTest {
                         readyStage(cache, "model-negated-port", "model.gguf", "weights")));
         AtomicBoolean identityCalled = new AtomicBoolean();
 
-        assertThrows(IllegalStateException.class, () -> ManagedLocalAiProcess.launch(cache,
+        assertThrows(IllegalStateException.class, () -> ManagedLocalAiProcess.launch(launchRequest(cache,
                 runtime.root().resolve("server"), model.root().resolve("model.gguf"),
-                cache.resolve("staging/logs/negated-port.log"), "expected", 2, Duration.ofMillis(300),
+                cache.resolve("staging/logs/negated-port.log"),
+                new ManagedLocalAiProcess.RuntimeSpec("expected", 2), Duration.ofMillis(300)),
                 (command, environment, log) -> new FakeProcess(null,
                         "server: not listening on http://127.0.0.1:19191\n"
                                 + "warning: foreign process: listening on http://127.0.0.1:19192\n"
@@ -652,9 +669,10 @@ class ManagedLocalAiProcessTest {
         ManagedLocalAiCache.Installation model = ManagedLocalAiCache.withLock(cache, Duration.ofSeconds(1),
                 () -> ManagedLocalAiCache.adopt(cache, "model-thread-identity",
                         readyStage(cache, "model-thread-identity", "model.gguf", "weights")));
-        ManagedLocalAiProcess.Session session = ManagedLocalAiProcess.launch(cache,
+        ManagedLocalAiProcess.Session session = ManagedLocalAiProcess.launch(launchRequest(cache,
                 runtime.root().resolve("server"), model.root().resolve("model.gguf"),
-                cache.resolve("staging/logs/thread-identity.log"), "expected", 2, Duration.ofSeconds(1),
+                cache.resolve("staging/logs/thread-identity.log"),
+                new ManagedLocalAiProcess.RuntimeSpec("expected", 2), Duration.ofSeconds(1)),
                 (command, environment, log) -> new FakeProcess(null,
                         "srv  llama_server: listening on http://127.0.0.1:19191\n"),
                 (process, port, key, alias, timeout) -> { });
@@ -684,9 +702,9 @@ class ManagedLocalAiProcessTest {
         FakeProcess process = new FakeProcess(null, "srv  llama_server: listening on http://127.0.0.1:19191\n");
         var launch = java.util.concurrent.CompletableFuture.runAsync(() -> {
             try {
-                ManagedLocalAiProcess.launch(cache, runtime.root().resolve("server"),
+                ManagedLocalAiProcess.launch(launchRequest(cache, runtime.root().resolve("server"),
                         model.root().resolve("model.gguf"), cache.resolve("staging/logs/start-publication.log"),
-                        "expected", 2, Duration.ofSeconds(3), cancelled::get,
+                        new ManagedLocalAiProcess.RuntimeSpec("expected", 2), Duration.ofSeconds(3), cancelled::get),
                         (command, environment, log) -> {
                             startEntered.countDown();
                             boolean released = false;
@@ -732,9 +750,9 @@ class ManagedLocalAiProcessTest {
         FakeProcess process = new FakeProcess(null, "srv  llama_server: listening on http://127.0.0.1:19191\n");
         var launch = java.util.concurrent.CompletableFuture.runAsync(() -> {
             try {
-                ManagedLocalAiProcess.launch(cache, runtime.root().resolve("server"),
+                ManagedLocalAiProcess.launch(launchRequest(cache, runtime.root().resolve("server"),
                         model.root().resolve("model.gguf"), cache.resolve("staging/logs/bounded-start.log"),
-                        "expected", 2, Duration.ofSeconds(5), cancelled::get,
+                        new ManagedLocalAiProcess.RuntimeSpec("expected", 2), Duration.ofSeconds(5), cancelled::get),
                         (command, environment, log) -> {
                             startEntered.countDown();
                             while (true) {
@@ -791,10 +809,11 @@ class ManagedLocalAiProcessTest {
         List<SurvivingTreeProcess> processes = new java.util.concurrent.CopyOnWriteArrayList<>();
 
         try {
-            assertThrows(IllegalStateException.class, () -> ManagedLocalAiProcess.launch(cache,
+            assertThrows(IllegalStateException.class, () -> ManagedLocalAiProcess.launch(launchRequest(cache,
                     runtime.root().resolve("server"), model.root().resolve("model.gguf"),
-                    cache.resolve("staging/logs/startup-survivor.log"), "expected", 2,
-                    Duration.ofMillis(300), (command, environment, log) -> {
+                    cache.resolve("staging/logs/startup-survivor.log"),
+                    new ManagedLocalAiProcess.RuntimeSpec("expected", 2), Duration.ofMillis(300)),
+                    (command, environment, log) -> {
                         starts.incrementAndGet();
                         SurvivingTreeProcess process = new SurvivingTreeProcess("x".repeat(4_097));
                         processes.add(process);
@@ -854,9 +873,9 @@ class ManagedLocalAiProcessTest {
         Path executable = runtime.root().resolve("server");
         Path model = modelInstall.root().resolve("model.gguf");
         Path logPath = cache.resolve("staging/logs/server.log");
-        ManagedLocalAiProcess.Session session = ManagedLocalAiProcess.launch(
-                cache, executable, model, logPath, "expected-alias",
-                2, Duration.ofSeconds(1),
+        ManagedLocalAiProcess.Session session = ManagedLocalAiProcess.launch(launchRequest(
+                cache, executable, model, logPath,
+                new ManagedLocalAiProcess.RuntimeSpec("expected-alias", 2), Duration.ofSeconds(1)),
                 (command, environment, log) -> starts.getAndIncrement() == 0 ? stolen : owned,
                 (process, port, key, alias, timeout) -> {
                     if (port == 18181) {
@@ -886,9 +905,10 @@ class ManagedLocalAiProcessTest {
                         readyStage(cache, "model-deadline", "model.gguf", "weights")));
         long started = System.nanoTime();
 
-        assertThrows(IllegalStateException.class, () -> ManagedLocalAiProcess.launch(cache,
+        assertThrows(IllegalStateException.class, () -> ManagedLocalAiProcess.launch(launchRequest(cache,
                 runtime.root().resolve("server"), model.root().resolve("model.gguf"),
-                cache.resolve("staging/logs/deadline.log"), "expected-alias", 2, Duration.ofMillis(100),
+                cache.resolve("staging/logs/deadline.log"),
+                new ManagedLocalAiProcess.RuntimeSpec("expected-alias", 2), Duration.ofMillis(100)),
                 (command, environment, log) -> {
                     starts.incrementAndGet();
                     return new FakeProcess(null, "srv  llama_server: listening on http://127.0.0.1:18181\n");
@@ -916,9 +936,10 @@ class ManagedLocalAiProcessTest {
                         readyStage(cache, "model-survivor", "model.gguf", "weights")));
 
         try {
-            assertThrows(IllegalStateException.class, () -> ManagedLocalAiProcess.launch(cache,
+            assertThrows(IllegalStateException.class, () -> ManagedLocalAiProcess.launch(launchRequest(cache,
                     runtime.root().resolve("server"), model.root().resolve("model.gguf"),
-                    cache.resolve("staging/logs/survivor.log"), "expected", 2, Duration.ofMillis(300),
+                    cache.resolve("staging/logs/survivor.log"),
+                    new ManagedLocalAiProcess.RuntimeSpec("expected", 2), Duration.ofMillis(300)),
                     (command, environment, log) -> {
                         starts.incrementAndGet();
                         SurvivingTreeProcess process = new SurvivingTreeProcess(
@@ -932,10 +953,10 @@ class ManagedLocalAiProcessTest {
                     "a new launch must not start while an earlier process tree still survives cleanup");
             assertTrue(waitForForceKillRetry(processes.getFirst().descendant, Duration.ofMillis(300)),
                     "failed-launch survivors must retain an active cleanup owner");
-            assertThrows(IllegalStateException.class, () -> ManagedLocalAiProcess.launch(cache,
+            assertThrows(IllegalStateException.class, () -> ManagedLocalAiProcess.launch(launchRequest(cache,
                     runtime.root().resolve("server"), model.root().resolve("model.gguf"),
-                    cache.resolve("staging/logs/blocked-by-survivor.log"), "expected", 2,
-                    Duration.ofMillis(100),
+                    cache.resolve("staging/logs/blocked-by-survivor.log"),
+                    new ManagedLocalAiProcess.RuntimeSpec("expected", 2), Duration.ofMillis(100)),
                     (command, environment, log) -> {
                         starts.incrementAndGet();
                         return new SurvivingTreeProcess();
@@ -1291,6 +1312,20 @@ class ManagedLocalAiProcessTest {
         Files.writeString(stage.resolve(fileName), content);
         Files.writeString(stage.resolve(".shaft-ready"), "");
         return stage;
+    }
+
+    private static ManagedLocalAiProcess.LaunchRequest launchRequest(
+            Path cache, Path executable, Path model, Path log,
+            ManagedLocalAiProcess.RuntimeSpec runtime, Duration timeout) {
+        return launchRequest(cache, executable, model, log, runtime, timeout, () -> false);
+    }
+
+    private static ManagedLocalAiProcess.LaunchRequest launchRequest(
+            Path cache, Path executable, Path model, Path log,
+            ManagedLocalAiProcess.RuntimeSpec runtime, Duration timeout,
+            java.util.function.BooleanSupplier cancelled) {
+        var files = new ManagedLocalAiProcess.RuntimeFiles(cache, executable, model, log);
+        return new ManagedLocalAiProcess.LaunchRequest(files, runtime, timeout, cancelled);
     }
 
     private Path sleepingProcessJar() throws Exception {
