@@ -69,6 +69,7 @@ class ChaosEngineDependenciesTest(unittest.TestCase):
         self.assertEqual(str(runtime / "uv-tools"), environment["UV_TOOL_DIR"])
         self.assertEqual(str(runtime / "bin"), environment["UV_TOOL_BIN_DIR"])
         self.assertEqual(str(runtime / "npm"), environment["NPM_CONFIG_PREFIX"])
+        self.assertEqual("1", environment["PYTHONDONTWRITEBYTECODE"])
         for commands in plan.values():
             for command in commands:
                 self.assertNotIn("--global", command)

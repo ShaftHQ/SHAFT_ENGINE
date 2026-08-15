@@ -187,6 +187,7 @@ def tool_environment(runtime: Path) -> dict[str, str]:
         "UV_TOOL_DIR": str(runtime / "uv-tools"),
         "UV_TOOL_BIN_DIR": str(runtime / "bin"),
         "NPM_CONFIG_PREFIX": str(runtime / "npm"),
+        "PYTHONDONTWRITEBYTECODE": "1",
     }
 
 
@@ -278,7 +279,11 @@ def execute_plan(
         "checkedAt": (now or datetime.now(timezone.utc)).isoformat(),
         "specificationSha256": specification_digest(specification),
         "environment": {
-            key: Path(value).relative_to(runtime).as_posix()
+            key: (
+                value
+                if key == "PYTHONDONTWRITEBYTECODE"
+                else Path(value).relative_to(runtime).as_posix()
+            )
             for key, value in environment.items()
         },
         "installed": completed,
