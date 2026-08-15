@@ -96,6 +96,31 @@ class ChaosEngineInstallerTest(unittest.TestCase):
                 with self.assertRaisesRegex(RuntimeError, "active probe failed"):
                     MODULE.doctor_with_dependencies(project)
 
+    def test_status_rejects_semantically_invalid_retrieval_configuration(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary) / "consumer"
+            project.mkdir()
+            MODULE.install_with_dependencies(
+                project,
+                SOURCE,
+                TEST_COMMIT,
+                provisioner=lambda *_args, **_kwargs: None,
+            )
+            controller = MODULE.load_installed_controller(project / ".chaos-engine", "hosts")
+            with mock.patch.object(
+                controller,
+                "retrieval_configs_healthy",
+                return_value=False,
+            ), mock.patch.object(
+                MODULE,
+                "load_installed_controller",
+                return_value=controller,
+            ):
+                result = MODULE.status_with_dependencies(project)
+
+            self.assertEqual("recovery-required", result["status"])
+            self.assertEqual("absent", result["components"]["retrieval-config"]["status"])
+
     def test_default_distribution_installs_only_neutral_portable_payload(self):
         with tempfile.TemporaryDirectory() as temporary:
             project = Path(temporary) / "consumer"

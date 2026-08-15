@@ -38,6 +38,75 @@ LEGACY_MANAGED_PATHS = (
 )
 
 
+def project_identity_name(project: Path) -> str:
+    """Return the repository identity, independent of a checkout/worktree folder name."""
+    result = subprocess.run(  # nosec B603 B607 - fixed git query, no shell.
+        ["git", "-C", str(project), "config", "--get", "remote.origin.url"],
+        capture_output=True,
+        text=True,
+        check=False,
+        timeout=5,
+    )
+    if result.returncode == 0:
+        remote = result.stdout.strip().rstrip("/\\")
+        candidate = re.split(r"[/\\:]", remote)[-1]
+        if candidate.casefold().endswith(".git"):
+            candidate = candidate[:-4]
+        if candidate:
+            return candidate
+    return project.name
+
+
+def validate_memory_config(content: bytes) -> None:
+    try:
+        config = json.loads(content)
+    except (UnicodeDecodeError, json.JSONDecodeError) as error:
+        raise ValueError("invalid Memory configuration") from error
+    project_config = config.get("project") if isinstance(config, dict) else None
+    memory_options = config.get("memory") if isinstance(config, dict) else None
+    git_options = config.get("git") if isinstance(config, dict) else None
+    if (
+        not isinstance(config, dict)
+        or config.get("version") != 5
+        or not isinstance(project_config, dict)
+        or not isinstance(project_config.get("id"), str)
+        or not project_config["id"].strip()
+        or not isinstance(project_config.get("name"), str)
+        or not project_config["name"].strip()
+        or not isinstance(memory_options, dict)
+        or not isinstance(git_options, dict)
+    ):
+        raise ValueError("invalid Memory configuration")
+
+
+def validate_mempalace_config(content: bytes) -> None:
+    try:
+        text = content.decode("utf-8")
+    except UnicodeDecodeError as error:
+        raise ValueError("invalid MemPalace configuration") from error
+    wing_matches = re.findall(r"(?m)^wing:\s*([A-Za-z0-9_.-]+)\s*$", text)
+    rooms = re.search(r"(?ms)^rooms:\s*\n(?P<body>.*?)(?=^exclude_patterns:\s*$)", text)
+    excludes = re.search(r"(?ms)^exclude_patterns:\s*\n(?P<body>.*)\Z", text)
+    if (
+        len(wing_matches) != 1
+        or rooms is None
+        or re.search(r"(?m)^\s{2}- name:\s*\S+\s*$", rooms.group("body")) is None
+        or re.search(r"(?m)^\s{4}description:\s*\S+.*$", rooms.group("body")) is None
+        or excludes is None
+        or re.search(r"(?m)^\s{2}-\s+\S+\s*$", excludes.group("body")) is None
+    ):
+        raise ValueError("invalid MemPalace configuration")
+
+
+def retrieval_configs_healthy(project: Path) -> bool:
+    try:
+        validate_memory_config((project / ".memory/config.json").read_bytes())
+        validate_mempalace_config((project / "mempalace.yaml").read_bytes())
+    except (OSError, ValueError):
+        return False
+    return True
+
+
 def client_command(
     executable: str,
     arguments: list[str],
@@ -1253,7 +1322,7 @@ def desired_content(
     if memory_before is None:
         normalized_name = re.sub(r"[^a-z0-9]+", "-", project_name.casefold()).strip("-") or "project"
         memory_config = {
-            "version": 4,
+            "version": 5,
             "project": {"id": f"project.{normalized_name}", "name": project_name},
             "memory": {
                 "autoIndex": True,
@@ -1266,23 +1335,7 @@ def desired_content(
             json.dumps(memory_config, indent=2, sort_keys=True) + "\n"
         ).encode()
     else:
-        try:
-            memory_config = json.loads(memory_before)
-        except (UnicodeDecodeError, json.JSONDecodeError) as error:
-            raise ValueError("invalid Memory configuration") from error
-        project_config = memory_config.get("project") if isinstance(memory_config, dict) else None
-        memory_options = memory_config.get("memory") if isinstance(memory_config, dict) else None
-        git_options = memory_config.get("git") if isinstance(memory_config, dict) else None
-        if (
-            not isinstance(memory_config, dict)
-            or memory_config.get("version") != 4
-            or not isinstance(project_config, dict)
-            or not isinstance(project_config.get("id"), str)
-            or not isinstance(project_config.get("name"), str)
-            or not isinstance(memory_options, dict)
-            or not isinstance(git_options, dict)
-        ):
-            raise ValueError("invalid Memory configuration")
+        validate_memory_config(memory_before)
         after[".memory/config.json"] = memory_before
     mempalace_before = before["mempalace.yaml"]
     if mempalace_before is None:
@@ -1295,28 +1348,7 @@ def desired_content(
             "  - graphify-out/**\n  - .chaos-engine-runtime/**\n  - .chaos-engine-state/**\n"
         ).encode()
     else:
-        try:
-            mempalace_text = mempalace_before.decode("utf-8")
-        except UnicodeDecodeError as error:
-            raise ValueError("invalid MemPalace configuration") from error
-        wing_matches = re.findall(r"(?m)^wing:\s*([A-Za-z0-9_.-]+)\s*$", mempalace_text)
-        rooms = re.search(
-            r"(?ms)^rooms:\s*\n(?P<body>.*?)(?=^exclude_patterns:\s*$)",
-            mempalace_text,
-        )
-        excludes = re.search(
-            r"(?ms)^exclude_patterns:\s*\n(?P<body>.*)\Z",
-            mempalace_text,
-        )
-        if (
-            len(wing_matches) != 1
-            or rooms is None
-            or re.search(r"(?m)^\s{2}- name:\s*\S+\s*$", rooms.group("body")) is None
-            or re.search(r"(?m)^\s{4}description:\s*\S+.*$", rooms.group("body")) is None
-            or excludes is None
-            or re.search(r"(?m)^\s{2}-\s+\S+\s*$", excludes.group("body")) is None
-        ):
-            raise ValueError("invalid MemPalace configuration")
+        validate_mempalace_config(mempalace_before)
         after["mempalace.yaml"] = mempalace_before
     after[".gitignore"] = gitignore_content(before[".gitignore"])
     for relative in ("AGENTS.md", "CLAUDE.md", "GEMINI.md"):
@@ -1744,7 +1776,11 @@ def install(project: Path, core_commit: str | None = None) -> dict[str, object]:
         if receipt["phase"] == "installed":
             verify(project, receipt)
             version = plugin_cache_version(core_commit)
-            wanted = desired_content(before, project_name=project.name, plugin_version=version)
+            wanted = desired_content(
+                before,
+                project_name=project_identity_name(project),
+                plugin_version=version,
+            )
             if after == wanted and receipt.get("coreCommit") == core_commit:
                 return receipt
             next_receipt = dict(receipt)
@@ -1779,7 +1815,11 @@ def install(project: Path, core_commit: str | None = None) -> dict[str, object]:
 
     before = current_images(project)
     version = plugin_cache_version(core_commit)
-    after = desired_content(before, project_name=project.name, plugin_version=version)
+    after = desired_content(
+        before,
+        project_name=project_identity_name(project),
+        plugin_version=version,
+    )
     if existing_anchors and existing_anchors[0].name.startswith(REMOVING_ANCHOR_PREFIX):
         raise ValueError("ChaosEngine host removal recovery is required")
     anchor_path = host_anchor_path(project, create=True)
