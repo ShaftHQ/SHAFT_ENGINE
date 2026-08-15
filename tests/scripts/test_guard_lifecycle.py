@@ -514,7 +514,7 @@ class ResearchPreflightAdvisoryStoreTest(unittest.TestCase):
             "cwd": ".",
             "session_id": "research-first-test",
             "tool_name": "Write",
-            "tool_input": {"file_path": ".agents/skills/act-as-mohab/SKILL.md"},
+            "tool_input": {},
         }
         with patch("scripts.agents.guard.ledger_events", return_value=required):
             self.assertIsNone(
