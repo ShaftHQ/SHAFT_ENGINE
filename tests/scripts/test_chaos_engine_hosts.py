@@ -593,6 +593,34 @@ class ChaosEngineHostsTest(unittest.TestCase):
             ):
                 self.assertFalse(module.retrieval_runtime_healthy(project))
 
+    def test_mcp_runtime_executes_both_initialize_handshakes(self):
+        module = load(HOSTS, "chaos_engine_mcp_runtime")
+        response = mock.Mock(
+            returncode=0,
+            stdout=json.dumps({"jsonrpc": "2.0", "id": 1, "result": {}}) + "\n",
+        )
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary)
+            project.joinpath(".chaos-engine").mkdir()
+            project.joinpath(".chaos-engine/tool.py").write_text("# owned\n")
+            with mock.patch.object(
+                module.subprocess,
+                "run",
+                side_effect=[response, response],
+            ) as run:
+                self.assertTrue(module.mcp_runtime_healthy(project))
+
+            self.assertEqual(2, run.call_count)
+            for call in run.call_args_list:
+                request = json.loads(call.kwargs["input"])
+                self.assertEqual("initialize", request["method"])
+                self.assertEqual(project, call.kwargs["cwd"])
+                self.assertEqual("1", call.kwargs["env"]["PYTHONDONTWRITEBYTECODE"])
+
+            invalid = mock.Mock(returncode=0, stdout="not-json\n")
+            with mock.patch.object(module.subprocess, "run", return_value=invalid):
+                self.assertFalse(module.mcp_runtime_healthy(project))
+
     def test_launcher_rendering_is_explicit_for_windows_and_posix(self):
         module = load(HOSTS, "chaos_engine_hosts")
 

@@ -1119,6 +1119,11 @@ def doctor_with_dependencies(
             components.get("retrieval-config"), dict
         ):
             components["retrieval-config"]["status"] = "recovery-required"
+    if not host_controller.mcp_runtime_healthy(project.resolve()):
+        result["status"] = "recovery-required"
+        components = result.get("components")
+        if isinstance(components, dict) and isinstance(components.get("mcps"), dict):
+            components["mcps"]["status"] = "recovery-required"
     if not verify_clients:
         return result
     clients = host_controller.detected_plugin_status(project.resolve())
