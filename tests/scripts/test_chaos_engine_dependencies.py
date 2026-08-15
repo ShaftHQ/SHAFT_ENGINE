@@ -16,12 +16,22 @@ from types import SimpleNamespace
 ROOT = Path(__file__).resolve().parents[2]
 CONTROLLER = ROOT / "chaos-engine/dependencies.py"
 SPECIFICATION = ROOT / "chaos-engine/dependencies.json"
+TOOL = ROOT / "chaos-engine/tool.py"
 
 
 def load_controller():
     spec = importlib.util.spec_from_file_location("chaos_engine_dependencies", CONTROLLER)
     if spec is None or spec.loader is None:
         raise RuntimeError("dependency controller test module could not be loaded")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def load_tool():
+    spec = importlib.util.spec_from_file_location("chaos_engine_tool", TOOL)
+    if spec is None or spec.loader is None:
+        raise RuntimeError("tool launcher test module could not be loaded")
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module
@@ -68,6 +78,66 @@ class ChaosEngineDependenciesTest(unittest.TestCase):
                         with module.runtime_lock(runtime):
                             self.fail("lock unexpectedly acquired")
             close.assert_called_once()
+
+    def test_tool_launcher_blocks_unhealthy_mempalace_state_before_native_launch(self):
+        module = load_tool()
+        self.assertTrue(hasattr(module, "guard_mempalace_mcp"))
+        controller = """from pathlib import Path
+def mempalace_runtime_status(project: Path):
+    status = (project / '.chaos-engine-state/mempalace/status.txt').read_text().strip()
+    return {'status': status, 'detail': 'fixture state'}
+"""
+        arguments = [
+            "tool.py",
+            "mempalace-mcp",
+            "--palace",
+            ".chaos-engine-state/mempalace",
+            "--backend",
+            "sqlite_exact",
+        ]
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary)
+            core = project / ".chaos-engine"
+            palace = project / ".chaos-engine-state/mempalace"
+            core.mkdir()
+            palace.mkdir(parents=True)
+            core.joinpath("hosts.py").write_text(controller, encoding="utf-8")
+            command = project / ".chaos-engine-runtime/bin/mempalace-mcp"
+
+            for status in ("migration-required", "recovery-required"):
+                palace.joinpath("status.txt").write_text(status, encoding="utf-8")
+                with self.subTest(status=status):
+                    with mock.patch.object(module, "__file__", str(core / "tool.py")):
+                        with mock.patch.object(module.sys, "argv", arguments):
+                            with mock.patch.object(module, "resolve_command", return_value=command):
+                                with mock.patch.object(module.sys, "dont_write_bytecode", False):
+                                    with mock.patch.object(module.subprocess, "call") as call:
+                                        self.assertEqual(1, module.main())
+                    call.assert_not_called()
+                    self.assertFalse(core.joinpath("__pycache__").exists())
+
+            palace.joinpath("status.txt").write_text("healthy", encoding="utf-8")
+            with mock.patch.object(module, "__file__", str(core / "tool.py")):
+                with mock.patch.object(module.sys, "argv", arguments):
+                    with mock.patch.object(module, "resolve_command", return_value=command):
+                        with mock.patch.object(module.sys, "dont_write_bytecode", False):
+                            with mock.patch.object(module.subprocess, "call", return_value=0) as call:
+                                self.assertEqual(0, module.main())
+            call.assert_called_once()
+            self.assertFalse(core.joinpath("__pycache__").exists())
+
+            for invalid in (
+                [*arguments, "--backend=chroma"],
+                [*arguments, "--palace=external"],
+                [*arguments, "--read-only"],
+                [*arguments[:-1], "chroma"],
+            ):
+                with self.subTest(arguments=invalid):
+                    with mock.patch.object(module, "__file__", str(core / "tool.py")):
+                        with mock.patch.object(module.sys, "argv", invalid):
+                            with mock.patch.object(module.subprocess, "call") as call:
+                                self.assertEqual(1, module.main())
+                    call.assert_not_called()
 
     @staticmethod
     def fake_runner(root: Path):
