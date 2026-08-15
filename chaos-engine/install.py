@@ -959,17 +959,30 @@ def install_with_dependencies(  # noqa: MC0001 - owned resources share one compe
         host_receipt = project / host_controller.RECEIPT_NAME
         host_existed = host_receipt.exists() or is_link_or_reparse(host_receipt)
         host_created = False
+        runtime = project / ".chaos-engine-runtime"
+        runtime_existed = runtime.exists() or is_link_or_reparse(runtime)
+        controller = None
+        specification = None
         try:
             host_controller.install(project, core_commit=commit)
             host_created = not host_existed
             controller = load_dependency_controller(target)
+            specification = controller.load_specification(target / "dependencies.json")
             provision = provisioner or controller.repair
-            provision(
-                project / ".chaos-engine-runtime",
-                controller.load_specification(target / "dependencies.json"),
-            )
+            provision(runtime, specification)
+            host_controller.initialize_mempalace_runtime(project)
         except BaseException as error:
             compensation_errors: list[BaseException] = []
+            if (
+                not runtime_existed
+                and runtime.exists()
+                and controller is not None
+                and specification is not None
+            ):
+                try:
+                    controller.remove(runtime, specification)
+                except BaseException as cleanup_error:
+                    compensation_errors.append(cleanup_error)
             if host_snapshot is not None:
                 try:
                     host_controller.restore_snapshot(project, host_snapshot)
@@ -1038,6 +1051,9 @@ def attach_component_status(
         components[name] = {"status": "healthy" if healthy else "absent"}
     for name in ("tools", "memory", "mempalace", "graphify"):
         components[name] = {"status": dependency_health}
+    mempalace_state = host_controller.mempalace_runtime_status(project)
+    if mempalace_state.get("status") != "healthy":
+        components["mempalace"] = mempalace_state
     result["components"] = components
     if dependency_health != "healthy" or any(
         item["status"] != "healthy" for item in components.values()

@@ -11,6 +11,7 @@ import os
 import re
 import secrets
 import shutil
+import sqlite3
 import stat
 import subprocess  # nosec B404 - probes a resolved local Java executable.
 import sys
@@ -31,6 +32,49 @@ MEMORY_SCHEMA_FILES = (
     "event.schema.json",
     "patch.schema.json",
 )
+SQLITE_EXACT_SCHEMA = {
+    "meta": {"key": ("TEXT", 0, 1), "value": ("TEXT", 1, 0)},
+    "collections": {
+        "id": ("INTEGER", 0, 1),
+        "name": ("TEXT", 1, 0),
+        "dimension": ("INTEGER", 0, 0),
+        "created_at": ("TEXT", 1, 0),
+    },
+    "documents": {
+        "collection_id": ("INTEGER", 1, 1),
+        "id": ("TEXT", 1, 2),
+        "document": ("TEXT", 1, 0),
+        "metadata_json": ("TEXT", 1, 0),
+        "embedding": ("BLOB", 1, 0),
+        "dim": ("INTEGER", 1, 0),
+        "created_at": ("TEXT", 1, 0),
+        "updated_at": ("TEXT", 1, 0),
+    },
+}
+SQLITE_EXACT_INDEXES = {
+    "collections": {(1, ("name",))},
+    "documents": {
+        (0, ("collection_id",)),
+        (1, ("collection_id", "id")),
+    },
+}
+CHROMA_SCHEMA = {
+    "collections": {
+        "id": ("TEXT", 0, 1), "name": ("TEXT", 1, 0),
+        "dimension": ("INTEGER", 0, 0), "database_id": ("TEXT", 1, 0),
+        "config_json_str": ("TEXT", 0, 0), "schema_str": ("TEXT", 0, 0),
+    },
+    "segments": {
+        "id": ("TEXT", 0, 1), "type": ("TEXT", 1, 0),
+        "scope": ("TEXT", 1, 0), "collection": ("TEXT", 1, 0),
+    },
+    "embeddings_queue": {
+        "seq_id": ("INTEGER", 0, 1), "created_at": ("TIMESTAMP", 1, 0),
+        "operation": ("INTEGER", 1, 0), "topic": ("TEXT", 1, 0),
+        "id": ("TEXT", 1, 0), "vector": ("BLOB", 0, 0),
+        "encoding": ("TEXT", 0, 0), "metadata": ("TEXT", 0, 0),
+    },
+}
 LEGACY_MANAGED_PATHS = (
     ".agents/skills/chaos-engine/SKILL.md",
     ".claude/skills/chaos-engine/SKILL.md",
@@ -170,8 +214,288 @@ def retrieval_runtime_healthy(project: Path) -> bool:
     return True
 
 
+def _sqlite_runtime_valid(
+    database: Path,
+    *,
+    required_schema: dict[str, dict[str, tuple[str, int, int]]] | None = None,
+    required_indexes: dict[str, set[tuple[int, tuple[str, ...]]]] | None = None,
+    collection: str | None = None,
+) -> bool:
+    wal = Path(f"{database}-wal")
+    shared_memory = Path(f"{database}-shm")
+    if not database.is_file() or any(
+        is_link_or_reparse(path) for path in (database, wal, shared_memory)
+    ):
+        return False
+    wal_exists = wal.exists()
+    shared_memory_exists = shared_memory.exists()
+    if wal_exists != shared_memory_exists or (
+        wal_exists and (not wal.is_file() or not shared_memory.is_file())
+    ):
+        return False
+    connection = None
+    try:
+        query = "mode=ro" if wal_exists else "mode=ro&immutable=1"
+        connection = sqlite3.connect(
+            f"{database.resolve().as_uri()}?{query}",
+            uri=True,
+        )
+        connection.execute("PRAGMA trusted_schema=OFF")
+        if connection.execute("PRAGMA quick_check(1)").fetchone() != ("ok",):
+            return False
+        if required_schema is not None and not all(
+            expected
+            == {
+                str(row[1]): (str(row[2]).upper(), int(row[3]), int(row[5]))
+                for row in connection.execute(f"PRAGMA table_info({table})")
+            }
+            for table, expected in required_schema.items()
+        ):
+            return False
+        if required_indexes is not None:
+            for table, expected in required_indexes.items():
+                actual = set()
+                for row in connection.execute(f"PRAGMA index_list({table})"):
+                    columns = tuple(
+                        str(column[2])
+                        for column in connection.execute(
+                            f"PRAGMA index_info({str(row[1])})"
+                        )
+                    )
+                    actual.add((int(row[2]), columns))
+                if not expected <= actual:
+                    return False
+        if collection is not None and connection.execute(
+            "SELECT 1 FROM collections WHERE name = ?",
+            (collection,),
+        ).fetchone() != (1,):
+            return False
+        return True
+    except (OSError, sqlite3.DatabaseError):
+        return False
+    finally:
+        if connection is not None:
+            connection.close()
+
+
+def mempalace_runtime_status(project: Path) -> dict[str, str]:
+    """Classify project-local MemPalace state without importing its native backend."""
+    palace = project / ".chaos-engine-state/mempalace"
+    if is_link_or_reparse(palace):
+        return {
+            "status": "recovery-required",
+            "detail": "MemPalace state is a link or reparse point",
+        }
+    if not palace.exists():
+        return {"status": "initialization-required", "backend": "sqlite_exact"}
+    if not palace.is_dir():
+        return {
+            "status": "recovery-required",
+            "detail": "MemPalace state path is not a directory",
+        }
+
+    chroma = palace / "chroma.sqlite3"
+    exact = palace / "sqlite_exact.sqlite3"
+    try:
+        children = list(palace.iterdir())
+    except OSError:
+        return {
+            "status": "recovery-required",
+            "detail": "MemPalace state is unreadable or contains a link or reparse point",
+        }
+    if any(is_link_or_reparse(child) for child in children):
+        return {
+            "status": "recovery-required",
+            "detail": "MemPalace state is unreadable or contains a link or reparse point",
+        }
+    if chroma.exists():
+        if not _sqlite_runtime_valid(
+            chroma,
+            required_schema=CHROMA_SCHEMA,
+        ):
+            return {
+                "status": "recovery-required",
+                "detail": "Legacy Chroma MemPalace state is unreadable or malformed",
+            }
+        chroma_names = {
+            chroma.name,
+            f"{chroma.name}-wal",
+            f"{chroma.name}-shm",
+        }
+        segment = re.compile(
+            r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"
+        )
+        if any(
+            child.name not in chroma_names
+            and (not child.is_dir() or segment.fullmatch(child.name) is None)
+            for child in children
+        ):
+            return {
+                "status": "recovery-required",
+                "detail": "Legacy Chroma MemPalace state is mixed or unrecognized",
+            }
+        return {
+            "status": "migration-required",
+            "detail": (
+                "Legacy Chroma/HNSW MemPalace state requires migration; "
+                "ChaosEngine will not open its native index"
+            ),
+        }
+
+    wal = Path(f"{exact}-wal")
+    shared_memory = Path(f"{exact}-shm")
+    allowed_names = {path.name for path in (exact, wal, shared_memory)}
+    if any(child.name not in allowed_names for child in children):
+        return {
+            "status": "recovery-required",
+            "detail": "MemPalace state contains unrecognized recoverable data",
+        }
+    wal_exists = wal.exists()
+    shared_memory_exists = shared_memory.exists()
+    if not exact.exists() and (wal_exists or shared_memory_exists):
+        return {
+            "status": "recovery-required",
+            "detail": "SQLite-exact MemPalace WAL state has no database",
+        }
+    if exact.exists():
+        if not _sqlite_runtime_valid(
+            exact,
+            required_schema=SQLITE_EXACT_SCHEMA,
+            required_indexes=SQLITE_EXACT_INDEXES,
+            collection="mempalace_drawers",
+        ):
+            return {
+                "status": "recovery-required",
+                "detail": "SQLite-exact MemPalace state is unreadable or malformed",
+            }
+        return {"status": "healthy", "backend": "sqlite_exact"}
+    return {"status": "initialization-required", "backend": "sqlite_exact"}
+
+
+def _cleanup_failed_mempalace_initialization(
+    *,
+    connection,
+    descriptor: int | None,
+    database: Path,
+    identity: tuple[int, int] | None,
+    palace: Path,
+    palace_created: bool,
+    state_root: Path,
+    state_root_created: bool,
+) -> None:
+    """Remove only state created by the failed initializer transaction."""
+    if connection is not None:
+        connection.close()
+    if descriptor is not None:
+        os.close(descriptor)
+    try:
+        current = os.stat(database, follow_symlinks=False)
+    except OSError:
+        current = None
+    if current is not None and identity == (current.st_dev, current.st_ino):
+        database.unlink()
+    if palace_created and palace.exists() and not any(palace.iterdir()):
+        palace.rmdir()
+    if state_root_created and state_root.exists() and not any(state_root.iterdir()):
+        state_root.rmdir()
+
+
+def initialize_mempalace_runtime(project: Path) -> None:
+    """Create only a fresh empty sqlite_exact collection; never migrate user state."""
+    project = project.resolve()
+    state_root = project / ".chaos-engine-state"
+    palace = state_root / "mempalace"
+    status = mempalace_runtime_status(project)["status"]
+    if status == "healthy":
+        return
+    if status != "initialization-required":
+        return
+
+    validate_path(project, palace)
+    state_root_created = not state_root.exists()
+    palace_created = not palace.exists()
+    state_root.mkdir(exist_ok=True)
+    validate_path(project, palace)
+    palace.mkdir(exist_ok=True)
+    validate_path(project, palace)
+    palace_stat = os.stat(palace, follow_symlinks=False)
+    if not stat.S_ISDIR(palace_stat.st_mode):
+        raise ValueError("ChaosEngine MemPalace state path is not a directory")
+    palace_identity = (palace_stat.st_dev, palace_stat.st_ino)
+    database = palace / "sqlite_exact.sqlite3"
+    descriptor = None
+    connection = None
+    identity: tuple[int, int] | None = None
+    try:
+        if any(palace.iterdir()):
+            raise ValueError("ChaosEngine will not initialize over existing MemPalace state")
+        validate_path(project, palace)
+        named_palace = os.stat(palace, follow_symlinks=False)
+        if palace_identity != (named_palace.st_dev, named_palace.st_ino):
+            raise ValueError("ChaosEngine MemPalace state path changed before initialization")
+        descriptor = os.open(
+            database,
+            os.O_RDWR | os.O_CREAT | os.O_EXCL | getattr(os, "O_BINARY", 0),
+            0o600,
+        )
+        opened = os.fstat(descriptor)
+        identity = (opened.st_dev, opened.st_ino)
+        named_palace = os.stat(palace, follow_symlinks=False)
+        if palace_identity != (named_palace.st_dev, named_palace.st_ino):
+            raise ValueError("ChaosEngine MemPalace state path changed during initialization")
+        os.close(descriptor)
+        descriptor = None
+        connection = sqlite3.connect(database)
+        connection.executescript(
+            """
+            PRAGMA journal_mode=WAL;
+            CREATE TABLE meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
+            CREATE TABLE collections (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT NOT NULL UNIQUE,
+                dimension INTEGER,
+                created_at TEXT NOT NULL
+            );
+            CREATE TABLE documents (
+                collection_id INTEGER NOT NULL,
+                id TEXT NOT NULL,
+                document TEXT NOT NULL,
+                metadata_json TEXT NOT NULL,
+                embedding BLOB NOT NULL,
+                dim INTEGER NOT NULL,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL,
+                PRIMARY KEY (collection_id, id),
+                FOREIGN KEY(collection_id) REFERENCES collections(id) ON DELETE CASCADE
+            );
+            CREATE INDEX idx_documents_collection ON documents(collection_id);
+            INSERT INTO collections(name, created_at)
+            VALUES ('mempalace_drawers', CURRENT_TIMESTAMP);
+            """
+        )
+        connection.commit()
+        connection.close()
+        connection = None
+        if mempalace_runtime_status(project)["status"] != "healthy":
+            raise ValueError("fresh SQLite-exact MemPalace state failed validation")
+    except BaseException:
+        _cleanup_failed_mempalace_initialization(
+            connection=connection,
+            descriptor=descriptor,
+            database=database,
+            identity=identity,
+            palace=palace,
+            palace_created=palace_created,
+            state_root=state_root,
+            state_root_created=state_root_created,
+        )
+        raise
+
+
 def mcp_runtime_healthy(project: Path) -> bool:
-    request = json.dumps(
+    if mempalace_runtime_status(project)["status"] != "healthy":
+        return False
+    initialize = json.dumps(
         {
             "jsonrpc": "2.0",
             "id": 1,
@@ -183,6 +507,22 @@ def mcp_runtime_healthy(project: Path) -> bool:
             },
         }
     ) + "\n"
+    mempalace_probe = (
+        initialize
+        + json.dumps(
+            {"jsonrpc": "2.0", "method": "notifications/initialized", "params": {}}
+        )
+        + "\n"
+        + json.dumps(
+            {
+                "jsonrpc": "2.0",
+                "id": 2,
+                "method": "tools/call",
+                "params": {"name": "mempalace_status", "arguments": {}},
+            }
+        )
+        + "\n"
+    )
     tool = project / ".chaos-engine/tool.py"
     environment = os.environ.copy()
     environment["PYTHONDONTWRITEBYTECODE"] = "1"
@@ -195,13 +535,15 @@ def mcp_runtime_healthy(project: Path) -> bool:
             "mempalace-mcp",
             "--palace",
             ".chaos-engine-state/mempalace",
+            "--backend",
+            "sqlite_exact",
         ],
     )
-    for command in commands:
+    for index, command in enumerate(commands):
         result = subprocess.run(  # nosec B603 - fixed owned launcher and arguments.
             command,
             cwd=project,
-            input=request,
+            input=mempalace_probe if index == 1 else initialize,
             capture_output=True,
             text=True,
             check=False,
@@ -225,6 +567,36 @@ def mcp_runtime_healthy(project: Path) -> bool:
             for response in responses
         ):
             return False
+        if index == 1:
+            status_responses = [
+                response
+                for response in responses
+                if isinstance(response, dict) and response.get("id") == 2
+            ]
+            if len(status_responses) != 1:
+                return False
+            result_payload = status_responses[0].get("result")
+            content = result_payload.get("content") if isinstance(result_payload, dict) else None
+            if not isinstance(content, list):
+                return False
+            try:
+                status_payloads = [
+                    json.loads(item["text"])
+                    for item in content
+                    if isinstance(item, dict)
+                    and item.get("type") == "text"
+                    and isinstance(item.get("text"), str)
+                ]
+            except json.JSONDecodeError:
+                return False
+            if not any(
+                isinstance(payload, dict)
+                and payload.get("backend") == "sqlite_exact"
+                and isinstance(payload.get("total_drawers"), int)
+                and "error" not in payload
+                for payload in status_payloads
+            ):
+                return False
     return True
 
 
@@ -817,6 +1189,8 @@ def owned_servers(
                 "mempalace-mcp",
                 "--palace",
                 ".chaos-engine-state/mempalace",
+                "--backend",
+                "sqlite_exact",
             ],
             "cwd": ".",
             "env": {"MEMPALACE_EMBEDDING_MODEL": "minilm"},
@@ -1157,7 +1531,7 @@ def codex_content(
         f'args = [{prefix_text}".chaos-engine/tool.py", "memory-mcp"]\ncwd = ".."\n\n'
         f'[mcp_servers."chaosengine-mempalace"]\ncommand = "{command}"\n'
         f'args = [{prefix_text}".chaos-engine/tool.py", "mempalace-mcp", "--palace", '
-        '".chaos-engine-state/mempalace"]\ncwd = ".."\n'
+        '".chaos-engine-state/mempalace", "--backend", "sqlite_exact"]\ncwd = ".."\n'
         'env = { MEMPALACE_EMBEDDING_MODEL = "minilm" }\n# CHAOSENGINE:END\n'
     )
     if maven_runtime is not None:

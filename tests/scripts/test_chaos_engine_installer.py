@@ -6,6 +6,7 @@ import hashlib
 import importlib.util
 import json
 import shutil
+import sqlite3
 import subprocess  # nosec B404 - tests run the fixed local installer only.
 import sys
 import tempfile
@@ -67,6 +68,31 @@ def tree_digest(root: Path) -> dict[str, str]:
     }
 
 
+def create_chroma_state(path: Path) -> None:
+    database = sqlite3.connect(path)
+    try:
+        database.executescript(
+            """
+            CREATE TABLE collections (
+                id TEXT PRIMARY KEY, name TEXT NOT NULL, dimension INTEGER,
+                database_id TEXT NOT NULL, config_json_str TEXT, schema_str TEXT
+            );
+            CREATE TABLE segments (
+                id TEXT PRIMARY KEY, type TEXT NOT NULL, scope TEXT NOT NULL,
+                collection TEXT NOT NULL
+            );
+            CREATE TABLE embeddings_queue (
+                seq_id INTEGER PRIMARY KEY, created_at TIMESTAMP NOT NULL,
+                operation INTEGER NOT NULL, topic TEXT NOT NULL, id TEXT NOT NULL,
+                vector BLOB, encoding TEXT, metadata TEXT
+            );
+            """
+        )
+        database.commit()
+    finally:
+        database.close()
+
+
 class ChaosEngineInstallerTest(unittest.TestCase):
     def test_doctor_command_uses_the_full_status_contract(self):
         arguments = MODULE.parser().parse_args(["doctor", "--project", "."])
@@ -95,6 +121,40 @@ class ChaosEngineInstallerTest(unittest.TestCase):
             ), mock.patch.object(MODULE, "load_dependency_controller", return_value=controller):
                 with self.assertRaisesRegex(RuntimeError, "active probe failed"):
                     MODULE.doctor_with_dependencies(project)
+
+    def test_install_initializes_fresh_mempalace_without_receipt_ownership(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary) / "consumer"
+            project.mkdir()
+            original_load = MODULE.load_installed_controller
+            controllers = []
+
+            def load_with_initializer(installed_root, name):
+                controller = original_load(installed_root, name)
+                if name == "hosts":
+                    controller.initialize_mempalace_runtime = mock.Mock()
+                    controllers.append(controller)
+                return controller
+
+            with mock.patch.object(
+                MODULE,
+                "load_installed_controller",
+                side_effect=load_with_initializer,
+            ):
+                MODULE.install_with_dependencies(
+                    project,
+                    SOURCE,
+                    TEST_COMMIT,
+                    provisioner=lambda *_args, **_kwargs: None,
+                )
+
+            controller = controllers[-1]
+            controller.initialize_mempalace_runtime.assert_called_once_with(project)
+            receipt = json.loads(
+                (project / controller.RECEIPT_NAME).read_text(encoding="utf-8")
+            )
+            owned = json.dumps({"before": receipt["before"], "after": receipt["after"]})
+            self.assertNotIn(".chaos-engine-state/mempalace", owned)
 
     def test_status_rejects_semantically_invalid_retrieval_configuration(self):
         with tempfile.TemporaryDirectory() as temporary:
@@ -177,6 +237,56 @@ class ChaosEngineInstallerTest(unittest.TestCase):
 
             self.assertEqual("recovery-required", result["status"])
             self.assertEqual("recovery-required", result["components"]["mcps"]["status"])
+
+    def test_status_maps_legacy_mempalace_classifier_without_launching(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary) / "consumer"
+            project.mkdir()
+            original_load = MODULE.load_installed_controller
+            controllers = []
+
+            def load_with_initializer(installed_root, name):
+                controller = original_load(installed_root, name)
+                if name == "hosts":
+                    controller.initialize_mempalace_runtime = mock.Mock()
+                    controllers.append(controller)
+                return controller
+
+            with mock.patch.object(
+                MODULE,
+                "load_installed_controller",
+                side_effect=load_with_initializer,
+            ):
+                MODULE.install_with_dependencies(
+                    project,
+                    SOURCE,
+                    TEST_COMMIT,
+                    provisioner=lambda *_args, **_kwargs: None,
+                )
+            palace = project / ".chaos-engine-state/mempalace"
+            palace.mkdir(parents=True, exist_ok=True)
+            create_chroma_state(palace / "chroma.sqlite3")
+            palace.joinpath("00000000-0000-0000-0000-000000000001").mkdir()
+            controller = controllers[-1]
+            controller.mempalace_runtime_status = mock.Mock(
+                return_value={
+                    "status": "migration-required",
+                    "detail": "Legacy Chroma state requires migration",
+                }
+            )
+            with mock.patch.object(
+                MODULE,
+                "load_installed_controller",
+                return_value=controller,
+            ):
+                passive = MODULE.status_with_dependencies(project)
+
+            self.assertEqual("recovery-required", passive["status"])
+            self.assertEqual(
+                "migration-required",
+                passive["components"]["mempalace"]["status"],
+            )
+            controller.mempalace_runtime_status.assert_called_once_with(project)
 
     def test_default_distribution_installs_only_neutral_portable_payload(self):
         with tempfile.TemporaryDirectory() as temporary:
@@ -486,6 +596,83 @@ class ChaosEngineInstallerTest(unittest.TestCase):
             with self.assertRaisesRegex(RuntimeError, "offline"):
                 MODULE.install_with_dependencies(project, SOURCE, TEST_COMMIT, provisioner=fail)
             self.assertEqual(TEST_COMMIT, MODULE.status(project)["commit"])
+
+    def test_initializer_failure_removes_only_runtime_created_by_install(self):
+        dependency_module = load_module(SOURCE / "dependencies.py")
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary) / "consumer"
+            project.mkdir()
+            original_load = MODULE.load_installed_controller
+
+            def provision(runtime, specification):
+                return dependency_module.repair(
+                    runtime,
+                    specification,
+                    runner=ChaosEngineDependenciesRunner(runtime),
+                )
+
+            def load_with_failure(installed_root, name):
+                controller = original_load(installed_root, name)
+                if name == "hosts":
+                    controller.initialize_mempalace_runtime = mock.Mock(
+                        side_effect=RuntimeError("initialization failed")
+                    )
+                return controller
+
+            with mock.patch.object(
+                MODULE,
+                "load_installed_controller",
+                side_effect=load_with_failure,
+            ):
+                with self.assertRaisesRegex(RuntimeError, "initialization failed"):
+                    MODULE.install_with_dependencies(
+                        project,
+                        SOURCE,
+                        TEST_COMMIT,
+                        provisioner=provision,
+                    )
+
+            self.assertFalse((project / ".chaos-engine-runtime").exists())
+
+    def test_initializer_failure_preserves_preexisting_verified_runtime(self):
+        dependency_module = load_module(SOURCE / "dependencies.py")
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary) / "consumer"
+            project.mkdir()
+            runtime = project / ".chaos-engine-runtime"
+            specification = dependency_module.load_specification(
+                SOURCE / "dependencies.json"
+            )
+            dependency_module.repair(
+                runtime,
+                specification,
+                runner=ChaosEngineDependenciesRunner(runtime),
+            )
+            before = tree_digest(runtime)
+            original_load = MODULE.load_installed_controller
+
+            def load_with_failure(installed_root, name):
+                controller = original_load(installed_root, name)
+                if name == "hosts":
+                    controller.initialize_mempalace_runtime = mock.Mock(
+                        side_effect=RuntimeError("initialization failed")
+                    )
+                return controller
+
+            with mock.patch.object(
+                MODULE,
+                "load_installed_controller",
+                side_effect=load_with_failure,
+            ):
+                with self.assertRaisesRegex(RuntimeError, "initialization failed"):
+                    MODULE.install_with_dependencies(
+                        project,
+                        SOURCE,
+                        TEST_COMMIT,
+                        provisioner=lambda *_args: None,
+                    )
+
+            self.assertEqual(before, tree_digest(runtime))
 
     def test_failed_update_restores_the_previous_host_generation(self):
         with tempfile.TemporaryDirectory() as temporary:
