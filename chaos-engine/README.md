@@ -147,7 +147,10 @@ project. Host adapters redirect to the canonical skill; they do not fork its
 policy into competing copies.
 It also creates trackable Memory and MemPalace configuration, provider-native
 role/plugin/hook adapters, and ignore rules that separate canonical harness
-files from generated runtimes, indexes, receipts, and Graphify output.
+files from generated runtimes, indexes, receipts, and Graphify output. A
+receipt-bound `.gitattributes` block pins only canonical harness paths to LF so
+Windows clones preserve the installer's byte-level ownership hashes without
+changing unrelated project attributes.
 Memory's canonical store is bootstrapped from the pinned v5
 [schema bundle](assets/memory-v5/SCHEMAS.md):
 [config](assets/memory-v5/config.schema.json),

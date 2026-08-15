@@ -37,7 +37,10 @@ Claude plugin manifests/marketplaces, retrieval configuration, and runtime
 ignore rules. When a detected client requires marketplace registration, the
 agent registers the project marketplace and installs `chaos-engine` at project
 local scope, then runs active `doctor` probes. Generated indexes, caches, receipts, and runtimes
-remain untracked; canonical configuration and adapters remain trackable.
+remain untracked; canonical configuration and adapters remain trackable. The
+installer also merges receipt-bound LF attributes for canonical harness paths,
+so Windows Git checkouts retain the exact owned bytes while unrelated
+`.gitattributes` rules remain untouched.
 
 For a literal one-command terminal flow from the adopter project, use this on
 Windows PowerShell:
