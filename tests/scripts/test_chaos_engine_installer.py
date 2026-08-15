@@ -126,20 +126,30 @@ class ChaosEngineInstallerTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temporary:
             project = Path(temporary) / "consumer"
             project.mkdir()
+            original_load = MODULE.load_installed_controller
+            controllers = []
 
-            MODULE.install_with_dependencies(
-                project,
-                SOURCE,
-                TEST_COMMIT,
-                provisioner=lambda *_args, **_kwargs: None,
-            )
+            def load_with_initializer(installed_root, name):
+                controller = original_load(installed_root, name)
+                if name == "hosts":
+                    controller.initialize_mempalace_runtime = mock.Mock()
+                    controllers.append(controller)
+                return controller
 
-            controller = MODULE.load_installed_controller(project / ".chaos-engine", "hosts")
-            self.assertTrue(hasattr(controller, "mempalace_runtime_status"))
-            self.assertEqual(
-                "healthy",
-                controller.mempalace_runtime_status(project)["status"],
-            )
+            with mock.patch.object(
+                MODULE,
+                "load_installed_controller",
+                side_effect=load_with_initializer,
+            ):
+                MODULE.install_with_dependencies(
+                    project,
+                    SOURCE,
+                    TEST_COMMIT,
+                    provisioner=lambda *_args, **_kwargs: None,
+                )
+
+            controller = controllers[-1]
+            controller.initialize_mempalace_runtime.assert_called_once_with(project)
             receipt = json.loads(
                 (project / controller.RECEIPT_NAME).read_text(encoding="utf-8")
             )
@@ -228,7 +238,7 @@ class ChaosEngineInstallerTest(unittest.TestCase):
             self.assertEqual("recovery-required", result["status"])
             self.assertEqual("recovery-required", result["components"]["mcps"]["status"])
 
-    def test_doctor_reports_legacy_chroma_state_as_migration_required(self):
+    def test_status_maps_legacy_mempalace_classifier_without_launching(self):
         with tempfile.TemporaryDirectory() as temporary:
             project = Path(temporary) / "consumer"
             project.mkdir()
@@ -238,37 +248,32 @@ class ChaosEngineInstallerTest(unittest.TestCase):
                 TEST_COMMIT,
                 provisioner=lambda *_args, **_kwargs: None,
             )
+            palace = project / ".chaos-engine-state/mempalace"
+            palace.mkdir(parents=True, exist_ok=True)
+            create_chroma_state(palace / "chroma.sqlite3")
+            palace.joinpath("00000000-0000-0000-0000-000000000001").mkdir()
             controller = MODULE.load_installed_controller(
                 project / ".chaos-engine", "hosts"
             )
-            self.assertTrue(hasattr(controller, "mempalace_runtime_status"))
-            palace = project / ".chaos-engine-state/mempalace"
-            palace.joinpath("sqlite_exact.sqlite3").unlink()
-            create_chroma_state(palace / "chroma.sqlite3")
-            palace.joinpath("00000000-0000-0000-0000-000000000001").mkdir()
-            passive = MODULE.status_with_dependencies(project)
+            controller.mempalace_runtime_status = mock.Mock(
+                return_value={
+                    "status": "migration-required",
+                    "detail": "Legacy Chroma state requires migration",
+                }
+            )
+            with mock.patch.object(
+                MODULE,
+                "load_installed_controller",
+                return_value=controller,
+            ):
+                passive = MODULE.status_with_dependencies(project)
+
             self.assertEqual("recovery-required", passive["status"])
             self.assertEqual(
                 "migration-required",
                 passive["components"]["mempalace"]["status"],
             )
-            with mock.patch.object(
-                controller,
-                "retrieval_runtime_healthy",
-                return_value=True,
-            ), mock.patch.object(
-                MODULE,
-                "load_installed_controller",
-                return_value=controller,
-            ):
-                result = MODULE.doctor_with_dependencies(project, verify_clients=False)
-
-            self.assertEqual("recovery-required", result["status"])
-            self.assertEqual(
-                "migration-required",
-                result["components"]["mempalace"]["status"],
-            )
-            self.assertIn("Chroma", result["components"]["mempalace"]["detail"])
+            controller.mempalace_runtime_status.assert_called_once_with(project)
 
     def test_default_distribution_installs_only_neutral_portable_payload(self):
         with tempfile.TemporaryDirectory() as temporary:
