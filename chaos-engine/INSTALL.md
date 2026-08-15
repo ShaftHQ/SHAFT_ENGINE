@@ -73,6 +73,25 @@ convert them with an explicit uninstall followed by the portable bootstrap.
 The installer refuses an in-place legacy conversion and leaves the old tree
 unchanged.
 
+ChaosEngine-created MemPalace MCP servers use MemPalace's bundled
+`sqlite_exact` backend explicitly. It keeps the complete local MCP contract but
+has no native HNSW index, so separate agent sessions cannot enter Chroma's
+process-crash and derived-index-corruption path. An upgrade never converts or
+deletes existing generated memory state silently. After dependency provisioning,
+a fresh install creates only the empty SQLite-exact schema and default collection;
+it never files adopter content. Passive `status` and active `doctor` validate
+that state through read-only SQLite queries. A structurally valid legacy Chroma
+palace reports `migration-required` before any MCP launch; corrupt, unrecognized,
+or incomplete state reports `recovery-required`. ChaosEngine does not migrate,
+archive, rename, delete, or claim receipt ownership of palace state, so install
+rollback and uninstall deliberately leave initialized or user-generated state unchanged.
+Migration remains an explicit operator-owned MemPalace procedure and must use a
+verified backup plus the upstream workflow appropriate to that MemPalace
+version. `doctor` stays blocked until the operator supplies a fresh or valid
+SQLite-exact palace. This containment avoids the native HNSW path for generated
+clients; it does not repair the upstream Chroma/HNSW defect. Never remove a
+writer lock or rename an HNSW segment while a MemPalace process is live.
+
 The consumer folder may be a GitHub checkout, another Git checkout, or a
 non-Git directory. ChaosEngine installs project-locally and does not infer its
 upstream from the consumer repository.
