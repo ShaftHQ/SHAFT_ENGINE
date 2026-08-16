@@ -651,10 +651,9 @@ class TerminalReflectionContractTest(unittest.TestCase):
             "proofCommandOrCheck": "installed hook probe",
             "proofOutcome": "The installed hook passed.",
             "issue": "https://github.com/ShaftHQ/SHAFT_ENGINE/issues/5014",
-            "tokenConsumer": "Repeated source and installed-boundary repair review.",
-            "nextSessionOptimization": "Use one parity matrix and freeze only after installed probes.",
+            "tokenConsumer": "Proof consumer agent ran the installed hook.",
+            "nextSessionOptimization": "Keep installed assertions stable across branches.",
             "durableDisposition": "guidance-fixed",
-            "issue": "https://github.com/ShaftHQ/SHAFT_ENGINE/issues/5014",
         }
 
     def test_terminal_receipt_requires_issue(self):
