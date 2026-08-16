@@ -1176,6 +1176,7 @@ def attach_component_status(
         "playbooks": [target / "references/work-github-playbook.md"],
         "hooks": [
             target / "hooks/guard.py",
+            target / "hooks/reflection.py",
             project / ".codex/hooks.json",
             project / "plugins/chaos-engine/hooks/hooks.json",
         ],

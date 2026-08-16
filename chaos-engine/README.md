@@ -140,6 +140,7 @@ default; repository-specific distributions require an explicit selection.
 | [`bootstrap.py`](bootstrap.py) | Mutable-branch resolution to an immutable upstream commit |
 | [`hosts.py`](hosts.py) | Thin native host adapters and ownership receipts |
 | [`hooks/guard.py`](hooks/guard.py) | Portable lifecycle activation and catastrophic-scope guard |
+| [`hooks/reflection.py`](hooks/reflection.py) | Bounded task-ledger reflection reducer and receipt validator |
 | [`dependencies.py`](dependencies.py) | Project-local dependency doctor, repair, and upgrade flow |
 | [`tool.py`](tool.py) | Relocatable launcher for ChaosEngine-owned local tools |
 | [`learning.py`](learning.py) | Privacy-gated queue for reusable improvement candidates |

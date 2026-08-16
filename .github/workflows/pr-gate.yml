@@ -303,7 +303,7 @@ jobs:
     needs: changes
     if: needs.changes.outputs.agent_guidance == 'true' || needs.changes.outputs.infra == 'true'
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 15
+    timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
@@ -405,6 +405,8 @@ jobs:
             [[ -z "$test_path" ]] && continue
             python scripts/ci/validate_red_before_green.py \
               --parent-revision "$BASE_SHA" \
+              --child-support-path scripts/agents/reflection.py \
+              --child-support-path chaos-engine/hooks/reflection.py \
               "$HEAD_SHA" scripts/agents/guard.py "$test_path"
           done < "$paths_file"
       - name: Report orphaned guard docstring claims

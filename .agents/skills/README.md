@@ -134,6 +134,7 @@ sends you there; the rest by
 - [orchestrator bootstrap](../../chaos-engine/references/orchestrator-bootstrap.md)
 - [task isolation](../../chaos-engine/references/task-isolation.md)
 - [verification-gap lens](../../chaos-engine/references/verification-gap-lens.md)
+- [reflection checkpoints](../../chaos-engine/references/reflection-checkpoints.md)
 - [cleanup scopes](../../chaos-engine/references/cleanup-scopes.md)
 - [work GitHub playbook](../../chaos-engine/references/work-github-playbook.md)
 - [work GitHub planning](../../chaos-engine/references/work-github-planning.md)

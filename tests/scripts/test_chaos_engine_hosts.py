@@ -353,6 +353,7 @@ class ChaosEngineHostsTest(unittest.TestCase):
                 "plugins/chaos-engine/.claude-plugin/plugin.json",
                 "plugins/chaos-engine/hooks/hooks.json",
                 "plugins/chaos-engine/hooks/guard.py",
+                "plugins/chaos-engine/hooks/reflection.py",
                 "plugins/chaos-engine/skills/chaos-engine/SKILL.md",
                 ".codex/hooks.json",
                 ".claude/settings.json",
@@ -430,6 +431,32 @@ class ChaosEngineHostsTest(unittest.TestCase):
                 matcher = lifecycle[event][0]["matcher"]
                 self.assertIn("exec_command", matcher)
                 self.assertIn("functions[.]exec", matcher)
+            plugin_lifecycle = json.loads(
+                project.joinpath("plugins/chaos-engine/hooks/hooks.json").read_text()
+            )["hooks"]
+            self.assertIn("PostToolUseFailure", plugin_lifecycle)
+            self.assertNotIn("PostToolUseFailure", lifecycle)
+            installed_hook = project / "plugins/chaos-engine/hooks/guard.py"
+            hook_environment = {**os.environ, "TMPDIR": temporary, "TEMP": temporary}
+            failure = {
+                "hook_event_name": "PostToolUseFailure",
+                "tool_name": "PowerShell",
+                "tool_input": {"command": "py -3 -m unittest installed.focused"},
+                "session_id": "installed-reflection",
+            }
+            first = subprocess.run(  # nosec B603 - fixed interpreter and installed local hook.
+                [os.sys.executable, str(installed_hook)],
+                input=json.dumps(failure), capture_output=True, text=True,
+                env=hook_environment, check=False,
+            )
+            second = subprocess.run(  # nosec B603 - fixed interpreter and installed local hook.
+                [os.sys.executable, str(installed_hook)],
+                input=json.dumps(failure), capture_output=True, text=True,
+                env=hook_environment, check=False,
+            )
+            self.assertEqual(0, first.returncode, first.stderr)
+            self.assertEqual(0, second.returncode, second.stderr)
+            self.assertIn("Reflection required", second.stdout)
 
     def test_plugin_marketplace_preserves_unrelated_entries(self):
         module = load(HOSTS, "chaos_engine_marketplace_merge")

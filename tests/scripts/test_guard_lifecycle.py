@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import ast
+import hashlib
+import importlib
 import inspect
 import io
 import json
@@ -14,6 +16,7 @@ import sys
 import tempfile
 import time
 import unittest
+from concurrent.futures import ThreadPoolExecutor
 from contextlib import redirect_stdout
 from datetime import UTC, datetime
 from pathlib import Path
@@ -21,6 +24,35 @@ from unittest import mock
 from unittest.mock import patch
 
 from scripts.agents import guard, learning_loop
+
+try:
+    reflection = importlib.import_module("scripts.agents.reflection")
+except ModuleNotFoundError as error:
+    if error.name != "scripts.agents.reflection":
+        raise
+
+    def _missing_reflection(*_args, **_kwargs):
+        raise AssertionError("reflection support is unavailable")
+
+    class _MissingReflection:
+        """Make the pre-feature fixture fail as a RED assertion, not at import."""
+
+        active_entries = staticmethod(_missing_reflection)
+        append_entry = staticmethod(_missing_reflection)
+        entries = staticmethod(_missing_reflection)
+        has_valid_terminal_receipt = staticmethod(_missing_reflection)
+        ledger_path = staticmethod(_missing_reflection)
+        main = staticmethod(_missing_reflection)
+        mark_non_attempt = staticmethod(_missing_reflection)
+        pending_checkpoint = staticmethod(_missing_reflection)
+        record_activity = staticmethod(_missing_reflection)
+        record_failure = staticmethod(_missing_reflection)
+        record_platform_outcome = staticmethod(_missing_reflection)
+        record_receipt = staticmethod(_missing_reflection)
+        record_session_start = staticmethod(_missing_reflection)
+        record_trigger = staticmethod(_missing_reflection)
+
+    reflection = _MissingReflection()
 
 LEARNING_CONTROLLER = str(Path(learning_loop.__file__))
 
@@ -54,6 +86,592 @@ ISOLATED_STOP_RULES = (
     "check_r27_checkpoint_pull_request",
     "check_r29_delivery_complete",
 )
+
+
+class ReflectionCheckpointContractTest(unittest.TestCase):
+    """#5001: the second attempt failure opens a reflection checkpoint."""
+
+    def test_second_failure_in_one_task_requires_reflection(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            payload = {
+                "hook_event_name": "PostToolUse",
+                "tool_name": "PowerShell",
+                "tool_input": {
+                    "command": "py -3 -m unittest tests.scripts.test_guard_lifecycle"
+                },
+                "tool_response": {"status": "failed", "exit_code": 1},
+                "session_id": "reflection-second-failure",
+                "cwd": ".",
+            }
+            with patch.dict(os.environ, {"TMPDIR": temporary, "TEMP": temporary}):
+                with redirect_stdout(io.StringIO()):
+                    guard.run_posttooluse(payload)
+                second_output = io.StringIO()
+                with redirect_stdout(second_output):
+                    guard.run_posttooluse(payload)
+                ledger = Path(guard._ledger_path(payload))
+
+                self.assertTrue(ledger.is_file(), "failed outcomes must reach the task ledger")
+                self.assertIn('"kind":"task-failure"', ledger.read_text(encoding="utf-8"))
+                self.assertIn("reflection", second_output.getvalue().casefold())
+                fingerprint = reflection.pending_checkpoint(
+                    "reflection-second-failure"
+                )["failureFingerprints"][0]
+                self.assertIn(fingerprint, second_output.getvalue())
+
+    def test_first_failure_remains_normal(self):
+        with tempfile.TemporaryDirectory() as temporary, patch.dict(
+            os.environ, {"TMPDIR": temporary, "TEMP": temporary}
+        ):
+            output = io.StringIO()
+            with redirect_stdout(output):
+                guard.run_posttooluse(self._failure("first-only"))
+            self.assertEqual("", output.getvalue())
+            self.assertIsNone(reflection.pending_checkpoint("first-only"))
+
+    def test_duplicate_host_observation_does_not_advance_the_threshold(self):
+        with tempfile.TemporaryDirectory() as temporary, patch.dict(
+            os.environ, {"TMPDIR": temporary, "TEMP": temporary}
+        ):
+            payload = {**self._failure("deduplicated"), "tool_use_id": "call-1"}
+            with redirect_stdout(io.StringIO()):
+                guard.run_posttooluse(payload)
+                guard.run_posttooluse(payload)
+            self.assertIsNone(reflection.pending_checkpoint("deduplicated"))
+            failures = [
+                item for item in reflection.entries("deduplicated")
+                if item.get("kind") == "task-failure"
+            ]
+            self.assertEqual(1, len(failures))
+
+    def _failure(self, session_id, *, command="py -3 -m unittest focused", event="PostToolUse"):
+        return {
+            "hook_event_name": event,
+            "tool_name": "PowerShell",
+            "tool_input": {"command": command},
+            "tool_response": {"status": "failed", "exit_code": 1},
+            "session_id": session_id,
+            "cwd": ".",
+        }
+
+    def _receipt(self, checkpoint, **overrides):
+        receipt = {
+            "schemaVersion": 1,
+            "taskId": "issue-5000",
+            "trigger": checkpoint["trigger"],
+            "failureFingerprints": checkpoint["failureFingerprints"],
+            "failedAssumption": "The unchanged attempt would produce new evidence.",
+            "approachesCompared": ["Inspect the bounded state", "Change one diagnostic input"],
+            "chosenExperiment": "Change one input and run the focused check.",
+            "changedApproach": "Stopped the unchanged retry and isolated the invariant.",
+            "proofCommandOrCheck": "focused unittest",
+            "proofOutcome": "The focused check passed.",
+            "durableDisposition": "nothing-durable",
+        }
+        receipt.update(overrides)
+        return receipt
+
+    def test_distinct_second_failure_requires_task_reflection(self):
+        with tempfile.TemporaryDirectory() as temporary, patch.dict(
+            os.environ, {"TMPDIR": temporary, "TEMP": temporary}
+        ):
+            first = self._failure("distinct", command="py -3 -m unittest first")
+            second = self._failure("distinct", command="mvn -pl shaft-engine test")
+            with redirect_stdout(io.StringIO()):
+                guard.run_posttooluse(first)
+                guard.run_posttooluse(second)
+            checkpoint = reflection.pending_checkpoint("distinct")
+            self.assertEqual("task", checkpoint["depth"])
+            self.assertEqual("second-failure", checkpoint["trigger"])
+
+    def test_same_second_failure_requires_deep_reflection_and_blocks_third_attempt(self):
+        with tempfile.TemporaryDirectory() as temporary, patch.dict(
+            os.environ, {"TMPDIR": temporary, "TEMP": temporary}
+        ):
+            payload = self._failure("same")
+            with redirect_stdout(io.StringIO()):
+                guard.run_posttooluse(payload)
+                guard.run_posttooluse(payload)
+            checkpoint = reflection.pending_checkpoint("same")
+            self.assertEqual("deep", checkpoint["depth"])
+            output = io.StringIO()
+            with redirect_stdout(output):
+                guard.run_pretooluse(
+                    {**payload, "hook_event_name": "PreToolUse", "tool_response": {}},
+                    "portable",
+                )
+            self.assertIn("permissionDecision", output.getvalue())
+            self.assertIn("Reflection required", output.getvalue())
+
+    def test_read_only_diagnosis_and_non_attempt_are_allowed_without_clearing_checkpoint(self):
+        with tempfile.TemporaryDirectory() as temporary, patch.dict(
+            os.environ, {"TMPDIR": temporary, "TEMP": temporary}
+        ):
+            payload = self._failure("diagnosis")
+            with redirect_stdout(io.StringIO()):
+                guard.run_posttooluse(payload)
+                guard.run_posttooluse(payload)
+            output = io.StringIO()
+            with redirect_stdout(output):
+                guard.run_pretooluse(
+                    {"tool_name": "Read", "session_id": "diagnosis", "tool_input": {}},
+                    "portable",
+                )
+            self.assertEqual("", output.getvalue())
+            non_attempt = {**payload}
+            with redirect_stdout(io.StringIO()):
+                guard.run_posttooluse(non_attempt)
+            newest = [
+                item for item in reflection.entries("diagnosis")
+                if item.get("kind") == "task-failure"
+            ][-1]
+            reflection.mark_non_attempt("diagnosis", newest["failureId"], "capability-probe")
+            self.assertEqual(2, reflection.pending_checkpoint("diagnosis")["attemptCount"])
+
+    def test_valid_receipt_resets_checkpoint_and_replay_reopens_it(self):
+        with tempfile.TemporaryDirectory() as temporary, patch.dict(
+            os.environ, {"TMPDIR": temporary, "TEMP": temporary}
+        ):
+            payload = self._failure("receipt")
+            with redirect_stdout(io.StringIO()):
+                guard.run_posttooluse(payload)
+                guard.run_posttooluse(payload)
+            checkpoint = reflection.pending_checkpoint("receipt")
+            token = reflection.record_session_start("receipt")
+            recorded = reflection.record_receipt("receipt", self._receipt(checkpoint), token)
+            self.assertIsNone(reflection.pending_checkpoint("receipt"))
+            with redirect_stdout(io.StringIO()):
+                guard.run_posttooluse(payload)
+                guard.run_posttooluse(payload)
+            self.assertEqual("deep", reflection.pending_checkpoint("receipt")["depth"])
+            reflection.append_entry("receipt", recorded)
+            self.assertEqual(
+                "deep",
+                reflection.pending_checkpoint("receipt")["depth"],
+                "a valid old receipt must not clear a new occurrence",
+            )
+
+    def test_tampered_receipt_does_not_clear_checkpoint(self):
+        with tempfile.TemporaryDirectory() as temporary, patch.dict(
+            os.environ, {"TMPDIR": temporary, "TEMP": temporary}
+        ):
+            payload = self._failure("tampered")
+            with redirect_stdout(io.StringIO()):
+                guard.run_posttooluse(payload)
+                guard.run_posttooluse(payload)
+            checkpoint = reflection.pending_checkpoint("tampered")
+            token = reflection.record_session_start("tampered")
+            receipt = reflection.record_receipt("tampered", self._receipt(checkpoint), token)
+            receipt["proofOutcome"] = "tampered after validation"
+            reflection.append_entry("tampered", receipt)
+            with redirect_stdout(io.StringIO()):
+                guard.run_posttooluse(payload)
+                guard.run_posttooluse(payload)
+            self.assertEqual("deep", reflection.pending_checkpoint("tampered")["depth"])
+
+    def test_receipt_rejects_stale_fingerprint_secret_and_user_path(self):
+        with tempfile.TemporaryDirectory() as temporary, patch.dict(
+            os.environ, {"TMPDIR": temporary, "TEMP": temporary}
+        ):
+            payload = self._failure("unsafe")
+            with redirect_stdout(io.StringIO()):
+                guard.run_posttooluse(payload)
+                guard.run_posttooluse(payload)
+            checkpoint = reflection.pending_checkpoint("unsafe")
+            token = reflection.record_session_start("unsafe")
+            for overrides in (
+                {"failureFingerprints": ["stale"]},
+                {"failedAssumption": "api_key=do-not-store"},
+                {"proofOutcome": "see C:\\Users\\person\\trace.log"},
+            ):
+                with self.assertRaises(ValueError):
+                    reflection.record_receipt("unsafe", self._receipt(checkpoint, **overrides), token)
+
+    def test_claude_failure_event_and_codex_failed_result_have_equivalent_state(self):
+        with tempfile.TemporaryDirectory() as temporary, patch.dict(
+            os.environ, {"TMPDIR": temporary, "TEMP": temporary}
+        ):
+            codex = self._failure("codex")
+            claude = self._failure("claude", event="PostToolUseFailure")
+            claude.pop("tool_response")
+            claude["error"] = "raw host text must not be persisted"
+            with redirect_stdout(io.StringIO()):
+                guard.run_posttooluse(codex)
+                guard.run_posttooluse(claude)
+            codex_entry = next(item for item in reflection.entries("codex") if item.get("kind") == "task-failure")
+            claude_entry = next(item for item in reflection.entries("claude") if item.get("kind") == "task-failure")
+            for field in ("failureClass", "target", "invariant", "phase", "fingerprint"):
+                self.assertEqual(codex_entry[field], claude_entry[field])
+            self.assertNotIn("raw host text", json.dumps(claude_entry))
+
+    def test_long_session_blocks_even_recursive_stop_until_receipt_and_summary(self):
+        with tempfile.TemporaryDirectory() as temporary, patch.dict(
+            os.environ, {"TMPDIR": temporary, "TEMP": temporary}
+        ):
+            session = "long"
+            token = reflection.record_session_start(session, "2020-01-01T00:00:00+00:00")
+            payload = {"session_id": session, "stop_hook_active": True}
+            output = io.StringIO()
+            with redirect_stdout(output):
+                guard.run_stop(payload)
+            self.assertIn("Terminal reflection required", output.getvalue())
+            receipt = self._receipt(
+                {"trigger": "long-session-completion", "failureFingerprints": []},
+                trigger="long-session-completion",
+            )
+            reflection.record_receipt(session, receipt, token)
+            payload["last_assistant_message"] = "\n".join(
+                f"{label}: recorded" for label in guard._TERMINAL_REFLECTION_LABELS
+            )
+            output = io.StringIO()
+            with redirect_stdout(output):
+                guard.run_stop(payload)
+            self.assertEqual("", output.getvalue())
+
+    def test_changed_diagnostic_test_is_allowed_but_unchanged_rerun_is_not(self):
+        with tempfile.TemporaryDirectory() as temporary, patch.dict(
+            os.environ, {"TMPDIR": temporary, "TEMP": temporary}
+        ):
+            payload = self._failure("changed-diagnostic")
+            with redirect_stdout(io.StringIO()):
+                guard.run_posttooluse(payload)
+                guard.run_posttooluse(payload)
+            self.assertIsNotNone(reflection.pending_checkpoint("changed-diagnostic"))
+            changed = {
+                **payload,
+                "hook_event_name": "PreToolUse",
+                "tool_input": {"command": "py -3 -m unittest different.probe"},
+            }
+            output = io.StringIO()
+            with redirect_stdout(output):
+                guard.run_pretooluse(changed, "portable")
+            self.assertEqual("", output.getvalue())
+
+    def test_second_local_ci_disagreement_opens_checkpoint(self):
+        with tempfile.TemporaryDirectory() as temporary, patch.dict(
+            os.environ, {"TMPDIR": temporary, "TEMP": temporary}
+        ):
+            for platform, outcome in (
+                ("local", "failed"),
+                ("ci", "passed"),
+                ("local", "failed"),
+                ("ci", "passed"),
+            ):
+                reflection.record_platform_outcome(
+                    "platform", target="focused-test", platform=platform, outcome=outcome
+                )
+            checkpoint = reflection.pending_checkpoint("platform")
+            self.assertEqual("platform-disagreement", checkpoint["trigger"])
+
+    def test_host_flow_correlates_different_local_ci_commands_by_logical_target(self):
+        with tempfile.TemporaryDirectory() as temporary, patch.dict(
+            os.environ, {"TMPDIR": temporary, "TEMP": temporary}
+        ):
+            outcomes = (
+                ("local", "failed", "py -3 -m unittest package.case", 1),
+                ("ci", "passed", "mvn -Dtest=Case test", 0),
+                ("local", "failed", "py -3 -m unittest package.case", 1),
+                ("ci", "passed", "mvn -Dtest=Case test", 0),
+            )
+            for platform, status, command, code in outcomes:
+                with redirect_stdout(io.StringIO()):
+                    guard.run_posttooluse(
+                        {
+                            "hook_event_name": "PostToolUse",
+                            "tool_name": "PowerShell",
+                            "tool_input": {"command": command},
+                            "tool_response": {"status": status, "exit_code": code},
+                            "session_id": "host-platform",
+                            "platform": platform,
+                            "target": "Case",
+                        }
+                    )
+            self.assertEqual(
+                "platform-disagreement",
+                reflection.pending_checkpoint("host-platform")["trigger"],
+            )
+
+    def test_explicit_semantic_trigger_opens_checkpoint_without_store_or_github(self):
+        with tempfile.TemporaryDirectory() as temporary, patch.dict(
+            os.environ, {"TMPDIR": temporary, "TEMP": temporary}
+        ):
+            reflection.record_trigger("semantic", "premise-invalidated", "premise")
+            checkpoint = reflection.pending_checkpoint("semantic")
+            self.assertEqual("premise-invalidated", checkpoint["trigger"])
+
+
+class ReflectionReceiptPrivacyTest(unittest.TestCase):
+    """#5000: reflection recovery is private, bound, and non-bypassable."""
+    def _pending(self, session):
+        for _ in range(2):
+            reflection.record_failure(
+                session,
+                phase="tool-outcome",
+                target="focused-test",
+                failure_class="tool-failure",
+                platform="win32",
+            )
+        return reflection.pending_checkpoint(session)
+
+    def _receipt(self, checkpoint, **overrides):
+        receipt = {
+            "schemaVersion": 1,
+            "taskId": "issue-5000",
+            "trigger": checkpoint["trigger"],
+            "failureFingerprints": checkpoint["failureFingerprints"],
+            "failedAssumption": "The direct test represented the installed flow.",
+            "approachesCompared": ["Patch the copy", "Use one portable source"],
+            "chosenExperiment": "Execute a real temporary install.",
+            "changedApproach": "Test through the installed hook boundary.",
+            "proofCommandOrCheck": "portable install unittest",
+            "proofOutcome": "The installed hook completed successfully.",
+            "durableDisposition": "guidance-fixed",
+        }
+        receipt.update(overrides)
+        return receipt
+
+    def test_session_token_and_closed_schema_reject_forged_receipts(self):
+        with tempfile.TemporaryDirectory() as temporary, patch.dict(
+            os.environ, {"TMPDIR": temporary, "TEMP": temporary}
+        ):
+            checkpoint = self._pending("forged")
+            token = reflection.record_session_start("forged")
+            with self.assertRaises(ValueError):
+                reflection.record_receipt("forged", self._receipt(checkpoint), "forged-token")
+            with self.assertRaises(ValueError):
+                reflection.record_receipt(
+                    "forged", self._receipt(checkpoint, rawLog="forbidden"), token
+                )
+            reflection.append_entry(
+                "forged",
+                {
+                    "schemaVersion": 1,
+                    "kind": "reflection-receipt",
+                    "sessionHash": "forged",
+                    "checkpointDigest": "forged",
+                    "receiptHash": hashlib.sha256(b"caller-controlled").hexdigest(),
+                },
+            )
+            self.assertIsNotNone(reflection.pending_checkpoint("forged"))
+
+    def test_failure_classifications_never_persist_secret_or_user_path(self):
+        with tempfile.TemporaryDirectory() as temporary, patch.dict(
+            os.environ, {"TMPDIR": temporary, "TEMP": temporary}
+        ):
+            reflection.record_failure(
+                "privacy",
+                phase="password=hunter2",
+                target=r"C:\Users\alice\private",
+                failure_class="tool-failure",
+                platform="/home/alice/machine",
+                invariant="api_key=forbidden",
+            )
+            rendered = reflection.ledger_path("privacy").read_text(encoding="utf-8").casefold()
+            for forbidden in ("hunter2", "alice", "forbidden", "c:\\users", "/home/"):
+                self.assertNotIn(forbidden, rendered)
+            checkpoint = self._pending("receipt-privacy")
+            token = reflection.record_session_start("receipt-privacy")
+            for unsafe in (
+                "access_token=abc123",
+                "bearer abc12345",
+                r"\\server\alice\share",
+                "workspace-alice-private",
+            ):
+                with self.assertRaises(ValueError):
+                    reflection.record_receipt(
+                        "receipt-privacy",
+                        self._receipt(checkpoint, failedAssumption=unsafe),
+                        token,
+                    )
+
+    def test_exact_recovery_command_allowed_and_substring_bypass_blocked(self):
+        with tempfile.TemporaryDirectory() as temporary, patch.dict(
+            os.environ, {"TMPDIR": temporary, "TEMP": temporary}
+        ):
+            self._pending("recovery")
+            failure_ids = [
+                item["failureId"] for item in reflection.active_entries("recovery")
+            ]
+            exact = (
+                "py -3 scripts/agents/reflection.py non-attempt --session-id recovery "
+                f"--failure-id {failure_ids[-1]} --reason capability-probe"
+            )
+            bypass = (
+                "Write-Output scripts/agents/reflection.py --session-id recovery; "
+                "git commit -am bypass"
+            )
+            tracker = "gh issue comment 5000 --body reflection-plan"
+            self.assertEqual("non-attempt", guard._reflection_recovery_operation(exact))
+            self.assertIsNone(guard._reflection_recovery_operation(bypass))
+            for python_bypass in (
+                'py -3 -c "print(1)" scripts/agents/reflection.py receipt --session-id recovery',
+                "python -m malicious scripts/agents/reflection.py receipt --session-id recovery",
+                "py -3 scripts/agents/reflection.py receipt --session-id recovery --session-token t --json '{}';git commit -am x",
+            ):
+                self.assertIsNone(guard._reflection_recovery_operation(python_bypass))
+            allowed = io.StringIO()
+            with redirect_stdout(allowed):
+                guard.run_pretooluse(
+                    {"tool_name": "PowerShell", "tool_input": {"command": exact}, "session_id": "recovery"}
+                )
+            self.assertEqual("", allowed.getvalue())
+            blocked = io.StringIO()
+            with redirect_stdout(blocked):
+                guard.run_pretooluse(
+                    {"tool_name": "PowerShell", "tool_input": {"command": bypass}, "session_id": "recovery"}
+                )
+            self.assertIn("permissionDecision", blocked.getvalue())
+            tracker_output = io.StringIO()
+            with redirect_stdout(tracker_output):
+                guard.run_pretooluse(
+                    {"tool_name": "PowerShell", "tool_input": {"command": tracker}, "session_id": "recovery"}
+                )
+            self.assertEqual("", tracker_output.getvalue())
+
+    def test_cli_non_attempt_disposes_only_the_exact_failure(self):
+        with tempfile.TemporaryDirectory() as temporary, patch.dict(
+            os.environ, {"TMPDIR": temporary, "TEMP": temporary}
+        ):
+            checkpoint = self._pending("cli-non-attempt")
+            self.assertIsNotNone(checkpoint)
+            failure_ids = [
+                item["failureId"] for item in reflection.active_entries("cli-non-attempt")
+            ]
+            with redirect_stdout(io.StringIO()):
+                self.assertEqual(
+                    0,
+                    reflection.main(
+                        [
+                            "non-attempt", "--session-id", "cli-non-attempt",
+                            "--failure-id", failure_ids[-1], "--reason", "syntax-error",
+                        ]
+                    ),
+                )
+            self.assertIsNone(reflection.pending_checkpoint("cli-non-attempt"))
+            remaining = reflection.active_entries("cli-non-attempt")
+            self.assertEqual([failure_ids[0]], [item["failureId"] for item in remaining])
+
+    def test_cli_json_receipt_completes_without_an_intermediate_file(self):
+        with tempfile.TemporaryDirectory() as temporary, patch.dict(
+            os.environ, {"TMPDIR": temporary, "TEMP": temporary}
+        ):
+            checkpoint = self._pending("cli-receipt")
+            token = reflection.record_session_start("cli-receipt")
+            with redirect_stdout(io.StringIO()):
+                result = reflection.main(
+                    [
+                        "receipt", "--session-id", "cli-receipt",
+                        "--session-token", token,
+                        "--json", json.dumps(self._receipt(checkpoint)),
+                    ]
+                )
+            self.assertEqual(0, result)
+            self.assertIsNone(reflection.pending_checkpoint("cli-receipt"))
+
+    def test_sessions_are_isolated(self):
+        with tempfile.TemporaryDirectory() as temporary, patch.dict(
+            os.environ, {"TMPDIR": temporary, "TEMP": temporary}
+        ):
+            self._pending("one")
+            reflection.record_failure(
+                "two", phase="tool-outcome", target="focused", failure_class="tool-failure"
+            )
+            self.assertIsNotNone(reflection.pending_checkpoint("one"))
+            self.assertIsNone(reflection.pending_checkpoint("two"))
+
+    def test_concurrent_failures_have_distinct_exact_ids(self):
+        with tempfile.TemporaryDirectory() as temporary, patch.dict(
+            os.environ, {"TMPDIR": temporary, "TEMP": temporary}
+        ):
+            def write_failure(index):
+                return reflection.record_failure(
+                    "concurrent",
+                    phase="tool-outcome",
+                    target=f"target-{index}",
+                    failure_class="tool-failure",
+                )["failureId"]
+
+            with ThreadPoolExecutor(max_workers=8) as pool:
+                identifiers = list(pool.map(write_failure, range(24)))
+            self.assertEqual(len(identifiers), len(set(identifiers)))
+
+
+class TerminalReflectionContractTest(unittest.TestCase):
+    """#5000: sessions over one hour owe a final bound receipt/report."""
+    def _receipt(self):
+        return {
+            "schemaVersion": 1,
+            "taskId": "issue-5000",
+            "trigger": "long-session-completion",
+            "failureFingerprints": [],
+            "failedAssumption": "Direct unit proof represented the installed flow.",
+            "approachesCompared": ["Patch copies", "Use one portable source"],
+            "chosenExperiment": "Run a real installed hook.",
+            "changedApproach": "Verify the installed boundary first.",
+            "proofCommandOrCheck": "installed hook probe",
+            "proofOutcome": "The installed hook passed.",
+            "durableDisposition": "guidance-fixed",
+        }
+
+    def test_under_one_hour_cannot_prerecord_terminal_receipt_and_does_not_block_stop(self):
+        with tempfile.TemporaryDirectory() as temporary, patch.dict(
+            os.environ, {"TMPDIR": temporary, "TEMP": temporary}
+        ):
+            token = reflection.record_session_start("short")
+            with self.assertRaises(ValueError):
+                reflection.record_receipt("short", self._receipt(), token)
+            output = io.StringIO()
+            with redirect_stdout(output):
+                guard.run_stop({"session_id": "short", "stop_hook_active": True})
+            self.assertEqual("", output.getvalue())
+
+    def test_restart_preserves_earliest_start_and_every_summary_label_is_required(self):
+        with tempfile.TemporaryDirectory() as temporary, patch.dict(
+            os.environ, {"TMPDIR": temporary, "TEMP": temporary}
+        ):
+            token = reflection.record_session_start("restart", "2020-01-01T00:00:00+00:00")
+            reflection.record_session_start("restart")
+            reflection.record_receipt("restart", self._receipt(), token)
+            complete = "\n".join(
+                f"{label}: recorded" for label in guard._TERMINAL_REFLECTION_LABELS
+            )
+            self.assertIsNone(
+                guard._terminal_reflection_reason(
+                    {"session_id": "restart", "last_assistant_message": complete}
+                )
+            )
+            for label in guard._TERMINAL_REFLECTION_LABELS:
+                missing = complete.replace(f"{label}: recorded", "")
+                reason = guard._terminal_reflection_reason(
+                    {"session_id": "restart", "last_assistant_message": missing}
+                )
+                self.assertIn(label, reason)
+
+    def test_activity_after_terminal_receipt_reopens_terminal_duty(self):
+        with tempfile.TemporaryDirectory() as temporary, patch.dict(
+            os.environ, {"TMPDIR": temporary, "TEMP": temporary}
+        ):
+            token = reflection.record_session_start("late", "2020-01-01T00:00:00+00:00")
+            reflection.record_receipt("late", self._receipt(), token)
+            self.assertTrue(reflection.has_valid_terminal_receipt("late"))
+            reflection.record_activity("late", "mutation-or-delivery")
+            self.assertFalse(reflection.has_valid_terminal_receipt("late"))
+
+    def test_failure_after_terminal_receipt_reopens_terminal_duty(self):
+        with tempfile.TemporaryDirectory() as temporary, patch.dict(
+            os.environ, {"TMPDIR": temporary, "TEMP": temporary}
+        ):
+            token = reflection.record_session_start(
+                "late-failure", "2020-01-01T00:00:00+00:00"
+            )
+            reflection.record_receipt("late-failure", self._receipt(), token)
+            reflection.record_failure(
+                "late-failure",
+                phase="tool-outcome",
+                target="proof",
+                failure_class="tool-failure",
+            )
+            self.assertFalse(reflection.has_valid_terminal_receipt("late-failure"))
 
 
 class CheckpointPullRequestGateTest(unittest.TestCase):

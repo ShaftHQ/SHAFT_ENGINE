@@ -65,6 +65,10 @@ changes in the companion documentation repository require their own PR.
 
 Route durable findings through the entrypoint's Learning Loop before the final
 push; a later push loses the context needed to record it accurately.
+When reflection is required, put the changed approach and focused proof on the
+tracker before resuming. The hook never writes issues. After delivery, a
+session over one hour records its terminal receipt and labeled user summary
+before final Stop and Learning Loop reporting.
 
 ### Learned-lessons workflow
 

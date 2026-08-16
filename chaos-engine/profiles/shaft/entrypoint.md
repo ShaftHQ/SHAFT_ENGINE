@@ -11,6 +11,8 @@ Repository contributors use the source-only Graphify resolver
 [repository Graphify procedure](references/graphify.md); adopters use the
 portable installed launcher instead. Repository PRs are watched to confirmed merge with
 `scripts/ci/watch_pr_checks.py`.
+The canonical [reflection checkpoints](../../references/reflection-checkpoints.md)
+apply unchanged to repository and portable installed hosts.
 
 - Repository: `ShaftHQ/SHAFT_ENGINE`; default branch: `main`.
 - Task branches use `ChaosEngine/*` and start from fetched `origin/main`.
