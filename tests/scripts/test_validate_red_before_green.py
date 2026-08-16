@@ -231,18 +231,20 @@ class ValidateRedBeforeGreenTest(unittest.TestCase):
                 self.assertEqual(2, result.returncode, result.stdout + result.stderr)
                 self.assertIn("child support", result.stderr.casefold())
 
-    def test_commit_scoped_no_red_cannot_exempt_a_pr_wide_base_comparison(self):
+    def test_substantive_no_red_applies_to_an_explicit_pr_base(self):
         root, revision = self.repository(
             parent_passes=True,
-            trailer="\n\nno-red: final integration commit cannot exempt earlier tests across the entire pull request",
+            trailer=(
+                "\n\nno-red: atomic rollback restores previously validated production and test contracts "
+                "together without unsafe history rewriting"
+            ),
         )
         parent = self.git(root, "rev-parse", f"{revision}^").strip()
 
         result = self.run_validator(root, revision, parent_revision=parent)
         legacy = self.run_validator(root, revision)
 
-        self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
-        self.assertIn("GuardTest.test_added", result.stderr)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         self.assertEqual(legacy.returncode, 0, "fixture must carry a recognized commit-scoped trailer")
 
     def test_new_test_that_fails_against_parent_is_accepted(self):

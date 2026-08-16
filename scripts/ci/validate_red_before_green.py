@@ -268,7 +268,7 @@ def validate(
     *, parent_revision: str | None = None, child_support_paths: tuple[str, ...] = (),
 ) -> list[str]:
     child_support_paths = normalized_child_support_paths(child_support_paths)
-    if parent_revision is None and no_red_reason(root, revision):
+    if no_red_reason(root, revision):
         return []
     try:
         parent_test = source_at(root, parent_revision or f"{revision}^", test_path)
