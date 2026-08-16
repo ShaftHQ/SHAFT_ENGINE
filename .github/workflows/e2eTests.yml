@@ -422,7 +422,10 @@ jobs:
         with:
           node-version: '20'
       - name: Install Playwright Chrome
-        run: mvn -f shaft-engine/pom.xml -e org.codehaus.mojo:exec-maven-plugin:3.6.3:java "-Dexec.mainClass=com.microsoft.playwright.CLI" "-Dexec.args=install --with-deps chrome"
+        shell: bash
+        run: >-
+          bash scripts/ci/build_retry.sh 2 60
+          mvn -f shaft-engine/pom.xml -e org.codehaus.mojo:exec-maven-plugin:3.6.3:java "-Dexec.mainClass=com.microsoft.playwright.CLI" "-Dexec.args=install --with-deps chrome"
       - name: Run Playwright Chrome E2E
         continue-on-error: true
         run: mvn -pl shaft-engine -am -e test "-DdefaultElementIdentificationTimeout=5" "-DsetParallelMode=NONE" "-DretryMaximumNumberOfAttempts=1" "-DheadlessExecution=true" "-DgenerateAllureReportArchive=true" "-Dtest=${{ github.event.inputs.tests != '' && github.event.inputs.tests || 'ChromePlaywrightActionsE2ETest' }}"
@@ -456,7 +459,10 @@ jobs:
         with:
           node-version: '20'
       - name: Install Playwright Edge
-        run: mvn -f shaft-engine/pom.xml -e org.codehaus.mojo:exec-maven-plugin:3.6.3:java "-Dexec.mainClass=com.microsoft.playwright.CLI" "-Dexec.args=install --with-deps msedge"
+        shell: bash
+        run: >-
+          bash scripts/ci/build_retry.sh 2 60
+          mvn -f shaft-engine/pom.xml -e org.codehaus.mojo:exec-maven-plugin:3.6.3:java "-Dexec.mainClass=com.microsoft.playwright.CLI" "-Dexec.args=install --with-deps msedge"
       - name: Run Playwright Edge E2E
         continue-on-error: true
         run: mvn -pl shaft-engine -am -e test "-DdefaultElementIdentificationTimeout=5" "-DsetParallelMode=NONE" "-DretryMaximumNumberOfAttempts=1" "-DheadlessExecution=true" "-DgenerateAllureReportArchive=true" "-Dtest=${{ github.event.inputs.tests != '' && github.event.inputs.tests || 'EdgePlaywrightActionsE2ETest' }}"
@@ -490,11 +496,17 @@ jobs:
         with:
           node-version: '20'
       - name: Package setup CLI
-        run: mvn --batch-mode -pl shaft-cli -am package -DskipTests '-Dallure.automaticallyOpen=false' -Dgpg.skip
+        shell: bash
+        run: >-
+          bash scripts/ci/build_retry.sh 2 60
+          mvn --batch-mode -pl shaft-cli -am package -DskipTests '-Dallure.automaticallyOpen=false' -Dgpg.skip
       - name: Install reviewed managed Playwright browsers
         run: bash scripts/ci/install_managed_playwright.sh
       - name: Install Playwright WebKit host dependencies
-        run: mvn -f shaft-engine/pom.xml -e org.codehaus.mojo:exec-maven-plugin:3.6.3:java "-Dexec.mainClass=com.microsoft.playwright.CLI" "-Dexec.args=install-deps webkit"
+        shell: bash
+        run: >-
+          bash scripts/ci/build_retry.sh 2 60
+          mvn -f shaft-engine/pom.xml -e org.codehaus.mojo:exec-maven-plugin:3.6.3:java "-Dexec.mainClass=com.microsoft.playwright.CLI" "-Dexec.args=install-deps webkit"
       - name: Run Playwright WebKit E2E
         continue-on-error: true
         run: mvn -pl shaft-engine -am -e test "-DdefaultElementIdentificationTimeout=5" "-DsetParallelMode=NONE" "-DretryMaximumNumberOfAttempts=1" "-DheadlessExecution=true" "-Dinfrastructure.mode=MANAGED" "-Dinfrastructure.profile=PLAYWRIGHT" "-Dinfrastructure.cacheDirectory=${{ runner.temp }}/shaft-playwright-cache" "-DgenerateAllureReportArchive=true" "-Dtest=${{ github.event.inputs.tests != '' && github.event.inputs.tests || 'WebKitPlaywrightActionsE2ETest' }}"
@@ -528,7 +540,10 @@ jobs:
         with:
           node-version: '20'
       - name: Package setup CLI
-        run: mvn --batch-mode -pl shaft-cli -am package -DskipTests '-Dallure.automaticallyOpen=false' -Dgpg.skip
+        shell: bash
+        run: >-
+          bash scripts/ci/build_retry.sh 2 60
+          mvn --batch-mode -pl shaft-cli -am package -DskipTests '-Dallure.automaticallyOpen=false' -Dgpg.skip
       - name: Install reviewed managed Playwright browsers
         run: bash scripts/ci/install_managed_playwright.sh
       - name: Run Playwright Firefox E2E
@@ -564,7 +579,10 @@ jobs:
         with:
           node-version: '20'
       - name: Package setup CLI
-        run: mvn --batch-mode -pl shaft-cli -am package -DskipTests '-Dallure.automaticallyOpen=false' -Dgpg.skip
+        shell: bash
+        run: >-
+          bash scripts/ci/build_retry.sh 2 60
+          mvn --batch-mode -pl shaft-cli -am package -DskipTests '-Dallure.automaticallyOpen=false' -Dgpg.skip
       - name: Install reviewed managed Playwright browsers
         run: bash scripts/ci/install_managed_playwright.sh
       - name: Run Playwright Galaxy S26 Ultra E2E
@@ -600,11 +618,17 @@ jobs:
         with:
           node-version: '20'
       - name: Package setup CLI
-        run: mvn --batch-mode -pl shaft-cli -am package -DskipTests '-Dallure.automaticallyOpen=false' -Dgpg.skip
+        shell: bash
+        run: >-
+          bash scripts/ci/build_retry.sh 2 60
+          mvn --batch-mode -pl shaft-cli -am package -DskipTests '-Dallure.automaticallyOpen=false' -Dgpg.skip
       - name: Install reviewed managed Playwright browsers
         run: bash scripts/ci/install_managed_playwright.sh
       - name: Install Playwright WebKit host dependencies
-        run: mvn -f shaft-engine/pom.xml -e org.codehaus.mojo:exec-maven-plugin:3.6.3:java "-Dexec.mainClass=com.microsoft.playwright.CLI" "-Dexec.args=install-deps webkit"
+        shell: bash
+        run: >-
+          bash scripts/ci/build_retry.sh 2 60
+          mvn -f shaft-engine/pom.xml -e org.codehaus.mojo:exec-maven-plugin:3.6.3:java "-Dexec.mainClass=com.microsoft.playwright.CLI" "-Dexec.args=install-deps webkit"
       - name: Run Playwright iPhone 17 Pro Max E2E
         continue-on-error: true
         run: mvn -pl shaft-engine -am -e test "-DdefaultElementIdentificationTimeout=5" "-DsetParallelMode=NONE" "-DretryMaximumNumberOfAttempts=1" "-DheadlessExecution=true" "-Dinfrastructure.mode=MANAGED" "-Dinfrastructure.profile=PLAYWRIGHT" "-Dinfrastructure.cacheDirectory=${{ runner.temp }}/shaft-playwright-cache" "-DgenerateAllureReportArchive=true" "-Dtest=${{ github.event.inputs.tests != '' && github.event.inputs.tests || 'IPhone17ProMaxPlaywrightActionsE2ETest' }}"
@@ -669,7 +693,7 @@ jobs:
           cd appium-flutter-server/demo-app
           dart pub global activate rps --version 0.8.0
           flutter build apk --debug
-          cd android && ./gradlew app:assembleDebug -Ptarget="$(pwd)/../integration_test/appium.dart"
+          cd android && bash "$GITHUB_WORKSPACE/scripts/ci/build_retry.sh" 2 60 ./gradlew app:assembleDebug -Ptarget="$(pwd)/../integration_test/appium.dart"
       - name: Upload wired Flutter demo-app APK
         uses: actions/upload-artifact@v7
         with:
