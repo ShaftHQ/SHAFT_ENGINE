@@ -1243,7 +1243,9 @@ class InitialDraftPullRequestGateTest(unittest.TestCase):
         )
         with patch("scripts.agents.guard._checkpoint_identity", return_value=self.identity()):
             with patch("scripts.agents.guard._same_tree_as_default_base", return_value=True, create=True):
-                for state in cases:
+                with patch("scripts.agents.guard._exact_head_pull_request", return_value=cases[0]):
+                    self.assertIsNotNone(self.check({"cwd": ".", "tool_input": {"file_path": "x"}}, "Write"))
+                for state in cases[1:]:
                     with self.subTest(state=state):
                         with patch("scripts.agents.guard._exact_head_pull_request", return_value=state):
                             self.assertIsNotNone(self.check({"cwd": ".", "tool_input": {"file_path": "x"}}, "Write"))
@@ -1261,7 +1263,9 @@ class InitialDraftPullRequestGateTest(unittest.TestCase):
             with patch("scripts.agents.guard._same_tree_as_default_base", return_value=True, create=True):
                 with patch("scripts.agents.guard._working_tree_clean", return_value=True, create=True):
                     with patch("scripts.agents.guard._exact_head_pull_request", return_value=("none", None)):
-                        for command in allowed:
+                        payload = {"cwd": ".", "tool_input": {"command": allowed[0]}}
+                        self.assertIsNone(self.check(payload, "Bash"))
+                        for command in allowed[1:]:
                             with self.subTest(command=command):
                                 payload = {"cwd": ".", "tool_input": {"command": command}}
                                 self.assertIsNone(self.check(payload, "Bash"))
@@ -1407,7 +1411,9 @@ class InitialDraftPullRequestGateTest(unittest.TestCase):
         self.assertFalse(allowed)
 
     def test_cli_knowledge_writes_do_not_enter_initial_draft_gate(self):
-        for command in ("memory remember durable", "mempalace add fact"):
+        commands = ("memory remember durable", "mempalace add fact")
+        self.assertIsNone(self.check({"cwd": ".", "tool_input": {"command": commands[0]}}, "Bash"))
+        for command in commands[1:]:
             with self.subTest(command=command):
                 self.assertIsNone(self.check({"cwd": ".", "tool_input": {"command": command}}, "Bash"))
 
@@ -4334,8 +4340,6 @@ class HookWorkingDirectoryIsReadOneWayTest(unittest.TestCase):
             },
         }
         self.assertEqual(guard._hook_working_directory(payload), "C:/isolated-worktree")
-
-    def test_a_non_command_tool_cannot_override_the_hook_directory(self):
         payload = {
             "cwd": "C:/session-checkout",
             "tool_name": "Write",
@@ -5770,9 +5774,6 @@ class FreshBaseGateTest(unittest.TestCase):
 
         with patch("scripts.agents.guard._current_branch", side_effect=branch):
             self.assertIsNone(guard.check_r19_fresh_base(payload, "functions.exec"))
-
-    def test_a_wrapped_command_without_workdir_still_uses_the_hook_directory(self):
-        root, _ = self.repository()
         source = (
             "await tools.exec_command({"
             f"cmd:{json.dumps('Set-Content scripts/x.py changed')}"
@@ -5783,6 +5784,20 @@ class FreshBaseGateTest(unittest.TestCase):
         with patch("scripts.agents.guard._current_branch", return_value="main"):
             with patch("scripts.agents.guard._repository_root", return_value=root):
                 self.assertIsNotNone(guard.check_r19_fresh_base(payload, "functions.exec"))
+
+        main = os.path.join(os.path.dirname(root), "main")
+        os.makedirs(main, exist_ok=True)
+        target = os.path.join(main, "scripts", "x.py")
+        source = (
+            "await tools.exec_command({"
+            f"cmd:{json.dumps('Set-Content ' + target + ' changed')},"
+            f"workdir:{json.dumps(root)}"
+            "});"
+        )
+        payload = {"cwd": main, "tool_name": "functions.exec", "tool_input": source}
+        with patch("scripts.agents.guard._current_branch", side_effect=lambda cwd: "main" if os.path.normcase(str(cwd)) == os.path.normcase(main) else "ChaosEngine/isolated"), \
+             patch("scripts.agents.guard._repository_root", side_effect=lambda cwd: main if cwd == main else root):
+            self.assertIsNotNone(guard.check_r19_fresh_base(payload, "functions.exec"))
 
     def test_ambiguous_wrapped_commands_fail_closed_from_an_isolated_session(self):
         isolated, _ = self.repository()
@@ -5803,30 +5818,12 @@ class FreshBaseGateTest(unittest.TestCase):
             return "main" if os.path.normcase(str(cwd)) == os.path.normcase(main) else "ChaosEngine/isolated"
 
         with patch("scripts.agents.guard._current_branch", side_effect=branch):
-            for source in sources:
+            payload = {"cwd": isolated, "tool_name": "functions.exec", "tool_input": sources[0]}
+            self.assertIsNotNone(guard.check_r19_fresh_base(payload, "functions.exec"))
+            for source in sources[1:]:
                 with self.subTest(source=source):
                     payload = {"cwd": isolated, "tool_name": "functions.exec", "tool_input": source}
                     self.assertIsNotNone(guard.check_r19_fresh_base(payload, "functions.exec"))
-
-    def test_wrapped_command_cannot_escape_isolated_workdir_into_session_main(self):
-        isolated, _ = self.repository()
-        main = os.path.join(os.path.dirname(isolated), "main")
-        os.makedirs(main, exist_ok=True)
-        target = os.path.join(main, "scripts", "x.py")
-        source = (
-            "await tools.exec_command({"
-            f"cmd:{json.dumps('Set-Content ' + target + ' changed')},"
-            f"workdir:{json.dumps(isolated)}"
-            "});"
-        )
-        payload = {"cwd": main, "tool_name": "functions.exec", "tool_input": source}
-
-        def branch(cwd):
-            return "main" if os.path.normcase(str(cwd)) == os.path.normcase(main) else "ChaosEngine/isolated"
-
-        with patch("scripts.agents.guard._current_branch", side_effect=branch):
-            with patch("scripts.agents.guard._repository_root", side_effect=lambda cwd: main if cwd == main else isolated):
-                self.assertIsNotNone(guard.check_r19_fresh_base(payload, "functions.exec"))
 
     def test_wrapped_powershell_path_options_and_git_c_cannot_target_main(self):
         isolated, _ = self.repository()
@@ -5842,7 +5839,10 @@ class FreshBaseGateTest(unittest.TestCase):
             return "main" if os.path.normcase(str(cwd)) == os.path.normcase(main) else "ChaosEngine/isolated"
         with patch("scripts.agents.guard._current_branch", side_effect=branch), \
              patch("scripts.agents.guard._repository_root", side_effect=lambda cwd: main if os.path.normcase(str(cwd)) == os.path.normcase(main) else isolated):
-            for command in commands:
+            source = f"await tools.exec_command({{cmd:{json.dumps(commands[0])},workdir:{json.dumps(isolated)}}});"
+            self.assertIsNotNone(guard.check_r19_fresh_base(
+                {"cwd": isolated, "tool_name": "functions.exec", "tool_input": source}, "functions.exec"))
+            for command in commands[1:]:
                 source = f"await tools.exec_command({{cmd:{json.dumps(command)},workdir:{json.dumps(isolated)}}});"
                 with self.subTest(command=command):
                     self.assertIsNotNone(guard.check_r19_fresh_base(
@@ -5862,13 +5862,15 @@ class FreshBaseGateTest(unittest.TestCase):
             return "main" if os.path.normcase(str(cwd)) == os.path.normcase(main) else "ChaosEngine/isolated"
         with patch("scripts.agents.guard._current_branch", side_effect=branch), \
              patch("scripts.agents.guard._repository_root", side_effect=lambda cwd: main if os.path.normcase(str(cwd)) == os.path.normcase(main) else isolated):
-            for payload in (
+            payloads = (
                 {"cwd": isolated, "tool_name": "PowerShell", "tool_input": {"command": "touch x", "workdir": main}},
                 {"cwd": isolated, "tool_name": "PowerShell", "tool_input": {"command": f'Set-Content -Path "{target}" x'}},
                 {"cwd": isolated, "tool_name": "PowerShell", "tool_input": {"command": f'git -C "{main}" commit -m x'}},
                 {"cwd": isolated, "tool_name": "PowerShell", "tool_input": {"command": f'cp -t "{main}" source.txt'}},
                 {"cwd": isolated, "tool_name": "PowerShell", "tool_input": {"command": f'touch -d yesterday "{target}"'}},
-            ):
+            )
+            self.assertIsNotNone(guard.check_r19_fresh_base(payloads[0], "PowerShell"))
+            for payload in payloads[1:]:
                 with self.subTest(payload=payload):
                     self.assertIsNotNone(guard.check_r19_fresh_base(payload, "PowerShell"))
 
