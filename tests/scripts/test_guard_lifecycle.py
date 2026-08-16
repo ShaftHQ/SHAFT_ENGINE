@@ -283,22 +283,13 @@ class ReflectionCheckpointContractTest(unittest.TestCase):
                 {"failureFingerprints": ["stale"]},
                 {"failedAssumption": "api_key=do-not-store"},
                 {"proofOutcome": "see C:\\Users\\person\\trace.log"},
+                {"issue": r"C:\Users\person\issue.txt"},
+                {"issue": "https://github.com/ShaftHQ/SHAFT_ENGINE/issues/5006/extra"},
             ):
                 with self.assertRaises(ValueError):
                     reflection.record_receipt("unsafe", self._receipt(checkpoint, **overrides), token)
-
-    def test_receipt_accepts_canonical_issue_url_without_relaxing_path_privacy(self):
-        with tempfile.TemporaryDirectory() as temporary, patch.dict(
-            os.environ, {"TMPDIR": temporary, "TEMP": temporary}
-        ):
-            payload = self._failure("issue-url")
-            with redirect_stdout(io.StringIO()):
-                guard.run_posttooluse(payload)
-                guard.run_posttooluse(payload)
-            checkpoint = reflection.pending_checkpoint("issue-url")
-            token = reflection.record_session_start("issue-url")
             recorded = reflection.record_receipt(
-                "issue-url",
+                "unsafe",
                 self._receipt(
                     checkpoint,
                     issue="https://github.com/ShaftHQ/SHAFT_ENGINE/issues/5006",
@@ -309,25 +300,6 @@ class ReflectionCheckpointContractTest(unittest.TestCase):
                 "https://github.com/ShaftHQ/SHAFT_ENGINE/issues/5006",
                 recorded["issue"],
             )
-
-            unsafe_payload = self._failure("issue-path")
-            with redirect_stdout(io.StringIO()):
-                guard.run_posttooluse(unsafe_payload)
-                guard.run_posttooluse(unsafe_payload)
-            unsafe_checkpoint = reflection.pending_checkpoint("issue-path")
-            unsafe_token = reflection.record_session_start("issue-path")
-            for issue in (
-                r"C:\Users\person\issue.txt",
-                "https://github.com/ShaftHQ/SHAFT_ENGINE/issues/5006/extra",
-            ):
-                with self.subTest(issue=issue), self.assertRaises(ValueError):
-                    reflection.record_receipt(
-                        "issue-path",
-                        self._receipt(unsafe_checkpoint, issue=issue),
-                        unsafe_token,
-                    )
-
-    def test_receipt_issue_url_uses_url_structure_not_secret_word_heuristics(self):
         self.assertEqual(
             reflection._CONTROLLER._safe_issue_url("https://github.com/token/repo/issues/1"),
             "https://github.com/token/repo/issues/1",
