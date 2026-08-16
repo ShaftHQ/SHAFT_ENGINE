@@ -116,9 +116,9 @@ validation surface, push without inserting a local checkpoint and report that lo
 run.
 
 Do not claim a check passed unless its process and authoritative result were inspected. Do not turn
-review, reflection, or a knowledge-store receipt into a completion gate. Reflect when it is useful,
-especially after repeated failures in the same area or at the actual end of a long session, and do
-it after preserving and delivering completed work.
+review, reflection, or a knowledge-store receipt into a completion gate. After repeated failures in
+one area or at the actual end of a long session, use the bounded
+[learning loop](../../references/reflection-checkpoints.md) after preserving and delivering work.
 
 ## Delivery
 
@@ -140,7 +140,7 @@ Stop when the requested outcome is delivered or a real external blocker prevents
 - the exact delivery state;
 - checks run, or explicitly that none were run;
 - remaining risk or follow-up that materially affects the outcome;
-- the Learning Loop disposition only when something durable was actually learned or tracked.
+- a Learning Loop disposition only when something durable was learned or tracked.
 
 No lifecycle hook, receipt format, store availability, reflection cadence, review ritual, or
 historical rule number may prevent an otherwise truthful completion.

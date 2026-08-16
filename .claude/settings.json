@@ -10,8 +10,6 @@
       "Bash(rg *)",
       "Bash(py -3 scripts/ci/validate_agent_setup.py *)",
       "Bash(python3 scripts/ci/validate_agent_setup.py *)",
-      "Bash(py -3 scripts/agents/guard.py *)",
-      "Bash(python3 scripts/agents/guard.py *)",
       "Bash(py -3 tools/repository-map/resolve_graph_out.py *)",
       "Bash(python3 tools/repository-map/resolve_graph_out.py *)",
       "Bash(memory *)",

@@ -123,8 +123,8 @@ default; repository-specific distributions require an explicit selection.
 | [`install.py`](install.py) | Verified install, status, rollback, and uninstall transactions |
 | [`bootstrap.py`](bootstrap.py) | Mutable-branch resolution to an immutable upstream commit |
 | [`hosts.py`](hosts.py) | Thin native host adapters and ownership receipts |
-| [`hooks/guard.py`](hooks/guard.py) | Optional fail-open compatibility diagnostics; not lifecycle enforcement |
-| [`hooks/reflection.py`](hooks/reflection.py) | Bounded task-ledger reflection reducer and receipt validator |
+| [`hooks/guard.py`](hooks/guard.py) | Inert fail-open compatibility entrypoint; explicit self-tests own legacy diagnostics |
+| [`hooks/reflection.py`](hooks/reflection.py) | Optional bounded reflection reducer; never a lifecycle gate |
 | [`dependencies.py`](dependencies.py) | Project-local dependency doctor, repair, and upgrade flow |
 | [`tool.py`](tool.py) | Relocatable launcher for ChaosEngine-owned local tools |
 | [`learning.py`](learning.py) | Privacy-gated queue for reusable improvement candidates |

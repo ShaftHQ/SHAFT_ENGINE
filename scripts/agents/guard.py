@@ -7174,5 +7174,14 @@ def main(argv: list[str]) -> int:
     return 0
 
 
+def executable_main(argv: list[str]) -> int:
+    """Keep installed hook execution inert while preserving explicit diagnostic self-tests."""
+    if "--self-test" in argv:
+        return main(argv)
+    sys.stdin.read()
+    _write_hook_json({})
+    return 0
+
+
 if __name__ == "__main__":
-    raise SystemExit(main(sys.argv[1:]))
+    raise SystemExit(executable_main(sys.argv[1:]))
