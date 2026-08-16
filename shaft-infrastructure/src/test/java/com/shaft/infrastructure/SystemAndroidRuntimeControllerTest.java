@@ -61,11 +61,11 @@ class SystemAndroidRuntimeControllerTest {
     void stopTerminatesRealDescendantBeforeParent(@TempDir Path temp) throws Exception {
         Path java = javaExecutable();
         Path childPidFile = temp.resolve("child.pid");
+        Path log = temp.resolve("parent.log");
         List<String> command = List.of(java.toString(), "-Xmx32m", "-XX:+UseSerialGC", "-cp",
                 System.getProperty("java.class.path"), DescendantParent.class.getName(), childPidFile.toString());
         SystemAndroidRuntimeController controller = new SystemAndroidRuntimeController();
-        AndroidOwnedProcess parent = controller.start("parent", command, temp, Map.of(), Set.of(),
-                temp.resolve("parent.log"));
+        AndroidOwnedProcess parent = controller.start("parent", command, temp, Map.of(), Set.of(), log);
         long childPid = -1;
         try {
             childPid = awaitPid(childPidFile, Duration.ofSeconds(5));
@@ -78,6 +78,7 @@ class SystemAndroidRuntimeControllerTest {
             if (childPid > 0) ProcessHandle.of(childPid).filter(ProcessHandle::isAlive)
                     .ifPresent(ProcessHandle::destroyForcibly);
             ProcessHandle.of(parent.pid()).filter(ProcessHandle::isAlive).ifPresent(ProcessHandle::destroyForcibly);
+            awaitDelete(log, Duration.ofSeconds(2));
         }
     }
 
