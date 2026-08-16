@@ -33,8 +33,8 @@ A subagent's report describes intent, not necessarily its actual work. Before re
 
 Commit one locally validated, coherent iteration using the repository's normal
 message convention, including its issue number, and push it to the existing
-draft PR immediately. Keep one active channel for each pushed iteration. Run CI
-first; when it fails, fix the exact cause, run only the focused checks required
+draft PR immediately. Keep one active channel and the smallest coherent increment for rapid iteration.
+For each pushed iteration, run CI first; when it fails, fix the exact cause, run only the focused checks required
 by that fix, commit, and push the next iteration promptly. Once CI is green,
 run independent review against the latest exact head. Repair any blockers,
 validate, and push again. Repeat until CI is green and independent review

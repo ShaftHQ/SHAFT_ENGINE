@@ -56,6 +56,8 @@ class ChaosEnginePortableCoreTest(unittest.TestCase):
             self.assertIn("CI", guidance)
             self.assertIn("independent review", guidance)
             self.assertIn("latest exact head", guidance.casefold())
+            self.assertIn("smallest coherent increment", guidance.casefold())
+            self.assertIn("rapid iteration", guidance.casefold())
             self.assertNotIn("CI and independent review in parallel", guidance)
         self.assertNotIn("Review before you commit", playbook)
 

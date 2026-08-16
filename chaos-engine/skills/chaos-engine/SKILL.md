@@ -22,11 +22,10 @@ below.
 4. Never weaken, delete, or rewrite a test to reach green. When a test and the
    requirement disagree, stop and report which one you believe is wrong.
 5. Never claim a check you did not run.
-6. Keep one active channel for each pushed iteration. Run CI first; if it fails,
-   repair, validate, and push the next iteration immediately. When CI is green,
-   run independent review against the latest exact head; repair each blocker,
-   validate, and push again. Every pull request gets at least one review before
-   it is armed, and both channels must report zero blockers on the exact head.
+6. Each pushed iteration is the smallest coherent increment for rapid iteration.
+   Keep one active channel: run CI; if red, repair, validate, and push immediately.
+   When green, run independent review on the latest exact head; repair, validate,
+   and push. Arm only after both report zero blockers on that head.
 
 ## Triage
 

@@ -49,8 +49,8 @@ incomplete.
 
 ## Independent adversarial review
 
-Keep one active channel for every behavior-changing pushed iteration. Run CI
-first. Repair a red result, validate it locally, and push the next iteration
+Keep one active channel and the smallest coherent increment for rapid iteration.
+For every behavior-changing pushed iteration, run CI first. Repair a red result, validate it locally, and push the next iteration
 immediately. Once CI is green, run independent review against the latest exact head.
 Repair blockers, validate, and push again. The final zero-blocker gate
 remains mandatory:
