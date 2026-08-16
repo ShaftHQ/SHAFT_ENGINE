@@ -427,6 +427,31 @@ class InfrastructureSetupServiceTest {
     }
 
     @Test
+    void selectionReconstructionRunsOnlyAfterCoordinatorAuthorization(@TempDir Path temp) {
+        AtomicInteger reconstructions = new AtomicInteger();
+        SetupOptions options = SetupOptions.defaults(SetupProfile.REPORTING, paths(temp))
+                .withMode(SetupMode.MANAGED);
+        SetupProvider provider = new FakeProvider() {
+            @Override
+            public SetupSelection selectionFromPlan(SetupPlan plan) {
+                reconstructions.incrementAndGet();
+                return SetupSelection.defaults();
+            }
+        };
+        InfrastructureSetupService service = new InfrastructureSetupService(
+                new SetupProviderRegistry(List.of(provider)), SetupPlatform.LINUX, SetupArchitecture.X64);
+        SetupPlan plan = service.plan(options);
+        SetupApproval stale = new SetupApproval("sha256:" + "0".repeat(64), Instant.EPOCH, Set.of());
+
+        assertThrows(IllegalArgumentException.class, () -> service.install(plan, stale, options));
+        assertThrows(IllegalArgumentException.class,
+                () -> service.install(plan, stale, options, ignored -> { }));
+        assertThrows(IllegalArgumentException.class, () -> service.start(plan, stale, options));
+        assertThrows(IllegalArgumentException.class, () -> service.stop(plan, stale, options));
+        assertEquals(0, reconstructions.get());
+    }
+
+    @Test
     void logsUseTheProviderNeutralReadOnlyContract(@TempDir Path temp) throws Exception {
         SetupOptions options = SetupOptions.defaults(SetupProfile.REPORTING, paths(temp));
         SetupProvider provider = new FakeProvider() {

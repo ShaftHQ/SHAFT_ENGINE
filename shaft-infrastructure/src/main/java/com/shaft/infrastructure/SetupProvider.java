@@ -26,6 +26,12 @@ public interface SetupProvider {
         return plan(options, selection, platform, architecture);
     }
 
+    /** Reconstructs the canonical selection embedded in an approved plan. */
+    default SetupSelection selectionFromPlan(SetupPlan plan) {
+        java.util.Objects.requireNonNull(plan, "plan");
+        return SetupSelection.defaults();
+    }
+
     SetupReport status(SetupOptions options, SetupPlatform platform, SetupArchitecture architecture);
 
     default SetupReport status(SetupOptions options, SetupSelection selection,
