@@ -1231,7 +1231,9 @@ class InitialDraftPullRequestGateTest(unittest.TestCase):
             "gh pr edit --body-file plan.md",
         )
         identity = self.identity()
-        with patch.dict(os.environ, {"GH_REPO": "", "GH_HOST": ""}, clear=False):
+        with patch.dict(os.environ, clear=False):
+            os.environ.pop("GH_REPO", None)
+            os.environ.pop("GH_HOST", None)
             with patch("scripts.agents.guard._checkpoint_identity", return_value=identity):
                 with patch("scripts.agents.guard._same_tree_as_default_base", return_value=True, create=True):
                     with patch("scripts.agents.guard._working_tree_clean", return_value=True, create=True):
