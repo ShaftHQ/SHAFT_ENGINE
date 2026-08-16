@@ -4391,6 +4391,7 @@ def _ledger_path(hook_input: dict) -> str | None:
         try:
             os.replace(legacy, path)
         except OSError:
+            # Migration is best-effort; the new ledger remains authoritative.
             pass
     return path
 

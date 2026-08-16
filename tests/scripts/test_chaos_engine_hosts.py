@@ -444,12 +444,12 @@ class ChaosEngineHostsTest(unittest.TestCase):
                 "tool_input": {"command": "py -3 -m unittest installed.focused"},
                 "session_id": "installed-reflection",
             }
-            first = subprocess.run(
+            first = subprocess.run(  # nosec B603 - fixed interpreter and installed local hook.
                 [os.sys.executable, str(installed_hook)],
                 input=json.dumps(failure), capture_output=True, text=True,
                 env=hook_environment, check=False,
             )
-            second = subprocess.run(
+            second = subprocess.run(  # nosec B603 - fixed interpreter and installed local hook.
                 [os.sys.executable, str(installed_hook)],
                 input=json.dumps(failure), capture_output=True, text=True,
                 env=hook_environment, check=False,

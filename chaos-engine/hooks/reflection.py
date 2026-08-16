@@ -430,10 +430,7 @@ def _safe_text(name: str, value: object) -> str:
     return rendered
 
 
-def record_receipt(session_id: str, receipt: dict, session_token: str) -> dict:
-    expected_token = _read_session_token(session_id)
-    if expected_token is None or not hmac.compare_digest(expected_token, session_token):
-        raise ValueError("session token is missing or invalid")
+def _validate_receipt_shape(receipt: dict) -> None:
     allowed_fields = {
         "schemaVersion", "taskId", "trigger", "failureFingerprints",
         "failedAssumption", "approachesCompared", "chosenExperiment",
@@ -445,6 +442,9 @@ def record_receipt(session_id: str, receipt: dict, session_token: str) -> dict:
         raise ValueError("receipt contains unknown fields: " + ", ".join(sorted(unknown)))
     if receipt.get("schemaVersion") != SCHEMA_VERSION:
         raise ValueError(f"schemaVersion must be {SCHEMA_VERSION}")
+
+
+def _validate_receipt_context(session_id: str, receipt: dict) -> tuple[dict | None, str]:
     checkpoint = pending_checkpoint(session_id)
     trigger = str(receipt.get("trigger", ""))
     if trigger not in TRIGGERS:
@@ -457,6 +457,15 @@ def record_receipt(session_id: str, receipt: dict, session_token: str) -> dict:
         elapsed = session_elapsed_seconds(session_id)
         if elapsed is None or elapsed <= 3600:
             raise ValueError("long-session-completion requires elapsed time over one hour")
+    return checkpoint, trigger
+
+
+def record_receipt(session_id: str, receipt: dict, session_token: str) -> dict:
+    expected_token = _read_session_token(session_id)
+    if expected_token is None or not hmac.compare_digest(expected_token, session_token):
+        raise ValueError("session token is missing or invalid")
+    _validate_receipt_shape(receipt)
+    checkpoint, trigger = _validate_receipt_context(session_id, receipt)
     disposition = str(receipt.get("durableDisposition", ""))
     if disposition not in DISPOSITIONS:
         raise ValueError("durableDisposition is not a supported enum value")

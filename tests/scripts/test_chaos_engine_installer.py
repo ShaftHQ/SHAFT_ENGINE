@@ -541,7 +541,7 @@ class ChaosEngineInstallerTest(unittest.TestCase):
             hook = install_root / "hooks/guard.py"
             self.assertTrue((install_root / "hooks/reflection.py").is_file())
             environment = {**os.environ, "TMPDIR": temporary, "TEMP": temporary}
-            start = subprocess.run(
+            start = subprocess.run(  # nosec B603 - fixed interpreter and installed local hook.
                 [sys.executable, str(hook)],
                 input=json.dumps({"hook_event_name": "SessionStart", "session_id": "real-install"}),
                 capture_output=True, text=True, env=environment, check=False,
@@ -552,11 +552,11 @@ class ChaosEngineInstallerTest(unittest.TestCase):
                 "tool_input": {"command": "py -3 -m unittest installed.case"},
                 "session_id": "real-install",
             }
-            first = subprocess.run(
+            first = subprocess.run(  # nosec B603 - fixed interpreter and installed local hook.
                 [sys.executable, str(hook)], input=json.dumps(failure),
                 capture_output=True, text=True, env=environment, check=False,
             )
-            second = subprocess.run(
+            second = subprocess.run(  # nosec B603 - fixed interpreter and installed local hook.
                 [sys.executable, str(hook)], input=json.dumps(failure),
                 capture_output=True, text=True, env=environment, check=False,
             )
