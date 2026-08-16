@@ -1231,26 +1231,27 @@ class InitialDraftPullRequestGateTest(unittest.TestCase):
             "gh pr edit --body-file plan.md",
         )
         identity = self.identity()
-        with patch("scripts.agents.guard._checkpoint_identity", return_value=identity):
-            with patch("scripts.agents.guard._same_tree_as_default_base", return_value=True, create=True):
-                with patch("scripts.agents.guard._working_tree_clean", return_value=True, create=True):
-                    with patch("scripts.agents.guard._exact_head_pull_request", return_value=("none", None)):
-                        payload = {"cwd": ".", "tool_input": {"command": allowed[0]}}
-                        self.assertIsNone(self.check(payload, "Bash"))
-                        for command in allowed[1:]:
-                            with self.subTest(command=command):
-                                payload = {"cwd": ".", "tool_input": {"command": command}}
-                                self.assertIsNone(self.check(payload, "Bash"))
-                        for command in (
-                            "git commit -m implementation",
-                            "gh pr create --draft --base main",
-                            "gh pr create --base main --head ChaosEngine/early-draft",
-                            "gh pr create --draft --base wrong --head ChaosEngine/early-draft --body-file plan.md",
-                            "gh pr create --draft --base main --head ChaosEngine/wrong --body-file plan.md",
-                        ):
-                            with self.subTest(command=command):
-                                payload = {"cwd": ".", "tool_input": {"command": command}}
-                                self.assertIsNotNone(self.check(payload, "Bash"))
+        with patch.dict(os.environ, {"GH_REPO": "", "GH_HOST": ""}, clear=False):
+            with patch("scripts.agents.guard._checkpoint_identity", return_value=identity):
+                with patch("scripts.agents.guard._same_tree_as_default_base", return_value=True, create=True):
+                    with patch("scripts.agents.guard._working_tree_clean", return_value=True, create=True):
+                        with patch("scripts.agents.guard._exact_head_pull_request", return_value=("none", None)):
+                            payload = {"cwd": ".", "tool_input": {"command": allowed[0]}}
+                            self.assertIsNone(self.check(payload, "Bash"))
+                            for command in allowed[1:]:
+                                with self.subTest(command=command):
+                                    payload = {"cwd": ".", "tool_input": {"command": command}}
+                                    self.assertIsNone(self.check(payload, "Bash"))
+                            for command in (
+                                "git commit -m implementation",
+                                "gh pr create --draft --base main",
+                                "gh pr create --base main --head ChaosEngine/early-draft",
+                                "gh pr create --draft --base wrong --head ChaosEngine/early-draft --body-file plan.md",
+                                "gh pr create --draft --base main --head ChaosEngine/wrong --body-file plan.md",
+                            ):
+                                with self.subTest(command=command):
+                                    payload = {"cwd": ".", "tool_input": {"command": command}}
+                                    self.assertIsNotNone(self.check(payload, "Bash"))
 
     def test_dirty_tree_cannot_use_allow_empty_as_a_recovery_bypass(self):
         with patch("scripts.agents.guard._checkpoint_identity", return_value=self.identity()):
@@ -4303,24 +4304,26 @@ class HookWorkingDirectoryIsReadOneWayTest(unittest.TestCase):
         )
 
     def test_a_command_uses_its_explicit_workdir(self):
+        session_checkout = str(Path(tempfile.gettempdir()) / "session-checkout")
+        isolated_worktree = str(Path(tempfile.gettempdir()) / "isolated-worktree")
         payload = {
-            "cwd": "C:/session-checkout",
+            "cwd": session_checkout,
             "tool_name": "PowerShell",
             "tool_input": {
                 "cmd": "Set-Content scripts/x.py changed",
-                "workdir": "C:/isolated-worktree",
+                "workdir": isolated_worktree,
             },
         }
-        self.assertEqual(guard._hook_working_directory(payload), "C:/isolated-worktree")
+        self.assertEqual(guard._hook_working_directory(payload), isolated_worktree)
         payload = {
-            "cwd": "C:/session-checkout",
+            "cwd": session_checkout,
             "tool_name": "Write",
             "tool_input": {
                 "file_path": "scripts/x.py",
-                "workdir": "C:/unrelated-worktree",
+                "workdir": str(Path(tempfile.gettempdir()) / "unrelated-worktree"),
             },
         }
-        self.assertEqual(guard._hook_working_directory(payload), "C:/session-checkout")
+        self.assertEqual(guard._hook_working_directory(payload), session_checkout)
 
     def test_the_rule_set_is_not_empty(self):
         """A name filter that matched nothing would make the check above vacuous."""
