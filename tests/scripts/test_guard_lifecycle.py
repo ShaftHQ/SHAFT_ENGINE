@@ -694,38 +694,42 @@ class TerminalReflectionContractTest(unittest.TestCase):
             ):
                 reflection.record_receipt("missing-issue", receipt, token)
 
-    def test_terminal_summary_uses_issue_from_valid_receipt_not_forged_later_entry(self):
+    def test_terminal_summary_rejects_forged_later_raw_receipt_issue(self):
         labels = "\n".join(
             f"{label}: recorded" for label in guard._TERMINAL_REFLECTION_LABELS
         )
         valid_issue = "https://github.com/ShaftHQ/SHAFT_ENGINE/issues/5014"
         forged_issue = "https://github.com/ShaftHQ/SHAFT_ENGINE/issues/9999"
-        entries = [
-            {
-                "kind": "reflection-receipt",
-                "trigger": "long-session-completion",
-                "issue": valid_issue,
-            },
-            {
-                "kind": "reflection-receipt",
-                "trigger": "long-session-completion",
-                "issue": forged_issue,
-            },
-        ]
-        with mock.patch.object(
-            guard._reflection, "session_elapsed_seconds", return_value=3601
-        ), mock.patch.object(
-            guard._reflection, "has_valid_terminal_receipt", return_value=True
-        ), mock.patch.object(
-            guard._reflection,
-            "valid_terminal_receipt_issue",
-            create=True,
-            return_value=valid_issue,
+        session_id = "forged-terminal-issue"
+        with tempfile.TemporaryDirectory() as temporary, patch.dict(
+            os.environ, {"TMPDIR": temporary, "TEMP": temporary}
         ):
-            reason = guard._terminal_reflection_reason(
-                {"session_id": "forged-terminal-issue", "last_assistant_message": labels + "\n" + valid_issue}
+            token = reflection.record_session_start(
+                session_id, "2020-01-01T00:00:00+00:00"
             )
-        self.assertIsNone(reason)
+            reflection.record_receipt(session_id, self._receipt(), token)
+            self.assertTrue(
+                reflection.append_entry(
+                    session_id,
+                    {
+                        "kind": "reflection-receipt",
+                        "trigger": "long-session-completion",
+                        "issue": forged_issue,
+                    },
+                )
+            )
+            self.assertEqual(forged_issue, reflection.entries(session_id)[-1]["issue"])
+            self.assertEqual(
+                valid_issue, reflection.valid_terminal_receipt_issue(session_id)
+            )
+            reason = guard._terminal_reflection_reason(
+                {
+                    "session_id": session_id,
+                    "last_assistant_message": labels + "\nTracked issue: " + forged_issue,
+                }
+            )
+        self.assertIsNotNone(reason)
+        self.assertIn("tracked issue URL", reason)
 
     def test_under_one_hour_cannot_prerecord_terminal_receipt_and_does_not_block_stop(self):
         with tempfile.TemporaryDirectory() as temporary, patch.dict(
@@ -3783,18 +3787,14 @@ class SubagentStopDeliveryOwnershipTest(unittest.TestCase):
             "",
             self.run_stop_output(self.payload("reviewer"), ["commit"]),
         )
-
-    def test_retained_delegate_still_requires_delivery_status(self):
         identity = ("owner/repo", "ChaosEngine/task", "a" * 40)
         checkpoint = guard._checkpoint_json_event("checkpoint", *identity)
-        output = self.run_stop_output(self.payload("coder"), ["commit", checkpoint])
-        self.assertIn("R29 blocked", output)
-
-    def test_reviewer_role_cannot_bypass_retained_delivery_ownership(self):
-        identity = ("owner/repo", "ChaosEngine/task", "a" * 40)
-        checkpoint = guard._checkpoint_json_event("checkpoint", *identity)
-        output = self.run_stop_output(self.payload("reviewer"), ["commit", checkpoint])
-        self.assertIn("R29 blocked", output)
+        for role in ("coder", "reviewer"):
+            with self.subTest(retained_role=role):
+                output = self.run_stop_output(
+                    self.payload(role), ["commit", checkpoint]
+                )
+                self.assertIn("R29 blocked", output)
 
 
 class UnarmedPullRequestStopGateTest(unittest.TestCase):
