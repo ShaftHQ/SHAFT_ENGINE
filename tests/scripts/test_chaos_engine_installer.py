@@ -95,52 +95,6 @@ def create_chroma_state(path: Path) -> None:
 
 
 class ChaosEngineInstallerTest(unittest.TestCase):
-    def test_component_contract_and_probe_registry_are_exhaustive(self):
-        contracts, digest = MODULE.load_component_contracts(SOURCE)
-
-        self.assertEqual(MODULE.CAPABILITY_COMPONENTS, set(contracts))
-        self.assertEqual(MODULE.CAPABILITY_COMPONENTS, set(MODULE.validate_probe_registries(contracts)))
-        self.assertRegex(digest, r"^[0-9a-f]{64}$")
-        self.assertEqual(
-            ["graphify", "mcps", "memory", "mempalace"],
-            MODULE.component_consumers(contracts)["retrieval-config"],
-        )
-
-    def test_component_contract_rejects_incomplete_unknown_self_cycle_and_authored_consumers(self):
-        mutations = {
-            "cover every component": lambda components: components.pop("core"),
-            "unknown dependency": lambda components: components["skills"]["requires"].append("missing"),
-            "self-dependency": lambda components: components["skills"]["requires"].append("skills"),
-            "dependency cycle": lambda components: components["core"]["requires"].append("skills"),
-            "contract is invalid": lambda components: components["skills"].update(consumers=[]),
-        }
-        for expected, mutate in mutations.items():
-            with self.subTest(expected=expected), tempfile.TemporaryDirectory() as temporary:
-                source = copy_source(Path(temporary) / "source")
-                path = source / MODULE.COMPONENT_CONTRACTS_NAME
-                payload = json.loads(path.read_text(encoding="utf-8"))
-                mutate(payload["components"])
-                path.write_text(json.dumps(payload), encoding="utf-8")
-                with self.assertRaisesRegex(ValueError, expected):
-                    MODULE.load_component_contracts(source)
-
-    def test_component_probe_registry_rejects_missing_duplicate_and_undeclared_probes(self):
-        contracts, _ = MODULE.load_component_contracts(SOURCE)
-        missing = {owner: dict(probes) for owner, probes in MODULE.COMPONENT_PROBE_REGISTRIES.items()}
-        missing["installer"].pop("core")
-        with self.assertRaisesRegex(ValueError, "incomplete"):
-            MODULE.validate_probe_registries(contracts, missing)
-
-        duplicate = {owner: dict(probes) for owner, probes in MODULE.COMPONENT_PROBE_REGISTRIES.items()}
-        duplicate["hosts"]["core"] = MODULE._probe_evidence
-        with self.assertRaisesRegex(ValueError, "duplicated"):
-            MODULE.validate_probe_registries(contracts, duplicate)
-
-        undeclared = {owner: dict(probes) for owner, probes in MODULE.COMPONENT_PROBE_REGISTRIES.items()}
-        undeclared["hosts"]["unknown"] = MODULE._probe_evidence
-        with self.assertRaisesRegex(ValueError, "invalid"):
-            MODULE.validate_probe_registries(contracts, undeclared)
-
     def test_cache_commands_are_public_and_component_scoped(self):
         status = MODULE.parser().parse_args(
             ["cache", "status", "--component", "maven-tools-mcp"]
@@ -185,11 +139,6 @@ class ChaosEngineInstallerTest(unittest.TestCase):
             self.assertEqual("recovery-required", result["status"])
             self.assertEqual(manifest["capabilityPolicySha256"], host_receipt["capabilityPolicySha256"])
             self.assertEqual(manifest["capabilities"], MODULE.legacy_capability_policy())
-            self.assertEqual(manifest["componentContractsSha256"], result["componentContractsSha256"])
-            self.assertEqual([], result["components"]["core"]["requires"])
-            self.assertIn("skills", result["components"]["core"]["consumers"])
-            self.assertEqual("passive", result["components"]["tools"]["evidence"]["mode"])
-            self.assertIn("tools", result["components"]["memory"]["blockedBy"])
 
     def test_new_manifest_binds_capabilities_and_legacy_v1_upgrades_in_place(self):
         with tempfile.TemporaryDirectory() as temporary:
@@ -203,16 +152,12 @@ class ChaosEngineInstallerTest(unittest.TestCase):
 
             manifest.pop("capabilities")
             manifest.pop("capabilityPolicySha256")
-            manifest.pop("componentContracts")
-            manifest.pop("componentContractsSha256")
             manifest_path.write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8")
             MODULE.install(project, SOURCE, TEST_COMMIT)
 
             upgraded = json.loads(manifest_path.read_text(encoding="utf-8"))
             self.assertTrue(upgraded["capabilities"])
             self.assertRegex(upgraded["capabilityPolicySha256"], r"^[0-9a-f]{64}$")
-            self.assertRegex(upgraded["componentContractsSha256"], r"^[0-9a-f]{64}$")
-            self.assertEqual(MODULE.CAPABILITY_COMPONENTS, set(upgraded["componentContracts"]))
 
     def test_legacy_manifest_upgrade_failure_does_not_roll_back_the_core_generation(self):
         with tempfile.TemporaryDirectory() as temporary:
@@ -619,32 +564,6 @@ class ChaosEngineInstallerTest(unittest.TestCase):
             self.assertEqual(0, first.returncode, first.stderr)
             self.assertEqual(0, second.returncode, second.stderr)
             self.assertIn("Reflection required", second.stdout)
-
-            git = shutil.which("git")
-            self.assertIsNotNone(git)
-            for arguments in (
-                [git, "init"],
-                [git, "config", "user.email", "portable@example.invalid"],
-                [git, "config", "user.name", "Portable Test"],
-                [git, "add", "."],
-                [git, "commit", "-m", "planning"],
-            ):
-                subprocess.run(arguments, cwd=project, capture_output=True, check=True)  # nosec B603
-            main_write = subprocess.run(  # nosec B603
-                [sys.executable, str(hook)], cwd=project,
-                input=json.dumps({"hook_event_name": "PreToolUse", "tool_name": "Write", "cwd": str(project), "tool_input": {"file_path": "x.txt"}, "session_id": "installed-main"}),
-                capture_output=True, text=True, env=environment, check=False,
-            )
-            self.assertEqual(2, main_write.returncode)
-            self.assertIn("R19 blocked", main_write.stdout)
-            subprocess.run([git, "checkout", "-b", "ChaosEngine/portable-test"], cwd=project, capture_output=True, check=True)  # nosec B603
-            branch_write = subprocess.run(  # nosec B603
-                [sys.executable, str(hook)], cwd=project,
-                input=json.dumps({"hook_event_name": "PreToolUse", "tool_name": "Write", "cwd": str(project), "tool_input": {"file_path": "x.txt"}, "session_id": "installed-branch"}),
-                capture_output=True, text=True, env=environment, check=False,
-            )
-            self.assertEqual(2, branch_write.returncode, branch_write.stderr + branch_write.stdout)
-            self.assertIn("R31 blocked", branch_write.stdout)
 
     def test_distribution_cannot_change_during_an_update(self):
         with tempfile.TemporaryDirectory() as temporary:

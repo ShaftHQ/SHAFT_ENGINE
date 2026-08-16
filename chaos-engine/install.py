@@ -5,7 +5,6 @@ from __future__ import annotations
 
 import argparse
 from contextlib import contextmanager, nullcontext
-from graphlib import CycleError, TopologicalSorter
 import hashlib
 import json
 import os
@@ -25,7 +24,6 @@ MANIFEST_NAME = "manifest.json"
 SCHEMA_VERSION = 1
 DEFAULT_DISTRIBUTION = "portable"
 DISTRIBUTIONS_NAME = "distributions.json"
-COMPONENT_CONTRACTS_NAME = "component-contracts.json"
 COMMIT_PATTERN = re.compile(r"[0-9a-f]{40}")
 REPOSITORY_PATTERN = re.compile(r"[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+")
 BRANCH_PATTERN = re.compile(r"[^\x00-\x20\x7f~^:?*\\\[\]]+")
@@ -52,155 +50,6 @@ CAPABILITY_COMPONENTS = {
     "retrieval-config", "projection-policy", "tools", "memory", "mempalace",
     "graphify", "maven-tools-mcp",
 }
-COMPONENT_CONTRACT_FIELDS = {"requires", "probeOwner"}
-PROBE_OWNERS = {"installer", "hosts", "dependencies"}
-
-
-def _probe_evidence(
-    name: str, component: dict[str, object], active: bool
-) -> dict[str, str]:
-    """Describe existing bounded evidence without executing a command."""
-    return {
-        "component": name,
-        "mode": "active" if active else "passive",
-        "status": str(component.get("status", "unknown")),
-    }
-
-
-COMPONENT_PROBE_REGISTRIES = {
-    "installer": {
-        name: _probe_evidence
-        for name in ("core", "skills", "playbooks", "projection-policy")
-    },
-    "hosts": {
-        name: _probe_evidence
-        for name in (
-            "hooks", "plugins", "roles", "mcps", "retrieval-config",
-            "maven-tools-mcp",
-        )
-    },
-    "dependencies": {
-        name: _probe_evidence
-        for name in ("tools", "memory", "mempalace", "graphify")
-    },
-}
-
-
-def _validated_component_contracts(
-    value: object,
-) -> dict[str, dict[str, object]]:
-    if not isinstance(value, dict) or set(value) != CAPABILITY_COMPONENTS:
-        raise ValueError("ChaosEngine component contract does not cover every component")
-    result: dict[str, dict[str, object]] = {}
-    for name, descriptor in value.items():
-        if (
-            not isinstance(name, str)
-            or not isinstance(descriptor, dict)
-            or set(descriptor) != COMPONENT_CONTRACT_FIELDS
-            or not isinstance(descriptor.get("requires"), list)
-            or not all(isinstance(item, str) for item in descriptor["requires"])
-            or len(set(descriptor["requires"])) != len(descriptor["requires"])
-            or descriptor.get("probeOwner") not in PROBE_OWNERS
-        ):
-            raise ValueError("ChaosEngine component contract is invalid")
-        requires = list(descriptor["requires"])
-        if name in requires:
-            raise ValueError("ChaosEngine component contract contains a self-dependency")
-        unknown = set(requires) - CAPABILITY_COMPONENTS
-        if unknown:
-            raise ValueError("ChaosEngine component contract contains an unknown dependency")
-        result[name] = {
-            "requires": requires,
-            "probeOwner": str(descriptor["probeOwner"]),
-        }
-    try:
-        tuple(
-            TopologicalSorter(
-                {name: set(item["requires"]) for name, item in result.items()}
-            ).static_order()
-        )
-    except CycleError as error:
-        raise ValueError("ChaosEngine component contract contains a dependency cycle") from error
-    return result
-
-
-def component_contract_digest(contracts: dict[str, dict[str, object]]) -> str:
-    payload = {"schemaVersion": 1, "components": contracts}
-    encoded = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode()
-    return hashlib.sha256(encoded).hexdigest()
-
-
-def legacy_component_contracts() -> dict[str, dict[str, object]]:
-    """Fixed schema-v1 fallback for manifests written before component contracts."""
-    return _validated_component_contracts(
-        {
-            "core": {"requires": [], "probeOwner": "installer"},
-            "skills": {"requires": ["core"], "probeOwner": "installer"},
-            "hooks": {"requires": ["core"], "probeOwner": "hosts"},
-            "roles": {"requires": ["core"], "probeOwner": "hosts"},
-            "projection-policy": {"requires": ["core"], "probeOwner": "installer"},
-            "playbooks": {"requires": ["skills"], "probeOwner": "installer"},
-            "plugins": {"requires": ["skills", "hooks", "roles"], "probeOwner": "hosts"},
-            "tools": {"requires": ["projection-policy"], "probeOwner": "dependencies"},
-            "retrieval-config": {"requires": ["projection-policy"], "probeOwner": "hosts"},
-            "mcps": {"requires": ["tools", "retrieval-config"], "probeOwner": "hosts"},
-            "memory": {"requires": ["tools", "retrieval-config"], "probeOwner": "dependencies"},
-            "mempalace": {"requires": ["tools", "retrieval-config"], "probeOwner": "dependencies"},
-            "graphify": {"requires": ["tools", "retrieval-config"], "probeOwner": "dependencies"},
-            "maven-tools-mcp": {"requires": ["mcps"], "probeOwner": "hosts"},
-        }
-    )
-
-
-def load_component_contracts(
-    source: Path,
-) -> tuple[dict[str, dict[str, object]], str]:
-    try:
-        payload = json.loads(
-            (source / COMPONENT_CONTRACTS_NAME).read_text(encoding="utf-8")
-        )
-    except (OSError, json.JSONDecodeError) as error:
-        raise ValueError("ChaosEngine component contract is missing or invalid") from error
-    if not isinstance(payload, dict) or set(payload) != {"schemaVersion", "components"}:
-        raise ValueError("ChaosEngine component contract is invalid")
-    if payload.get("schemaVersion") != 1:
-        raise ValueError("ChaosEngine component contract schema is unsupported")
-    contracts = _validated_component_contracts(payload.get("components"))
-    validate_probe_registries(contracts)
-    return contracts, component_contract_digest(contracts)
-
-
-def validate_probe_registries(
-    contracts: dict[str, dict[str, object]],
-    registries: object = COMPONENT_PROBE_REGISTRIES,
-) -> dict[str, object]:
-    if not isinstance(registries, dict) or set(registries) != PROBE_OWNERS:
-        raise ValueError("ChaosEngine component probe registry is invalid")
-    seen: dict[str, object] = {}
-    for owner, registry in registries.items():
-        if not isinstance(registry, dict):
-            raise ValueError("ChaosEngine component probe registry is invalid")
-        for name, probe in registry.items():
-            if name in seen:
-                raise ValueError("ChaosEngine component probe ownership is duplicated")
-            if name not in contracts or not callable(probe):
-                raise ValueError("ChaosEngine component probe registry is invalid")
-            if contracts[name]["probeOwner"] != owner:
-                raise ValueError("ChaosEngine component probe owner does not match the contract")
-            seen[name] = probe
-    if set(seen) != CAPABILITY_COMPONENTS:
-        raise ValueError("ChaosEngine component probe registry is incomplete")
-    return seen
-
-
-def component_consumers(
-    contracts: dict[str, dict[str, object]],
-) -> dict[str, list[str]]:
-    consumers = {name: [] for name in contracts}
-    for consumer, descriptor in contracts.items():
-        for requirement in descriptor["requires"]:
-            consumers[str(requirement)].append(consumer)
-    return {name: sorted(names) for name, names in consumers.items()}
 
 
 def legacy_capability_policy() -> dict[str, dict[str, str]]:
@@ -426,8 +275,6 @@ def load_manifest(target: Path) -> dict[str, object]:
     distribution = manifest.get("distribution")
     capabilities = manifest.get("capabilities")
     capability_digest = manifest.get("capabilityPolicySha256")
-    contracts = manifest.get("componentContracts")
-    contract_digest = manifest.get("componentContractsSha256")
     if distribution is None and manifest.get("schemaVersion") == 1:
         distribution = {"id": "legacy", "policySha256": "0" * 64}
         manifest["distribution"] = distribution
@@ -444,7 +291,6 @@ def load_manifest(target: Path) -> dict[str, object]:
         or re.fullmatch(r"[0-9a-f]{64}", host_token) is None
         or any(not isinstance(path, str) or not isinstance(digest, str) for path, digest in files.items())
         or ((capabilities is None) != (capability_digest is None))
-        or ((contracts is None) != (contract_digest is None))
     ):
         raise ValueError("ChaosEngine manifest has an invalid ownership record")
     if capabilities is not None:
@@ -456,16 +302,6 @@ def load_manifest(target: Path) -> dict[str, object]:
         ):
             raise ValueError("ChaosEngine manifest has an invalid capability policy")
         manifest["capabilities"] = validated
-    if contracts is None:
-        contracts = legacy_component_contracts()
-        contract_digest = component_contract_digest(contracts)
-    else:
-        contracts = _validated_component_contracts(contracts)
-        validate_probe_registries(contracts)
-        if contract_digest != component_contract_digest(contracts):
-            raise ValueError("ChaosEngine manifest has an invalid component contract")
-    manifest["componentContracts"] = contracts
-    manifest["componentContractsSha256"] = contract_digest
     manifest["source"] = normalized_source
     return manifest
 
@@ -910,7 +746,6 @@ def install(  # noqa: MC0001 - publication and compensation form one transaction
         raise ValueError(f"source contains the reserved manifest path: {MANIFEST_NAME}")
     _, policy_digest = load_distribution(source, distribution)
     capabilities, capability_digest = load_capability_policy(source, distribution)
-    contracts, contract_digest = load_component_contracts(source)
     files = source_files(source, distribution)
     ownership = {path.relative_to(source).as_posix(): file_sha256(path) for path in files}
     target = project / INSTALL_DIRECTORY
@@ -922,10 +757,6 @@ def install(  # noqa: MC0001 - publication and compensation form one transaction
         if read_cross_rollback_journal(project) is not None:
             raise ValueError("rollback recovery is required before install")
         if target.exists():
-            stored_manifest = json.loads(
-                (target / MANIFEST_NAME).read_text(encoding="utf-8")
-            )
-            legacy_contracts = "componentContracts" not in stored_manifest
             current = verify_install(target)
             current_commit = current["source"]["commit"]  # type: ignore[index]
             current_distribution = current.get("distribution")
@@ -956,8 +787,6 @@ def install(  # noqa: MC0001 - publication and compensation form one transaction
                 if current["source"] == desired_source:
                     current_capabilities = current.get("capabilities")
                     current_capability_digest = current.get("capabilityPolicySha256")
-                    current_contracts = current.get("componentContracts")
-                    current_contract_digest = current.get("componentContractsSha256")
                     manifest_changed = False
                     if legacy_distribution:
                         current["distribution"] = {
@@ -974,15 +803,6 @@ def install(  # noqa: MC0001 - publication and compensation form one transaction
                         or current_capability_digest != capability_digest
                     ):
                         raise ValueError("same commit resolved to a different capability policy")
-                    if legacy_contracts:
-                        current["componentContracts"] = contracts
-                        current["componentContractsSha256"] = contract_digest
-                        manifest_changed = True
-                    elif (
-                        current_contracts != contracts
-                        or current_contract_digest != contract_digest
-                    ):
-                        raise ValueError("same commit resolved to a different component contract")
                     if manifest_changed:
                         temporary_manifest = target / f"{MANIFEST_NAME}.upgrade-{secrets.token_hex(8)}"
                         try:
@@ -1012,8 +832,6 @@ def install(  # noqa: MC0001 - publication and compensation form one transaction
                 "distribution": {"id": distribution, "policySha256": policy_digest},
                 "capabilities": capabilities,
                 "capabilityPolicySha256": capability_digest,
-                "componentContracts": contracts,
-                "componentContractsSha256": contract_digest,
                 "source": desired_source,
                 "files": ownership,
                 "hostToken": (
@@ -1347,7 +1165,6 @@ def attach_component_status(
     target: Path,
     dependency_health: str,
     host_controller: object,
-    active_probes: bool = False,
 ) -> None:
     manifest = load_manifest(target)
     capabilities = manifest.get("capabilities")
@@ -1398,41 +1215,11 @@ def attach_component_status(
         **capabilities["maven-tools-mcp"],
     }
     result["components"] = components
-    contracts = manifest["componentContracts"]
-    result["componentContracts"] = contracts
-    result["componentContractsSha256"] = manifest["componentContractsSha256"]
-    refresh_component_contract_status(result, active_probes)
     if any(
-        (item["status"] != "healthy" or item["blockedBy"])
-        and item["taskImpact"] != "optional"
+        item["status"] != "healthy" and item["taskImpact"] != "optional"
         for item in components.values()
     ):
         result["status"] = "recovery-required"
-
-
-def refresh_component_contract_status(
-    result: dict[str, object], active_probes: bool
-) -> None:
-    contracts = result.get("componentContracts")
-    components = result.get("components")
-    if not isinstance(contracts, dict) or not isinstance(components, dict):
-        raise ValueError("ChaosEngine component status is incomplete")
-    probes = validate_probe_registries(contracts)
-    consumers = component_consumers(contracts)
-    for name, descriptor in contracts.items():
-        component = components.get(name)
-        if not isinstance(component, dict):
-            raise ValueError("ChaosEngine component status is incomplete")
-        requires = list(descriptor["requires"])
-        component["requires"] = requires
-        component["consumers"] = consumers[name]
-        component["probeOwner"] = descriptor["probeOwner"]
-        component["evidence"] = probes[name](name, component, active_probes)
-        component["blockedBy"] = [
-            requirement
-            for requirement in requires
-            if components[requirement].get("status") != "healthy"
-        ]
 
 
 def status_with_dependencies(project: Path, *, active_probes: bool = False) -> dict[str, object]:
@@ -1475,15 +1262,12 @@ def status_with_dependencies(project: Path, *, active_probes: bool = False) -> d
             ):
                 result["dependencies"] = {"status": "recovery-required"}
                 attach_component_status(
-                    result, project, target, "recovery-required", host_controller,
-                    active_probes,
+                    result, project, target, "recovery-required", host_controller
                 )
                 return result
             if not runtime.exists():
                 result["dependencies"] = {"status": "absent"}
-                attach_component_status(
-                    result, project, target, "absent", host_controller, active_probes
-                )
+                attach_component_status(result, project, target, "absent", host_controller)
                 return result
             controller = load_dependency_controller(target)
             dependency_check = controller.doctor if active_probes else controller.status
@@ -1493,8 +1277,7 @@ def status_with_dependencies(project: Path, *, active_probes: bool = False) -> d
             )
             dependency_health = str(result["dependencies"].get("status"))  # type: ignore[union-attr]
             attach_component_status(
-                result, project, target, dependency_health, host_controller,
-                active_probes,
+                result, project, target, dependency_health, host_controller
             )
             return result
 
@@ -1519,7 +1302,6 @@ def doctor_with_dependencies(
         if isinstance(components, dict) and isinstance(components.get("mcps"), dict):
             components["mcps"]["status"] = "recovery-required"
     if not verify_clients:
-        refresh_component_contract_status(result, True)
         return result
     clients = host_controller.detected_plugin_status(project.resolve())
     result["clients"] = clients
@@ -1528,7 +1310,6 @@ def doctor_with_dependencies(
         components = result.get("components")
         if isinstance(components, dict) and isinstance(components.get("plugins"), dict):
             components["plugins"]["status"] = "recovery-required"
-    refresh_component_contract_status(result, True)
     return result
 
 

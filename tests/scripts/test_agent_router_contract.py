@@ -645,11 +645,15 @@ REQUIRED_ACTION_REGISTRY: tuple[dict, ...] = (
     {
         "law": 3,
         "rule": "no production code before an observed failing test",
-        "status": "prose-only",
-        "reason": (
-            "A lifecycle hook cannot infer whether a failure is the intended RED "
-            "observation. The previous path-and-session heuristic blocked valid "
-            "edits after setup failures and did not cover harness code."
+        "status": "gated",
+        "mechanism": "check_r12_test_before_production",
+        "scope": (
+            "Compiled source under a module's src/main/ only. Everything else the "
+            "entrypoint exempts itself -- but that exemption is by directory, so it "
+            "also covers scripts/agents/guard.py, a 3,800-line enforcement program "
+            "whose defects this harness keeps finding. On #4554 R12 could not fire "
+            "once: zero files under src/main/, against 2,214 lines of guard and test "
+            "churn. Outside src/main/ law 3 is enforced by nothing here."
         ),
     },
     {
@@ -677,7 +681,7 @@ REQUIRED_ACTION_REGISTRY: tuple[dict, ...] = (
     },
     {
         "law": 6,
-        "rule": "independent adversarial review for each pushed iteration, and once per pull request before arming",
+        "rule": "independent adversarial review before the next step, and once per pull request before arming",
         "status": "gated",
         "mechanism": "check_r15_review_before_arming",
     },
@@ -2798,6 +2802,46 @@ class DisciplineTest(unittest.TestCase):
                 )
                 self.assertGreaterEqual(
                     len(row["scope"].split()), 12, "state what the mechanism does not reach"
+                )
+
+    def test_law_threes_recorded_scope_is_the_one_its_mechanism_enforces(self):
+        """The claim binds to behaviour, so widening R12 cannot leave it stale.
+
+        #4567 item 7. The row reads `gated`, which is mechanically true, and on
+        #4554 -- 3138 lines, 20 files, zero of them under `src/main/` -- the
+        mechanism could not fire once. The `scope` field records that, and this
+        pins the record against `_PRODUCTION_PATH` itself rather than against a
+        sentence somebody has to remember to update.
+
+        Deliberately fails if `_PRODUCTION_PATH` is widened. Widening is a real
+        option #4567 weighs and rejects, because gating every guidance and
+        script edit behind an observed test run is a rule that fires on correct
+        work. If it is ever taken anyway, the registry must stop claiming
+        `src/main/` in the same commit, and this is what makes that happen.
+        """
+        from scripts.agents import guard
+
+        row = next(row for row in REQUIRED_ACTION_REGISTRY if row["law"] == 3)
+        self.assertIn(
+            "src/main/",
+            row.get("scope", ""),
+            "law 3 reads gated and its mechanism reaches src/main/ only; "
+            "the row has to say so",
+        )
+        self.assertTrue(
+            guard._PRODUCTION_PATH.search("shaft-engine/src/main/java/A.java"),
+            "the mechanism no longer matches the paths its scope claims",
+        )
+        for outside in (
+            "scripts/agents/guard.py",
+            "tests/scripts/test_guard_lifecycle.py",
+            ".agents/skills/act-as-mohab/SKILL.md",
+            ".github/workflows/pr-gate.yml",
+        ):
+            with self.subTest(path=outside):
+                self.assertIsNone(
+                    guard._PRODUCTION_PATH.search(outside),
+                    f"R12 now reaches {outside}; the registry's recorded scope is stale",
                 )
 
     def test_every_prose_only_row_records_why(self):

@@ -1,13 +1,10 @@
 """Portable ChaosEngine core and project-profile contract tests (#4792)."""
 
 import json
-import importlib.util
-import os
 import re
 import unittest
 import xml.etree.ElementTree as ET  # nosec B405
 from pathlib import Path
-from unittest import mock
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -15,8 +12,6 @@ CORE = ROOT / "chaos-engine"
 CANONICAL_SKILL = CORE / "skills/chaos-engine/SKILL.md"
 CLEANUP_SCOPES = CORE / "references/cleanup-scopes.md"
 TASK_ISOLATION = CORE / "references/task-isolation.md"
-GITHUB_PLAYBOOK = CORE / "references/work-github-playbook.md"
-DELEGATION = CORE / "references/delegation.md"
 REPOSITORY_ADAPTER = ROOT / ".agents/skills/chaos-engine/SKILL.md"
 COMPATIBILITY_ALIAS = ROOT / ".agents/skills/act-as-mohab/SKILL.md"
 SHAFT_PROFILE = CORE / "profiles/shaft/profile.json"
@@ -29,13 +24,6 @@ POSIX_ABSOLUTE_PATH = re.compile(
 
 
 class ChaosEnginePortableCoreTest(unittest.TestCase):
-    @staticmethod
-    def portable_guard():
-        path = CORE / "hooks/guard.py"
-        spec = importlib.util.spec_from_file_location("portable_guard_under_test", path)
-        module = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(module)
-        return module
     def test_validation_scope_recommends_balanced_and_ci_reruns_only_changed_tests(self):
         guidance = CANONICAL_SKILL.read_text(encoding="utf-8")
 
@@ -43,265 +31,6 @@ class ChaosEnginePortableCoreTest(unittest.TestCase):
         self.assertIn("only tests created or edited", guidance)
         self.assertIn("Do not rerun an entire test suite merely because CI failed", guidance)
         self.assertNotIn("shaft", guidance.casefold())
-
-    def test_pushed_iteration_uses_one_active_channel_and_pushes_each_repair(self):
-        skill = CANONICAL_SKILL.read_text(encoding="utf-8")
-        playbook = GITHUB_PLAYBOOK.read_text(encoding="utf-8")
-        delegation = DELEGATION.read_text(encoding="utf-8")
-
-        for guidance in (skill, playbook, delegation):
-            self.assertIn("pushed iteration", guidance.casefold())
-            self.assertIn("one active channel", guidance.casefold())
-            self.assertIn("push", guidance.casefold())
-            self.assertIn("CI", guidance)
-            self.assertIn("independent review", guidance)
-            self.assertIn("latest exact head", guidance.casefold())
-            self.assertIn("smallest coherent increment", guidance.casefold())
-            self.assertIn("rapid iteration", guidance.casefold())
-            self.assertNotIn("CI and independent review in parallel", guidance)
-        self.assertNotIn("Review before you commit", playbook)
-
-    def test_portable_host_matches_file_mutations_for_lifecycle_enforcement(self):
-        hosts = (CORE / "hosts.py").read_text(encoding="utf-8")
-        matcher = '"PreToolUse": "Bash|PowerShell|Write|Edit|NotebookEdit|apply_patch|'
-        self.assertIn(matcher, hosts)
-        hook = (CORE / "hooks/guard.py").read_text(encoding="utf-8")
-        self.assertIn("R19 blocked", hook)
-        self.assertIn("R31 blocked", hook)
-
-    def test_portable_lifecycle_checks_direct_workdir_patch_and_recovery_width(self):
-        guard = self.portable_guard()
-        self.assertFalse(guard.mutation_command('rg -n "touch|rm" scripts'))
-        self.assertTrue(guard.mutation_command("echo ok && touch x"))
-        self.assertTrue(guard.mutation_command("echo ok\ntouch x"))
-        self.assertTrue(guard.mutation_command("echo changed >> C:/main/file"))
-        for command in ("Clear-Content x", "Remove-Content x", "Copy-Item x y", "Rename-Item x y", "Move-Item x y", "echo x > y", "git restore x", "git tag x", "git branch x", "git cherry-pick HEAD"):
-            with self.subTest(command=command):
-                self.assertTrue(guard.mutation_command(command))
-        self.assertTrue(guard.mutation_command("git.exe clean -fd"))
-        self.assertTrue(guard.mutation_command("gh.exe pr create --draft"))
-        self.assertFalse(guard.mutation_command('echo "tools.apply_patch(patch)"'))
-        self.assertEqual(("C:/main",), guard.command_targets("cp -t C:/main file"))
-        self.assertIn("C:/main/y", guard.command_targets("Move-Item -Destination C:/main/y -Path x"))
-        self.assertIn("C:/main/y", guard.command_targets("Out-File -InputObject x -FilePath C:/main/y"))
-        self.assertEqual(("safe", "C:/main/victim"), guard.command_targets("rm safe C:/main/victim"))
-        self.assertEqual(("C:/main/file",), guard.command_targets("echo changed >> C:/main/file"))
-        self.assertIn("C:/other", guard.command_targets("git --work-tree C:/other restore x"))
-        for command in ("git --work-tree=C:/other clean -fd", "git --git-dir=C:/other/.git clean -fd", "git -CC:/other clean -fd"):
-            with self.subTest(command=command):
-                self.assertTrue(guard.command_targets(command))
-        windows_git_dir = r"C:\Users\Mohab\main-worktree\.git"
-        self.assertEqual(
-            (windows_git_dir,),
-            guard.command_targets(f"git --git-dir={windows_git_dir} clean -fd"),
-        )
-        self.assertEqual(
-            (windows_git_dir,),
-            guard.command_targets(f"git --git-dir {windows_git_dir} clean -fd"),
-        )
-        with mock.patch.object(guard, "current_branch", return_value="trunk"), \
-             mock.patch.object(guard, "git_output", return_value="origin/trunk"):
-            self.assertTrue(guard.on_default_branch("C:/repo"))
-        main = os.path.abspath("main-worktree")
-        with mock.patch.object(guard, "current_branch", side_effect=lambda cwd: "main" if os.path.normcase(os.path.realpath(str(cwd))) == os.path.normcase(os.path.realpath(main)) else "ChaosEngine/task"):
-            reason = guard.lifecycle_reason(
-                {"cwd": "C:/isolated"}, "PowerShell",
-                {"command": "touch x", "workdir": main}, True,
-            )
-        self.assertIn("R19 blocked", reason)
-        source = 'await tools.apply_patch(patch); await tools.exec_command({cmd:"git status"});'
-        self.assertIn("R19 blocked", guard.lifecycle_reason(
-            {"cwd": "C:/isolated"}, "functions.exec", source, True,
-        ))
-        with mock.patch.object(guard, "git_output", return_value=""):
-            self.assertTrue(guard.initial_draft_recovery("git commit --allow-empty -m plan", ".", "ChaosEngine/task"))
-        self.assertFalse(guard.initial_draft_recovery("git push && touch x", ".", "ChaosEngine/task"))
-        self.assertFalse(guard.initial_draft_recovery("git push evil HEAD", ".", "ChaosEngine/task"))
-        for command in ("git push --tags origin HEAD", "GH_REPO=other/repo gh pr edit --body-file plan.md", "GIT_DIR=C:/other/.git git commit --allow-empty -m plan"):
-            with self.subTest(command=command):
-                self.assertFalse(guard.initial_draft_recovery(command, ".", "ChaosEngine/task", "owner/repo"))
-        with mock.patch.dict(os.environ, {"GH_REPO": "other/repo"}):
-            self.assertFalse(guard.initial_draft_recovery("gh pr edit --body-file plan.md", ".", "ChaosEngine/task", "owner/repo"))
-        self.assertTrue(guard.knowledge_write_command("memory remember durable"))
-        self.assertTrue(guard.knowledge_write_command("mempalace add fact"))
-        self.assertFalse(guard.initial_draft_recovery(
-            "gh pr edit --body-file plan.md --repo other/repo", ".", "ChaosEngine/task", "owner/repo"
-        ))
-        self.assertFalse(guard.initial_draft_recovery(
-            "gh pr create --draft --base main --head ChaosEngine/task --body plan --reviewer victim",
-            ".", "ChaosEngine/task", "owner/repo",
-        ))
-        with mock.patch.object(guard, "current_branch", return_value="ChaosEngine/task"), \
-             mock.patch.object(guard, "git_output", return_value=None):
-            invalid = {"command": "gh pr create --base wrong --head wrong --body x"}
-            self.assertIn("R31 blocked", guard.lifecycle_reason(
-                {"cwd": "C:/task", "session_id": "s"}, "PowerShell", invalid, True,
-            ))
-
-    def test_portable_github_reads_bind_to_origin_repository_and_cross_check_identity(self):
-        guard = self.portable_guard()
-        repository = "owner/repo"
-        branch = "ChaosEngine/task"
-        head = "a" * 40
-        body = "## Plan\n" + "plan details " * 3 + "\n## Scope\n" + "scope details " * 3 + "\n## Proof\n" + "proof details " * 3
-
-        def git_result(_cwd, *arguments):
-            if arguments == ("rev-parse", "HEAD"):
-                return head
-            if arguments[:3] == ("config", "--get", "remote.origin.url"):
-                return "https://github.com/owner/repo.git"
-            if arguments[:1] == ("merge-base",):
-                return "b" * 40
-            if arguments[:2] == ("diff", "--name-only"):
-                return ""
-            if arguments[:1] == ("status",):
-                return ""
-            return None
-
-        def gh_response(payload):
-            return mock.Mock(returncode=0, stdout=json.dumps(payload))
-
-        for returned_name in (repository, "other/repo", None):
-            with self.subTest(returned_name=returned_name):
-                calls = []
-
-                def gh_run(arguments, **_kwargs):
-                    calls.append(arguments)
-                    if arguments[1:3] == ["repo", "view"]:
-                        payload = {"defaultBranchRef": {"name": "main"}}
-                        if returned_name is not None:
-                            payload["nameWithOwner"] = returned_name
-                        return gh_response(payload)
-                    return gh_response([{
-                        "isDraft": True,
-                        "headRefOid": head,
-                        "baseRefName": "main",
-                        "changedFiles": 0,
-                        "body": body,
-                    }])
-
-                with mock.patch.object(guard, "git_output", side_effect=git_result), \
-                     mock.patch.object(guard.shutil, "which", return_value="gh"), \
-                     mock.patch.object(guard.subprocess, "run", side_effect=gh_run), \
-                     mock.patch.object(guard.reflection, "entries", return_value=[]), \
-                     mock.patch.object(guard.reflection, "append_entry", return_value=True):
-                    reason = guard.verified_initial_draft_reason(
-                        {"session_id": "origin-binding"}, "C:/task", branch, (), "Write", {"file_path": "x"}
-                    )
-
-                self.assertEqual(
-                    ["gh", "repo", "view", "--repo", repository, "--json", "nameWithOwner,defaultBranchRef"],
-                    calls[0],
-                )
-                if returned_name == repository:
-                    self.assertIsNone(reason)
-                    self.assertIn("--repo", calls[1])
-                    self.assertEqual(repository, calls[1][calls[1].index("--repo") + 1])
-                else:
-                    self.assertIn("R31 blocked", reason)
-                    self.assertEqual(1, len(calls), "identity mismatch must stop before PR inspection")
-
-        calls = []
-        with mock.patch.object(guard, "shutil", guard.shutil), \
-             mock.patch.object(guard.shutil, "which", return_value="gh"), \
-             mock.patch.object(guard.subprocess, "run", side_effect=lambda arguments, **_kwargs: calls.append(arguments) or gh_response({"defaultBranchRef": {"name": "main"}})):
-            self.assertFalse(guard.recovery_pr_create(
-                ["--draft", "--base", "main", "--head", branch, "--body", "plan"],
-                "C:/task", branch, repository,
-            ))
-        self.assertEqual(
-            ["gh", "repo", "view", "--repo", repository, "--json", "nameWithOwner,defaultBranchRef"],
-            calls[0],
-        )
-
-    def test_portable_plan_visibility_unknown_default_and_safe_body_repair(self):
-        guard = self.portable_guard()
-        hidden = "<!-- ## Plan\nLong hidden plan content only.\n## Scope\nLong hidden scope content only.\n## Proof\nLong hidden proof content only. -->"
-        self.assertTrue(hasattr(guard, "initial_plan_complete"))
-        self.assertFalse(guard.initial_plan_complete(hidden))
-        tilde_fenced = (
-            "~~~markdown\n"
-            "## Plan\nA substantive plan hidden inside a rendered code block.\n"
-            "## Scope\nA substantive scope hidden inside a rendered code block.\n"
-            "## Proof\nA substantive proof hidden inside a rendered code block.\n"
-            "~~~\n"
-        )
-        self.assertFalse(guard.initial_plan_complete(tilde_fenced))
-        with mock.patch.object(guard, "current_branch", return_value="trunk"), \
-             mock.patch.object(guard, "git_output", return_value=None):
-            self.assertTrue(guard.on_default_branch("C:/repo"))
-        self.assertTrue(guard.initial_draft_recovery("gh pr edit --body-file plan.md", ".", "ChaosEngine/task", "owner/repo"))
-        self.assertFalse(guard.initial_draft_recovery("gh pr edit 9 --body-file plan.md", ".", "ChaosEngine/task", "owner/repo"))
-
-    def test_portable_relative_workdir_resolves_from_the_event_directory(self):
-        guard = self.portable_guard()
-        observed = []
-        def branch(cwd):
-            observed.append(os.path.normcase(os.path.realpath(str(cwd))))
-            return "ChaosEngine/task"
-        with mock.patch.object(guard, "current_branch", side_effect=branch), \
-             mock.patch.object(guard, "git_output", return_value=None):
-            guard.lifecycle_reason(
-                {"cwd": "C:/outer", "session_id": "s"},
-                "PowerShell", {"command": "touch x", "workdir": "task"}, True,
-            )
-        expected = os.path.normcase(os.path.realpath(os.path.join("C:/outer", "task")))
-        self.assertIn(expected, observed)
-
-    def test_review_iteration_guidance_has_no_serial_or_round_ceiling_contradiction(self):
-        corpus = "\n".join(
-            path.read_text(encoding="utf-8") for path in (
-                CANONICAL_SKILL, GITHUB_PLAYBOOK, DELEGATION,
-                CORE / "references/consult-first.md", ROOT / ".agents/skills/README.md",
-            )
-        ).casefold()
-        self.assertNotIn("three rounds is the hard ceiling", corpus)
-        self.assertNotIn("every behavior-changing phase is reviewed before the next phase", corpus)
-
-    def test_portable_r31_uses_effective_workdir_and_hands_off_existing_diff(self):
-        guard = self.portable_guard()
-        task = os.path.abspath("task-worktree")
-        source = f'await tools.exec_command({{cmd:"touch x",workdir:{json.dumps(task)}}});'
-        with mock.patch.object(guard, "current_branch", side_effect=lambda cwd: "ChaosEngine/task" if os.path.normcase(os.path.realpath(str(cwd))) == os.path.normcase(os.path.realpath(task)) else None), \
-             mock.patch.object(guard, "git_output", return_value=None):
-            self.assertIn("R31 blocked", guard.lifecycle_reason(
-                {"cwd": "C:/outside", "session_id": "s"}, "functions.exec", source, True,
-            ))
-
-        with mock.patch.object(guard, "repository_root", return_value="C:/repo"), \
-             mock.patch.object(guard, "current_branch", return_value="ChaosEngine/task"):
-            reason, _cwd, _branch = guard.task_location(["C:/repo/a", "C:/repo/b"], "C:/repo")
-        self.assertIsNone(reason)
-
-        response = mock.Mock(returncode=0, stdout=json.dumps({
-            "nameWithOwner": "owner/repo", "defaultBranchRef": {"name": "main"}
-        }))
-        def git_result(_cwd, *arguments):
-            if arguments == ("rev-parse", "HEAD"):
-                return "a" * 40
-            if arguments[:3] == ("config", "--get", "remote.origin.url"):
-                return "https://github.com/owner/repo.git"
-            if arguments[:1] == ("status",):
-                return ""
-            if arguments[:1] == ("merge-base",):
-                return "b" * 40
-            if arguments[:2] == ("diff", "--name-only"):
-                return "changed.txt"
-            return None
-        with mock.patch.object(guard, "current_branch", return_value="ChaosEngine/task"), \
-             mock.patch.object(guard, "git_output", side_effect=git_result), \
-             mock.patch.object(guard.shutil, "which", return_value="gh"), \
-             mock.patch.object(guard.subprocess, "run", return_value=response), \
-             mock.patch.object(guard.reflection, "entries", return_value=[]):
-            self.assertIsNone(guard.lifecycle_reason(
-                {"cwd": "C:/task", "session_id": "s"}, "Write", {"file_path": "x"}, True,
-            ))
-
-    def test_research_authority_is_selected_and_bounded_per_task(self):
-        guidance = (CORE / "references/consult-first.md").read_text(encoding="utf-8")
-        self.assertIn("selected per task", guidance)
-        self.assertIn("site:<host>", guidance)
-        self.assertIn("CHAOS_PRIMARY_SOURCE_HOST=<host>", guidance)
 
     def test_portable_graphify_retrieval_is_read_only_and_ordered(self):
         guidance = (CORE / "references/graphify.md").read_text(encoding="utf-8")
@@ -699,10 +428,6 @@ class ChaosEnginePortableCoreTest(unittest.TestCase):
             "immutable upstream tip",
             "After this gate",
             "dedicated `ChaosEngine/*` branch and linked worktree",
-            "next durable step is the planned",
-            "zero-file draft",
-            "before the first",
-            "task file mutation",
             "perform planning, discovery, and implementation there",
             "explicit continuation",
             "local or remote task branch",

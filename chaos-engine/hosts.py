@@ -1847,31 +1847,21 @@ def codex_content(
     return (existing + separator + block).encode()
 
 
-def without_chaos_hooks(before: bytes | None, label: str) -> bytes:
-    """Remove only ChaosEngine-owned lifecycle hooks from a host configuration."""
+def hook_content(before: bytes | None, rendered: bytes, label: str) -> bytes:
     try:
         existing = json.loads(before) if before is not None else {"hooks": {}}
+        desired = json.loads(rendered)
     except (UnicodeDecodeError, json.JSONDecodeError) as error:
         raise ValueError(f"invalid {label} hook configuration") from error
     if not isinstance(existing, dict) or not isinstance(existing.get("hooks"), dict):
         raise ValueError(f"invalid {label} hook configuration")
-    ownership_markers = (
-        "scripts/agents/guard.py",
-        ".chaos-engine/hooks/guard.py",
-        "${CLAUDE_PLUGIN_ROOT}/hooks/guard.py",
-    )
-    for event, groups in list(existing["hooks"].items()):
-        if not isinstance(groups, list):
+    for event, groups in desired["hooks"].items():
+        current = existing["hooks"].setdefault(event, [])
+        if not isinstance(current, list):
             raise ValueError(f"invalid {label} hook configuration")
-        retained = [
-            group
-            for group in groups
-            if not any(marker in json.dumps(group) for marker in ownership_markers)
-        ]
-        if retained:
-            existing["hooks"][event] = retained
-        else:
-            del existing["hooks"][event]
+        for group in groups:
+            if group not in current:
+                current.append(group)
     return (json.dumps(existing, indent=2, sort_keys=True) + "\n").encode()
 
 
@@ -1966,7 +1956,7 @@ def desired_content(
     after[".agents/skills/README.md"] = (
         "# Installed agent harness\n\n"
         "- `chaos-engine/`: canonical skill adapter.\n"
-        "- `../../plugins/chaos-engine/`: installed plugin with advisory diagnostics.\n"
+        "- `../../plugins/chaos-engine/`: installed plugin and lifecycle hook.\n"
         "- `.chaos-engine/`: canonical skills, playbooks, tools, and policy.\n"
     ).encode()
     plugin_entry = {
@@ -2055,7 +2045,7 @@ def desired_content(
             "longDescription": "A neutral project-local harness for research, planning, implementation, verification, and durable learning.",
             "developerName": "ChaosEngine contributors",
             "category": "Developer Tools",
-            "capabilities": ["Instructions", "MCP servers"],
+            "capabilities": ["Instructions", "Lifecycle hooks", "MCP servers"],
             "defaultPrompt": ["Use ChaosEngine for this task."],
         },
     }
@@ -2075,9 +2065,41 @@ def desired_content(
         )
         + "\n"
     ).encode()
-    after["plugins/chaos-engine/hooks/hooks.json"] = b'{\n  "hooks": {}\n}\n'
-    after[".codex/hooks.json"] = without_chaos_hooks(
-        before[".codex/hooks.json"], "Codex"
+    command, prefix = interpreter()
+    hook_command = " ".join([command, *prefix, '"${CLAUDE_PLUGIN_ROOT}/hooks/guard.py"'])
+    lifecycle_events = {
+        "SessionStart": "startup|resume|clear|compact",
+        "UserPromptSubmit": None,
+        "PreToolUse": "Bash|PowerShell|shell_command|exec_command|functions[.]exec",
+        "PostToolUse": "Bash|PowerShell|shell_command|exec_command|functions[.]exec",
+        "PostToolUseFailure": "Bash|PowerShell|shell_command|exec_command|functions[.]exec",
+        "Stop": None,
+        "SubagentStop": None,
+    }
+    hooks: dict[str, list[dict[str, object]]] = {}
+    for event, matcher in lifecycle_events.items():
+        group: dict[str, object] = {
+            "hooks": [{"type": "command", "command": hook_command, "timeout": 5}]
+        }
+        if matcher is not None:
+            group["matcher"] = matcher
+        hooks[event] = [group]
+    rendered_plugin_hooks = (
+        json.dumps({"hooks": hooks}, indent=2, sort_keys=True) + "\n"
+    ).encode()
+    project_command = " ".join([command, *prefix, ".chaos-engine/hooks/guard.py"])
+    project_hooks = json.loads(rendered_plugin_hooks)
+    project_hooks["hooks"].pop("PostToolUseFailure", None)
+    for groups in project_hooks["hooks"].values():
+        for group in groups:
+            for hook in group["hooks"]:
+                hook["command"] = project_command
+    rendered_project_hooks = (json.dumps(project_hooks, indent=2, sort_keys=True) + "\n").encode()
+    after["plugins/chaos-engine/hooks/hooks.json"] = hook_content(
+        before["plugins/chaos-engine/hooks/hooks.json"], rendered_plugin_hooks, "plugin"
+    )
+    after[".codex/hooks.json"] = hook_content(
+        before[".codex/hooks.json"], rendered_project_hooks, "Codex"
     )
     after["plugins/chaos-engine/hooks/guard.py"] = (
         Path(__file__).resolve().parent / "hooks/guard.py"
@@ -2089,9 +2111,7 @@ def desired_content(
         "---\nname: chaos-engine\ndescription: Load the canonical installed ChaosEngine before every task.\n---\n\n"
         "From the active project root, load `.chaos-engine/skills/chaos-engine/SKILL.md` before every task.\n"
     ).encode()
-    claude_settings = without_chaos_hooks(
-        before[".claude/settings.json"], "Claude"
-    )
+    claude_settings = before[".claude/settings.json"]
     try:
         settings = json.loads(claude_settings) if claude_settings is not None else {}
     except (UnicodeDecodeError, json.JSONDecodeError) as error:
@@ -2116,10 +2136,10 @@ def desired_content(
         json.dumps(settings, indent=2, sort_keys=True) + "\n"
     ).encode()
     roles = {
-        "orchestrator": "Own architecture, synthesis, conflict resolution, and delivery.",
-        "implementer": "Implement one bounded specification and return unresolved ambiguity.",
-        "reviewer": "Perform a requested read-only review; never edit.",
-        "tester": "Produce requested reproduction, regression, or acceptance evidence.",
+        "orchestrator": "Own planning, architecture, synthesis, and final verification.",
+        "implementer": "Implement one bounded specification with test-driven development.",
+        "reviewer": "Perform an independent read-only adversarial review; never edit.",
+        "tester": "Reproduce behavior and produce regression and acceptance evidence.",
         "mechanical-helper": "Perform deterministic reversible spec-exact work; stop on ambiguity.",
     }
     for role, responsibility in roles.items():
