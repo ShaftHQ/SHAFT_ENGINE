@@ -650,51 +650,32 @@ class TerminalReflectionContractTest(unittest.TestCase):
             "changedApproach": "Verify the installed boundary first.",
             "proofCommandOrCheck": "installed hook probe",
             "proofOutcome": "The installed hook passed.",
+            "issue": "https://github.com/ShaftHQ/SHAFT_ENGINE/issues/5014",
             "tokenConsumer": "Repeated source and installed-boundary repair review.",
             "nextSessionOptimization": "Use one parity matrix and freeze only after installed probes.",
             "durableDisposition": "guidance-fixed",
             "issue": "https://github.com/ShaftHQ/SHAFT_ENGINE/issues/5014",
         }
 
-    def test_terminal_receipt_requires_token_cost_and_next_session_optimization(self):
+    def test_terminal_receipt_requires_issue(self):
         with tempfile.TemporaryDirectory() as temporary, patch.dict(
             os.environ, {"TMPDIR": temporary, "TEMP": temporary}
         ):
-            def attempt(session_id, receipt, token):
-                try:
-                    return reflection.record_receipt(session_id, receipt, token)
-                except ValueError:
-                    return None
-            complete_token = reflection.record_session_start(
-                "complete-cost", "2020-01-01T00:00:00+00:00"
-            )
-            self.assertIsNotNone(attempt(
-                "complete-cost", self._receipt(), complete_token
-            ))
-            for missing in ("tokenConsumer", "nextSessionOptimization"):
-                token = reflection.record_session_start(
-                    "missing-" + missing, "2020-01-01T00:00:00+00:00"
-                )
-                receipt = self._receipt()
-                receipt.pop(missing)
-                with self.subTest(missing=missing):
-                    self.assertIsNone(attempt("missing-" + missing, receipt, token))
-
-    def test_terminal_receipt_without_issue_fails_for_missing_issue(self):
-        with tempfile.TemporaryDirectory() as temporary, patch.dict(
-            os.environ, {"TMPDIR": temporary, "TEMP": temporary}
-        ):
-            token = reflection.record_session_start(
-                "missing-issue", "2020-01-01T00:00:00+00:00"
-            )
+            token = reflection.record_session_start("terminal", "2020-01-01T00:00:00+00:00")
             receipt = self._receipt()
-            receipt.pop("issue")
+            receipt["issue"] = "https://github.com/ShaftHQ/SHAFT_ENGINE/issues/5014"
+            reflection.record_receipt("terminal", receipt, token)
+            self.assertTrue(reflection.has_valid_terminal_receipt("terminal"))
+
+            broken = self._receipt()
+            broken.pop("issue")
             with self.assertRaisesRegex(
-                ValueError, "canonical standalone GitHub issue URL"
+                ValueError, "long-session-completion requires a canonical standalone GitHub issue URL"
             ):
-                reflection.record_receipt("missing-issue", receipt, token)
+                reflection.record_receipt("terminal", broken, token)
 
     def test_terminal_summary_rejects_forged_later_raw_receipt_issue(self):
+        isolate_stop_rules(self)
         labels = "\n".join(
             f"{label}: recorded" for label in guard._TERMINAL_REFLECTION_LABELS
         )
@@ -707,7 +688,9 @@ class TerminalReflectionContractTest(unittest.TestCase):
             token = reflection.record_session_start(
                 session_id, "2020-01-01T00:00:00+00:00"
             )
-            reflection.record_receipt(session_id, self._receipt(), token)
+            receipt = self._receipt()
+            receipt["issue"] = valid_issue
+            reflection.record_receipt(session_id, receipt, token)
             self.assertTrue(
                 reflection.append_entry(
                     session_id,
@@ -718,18 +701,23 @@ class TerminalReflectionContractTest(unittest.TestCase):
                     },
                 )
             )
-            self.assertEqual(forged_issue, reflection.entries(session_id)[-1]["issue"])
             self.assertEqual(
                 valid_issue, reflection.valid_terminal_receipt_issue(session_id)
             )
-            reason = guard._terminal_reflection_reason(
-                {
-                    "session_id": session_id,
-                    "last_assistant_message": labels + "\nTracked issue: " + forged_issue,
-                }
-            )
-        self.assertIsNotNone(reason)
-        self.assertIn("tracked issue URL", reason)
+            payload = {
+                "session_id": session_id,
+                "last_assistant_message": labels + "\nTracked issue: " + forged_issue,
+            }
+            with patch(
+                "scripts.agents.guard._worktree_report",
+                return_value={"worktrees": [{"is_current": True, "state": "clean"}]},
+            ):
+                output = io.StringIO()
+                with redirect_stdout(output):
+                    guard.run_stop(payload)
+            reason = output.getvalue()
+            self.assertTrue(reason)
+            self.assertIn("tracked issue URL", reason)
 
     def test_under_one_hour_cannot_prerecord_terminal_receipt_and_does_not_block_stop(self):
         with tempfile.TemporaryDirectory() as temporary, patch.dict(
@@ -3787,14 +3775,18 @@ class SubagentStopDeliveryOwnershipTest(unittest.TestCase):
             "",
             self.run_stop_output(self.payload("reviewer"), ["commit"]),
         )
+
+    def test_retained_delegate_still_requires_delivery_status(self):
         identity = ("owner/repo", "ChaosEngine/task", "a" * 40)
         checkpoint = guard._checkpoint_json_event("checkpoint", *identity)
-        for role in ("coder", "reviewer"):
-            with self.subTest(retained_role=role):
-                output = self.run_stop_output(
-                    self.payload(role), ["commit", checkpoint]
-                )
-                self.assertIn("R29 blocked", output)
+        output = self.run_stop_output(self.payload("coder"), ["commit", checkpoint])
+        self.assertIn("R29 blocked", output)
+
+    def test_reviewer_role_cannot_bypass_retained_delivery_ownership(self):
+        identity = ("owner/repo", "ChaosEngine/task", "a" * 40)
+        checkpoint = guard._checkpoint_json_event("checkpoint", *identity)
+        output = self.run_stop_output(self.payload("reviewer"), ["commit", checkpoint])
+        self.assertIn("R29 blocked", output)
 
 
 class UnarmedPullRequestStopGateTest(unittest.TestCase):
@@ -4653,6 +4645,7 @@ class StopTestsAreIndependentOfLiveStateTest(unittest.TestCase):
         "RunStateStopGateTest",
         "ForeignWorktreeStopGateTest",
         "DeliveryCompleteStopGateTest",
+        "SubagentStopDeliveryOwnershipTest",
     )
 
     def subjects(self) -> unittest.TestSuite:

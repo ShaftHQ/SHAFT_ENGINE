@@ -188,8 +188,9 @@ class ChaosEngineHookTest(unittest.TestCase):
                     "changedApproach": "Moved reflection after delivery.",
                     "proofCommandOrCheck": "delivery status",
                     "proofOutcome": "Delivery status was confirmed.",
-                    "tokenConsumer": "Verbose result inspection consumed the most tokens.",
-                    "nextSessionOptimization": "Use terse focused output before broad checks.",
+                    "tokenConsumer": "Delivery status still requires controlled follow-up.",
+                    "nextSessionOptimization": "Complete portable completion before delivery handoff.",
+                    "issue": "https://github.com/ShaftHQ/SHAFT_ENGINE/issues/5014",
                     "durableDisposition": "guidance-fixed",
                     "issue": "https://github.com/ShaftHQ/SHAFT_ENGINE/issues/5014",
                 }

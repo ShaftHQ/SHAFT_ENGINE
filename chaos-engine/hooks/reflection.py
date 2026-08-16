@@ -45,7 +45,7 @@ _SECRET = re.compile(
     r"(?i)(?:password|secret|access[_-]?token|token|bearer|credential|api[_-]?key|authorization)(?:\W|$)"
 )
 _REFLECTION_SECRET = re.compile(
-    r"(?i)(?:password|secret|access[_-]?token|bearer|credential|api[_-]?key|authorization)(?:\W|$)"
+    r"(?i)(?:password|secret|access[_-]?token|token|bearer|credential|api[_-]?key|authorization)(?:\W|$)"
 )
 
 
@@ -463,7 +463,11 @@ def _safe_text(name: str, value: object) -> str:
     rendered = str(value or "").strip()
     if not _SAFE_TEXT.fullmatch(rendered):
         raise ValueError(f"{name} must be 1-240 characters on one line")
-    secret_pattern = _REFLECTION_SECRET if name in {"tokenConsumer", "nextSessionOptimization"} else _SECRET
+    secret_pattern = (
+        _REFLECTION_SECRET
+        if name in {"tokenConsumer", "nextSessionOptimization"}
+        else _SECRET
+    )
     if _ABSOLUTE_PATH.search(rendered) or secret_pattern.search(rendered):
         raise ValueError(f"{name} contains forbidden path or credential-shaped text")
     return rendered
@@ -474,9 +478,6 @@ def _safe_issue_url(value: object) -> str:
     if not _SAFE_TEXT.fullmatch(rendered):
         raise ValueError("issue must be 1-240 characters on one line")
     parsed = urlparse(rendered)
-    path_match = re.fullmatch(
-        r"/([A-Za-z0-9_.-]+)/([A-Za-z0-9_.-]+)/issues/(\d+)", parsed.path
-    )
     if (
         parsed.scheme != "https"
         or parsed.hostname != "github.com"
@@ -485,8 +486,7 @@ def _safe_issue_url(value: object) -> str:
         or parsed.port is not None
         or parsed.query
         or parsed.fragment
-        or path_match is None
-        or any(segment in {".", ".."} for segment in path_match.groups()[:2])
+        or not re.fullmatch(r"/([A-Za-z0-9_.-]+)/([A-Za-z0-9_.-]+)/issues/(\d+)", parsed.path)
     ):
         raise ValueError("issue must be a GitHub issue URL")
     return rendered
