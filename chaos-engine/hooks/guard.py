@@ -833,6 +833,9 @@ def main() -> int:
                 or ""
             ).casefold()
             missing = [label for label in TERMINAL_LABELS if label not in message]
+            issue = reflection.valid_terminal_receipt_issue(session_id)
+            if issue is None or issue.casefold() not in message:
+                missing.append("tracked issue URL")
             if missing:
                 print(json.dumps({"decision": "block", "reason": "Terminal reflection summary is missing: " + ", ".join(missing) + "."}))
                 return 2

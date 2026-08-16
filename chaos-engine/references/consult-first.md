@@ -90,15 +90,16 @@ rule overrides an imported skill's default path.
 Work runs in this order:
 
 analyze -> plan -> design -> RED -> GREEN -> refactor -> commit ->
-push -> CI and review in parallel -> one repair batch -> repeat until clear ->
+push -> CI -> independent review -> one repair batch -> repeat until clear ->
 arm -> merge.
 
 The isolated branch's zero-file draft pull request already exists from the
 planning checkpoint before RED begins.
 
 Every pushed behavior iteration gets the independent adversarial review defined
-in [delegation](delegation.md), at the depth this task's triage set, while CI
-runs against the same exact head.
+in [delegation](delegation.md), at the depth this task's triage set, after CI
+has passed on the same exact head. Keep each pushed iteration a small, rapid
+increment so CI and review stay bound to one coherent change.
 
 ## Output
 

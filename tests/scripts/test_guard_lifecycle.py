@@ -306,6 +306,10 @@ class ReflectionCheckpointContractTest(unittest.TestCase):
         )
         for issue in (
             "https://github.com/owner name/repo/issues/1",
+            "https://github.com/./repo/issues/1",
+            "https://github.com/../repo/issues/1",
+            "https://github.com/owner/./issues/1",
+            "https://github.com/owner/../issues/1",
             "https://github.com/owner/repo/issues/1?token=x",
             "https://user@github.com/owner/repo/issues/1",
             "https://github.com/owner/repo/issues/1#fragment",
@@ -346,10 +350,18 @@ class ReflectionCheckpointContractTest(unittest.TestCase):
                 trigger="long-session-completion",
                 tokenConsumer="Repeated diagnostic and validation context.",
                 nextSessionOptimization="Use one bounded installed-flow proof earlier.",
+                issue="https://github.com/ShaftHQ/SHAFT_ENGINE/issues/5014",
             )
             reflection.record_receipt(session, receipt, token)
             payload["last_assistant_message"] = "\n".join(
                 f"{label}: recorded" for label in guard._TERMINAL_REFLECTION_LABELS
+            )
+            output = io.StringIO()
+            with redirect_stdout(output):
+                guard.run_stop(payload)
+            self.assertIn("tracked issue URL", output.getvalue())
+            payload["last_assistant_message"] += (
+                "\nTracked issue: https://github.com/ShaftHQ/SHAFT_ENGINE/issues/5014"
             )
             output = io.StringIO()
             with redirect_stdout(output):
@@ -641,6 +653,7 @@ class TerminalReflectionContractTest(unittest.TestCase):
             "tokenConsumer": "Repeated source and installed-boundary repair review.",
             "nextSessionOptimization": "Use one parity matrix and freeze only after installed probes.",
             "durableDisposition": "guidance-fixed",
+            "issue": "https://github.com/ShaftHQ/SHAFT_ENGINE/issues/5014",
         }
 
     def test_terminal_receipt_requires_token_cost_and_next_session_optimization(self):
@@ -667,6 +680,53 @@ class TerminalReflectionContractTest(unittest.TestCase):
                 with self.subTest(missing=missing):
                     self.assertIsNone(attempt("missing-" + missing, receipt, token))
 
+    def test_terminal_receipt_without_issue_fails_for_missing_issue(self):
+        with tempfile.TemporaryDirectory() as temporary, patch.dict(
+            os.environ, {"TMPDIR": temporary, "TEMP": temporary}
+        ):
+            token = reflection.record_session_start(
+                "missing-issue", "2020-01-01T00:00:00+00:00"
+            )
+            receipt = self._receipt()
+            receipt.pop("issue")
+            with self.assertRaisesRegex(
+                ValueError, "canonical standalone GitHub issue URL"
+            ):
+                reflection.record_receipt("missing-issue", receipt, token)
+
+    def test_terminal_summary_uses_issue_from_valid_receipt_not_forged_later_entry(self):
+        labels = "\n".join(
+            f"{label}: recorded" for label in guard._TERMINAL_REFLECTION_LABELS
+        )
+        valid_issue = "https://github.com/ShaftHQ/SHAFT_ENGINE/issues/5014"
+        forged_issue = "https://github.com/ShaftHQ/SHAFT_ENGINE/issues/9999"
+        entries = [
+            {
+                "kind": "reflection-receipt",
+                "trigger": "long-session-completion",
+                "issue": valid_issue,
+            },
+            {
+                "kind": "reflection-receipt",
+                "trigger": "long-session-completion",
+                "issue": forged_issue,
+            },
+        ]
+        with mock.patch.object(
+            guard._reflection, "session_elapsed_seconds", return_value=3601
+        ), mock.patch.object(
+            guard._reflection, "has_valid_terminal_receipt", return_value=True
+        ), mock.patch.object(
+            guard._reflection,
+            "valid_terminal_receipt_issue",
+            create=True,
+            return_value=valid_issue,
+        ):
+            reason = guard._terminal_reflection_reason(
+                {"session_id": "forged-terminal-issue", "last_assistant_message": labels + "\n" + valid_issue}
+            )
+        self.assertIsNone(reason)
+
     def test_under_one_hour_cannot_prerecord_terminal_receipt_and_does_not_block_stop(self):
         with tempfile.TemporaryDirectory() as temporary, patch.dict(
             os.environ, {"TMPDIR": temporary, "TEMP": temporary}
@@ -688,7 +748,7 @@ class TerminalReflectionContractTest(unittest.TestCase):
             reflection.record_receipt("restart", self._receipt(), token)
             complete = "\n".join(
                 f"{label}: recorded" for label in guard._TERMINAL_REFLECTION_LABELS
-            )
+            ) + "\nTracked issue: https://github.com/ShaftHQ/SHAFT_ENGINE/issues/5014"
             self.assertIsNone(
                 guard._terminal_reflection_reason(
                     {"session_id": "restart", "last_assistant_message": complete}

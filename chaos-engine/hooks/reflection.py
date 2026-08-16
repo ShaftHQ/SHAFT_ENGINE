@@ -425,6 +425,40 @@ def has_valid_terminal_receipt(session_id: str) -> bool:
     return terminal
 
 
+def valid_terminal_receipt_issue(session_id: str) -> str | None:
+    """Return the issue URL from the receipt that currently proves terminal state."""
+    active: list[dict] = []
+    issue: str | None = None
+    terminal = False
+    for item in entries(session_id):
+        kind = item.get("kind")
+        if kind == "task-failure" and item.get("attempted") is not False:
+            active.append(item)
+            terminal = False
+            issue = None
+        elif kind == "reflection-trigger":
+            active.append(item)
+            terminal = False
+            issue = None
+        elif kind in {"task-activity", "platform-outcome", "failure-disposition"}:
+            terminal = False
+            issue = None
+        elif kind == "reflection-receipt" and _receipt_clears_active(
+            session_id, item, active
+        ):
+            if item.get("trigger") == "long-session-completion":
+                try:
+                    issue = _safe_issue_url(item.get("issue"))
+                except ValueError:
+                    issue = None
+                terminal = True
+            else:
+                active = []
+                terminal = False
+                issue = None
+    return issue if terminal else None
+
+
 def _safe_text(name: str, value: object) -> str:
     rendered = str(value or "").strip()
     if not _SAFE_TEXT.fullmatch(rendered):
@@ -440,6 +474,9 @@ def _safe_issue_url(value: object) -> str:
     if not _SAFE_TEXT.fullmatch(rendered):
         raise ValueError("issue must be 1-240 characters on one line")
     parsed = urlparse(rendered)
+    path_match = re.fullmatch(
+        r"/([A-Za-z0-9_.-]+)/([A-Za-z0-9_.-]+)/issues/(\d+)", parsed.path
+    )
     if (
         parsed.scheme != "https"
         or parsed.hostname != "github.com"
@@ -448,7 +485,8 @@ def _safe_issue_url(value: object) -> str:
         or parsed.port is not None
         or parsed.query
         or parsed.fragment
-        or not re.fullmatch(r"/[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+/issues/\d+", parsed.path)
+        or path_match is None
+        or any(segment in {".", ".."} for segment in path_match.groups()[:2])
     ):
         raise ValueError("issue must be a GitHub issue URL")
     return rendered
@@ -525,6 +563,10 @@ def record_receipt(session_id: str, receipt: dict, session_token: str) -> dict:
         entry["nextSessionOptimization"] = _safe_text(
             "nextSessionOptimization", receipt.get("nextSessionOptimization")
         )
+        if not receipt.get("issue"):
+            raise ValueError(
+                "long-session-completion requires a canonical standalone GitHub issue URL"
+            )
     if entry["proofOutcome"].casefold() in {"pending", "unknown", "not run"}:
         raise ValueError("proofOutcome must describe a completed proof")
     if receipt.get("issue"):

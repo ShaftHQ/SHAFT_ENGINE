@@ -44,8 +44,11 @@ enum (`second-failure`, `repeated-fingerprint`, `third-fix`,
 `long-session-completion`), `failureFingerprints`, `failedAssumption`, `approachesCompared`,
 `chosenExperiment`, `changedApproach`, `proofCommandOrCheck`, `proofOutcome`,
 and a `durableDisposition` enum (`guidance-fixed`, `issue-filed`,
-`knowledge-recorded`, `nothing-durable`, or `degraded`). An optional `issue`
-must be a GitHub issue URL.
+`knowledge-recorded`, `nothing-durable`, or `degraded`). When supplied, `issue`
+must be a canonical GitHub issue URL. For `long-session-completion`, it is
+required: search open and closed issues for duplicates, create a standalone
+issue when the optimization is actionable, read it back, and only then append
+the receipt with that issue URL. A session or local-only reference is invalid.
 A `long-session-completion` receipt also requires `tokenConsumer` and
 `nextSessionOptimization`: identify what consumed the most tokens, then name a
 concrete harness or workflow change that improves accuracy and token use next

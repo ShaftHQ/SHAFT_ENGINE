@@ -19,7 +19,7 @@ If the branch already contains an implementation diff, preserve its history;
 the retained-checkpoint gate below owns that continuation. GitHub unavailability
 blocks the first mutation rather than turning unknown state into permission.
 
-## 4. Push each iteration, then review and run CI in parallel
+## 4. Push each iteration, then run CI and review in sequence
 
 Rule every open design choice on the issue before the first implementing commit;
 a ticket that reaches code still choosing between candidate fixes converts that
@@ -35,7 +35,9 @@ Commit one locally validated, coherent iteration using the repository's normal
 message convention, including its issue number, and push it to the existing
 draft PR immediately. Keep one active channel and the smallest coherent increment for rapid iteration.
 For each pushed iteration, run CI first; when it fails, fix the exact cause, run only the focused checks required
-by that fix, commit, and push the next iteration promptly. Once CI is green,
+by that fix, commit, and push the next iteration promptly. Treat CI as the
+triage signal before any diff-only review; do not repeat a full suite or
+full-branch review unless new evidence escalates the scope. Once CI is green,
 run independent review against the latest exact head. Repair any blockers,
 validate, and push again. Repeat until CI is green and independent review
 reports zero blockers on the same head. Only then may the PR be armed.

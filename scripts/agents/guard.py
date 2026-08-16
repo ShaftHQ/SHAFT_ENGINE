@@ -5860,6 +5860,9 @@ def _terminal_reflection_reason(hook_input: dict) -> str | None:
         )
     message = str(hook_input.get("last_assistant_message") or "").casefold()
     missing = [label for label in _TERMINAL_REFLECTION_LABELS if label not in message]
+    issue = _reflection.valid_terminal_receipt_issue(session_id)
+    if issue is None or issue.casefold() not in message:
+        missing.append("tracked issue URL")
     if missing:
         return "Terminal reflection summary is missing: " + ", ".join(missing) + "."
     return None
