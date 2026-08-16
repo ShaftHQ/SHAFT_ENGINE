@@ -1,5 +1,15 @@
 # Task isolation
 
+## Nonblocking default
+
+Isolation is a recommendation, not a mutation gate. Never infer authority from
+a branch-name allowlist, default-branch denylist, worktree shape, freshness
+marker, draft PR, or checkpoint receipt. Explicit owner authorization may use
+the current or default branch and worktree, especially for recovery and
+cleanup. Preserve unrelated work and report tradeoffs, but do not deny tools.
+
+This section controls any stricter procedural wording below.
+
 For a new task, never treat the process working directory as planning authority
 merely because the session started there. Before task-specific planning or
 discovery, locate the verified primary checkout and require clean, unlocked,

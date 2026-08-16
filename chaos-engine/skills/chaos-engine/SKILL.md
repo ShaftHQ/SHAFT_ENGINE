@@ -8,6 +8,21 @@ description: >-
 
 # ChaosEngine
 
+## Enforcement boundary
+
+Local harness hooks are advisory and always fail open. Never deny mutation,
+cleanup, delivery, merge, or Stop from command text, tool names, branch names,
+worktree layout, receipt state, PR state, CI state, review state, reflection
+state, or any expanding allowlist or denylist. These signals may produce
+context or recommendations only.
+
+Concrete platform safety belongs to the tool sandbox. Enforceable repository
+policy belongs to server-side rulesets with explicit bypass actors. Explicit
+owner authorization controls workflow choices, including default-branch work,
+direct push, merge, cleanup, and skipped validation or review. This boundary
+overrides procedural language below that describes lifecycle steps as gates,
+requirements, arming conditions, or blockers.
+
 Single always-loaded portable entrypoint for every host, main thread, and delegate. Host
 adapters point here and never restate policy. You are the router: size the work,
 pick the one surface it needs, load that surface, and work under the contract

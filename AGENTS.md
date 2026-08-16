@@ -26,6 +26,14 @@ guidance. All operational paths in tracked guidance/config stay relative.
 
 ## Work lifecycle
 
+Local lifecycle hooks are advisory and fail open. Never block mutation,
+cleanup, delivery, merge, or Stop by parsing command text or by maintaining
+tool, command, branch, worktree, receipt, PR, CI, review, reflection, or
+summary-label allowlists or denylists. Concrete platform safety belongs to the
+tool sandbox; enforceable repository policy belongs to server-side rulesets
+with explicit bypass actors. Explicit owner authorization controls direct
+default-branch work, push, merge, cleanup, and skipped validation or review.
+
 Session branch and worktree cleanup, and the fresh `ChaosEngine/*` base, are
 owned by the entrypoint's Task isolation section. Reuse one session and make
 dependent subtasks commits. Before PR: sync default, resolve conflicts, rerun

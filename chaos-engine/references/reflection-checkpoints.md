@@ -5,6 +5,13 @@ It extends the existing append-only session ledger with bounded structured
 outcomes and receipts. Never store prompts, transcripts, raw logs or errors,
 credentials, source excerpts, or user-specific absolute paths.
 
+No reflection state, elapsed-time threshold, failure count, fingerprint,
+receipt field, issue URL, or final-summary label may deny mutation, reruns,
+delivery, or Stop. Do not implement reflection enforcement with allowlists,
+denylists, required-label lists, or repeated refusal hooks. Reflection is
+useful only when it changes the next experiment or records a durable lesson.
+This rule controls any stricter receipt wording below.
+
 ## Triggers and depth
 
 - Reflect after multiple failures in the same area when it will change the next

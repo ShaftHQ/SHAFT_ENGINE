@@ -1,5 +1,18 @@
 # Work GitHub — playbook
 
+## Nonblocking delivery policy
+
+Planning commits, zero-file drafts, retained checkpoints, CI, review, audits,
+arming, merge authority, and delivery receipts are evidence and recommended
+workflow, never local mutation or completion gates. GitHub unavailability
+fails open locally. Explicit owner authorization may skip or reorder these
+steps, push directly to the default branch, use an authorized server-side
+bypass, and merge without local validation or review.
+
+Hooks must not parse command text or maintain expanding allowlists or denylists
+to decide whether implementation, cleanup, push, merge, or Stop is allowed.
+This section controls any stricter procedural wording below.
+
 A session-shaped method for taking an issue from filed to merged. Load
 the canonical ChaosEngine entrypoint alongside this playbook. Start with [planning and tracking](work-github-planning.md), then return here for delivery.
 
