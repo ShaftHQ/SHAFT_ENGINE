@@ -804,6 +804,10 @@ class CheckpointPullRequestGateTest(unittest.TestCase):
         )
 
     def test_successful_retained_behavior_commit_records_exact_identity(self):
+        self.assertTrue(all(
+            callable(getattr(guard, name, None))
+            for name in ("_record_successful_commit_checkpoint", "_same_tree_as_default_base")
+        ))
         events: list[str] = []
         before = "a" * 40
         identity = ("ShaftHQ/SHAFT_ENGINE", "ChaosEngine/r27", "b" * 40)
@@ -1207,6 +1211,7 @@ class InitialDraftPullRequestGateTest(unittest.TestCase):
         self.assertIn("R31", reason)
 
     def test_exact_head_planned_zero_file_draft_allows_first_mutation(self):
+        self.assertTrue(callable(getattr(guard, "check_r31_initial_draft_pull_request", None)))
         pull_request = {
             "isDraft": True,
             "headRefOid": "c" * 40,
@@ -1284,6 +1289,7 @@ class InitialDraftPullRequestGateTest(unittest.TestCase):
                 self.assertIsNone(self.check({"cwd": ".", "tool_input": {"file_path": "x"}}, "Write"))
 
     def test_wrong_base_dirty_tree_and_missing_identity_fail_closed(self):
+        self.assertTrue(callable(getattr(guard, "check_r31_initial_draft_pull_request", None)))
         valid = {"isDraft": True, "headRefOid": "c" * 40, "changedFiles": 0,
                  "baseRefName": "wrong", "body": self.plan_body()}
         with patch("scripts.agents.guard._checkpoint_identity", return_value=self.identity()), \
@@ -1298,6 +1304,7 @@ class InitialDraftPullRequestGateTest(unittest.TestCase):
             self.assertIsNotNone(self.check({"cwd": ".", "tool_input": {"file_path": "x"}}, "Write"))
 
     def test_satisfaction_is_recorded_once_and_reused(self):
+        self.assertTrue(callable(getattr(guard, "check_r31_initial_draft_pull_request", None)))
         valid = {"isDraft": True, "headRefOid": "c" * 40, "changedFiles": 0,
                  "baseRefName": "main", "body": self.plan_body()}
         events = []
@@ -1313,6 +1320,7 @@ class InitialDraftPullRequestGateTest(unittest.TestCase):
             self.assertIsNone(self.check(payload, "Write"))
 
     def test_recovery_cannot_piggyback_or_edit_unrelated_pr_state(self):
+        self.assertTrue(callable(getattr(guard, "_r31_recovery_command", None)))
         source = 'await tools.apply_patch(patch); await tools.exec_command({cmd:"git push"});'
         with patch("scripts.agents.guard._checkpoint_identity", return_value=self.identity()), \
              patch("scripts.agents.guard._same_tree_as_default_base", return_value=True), \
@@ -1345,6 +1353,7 @@ class InitialDraftPullRequestGateTest(unittest.TestCase):
                 self.assertFalse(allowed)
 
     def test_posix_mutations_enter_the_gate(self):
+        self.assertTrue(callable(getattr(guard, "check_r31_initial_draft_pull_request", None)))
         with patch("scripts.agents.guard._checkpoint_identity", return_value=self.identity()), \
              patch("scripts.agents.guard._same_tree_as_default_base", return_value=True), \
              patch("scripts.agents.guard._exact_head_pull_request", return_value=("none", None)):
@@ -1377,6 +1386,7 @@ class InitialDraftPullRequestGateTest(unittest.TestCase):
             ))
 
     def test_recovery_rejects_environment_and_side_effecting_push_options(self):
+        self.assertTrue(callable(getattr(guard, "_r31_recovery_command", None)))
         for command in (
             "git push --tags origin HEAD",
             "git push --prune origin HEAD",
@@ -1402,6 +1412,7 @@ class InitialDraftPullRequestGateTest(unittest.TestCase):
                 self.assertIsNone(self.check({"cwd": ".", "tool_input": {"command": command}}, "Bash"))
 
     def test_wrapped_mutation_identity_comes_from_effective_workdir(self):
+        self.assertTrue(callable(getattr(guard, "check_r31_initial_draft_pull_request", None)))
         task = os.path.abspath("task-worktree")
         source = f'await tools.exec_command({{cmd:"touch x",workdir:{json.dumps(task)}}});'
         def identity(payload):
@@ -4708,6 +4719,7 @@ class WhatCountsAsAReviewTest(unittest.TestCase):
         )
 
     def test_only_an_exact_head_approval_from_another_account_counts(self):
+        self.assertIn("head", inspect.signature(guard._independent_reviews).parameters)
         head = "a" * 40
         self.assertEqual(1, len(guard._independent_reviews(self.reviews("someone", "APPROVED", head), self.AUTHOR, head)))
         self.assertEqual([], guard._independent_reviews(self.reviews("someone", "CHANGES_REQUESTED", head), self.AUTHOR, head))
@@ -4881,6 +4893,7 @@ class ObservedReviewDispatchTest(unittest.TestCase):
         self.assertFalse(any(event.startswith("review-clear:") for event in events))
 
     def test_subagent_stop_can_record_the_terminal_exact_head_verdict(self):
+        self.assertTrue(callable(getattr(guard, "_review_clear_for_identity", None)))
         identity = ("owner/repo", "feature", "b" * 40)
         dispatched = guard._checkpoint_json_event("review-head", *identity)
         with patch("scripts.agents.guard._checkpoint_identity", return_value=identity), \
@@ -5836,6 +5849,7 @@ class FreshBaseGateTest(unittest.TestCase):
                         {"cwd": isolated, "tool_name": "functions.exec", "tool_input": source}, "functions.exec"))
 
     def test_literal_ellipsis_and_brackets_inside_command_are_not_parser_ambiguity(self):
+        self.assertTrue(callable(getattr(guard, "_wrapped_exec_calls", None)))
         source = 'await tools.exec_command({cmd:"echo [...]...",workdir:"."});'
         self.assertEqual(guard._wrapped_exec_calls(source), (("echo [...]...", "."),))
 
