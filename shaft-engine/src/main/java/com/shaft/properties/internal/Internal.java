@@ -18,7 +18,7 @@ import org.aeonbits.owner.Config.Sources;
 })
 public interface Internal extends EngineProperties<Internal> {
     @Key("shaftEngineVersion")
-    @DefaultValue("10.3.20260809")
+    @DefaultValue("10.3.20260817")
     String shaftEngineVersion();
 
     @Key("watermarkImagePath")
@@ -32,7 +32,7 @@ public interface Internal extends EngineProperties<Internal> {
      * without changing {@code AllureManager} or any CI script. Use this url for the latest version <a href="https://github.com/allure-framework/allure3/releases">Allure3Releases</a>
      */
     @Key("allure3Version")
-    @DefaultValue("3.14.3")
+    @DefaultValue("3.15.0")
     String allure3Version();
 
     /**
@@ -66,7 +66,7 @@ public interface Internal extends EngineProperties<Internal> {
      * Appium UiAutomator2 driver npm package version used by SHAFT MCP for Android.
      */
     @Key("appiumUiAutomator2DriverVersion")
-    @DefaultValue("8.2.2")
+    @DefaultValue("8.4.0")
     String appiumUiAutomator2DriverVersion();
 
     /**
@@ -74,7 +74,7 @@ public interface Internal extends EngineProperties<Internal> {
      * and recording flows on macOS.
      */
     @Key("appiumXcuitestDriverVersion")
-    @DefaultValue("12.3.0")
+    @DefaultValue("12.3.4")
     String appiumXcuitestDriverVersion();
 
     /**
