@@ -600,6 +600,10 @@ def validate_quality_configuration(root: Path = ROOT) -> list[str]:
         if required_local_flow not in local_e2e_workflow:
             errors.append(f"e2eLocalTests.yml is missing Windows desktop E2E flow token: {required_local_flow}")
     errors.extend(validate_windows_appium_retry(local_e2e_workflow))
+    errors.extend(validate_scheduled_build_retry({
+        "e2eTests.yml": e2e_workflow,
+        "e2eLocalTests.yml": local_e2e_workflow,
+    }))
     for cucumber_argument in (
         '"-Dcucumber.features=src/test/resources/CucumberFeatures,src/test/resources/CustomCucumberFeatures"',
         '"-Dcucumber.glue=customCucumberSteps,com.shaft.cucumber"',
@@ -641,6 +645,36 @@ def validate_windows_appium_retry(workflow_text: str) -> list[str]:
             or not test_lines[0].startswith("mvn -pl shaft-engine -am -e test ")):
         return [error]
     return []
+
+
+def validate_scheduled_build_retry(workflows: dict[str, str]) -> list[str]:
+    """Require transfer-only retries for restartable builds, never runtime tests."""
+    errors: list[str] = []
+    build_launch = re.compile(r"(?:^|\s)(?:mvn|(?:\./)?gradlew)(?:\s|$)")
+    runtime_test = re.compile(r"(?:^|\s)mvn\s+.*(?:^|\s)test(?:\s|$)")
+    for workflow_name, workflow_text in workflows.items():
+        try:
+            document = yaml.safe_load(workflow_text) or {}
+        except yaml.YAMLError:
+            errors.append(f"{workflow_name} must be valid YAML for scheduled build retry validation")
+            continue
+        for job_name, job in (document.get("jobs") or {}).items():
+            for step in job.get("steps") or []:
+                for raw_line in str(step.get("run") or "").splitlines():
+                    line = raw_line.strip()
+                    if not line or line.startswith("#") or not build_launch.search(line):
+                        continue
+                    wrapped = "scripts/ci/build_retry.sh" in line
+                    is_runtime = bool(runtime_test.search(line)) and "-DskipTests" not in line
+                    if is_runtime and wrapped:
+                        errors.append(
+                            f"{workflow_name} job {job_name!r} runtime tests must not use build_retry.sh"
+                        )
+                    elif not is_runtime and not wrapped:
+                        errors.append(
+                            f"{workflow_name} job {job_name!r} restartable build must use build_retry.sh"
+                        )
+    return errors
 
 
 def main() -> int:

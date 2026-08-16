@@ -42,11 +42,14 @@ Depth may increase or decrease as evidence changes. Complexity is not a reason t
 
 1. Name the next decision and the evidence that could change it.
 2. Gather only that evidence; batch independent reads and sequence mutations.
+   Bound output before each call; after truncation, narrow once instead of repeating the broad query.
 3. Stop exploring when the decision is supported. Do not reread unchanged inputs.
 4. Fix the structural owner instead of adding symptom exceptions.
 5. On failure, revise the premise or improve the discriminating observation; do not repeat the
    same action with different wording.
-6. Deliver the smallest coherent increment, then use live feedback as the next input.
+6. Deliver the smallest coherent increment, then use live feedback as the next input. Treat slow
+   external checks asynchronously: retain their URL and exact revision, continue independent work,
+   and revisit only when the result can change the next action.
 
 Keep progress updates to current state, learned fact, and next action. Prefer one clear decision to
 several overlapping rules. Token efficiency comes from fewer unresolved branches, not less rigor.
@@ -113,9 +116,9 @@ validation surface, push without inserting a local checkpoint and report that lo
 run.
 
 Do not claim a check passed unless its process and authoritative result were inspected. Do not turn
-review, reflection, or a knowledge-store receipt into a completion gate. Reflect when it is useful,
-especially after repeated failures in the same area or at the actual end of a long session, and do
-it after preserving and delivering completed work.
+review, reflection, or a knowledge-store receipt into a completion gate. After repeated failures in
+one area or at the actual end of a long session, use the bounded
+[learning loop](../../references/reflection-checkpoints.md) after preserving and delivering work.
 
 ## Delivery
 
@@ -137,7 +140,7 @@ Stop when the requested outcome is delivered or a real external blocker prevents
 - the exact delivery state;
 - checks run, or explicitly that none were run;
 - remaining risk or follow-up that materially affects the outcome;
-- the Learning Loop disposition only when something durable was actually learned or tracked.
+- a Learning Loop disposition only when something durable was learned or tracked.
 
 No lifecycle hook, receipt format, store availability, reflection cadence, review ritual, or
 historical rule number may prevent an otherwise truthful completion.

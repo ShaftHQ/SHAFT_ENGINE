@@ -7,6 +7,7 @@ from scripts.ci.validate_quality_configuration import (
     validate_codeql_build_mode,
     validate_maven_jvm_configuration,
     validate_quality_configuration,
+    validate_scheduled_build_retry,
     validate_surefire_jacoco_arg_lines,
     validate_windows_appium_retry,
     validate_workflow_coverage_policy,
@@ -76,6 +77,28 @@ def missing_coverage_error(workflow: str, job: str) -> str:
 
 
 class ValidateQualityConfigurationTest(unittest.TestCase):
+    def test_scheduled_builds_retry_only_restartable_launches(self):
+        workflow = """
+jobs:
+  acceptance:
+    steps:
+      - run: bash scripts/ci/build_retry.sh 2 60 mvn package -DskipTests
+      - run: mvn test -Dtest=AcceptanceTest
+"""
+
+        self.assertEqual(validate_scheduled_build_retry({"scheduled.yml": workflow}), [])
+
+    def test_scheduled_build_retry_rejects_unwrapped_prep_and_wrapped_tests(self):
+        workflow = """
+jobs:
+  acceptance:
+    steps:
+      - run: mvn package -DskipTests
+      - run: bash scripts/ci/build_retry.sh 2 60 mvn test -Dtest=AcceptanceTest
+"""
+
+        self.assertEqual(len(validate_scheduled_build_retry({"scheduled.yml": workflow})), 2)
+
     def test_windows_appium_prepares_dependencies_with_retry_then_runs_tests_once(self):
         workflow = """
 jobs:

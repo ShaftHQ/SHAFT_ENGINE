@@ -110,7 +110,7 @@ public class MobileDeviceNamespaceTraceTest {
         TraceEventRecorder.clear();
 
         AndroidDriver staleDriver = Mockito.mock(AndroidDriver.class);
-        Mockito.when(staleDriver.getSessionId()).thenReturn(new SessionId("stale-device"), null);
+        Mockito.when(staleDriver.getSessionId()).thenReturn(new SessionId("stale-device"), (SessionId) null);
         MobileDeviceActionsContract stale = new SHAFT.GUI.WebDriver(staleDriver).mobile().device();
 
         Assert.expectThrows(UnsupportedOperationException.class, stale::unlock);

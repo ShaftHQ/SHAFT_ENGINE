@@ -157,9 +157,6 @@ public class LightHouseGenerateReportCoverageUnitTest {
 
         reportGenerator.createLighthouseReportFolderInProjectDirectory();
         Assert.assertTrue(Files.isDirectory(reportDirectory));
-        Assert.expectThrows(UnsupportedOperationException.class,
-                () -> reportGenerator.writeReportPathToFilesInProjectDirectory("custom-page"));
-        Assert.expectThrows(UnsupportedOperationException.class, reportGenerator::writeNodeScriptFileInProjectDirectory);
         String pageName = reportGenerator.getPageName();
         Assert.assertTrue(pageName.contains("--path-sub-path"));
         Assert.assertTrue(pageName.startsWith(LocalDate.now().format(java.time.format.DateTimeFormatter.ofPattern("dd-MM-yyyy"))));

@@ -211,7 +211,10 @@ jobs:
         with:
           node-version: '24'
       - name: Package the setup CLI
-        run: mvn --batch-mode -pl shaft-cli -am package "-DskipTests" "-Dallure.automaticallyOpen=false" "-Dgpg.skip=true"
+        shell: bash
+        run: >-
+          bash scripts/ci/build_retry.sh 2 60
+          mvn --batch-mode -pl shaft-cli -am package "-DskipTests" "-Dallure.automaticallyOpen=false" "-Dgpg.skip=true"
       - name: Plan, approve, install, and verify managed Lighthouse
         shell: pwsh
         run: |
@@ -535,7 +538,10 @@ jobs:
           sudo apt-get update
           sudo apt-get install --yes libpulse0
       - name: Package the setup CLI
-        run: mvn --batch-mode -pl shaft-cli -am package -DskipTests '-Dallure.automaticallyOpen=false' -Dgpg.skip
+        shell: bash
+        run: >-
+          bash scripts/ci/build_retry.sh 2 60
+          mvn --batch-mode -pl shaft-cli -am package -DskipTests '-Dallure.automaticallyOpen=false' -Dgpg.skip
       - name: Install the reviewed managed Android plan
         shell: bash
         run: |

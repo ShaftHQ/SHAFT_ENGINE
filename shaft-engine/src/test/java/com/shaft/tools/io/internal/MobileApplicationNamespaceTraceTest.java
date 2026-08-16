@@ -47,7 +47,7 @@ public class MobileApplicationNamespaceTraceTest {
     @Test
     public void staleApplicationFacadeShouldEmitOneFailedEventWithoutCallingProvider() {
         AndroidDriver driver = Mockito.mock(AndroidDriver.class);
-        Mockito.when(driver.getSessionId()).thenReturn(new SessionId("live-then-closed"), null);
+        Mockito.when(driver.getSessionId()).thenReturn(new SessionId("live-then-closed"), (SessionId) null);
         MobileApplicationActionsContract app = new SHAFT.GUI.WebDriver(driver).mobile().app();
 
         Assert.expectThrows(UnsupportedOperationException.class, () -> app.activate("com.example.app"));
