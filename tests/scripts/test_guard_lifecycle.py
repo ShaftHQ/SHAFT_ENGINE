@@ -675,7 +675,6 @@ class TerminalReflectionContractTest(unittest.TestCase):
                 reflection.record_receipt("terminal", broken, token)
 
     def test_terminal_summary_rejects_forged_later_raw_receipt_issue(self):
-        isolate_stop_rules(self)
         labels = "\n".join(
             f"{label}: recorded" for label in guard._TERMINAL_REFLECTION_LABELS
         )
@@ -706,6 +705,7 @@ class TerminalReflectionContractTest(unittest.TestCase):
             )
             payload = {
                 "session_id": session_id,
+                "stop_hook_active": True,
                 "last_assistant_message": labels + "\nTracked issue: " + forged_issue,
             }
             with patch(
