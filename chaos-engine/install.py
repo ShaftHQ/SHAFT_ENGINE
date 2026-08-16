@@ -25,6 +25,7 @@ MANIFEST_NAME = "manifest.json"
 SCHEMA_VERSION = 1
 DEFAULT_DISTRIBUTION = "portable"
 DISTRIBUTIONS_NAME = "distributions.json"
+SOURCE_ONLY_FILES = frozenset({"bootstrap.py", "INSTALL.md", "README.md"})
 COMPONENT_CONTRACTS_NAME = "component-contracts.json"
 COMMIT_PATTERN = re.compile(r"[0-9a-f]{40}")
 REPOSITORY_PATTERN = re.compile(r"[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+")
@@ -381,6 +382,8 @@ def source_files(source: Path, distribution: str = DEFAULT_DISTRIBUTION) -> tupl
     for path in sorted(source.rglob("*")):
         relative = path.relative_to(source)
         if "__pycache__" in relative.parts or path.suffix == ".pyc":
+            continue
+        if relative.as_posix() in SOURCE_ONLY_FILES:
             continue
         if relative.as_posix() == DISTRIBUTIONS_NAME:
             continue

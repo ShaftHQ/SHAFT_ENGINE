@@ -148,7 +148,6 @@ historical rule number may prevent an otherwise truthful completion.
 ## Routing map
 
 - Project selection: `profiles/README.md`
-- SHAFT profile: `profiles/shaft/entrypoint.md`
 - Consult-first questions: `references/consult-first.md`
 - User-visible intent: `references/pony-tail.md`
 - Architecture and decomposition: `references/caveman-mode.md`
