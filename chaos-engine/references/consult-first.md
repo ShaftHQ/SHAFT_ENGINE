@@ -100,3 +100,11 @@ defined in [delegation](delegation.md), at the depth this task's triage set.
 Report the triage result, the depth you took, and only the points that depth
 included. A partial pass reports partially; do not pad it with points you were
 told to skip.
+
+## Bounded source authority
+
+Source authority is selected per task, not a closed vendor catalog. Before
+retrieval, record the topic, why the owner or standards body is authoritative,
+and its exact host. Constrain web research with `site:<host>`; prefix an
+isolated shell request with `CHAOS_PRIMARY_SOURCE_HOST=<host>`. The guard counts
+authority only when that declaration matches the requested or returned URL.

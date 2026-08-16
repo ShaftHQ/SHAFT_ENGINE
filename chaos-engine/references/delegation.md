@@ -49,8 +49,11 @@ incomplete.
 
 ## Independent adversarial review
 
-Every behavior-changing step ends with a review before the next step starts. The
-property that makes it work is independence, so it is not optional:
+Every behavior-changing pushed iteration runs CI and independent review in parallel
+against the latest exact head. Wait for both channels, combine all blocking
+findings into one repair batch, validate that batch locally, then push the next
+iteration and repeat. This parallelism removes idle CI time; independence and
+the final zero-blocker gate remain mandatory:
 
 - The reviewer is a **separate agent instance, never the author** of the work.
 - Choose a disposable review mechanism. When the host provides reliable terminal

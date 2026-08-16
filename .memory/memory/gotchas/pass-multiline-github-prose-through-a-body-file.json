@@ -1,0 +1,45 @@
+{
+  "body_path": "memory/gotchas/pass-multiline-github-prose-through-a-body-file.md",
+  "content_hash": "sha256:428d1bd719d708f66a42cb123a651caf235bb2fffe5df38b8f5ac5627a66330c",
+  "created_at": "2026-08-16T10:49:36+03:00",
+  "evidence": [
+    {
+      "id": "issue-4961-multiline-shell-refusal",
+      "kind": "task"
+    }
+  ],
+  "facets": {
+    "applies_to": [
+      "GitHub issue creation",
+      "GitHub pull request creation",
+      "scripts/agents/guard.py"
+    ],
+    "category": "agent-guidance"
+  },
+  "id": "gotcha.pass-multiline-github-prose-through-a-body-file",
+  "origin": {
+    "captured_at": "2026-08-16T10:49:24+03:00",
+    "kind": "user",
+    "locator": "current-session"
+  },
+  "scope": {
+    "branch": null,
+    "kind": "project",
+    "project": "project.shaft-engine",
+    "task": null
+  },
+  "source": {
+    "kind": "agent",
+    "task": "Persist the correct route after the lifecycle guard refused multiline GitHub prose in issue #4961 delivery."
+  },
+  "status": "active",
+  "tags": [
+    "github",
+    "guard",
+    "body-file",
+    "shell-safety"
+  ],
+  "title": "Pass multiline GitHub prose through a body file",
+  "type": "gotcha",
+  "updated_at": "2026-08-16T10:49:36+03:00"
+}

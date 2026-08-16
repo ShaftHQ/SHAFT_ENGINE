@@ -5,9 +5,12 @@ from __future__ import annotations
 
 import json
 import hashlib
+import os
 import posixpath
 import re
 import shlex
+import shutil
+import subprocess
 import sys
 from pathlib import Path
 
@@ -27,11 +30,13 @@ DOWNLOADERS = {"curl", "fetch", "wget"}
 TERMINAL_LABELS = (
     "elapsed estimate",
     "main time consumer",
+    "main token consumer",
     "repeated failures or corrections",
     "changed assumption or approach",
     "successful proof",
     "remaining risk or follow-up",
     "learning loop disposition",
+    "next-session optimization",
 )
 
 
@@ -54,21 +59,43 @@ def test_command(command: str) -> bool:
 
 
 def mutation_command(command: str) -> bool:
-    lowered = command.casefold()
-    return bool(
-        re.search(r"\b(?:set-content|add-content|remove-item|new-item|out-file|touch|rm|mv|cp)\b", lowered)
-        or re.search(r"\bgit\s+(?:add|commit|push|merge|rebase|reset|checkout|switch|clean)\b", lowered)
-    )
+    for parsed in command_stages(command):
+        head, arguments = command_head(parsed)
+        git_arguments = list(arguments)
+        while head == "git" and git_arguments and git_arguments[0].startswith("-"):
+            option = git_arguments.pop(0).casefold()
+            if option in {"-c", "--git-dir", "--work-tree"} and git_arguments:
+                git_arguments.pop(0)
+        if head in {"set-content", "add-content", "clear-content", "remove-content", "remove-item", "new-item", "out-file", "copy-item", "rename-item", "move-item", "touch", "rm", "mv", "cp"}:
+            return True
+        if ">" in parsed:
+            return True
+        if head == "git" and git_arguments and git_arguments[0].casefold() in {"add", "commit", "push", "merge", "rebase", "reset", "restore", "checkout", "switch", "clean", "rm", "mv", "tag", "branch", "cherry-pick"}:
+            return True
+        if head == "gh" and arguments[:2] in (["pr", "create"], ["pr", "edit"], ["pr", "merge"], ["pr", "close"], ["issue", "create"], ["issue", "edit"], ["issue", "close"]):
+            return True
+    return False
 
 
 def shell_tokens(command: str) -> list[str]:
     try:
-        lexer = shlex.shlex(command, posix=True, punctuation_chars=";&|")
+        lexer = shlex.shlex(command.replace("\r\n", "\n").replace("\n", " ; "), posix=True, punctuation_chars=";&|>")
         lexer.whitespace_split = True
         lexer.commenters = ""
         return list(lexer)
     except ValueError:
         return []
+
+
+def command_stages(command: str) -> list[list[str]]:
+    stages: list[list[str]] = [[]]
+    for token in shell_tokens(command):
+        if token in {";", "&&", "||", "|", "&"}:
+            if stages[-1]:
+                stages.append([])
+        else:
+            stages[-1].append(token)
+    return [stage for stage in stages if stage]
 
 
 def tracker_command(command: str) -> bool:
@@ -207,24 +234,350 @@ def catastrophic_posix(command: str) -> bool:
     return bool(re.search(r": ?\(\)\s*\{", command))
 
 
-def wrapped_exec_commands(source: str) -> tuple[str, ...]:
-    commands: list[str] = []
-    for match in re.finditer(
-        r'''\btools\.exec_command\s*\(\s*\{.*?\b(?:cmd|command)\s*:\s*(?P<literal>"(?:\\.|[^"\\])*")''',
-        source,
-        re.DOTALL,
-    ):
+def wrapped_exec_calls(source: str) -> tuple[tuple[str, str | None], ...] | None:
+    calls: list[tuple[str, str | None]] = []
+    matches = tuple(re.finditer(
+        r'''\btools\.exec_command\s*\(\s*\{(?P<body>(?:"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|[^{}])*)\}\s*\)''',
+        source, re.DOTALL,
+    ))
+    if len(matches) != wrapped_exec_call_count(source):
+        return None
+    for match in matches:
+        body = match.group("body")
+        structural = re.sub(r'''"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*' ''', lambda value: value.group(0)[0] + value.group(0)[-1], body, flags=re.VERBOSE)
+        if "..." in structural or "[" in structural or "]" in structural:
+            return None
+        if len(re.findall(r"\b(?:cmd|command)\s*:", structural)) != 1 or len(re.findall(r"\bworkdir\s*:", structural)) > 1:
+            return None
+        command_match = re.search(r'''\b(?:cmd|command)\s*:\s*(?P<literal>"(?:\\.|[^"\\])*")''', body)
+        if command_match is None:
+            return None
         try:
-            command = json.loads(match.group("literal"))
+            command = json.loads(command_match.group("literal"))
         except (json.JSONDecodeError, ValueError):
-            continue
-        if isinstance(command, str) and command:
-            commands.append(command)
-    return tuple(commands)
+            return None
+        workdir_match = re.search(r'''\bworkdir\s*:\s*(?P<literal>"(?:\\.|[^"\\])*")''', body)
+        if "workdir" in structural and workdir_match is None:
+            return None
+        workdir = json.loads(workdir_match.group("literal")) if workdir_match else None
+        if not isinstance(command, str) or not command or (workdir is not None and (not isinstance(workdir, str) or not workdir.strip())):
+            return None
+        calls.append((command, workdir))
+    return tuple(calls)
+
+
+def wrapped_exec_commands(source: str) -> tuple[str, ...]:
+    calls = wrapped_exec_calls(source)
+    return tuple(command for command, _workdir in calls) if calls is not None else ()
 
 
 def wrapped_exec_call_count(source: str) -> int:
-    return len(re.findall(r"\btools\.exec_command\s*\(", source))
+    return len(re.findall(r"\btools\.exec_command\s*\(", js_structure(source)))
+
+
+def js_structure(source: str) -> str:
+    return re.sub(
+        r'''"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|`(?:\\.|[^`\\])*`''',
+        lambda value: value.group(0)[0] + value.group(0)[-1],
+        source,
+        flags=re.DOTALL,
+    )
+
+
+def wrapped_patch_call_count(source: str) -> int:
+    return len(re.findall(r"\btools\.apply_patch\s*\(", js_structure(source)))
+
+
+def wrapped_patch_targets(source: str) -> tuple[str, ...] | None:
+    count = wrapped_patch_call_count(source)
+    matches = tuple(re.finditer(r'''\btools\.apply_patch\s*\(\s*(?P<literal>"(?:\\.|[^"\\])*")\s*\)''', source, re.DOTALL))
+    if len(matches) != count:
+        return None
+    targets = []
+    for match in matches:
+        try:
+            patch_text = json.loads(match.group("literal"))
+        except (json.JSONDecodeError, ValueError):
+            return None
+        targets.extend(item.group(1).strip() for item in re.finditer(r"(?m)^\*\*\* (?:Add|Update|Delete) File:\s*(.+?)\s*$", patch_text))
+    return tuple(targets)
+
+
+def git_output(cwd: object, *arguments: str) -> str | None:
+    try:
+        result = subprocess.run(["git", *arguments], cwd=str(cwd or "."), capture_output=True, text=True, timeout=0.35, check=False)  # nosec B603
+    except (OSError, subprocess.TimeoutExpired):
+        return None
+    return result.stdout.strip() if result.returncode == 0 else None
+
+
+def current_branch(cwd: object) -> str | None:
+    return git_output(cwd, "branch", "--show-current")
+
+
+def repository_root(cwd: object) -> str | None:
+    root = git_output(cwd, "rev-parse", "--show-toplevel")
+    return os.path.realpath(root) if root else None
+
+
+def on_default_branch(cwd: object) -> bool:
+    branch = current_branch(cwd)
+    remote_head = git_output(cwd, "symbolic-ref", "--short", "refs/remotes/origin/HEAD")
+    default = remote_head.split("/", 1)[1] if remote_head and "/" in remote_head else None
+    return bool(
+        branch
+        and (
+            branch == default
+            or (default is None and not branch.startswith("ChaosEngine/"))
+        )
+    )
+
+
+def command_targets(command: str) -> tuple[str, ...]:
+    targets: list[str] = []
+    for parsed in command_stages(command):
+        head, arguments = command_head(parsed)
+        if ">" in parsed:
+            targets.extend(parsed[index + 1] for index, token in enumerate(parsed[:-1]) if token == ">")
+        if head in {"set-content", "add-content", "clear-content", "remove-content", "remove-item", "new-item", "out-file", "touch", "rm"}:
+            if head == "touch" and any(token.casefold() in {"-d", "--date", "-r", "--reference", "-t"} or token.casefold().startswith(("--date=", "--reference=")) for token in arguments):
+                targets.append("$UNINSPECTABLE")
+                continue
+            path = next((arguments[index + 1] for index, token in enumerate(arguments[:-1]) if token.casefold() in {"-path", "-literalpath", "-filepath"}), None)
+            values = [token for token in arguments if not token.startswith("-")]
+            if head in {"rm", "touch"} and path is None:
+                targets.extend(values)
+            elif path or values:
+                targets.append(path or values[0])
+        elif head in {"copy-item", "rename-item", "move-item", "cp", "mv"}:
+            destination = next((arguments[index + 1] for index, token in enumerate(arguments[:-1]) if token.casefold() in {"-t", "--target-directory", "-destination"}), None)
+            destination = destination or next((token.split("=", 1)[1] for token in arguments if token.casefold().startswith("--target-directory=")), None)
+            values = [token for token in arguments if not token.startswith("-")]
+            if destination or len(values) >= 2:
+                targets.append(destination or values[-1])
+        elif head == "git":
+            for index, token in enumerate(arguments[:-1]):
+                if token.casefold() == "-c":
+                    targets.append(arguments[index + 1])
+    return tuple(targets)
+
+
+def target_on_default_branch(target: str, cwd: object) -> bool:
+    if not target or re.search(r"[$%*?{}]", target):
+        return True
+    resolved = os.path.realpath(os.path.join(str(cwd or "."), target))
+    probe = resolved if os.path.isdir(resolved) else os.path.dirname(resolved)
+    while probe and not os.path.exists(probe):
+        parent = os.path.dirname(probe)
+        if parent == probe:
+            break
+        probe = parent
+    root = repository_root(probe)
+    return bool(root and on_default_branch(root))
+
+
+def target_checkout_root(target: str, cwd: object) -> str | None:
+    if not target or re.search(r"[$%*?{}]", target):
+        return None
+    resolved = os.path.realpath(os.path.join(str(cwd or "."), target))
+    probe = resolved if os.path.isdir(resolved) else os.path.dirname(resolved)
+    while probe and not os.path.exists(probe):
+        parent = os.path.dirname(probe)
+        if parent == probe:
+            break
+        probe = parent
+    return repository_root(probe)
+
+
+def initial_draft_recovery(command: str, cwd: object, branch: str) -> bool:
+    parsed = shell_tokens(command)
+    if not parsed or any(token in {";", "&&", "||", "|", "&"} for token in parsed):
+        return False
+    head, arguments = command_head(parsed)
+    if head == "git" and arguments[:1] == ["push"]:
+        push_arguments = arguments[1:]
+        if any(token.casefold() in {"--delete", "-d", "--force", "-f", "--mirror", "--all"} or token.casefold().startswith("--force-") for token in push_arguments):
+            return False
+        positional = [token for token in push_arguments if not token.startswith("-")]
+        if not positional or positional[0] != "origin":
+            return False
+        refspecs = positional[1:]
+        return bool(refspecs) and all(refspec in {"HEAD", branch, f"HEAD:{branch}", f"HEAD:refs/heads/{branch}"} for refspec in refspecs)
+    if head == "git" and arguments[:1] == ["commit"]:
+        return "--allow-empty" in arguments and "--amend" not in arguments and git_output(cwd, "status", "--porcelain", "--untracked-files=all") == ""
+    if head == "gh" and arguments[:2] == ["pr", "edit"]:
+        options = arguments[2:]
+        if options and not options[0].startswith("-"):
+            return False
+        allowed = {"--body", "--body-file", "--repo"}
+        index = 0
+        saw_body = False
+        while index < len(options):
+            token = options[index]
+            name = token.split("=", 1)[0].casefold()
+            if name not in allowed:
+                return False
+            saw_body = saw_body or name in {"--body", "--body-file"}
+            if "=" not in token:
+                index += 1
+                if index >= len(options):
+                    return False
+            index += 1
+        return saw_body
+    if head != "gh" or arguments[:2] != ["pr", "create"]:
+        return False
+    options = arguments[2:]
+    flags = {token.casefold() for token in options}
+    def value(name: str) -> str | None:
+        for index, token in enumerate(options):
+            lowered = token.casefold()
+            if lowered.startswith(name + "="):
+                return token.split("=", 1)[1]
+            if lowered == name and index + 1 < len(options):
+                return options[index + 1]
+        return None
+    gh = shutil.which("gh")
+    if not gh:
+        return False
+    try:
+        result = subprocess.run([gh, "repo", "view", "--json", "defaultBranchRef"], cwd=str(cwd), capture_output=True, text=True, timeout=3, check=False)  # nosec B603
+        default = (json.loads(result.stdout).get("defaultBranchRef") or {}).get("name") if result.returncode == 0 else None
+    except (OSError, subprocess.TimeoutExpired, json.JSONDecodeError):
+        return False
+    return bool(
+        "--draft" in flags
+        and value("--base") == default
+        and value("--head") == branch
+        and (value("--body") is not None or value("--body-file") is not None)
+    )
+
+
+def initial_plan_complete(body: object) -> bool:
+    if not isinstance(body, str):
+        return False
+    visible = re.sub(r"<!--[\s\S]*?-->", "", body)
+    visible = re.sub(r"(?ms)^```.*?^```[ \t]*$", "", visible)
+    for section in ("Plan", "Scope", "Proof"):
+        match = re.search(rf"(?ims)^##[ \t]+{section}[ \t]*\r?\n(.*?)(?=^##[ \t]+|\Z)", visible)
+        if match is None or len(match.group(1).strip()) < 20:
+            return False
+    return True
+
+
+def lifecycle_reason(event: dict, tool_name: str, tool_input: object, mutation: bool) -> str | None:
+    if not mutation:
+        return None
+    outer_cwd = event.get("cwd") or "."
+    calls = wrapped_exec_calls(tool_input) if tool_name == "functions.exec" and isinstance(tool_input, str) else None
+    if tool_name == "functions.exec" and calls is None:
+        return "R19 blocked: wrapped mutation command or workdir is ambiguous."
+    if tool_name == "functions.exec" and isinstance(tool_input, str) and wrapped_patch_call_count(tool_input):
+        patch_targets = wrapped_patch_targets(tool_input)
+        if patch_targets is None:
+            return "R19 blocked: pass one JSON string literal directly to wrapped apply_patch."
+        patch_root = repository_root(outer_cwd)
+        patch_roots = {root for target in patch_targets if (root := target_checkout_root(target, outer_cwd))}
+        if patch_root and any(os.path.normcase(root) != os.path.normcase(patch_root) for root in patch_roots):
+            return "R19 blocked: a wrapped patch targets a different checkout."
+        if any(target_on_default_branch(target, outer_cwd) for target in patch_targets):
+            return "R19 blocked: a wrapped patch targets a default-branch checkout."
+    direct_workdir = tool_input.get("workdir") if isinstance(tool_input, dict) else None
+    effective = calls or tuple((command, direct_workdir) for command in ((str(tool_input.get("command") or tool_input.get("cmd") or ""),) if isinstance(tool_input, dict) else ()))
+    mutation_cwds: list[object] = []
+    for command, workdir in effective:
+        if not mutation_command(command):
+            continue
+        cwd = workdir or outer_cwd
+        mutation_cwds.append(cwd)
+        if on_default_branch(cwd):
+            return "R19 blocked: task work never lands on the default branch."
+        targets = command_targets(command)
+        cwd_root = repository_root(cwd)
+        target_roots = {root for target in targets if (root := target_checkout_root(target, cwd))}
+        if cwd_root and any(os.path.normcase(root) != os.path.normcase(cwd_root) for root in target_roots):
+            return "R19 blocked: the mutation target resolves inside a different checkout."
+        if any(target_on_default_branch(target, cwd) for target in targets):
+            return "R19 blocked: the mutation target resolves inside a default-branch checkout."
+    if tool_name in {"Write", "Edit", "NotebookEdit", "apply_patch"}:
+        mutation_cwds.append(outer_cwd)
+        details = tool_input if isinstance(tool_input, dict) else {}
+        direct_targets = []
+        path = details.get("file_path") or details.get("path") or details.get("notebook_path")
+        if path:
+            direct_targets.append(str(path))
+        patch_text = str(details.get("patch") or details.get("input") or "")
+        direct_targets.extend(re.findall(r"(?m)^\*\*\* (?:Add|Update|Delete) File:\s*(.+?)\s*$", patch_text))
+        outer_root = repository_root(outer_cwd)
+        direct_roots = {root for target in direct_targets if (root := target_checkout_root(target, outer_cwd))}
+        if outer_root and any(os.path.normcase(root) != os.path.normcase(outer_root) for root in direct_roots):
+            return "R19 blocked: a file tool targets a different checkout."
+        if on_default_branch(outer_cwd) or any(target_on_default_branch(target, outer_cwd) for target in direct_targets):
+            return "R19 blocked: task work never lands on the default branch."
+    if tool_name == "functions.exec" and isinstance(tool_input, str) and wrapped_patch_call_count(tool_input):
+        mutation_cwds.append(outer_cwd)
+    task_locations = []
+    for cwd in mutation_cwds:
+        candidate = current_branch(cwd)
+        if candidate and candidate.startswith("ChaosEngine/"):
+            task_locations.append((os.path.realpath(str(cwd)), candidate))
+    task_locations = list(dict.fromkeys(task_locations))
+    if len(task_locations) > 1:
+        return "R31 blocked: one mutation call spans multiple task branches. Split it into inspectable calls."
+    if task_locations:
+        outer_cwd, branch = task_locations[0]
+    else:
+        branch = current_branch(outer_cwd)
+    if branch and branch.startswith("ChaosEngine/"):
+        head = git_output(outer_cwd, "rev-parse", "HEAD")
+        remote = git_output(outer_cwd, "config", "--get", "remote.origin.url")
+        marker = hashlib.sha256(f"{remote}|{branch}|{head}".encode()).hexdigest()
+        session_id = str(event.get("session_id") or event.get("sessionId") or "")
+        if any(item.get("kind") == "initial-draft" and item.get("marker") == marker for item in reflection.entries(session_id)):
+            return None
+        commands = tuple(command for command, _workdir in effective)
+        exact_recovery = not (
+            tool_name == "functions.exec"
+            and isinstance(tool_input, str)
+            and (wrapped_patch_call_count(tool_input) or wrapped_exec_call_count(tool_input) != 1)
+        )
+        if exact_recovery and len(commands) == 1:
+            if initial_draft_recovery(commands[0], outer_cwd, branch):
+                return None
+            parsed = command_stages(commands[0])
+            head_name, arguments = command_head(parsed[0]) if len(parsed) == 1 else ("", [])
+            if (head_name == "git" and arguments[:1] in (["push"], ["commit"])) or (head_name == "gh" and arguments[:2] in (["pr", "create"], ["pr", "edit"])):
+                return "R31 blocked: the command is not a permitted initial-draft recovery."
+        if not head:
+            return "R31 blocked: the planning checkpoint must be identifiable."
+        gh = shutil.which("gh")
+        if not gh:
+            return "R31 blocked: GitHub status is unavailable."
+        try:
+            repository_result = subprocess.run([gh, "repo", "view", "--json", "nameWithOwner,defaultBranchRef"], cwd=str(outer_cwd), capture_output=True, text=True, timeout=3, check=False)  # nosec B603
+            repository = json.loads(repository_result.stdout) if repository_result.returncode == 0 else {}
+            name = repository.get("nameWithOwner")
+            default = (repository.get("defaultBranchRef") or {}).get("name")
+            merge_base = git_output(outer_cwd, "merge-base", "HEAD", f"origin/{default}") if default else None
+            changed = git_output(outer_cwd, "diff", "--name-only", str(merge_base), "HEAD", "--") if merge_base else None
+            if changed:
+                return None
+            if merge_base is None or changed is None:
+                return "R31 blocked: the default-base tree state is unavailable."
+            if git_output(outer_cwd, "status", "--porcelain", "--untracked-files=all") != "":
+                return "R31 blocked: the planning checkpoint must remain clean until draft verification."
+            pull_result = subprocess.run([gh, "pr", "list", "--repo", str(name), "--head", branch, "--state", "open", "--json", "isDraft,headRefOid,baseRefName,changedFiles,body"], cwd=str(outer_cwd), capture_output=True, text=True, timeout=3, check=False)  # nosec B603
+            pulls = json.loads(pull_result.stdout) if pull_result.returncode == 0 else []
+        except (OSError, subprocess.TimeoutExpired, json.JSONDecodeError):
+            return "R31 blocked: GitHub status is unavailable."
+        pull = pulls[0] if isinstance(pulls, list) and len(pulls) == 1 and isinstance(pulls[0], dict) else None
+        if not pull or pull.get("isDraft") is not True or pull.get("headRefOid") != head or pull.get("baseRefName") != default or pull.get("changedFiles") != 0:
+            return "R31 blocked: verify an exact-head, default-base, zero-file draft before the first mutation."
+        if not initial_plan_complete(pull.get("body")):
+            return "R31 blocked: the initial draft body needs substantive Plan, Scope, and Proof sections."
+        if not reflection.append_entry(session_id, {"schemaVersion": 1, "kind": "initial-draft", "marker": marker}):
+            return "R31 blocked: verified initial draft state could not be recorded."
+        return None
+    return None
 
 
 def main() -> int:
@@ -289,12 +642,19 @@ def main() -> int:
         ) in active_targets
         for candidate in commands
     )
-    mutation = tool_name in {"Write", "Edit", "apply_patch"} or any(
+    mutation = tool_name in {"Write", "Edit", "NotebookEdit", "apply_patch"} or (
+        tool_name == "functions.exec" and isinstance(tool_input, str) and wrapped_patch_call_count(tool_input)
+    ) or any(
         mutation_command(candidate) and not tracker_command(candidate) for candidate in commands
     )
     if event_name == "PreToolUse" and checkpoint and not receipt_command and (mutation or unchanged_test):
         print(json.dumps({"decision": "block", "reason": checkpoint_reason(checkpoint)}))
         return 2
+    if event_name == "PreToolUse":
+        reason = lifecycle_reason(event, tool_name, tool_input, mutation)
+        if reason:
+            print(json.dumps({"decision": "block", "reason": reason}))
+            return 2
     uninspectable = (
         tool_name == "functions.exec"
         and isinstance(tool_input, str)

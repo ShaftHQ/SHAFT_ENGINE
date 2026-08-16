@@ -1708,6 +1708,19 @@ def _is_mempalace_write(tool_name: str, tool_input: object) -> bool:
 
 def _hook_working_directory(hook_input: dict) -> str | None:
     """Directory the guarded command will run in, or None when unknown."""
+    tool_name = str(hook_input.get("tool_name") or "")
+    tool_input = hook_input.get("tool_input")
+    if tool_name in _SHELL_TOOLS and isinstance(tool_input, dict):
+        workdir = tool_input.get("workdir")
+        if isinstance(workdir, str) and workdir.strip():
+            if os.path.isabs(workdir):
+                return workdir
+            supplied_cwd = hook_input.get("cwd")
+            base = supplied_cwd if isinstance(supplied_cwd, str) and supplied_cwd.strip() else None
+            try:
+                return os.path.abspath(os.path.join(base or os.getcwd(), workdir))
+            except (OSError, ValueError):
+                pass
     # Hosts that report the session directory win over the hook process's own
     # directory, which is not guaranteed to be the checkout the command
     # targets.
@@ -1943,6 +1956,7 @@ _PRIMARY_SOURCE_HOSTS = frozenset(
     {
         "docs.github.com",
         "github.com",
+        "git-scm.com",
         "learn.microsoft.com",
         "docs.python.org",
         "docs.oracle.com",
@@ -1962,41 +1976,144 @@ _PRIMARY_SOURCE_HOSTS = frozenset(
 )
 
 
-def _has_primary_source_url(tool_result: object) -> bool:
+def _declared_primary_source_hosts(source: object) -> frozenset[str]:
+    """Return bounded per-request authority declarations, never result prose."""
+    rendered = source if isinstance(source, str) else json.dumps(source, sort_keys=True)
+    candidates = re.findall(
+        r"(?i)(?:\bsite:|\bCHAOS_PRIMARY_SOURCE_HOST\s*=\s*[\"']?)([a-z0-9.-]+)",
+        rendered,
+    )
+    hosts = {
+        candidate.lower().strip(".")
+        for candidate in candidates
+        if re.fullmatch(r"[a-z0-9](?:[a-z0-9.-]{0,251}[a-z0-9])?", candidate.lower())
+        and "." in candidate
+        and ".." not in candidate
+    }
+    return frozenset(hosts)
+
+
+def _has_primary_source_url(tool_result: object, declared: frozenset[str] = frozenset()) -> bool:
     rendered = json.dumps(tool_result, sort_keys=True) if tool_result is not None else ""
     for candidate in re.findall(r"https?://[^\s\"'<>]+", rendered):
         host = (urlparse(candidate).hostname or "").lower()
-        if host in _PRIMARY_SOURCE_HOSTS or any(
-            host.endswith("." + allowed) for allowed in _PRIMARY_SOURCE_HOSTS
+        allowed_hosts = _PRIMARY_SOURCE_HOSTS | declared
+        if host in allowed_hosts or any(
+            host.endswith("." + allowed) for allowed in allowed_hosts
         ):
             return True
     return False
 
 
+_WRAPPED_EXEC_CALL = re.compile(
+    r'''\btools\.exec_command\s*\(\s*\{(?P<body>(?:"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|[^{}])*)\}\s*\)''',
+    re.DOTALL,
+)
+
+
+def _wrapped_exec_calls(source: str) -> tuple[tuple[str, str | None], ...] | None:
+    """Return fully inspectable wrapped calls, or None for runtime ambiguity."""
+    calls: list[tuple[str, str | None]] = []
+    matches = tuple(_WRAPPED_EXEC_CALL.finditer(source))
+    if len(matches) != _wrapped_exec_call_count(source):
+        return None
+    for match in matches:
+        body = match.group("body")
+        structural = re.sub(
+            r'''"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*' ''',
+            lambda value: value.group(0)[0] + value.group(0)[-1],
+            body,
+            flags=re.VERBOSE,
+        )
+        if "..." in structural or "[" in structural or "]" in structural:
+            return None
+        command_keys = re.findall(r"\b(?:cmd|command)\s*:", structural)
+        workdir_keys = re.findall(r"\bworkdir\s*:", structural)
+        if len(command_keys) != 1 or len(workdir_keys) > 1:
+            return None
+        command_match = re.search(
+            r'''\b(?:cmd|command)\s*:\s*(?P<literal>"(?:\\.|[^"\\])*")''',
+            body,
+            re.DOTALL,
+        )
+        if command_match is None:
+            return None
+        try:
+            command = json.loads(command_match.group("literal"))
+        except (json.JSONDecodeError, ValueError):
+            return None
+        if not isinstance(command, str) or not command:
+            return None
+        workdir: str | None = None
+        workdir_match = re.search(
+            r'''\bworkdir\s*:\s*(?P<literal>"(?:\\.|[^"\\])*")''',
+            body,
+            re.DOTALL,
+        )
+        if workdir_keys and workdir_match is None:
+            return None
+        if workdir_match is not None:
+            try:
+                candidate = json.loads(workdir_match.group("literal"))
+            except (json.JSONDecodeError, ValueError):
+                return None
+            if not isinstance(candidate, str) or not candidate.strip():
+                return None
+            workdir = candidate
+        calls.append((command, workdir))
+    return tuple(calls)
+
+
 def _wrapped_exec_commands(source: str) -> tuple[str, ...]:
     """Extract literal cmd/command strings from wrapped exec_command calls."""
-    commands: list[str] = []
-    for match in re.finditer(
-        r'''\btools\.exec_command\s*\(\s*\{.*?\b(?:cmd|command)\s*:\s*(?P<literal>"(?:\\.|[^"\\])*")''',
-        source,
-        re.DOTALL,
-    ):
-        try:
-            command = json.loads(match.group("literal"))
-        except (json.JSONDecodeError, ValueError):
-            continue
-        if isinstance(command, str) and command:
-            commands.append(command)
-    return tuple(commands)
+    calls = _wrapped_exec_calls(source)
+    return tuple(command for command, _workdir in calls) if calls is not None else ()
 
 
 def _wrapped_exec_call_count(source: str) -> int:
-    return len(re.findall(r"\btools\.exec_command\s*\(", source))
+    return len(re.findall(r"\btools\.exec_command\s*\(", _js_structure(source)))
+
+
+def _js_structure(source: str) -> str:
+    return re.sub(
+        r'''"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|`(?:\\.|[^`\\])*`''',
+        lambda value: value.group(0)[0] + value.group(0)[-1],
+        source,
+        flags=re.DOTALL,
+    )
+
+
+def _wrapped_apply_patch_call_count(source: str) -> int:
+    return len(re.findall(r"\btools\.apply_patch\s*\(", _js_structure(source)))
+
+
+def _wrapped_apply_patch_targets(source: str) -> tuple[str, ...] | None:
+    count = _wrapped_apply_patch_call_count(source)
+    matches = tuple(re.finditer(
+        r'''\btools\.apply_patch\s*\(\s*(?P<literal>"(?:\\.|[^"\\])*")\s*\)''',
+        source,
+        re.DOTALL,
+    ))
+    if len(matches) != count:
+        return None
+    targets: list[str] = []
+    for match in matches:
+        try:
+            patch_text = json.loads(match.group("literal"))
+        except (json.JSONDecodeError, ValueError):
+            return None
+        targets.extend(
+            item.group(1).strip()
+            for item in re.finditer(
+                r"(?m)^\*\*\* (?:Add|Update|Delete) File:\s*(.+?)\s*$", patch_text
+            )
+        )
+    return tuple(targets)
 
 
 def _shell_requests_primary_source(segment: str) -> bool:
     if re.match(
-        r"\s*(?:&\s*)?(?:curl(?:\.exe)?|invoke-webrequest|iwr)\b",
+        r"\s*(?:[A-Za-z_][A-Za-z0-9_]*=\S+\s+)*(?:&\s*)?(?:curl(?:\.exe)?|invoke-webrequest|iwr)\b",
         segment,
         re.IGNORECASE,
     ) is None:
@@ -2026,7 +2143,9 @@ def _shell_requests_primary_source(segment: str) -> bool:
         if lowered in request_flags and index + 1 < len(arguments):
             candidates.append(arguments[index + 1])
     for candidate in candidates:
-        if _has_primary_source_url({"request_url": candidate}):
+        if _has_primary_source_url(
+            {"request_url": candidate}, _declared_primary_source_hosts(segment)
+        ):
             return True
     return False
 
@@ -2115,7 +2234,7 @@ def _research_preflight_events(
         else tool_result
     )
     if tool_name in {"WebSearch", "WebFetch", "web__run"} and _has_primary_source_url(
-        web_evidence
+        web_evidence, _declared_primary_source_hosts(details)
     ):
         events.append("authoritative-online-research")
     if tool_name == "update_plan":
@@ -2163,24 +2282,71 @@ def _shell_mutation_targets(command: str) -> tuple[str, ...]:
         "remove-item",
         "new-item",
         "out-file",
+        "touch",
+        "rm",
     }
-    destination_target = {"copy-item", "rename-item", "move-item"}
-    for segment in _command_segments(command):
+    destination_target = {"copy-item", "rename-item", "move-item", "cp", "mv"}
+    segments, _separators = _top_level_shell_parts(command)
+    for segment in segments:
         tokens = _segment_tokens(segment)
         if not tokens:
             continue
-        head = tokens[0].lower()
+        parsed_head, parsed_arguments = _r26_head_and_args(segment)
+        head = parsed_head or tokens[0].lower()
+        tokens = [head, *parsed_arguments]
         if head in one_target and len(tokens) > 1:
-            targets.append(tokens[1])
+            if head == "touch" and any(
+                token.lower() in {"-d", "--date", "-r", "--reference", "-t"}
+                or token.lower().startswith(("--date=", "--reference="))
+                for token in tokens[1:]
+            ):
+                targets.append("$UNINSPECTABLE")
+                continue
+            if head in {"rm", "touch"}:
+                targets.extend(
+                    token for token in tokens[1:] if not token.startswith("-")
+                )
+                continue
+            path_index = next(
+                (index + 1 for index, token in enumerate(tokens[:-1])
+                 if token.lower() in {"-path", "-literalpath", "-filepath"}),
+                None,
+            )
+            if path_index is None:
+                path_index = next(
+                    (index for index, token in enumerate(tokens[1:], 1)
+                     if not token.startswith("-")),
+                    None,
+                )
+            if path_index is not None:
+                targets.append(tokens[path_index])
         elif head in destination_target and len(tokens) > 2:
-            targets.append(tokens[2])
+            destination = next(
+                (tokens[index + 1] for index, token in enumerate(tokens[:-1])
+                 if token.lower() in {"-t", "--target-directory", "-destination"}),
+                None,
+            )
+            destination = destination or next(
+                (token.split("=", 1)[1] for token in tokens
+                 if token.lower().startswith("--target-directory=")),
+                None,
+            )
+            values = [token for token in tokens[1:] if not token.startswith("-")]
+            if destination or len(values) >= 2:
+                targets.append(destination or values[-1])
+        git = _tokens_after_head(segment, _GIT_NAMES)
+        if git:
+            for index, token in enumerate(git[:-1]):
+                if token.lower() in {"-c", "--git-dir", "--work-tree"}:
+                    targets.append(git[index + 1])
         for match in re.finditer(r"(?<![0-9])>(?![>&])\s*(?:\"([^\"]+)\"|'([^']+)'|([^\s]+))", segment):
             targets.append(next(group for group in match.groups() if group is not None))
     return tuple(dict.fromkeys(targets))
 
 
 def _shell_is_mutation(command: str) -> bool:
-    for segment in _command_segments(command):
+    segments, _separators = _top_level_shell_parts(command)
+    for segment in segments:
         lowered = segment.lower()
         if re.search(
             r"\b(?:set-content|add-content|clear-content|remove-content|out-file|"
@@ -2188,9 +2354,17 @@ def _shell_is_mutation(command: str) -> bool:
             lowered,
         ):
             return True
+        if _r26_unwrapped_head(segment) in {"touch", "rm", "mv", "cp"}:
+            return True
         if re.search(r"(?<![0-9])>(?![>&])", lowered):
             return True
         if re.search(r"\bgit\s+(?:add|commit|push|merge|rebase|reset|restore|rm|mv|tag|branch|checkout|switch|cherry-pick)\b", lowered):
+            return True
+        git = _tokens_after_head(segment, _GIT_NAMES)
+        if git and _split_global_options(git)[0] in {
+            "add", "commit", "push", "merge", "rebase", "reset", "restore",
+            "rm", "mv", "tag", "branch", "checkout", "switch", "cherry-pick",
+        }:
             return True
         if re.search(r"\bgh\s+(?:api\b.*--method\s+(?:post|put|patch|delete)|pr\s+(?:create|merge|close|comment|edit)|issue\s+(?:create|close|comment|edit))\b", lowered):
             return True
@@ -2203,7 +2377,7 @@ def _shell_is_mutation(command: str) -> bool:
 
 def _functions_exec_is_mutation(tool_input: object) -> bool:
     source = tool_input if isinstance(tool_input, str) else ""
-    if re.search(r"\btools\.apply_patch\s*\(", source):
+    if _wrapped_apply_patch_call_count(source):
         return True
     if re.search(r"\btools\.exec_command\s*\(", source):
         commands = _wrapped_exec_commands(source)
@@ -3578,7 +3752,7 @@ def _exact_head_pull_request(repository: str, branch: str, head: str) -> tuple[s
     executable = shutil.which("gh")
     if executable is None:
         return "unavailable", None
-    fields = "number,url,state,isDraft,headRefName,headRefOid,baseRefName,body,closingIssuesReferences"
+    fields = "number,url,state,isDraft,headRefName,headRefOid,baseRefName,body,changedFiles,closingIssuesReferences"
     try:
         completed = subprocess.run(  # nosec B603 - fixed read-only gh query.
             [executable, "pr", "list", "--repo", repository, "--head", branch,
@@ -3722,6 +3896,247 @@ def _checkpoint_snapshot_complete(body: object, head: str) -> bool:
         and (fields["Blockers"].casefold() == "none" or len(fields["Blockers"]) >= 8)
         and len(fields["Next action"]) >= 8
     )
+
+
+def _initial_plan_complete(body: object) -> bool:
+    """Require visible, substantive plan, scope, and proof sections."""
+    if not isinstance(body, str):
+        return False
+    visible = _visible_markdown(body)
+    for name in ("Plan", "Scope", "Proof"):
+        match = re.search(
+            rf"(?ims)^##[ \t]+{name}[ \t]*\r?\n(.*?)(?=^##[ \t]+|\Z)",
+            visible,
+        )
+        if match is None or len(match.group(1).strip()) < 20:
+            return False
+    return True
+
+
+def _working_tree_clean(cwd: object) -> bool:
+    status = _git_output(["status", "--porcelain", "--untracked-files=all"], cwd)
+    return status == ""
+
+
+def _same_tree_as_default_base(repository: str, cwd: object) -> bool | None:
+    """True while HEAD introduces no file changes relative to the default base."""
+    executable = shutil.which("gh")
+    if executable is None:
+        return None
+    default_branch = _repository_default_branch(executable, repository)
+    if default_branch is None:
+        return None
+    merge_base = _git_output(
+        ["merge-base", "HEAD", f"origin/{default_branch}"], cwd
+    )
+    if merge_base is None or not re.fullmatch(r"[0-9a-fA-F]{40}\s*", merge_base):
+        return None
+    changed = _git_output(
+        ["diff", "--name-only", merge_base.strip(), "HEAD", "--"], cwd
+    )
+    return None if changed is None else not changed.strip()
+
+
+def _r31_recovery_command(
+    command: str,
+    cwd: object,
+    *,
+    expected_base: str | None = None,
+    expected_head: str | None = None,
+) -> tuple[bool, str | None]:
+    """Allow only the bounded operations that can create or repair the initial draft."""
+    segments, separators = _top_level_shell_parts(_sanitize_for_command_head(command))
+    nonempty = [segment for segment in segments if segment.strip()]
+    if separators or len(nonempty) != 1:
+        return False, None
+    segment = nonempty[0]
+    git = _tokens_after_head(segment, _GIT_NAMES)
+    git_subcommand, _, git_arguments_index = _split_global_options(git or [])
+    if git_subcommand == "push":
+        arguments = (git or [])[git_arguments_index:]
+        if any(
+            token.lower() in {"--delete", "-d", "--force", "-f", "--mirror", "--all"}
+            or token.lower().startswith("--force-")
+            for token in arguments
+        ):
+            return False, None
+        positional = [token for token in arguments if not token.startswith("-")]
+        if not positional or positional[0] != "origin":
+            return False, None
+        refspecs = positional[1:]
+        allowed_refspecs = {"HEAD"}
+        if expected_head:
+            allowed_refspecs.update(
+                {expected_head, f"HEAD:{expected_head}", f"HEAD:refs/heads/{expected_head}"}
+            )
+        if not refspecs or any(refspec not in allowed_refspecs for refspec in refspecs):
+            return False, None
+        return True, None
+    if git_subcommand == "commit":
+        arguments = (git or [])[git_arguments_index:]
+        if "--allow-empty" in arguments and "--amend" not in arguments:
+            if not _working_tree_clean(cwd):
+                return False, "R31 blocked: the planning checkpoint must be a clean same-tree commit; staged, unstaged, and untracked files are not allowed."
+            return True, None
+        return False, None
+    gh = _tokens_after_head(segment, frozenset({"gh"})) or []
+    if gh[:2] == ["pr", "create"]:
+        options = gh[2:]
+        has_value = lambda name: any(
+            token.lower().startswith(name + "=")
+            or (token.lower() == name and index + 1 < len(options))
+            for index, token in enumerate(options)
+        )
+        if "--draft" not in {token.lower() for token in options}:
+            return False, "R31 blocked: the initial pull request must be created with --draft."
+        if not has_value("--base") or not has_value("--head"):
+            return False, "R31 blocked: initial draft creation requires explicit --base and --head values."
+        if not has_value("--body") and not has_value("--body-file"):
+            return False, "R31 blocked: initial draft creation requires a plan body or body file."
+        if expected_base is None:
+            return False, "R31 blocked: the configured default branch is unavailable."
+        def value(name: str) -> str | None:
+            for index, token in enumerate(options):
+                if token.lower().startswith(name + "="):
+                    return token.split("=", 1)[1]
+                if token.lower() == name and index + 1 < len(options):
+                    return options[index + 1]
+            return None
+        if expected_base is not None and value("--base") != expected_base:
+            return False, "R31 blocked: initial draft creation must explicitly target the configured default branch."
+        if expected_head is not None and value("--head") != expected_head:
+            return False, "R31 blocked: initial draft creation must explicitly name the current task branch."
+        return True, None
+    if gh[:2] == ["pr", "edit"]:
+        options = gh[2:]
+        allowed = {"--body", "--body-file", "--repo"}
+        if options and not options[0].startswith("-"):
+            return False, None
+        index = 0
+        saw_body = False
+        while index < len(options):
+            token = options[index]
+            name = token.split("=", 1)[0].lower()
+            if name not in allowed:
+                return False, None
+            saw_body = saw_body or name in {"--body", "--body-file"}
+            if "=" not in token:
+                index += 1
+                if index >= len(options):
+                    return False, None
+            index += 1
+        return saw_body, None
+    return False, None
+
+
+def _r31_satisfaction_event(repository: str, branch: str, head: str) -> str:
+    return _checkpoint_json_event("initial-draft", repository, branch, head)
+
+
+def check_r31_initial_draft_pull_request(hook_input: dict, tool_name: str) -> str | None:
+    """Require a planned zero-file draft before the first implementation mutation."""
+    if not _is_implementation_mutation(tool_name, hook_input.get("tool_input")):
+        return None
+    effective_input = hook_input
+    if tool_name == "functions.exec" and isinstance(hook_input.get("tool_input"), str):
+        source = hook_input["tool_input"]
+        calls = _wrapped_exec_calls(source)
+        if calls is None:
+            return "R31 blocked: wrapped mutation ownership is ambiguous."
+        candidates: list[dict] = []
+        for command, workdir in calls:
+            if not _shell_is_mutation(command):
+                continue
+            nested_tool_input = {"command": command}
+            if workdir is not None:
+                nested_tool_input["workdir"] = workdir
+            candidates.append({
+                **hook_input,
+                "tool_name": "PowerShell",
+                "tool_input": nested_tool_input,
+            })
+        if _wrapped_apply_patch_call_count(source):
+            candidates.append({**hook_input, "tool_name": "apply_patch", "tool_input": {}})
+        identities = [
+            (_checkpoint_identity(candidate), _hook_working_directory(candidate), candidate)
+            for candidate in candidates
+        ]
+        distinct = {
+            (identity, os.path.realpath(str(candidate_cwd or ".")))
+            for identity, candidate_cwd, _candidate in identities
+        }
+        if len(distinct) > 1:
+            return "R31 blocked: one wrapped mutation spans multiple checkout identities. Split it into separate calls."
+        if identities:
+            _identity, _candidate_cwd, effective_input = identities[0]
+    cwd = _hook_working_directory(effective_input)
+    identity = _checkpoint_identity(effective_input)
+    if identity is None:
+        branch = _current_branch(cwd)
+        if branch and branch.startswith(_CHAOS_ENGINE_BRANCH_PREFIX):
+            return "R31 blocked: repository identity is unavailable; restore Git and GitHub read access before the first implementation mutation."
+        return None
+    repository, branch, head = identity
+    if not branch.startswith(_CHAOS_ENGINE_BRANCH_PREFIX):
+        return None
+    satisfaction = _r31_satisfaction_event(repository, branch, head)
+    if satisfaction in ledger_events(hook_input):
+        return None
+    same_tree = _same_tree_as_default_base(repository, cwd)
+    if same_tree is False:
+        return None
+    commands = _hook_commands(hook_input, tool_name)
+    recovery_width_is_exact = not (
+        tool_name == "functions.exec"
+        and (
+            _wrapped_apply_patch_call_count(str(hook_input.get("tool_input", "")))
+            or _wrapped_exec_call_count(str(hook_input.get("tool_input", ""))) != 1
+            or _wrapped_exec_calls(str(hook_input.get("tool_input", ""))) is None
+        )
+    )
+    if len(commands) == 1 and recovery_width_is_exact:
+        executable = shutil.which("gh")
+        expected_base = _repository_default_branch(executable, repository) if executable else None
+        recovery, recovery_error = _r31_recovery_command(
+            commands[0], cwd, expected_base=expected_base, expected_head=branch
+        )
+        if recovery_error:
+            return recovery_error
+        if recovery:
+            return None
+        sanitized = _sanitize_for_command_head(commands[0])
+        if re.match(
+            r"(?is)^\s*(?:git\s+(?:push|commit)\b|gh\s+pr\s+(?:create|edit)\b)",
+            sanitized,
+        ):
+            return "R31 blocked: the command is not a permitted initial-draft recovery."
+    if same_tree is None:
+        return "R31 blocked: the default-base tree state is unavailable; restore Git and GitHub read access before the first implementation mutation."
+    status, pull_request = _exact_head_pull_request(repository, branch, head)
+    if status == "unavailable":
+        return "R31 blocked: exact-head draft status is unavailable; restore GitHub access before the first implementation mutation."
+    if pull_request is None:
+        return "R31 blocked: open a zero-file draft PR with the initial plan before the first implementation mutation."
+    if str(pull_request.get("headRefOid", "")).lower() != head.lower():
+        return "R31 blocked: the initial draft PR does not cover the exact current HEAD."
+    if pull_request.get("isDraft") is not True:
+        return "R31 blocked: the initial pull request must still be a draft before the first implementation mutation."
+    changed_files = pull_request.get("changedFiles")
+    if not isinstance(changed_files, int) or isinstance(changed_files, bool) or changed_files != 0:
+        return "R31 blocked: the initial draft PR must have zero changed files before implementation starts."
+    if not _initial_plan_complete(pull_request.get("body")):
+        return "R31 blocked: the initial draft body needs visible, substantive ## Plan, ## Scope, and ## Proof sections."
+    executable = shutil.which("gh")
+    default_branch = _repository_default_branch(executable, repository) if executable else None
+    if default_branch is None:
+        return "R31 blocked: the repository default branch is unavailable; restore GitHub access before the first implementation mutation."
+    if pull_request.get("baseRefName") != default_branch:
+        return "R31 blocked: the initial draft pull request must target the configured default branch."
+    if not _working_tree_clean(cwd):
+        return "R31 blocked: the planning checkpoint must remain clean until initial draft verification is recorded."
+    if not ledger_record(hook_input, satisfaction):
+        return "R31 blocked: the verified initial draft could not be recorded in the session ledger."
+    return None
 
 
 def check_r27_checkpoint_pull_request(
@@ -3877,6 +4292,43 @@ def _path_is_inside(path: object, root: str, cwd: object) -> bool:
     return target == root or target.startswith(root + os.sep)
 
 
+def _wrapped_target_is_on_default_branch(target: str, cwd: object) -> bool:
+    """Resolve where a wrapped shell target lands, including another worktree."""
+    if not target or re.search(r"[$%*?{}]", target):
+        return True
+    try:
+        base = str(cwd) if cwd else os.getcwd()
+        resolved = os.path.realpath(os.path.join(base, target))
+        probe = resolved if os.path.isdir(resolved) else os.path.dirname(resolved)
+        while probe and not os.path.exists(probe):
+            parent = os.path.dirname(probe)
+            if parent == probe:
+                break
+            probe = parent
+    except (OSError, ValueError):
+        return True
+    root = _repository_root(probe)
+    if not root or not _path_is_inside(resolved, root, root):
+        return False
+    return _current_branch(root) in DEFAULT_BRANCHES
+
+
+def _target_checkout_root(target: str, cwd: object) -> str | None:
+    if not target or re.search(r"[$%*?{}]", target):
+        return None
+    try:
+        resolved = os.path.realpath(os.path.join(str(cwd or os.getcwd()), target))
+        probe = resolved if os.path.isdir(resolved) else os.path.dirname(resolved)
+        while probe and not os.path.exists(probe):
+            parent = os.path.dirname(probe)
+            if parent == probe:
+                break
+            probe = parent
+    except (OSError, ValueError):
+        return None
+    return _repository_root(probe)
+
+
 def check_r19_fresh_base(hook_input: dict, tool_name: str) -> str | None:
     """Refuse a write while HEAD is the default branch.
 
@@ -3923,10 +4375,71 @@ def check_r19_fresh_base(hook_input: dict, tool_name: str) -> str | None:
         and not _functions_exec_is_mutation(hook_input.get("tool_input"))
     ):
         return None
+    if tool_name == "functions.exec" and isinstance(hook_input.get("tool_input"), str):
+        source = hook_input["tool_input"]
+        if _wrapped_apply_patch_call_count(source):
+            patch_targets = _wrapped_apply_patch_targets(source)
+            if patch_targets is None:
+                return (
+                    "R19 blocked: wrapped apply_patch targets are not inspectable. "
+                    "Pass one JSON string literal directly to apply_patch."
+                )
+            patch_cwd = _hook_working_directory(hook_input)
+            if any(
+                _wrapped_target_is_on_default_branch(target, patch_cwd)
+                for target in patch_targets
+            ):
+                return "R19 blocked: a wrapped patch targets a default-branch checkout."
+        wrapped_call_count = _wrapped_exec_call_count(source)
+        calls = _wrapped_exec_calls(source)
+        if calls is None:
+            return (
+                "R19 blocked: a wrapped exec_command call has an ambiguous command or "
+                "workdir. Use one flat object with one double-quoted cmd and at most one "
+                "double-quoted workdir; duplicate keys, spreads, computed keys, and "
+                "dynamic values fail closed."
+            )
+        for command, workdir in calls:
+            if not _shell_is_mutation(command):
+                continue
+            tool_input = {"cmd": command}
+            if workdir is not None:
+                tool_input["workdir"] = workdir
+            nested = {
+                "cwd": _hook_working_directory(hook_input),
+                "tool_name": "PowerShell",
+                "tool_input": tool_input,
+            }
+            effective_cwd = _hook_working_directory(nested)
+            if any(
+                _wrapped_target_is_on_default_branch(target, effective_cwd)
+                for target in _implementation_targets("PowerShell", tool_input)
+            ):
+                return (
+                    "R19 blocked: a wrapped command resolves a mutation target inside "
+                    "a default-branch checkout, even though its workdir is isolated."
+                )
+            reason = check_r19_fresh_base(nested, "PowerShell")
+            if reason is not None:
+                return reason
+        if wrapped_call_count:
+            return None
     targets = _implementation_targets(tool_name, hook_input.get("tool_input"))
     if tool_name in _SHELL_TOOLS and not targets:
         return None
     cwd = _hook_working_directory(hook_input)
+    outer_root = _repository_root(cwd)
+    target_roots = {
+        root for target in targets if (root := _target_checkout_root(target, cwd))
+    }
+    if outer_root and any(
+        os.path.normcase(root) != os.path.normcase(outer_root) for root in target_roots
+    ):
+        return "R19 blocked: the mutation target resolves inside a different checkout."
+    if tool_name in _SHELL_TOOLS and any(
+        _wrapped_target_is_on_default_branch(target, cwd) for target in targets
+    ):
+        return "R19 blocked: the shell mutation target resolves inside a default-branch checkout."
     branch = _current_branch(cwd)
     if not branch or branch not in DEFAULT_BRANCHES:
         return None
@@ -4049,6 +4562,11 @@ def run_pretooluse(hook_input: dict, host: str = "portable") -> int:
             if reason is not None:
                 _record_guard_block_and_deny(hook_input, reason, host)
                 return 0
+        reason = check_r31_initial_draft_pull_request(hook_input, tool_name)
+        if reason is not None:
+            _record_guard_block_and_deny(hook_input, reason, host)
+            return 0
+        for command in commands:
             # Observed, not judged. R12 reads this ledger; recording here is the
             # only place a test run is visible, since a later hook invocation is a
             # fresh process with no memory of it.
@@ -4056,6 +4574,11 @@ def run_pretooluse(hook_input: dict, host: str = "portable") -> int:
                 ledger_record(hook_input, "test-run")
             if _updates_a_tracked_issue(command, _hook_working_directory(hook_input)):
                 ledger_record(hook_input, "issue-update")
+        return 0
+
+    reason = check_r31_initial_draft_pull_request(hook_input, tool_name)
+    if reason is not None:
+        _record_guard_block_and_deny(hook_input, reason, host)
         return 0
 
     return 0  # not a tool this hook checks
@@ -5217,11 +5740,13 @@ def check_r24_foreign_worktree_left_behind(hook_input: dict, report: dict | None
 _TERMINAL_REFLECTION_LABELS = (
     "elapsed estimate",
     "main time consumer",
+    "main token consumer",
     "repeated failures or corrections",
     "changed assumption or approach",
     "successful proof",
     "remaining risk or follow-up",
     "learning loop disposition",
+    "next-session optimization",
 )
 
 
@@ -5543,6 +6068,7 @@ _SELF_TEST_COVERAGE: dict[str, str] = {
     "check_r28_pr_audit_before_arming": "run_required_action_self_test",
     "check_r29_delivery_complete": "run_required_action_self_test",
     "check_r30_merge_authority_before_arming": "run_required_action_self_test",
+    "check_r31_initial_draft_pull_request": "run_required_action_self_test",
 }
 
 
@@ -6082,6 +6608,49 @@ def run_required_action_self_test() -> int:
                 "_checkpoint_identity": lambda payload: authority_identity,
             },
             lambda: check_r30_merge_authority_before_arming("gh pr merge 1 --auto --merge", "Bash", {}),
+        ) is None,
+    )
+    initial_identity = ("owner/repo", "ChaosEngine/task", "c" * 40)
+    check(
+        "R31 blocks the first mutation without an exact-head draft",
+        _with_stubs(
+            {
+                "_checkpoint_identity": lambda payload: initial_identity,
+                "_same_tree_as_default_base": lambda repository, cwd: True,
+                "_exact_head_pull_request": lambda repository, branch, head: ("none", None),
+            },
+            lambda: check_r31_initial_draft_pull_request(
+                {"cwd": ".", "tool_input": {"file_path": "x"}}, "Write"
+            ),
+        ) is not None,
+    )
+    check(
+        "R31 allows the first mutation after a planned zero-file draft",
+        _with_stubs(
+            {
+                "_checkpoint_identity": lambda payload: initial_identity,
+                "_same_tree_as_default_base": lambda repository, cwd: True,
+                "_exact_head_pull_request": lambda repository, branch, head: (
+                    "unmapped",
+                    {
+                        "isDraft": True,
+                        "headRefOid": initial_identity[2],
+                        "changedFiles": 0,
+                        "baseRefName": "main",
+                        "body": (
+                            "## Plan\nImplement the canonical early gate.\n\n"
+                            "## Scope\nGuard and focused lifecycle tests only.\n\n"
+                            "## Proof\nRun focused RED and GREEN plus self-test.\n"
+                        ),
+                    },
+                ),
+                "_repository_default_branch": lambda executable, repository: "main",
+                "_working_tree_clean": lambda cwd: True,
+                "ledger_record": lambda payload, event: True,
+            },
+            lambda: check_r31_initial_draft_pull_request(
+                {"cwd": ".", "tool_input": {"file_path": "x"}}, "Write"
+            ),
         ) is None,
     )
 

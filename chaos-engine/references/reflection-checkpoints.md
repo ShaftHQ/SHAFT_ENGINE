@@ -46,6 +46,11 @@ enum (`second-failure`, `repeated-fingerprint`, `third-fix`,
 and a `durableDisposition` enum (`guidance-fixed`, `issue-filed`,
 `knowledge-recorded`, `nothing-durable`, or `degraded`). An optional `issue`
 must be a GitHub issue URL.
+A `long-session-completion` receipt also requires `tokenConsumer` and
+`nextSessionOptimization`: identify what consumed the most tokens, then name a
+concrete harness or workflow change that improves accuracy and token use next
+session. The terminal summary labels these `Main token consumer:` and
+`Next-session optimization:` alongside the existing time analysis.
 Stores and GitHub are optional: an unavailable service never prevents the
 local receipt or resumption, and hooks never create or update issues.
 

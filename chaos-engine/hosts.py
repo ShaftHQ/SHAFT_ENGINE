@@ -2070,16 +2070,16 @@ def desired_content(
     lifecycle_events = {
         "SessionStart": "startup|resume|clear|compact",
         "UserPromptSubmit": None,
-        "PreToolUse": "Bash|PowerShell|shell_command|exec_command|functions[.]exec",
-        "PostToolUse": "Bash|PowerShell|shell_command|exec_command|functions[.]exec",
-        "PostToolUseFailure": "Bash|PowerShell|shell_command|exec_command|functions[.]exec",
+        "PreToolUse": "Bash|PowerShell|Write|Edit|NotebookEdit|apply_patch|shell_command|exec_command|functions[.]exec",
+        "PostToolUse": "Bash|PowerShell|Write|Edit|NotebookEdit|apply_patch|shell_command|exec_command|functions[.]exec",
+        "PostToolUseFailure": "Bash|PowerShell|Write|Edit|NotebookEdit|apply_patch|shell_command|exec_command|functions[.]exec",
         "Stop": None,
         "SubagentStop": None,
     }
     hooks: dict[str, list[dict[str, object]]] = {}
     for event, matcher in lifecycle_events.items():
         group: dict[str, object] = {
-            "hooks": [{"type": "command", "command": hook_command, "timeout": 5}]
+            "hooks": [{"type": "command", "command": hook_command, "timeout": 12}]
         }
         if matcher is not None:
             group["matcher"] = matcher

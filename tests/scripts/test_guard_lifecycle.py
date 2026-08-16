@@ -287,6 +287,60 @@ class ReflectionCheckpointContractTest(unittest.TestCase):
                 with self.assertRaises(ValueError):
                     reflection.record_receipt("unsafe", self._receipt(checkpoint, **overrides), token)
 
+    def test_receipt_accepts_canonical_issue_url_without_relaxing_path_privacy(self):
+        with tempfile.TemporaryDirectory() as temporary, patch.dict(
+            os.environ, {"TMPDIR": temporary, "TEMP": temporary}
+        ):
+            payload = self._failure("issue-url")
+            with redirect_stdout(io.StringIO()):
+                guard.run_posttooluse(payload)
+                guard.run_posttooluse(payload)
+            checkpoint = reflection.pending_checkpoint("issue-url")
+            token = reflection.record_session_start("issue-url")
+            recorded = reflection.record_receipt(
+                "issue-url",
+                self._receipt(
+                    checkpoint,
+                    issue="https://github.com/ShaftHQ/SHAFT_ENGINE/issues/5006",
+                ),
+                token,
+            )
+            self.assertEqual(
+                "https://github.com/ShaftHQ/SHAFT_ENGINE/issues/5006",
+                recorded["issue"],
+            )
+
+            unsafe_payload = self._failure("issue-path")
+            with redirect_stdout(io.StringIO()):
+                guard.run_posttooluse(unsafe_payload)
+                guard.run_posttooluse(unsafe_payload)
+            unsafe_checkpoint = reflection.pending_checkpoint("issue-path")
+            unsafe_token = reflection.record_session_start("issue-path")
+            for issue in (
+                r"C:\Users\person\issue.txt",
+                "https://github.com/ShaftHQ/SHAFT_ENGINE/issues/5006/extra",
+            ):
+                with self.subTest(issue=issue), self.assertRaises(ValueError):
+                    reflection.record_receipt(
+                        "issue-path",
+                        self._receipt(unsafe_checkpoint, issue=issue),
+                        unsafe_token,
+                    )
+
+    def test_receipt_issue_url_uses_url_structure_not_secret_word_heuristics(self):
+        self.assertEqual(
+            reflection._CONTROLLER._safe_issue_url("https://github.com/token/repo/issues/1"),
+            "https://github.com/token/repo/issues/1",
+        )
+        for issue in (
+            "https://github.com/owner name/repo/issues/1",
+            "https://github.com/owner/repo/issues/1?token=x",
+            "https://user@github.com/owner/repo/issues/1",
+            "https://github.com/owner/repo/issues/1#fragment",
+        ):
+            with self.subTest(issue=issue), self.assertRaises(ValueError):
+                reflection._CONTROLLER._safe_issue_url(issue)
+
     def test_claude_failure_event_and_codex_failed_result_have_equivalent_state(self):
         with tempfile.TemporaryDirectory() as temporary, patch.dict(
             os.environ, {"TMPDIR": temporary, "TEMP": temporary}
@@ -318,6 +372,8 @@ class ReflectionCheckpointContractTest(unittest.TestCase):
             receipt = self._receipt(
                 {"trigger": "long-session-completion", "failureFingerprints": []},
                 trigger="long-session-completion",
+                tokenConsumer="Repeated diagnostic and validation context.",
+                nextSessionOptimization="Use one bounded installed-flow proof earlier.",
             )
             reflection.record_receipt(session, receipt, token)
             payload["last_assistant_message"] = "\n".join(
@@ -610,8 +666,34 @@ class TerminalReflectionContractTest(unittest.TestCase):
             "changedApproach": "Verify the installed boundary first.",
             "proofCommandOrCheck": "installed hook probe",
             "proofOutcome": "The installed hook passed.",
+            "tokenConsumer": "Repeated source and installed-boundary repair review.",
+            "nextSessionOptimization": "Use one parity matrix and freeze only after installed probes.",
             "durableDisposition": "guidance-fixed",
         }
+
+    def test_terminal_receipt_requires_token_cost_and_next_session_optimization(self):
+        with tempfile.TemporaryDirectory() as temporary, patch.dict(
+            os.environ, {"TMPDIR": temporary, "TEMP": temporary}
+        ):
+            def attempt(session_id, receipt, token):
+                try:
+                    return reflection.record_receipt(session_id, receipt, token)
+                except ValueError:
+                    return None
+            complete_token = reflection.record_session_start(
+                "complete-cost", "2020-01-01T00:00:00+00:00"
+            )
+            self.assertIsNotNone(attempt(
+                "complete-cost", self._receipt(), complete_token
+            ))
+            for missing in ("tokenConsumer", "nextSessionOptimization"):
+                token = reflection.record_session_start(
+                    "missing-" + missing, "2020-01-01T00:00:00+00:00"
+                )
+                receipt = self._receipt()
+                receipt.pop(missing)
+                with self.subTest(missing=missing):
+                    self.assertIsNone(attempt("missing-" + missing, receipt, token))
 
     def test_under_one_hour_cannot_prerecord_terminal_receipt_and_does_not_block_stop(self):
         with tempfile.TemporaryDirectory() as temporary, patch.dict(
@@ -1099,6 +1181,182 @@ class CheckpointPullRequestGateTest(unittest.TestCase):
                         with redirect_stdout(output):
                             guard.run_stop({"session_id": "r27-stop", "stop_hook_active": True})
                         self.assertEqual(output.getvalue(), "")
+
+
+class InitialDraftPullRequestGateTest(unittest.TestCase):
+    """R31: publish a planned zero-file draft before the first mutation."""
+
+    @staticmethod
+    def identity():
+        return ("ShaftHQ/SHAFT_ENGINE", "ChaosEngine/early-draft", "c" * 40)
+
+    @staticmethod
+    def plan_body():
+        return (
+            "## Plan\nImplement the smallest canonical lifecycle gate and retain R27.\n\n"
+            "## Scope\nGuard, focused lifecycle tests, and canonical task-isolation guidance.\n\n"
+            "## Proof\nRun RED/GREEN lifecycle tests, setup validation, and a live zero-file draft.\n"
+        )
+
+    def check(self, payload, tool_name):
+        function = getattr(guard, "check_r31_initial_draft_pull_request", None)
+        self.assertTrue(callable(function), "R31 initial draft gate is absent")
+        return function(payload, tool_name)
+
+    def test_no_exact_head_draft_blocks_the_first_file_mutation(self):
+        with patch("scripts.agents.guard._checkpoint_identity", return_value=self.identity()):
+            with patch("scripts.agents.guard._same_tree_as_default_base", return_value=True, create=True):
+                with patch("scripts.agents.guard._exact_head_pull_request", return_value=("none", None)):
+                    reason = self.check({"cwd": ".", "tool_input": {"file_path": "x"}}, "Write")
+        self.assertIn("R31", reason)
+
+    def test_exact_head_planned_zero_file_draft_allows_first_mutation(self):
+        pull_request = {
+            "isDraft": True,
+            "headRefOid": "c" * 40,
+            "changedFiles": 0,
+            "baseRefName": "main",
+            "body": self.plan_body(),
+        }
+        with patch("scripts.agents.guard._checkpoint_identity", return_value=self.identity()):
+            with patch("scripts.agents.guard._same_tree_as_default_base", return_value=True, create=True):
+                with patch("scripts.agents.guard._exact_head_pull_request", return_value=("unmapped", pull_request)), \
+                     patch("scripts.agents.guard._repository_default_branch", return_value="main"), \
+                     patch("scripts.agents.guard._working_tree_clean", return_value=True), \
+                     patch("scripts.agents.guard.ledger_record", return_value=True):
+                    self.assertIsNone(self.check({"cwd": ".", "tool_input": {"file_path": "x"}}, "Write"))
+
+    def test_ready_changed_wrong_head_missing_plan_and_unavailable_states_fail_closed(self):
+        valid = {
+            "isDraft": True,
+            "headRefOid": "c" * 40,
+            "changedFiles": 0,
+            "body": self.plan_body(),
+        }
+        cases = (
+            ("unavailable", None),
+            ("unmapped", {**valid, "isDraft": False}),
+            ("unmapped", {**valid, "changedFiles": 1}),
+            ("unmapped", {**valid, "headRefOid": "d" * 40}),
+            ("unmapped", {**valid, "body": "## Plan\nOnly a plan"}),
+        )
+        with patch("scripts.agents.guard._checkpoint_identity", return_value=self.identity()):
+            with patch("scripts.agents.guard._same_tree_as_default_base", return_value=True, create=True):
+                for state in cases:
+                    with self.subTest(state=state):
+                        with patch("scripts.agents.guard._exact_head_pull_request", return_value=state):
+                            self.assertIsNotNone(self.check({"cwd": ".", "tool_input": {"file_path": "x"}}, "Write"))
+
+    def test_only_clean_planning_commit_and_explicit_draft_creation_are_recovery(self):
+        allowed = (
+            "git commit --allow-empty -m planning-checkpoint",
+            "git push -u origin ChaosEngine/early-draft",
+            "gh pr create --draft --base main --head ChaosEngine/early-draft --body-file plan.md",
+            "gh pr view --json changedFiles",
+            "gh pr edit --body-file plan.md",
+        )
+        identity = self.identity()
+        with patch("scripts.agents.guard._checkpoint_identity", return_value=identity):
+            with patch("scripts.agents.guard._same_tree_as_default_base", return_value=True, create=True):
+                with patch("scripts.agents.guard._working_tree_clean", return_value=True, create=True):
+                    with patch("scripts.agents.guard._exact_head_pull_request", return_value=("none", None)):
+                        for command in allowed:
+                            with self.subTest(command=command):
+                                payload = {"cwd": ".", "tool_input": {"command": command}}
+                                self.assertIsNone(self.check(payload, "Bash"))
+                        for command in (
+                            "git commit -m implementation",
+                            "gh pr create --draft --base main",
+                            "gh pr create --base main --head ChaosEngine/early-draft",
+                            "gh pr create --draft --base wrong --head ChaosEngine/early-draft --body-file plan.md",
+                            "gh pr create --draft --base main --head ChaosEngine/wrong --body-file plan.md",
+                        ):
+                            with self.subTest(command=command):
+                                payload = {"cwd": ".", "tool_input": {"command": command}}
+                                self.assertIsNotNone(self.check(payload, "Bash"))
+
+    def test_dirty_tree_cannot_use_allow_empty_as_a_recovery_bypass(self):
+        with patch("scripts.agents.guard._checkpoint_identity", return_value=self.identity()):
+            with patch("scripts.agents.guard._same_tree_as_default_base", return_value=True, create=True):
+                with patch("scripts.agents.guard._working_tree_clean", return_value=False, create=True):
+                    payload = {"cwd": ".", "tool_input": {"command": "git commit --allow-empty -m planning"}}
+                    self.assertIsNotNone(self.check(payload, "Bash"))
+
+    def test_existing_implementation_diff_remains_owned_by_r27(self):
+        with patch("scripts.agents.guard._checkpoint_identity", return_value=self.identity()):
+            with patch("scripts.agents.guard._same_tree_as_default_base", return_value=False, create=True):
+                self.assertIsNone(self.check({"cwd": ".", "tool_input": {"file_path": "x"}}, "Write"))
+
+    def test_wrong_base_dirty_tree_and_missing_identity_fail_closed(self):
+        valid = {"isDraft": True, "headRefOid": "c" * 40, "changedFiles": 0,
+                 "baseRefName": "wrong", "body": self.plan_body()}
+        with patch("scripts.agents.guard._checkpoint_identity", return_value=self.identity()), \
+             patch("scripts.agents.guard._same_tree_as_default_base", return_value=True), \
+             patch("scripts.agents.guard._repository_default_branch", return_value="main"), \
+             patch("scripts.agents.guard._exact_head_pull_request", return_value=("unmapped", valid)), \
+             patch("scripts.agents.guard._working_tree_clean", return_value=False), \
+             patch("scripts.agents.guard.ledger_events", return_value=[]):
+            self.assertIsNotNone(self.check({"cwd": ".", "tool_input": {"file_path": "x"}}, "Write"))
+        with patch("scripts.agents.guard._checkpoint_identity", return_value=None), \
+             patch("scripts.agents.guard._current_branch", return_value="ChaosEngine/early-draft"):
+            self.assertIsNotNone(self.check({"cwd": ".", "tool_input": {"file_path": "x"}}, "Write"))
+
+    def test_satisfaction_is_recorded_once_and_reused(self):
+        valid = {"isDraft": True, "headRefOid": "c" * 40, "changedFiles": 0,
+                 "baseRefName": "main", "body": self.plan_body()}
+        events = []
+        with patch("scripts.agents.guard._checkpoint_identity", return_value=self.identity()), \
+             patch("scripts.agents.guard._same_tree_as_default_base", return_value=True), \
+             patch("scripts.agents.guard._repository_default_branch", return_value="main"), \
+             patch("scripts.agents.guard._working_tree_clean", return_value=True), \
+             patch("scripts.agents.guard.ledger_events", side_effect=lambda _p: list(events)), \
+             patch("scripts.agents.guard.ledger_record", side_effect=lambda _p, e: events.append(e) or True), \
+             patch("scripts.agents.guard._exact_head_pull_request", side_effect=[("unmapped", valid), ("unavailable", None)]):
+            payload = {"session_id": "s", "cwd": ".", "tool_input": {"file_path": "x"}}
+            self.assertIsNone(self.check(payload, "Write"))
+            self.assertIsNone(self.check(payload, "Write"))
+
+    def test_recovery_cannot_piggyback_or_edit_unrelated_pr_state(self):
+        source = 'await tools.apply_patch(patch); await tools.exec_command({cmd:"git push"});'
+        with patch("scripts.agents.guard._checkpoint_identity", return_value=self.identity()), \
+             patch("scripts.agents.guard._same_tree_as_default_base", return_value=True), \
+             patch("scripts.agents.guard._exact_head_pull_request", return_value=("none", None)):
+            self.assertIsNotNone(self.check({"cwd": ".", "tool_input": source}, "functions.exec"))
+        allowed, _ = guard._r31_recovery_command("gh pr edit 999 --base attacker --add-label hacked", ".")
+        self.assertFalse(allowed)
+        for command in (
+            "git push --delete origin main",
+            "git push origin other-branch",
+            "git push --force origin HEAD:main",
+            "git push evil HEAD",
+        ):
+            with self.subTest(command=command):
+                allowed, _ = guard._r31_recovery_command(
+                    command, ".", expected_head="ChaosEngine/early-draft"
+                )
+                self.assertFalse(allowed)
+
+    def test_posix_mutations_enter_the_gate(self):
+        with patch("scripts.agents.guard._checkpoint_identity", return_value=self.identity()), \
+             patch("scripts.agents.guard._same_tree_as_default_base", return_value=True), \
+             patch("scripts.agents.guard._exact_head_pull_request", return_value=("none", None)):
+            for command in ("touch x", "rm x", "mv x y", "cp x y"):
+                with self.subTest(command=command):
+                    self.assertIsNotNone(self.check({"cwd": ".", "tool_input": {"command": command}}, "Bash"))
+
+    def test_wrapped_mutation_identity_comes_from_effective_workdir(self):
+        task = os.path.abspath("task-worktree")
+        source = f'await tools.exec_command({{cmd:"touch x",workdir:{json.dumps(task)}}});'
+        def identity(payload):
+            details = payload.get("tool_input") if isinstance(payload, dict) else None
+            return self.identity() if isinstance(details, dict) and details.get("workdir") == task else None
+        with patch("scripts.agents.guard._checkpoint_identity", side_effect=identity), \
+             patch("scripts.agents.guard._same_tree_as_default_base", return_value=True), \
+             patch("scripts.agents.guard._exact_head_pull_request", return_value=("none", None)):
+            reason = self.check(
+                {"cwd": os.path.abspath("outside"), "tool_input": source}, "functions.exec"
+            )
+        self.assertIn("R31 blocked", reason)
 
 
 def isolate_stop_rules(case: unittest.TestCase, except_for: tuple[str, ...] = ()) -> None:
@@ -1740,6 +1998,37 @@ class GuardLifecycleTest(unittest.TestCase):
         )
         self.assertNotIn("authoritative-online-research", generic)
         self.assertIn("authoritative-online-research", primary)
+        git_primary = guard._research_preflight_events(
+            "WebSearch",
+            {"query": "official Git documentation"},
+            {"results": [{"url": "https://git-scm.com/docs/git"}]},
+        )
+        git_lookalike = guard._research_preflight_events(
+            "WebSearch",
+            {"query": "Git documentation mirror"},
+            {"results": [{"url": "https://git-scm.com.evil.example/docs/git"}]},
+        )
+        self.assertIn("authoritative-online-research", git_primary)
+        self.assertNotIn("authoritative-online-research", git_lookalike)
+
+    def test_primary_source_is_declared_per_request_and_must_match_evidence(self):
+        accepted = guard._research_preflight_events(
+            "WebSearch",
+            {"query": "official Project documentation site:docs.project.example"},
+            {"results": [{"url": "https://docs.project.example/manual"}]},
+        )
+        mismatched = guard._research_preflight_events(
+            "WebSearch",
+            {"query": "official Project documentation site:docs.project.example"},
+            {"results": [{"url": "https://example.com/git"}]},
+        )
+        shell = guard._research_preflight_events(
+            "exec_command",
+            {"cmd": "CHAOS_PRIMARY_SOURCE_HOST=docs.project.example curl https://docs.project.example/manual"},
+        )
+        self.assertIn("authoritative-online-research", accepted)
+        self.assertNotIn("authoritative-online-research", mismatched)
+        self.assertIn("authoritative-online-research", shell)
         self.assertNotIn(
             "authoritative-online-research",
             guard._research_preflight_events(
@@ -3963,6 +4252,28 @@ class HookWorkingDirectoryIsReadOneWayTest(unittest.TestCase):
             'hook_input.get("cwd")', inspect.getsource(guard._hook_working_directory)
         )
 
+    def test_a_command_uses_its_explicit_workdir(self):
+        payload = {
+            "cwd": "C:/session-checkout",
+            "tool_name": "PowerShell",
+            "tool_input": {
+                "cmd": "Set-Content scripts/x.py changed",
+                "workdir": "C:/isolated-worktree",
+            },
+        }
+        self.assertEqual(guard._hook_working_directory(payload), "C:/isolated-worktree")
+
+    def test_a_non_command_tool_cannot_override_the_hook_directory(self):
+        payload = {
+            "cwd": "C:/session-checkout",
+            "tool_name": "Write",
+            "tool_input": {
+                "file_path": "scripts/x.py",
+                "workdir": "C:/unrelated-worktree",
+            },
+        }
+        self.assertEqual(guard._hook_working_directory(payload), "C:/session-checkout")
+
     def test_the_rule_set_is_not_empty(self):
         """A name filter that matched nothing would make the check above vacuous."""
         self.assertGreaterEqual(len(self.rules()), 10)
@@ -5264,6 +5575,191 @@ class FreshBaseGateTest(unittest.TestCase):
     def test_editing_on_a_task_branch_is_allowed(self):
         with patch("scripts.agents.guard._current_branch", return_value="ChaosEngine/thing-1"):
             self.assertIsNone(guard.check_r19_fresh_base(self.payload("scripts/x.py"), "Write"))
+
+    def test_a_wrapped_command_uses_its_isolated_workdir(self):
+        root, _ = self.repository()
+        session = os.path.join(os.path.dirname(root), "session")
+        os.makedirs(session, exist_ok=True)
+        source = (
+            "await tools.exec_command({"
+            f"cmd:{json.dumps('Set-Content scripts/x.py changed')},"
+            f"workdir:{json.dumps(root)}"
+            "});"
+        )
+        payload = {"cwd": session, "tool_name": "functions.exec", "tool_input": source}
+
+        def branch(cwd):
+            return "ChaosEngine/isolated" if cwd == root else "main"
+
+        with patch("scripts.agents.guard._current_branch", side_effect=branch):
+            self.assertIsNone(guard.check_r19_fresh_base(payload, "functions.exec"))
+
+    def test_a_wrapped_command_without_workdir_still_uses_the_hook_directory(self):
+        root, _ = self.repository()
+        source = (
+            "await tools.exec_command({"
+            f"cmd:{json.dumps('Set-Content scripts/x.py changed')}"
+            "});"
+        )
+        payload = {"cwd": root, "tool_name": "functions.exec", "tool_input": source}
+
+        with patch("scripts.agents.guard._current_branch", return_value="main"):
+            with patch("scripts.agents.guard._repository_root", return_value=root):
+                self.assertIsNotNone(guard.check_r19_fresh_base(payload, "functions.exec"))
+
+    def test_ambiguous_wrapped_commands_fail_closed_from_an_isolated_session(self):
+        isolated, _ = self.repository()
+        main = os.path.join(os.path.dirname(isolated), "main")
+        os.makedirs(main, exist_ok=True)
+        mutating = json.dumps("Set-Content scripts/x.py changed")
+        isolated_json = json.dumps(isolated)
+        main_json = json.dumps(main)
+        sources = (
+            f"await tools.exec_command({{cmd:{mutating},workdir:target}});",
+            f"await tools.exec_command({{cmd:{mutating},workdir:'{main}'}});",
+            f"await tools.exec_command({{cmd:{mutating},workdir:{isolated_json},workdir:{main_json}}});",
+            f"await tools.exec_command({{cmd:\"echo safe\",cmd:{mutating},workdir:{main_json}}});",
+            f"await tools.exec_command({{cmd:{mutating},workdir:{isolated_json},...override}});",
+        )
+
+        def branch(cwd):
+            return "main" if os.path.normcase(str(cwd)) == os.path.normcase(main) else "ChaosEngine/isolated"
+
+        with patch("scripts.agents.guard._current_branch", side_effect=branch):
+            for source in sources:
+                with self.subTest(source=source):
+                    payload = {"cwd": isolated, "tool_name": "functions.exec", "tool_input": source}
+                    self.assertIsNotNone(guard.check_r19_fresh_base(payload, "functions.exec"))
+
+    def test_wrapped_command_cannot_escape_isolated_workdir_into_session_main(self):
+        isolated, _ = self.repository()
+        main = os.path.join(os.path.dirname(isolated), "main")
+        os.makedirs(main, exist_ok=True)
+        target = os.path.join(main, "scripts", "x.py")
+        source = (
+            "await tools.exec_command({"
+            f"cmd:{json.dumps('Set-Content ' + target + ' changed')},"
+            f"workdir:{json.dumps(isolated)}"
+            "});"
+        )
+        payload = {"cwd": main, "tool_name": "functions.exec", "tool_input": source}
+
+        def branch(cwd):
+            return "main" if os.path.normcase(str(cwd)) == os.path.normcase(main) else "ChaosEngine/isolated"
+
+        with patch("scripts.agents.guard._current_branch", side_effect=branch):
+            with patch("scripts.agents.guard._repository_root", side_effect=lambda cwd: main if cwd == main else isolated):
+                self.assertIsNotNone(guard.check_r19_fresh_base(payload, "functions.exec"))
+
+    def test_wrapped_powershell_path_options_and_git_c_cannot_target_main(self):
+        isolated, _ = self.repository()
+        main = os.path.join(os.path.dirname(isolated), "main")
+        os.makedirs(main, exist_ok=True)
+        target = os.path.join(main, "scripts", "x.py")
+        commands = (
+            f'Set-Content -Path "{target}" -Value changed',
+            f'Set-Content -LiteralPath "{target}" -Value changed',
+            f'git -C "{main}" commit -m changed',
+        )
+        def branch(cwd):
+            return "main" if os.path.normcase(str(cwd)) == os.path.normcase(main) else "ChaosEngine/isolated"
+        with patch("scripts.agents.guard._current_branch", side_effect=branch), \
+             patch("scripts.agents.guard._repository_root", side_effect=lambda cwd: main if os.path.normcase(str(cwd)) == os.path.normcase(main) else isolated):
+            for command in commands:
+                source = f"await tools.exec_command({{cmd:{json.dumps(command)},workdir:{json.dumps(isolated)}}});"
+                with self.subTest(command=command):
+                    self.assertIsNotNone(guard.check_r19_fresh_base(
+                        {"cwd": isolated, "tool_name": "functions.exec", "tool_input": source}, "functions.exec"))
+
+    def test_literal_ellipsis_and_brackets_inside_command_are_not_parser_ambiguity(self):
+        source = 'await tools.exec_command({cmd:"echo [...]...",workdir:"."});'
+        self.assertEqual(guard._wrapped_exec_calls(source), (("echo [...]...", "."),))
+
+    def test_direct_shell_workdir_and_target_cannot_reach_main(self):
+        isolated, _ = self.repository()
+        main = os.path.join(os.path.dirname(isolated), "main")
+        os.makedirs(main, exist_ok=True)
+        target = os.path.join(main, "x.txt")
+        def branch(cwd):
+            return "main" if os.path.normcase(str(cwd)) == os.path.normcase(main) else "ChaosEngine/isolated"
+        with patch("scripts.agents.guard._current_branch", side_effect=branch), \
+             patch("scripts.agents.guard._repository_root", side_effect=lambda cwd: main if os.path.normcase(str(cwd)) == os.path.normcase(main) else isolated):
+            for payload in (
+                {"cwd": isolated, "tool_name": "PowerShell", "tool_input": {"command": "touch x", "workdir": main}},
+                {"cwd": isolated, "tool_name": "PowerShell", "tool_input": {"command": f'Set-Content -Path "{target}" x'}},
+                {"cwd": isolated, "tool_name": "PowerShell", "tool_input": {"command": f'git -C "{main}" commit -m x'}},
+                {"cwd": isolated, "tool_name": "PowerShell", "tool_input": {"command": f'cp -t "{main}" source.txt'}},
+                {"cwd": isolated, "tool_name": "PowerShell", "tool_input": {"command": f'touch -d yesterday "{target}"'}},
+            ):
+                with self.subTest(payload=payload):
+                    self.assertIsNotNone(guard.check_r19_fresh_base(payload, "PowerShell"))
+
+    def test_direct_file_tool_cannot_cross_into_another_checkout(self):
+        isolated, _ = self.repository()
+        other = os.path.join(os.path.dirname(isolated), "other-task")
+        os.makedirs(other, exist_ok=True)
+        target = os.path.join(other, "x.txt")
+        def root(cwd):
+            return other if os.path.normcase(str(cwd)).startswith(os.path.normcase(other)) else isolated
+        with patch("scripts.agents.guard._current_branch", return_value="ChaosEngine/task"), \
+             patch("scripts.agents.guard._repository_root", side_effect=root):
+            reason = guard.check_r19_fresh_base(
+                {"cwd": isolated, "tool_input": {"file_path": target}}, "Write"
+            )
+        self.assertIsNotNone(reason)
+
+    def test_posix_mutation_classification_uses_command_heads_not_prose(self):
+        self.assertFalse(guard._shell_is_mutation('rg -n "touch|rm|mv|cp" scripts'))
+        self.assertTrue(guard._shell_is_mutation("echo ok && touch x"))
+        self.assertFalse(guard._functions_exec_is_mutation(
+            'await tools.exec_command({cmd:"echo tools.apply_patch(patch)",workdir:"."});'
+        ))
+        self.assertEqual(
+            ("safe.txt", "C:/main/victim.txt"),
+            guard._shell_mutation_targets("rm safe.txt C:/main/victim.txt"),
+        )
+        self.assertIn(
+            "C:/main/y",
+            guard._shell_mutation_targets("Move-Item -Destination C:/main/y -Path x"),
+        )
+
+    def test_mixed_patch_and_exec_still_checks_the_exec_workdir(self):
+        isolated, _ = self.repository()
+        main = os.path.join(os.path.dirname(isolated), "main")
+        os.makedirs(main, exist_ok=True)
+        source = (
+            "await tools.apply_patch(patch);"
+            "await tools.exec_command({"
+            f"cmd:{json.dumps('Set-Content scripts/x.py changed')},"
+            f"workdir:{json.dumps(main)}"
+            "});"
+        )
+        payload = {"cwd": isolated, "tool_name": "functions.exec", "tool_input": source}
+
+        def branch(cwd):
+            return "main" if os.path.normcase(str(cwd)) == os.path.normcase(main) else "ChaosEngine/isolated"
+
+        with patch("scripts.agents.guard._current_branch", side_effect=branch):
+            with patch("scripts.agents.guard._repository_root", return_value=main):
+                self.assertIsNotNone(guard.check_r19_fresh_base(payload, "functions.exec"))
+
+    def test_any_mutating_wrapped_call_targeting_main_is_refused(self):
+        isolated, _ = self.repository()
+        main = os.path.join(os.path.dirname(isolated), "main")
+        os.makedirs(main, exist_ok=True)
+        command = json.dumps("Set-Content scripts/x.py changed")
+        source = (
+            f"await tools.exec_command({{cmd:{command},workdir:{json.dumps(isolated)}}});"
+            f"await tools.exec_command({{cmd:{command},workdir:{json.dumps(main)}}});"
+        )
+        payload = {"cwd": isolated, "tool_name": "functions.exec", "tool_input": source}
+
+        def branch(cwd):
+            return "main" if os.path.normcase(str(cwd)) == os.path.normcase(main) else "ChaosEngine/isolated"
+
+        with patch("scripts.agents.guard._current_branch", side_effect=branch):
+            with patch("scripts.agents.guard._repository_root", return_value=main):
+                self.assertIsNotNone(guard.check_r19_fresh_base(payload, "functions.exec"))
 
     def test_a_detached_head_is_not_the_default_branch(self):
         with patch("scripts.agents.guard._current_branch", return_value=None):
