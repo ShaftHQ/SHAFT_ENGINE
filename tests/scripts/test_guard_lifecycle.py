@@ -3748,6 +3748,54 @@ class DeliveryCompleteStopGateTest(unittest.TestCase):
             self.assertIsNone(guard.check_r29_delivery_complete({}))
 
 
+class SubagentStopDeliveryOwnershipTest(unittest.TestCase):
+    """R29 must not replace a read-only child verdict, but remains owner-bound."""
+
+    def setUp(self):
+        isolate_stop_rules(self, except_for=("check_r29_delivery_complete",))
+
+    @staticmethod
+    def payload(role: str) -> dict:
+        return {
+            "hook_event_name": "SubagentStop",
+            "agent_type": role,
+            "agent_id": "child-1",
+            "last_assistant_message": "Review complete\nZERO BLOCKERS",
+            "session_id": "shared-parent-session",
+            "cwd": ".",
+        }
+
+    def run_stop_output(self, payload: dict, events: list[str]) -> str:
+        output = io.StringIO()
+        with mock.patch.object(guard, "ledger_events", return_value=events), \
+             mock.patch.object(
+                 guard,
+                 "_worktree_report",
+                 return_value={"worktrees": [{"is_current": True, "state": "clean"}]},
+             ), \
+             redirect_stdout(output):
+            guard.run_stop(payload)
+        return output.getvalue().strip()
+
+    def test_read_only_reviewer_verdict_is_not_replaced_by_delivery_status(self):
+        self.assertEqual(
+            "",
+            self.run_stop_output(self.payload("reviewer"), ["commit"]),
+        )
+
+    def test_retained_delegate_still_requires_delivery_status(self):
+        identity = ("owner/repo", "ChaosEngine/task", "a" * 40)
+        checkpoint = guard._checkpoint_json_event("checkpoint", *identity)
+        output = self.run_stop_output(self.payload("coder"), ["commit", checkpoint])
+        self.assertIn("R29 blocked", output)
+
+    def test_reviewer_role_cannot_bypass_retained_delivery_ownership(self):
+        identity = ("owner/repo", "ChaosEngine/task", "a" * 40)
+        checkpoint = guard._checkpoint_json_event("checkpoint", *identity)
+        output = self.run_stop_output(self.payload("reviewer"), ["commit", checkpoint])
+        self.assertIn("R29 blocked", output)
+
+
 class UnarmedPullRequestStopGateTest(unittest.TestCase):
     """R17: opening a pull request does not end the duty; arming it is the duty.
 

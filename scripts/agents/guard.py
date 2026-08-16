@@ -3150,6 +3150,17 @@ def check_r29_delivery_complete(hook_input: dict) -> str | None:
     events = ledger_events(hook_input)
     if "commit" not in events:
         return None
+    # A SubagentStop is also the transport for a read-only review verdict. A
+    # parent session's commit marker can be visible to that child, but only a
+    # retained checkpoint proves that this session owns delivery work. Keep
+    # the child verdict intact unless that ownership evidence exists. A
+    # reviewer label is deliberately not an exemption: a retained checkpoint
+    # still makes R29 apply.
+    if (
+        hook_input.get("hook_event_name") == "SubagentStop"
+        and not any(_checkpoint_event_payload(event, "checkpoint") for event in events)
+    ):
+        return None
     checkpoints = [
         payload for payload in (_checkpoint_event_payload(event, "checkpoint") for event in events)
         if payload
