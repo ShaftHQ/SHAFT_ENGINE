@@ -144,6 +144,20 @@ public class ElementsHelperCoverageUnitTest {
     }
 
     @Test
+    public void waitForElementPresenceShouldTolerateTimeoutWithoutCause() {
+        TimeoutException timeoutException = new TimeoutException("timed out");
+
+        try (MockedStatic<DriverFactoryHelper> ignoredDriverFactoryHelper = mockDesktopExecution();
+             MockedConstruction<SynchronizationManager> ignored = mockSynchronizationManagerThrowing(timeoutException)) {
+            List<Object> information = helper.waitForElementPresence(driver, locator, true);
+
+            Assert.assertEquals(information.get(0), 0);
+            Assert.assertNull(information.get(1));
+            Assert.assertSame(information.get(2), timeoutException);
+        }
+    }
+
+    @Test
     public void waitForElementPresenceShouldReturnInvalidSelectorPayload() {
         InvalidSelectorException invalidSelectorException = new InvalidSelectorException("bad css");
 
