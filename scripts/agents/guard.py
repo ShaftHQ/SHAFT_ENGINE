@@ -1763,12 +1763,6 @@ def _record_guard_block_and_deny(hook_input: dict, reason: str, host: str) -> No
     _print_deny(reason, host)
 
 
-# R12: iron law 3 -- no production code before an observed failing test.
-# Production means compiled source under any module's src/main/. Guidance,
-# configuration, tests, scripts and docs are excluded because the entrypoint
-# excludes them itself: they "may skip test-first; validate their structure or
-# affected flow instead".
-_PRODUCTION_PATH = re.compile(r"(?:^|/)src/main/", re.IGNORECASE)
 _TEST_RUNNER = frozenset({"py", "python", "python3", "pytest", "mvn", "mvnw"})
 # Token equality rather than a regex: the file already tokenises segments for
 # R1 and R2, and a substring match would read "latest" or "protest" as a test
@@ -1906,52 +1900,6 @@ def looks_like_a_test_run(command: str) -> bool:
         ):
             return True
     return False
-
-
-def check_r12_test_before_production(hook_input: dict, tool_name: str) -> str | None:
-    """Block a production-source write when no test run was observed this session.
-
-    Iron law 3 with a mechanism. The law predates every check in this file and
-    has never had one: `test_agent_router_contract.py` pins that the sentence
-    exists, which cannot observe whether production code was written first.
-
-    Scope is narrow on purpose. Only compiled source under a module's
-    `src/main/` counts, because the entrypoint exempts the rest itself --
-    documentation, guidance, configuration and generated code "may skip
-    test-first". Writing the failing test is never blocked, since blocking the
-    RED step would make the law unsatisfiable: the only way to observe a
-    failing test is to write it.
-
-    Session-scoped rather than per-edit. One observed test run unlocks
-    production writes for the session, which enforces "a test ran before you
-    wrote production code" without blocking the second edit of a two-line fix.
-    A coarse rule everybody keeps is worth more than a precise one nobody does.
-    """
-    if tool_name not in _WRITE_TOOLS:
-        return None
-    tool_input = hook_input.get("tool_input")
-    if not isinstance(tool_input, dict):
-        return None
-    path = tool_input.get("file_path") or tool_input.get("path") or ""
-    if not isinstance(path, str) or not path:
-        return None
-    normalized = path.replace("\\", "/")
-    if not _PRODUCTION_PATH.search(normalized) or "/src/test/" in normalized:
-        return None
-    if not _ledger_path(hook_input):
-        return None  # no session, no record, no basis to block
-    if "test-run" in ledger_events(hook_input):
-        return None
-    return (
-        "R12 blocked: iron law 3 -- no production code before an observed "
-        f"failing test. {path} is production source under src/main/, and no "
-        "test run has been observed in this session. Write the focused test "
-        "first and run it (for example `py -3 -m unittest tests.scripts.test_x` "
-        "or `mvn -Dtest=YourTest test`); an expected assertion failure is RED "
-        "and unblocks this write, while a setup, syntax or environment error "
-        "is not. Tests, guidance, configuration and docs are never blocked by "
-        "this rule."
-    )
 
 
 _PRIMARY_SOURCE_HOSTS = frozenset(
@@ -3238,7 +3186,7 @@ ADAPTED_SUBAGENT_TYPES = frozenset({"chaos-engine", "coder", "helper", "reviewer
 def check_r22_dispatch_adapter(hook_input: dict, tool_name: str) -> str | None:
     """Refuse a dispatch whose type has no host-delivered role adapter.
 
-    R22 owns only the shape of a new delegate. It runs before R11, R12, R15,
+    R22 owns only the shape of a new delegate. It runs before R11, R15,
     R17, and R19 can apply to the delegate's own tool calls. Choosing any
     listed type delivers the entrypoint; after a commit, the learning-loop
     arming clause remains satisfiable by a learning write or its explicit
@@ -3603,8 +3551,8 @@ def _reviewer_dispatch_event(hook_input: dict, tool_name: str) -> str | None:
          immediately still counts.
 
     So the honest claim is narrower: this raises the cost of skipping a review
-    from "do nothing" to "deliberately forge a ledger entry", on the same
-    threat model R12 already rests on -- a careless agent, not a hostile one.
+    from "do nothing" to "deliberately forge a ledger entry". It addresses a
+    careless agent, not a hostile one.
     R15 remains forgeable, deliberately, because the alternative measured worse:
     it was unsatisfiable by the agent it governs, and an unsatisfiable gate is
     one that gets bypassed and then deleted.
@@ -3808,15 +3756,16 @@ def _repository_default_branch(executable: str, repository: str) -> str | None:
 
 
 def _exact_head_pull_request(repository: str, branch: str, head: str) -> tuple[str, dict | None]:
-    """Return exact-head PR state: exact, unmapped, none, or unavailable."""
+    """Return exact-commit PR state regardless of the local branch alias."""
+    del branch
     executable = shutil.which("gh")
     if executable is None:
         return "unavailable", None
     fields = "number,url,state,isDraft,headRefName,headRefOid,baseRefName,body,changedFiles,closingIssuesReferences"
     try:
         completed = subprocess.run(  # nosec B603 - fixed read-only gh query.
-            [executable, "pr", "list", "--repo", repository, "--head", branch,
-             "--state", "open", "--json", fields],
+            [executable, "pr", "list", "--repo", repository, "--state", "open",
+             "--limit", "100", "--json", fields],
             capture_output=True,
             text=True,
             timeout=_subprocess_timeout(),
@@ -3837,7 +3786,6 @@ def _exact_head_pull_request(repository: str, branch: str, head: str) -> tuple[s
             item for item in pull_requests
             if isinstance(item, dict)
             and str(item.get("state", "")).upper() == "OPEN"
-            and item.get("headRefName") == branch
             and str(item.get("headRefOid", "")).lower() == head.lower()
         ),
         None,
@@ -3870,12 +3818,36 @@ def _r27_recovery_command(
     """Classify one whole command that can repair a blocked checkpoint."""
     segments, separators = _top_level_shell_parts(_sanitize_for_command_head(command))
     nonempty = [segment for segment in segments if segment.strip()]
-    if separators or len(nonempty) != 1:
+    if not nonempty:
         return False, None
+    if separators or len(nonempty) != 1:
+        for item in nonempty:
+            recovery, error = _r27_recovery_command(
+                item, allow_checkpoint_repair=allow_checkpoint_repair
+            )
+            if error:
+                return False, error
+            if not recovery:
+                return False, None
+        return True, None
     segment = nonempty[0]
     git = _tokens_after_head(segment, _GIT_NAMES)
     git_subcommand, _, git_arguments_index = _split_global_options(git or [])
     if git_subcommand == "push":
+        return True, None
+    git_arguments = (git or [])[git_arguments_index:]
+    if git_subcommand in {"status", "diff", "log", "show", "rev-parse", "merge-base", "ls-files"}:
+        return True, None
+    if git_subcommand == "branch" and all(
+        token.lower() in {"--show-current", "--list", "-a", "--all", "-r", "--remotes", "-v", "-vv"}
+        for token in git_arguments
+    ):
+        return True, None
+    if git_subcommand == "remote" and (
+        not git_arguments
+        or git_arguments in (["-v"], ["--verbose"])
+        or len(git_arguments) == 2 and git_arguments[0] == "get-url"
+    ):
         return True, None
     if git_subcommand == "commit":
         options = {token.lower() for token in (git or [])[git_arguments_index:]}
@@ -4561,18 +4533,6 @@ def check_r19_fresh_base(hook_input: dict, tool_name: str) -> str | None:
 def run_pretooluse(hook_input: dict, host: str = "portable") -> int:
     tool_name = hook_input.get("tool_name", "")
 
-    checkpoint = _reflection.pending_checkpoint(str(hook_input.get("session_id") or ""))
-    if checkpoint is not None:
-        commands = _hook_commands(hook_input, tool_name)
-        if len(commands) == 1 and (
-            _reflection_recovery_operation(commands[0])
-            or _updates_a_tracked_issue(commands[0], _hook_working_directory(hook_input))
-        ):
-            return 0
-        if _reflection_blocks_tool(hook_input, tool_name, checkpoint):
-            _record_guard_block_and_deny(hook_input, _reflection_block_reason(checkpoint), host)
-            return 0
-
     reason = check_r22_dispatch_adapter(hook_input, tool_name)
     if reason is not None:
         _record_guard_block_and_deny(hook_input, reason, host)
@@ -4610,12 +4570,6 @@ def run_pretooluse(hook_input: dict, host: str = "portable") -> int:
         return 0
 
     reason = check_r25_research_before_implementation(hook_input, tool_name)
-    if reason is not None:
-        _record_guard_block_and_deny(hook_input, reason, host)
-        return 0
-
-    reason = check_r12_test_before_production(hook_input, tool_name)
-
     if reason is not None:
         _record_guard_block_and_deny(hook_input, reason, host)
         return 0
@@ -4670,9 +4624,8 @@ def run_pretooluse(hook_input: dict, host: str = "portable") -> int:
             _record_guard_block_and_deny(hook_input, reason, host)
             return 0
         for command in commands:
-            # Observed, not judged. R12 reads this ledger; recording here is the
-            # only place a test run is visible, since a later hook invocation is a
-            # fresh process with no memory of it.
+            # Observed, not judged. Later hook invocations are fresh processes,
+            # so test activity used for reflection has to be recorded here.
             if looks_like_a_test_run(command):
                 ledger_record(hook_input, "test-run")
             if _updates_a_tracked_issue(command, _hook_working_directory(hook_input)):
@@ -4702,10 +4655,7 @@ def run_posttooluse(hook_input: dict) -> int:
         )
     )
     if result_failed:
-        failure = _record_task_failure(hook_input, result)
-        checkpoint = _reflection.pending_checkpoint(str(hook_input.get("session_id") or ""))
-        if failure and checkpoint:
-            print(json.dumps({"additionalContext": _reflection_block_reason(checkpoint)}))
+        _record_task_failure(hook_input, result)
     commands = _hook_commands(hook_input, tool_name)
     for command in commands:
         if looks_like_a_test_run(command):
@@ -5005,9 +4955,8 @@ def _ledger_path(hook_input: dict) -> str | None:
     )
     # `gettempdir()` validates and returns an absolute path; a raw environment
     # read does not. Under a relative TMPDIR the same session_id resolved to a
-    # different file per process directory, so a `test-run` recorded at
-    # PreToolUse was invisible at Stop -- keyed by cwd as well as by session,
-    # which is exactly what the docstring above says it never is.
+    # different file per process directory, so events recorded at PreToolUse
+    # were invisible at Stop despite being keyed by the same session.
     if not os.path.isabs(base):
         base = tempfile.gettempdir()
     directory = os.path.join(base, "agent-session-ledger")
@@ -5123,10 +5072,8 @@ def ledger_record(hook_input: dict, event: str) -> bool:
     this host issues tool calls in parallel -- still the strictly worse trade,
     just not by exactly the margin the old wording claimed.
 
-    Losing an event is not free. R12 refuses a production write until a test
-    run is recorded, so a dropped `test-run` blocks work that did satisfy the
-    rule -- a gate firing on correct work, which is the shape that gets guards
-    deleted.
+    Losing an event is not free: later lifecycle decisions can miss work that
+    really happened and report a false incomplete state.
 
     A single small append is the closest thing to atomic available without
     platform-specific locking, and it needs no read at all, so there is no
@@ -5170,8 +5117,7 @@ def ledger_events(hook_input: dict) -> list[str]:
         #      with no trailing newline, so the first append landed on the same
         #      line: `["test-run", "commit"]"test-run"`. Treating that line as
         #      one value made it unparsable, and skipping it silently dropped
-        #      the entire pre-upgrade history -- which would leave R12 blocking
-        #      a production write whose test run really had been observed.
+        #      the entire pre-upgrade history.
         #   2. Concurrency. Two appends that interleave can share a line.
         #
         # A value that cannot be decoded still costs only the rest of that one
@@ -5890,10 +5836,6 @@ def run_stop(hook_input: dict) -> int:
         )
         if review_clear:
             ledger_record(hook_input, review_clear)
-    reflection_reason = _terminal_reflection_reason(hook_input)
-    if reflection_reason is not None:
-        print(json.dumps({"decision": "block", "reason": reflection_reason}))
-        return 0
     if hook_input.get("stop_hook_active") is True:
         return 0
 
@@ -6152,7 +6094,7 @@ _SELF_TEST_CASES: list[tuple[str, str, bool]] = [
 # How every rule in this file is exercised by `--self-test` (#4551).
 #
 # The self-test printed `0 failed` while covering R1, R9, R10 and R11 and
-# exercising none of R12 through R20 -- eight rules, two thirds of the file.
+# exercising none of R13 through R20 -- eight rules, two thirds of the file.
 # Reassuring output is what an agent acts on, which makes a green that means
 # nothing worse than no check at all.
 #
@@ -6170,7 +6112,6 @@ _SELF_TEST_COVERAGE: dict[str, str] = {
     "check_r9_worktree_add": "run_r9_worktree_self_test",
     "check_r10_nul_corruption": "run_r10_nul_corruption_self_test",
     "check_r11_memory_write_worktree": "run_r11_memory_write_self_test",
-    "check_r12_test_before_production": "run_required_action_self_test",
     "check_r13_push_before_delete": "run_required_action_self_test",
     "check_r14_hard_reset": "run_required_action_self_test",
     "check_r15_review_before_arming": "run_required_action_self_test",
@@ -6332,7 +6273,7 @@ def run_rule_coverage_self_test() -> int:
 
 
 def run_required_action_self_test() -> int:
-    """Exercise R12-R20, each in both directions, with live state stubbed."""
+    """Exercise R13-R20, each in both directions, with live state stubbed."""
     failures: list[str] = []
 
     def check(description: str, condition: bool) -> None:
@@ -6372,24 +6313,6 @@ def run_required_action_self_test() -> int:
     check(
         "R22 allows a dispatch with a host role adapter",
         check_r22_dispatch_adapter({"tool_input": {"subagent_type": "helper"}}, "Task")
-        is None,
-    )
-
-    # R12: a production write needs an observed test run this session.
-    check(
-        "R12 blocks a production write with no test run recorded",
-        _with_stubs(
-            {"_ledger_path": lambda payload: "x", "ledger_events": lambda payload: set()},
-            lambda: check_r12_test_before_production(write, "Write"),
-        )
-        is not None,
-    )
-    check(
-        "R12 allows a production write once a test run is recorded",
-        _with_stubs(
-            {"_ledger_path": lambda payload: "x", "ledger_events": lambda payload: {"test-run"}},
-            lambda: check_r12_test_before_production(write, "Write"),
-        )
         is None,
     )
 

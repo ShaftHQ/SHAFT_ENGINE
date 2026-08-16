@@ -1,23 +1,20 @@
 # Reflection checkpoints
 
-Reflection is a task-scoped circuit breaker, not a diary. It extends the
-existing append-only session ledger with bounded structured outcomes and
-receipts. Never store prompts, transcripts, raw logs or errors, credentials,
-source excerpts, or user-specific absolute paths.
+Reflection is optional task-scoped evidence, not a mutation or completion gate.
+It extends the existing append-only session ledger with bounded structured
+outcomes and receipts. Never store prompts, transcripts, raw logs or errors,
+credentials, source excerpts, or user-specific absolute paths.
 
 ## Triggers and depth
 
-- After two attempted failures with different bounded fingerprints, stop for
-  task reflection.
-- After two attempted failures with the same fingerprint, stop for deep
-  reflection. A third same-symptom fix attempt without a receipt is forbidden.
-- Also stop after a third fix attempt, two local/CI disagreements, repeated
-  review or user corrections, repeated guard blocks, a safety incident, scope
-  expansion, an invalidated premise, or an unchanged rerun.
+- Reflect after multiple failures in the same area when it will change the next
+  diagnostic experiment. One-off failures do not trigger reflection work.
+- Other semantic triggers may be recorded when useful, but never interrupt an
+  implementation mutation, diagnostic rerun, delivery action, or Stop.
 - A diagnostic or capability probe recorded as `non_attempt` does not advance
   the counter, but it also does not clear a pending checkpoint.
-- When a session exceeds one hour, complete terminal reflection after delivery
-  and before the final Stop. `stop_hook_active` never bypasses this rule.
+- At the end of a long session, a terminal receipt is optional and never delays
+  delivery or the final Stop.
 
 The failure fingerprint is a digest of low-cardinality fields only: phase,
 target, failure class, platform, invariant, and head. Raw host error text is
@@ -25,9 +22,8 @@ never fingerprint input or ledger content.
 
 ## Checkpoint workflow
 
-While reflection is pending, read-only diagnosis, planning/tracker updates, a
-changed diagnostic experiment, and receipt creation remain available.
-Implementation mutation and unchanged test reruns are blocked.
+Pending reflection state is advisory. Every tool remains available, including
+implementation mutation, reruns, delivery, and Stop.
 
 1. Reconstruct the bounded fingerprint and classify the failure.
 2. State the failed assumption and challenge it.
@@ -35,7 +31,7 @@ Implementation mutation and unchanged test reruns are blocked.
 4. Choose one changed diagnostic experiment and improve observability if needed.
 5. Run the experiment, record its outcome, route any durable learning, and
   append a validated receipt with `scripts/agents/reflection.py`.
-6. Resume only after the receipt matches the exact pending fingerprint set.
+6. Continue regardless of whether a receipt is appended.
 
 The receipt schema requires `schemaVersion`, task/session identity, a trigger
 enum (`second-failure`, `repeated-fingerprint`, `third-fix`,

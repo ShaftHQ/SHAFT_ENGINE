@@ -110,7 +110,7 @@ a row that already exists.
 
 | Class | Shape | What catches it now |
 | --- | --- | --- |
-| `vacuous-check` | a test, pin or self-test that cannot fail | `validate_red_before_green.py`, and the `setUp`-patch pin in `test_agent_router_contract.py` |
+| `vacuous-check` | a test, pin or self-test that cannot fail | self-test coverage equality and registry reason/scope validation |
 | `unspecified-predicate` | the rule re-guesses a decision the ticket never made | nothing -- it needs a ruling on the issue |
 | `credit-not-in-diff` | prose credits work the diff does not contain | the credit scan in `validate_pr_closing_keywords.py` |
 | `sibling-left` | the instance was fixed and its twin was not | the docstring duplicate scan in `validate_agent_guidance.py` |
