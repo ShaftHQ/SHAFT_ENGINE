@@ -173,12 +173,15 @@ def command_head(arguments: list[str]) -> tuple[str, list[str]]:
             index += 1
             continue
         head = re.split(r"[/\\]", item.strip("\"'"))[-1].casefold()
+        if head.endswith(".exe"):
+            head = head[:-4]
         if head in {"command", "env", "sudo", "timeout"}:
             index += 1
-            while index < len(arguments) and (
-                arguments[index].startswith("-") or ENV_ASSIGNMENT.match(arguments[index])
-            ):
+            while index < len(arguments) and (arguments[index].startswith("-") or ENV_ASSIGNMENT.match(arguments[index])):
+                option = arguments[index].casefold()
                 index += 1
+                if option in {"-u", "--user", "-g", "--group", "-s", "--signal", "-k", "--kill-after"} and index < len(arguments):
+                    index += 1
             if head == "timeout" and index < len(arguments) and re.fullmatch(
                 r"\d+[smhd]?", arguments[index]
             ):
@@ -384,6 +387,8 @@ def target_on_default_branch(target: str, cwd: object) -> bool:
         return True
     resolved = os.path.realpath(os.path.join(str(cwd or "."), target))
     probe = resolved if os.path.isdir(resolved) else os.path.dirname(resolved)
+    if os.path.basename(probe).casefold() == ".git":
+        probe = os.path.dirname(probe)
     while probe and not os.path.exists(probe):
         parent = os.path.dirname(probe)
         if parent == probe:
@@ -511,6 +516,8 @@ def initial_draft_recovery(
         return False
     if any(ENV_ASSIGNMENT.match(token) for token in parsed):
         return False
+    if any(os.environ.get(name) for name in ("GH_REPO", "GH_HOST", "GIT_DIR", "GIT_WORK_TREE")):
+        return False
     head, arguments = command_head(parsed)
     if head == "git" and arguments[:1] == ["push"]:
         return recovery_git_push(arguments[1:], branch)
@@ -604,7 +611,7 @@ def mutation_contexts(
 
 def task_location(cwds: list[object], outer_cwd: object) -> tuple[str | None, object, str | None]:
     task_locations = [
-        (os.path.realpath(str(cwd)), branch)
+        (repository_root(cwd) or os.path.realpath(str(cwd)), branch)
         for cwd in cwds
         if (branch := current_branch(cwd)) and branch.startswith("ChaosEngine/")
     ]
@@ -682,6 +689,12 @@ def verified_initial_draft_reason(event: dict, cwd: object, branch: str, effecti
 def lifecycle_reason(event: dict, tool_name: str, tool_input: object, mutation: bool) -> str | None:
     if not mutation:
         return None
+    commands = wrapped_exec_commands(tool_input) if tool_name == "functions.exec" and isinstance(tool_input, str) else ()
+    if not commands and isinstance(tool_input, dict):
+        command = str(tool_input.get("command") or tool_input.get("cmd") or "")
+        commands = (command,) if command else ()
+    if commands and all(knowledge_write_command(command) for command in commands):
+        return None
     reason, cwds, effective = mutation_contexts(event, tool_name, tool_input)
     if reason:
         return reason
@@ -689,6 +702,14 @@ def lifecycle_reason(event: dict, tool_name: str, tool_input: object, mutation: 
     if reason or not branch or not branch.startswith("ChaosEngine/"):
         return reason
     return verified_initial_draft_reason(event, cwd, branch, effective, tool_name, tool_input)
+
+
+def knowledge_write_command(command: str) -> bool:
+    head, arguments = command_head(shell_tokens(command))
+    return bool(
+        (head == "memory" and arguments[:1] in (["remember"], ["delete"], ["supersede"], ["patch"]))
+        or (head == "mempalace" and arguments[:1] in (["add"], ["delete"], ["update"]))
+    )
 
 
 def main() -> int:

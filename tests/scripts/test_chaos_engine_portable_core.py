@@ -73,6 +73,8 @@ class ChaosEnginePortableCoreTest(unittest.TestCase):
         for command in ("Clear-Content x", "Remove-Content x", "Copy-Item x y", "Rename-Item x y", "Move-Item x y", "echo x > y", "git restore x", "git tag x", "git branch x", "git cherry-pick HEAD"):
             with self.subTest(command=command):
                 self.assertTrue(guard.mutation_command(command))
+        self.assertTrue(guard.mutation_command("git.exe clean -fd"))
+        self.assertTrue(guard.mutation_command("gh.exe pr create --draft"))
         self.assertFalse(guard.mutation_command('echo "tools.apply_patch(patch)"'))
         self.assertEqual(("C:/main",), guard.command_targets("cp -t C:/main file"))
         self.assertIn("C:/main/y", guard.command_targets("Move-Item -Destination C:/main/y -Path x"))
@@ -86,10 +88,11 @@ class ChaosEnginePortableCoreTest(unittest.TestCase):
         with mock.patch.object(guard, "current_branch", return_value="trunk"), \
              mock.patch.object(guard, "git_output", return_value="origin/trunk"):
             self.assertTrue(guard.on_default_branch("C:/repo"))
-        with mock.patch.object(guard, "current_branch", side_effect=lambda cwd: "main" if str(cwd).replace("\\", "/") == "C:/main" else "ChaosEngine/task"):
+        main = os.path.abspath("main-worktree")
+        with mock.patch.object(guard, "current_branch", side_effect=lambda cwd: "main" if os.path.normcase(os.path.realpath(str(cwd))) == os.path.normcase(os.path.realpath(main)) else "ChaosEngine/task"):
             reason = guard.lifecycle_reason(
                 {"cwd": "C:/isolated"}, "PowerShell",
-                {"command": "touch x", "workdir": "C:/main"}, True,
+                {"command": "touch x", "workdir": main}, True,
             )
         self.assertIn("R19 blocked", reason)
         source = 'await tools.apply_patch(patch); await tools.exec_command({cmd:"git status"});'
@@ -103,6 +106,10 @@ class ChaosEnginePortableCoreTest(unittest.TestCase):
         for command in ("git push --tags origin HEAD", "GH_REPO=other/repo gh pr edit --body-file plan.md", "GIT_DIR=C:/other/.git git commit --allow-empty -m plan"):
             with self.subTest(command=command):
                 self.assertFalse(guard.initial_draft_recovery(command, ".", "ChaosEngine/task", "owner/repo"))
+        with mock.patch.dict(os.environ, {"GH_REPO": "other/repo"}):
+            self.assertFalse(guard.initial_draft_recovery("gh pr edit --body-file plan.md", ".", "ChaosEngine/task", "owner/repo"))
+        self.assertTrue(guard.knowledge_write_command("memory remember durable"))
+        self.assertTrue(guard.knowledge_write_command("mempalace add fact"))
         self.assertFalse(guard.initial_draft_recovery(
             "gh pr edit --body-file plan.md --repo other/repo", ".", "ChaosEngine/task", "owner/repo"
         ))
@@ -162,6 +169,11 @@ class ChaosEnginePortableCoreTest(unittest.TestCase):
             self.assertIn("R31 blocked", guard.lifecycle_reason(
                 {"cwd": "C:/outside", "session_id": "s"}, "functions.exec", source, True,
             ))
+
+        with mock.patch.object(guard, "repository_root", return_value="C:/repo"), \
+             mock.patch.object(guard, "current_branch", return_value="ChaosEngine/task"):
+            reason, _cwd, _branch = guard.task_location(["C:/repo/a", "C:/repo/b"], "C:/repo")
+        self.assertIsNone(reason)
 
         response = mock.Mock(returncode=0, stdout=json.dumps({
             "nameWithOwner": "owner/repo", "defaultBranchRef": {"name": "main"}

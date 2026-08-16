@@ -1367,6 +1367,12 @@ class InitialDraftPullRequestGateTest(unittest.TestCase):
             with self.subTest(command=command):
                 self.assertTrue(guard._shell_mutation_targets(command))
 
+    def test_targetless_git_mutation_on_default_branch_is_blocked(self):
+        with patch("scripts.agents.guard._current_branch", return_value="main"):
+            self.assertIsNotNone(guard.check_r19_fresh_base(
+                {"cwd": ".", "tool_input": {"command": "git clean -fd"}}, "Bash"
+            ))
+
     def test_recovery_rejects_environment_and_side_effecting_push_options(self):
         for command in (
             "git push --tags origin HEAD",
@@ -1381,6 +1387,16 @@ class InitialDraftPullRequestGateTest(unittest.TestCase):
                     expected_head="ChaosEngine/task", expected_repository="owner/repo",
                 )
                 self.assertFalse(allowed)
+        with patch.dict(os.environ, {"GH_REPO": "other/repo"}):
+            allowed, _ = guard._r31_recovery_command(
+                "gh pr edit --body-file plan.md", ".", expected_repository="owner/repo"
+            )
+        self.assertFalse(allowed)
+
+    def test_cli_knowledge_writes_do_not_enter_initial_draft_gate(self):
+        for command in ("memory remember durable", "mempalace add fact"):
+            with self.subTest(command=command):
+                self.assertIsNone(self.check({"cwd": ".", "tool_input": {"command": command}}, "Bash"))
 
     def test_wrapped_mutation_identity_comes_from_effective_workdir(self):
         task = os.path.abspath("task-worktree")
@@ -1408,6 +1424,9 @@ def isolate_stop_rules(case: unittest.TestCase, except_for: tuple[str, ...] = ()
     hook-can-reach-it` records. Every other rule stays patched, so the test is
     still deterministic.
     """
+    terminal = patch("scripts.agents.guard._terminal_reflection_reason", return_value=None)
+    terminal.start()
+    case.addCleanup(terminal.stop)
     for name in ISOLATED_STOP_RULES:
         if name in except_for:
             continue
@@ -3235,7 +3254,8 @@ class LearningLoopStopGateTest(unittest.TestCase):
         gate here would strand it permanently. Interrupting once and yielding
         is what makes "nothing durable is a valid result" a reachable state.
         """
-        with patch("scripts.agents.guard.ledger_events", return_value=["commit"]):
+        with patch("scripts.agents.guard._terminal_reflection_reason", return_value=None), \
+             patch("scripts.agents.guard.ledger_events", return_value=["commit"]):
             output = io.StringIO()
             with redirect_stdout(output):
                 self.assertEqual(
@@ -4689,6 +4709,8 @@ class WhatCountsAsAReviewTest(unittest.TestCase):
         self.assertEqual(1, len(guard._independent_reviews(self.reviews("someone", "APPROVED", head), self.AUTHOR, head)))
         self.assertEqual([], guard._independent_reviews(self.reviews("someone", "CHANGES_REQUESTED", head), self.AUTHOR, head))
         self.assertEqual([], guard._independent_reviews(self.reviews("someone", "APPROVED", "b" * 40), self.AUTHOR, head))
+        history = self.reviews("someone", "APPROVED", head) + self.reviews("someone", "CHANGES_REQUESTED", head)
+        self.assertEqual([], guard._independent_reviews(history, self.AUTHOR, head))
 
     def test_the_authors_own_approval_is_not_independent(self):
         self.assertEqual(
@@ -4850,7 +4872,24 @@ class ObservedReviewDispatchTest(unittest.TestCase):
             guard.run_posttooluse(payload)
         self.assertFalse(any(event.startswith("review-clear:") for event in events))
 
-        events.clear()
+    def test_subagent_stop_can_record_the_terminal_exact_head_verdict(self):
+        identity = ("owner/repo", "feature", "b" * 40)
+        dispatched = guard._checkpoint_json_event("review-head", *identity)
+        with patch("scripts.agents.guard._checkpoint_identity", return_value=identity), \
+             patch("scripts.agents.guard.ledger_events", return_value=[dispatched]):
+            event = guard._review_clear_for_identity(
+                {"session_id": "s"}, {"last_assistant_message": "Review complete\nZERO BLOCKERS"}
+            )
+        self.assertEqual(guard._checkpoint_json_event("review-clear", *identity), event)
+
+        events = []
+        payload = {
+            "tool_name": "Agent",
+            "tool_input": {"subagent_type": "reviewer"},
+            "tool_response": {"status": "success", "output": ""},
+            "session_id": "s",
+            "cwd": ".",
+        }
         payload["tool_response"]["output"] = "ZERO BLOCKERS\nFinding: critical defect"
         with patch("scripts.agents.guard._checkpoint_identity", return_value=identity), \
              patch("scripts.agents.guard.ledger_events", return_value=[dispatched]), \

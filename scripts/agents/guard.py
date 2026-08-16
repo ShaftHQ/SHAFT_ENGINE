@@ -261,6 +261,8 @@ def _head_executable_matches(segment: str, names: frozenset[str]) -> bool:
             index += 1
             continue
         basename = re.split(r"[/\\]", token.strip("\"'"))[-1].lower()
+        if basename.endswith(".exe"):
+            basename = basename[:-4]
         if basename in names:
             return True
         if basename in _RUNNER_PREFIX_TOKENS:
@@ -2381,6 +2383,19 @@ def _shell_is_mutation(command: str) -> bool:
     return False
 
 
+def _knowledge_write_command(command: str) -> bool:
+    segments, separators = _top_level_shell_parts(command)
+    if separators or len(segments) != 1:
+        return False
+    tokens = _segment_tokens(segments[0])
+    head = _r26_unwrapped_head(segments[0])
+    lowered = [token.lower() for token in tokens]
+    return bool(
+        (head == "memory" and any(action in lowered for action in ("remember", "delete", "supersede", "patch")))
+        or (head == "mempalace" and any(action in lowered for action in ("add", "delete", "update")))
+    )
+
+
 def _functions_exec_is_mutation(tool_input: object) -> bool:
     source = tool_input if isinstance(tool_input, str) else ""
     if _wrapped_apply_patch_call_count(source):
@@ -3202,7 +3217,7 @@ def check_r30_merge_authority_before_arming(command: str, tool_name: str, hook_i
 #
 # A human or agent who genuinely reviews and finds nothing approves; one who
 # finds something requests changes. Neither is a comment.
-REVIEW_VERDICTS = frozenset({"APPROVED"})
+REVIEW_VERDICTS = frozenset({"APPROVED", "CHANGES_REQUESTED"})
 
 DISPATCH_TOOLS = frozenset({"Task", "Agent"})
 REVIEWER_SUBAGENT_TYPES = frozenset({"reviewer"})
@@ -3685,9 +3700,16 @@ def _result_text(value: object) -> str:
 
 
 def _review_clear_event(hook_input: dict, tool_name: str, result: object) -> str | None:
-    review_event = _reviewer_dispatch_event(hook_input, tool_name)
+    tool_input = hook_input.get("tool_input")
+    role = tool_input.get("subagent_type") if isinstance(tool_input, dict) else None
+    if tool_name not in {"Task", "Agent"} or str(role).lower() != "reviewer":
+        return None
+    return _review_clear_for_identity(hook_input, result)
+
+
+def _review_clear_for_identity(hook_input: dict, result: object) -> str | None:
     identity = _checkpoint_identity(hook_input)
-    if review_event is None or identity is None:
+    if identity is None:
         return None
     dispatched = _checkpoint_json_event("review-head", *identity)
     if dispatched not in set(ledger_events(hook_input)):
@@ -4001,6 +4023,8 @@ def _r31_recovery_command(
     segment = nonempty[0]
     if any(_ENV_ASSIGNMENT_RE.match(token) for token in _segment_tokens(segment)):
         return False, None
+    if any(os.environ.get(name) for name in ("GH_REPO", "GH_HOST", "GIT_DIR", "GIT_WORK_TREE")):
+        return False, None
     git = _tokens_after_head(segment, _GIT_NAMES)
     git_subcommand, _, git_arguments_index = _split_global_options(git or [])
     if git_subcommand == "push":
@@ -4074,6 +4098,9 @@ def check_r31_initial_draft_pull_request(hook_input: dict, tool_name: str) -> st
     """Require a planned zero-file draft before the first implementation mutation."""
     if tool_name in _NATIVE_MEMORY_WRITE_TOOLS or tool_name in _MEMPALACE_WRITE_TOOLS:
         return None
+    commands = _hook_commands(hook_input, tool_name)
+    if commands and all(_knowledge_write_command(command) for command in commands):
+        return None
     if not _is_implementation_mutation(tool_name, hook_input.get("tool_input")):
         return None
     effective_input = hook_input
@@ -4100,10 +4127,7 @@ def check_r31_initial_draft_pull_request(hook_input: dict, tool_name: str) -> st
             (_checkpoint_identity(candidate), _hook_working_directory(candidate), candidate)
             for candidate in candidates
         ]
-        distinct = {
-            (identity, os.path.realpath(str(candidate_cwd or ".")))
-            for identity, candidate_cwd, _candidate in identities
-        }
+        distinct = {identity for identity, _candidate_cwd, _candidate in identities}
         if len(distinct) > 1:
             return "R31 blocked: one wrapped mutation spans multiple checkout identities. Split it into separate calls."
         if identities:
@@ -4124,7 +4148,6 @@ def check_r31_initial_draft_pull_request(hook_input: dict, tool_name: str) -> st
     same_tree = _same_tree_as_default_base(repository, cwd)
     if same_tree is False:
         return None
-    commands = _hook_commands(hook_input, tool_name)
     recovery_width_is_exact = not (
         tool_name == "functions.exec"
         and (
@@ -4286,18 +4309,19 @@ def _independent_reviews(reviews: object, author: object, head: object = None) -
     """
     if not isinstance(reviews, list):
         return []
-    return [
-        review
-        for review in reviews
-        if isinstance(review, dict)
-        and (review.get("author") or {}).get("login")
-        and (review.get("author") or {}).get("login") != author
-        and review.get("state") in REVIEW_VERDICTS
-        and (
-            head is None
-            or ((review.get("commit") or {}).get("oid") == head)
-        )
-    ]
+    latest: dict[str, dict] = {}
+    for review in reviews:
+        if not isinstance(review, dict):
+            continue
+        login = (review.get("author") or {}).get("login")
+        if not login or login == author or review.get("state") not in REVIEW_VERDICTS:
+            continue
+        if head is not None and (review.get("commit") or {}).get("oid") != head:
+            continue
+        latest[login] = review
+    if any(review.get("state") == "CHANGES_REQUESTED" for review in latest.values()):
+        return []
+    return [review for review in latest.values() if review.get("state") == "APPROVED"]
 
 
 DEFAULT_BRANCHES = frozenset({"main", "master"})
@@ -4344,6 +4368,8 @@ def _wrapped_target_is_on_default_branch(target: str, cwd: object) -> bool:
         base = str(cwd) if cwd else os.getcwd()
         resolved = os.path.realpath(os.path.join(base, target))
         probe = resolved if os.path.isdir(resolved) else os.path.dirname(resolved)
+        if os.path.basename(probe).lower() == ".git":
+            probe = os.path.dirname(probe)
         while probe and not os.path.exists(probe):
             parent = os.path.dirname(probe)
             if parent == probe:
@@ -4363,6 +4389,8 @@ def _target_checkout_root(target: str, cwd: object) -> str | None:
     try:
         resolved = os.path.realpath(os.path.join(str(cwd or os.getcwd()), target))
         probe = resolved if os.path.isdir(resolved) else os.path.dirname(resolved)
+        if os.path.basename(probe).lower() == ".git":
+            probe = os.path.dirname(probe)
         while probe and not os.path.exists(probe):
             parent = os.path.dirname(probe)
             if parent == probe:
@@ -4418,6 +4446,8 @@ def check_r19_fresh_base(hook_input: dict, tool_name: str) -> str | None:
         and tool_name not in _SHELL_TOOLS
         and not _functions_exec_is_mutation(hook_input.get("tool_input"))
     ):
+        return None
+    if tool_name in _SHELL_TOOLS and not _shell_is_mutation(_extract_command(hook_input)):
         return None
     if tool_name == "functions.exec" and isinstance(hook_input.get("tool_input"), str):
         source = hook_input["tool_input"]
@@ -4480,8 +4510,6 @@ def check_r19_fresh_base(hook_input: dict, tool_name: str) -> str | None:
         if wrapped_call_count:
             return None
     targets = _implementation_targets(tool_name, hook_input.get("tool_input"))
-    if tool_name in _SHELL_TOOLS and not targets:
-        return None
     cwd = _hook_working_directory(hook_input)
     outer_root = _repository_root(cwd)
     target_roots = {
@@ -5830,6 +5858,10 @@ def _terminal_reflection_reason(hook_input: dict) -> str | None:
 
 def run_stop(hook_input: dict) -> int:
     """Continue incomplete repository work once, without creating a Stop loop."""
+    if hook_input.get("hook_event_name") == "SubagentStop":
+        review_clear = _review_clear_for_identity(hook_input, hook_input)
+        if review_clear:
+            ledger_record(hook_input, review_clear)
     reflection_reason = _terminal_reflection_reason(hook_input)
     if reflection_reason is not None:
         print(json.dumps({"decision": "block", "reason": reflection_reason}))
