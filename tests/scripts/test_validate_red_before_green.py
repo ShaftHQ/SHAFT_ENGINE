@@ -247,6 +247,24 @@ class ValidateRedBeforeGreenTest(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         self.assertEqual(legacy.returncode, 0, "fixture must carry a recognized commit-scoped trailer")
 
+    def test_explicit_pr_base_retains_an_earlier_substantive_no_red_reason(self):
+        root, revision = self.repository(
+            parent_passes=True,
+            trailer=(
+                "\n\nno-red: atomic rollback restores previously validated production and test contracts "
+                "together without unsafe history rewriting"
+            ),
+        )
+        parent = self.git(root, "rev-parse", f"{revision}^").strip()
+        (root / "follow-up.txt").write_text("follow-up\n", encoding="utf-8")
+        self.git(root, "add", "follow-up.txt")
+        self.git(root, "commit", "-m", "fix: follow up after rollback")
+        head = self.git(root, "rev-parse", "HEAD").strip()
+
+        result = self.run_validator(root, head, parent_revision=parent)
+
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
     def test_new_test_that_fails_against_parent_is_accepted(self):
         self.assertTrue(SCRIPT.is_file(), "the parent-code RED validator must exist")
         root, revision = self.repository()

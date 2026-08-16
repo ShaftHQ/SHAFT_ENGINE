@@ -113,7 +113,21 @@ def normalized_child_support_paths(paths: tuple[str, ...]) -> tuple[str, ...]:
     return tuple(normalized)
 
 
-def no_red_reason(root: Path, revision: str) -> bool:
+def no_red_reason(root: Path, revision: str, parent_revision: str | None = None) -> bool:
+    revisions = [revision]
+    if parent_revision is not None:
+        listed = subprocess.run(
+            ["git", "rev-list", "--reverse", f"{parent_revision}..{revision}"],
+            cwd=root, capture_output=True, text=True, encoding="utf-8", errors="replace",
+            check=False,
+        )  # nosec B603 B607 - fixed read-only git command.
+        if listed.returncode:
+            return False
+        revisions = [item for item in listed.stdout.splitlines() if item]
+    return any(commit_has_no_red_reason(root, item) for item in revisions)
+
+
+def commit_has_no_red_reason(root: Path, revision: str) -> bool:
     message = subprocess.run(
         ["git", "show", "-s", "--format=%B", revision], cwd=root, capture_output=True, text=True,
         encoding="utf-8", errors="replace", check=False,
@@ -268,7 +282,7 @@ def validate(
     *, parent_revision: str | None = None, child_support_paths: tuple[str, ...] = (),
 ) -> list[str]:
     child_support_paths = normalized_child_support_paths(child_support_paths)
-    if no_red_reason(root, revision):
+    if no_red_reason(root, revision, parent_revision):
         return []
     try:
         parent_test = source_at(root, parent_revision or f"{revision}^", test_path)
