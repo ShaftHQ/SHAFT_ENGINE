@@ -4235,8 +4235,10 @@ def _reflection_blocks_tool(hook_input: dict, tool_name: str, checkpoint: dict) 
 def _reflection_block_reason(checkpoint: dict) -> str:
     depth = checkpoint["depth"]
     attempts = checkpoint["attemptCount"]
+    fingerprints = ",".join(checkpoint["failureFingerprints"])
     return (
         f"Reflection required ({depth}, {attempts} observed attempted failures). "
+        f"Sanitized fingerprints: {fingerprints}. "
         "Pause mutation and unchanged reruns; reconstruct the bounded fingerprint, "
         "compare at least two approaches, choose one diagnostic experiment, prove its "
         "outcome, then append a validated receipt with scripts/agents/reflection.py."

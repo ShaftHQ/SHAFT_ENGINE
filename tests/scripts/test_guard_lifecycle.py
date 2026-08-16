@@ -84,6 +84,10 @@ class ReflectionCheckpointContractTest(unittest.TestCase):
                 self.assertTrue(ledger.is_file(), "failed outcomes must reach the task ledger")
                 self.assertIn('"kind":"task-failure"', ledger.read_text(encoding="utf-8"))
                 self.assertIn("reflection", second_output.getvalue().casefold())
+                fingerprint = reflection.pending_checkpoint(
+                    "reflection-second-failure"
+                )["failureFingerprints"][0]
+                self.assertIn(fingerprint, second_output.getvalue())
 
     def test_first_failure_remains_normal(self):
         with tempfile.TemporaryDirectory() as temporary, patch.dict(

@@ -93,6 +93,15 @@ def delivery_command(command: str) -> bool:
     }
 
 
+def checkpoint_reason(checkpoint: dict) -> str:
+    fingerprints = ",".join(checkpoint["failureFingerprints"])
+    return (
+        f"Reflection required ({checkpoint['depth']}). Sanitized fingerprints: "
+        f"{fingerprints}. Pause mutation and unchanged retries; append a validated "
+        "receipt before resuming."
+    )
+
+
 def reflection_recovery(command: str) -> str | None:
     arguments = shell_tokens(command)
     if not arguments or any(item in {";", "&&", "||", "|", "&"} for item in arguments):
@@ -264,7 +273,7 @@ def main() -> int:
         )
         checkpoint = reflection.pending_checkpoint(session_id)
         if checkpoint:
-            print(json.dumps({"additionalContext": f"Reflection required ({checkpoint['depth']}). Pause mutation and unchanged retries; append a validated receipt before resuming."}))
+            print(json.dumps({"additionalContext": checkpoint_reason(checkpoint)}))
             return 0
     checkpoint = reflection.pending_checkpoint(session_id)
     receipt_command = any(reflection_recovery(candidate) for candidate in commands)
@@ -284,7 +293,7 @@ def main() -> int:
         mutation_command(candidate) and not tracker_command(candidate) for candidate in commands
     )
     if event_name == "PreToolUse" and checkpoint and not receipt_command and (mutation or unchanged_test):
-        print(json.dumps({"decision": "block", "reason": f"Reflection required ({checkpoint['depth']}); mutation and unchanged retries remain blocked until a validated receipt is appended."}))
+        print(json.dumps({"decision": "block", "reason": checkpoint_reason(checkpoint)}))
         return 2
     uninspectable = (
         tool_name == "functions.exec"
