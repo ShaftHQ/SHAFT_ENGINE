@@ -1,6 +1,6 @@
 # Compatibility
 
-Evidence applies to `shaft-skills` 10.3.20260809 as of 2026-08-09. Package versions match the canonical SHAFT engine version. Each column is an independent evidence level; a pass in one column never implies a pass in another.
+Evidence applies to `shaft-skills` 10.3.20260817 as of 2026-08-17. Package versions match the canonical SHAFT engine version. Each column is an independent evidence level; a pass in one column never implies a pass in another.
 
 | Client | Package validation | Marketplace discovery | Install / enable | Real load |
 | --- | --- | --- | --- | --- |

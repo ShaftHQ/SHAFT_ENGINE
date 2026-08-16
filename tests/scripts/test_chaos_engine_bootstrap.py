@@ -51,18 +51,50 @@ class Response(io.BytesIO):
 
 
 class ChaosEngineBootstrapTest(unittest.TestCase):
-    def test_documented_command_fetches_the_public_bootstrap_with_a_timeout(self):
-        readme = ROOT.joinpath("chaos-engine/README.md").read_text(encoding="utf-8")
-        document = ROOT.joinpath("chaos-engine/INSTALL.md").read_text(encoding="utf-8")
-        self.assertIn("[INSTALL.md](INSTALL.md)", readme)
-        line = next(item for item in document.splitlines() if item.startswith("py -3 -c "))
-        source = line[len('py -3 -c "') : -1]
-        rendered = ast.unparse(ast.parse(source))
-        self.assertIn(
-            "https://raw.githubusercontent.com/ShaftHQ/SHAFT_ENGINE/main/chaos-engine/bootstrap.py",
-            rendered,
+    def test_documented_command_contains_the_bounded_initial_fetch_contract(self):
+        lines = []
+        for relative in ("chaos-engine/README.md", "chaos-engine/INSTALL.md"):
+            document = ROOT.joinpath(relative).read_text(encoding="utf-8")
+            lines.append(
+                next(item for item in document.splitlines() if item.startswith("py -3 -c "))
+            )
+        self.assertEqual(lines[0], lines[1])
+        source = lines[0][len('py -3 -c "') : -1]
+        outer = ast.parse(source)
+        rendered = ast.unparse(outer)
+        self.assertIn("os.environ['CHAOS_ENGINE_REPOSITORY']", rendered)
+        self.assertNotIn("'S' + 'haftHQ'", rendered)
+        self.assertNotIn("'S' + 'HAFT_ENGINE'", rendered)
+        embedded_call = next(
+            node
+            for node in ast.walk(outer)
+            if isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Name)
+            and node.func.id == "exec"
         )
-        self.assertIn("timeout=30", rendered)
+        embedded = ast.parse(ast.literal_eval(embedded_call.args[0]))
+        retry_loop = next(node for node in ast.walk(embedded) if isinstance(node, ast.For))
+        self.assertEqual("range(4)", ast.unparse(retry_loop.iter))
+        calls = {
+            ast.unparse(node.func)
+            for node in ast.walk(embedded)
+            if isinstance(node, ast.Call)
+        }
+        self.assertTrue(
+            {
+                "urllib.request.urlopen",
+                "time.sleep",
+                "error.close",
+                "email.utils.parsedate_to_datetime",
+            }.issubset(calls)
+        )
+        handlers = {
+            ast.unparse(handler.type)
+            for handler in ast.walk(embedded)
+            if isinstance(handler, ast.ExceptHandler) and handler.type is not None
+        }
+        self.assertIn("urllib.error.HTTPError", handlers)
+        self.assertIn("(ConnectionError, TimeoutError, urllib.error.URLError)", handlers)
 
     def test_read_response_retries_a_transient_http_failure(self):
         module = load()
@@ -253,11 +285,12 @@ class ChaosEngineBootstrapTest(unittest.TestCase):
         sleeper.assert_called_once_with(5.0)
 
     def test_documented_one_command_contains_valid_python_source(self):
-        document = ROOT.joinpath("chaos-engine/INSTALL.md").read_text(encoding="utf-8")
-        line = next(item for item in document.splitlines() if item.startswith("py -3 -c "))
-        self.assertTrue(line.startswith('py -3 -c "') and line.endswith('"'))
-        self.assertNotIn('\\"', line)
-        ast.parse(line[len('py -3 -c "') : -1])
+        for relative in ("chaos-engine/README.md", "chaos-engine/INSTALL.md"):
+            document = ROOT.joinpath(relative).read_text(encoding="utf-8")
+            line = next(item for item in document.splitlines() if item.startswith("py -3 -c "))
+            self.assertTrue(line.startswith('py -3 -c "') and line.endswith('"'))
+            self.assertNotIn('\\"', line)
+            ast.parse(line[len('py -3 -c "') : -1])
 
     def test_public_full_flow_activates_clients_and_runs_doctor(self):
         module = load()
@@ -666,13 +699,12 @@ class ChaosEngineBootstrapTest(unittest.TestCase):
                 self.assertFalse((Path(temporary) / ".chaos-engine").exists())
 
     def test_bootstrap_is_reachable_and_runs_in_three_os_ci(self):
-        readme = (ROOT / "chaos-engine/README.md").read_text(encoding="utf-8")
-        install = (ROOT / "chaos-engine/INSTALL.md").read_text(encoding="utf-8")
+        skill = (ROOT / "chaos-engine/skills/chaos-engine/SKILL.md").read_text(encoding="utf-8")
         workflow = (ROOT / ".github/workflows/pr-gate.yml").read_text(encoding="utf-8")
         budget = json.loads((ROOT / "scripts/ci/agent_guidance_budget.json").read_text(encoding="utf-8"))
 
-        self.assertIn("[INSTALL.md](INSTALL.md)", readme)
-        self.assertIn("chaos-engine/bootstrap.py", install)
+        self.assertIn("../../bootstrap.py", skill)
+        self.assertIn("tests/scripts/test_chaos_engine_bootstrap.py", skill)
         self.assertIn("tests.scripts.test_chaos_engine_bootstrap", workflow)
         for os_name in ("ubuntu-22.04", "macos-15", "windows-2025"):
             self.assertIn(os_name, workflow)

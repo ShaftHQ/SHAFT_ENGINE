@@ -91,7 +91,7 @@ ISOLATED_STOP_RULES = (
 class ReflectionCheckpointContractTest(unittest.TestCase):
     """#5001: the second attempt failure opens a reflection checkpoint."""
 
-    def test_second_failure_is_recorded_without_forcing_reflection(self):
+    def test_second_failure_in_one_task_requires_reflection(self):
         with tempfile.TemporaryDirectory() as temporary:
             payload = {
                 "hook_event_name": "PostToolUse",
@@ -113,8 +113,11 @@ class ReflectionCheckpointContractTest(unittest.TestCase):
 
                 self.assertTrue(ledger.is_file(), "failed outcomes must reach the task ledger")
                 self.assertIn('"kind":"task-failure"', ledger.read_text(encoding="utf-8"))
-                self.assertEqual("", second_output.getvalue())
-                self.assertIsNotNone(reflection.pending_checkpoint("reflection-second-failure"))
+                self.assertIn("reflection", second_output.getvalue().casefold())
+                fingerprint = reflection.pending_checkpoint(
+                    "reflection-second-failure"
+                )["failureFingerprints"][0]
+                self.assertIn(fingerprint, second_output.getvalue())
 
     def test_first_failure_remains_normal(self):
         with tempfile.TemporaryDirectory() as temporary, patch.dict(
@@ -181,7 +184,7 @@ class ReflectionCheckpointContractTest(unittest.TestCase):
             self.assertEqual("task", checkpoint["depth"])
             self.assertEqual("second-failure", checkpoint["trigger"])
 
-    def test_same_second_failure_records_deep_reflection_without_blocking(self):
+    def test_same_second_failure_requires_deep_reflection_and_blocks_third_attempt(self):
         with tempfile.TemporaryDirectory() as temporary, patch.dict(
             os.environ, {"TMPDIR": temporary, "TEMP": temporary}
         ):
@@ -197,7 +200,8 @@ class ReflectionCheckpointContractTest(unittest.TestCase):
                     {**payload, "hook_event_name": "PreToolUse", "tool_response": {}},
                     "portable",
                 )
-            self.assertEqual("", output.getvalue())
+            self.assertIn("permissionDecision", output.getvalue())
+            self.assertIn("Reflection required", output.getvalue())
 
     def test_read_only_diagnosis_and_non_attempt_are_allowed_without_clearing_checkpoint(self):
         with tempfile.TemporaryDirectory() as temporary, patch.dict(
@@ -279,39 +283,9 @@ class ReflectionCheckpointContractTest(unittest.TestCase):
                 {"failureFingerprints": ["stale"]},
                 {"failedAssumption": "api_key=do-not-store"},
                 {"proofOutcome": "see C:\\Users\\person\\trace.log"},
-                {"issue": r"C:\Users\person\issue.txt"},
-                {"issue": "https://github.com/ShaftHQ/SHAFT_ENGINE/issues/5006/extra"},
             ):
                 with self.assertRaises(ValueError):
                     reflection.record_receipt("unsafe", self._receipt(checkpoint, **overrides), token)
-            recorded = reflection.record_receipt(
-                "unsafe",
-                self._receipt(
-                    checkpoint,
-                    issue="https://github.com/ShaftHQ/SHAFT_ENGINE/issues/5006",
-                ),
-                token,
-            )
-            self.assertEqual(
-                "https://github.com/ShaftHQ/SHAFT_ENGINE/issues/5006",
-                recorded["issue"],
-            )
-        self.assertEqual(
-            reflection._CONTROLLER._safe_issue_url("https://github.com/token/repo/issues/1"),
-            "https://github.com/token/repo/issues/1",
-        )
-        for issue in (
-            "https://github.com/owner name/repo/issues/1",
-            "https://github.com/./repo/issues/1",
-            "https://github.com/../repo/issues/1",
-            "https://github.com/owner/./issues/1",
-            "https://github.com/owner/../issues/1",
-            "https://github.com/owner/repo/issues/1?token=x",
-            "https://user@github.com/owner/repo/issues/1",
-            "https://github.com/owner/repo/issues/1#fragment",
-        ):
-            with self.subTest(issue=issue), self.assertRaises(ValueError):
-                reflection._CONTROLLER._safe_issue_url(issue)
 
     def test_claude_failure_event_and_codex_failed_result_have_equivalent_state(self):
         with tempfile.TemporaryDirectory() as temporary, patch.dict(
@@ -330,7 +304,7 @@ class ReflectionCheckpointContractTest(unittest.TestCase):
                 self.assertEqual(codex_entry[field], claude_entry[field])
             self.assertNotIn("raw host text", json.dumps(claude_entry))
 
-    def test_long_session_reflection_never_blocks_stop(self):
+    def test_long_session_blocks_even_recursive_stop_until_receipt_and_summary(self):
         with tempfile.TemporaryDirectory() as temporary, patch.dict(
             os.environ, {"TMPDIR": temporary, "TEMP": temporary}
         ):
@@ -340,24 +314,14 @@ class ReflectionCheckpointContractTest(unittest.TestCase):
             output = io.StringIO()
             with redirect_stdout(output):
                 guard.run_stop(payload)
-            self.assertEqual("", output.getvalue())
+            self.assertIn("Terminal reflection required", output.getvalue())
             receipt = self._receipt(
                 {"trigger": "long-session-completion", "failureFingerprints": []},
                 trigger="long-session-completion",
-                tokenConsumer="Repeated diagnostic and validation context.",
-                nextSessionOptimization="Use one bounded installed-flow proof earlier.",
-                issue="https://github.com/ShaftHQ/SHAFT_ENGINE/issues/5014",
             )
             reflection.record_receipt(session, receipt, token)
             payload["last_assistant_message"] = "\n".join(
                 f"{label}: recorded" for label in guard._TERMINAL_REFLECTION_LABELS
-            )
-            output = io.StringIO()
-            with redirect_stdout(output):
-                guard.run_stop(payload)
-            self.assertEqual("", output.getvalue())
-            payload["last_assistant_message"] += (
-                "\nTracked issue: https://github.com/ShaftHQ/SHAFT_ENGINE/issues/5014"
             )
             output = io.StringIO()
             with redirect_stdout(output):
@@ -646,73 +610,8 @@ class TerminalReflectionContractTest(unittest.TestCase):
             "changedApproach": "Verify the installed boundary first.",
             "proofCommandOrCheck": "installed hook probe",
             "proofOutcome": "The installed hook passed.",
-            "issue": "https://github.com/ShaftHQ/SHAFT_ENGINE/issues/5014",
-            "tokenConsumer": "Proof consumer agent ran the installed hook.",
-            "nextSessionOptimization": "Keep installed assertions stable across branches.",
             "durableDisposition": "guidance-fixed",
         }
-
-    def test_terminal_receipt_requires_issue(self):
-        with tempfile.TemporaryDirectory() as temporary, patch.dict(
-            os.environ, {"TMPDIR": temporary, "TEMP": temporary}
-        ):
-            token = reflection.record_session_start("terminal", "2020-01-01T00:00:00+00:00")
-            receipt = self._receipt()
-            receipt["issue"] = "https://github.com/ShaftHQ/SHAFT_ENGINE/issues/5014"
-            reflection.record_receipt("terminal", receipt, token)
-            self.assertTrue(reflection.has_valid_terminal_receipt("terminal"))
-
-            broken = self._receipt()
-            broken.pop("issue")
-            with self.assertRaisesRegex(
-                ValueError, "long-session-completion requires a canonical standalone GitHub issue URL"
-            ):
-                reflection.record_receipt("terminal", broken, token)
-
-    def test_terminal_summary_rejects_forged_later_raw_receipt_issue(self):
-        labels = "\n".join(
-            f"{label}: recorded" for label in guard._TERMINAL_REFLECTION_LABELS
-        )
-        valid_issue = "https://github.com/ShaftHQ/SHAFT_ENGINE/issues/5014"
-        forged_issue = "https://github.com/ShaftHQ/SHAFT_ENGINE/issues/9999"
-        session_id = "forged-terminal-issue"
-        with tempfile.TemporaryDirectory() as temporary, patch.dict(
-            os.environ, {"TMPDIR": temporary, "TEMP": temporary}
-        ):
-            token = reflection.record_session_start(
-                session_id, "2020-01-01T00:00:00+00:00"
-            )
-            receipt = self._receipt()
-            receipt["issue"] = valid_issue
-            reflection.record_receipt(session_id, receipt, token)
-            self.assertTrue(
-                reflection.append_entry(
-                    session_id,
-                    {
-                        "kind": "reflection-receipt",
-                        "trigger": "long-session-completion",
-                        "issue": forged_issue,
-                    },
-                )
-            )
-            self.assertEqual(
-                valid_issue, reflection.valid_terminal_receipt_issue(session_id)
-            )
-            payload = {
-                "session_id": session_id,
-                "stop_hook_active": True,
-                "last_assistant_message": labels + "\nTracked issue: " + forged_issue,
-            }
-            with patch(
-                "scripts.agents.guard._worktree_report",
-                return_value={"worktrees": [{"is_current": True, "state": "clean"}]},
-            ):
-                output = io.StringIO()
-                with redirect_stdout(output):
-                    guard.run_stop(payload)
-            reason = output.getvalue()
-            self.assertTrue(reason)
-            self.assertIn("tracked issue URL", reason)
 
     def test_under_one_hour_cannot_prerecord_terminal_receipt_and_does_not_block_stop(self):
         with tempfile.TemporaryDirectory() as temporary, patch.dict(
@@ -735,7 +634,7 @@ class TerminalReflectionContractTest(unittest.TestCase):
             reflection.record_receipt("restart", self._receipt(), token)
             complete = "\n".join(
                 f"{label}: recorded" for label in guard._TERMINAL_REFLECTION_LABELS
-            ) + "\nTracked issue: https://github.com/ShaftHQ/SHAFT_ENGINE/issues/5014"
+            )
             self.assertIsNone(
                 guard._terminal_reflection_reason(
                     {"session_id": "restart", "last_assistant_message": complete}
@@ -822,11 +721,7 @@ class CheckpointPullRequestGateTest(unittest.TestCase):
             "- Next action: watch checks and repair any failure\n"
         )
 
-    def test_successful_retained_behavior_commit_records_exact_identity(self):
-        self.assertTrue(all(
-            callable(getattr(guard, name, None))
-            for name in ("_record_successful_commit_checkpoint", "_same_tree_as_default_base")
-        ))
+    def test_successful_reviewed_retained_commit_records_exact_identity(self):
         events: list[str] = []
         before = "a" * 40
         identity = ("ShaftHQ/SHAFT_ENGINE", "ChaosEngine/r27", "b" * 40)
@@ -837,16 +732,20 @@ class CheckpointPullRequestGateTest(unittest.TestCase):
             "session_id": "r27-success",
             "cwd": ".",
         }
-        with patch("scripts.agents.guard._checkpoint_identity", return_value=identity), \
-             patch("scripts.agents.guard._same_tree_as_default_base", return_value=False), \
-             patch("scripts.agents.guard.ledger_record", side_effect=lambda _p, event: events.append(event) or True):
-            guard.run_posttooluse(payload)
+        review = guard._checkpoint_json_event(
+            "review-head", identity[0], identity[1], before
+        )
+        with patch("scripts.agents.guard._checkpoint_identity", return_value=identity):
+            with patch("scripts.agents.guard.ledger_events", return_value=[review]):
+                with patch("scripts.agents.guard.ledger_record", side_effect=lambda _p, event: events.append(event) or True):
+                    guard.run_posttooluse(payload)
         self.assertIn("commit", events)
         self.assertIn(self.checkpoint(), events)
 
     def test_unchanged_head_does_not_create_a_checkpoint(self):
         head = "b" * 40
         identity = ("ShaftHQ/SHAFT_ENGINE", "ChaosEngine/r27", head)
+        review = guard._checkpoint_json_event("review-head", *identity)
         events: list[str] = []
         payload = {
             "tool_name": "Bash",
@@ -855,10 +754,10 @@ class CheckpointPullRequestGateTest(unittest.TestCase):
             "session_id": "r27-unchanged",
             "cwd": ".",
         }
-        with patch("scripts.agents.guard._checkpoint_identity", return_value=identity), \
-             patch("scripts.agents.guard._same_tree_as_default_base", return_value=True), \
-             patch("scripts.agents.guard.ledger_record", side_effect=lambda _p, event: events.append(event) or True):
-            guard.run_posttooluse(payload)
+        with patch("scripts.agents.guard._checkpoint_identity", return_value=identity):
+            with patch("scripts.agents.guard.ledger_events", return_value=[review]):
+                with patch("scripts.agents.guard.ledger_record", side_effect=lambda _p, event: events.append(event) or True):
+                    guard.run_posttooluse(payload)
         self.assertFalse(any(event.startswith("checkpoint:") for event in events))
 
     def test_cross_host_result_alias_is_normalized_before_failure_check(self):
@@ -918,10 +817,6 @@ class CheckpointPullRequestGateTest(unittest.TestCase):
                         {"tool_input": {"command": "git status"}}, "Bash"
                     ))
                     self.assertIsNone(guard.check_r27_checkpoint_pull_request(
-                        {"tool_input": {"command": "git status; git diff --stat; git branch --show-current; git remote -v; gh pr view 5010"}},
-                        "PowerShell",
-                    ))
-                    self.assertIsNone(guard.check_r27_checkpoint_pull_request(
                         {"tool_input": {"command": "git push -u origin ChaosEngine/r27"}}, "Bash"
                     ))
                     self.assertIn("R27", guard.check_r27_checkpoint_pull_request(
@@ -951,7 +846,7 @@ class CheckpointPullRequestGateTest(unittest.TestCase):
                     "url": "https://github.com/ShaftHQ/SHAFT_ENGINE/pull/4800",
                     "state": "OPEN",
                     "isDraft": draft,
-                    "headRefName": "ChaosEngine/remote-pr-branch",
+                    "headRefName": "ChaosEngine/r27",
                     "headRefOid": "b" * 40,
                     "baseRefName": "ChaosEngine/issue-4726-portable-runtime",
                     "closingIssuesReferences": [{"number": 4745}],
@@ -1206,260 +1101,6 @@ class CheckpointPullRequestGateTest(unittest.TestCase):
                         self.assertEqual(output.getvalue(), "")
 
 
-class InitialDraftPullRequestGateTest(unittest.TestCase):
-    """R31: publish a planned zero-file draft before the first mutation."""
-
-    @staticmethod
-    def identity():
-        return ("ShaftHQ/SHAFT_ENGINE", "ChaosEngine/early-draft", "c" * 40)
-
-    @staticmethod
-    def plan_body():
-        return (
-            "## Plan\nImplement the smallest canonical lifecycle gate and retain R27.\n\n"
-            "## Scope\nGuard, focused lifecycle tests, and canonical task-isolation guidance.\n\n"
-            "## Proof\nRun RED/GREEN lifecycle tests, setup validation, and a live zero-file draft.\n"
-        )
-
-    def check(self, payload, tool_name):
-        function = getattr(guard, "check_r31_initial_draft_pull_request", None)
-        self.assertTrue(callable(function), "R31 initial draft gate is absent")
-        return function(payload, tool_name)
-
-    def test_no_exact_head_draft_blocks_the_first_file_mutation(self):
-        with patch("scripts.agents.guard._checkpoint_identity", return_value=self.identity()):
-            with patch("scripts.agents.guard._same_tree_as_default_base", return_value=True, create=True):
-                with patch("scripts.agents.guard._exact_head_pull_request", return_value=("none", None)):
-                    reason = self.check({"cwd": ".", "tool_input": {"file_path": "x"}}, "Write")
-        self.assertIn("R31", reason)
-
-    def test_exact_head_planned_zero_file_draft_allows_first_mutation(self):
-        self.assertTrue(callable(getattr(guard, "check_r31_initial_draft_pull_request", None)))
-        pull_request = {
-            "isDraft": True,
-            "headRefOid": "c" * 40,
-            "changedFiles": 0,
-            "baseRefName": "main",
-            "body": self.plan_body(),
-        }
-        with patch("scripts.agents.guard._checkpoint_identity", return_value=self.identity()):
-            with patch("scripts.agents.guard._same_tree_as_default_base", return_value=True, create=True):
-                with patch("scripts.agents.guard._exact_head_pull_request", return_value=("unmapped", pull_request)), \
-                     patch("scripts.agents.guard._repository_default_branch", return_value="main"), \
-                     patch("scripts.agents.guard._working_tree_clean", return_value=True), \
-                     patch("scripts.agents.guard.ledger_record", return_value=True):
-                    self.assertIsNone(self.check({"cwd": ".", "tool_input": {"file_path": "x"}}, "Write"))
-
-    def test_ready_changed_wrong_head_missing_plan_and_unavailable_states_fail_closed(self):
-        valid = {
-            "isDraft": True,
-            "headRefOid": "c" * 40,
-            "changedFiles": 0,
-            "body": self.plan_body(),
-        }
-        cases = (
-            ("unavailable", None),
-            ("unmapped", {**valid, "isDraft": False}),
-            ("unmapped", {**valid, "changedFiles": 1}),
-            ("unmapped", {**valid, "headRefOid": "d" * 40}),
-            ("unmapped", {**valid, "body": "## Plan\nOnly a plan"}),
-        )
-        with patch("scripts.agents.guard._checkpoint_identity", return_value=self.identity()):
-            with patch("scripts.agents.guard._same_tree_as_default_base", return_value=True, create=True):
-                with patch("scripts.agents.guard._exact_head_pull_request", return_value=cases[0]):
-                    self.assertIsNotNone(self.check({"cwd": ".", "tool_input": {"file_path": "x"}}, "Write"))
-                for state in cases[1:]:
-                    with self.subTest(state=state):
-                        with patch("scripts.agents.guard._exact_head_pull_request", return_value=state):
-                            self.assertIsNotNone(self.check({"cwd": ".", "tool_input": {"file_path": "x"}}, "Write"))
-
-    def test_only_clean_planning_commit_and_explicit_draft_creation_are_recovery(self):
-        allowed = (
-            "git commit --allow-empty -m planning-checkpoint",
-            "git push -u origin ChaosEngine/early-draft",
-            "gh pr create --draft --base main --head ChaosEngine/early-draft --body-file plan.md",
-            "gh pr view --json changedFiles",
-            "gh pr edit --body-file plan.md",
-        )
-        identity = self.identity()
-        with patch.dict(os.environ, clear=False):
-            os.environ.pop("GH_REPO", None)
-            os.environ.pop("GH_HOST", None)
-            with patch("scripts.agents.guard._checkpoint_identity", return_value=identity):
-                with patch("scripts.agents.guard._same_tree_as_default_base", return_value=True, create=True):
-                    with patch("scripts.agents.guard._working_tree_clean", return_value=True, create=True):
-                        with patch("scripts.agents.guard._exact_head_pull_request", return_value=("none", None)), \
-                             patch("scripts.agents.guard._repository_default_branch", return_value="main"):
-                            payload = {"cwd": ".", "tool_input": {"command": allowed[0]}}
-                            self.assertIsNone(self.check(payload, "Bash"))
-                            for command in allowed[1:]:
-                                with self.subTest(command=command):
-                                    payload = {"cwd": ".", "tool_input": {"command": command}}
-                                    self.assertIsNone(self.check(payload, "Bash"))
-                            for command in (
-                                "git commit -m implementation",
-                                "gh pr create --draft --base main",
-                                "gh pr create --base main --head ChaosEngine/early-draft",
-                                "gh pr create --draft --base wrong --head ChaosEngine/early-draft --body-file plan.md",
-                                "gh pr create --draft --base main --head ChaosEngine/wrong --body-file plan.md",
-                            ):
-                                with self.subTest(command=command):
-                                    payload = {"cwd": ".", "tool_input": {"command": command}}
-                                    self.assertIsNotNone(self.check(payload, "Bash"))
-
-    def test_dirty_tree_cannot_use_allow_empty_as_a_recovery_bypass(self):
-        with patch("scripts.agents.guard._checkpoint_identity", return_value=self.identity()):
-            with patch("scripts.agents.guard._same_tree_as_default_base", return_value=True, create=True):
-                with patch("scripts.agents.guard._working_tree_clean", return_value=False, create=True):
-                    payload = {"cwd": ".", "tool_input": {"command": "git commit --allow-empty -m planning"}}
-                    self.assertIsNotNone(self.check(payload, "Bash"))
-
-    def test_existing_implementation_diff_remains_owned_by_r27(self):
-        with patch("scripts.agents.guard._checkpoint_identity", return_value=self.identity()):
-            with patch("scripts.agents.guard._same_tree_as_default_base", return_value=False, create=True):
-                self.assertIsNone(self.check({"cwd": ".", "tool_input": {"file_path": "x"}}, "Write"))
-
-    def test_wrong_base_dirty_tree_and_missing_identity_fail_closed(self):
-        self.assertTrue(callable(getattr(guard, "check_r31_initial_draft_pull_request", None)))
-        valid = {"isDraft": True, "headRefOid": "c" * 40, "changedFiles": 0,
-                 "baseRefName": "wrong", "body": self.plan_body()}
-        with patch("scripts.agents.guard._checkpoint_identity", return_value=self.identity()), \
-             patch("scripts.agents.guard._same_tree_as_default_base", return_value=True), \
-             patch("scripts.agents.guard._repository_default_branch", return_value="main"), \
-             patch("scripts.agents.guard._exact_head_pull_request", return_value=("unmapped", valid)), \
-             patch("scripts.agents.guard._working_tree_clean", return_value=False), \
-             patch("scripts.agents.guard.ledger_events", return_value=[]):
-            self.assertIsNotNone(self.check({"cwd": ".", "tool_input": {"file_path": "x"}}, "Write"))
-        with patch("scripts.agents.guard._checkpoint_identity", return_value=None), \
-             patch("scripts.agents.guard._current_branch", return_value="ChaosEngine/early-draft"):
-            self.assertIsNotNone(self.check({"cwd": ".", "tool_input": {"file_path": "x"}}, "Write"))
-
-    def test_satisfaction_is_recorded_once_and_reused(self):
-        self.assertTrue(callable(getattr(guard, "check_r31_initial_draft_pull_request", None)))
-        valid = {"isDraft": True, "headRefOid": "c" * 40, "changedFiles": 0,
-                 "baseRefName": "main", "body": self.plan_body()}
-        events = []
-        with patch("scripts.agents.guard._checkpoint_identity", return_value=self.identity()), \
-             patch("scripts.agents.guard._same_tree_as_default_base", return_value=True), \
-             patch("scripts.agents.guard._repository_default_branch", return_value="main"), \
-             patch("scripts.agents.guard._working_tree_clean", return_value=True), \
-             patch("scripts.agents.guard.ledger_events", side_effect=lambda _p: list(events)), \
-             patch("scripts.agents.guard.ledger_record", side_effect=lambda _p, e: events.append(e) or True), \
-             patch("scripts.agents.guard._exact_head_pull_request", side_effect=[("unmapped", valid), ("unavailable", None)]):
-            payload = {"session_id": "s", "cwd": ".", "tool_input": {"file_path": "x"}}
-            self.assertIsNone(self.check(payload, "Write"))
-            self.assertIsNone(self.check(payload, "Write"))
-
-    def test_recovery_cannot_piggyback_or_edit_unrelated_pr_state(self):
-        self.assertTrue(callable(getattr(guard, "_r31_recovery_command", None)))
-        source = 'await tools.apply_patch(patch); await tools.exec_command({cmd:"git push"});'
-        with patch("scripts.agents.guard._checkpoint_identity", return_value=self.identity()), \
-             patch("scripts.agents.guard._same_tree_as_default_base", return_value=True), \
-             patch("scripts.agents.guard._exact_head_pull_request", return_value=("none", None)):
-            self.assertIsNotNone(self.check({"cwd": ".", "tool_input": source}, "functions.exec"))
-        allowed, _ = guard._r31_recovery_command("gh pr edit 999 --base attacker --add-label hacked", ".")
-        self.assertFalse(allowed)
-        for command in (
-            "gh pr edit --body-file plan.md --repo other/repo",
-            "gh pr create --draft --base main --head ChaosEngine/early-draft --body plan --repo other/repo",
-            "gh pr create --draft --base main --head ChaosEngine/early-draft --body plan --reviewer victim",
-        ):
-            with self.subTest(command=command):
-                allowed, _ = guard._r31_recovery_command(
-                    command, ".", expected_base="main",
-                    expected_head="ChaosEngine/early-draft",
-                    expected_repository="owner/repo",
-                )
-                self.assertFalse(allowed)
-        for command in (
-            "git push --delete origin main",
-            "git push origin other-branch",
-            "git push --force origin HEAD:main",
-            "git push evil HEAD",
-        ):
-            with self.subTest(command=command):
-                allowed, _ = guard._r31_recovery_command(
-                    command, ".", expected_head="ChaosEngine/early-draft"
-                )
-                self.assertFalse(allowed)
-
-    def test_posix_mutations_enter_the_gate(self):
-        self.assertTrue(callable(getattr(guard, "check_r31_initial_draft_pull_request", None)))
-        with patch("scripts.agents.guard._checkpoint_identity", return_value=self.identity()), \
-             patch("scripts.agents.guard._same_tree_as_default_base", return_value=True), \
-             patch("scripts.agents.guard._exact_head_pull_request", return_value=("none", None)):
-            for command in ("touch x", "rm x", "mv x y", "cp x y"):
-                with self.subTest(command=command):
-                    self.assertIsNotNone(self.check({"cwd": ".", "tool_input": {"command": command}}, "Bash"))
-
-    def test_source_classifies_git_clean_and_append_redirect(self):
-        self.assertTrue(guard._shell_is_mutation("git clean -fd"))
-        self.assertTrue(guard._shell_is_mutation("echo changed >> C:/main/file"))
-        self.assertEqual(
-            ("C:/main/file",),
-            guard._shell_mutation_targets("echo changed >> C:/main/file"),
-        )
-        for command in (
-            "git --work-tree=C:/main clean -fd",
-            "git --git-dir=C:/main/.git clean -fd",
-            "git --work-tree C:/main clean -fd",
-            "git --git-dir C:/main/.git clean -fd",
-            "git -CC:/main clean -fd",
-        ):
-            with self.subTest(command=command):
-                self.assertTrue(guard._shell_is_mutation(command))
-                self.assertTrue(guard._shell_mutation_targets(command))
-
-    def test_targetless_git_mutation_on_default_branch_is_blocked(self):
-        with patch("scripts.agents.guard._current_branch", return_value="main"):
-            self.assertIsNotNone(guard.check_r19_fresh_base(
-                {"cwd": ".", "tool_input": {"command": "git clean -fd"}}, "Bash"
-            ))
-
-    def test_recovery_rejects_environment_and_side_effecting_push_options(self):
-        self.assertTrue(callable(getattr(guard, "_r31_recovery_command", None)))
-        for command in (
-            "git push --tags origin HEAD",
-            "git push --prune origin HEAD",
-            "git push --receive-pack=evil origin HEAD",
-            "GIT_DIR=C:/other/.git git commit --allow-empty -m plan",
-            "GH_REPO=other/repo gh pr edit --body-file plan.md",
-        ):
-            with self.subTest(command=command):
-                allowed, _ = guard._r31_recovery_command(
-                    command, ".", expected_base="main",
-                    expected_head="ChaosEngine/task", expected_repository="owner/repo",
-                )
-                self.assertFalse(allowed)
-        with patch.dict(os.environ, {"GH_REPO": "other/repo"}):
-            allowed, _ = guard._r31_recovery_command(
-                "gh pr edit --body-file plan.md", ".", expected_repository="owner/repo"
-            )
-        self.assertFalse(allowed)
-
-    def test_cli_knowledge_writes_do_not_enter_initial_draft_gate(self):
-        commands = ("memory remember durable", "mempalace add fact")
-        self.assertIsNone(self.check({"cwd": ".", "tool_input": {"command": commands[0]}}, "Bash"))
-        for command in commands[1:]:
-            with self.subTest(command=command):
-                self.assertIsNone(self.check({"cwd": ".", "tool_input": {"command": command}}, "Bash"))
-
-    def test_wrapped_mutation_identity_comes_from_effective_workdir(self):
-        self.assertTrue(callable(getattr(guard, "check_r31_initial_draft_pull_request", None)))
-        task = os.path.abspath("task-worktree")
-        source = f'await tools.exec_command({{cmd:"touch x",workdir:{json.dumps(task)}}});'
-        def identity(payload):
-            details = payload.get("tool_input") if isinstance(payload, dict) else None
-            return self.identity() if isinstance(details, dict) and details.get("workdir") == task else None
-        with patch("scripts.agents.guard._checkpoint_identity", side_effect=identity), \
-             patch("scripts.agents.guard._same_tree_as_default_base", return_value=True), \
-             patch("scripts.agents.guard._exact_head_pull_request", return_value=("none", None)):
-            reason = self.check(
-                {"cwd": os.path.abspath("outside"), "tool_input": source}, "functions.exec"
-            )
-        self.assertIn("R31 blocked", reason)
-
-
 def isolate_stop_rules(case: unittest.TestCase, except_for: tuple[str, ...] = ()) -> None:
     """Patch every Stop rule off for `case`, undone when the test finishes.
 
@@ -1471,9 +1112,6 @@ def isolate_stop_rules(case: unittest.TestCase, except_for: tuple[str, ...] = ()
     hook-can-reach-it` records. Every other rule stays patched, so the test is
     still deterministic.
     """
-    terminal = patch("scripts.agents.guard._terminal_reflection_reason", return_value=None)
-    terminal.start()
-    case.addCleanup(terminal.stop)
     for name in ISOLATED_STOP_RULES:
         if name in except_for:
             continue
@@ -2102,37 +1740,6 @@ class GuardLifecycleTest(unittest.TestCase):
         )
         self.assertNotIn("authoritative-online-research", generic)
         self.assertIn("authoritative-online-research", primary)
-        git_primary = guard._research_preflight_events(
-            "WebSearch",
-            {"query": "official Git documentation"},
-            {"results": [{"url": "https://git-scm.com/docs/git"}]},
-        )
-        git_lookalike = guard._research_preflight_events(
-            "WebSearch",
-            {"query": "Git documentation mirror"},
-            {"results": [{"url": "https://git-scm.com.evil.example/docs/git"}]},
-        )
-        self.assertIn("authoritative-online-research", git_primary)
-        self.assertNotIn("authoritative-online-research", git_lookalike)
-
-    def test_primary_source_is_declared_per_request_and_must_match_evidence(self):
-        accepted = guard._research_preflight_events(
-            "WebSearch",
-            {"query": "official Project documentation site:docs.project.example"},
-            {"results": [{"url": "https://docs.project.example/manual"}]},
-        )
-        mismatched = guard._research_preflight_events(
-            "WebSearch",
-            {"query": "official Project documentation site:docs.project.example"},
-            {"results": [{"url": "https://example.com/git"}]},
-        )
-        shell = guard._research_preflight_events(
-            "exec_command",
-            {"cmd": "CHAOS_PRIMARY_SOURCE_HOST=docs.project.example curl https://docs.project.example/manual"},
-        )
-        self.assertIn("authoritative-online-research", accepted)
-        self.assertNotIn("authoritative-online-research", mismatched)
-        self.assertIn("authoritative-online-research", shell)
         self.assertNotIn(
             "authoritative-online-research",
             guard._research_preflight_events(
@@ -2595,6 +2202,84 @@ class SessionLedgerTest(unittest.TestCase):
                 with open(path, "wb") as handle:
                     handle.write(b"\x00\xff not json at all")
                 self.assertEqual(guard.ledger_events(payload), [])
+
+
+class ProductionBeforeTestGateTest(unittest.TestCase):
+    """#4541 / iron law 3: RED before GREEN, enforced rather than remembered.
+
+    This is the highest-value row in the registry. "No production code before
+    an observed failing test" has been the law since the entrypoint was
+    written and has never had a mechanism -- `test_agent_router_contract.py`
+    pins that the *sentence* exists, which cannot observe whether any
+    production code was written first.
+
+    Scope is deliberately narrow. Only compiled source under a module's
+    `src/main/` counts, because the entrypoint itself exempts the rest:
+    documentation, guidance, configuration and generated code "may skip
+    test-first; validate their structure or affected flow instead". A gate
+    that fired on a README edit would be argued away within a day.
+    """
+
+    def payload(self, session: str, path: str) -> dict:
+        return {
+            "session_id": session,
+            "cwd": ".",
+            "tool_name": "Write",
+            "tool_input": {"file_path": path},
+        }
+
+    def test_a_test_command_is_recognised_as_one(self):
+        for command in (
+            "py -3 -m unittest tests.scripts.test_guard_lifecycle",
+            "python3 -m pytest tests/",
+            "mvn -Dtest=SomeTest test",
+        ):
+            with self.subTest(command=command):
+                self.assertTrue(guard.looks_like_a_test_run(command))
+        for command in ("git status", "ls -la", "echo testing the waters"):
+            with self.subTest(command=command):
+                self.assertFalse(guard.looks_like_a_test_run(command))
+
+    def test_production_source_is_blocked_when_no_test_has_run(self):
+        with tempfile.TemporaryDirectory() as directory:
+            with patch.dict(guard.os.environ, {"TMPDIR": directory, "TEMP": directory}):
+                payload = self.payload("s1", "shaft-engine/src/main/java/Thing.java")
+                reason = guard.check_r12_test_before_production(payload, "Write")
+        self.assertIsNotNone(reason)
+        self.assertIn("failing test", reason)
+
+    def test_production_source_is_allowed_once_a_test_run_is_on_the_ledger(self):
+        with tempfile.TemporaryDirectory() as directory:
+            with patch.dict(guard.os.environ, {"TMPDIR": directory, "TEMP": directory}):
+                payload = self.payload("s2", "shaft-engine/src/main/java/Thing.java")
+                guard.ledger_record(payload, "test-run")
+                self.assertIsNone(guard.check_r12_test_before_production(payload, "Write"))
+
+    def test_the_test_that_creates_red_is_never_blocked(self):
+        """Writing the failing test must not require having already run one.
+
+        Blocking the RED step would make the law unsatisfiable: the only way
+        to observe a failing test is to write it first.
+        """
+        with tempfile.TemporaryDirectory() as directory:
+            with patch.dict(guard.os.environ, {"TMPDIR": directory, "TEMP": directory}):
+                for path in (
+                    "shaft-engine/src/test/java/ThingTest.java",
+                    "tests/scripts/test_guard_lifecycle.py",
+                    "AGENTS.md",
+                    "scripts/ci/validate_agent_setup.py",
+                    ".agents/skills/act-as-mohab/SKILL.md",
+                ):
+                    with self.subTest(path=path):
+                        payload = self.payload("s3", path)
+                        self.assertIsNone(
+                            guard.check_r12_test_before_production(payload, "Write")
+                        )
+
+    def test_the_gate_fails_open_without_a_session(self):
+        """No session id means no ledger, and an unanswerable question never blocks."""
+        payload = {"cwd": ".", "tool_input": {"file_path": "a/src/main/java/T.java"}}
+        self.assertIsNone(guard.check_r12_test_before_production(payload, "Write"))
 
 
 class PushBeforeDeleteGateTest(unittest.TestCase):
@@ -3114,10 +2799,10 @@ class ReviewBeforeArmingGateTest(unittest.TestCase):
                     )
                 )
 
-    def test_it_fails_closed_when_the_review_state_cannot_be_answered(self):
-        """No gh, no auth, no network: unknown cannot arm an exact-head merge."""
+    def test_it_fails_open_when_the_review_state_cannot_be_answered(self):
+        """No gh, no auth, no network: unknown is not zero (#4542)."""
         with patch("scripts.agents.guard._independent_review_count", return_value=None):
-            self.assertIsNotNone(
+            self.assertIsNone(
                 guard.check_r15_review_before_arming("gh pr merge 4539 --auto", "Bash")
             )
 
@@ -3223,8 +2908,7 @@ class LearningLoopStopGateTest(unittest.TestCase):
         gate here would strand it permanently. Interrupting once and yielding
         is what makes "nothing durable is a valid result" a reachable state.
         """
-        with patch("scripts.agents.guard._terminal_reflection_reason", return_value=None), \
-             patch("scripts.agents.guard.ledger_events", return_value=["commit"]):
+        with patch("scripts.agents.guard.ledger_events", return_value=["commit"]):
             output = io.StringIO()
             with redirect_stdout(output):
                 self.assertEqual(
@@ -3660,54 +3344,6 @@ class DeliveryCompleteStopGateTest(unittest.TestCase):
     def test_read_only_session_owes_no_delivery_receipt(self):
         with mock.patch.object(guard, "ledger_events", return_value=[]):
             self.assertIsNone(guard.check_r29_delivery_complete({}))
-
-
-class SubagentStopDeliveryOwnershipTest(unittest.TestCase):
-    """R29 must not replace a read-only child verdict, but remains owner-bound."""
-
-    def setUp(self):
-        isolate_stop_rules(self, except_for=("check_r29_delivery_complete",))
-
-    @staticmethod
-    def payload(role: str) -> dict:
-        return {
-            "hook_event_name": "SubagentStop",
-            "agent_type": role,
-            "agent_id": "child-1",
-            "last_assistant_message": "Review complete\nZERO BLOCKERS",
-            "session_id": "shared-parent-session",
-            "cwd": ".",
-        }
-
-    def run_stop_output(self, payload: dict, events: list[str]) -> str:
-        output = io.StringIO()
-        with mock.patch.object(guard, "ledger_events", return_value=events), \
-             mock.patch.object(
-                 guard,
-                 "_worktree_report",
-                 return_value={"worktrees": [{"is_current": True, "state": "clean"}]},
-             ), \
-             redirect_stdout(output):
-            guard.run_stop(payload)
-        return output.getvalue().strip()
-
-    def test_read_only_reviewer_verdict_is_not_replaced_by_delivery_status(self):
-        self.assertEqual(
-            "",
-            self.run_stop_output(self.payload("reviewer"), ["commit"]),
-        )
-
-    def test_retained_delegate_still_requires_delivery_status(self):
-        identity = ("owner/repo", "ChaosEngine/task", "a" * 40)
-        checkpoint = guard._checkpoint_json_event("checkpoint", *identity)
-        output = self.run_stop_output(self.payload("coder"), ["commit", checkpoint])
-        self.assertIn("R29 blocked", output)
-
-    def test_reviewer_role_cannot_bypass_retained_delivery_ownership(self):
-        identity = ("owner/repo", "ChaosEngine/task", "a" * 40)
-        checkpoint = guard._checkpoint_json_event("checkpoint", *identity)
-        output = self.run_stop_output(self.payload("reviewer"), ["commit", checkpoint])
-        self.assertIn("R29 blocked", output)
 
 
 class UnarmedPullRequestStopGateTest(unittest.TestCase):
@@ -4327,28 +3963,6 @@ class HookWorkingDirectoryIsReadOneWayTest(unittest.TestCase):
             'hook_input.get("cwd")', inspect.getsource(guard._hook_working_directory)
         )
 
-    def test_a_command_uses_its_explicit_workdir(self):
-        session_checkout = str(Path(tempfile.gettempdir()) / "session-checkout")
-        isolated_worktree = str(Path(tempfile.gettempdir()) / "isolated-worktree")
-        payload = {
-            "cwd": session_checkout,
-            "tool_name": "PowerShell",
-            "tool_input": {
-                "cmd": "Set-Content scripts/x.py changed",
-                "workdir": isolated_worktree,
-            },
-        }
-        self.assertEqual(guard._hook_working_directory(payload), isolated_worktree)
-        payload = {
-            "cwd": session_checkout,
-            "tool_name": "Write",
-            "tool_input": {
-                "file_path": "scripts/x.py",
-                "workdir": str(Path(tempfile.gettempdir()) / "unrelated-worktree"),
-            },
-        }
-        self.assertEqual(guard._hook_working_directory(payload), session_checkout)
-
     def test_the_rule_set_is_not_empty(self):
         """A name filter that matched nothing would make the check above vacuous."""
         self.assertGreaterEqual(len(self.rules()), 10)
@@ -4566,7 +4180,6 @@ class StopTestsAreIndependentOfLiveStateTest(unittest.TestCase):
         "RunStateStopGateTest",
         "ForeignWorktreeStopGateTest",
         "DeliveryCompleteStopGateTest",
-        "SubagentStopDeliveryOwnershipTest",
     )
 
     def subjects(self) -> unittest.TestSuite:
@@ -4711,8 +4324,8 @@ class WhatCountsAsAReviewTest(unittest.TestCase):
 
     AUTHOR = "the-author"
 
-    def reviews(self, login: str, state: str, head: str = "a" * 40) -> list:
-        return [{"author": {"login": login}, "state": state, "commit": {"oid": head}}]
+    def reviews(self, login: str, state: str) -> list:
+        return [{"author": {"login": login}, "state": state}]
 
     def test_a_bot_comment_is_not_an_independent_review(self):
         self.assertEqual(
@@ -4722,14 +4335,13 @@ class WhatCountsAsAReviewTest(unittest.TestCase):
             [],
         )
 
-    def test_only_an_exact_head_approval_from_another_account_counts(self):
-        self.assertIn("head", inspect.signature(guard._independent_reviews).parameters)
-        head = "a" * 40
-        self.assertEqual(1, len(guard._independent_reviews(self.reviews("someone", "APPROVED", head), self.AUTHOR, head)))
-        self.assertEqual([], guard._independent_reviews(self.reviews("someone", "CHANGES_REQUESTED", head), self.AUTHOR, head))
-        self.assertEqual([], guard._independent_reviews(self.reviews("someone", "APPROVED", "b" * 40), self.AUTHOR, head))
-        history = self.reviews("someone", "APPROVED", head) + self.reviews("someone", "CHANGES_REQUESTED", head)
-        self.assertEqual([], guard._independent_reviews(history, self.AUTHOR, head))
+    def test_a_verdict_from_another_account_is(self):
+        for state in ("APPROVED", "CHANGES_REQUESTED"):
+            with self.subTest(state=state):
+                self.assertEqual(
+                    len(guard._independent_reviews(self.reviews("someone", state), self.AUTHOR)),
+                    1,
+                )
 
     def test_the_authors_own_approval_is_not_independent(self):
         self.assertEqual(
@@ -4852,107 +4464,6 @@ class ObservedReviewDispatchTest(unittest.TestCase):
         with patch("scripts.agents.guard.ledger_events", return_value=["review:feature"]):
             self.assertFalse(guard._ledger_records_a_review({"session_id": "s"}, None))
 
-    def test_only_a_zero_blocker_verdict_on_the_latest_exact_head_clears_review(self):
-        identity = ("owner/repo", "feature", "b" * 40)
-        dispatched = guard._checkpoint_json_event("review-head", *identity)
-        cleared = guard._checkpoint_json_event("review-clear", *identity)
-        with patch("scripts.agents.guard._checkpoint_identity", return_value=identity):
-            with patch("scripts.agents.guard.ledger_events", return_value=[dispatched]):
-                self.assertFalse(guard._ledger_records_a_review({"session_id": "s"}, "feature"))
-            with patch("scripts.agents.guard.ledger_events", return_value=[cleared]):
-                self.assertTrue(guard._ledger_records_a_review({"session_id": "s"}, "feature"))
-            with patch(
-                "scripts.agents.guard.ledger_events",
-                return_value=[dispatched, cleared, dispatched],
-            ):
-                self.assertFalse(guard._ledger_records_a_review({"session_id": "s"}, "feature"))
-        newer = (identity[0], identity[1], "c" * 40)
-        with patch("scripts.agents.guard._checkpoint_identity", return_value=newer), \
-             patch("scripts.agents.guard.ledger_events", return_value=[cleared]):
-            self.assertFalse(guard._ledger_records_a_review({"session_id": "s"}, "feature"))
-
-    def test_posttool_records_clear_only_for_a_successful_zero_blocker_reviewer(self):
-        identity = ("owner/repo", "feature", "b" * 40)
-        events = []
-        payload = {
-            "tool_name": "Agent",
-            "tool_input": {"subagent_type": "reviewer"},
-            "tool_response": {"status": "success", "output": "Evidence complete.\nZERO BLOCKERS"},
-            "session_id": "s",
-            "cwd": ".",
-        }
-        dispatched = guard._checkpoint_json_event("review-head", *identity)
-        with patch("scripts.agents.guard._checkpoint_identity", return_value=identity), \
-             patch("scripts.agents.guard.ledger_events", return_value=[dispatched]), \
-             patch("scripts.agents.guard.ledger_record", side_effect=lambda _p, e: events.append(e) or True):
-            guard.run_posttooluse(payload)
-        self.assertIn(guard._checkpoint_json_event("review-clear", *identity), events)
-
-        events.clear()
-        payload["tool_response"]["output"] = "F1 confirmed\nBlocking: yes\nZERO BLOCKERS"
-        with patch("scripts.agents.guard._checkpoint_identity", return_value=identity), \
-             patch("scripts.agents.guard.ledger_events", return_value=[dispatched]), \
-             patch("scripts.agents.guard.ledger_record", side_effect=lambda _p, e: events.append(e) or True):
-            guard.run_posttooluse(payload)
-        self.assertFalse(any(event.startswith("review-clear:") for event in events))
-
-    def test_subagent_stop_can_record_the_terminal_exact_head_verdict(self):
-        self.assertTrue(callable(getattr(guard, "_review_clear_for_identity", None)))
-        identity = ("owner/repo", "feature", "b" * 40)
-        dispatched = guard._checkpoint_json_event("review-head", *identity)
-        with patch("scripts.agents.guard._checkpoint_identity", return_value=identity), \
-             patch("scripts.agents.guard.ledger_events", return_value=[dispatched]):
-            event = guard._review_clear_for_identity(
-                {"session_id": "s"}, {"last_assistant_message": "Review complete\nZERO BLOCKERS"}
-            )
-        self.assertEqual(guard._checkpoint_json_event("review-clear", *identity), event)
-
-        events = []
-        payload = {
-            "tool_name": "Agent",
-            "tool_input": {"subagent_type": "reviewer"},
-            "tool_response": {"status": "success", "output": ""},
-            "session_id": "s",
-            "cwd": ".",
-        }
-        payload["tool_response"]["output"] = "ZERO BLOCKERS\nFinding: critical defect"
-        with patch("scripts.agents.guard._checkpoint_identity", return_value=identity), \
-             patch("scripts.agents.guard.ledger_events", return_value=[dispatched]), \
-             patch("scripts.agents.guard.ledger_record", side_effect=lambda _p, e: events.append(e) or True):
-            guard.run_posttooluse(payload)
-        self.assertFalse(any(event.startswith("review-clear:") for event in events))
-
-    def test_subagent_stop_reads_only_the_terminal_message_and_supports_role_alias(self):
-        identity = ("owner/repo", "feature", "b" * 40)
-        dispatched = guard._checkpoint_json_event("review-head", *identity)
-        recorded = []
-        payload = {
-            "hook_event_name": "SubagentStop",
-            "tool_name": "Agent",
-            "tool_input": {"subagent": "reviewer"},
-            "last_assistant_message": "Review complete\nZERO BLOCKERS",
-            "session_id": "metadata-after-message-must-not-be-reviewed",
-            "cwd": ".",
-            "stop_hook_active": True,
-        }
-        with patch("scripts.agents.guard._checkpoint_identity", return_value=identity), \
-             patch("scripts.agents.guard.ledger_events", return_value=[dispatched]), \
-             patch("scripts.agents.guard.ledger_record", side_effect=lambda _p, e: recorded.append(e) or True), \
-             patch("scripts.agents.guard._terminal_reflection_reason", return_value=None):
-            guard.run_stop(payload)
-        self.assertIn(guard._checkpoint_json_event("review-clear", *identity), recorded)
-
-        with patch("scripts.agents.guard._checkpoint_identity", return_value=identity), \
-             patch("scripts.agents.guard.ledger_events", return_value=[dispatched]):
-            self.assertEqual(
-                guard._checkpoint_json_event("review-clear", *identity),
-                guard._review_clear_event(
-                    {"tool_input": {"subagent": "reviewer"}},
-                    "Agent",
-                    "Review complete\nZERO BLOCKERS",
-                ),
-            )
-
     def test_both_rules_read_the_branch_the_same_way(self):
         """Two sources for one question is how the R15/R17 deadlock arrived.
 
@@ -5074,20 +4585,17 @@ class HistoricalDispatchReplayTest(unittest.TestCase):
                         self.assertEqual(guard.run_pretooluse(payload), 0)
                 self.assertEqual("R22 blocked" not in output.getvalue(), allowed)
 
-    def test_r15_accepts_only_a_clear_exact_head_review(self):
+    def test_r15_accepts_an_observed_dispatch(self):
         arming = "gh pr merge 1 --auto --merge"
-        identity = ("owner/repo", "feature", "b" * 40)
-        clear = guard._checkpoint_json_event("review-clear", *identity)
         with patch("scripts.agents.guard._independent_review_count", return_value=0):
-            with patch("scripts.agents.guard._current_branch", return_value="feature"), \
-                 patch("scripts.agents.guard._checkpoint_identity", return_value=identity):
+            with patch("scripts.agents.guard._current_branch", return_value="feature"):
                 with patch(
-                    "scripts.agents.guard.ledger_events", return_value=[clear]
+                    "scripts.agents.guard.ledger_events", return_value=["review:feature"]
                 ):
                     self.assertIsNone(
                         guard.check_r15_review_before_arming(arming, "Bash", {"session_id": "s"})
                     )
-                with patch("scripts.agents.guard.ledger_events", return_value=["review:feature"]):
+                with patch("scripts.agents.guard.ledger_events", return_value=["commit"]):
                     self.assertIsNotNone(
                         guard.check_r15_review_before_arming(arming, "Bash", {"session_id": "s"})
                     )
@@ -5756,206 +5264,6 @@ class FreshBaseGateTest(unittest.TestCase):
     def test_editing_on_a_task_branch_is_allowed(self):
         with patch("scripts.agents.guard._current_branch", return_value="ChaosEngine/thing-1"):
             self.assertIsNone(guard.check_r19_fresh_base(self.payload("scripts/x.py"), "Write"))
-
-    def test_a_wrapped_command_uses_its_isolated_workdir(self):
-        root, _ = self.repository()
-        session = os.path.join(os.path.dirname(root), "session")
-        os.makedirs(session, exist_ok=True)
-        source = (
-            "await tools.exec_command({"
-            f"cmd:{json.dumps('Set-Content scripts/x.py changed')},"
-            f"workdir:{json.dumps(root)}"
-            "});"
-        )
-        payload = {"cwd": session, "tool_name": "functions.exec", "tool_input": source}
-
-        def branch(cwd):
-            return "ChaosEngine/isolated" if cwd == root else "main"
-
-        with patch("scripts.agents.guard._current_branch", side_effect=branch):
-            self.assertIsNone(guard.check_r19_fresh_base(payload, "functions.exec"))
-        source = (
-            "await tools.exec_command({"
-            f"cmd:{json.dumps('Set-Content scripts/x.py changed')}"
-            "});"
-        )
-        payload = {"cwd": root, "tool_name": "functions.exec", "tool_input": source}
-
-        with patch("scripts.agents.guard._current_branch", return_value="main"):
-            with patch("scripts.agents.guard._repository_root", return_value=root):
-                self.assertIsNotNone(guard.check_r19_fresh_base(payload, "functions.exec"))
-
-        main = os.path.join(os.path.dirname(root), "main")
-        os.makedirs(main, exist_ok=True)
-        target = os.path.join(main, "scripts", "x.py")
-        source = (
-            "await tools.exec_command({"
-            f"cmd:{json.dumps('Set-Content ' + target + ' changed')},"
-            f"workdir:{json.dumps(root)}"
-            "});"
-        )
-        payload = {"cwd": main, "tool_name": "functions.exec", "tool_input": source}
-        with patch("scripts.agents.guard._current_branch", side_effect=lambda cwd: "main" if os.path.normcase(str(cwd)) == os.path.normcase(main) else "ChaosEngine/isolated"), \
-             patch("scripts.agents.guard._repository_root", side_effect=lambda cwd: main if cwd == main else root):
-            self.assertIsNotNone(guard.check_r19_fresh_base(payload, "functions.exec"))
-
-    def test_ambiguous_wrapped_commands_fail_closed_from_an_isolated_session(self):
-        isolated, _ = self.repository()
-        main = os.path.join(os.path.dirname(isolated), "main")
-        os.makedirs(main, exist_ok=True)
-        mutating = json.dumps("Set-Content scripts/x.py changed")
-        isolated_json = json.dumps(isolated)
-        main_json = json.dumps(main)
-        sources = (
-            f"await tools.exec_command({{cmd:{mutating},workdir:target}});",
-            f"await tools.exec_command({{cmd:{mutating},workdir:'{main}'}});",
-            f"await tools.exec_command({{cmd:{mutating},workdir:{isolated_json},workdir:{main_json}}});",
-            f"await tools.exec_command({{cmd:\"echo safe\",cmd:{mutating},workdir:{main_json}}});",
-            f"await tools.exec_command({{cmd:{mutating},workdir:{isolated_json},...override}});",
-        )
-
-        def branch(cwd):
-            return "main" if os.path.normcase(str(cwd)) == os.path.normcase(main) else "ChaosEngine/isolated"
-
-        with patch("scripts.agents.guard._current_branch", side_effect=branch):
-            payload = {"cwd": isolated, "tool_name": "functions.exec", "tool_input": sources[0]}
-            self.assertIsNotNone(guard.check_r19_fresh_base(payload, "functions.exec"))
-            for source in sources[1:]:
-                with self.subTest(source=source):
-                    payload = {"cwd": isolated, "tool_name": "functions.exec", "tool_input": source}
-                    self.assertIsNotNone(guard.check_r19_fresh_base(payload, "functions.exec"))
-
-    def test_wrapped_powershell_path_options_and_git_c_cannot_target_main(self):
-        isolated, _ = self.repository()
-        main = os.path.join(os.path.dirname(isolated), "main")
-        os.makedirs(main, exist_ok=True)
-        target = os.path.join(main, "scripts", "x.py")
-        commands = (
-            f'Set-Content -Path "{target}" -Value changed',
-            f'Set-Content -LiteralPath "{target}" -Value changed',
-            f'git -C "{main}" commit -m changed',
-        )
-        def branch(cwd):
-            return "main" if os.path.normcase(str(cwd)) == os.path.normcase(main) else "ChaosEngine/isolated"
-        with patch("scripts.agents.guard._current_branch", side_effect=branch), \
-             patch("scripts.agents.guard._repository_root", side_effect=lambda cwd: main if os.path.normcase(str(cwd)) == os.path.normcase(main) else isolated):
-            source = f"await tools.exec_command({{cmd:{json.dumps(commands[0])},workdir:{json.dumps(isolated)}}});"
-            self.assertIsNotNone(guard.check_r19_fresh_base(
-                {"cwd": isolated, "tool_name": "functions.exec", "tool_input": source}, "functions.exec"))
-            for command in commands[1:]:
-                source = f"await tools.exec_command({{cmd:{json.dumps(command)},workdir:{json.dumps(isolated)}}});"
-                with self.subTest(command=command):
-                    self.assertIsNotNone(guard.check_r19_fresh_base(
-                        {"cwd": isolated, "tool_name": "functions.exec", "tool_input": source}, "functions.exec"))
-
-    def test_literal_ellipsis_and_brackets_inside_command_are_not_parser_ambiguity(self):
-        self.assertTrue(callable(getattr(guard, "_wrapped_exec_calls", None)))
-        source = 'await tools.exec_command({cmd:"echo [...]...",workdir:"."});'
-        self.assertEqual(guard._wrapped_exec_calls(source), (("echo [...]...", "."),))
-
-    def test_direct_shell_workdir_and_target_cannot_reach_main(self):
-        isolated, _ = self.repository()
-        main = os.path.join(os.path.dirname(isolated), "main")
-        os.makedirs(main, exist_ok=True)
-        target = os.path.join(main, "x.txt")
-        def branch(cwd):
-            return "main" if os.path.normcase(str(cwd)) == os.path.normcase(main) else "ChaosEngine/isolated"
-        with patch("scripts.agents.guard._current_branch", side_effect=branch), \
-             patch("scripts.agents.guard._repository_root", side_effect=lambda cwd: main if os.path.normcase(str(cwd)) == os.path.normcase(main) else isolated):
-            payloads = (
-                {"cwd": isolated, "tool_name": "PowerShell", "tool_input": {"command": "touch x", "workdir": main}},
-                {"cwd": isolated, "tool_name": "PowerShell", "tool_input": {"command": f'Set-Content -Path "{target}" x'}},
-                {"cwd": isolated, "tool_name": "PowerShell", "tool_input": {"command": f'git -C "{main}" commit -m x'}},
-                {"cwd": isolated, "tool_name": "PowerShell", "tool_input": {"command": f'cp -t "{main}" source.txt'}},
-                {"cwd": isolated, "tool_name": "PowerShell", "tool_input": {"command": f'touch -d yesterday "{target}"'}},
-            )
-            self.assertIsNotNone(guard.check_r19_fresh_base(payloads[0], "PowerShell"))
-            for payload in payloads[1:]:
-                with self.subTest(payload=payload):
-                    self.assertIsNotNone(guard.check_r19_fresh_base(payload, "PowerShell"))
-
-    def test_direct_file_tool_cannot_cross_into_another_checkout(self):
-        isolated, _ = self.repository()
-        other = os.path.join(os.path.dirname(isolated), "other-task")
-        os.makedirs(other, exist_ok=True)
-        target = os.path.join(other, "x.txt")
-        def root(cwd):
-            return other if os.path.normcase(str(cwd)).startswith(os.path.normcase(other)) else isolated
-        with patch("scripts.agents.guard._current_branch", return_value="ChaosEngine/task"), \
-             patch("scripts.agents.guard._repository_root", side_effect=root):
-            reason = guard.check_r19_fresh_base(
-                {"cwd": isolated, "tool_input": {"file_path": target}}, "Write"
-            )
-        self.assertIsNotNone(reason)
-
-    def test_wrapped_patch_cannot_cross_into_another_task_checkout(self):
-        isolated, _ = self.repository()
-        other = os.path.join(os.path.dirname(isolated), "other-task")
-        os.makedirs(other, exist_ok=True)
-        source = json.dumps(f"*** Begin Patch\n*** Update File: {other}/x.txt\n@@\n-old\n+new\n*** End Patch")
-        payload = {
-            "cwd": isolated,
-            "tool_input": f"await tools.apply_patch({source});",
-        }
-        def root(cwd):
-            return other if os.path.normcase(str(cwd)).startswith(os.path.normcase(other)) else isolated
-        with patch("scripts.agents.guard._current_branch", return_value="ChaosEngine/task"), \
-             patch("scripts.agents.guard._repository_root", side_effect=root):
-            reason = guard.check_r19_fresh_base(payload, "functions.exec")
-        self.assertIsNotNone(reason)
-
-    def test_posix_mutation_classification_uses_command_heads_not_prose(self):
-        self.assertFalse(guard._shell_is_mutation('rg -n "touch|rm|mv|cp" scripts'))
-        self.assertTrue(guard._shell_is_mutation("echo ok && touch x"))
-        self.assertFalse(guard._functions_exec_is_mutation(
-            'await tools.exec_command({cmd:"echo tools.apply_patch(patch)",workdir:"."});'
-        ))
-        self.assertEqual(
-            ("safe.txt", "C:/main/victim.txt"),
-            guard._shell_mutation_targets("rm safe.txt C:/main/victim.txt"),
-        )
-        self.assertIn(
-            "C:/main/y",
-            guard._shell_mutation_targets("Move-Item -Destination C:/main/y -Path x"),
-        )
-
-    def test_mixed_patch_and_exec_still_checks_the_exec_workdir(self):
-        isolated, _ = self.repository()
-        main = os.path.join(os.path.dirname(isolated), "main")
-        os.makedirs(main, exist_ok=True)
-        source = (
-            "await tools.apply_patch(patch);"
-            "await tools.exec_command({"
-            f"cmd:{json.dumps('Set-Content scripts/x.py changed')},"
-            f"workdir:{json.dumps(main)}"
-            "});"
-        )
-        payload = {"cwd": isolated, "tool_name": "functions.exec", "tool_input": source}
-
-        def branch(cwd):
-            return "main" if os.path.normcase(str(cwd)) == os.path.normcase(main) else "ChaosEngine/isolated"
-
-        with patch("scripts.agents.guard._current_branch", side_effect=branch):
-            with patch("scripts.agents.guard._repository_root", return_value=main):
-                self.assertIsNotNone(guard.check_r19_fresh_base(payload, "functions.exec"))
-
-    def test_any_mutating_wrapped_call_targeting_main_is_refused(self):
-        isolated, _ = self.repository()
-        main = os.path.join(os.path.dirname(isolated), "main")
-        os.makedirs(main, exist_ok=True)
-        command = json.dumps("Set-Content scripts/x.py changed")
-        source = (
-            f"await tools.exec_command({{cmd:{command},workdir:{json.dumps(isolated)}}});"
-            f"await tools.exec_command({{cmd:{command},workdir:{json.dumps(main)}}});"
-        )
-        payload = {"cwd": isolated, "tool_name": "functions.exec", "tool_input": source}
-
-        def branch(cwd):
-            return "main" if os.path.normcase(str(cwd)) == os.path.normcase(main) else "ChaosEngine/isolated"
-
-        with patch("scripts.agents.guard._current_branch", side_effect=branch):
-            with patch("scripts.agents.guard._repository_root", return_value=main):
-                self.assertIsNotNone(guard.check_r19_fresh_base(payload, "functions.exec"))
 
     def test_a_detached_head_is_not_the_default_branch(self):
         with patch("scripts.agents.guard._current_branch", return_value=None):

@@ -222,17 +222,7 @@ def install_plan(runtime: Path, specification: dict[str, object]) -> dict[str, l
             [uv, "tool", "install", str(tools["mempalace"]["package"])],  # type: ignore[index]
         ],
         "graphify": [
-            [
-                uv,
-                "tool",
-                "install",
-                *[
-                    item
-                    for dependency in graphify["with"]  # type: ignore[index]
-                    for item in ("--with", str(dependency))
-                ],
-                str(graphify["package"]),
-            ],
+            [uv, "tool", "install", "--with", str(graphify["with"][0]), str(graphify["package"])],  # type: ignore[index]
         ],
         "memory": [
             [npm, "install", "--prefix", str(npm_prefix), str(tools["memory"]["package"])],  # type: ignore[index]
