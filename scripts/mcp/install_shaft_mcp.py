@@ -66,6 +66,8 @@ RETIRED_SHAFT_SKILL_DIRECTORIES = frozenset((
 # fails when this list falls behind them.
 AGENT_VALIDATION_SCRIPT_FILES = (
     "scripts/agents/guard.py",
+    "scripts/agents/reflection.py",
+    "chaos-engine/hooks/reflection.py",
     "scripts/agents/learning_loop.py",
     "scripts/agents/repository_context.py",
     "scripts/ci/validate_agent_setup.py",
