@@ -82,6 +82,7 @@ def shell_tokens(command: str) -> list[str]:
         lexer = shlex.shlex(command.replace("\r\n", "\n").replace("\n", " ; "), posix=True, punctuation_chars=";&|>")
         lexer.whitespace_split = True
         lexer.commenters = ""
+        lexer.escape = ""
         return list(lexer)
     except ValueError:
         return []

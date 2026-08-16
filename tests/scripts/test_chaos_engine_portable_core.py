@@ -88,6 +88,15 @@ class ChaosEnginePortableCoreTest(unittest.TestCase):
         for command in ("git --work-tree=C:/other clean -fd", "git --git-dir=C:/other/.git clean -fd", "git -CC:/other clean -fd"):
             with self.subTest(command=command):
                 self.assertTrue(guard.command_targets(command))
+        windows_git_dir = r"C:\Users\Mohab\main-worktree\.git"
+        self.assertEqual(
+            (windows_git_dir,),
+            guard.command_targets(f"git --git-dir={windows_git_dir} clean -fd"),
+        )
+        self.assertEqual(
+            (windows_git_dir,),
+            guard.command_targets(f"git --git-dir {windows_git_dir} clean -fd"),
+        )
         with mock.patch.object(guard, "current_branch", return_value="trunk"), \
              mock.patch.object(guard, "git_output", return_value="origin/trunk"):
             self.assertTrue(guard.on_default_branch("C:/repo"))

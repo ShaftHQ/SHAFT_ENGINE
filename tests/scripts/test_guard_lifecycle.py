@@ -1362,9 +1362,12 @@ class InitialDraftPullRequestGateTest(unittest.TestCase):
         for command in (
             "git --work-tree=C:/main clean -fd",
             "git --git-dir=C:/main/.git clean -fd",
+            "git --work-tree C:/main clean -fd",
+            "git --git-dir C:/main/.git clean -fd",
             "git -CC:/main clean -fd",
         ):
             with self.subTest(command=command):
+                self.assertTrue(guard._shell_is_mutation(command))
                 self.assertTrue(guard._shell_mutation_targets(command))
 
     def test_targetless_git_mutation_on_default_branch_is_blocked(self):
