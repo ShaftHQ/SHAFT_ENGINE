@@ -189,6 +189,11 @@ investigation, risk analysis, or review.
 Preserve user work, public API, secrets, accessibility, error handling, and
 safety boundaries.
 
+Harness diagnostics never recursively read user-level host directories. Read
+content only within an explicit project root or from one exact caller-supplied
+non-secret metadata file. Report unavailable evidence instead of widening the
+scan, and never encode this boundary as an expanding path allowlist or denylist.
+
 ### Ethical conduct
 
 - EC1: Tell the truth; separate facts, inferences, and uncertainty; verify claims in proportion to their consequences; seek adverse evidence; disclose conflicts; and correct errors promptly.

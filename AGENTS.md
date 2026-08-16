@@ -64,6 +64,12 @@ ChaosEngine entrypoint.
 
 ## Windows and GUI safety
 
+Harness diagnostics never recursively read user-level host directories. Keep
+diagnostic content reads inside an explicit project root or one exact,
+caller-supplied non-secret metadata file. If that boundary cannot answer the
+question, report the evidence unavailable instead of widening the scan. Do not
+maintain sensitive-path allowlists or denylists.
+
 Do not launch GUI applications or handlers: `start`, `explorer`, `Invoke-Item`,
 `Start-Process`, `rundll32`, `os.startfile`, browsers, editors, or installers.
 Use non-interactive `py -3`, `python3`, `node`, PowerShell scripts, Maven,
