@@ -7,7 +7,9 @@ import java.util.List;
 interface DesktopMobileToolchainOperations {
     void hostPreflight(List<SetupAction> actions) throws IOException;
 
-    default void preStatePreflight(List<SetupAction> actions, boolean offline) throws IOException { }
+    default void preStatePreflight(List<SetupAction> actions, boolean offline) throws IOException {
+        // Most providers have no safe read that must occur before the shared state directory exists.
+    }
 
     void lockedPreflight(List<SetupAction> actions, boolean offline) throws IOException;
 

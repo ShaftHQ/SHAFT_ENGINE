@@ -86,30 +86,47 @@ public final class VerifiedArtifactStore {
     static void replaceWithRollback(Path replacement, Path destination, Path quarantine,
                                     MoveOperation mover, DeleteOperation deleter) throws IOException {
         Path obsolete = quarantine.resolveSibling(quarantine.getFileName() + ".obsolete");
-        if (Files.exists(obsolete, java.nio.file.LinkOption.NOFOLLOW_LINKS)) {
-            deleter.delete(obsolete);
-        }
-        if (Files.exists(quarantine, java.nio.file.LinkOption.NOFOLLOW_LINKS)) {
-            if (Files.exists(destination, java.nio.file.LinkOption.NOFOLLOW_LINKS)) {
-                throw new IOException("Unresolved setup quarantine requires manual recovery: " + quarantine);
-            }
-            mover.move(quarantine, destination);
-        }
+        deleteObsolete(obsolete, deleter);
+        restoreUnresolvedQuarantine(destination, quarantine, mover);
         boolean hadDestination = Files.exists(destination, java.nio.file.LinkOption.NOFOLLOW_LINKS);
         if (hadDestination) mover.move(destination, quarantine);
+        installReplacement(replacement, destination, quarantine, mover, hadDestination);
+        if (!hadDestination) return;
+        retireQuarantine(replacement, destination, quarantine, obsolete, mover);
+        try {
+            deleter.delete(obsolete);
+        } catch (IOException ignored) {
+            // The replacement is committed and the canonical quarantine is clear. Retry cleanup next publish.
+        }
+    }
+
+    private static void deleteObsolete(Path obsolete, DeleteOperation deleter) throws IOException {
+        if (Files.exists(obsolete, java.nio.file.LinkOption.NOFOLLOW_LINKS)) deleter.delete(obsolete);
+    }
+
+    private static void restoreUnresolvedQuarantine(Path destination, Path quarantine, MoveOperation mover)
+            throws IOException {
+        if (!Files.exists(quarantine, java.nio.file.LinkOption.NOFOLLOW_LINKS)) return;
+        if (Files.exists(destination, java.nio.file.LinkOption.NOFOLLOW_LINKS)) {
+            throw new IOException("Unresolved setup quarantine requires manual recovery: " + quarantine);
+        }
+        mover.move(quarantine, destination);
+    }
+
+    private static void installReplacement(Path replacement, Path destination, Path quarantine,
+                                           MoveOperation mover, boolean hadDestination) throws IOException {
         try {
             mover.move(replacement, destination);
         } catch (IOException failure) {
             if (hadDestination && Files.exists(quarantine, java.nio.file.LinkOption.NOFOLLOW_LINKS)) {
-                try {
-                    mover.move(quarantine, destination);
-                } catch (IOException rollbackFailure) {
-                    failure.addSuppressed(rollbackFailure);
-                }
+                restoreAfterFailure(quarantine, destination, mover, failure);
             }
             throw failure;
         }
-        if (!hadDestination) return;
+    }
+
+    private static void retireQuarantine(Path replacement, Path destination, Path quarantine, Path obsolete,
+                                         MoveOperation mover) throws IOException {
         try {
             mover.move(quarantine, obsolete);
         } catch (IOException failure) {
@@ -121,10 +138,14 @@ public final class VerifiedArtifactStore {
             }
             throw failure;
         }
+    }
+
+    private static void restoreAfterFailure(Path quarantine, Path destination, MoveOperation mover,
+                                            IOException failure) {
         try {
-            deleter.delete(obsolete);
-        } catch (IOException ignored) {
-            // The replacement is committed and the canonical quarantine is clear. Retry cleanup next publish.
+            mover.move(quarantine, destination);
+        } catch (IOException rollbackFailure) {
+            failure.addSuppressed(rollbackFailure);
         }
     }
 

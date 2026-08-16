@@ -267,7 +267,9 @@ class DesktopMobileSetupServiceTest {
         }
 
         @Override
-        public void lockedPreflight(List<SetupAction> actions, boolean offline) { }
+        public void lockedPreflight(List<SetupAction> actions, boolean offline) {
+            // This fixture records only mutation overlap; the lock assertion is made by maximumActive.
+        }
 
         @Override
         public void install(SetupAction action) throws IOException {
@@ -308,7 +310,9 @@ class DesktopMobileSetupServiceTest {
         }
 
         @Override
-        public void hostPreflight(List<SetupAction> actions) { }
+        public void hostPreflight(List<SetupAction> actions) {
+            // Host prerequisites are intentionally ready for this offline race fixture.
+        }
 
         @Override
         public void preStatePreflight(List<SetupAction> actions, boolean offline) throws IOException {
