@@ -24,6 +24,36 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 @Isolated("Temporarily overrides JVM-wide path properties for trusted-anchor regressions")
 class VerifiedArtifactStoreTest {
     @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    void fetchRejectsLinkedDownloadsRootBeforeCacheReadOrMutation(boolean cacheHit, @TempDir Path temp)
+            throws Exception {
+        Path storage = Files.createDirectory(temp.resolve("storage"));
+        Path downloads = temp.resolve("downloads");
+        try {
+            Files.createSymbolicLink(downloads, storage);
+        } catch (UnsupportedOperationException | IOException unsupported) {
+            Assumptions.abort("Symbolic links unavailable: " + unsupported.getMessage());
+        }
+        Path source = temp.resolve("artifact.tgz");
+        Files.writeString(source, "verified fixture");
+        String checksum = "sha256:" + VerifiedArtifactStore.digest(source);
+        SetupAction action = new SetupAction(SetupTarget.APPIUM_SERVER, SetupActionKind.INSTALL,
+                "fixture", source.toUri(), checksum, false, Set.of());
+        Path cached = storage.resolve(checksum.substring("sha256:".length()) + "-artifact.tgz");
+        if (cacheHit) Files.writeString(cached, "verified fixture");
+
+        IOException failure = assertThrows(IOException.class,
+                () -> new VerifiedArtifactStore(downloads).fetch(action));
+
+        assertTrue(failure.getMessage().contains("symbolic links"));
+        assertEquals(cacheHit, Files.exists(cached));
+        if (cacheHit) assertEquals("verified fixture", Files.readString(cached));
+        try (var entries = Files.list(storage)) {
+            assertEquals(cacheHit ? 1 : 0, entries.count());
+        }
+    }
+
+    @ParameterizedTest
     @ValueSource(strings = {"java.io.tmpdir", "user.home"})
     @ResourceLock(value = Resources.SYSTEM_PROPERTIES, mode = ResourceAccessMode.READ_WRITE)
     void platformLinkAboveTrustedRootIsAccepted(String property, @TempDir Path temp) throws Exception {
@@ -190,5 +220,45 @@ class VerifiedArtifactStoreTest {
         assertEquals("current", Files.readString(destination));
         assertEquals("recovery", Files.readString(quarantine));
         assertEquals("new", Files.readString(replacement));
+    }
+
+    @Test
+    void successfulDirectoryReplacementRemovesNonEmptyQuarantine(@TempDir Path temp) throws Exception {
+        Path destination = Files.createDirectory(temp.resolve("bundle"));
+        Files.writeString(destination.resolve("old.txt"), "old");
+        Path replacement = Files.createDirectory(temp.resolve("replacement"));
+        Files.writeString(replacement.resolve("new.txt"), "new");
+        Path quarantine = temp.resolve("bundle.quarantine");
+
+        VerifiedArtifactStore.replaceWithRollback(replacement, destination, quarantine);
+
+        assertEquals("new", Files.readString(destination.resolve("new.txt")));
+        assertFalse(Files.exists(destination.resolve("old.txt")));
+        assertFalse(Files.exists(quarantine));
+    }
+
+    @Test
+    void cleanupFailureAfterCommitDoesNotPoisonTheCanonicalQuarantine(@TempDir Path temp) throws Exception {
+        Path destination = Files.createDirectory(temp.resolve("bundle"));
+        Files.writeString(destination.resolve("old.txt"), "old");
+        Path replacement = Files.createDirectory(temp.resolve("replacement"));
+        Files.writeString(replacement.resolve("new.txt"), "new");
+        Path quarantine = temp.resolve("bundle.quarantine");
+        Path obsolete = temp.resolve("bundle.quarantine.obsolete");
+
+        assertDoesNotThrow(() -> VerifiedArtifactStore.replaceWithRollback(
+                replacement, destination, quarantine, VerifiedArtifactStore::move,
+                ignored -> { throw new IOException("injected cleanup failure"); }));
+
+        assertEquals("new", Files.readString(destination.resolve("new.txt")));
+        assertFalse(Files.exists(quarantine));
+        assertTrue(Files.isDirectory(obsolete));
+
+        Path next = Files.createDirectory(temp.resolve("next"));
+        Files.writeString(next.resolve("latest.txt"), "latest");
+        VerifiedArtifactStore.replaceWithRollback(next, destination, quarantine);
+        assertEquals("latest", Files.readString(destination.resolve("latest.txt")));
+        assertFalse(Files.exists(quarantine));
+        assertFalse(Files.exists(obsolete));
     }
 }

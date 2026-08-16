@@ -1,0 +1,10 @@
+{
+  "name": "shaft-managed-appium-ios",
+  "version": "1.0.0",
+  "private": true,
+  "dependencies": {
+    "appium": "3.6.0",
+    "appium-inspector-plugin": "2026.7.1",
+    "appium-xcuitest-driver": "12.1.1"
+  }
+}
