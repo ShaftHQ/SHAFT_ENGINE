@@ -155,7 +155,7 @@ def refresh_lock(common_dir: Path):
         lock_file.close()
 
 
-def refresh(root: Path, graph_out: Path) -> None:
+def refresh(root: Path, graph_out: Path, reset: bool = False) -> None:
     """Build, audit, cluster, then bind the complete cache to the current revision."""
     if not root.is_dir():
         raise ValueError(f"repository root is absent or not a directory: {root}")
@@ -191,6 +191,11 @@ def refresh(root: Path, graph_out: Path) -> None:
         "graphify",
     ]
     with refresh_lock(common_dir):
+        run_stage(
+            "disable-hooks", [uv, *graphify[1:], "hook", "uninstall"], root
+        )
+        if reset:
+            shutil.rmtree(requested_output, ignore_errors=True)
         (requested_output / ".shaft-source-revision.json").unlink(missing_ok=True)
         run_stage(
             "build",
@@ -214,6 +219,9 @@ def parser() -> argparse.ArgumentParser:
     audit.add_argument("--graph-out", type=Path, default=DEFAULT_GRAPH_OUT)
     refresh_command = subcommands.add_parser("refresh")
     refresh_command.add_argument("--root", type=Path, default=Path("."))
+    refresh_command.add_argument(
+        "--reset", action="store_true", help="Discard the derived cache before rebuilding."
+    )
     return result
 
 
@@ -227,7 +235,7 @@ def main(argv: list[str] | None = None) -> int:
             return int(
                 bool(report["missing_optional_parser"] or report["unexpected_parser_gap"])
             )
-        refresh(root, DEFAULT_GRAPH_OUT)
+        refresh(root, DEFAULT_GRAPH_OUT, reset=args.reset)
     except (OSError, ValueError, RuntimeError) as error:
         print(str(error), file=sys.stderr)
         return 1

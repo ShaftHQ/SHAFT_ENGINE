@@ -38,6 +38,19 @@ Existing approved plans remain valid until live evidence changes an assumption.
 
 Depth may increase or decrease as evidence changes. Complexity is not a reason to create ceremony.
 
+## Efficient decision loop
+
+1. Name the next decision and the evidence that could change it.
+2. Gather only that evidence; batch independent reads and sequence mutations.
+3. Stop exploring when the decision is supported. Do not reread unchanged inputs.
+4. Fix the structural owner instead of adding symptom exceptions.
+5. On failure, revise the premise or improve the discriminating observation; do not repeat the
+   same action with different wording.
+6. Deliver the smallest coherent increment, then use live feedback as the next input.
+
+Keep progress updates to current state, learned fact, and next action. Prefer one clear decision to
+several overlapping rules. Token efficiency comes from fewer unresolved branches, not less rigor.
+
 ## Evidence and retrieval
 
 Use evidence to answer a concrete question, not to satisfy a checklist.
@@ -136,4 +149,3 @@ historical rule number may prevent an otherwise truthful completion.
 - Delivery details: `references/branch-finish.md`
 
 Load a reference only when its topic is active and only as far as needed for the current decision.
-

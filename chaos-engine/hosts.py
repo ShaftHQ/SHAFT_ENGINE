@@ -1966,7 +1966,7 @@ def desired_content(
     after[".agents/skills/README.md"] = (
         "# Installed agent harness\n\n"
         "- `chaos-engine/`: canonical skill adapter.\n"
-        "- `../../plugins/chaos-engine/`: installed plugin and lifecycle hook.\n"
+        "- `../../plugins/chaos-engine/`: installed plugin with advisory diagnostics.\n"
         "- `.chaos-engine/`: canonical skills, playbooks, tools, and policy.\n"
     ).encode()
     plugin_entry = {
