@@ -17,6 +17,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /** Ephemeral loopback-only HTTP mirror for already verified setup artifacts. */
@@ -198,5 +199,13 @@ final class VerifiedArtifactMirror implements AutoCloseable {
             // Closing an already failed ephemeral mirror is best-effort.
         }
         executor.shutdownNow();
+        try {
+            if (!executor.awaitTermination(2, TimeUnit.SECONDS)) {
+                throw new IllegalStateException("Playwright artifact mirror did not stop after close.");
+            }
+        } catch (InterruptedException interrupted) {
+            Thread.currentThread().interrupt();
+            throw new IllegalStateException("Interrupted while stopping Playwright artifact mirror.", interrupted);
+        }
     }
 }
