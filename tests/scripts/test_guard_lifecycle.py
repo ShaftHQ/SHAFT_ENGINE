@@ -31,11 +31,26 @@ except ModuleNotFoundError as error:
     if error.name != "scripts.agents.reflection":
         raise
 
+    def _missing_reflection(*_args, **_kwargs):
+        raise AssertionError("reflection support is unavailable")
+
     class _MissingReflection:
         """Make the pre-feature fixture fail as a RED assertion, not at import."""
 
-        def __getattr__(self, name):
-            raise AssertionError(f"reflection support is unavailable: {name}")
+        active_entries = staticmethod(_missing_reflection)
+        append_entry = staticmethod(_missing_reflection)
+        entries = staticmethod(_missing_reflection)
+        has_valid_terminal_receipt = staticmethod(_missing_reflection)
+        ledger_path = staticmethod(_missing_reflection)
+        main = staticmethod(_missing_reflection)
+        mark_non_attempt = staticmethod(_missing_reflection)
+        pending_checkpoint = staticmethod(_missing_reflection)
+        record_activity = staticmethod(_missing_reflection)
+        record_failure = staticmethod(_missing_reflection)
+        record_platform_outcome = staticmethod(_missing_reflection)
+        record_receipt = staticmethod(_missing_reflection)
+        record_session_start = staticmethod(_missing_reflection)
+        record_trigger = staticmethod(_missing_reflection)
 
     reflection = _MissingReflection()
 
