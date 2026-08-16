@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "components": {
+    "core": {"requires": [], "probeOwner": "installer"},
+    "skills": {"requires": ["core"], "probeOwner": "installer"},
+    "hooks": {"requires": ["core"], "probeOwner": "hosts"},
+    "roles": {"requires": ["core"], "probeOwner": "hosts"},
+    "projection-policy": {"requires": ["core"], "probeOwner": "installer"},
+    "playbooks": {"requires": ["skills"], "probeOwner": "installer"},
+    "plugins": {"requires": ["skills", "hooks", "roles"], "probeOwner": "hosts"},
+    "tools": {"requires": ["projection-policy"], "probeOwner": "dependencies"},
+    "retrieval-config": {"requires": ["projection-policy"], "probeOwner": "hosts"},
+    "mcps": {"requires": ["tools", "retrieval-config"], "probeOwner": "hosts"},
+    "memory": {"requires": ["tools", "retrieval-config"], "probeOwner": "dependencies"},
+    "mempalace": {"requires": ["tools", "retrieval-config"], "probeOwner": "dependencies"},
+    "graphify": {"requires": ["tools", "retrieval-config"], "probeOwner": "dependencies"},
+    "maven-tools-mcp": {"requires": ["mcps"], "probeOwner": "hosts"}
+  }
+}

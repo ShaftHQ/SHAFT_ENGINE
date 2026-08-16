@@ -104,6 +104,14 @@ ordinary tasks but remain strict in `doctor`; an unhealthy selected store still
 returns `recovery-required`. The optional Maven Tools MCP cache is user-owned
 and does not make project health fail.
 
+The versioned `component-contracts.json` also binds each component's direct
+prerequisites and probe owner into the schema-v1 manifest. `status` remains
+passive and network-free; `doctor` activates only existing bounded probes.
+Both derive reverse `consumers`, preserve each component's direct `status` and
+`evidence`, and report failed prerequisites separately in `blockedBy` so
+recovery order is explicit. Pre-contract schema-v1 manifests use a fixed legacy
+graph in memory and receive the tracked contract on the next supported write.
+
 ## Optional native Maven Tools MCP
 
 Do not put `docker run -i --rm` in a default stdio MCP configuration. Each
