@@ -80,6 +80,15 @@ public final class VerifiedArtifactStore {
 
     static void replaceWithRollback(Path replacement, Path destination, Path quarantine,
                                     MoveOperation mover) throws IOException {
+        replaceWithRollback(replacement, destination, quarantine, mover, VerifiedArtifactStore::deleteRecursively);
+    }
+
+    static void replaceWithRollback(Path replacement, Path destination, Path quarantine,
+                                    MoveOperation mover, DeleteOperation deleter) throws IOException {
+        Path obsolete = quarantine.resolveSibling(quarantine.getFileName() + ".obsolete");
+        if (Files.exists(obsolete, java.nio.file.LinkOption.NOFOLLOW_LINKS)) {
+            deleter.delete(obsolete);
+        }
         if (Files.exists(quarantine, java.nio.file.LinkOption.NOFOLLOW_LINKS)) {
             if (Files.exists(destination, java.nio.file.LinkOption.NOFOLLOW_LINKS)) {
                 throw new IOException("Unresolved setup quarantine requires manual recovery: " + quarantine);
@@ -90,7 +99,6 @@ public final class VerifiedArtifactStore {
         if (hadDestination) mover.move(destination, quarantine);
         try {
             mover.move(replacement, destination);
-            Files.deleteIfExists(quarantine);
         } catch (IOException failure) {
             if (hadDestination && Files.exists(quarantine, java.nio.file.LinkOption.NOFOLLOW_LINKS)) {
                 try {
@@ -101,11 +109,47 @@ public final class VerifiedArtifactStore {
             }
             throw failure;
         }
+        if (!hadDestination) return;
+        try {
+            mover.move(quarantine, obsolete);
+        } catch (IOException failure) {
+            try {
+                mover.move(destination, replacement);
+                mover.move(quarantine, destination);
+            } catch (IOException rollbackFailure) {
+                failure.addSuppressed(rollbackFailure);
+            }
+            throw failure;
+        }
+        try {
+            deleter.delete(obsolete);
+        } catch (IOException ignored) {
+            // The replacement is committed and the canonical quarantine is clear. Retry cleanup next publish.
+        }
+    }
+
+    private static void deleteRecursively(Path path) throws IOException {
+        if (Files.notExists(path, java.nio.file.LinkOption.NOFOLLOW_LINKS)) return;
+        requireUnlinkedAncestors(path);
+        if (!Files.isDirectory(path, java.nio.file.LinkOption.NOFOLLOW_LINKS)) {
+            Files.deleteIfExists(path);
+            return;
+        }
+        try (var stream = Files.walk(path)) {
+            for (Path entry : stream.sorted(java.util.Comparator.reverseOrder()).toList()) {
+                Files.deleteIfExists(entry);
+            }
+        }
     }
 
     @FunctionalInterface
     interface MoveOperation {
         void move(Path source, Path destination) throws IOException;
+    }
+
+    @FunctionalInterface
+    interface DeleteOperation {
+        void delete(Path path) throws IOException;
     }
 
     static long maximumArtifactBytes(SetupTarget target) {

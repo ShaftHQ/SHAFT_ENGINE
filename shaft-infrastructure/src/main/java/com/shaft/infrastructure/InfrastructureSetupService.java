@@ -27,6 +27,8 @@ public final class InfrastructureSetupService {
         List<SetupProvider> providers = new java.util.ArrayList<>(List.of(
                 new ReportingSetupProvider(), new OcrSetupProvider(), new LighthouseSetupProvider(),
                 new PlaywrightSetupProvider(), new AndroidSetupProvider()));
+        if (platform == SetupPlatform.MACOS) providers.add(new IosSetupProvider());
+        if (platform == SetupPlatform.WINDOWS) providers.add(new WindowsSetupProvider());
         ClassLoader contextLoader = Thread.currentThread().getContextClassLoader();
         ClassLoader loader = contextLoader == null ? InfrastructureSetupService.class.getClassLoader() : contextLoader;
         ServiceLoader.load(SetupProvider.class, loader).forEach(providers::add);
@@ -108,12 +110,14 @@ public final class InfrastructureSetupService {
     }
 
     public SetupReceipt install(SetupPlan plan, SetupApproval approval, SetupOptions options) throws IOException {
-        return install(plan, approval, options, SetupSelection.defaults());
+        return install(plan, approval, options,
+                authorizedSelectionFromPlan(plan, approval, options, "mutate the host"));
     }
 
     public SetupReceipt install(SetupPlan plan, SetupApproval approval, SetupOptions options,
                                 Consumer<SetupProgress> progress) throws IOException {
-        return install(plan, approval, options, SetupSelection.defaults(), progress);
+        return install(plan, approval, options,
+                authorizedSelectionFromPlan(plan, approval, options, "mutate the host"), progress);
     }
 
     public SetupReceipt install(SetupPlan plan, SetupApproval approval, SetupOptions options,
@@ -139,7 +143,8 @@ public final class InfrastructureSetupService {
 
     public ManagedEnvironment start(SetupPlan plan, SetupApproval approval, SetupOptions options)
             throws IOException {
-        return start(plan, approval, options, SetupSelection.defaults());
+        return start(plan, approval, options,
+                authorizedSelectionFromPlan(plan, approval, options, "start a managed service"));
     }
 
     public ManagedEnvironment start(SetupPlan plan, SetupApproval approval, SetupOptions options,
@@ -171,7 +176,8 @@ public final class InfrastructureSetupService {
 
     /** Stops the exact SHAFT-owned service represented by an approved plan. */
     public boolean stop(SetupPlan plan, SetupApproval approval, SetupOptions options) throws IOException {
-        return stop(plan, approval, options, SetupSelection.defaults());
+        return stop(plan, approval, options,
+                authorizedSelectionFromPlan(plan, approval, options, "stop a managed service"));
     }
 
     /** Stops the exact selected SHAFT-owned service represented by an approved plan. */
@@ -196,6 +202,18 @@ public final class InfrastructureSetupService {
 
     private SetupProvider authorize(SetupPlan plan, SetupApproval approval, SetupOptions options,
                                     SetupSelection selection, String operation) {
+        SetupProvider provider = preauthorize(plan, approval, options, operation);
+        SetupPlan expected = provider.plan(options, Objects.requireNonNull(selection, "selection"),
+                SetupOperation.fromPlan(plan), platform, architecture);
+        requirePlanIdentity(expected, options);
+        if (!SetupPlan.bind(expected, options.policyDigest()).equals(plan)) {
+            throw new IllegalArgumentException("Plan does not match the provider manifest shipped with this release.");
+        }
+        return provider;
+    }
+
+    private SetupProvider preauthorize(SetupPlan plan, SetupApproval approval, SetupOptions options,
+                                       String operation) {
         Objects.requireNonNull(plan, "plan");
         Objects.requireNonNull(options, "options");
         if (options.effectiveMode() == SetupMode.EXTERNAL) {
@@ -208,14 +226,12 @@ public final class InfrastructureSetupService {
         if (plan.profile() != options.profile() || plan.mode() != options.effectiveMode()) {
             throw new IllegalArgumentException("Plan does not match the requested setup options.");
         }
-        SetupProvider provider = providers.require(options.profile());
-        SetupPlan expected = provider.plan(options, Objects.requireNonNull(selection, "selection"),
-                SetupOperation.fromPlan(plan), platform, architecture);
-        requirePlanIdentity(expected, options);
-        if (!SetupPlan.bind(expected, options.policyDigest()).equals(plan)) {
-            throw new IllegalArgumentException("Plan does not match the provider manifest shipped with this release.");
-        }
-        return provider;
+        return providers.require(options.profile());
+    }
+
+    private SetupSelection authorizedSelectionFromPlan(SetupPlan plan, SetupApproval approval,
+                                                       SetupOptions options, String operation) {
+        return preauthorize(plan, approval, options, operation).selectionFromPlan(plan);
     }
 
     private void requirePlanIdentity(SetupPlan plan, SetupOptions options) {

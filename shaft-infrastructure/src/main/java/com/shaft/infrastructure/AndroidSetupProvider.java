@@ -23,6 +23,11 @@ final class AndroidSetupProvider implements SetupProvider {
     }
 
     @Override
+    public SetupSelection selectionFromPlan(SetupPlan plan) {
+        return AndroidSetupRequest.fromPlan(plan).toSelection();
+    }
+
+    @Override
     public SetupReport status(SetupOptions options, SetupPlatform platform, SetupArchitecture architecture) {
         return status(options, SetupSelection.defaults(), platform, architecture);
     }
