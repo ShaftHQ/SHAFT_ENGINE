@@ -1297,7 +1297,8 @@ class InitialDraftPullRequestGateTest(unittest.TestCase):
             with patch("scripts.agents.guard._checkpoint_identity", return_value=identity):
                 with patch("scripts.agents.guard._same_tree_as_default_base", return_value=True, create=True):
                     with patch("scripts.agents.guard._working_tree_clean", return_value=True, create=True):
-                        with patch("scripts.agents.guard._exact_head_pull_request", return_value=("none", None)):
+                        with patch("scripts.agents.guard._exact_head_pull_request", return_value=("none", None)), \
+                             patch("scripts.agents.guard._repository_default_branch", return_value="main"):
                             payload = {"cwd": ".", "tool_input": {"command": allowed[0]}}
                             self.assertIsNone(self.check(payload, "Bash"))
                             for command in allowed[1:]:
