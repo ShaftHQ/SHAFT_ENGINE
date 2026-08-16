@@ -145,8 +145,12 @@ final class SystemDesktopMobileHostProbe implements DesktopMobileHostProbe {
 
     private static boolean isAtLeast(String version, int requiredMajor, int requiredMinor) {
         String[] parts = version.split("\\.");
-        int major = Integer.parseInt(parts[0]);
-        int minor = parts.length > 1 ? Integer.parseInt(parts[1]) : 0;
-        return major > requiredMajor || major == requiredMajor && minor >= requiredMinor;
+        try {
+            int major = Integer.parseInt(parts[0]);
+            int minor = parts.length > 1 ? Integer.parseInt(parts[1]) : 0;
+            return major > requiredMajor || major == requiredMajor && minor >= requiredMinor;
+        } catch (NumberFormatException malformed) {
+            return false;
+        }
     }
 }
