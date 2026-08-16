@@ -87,13 +87,18 @@ rule overrides an imported skill's default path.
 
 ## Lifecycle
 
-Work runs in this order, and each phase ends before the next begins:
+Work runs in this order:
 
 analyze -> plan -> design -> RED -> GREEN -> refactor -> commit ->
-pull request -> babysit to green -> merge.
+push -> CI and review in parallel -> one repair batch -> repeat until clear ->
+arm -> merge.
 
-Every phase that changes behavior ends with the independent adversarial review
-defined in [delegation](delegation.md), at the depth this task's triage set.
+The isolated branch's zero-file draft pull request already exists from the
+planning checkpoint before RED begins.
+
+Every pushed behavior iteration gets the independent adversarial review defined
+in [delegation](delegation.md), at the depth this task's triage set, while CI
+runs against the same exact head.
 
 ## Output
 

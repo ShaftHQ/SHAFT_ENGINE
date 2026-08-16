@@ -2,6 +2,7 @@
 
 import json
 import importlib.util
+import os
 import re
 import unittest
 import xml.etree.ElementTree as ET  # nosec B405
@@ -68,6 +69,7 @@ class ChaosEnginePortableCoreTest(unittest.TestCase):
         self.assertFalse(guard.mutation_command('rg -n "touch|rm" scripts'))
         self.assertTrue(guard.mutation_command("echo ok && touch x"))
         self.assertTrue(guard.mutation_command("echo ok\ntouch x"))
+        self.assertTrue(guard.mutation_command("echo changed >> C:/main/file"))
         for command in ("Clear-Content x", "Remove-Content x", "Copy-Item x y", "Rename-Item x y", "Move-Item x y", "echo x > y", "git restore x", "git tag x", "git branch x", "git cherry-pick HEAD"):
             with self.subTest(command=command):
                 self.assertTrue(guard.mutation_command(command))
@@ -76,6 +78,8 @@ class ChaosEnginePortableCoreTest(unittest.TestCase):
         self.assertIn("C:/main/y", guard.command_targets("Move-Item -Destination C:/main/y -Path x"))
         self.assertIn("C:/main/y", guard.command_targets("Out-File -InputObject x -FilePath C:/main/y"))
         self.assertEqual(("safe", "C:/main/victim"), guard.command_targets("rm safe C:/main/victim"))
+        self.assertEqual(("C:/main/file",), guard.command_targets("echo changed >> C:/main/file"))
+        self.assertIn("C:/other", guard.command_targets("git --work-tree C:/other restore x"))
         with mock.patch.object(guard, "current_branch", return_value="trunk"), \
              mock.patch.object(guard, "git_output", return_value="origin/trunk"):
             self.assertTrue(guard.on_default_branch("C:/repo"))
@@ -93,6 +97,13 @@ class ChaosEnginePortableCoreTest(unittest.TestCase):
             self.assertTrue(guard.initial_draft_recovery("git commit --allow-empty -m plan", ".", "ChaosEngine/task"))
         self.assertFalse(guard.initial_draft_recovery("git push && touch x", ".", "ChaosEngine/task"))
         self.assertFalse(guard.initial_draft_recovery("git push evil HEAD", ".", "ChaosEngine/task"))
+        self.assertFalse(guard.initial_draft_recovery(
+            "gh pr edit --body-file plan.md --repo other/repo", ".", "ChaosEngine/task", "owner/repo"
+        ))
+        self.assertFalse(guard.initial_draft_recovery(
+            "gh pr create --draft --base main --head ChaosEngine/task --body plan --reviewer victim",
+            ".", "ChaosEngine/task", "owner/repo",
+        ))
         with mock.patch.object(guard, "current_branch", return_value="ChaosEngine/task"), \
              mock.patch.object(guard, "git_output", return_value=None):
             invalid = {"command": "gh pr create --base wrong --head wrong --body x"}
@@ -108,8 +119,33 @@ class ChaosEnginePortableCoreTest(unittest.TestCase):
         with mock.patch.object(guard, "current_branch", return_value="trunk"), \
              mock.patch.object(guard, "git_output", return_value=None):
             self.assertTrue(guard.on_default_branch("C:/repo"))
-        self.assertTrue(guard.initial_draft_recovery("gh pr edit --body-file plan.md", ".", "ChaosEngine/task"))
-        self.assertFalse(guard.initial_draft_recovery("gh pr edit 9 --body-file plan.md", ".", "ChaosEngine/task"))
+        self.assertTrue(guard.initial_draft_recovery("gh pr edit --body-file plan.md", ".", "ChaosEngine/task", "owner/repo"))
+        self.assertFalse(guard.initial_draft_recovery("gh pr edit 9 --body-file plan.md", ".", "ChaosEngine/task", "owner/repo"))
+
+    def test_portable_relative_workdir_resolves_from_the_event_directory(self):
+        guard = self.portable_guard()
+        observed = []
+        def branch(cwd):
+            observed.append(os.path.normcase(os.path.realpath(str(cwd))))
+            return "ChaosEngine/task"
+        with mock.patch.object(guard, "current_branch", side_effect=branch), \
+             mock.patch.object(guard, "git_output", return_value=None):
+            guard.lifecycle_reason(
+                {"cwd": "C:/outer", "session_id": "s"},
+                "PowerShell", {"command": "touch x", "workdir": "task"}, True,
+            )
+        expected = os.path.normcase(os.path.realpath(os.path.join("C:/outer", "task")))
+        self.assertIn(expected, observed)
+
+    def test_review_iteration_guidance_has_no_serial_or_round_ceiling_contradiction(self):
+        corpus = "\n".join(
+            path.read_text(encoding="utf-8") for path in (
+                CANONICAL_SKILL, GITHUB_PLAYBOOK, DELEGATION,
+                CORE / "references/consult-first.md", ROOT / ".agents/skills/README.md",
+            )
+        ).casefold()
+        self.assertNotIn("three rounds is the hard ceiling", corpus)
+        self.assertNotIn("every behavior-changing phase is reviewed before the next phase", corpus)
 
     def test_portable_r31_uses_effective_workdir_and_hands_off_existing_diff(self):
         guard = self.portable_guard()

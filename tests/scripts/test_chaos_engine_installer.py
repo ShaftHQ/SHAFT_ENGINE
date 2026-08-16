@@ -565,12 +565,14 @@ class ChaosEngineInstallerTest(unittest.TestCase):
             self.assertEqual(0, second.returncode, second.stderr)
             self.assertIn("Reflection required", second.stdout)
 
+            git = shutil.which("git")
+            self.assertIsNotNone(git)
             for arguments in (
-                ["git", "init"],
-                ["git", "config", "user.email", "portable@example.invalid"],
-                ["git", "config", "user.name", "Portable Test"],
-                ["git", "add", "."],
-                ["git", "commit", "-m", "planning"],
+                [git, "init"],
+                [git, "config", "user.email", "portable@example.invalid"],
+                [git, "config", "user.name", "Portable Test"],
+                [git, "add", "."],
+                [git, "commit", "-m", "planning"],
             ):
                 subprocess.run(arguments, cwd=project, capture_output=True, check=True)  # nosec B603
             main_write = subprocess.run(  # nosec B603
@@ -580,7 +582,7 @@ class ChaosEngineInstallerTest(unittest.TestCase):
             )
             self.assertEqual(2, main_write.returncode)
             self.assertIn("R19 blocked", main_write.stdout)
-            subprocess.run(["git", "checkout", "-b", "ChaosEngine/portable-test"], cwd=project, capture_output=True, check=True)  # nosec B603
+            subprocess.run([git, "checkout", "-b", "ChaosEngine/portable-test"], cwd=project, capture_output=True, check=True)  # nosec B603
             branch_write = subprocess.run(  # nosec B603
                 [sys.executable, str(hook)], cwd=project,
                 input=json.dumps({"hook_event_name": "PreToolUse", "tool_name": "Write", "cwd": str(project), "tool_input": {"file_path": "x.txt"}, "session_id": "installed-branch"}),

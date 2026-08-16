@@ -2358,12 +2358,12 @@ def _shell_is_mutation(command: str) -> bool:
             return True
         if re.search(r"(?<![0-9])>(?![>&])", lowered):
             return True
-        if re.search(r"\bgit\s+(?:add|commit|push|merge|rebase|reset|restore|rm|mv|tag|branch|checkout|switch|cherry-pick)\b", lowered):
+        if re.search(r"\bgit\s+(?:add|commit|push|merge|rebase|reset|restore|clean|rm|mv|tag|branch|checkout|switch|cherry-pick)\b", lowered):
             return True
         git = _tokens_after_head(segment, _GIT_NAMES)
         if git and _split_global_options(git)[0] in {
             "add", "commit", "push", "merge", "rebase", "reset", "restore",
-            "rm", "mv", "tag", "branch", "checkout", "switch", "cherry-pick",
+            "clean", "rm", "mv", "tag", "branch", "checkout", "switch", "cherry-pick",
         }:
             return True
         if re.search(r"\bgh\s+(?:api\b.*--method\s+(?:post|put|patch|delete)|pr\s+(?:create|merge|close|comment|edit)|issue\s+(?:create|close|comment|edit))\b", lowered):
@@ -2745,11 +2745,8 @@ def check_r15_review_before_arming(
         )
         if reviews is None or reviews > 0:
             continue
-        # #4545 option C: a dispatch this hook watched counts as well. R15 was
-        # otherwise unsatisfiable by the agent it governs -- its own message
-        # says to get a separate instance to review, and doing exactly that
-        # leaves `reviews` empty, so the only satisfying action belonged to a
-        # different account.
+        # A local reviewer counts only after its zero-blocker verdict is bound
+        # to this exact repository, branch, and head.
         if _ledger_records_a_review(
             hook_input, _current_branch(_hook_working_directory(hook_input or {}))
         ):
@@ -2758,9 +2755,9 @@ def check_r15_review_before_arming(
         return (
             f"R15 blocked: nothing independent has read {label}. Arming auto-merge "
             "is the irreversible step -- after it, the next green run merges without "
-            "asking. Two things satisfy this, and both are available to you: dispatch "
-            "a `reviewer` subagent against this branch, which this hook records when "
-            "it sees the dispatch, or obtain a review on the pull request from an "
+            "asking. Two things satisfy this: complete a `reviewer` subagent review "
+            "with a terminal ZERO BLOCKERS verdict on this exact head, or obtain a "
+            "review on the pull request from an "
             "account other than the author. A bot comment is not a review: only an "
             "approval or a request for changes counts. Address bot annotations too, "
             "but they do not satisfy this. If a review exists and this still fires, "
@@ -3601,19 +3598,14 @@ def _reviewer_dispatch_event(hook_input: dict, tool_name: str) -> str | None:
 
 
 def _ledger_records_a_review(hook_input: object, branch: object) -> bool:
-    """True when this session watched a reviewer being dispatched for `branch`.
-
-    Keyed to the branch only (#4548, second review: this docstring used to
-    claim a bare `review` also counted, written when git could not name the
-    branch at dispatch time -- but that keyless fallback cleared *every*
-    branch's R15, so `_reviewer_dispatch_event` no longer writes it.
-    Recording nothing when the branch is unanswerable is the safe direction,
-    and this reader has no bare-`review` path left to match; the sentence
-    describing one was stale).
-    """
+    """True only for a completed zero-blocker review of the current exact head."""
     if not isinstance(hook_input, dict) or not branch:
         return False
-    return f"review:{branch}" in set(ledger_events(hook_input))
+    identity = _checkpoint_identity(hook_input)
+    if identity is None or identity[1] != branch:
+        return False
+    expected = _checkpoint_json_event("review-clear", *identity)
+    return expected in set(ledger_events(hook_input))
 
 
 def _checkpoint_json_event(prefix: str, repository: str, branch: str, head: str, **extra) -> str:
@@ -3673,23 +3665,39 @@ def _review_checkpoint_event(hook_input: dict, review_event: str | None) -> str 
     return _checkpoint_json_event("review-head", *identity)
 
 
+def _result_text(value: object) -> str:
+    if isinstance(value, str):
+        return value
+    if isinstance(value, dict):
+        return "\n".join(_result_text(item) for item in value.values())
+    if isinstance(value, (list, tuple)):
+        return "\n".join(_result_text(item) for item in value)
+    return ""
+
+
+def _review_clear_event(hook_input: dict, tool_name: str, result: object) -> str | None:
+    review_event = _reviewer_dispatch_event(hook_input, tool_name)
+    identity = _checkpoint_identity(hook_input)
+    if review_event is None or identity is None:
+        return None
+    dispatched = _checkpoint_json_event("review-head", *identity)
+    if dispatched not in set(ledger_events(hook_input)):
+        return None
+    output = _result_text(result)
+    if re.search(r"(?im)^\s*Blocking:\s*yes\s*$", output):
+        return None
+    if not re.search(r"(?im)^\s*ZERO BLOCKERS\s*$", output):
+        return None
+    return _checkpoint_json_event("review-clear", *identity)
+
+
 def _record_successful_commit_checkpoint(hook_input: dict) -> None:
-    """Persist a reviewed commit only after successful PostToolUse retained a new HEAD."""
+    """Persist a retained behavior commit so it must be pushed before more work."""
     identity = _checkpoint_identity(hook_input)
     if identity is None:
         return
-    repository, branch, head = identity
-    reviewed_heads = [
-        payload
-        for payload in (
-            _checkpoint_event_payload(event, "review-head")
-            for event in ledger_events(hook_input)
-        )
-        if payload
-        and payload["repository"] == repository
-        and payload["branch"] == branch
-    ]
-    if not reviewed_heads or reviewed_heads[-1]["head"].lower() == head.lower():
+    repository, _branch, _head = identity
+    if _same_tree_as_default_base(repository, _hook_working_directory(hook_input)) is True:
         return
     ledger_record(hook_input, _checkpoint_json_event("checkpoint", *identity))
 
@@ -3937,12 +3945,43 @@ def _same_tree_as_default_base(repository: str, cwd: object) -> bool | None:
     return None if changed is None else not changed.strip()
 
 
+def _strict_cli_options(
+    options: list[str], *, flags: frozenset[str], values: frozenset[str]
+) -> tuple[frozenset[str], dict[str, str]] | None:
+    parsed_flags: set[str] = set()
+    parsed_values: dict[str, str] = {}
+    index = 0
+    while index < len(options):
+        raw = options[index]
+        name, separator, inline = raw.partition("=")
+        name = name.lower()
+        if name in flags and not separator and name not in parsed_flags:
+            parsed_flags.add(name)
+            index += 1
+            continue
+        if name not in values or name in parsed_values:
+            return None
+        if separator:
+            value = inline
+        else:
+            index += 1
+            if index >= len(options):
+                return None
+            value = options[index]
+        if not value or value.startswith("-"):
+            return None
+        parsed_values[name] = value
+        index += 1
+    return frozenset(parsed_flags), parsed_values
+
+
 def _r31_recovery_command(
     command: str,
     cwd: object,
     *,
     expected_base: str | None = None,
     expected_head: str | None = None,
+    expected_repository: str | None = None,
 ) -> tuple[bool, str | None]:
     """Allow only the bounded operations that can create or repair the initial draft."""
     segments, separators = _top_level_shell_parts(_sanitize_for_command_head(command))
@@ -3982,50 +4021,39 @@ def _r31_recovery_command(
     gh = _tokens_after_head(segment, frozenset({"gh"})) or []
     if gh[:2] == ["pr", "create"]:
         options = gh[2:]
-        has_value = lambda name: any(
-            token.lower().startswith(name + "=")
-            or (token.lower() == name and index + 1 < len(options))
-            for index, token in enumerate(options)
+        parsed = _strict_cli_options(
+            options,
+            flags=frozenset({"--draft"}),
+            values=frozenset({"--base", "--head", "--body", "--body-file", "--repo"}),
         )
-        if "--draft" not in {token.lower() for token in options}:
+        if parsed is None:
+            return False, None
+        flags, values = parsed
+        if "--draft" not in flags:
             return False, "R31 blocked: the initial pull request must be created with --draft."
-        if not has_value("--base") or not has_value("--head"):
+        if "--base" not in values or "--head" not in values:
             return False, "R31 blocked: initial draft creation requires explicit --base and --head values."
-        if not has_value("--body") and not has_value("--body-file"):
+        if len({"--body", "--body-file"} & values.keys()) != 1:
             return False, "R31 blocked: initial draft creation requires a plan body or body file."
         if expected_base is None:
             return False, "R31 blocked: the configured default branch is unavailable."
-        def value(name: str) -> str | None:
-            for index, token in enumerate(options):
-                if token.lower().startswith(name + "="):
-                    return token.split("=", 1)[1]
-                if token.lower() == name and index + 1 < len(options):
-                    return options[index + 1]
-            return None
-        if expected_base is not None and value("--base") != expected_base:
+        if values["--base"] != expected_base:
             return False, "R31 blocked: initial draft creation must explicitly target the configured default branch."
-        if expected_head is not None and value("--head") != expected_head:
+        if expected_head is not None and values["--head"] != expected_head:
             return False, "R31 blocked: initial draft creation must explicitly name the current task branch."
+        if "--repo" in values and values["--repo"] != expected_repository:
+            return False, "R31 blocked: initial draft recovery cannot target another repository."
         return True, None
     if gh[:2] == ["pr", "edit"]:
-        options = gh[2:]
-        allowed = {"--body", "--body-file", "--repo"}
-        if options and not options[0].startswith("-"):
+        parsed = _strict_cli_options(
+            gh[2:], flags=frozenset(), values=frozenset({"--body", "--body-file", "--repo"})
+        )
+        if parsed is None:
             return False, None
-        index = 0
-        saw_body = False
-        while index < len(options):
-            token = options[index]
-            name = token.split("=", 1)[0].lower()
-            if name not in allowed:
-                return False, None
-            saw_body = saw_body or name in {"--body", "--body-file"}
-            if "=" not in token:
-                index += 1
-                if index >= len(options):
-                    return False, None
-            index += 1
-        return saw_body, None
+        _flags, values = parsed
+        if len({"--body", "--body-file"} & values.keys()) != 1:
+            return False, None
+        return "--repo" not in values or values["--repo"] == expected_repository, None
     return False, None
 
 
@@ -4098,7 +4126,8 @@ def check_r31_initial_draft_pull_request(hook_input: dict, tool_name: str) -> st
         executable = shutil.which("gh")
         expected_base = _repository_default_branch(executable, repository) if executable else None
         recovery, recovery_error = _r31_recovery_command(
-            commands[0], cwd, expected_base=expected_base, expected_head=branch
+            commands[0], cwd, expected_base=expected_base, expected_head=branch,
+            expected_repository=repository,
         )
         if recovery_error:
             return recovery_error
@@ -4196,7 +4225,7 @@ def check_r27_checkpoint_pull_request(
         return None
     if uncertified_commit:
         return (
-            "R27 blocked: a successful reviewed commit was observed, but its exact "
+            "R27 blocked: a successful retained commit was observed, but its exact "
             "repository/branch/HEAD checkpoint was not durably appended. Restore the "
             "session ledger and repeat an explicit reviewed checkpoint commit."
         )
@@ -4385,6 +4414,17 @@ def check_r19_fresh_base(hook_input: dict, tool_name: str) -> str | None:
                     "Pass one JSON string literal directly to apply_patch."
                 )
             patch_cwd = _hook_working_directory(hook_input)
+            patch_root = _repository_root(patch_cwd)
+            patch_roots = {
+                root
+                for target in patch_targets
+                if (root := _target_checkout_root(target, patch_cwd))
+            }
+            if patch_root and any(
+                os.path.normcase(root) != os.path.normcase(patch_root)
+                for root in patch_roots
+            ):
+                return "R19 blocked: a wrapped patch targets a different checkout."
             if any(
                 _wrapped_target_is_on_default_branch(target, patch_cwd)
                 for target in patch_targets
@@ -4627,6 +4667,10 @@ def run_posttooluse(hook_input: dict) -> int:
         tool_name in _NATIVE_MEMORY_WRITE_TOOLS or tool_name in _MEMPALACE_LEARNING_TOOLS
     ):
         ledger_record(hook_input, "memory-write")
+    if not result_failed:
+        review_clear = _review_clear_event(hook_input, tool_name, result)
+        if review_clear:
+            ledger_record(hook_input, review_clear)
     for command in _hook_commands(hook_input, tool_name):
         if not result_failed and _is_git_commit_command(command):
             _record_successful_commit_checkpoint(hook_input)
@@ -6347,11 +6391,9 @@ def run_required_action_self_test() -> int:
         )
         is None,
     )
-    # The accepting branch too, not only the refusing one (#4551): a rule whose
-    # permissive path is never exercised is half untested, and this is the path
-    # #4545 option C added.
+    # The exact-head zero-blocker accepting branch too, not only the refusal.
     check(
-        "R15 allows arming after an observed reviewer dispatch",
+        "R15 allows arming after an exact-head zero-blocker review",
         _with_stubs(
             {
                 "_independent_review_count": lambda target, cwd=None: 0,
@@ -6364,7 +6406,7 @@ def run_required_action_self_test() -> int:
         is None,
     )
     check(
-        "a reviewer dispatch is recorded as a review",
+        "a reviewer dispatch is recorded as a pending review marker",
         _with_stubs(
             {"_current_branch": lambda cwd: "feature"},
             lambda: _reviewer_dispatch_event(

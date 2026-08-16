@@ -803,7 +803,7 @@ class CheckpointPullRequestGateTest(unittest.TestCase):
             "- Next action: watch checks and repair any failure\n"
         )
 
-    def test_successful_reviewed_retained_commit_records_exact_identity(self):
+    def test_successful_retained_behavior_commit_records_exact_identity(self):
         events: list[str] = []
         before = "a" * 40
         identity = ("ShaftHQ/SHAFT_ENGINE", "ChaosEngine/r27", "b" * 40)
@@ -814,20 +814,16 @@ class CheckpointPullRequestGateTest(unittest.TestCase):
             "session_id": "r27-success",
             "cwd": ".",
         }
-        review = guard._checkpoint_json_event(
-            "review-head", identity[0], identity[1], before
-        )
-        with patch("scripts.agents.guard._checkpoint_identity", return_value=identity):
-            with patch("scripts.agents.guard.ledger_events", return_value=[review]):
-                with patch("scripts.agents.guard.ledger_record", side_effect=lambda _p, event: events.append(event) or True):
-                    guard.run_posttooluse(payload)
+        with patch("scripts.agents.guard._checkpoint_identity", return_value=identity), \
+             patch("scripts.agents.guard._same_tree_as_default_base", return_value=False), \
+             patch("scripts.agents.guard.ledger_record", side_effect=lambda _p, event: events.append(event) or True):
+            guard.run_posttooluse(payload)
         self.assertIn("commit", events)
         self.assertIn(self.checkpoint(), events)
 
     def test_unchanged_head_does_not_create_a_checkpoint(self):
         head = "b" * 40
         identity = ("ShaftHQ/SHAFT_ENGINE", "ChaosEngine/r27", head)
-        review = guard._checkpoint_json_event("review-head", *identity)
         events: list[str] = []
         payload = {
             "tool_name": "Bash",
@@ -836,10 +832,10 @@ class CheckpointPullRequestGateTest(unittest.TestCase):
             "session_id": "r27-unchanged",
             "cwd": ".",
         }
-        with patch("scripts.agents.guard._checkpoint_identity", return_value=identity):
-            with patch("scripts.agents.guard.ledger_events", return_value=[review]):
-                with patch("scripts.agents.guard.ledger_record", side_effect=lambda _p, event: events.append(event) or True):
-                    guard.run_posttooluse(payload)
+        with patch("scripts.agents.guard._checkpoint_identity", return_value=identity), \
+             patch("scripts.agents.guard._same_tree_as_default_base", return_value=True), \
+             patch("scripts.agents.guard.ledger_record", side_effect=lambda _p, event: events.append(event) or True):
+            guard.run_posttooluse(payload)
         self.assertFalse(any(event.startswith("checkpoint:") for event in events))
 
     def test_cross_host_result_alias_is_normalized_before_failure_check(self):
@@ -1325,6 +1321,18 @@ class InitialDraftPullRequestGateTest(unittest.TestCase):
         allowed, _ = guard._r31_recovery_command("gh pr edit 999 --base attacker --add-label hacked", ".")
         self.assertFalse(allowed)
         for command in (
+            "gh pr edit --body-file plan.md --repo other/repo",
+            "gh pr create --draft --base main --head ChaosEngine/early-draft --body plan --repo other/repo",
+            "gh pr create --draft --base main --head ChaosEngine/early-draft --body plan --reviewer victim",
+        ):
+            with self.subTest(command=command):
+                allowed, _ = guard._r31_recovery_command(
+                    command, ".", expected_base="main",
+                    expected_head="ChaosEngine/early-draft",
+                    expected_repository="owner/repo",
+                )
+                self.assertFalse(allowed)
+        for command in (
             "git push --delete origin main",
             "git push origin other-branch",
             "git push --force origin HEAD:main",
@@ -1343,6 +1351,14 @@ class InitialDraftPullRequestGateTest(unittest.TestCase):
             for command in ("touch x", "rm x", "mv x y", "cp x y"):
                 with self.subTest(command=command):
                     self.assertIsNotNone(self.check({"cwd": ".", "tool_input": {"command": command}}, "Bash"))
+
+    def test_source_classifies_git_clean_and_append_redirect(self):
+        self.assertTrue(guard._shell_is_mutation("git clean -fd"))
+        self.assertTrue(guard._shell_is_mutation("echo changed >> C:/main/file"))
+        self.assertEqual(
+            ("C:/main/file",),
+            guard._shell_mutation_targets("echo changed >> C:/main/file"),
+        )
 
     def test_wrapped_mutation_identity_comes_from_effective_workdir(self):
         task = os.path.abspath("task-worktree")
@@ -4775,6 +4791,45 @@ class ObservedReviewDispatchTest(unittest.TestCase):
         with patch("scripts.agents.guard.ledger_events", return_value=["review:feature"]):
             self.assertFalse(guard._ledger_records_a_review({"session_id": "s"}, None))
 
+    def test_only_a_zero_blocker_verdict_on_the_latest_exact_head_clears_review(self):
+        identity = ("owner/repo", "feature", "b" * 40)
+        dispatched = guard._checkpoint_json_event("review-head", *identity)
+        cleared = guard._checkpoint_json_event("review-clear", *identity)
+        with patch("scripts.agents.guard._checkpoint_identity", return_value=identity):
+            with patch("scripts.agents.guard.ledger_events", return_value=[dispatched]):
+                self.assertFalse(guard._ledger_records_a_review({"session_id": "s"}, "feature"))
+            with patch("scripts.agents.guard.ledger_events", return_value=[cleared]):
+                self.assertTrue(guard._ledger_records_a_review({"session_id": "s"}, "feature"))
+        newer = (identity[0], identity[1], "c" * 40)
+        with patch("scripts.agents.guard._checkpoint_identity", return_value=newer), \
+             patch("scripts.agents.guard.ledger_events", return_value=[cleared]):
+            self.assertFalse(guard._ledger_records_a_review({"session_id": "s"}, "feature"))
+
+    def test_posttool_records_clear_only_for_a_successful_zero_blocker_reviewer(self):
+        identity = ("owner/repo", "feature", "b" * 40)
+        events = []
+        payload = {
+            "tool_name": "Agent",
+            "tool_input": {"subagent_type": "reviewer"},
+            "tool_response": {"status": "success", "output": "Evidence complete.\nZERO BLOCKERS"},
+            "session_id": "s",
+            "cwd": ".",
+        }
+        dispatched = guard._checkpoint_json_event("review-head", *identity)
+        with patch("scripts.agents.guard._checkpoint_identity", return_value=identity), \
+             patch("scripts.agents.guard.ledger_events", return_value=[dispatched]), \
+             patch("scripts.agents.guard.ledger_record", side_effect=lambda _p, e: events.append(e) or True):
+            guard.run_posttooluse(payload)
+        self.assertIn(guard._checkpoint_json_event("review-clear", *identity), events)
+
+        events.clear()
+        payload["tool_response"]["output"] = "F1 confirmed\nBlocking: yes\nZERO BLOCKERS"
+        with patch("scripts.agents.guard._checkpoint_identity", return_value=identity), \
+             patch("scripts.agents.guard.ledger_events", return_value=[dispatched]), \
+             patch("scripts.agents.guard.ledger_record", side_effect=lambda _p, e: events.append(e) or True):
+            guard.run_posttooluse(payload)
+        self.assertFalse(any(event.startswith("review-clear:") for event in events))
+
     def test_both_rules_read_the_branch_the_same_way(self):
         """Two sources for one question is how the R15/R17 deadlock arrived.
 
@@ -4896,17 +4951,20 @@ class HistoricalDispatchReplayTest(unittest.TestCase):
                         self.assertEqual(guard.run_pretooluse(payload), 0)
                 self.assertEqual("R22 blocked" not in output.getvalue(), allowed)
 
-    def test_r15_accepts_an_observed_dispatch(self):
+    def test_r15_accepts_only_a_clear_exact_head_review(self):
         arming = "gh pr merge 1 --auto --merge"
+        identity = ("owner/repo", "feature", "b" * 40)
+        clear = guard._checkpoint_json_event("review-clear", *identity)
         with patch("scripts.agents.guard._independent_review_count", return_value=0):
-            with patch("scripts.agents.guard._current_branch", return_value="feature"):
+            with patch("scripts.agents.guard._current_branch", return_value="feature"), \
+                 patch("scripts.agents.guard._checkpoint_identity", return_value=identity):
                 with patch(
-                    "scripts.agents.guard.ledger_events", return_value=["review:feature"]
+                    "scripts.agents.guard.ledger_events", return_value=[clear]
                 ):
                     self.assertIsNone(
                         guard.check_r15_review_before_arming(arming, "Bash", {"session_id": "s"})
                     )
-                with patch("scripts.agents.guard.ledger_events", return_value=["commit"]):
+                with patch("scripts.agents.guard.ledger_events", return_value=["review:feature"]):
                     self.assertIsNotNone(
                         guard.check_r15_review_before_arming(arming, "Bash", {"session_id": "s"})
                     )
@@ -5706,6 +5764,22 @@ class FreshBaseGateTest(unittest.TestCase):
             reason = guard.check_r19_fresh_base(
                 {"cwd": isolated, "tool_input": {"file_path": target}}, "Write"
             )
+        self.assertIsNotNone(reason)
+
+    def test_wrapped_patch_cannot_cross_into_another_task_checkout(self):
+        isolated, _ = self.repository()
+        other = os.path.join(os.path.dirname(isolated), "other-task")
+        os.makedirs(other, exist_ok=True)
+        source = json.dumps(f"*** Begin Patch\n*** Update File: {other}/x.txt\n@@\n-old\n+new\n*** End Patch")
+        payload = {
+            "cwd": isolated,
+            "tool_input": f"await tools.apply_patch({source});",
+        }
+        def root(cwd):
+            return other if os.path.normcase(str(cwd)).startswith(os.path.normcase(other)) else isolated
+        with patch("scripts.agents.guard._current_branch", return_value="ChaosEngine/task"), \
+             patch("scripts.agents.guard._repository_root", side_effect=root):
+            reason = guard.check_r19_fresh_base(payload, "functions.exec")
         self.assertIsNotNone(reason)
 
     def test_posix_mutation_classification_uses_command_heads_not_prose(self):

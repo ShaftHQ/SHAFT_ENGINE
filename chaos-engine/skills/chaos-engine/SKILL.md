@@ -24,7 +24,8 @@ below.
 5. Never claim a check you did not run.
 6. Each pushed iteration runs CI and independent review in parallel against the
    latest exact head. Put both result sets in one repair batch, validate, and
-   push the next iteration. Arm only when both channels report zero blockers.
+   push the next iteration. Every pull request gets at least one before it is armed,
+   and both channels must report zero blockers on the exact head.
 
 ## Triage
 

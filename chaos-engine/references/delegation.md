@@ -120,13 +120,10 @@ a row that already exists.
 
 ### When the loop stops
 
-The loop stops at the first round with **zero blocking findings**. Every
-remaining finding is ticketed, never carried. Fixes to that final round's own
-findings ship without a new round unless a fix is itself blocking. Three rounds
-is the hard ceiling; continuing past it needs an explicit owner instruction on
-the pull request. Measured on #4554: blocking yield ran 14, 5, 0, 0, and
-stopping at the first zero would have merged the same content about two hours
-earlier.
+The loop stops at the first pushed iteration where CI is green and review has
+**zero blocking findings** on the same exact head. Every remaining finding is
+ticketed, never carried. There is no round ceiling: combine both channels into
+one repair batch, push the next iteration, and repeat until both are clear.
 
 Every round after the first is scoped to the diff since the last verdict, never
 a full-branch re-read.

@@ -29,7 +29,7 @@ design question, each was ruled on its issue before any code, and each cost zero
 rounds, while #4536 carried "Trigger points worth considering" into code unruled
 and cost four.
 
-A subagent's report describes intent, not necessarily its actual work. Before shipping any nontrivial diff, query Graphify for the touched symbols, read the actual diff, and inspect changed tests for real assertions. Before committing any subagent's work, verify empirical claims rather than trusting a report. Scan the report/diff, and once opened, the PR body for deferred/out-of-scope/adjacent-finding/follow-up language; file every real finding before treating the item as done.
+A subagent's report describes intent, not necessarily its actual work. Before reviewing or shipping any nontrivial diff, query Graphify for the touched symbols, read the actual diff, and inspect changed tests for real assertions. Before committing any subagent's work, verify empirical claims rather than trusting a report. Scan the report/diff, and once opened, the PR body for deferred/out-of-scope/adjacent-finding/follow-up language; file every real finding before treating the item as done.
 
 Commit one locally validated, coherent iteration using the repository's normal
 message convention, including its issue number, and push it to the existing

@@ -10,15 +10,15 @@ import posixpath
 import re
 import shlex
 import shutil
-import subprocess
+import subprocess  # nosec B404 - fixed Git/gh argv only.
 import sys
 from pathlib import Path
 
 try:
     import reflection
 except ImportError:  # Repository source layout; installed hooks keep it beside guard.py.
-    repository_root = Path(__file__).resolve().parents[2]
-    sys.path.insert(0, str(repository_root))
+    source_root = Path(__file__).resolve().parents[2]
+    sys.path.insert(0, str(source_root))
     from scripts.agents import reflection
 
 
@@ -68,7 +68,7 @@ def mutation_command(command: str) -> bool:
                 git_arguments.pop(0)
         if head in {"set-content", "add-content", "clear-content", "remove-content", "remove-item", "new-item", "out-file", "copy-item", "rename-item", "move-item", "touch", "rm", "mv", "cp"}:
             return True
-        if ">" in parsed:
+        if any(redirect_operator(token) for token in parsed):
             return True
         if head == "git" and git_arguments and git_arguments[0].casefold() in {"add", "commit", "push", "merge", "rebase", "reset", "restore", "checkout", "switch", "clean", "rm", "mv", "tag", "branch", "cherry-pick"}:
             return True
@@ -96,6 +96,11 @@ def command_stages(command: str) -> list[list[str]]:
         else:
             stages[-1].append(token)
     return [stage for stage in stages if stage]
+
+
+def redirect_operator(token: str) -> bool:
+    redirect = chr(62)
+    return bool(token) and not token.strip(redirect)
 
 
 def tracker_command(command: str) -> bool:
@@ -304,8 +309,11 @@ def wrapped_patch_targets(source: str) -> tuple[str, ...] | None:
 
 
 def git_output(cwd: object, *arguments: str) -> str | None:
+    executable = shutil.which("git")
+    if not executable:
+        return None
     try:
-        result = subprocess.run(["git", *arguments], cwd=str(cwd or "."), capture_output=True, text=True, timeout=0.35, check=False)  # nosec B603
+        result = subprocess.run([executable, *arguments], cwd=str(cwd or "."), capture_output=True, text=True, timeout=0.35, check=False)  # nosec B603
     except (OSError, subprocess.TimeoutExpired):
         return None
     return result.stdout.strip() if result.returncode == 0 else None
@@ -337,8 +345,11 @@ def command_targets(command: str) -> tuple[str, ...]:
     targets: list[str] = []
     for parsed in command_stages(command):
         head, arguments = command_head(parsed)
-        if ">" in parsed:
-            targets.extend(parsed[index + 1] for index, token in enumerate(parsed[:-1]) if token == ">")
+        targets.extend(
+            parsed[index + 1]
+            for index, token in enumerate(parsed[:-1])
+            if redirect_operator(token)
+        )
         if head in {"set-content", "add-content", "clear-content", "remove-content", "remove-item", "new-item", "out-file", "touch", "rm"}:
             if head == "touch" and any(token.casefold() in {"-d", "--date", "-r", "--reference", "-t"} or token.casefold().startswith(("--date=", "--reference=")) for token in arguments):
                 targets.append("$UNINSPECTABLE")
@@ -357,7 +368,7 @@ def command_targets(command: str) -> tuple[str, ...]:
                 targets.append(destination or values[-1])
         elif head == "git":
             for index, token in enumerate(arguments[:-1]):
-                if token.casefold() == "-c":
+                if token.casefold() in {"-c", "--git-dir", "--work-tree"}:
                     targets.append(arguments[index + 1])
     return tuple(targets)
 
@@ -389,53 +400,92 @@ def target_checkout_root(target: str, cwd: object) -> str | None:
     return repository_root(probe)
 
 
-def initial_draft_recovery(command: str, cwd: object, branch: str) -> bool:
-    parsed = shell_tokens(command)
-    if not parsed or any(token in {";", "&&", "||", "|", "&"} for token in parsed):
-        return False
-    head, arguments = command_head(parsed)
-    if head == "git" and arguments[:1] == ["push"]:
-        push_arguments = arguments[1:]
-        if any(token.casefold() in {"--delete", "-d", "--force", "-f", "--mirror", "--all"} or token.casefold().startswith("--force-") for token in push_arguments):
-            return False
-        positional = [token for token in push_arguments if not token.startswith("-")]
-        if not positional or positional[0] != "origin":
-            return False
-        refspecs = positional[1:]
-        return bool(refspecs) and all(refspec in {"HEAD", branch, f"HEAD:{branch}", f"HEAD:refs/heads/{branch}"} for refspec in refspecs)
-    if head == "git" and arguments[:1] == ["commit"]:
-        return "--allow-empty" in arguments and "--amend" not in arguments and git_output(cwd, "status", "--porcelain", "--untracked-files=all") == ""
-    if head == "gh" and arguments[:2] == ["pr", "edit"]:
-        options = arguments[2:]
-        if options and not options[0].startswith("-"):
-            return False
-        allowed = {"--body", "--body-file", "--repo"}
-        index = 0
-        saw_body = False
-        while index < len(options):
-            token = options[index]
-            name = token.split("=", 1)[0].casefold()
-            if name not in allowed:
-                return False
-            saw_body = saw_body or name in {"--body", "--body-file"}
-            if "=" not in token:
-                index += 1
-                if index >= len(options):
-                    return False
-            index += 1
-        return saw_body
-    if head != "gh" or arguments[:2] != ["pr", "create"]:
-        return False
-    options = arguments[2:]
-    flags = {token.casefold() for token in options}
-    def value(name: str) -> str | None:
-        for index, token in enumerate(options):
-            lowered = token.casefold()
-            if lowered.startswith(name + "="):
-                return token.split("=", 1)[1]
-            if lowered == name and index + 1 < len(options):
-                return options[index + 1]
+def effective_cwd(outer_cwd: object, workdir: object) -> object:
+    if not isinstance(workdir, str) or not workdir.strip():
+        return outer_cwd
+    if os.path.isabs(workdir):
+        return workdir
+    return os.path.realpath(os.path.join(str(outer_cwd or "."), workdir))
+
+
+def github_repository(remote: object) -> str | None:
+    if not isinstance(remote, str):
         return None
+    match = re.fullmatch(
+        r"(?:https://github\.com/|git@github\.com:)([^/\s:]+/[^/\s]+?)(?:\.git)?",
+        remote.strip(),
+        re.IGNORECASE,
+    )
+    return match.group(1) if match else None
+
+
+def parsed_options(
+    options: list[str], *, flags: frozenset[str], values: frozenset[str]
+) -> tuple[frozenset[str], dict[str, str]] | None:
+    parsed_flags: set[str] = set()
+    parsed_values: dict[str, str] = {}
+    index = 0
+    while index < len(options):
+        token = options[index]
+        name, separator, inline_value = token.partition("=")
+        name = name.casefold()
+        if name in flags and not separator and name not in parsed_flags:
+            parsed_flags.add(name)
+            index += 1
+            continue
+        if name not in values or name in parsed_values:
+            return None
+        if separator:
+            value = inline_value
+        else:
+            index += 1
+            if index >= len(options):
+                return None
+            value = options[index]
+        if not value or value.startswith("-"):
+            return None
+        parsed_values[name] = value
+        index += 1
+    return frozenset(parsed_flags), parsed_values
+
+
+def recovery_git_push(arguments: list[str], branch: str) -> bool:
+    allowed_options = {"-u", "--set-upstream", "--porcelain", "--no-verify"}
+    if any(token.startswith("-") and token.casefold() not in allowed_options for token in arguments):
+        return False
+    positional = [token for token in arguments if not token.startswith("-")]
+    allowed_refspecs = {"HEAD", branch, f"HEAD:{branch}", f"HEAD:refs/heads/{branch}"}
+    return len(positional) >= 2 and positional[0] == "origin" and all(
+        refspec in allowed_refspecs for refspec in positional[1:]
+    )
+
+
+def recovery_pr_edit(options: list[str], repository: str | None) -> bool:
+    parsed = parsed_options(
+        options, flags=frozenset(), values=frozenset({"--body", "--body-file", "--repo"})
+    )
+    if parsed is None:
+        return False
+    _flags, values = parsed
+    bodies = [name for name in ("--body", "--body-file") if name in values]
+    return len(bodies) == 1 and ("--repo" not in values or values["--repo"] == repository)
+
+
+def recovery_pr_create(
+    options: list[str], cwd: object, branch: str, repository: str | None
+) -> bool:
+    parsed = parsed_options(
+        options,
+        flags=frozenset({"--draft"}),
+        values=frozenset({"--base", "--head", "--body", "--body-file", "--repo"}),
+    )
+    if parsed is None:
+        return False
+    flags, values = parsed
+    if values.get("--repo", repository) != repository:
+        return False
+    if len([name for name in ("--body", "--body-file") if name in values]) != 1:
+        return False
     gh = shutil.which("gh")
     if not gh:
         return False
@@ -444,12 +494,25 @@ def initial_draft_recovery(command: str, cwd: object, branch: str) -> bool:
         default = (json.loads(result.stdout).get("defaultBranchRef") or {}).get("name") if result.returncode == 0 else None
     except (OSError, subprocess.TimeoutExpired, json.JSONDecodeError):
         return False
-    return bool(
-        "--draft" in flags
-        and value("--base") == default
-        and value("--head") == branch
-        and (value("--body") is not None or value("--body-file") is not None)
-    )
+    return "--draft" in flags and values.get("--base") == default and values.get("--head") == branch
+
+
+def initial_draft_recovery(
+    command: str, cwd: object, branch: str, repository: str | None = None
+) -> bool:
+    parsed = shell_tokens(command)
+    if not parsed or any(token in {";", "&&", "||", "|", "&"} for token in parsed):
+        return False
+    head, arguments = command_head(parsed)
+    if head == "git" and arguments[:1] == ["push"]:
+        return recovery_git_push(arguments[1:], branch)
+    if head == "git" and arguments[:1] == ["commit"]:
+        return "--allow-empty" in arguments and "--amend" not in arguments and git_output(cwd, "status", "--porcelain", "--untracked-files=all") == ""
+    if head == "gh" and arguments[:2] == ["pr", "edit"]:
+        return recovery_pr_edit(arguments[2:], repository)
+    if head == "gh" and arguments[:2] == ["pr", "create"]:
+        return recovery_pr_create(arguments[2:], cwd, branch, repository)
+    return False
 
 
 def initial_plan_complete(body: object) -> bool:
@@ -464,40 +527,42 @@ def initial_plan_complete(body: object) -> bool:
     return True
 
 
-def lifecycle_reason(event: dict, tool_name: str, tool_input: object, mutation: bool) -> str | None:
-    if not mutation:
-        return None
+def checkout_mismatch(cwd: object, targets: list[str] | tuple[str, ...]) -> bool:
+    cwd_root = repository_root(cwd)
+    roots = {root for target in targets if (root := target_checkout_root(target, cwd))}
+    return bool(cwd_root and any(os.path.normcase(root) != os.path.normcase(cwd_root) for root in roots))
+
+
+def mutation_contexts(
+    event: dict, tool_name: str, tool_input: object
+) -> tuple[str | None, list[object], tuple[tuple[str, str | None], ...]]:
     outer_cwd = event.get("cwd") or "."
     calls = wrapped_exec_calls(tool_input) if tool_name == "functions.exec" and isinstance(tool_input, str) else None
     if tool_name == "functions.exec" and calls is None:
-        return "R19 blocked: wrapped mutation command or workdir is ambiguous."
+        return "R19 blocked: wrapped mutation command or workdir is ambiguous.", [], ()
     if tool_name == "functions.exec" and isinstance(tool_input, str) and wrapped_patch_call_count(tool_input):
         patch_targets = wrapped_patch_targets(tool_input)
         if patch_targets is None:
-            return "R19 blocked: pass one JSON string literal directly to wrapped apply_patch."
-        patch_root = repository_root(outer_cwd)
-        patch_roots = {root for target in patch_targets if (root := target_checkout_root(target, outer_cwd))}
-        if patch_root and any(os.path.normcase(root) != os.path.normcase(patch_root) for root in patch_roots):
-            return "R19 blocked: a wrapped patch targets a different checkout."
+            return "R19 blocked: pass one JSON string literal directly to wrapped apply_patch.", [], ()
+        if checkout_mismatch(outer_cwd, patch_targets):
+            return "R19 blocked: a wrapped patch targets a different checkout.", [], ()
         if any(target_on_default_branch(target, outer_cwd) for target in patch_targets):
-            return "R19 blocked: a wrapped patch targets a default-branch checkout."
+            return "R19 blocked: a wrapped patch targets a default-branch checkout.", [], ()
     direct_workdir = tool_input.get("workdir") if isinstance(tool_input, dict) else None
     effective = calls or tuple((command, direct_workdir) for command in ((str(tool_input.get("command") or tool_input.get("cmd") or ""),) if isinstance(tool_input, dict) else ()))
     mutation_cwds: list[object] = []
     for command, workdir in effective:
         if not mutation_command(command):
             continue
-        cwd = workdir or outer_cwd
+        cwd = effective_cwd(outer_cwd, workdir)
         mutation_cwds.append(cwd)
         if on_default_branch(cwd):
-            return "R19 blocked: task work never lands on the default branch."
+            return "R19 blocked: task work never lands on the default branch.", [], ()
         targets = command_targets(command)
-        cwd_root = repository_root(cwd)
-        target_roots = {root for target in targets if (root := target_checkout_root(target, cwd))}
-        if cwd_root and any(os.path.normcase(root) != os.path.normcase(cwd_root) for root in target_roots):
-            return "R19 blocked: the mutation target resolves inside a different checkout."
+        if checkout_mismatch(cwd, targets):
+            return "R19 blocked: the mutation target resolves inside a different checkout.", [], ()
         if any(target_on_default_branch(target, cwd) for target in targets):
-            return "R19 blocked: the mutation target resolves inside a default-branch checkout."
+            return "R19 blocked: the mutation target resolves inside a default-branch checkout.", [], ()
     if tool_name in {"Write", "Edit", "NotebookEdit", "apply_patch"}:
         mutation_cwds.append(outer_cwd)
         details = tool_input if isinstance(tool_input, dict) else {}
@@ -507,77 +572,102 @@ def lifecycle_reason(event: dict, tool_name: str, tool_input: object, mutation: 
             direct_targets.append(str(path))
         patch_text = str(details.get("patch") or details.get("input") or "")
         direct_targets.extend(re.findall(r"(?m)^\*\*\* (?:Add|Update|Delete) File:\s*(.+?)\s*$", patch_text))
-        outer_root = repository_root(outer_cwd)
-        direct_roots = {root for target in direct_targets if (root := target_checkout_root(target, outer_cwd))}
-        if outer_root and any(os.path.normcase(root) != os.path.normcase(outer_root) for root in direct_roots):
-            return "R19 blocked: a file tool targets a different checkout."
+        if checkout_mismatch(outer_cwd, direct_targets):
+            return "R19 blocked: a file tool targets a different checkout.", [], ()
         if on_default_branch(outer_cwd) or any(target_on_default_branch(target, outer_cwd) for target in direct_targets):
-            return "R19 blocked: task work never lands on the default branch."
+            return "R19 blocked: task work never lands on the default branch.", [], ()
     if tool_name == "functions.exec" and isinstance(tool_input, str) and wrapped_patch_call_count(tool_input):
         mutation_cwds.append(outer_cwd)
-    task_locations = []
-    for cwd in mutation_cwds:
-        candidate = current_branch(cwd)
-        if candidate and candidate.startswith("ChaosEngine/"):
-            task_locations.append((os.path.realpath(str(cwd)), candidate))
+    return None, mutation_cwds, effective
+
+
+def task_location(cwds: list[object], outer_cwd: object) -> tuple[str | None, object, str | None]:
+    task_locations = [
+        (os.path.realpath(str(cwd)), branch)
+        for cwd in cwds
+        if (branch := current_branch(cwd)) and branch.startswith("ChaosEngine/")
+    ]
     task_locations = list(dict.fromkeys(task_locations))
     if len(task_locations) > 1:
-        return "R31 blocked: one mutation call spans multiple task branches. Split it into inspectable calls."
+        return "R31 blocked: one mutation call spans multiple task branches. Split it into inspectable calls.", outer_cwd, None
     if task_locations:
-        outer_cwd, branch = task_locations[0]
-    else:
-        branch = current_branch(outer_cwd)
-    if branch and branch.startswith("ChaosEngine/"):
-        head = git_output(outer_cwd, "rev-parse", "HEAD")
-        remote = git_output(outer_cwd, "config", "--get", "remote.origin.url")
-        marker = hashlib.sha256(f"{remote}|{branch}|{head}".encode()).hexdigest()
-        session_id = str(event.get("session_id") or event.get("sessionId") or "")
-        if any(item.get("kind") == "initial-draft" and item.get("marker") == marker for item in reflection.entries(session_id)):
-            return None
-        commands = tuple(command for command, _workdir in effective)
-        exact_recovery = not (
-            tool_name == "functions.exec"
-            and isinstance(tool_input, str)
-            and (wrapped_patch_call_count(tool_input) or wrapped_exec_call_count(tool_input) != 1)
-        )
-        if exact_recovery and len(commands) == 1:
-            if initial_draft_recovery(commands[0], outer_cwd, branch):
-                return None
-            parsed = command_stages(commands[0])
-            head_name, arguments = command_head(parsed[0]) if len(parsed) == 1 else ("", [])
-            if (head_name == "git" and arguments[:1] in (["push"], ["commit"])) or (head_name == "gh" and arguments[:2] in (["pr", "create"], ["pr", "edit"])):
-                return "R31 blocked: the command is not a permitted initial-draft recovery."
-        if not head:
-            return "R31 blocked: the planning checkpoint must be identifiable."
-        gh = shutil.which("gh")
-        if not gh:
-            return "R31 blocked: GitHub status is unavailable."
-        try:
-            repository_result = subprocess.run([gh, "repo", "view", "--json", "nameWithOwner,defaultBranchRef"], cwd=str(outer_cwd), capture_output=True, text=True, timeout=3, check=False)  # nosec B603
-            repository = json.loads(repository_result.stdout) if repository_result.returncode == 0 else {}
-            name = repository.get("nameWithOwner")
-            default = (repository.get("defaultBranchRef") or {}).get("name")
-            merge_base = git_output(outer_cwd, "merge-base", "HEAD", f"origin/{default}") if default else None
-            changed = git_output(outer_cwd, "diff", "--name-only", str(merge_base), "HEAD", "--") if merge_base else None
-            if changed:
-                return None
-            if merge_base is None or changed is None:
-                return "R31 blocked: the default-base tree state is unavailable."
-            if git_output(outer_cwd, "status", "--porcelain", "--untracked-files=all") != "":
-                return "R31 blocked: the planning checkpoint must remain clean until draft verification."
-            pull_result = subprocess.run([gh, "pr", "list", "--repo", str(name), "--head", branch, "--state", "open", "--json", "isDraft,headRefOid,baseRefName,changedFiles,body"], cwd=str(outer_cwd), capture_output=True, text=True, timeout=3, check=False)  # nosec B603
-            pulls = json.loads(pull_result.stdout) if pull_result.returncode == 0 else []
-        except (OSError, subprocess.TimeoutExpired, json.JSONDecodeError):
-            return "R31 blocked: GitHub status is unavailable."
-        pull = pulls[0] if isinstance(pulls, list) and len(pulls) == 1 and isinstance(pulls[0], dict) else None
-        if not pull or pull.get("isDraft") is not True or pull.get("headRefOid") != head or pull.get("baseRefName") != default or pull.get("changedFiles") != 0:
-            return "R31 blocked: verify an exact-head, default-base, zero-file draft before the first mutation."
-        if not initial_plan_complete(pull.get("body")):
-            return "R31 blocked: the initial draft body needs substantive Plan, Scope, and Proof sections."
-        if not reflection.append_entry(session_id, {"schemaVersion": 1, "kind": "initial-draft", "marker": marker}):
-            return "R31 blocked: verified initial draft state could not be recorded."
+        return None, *task_locations[0]
+    return None, outer_cwd, current_branch(outer_cwd)
+
+
+def recovery_reason(
+    commands: tuple[str, ...], exact: bool, cwd: object, branch: str, repository: str | None
+) -> str | None:
+    if not exact or len(commands) != 1:
         return None
+    if initial_draft_recovery(commands[0], cwd, branch, repository):
+        return "allowed"
+    stages = command_stages(commands[0])
+    head, arguments = command_head(stages[0]) if len(stages) == 1 else ("", [])
+    if (head == "git" and arguments[:1] in (["push"], ["commit"])) or (
+        head == "gh" and arguments[:2] in (["pr", "create"], ["pr", "edit"])
+    ):
+        return "R31 blocked: the command is not a permitted initial-draft recovery."
     return None
+
+
+def verified_initial_draft_reason(event: dict, cwd: object, branch: str, effective, tool_name: str, tool_input: object) -> str | None:
+    head = git_output(cwd, "rev-parse", "HEAD")
+    remote = git_output(cwd, "config", "--get", "remote.origin.url")
+    repository_name = github_repository(remote)
+    marker = hashlib.sha256(f"{remote}|{branch}|{head}".encode()).hexdigest()
+    session_id = str(event.get("session_id") or event.get("sessionId") or "")
+    if any(item.get("kind") == "initial-draft" and item.get("marker") == marker for item in reflection.entries(session_id)):
+        return None
+    commands = tuple(command for command, _workdir in effective)
+    exact = not (tool_name == "functions.exec" and isinstance(tool_input, str) and (wrapped_patch_call_count(tool_input) or wrapped_exec_call_count(tool_input) != 1))
+    recovery = recovery_reason(commands, exact, cwd, branch, repository_name)
+    if recovery == "allowed":
+        return None
+    if recovery:
+        return recovery
+    if not head:
+        return "R31 blocked: the planning checkpoint must be identifiable."
+    gh = shutil.which("gh")
+    if not gh:
+        return "R31 blocked: GitHub status is unavailable."
+    try:
+        repository_result = subprocess.run([gh, "repo", "view", "--json", "nameWithOwner,defaultBranchRef"], cwd=str(cwd), capture_output=True, text=True, timeout=3, check=False)  # nosec B603
+        repository = json.loads(repository_result.stdout) if repository_result.returncode == 0 else {}
+        name = repository.get("nameWithOwner")
+        default = (repository.get("defaultBranchRef") or {}).get("name")
+        merge_base = git_output(cwd, "merge-base", "HEAD", f"origin/{default}") if default else None
+        changed = git_output(cwd, "diff", "--name-only", str(merge_base), "HEAD", "--") if merge_base else None
+        if changed:
+            return None
+        if merge_base is None or changed is None:
+            return "R31 blocked: the default-base tree state is unavailable."
+        if git_output(cwd, "status", "--porcelain", "--untracked-files=all") != "":
+            return "R31 blocked: the planning checkpoint must remain clean until draft verification."
+        pull_result = subprocess.run([gh, "pr", "list", "--repo", str(name), "--head", branch, "--state", "open", "--json", "isDraft,headRefOid,baseRefName,changedFiles,body"], cwd=str(cwd), capture_output=True, text=True, timeout=3, check=False)  # nosec B603
+        pulls = json.loads(pull_result.stdout) if pull_result.returncode == 0 else []
+    except (OSError, subprocess.TimeoutExpired, json.JSONDecodeError):
+        return "R31 blocked: GitHub status is unavailable."
+    pull = pulls[0] if isinstance(pulls, list) and len(pulls) == 1 and isinstance(pulls[0], dict) else None
+    if not pull or pull.get("isDraft") is not True or pull.get("headRefOid") != head or pull.get("baseRefName") != default or pull.get("changedFiles") != 0:
+        return "R31 blocked: verify an exact-head, default-base, zero-file draft before the first mutation."
+    if not initial_plan_complete(pull.get("body")):
+        return "R31 blocked: the initial draft body needs substantive Plan, Scope, and Proof sections."
+    if not reflection.append_entry(session_id, {"schemaVersion": 1, "kind": "initial-draft", "marker": marker}):
+        return "R31 blocked: verified initial draft state could not be recorded."
+    return None
+
+
+def lifecycle_reason(event: dict, tool_name: str, tool_input: object, mutation: bool) -> str | None:
+    if not mutation:
+        return None
+    reason, cwds, effective = mutation_contexts(event, tool_name, tool_input)
+    if reason:
+        return reason
+    reason, cwd, branch = task_location(cwds, event.get("cwd") or ".")
+    if reason or not branch or not branch.startswith("ChaosEngine/"):
+        return reason
+    return verified_initial_draft_reason(event, cwd, branch, effective, tool_name, tool_input)
 
 
 def main() -> int:
