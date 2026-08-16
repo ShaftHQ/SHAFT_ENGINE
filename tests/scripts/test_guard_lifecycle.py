@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import ast
 import hashlib
+import importlib
 import inspect
 import io
 import json
@@ -22,7 +23,21 @@ from pathlib import Path
 from unittest import mock
 from unittest.mock import patch
 
-from scripts.agents import guard, learning_loop, reflection
+from scripts.agents import guard, learning_loop
+
+try:
+    reflection = importlib.import_module("scripts.agents.reflection")
+except ModuleNotFoundError as error:
+    if error.name != "scripts.agents.reflection":
+        raise
+
+    class _MissingReflection:
+        """Make the pre-feature fixture fail as a RED assertion, not at import."""
+
+        def __getattr__(self, name):
+            raise AssertionError(f"reflection support is unavailable: {name}")
+
+    reflection = _MissingReflection()
 
 LEARNING_CONTROLLER = str(Path(learning_loop.__file__))
 
@@ -306,6 +321,7 @@ class ReflectionCheckpointContractTest(unittest.TestCase):
             with redirect_stdout(io.StringIO()):
                 guard.run_posttooluse(payload)
                 guard.run_posttooluse(payload)
+            self.assertIsNotNone(reflection.pending_checkpoint("changed-diagnostic"))
             changed = {
                 **payload,
                 "hook_event_name": "PreToolUse",

@@ -22,6 +22,7 @@ class ValidateRedBeforeGreenTest(unittest.TestCase):
         new_test_module: bool = False,
         dependency: bool = False,
         test_dependency: bool = False,
+        child_support: bool = False,
         outcome: str = "assertion_failure",
     ) -> tuple[Path, str]:
         temporary = tempfile.TemporaryDirectory()
@@ -30,9 +31,17 @@ class ValidateRedBeforeGreenTest(unittest.TestCase):
         (root / "scripts/agents").mkdir(parents=True)
         (root / "tests/scripts").mkdir(parents=True)
         (root / "scripts/__init__.py").write_text("", encoding="utf-8")
-        guard_source = (
-            "from scripts.agents.helper import enabled\n" if dependency else "def enabled():\n    return False\n"
-        )
+        if child_support:
+            guard_source = (
+                "import importlib.util\n\n"
+                "def enabled():\n"
+                "    return importlib.util.find_spec('scripts.agents.child_support') is not None\n"
+            )
+        else:
+            guard_source = (
+                "from scripts.agents.helper import enabled\n"
+                if dependency else "def enabled():\n    return False\n"
+            )
         (root / "scripts/agents/guard.py").write_text(guard_source, encoding="utf-8")
         if dependency:
             (root / "scripts/agents/helper.py").write_text(
@@ -54,7 +63,16 @@ class ValidateRedBeforeGreenTest(unittest.TestCase):
         self.git(root, "config", "user.name", "Test")
         self.git(root, "add", ".")
         self.git(root, "commit", "-m", "parent")
-        if not dependency:
+        if child_support:
+            (root / "scripts/agents/guard.py").write_text(
+                "from scripts.agents import child_support\n\n"
+                "def enabled():\n    return child_support.enabled()\n",
+                encoding="utf-8",
+            )
+            (root / "scripts/agents/child_support.py").write_text(
+                "def enabled():\n    return True\n", encoding="utf-8"
+            )
+        elif not dependency:
             child_value = "False" if parent_passes else "True"
             (root / "scripts/agents/guard.py").write_text(
                 f"def enabled():\n    return {child_value}\n", encoding="utf-8"
@@ -158,8 +176,14 @@ class ValidateRedBeforeGreenTest(unittest.TestCase):
 
     def run_validator(
         self, root: Path, revision: str, *, parent_revision: str | None = None,
+        child_support: str | None = None, child_supports: list[str] | None = None,
     ) -> subprocess.CompletedProcess[str]:
         parent_arguments = ["--parent-revision", parent_revision] if parent_revision else []
+        support_arguments = [
+            argument
+            for path in ([child_support] if child_support else []) + (child_supports or [])
+            for argument in ("--child-support-path", path)
+        ]
         return subprocess.run(  # nosec B603 - fixed Python executable and validator path.
             [
                 sys.executable,
@@ -167,6 +191,7 @@ class ValidateRedBeforeGreenTest(unittest.TestCase):
                 "--root",
                 str(root),
                 *parent_arguments,
+                *support_arguments,
                 revision,
                 "scripts/agents/guard.py",
                 "tests/scripts/test_guard.py",
@@ -182,6 +207,29 @@ class ValidateRedBeforeGreenTest(unittest.TestCase):
         result = self.run_validator(root, revision, parent_revision=parent)
 
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+    def test_child_support_path_is_overlaid_only_for_the_green_replay(self):
+        root, revision = self.repository(child_support=True)
+
+        result = self.run_validator(
+            root, revision, child_support="scripts/agents/child_support.py"
+        )
+
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+    def test_child_support_paths_reject_unsafe_or_unbounded_values(self):
+        root, revision = self.repository()
+        cases = [
+            ["../outside.py"],
+            ["/absolute.py"],
+            ["scripts//agents/support.py"],
+            [f"support-{index}.py" for index in range(9)],
+        ]
+        for paths in cases:
+            with self.subTest(paths=paths):
+                result = self.run_validator(root, revision, child_supports=paths)
+                self.assertEqual(2, result.returncode, result.stdout + result.stderr)
+                self.assertIn("child support", result.stderr.casefold())
 
     def test_commit_scoped_no_red_cannot_exempt_a_pr_wide_base_comparison(self):
         root, revision = self.repository(

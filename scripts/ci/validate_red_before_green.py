@@ -18,6 +18,7 @@ from pathlib import Path
 
 NO_RED_REASON_WORDS = 12
 PARENT_TEST_TIMEOUT_SECONDS = 10
+MAX_CHILD_SUPPORT_PATHS = 8
 RESULT_SENTINEL = "RED_RESULT:"
 RESULT_RUNNER = r"""
 import io
@@ -91,6 +92,27 @@ def test_methods(source: str) -> set[tuple[str, str]]:
     return found
 
 
+def normalized_child_support_paths(paths: tuple[str, ...]) -> tuple[str, ...]:
+    if len(paths) > MAX_CHILD_SUPPORT_PATHS:
+        raise ValueError(
+            f"child support paths exceed the {MAX_CHILD_SUPPORT_PATHS}-file limit"
+        )
+    normalized: list[str] = []
+    for path in paths:
+        parts = path.split("/")
+        if (
+            not path
+            or path.startswith("/")
+            or "\\" in path
+            or re.match(r"^[A-Za-z]:", path)
+            or any(part in {"", ".", ".."} for part in parts)
+        ):
+            raise ValueError("child support paths must be normalized repository-relative paths")
+        if path not in normalized:
+            normalized.append(path)
+    return tuple(normalized)
+
+
 def no_red_reason(root: Path, revision: str) -> bool:
     message = subprocess.run(
         ["git", "show", "-s", "--format=%B", revision], cwd=root, capture_output=True, text=True,
@@ -125,6 +147,7 @@ def run_parent_code_test(
     root: Path, revision: str, production_path: str, test_path: str, child_test: str,
     class_name: str, method_name: str,
     production_source: str | None = None,
+    child_support_sources: dict[str, str] | None = None,
     parent_revision: str | None = None,
 ) -> ParentTestOutcome:
     with tempfile.TemporaryDirectory() as temporary:
@@ -136,6 +159,10 @@ def run_parent_code_test(
             raise ValueError(f"cannot read {production_path} at {revision}^")
         if production_source is not None:
             (overlay / production_path).write_text(production_source, encoding="utf-8")
+        for support_path, support_source in (child_support_sources or {}).items():
+            destination = overlay / support_path
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            destination.write_text(support_source, encoding="utf-8")
         test.write_text(child_test, encoding="utf-8")
         target = ".".join(part for part in (module_name(test_path), class_name, method_name) if part)
         environment = os.environ | {
@@ -238,8 +265,9 @@ def run_parent_code_test(
 
 def validate(
     root: Path, revision: str, production_path: str, test_path: str,
-    *, parent_revision: str | None = None,
+    *, parent_revision: str | None = None, child_support_paths: tuple[str, ...] = (),
 ) -> list[str]:
+    child_support_paths = normalized_child_support_paths(child_support_paths)
     if parent_revision is None and no_red_reason(root, revision):
         return []
     try:
@@ -248,6 +276,9 @@ def validate(
         parent_test = ""
     child_test = source_at(root, revision, test_path)
     child_production = source_at(root, revision, production_path)
+    child_support_sources = {
+        path: source_at(root, revision, path) for path in child_support_paths
+    }
     added = sorted(test_methods(child_test) - test_methods(parent_test))
     violations: list[str] = []
     for class_name, method_name in added:
@@ -260,6 +291,7 @@ def validate(
             child_outcome = run_parent_code_test(
                 root, revision, production_path, test_path, child_test, class_name, method_name,
                 production_source=child_production,
+                child_support_sources=child_support_sources,
                 parent_revision=parent_revision,
             )
         if outcome.kind != "assertion failure" or child_outcome.kind != "pass":
@@ -279,6 +311,10 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--root", type=Path, default=Path.cwd())
     parser.add_argument("--parent-revision", help="explicit PR base revision; defaults to revision^")
+    parser.add_argument(
+        "--child-support-path", action="append", default=[],
+        help="child-only support file overlaid during the GREEN replay",
+    )
     parser.add_argument("revision")
     parser.add_argument("production_path")
     parser.add_argument("test_path")
@@ -287,6 +323,7 @@ def main() -> int:
         violations = validate(
             args.root.resolve(), args.revision, args.production_path, args.test_path,
             parent_revision=args.parent_revision,
+            child_support_paths=tuple(args.child_support_path),
         )
     except ValueError as error:
         print(f"red-before-green unavailable: {error}", file=sys.stderr)
