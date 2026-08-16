@@ -138,6 +138,82 @@ class ChaosEnginePortableCoreTest(unittest.TestCase):
                 {"cwd": "C:/task", "session_id": "s"}, "PowerShell", invalid, True,
             ))
 
+    def test_portable_github_reads_bind_to_origin_repository_and_cross_check_identity(self):
+        guard = self.portable_guard()
+        repository = "owner/repo"
+        branch = "ChaosEngine/task"
+        head = "a" * 40
+        body = "## Plan\n" + "plan details " * 3 + "\n## Scope\n" + "scope details " * 3 + "\n## Proof\n" + "proof details " * 3
+
+        def git_result(_cwd, *arguments):
+            if arguments == ("rev-parse", "HEAD"):
+                return head
+            if arguments[:3] == ("config", "--get", "remote.origin.url"):
+                return "https://github.com/owner/repo.git"
+            if arguments[:1] == ("merge-base",):
+                return "b" * 40
+            if arguments[:2] == ("diff", "--name-only"):
+                return ""
+            if arguments[:1] == ("status",):
+                return ""
+            return None
+
+        def gh_response(payload):
+            return mock.Mock(returncode=0, stdout=json.dumps(payload))
+
+        for returned_name in (repository, "other/repo", None):
+            with self.subTest(returned_name=returned_name):
+                calls = []
+
+                def gh_run(arguments, **_kwargs):
+                    calls.append(arguments)
+                    if arguments[1:3] == ["repo", "view"]:
+                        payload = {"defaultBranchRef": {"name": "main"}}
+                        if returned_name is not None:
+                            payload["nameWithOwner"] = returned_name
+                        return gh_response(payload)
+                    return gh_response([{
+                        "isDraft": True,
+                        "headRefOid": head,
+                        "baseRefName": "main",
+                        "changedFiles": 0,
+                        "body": body,
+                    }])
+
+                with mock.patch.object(guard, "git_output", side_effect=git_result), \
+                     mock.patch.object(guard.shutil, "which", return_value="gh"), \
+                     mock.patch.object(guard.subprocess, "run", side_effect=gh_run), \
+                     mock.patch.object(guard.reflection, "entries", return_value=[]), \
+                     mock.patch.object(guard.reflection, "append_entry", return_value=True):
+                    reason = guard.verified_initial_draft_reason(
+                        {"session_id": "origin-binding"}, "C:/task", branch, (), "Write", {"file_path": "x"}
+                    )
+
+                self.assertEqual(
+                    ["gh", "repo", "view", "--repo", repository, "--json", "nameWithOwner,defaultBranchRef"],
+                    calls[0],
+                )
+                if returned_name == repository:
+                    self.assertIsNone(reason)
+                    self.assertIn("--repo", calls[1])
+                    self.assertEqual(repository, calls[1][calls[1].index("--repo") + 1])
+                else:
+                    self.assertIn("R31 blocked", reason)
+                    self.assertEqual(1, len(calls), "identity mismatch must stop before PR inspection")
+
+        calls = []
+        with mock.patch.object(guard, "shutil", guard.shutil), \
+             mock.patch.object(guard.shutil, "which", return_value="gh"), \
+             mock.patch.object(guard.subprocess, "run", side_effect=lambda arguments, **_kwargs: calls.append(arguments) or gh_response({"defaultBranchRef": {"name": "main"}})):
+            self.assertFalse(guard.recovery_pr_create(
+                ["--draft", "--base", "main", "--head", branch, "--body", "plan"],
+                "C:/task", branch, repository,
+            ))
+        self.assertEqual(
+            ["gh", "repo", "view", "--repo", repository, "--json", "nameWithOwner,defaultBranchRef"],
+            calls[0],
+        )
+
     def test_portable_plan_visibility_unknown_default_and_safe_body_repair(self):
         guard = self.portable_guard()
         hidden = "<!-- ## Plan\nLong hidden plan content only.\n## Scope\nLong hidden scope content only.\n## Proof\nLong hidden proof content only. -->"

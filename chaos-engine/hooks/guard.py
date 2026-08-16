@@ -483,6 +483,22 @@ def recovery_pr_edit(options: list[str], repository: str | None) -> bool:
     return len(bodies) == 1 and ("--repo" not in values or values["--repo"] == repository)
 
 
+def github_repository_view(gh: str, cwd: object, repository: str | None) -> dict | None:
+    if not repository:
+        return None
+    try:
+        result = subprocess.run(
+            [gh, "repo", "view", "--repo", repository, "--json", "nameWithOwner,defaultBranchRef"],
+            cwd=str(cwd), capture_output=True, text=True, timeout=3, check=False,
+        )  # nosec B603 - fixed GitHub CLI argv.
+        payload = json.loads(result.stdout) if result.returncode == 0 else None
+    except (OSError, subprocess.TimeoutExpired, json.JSONDecodeError):
+        return None
+    if not isinstance(payload, dict) or payload.get("nameWithOwner") != repository:
+        return None
+    return payload
+
+
 def recovery_pr_create(
     options: list[str], cwd: object, branch: str, repository: str | None
 ) -> bool:
@@ -501,11 +517,10 @@ def recovery_pr_create(
     gh = shutil.which("gh")
     if not gh:
         return False
-    try:
-        result = subprocess.run([gh, "repo", "view", "--json", "defaultBranchRef"], cwd=str(cwd), capture_output=True, text=True, timeout=3, check=False)  # nosec B603
-        default = (json.loads(result.stdout).get("defaultBranchRef") or {}).get("name") if result.returncode == 0 else None
-    except (OSError, subprocess.TimeoutExpired, json.JSONDecodeError):
+    repository_view = github_repository_view(gh, cwd, repository)
+    if repository_view is None:
         return False
+    default = (repository_view.get("defaultBranchRef") or {}).get("name")
     return "--draft" in flags and values.get("--base") == default and values.get("--head") == branch
 
 
@@ -686,10 +701,11 @@ def verified_initial_draft_reason(event: dict, cwd: object, branch: str, effecti
     if not gh:
         return "R31 blocked: GitHub status is unavailable."
     try:
-        repository_result = subprocess.run([gh, "repo", "view", "--json", "nameWithOwner,defaultBranchRef"], cwd=str(cwd), capture_output=True, text=True, timeout=3, check=False)  # nosec B603
-        repository = json.loads(repository_result.stdout) if repository_result.returncode == 0 else {}
-        name = repository.get("nameWithOwner")
-        default = (repository.get("defaultBranchRef") or {}).get("name")
+        repository_view = github_repository_view(gh, cwd, repository_name)
+        if repository_view is None:
+            return "R31 blocked: GitHub repository identity is unavailable."
+        name = repository_view["nameWithOwner"]
+        default = (repository_view.get("defaultBranchRef") or {}).get("name")
         merge_base = git_output(cwd, "merge-base", "HEAD", f"origin/{default}") if default else None
         changed = git_output(cwd, "diff", "--name-only", str(merge_base), "HEAD", "--") if merge_base else None
         if changed:
