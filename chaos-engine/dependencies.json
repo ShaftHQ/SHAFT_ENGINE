@@ -3,7 +3,7 @@
   "tools": {
     "uv": {"package": "uv==0.11.29"},
     "mempalace": {"package": "mempalace==3.7.1", "commands": ["mempalace", "mempalace-mcp"]},
-    "graphify": {"package": "graphifyy==0.9.43", "with": ["tree-sitter-sql==0.3.11"], "commands": ["graphify"]},
+    "graphify": {"package": "graphifyy==0.9.43", "with": ["tree-sitter-sql==0.3.11", "openai==3.1.0"], "commands": ["graphify"]},
     "memory": {"package": "@aictx/memory@0.2.1", "commands": ["memory", "memory-mcp"]}
   },
   "components": {

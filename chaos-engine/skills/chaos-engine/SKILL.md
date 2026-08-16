@@ -51,6 +51,12 @@ Depth may increase or decrease as evidence changes. Complexity is not a reason t
 Keep progress updates to current state, learned fact, and next action. Prefer one clear decision to
 several overlapping rules. Token efficiency comes from fewer unresolved branches, not less rigor.
 
+For nontrivial work, compress intent into one outcome contract: the actor and scenario, observable
+success, constraints and exclusions, assumptions that could change the design, and technology-neutral
+proof. Reconcile contradictions once at the highest-authority artifact. Every changed line should
+support that contract or remove an orphan created by the change; avoid speculative flexibility and
+unrelated cleanup.
+
 ## Evidence and retrieval
 
 Use evidence to answer a concrete question, not to satisfy a checklist.

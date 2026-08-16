@@ -186,6 +186,8 @@ def refresh(root: Path, graph_out: Path, reset: bool = False) -> None:
         "run",
         "--with",
         "tree-sitter-sql",
+        "--with",
+        "openai==3.1.0",
         "--from",
         "graphifyy",
         "graphify",
