@@ -681,7 +681,7 @@ REQUIRED_ACTION_REGISTRY: tuple[dict, ...] = (
     },
     {
         "law": 6,
-        "rule": "independent adversarial review before the next step, and once per pull request before arming",
+        "rule": "independent adversarial review for each pushed iteration, and once per pull request before arming",
         "status": "gated",
         "mechanism": "check_r15_review_before_arming",
     },

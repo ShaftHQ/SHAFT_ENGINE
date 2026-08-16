@@ -2071,7 +2071,7 @@ def desired_content(
         "SessionStart": "startup|resume|clear|compact",
         "UserPromptSubmit": None,
         "PreToolUse": "Bash|PowerShell|Write|Edit|NotebookEdit|apply_patch|shell_command|exec_command|functions[.]exec",
-        "PostToolUse": "Bash|PowerShell|Write|Edit|NotebookEdit|apply_patch|shell_command|exec_command|functions[.]exec",
+        "PostToolUse": "Task|Agent|Bash|PowerShell|Write|Edit|NotebookEdit|apply_patch|shell_command|exec_command|functions[.]exec",
         "PostToolUseFailure": "Bash|PowerShell|Write|Edit|NotebookEdit|apply_patch|shell_command|exec_command|functions[.]exec",
         "Stop": None,
         "SubagentStop": None,

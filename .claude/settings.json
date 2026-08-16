@@ -43,7 +43,7 @@
     ],
     "PostToolUse": [
       {
-        "matcher": "Read|Grep|Bash|PowerShell|shell_command|WebSearch|WebFetch|web__run|update_plan|mcp__shaft-memory__.*|mcp__mempalace__.*|mcp__graphify__.*",
+        "matcher": "Task|Agent|Read|Grep|Bash|PowerShell|shell_command|WebSearch|WebFetch|web__run|update_plan|mcp__shaft-memory__.*|mcp__mempalace__.*|mcp__graphify__.*",
         "hooks": [
           {
             "type": "command",

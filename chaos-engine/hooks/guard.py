@@ -370,6 +370,12 @@ def command_targets(command: str) -> tuple[str, ...]:
             for index, token in enumerate(arguments[:-1]):
                 if token.casefold() in {"-c", "--git-dir", "--work-tree"}:
                     targets.append(arguments[index + 1])
+            for token in arguments:
+                lowered = token.casefold()
+                if lowered.startswith(("--git-dir=", "--work-tree=")):
+                    targets.append(token.split("=", 1)[1])
+                elif lowered.startswith("-c") and len(token) > 2:
+                    targets.append(token[2:])
     return tuple(targets)
 
 
@@ -503,6 +509,8 @@ def initial_draft_recovery(
     parsed = shell_tokens(command)
     if not parsed or any(token in {";", "&&", "||", "|", "&"} for token in parsed):
         return False
+    if any(ENV_ASSIGNMENT.match(token) for token in parsed):
+        return False
     head, arguments = command_head(parsed)
     if head == "git" and arguments[:1] == ["push"]:
         return recovery_git_push(arguments[1:], branch)
@@ -533,6 +541,38 @@ def checkout_mismatch(cwd: object, targets: list[str] | tuple[str, ...]) -> bool
     return bool(cwd_root and any(os.path.normcase(root) != os.path.normcase(cwd_root) for root in roots))
 
 
+def command_contexts(outer_cwd: object, effective) -> tuple[str | None, list[object]]:
+    cwds: list[object] = []
+    for command, workdir in effective:
+        if not mutation_command(command):
+            continue
+        cwd = effective_cwd(outer_cwd, workdir)
+        cwds.append(cwd)
+        if on_default_branch(cwd):
+            return "R19 blocked: task work never lands on the default branch.", []
+        targets = command_targets(command)
+        if checkout_mismatch(cwd, targets):
+            return "R19 blocked: the mutation target resolves inside a different checkout.", []
+        if any(target_on_default_branch(target, cwd) for target in targets):
+            return "R19 blocked: the mutation target resolves inside a default-branch checkout.", []
+    return None, cwds
+
+
+def direct_file_context(outer_cwd: object, tool_input: object) -> str | None:
+    details = tool_input if isinstance(tool_input, dict) else {}
+    targets: list[str] = []
+    path = details.get("file_path") or details.get("path") or details.get("notebook_path")
+    if path:
+        targets.append(str(path))
+    patch_text = str(details.get("patch") or details.get("input") or "")
+    targets.extend(re.findall(r"(?m)^\*\*\* (?:Add|Update|Delete) File:\s*(.+?)\s*$", patch_text))
+    if checkout_mismatch(outer_cwd, targets):
+        return "R19 blocked: a file tool targets a different checkout."
+    if on_default_branch(outer_cwd) or any(target_on_default_branch(target, outer_cwd) for target in targets):
+        return "R19 blocked: task work never lands on the default branch."
+    return None
+
+
 def mutation_contexts(
     event: dict, tool_name: str, tool_input: object
 ) -> tuple[str | None, list[object], tuple[tuple[str, str | None], ...]]:
@@ -550,32 +590,13 @@ def mutation_contexts(
             return "R19 blocked: a wrapped patch targets a default-branch checkout.", [], ()
     direct_workdir = tool_input.get("workdir") if isinstance(tool_input, dict) else None
     effective = calls or tuple((command, direct_workdir) for command in ((str(tool_input.get("command") or tool_input.get("cmd") or ""),) if isinstance(tool_input, dict) else ()))
-    mutation_cwds: list[object] = []
-    for command, workdir in effective:
-        if not mutation_command(command):
-            continue
-        cwd = effective_cwd(outer_cwd, workdir)
-        mutation_cwds.append(cwd)
-        if on_default_branch(cwd):
-            return "R19 blocked: task work never lands on the default branch.", [], ()
-        targets = command_targets(command)
-        if checkout_mismatch(cwd, targets):
-            return "R19 blocked: the mutation target resolves inside a different checkout.", [], ()
-        if any(target_on_default_branch(target, cwd) for target in targets):
-            return "R19 blocked: the mutation target resolves inside a default-branch checkout.", [], ()
+    reason, mutation_cwds = command_contexts(outer_cwd, effective)
+    if reason:
+        return reason, [], ()
     if tool_name in {"Write", "Edit", "NotebookEdit", "apply_patch"}:
         mutation_cwds.append(outer_cwd)
-        details = tool_input if isinstance(tool_input, dict) else {}
-        direct_targets = []
-        path = details.get("file_path") or details.get("path") or details.get("notebook_path")
-        if path:
-            direct_targets.append(str(path))
-        patch_text = str(details.get("patch") or details.get("input") or "")
-        direct_targets.extend(re.findall(r"(?m)^\*\*\* (?:Add|Update|Delete) File:\s*(.+?)\s*$", patch_text))
-        if checkout_mismatch(outer_cwd, direct_targets):
-            return "R19 blocked: a file tool targets a different checkout.", [], ()
-        if on_default_branch(outer_cwd) or any(target_on_default_branch(target, outer_cwd) for target in direct_targets):
-            return "R19 blocked: task work never lands on the default branch.", [], ()
+        if reason := direct_file_context(outer_cwd, tool_input):
+            return reason, [], ()
     if tool_name == "functions.exec" and isinstance(tool_input, str) and wrapped_patch_call_count(tool_input):
         mutation_cwds.append(outer_cwd)
     return None, mutation_cwds, effective

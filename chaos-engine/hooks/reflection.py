@@ -44,6 +44,9 @@ _ABSOLUTE_PATH = re.compile(
 _SECRET = re.compile(
     r"(?i)(?:password|secret|access[_-]?token|token|bearer|credential|api[_-]?key|authorization)(?:\W|$)"
 )
+_REFLECTION_SECRET = re.compile(
+    r"(?i)(?:password|secret|access[_-]?token|bearer|credential|api[_-]?key|authorization)(?:\W|$)"
+)
 
 
 def ledger_path(session_id: str) -> Path:
@@ -426,7 +429,8 @@ def _safe_text(name: str, value: object) -> str:
     rendered = str(value or "").strip()
     if not _SAFE_TEXT.fullmatch(rendered):
         raise ValueError(f"{name} must be 1-240 characters on one line")
-    if _ABSOLUTE_PATH.search(rendered) or _SECRET.search(rendered):
+    secret_pattern = _REFLECTION_SECRET if name in {"tokenConsumer", "nextSessionOptimization"} else _SECRET
+    if _ABSOLUTE_PATH.search(rendered) or secret_pattern.search(rendered):
         raise ValueError(f"{name} contains forbidden path or credential-shaped text")
     return rendered
 

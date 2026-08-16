@@ -80,10 +80,13 @@ class ChaosEnginePortableCoreTest(unittest.TestCase):
         self.assertEqual(("safe", "C:/main/victim"), guard.command_targets("rm safe C:/main/victim"))
         self.assertEqual(("C:/main/file",), guard.command_targets("echo changed >> C:/main/file"))
         self.assertIn("C:/other", guard.command_targets("git --work-tree C:/other restore x"))
+        for command in ("git --work-tree=C:/other clean -fd", "git --git-dir=C:/other/.git clean -fd", "git -CC:/other clean -fd"):
+            with self.subTest(command=command):
+                self.assertTrue(guard.command_targets(command))
         with mock.patch.object(guard, "current_branch", return_value="trunk"), \
              mock.patch.object(guard, "git_output", return_value="origin/trunk"):
             self.assertTrue(guard.on_default_branch("C:/repo"))
-        with mock.patch.object(guard, "current_branch", side_effect=lambda cwd: "main" if cwd == "C:/main" else "ChaosEngine/task"):
+        with mock.patch.object(guard, "current_branch", side_effect=lambda cwd: "main" if str(cwd).replace("\\", "/") == "C:/main" else "ChaosEngine/task"):
             reason = guard.lifecycle_reason(
                 {"cwd": "C:/isolated"}, "PowerShell",
                 {"command": "touch x", "workdir": "C:/main"}, True,
@@ -97,6 +100,9 @@ class ChaosEnginePortableCoreTest(unittest.TestCase):
             self.assertTrue(guard.initial_draft_recovery("git commit --allow-empty -m plan", ".", "ChaosEngine/task"))
         self.assertFalse(guard.initial_draft_recovery("git push && touch x", ".", "ChaosEngine/task"))
         self.assertFalse(guard.initial_draft_recovery("git push evil HEAD", ".", "ChaosEngine/task"))
+        for command in ("git push --tags origin HEAD", "GH_REPO=other/repo gh pr edit --body-file plan.md", "GIT_DIR=C:/other/.git git commit --allow-empty -m plan"):
+            with self.subTest(command=command):
+                self.assertFalse(guard.initial_draft_recovery(command, ".", "ChaosEngine/task", "owner/repo"))
         self.assertFalse(guard.initial_draft_recovery(
             "gh pr edit --body-file plan.md --repo other/repo", ".", "ChaosEngine/task", "owner/repo"
         ))
@@ -149,8 +155,9 @@ class ChaosEnginePortableCoreTest(unittest.TestCase):
 
     def test_portable_r31_uses_effective_workdir_and_hands_off_existing_diff(self):
         guard = self.portable_guard()
-        source = 'await tools.exec_command({cmd:"touch x",workdir:"C:/task"});'
-        with mock.patch.object(guard, "current_branch", side_effect=lambda cwd: "ChaosEngine/task" if str(cwd).replace("\\", "/") == "C:/task" else None), \
+        task = os.path.abspath("task-worktree")
+        source = f'await tools.exec_command({{cmd:"touch x",workdir:{json.dumps(task)}}});'
+        with mock.patch.object(guard, "current_branch", side_effect=lambda cwd: "ChaosEngine/task" if os.path.normcase(os.path.realpath(str(cwd))) == os.path.normcase(os.path.realpath(task)) else None), \
              mock.patch.object(guard, "git_output", return_value=None):
             self.assertIn("R31 blocked", guard.lifecycle_reason(
                 {"cwd": "C:/outside", "session_id": "s"}, "functions.exec", source, True,

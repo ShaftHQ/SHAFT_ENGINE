@@ -16,7 +16,7 @@
     ],
     "PostToolUse": [
       {
-        "matcher": "Read|Grep|Bash|PowerShell|shell_command|exec_command|functions[.]exec|WebSearch|WebFetch|web__run|update_plan|mcp__shaft[-_]memory__.*|mcp__mempalace__.*|mcp__graphify__.*",
+        "matcher": "Task|Agent|Read|Grep|Bash|PowerShell|shell_command|exec_command|functions[.]exec|WebSearch|WebFetch|web__run|update_plan|mcp__shaft[-_]memory__.*|mcp__mempalace__.*|mcp__graphify__.*",
         "hooks": [
           {
             "type": "command",

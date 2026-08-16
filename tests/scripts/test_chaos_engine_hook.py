@@ -188,6 +188,8 @@ class ChaosEngineHookTest(unittest.TestCase):
                     "changedApproach": "Moved reflection after delivery.",
                     "proofCommandOrCheck": "delivery status",
                     "proofOutcome": "Delivery status was confirmed.",
+                    "tokenConsumer": "Verbose result inspection consumed the most tokens.",
+                    "nextSessionOptimization": "Use terse focused output before broad checks.",
                     "durableDisposition": "guidance-fixed",
                 }
                 reflection.record_receipt("portable-delivery", receipt, token)

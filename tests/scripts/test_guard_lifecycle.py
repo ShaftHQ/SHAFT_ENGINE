@@ -1359,6 +1359,28 @@ class InitialDraftPullRequestGateTest(unittest.TestCase):
             ("C:/main/file",),
             guard._shell_mutation_targets("echo changed >> C:/main/file"),
         )
+        for command in (
+            "git --work-tree=C:/main clean -fd",
+            "git --git-dir=C:/main/.git clean -fd",
+            "git -CC:/main clean -fd",
+        ):
+            with self.subTest(command=command):
+                self.assertTrue(guard._shell_mutation_targets(command))
+
+    def test_recovery_rejects_environment_and_side_effecting_push_options(self):
+        for command in (
+            "git push --tags origin HEAD",
+            "git push --prune origin HEAD",
+            "git push --receive-pack=evil origin HEAD",
+            "GIT_DIR=C:/other/.git git commit --allow-empty -m plan",
+            "GH_REPO=other/repo gh pr edit --body-file plan.md",
+        ):
+            with self.subTest(command=command):
+                allowed, _ = guard._r31_recovery_command(
+                    command, ".", expected_base="main",
+                    expected_head="ChaosEngine/task", expected_repository="owner/repo",
+                )
+                self.assertFalse(allowed)
 
     def test_wrapped_mutation_identity_comes_from_effective_workdir(self):
         task = os.path.abspath("task-worktree")
@@ -3104,10 +3126,10 @@ class ReviewBeforeArmingGateTest(unittest.TestCase):
                     )
                 )
 
-    def test_it_fails_open_when_the_review_state_cannot_be_answered(self):
-        """No gh, no auth, no network: unknown is not zero (#4542)."""
+    def test_it_fails_closed_when_the_review_state_cannot_be_answered(self):
+        """No gh, no auth, no network: unknown cannot arm an exact-head merge."""
         with patch("scripts.agents.guard._independent_review_count", return_value=None):
-            self.assertIsNone(
+            self.assertIsNotNone(
                 guard.check_r15_review_before_arming("gh pr merge 4539 --auto", "Bash")
             )
 
@@ -4651,8 +4673,8 @@ class WhatCountsAsAReviewTest(unittest.TestCase):
 
     AUTHOR = "the-author"
 
-    def reviews(self, login: str, state: str) -> list:
-        return [{"author": {"login": login}, "state": state}]
+    def reviews(self, login: str, state: str, head: str = "a" * 40) -> list:
+        return [{"author": {"login": login}, "state": state, "commit": {"oid": head}}]
 
     def test_a_bot_comment_is_not_an_independent_review(self):
         self.assertEqual(
@@ -4662,13 +4684,11 @@ class WhatCountsAsAReviewTest(unittest.TestCase):
             [],
         )
 
-    def test_a_verdict_from_another_account_is(self):
-        for state in ("APPROVED", "CHANGES_REQUESTED"):
-            with self.subTest(state=state):
-                self.assertEqual(
-                    len(guard._independent_reviews(self.reviews("someone", state), self.AUTHOR)),
-                    1,
-                )
+    def test_only_an_exact_head_approval_from_another_account_counts(self):
+        head = "a" * 40
+        self.assertEqual(1, len(guard._independent_reviews(self.reviews("someone", "APPROVED", head), self.AUTHOR, head)))
+        self.assertEqual([], guard._independent_reviews(self.reviews("someone", "CHANGES_REQUESTED", head), self.AUTHOR, head))
+        self.assertEqual([], guard._independent_reviews(self.reviews("someone", "APPROVED", "b" * 40), self.AUTHOR, head))
 
     def test_the_authors_own_approval_is_not_independent(self):
         self.assertEqual(
@@ -4824,6 +4844,14 @@ class ObservedReviewDispatchTest(unittest.TestCase):
 
         events.clear()
         payload["tool_response"]["output"] = "F1 confirmed\nBlocking: yes\nZERO BLOCKERS"
+        with patch("scripts.agents.guard._checkpoint_identity", return_value=identity), \
+             patch("scripts.agents.guard.ledger_events", return_value=[dispatched]), \
+             patch("scripts.agents.guard.ledger_record", side_effect=lambda _p, e: events.append(e) or True):
+            guard.run_posttooluse(payload)
+        self.assertFalse(any(event.startswith("review-clear:") for event in events))
+
+        events.clear()
+        payload["tool_response"]["output"] = "ZERO BLOCKERS\nFinding: critical defect"
         with patch("scripts.agents.guard._checkpoint_identity", return_value=identity), \
              patch("scripts.agents.guard.ledger_events", return_value=[dispatched]), \
              patch("scripts.agents.guard.ledger_record", side_effect=lambda _p, e: events.append(e) or True):

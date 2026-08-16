@@ -2339,6 +2339,12 @@ def _shell_mutation_targets(command: str) -> tuple[str, ...]:
             for index, token in enumerate(git[:-1]):
                 if token.lower() in {"-c", "--git-dir", "--work-tree"}:
                     targets.append(git[index + 1])
+            for token in git:
+                lowered = token.lower()
+                if lowered.startswith(("--git-dir=", "--work-tree=")):
+                    targets.append(token.split("=", 1)[1])
+                elif lowered.startswith("-c") and len(token) > 2:
+                    targets.append(token[2:])
         for match in re.finditer(r"(?<![0-9])>(?![>&])\s*(?:\"([^\"]+)\"|'([^']+)'|([^\s]+))", segment):
             targets.append(next(group for group in match.groups() if group is not None))
     return tuple(dict.fromkeys(targets))
@@ -2658,7 +2664,7 @@ def _independent_review_count(target: str | None, cwd: object = None) -> int | N
     arguments = ["gh", "pr", "view"]
     if target:
         arguments.append(target)
-    arguments += ["--json", "reviews,author"]
+    arguments += ["--json", "reviews,author,headRefOid"]
     try:
         completed = subprocess.run(  # nosec B603 B607 - fixed read-only gh query.
             arguments,
@@ -2682,7 +2688,10 @@ def _independent_review_count(target: str | None, cwd: object = None) -> int | N
     reviews = payload.get("reviews")
     if not isinstance(reviews, list):
         return None
-    return len(_independent_reviews(reviews, author))
+    head = payload.get("headRefOid")
+    if not isinstance(head, str) or not head:
+        return None
+    return len(_independent_reviews(reviews, author, head))
 
 
 def check_r15_review_before_arming(
@@ -2690,9 +2699,9 @@ def check_r15_review_before_arming(
 ) -> str | None:
     """Refuse arming auto-merge before an independent review exists.
 
-    Iron law 6 requires an independent adversarial review before the next step
-    starts, and the Ownership section requires arming only once that gate
-    passes. Handing a diff to auto-merge is the one irreversible step in the
+    Iron law 6 requires independent review of every pushed iteration while CI
+    runs, with arming only after both clear the same exact head. Handing a diff
+    to auto-merge is the one irreversible step in the
     whole workflow -- after it, the next green run merges without asking --
     and it rested entirely on remembering.
 
@@ -2743,7 +2752,7 @@ def check_r15_review_before_arming(
         reviews = _independent_review_count(
             target, _hook_working_directory(hook_input or {})
         )
-        if reviews is None or reviews > 0:
+        if reviews is not None and reviews > 0:
             continue
         # A local reviewer counts only after its zero-blocker verdict is bound
         # to this exact repository, branch, and head.
@@ -2759,9 +2768,9 @@ def check_r15_review_before_arming(
             "with a terminal ZERO BLOCKERS verdict on this exact head, or obtain a "
             "review on the pull request from an "
             "account other than the author. A bot comment is not a review: only an "
-            "approval or a request for changes counts. Address bot annotations too, "
+            "approval on the exact current head counts. Address bot annotations too, "
             "but they do not satisfy this. If a review exists and this still fires, "
-            "`gh` could not read it; that case is allowed through."
+            "`gh` could not read it, restore GitHub access and retry."
         )
     return None
 
@@ -3193,7 +3202,7 @@ def check_r30_merge_authority_before_arming(command: str, tool_name: str, hook_i
 #
 # A human or agent who genuinely reviews and finds nothing approves; one who
 # finds something requests changes. Neither is a comment.
-REVIEW_VERDICTS = frozenset({"APPROVED", "CHANGES_REQUESTED"})
+REVIEW_VERDICTS = frozenset({"APPROVED"})
 
 DISPATCH_TOOLS = frozenset({"Task", "Agent"})
 REVIEWER_SUBAGENT_TYPES = frozenset({"reviewer"})
@@ -3686,7 +3695,8 @@ def _review_clear_event(hook_input: dict, tool_name: str, result: object) -> str
     output = _result_text(result)
     if re.search(r"(?im)^\s*Blocking:\s*yes\s*$", output):
         return None
-    if not re.search(r"(?im)^\s*ZERO BLOCKERS\s*$", output):
+    lines = [line.strip() for line in output.splitlines() if line.strip()]
+    if not lines or lines[-1] != "ZERO BLOCKERS":
         return None
     return _checkpoint_json_event("review-clear", *identity)
 
@@ -3989,15 +3999,14 @@ def _r31_recovery_command(
     if separators or len(nonempty) != 1:
         return False, None
     segment = nonempty[0]
+    if any(_ENV_ASSIGNMENT_RE.match(token) for token in _segment_tokens(segment)):
+        return False, None
     git = _tokens_after_head(segment, _GIT_NAMES)
     git_subcommand, _, git_arguments_index = _split_global_options(git or [])
     if git_subcommand == "push":
         arguments = (git or [])[git_arguments_index:]
-        if any(
-            token.lower() in {"--delete", "-d", "--force", "-f", "--mirror", "--all"}
-            or token.lower().startswith("--force-")
-            for token in arguments
-        ):
+        allowed_options = {"-u", "--set-upstream", "--porcelain", "--no-verify"}
+        if any(token.startswith("-") and token.lower() not in allowed_options for token in arguments):
             return False, None
         positional = [token for token in arguments if not token.startswith("-")]
         if not positional or positional[0] != "origin":
@@ -4063,6 +4072,8 @@ def _r31_satisfaction_event(repository: str, branch: str, head: str) -> str:
 
 def check_r31_initial_draft_pull_request(hook_input: dict, tool_name: str) -> str | None:
     """Require a planned zero-file draft before the first implementation mutation."""
+    if tool_name in _NATIVE_MEMORY_WRITE_TOOLS or tool_name in _MEMPALACE_WRITE_TOOLS:
+        return None
     if not _is_implementation_mutation(tool_name, hook_input.get("tool_input")):
         return None
     effective_input = hook_input
@@ -4171,7 +4182,7 @@ def check_r31_initial_draft_pull_request(hook_input: dict, tool_name: str) -> st
 def check_r27_checkpoint_pull_request(
     hook_input: dict, tool_name: str | None = None, *, stopping: bool = False
 ) -> str | None:
-    """Require every reviewed retained checkpoint to have an exact-head PR snapshot."""
+    """Require every retained checkpoint to have an exact-head PR snapshot."""
     identity = _checkpoint_identity(hook_input)
     if identity is None:
         return None
@@ -4227,7 +4238,7 @@ def check_r27_checkpoint_pull_request(
         return (
             "R27 blocked: a successful retained commit was observed, but its exact "
             "repository/branch/HEAD checkpoint was not durably appended. Restore the "
-            "session ledger and repeat an explicit reviewed checkpoint commit."
+            "session ledger and repeat an explicit retained checkpoint commit."
         )
     status, pull_request = _exact_head_pull_request(repository, branch, head)
     if status == "exact" and pull_request is not None:
@@ -4258,12 +4269,12 @@ def check_r27_checkpoint_pull_request(
     if status == "unmapped":
         return "R27 blocked: the exact-head open PR has no closing issue reference (for example `Closes #4745`); add one and retry."
     return (
-        "R27 blocked: the reviewed retained checkpoint has no open PR at this exact HEAD. "
+        "R27 blocked: the retained checkpoint has no open PR at this exact HEAD. "
         "Push it, then create a draft or ready PR with an explicit `--base` and a closing issue reference."
     )
 
 
-def _independent_reviews(reviews: object, author: object) -> list:
+def _independent_reviews(reviews: object, author: object, head: object = None) -> list:
     """Reviews by somebody other than the author that render a verdict.
 
     One predicate, consumed by both R15 (may this be armed) and R17 (should
@@ -4282,6 +4293,10 @@ def _independent_reviews(reviews: object, author: object) -> list:
         and (review.get("author") or {}).get("login")
         and (review.get("author") or {}).get("login") != author
         and review.get("state") in REVIEW_VERDICTS
+        and (
+            head is None
+            or ((review.get("commit") or {}).get("oid") == head)
+        )
     ]
 
 
@@ -5439,7 +5454,7 @@ def _unarmed_reviewed_pull_request(cwd: object, hook_input: dict | None = None) 
         "pr",
         "view",
         "--json",
-        "number,autoMergeRequest,reviews,author,isDraft,headRefName",
+        "number,autoMergeRequest,reviews,author,isDraft,headRefName,headRefOid",
     ]
     try:
         completed = subprocess.run(  # nosec B603 B607 - fixed read-only gh query.
@@ -5479,7 +5494,7 @@ def _unarmed_reviewed_pull_request(cwd: object, hook_input: dict | None = None) 
     # still names a head ref while local git names none, so R17 demanded an
     # arming R15 refused -- no legal state, which is what the line below has
     # always claimed to prevent.
-    if not _independent_reviews(reviews, author) and not _ledger_records_a_review(
+    if not _independent_reviews(reviews, author, payload.get("headRefOid")) and not _ledger_records_a_review(
         hook_input, _current_branch(_hook_working_directory(hook_input or {}))
     ):
         return None  # R15 would refuse arming; demanding it here would deadlock
