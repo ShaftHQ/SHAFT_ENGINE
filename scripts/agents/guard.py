@@ -261,6 +261,8 @@ def _head_executable_matches(segment: str, names: frozenset[str]) -> bool:
             index += 1
             continue
         basename = re.split(r"[/\\]", token.strip("\"'"))[-1].lower()
+        if basename.endswith(".exe"):
+            basename = basename[:-4]
         if basename in names:
             return True
         if basename in _RUNNER_PREFIX_TOKENS:
@@ -1708,6 +1710,19 @@ def _is_mempalace_write(tool_name: str, tool_input: object) -> bool:
 
 def _hook_working_directory(hook_input: dict) -> str | None:
     """Directory the guarded command will run in, or None when unknown."""
+    tool_name = str(hook_input.get("tool_name") or "")
+    tool_input = hook_input.get("tool_input")
+    if tool_name in _SHELL_TOOLS and isinstance(tool_input, dict):
+        workdir = tool_input.get("workdir")
+        if isinstance(workdir, str) and workdir.strip():
+            if os.path.isabs(workdir):
+                return workdir
+            supplied_cwd = hook_input.get("cwd")
+            base = supplied_cwd if isinstance(supplied_cwd, str) and supplied_cwd.strip() else None
+            try:
+                return os.path.abspath(os.path.join(base or os.getcwd(), workdir))
+            except (OSError, ValueError):
+                pass
     # Hosts that report the session directory win over the hook process's own
     # directory, which is not guaranteed to be the checkout the command
     # targets.
@@ -1748,12 +1763,6 @@ def _record_guard_block_and_deny(hook_input: dict, reason: str, host: str) -> No
     _print_deny(reason, host)
 
 
-# R12: iron law 3 -- no production code before an observed failing test.
-# Production means compiled source under any module's src/main/. Guidance,
-# configuration, tests, scripts and docs are excluded because the entrypoint
-# excludes them itself: they "may skip test-first; validate their structure or
-# affected flow instead".
-_PRODUCTION_PATH = re.compile(r"(?:^|/)src/main/", re.IGNORECASE)
 _TEST_RUNNER = frozenset({"py", "python", "python3", "pytest", "mvn", "mvnw"})
 # Token equality rather than a regex: the file already tokenises segments for
 # R1 and R2, and a substring match would read "latest" or "protest" as a test
@@ -1893,56 +1902,11 @@ def looks_like_a_test_run(command: str) -> bool:
     return False
 
 
-def check_r12_test_before_production(hook_input: dict, tool_name: str) -> str | None:
-    """Block a production-source write when no test run was observed this session.
-
-    Iron law 3 with a mechanism. The law predates every check in this file and
-    has never had one: `test_agent_router_contract.py` pins that the sentence
-    exists, which cannot observe whether production code was written first.
-
-    Scope is narrow on purpose. Only compiled source under a module's
-    `src/main/` counts, because the entrypoint exempts the rest itself --
-    documentation, guidance, configuration and generated code "may skip
-    test-first". Writing the failing test is never blocked, since blocking the
-    RED step would make the law unsatisfiable: the only way to observe a
-    failing test is to write it.
-
-    Session-scoped rather than per-edit. One observed test run unlocks
-    production writes for the session, which enforces "a test ran before you
-    wrote production code" without blocking the second edit of a two-line fix.
-    A coarse rule everybody keeps is worth more than a precise one nobody does.
-    """
-    if tool_name not in _WRITE_TOOLS:
-        return None
-    tool_input = hook_input.get("tool_input")
-    if not isinstance(tool_input, dict):
-        return None
-    path = tool_input.get("file_path") or tool_input.get("path") or ""
-    if not isinstance(path, str) or not path:
-        return None
-    normalized = path.replace("\\", "/")
-    if not _PRODUCTION_PATH.search(normalized) or "/src/test/" in normalized:
-        return None
-    if not _ledger_path(hook_input):
-        return None  # no session, no record, no basis to block
-    if "test-run" in ledger_events(hook_input):
-        return None
-    return (
-        "R12 blocked: iron law 3 -- no production code before an observed "
-        f"failing test. {path} is production source under src/main/, and no "
-        "test run has been observed in this session. Write the focused test "
-        "first and run it (for example `py -3 -m unittest tests.scripts.test_x` "
-        "or `mvn -Dtest=YourTest test`); an expected assertion failure is RED "
-        "and unblocks this write, while a setup, syntax or environment error "
-        "is not. Tests, guidance, configuration and docs are never blocked by "
-        "this rule."
-    )
-
-
 _PRIMARY_SOURCE_HOSTS = frozenset(
     {
         "docs.github.com",
         "github.com",
+        "git-scm.com",
         "learn.microsoft.com",
         "docs.python.org",
         "docs.oracle.com",
@@ -1962,41 +1926,144 @@ _PRIMARY_SOURCE_HOSTS = frozenset(
 )
 
 
-def _has_primary_source_url(tool_result: object) -> bool:
+def _declared_primary_source_hosts(source: object) -> frozenset[str]:
+    """Return bounded per-request authority declarations, never result prose."""
+    rendered = source if isinstance(source, str) else json.dumps(source, sort_keys=True)
+    candidates = re.findall(
+        r"(?i)(?:\bsite:|\bCHAOS_PRIMARY_SOURCE_HOST\s*=\s*[\"']?)([a-z0-9.-]+)",
+        rendered,
+    )
+    hosts = {
+        candidate.lower().strip(".")
+        for candidate in candidates
+        if re.fullmatch(r"[a-z0-9](?:[a-z0-9.-]{0,251}[a-z0-9])?", candidate.lower())
+        and "." in candidate
+        and ".." not in candidate
+    }
+    return frozenset(hosts)
+
+
+def _has_primary_source_url(tool_result: object, declared: frozenset[str] = frozenset()) -> bool:
     rendered = json.dumps(tool_result, sort_keys=True) if tool_result is not None else ""
     for candidate in re.findall(r"https?://[^\s\"'<>]+", rendered):
         host = (urlparse(candidate).hostname or "").lower()
-        if host in _PRIMARY_SOURCE_HOSTS or any(
-            host.endswith("." + allowed) for allowed in _PRIMARY_SOURCE_HOSTS
+        allowed_hosts = _PRIMARY_SOURCE_HOSTS | declared
+        if host in allowed_hosts or any(
+            host.endswith("." + allowed) for allowed in allowed_hosts
         ):
             return True
     return False
 
 
+_WRAPPED_EXEC_CALL = re.compile(
+    r'''\btools\.exec_command\s*\(\s*\{(?P<body>(?:"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|[^{}])*)\}\s*\)''',
+    re.DOTALL,
+)
+
+
+def _wrapped_exec_calls(source: str) -> tuple[tuple[str, str | None], ...] | None:
+    """Return fully inspectable wrapped calls, or None for runtime ambiguity."""
+    calls: list[tuple[str, str | None]] = []
+    matches = tuple(_WRAPPED_EXEC_CALL.finditer(source))
+    if len(matches) != _wrapped_exec_call_count(source):
+        return None
+    for match in matches:
+        body = match.group("body")
+        structural = re.sub(
+            r'''"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*' ''',
+            lambda value: value.group(0)[0] + value.group(0)[-1],
+            body,
+            flags=re.VERBOSE,
+        )
+        if "..." in structural or "[" in structural or "]" in structural:
+            return None
+        command_keys = re.findall(r"\b(?:cmd|command)\s*:", structural)
+        workdir_keys = re.findall(r"\bworkdir\s*:", structural)
+        if len(command_keys) != 1 or len(workdir_keys) > 1:
+            return None
+        command_match = re.search(
+            r'''\b(?:cmd|command)\s*:\s*(?P<literal>"(?:\\.|[^"\\])*")''',
+            body,
+            re.DOTALL,
+        )
+        if command_match is None:
+            return None
+        try:
+            command = json.loads(command_match.group("literal"))
+        except (json.JSONDecodeError, ValueError):
+            return None
+        if not isinstance(command, str) or not command:
+            return None
+        workdir: str | None = None
+        workdir_match = re.search(
+            r'''\bworkdir\s*:\s*(?P<literal>"(?:\\.|[^"\\])*")''',
+            body,
+            re.DOTALL,
+        )
+        if workdir_keys and workdir_match is None:
+            return None
+        if workdir_match is not None:
+            try:
+                candidate = json.loads(workdir_match.group("literal"))
+            except (json.JSONDecodeError, ValueError):
+                return None
+            if not isinstance(candidate, str) or not candidate.strip():
+                return None
+            workdir = candidate
+        calls.append((command, workdir))
+    return tuple(calls)
+
+
 def _wrapped_exec_commands(source: str) -> tuple[str, ...]:
     """Extract literal cmd/command strings from wrapped exec_command calls."""
-    commands: list[str] = []
-    for match in re.finditer(
-        r'''\btools\.exec_command\s*\(\s*\{.*?\b(?:cmd|command)\s*:\s*(?P<literal>"(?:\\.|[^"\\])*")''',
-        source,
-        re.DOTALL,
-    ):
-        try:
-            command = json.loads(match.group("literal"))
-        except (json.JSONDecodeError, ValueError):
-            continue
-        if isinstance(command, str) and command:
-            commands.append(command)
-    return tuple(commands)
+    calls = _wrapped_exec_calls(source)
+    return tuple(command for command, _workdir in calls) if calls is not None else ()
 
 
 def _wrapped_exec_call_count(source: str) -> int:
-    return len(re.findall(r"\btools\.exec_command\s*\(", source))
+    return len(re.findall(r"\btools\.exec_command\s*\(", _js_structure(source)))
+
+
+def _js_structure(source: str) -> str:
+    return re.sub(
+        r'''"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|`(?:\\.|[^`\\])*`''',
+        lambda value: value.group(0)[0] + value.group(0)[-1],
+        source,
+        flags=re.DOTALL,
+    )
+
+
+def _wrapped_apply_patch_call_count(source: str) -> int:
+    return len(re.findall(r"\btools\.apply_patch\s*\(", _js_structure(source)))
+
+
+def _wrapped_apply_patch_targets(source: str) -> tuple[str, ...] | None:
+    count = _wrapped_apply_patch_call_count(source)
+    matches = tuple(re.finditer(
+        r'''\btools\.apply_patch\s*\(\s*(?P<literal>"(?:\\.|[^"\\])*")\s*\)''',
+        source,
+        re.DOTALL,
+    ))
+    if len(matches) != count:
+        return None
+    targets: list[str] = []
+    for match in matches:
+        try:
+            patch_text = json.loads(match.group("literal"))
+        except (json.JSONDecodeError, ValueError):
+            return None
+        targets.extend(
+            item.group(1).strip()
+            for item in re.finditer(
+                r"(?m)^\*\*\* (?:Add|Update|Delete) File:\s*(.+?)\s*$", patch_text
+            )
+        )
+    return tuple(targets)
 
 
 def _shell_requests_primary_source(segment: str) -> bool:
     if re.match(
-        r"\s*(?:&\s*)?(?:curl(?:\.exe)?|invoke-webrequest|iwr)\b",
+        r"\s*(?:[A-Za-z_][A-Za-z0-9_]*=\S+\s+)*(?:&\s*)?(?:curl(?:\.exe)?|invoke-webrequest|iwr)\b",
         segment,
         re.IGNORECASE,
     ) is None:
@@ -2026,7 +2093,9 @@ def _shell_requests_primary_source(segment: str) -> bool:
         if lowered in request_flags and index + 1 < len(arguments):
             candidates.append(arguments[index + 1])
     for candidate in candidates:
-        if _has_primary_source_url({"request_url": candidate}):
+        if _has_primary_source_url(
+            {"request_url": candidate}, _declared_primary_source_hosts(segment)
+        ):
             return True
     return False
 
@@ -2115,7 +2184,7 @@ def _research_preflight_events(
         else tool_result
     )
     if tool_name in {"WebSearch", "WebFetch", "web__run"} and _has_primary_source_url(
-        web_evidence
+        web_evidence, _declared_primary_source_hosts(details)
     ):
         events.append("authoritative-online-research")
     if tool_name == "update_plan":
@@ -2163,24 +2232,77 @@ def _shell_mutation_targets(command: str) -> tuple[str, ...]:
         "remove-item",
         "new-item",
         "out-file",
+        "touch",
+        "rm",
     }
-    destination_target = {"copy-item", "rename-item", "move-item"}
-    for segment in _command_segments(command):
+    destination_target = {"copy-item", "rename-item", "move-item", "cp", "mv"}
+    segments, _separators = _top_level_shell_parts(command)
+    for segment in segments:
         tokens = _segment_tokens(segment)
         if not tokens:
             continue
-        head = tokens[0].lower()
+        parsed_head, parsed_arguments = _r26_head_and_args(segment)
+        head = parsed_head or tokens[0].lower()
+        tokens = [head, *parsed_arguments]
         if head in one_target and len(tokens) > 1:
-            targets.append(tokens[1])
+            if head == "touch" and any(
+                token.lower() in {"-d", "--date", "-r", "--reference", "-t"}
+                or token.lower().startswith(("--date=", "--reference="))
+                for token in tokens[1:]
+            ):
+                targets.append("$UNINSPECTABLE")
+                continue
+            if head in {"rm", "touch"}:
+                targets.extend(
+                    token for token in tokens[1:] if not token.startswith("-")
+                )
+                continue
+            path_index = next(
+                (index + 1 for index, token in enumerate(tokens[:-1])
+                 if token.lower() in {"-path", "-literalpath", "-filepath"}),
+                None,
+            )
+            if path_index is None:
+                path_index = next(
+                    (index for index, token in enumerate(tokens[1:], 1)
+                     if not token.startswith("-")),
+                    None,
+                )
+            if path_index is not None:
+                targets.append(tokens[path_index])
         elif head in destination_target and len(tokens) > 2:
-            targets.append(tokens[2])
+            destination = next(
+                (tokens[index + 1] for index, token in enumerate(tokens[:-1])
+                 if token.lower() in {"-t", "--target-directory", "-destination"}),
+                None,
+            )
+            destination = destination or next(
+                (token.split("=", 1)[1] for token in tokens
+                 if token.lower().startswith("--target-directory=")),
+                None,
+            )
+            values = [token for token in tokens[1:] if not token.startswith("-")]
+            if destination or len(values) >= 2:
+                targets.append(destination or values[-1])
+        git = _tokens_after_head(segment, _GIT_NAMES)
+        if git:
+            for index, token in enumerate(git[:-1]):
+                if token.lower() in {"-c", "--git-dir", "--work-tree"}:
+                    targets.append(git[index + 1])
+            for token in git:
+                lowered = token.lower()
+                if lowered.startswith(("--git-dir=", "--work-tree=")):
+                    targets.append(token.split("=", 1)[1])
+                elif lowered.startswith("-c") and len(token) > 2:
+                    targets.append(token[2:])
         for match in re.finditer(r"(?<![0-9])>(?![>&])\s*(?:\"([^\"]+)\"|'([^']+)'|([^\s]+))", segment):
             targets.append(next(group for group in match.groups() if group is not None))
     return tuple(dict.fromkeys(targets))
 
 
 def _shell_is_mutation(command: str) -> bool:
-    for segment in _command_segments(command):
+    segments, _separators = _top_level_shell_parts(command)
+    for segment in segments:
         lowered = segment.lower()
         if re.search(
             r"\b(?:set-content|add-content|clear-content|remove-content|out-file|"
@@ -2188,9 +2310,17 @@ def _shell_is_mutation(command: str) -> bool:
             lowered,
         ):
             return True
+        if _r26_unwrapped_head(segment) in {"touch", "rm", "mv", "cp"}:
+            return True
         if re.search(r"(?<![0-9])>(?![>&])", lowered):
             return True
-        if re.search(r"\bgit\s+(?:add|commit|push|merge|rebase|reset|restore|rm|mv|tag|branch|checkout|switch|cherry-pick)\b", lowered):
+        if re.search(r"\bgit\s+(?:add|commit|push|merge|rebase|reset|restore|clean|rm|mv|tag|branch|checkout|switch|cherry-pick)\b", lowered):
+            return True
+        git = _tokens_after_head(segment, _GIT_NAMES)
+        if git and _split_global_options(git)[0] in {
+            "add", "commit", "push", "merge", "rebase", "reset", "restore",
+            "clean", "rm", "mv", "tag", "branch", "checkout", "switch", "cherry-pick",
+        }:
             return True
         if re.search(r"\bgh\s+(?:api\b.*--method\s+(?:post|put|patch|delete)|pr\s+(?:create|merge|close|comment|edit)|issue\s+(?:create|close|comment|edit))\b", lowered):
             return True
@@ -2201,9 +2331,22 @@ def _shell_is_mutation(command: str) -> bool:
     return False
 
 
+def _knowledge_write_command(command: str) -> bool:
+    segments, separators = _top_level_shell_parts(command)
+    if separators or len(segments) != 1:
+        return False
+    tokens = _segment_tokens(segments[0])
+    head = _r26_unwrapped_head(segments[0])
+    lowered = [token.lower() for token in tokens]
+    return bool(
+        (head == "memory" and any(action in lowered for action in ("remember", "delete", "supersede", "patch")))
+        or (head == "mempalace" and any(action in lowered for action in ("add", "delete", "update")))
+    )
+
+
 def _functions_exec_is_mutation(tool_input: object) -> bool:
     source = tool_input if isinstance(tool_input, str) else ""
-    if re.search(r"\btools\.apply_patch\s*\(", source):
+    if _wrapped_apply_patch_call_count(source):
         return True
     if re.search(r"\btools\.exec_command\s*\(", source):
         commands = _wrapped_exec_commands(source)
@@ -2484,7 +2627,7 @@ def _independent_review_count(target: str | None, cwd: object = None) -> int | N
     arguments = ["gh", "pr", "view"]
     if target:
         arguments.append(target)
-    arguments += ["--json", "reviews,author"]
+    arguments += ["--json", "reviews,author,headRefOid"]
     try:
         completed = subprocess.run(  # nosec B603 B607 - fixed read-only gh query.
             arguments,
@@ -2508,7 +2651,10 @@ def _independent_review_count(target: str | None, cwd: object = None) -> int | N
     reviews = payload.get("reviews")
     if not isinstance(reviews, list):
         return None
-    return len(_independent_reviews(reviews, author))
+    head = payload.get("headRefOid")
+    if not isinstance(head, str) or not head:
+        return None
+    return len(_independent_reviews(reviews, author, head))
 
 
 def check_r15_review_before_arming(
@@ -2516,9 +2662,9 @@ def check_r15_review_before_arming(
 ) -> str | None:
     """Refuse arming auto-merge before an independent review exists.
 
-    Iron law 6 requires an independent adversarial review before the next step
-    starts, and the Ownership section requires arming only once that gate
-    passes. Handing a diff to auto-merge is the one irreversible step in the
+    Iron law 6 requires independent review of every pushed iteration while CI
+    runs, with arming only after both clear the same exact head. Handing a diff
+    to auto-merge is the one irreversible step in the
     whole workflow -- after it, the next green run merges without asking --
     and it rested entirely on remembering.
 
@@ -2569,13 +2715,10 @@ def check_r15_review_before_arming(
         reviews = _independent_review_count(
             target, _hook_working_directory(hook_input or {})
         )
-        if reviews is None or reviews > 0:
+        if reviews is not None and reviews > 0:
             continue
-        # #4545 option C: a dispatch this hook watched counts as well. R15 was
-        # otherwise unsatisfiable by the agent it governs -- its own message
-        # says to get a separate instance to review, and doing exactly that
-        # leaves `reviews` empty, so the only satisfying action belonged to a
-        # different account.
+        # A local reviewer counts only after its zero-blocker verdict is bound
+        # to this exact repository, branch, and head.
         if _ledger_records_a_review(
             hook_input, _current_branch(_hook_working_directory(hook_input or {}))
         ):
@@ -2584,13 +2727,13 @@ def check_r15_review_before_arming(
         return (
             f"R15 blocked: nothing independent has read {label}. Arming auto-merge "
             "is the irreversible step -- after it, the next green run merges without "
-            "asking. Two things satisfy this, and both are available to you: dispatch "
-            "a `reviewer` subagent against this branch, which this hook records when "
-            "it sees the dispatch, or obtain a review on the pull request from an "
+            "asking. Two things satisfy this: complete a `reviewer` subagent review "
+            "with a terminal ZERO BLOCKERS verdict on this exact head, or obtain a "
+            "review on the pull request from an "
             "account other than the author. A bot comment is not a review: only an "
-            "approval or a request for changes counts. Address bot annotations too, "
+            "approval on the exact current head counts. Address bot annotations too, "
             "but they do not satisfy this. If a review exists and this still fires, "
-            "`gh` could not read it; that case is allowed through."
+            "`gh` could not read it, restore GitHub access and retry."
         )
     return None
 
@@ -2955,6 +3098,17 @@ def check_r29_delivery_complete(hook_input: dict) -> str | None:
     events = ledger_events(hook_input)
     if "commit" not in events:
         return None
+    # A SubagentStop is also the transport for a read-only review verdict. A
+    # parent session's commit marker can be visible to that child, but only a
+    # retained checkpoint proves that this session owns delivery work. Keep
+    # the child verdict intact unless that ownership evidence exists. A
+    # reviewer label is deliberately not an exemption: a retained checkpoint
+    # still makes R29 apply.
+    if (
+        hook_input.get("hook_event_name") == "SubagentStop"
+        and not any(_checkpoint_event_payload(event, "checkpoint") for event in events)
+    ):
+        return None
     checkpoints = [
         payload for payload in (_checkpoint_event_payload(event, "checkpoint") for event in events)
         if payload
@@ -3032,7 +3186,7 @@ ADAPTED_SUBAGENT_TYPES = frozenset({"chaos-engine", "coder", "helper", "reviewer
 def check_r22_dispatch_adapter(hook_input: dict, tool_name: str) -> str | None:
     """Refuse a dispatch whose type has no host-delivered role adapter.
 
-    R22 owns only the shape of a new delegate. It runs before R11, R12, R15,
+    R22 owns only the shape of a new delegate. It runs before R11, R15,
     R17, and R19 can apply to the delegate's own tool calls. Choosing any
     listed type delivers the entrypoint; after a commit, the learning-loop
     arming clause remains satisfiable by a learning write or its explicit
@@ -3397,8 +3551,8 @@ def _reviewer_dispatch_event(hook_input: dict, tool_name: str) -> str | None:
          immediately still counts.
 
     So the honest claim is narrower: this raises the cost of skipping a review
-    from "do nothing" to "deliberately forge a ledger entry", on the same
-    threat model R12 already rests on -- a careless agent, not a hostile one.
+    from "do nothing" to "deliberately forge a ledger entry". It addresses a
+    careless agent, not a hostile one.
     R15 remains forgeable, deliberately, because the alternative measured worse:
     it was unsatisfiable by the agent it governs, and an unsatisfiable gate is
     one that gets bypassed and then deleted.
@@ -3427,19 +3581,20 @@ def _reviewer_dispatch_event(hook_input: dict, tool_name: str) -> str | None:
 
 
 def _ledger_records_a_review(hook_input: object, branch: object) -> bool:
-    """True when this session watched a reviewer being dispatched for `branch`.
-
-    Keyed to the branch only (#4548, second review: this docstring used to
-    claim a bare `review` also counted, written when git could not name the
-    branch at dispatch time -- but that keyless fallback cleared *every*
-    branch's R15, so `_reviewer_dispatch_event` no longer writes it.
-    Recording nothing when the branch is unanswerable is the safe direction,
-    and this reader has no bare-`review` path left to match; the sentence
-    describing one was stale).
-    """
+    """True only for a completed zero-blocker review of the current exact head."""
     if not isinstance(hook_input, dict) or not branch:
         return False
-    return f"review:{branch}" in set(ledger_events(hook_input))
+    identity = _checkpoint_identity(hook_input)
+    if identity is None or identity[1] != branch:
+        return False
+    latest = None
+    for event in ledger_events(hook_input):
+        for prefix in ("review-head", "review-clear"):
+            if _checkpoint_event_payload(event, prefix) == {
+                "repository": identity[0], "branch": identity[1], "head": identity[2]
+            }:
+                latest = prefix
+    return latest == "review-clear"
 
 
 def _checkpoint_json_event(prefix: str, repository: str, branch: str, head: str, **extra) -> str:
@@ -3499,23 +3654,50 @@ def _review_checkpoint_event(hook_input: dict, review_event: str | None) -> str 
     return _checkpoint_json_event("review-head", *identity)
 
 
+def _result_text(value: object) -> str:
+    if isinstance(value, str):
+        return value
+    if isinstance(value, dict):
+        return "\n".join(_result_text(item) for item in value.values())
+    if isinstance(value, (list, tuple)):
+        return "\n".join(_result_text(item) for item in value)
+    return ""
+
+
+def _review_clear_event(hook_input: dict, tool_name: str, result: object) -> str | None:
+    tool_input = hook_input.get("tool_input")
+    role = (
+        tool_input.get("subagent_type") or tool_input.get("subagent")
+        if isinstance(tool_input, dict) else None
+    )
+    if tool_name not in {"Task", "Agent"} or str(role).lower() != "reviewer":
+        return None
+    return _review_clear_for_identity(hook_input, result)
+
+
+def _review_clear_for_identity(hook_input: dict, result: object) -> str | None:
+    identity = _checkpoint_identity(hook_input)
+    if identity is None:
+        return None
+    dispatched = _checkpoint_json_event("review-head", *identity)
+    if dispatched not in set(ledger_events(hook_input)):
+        return None
+    output = _result_text(result)
+    if re.search(r"(?im)^\s*Blocking:\s*yes\s*$", output):
+        return None
+    lines = [line.strip() for line in output.splitlines() if line.strip()]
+    if not lines or lines[-1] != "ZERO BLOCKERS":
+        return None
+    return _checkpoint_json_event("review-clear", *identity)
+
+
 def _record_successful_commit_checkpoint(hook_input: dict) -> None:
-    """Persist a reviewed commit only after successful PostToolUse retained a new HEAD."""
+    """Persist a retained behavior commit so it must be pushed before more work."""
     identity = _checkpoint_identity(hook_input)
     if identity is None:
         return
-    repository, branch, head = identity
-    reviewed_heads = [
-        payload
-        for payload in (
-            _checkpoint_event_payload(event, "review-head")
-            for event in ledger_events(hook_input)
-        )
-        if payload
-        and payload["repository"] == repository
-        and payload["branch"] == branch
-    ]
-    if not reviewed_heads or reviewed_heads[-1]["head"].lower() == head.lower():
+    repository, _branch, _head = identity
+    if _same_tree_as_default_base(repository, _hook_working_directory(hook_input)) is True:
         return
     ledger_record(hook_input, _checkpoint_json_event("checkpoint", *identity))
 
@@ -3574,15 +3756,16 @@ def _repository_default_branch(executable: str, repository: str) -> str | None:
 
 
 def _exact_head_pull_request(repository: str, branch: str, head: str) -> tuple[str, dict | None]:
-    """Return exact-head PR state: exact, unmapped, none, or unavailable."""
+    """Return exact-commit PR state regardless of the local branch alias."""
+    del branch
     executable = shutil.which("gh")
     if executable is None:
         return "unavailable", None
-    fields = "number,url,state,isDraft,headRefName,headRefOid,baseRefName,body,closingIssuesReferences"
+    fields = "number,url,state,isDraft,headRefName,headRefOid,baseRefName,body,changedFiles,closingIssuesReferences"
     try:
         completed = subprocess.run(  # nosec B603 - fixed read-only gh query.
-            [executable, "pr", "list", "--repo", repository, "--head", branch,
-             "--state", "open", "--json", fields],
+            [executable, "pr", "list", "--repo", repository, "--state", "open",
+             "--limit", "100", "--json", fields],
             capture_output=True,
             text=True,
             timeout=_subprocess_timeout(),
@@ -3603,7 +3786,6 @@ def _exact_head_pull_request(repository: str, branch: str, head: str) -> tuple[s
             item for item in pull_requests
             if isinstance(item, dict)
             and str(item.get("state", "")).upper() == "OPEN"
-            and item.get("headRefName") == branch
             and str(item.get("headRefOid", "")).lower() == head.lower()
         ),
         None,
@@ -3636,12 +3818,36 @@ def _r27_recovery_command(
     """Classify one whole command that can repair a blocked checkpoint."""
     segments, separators = _top_level_shell_parts(_sanitize_for_command_head(command))
     nonempty = [segment for segment in segments if segment.strip()]
-    if separators or len(nonempty) != 1:
+    if not nonempty:
         return False, None
+    if separators or len(nonempty) != 1:
+        for item in nonempty:
+            recovery, error = _r27_recovery_command(
+                item, allow_checkpoint_repair=allow_checkpoint_repair
+            )
+            if error:
+                return False, error
+            if not recovery:
+                return False, None
+        return True, None
     segment = nonempty[0]
     git = _tokens_after_head(segment, _GIT_NAMES)
     git_subcommand, _, git_arguments_index = _split_global_options(git or [])
     if git_subcommand == "push":
+        return True, None
+    git_arguments = (git or [])[git_arguments_index:]
+    if git_subcommand in {"status", "diff", "log", "show", "rev-parse", "merge-base", "ls-files"}:
+        return True, None
+    if git_subcommand == "branch" and all(
+        token.lower() in {"--show-current", "--list", "-a", "--all", "-r", "--remotes", "-v", "-vv"}
+        for token in git_arguments
+    ):
+        return True, None
+    if git_subcommand == "remote" and (
+        not git_arguments
+        or git_arguments in (["-v"], ["--verbose"])
+        or len(git_arguments) == 2 and git_arguments[0] == "get-url"
+    ):
         return True, None
     if git_subcommand == "commit":
         options = {token.lower() for token in (git or [])[git_arguments_index:]}
@@ -3724,10 +3930,274 @@ def _checkpoint_snapshot_complete(body: object, head: str) -> bool:
     )
 
 
+def _initial_plan_complete(body: object) -> bool:
+    """Require visible, substantive plan, scope, and proof sections."""
+    if not isinstance(body, str):
+        return False
+    visible = _visible_markdown(body)
+    for name in ("Plan", "Scope", "Proof"):
+        match = re.search(
+            rf"(?ims)^##[ \t]+{name}[ \t]*\r?\n(.*?)(?=^##[ \t]+|\Z)",
+            visible,
+        )
+        if match is None or len(match.group(1).strip()) < 20:
+            return False
+    return True
+
+
+def _working_tree_clean(cwd: object) -> bool:
+    status = _git_output(["status", "--porcelain", "--untracked-files=all"], cwd)
+    return status == ""
+
+
+def _same_tree_as_default_base(repository: str, cwd: object) -> bool | None:
+    """True while HEAD introduces no file changes relative to the default base."""
+    executable = shutil.which("gh")
+    if executable is None:
+        return None
+    default_branch = _repository_default_branch(executable, repository)
+    if default_branch is None:
+        return None
+    merge_base = _git_output(
+        ["merge-base", "HEAD", f"origin/{default_branch}"], cwd
+    )
+    if merge_base is None or not re.fullmatch(r"[0-9a-fA-F]{40}\s*", merge_base):
+        return None
+    changed = _git_output(
+        ["diff", "--name-only", merge_base.strip(), "HEAD", "--"], cwd
+    )
+    return None if changed is None else not changed.strip()
+
+
+def _strict_cli_options(
+    options: list[str], *, flags: frozenset[str], values: frozenset[str]
+) -> tuple[frozenset[str], dict[str, str]] | None:
+    parsed_flags: set[str] = set()
+    parsed_values: dict[str, str] = {}
+    index = 0
+    while index < len(options):
+        raw = options[index]
+        name, separator, inline = raw.partition("=")
+        name = name.lower()
+        if name in flags and not separator and name not in parsed_flags:
+            parsed_flags.add(name)
+            index += 1
+            continue
+        if name not in values or name in parsed_values:
+            return None
+        if separator:
+            value = inline
+        else:
+            index += 1
+            if index >= len(options):
+                return None
+            value = options[index]
+        if not value or value.startswith("-"):
+            return None
+        parsed_values[name] = value
+        index += 1
+    return frozenset(parsed_flags), parsed_values
+
+
+def _r31_recovery_command(
+    command: str,
+    cwd: object,
+    *,
+    expected_base: str | None = None,
+    expected_head: str | None = None,
+    expected_repository: str | None = None,
+) -> tuple[bool, str | None]:
+    """Allow only the bounded operations that can create or repair the initial draft."""
+    segments, separators = _top_level_shell_parts(_sanitize_for_command_head(command))
+    nonempty = [segment for segment in segments if segment.strip()]
+    if separators or len(nonempty) != 1:
+        return False, None
+    segment = nonempty[0]
+    if any(_ENV_ASSIGNMENT_RE.match(token) for token in _segment_tokens(segment)):
+        return False, None
+    if any(os.environ.get(name) for name in ("GH_REPO", "GH_HOST", "GIT_DIR", "GIT_WORK_TREE")):
+        return False, None
+    git = _tokens_after_head(segment, _GIT_NAMES)
+    git_subcommand, _, git_arguments_index = _split_global_options(git or [])
+    if git_subcommand == "push":
+        arguments = (git or [])[git_arguments_index:]
+        allowed_options = {"-u", "--set-upstream", "--porcelain", "--no-verify"}
+        if any(token.startswith("-") and token.lower() not in allowed_options for token in arguments):
+            return False, None
+        positional = [token for token in arguments if not token.startswith("-")]
+        if not positional or positional[0] != "origin":
+            return False, None
+        refspecs = positional[1:]
+        allowed_refspecs = {"HEAD"}
+        if expected_head:
+            allowed_refspecs.update(
+                {expected_head, f"HEAD:{expected_head}", f"HEAD:refs/heads/{expected_head}"}
+            )
+        if not refspecs or any(refspec not in allowed_refspecs for refspec in refspecs):
+            return False, None
+        return True, None
+    if git_subcommand == "commit":
+        arguments = (git or [])[git_arguments_index:]
+        if "--allow-empty" in arguments and "--amend" not in arguments:
+            if not _working_tree_clean(cwd):
+                return False, "R31 blocked: the planning checkpoint must be a clean same-tree commit; staged, unstaged, and untracked files are not allowed."
+            return True, None
+        return False, None
+    gh = _tokens_after_head(segment, frozenset({"gh"})) or []
+    if gh[:2] == ["pr", "create"]:
+        options = gh[2:]
+        parsed = _strict_cli_options(
+            options,
+            flags=frozenset({"--draft"}),
+            values=frozenset({"--base", "--head", "--body", "--body-file", "--repo"}),
+        )
+        if parsed is None:
+            return False, None
+        flags, values = parsed
+        if "--draft" not in flags:
+            return False, "R31 blocked: the initial pull request must be created with --draft."
+        if "--base" not in values or "--head" not in values:
+            return False, "R31 blocked: initial draft creation requires explicit --base and --head values."
+        if len({"--body", "--body-file"} & values.keys()) != 1:
+            return False, "R31 blocked: initial draft creation requires a plan body or body file."
+        if expected_base is None:
+            return False, "R31 blocked: the configured default branch is unavailable."
+        if values["--base"] != expected_base:
+            return False, "R31 blocked: initial draft creation must explicitly target the configured default branch."
+        if expected_head is not None and values["--head"] != expected_head:
+            return False, "R31 blocked: initial draft creation must explicitly name the current task branch."
+        if "--repo" in values and values["--repo"] != expected_repository:
+            return False, "R31 blocked: initial draft recovery cannot target another repository."
+        return True, None
+    if gh[:2] == ["pr", "edit"]:
+        parsed = _strict_cli_options(
+            gh[2:], flags=frozenset(), values=frozenset({"--body", "--body-file", "--repo"})
+        )
+        if parsed is None:
+            return False, None
+        _flags, values = parsed
+        if len({"--body", "--body-file"} & values.keys()) != 1:
+            return False, None
+        return "--repo" not in values or values["--repo"] == expected_repository, None
+    return False, None
+
+
+def _r31_satisfaction_event(repository: str, branch: str, head: str) -> str:
+    return _checkpoint_json_event("initial-draft", repository, branch, head)
+
+
+def check_r31_initial_draft_pull_request(hook_input: dict, tool_name: str) -> str | None:
+    """Require a planned zero-file draft before the first implementation mutation."""
+    if tool_name in _NATIVE_MEMORY_WRITE_TOOLS or tool_name in _MEMPALACE_WRITE_TOOLS:
+        return None
+    commands = _hook_commands(hook_input, tool_name)
+    if commands and all(_knowledge_write_command(command) for command in commands):
+        return None
+    if not _is_implementation_mutation(tool_name, hook_input.get("tool_input")):
+        return None
+    effective_input = hook_input
+    if tool_name == "functions.exec" and isinstance(hook_input.get("tool_input"), str):
+        source = hook_input["tool_input"]
+        calls = _wrapped_exec_calls(source)
+        if calls is None:
+            return "R31 blocked: wrapped mutation ownership is ambiguous."
+        candidates: list[dict] = []
+        for command, workdir in calls:
+            if not _shell_is_mutation(command):
+                continue
+            nested_tool_input = {"command": command}
+            if workdir is not None:
+                nested_tool_input["workdir"] = workdir
+            candidates.append({
+                **hook_input,
+                "tool_name": "PowerShell",
+                "tool_input": nested_tool_input,
+            })
+        if _wrapped_apply_patch_call_count(source):
+            candidates.append({**hook_input, "tool_name": "apply_patch", "tool_input": {}})
+        identities = [
+            (_checkpoint_identity(candidate), _hook_working_directory(candidate), candidate)
+            for candidate in candidates
+        ]
+        distinct = {identity for identity, _candidate_cwd, _candidate in identities}
+        if len(distinct) > 1:
+            return "R31 blocked: one wrapped mutation spans multiple checkout identities. Split it into separate calls."
+        if identities:
+            _identity, _candidate_cwd, effective_input = identities[0]
+    cwd = _hook_working_directory(effective_input)
+    identity = _checkpoint_identity(effective_input)
+    if identity is None:
+        branch = _current_branch(cwd)
+        if branch and branch.startswith(_CHAOS_ENGINE_BRANCH_PREFIX):
+            return "R31 blocked: repository identity is unavailable; restore Git and GitHub read access before the first implementation mutation."
+        return None
+    repository, branch, head = identity
+    if not branch.startswith(_CHAOS_ENGINE_BRANCH_PREFIX):
+        return None
+    satisfaction = _r31_satisfaction_event(repository, branch, head)
+    if satisfaction in ledger_events(hook_input):
+        return None
+    same_tree = _same_tree_as_default_base(repository, cwd)
+    if same_tree is False:
+        return None
+    recovery_width_is_exact = not (
+        tool_name == "functions.exec"
+        and (
+            _wrapped_apply_patch_call_count(str(hook_input.get("tool_input", "")))
+            or _wrapped_exec_call_count(str(hook_input.get("tool_input", ""))) != 1
+            or _wrapped_exec_calls(str(hook_input.get("tool_input", ""))) is None
+        )
+    )
+    if len(commands) == 1 and recovery_width_is_exact:
+        executable = shutil.which("gh")
+        expected_base = _repository_default_branch(executable, repository) if executable else None
+        recovery, recovery_error = _r31_recovery_command(
+            commands[0], cwd, expected_base=expected_base, expected_head=branch,
+            expected_repository=repository,
+        )
+        if recovery_error:
+            return recovery_error
+        if recovery:
+            return None
+        sanitized = _sanitize_for_command_head(commands[0])
+        if re.match(
+            r"(?is)^\s*(?:git\s+(?:push|commit)\b|gh\s+pr\s+(?:create|edit)\b)",
+            sanitized,
+        ):
+            return "R31 blocked: the command is not a permitted initial-draft recovery."
+    if same_tree is None:
+        return "R31 blocked: the default-base tree state is unavailable; restore Git and GitHub read access before the first implementation mutation."
+    status, pull_request = _exact_head_pull_request(repository, branch, head)
+    if status == "unavailable":
+        return "R31 blocked: exact-head draft status is unavailable; restore GitHub access before the first implementation mutation."
+    if pull_request is None:
+        return "R31 blocked: open a zero-file draft PR with the initial plan before the first implementation mutation."
+    if str(pull_request.get("headRefOid", "")).lower() != head.lower():
+        return "R31 blocked: the initial draft PR does not cover the exact current HEAD."
+    if pull_request.get("isDraft") is not True:
+        return "R31 blocked: the initial pull request must still be a draft before the first implementation mutation."
+    changed_files = pull_request.get("changedFiles")
+    if not isinstance(changed_files, int) or isinstance(changed_files, bool) or changed_files != 0:
+        return "R31 blocked: the initial draft PR must have zero changed files before implementation starts."
+    if not _initial_plan_complete(pull_request.get("body")):
+        return "R31 blocked: the initial draft body needs visible, substantive ## Plan, ## Scope, and ## Proof sections."
+    executable = shutil.which("gh")
+    default_branch = _repository_default_branch(executable, repository) if executable else None
+    if default_branch is None:
+        return "R31 blocked: the repository default branch is unavailable; restore GitHub access before the first implementation mutation."
+    if pull_request.get("baseRefName") != default_branch:
+        return "R31 blocked: the initial draft pull request must target the configured default branch."
+    if not _working_tree_clean(cwd):
+        return "R31 blocked: the planning checkpoint must remain clean until initial draft verification is recorded."
+    if not ledger_record(hook_input, satisfaction):
+        return "R31 blocked: the verified initial draft could not be recorded in the session ledger."
+    return None
+
+
 def check_r27_checkpoint_pull_request(
     hook_input: dict, tool_name: str | None = None, *, stopping: bool = False
 ) -> str | None:
-    """Require every reviewed retained checkpoint to have an exact-head PR snapshot."""
+    """Require every retained checkpoint to have an exact-head PR snapshot."""
     identity = _checkpoint_identity(hook_input)
     if identity is None:
         return None
@@ -3781,9 +4251,9 @@ def check_r27_checkpoint_pull_request(
         return None
     if uncertified_commit:
         return (
-            "R27 blocked: a successful reviewed commit was observed, but its exact "
+            "R27 blocked: a successful retained commit was observed, but its exact "
             "repository/branch/HEAD checkpoint was not durably appended. Restore the "
-            "session ledger and repeat an explicit reviewed checkpoint commit."
+            "session ledger and repeat an explicit retained checkpoint commit."
         )
     status, pull_request = _exact_head_pull_request(repository, branch, head)
     if status == "exact" and pull_request is not None:
@@ -3814,12 +4284,12 @@ def check_r27_checkpoint_pull_request(
     if status == "unmapped":
         return "R27 blocked: the exact-head open PR has no closing issue reference (for example `Closes #4745`); add one and retry."
     return (
-        "R27 blocked: the reviewed retained checkpoint has no open PR at this exact HEAD. "
+        "R27 blocked: the retained checkpoint has no open PR at this exact HEAD. "
         "Push it, then create a draft or ready PR with an explicit `--base` and a closing issue reference."
     )
 
 
-def _independent_reviews(reviews: object, author: object) -> list:
+def _independent_reviews(reviews: object, author: object, head: object = None) -> list:
     """Reviews by somebody other than the author that render a verdict.
 
     One predicate, consumed by both R15 (may this be armed) and R17 (should
@@ -3831,14 +4301,19 @@ def _independent_reviews(reviews: object, author: object) -> list:
     """
     if not isinstance(reviews, list):
         return []
-    return [
-        review
-        for review in reviews
-        if isinstance(review, dict)
-        and (review.get("author") or {}).get("login")
-        and (review.get("author") or {}).get("login") != author
-        and review.get("state") in REVIEW_VERDICTS
-    ]
+    latest: dict[str, dict] = {}
+    for review in reviews:
+        if not isinstance(review, dict):
+            continue
+        login = (review.get("author") or {}).get("login")
+        if not login or login == author or review.get("state") not in REVIEW_VERDICTS:
+            continue
+        if head is not None and (review.get("commit") or {}).get("oid") != head:
+            continue
+        latest[login] = review
+    if any(review.get("state") == "CHANGES_REQUESTED" for review in latest.values()):
+        return []
+    return [review for review in latest.values() if review.get("state") == "APPROVED"]
 
 
 DEFAULT_BRANCHES = frozenset({"main", "master"})
@@ -3875,6 +4350,47 @@ def _path_is_inside(path: object, root: str, cwd: object) -> bool:
     target = os.path.normcase(target)
     root = os.path.normcase(os.path.normpath(root))
     return target == root or target.startswith(root + os.sep)
+
+
+def _wrapped_target_is_on_default_branch(target: str, cwd: object) -> bool:
+    """Resolve where a wrapped shell target lands, including another worktree."""
+    if not target or re.search(r"[$%*?{}]", target):
+        return True
+    try:
+        base = str(cwd) if cwd else os.getcwd()
+        resolved = os.path.realpath(os.path.join(base, target))
+        probe = resolved if os.path.isdir(resolved) else os.path.dirname(resolved)
+        if os.path.basename(probe).lower() == ".git":
+            probe = os.path.dirname(probe)
+        while probe and not os.path.exists(probe):
+            parent = os.path.dirname(probe)
+            if parent == probe:
+                break
+            probe = parent
+    except (OSError, ValueError):
+        return True
+    root = _repository_root(probe)
+    if not root or not _path_is_inside(resolved, root, root):
+        return False
+    return _current_branch(root) in DEFAULT_BRANCHES
+
+
+def _target_checkout_root(target: str, cwd: object) -> str | None:
+    if not target or re.search(r"[$%*?{}]", target):
+        return None
+    try:
+        resolved = os.path.realpath(os.path.join(str(cwd or os.getcwd()), target))
+        probe = resolved if os.path.isdir(resolved) else os.path.dirname(resolved)
+        if os.path.basename(probe).lower() == ".git":
+            probe = os.path.dirname(probe)
+        while probe and not os.path.exists(probe):
+            parent = os.path.dirname(probe)
+            if parent == probe:
+                break
+            probe = parent
+    except (OSError, ValueError):
+        return None
+    return _repository_root(probe)
 
 
 def check_r19_fresh_base(hook_input: dict, tool_name: str) -> str | None:
@@ -3923,10 +4439,82 @@ def check_r19_fresh_base(hook_input: dict, tool_name: str) -> str | None:
         and not _functions_exec_is_mutation(hook_input.get("tool_input"))
     ):
         return None
-    targets = _implementation_targets(tool_name, hook_input.get("tool_input"))
-    if tool_name in _SHELL_TOOLS and not targets:
+    if tool_name in _SHELL_TOOLS and not _shell_is_mutation(_extract_command(hook_input)):
         return None
+    if tool_name == "functions.exec" and isinstance(hook_input.get("tool_input"), str):
+        source = hook_input["tool_input"]
+        if _wrapped_apply_patch_call_count(source):
+            patch_targets = _wrapped_apply_patch_targets(source)
+            if patch_targets is None:
+                return (
+                    "R19 blocked: wrapped apply_patch targets are not inspectable. "
+                    "Pass one JSON string literal directly to apply_patch."
+                )
+            patch_cwd = _hook_working_directory(hook_input)
+            patch_root = _repository_root(patch_cwd)
+            patch_roots = {
+                root
+                for target in patch_targets
+                if (root := _target_checkout_root(target, patch_cwd))
+            }
+            if patch_root and any(
+                os.path.normcase(root) != os.path.normcase(patch_root)
+                for root in patch_roots
+            ):
+                return "R19 blocked: a wrapped patch targets a different checkout."
+            if any(
+                _wrapped_target_is_on_default_branch(target, patch_cwd)
+                for target in patch_targets
+            ):
+                return "R19 blocked: a wrapped patch targets a default-branch checkout."
+        wrapped_call_count = _wrapped_exec_call_count(source)
+        calls = _wrapped_exec_calls(source)
+        if calls is None:
+            return (
+                "R19 blocked: a wrapped exec_command call has an ambiguous command or "
+                "workdir. Use one flat object with one double-quoted cmd and at most one "
+                "double-quoted workdir; duplicate keys, spreads, computed keys, and "
+                "dynamic values fail closed."
+            )
+        for command, workdir in calls:
+            if not _shell_is_mutation(command):
+                continue
+            tool_input = {"cmd": command}
+            if workdir is not None:
+                tool_input["workdir"] = workdir
+            nested = {
+                "cwd": _hook_working_directory(hook_input),
+                "tool_name": "PowerShell",
+                "tool_input": tool_input,
+            }
+            effective_cwd = _hook_working_directory(nested)
+            if any(
+                _wrapped_target_is_on_default_branch(target, effective_cwd)
+                for target in _implementation_targets("PowerShell", tool_input)
+            ):
+                return (
+                    "R19 blocked: a wrapped command resolves a mutation target inside "
+                    "a default-branch checkout, even though its workdir is isolated."
+                )
+            reason = check_r19_fresh_base(nested, "PowerShell")
+            if reason is not None:
+                return reason
+        if wrapped_call_count:
+            return None
+    targets = _implementation_targets(tool_name, hook_input.get("tool_input"))
     cwd = _hook_working_directory(hook_input)
+    outer_root = _repository_root(cwd)
+    target_roots = {
+        root for target in targets if (root := _target_checkout_root(target, cwd))
+    }
+    if outer_root and any(
+        os.path.normcase(root) != os.path.normcase(outer_root) for root in target_roots
+    ):
+        return "R19 blocked: the mutation target resolves inside a different checkout."
+    if tool_name in _SHELL_TOOLS and any(
+        _wrapped_target_is_on_default_branch(target, cwd) for target in targets
+    ):
+        return "R19 blocked: the shell mutation target resolves inside a default-branch checkout."
     branch = _current_branch(cwd)
     if not branch or branch not in DEFAULT_BRANCHES:
         return None
@@ -3944,18 +4532,6 @@ def check_r19_fresh_base(hook_input: dict, tool_name: str) -> str | None:
 
 def run_pretooluse(hook_input: dict, host: str = "portable") -> int:
     tool_name = hook_input.get("tool_name", "")
-
-    checkpoint = _reflection.pending_checkpoint(str(hook_input.get("session_id") or ""))
-    if checkpoint is not None:
-        commands = _hook_commands(hook_input, tool_name)
-        if len(commands) == 1 and (
-            _reflection_recovery_operation(commands[0])
-            or _updates_a_tracked_issue(commands[0], _hook_working_directory(hook_input))
-        ):
-            return 0
-        if _reflection_blocks_tool(hook_input, tool_name, checkpoint):
-            _record_guard_block_and_deny(hook_input, _reflection_block_reason(checkpoint), host)
-            return 0
 
     reason = check_r22_dispatch_adapter(hook_input, tool_name)
     if reason is not None:
@@ -3994,12 +4570,6 @@ def run_pretooluse(hook_input: dict, host: str = "portable") -> int:
         return 0
 
     reason = check_r25_research_before_implementation(hook_input, tool_name)
-    if reason is not None:
-        _record_guard_block_and_deny(hook_input, reason, host)
-        return 0
-
-    reason = check_r12_test_before_production(hook_input, tool_name)
-
     if reason is not None:
         _record_guard_block_and_deny(hook_input, reason, host)
         return 0
@@ -4049,13 +4619,22 @@ def run_pretooluse(hook_input: dict, host: str = "portable") -> int:
             if reason is not None:
                 _record_guard_block_and_deny(hook_input, reason, host)
                 return 0
-            # Observed, not judged. R12 reads this ledger; recording here is the
-            # only place a test run is visible, since a later hook invocation is a
-            # fresh process with no memory of it.
+        reason = check_r31_initial_draft_pull_request(hook_input, tool_name)
+        if reason is not None:
+            _record_guard_block_and_deny(hook_input, reason, host)
+            return 0
+        for command in commands:
+            # Observed, not judged. Later hook invocations are fresh processes,
+            # so test activity used for reflection has to be recorded here.
             if looks_like_a_test_run(command):
                 ledger_record(hook_input, "test-run")
             if _updates_a_tracked_issue(command, _hook_working_directory(hook_input)):
                 ledger_record(hook_input, "issue-update")
+        return 0
+
+    reason = check_r31_initial_draft_pull_request(hook_input, tool_name)
+    if reason is not None:
+        _record_guard_block_and_deny(hook_input, reason, host)
         return 0
 
     return 0  # not a tool this hook checks
@@ -4076,10 +4655,7 @@ def run_posttooluse(hook_input: dict) -> int:
         )
     )
     if result_failed:
-        failure = _record_task_failure(hook_input, result)
-        checkpoint = _reflection.pending_checkpoint(str(hook_input.get("session_id") or ""))
-        if failure and checkpoint:
-            print(json.dumps({"additionalContext": _reflection_block_reason(checkpoint)}))
+        _record_task_failure(hook_input, result)
     commands = _hook_commands(hook_input, tool_name)
     for command in commands:
         if looks_like_a_test_run(command):
@@ -4104,6 +4680,10 @@ def run_posttooluse(hook_input: dict) -> int:
         tool_name in _NATIVE_MEMORY_WRITE_TOOLS or tool_name in _MEMPALACE_LEARNING_TOOLS
     ):
         ledger_record(hook_input, "memory-write")
+    if not result_failed:
+        review_clear = _review_clear_event(hook_input, tool_name, result)
+        if review_clear:
+            ledger_record(hook_input, review_clear)
     for command in _hook_commands(hook_input, tool_name):
         if not result_failed and _is_git_commit_command(command):
             _record_successful_commit_checkpoint(hook_input)
@@ -4375,9 +4955,8 @@ def _ledger_path(hook_input: dict) -> str | None:
     )
     # `gettempdir()` validates and returns an absolute path; a raw environment
     # read does not. Under a relative TMPDIR the same session_id resolved to a
-    # different file per process directory, so a `test-run` recorded at
-    # PreToolUse was invisible at Stop -- keyed by cwd as well as by session,
-    # which is exactly what the docstring above says it never is.
+    # different file per process directory, so events recorded at PreToolUse
+    # were invisible at Stop despite being keyed by the same session.
     if not os.path.isabs(base):
         base = tempfile.gettempdir()
     directory = os.path.join(base, "agent-session-ledger")
@@ -4493,10 +5072,8 @@ def ledger_record(hook_input: dict, event: str) -> bool:
     this host issues tool calls in parallel -- still the strictly worse trade,
     just not by exactly the margin the old wording claimed.
 
-    Losing an event is not free. R12 refuses a production write until a test
-    run is recorded, so a dropped `test-run` blocks work that did satisfy the
-    rule -- a gate firing on correct work, which is the shape that gets guards
-    deleted.
+    Losing an event is not free: later lifecycle decisions can miss work that
+    really happened and report a false incomplete state.
 
     A single small append is the closest thing to atomic available without
     platform-specific locking, and it needs no read at all, so there is no
@@ -4540,8 +5117,7 @@ def ledger_events(hook_input: dict) -> list[str]:
         #      with no trailing newline, so the first append landed on the same
         #      line: `["test-run", "commit"]"test-run"`. Treating that line as
         #      one value made it unparsable, and skipping it silently dropped
-        #      the entire pre-upgrade history -- which would leave R12 blocking
-        #      a production write whose test run really had been observed.
+        #      the entire pre-upgrade history.
         #   2. Concurrency. Two appends that interleave can share a line.
         #
         # A value that cannot be decoded still costs only the rest of that one
@@ -4872,7 +5448,7 @@ def _unarmed_reviewed_pull_request(cwd: object, hook_input: dict | None = None) 
         "pr",
         "view",
         "--json",
-        "number,autoMergeRequest,reviews,author,isDraft,headRefName",
+        "number,autoMergeRequest,reviews,author,isDraft,headRefName,headRefOid",
     ]
     try:
         completed = subprocess.run(  # nosec B603 B607 - fixed read-only gh query.
@@ -4912,7 +5488,7 @@ def _unarmed_reviewed_pull_request(cwd: object, hook_input: dict | None = None) 
     # still names a head ref while local git names none, so R17 demanded an
     # arming R15 refused -- no legal state, which is what the line below has
     # always claimed to prevent.
-    if not _independent_reviews(reviews, author) and not _ledger_records_a_review(
+    if not _independent_reviews(reviews, author, payload.get("headRefOid")) and not _ledger_records_a_review(
         hook_input, _current_branch(_hook_working_directory(hook_input or {}))
     ):
         return None  # R15 would refuse arming; demanding it here would deadlock
@@ -5217,11 +5793,13 @@ def check_r24_foreign_worktree_left_behind(hook_input: dict, report: dict | None
 _TERMINAL_REFLECTION_LABELS = (
     "elapsed estimate",
     "main time consumer",
+    "main token consumer",
     "repeated failures or corrections",
     "changed assumption or approach",
     "successful proof",
     "remaining risk or follow-up",
     "learning loop disposition",
+    "next-session optimization",
 )
 
 
@@ -5239,6 +5817,9 @@ def _terminal_reflection_reason(hook_input: dict) -> str | None:
         )
     message = str(hook_input.get("last_assistant_message") or "").casefold()
     missing = [label for label in _TERMINAL_REFLECTION_LABELS if label not in message]
+    issue = _reflection.valid_terminal_receipt_issue(session_id)
+    if issue is None or issue.casefold() not in message:
+        missing.append("tracked issue URL")
     if missing:
         return "Terminal reflection summary is missing: " + ", ".join(missing) + "."
     return None
@@ -5246,10 +5827,15 @@ def _terminal_reflection_reason(hook_input: dict) -> str | None:
 
 def run_stop(hook_input: dict) -> int:
     """Continue incomplete repository work once, without creating a Stop loop."""
-    reflection_reason = _terminal_reflection_reason(hook_input)
-    if reflection_reason is not None:
-        print(json.dumps({"decision": "block", "reason": reflection_reason}))
-        return 0
+    if hook_input.get("hook_event_name") == "SubagentStop":
+        review_clear = _review_clear_for_identity(
+            hook_input,
+            hook_input.get("last_assistant_message")
+            or hook_input.get("lastAssistantMessage")
+            or "",
+        )
+        if review_clear:
+            ledger_record(hook_input, review_clear)
     if hook_input.get("stop_hook_active") is True:
         return 0
 
@@ -5508,7 +6094,7 @@ _SELF_TEST_CASES: list[tuple[str, str, bool]] = [
 # How every rule in this file is exercised by `--self-test` (#4551).
 #
 # The self-test printed `0 failed` while covering R1, R9, R10 and R11 and
-# exercising none of R12 through R20 -- eight rules, two thirds of the file.
+# exercising none of R13 through R20 -- eight rules, two thirds of the file.
 # Reassuring output is what an agent acts on, which makes a green that means
 # nothing worse than no check at all.
 #
@@ -5526,7 +6112,6 @@ _SELF_TEST_COVERAGE: dict[str, str] = {
     "check_r9_worktree_add": "run_r9_worktree_self_test",
     "check_r10_nul_corruption": "run_r10_nul_corruption_self_test",
     "check_r11_memory_write_worktree": "run_r11_memory_write_self_test",
-    "check_r12_test_before_production": "run_required_action_self_test",
     "check_r13_push_before_delete": "run_required_action_self_test",
     "check_r14_hard_reset": "run_required_action_self_test",
     "check_r15_review_before_arming": "run_required_action_self_test",
@@ -5543,6 +6128,7 @@ _SELF_TEST_COVERAGE: dict[str, str] = {
     "check_r28_pr_audit_before_arming": "run_required_action_self_test",
     "check_r29_delivery_complete": "run_required_action_self_test",
     "check_r30_merge_authority_before_arming": "run_required_action_self_test",
+    "check_r31_initial_draft_pull_request": "run_required_action_self_test",
 }
 
 
@@ -5687,7 +6273,7 @@ def run_rule_coverage_self_test() -> int:
 
 
 def run_required_action_self_test() -> int:
-    """Exercise R12-R20, each in both directions, with live state stubbed."""
+    """Exercise R13-R20, each in both directions, with live state stubbed."""
     failures: list[str] = []
 
     def check(description: str, condition: bool) -> None:
@@ -5727,24 +6313,6 @@ def run_required_action_self_test() -> int:
     check(
         "R22 allows a dispatch with a host role adapter",
         check_r22_dispatch_adapter({"tool_input": {"subagent_type": "helper"}}, "Task")
-        is None,
-    )
-
-    # R12: a production write needs an observed test run this session.
-    check(
-        "R12 blocks a production write with no test run recorded",
-        _with_stubs(
-            {"_ledger_path": lambda payload: "x", "ledger_events": lambda payload: set()},
-            lambda: check_r12_test_before_production(write, "Write"),
-        )
-        is not None,
-    )
-    check(
-        "R12 allows a production write once a test run is recorded",
-        _with_stubs(
-            {"_ledger_path": lambda payload: "x", "ledger_events": lambda payload: {"test-run"}},
-            lambda: check_r12_test_before_production(write, "Write"),
-        )
         is None,
     )
 
@@ -5821,11 +6389,9 @@ def run_required_action_self_test() -> int:
         )
         is None,
     )
-    # The accepting branch too, not only the refusing one (#4551): a rule whose
-    # permissive path is never exercised is half untested, and this is the path
-    # #4545 option C added.
+    # The exact-head zero-blocker accepting branch too, not only the refusal.
     check(
-        "R15 allows arming after an observed reviewer dispatch",
+        "R15 allows arming after an exact-head zero-blocker review",
         _with_stubs(
             {
                 "_independent_review_count": lambda target, cwd=None: 0,
@@ -5838,7 +6404,7 @@ def run_required_action_self_test() -> int:
         is None,
     )
     check(
-        "a reviewer dispatch is recorded as a review",
+        "a reviewer dispatch is recorded as a pending review marker",
         _with_stubs(
             {"_current_branch": lambda cwd: "feature"},
             lambda: _reviewer_dispatch_event(
@@ -6082,6 +6648,49 @@ def run_required_action_self_test() -> int:
                 "_checkpoint_identity": lambda payload: authority_identity,
             },
             lambda: check_r30_merge_authority_before_arming("gh pr merge 1 --auto --merge", "Bash", {}),
+        ) is None,
+    )
+    initial_identity = ("owner/repo", "ChaosEngine/task", "c" * 40)
+    check(
+        "R31 blocks the first mutation without an exact-head draft",
+        _with_stubs(
+            {
+                "_checkpoint_identity": lambda payload: initial_identity,
+                "_same_tree_as_default_base": lambda repository, cwd: True,
+                "_exact_head_pull_request": lambda repository, branch, head: ("none", None),
+            },
+            lambda: check_r31_initial_draft_pull_request(
+                {"cwd": ".", "tool_input": {"file_path": "x"}}, "Write"
+            ),
+        ) is not None,
+    )
+    check(
+        "R31 allows the first mutation after a planned zero-file draft",
+        _with_stubs(
+            {
+                "_checkpoint_identity": lambda payload: initial_identity,
+                "_same_tree_as_default_base": lambda repository, cwd: True,
+                "_exact_head_pull_request": lambda repository, branch, head: (
+                    "unmapped",
+                    {
+                        "isDraft": True,
+                        "headRefOid": initial_identity[2],
+                        "changedFiles": 0,
+                        "baseRefName": "main",
+                        "body": (
+                            "## Plan\nImplement the canonical early gate.\n\n"
+                            "## Scope\nGuard and focused lifecycle tests only.\n\n"
+                            "## Proof\nRun focused RED and GREEN plus self-test.\n"
+                        ),
+                    },
+                ),
+                "_repository_default_branch": lambda executable, repository: "main",
+                "_working_tree_clean": lambda cwd: True,
+                "ledger_record": lambda payload, event: True,
+            },
+            lambda: check_r31_initial_draft_pull_request(
+                {"cwd": ".", "tool_input": {"file_path": "x"}}, "Write"
+            ),
         ) is None,
     )
 

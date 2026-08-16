@@ -49,8 +49,11 @@ incomplete.
 
 ## Independent adversarial review
 
-Every behavior-changing step ends with a review before the next step starts. The
-property that makes it work is independence, so it is not optional:
+Keep one active channel and the smallest coherent increment for rapid iteration.
+For every behavior-changing pushed iteration, run CI first. Repair a red result, validate it locally, and push the next iteration
+immediately. Once CI is green, run independent review against the latest exact head.
+Repair blockers, validate, and push again. The final zero-blocker gate
+remains mandatory:
 
 - The reviewer is a **separate agent instance, never the author** of the work.
 - Choose a disposable review mechanism. When the host provides reliable terminal
@@ -107,7 +110,7 @@ a row that already exists.
 
 | Class | Shape | What catches it now |
 | --- | --- | --- |
-| `vacuous-check` | a test, pin or self-test that cannot fail | `validate_red_before_green.py`, and the `setUp`-patch pin in `test_agent_router_contract.py` |
+| `vacuous-check` | a test, pin or self-test that cannot fail | self-test coverage equality and registry reason/scope validation |
 | `unspecified-predicate` | the rule re-guesses a decision the ticket never made | nothing -- it needs a ruling on the issue |
 | `credit-not-in-diff` | prose credits work the diff does not contain | the credit scan in `validate_pr_closing_keywords.py` |
 | `sibling-left` | the instance was fixed and its twin was not | the docstring duplicate scan in `validate_agent_guidance.py` |
@@ -117,13 +120,10 @@ a row that already exists.
 
 ### When the loop stops
 
-The loop stops at the first round with **zero blocking findings**. Every
-remaining finding is ticketed, never carried. Fixes to that final round's own
-findings ship without a new round unless a fix is itself blocking. Three rounds
-is the hard ceiling; continuing past it needs an explicit owner instruction on
-the pull request. Measured on #4554: blocking yield ran 14, 5, 0, 0, and
-stopping at the first zero would have merged the same content about two hours
-earlier.
+The loop stops at the first pushed iteration where CI is green and review has
+**zero blocking findings** on the same exact head. Every remaining finding is
+ticketed, never carried. There is no round ceiling: use one active channel,
+push each validated repair promptly, and repeat until both are clear.
 
 Every round after the first is scoped to the diff since the last verdict, never
 a full-branch re-read.

@@ -188,7 +188,11 @@ class ChaosEngineHookTest(unittest.TestCase):
                     "changedApproach": "Moved reflection after delivery.",
                     "proofCommandOrCheck": "delivery status",
                     "proofOutcome": "Delivery status was confirmed.",
+                    "tokenConsumer": "Delivery status still requires controlled follow-up.",
+                    "nextSessionOptimization": "Complete portable completion before delivery handoff.",
+                    "issue": "https://github.com/ShaftHQ/SHAFT_ENGINE/issues/5014",
                     "durableDisposition": "guidance-fixed",
+                    "issue": "https://github.com/ShaftHQ/SHAFT_ENGINE/issues/5014",
                 }
                 reflection.record_receipt("portable-delivery", receipt, token)
             delivered = self.run_hook(
@@ -204,6 +208,98 @@ class ChaosEngineHookTest(unittest.TestCase):
             self.assertEqual(0, delivered.returncode)
             with patch.dict(os.environ, environment):
                 self.assertFalse(reflection.has_valid_terminal_receipt("portable-delivery"))
+
+    def test_long_session_receipt_requires_standalone_github_issue_url(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            environment = {**os.environ, "TMPDIR": temporary, "TEMP": temporary}
+            with patch.dict(os.environ, environment):
+                token = reflection.record_session_start(
+                    "portable-issue-receipt", "2020-01-01T00:00:00+00:00"
+                )
+                receipt = {
+                    "schemaVersion": 1,
+                    "taskId": "issue-5014",
+                    "trigger": "long-session-completion",
+                    "failureFingerprints": [],
+                    "failedAssumption": "A local receipt was sufficient.",
+                    "approachesCompared": ["Local receipt", "Standalone issue"],
+                    "chosenExperiment": "Validate receipt issue binding.",
+                    "changedApproach": "Require a canonical issue URL.",
+                    "proofCommandOrCheck": "focused receipt test",
+                    "proofOutcome": "The receipt contract was exercised.",
+                    "tokenConsumer": "Receipt contract review.",
+                    "nextSessionOptimization": "Bind actionable optimization to a standalone issue.",
+                    "durableDisposition": "issue-filed",
+                }
+                with self.assertRaisesRegex(ValueError, "issue"):
+                    reflection.record_receipt(
+                        "portable-issue-receipt", receipt, token
+                    )
+                receipt["issue"] = "https://github.com/ShaftHQ/SHAFT_ENGINE/issues/5014"
+                recorded = reflection.record_receipt(
+                    "portable-issue-receipt", receipt, token
+                )
+                self.assertEqual(receipt["issue"], recorded["issue"])
+
+    def test_long_session_stop_summary_must_show_receipt_issue_url(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            environment = {**os.environ, "TMPDIR": temporary, "TEMP": temporary}
+            with patch.dict(os.environ, environment):
+                token = reflection.record_session_start(
+                    "portable-terminal-summary", "2020-01-01T00:00:00+00:00"
+                )
+                receipt = {
+                    "schemaVersion": 1,
+                    "taskId": "issue-5014",
+                    "trigger": "long-session-completion",
+                    "failureFingerprints": [],
+                    "failedAssumption": "Generic labels would prove the summary.",
+                    "approachesCompared": ["Generic labels", "Visible issue URL"],
+                    "chosenExperiment": "Check the terminal summary text.",
+                    "changedApproach": "Require the receipt issue URL in the summary.",
+                    "proofCommandOrCheck": "focused hook test",
+                    "proofOutcome": "The terminal gate was exercised.",
+                    "tokenConsumer": "Receipt contract review.",
+                    "nextSessionOptimization": "Show the canonical issue URL.",
+                    "durableDisposition": "issue-filed",
+                    "issue": "https://github.com/ShaftHQ/SHAFT_ENGINE/issues/5014",
+                }
+                reflection.record_receipt("portable-terminal-summary", receipt, token)
+            labels = "\n".join(
+                f"{label}: recorded" for label in (
+                    "elapsed estimate",
+                    "main time consumer",
+                    "main token consumer",
+                    "repeated failures or corrections",
+                    "changed assumption or approach",
+                    "successful proof",
+                    "remaining risk or follow-up",
+                    "learning loop disposition",
+                    "next-session optimization",
+                )
+            )
+            missing_url = self.run_hook(
+                {
+                    "hook_event_name": "Stop",
+                    "stop_hook_active": True,
+                    "session_id": "portable-terminal-summary",
+                    "last_assistant_message": labels,
+                },
+                environment,
+            )
+            self.assertEqual(2, missing_url.returncode)
+            self.assertIn("tracked issue URL", json.loads(missing_url.stdout)["reason"])
+            complete = self.run_hook(
+                {
+                    "hook_event_name": "Stop",
+                    "stop_hook_active": True,
+                    "session_id": "portable-terminal-summary",
+                    "last_assistant_message": labels
+                    + "\nTracked issue: https://github.com/ShaftHQ/SHAFT_ENGINE/issues/5014",
+                },
+                environment,
+            )
+            self.assertEqual(0, complete.returncode)
 
 
 if __name__ == "__main__":

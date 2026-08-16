@@ -431,6 +431,8 @@ class ChaosEngineHostsTest(unittest.TestCase):
                 matcher = lifecycle[event][0]["matcher"]
                 self.assertIn("exec_command", matcher)
                 self.assertIn("functions[.]exec", matcher)
+            self.assertIn("Task", lifecycle["PostToolUse"][0]["matcher"])
+            self.assertIn("Agent", lifecycle["PostToolUse"][0]["matcher"])
             plugin_lifecycle = json.loads(
                 project.joinpath("plugins/chaos-engine/hooks/hooks.json").read_text()
             )["hooks"]

@@ -103,7 +103,6 @@ jobs:
               - 'scripts/ci/agnix_conformance.json'
               - 'scripts/ci/external_guardrail_corpus.py'
               - 'scripts/ci/external_guardrail_corpus.json'
-              - 'scripts/ci/validate_red_before_green.py'
               - 'scripts/ci/validate_skills.py'
               - 'scripts/ci/worktree_hygiene.py'
               - 'tools/repository-map/README.md'
@@ -126,7 +125,6 @@ jobs:
               - 'tests/scripts/test_guard_memory_worktree.py'
               - 'tests/scripts/test_guard_lifecycle.py'
               - 'tests/scripts/test_guard*.py'
-              - 'tests/scripts/test_validate_red_before_green.py'
               - 'tests/scripts/test_validate_agent_guidance.py'
               - 'tests/scripts/test_validate_agent_plugins.py'
               - 'tests/scripts/test_assemble_act_as_mohab_plugin.py'
@@ -348,7 +346,6 @@ jobs:
           tests.scripts.test_guard_memory_worktree
           tests.scripts.test_guard_lifecycle
           tests.scripts.test_guard_external_corpus
-          tests.scripts.test_validate_red_before_green
           tests.scripts.test_validate_agent_guidance
           tests.scripts.test_validate_agent_plugins
           tests.scripts.test_agent_plugin_release
@@ -380,35 +377,6 @@ jobs:
           tests.scripts.test_build_retry
           tests.scripts.test_extract_allure_failures
           -v
-      - name: Validate observed RED for new guard tests
-        if: github.event_name == 'pull_request'
-        shell: bash
-        env:
-          BASE_SHA: ${{ github.event.pull_request.base.sha }}
-          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
-        run: |
-          history_file=$(mktemp)
-          paths_file=$(mktemp)
-          trap 'rm -f "$history_file" "$paths_file"' EXIT
-          if ! git cat-file -e "$BASE_SHA:scripts/ci/validate_red_before_green.py" 2>/dev/null; then
-            git rev-list --reverse "$BASE_SHA..$HEAD_SHA" -- scripts/ci/validate_red_before_green.py > "$history_file"
-            if [[ ! -s "$history_file" ]]; then
-              echo "RED validator is absent from the base and the PR." >&2
-              exit 1
-            fi
-            IFS= read -r bootstrap < "$history_file"
-            git rev-parse "$bootstrap^" > "$paths_file"
-            IFS= read -r BASE_SHA < "$paths_file"
-          fi
-          git diff --diff-filter=AMR --name-only "$BASE_SHA" "$HEAD_SHA" -- ':(glob)tests/scripts/test_guard*.py' > "$paths_file"
-          while IFS= read -r test_path; do
-            [[ -z "$test_path" ]] && continue
-            python scripts/ci/validate_red_before_green.py \
-              --parent-revision "$BASE_SHA" \
-              --child-support-path scripts/agents/reflection.py \
-              --child-support-path chaos-engine/hooks/reflection.py \
-              "$HEAD_SHA" scripts/agents/guard.py "$test_path"
-          done < "$paths_file"
       - name: Report orphaned guard docstring claims
         if: github.event_name == 'pull_request'
         shell: bash

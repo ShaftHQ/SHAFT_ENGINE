@@ -13,6 +13,7 @@ import secrets
 import tempfile
 from datetime import UTC, datetime
 from pathlib import Path
+from urllib.parse import urlparse
 
 
 SCHEMA_VERSION = 1
@@ -41,6 +42,9 @@ _ABSOLUTE_PATH = re.compile(
     r"(?:home|users?|workspace|server)[\\/:-][^\s]+)"
 )
 _SECRET = re.compile(
+    r"(?i)(?:password|secret|access[_-]?token|token|bearer|credential|api[_-]?key|authorization)(?:\W|$)"
+)
+_REFLECTION_SECRET = re.compile(
     r"(?i)(?:password|secret|access[_-]?token|token|bearer|credential|api[_-]?key|authorization)(?:\W|$)"
 )
 
@@ -421,12 +425,70 @@ def has_valid_terminal_receipt(session_id: str) -> bool:
     return terminal
 
 
+def valid_terminal_receipt_issue(session_id: str) -> str | None:
+    """Return the issue URL from the receipt that currently proves terminal state."""
+    active: list[dict] = []
+    issue: str | None = None
+    terminal = False
+    for item in entries(session_id):
+        kind = item.get("kind")
+        if kind == "task-failure" and item.get("attempted") is not False:
+            active.append(item)
+            terminal = False
+            issue = None
+        elif kind == "reflection-trigger":
+            active.append(item)
+            terminal = False
+            issue = None
+        elif kind in {"task-activity", "platform-outcome", "failure-disposition"}:
+            terminal = False
+            issue = None
+        elif kind == "reflection-receipt" and _receipt_clears_active(
+            session_id, item, active
+        ):
+            if item.get("trigger") == "long-session-completion":
+                try:
+                    issue = _safe_issue_url(item.get("issue"))
+                except ValueError:
+                    issue = None
+                terminal = True
+            else:
+                active = []
+                terminal = False
+                issue = None
+    return issue if terminal else None
+
+
 def _safe_text(name: str, value: object) -> str:
     rendered = str(value or "").strip()
     if not _SAFE_TEXT.fullmatch(rendered):
         raise ValueError(f"{name} must be 1-240 characters on one line")
-    if _ABSOLUTE_PATH.search(rendered) or _SECRET.search(rendered):
+    secret_pattern = (
+        _REFLECTION_SECRET
+        if name in {"tokenConsumer", "nextSessionOptimization"}
+        else _SECRET
+    )
+    if _ABSOLUTE_PATH.search(rendered) or secret_pattern.search(rendered):
         raise ValueError(f"{name} contains forbidden path or credential-shaped text")
+    return rendered
+
+
+def _safe_issue_url(value: object) -> str:
+    rendered = str(value or "").strip()
+    if not _SAFE_TEXT.fullmatch(rendered):
+        raise ValueError("issue must be 1-240 characters on one line")
+    parsed = urlparse(rendered)
+    if (
+        parsed.scheme != "https"
+        or parsed.hostname != "github.com"
+        or parsed.username is not None
+        or parsed.password is not None
+        or parsed.port is not None
+        or parsed.query
+        or parsed.fragment
+        or not re.fullmatch(r"/([A-Za-z0-9_.-]+)/([A-Za-z0-9_.-]+)/issues/(\d+)", parsed.path)
+    ):
+        raise ValueError("issue must be a GitHub issue URL")
     return rendered
 
 
@@ -435,7 +497,7 @@ def _validate_receipt_shape(receipt: dict) -> None:
         "schemaVersion", "taskId", "trigger", "failureFingerprints",
         "failedAssumption", "approachesCompared", "chosenExperiment",
         "changedApproach", "proofCommandOrCheck", "proofOutcome",
-        "durableDisposition", "issue",
+        "tokenConsumer", "nextSessionOptimization", "durableDisposition", "issue",
     }
     unknown = set(receipt) - allowed_fields
     if unknown:
@@ -494,13 +556,21 @@ def record_receipt(session_id: str, receipt: dict, session_token: str) -> dict:
         "durableDisposition": disposition,
         "observedAt": datetime.now(UTC).isoformat(),
     }
+    if trigger == "long-session-completion":
+        entry["tokenConsumer"] = _safe_text(
+            "tokenConsumer", receipt.get("tokenConsumer")
+        )
+        entry["nextSessionOptimization"] = _safe_text(
+            "nextSessionOptimization", receipt.get("nextSessionOptimization")
+        )
+        if not receipt.get("issue"):
+            raise ValueError(
+                "long-session-completion requires a canonical standalone GitHub issue URL"
+            )
     if entry["proofOutcome"].casefold() in {"pending", "unknown", "not run"}:
         raise ValueError("proofOutcome must describe a completed proof")
     if receipt.get("issue"):
-        issue = _safe_text("issue", receipt["issue"])
-        if not re.fullmatch(r"https://github\.com/[^/]+/[^/]+/issues/\d+", issue):
-            raise ValueError("issue must be a GitHub issue URL")
-        entry["issue"] = issue
+        entry["issue"] = _safe_issue_url(receipt["issue"])
     entry["receiptHash"] = _receipt_hash(session_id, entry)
     if not append_entry(session_id, entry):
         raise OSError("could not append reflection receipt")

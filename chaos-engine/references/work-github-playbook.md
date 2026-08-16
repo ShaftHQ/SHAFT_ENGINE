@@ -3,7 +3,23 @@
 A session-shaped method for taking an issue from filed to merged. Load
 the canonical ChaosEngine entrypoint alongside this playbook. Start with [planning and tracking](work-github-planning.md), then return here for delivery.
 
-## 4. Review before you commit — every time
+## Before the first file change: publish the plan
+
+Task isolation creates the branch and linked worktree. Before the first task
+file mutation, make one clean `git commit --allow-empty` planning checkpoint,
+push that exact head, and open its pull request as a draft with explicit base
+and head. The PR must still introduce zero changed files, and its visible body
+must contain substantive `## Plan`, `## Scope`, and `## Proof` sections. Verify
+the exact head, draft state, and zero-file count from GitHub before proceeding.
+
+This is the second durable task step, immediately after isolation. It does not
+replace issue-backed executable specifications or research: prepare those as
+transient evidence, place the approved plan in the draft, then start file work.
+If the branch already contains an implementation diff, preserve its history;
+the retained-checkpoint gate below owns that continuation. GitHub unavailability
+blocks the first mutation rather than turning unknown state into permission.
+
+## 4. Push each iteration, then run CI and review in sequence
 
 Rule every open design choice on the issue before the first implementing commit;
 a ticket that reaches code still choosing between candidate fixes converts that
@@ -15,12 +31,20 @@ and cost four.
 
 A subagent's report describes intent, not necessarily its actual work. Before reviewing or shipping any nontrivial diff, query Graphify for the touched symbols, read the actual diff, and inspect changed tests for real assertions. Before committing any subagent's work, verify empirical claims rather than trusting a report. Scan the report/diff, and once opened, the PR body for deferred/out-of-scope/adjacent-finding/follow-up language; file every real finding before treating the item as done.
 
-Commit one reviewed sub-item at a time using the repository's normal message
-convention, including its issue number.
+Commit one locally validated, coherent iteration using the repository's normal
+message convention, including its issue number, and push it to the existing
+draft PR immediately. Keep one active channel and the smallest coherent increment for rapid iteration.
+For each pushed iteration, run CI first; when it fails, fix the exact cause, run only the focused checks required
+by that fix, commit, and push the next iteration promptly. Treat CI as the
+triage signal before any diff-only review; do not repeat a full suite or
+full-branch review unless new evidence escalates the scope. Once CI is green,
+run independent review against the latest exact head. Repair any blockers,
+validate, and push again. Repeat until CI is green and independent review
+reports zero blockers on the same head. Only then may the PR be armed.
 
 ### Every retained checkpoint: make delivery visible immediately
 
-After the first reviewed implementation commit succeeds and remains at `HEAD`,
+After the first locally validated implementation commit succeeds and remains at `HEAD`,
 stop behavior work and make that exact checkpoint visible before another
 behavior change or commit. Repeat this gate after every later retained commit:
 

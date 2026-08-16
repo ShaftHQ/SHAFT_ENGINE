@@ -88,16 +88,19 @@ not turn a solo session into an orchestrated one.
 
 ## Delivery loop
 
-Every phase that changes behaviour ends with a review by an agent that did not
-write it, prompted to refute rather than approve. Depth follows the same triage.
+Every pushed behaviour iteration gets a review by an agent that did not write
+it, prompted to refute rather than approve, while CI runs against the same exact
+head. Both channels feed one repair batch. Depth follows the same triage.
 
 ```mermaid
 flowchart LR
-    AN[analyze] --> PL[plan] --> DE[design] --> RD[RED] --> GR[GREEN] --> RF[refactor] --> CM[commit] --> PR[pull request] --> BG[babysit to green] --> MG[merge]
-    RD -.-> RV{{independent<br/>adversarial review}}
-    GR -.-> RV
-    RF -.-> RV
-    RV -.->|refuted| RD
+    AN[analyze] --> PL[plan] --> DE[design] --> RD[RED] --> GR[GREEN] --> RF[refactor] --> CM[commit] --> PS[push]
+    PS --> RV{{independent<br/>adversarial review}}
+    PS --> CI[CI]
+    RV --> BT[one repair batch]
+    CI --> BT
+    BT -.->|new iteration| RD
+    BT -->|both clear| MG[arm and merge]
 ```
 
 ## The surfaces

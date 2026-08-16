@@ -87,16 +87,30 @@ rule overrides an imported skill's default path.
 
 ## Lifecycle
 
-Work runs in this order, and each phase ends before the next begins:
+Work runs in this order:
 
 analyze -> plan -> design -> RED -> GREEN -> refactor -> commit ->
-pull request -> babysit to green -> merge.
+push -> CI -> independent review -> one repair batch -> repeat until clear ->
+arm -> merge.
 
-Every phase that changes behavior ends with the independent adversarial review
-defined in [delegation](delegation.md), at the depth this task's triage set.
+The isolated branch's zero-file draft pull request already exists from the
+planning checkpoint before RED begins.
+
+Every pushed behavior iteration gets the independent adversarial review defined
+in [delegation](delegation.md), at the depth this task's triage set, after CI
+has passed on the same exact head. Keep each pushed iteration a small, rapid
+increment so CI and review stay bound to one coherent change.
 
 ## Output
 
 Report the triage result, the depth you took, and only the points that depth
 included. A partial pass reports partially; do not pad it with points you were
 told to skip.
+
+## Bounded source authority
+
+Source authority is selected per task, not a closed vendor catalog. Before
+retrieval, record the topic, why the owner or standards body is authoritative,
+and its exact host. Constrain web research with `site:<host>`; prefix an
+isolated shell request with `CHAOS_PRIMARY_SOURCE_HOST=<host>`. The guard counts
+authority only when that declaration matches the requested or returned URL.

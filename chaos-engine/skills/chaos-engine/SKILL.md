@@ -22,10 +22,11 @@ below.
 4. Never weaken, delete, or rewrite a test to reach green. When a test and the
    requirement disagree, stop and report which one you believe is wrong.
 5. Never claim a check you did not run.
-6. Every behavior-changing step gets an independent adversarial review before
-   the next step starts, and every pull request gets at least one before it is
-   armed. The second clause is the floor the first cannot supply: a pull
-   request can be counted, and a step cannot.
+6. Each pushed iteration is the smallest coherent increment for rapid iteration.
+   Use one active channel. Run CI; if red, fix and push.
+   Then run independent review on the latest exact head; fix and push. Every pull request gets at
+   least one before it is armed. Both must report
+   zero blockers on that head.
 
 ## Triage
 
