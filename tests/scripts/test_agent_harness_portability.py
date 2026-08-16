@@ -587,8 +587,8 @@ class AgentHarnessPortabilityTest(unittest.TestCase):
     def test_hook_configs_share_one_cwd_independent_lifecycle_contract(self):
         claude_hooks = hook_groups(ROOT / ".claude/settings.json")
         codex_hooks = hook_groups(ROOT / ".codex/hooks.json")
-        self.assertEqual(set(claude_hooks), set(codex_hooks))
-        for hooks in (claude_hooks, codex_hooks):
+        self.assertEqual(set(claude_hooks), set(codex_hooks) | {"PostToolUseFailure"})
+        for hooks, extra in ((claude_hooks, {"PostToolUseFailure"}), (codex_hooks, set())):
             self.assertEqual(
                 set(hooks),
                 {
@@ -598,7 +598,7 @@ class AgentHarnessPortabilityTest(unittest.TestCase):
                     "Stop",
                     "SubagentStop",
                     "UserPromptSubmit",
-                },
+                } | extra,
             )
             commands = {
                 handler["command"]

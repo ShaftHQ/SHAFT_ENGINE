@@ -325,6 +325,11 @@ event, so ask for it. The duty survives compaction, a dead delegate, and the
 task that opened the PR:
 [PR-merger workflow](../../references/work-github-playbook.md#pr-merger-workflow-arm-watch-fix-confirm).
 
+## Reflection
+
+Follow [reflection checkpoints](../../references/reflection-checkpoints.md): no
+third repeated fix without a receipt; terminal reflection after one hour.
+
 ## Learning loop
 
 Before reporting done, run the

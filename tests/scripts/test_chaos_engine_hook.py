@@ -3,10 +3,15 @@
 from __future__ import annotations
 
 import json
+import os
 import subprocess  # nosec B404 - fixed repository hook.
 import sys
+import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
+
+from scripts.agents import reflection
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -14,13 +19,14 @@ HOOK = ROOT / "chaos-engine/hooks/guard.py"
 
 
 class ChaosEngineHookTest(unittest.TestCase):
-    def run_hook(self, event: dict[str, object]):
+    def run_hook(self, event: dict[str, object], env=None):
         return subprocess.run(  # nosec B603 - fixed interpreter and hook.
             [sys.executable, str(HOOK)],
             input=json.dumps(event),
             capture_output=True,
             text=True,
             check=False,
+            env=env,
         )
 
     def test_session_event_injects_canonical_entrypoint(self):
@@ -101,6 +107,103 @@ class ChaosEngineHookTest(unittest.TestCase):
                 result = self.run_hook({"hook_event_name": event_name})
                 self.assertEqual(0, result.returncode)
                 self.assertIn("ChaosEngine", result.stdout)
+
+    def test_reflection_checkpoint_blocks_only_mutation_and_unchanged_rerun(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            environment = {**os.environ, "TMPDIR": temporary, "TEMP": temporary}
+            failure = {
+                "hook_event_name": "PostToolUse",
+                "tool_name": "PowerShell",
+                "tool_input": {"command": "py -3 -m unittest focused"},
+                "tool_response": {"status": "failed", "exit_code": 1},
+                "session_id": "portable-reflection",
+            }
+            self.run_hook(failure, environment)
+            second = self.run_hook(failure, environment)
+            unchanged = self.run_hook(
+                {**failure, "hook_event_name": "PreToolUse", "tool_response": {}},
+                environment,
+            )
+            changed = self.run_hook(
+                {
+                    **failure,
+                    "hook_event_name": "PreToolUse",
+                    "tool_response": {},
+                    "tool_input": {"command": "py -3 -m unittest changed.probe"},
+                },
+                environment,
+            )
+            diagnosis = self.run_hook(
+                {
+                    "hook_event_name": "PreToolUse",
+                    "tool_name": "PowerShell",
+                    "tool_input": {"command": "rg reflection scripts"},
+                    "session_id": "portable-reflection",
+                },
+                environment,
+            )
+            attached_bypass = self.run_hook(
+                {
+                    "hook_event_name": "PreToolUse",
+                    "tool_name": "PowerShell",
+                    "tool_input": {
+                        "command": "py -3 chaos-engine/hooks/reflection.py receipt --session-id portable-reflection --session-token t --json '{}';git commit -am x"
+                    },
+                    "session_id": "portable-reflection",
+                },
+                environment,
+            )
+            tracker_bypass = self.run_hook(
+                {
+                    "hook_event_name": "PreToolUse",
+                    "tool_name": "PowerShell",
+                    "tool_input": {"command": "gh issue comment 1 --body x;git commit -am y"},
+                    "session_id": "portable-reflection",
+                },
+                environment,
+            )
+
+            self.assertIn("Reflection required", second.stdout)
+            self.assertEqual(2, unchanged.returncode)
+            self.assertEqual(0, changed.returncode)
+            self.assertEqual(0, diagnosis.returncode)
+            self.assertEqual(2, attached_bypass.returncode)
+            self.assertEqual(2, tracker_bypass.returncode)
+
+    def test_delivery_after_terminal_receipt_invalidates_portable_completion(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            environment = {**os.environ, "TMPDIR": temporary, "TEMP": temporary}
+            with patch.dict(os.environ, environment):
+                token = reflection.record_session_start(
+                    "portable-delivery", "2020-01-01T00:00:00+00:00"
+                )
+                receipt = {
+                    "schemaVersion": 1,
+                    "taskId": "issue-5000",
+                    "trigger": "long-session-completion",
+                    "failureFingerprints": [],
+                    "failedAssumption": "Delivery had already completed.",
+                    "approachesCompared": ["Stop now", "Verify delivery first"],
+                    "chosenExperiment": "Observe the delivery transition.",
+                    "changedApproach": "Moved reflection after delivery.",
+                    "proofCommandOrCheck": "delivery status",
+                    "proofOutcome": "Delivery status was confirmed.",
+                    "durableDisposition": "guidance-fixed",
+                }
+                reflection.record_receipt("portable-delivery", receipt, token)
+            delivered = self.run_hook(
+                {
+                    "hook_event_name": "PostToolUse",
+                    "tool_name": "PowerShell",
+                    "tool_input": {"command": "gh pr create --base main --title x --body y"},
+                    "tool_response": {"status": "success", "exit_code": 0},
+                    "session_id": "portable-delivery",
+                },
+                environment,
+            )
+            self.assertEqual(0, delivered.returncode)
+            with patch.dict(os.environ, environment):
+                self.assertFalse(reflection.has_valid_terminal_receipt("portable-delivery"))
 
 
 if __name__ == "__main__":

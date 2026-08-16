@@ -813,7 +813,7 @@ def cached_plugin_matches(installed_path: object, source: Path) -> bool:
     if not isinstance(installed_path, str):
         return False
     installed = Path(installed_path)
-    for relative in ("hooks/guard.py", "skills/chaos-engine/SKILL.md"):
+    for relative in ("hooks/guard.py", "hooks/reflection.py", "skills/chaos-engine/SKILL.md"):
         cached = installed / relative
         expected = source / relative
         try:
@@ -1512,6 +1512,7 @@ def managed_paths() -> tuple[str, ...]:
         "plugins/chaos-engine/.claude-plugin/plugin.json",
         "plugins/chaos-engine/hooks/hooks.json",
         "plugins/chaos-engine/hooks/guard.py",
+        "plugins/chaos-engine/hooks/reflection.py",
         "plugins/chaos-engine/skills/chaos-engine/SKILL.md",
         ".codex/hooks.json",
         ".claude/settings.json",
@@ -2071,6 +2072,7 @@ def desired_content(
         "UserPromptSubmit": None,
         "PreToolUse": "Bash|PowerShell|shell_command|exec_command|functions[.]exec",
         "PostToolUse": "Bash|PowerShell|shell_command|exec_command|functions[.]exec",
+        "PostToolUseFailure": "Bash|PowerShell|shell_command|exec_command|functions[.]exec",
         "Stop": None,
         "SubagentStop": None,
     }
@@ -2087,6 +2089,7 @@ def desired_content(
     ).encode()
     project_command = " ".join([command, *prefix, ".chaos-engine/hooks/guard.py"])
     project_hooks = json.loads(rendered_plugin_hooks)
+    project_hooks["hooks"].pop("PostToolUseFailure", None)
     for groups in project_hooks["hooks"].values():
         for group in groups:
             for hook in group["hooks"]:
@@ -2100,6 +2103,9 @@ def desired_content(
     )
     after["plugins/chaos-engine/hooks/guard.py"] = (
         Path(__file__).resolve().parent / "hooks/guard.py"
+    ).read_bytes()
+    after["plugins/chaos-engine/hooks/reflection.py"] = (
+        Path(__file__).resolve().parent / "hooks/reflection.py"
     ).read_bytes()
     after["plugins/chaos-engine/skills/chaos-engine/SKILL.md"] = (
         "---\nname: chaos-engine\ndescription: Load the canonical installed ChaosEngine before every task.\n---\n\n"

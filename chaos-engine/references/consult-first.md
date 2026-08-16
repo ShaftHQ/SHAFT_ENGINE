@@ -33,6 +33,9 @@ user's framing disagree about size, say so in one line and work to the larger.
    concurrently; isolate independent writers.
 8. **Completion gate.** State what you will run, read, and show to close this
    out, and who reviews it.
+9. **Reflection boundary.** Resolve failure fingerprints, diagnostic/recovery
+   actions, receipt proof, and the one-hour terminal state in the matrices when
+   repeated failure or a long session is plausible.
 
 ## Executable specification for consequential work
 

@@ -538,6 +538,32 @@ class ChaosEngineInstallerTest(unittest.TestCase):
             self.assertNotIn("act-as-mohab", owned_text)
             self.assertNotIn("mohab", owned_paths)
             self.assertNotIn("mohab", owned_text)
+            hook = install_root / "hooks/guard.py"
+            self.assertTrue((install_root / "hooks/reflection.py").is_file())
+            environment = {**os.environ, "TMPDIR": temporary, "TEMP": temporary}
+            start = subprocess.run(
+                [sys.executable, str(hook)],
+                input=json.dumps({"hook_event_name": "SessionStart", "session_id": "real-install"}),
+                capture_output=True, text=True, env=environment, check=False,
+            )
+            failure = {
+                "hook_event_name": "PostToolUseFailure",
+                "tool_name": "PowerShell",
+                "tool_input": {"command": "py -3 -m unittest installed.case"},
+                "session_id": "real-install",
+            }
+            first = subprocess.run(
+                [sys.executable, str(hook)], input=json.dumps(failure),
+                capture_output=True, text=True, env=environment, check=False,
+            )
+            second = subprocess.run(
+                [sys.executable, str(hook)], input=json.dumps(failure),
+                capture_output=True, text=True, env=environment, check=False,
+            )
+            self.assertEqual(0, start.returncode, start.stderr)
+            self.assertEqual(0, first.returncode, first.stderr)
+            self.assertEqual(0, second.returncode, second.stderr)
+            self.assertIn("Reflection required", second.stdout)
 
     def test_distribution_cannot_change_during_an_update(self):
         with tempfile.TemporaryDirectory() as temporary:
