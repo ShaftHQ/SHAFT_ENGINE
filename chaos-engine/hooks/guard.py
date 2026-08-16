@@ -531,11 +531,36 @@ def initial_draft_recovery(
     return False
 
 
+def _visible_markdown(text: str) -> str:
+    """Remove comments and rendered code blocks before reading PR-body state."""
+    without_comments = re.sub(r"(?s)<!--.*?(?:-->|\Z)", "", text)
+    without_comments = re.sub(
+        r"(?is)<(?P<tag>pre|code)\b[^>]*>.*?(?:</(?P=tag)\s*>|\Z)",
+        "",
+        without_comments,
+    )
+    visible: list[str] = []
+    fence: tuple[str, int] | None = None
+    for line in without_comments.splitlines():
+        marker = re.match(r"^[ \t]*([`~]{3,})", line)
+        if fence is None and marker:
+            token = marker.group(1)
+            fence = (token[0], len(token))
+            continue
+        if fence is not None:
+            if re.fullmatch(rf"[ \t]*{re.escape(fence[0])}{{{fence[1]},}}[ \t]*", line):
+                fence = None
+            continue
+        if line.startswith("    ") or line.startswith("\t"):
+            continue
+        visible.append(line)
+    return "\n".join(visible)
+
+
 def initial_plan_complete(body: object) -> bool:
     if not isinstance(body, str):
         return False
-    visible = re.sub(r"<!--[\s\S]*?-->", "", body)
-    visible = re.sub(r"(?ms)^```.*?^```[ \t]*$", "", visible)
+    visible = _visible_markdown(body)
     for section in ("Plan", "Scope", "Proof"):
         match = re.search(rf"(?ims)^##[ \t]+{section}[ \t]*\r?\n(.*?)(?=^##[ \t]+|\Z)", visible)
         if match is None or len(match.group(1).strip()) < 20:

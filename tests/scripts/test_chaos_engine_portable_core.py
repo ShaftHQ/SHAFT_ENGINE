@@ -143,6 +143,14 @@ class ChaosEnginePortableCoreTest(unittest.TestCase):
         hidden = "<!-- ## Plan\nLong hidden plan content only.\n## Scope\nLong hidden scope content only.\n## Proof\nLong hidden proof content only. -->"
         self.assertTrue(hasattr(guard, "initial_plan_complete"))
         self.assertFalse(guard.initial_plan_complete(hidden))
+        tilde_fenced = (
+            "~~~markdown\n"
+            "## Plan\nA substantive plan hidden inside a rendered code block.\n"
+            "## Scope\nA substantive scope hidden inside a rendered code block.\n"
+            "## Proof\nA substantive proof hidden inside a rendered code block.\n"
+            "~~~\n"
+        )
+        self.assertFalse(guard.initial_plan_complete(tilde_fenced))
         with mock.patch.object(guard, "current_branch", return_value="trunk"), \
              mock.patch.object(guard, "git_output", return_value=None):
             self.assertTrue(guard.on_default_branch("C:/repo"))
