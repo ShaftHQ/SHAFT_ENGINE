@@ -3628,8 +3628,14 @@ def _ledger_records_a_review(hook_input: object, branch: object) -> bool:
     identity = _checkpoint_identity(hook_input)
     if identity is None or identity[1] != branch:
         return False
-    expected = _checkpoint_json_event("review-clear", *identity)
-    return expected in set(ledger_events(hook_input))
+    latest = None
+    for event in ledger_events(hook_input):
+        for prefix in ("review-head", "review-clear"):
+            if _checkpoint_event_payload(event, prefix) == {
+                "repository": identity[0], "branch": identity[1], "head": identity[2]
+            }:
+                latest = prefix
+    return latest == "review-clear"
 
 
 def _checkpoint_json_event(prefix: str, repository: str, branch: str, head: str, **extra) -> str:
@@ -3701,7 +3707,10 @@ def _result_text(value: object) -> str:
 
 def _review_clear_event(hook_input: dict, tool_name: str, result: object) -> str | None:
     tool_input = hook_input.get("tool_input")
-    role = tool_input.get("subagent_type") if isinstance(tool_input, dict) else None
+    role = (
+        tool_input.get("subagent_type") or tool_input.get("subagent")
+        if isinstance(tool_input, dict) else None
+    )
     if tool_name not in {"Task", "Agent"} or str(role).lower() != "reviewer":
         return None
     return _review_clear_for_identity(hook_input, result)
@@ -5859,7 +5868,12 @@ def _terminal_reflection_reason(hook_input: dict) -> str | None:
 def run_stop(hook_input: dict) -> int:
     """Continue incomplete repository work once, without creating a Stop loop."""
     if hook_input.get("hook_event_name") == "SubagentStop":
-        review_clear = _review_clear_for_identity(hook_input, hook_input)
+        review_clear = _review_clear_for_identity(
+            hook_input,
+            hook_input.get("last_assistant_message")
+            or hook_input.get("lastAssistantMessage")
+            or "",
+        )
         if review_clear:
             ledger_record(hook_input, review_clear)
     reflection_reason = _terminal_reflection_reason(hook_input)

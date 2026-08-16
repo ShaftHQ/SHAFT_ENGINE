@@ -33,12 +33,12 @@ A subagent's report describes intent, not necessarily its actual work. Before re
 
 Commit one locally validated, coherent iteration using the repository's normal
 message convention, including its issue number, and push it to the existing
-draft PR immediately. Each pushed iteration starts CI and independent review in parallel
-against the latest exact head. Do not idle on either channel: wait for both, combine their
-findings into one repair batch, run only the focused checks required by that
-batch, commit, and push the next iteration. Repeat this exact-head loop until CI
-is green and independent review reports zero blockers on the same head. Only
-then may the PR be armed.
+draft PR immediately. Keep one active channel for each pushed iteration. Run CI
+first; when it fails, fix the exact cause, run only the focused checks required
+by that fix, commit, and push the next iteration promptly. Once CI is green,
+run independent review against the latest exact head. Repair any blockers,
+validate, and push again. Repeat until CI is green and independent review
+reports zero blockers on the same head. Only then may the PR be armed.
 
 ### Every retained checkpoint: make delivery visible immediately
 

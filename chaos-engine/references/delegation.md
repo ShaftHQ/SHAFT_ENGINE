@@ -49,11 +49,11 @@ incomplete.
 
 ## Independent adversarial review
 
-Every behavior-changing pushed iteration runs CI and independent review in parallel
-against the latest exact head. Wait for both channels, combine all blocking
-findings into one repair batch, validate that batch locally, then push the next
-iteration and repeat. This parallelism removes idle CI time; independence and
-the final zero-blocker gate remain mandatory:
+Keep one active channel for every behavior-changing pushed iteration. Run CI
+first. Repair a red result, validate it locally, and push the next iteration
+immediately. Once CI is green, run independent review against the latest exact head.
+Repair blockers, validate, and push again. The final zero-blocker gate
+remains mandatory:
 
 - The reviewer is a **separate agent instance, never the author** of the work.
 - Choose a disposable review mechanism. When the host provides reliable terminal
@@ -122,8 +122,8 @@ a row that already exists.
 
 The loop stops at the first pushed iteration where CI is green and review has
 **zero blocking findings** on the same exact head. Every remaining finding is
-ticketed, never carried. There is no round ceiling: combine both channels into
-one repair batch, push the next iteration, and repeat until both are clear.
+ticketed, never carried. There is no round ceiling: use one active channel,
+push each validated repair promptly, and repeat until both are clear.
 
 Every round after the first is scoped to the diff since the last verdict, never
 a full-branch re-read.

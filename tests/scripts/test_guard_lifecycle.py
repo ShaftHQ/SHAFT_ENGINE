@@ -4842,6 +4842,11 @@ class ObservedReviewDispatchTest(unittest.TestCase):
                 self.assertFalse(guard._ledger_records_a_review({"session_id": "s"}, "feature"))
             with patch("scripts.agents.guard.ledger_events", return_value=[cleared]):
                 self.assertTrue(guard._ledger_records_a_review({"session_id": "s"}, "feature"))
+            with patch(
+                "scripts.agents.guard.ledger_events",
+                return_value=[dispatched, cleared, dispatched],
+            ):
+                self.assertFalse(guard._ledger_records_a_review({"session_id": "s"}, "feature"))
         newer = (identity[0], identity[1], "c" * 40)
         with patch("scripts.agents.guard._checkpoint_identity", return_value=newer), \
              patch("scripts.agents.guard.ledger_events", return_value=[cleared]):
@@ -4896,6 +4901,37 @@ class ObservedReviewDispatchTest(unittest.TestCase):
              patch("scripts.agents.guard.ledger_record", side_effect=lambda _p, e: events.append(e) or True):
             guard.run_posttooluse(payload)
         self.assertFalse(any(event.startswith("review-clear:") for event in events))
+
+    def test_subagent_stop_reads_only_the_terminal_message_and_supports_role_alias(self):
+        identity = ("owner/repo", "feature", "b" * 40)
+        dispatched = guard._checkpoint_json_event("review-head", *identity)
+        recorded = []
+        payload = {
+            "hook_event_name": "SubagentStop",
+            "tool_name": "Agent",
+            "tool_input": {"subagent": "reviewer"},
+            "last_assistant_message": "Review complete\nZERO BLOCKERS",
+            "session_id": "metadata-after-message-must-not-be-reviewed",
+            "cwd": ".",
+            "stop_hook_active": True,
+        }
+        with patch("scripts.agents.guard._checkpoint_identity", return_value=identity), \
+             patch("scripts.agents.guard.ledger_events", return_value=[dispatched]), \
+             patch("scripts.agents.guard.ledger_record", side_effect=lambda _p, e: recorded.append(e) or True), \
+             patch("scripts.agents.guard._terminal_reflection_reason", return_value=None):
+            guard.run_stop(payload)
+        self.assertIn(guard._checkpoint_json_event("review-clear", *identity), recorded)
+
+        with patch("scripts.agents.guard._checkpoint_identity", return_value=identity), \
+             patch("scripts.agents.guard.ledger_events", return_value=[dispatched]):
+            self.assertEqual(
+                guard._checkpoint_json_event("review-clear", *identity),
+                guard._review_clear_event(
+                    {"tool_input": {"subagent": "reviewer"}},
+                    "Agent",
+                    "Review complete\nZERO BLOCKERS",
+                ),
+            )
 
     def test_both_rules_read_the_branch_the_same_way(self):
         """Two sources for one question is how the R15/R17 deadlock arrived.

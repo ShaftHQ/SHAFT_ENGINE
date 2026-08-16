@@ -44,16 +44,19 @@ class ChaosEnginePortableCoreTest(unittest.TestCase):
         self.assertIn("Do not rerun an entire test suite merely because CI failed", guidance)
         self.assertNotIn("shaft", guidance.casefold())
 
-    def test_pushed_iteration_runs_ci_and_review_in_parallel_before_one_batched_repair(self):
+    def test_pushed_iteration_uses_one_active_channel_and_pushes_each_repair(self):
         skill = CANONICAL_SKILL.read_text(encoding="utf-8")
         playbook = GITHUB_PLAYBOOK.read_text(encoding="utf-8")
         delegation = DELEGATION.read_text(encoding="utf-8")
 
         for guidance in (skill, playbook, delegation):
             self.assertIn("pushed iteration", guidance.casefold())
-            self.assertIn("CI and independent review in parallel", guidance)
-            self.assertIn("one repair batch", guidance)
+            self.assertIn("one active channel", guidance.casefold())
+            self.assertIn("push", guidance.casefold())
+            self.assertIn("CI", guidance)
+            self.assertIn("independent review", guidance)
             self.assertIn("latest exact head", guidance.casefold())
+            self.assertNotIn("CI and independent review in parallel", guidance)
         self.assertNotIn("Review before you commit", playbook)
 
     def test_portable_host_matches_file_mutations_for_lifecycle_enforcement(self):
