@@ -458,14 +458,14 @@ public class MobileNamespaceTest {
     @Test
     public void previouslyAcquiredApplicationFacadeShouldFailClosedAfterSessionTeardown() {
         AndroidDriver android = Mockito.mock(AndroidDriver.class);
-        Mockito.when(android.getSessionId()).thenReturn(new SessionId("android-live"), null);
+        Mockito.when(android.getSessionId()).thenReturn(new SessionId("android-live"), (SessionId) null);
         MobileApplicationActionsContract androidApp = new SHAFT.GUI.WebDriver(android).mobile().app();
         assertUnsupported(androidApp::launchConfiguredApp);
         assertUnsupported(() -> androidApp.activate("com.example.app"));
         Mockito.verify(android, Mockito.never()).activateApp(Mockito.anyString());
 
         WindowsDriver windows = Mockito.mock(WindowsDriver.class);
-        Mockito.when(windows.getSessionId()).thenReturn(new SessionId("windows-live"), null);
+        Mockito.when(windows.getSessionId()).thenReturn(new SessionId("windows-live"), (SessionId) null);
         MobileApplicationActionsContract windowsApp = new SHAFT.GUI.WebDriver(windows).mobile().app();
         assertUnsupported(windowsApp::launchConfiguredApp);
         Mockito.verify(windows, Mockito.never()).launchApp();

@@ -304,7 +304,7 @@ public class MobileEvidenceCollectorTest {
 
             AppiumDriver finalContextMissing = sourceDriver("final-context-missing", "NATIVE_APP");
             Mockito.when(((SupportsContextSwitching) finalContextMissing).getContext())
-                    .thenReturn("NATIVE_APP", null);
+                    .thenReturn("NATIVE_APP", (String) null);
             Object missingCapture = collect(finalContextMissing, 1024);
             Assert.assertNull(value(missingCapture, "screenshot"));
             Assert.assertNull(value(missingCapture, "source"));
@@ -332,7 +332,7 @@ public class MobileEvidenceCollectorTest {
             SHAFT.Properties.reporting.set().traceIncludeScreenshots(true).traceIncludeNativePageSource(true);
             AppiumDriver closesLate = sourceDriver("closes-late", "NATIVE_APP");
             SessionId live = new SessionId("closes-late");
-            Mockito.when(closesLate.getSessionId()).thenReturn(live, null);
+            Mockito.when(closesLate.getSessionId()).thenReturn(live, (SessionId) null);
             InvocationTargetException closed = Assert.expectThrows(InvocationTargetException.class,
                     () -> collect(closesLate, 1024));
             Assert.assertTrue(closed.getCause() instanceof UnsupportedOperationException);

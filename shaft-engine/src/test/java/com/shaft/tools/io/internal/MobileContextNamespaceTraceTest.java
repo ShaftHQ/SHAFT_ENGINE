@@ -68,7 +68,7 @@ public class MobileContextNamespaceTraceTest {
         TraceEventRecorder.clear();
 
         AndroidDriver staleDriver = Mockito.mock(AndroidDriver.class);
-        Mockito.when(staleDriver.getSessionId()).thenReturn(new SessionId("context-stale"), null);
+        Mockito.when(staleDriver.getSessionId()).thenReturn(new SessionId("context-stale"), (SessionId) null);
         MobileContextActionsContract stale = new SHAFT.GUI.WebDriver(staleDriver).mobile().context();
 
         Assert.expectThrows(UnsupportedOperationException.class, () -> stale.switchTo("WEBVIEW_app"));

@@ -92,7 +92,7 @@ public class MobileFileActionsTest {
                 () -> unsupported.push("/device/source", new byte[]{1}));
 
         AndroidDriver closed = Mockito.mock(AndroidDriver.class);
-        Mockito.when(closed.getSessionId()).thenReturn(new SessionId("closing-file-session"), null);
+        Mockito.when(closed.getSessionId()).thenReturn(new SessionId("closing-file-session"), (SessionId) null);
         MobileFileActionsContract stale = new SHAFT.GUI.WebDriver(closed).mobile().files();
         Assert.expectThrows(UnsupportedOperationException.class, () -> stale.pull("/device/result"));
         Mockito.verify(closed, Mockito.never()).pullFile(Mockito.anyString());
