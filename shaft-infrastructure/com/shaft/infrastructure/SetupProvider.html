@@ -52,6 +52,7 @@
 <li><a href="#plan(com.shaft.infrastructure.SetupOptions,com.shaft.infrastructure.SetupPlatform,com.shaft.infrastructure.SetupArchitecture)" tabindex="0">plan(SetupOptions, SetupPlatform, SetupArchitecture)</a></li>
 <li><a href="#plan(com.shaft.infrastructure.SetupOptions,com.shaft.infrastructure.SetupSelection,com.shaft.infrastructure.SetupPlatform,com.shaft.infrastructure.SetupArchitecture)" tabindex="0">plan(SetupOptions, SetupSelection, SetupPlatform, SetupArchitecture)</a></li>
 <li><a href="#plan(com.shaft.infrastructure.SetupOptions,com.shaft.infrastructure.SetupSelection,com.shaft.infrastructure.SetupOperation,com.shaft.infrastructure.SetupPlatform,com.shaft.infrastructure.SetupArchitecture)" tabindex="0">plan(SetupOptions, SetupSelection, SetupOperation, SetupPlatform, SetupArchitecture)</a></li>
+<li><a href="#selectionFromPlan(com.shaft.infrastructure.SetupPlan)" tabindex="0">selectionFromPlan(SetupPlan)</a></li>
 <li><a href="#status(com.shaft.infrastructure.SetupOptions,com.shaft.infrastructure.SetupPlatform,com.shaft.infrastructure.SetupArchitecture)" tabindex="0">status(SetupOptions, SetupPlatform, SetupArchitecture)</a></li>
 <li><a href="#status(com.shaft.infrastructure.SetupOptions,com.shaft.infrastructure.SetupSelection,com.shaft.infrastructure.SetupPlatform,com.shaft.infrastructure.SetupArchitecture)" tabindex="0">status(SetupOptions, SetupSelection, SetupPlatform, SetupArchitecture)</a></li>
 <li><a href="#install(com.shaft.infrastructure.SetupPlan,com.shaft.infrastructure.SetupApproval,com.shaft.infrastructure.SetupOptions)" tabindex="0">install(SetupPlan, SetupApproval, SetupOptions)</a></li>
@@ -128,27 +129,32 @@
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="SetupProfile.html" title="enum class in com.shaft.infrastructure">SetupProfile</a></code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#profile()" class="member-name-link">profile</a>()</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">&nbsp;</div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code>default <a href="ManagedEnvironment.html" title="class in com.shaft.infrastructure">ManagedEnvironment</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#start(com.shaft.infrastructure.SetupPlan,com.shaft.infrastructure.SetupApproval,com.shaft.infrastructure.SetupOptions)" class="member-name-link">start</a><wbr>(<a href="SetupPlan.html" title="class in com.shaft.infrastructure">SetupPlan</a>&nbsp;plan,
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code>default <a href="SetupSelection.html" title="class in com.shaft.infrastructure">SetupSelection</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#selectionFromPlan(com.shaft.infrastructure.SetupPlan)" class="member-name-link">selectionFromPlan</a><wbr>(<a href="SetupPlan.html" title="class in com.shaft.infrastructure">SetupPlan</a>&nbsp;plan)</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5">
+<div class="block">Reconstructs the canonical selection embedded in an approved plan.</div>
+</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code>default <a href="ManagedEnvironment.html" title="class in com.shaft.infrastructure">ManagedEnvironment</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#start(com.shaft.infrastructure.SetupPlan,com.shaft.infrastructure.SetupApproval,com.shaft.infrastructure.SetupOptions)" class="member-name-link">start</a><wbr>(<a href="SetupPlan.html" title="class in com.shaft.infrastructure">SetupPlan</a>&nbsp;plan,
  <a href="SetupApproval.html" title="class in com.shaft.infrastructure">SetupApproval</a>&nbsp;approval,
  <a href="SetupOptions.html" title="class in com.shaft.infrastructure">SetupOptions</a>&nbsp;options)</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5">&nbsp;</div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="SetupReport.html" title="class in com.shaft.infrastructure">SetupReport</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#status(com.shaft.infrastructure.SetupOptions,com.shaft.infrastructure.SetupPlatform,com.shaft.infrastructure.SetupArchitecture)" class="member-name-link">status</a><wbr>(<a href="SetupOptions.html" title="class in com.shaft.infrastructure">SetupOptions</a>&nbsp;options,
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5">&nbsp;</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="SetupReport.html" title="class in com.shaft.infrastructure">SetupReport</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#status(com.shaft.infrastructure.SetupOptions,com.shaft.infrastructure.SetupPlatform,com.shaft.infrastructure.SetupArchitecture)" class="member-name-link">status</a><wbr>(<a href="SetupOptions.html" title="class in com.shaft.infrastructure">SetupOptions</a>&nbsp;options,
  <a href="SetupPlatform.html" title="enum class in com.shaft.infrastructure">SetupPlatform</a>&nbsp;platform,
  <a href="SetupArchitecture.html" title="enum class in com.shaft.infrastructure">SetupArchitecture</a>&nbsp;architecture)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">&nbsp;</div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code>default <a href="SetupReport.html" title="class in com.shaft.infrastructure">SetupReport</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#status(com.shaft.infrastructure.SetupOptions,com.shaft.infrastructure.SetupSelection,com.shaft.infrastructure.SetupPlatform,com.shaft.infrastructure.SetupArchitecture)" class="member-name-link">status</a><wbr>(<a href="SetupOptions.html" title="class in com.shaft.infrastructure">SetupOptions</a>&nbsp;options,
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">&nbsp;</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code>default <a href="SetupReport.html" title="class in com.shaft.infrastructure">SetupReport</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#status(com.shaft.infrastructure.SetupOptions,com.shaft.infrastructure.SetupSelection,com.shaft.infrastructure.SetupPlatform,com.shaft.infrastructure.SetupArchitecture)" class="member-name-link">status</a><wbr>(<a href="SetupOptions.html" title="class in com.shaft.infrastructure">SetupOptions</a>&nbsp;options,
  <a href="SetupSelection.html" title="class in com.shaft.infrastructure">SetupSelection</a>&nbsp;selection,
  <a href="SetupPlatform.html" title="enum class in com.shaft.infrastructure">SetupPlatform</a>&nbsp;platform,
  <a href="SetupArchitecture.html" title="enum class in com.shaft.infrastructure">SetupArchitecture</a>&nbsp;architecture)</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5">&nbsp;</div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code>default boolean</code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#stop(com.shaft.infrastructure.SetupPlan,com.shaft.infrastructure.SetupApproval,com.shaft.infrastructure.SetupOptions)" class="member-name-link">stop</a><wbr>(<a href="SetupPlan.html" title="class in com.shaft.infrastructure">SetupPlan</a>&nbsp;plan,
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5">&nbsp;</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code>default boolean</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#stop(com.shaft.infrastructure.SetupPlan,com.shaft.infrastructure.SetupApproval,com.shaft.infrastructure.SetupOptions)" class="member-name-link">stop</a><wbr>(<a href="SetupPlan.html" title="class in com.shaft.infrastructure">SetupPlan</a>&nbsp;plan,
  <a href="SetupApproval.html" title="class in com.shaft.infrastructure">SetupApproval</a>&nbsp;approval,
  <a href="SetupOptions.html" title="class in com.shaft.infrastructure">SetupOptions</a>&nbsp;options)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5">
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5">
 <div class="block">Stops the exact SHAFT-owned service represented by an approved plan.</div>
 </div>
 </div>
@@ -203,6 +209,15 @@
  <a href="SetupOperation.html" title="enum class in com.shaft.infrastructure">SetupOperation</a>&nbsp;operation,
  <a href="SetupPlatform.html" title="enum class in com.shaft.infrastructure">SetupPlatform</a>&nbsp;platform,
  <a href="SetupArchitecture.html" title="enum class in com.shaft.infrastructure">SetupArchitecture</a>&nbsp;architecture)</span></div>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="selectionFromPlan(com.shaft.infrastructure.SetupPlan)">
+<h3>selectionFromPlan</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">default</span>&nbsp;<span class="return-type"><a href="SetupSelection.html" title="class in com.shaft.infrastructure">SetupSelection</a></span>&nbsp;<span class="element-name">selectionFromPlan</span><wbr><span class="parameters">(<a href="SetupPlan.html" title="class in com.shaft.infrastructure">SetupPlan</a>&nbsp;plan)</span></div>
+<div class="block">Reconstructs the canonical selection embedded in an approved plan.</div>
 </div>
 </section>
 </li>
