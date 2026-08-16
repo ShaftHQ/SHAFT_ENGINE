@@ -23,9 +23,10 @@ below.
    requirement disagree, stop and report which one you believe is wrong.
 5. Never claim a check you did not run.
 6. Each pushed iteration is the smallest coherent increment for rapid iteration.
-   Keep one active channel: run CI; if red, repair, validate, and push immediately.
-   When green, run independent review on the latest exact head; repair, validate,
-   and push. Arm only after both report zero blockers on that head.
+   Use one active channel. Run CI; if red, fix and push.
+   Then run independent review on the latest exact head; fix and push. Every pull request gets at
+   least one before it is armed. Both must report
+   zero blockers on that head.
 
 ## Triage
 
