@@ -21,6 +21,7 @@ from pathlib import Path, PurePosixPath
 
 
 REPOSITORY = re.compile(r"[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+")
+DEFAULT_REPOSITORY = "ShaftHQ/SHAFT_ENGINE"
 COMMIT = re.compile(r"[0-9a-f]{40}")
 MAX_RESPONSE_BYTES = 10 * 1024 * 1024
 MAX_SOURCE_BYTES = 10 * 1024 * 1024
@@ -306,7 +307,11 @@ def install_latest(
 def parser() -> argparse.ArgumentParser:
     result = argparse.ArgumentParser(description=__doc__)
     result.add_argument("--project", type=Path, default=Path.cwd())
-    result.add_argument("--repository", required=True)
+    result.add_argument(
+        "--repository",
+        default=DEFAULT_REPOSITORY,
+        help=f"ChaosEngine source repository (default: {DEFAULT_REPOSITORY})",
+    )
     result.add_argument("--branch")
     result.add_argument("--distribution", default="portable")
     result.add_argument("--skip-tools", action="store_true", help=argparse.SUPPRESS)
