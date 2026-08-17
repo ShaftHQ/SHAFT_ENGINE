@@ -50,6 +50,18 @@ def _normalize_path(path: str) -> str:
     return str(path).replace("\\", "/").lower()
 
 
+def as_path_list(value: object) -> list[str]:
+    """PowerShell ConvertTo-Json unwraps a one-element array into a string."""
+    if value is None:
+        return []
+    if isinstance(value, list):
+        return [str(item) for item in value]
+    if isinstance(value, str):
+        text = value.strip()
+        return [text] if text else []
+    return [str(value)]
+
+
 def changed_paths_from_git_status(status_text: str) -> list[str]:
     """Parse `git status --porcelain` paths, including the new side of renames."""
     paths: list[str] = []
@@ -85,12 +97,12 @@ def validate_report(data: dict) -> list[str]:
     for key in REQUIRED_REPORT_KEYS:
         if key not in data:
             blockers.append(f"missing key {key}")
-    allowed = data.get("files_allowed")
-    if not isinstance(allowed, list) or not allowed:
+    allowed = as_path_list(data.get("files_allowed"))
+    if not allowed:
         blockers.append("file allowlist is required")
-    changed = data.get("files_changed")
-    if isinstance(allowed, list) and isinstance(changed, list):
-        blockers.extend(allowlist_violations(list(changed), list(allowed)))
+    changed = as_path_list(data.get("files_changed"))
+    if allowed:
+        blockers.extend(allowlist_violations(changed, allowed))
     loopback = str(data.get("loopback") or "")
     if not loopback_valid(loopback):
         blockers.append("loopback must be 127.0.0.1:<port>")

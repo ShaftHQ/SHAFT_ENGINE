@@ -115,7 +115,6 @@ $aiderArgs = @(
     "--model", "ollama_chat/$Model",
     "--edit-format", "whole",
     "--yes-always",
-    "--no-gitignore",
     "--no-show-model-warnings",
     "--no-suggest-shell-commands",
     "--message-file", $Spec
@@ -150,8 +149,12 @@ Push-Location -LiteralPath $Worktree
 try {
     $statusFile = Join-Path $reportDir "git-status.txt"
     $headFile = Join-Path $reportDir "git-head-files.txt"
+    git status --porcelain
+    if ($LASTEXITCODE -ne 0) { throw "git status failed: $LASTEXITCODE" }
     git status --porcelain | Set-Content -LiteralPath $statusFile -Encoding utf8
     if ($beforeSha) {
+        git diff --name-only $beforeSha
+        if ($LASTEXITCODE -ne 0) { throw "git diff --name-only failed: $LASTEXITCODE" }
         git diff --name-only $beforeSha | Set-Content -LiteralPath $headFile -Encoding utf8
         git diff $beforeSha | Set-Content -LiteralPath (Join-Path $reportDir "diff.patch") -Encoding utf8
     } else {
@@ -160,8 +163,11 @@ try {
     }
     $changed = @(
         & py -3 $agentPy "changed" "--status-file" $statusFile "--head-file" $headFile
-    ) | Where-Object { $_ }
+    )
+    if ($LASTEXITCODE -ne 0) { throw "changed-path scan failed: $LASTEXITCODE" }
+    $changed = @($changed | Where-Object { $_ })
     $commit = (git rev-parse HEAD).Trim()
+    if ($LASTEXITCODE -ne 0 -or -not $commit) { throw "git rev-parse HEAD failed" }
 } finally {
     Pop-Location
 }
@@ -204,10 +210,15 @@ $payload = @{
     blockers = @($blockers)
 }
 $reportPath = Join-Path $reportDir "report.json"
-$payload | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath $reportPath -Encoding utf8
+($payload | ConvertTo-Json -Depth 5) | Set-Content -LiteralPath $reportPath -Encoding utf8
 
 & py -3 $agentPy "validate" "--report" $reportPath
 if ($LASTEXITCODE -ne 0) {
+    $payload.ok = $false
+    if ($payload.blockers -notcontains "report validation failed") {
+        $payload.blockers = @($payload.blockers) + @("report validation failed")
+    }
+    ($payload | ConvertTo-Json -Depth 5) | Set-Content -LiteralPath $reportPath -Encoding utf8
     Write-Output $reportPath
     exit $LASTEXITCODE
 }

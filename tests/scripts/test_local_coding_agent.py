@@ -132,6 +132,19 @@ class LocalCodingAgentReportTest(unittest.TestCase):
         blockers = MODULE.validate_report(payload)
         self.assertTrue(any("127.0.0.1" in item for item in blockers))
 
+    def test_powershell_unwrapped_changed_string_is_still_checked(self):
+        payload = self.valid_payload()
+        payload["files_allowed"] = ["src/Example.java", "src/Other.java"]
+        payload["files_changed"] = "src/SHAFT.java"
+        blockers = MODULE.validate_report(payload)
+        self.assertTrue(any("shaft.java" in item.lower() for item in blockers))
+
+    def test_powershell_unwrapped_single_allowlist_string_is_accepted(self):
+        payload = self.valid_payload()
+        payload["files_allowed"] = "src/Example.java"
+        payload["files_changed"] = "src/Example.java"
+        self.assertEqual([], MODULE.validate_report(payload))
+
 
 class LocalCodingAgentPackagingTest(unittest.TestCase):
     def test_schema_lists_required_report_keys(self):
@@ -173,6 +186,8 @@ class LocalCodingAgentPackagingTest(unittest.TestCase):
         self.assertIn("RedirectStandardOutput = $false", run_text)
         self.assertIn("pid", stop_text.lower())
         self.assertIn("refusing to stop an unproven process", stop_text)
+        install_text = INSTALL.read_text(encoding="utf-8")
+        self.assertIn("release asset digest missing", install_text)
 
 
 if __name__ == "__main__":

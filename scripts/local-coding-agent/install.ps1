@@ -40,7 +40,10 @@ if (-not (Test-Path -LiteralPath $zipPath) -or (Get-Item -LiteralPath $zipPath).
 }
 
 $actual = "sha256:" + ((Get-FileHash -LiteralPath $zipPath -Algorithm SHA256).Hash.ToLowerInvariant())
-if ($expected -and $expected.StartsWith("sha256:") -and $actual -ne $expected.ToLowerInvariant()) {
+if (-not $expected -or -not $expected.StartsWith("sha256:")) {
+    throw "release asset digest missing or not sha256: $expected"
+}
+if ($actual -ne $expected.ToLowerInvariant()) {
     throw "digest mismatch: $actual != $expected"
 }
 
