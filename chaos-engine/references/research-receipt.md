@@ -14,7 +14,9 @@ Do these in order:
 3. Query native Memory once for a concrete prior constraint or gotcha; otherwise
    record irrelevance.
 4. Query MemPalace once for concrete cross-session history or relations;
-   otherwise record irrelevance.
+   otherwise record irrelevance. After a plan is approved, do not start the
+   first implementation mutation until this MemPalace attempt has been made
+   (`used`, `skipped` with a concrete irrelevance reason, or `degraded`).
 5. Query Graphify once for structural leads; live-verify returned paths and use
    targeted `rg` for blast radius, or record irrelevance.
 6. Do authoritative online research, preferring current primary documentation,
