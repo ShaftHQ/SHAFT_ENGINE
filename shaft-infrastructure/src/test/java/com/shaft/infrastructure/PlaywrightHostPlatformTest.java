@@ -43,8 +43,20 @@ class PlaywrightHostPlatformTest {
     }
 
     @Test
+    void currentMacOsAndDarwinTwentyFourUseTheMac15Artifacts() {
+        assertEquals("mac15-arm64", PlaywrightHostPlatform.resolve(
+                SetupPlatform.MACOS, SetupArchitecture.ARM64, "16.0").token());
+        assertEquals("mac15-arm64", PlaywrightHostPlatform.resolve(
+                SetupPlatform.MACOS, SetupArchitecture.ARM64, "24.6.0").token());
+        assertEquals("mac15", PlaywrightHostPlatform.resolve(
+                SetupPlatform.MACOS, SetupArchitecture.X64, "26.0").token());
+    }
+
+    @Test
     void unsupportedMacOsMajorFailsClosed() {
         assertThrows(IllegalArgumentException.class, () -> PlaywrightHostPlatform.resolve(
                 SetupPlatform.MACOS, SetupArchitecture.ARM64, "14.7.8"));
+        assertThrows(IllegalArgumentException.class, () -> PlaywrightHostPlatform.resolve(
+                SetupPlatform.MACOS, SetupArchitecture.ARM64, "23.6.0"));
     }
 }
