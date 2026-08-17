@@ -186,7 +186,6 @@ safety boundaries.
 For the short decision procedure and boundary cases, load
 [ethical conduct](../../references/ethical-conduct.md).
 
-'
 ### Caveman
 
 If `plugins/caveman/skills/caveman/SKILL.md` exists, use it as this section's response-compression companion. User requests for normal mode still win.
@@ -194,8 +193,8 @@ If `plugins/caveman/skills/caveman/SKILL.md` exists, use it as this section's re
 - [Bundled Caveman skill definition](../../vendor/caveman/SKILL.md)
 - [Bundled Caveman license](../../vendor/caveman/LICENSE)
 
-### Ponytail
-'
+Preserve user language, negation, numbers, units, commands, and errors exactly. `/caveman lite|full|ultra` selects compression; `stop caveman` or `normal mode` disables it.
+
 ### Ponytail
 
 Default implementation rule is the first simple option that works after the
