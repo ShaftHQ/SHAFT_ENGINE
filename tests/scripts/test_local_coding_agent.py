@@ -248,6 +248,96 @@ class LocalCodingAgentPackagingTest(unittest.TestCase):
         self.assertIn('Filter ".aider*"', architect_text)
         self.assertIn("push is forbidden", architect_text)
         self.assertIn("read-only contract failed", architect_text)
+        self.assertIn("yyyyMMddTHHmmssZ", architect_text)
+        self.assertIn("$Read", architect_text)
+        self.assertIn('"cited"', architect_text)
+        self.assertIn("--text-file", architect_text)
+        self.assertIn("PositionalBinding = $false", architect_text)
+
+
+class LocalCodingAgentCitedPathTest(unittest.TestCase):
+    HALLUCINATED = "shaft-ai/src/main/java/com/shaft/ai/ollama/OllamaClient.java"
+    EXISTING = "scripts/local-coding-agent/run_agent.ps1"
+
+    def test_recorded_ollama_client_hallucination_is_missing(self):
+        text = (
+            "The launcher lives in scripts/local-coding-agent/run_agent.ps1 "
+            "and the Java client is shaft-ai/src/main/java/com/shaft/ai/ollama/OllamaClient.java."
+        )
+        missing = MODULE.missing_cited_paths(text, ROOT)
+        self.assertIn(self.HALLUCINATED, missing)
+
+    def test_existing_cited_path_is_kept(self):
+        text = f"See {self.EXISTING} for the workstation loop."
+        self.assertIn(self.EXISTING, MODULE.cited_repo_paths(text))
+        self.assertEqual([], MODULE.missing_cited_paths(text, ROOT))
+
+    def test_https_url_is_ignored(self):
+        text = "Docs: https://example.com/shaft-ai/src/main/java/Foo.java and https://github.com/a/b.py"
+        self.assertEqual([], MODULE.cited_repo_paths(text))
+
+    def test_bare_class_name_is_ignored(self):
+        text = "OllamaClient and OllamaProvider are class names, not repo paths."
+        self.assertEqual([], MODULE.cited_repo_paths(text))
+
+    def test_no_existing_cited_path_is_a_blocker(self):
+        import tempfile
+
+        transcript = Path(tempfile.mkdtemp()) / "history.md"
+        transcript.write_text(f"Invented {self.HALLUCINATED}\n", encoding="utf-8")
+        code = MODULE.main(["cited", "--text-file", str(transcript), "--root", str(ROOT)])
+        self.assertEqual(2, code)
+
+    def test_cited_cli_accepts_real_paths_only(self):
+        import tempfile
+
+        transcript = Path(tempfile.mkdtemp()) / "history.md"
+        transcript.write_text(f"Read {self.EXISTING} and AGENTS.md stay out.\n", encoding="utf-8")
+        code = MODULE.main(["cited", "--text-file", str(transcript), "--root", str(ROOT)])
+        self.assertEqual(0, code)
+
+    def test_windows_absolute_paths_are_not_repo_relative(self):
+        text = (
+            "--chat-history-file D:\\AI\\reports\\20260817T195001Z\\architect-chat.md "
+            "--read C:\\Users\\Mohab\\.grok\\worktrees\\shaft-engine-5065\\"
+            "scripts\\local-coding-agent\\run_agent.ps1"
+        )
+        cited = MODULE.cited_repo_paths(text)
+        self.assertNotIn("AI/reports/20260817T195001Z/architect-chat.md", cited)
+        self.assertFalse(any(item.startswith("Users/") for item in cited))
+        self.assertFalse(any(item.startswith("AI/") for item in cited))
+
+    def test_ollama_model_id_is_not_a_cited_path(self):
+        text = "Model: ollama_chat/qwen2.5-coder:7b with whole edit format"
+        self.assertEqual([], MODULE.cited_repo_paths(text))
+
+    def test_aider_history_header_plus_real_added_files_is_ok(self):
+        import tempfile
+
+        text = (
+            "D:\\AI\\aider\\.venv\\Scripts\\aider --model ollama_chat/qwen2.5-coder:7b "
+            "--chat-history-file D:\\AI\\reports\\20260817T195001Z\\architect-chat.md "
+            "--read C:\\repo\\scripts\\local-coding-agent\\run_agent.ps1\n"
+            "> Added scripts\\local-coding-agent\\run_agent.ps1 to the chat (read-only).\n"
+            "> Added scripts\\local-coding-agent\\shaft-architect.ps1 to the chat (read-only).\n"
+            "See shaft-architect.ps1 and OllamaProvider.java.\n"
+        )
+        transcript = Path(tempfile.mkdtemp()) / "history.md"
+        transcript.write_text(text, encoding="utf-8")
+        code = MODULE.main(["cited", "--text-file", str(transcript), "--root", str(ROOT)])
+        self.assertEqual(0, code)
+
+    def test_aider_history_still_blocks_invented_repo_path(self):
+        import tempfile
+
+        text = (
+            "> Added scripts\\local-coding-agent\\run_agent.ps1 to the chat (read-only).\n"
+            f"The Java client is {self.HALLUCINATED}.\n"
+        )
+        transcript = Path(tempfile.mkdtemp()) / "history.md"
+        transcript.write_text(text, encoding="utf-8")
+        code = MODULE.main(["cited", "--text-file", str(transcript), "--root", str(ROOT)])
+        self.assertEqual(2, code)
 
 
 if __name__ == "__main__":

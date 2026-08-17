@@ -3,14 +3,15 @@
 .SYNOPSIS
   Named read-only architect: shaft-architect. Aider --dry-run, no edits or commits.
 #>
-[CmdletBinding()]
+[CmdletBinding(PositionalBinding = $false)]
 param(
-    [Parameter(Mandatory = $true)]
+    [Parameter(Mandatory = $true, Position = 0)]
     [string] $Worktree,
-    [Parameter(Mandatory = $true)]
+    [Parameter(Mandatory = $true, Position = 1)]
     [string] $Spec,
     [string] $Model = "qwen2.5-coder:7b",
     [string] $Root = $(if ($env:SHAFT_LOCAL_AI_ROOT) { $env:SHAFT_LOCAL_AI_ROOT } else { "D:\AI" }),
+    [string[]] $Read = @(),
     [switch] $Push
 )
 
@@ -75,8 +76,11 @@ if (-not (Get-LoopbackListener)) {
 }
 
 $agents = Join-Path $Worktree "AGENTS.md"
-$reportDir = Join-Path $Root "reports"
+$agentPy = Join-Path $PSScriptRoot "agent.py"
+$runId = (Get-Date).ToUniversalTime().ToString("yyyyMMddTHHmmssZ")
+$reportDir = Join-Path $Root "reports\$runId"
 New-Item -ItemType Directory -Force -Path $reportDir | Out-Null
+$historyFile = Join-Path $reportDir "architect-chat.md"
 $aiderArgs = @(
     "--model", "ollama_chat/$Model",
     "--edit-format", "whole",
@@ -86,12 +90,23 @@ $aiderArgs = @(
     "--no-gitignore",
     "--no-suggest-shell-commands",
     "--no-show-model-warnings",
-    "--chat-history-file", (Join-Path $reportDir "architect-chat.md"),
+    "--chat-history-file", $historyFile,
     "--input-history-file", (Join-Path $reportDir "architect-input.md"),
     "--message-file", $Spec
 )
 if (Test-Path -LiteralPath $agents) {
     $aiderArgs += @("--read", $agents)
+}
+foreach ($file in @($Read)) {
+    if (-not $file) { continue }
+    $resolved = $file
+    if (-not [System.IO.Path]::IsPathRooted($file)) {
+        $candidate = Join-Path $Worktree $file
+        if (Test-Path -LiteralPath $candidate) {
+            $resolved = $candidate
+        }
+    }
+    $aiderArgs += @("--read", $resolved)
 }
 
 $before = ""
@@ -109,6 +124,15 @@ try {
     $after = (git status --porcelain)
     if ("$after" -ne "$before") {
         Write-Error "architect run changed the worktree; read-only contract failed"
+        exit 2
+    }
+    if (-not (Test-Path -LiteralPath $historyFile)) {
+        Write-Error "architect history missing; cited-path gate failed"
+        exit 2
+    }
+    $cited = & py -3 $agentPy "cited" "--text-file" $historyFile "--root" $Worktree
+    if ($LASTEXITCODE -ne 0) {
+        Write-Output ($cited -join "`n")
         exit 2
     }
 } finally {
