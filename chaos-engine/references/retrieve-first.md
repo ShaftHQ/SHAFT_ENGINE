@@ -45,6 +45,10 @@ budget on a store of any size; `memory search` is the one to reach for.
 
 ## Bounded retrieval
 
+After a plan is approved, the MemPalace attempt in the research receipt is
+mandatory before the first implementation mutation. Record `used`, `skipped`
+with a concrete irrelevance reason, or `degraded`. Do not skip the attempt.
+
 When a store can answer a concrete question, query it before broad discovery.
 Allow one attempt through the existing host timeout, with no retries, repair,
 refresh, mining, checkpointing, polling, or watching. Ordinary tasks launch no
