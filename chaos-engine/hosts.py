@@ -18,7 +18,7 @@ import sqlite3
 import stat
 import subprocess  # nosec B404 - probes a resolved local Java executable.
 import sys
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 
 
 RECEIPT_NAME = ".chaos-engine-hosts.json"
@@ -1762,14 +1762,22 @@ def created_directories(project: Path) -> list[str]:
     ]
 
 
-def allowed_managed_directories() -> set[str]:
+def directories_for_paths(relatives: object) -> set[str]:
     directories: set[str] = set()
-    for relative in managed_paths():
+    if not isinstance(relatives, (list, tuple, set, frozenset)):
+        return directories
+    for relative in relatives:
+        if not isinstance(relative, str):
+            continue
         current = Path(relative).parent
         while current != Path("."):
             directories.add(current.as_posix())
             current = current.parent
     return directories
+
+
+def allowed_managed_directories() -> set[str]:
+    return directories_for_paths(managed_paths())
 
 
 def sha256_bytes(value: bytes) -> str:
@@ -2657,15 +2665,25 @@ def encode_images(images: dict[str, bytes | None]) -> dict[str, str | None]:
     }
 
 
+def receipt_image_key(relative: object) -> str:
+    if not isinstance(relative, str) or not relative or relative.startswith(("/", "\\")):
+        raise ValueError("ChaosEngine host receipt contains an unsafe receipt path")
+    if "\\" in relative or ":" in relative:
+        raise ValueError("ChaosEngine host receipt contains an unsafe receipt path")
+    parts = PurePosixPath(relative).parts
+    if not parts or any(part in {"", ".", ".."} for part in parts):
+        raise ValueError("ChaosEngine host receipt contains an unsafe receipt path")
+    return relative
+
+
 def decode_images(value: object, *, nullable: bool) -> dict[str, bytes | None]:
-    keys = frozenset(value) if isinstance(value, dict) else frozenset()
-    current_keys = frozenset(managed_paths())
-    if (
-        not isinstance(value, dict)
-        or not frozenset(LEGACY_MANAGED_PATHS) <= keys
-        or not keys <= current_keys
-    ):
+    if not isinstance(value, dict):
         raise ValueError("ChaosEngine host receipt ownership is invalid")
+    keys = frozenset(value)
+    if not frozenset(LEGACY_MANAGED_PATHS) <= keys:
+        raise ValueError("ChaosEngine host receipt is missing required adapter paths")
+    for relative in keys:
+        receipt_image_key(relative)
     result: dict[str, bytes | None] = {}
     try:
         for relative, content in value.items():
@@ -2686,7 +2704,12 @@ def receipt_directories(receipt: dict[str, object]) -> list[str]:
     value = receipt.get("createdDirectories")
     if not isinstance(value, list) or any(not isinstance(item, str) for item in value):
         raise ValueError("ChaosEngine host receipt directory ownership is invalid")
-    allowed = allowed_managed_directories()
+    recorded: set[str] = set()
+    for key in ("before", "after"):
+        images = receipt.get(key)
+        if isinstance(images, dict):
+            recorded.update(str(item) for item in images)
+    allowed = allowed_managed_directories() | directories_for_paths(recorded)
     expected_order = sorted(value, key=lambda item: (len(Path(item).parts), item))
     if len(value) != len(set(value)) or value != expected_order:
         raise ValueError("ChaosEngine host receipt directory ownership is invalid")
@@ -3329,7 +3352,8 @@ def finalize_uninstall(project: Path) -> None:
     if receipt["phase"] != "removing":
         raise ValueError("ChaosEngine host removal is not prepared")
     before = decode_images(receipt["before"], nullable=True)
-    if current_images(project) != before:
+    observed = {relative: read_file(project, project / relative) for relative in before}
+    if observed != before:
         raise ValueError("ChaosEngine host removal state drift detected")
     remove_created_directories(project, receipt)
     anchor = host_anchor_path(project)
