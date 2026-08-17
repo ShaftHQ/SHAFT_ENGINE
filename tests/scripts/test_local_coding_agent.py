@@ -258,6 +258,10 @@ class LocalCodingAgentPackagingTest(unittest.TestCase):
 class LocalCodingAgentCitedPathTest(unittest.TestCase):
     HALLUCINATED = "shaft-ai/src/main/java/com/shaft/ai/ollama/OllamaClient.java"
     EXISTING = "scripts/local-coding-agent/run_agent.ps1"
+    AGENTS_MD_ONLY_BARE_NAMES = (
+        "> Added AGENTS.md to the chat (read-only).\n"
+        "See shaft-architect.ps1 and OllamaProvider.java.\n"
+    )
 
     def test_recorded_ollama_client_hallucination_is_missing(self):
         text = (
@@ -280,11 +284,22 @@ class LocalCodingAgentCitedPathTest(unittest.TestCase):
         text = "OllamaClient and OllamaProvider are class names, not repo paths."
         self.assertEqual([], MODULE.cited_repo_paths(text))
 
-    def test_no_existing_cited_path_is_a_blocker(self):
+    def test_agents_md_only_history_with_bare_real_names_is_ok(self):
         import tempfile
 
         transcript = Path(tempfile.mkdtemp()) / "history.md"
-        transcript.write_text(f"Invented {self.HALLUCINATED}\n", encoding="utf-8")
+        transcript.write_text(self.AGENTS_MD_ONLY_BARE_NAMES, encoding="utf-8")
+        code = MODULE.main(["cited", "--text-file", str(transcript), "--root", str(ROOT)])
+        self.assertEqual(0, code)
+
+    def test_agents_md_only_history_still_blocks_invented_slashy_path(self):
+        import tempfile
+
+        transcript = Path(tempfile.mkdtemp()) / "history.md"
+        transcript.write_text(
+            self.AGENTS_MD_ONLY_BARE_NAMES + f"The Java client is {self.HALLUCINATED}.\n",
+            encoding="utf-8",
+        )
         code = MODULE.main(["cited", "--text-file", str(transcript), "--root", str(ROOT)])
         self.assertEqual(2, code)
 

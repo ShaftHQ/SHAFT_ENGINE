@@ -76,6 +76,22 @@ class KnowledgeStoresTest(unittest.TestCase):
     def checkout_palace_created(self, root):
         return (root / ".chaos-engine-state" / "mempalace").exists()
 
+    def mempalace_tokens(self):
+        logged = self.log.read_text(encoding="utf-8")
+        line = next((item for item in logged.splitlines() if item.strip()), "")
+        return line.split()
+
+    def assert_global_flags_before(self, subcommand):
+        tokens = self.mempalace_tokens()
+        palace_at = tokens.index("--palace")
+        backend_at = tokens.index("--backend")
+        command_at = tokens.index(subcommand)
+        self.assertLess(palace_at, command_at, tokens)
+        self.assertLess(backend_at, command_at, tokens)
+        self.assertEqual("sqlite_exact", tokens[backend_at + 1], tokens)
+        self.assertEqual(str(self.palace.resolve()), tokens[palace_at + 1], tokens)
+        return tokens
+
     def test_status_from_linked_worktree_uses_central_palace_and_graphify_check(self):
         completed = self.cli("status")
         combined = completed.stdout + completed.stderr
@@ -84,11 +100,7 @@ class KnowledgeStoresTest(unittest.TestCase):
         self.assertIn(str(self.palace.resolve()), combined)
         self.assertIn("MEMPALACE-FAKE-OUTPUT", completed.stdout)
         self.assertTrue(self.log.exists(), combined)
-        logged = self.log.read_text(encoding="utf-8")
-        self.assertIn(str(self.palace.resolve()), logged)
-        self.assertIn("--palace", logged)
-        self.assertIn("sqlite_exact", logged)
-        self.assertIn("status", logged)
+        self.assert_global_flags_before("status")
         self.assertRegex(completed.stderr + completed.stdout, r"(?:absent|stale) -")
         self.assertIn("Graphify: degraded", completed.stderr)
         self.assertFalse(self.checkout_palace_created(self.linked))
@@ -100,11 +112,10 @@ class KnowledgeStoresTest(unittest.TestCase):
 
         self.assertEqual(0, completed.returncode, combined)
         self.assertIn("MEMPALACE-FAKE-OUTPUT", completed.stdout)
+        tokens = self.assert_global_flags_before("search")
         logged = self.log.read_text(encoding="utf-8")
-        self.assertIn(str(self.palace.resolve()), logged)
-        self.assertIn("search", logged)
         self.assertIn("shared cache", logged)
-        self.assertIn("shaft_engine_main", logged)
+        self.assertIn("shaft_engine_main", tokens)
         self.assertFalse(self.checkout_palace_created(self.linked))
 
     def test_refresh_refuses_linked_worktree_and_ordinary_checkout(self):
