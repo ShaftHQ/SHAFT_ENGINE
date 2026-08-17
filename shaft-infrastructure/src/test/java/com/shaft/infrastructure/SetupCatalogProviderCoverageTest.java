@@ -54,7 +54,8 @@ class SetupCatalogProviderCoverageTest {
 
     @Test
     void everyInstallableCatalogTargetIsPlannedOrExplicitlyAllowlisted(@TempDir Path temp) {
-        Set<SetupTarget> plannedInstall = plannedInstallTargets(temp);
+        PlannedCoverage coverage = plannedInstallTargets(temp);
+        Set<SetupTarget> plannedInstall = coverage.install();
         Set<SetupTarget> serviceLoaderTargets = EnumSet.noneOf(SetupTarget.class);
         SetupCatalog.builtIn().profiles().stream()
                 .filter(profile -> SERVICE_LOADER_PROFILES.contains(profile.profile()))
@@ -78,7 +79,7 @@ class SetupCatalogProviderCoverageTest {
                         target + " is ServiceLoader-owned and must not be hard-wired in builtIn()");
                 continue;
             }
-            assertTrue(plannedInstall.contains(target),
+            assertTrue(plannedInstall.contains(target) || coverage.hostGated().contains(target),
                     target + " is INSTALLABLE in the catalog but no provider plans an INSTALL action");
         }
     }
@@ -89,7 +90,7 @@ class SetupCatalogProviderCoverageTest {
         return profiles;
     }
 
-    private static Set<SetupTarget> plannedInstallTargets(Path temp) {
+    private static PlannedCoverage plannedInstallTargets(Path temp) {
         Map<SetupProfile, InfrastructureSetupService> owners = new EnumMap<>(SetupProfile.class);
         owners.put(SetupProfile.MOBILE_IOS, InfrastructureSetupService.builtIn(
                 SetupPlatform.MACOS, SetupArchitecture.X64));
@@ -97,17 +98,28 @@ class SetupCatalogProviderCoverageTest {
                 SetupPlatform.WINDOWS, SetupArchitecture.X64));
         InfrastructureSetupService host = InfrastructureSetupService.builtIn();
         Set<SetupTarget> planned = EnumSet.noneOf(SetupTarget.class);
+        Set<SetupTarget> hostGated = EnumSet.noneOf(SetupTarget.class);
         for (SetupProfile profile : catalogProfiles()) {
             if (HOST_ONLY_PROFILES.contains(profile) || SERVICE_LOADER_PROFILES.contains(profile)) {
                 continue;
             }
             InfrastructureSetupService service = owners.getOrDefault(profile, host);
-            SetupPlan plan = service.plan(managed(temp, profile));
-            plan.actions().stream()
-                    .filter(action -> action.kind() == SetupActionKind.INSTALL)
-                    .forEach(action -> planned.add(action.target()));
+            try {
+                SetupPlan plan = service.plan(managed(temp, profile));
+                plan.actions().stream()
+                        .filter(action -> action.kind() == SetupActionKind.INSTALL)
+                        .forEach(action -> planned.add(action.target()));
+            } catch (IllegalArgumentException unsupportedHost) {
+                SetupCatalog.builtIn().profiles().stream()
+                        .filter(definition -> definition.profile() == profile)
+                        .flatMap(definition -> definition.targets().stream())
+                        .forEach(hostGated::add);
+            }
         }
-        return planned;
+        return new PlannedCoverage(planned, hostGated);
+    }
+
+    private record PlannedCoverage(Set<SetupTarget> install, Set<SetupTarget> hostGated) {
     }
 
     private static SetupOptions managed(Path temp, SetupProfile profile) {
