@@ -84,6 +84,17 @@ final class DesktopMobileSetupPlanner {
                 "sha256:" + WINAPPDRIVER_SHA256, 3_932_160, false, Set.of())));
     }
 
+    static String requestedSimulator(SetupPlan plan) {
+        if (plan.profile() != SetupProfile.MOBILE_IOS) {
+            throw new IllegalArgumentException("Simulator identity is only defined for iOS plans.");
+        }
+        return selectedSimulator(selectionFromPlan(plan));
+    }
+
+    static int requestedAppiumPort(SetupPlan plan) {
+        return selectedPort(selectionFromPlan(plan));
+    }
+
     static SetupSelection selectionFromPlan(SetupPlan plan) {
         java.util.Objects.requireNonNull(plan, "plan");
         return switch (plan.profile()) {

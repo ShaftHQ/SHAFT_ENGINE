@@ -82,10 +82,12 @@ final class SystemDesktopMobileHostProbe implements DesktopMobileHostProbe {
             if (available.isEmpty()) return missing(action, "No available iOS Simulator device exists.");
             return ready(action, available.getFirst(), "An existing iOS Simulator device is available.");
         }
-        if (!available.contains(requested)) {
+        String matched = available.stream().filter(candidate -> candidate.equalsIgnoreCase(requested)).findFirst()
+                .orElse(null);
+        if (matched == null) {
             return missing(action, "Selected iOS Simulator is unavailable: " + requested);
         }
-        return ready(action, requested, "Selected iOS Simulator is available.");
+        return ready(action, matched, "Selected iOS Simulator is available.");
     }
 
     private SetupStatus winAppDriverStatus(SetupAction action) throws IOException {

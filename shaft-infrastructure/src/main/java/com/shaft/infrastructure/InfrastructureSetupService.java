@@ -49,6 +49,11 @@ public final class InfrastructureSetupService {
         return providers.profiles().contains(Objects.requireNonNull(profile, "profile"));
     }
 
+    /** Reconstructs the canonical selection embedded in an approved plan. */
+    public SetupSelection selectionFromPlan(SetupPlan plan) {
+        return providers.require(Objects.requireNonNull(plan, "plan").profile()).selectionFromPlan(plan);
+    }
+
     public SetupPlan plan(SetupOptions options) {
         return plan(options, SetupSelection.defaults());
     }

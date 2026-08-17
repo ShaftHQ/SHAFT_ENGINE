@@ -367,6 +367,11 @@ public final class SetupCommand implements Runnable {
         return switch (plan.profile()) {
             case OCR -> ocrSelection(plan, languages);
             case MOBILE_ANDROID -> android.selectionFromPlan(plan);
+            case MOBILE_IOS, MOBILE_WINDOWS -> {
+                android.rejectIfSupplied(plan.profile());
+                yield InfrastructureSetupService.builtIn(plan.platform(), plan.architecture())
+                        .selectionFromPlan(plan);
+            }
             default -> {
                 android.rejectIfSupplied(plan.profile());
                 yield SetupSelection.defaults();

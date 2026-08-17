@@ -121,6 +121,17 @@ class DesktopMobileSetupProviderTest {
                 () -> windows.plan(options, new SetupSelection(List.of("port_invalid"))));
     }
 
+    @Test
+    void coordinatorReconstructsExactIosSelectionFromAnApprovedPlan(@TempDir Path temp) {
+        InfrastructureSetupService ios = InfrastructureSetupService.builtIn(
+                SetupPlatform.MACOS, SetupArchitecture.ARM64);
+        SetupSelection selection = new SetupSelection(List.of(
+                "simulator_00000000_0000_0000_0000_000000000001", "port_4725"));
+        SetupPlan plan = ios.plan(managed(SetupProfile.MOBILE_IOS, temp.resolve("ios")), selection);
+
+        assertEquals(selection, ios.selectionFromPlan(plan));
+    }
+
     private static SetupOptions managed(SetupProfile profile, Path root) {
         Path cache = root.resolve("cache");
         Path data = root.resolve("data");
