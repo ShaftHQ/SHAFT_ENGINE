@@ -2,6 +2,8 @@
 <#
 .SYNOPSIS
   Dispatch the workstation local coder and write a report the orchestrator can read.
+.NOTES
+  Focused tests use mvn.cmd, not mvn.exe. Operator receipts live on #5017.
 #>
 [CmdletBinding()]
 param(
@@ -73,7 +75,7 @@ function Get-LoopbackListener {
 
 if (-not (Get-LoopbackListener)) {
     if (-not (Test-Path -LiteralPath $ollama)) {
-        Write-Error "Ollama is not installed at $ollama. See scripts/local-coding-agent/README.md"
+        Write-Error "Ollama is not installed at $ollama. See issue #5017."
         exit 2
     }
     $foreign = Get-NetTCPConnection -LocalPort 11434 -State Listen -ErrorAction SilentlyContinue
@@ -133,7 +135,7 @@ if (Test-Path -LiteralPath $aider) {
         Pop-Location
     }
 } else {
-    "Aider is not installed at $aider. See scripts/local-coding-agent/README.md" | Set-Content -LiteralPath $agentLog
+    "Aider is not installed at $aider. See issue #5017." | Set-Content -LiteralPath $agentLog
     $aiderExit = 2
 }
 

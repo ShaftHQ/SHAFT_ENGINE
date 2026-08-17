@@ -11,8 +11,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 SCRIPT = ROOT / "scripts" / "local-coding-agent" / "agent.py"
 SCHEMA = ROOT / "scripts" / "local-coding-agent" / "report.schema.json"
-README = ROOT / "scripts" / "local-coding-agent" / "README.md"
 RUN_AGENT = ROOT / "scripts" / "local-coding-agent" / "run_agent.ps1"
+INSTALL = ROOT / "scripts" / "local-coding-agent" / "install.ps1"
 STOP = ROOT / "scripts" / "local-coding-agent" / "stop.ps1"
 
 SPEC = importlib.util.spec_from_file_location("local_coding_agent", SCRIPT)
@@ -109,8 +109,11 @@ class LocalCodingAgentPackagingTest(unittest.TestCase):
         required = set(schema["required"])
         self.assertTrue(set(MODULE.REQUIRED_REPORT_KEYS) <= required)
 
-    def test_runbook_names_roles_tooling_and_model(self):
-        text = README.read_text(encoding="utf-8")
+    def test_wrappers_name_roles_tooling_and_model(self):
+        text = "\n".join(
+            path.read_text(encoding="utf-8")
+            for path in (RUN_AGENT, INSTALL, STOP)
+        )
         for token in (
             "orchestrator",
             "qwen2.5-coder:7b",
@@ -122,9 +125,12 @@ class LocalCodingAgentPackagingTest(unittest.TestCase):
             "mvn.cmd",
         ):
             self.assertIn(token, text)
+        self.assertFalse((ROOT / "scripts" / "local-coding-agent" / "README.md").exists())
+        self.assertFalse((ROOT / "scripts" / "local-coding-agent" / "HANDOFF.md").exists())
 
     def test_wrappers_exist(self):
         self.assertTrue(RUN_AGENT.is_file())
+        self.assertTrue(INSTALL.is_file())
         self.assertTrue(STOP.is_file())
         run_text = RUN_AGENT.read_text(encoding="utf-8")
         stop_text = STOP.read_text(encoding="utf-8")
