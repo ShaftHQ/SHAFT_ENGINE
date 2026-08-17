@@ -31,11 +31,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3",
-            "args": [
-              "-c",
-              "import pathlib,runpy;p=next(p/'scripts/agents/guard.py' for p in (pathlib.Path.cwd(),*pathlib.Path.cwd().parents) if (p/'scripts/agents/guard.py').is_file());runpy.run_path(str(p),run_name='__main__')"
-            ],
+            "command": "python3 -c \"import pathlib,runpy;p=next(p/'scripts/agents/guard.py' for p in (pathlib.Path.cwd(),*pathlib.Path.cwd().parents) if (p/'scripts/agents/guard.py').is_file());runpy.run_path(str(p),run_name='__main__')\"",
+            "commandWindows": "py -3 -c \"import pathlib,runpy;p=next(p/'scripts/agents/guard.py' for p in (pathlib.Path.cwd(),*pathlib.Path.cwd().parents) if (p/'scripts/agents/guard.py').is_file());runpy.run_path(str(p),run_name='__main__')\"",
             "timeout": 10
           }
         ]
@@ -47,11 +44,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3",
-            "args": [
-              "-c",
-              "import pathlib,runpy;p=next(p/'scripts/agents/guard.py' for p in (pathlib.Path.cwd(),*pathlib.Path.cwd().parents) if (p/'scripts/agents/guard.py').is_file());runpy.run_path(str(p),run_name='__main__')"
-            ],
+            "command": "python3 -c \"import pathlib,runpy;p=next(p/'scripts/agents/guard.py' for p in (pathlib.Path.cwd(),*pathlib.Path.cwd().parents) if (p/'scripts/agents/guard.py').is_file());runpy.run_path(str(p),run_name='__main__')\"",
+            "commandWindows": "py -3 -c \"import pathlib,runpy;p=next(p/'scripts/agents/guard.py' for p in (pathlib.Path.cwd(),*pathlib.Path.cwd().parents) if (p/'scripts/agents/guard.py').is_file());runpy.run_path(str(p),run_name='__main__')\"",
             "timeout": 10
           }
         ]
@@ -63,11 +57,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3",
-            "args": [
-              "-c",
-              "import pathlib,runpy;p=next(p/'scripts/agents/guard.py' for p in (pathlib.Path.cwd(),*pathlib.Path.cwd().parents) if (p/'scripts/agents/guard.py').is_file());runpy.run_path(str(p),run_name='__main__')"
-            ],
+            "command": "python3 -c \"import pathlib,runpy;p=next(p/'scripts/agents/guard.py' for p in (pathlib.Path.cwd(),*pathlib.Path.cwd().parents) if (p/'scripts/agents/guard.py').is_file());runpy.run_path(str(p),run_name='__main__')\"",
+            "commandWindows": "py -3 -c \"import pathlib,runpy;p=next(p/'scripts/agents/guard.py' for p in (pathlib.Path.cwd(),*pathlib.Path.cwd().parents) if (p/'scripts/agents/guard.py').is_file());runpy.run_path(str(p),run_name='__main__')\"",
             "timeout": 10
           }
         ]
@@ -78,11 +69,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3",
-            "args": [
-              "-c",
-              "import pathlib,runpy;p=next(p/'scripts/agents/guard.py' for p in (pathlib.Path.cwd(),*pathlib.Path.cwd().parents) if (p/'scripts/agents/guard.py').is_file());runpy.run_path(str(p),run_name='__main__')"
-            ],
+            "command": "python3 -c \"import pathlib,runpy;p=next(p/'scripts/agents/guard.py' for p in (pathlib.Path.cwd(),*pathlib.Path.cwd().parents) if (p/'scripts/agents/guard.py').is_file());runpy.run_path(str(p),run_name='__main__')\"",
+            "commandWindows": "py -3 -c \"import pathlib,runpy;p=next(p/'scripts/agents/guard.py' for p in (pathlib.Path.cwd(),*pathlib.Path.cwd().parents) if (p/'scripts/agents/guard.py').is_file());runpy.run_path(str(p),run_name='__main__')\"",
             "timeout": 30
           }
         ]
@@ -93,11 +81,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3",
-            "args": [
-              "-c",
-              "import pathlib,runpy;p=next(p/'scripts/agents/guard.py' for p in (pathlib.Path.cwd(),*pathlib.Path.cwd().parents) if (p/'scripts/agents/guard.py').is_file());runpy.run_path(str(p),run_name='__main__')"
-            ],
+            "command": "python3 -c \"import pathlib,runpy;p=next(p/'scripts/agents/guard.py' for p in (pathlib.Path.cwd(),*pathlib.Path.cwd().parents) if (p/'scripts/agents/guard.py').is_file());runpy.run_path(str(p),run_name='__main__')\"",
+            "commandWindows": "py -3 -c \"import pathlib,runpy;p=next(p/'scripts/agents/guard.py' for p in (pathlib.Path.cwd(),*pathlib.Path.cwd().parents) if (p/'scripts/agents/guard.py').is_file());runpy.run_path(str(p),run_name='__main__')\"",
             "timeout": 10
           }
         ]
@@ -108,11 +93,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3",
-            "args": [
-              "-c",
-              "import pathlib,runpy;p=next(p/'scripts/agents/guard.py' for p in (pathlib.Path.cwd(),*pathlib.Path.cwd().parents) if (p/'scripts/agents/guard.py').is_file());runpy.run_path(str(p),run_name='__main__')"
-            ],
+            "command": "python3 -c \"import pathlib,runpy;p=next(p/'scripts/agents/guard.py' for p in (pathlib.Path.cwd(),*pathlib.Path.cwd().parents) if (p/'scripts/agents/guard.py').is_file());runpy.run_path(str(p),run_name='__main__')\"",
+            "commandWindows": "py -3 -c \"import pathlib,runpy;p=next(p/'scripts/agents/guard.py' for p in (pathlib.Path.cwd(),*pathlib.Path.cwd().parents) if (p/'scripts/agents/guard.py').is_file());runpy.run_path(str(p),run_name='__main__')\"",
             "timeout": 30
           }
         ]
@@ -123,11 +105,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3",
-            "args": [
-              "-c",
-              "import pathlib,runpy;p=next(p/'scripts/agents/guard.py' for p in (pathlib.Path.cwd(),*pathlib.Path.cwd().parents) if (p/'scripts/agents/guard.py').is_file());runpy.run_path(str(p),run_name='__main__')"
-            ],
+            "command": "python3 -c \"import pathlib,runpy;p=next(p/'scripts/agents/guard.py' for p in (pathlib.Path.cwd(),*pathlib.Path.cwd().parents) if (p/'scripts/agents/guard.py').is_file());runpy.run_path(str(p),run_name='__main__')\"",
+            "commandWindows": "py -3 -c \"import pathlib,runpy;p=next(p/'scripts/agents/guard.py' for p in (pathlib.Path.cwd(),*pathlib.Path.cwd().parents) if (p/'scripts/agents/guard.py').is_file());runpy.run_path(str(p),run_name='__main__')\"",
             "timeout": 30
           }
         ]
