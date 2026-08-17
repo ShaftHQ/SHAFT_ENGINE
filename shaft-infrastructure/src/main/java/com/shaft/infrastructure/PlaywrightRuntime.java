@@ -25,7 +25,12 @@ public final class PlaywrightRuntime {
         }
         SetupPlatform platform = SetupPlatform.current();
         SetupArchitecture architecture = SetupArchitecture.current();
-        SetupReport report = InfrastructureSetupService.builtIn(platform, architecture).status(selected);
+        SetupReport report;
+        try {
+            report = InfrastructureSetupService.builtIn(platform, architecture).status(selected);
+        } catch (IllegalArgumentException failure) {
+            throw unavailable(failure.getMessage());
+        }
         Path root = PlaywrightSetupService.browserRoot(selected.paths(), platform, architecture)
                 .toAbsolutePath().normalize();
         try {

@@ -107,10 +107,26 @@ enum PlaywrightHostPlatform {
                 return UBUNTU_24_04_X64;
             }
         }
-        if (platform == SetupPlatform.MACOS && osRelease.matches("15(?:\\..*)?")) {
+        if (platform == SetupPlatform.MACOS && supportedMacOs(osRelease)) {
             return architecture == SetupArchitecture.X64 ? MAC15 : MAC15_ARM64;
         }
         throw new IllegalArgumentException("Unsupported Playwright host: " + platform + '-' + architecture);
+    }
+
+    /**
+     * Accepts macOS 15+ marketing versions and Darwin 24+ kernel versions.
+     * GitHub {@code macos-latest} reports the live host, not a pinned 15.x string.
+     */
+    static boolean supportedMacOs(String version) {
+        if (version == null || version.isBlank()) return false;
+        int dot = version.indexOf('.');
+        String majorText = (dot < 0 ? version : version.substring(0, dot)).trim();
+        try {
+            int major = Integer.parseInt(majorText);
+            return major >= 15 && major != 20 && major != 21 && major != 22 && major != 23;
+        } catch (NumberFormatException ignored) {
+            return false;
+        }
     }
 
     private static String unquote(String value) {
