@@ -94,6 +94,52 @@ def loopback_valid(value: str) -> bool:
     return bool(re.fullmatch(r"127\.0\.0\.1:[0-9]+", str(value or "")))
 
 
+def cited_repo_paths(text: str) -> list[str]:
+    """Repo-relative paths with a slash and a file extension. URLs and bare names ignored."""
+    cleaned = re.sub(r"https?://\S+", " ", str(text or ""), flags=re.IGNORECASE)
+    cleaned = cleaned.replace("\\", "/")
+    pattern = re.compile(
+        r"(?<![A-Za-z0-9._-])((?:[A-Za-z0-9._-]+/)+[A-Za-z0-9._-]+\.[A-Za-z0-9]+)"
+    )
+    found: list[str] = []
+    seen: set[str] = set()
+    for match in pattern.finditer(cleaned):
+        path = match.group(1)
+        if any(part == ".." for part in path.split("/")):
+            continue
+        key = path.lower()
+        if key in seen:
+            continue
+        seen.add(key)
+        found.append(path)
+    return found
+
+
+def missing_cited_paths(text: str, root: str | object) -> list[str]:
+    """Cited repo-relative paths that do not exist under root."""
+    from pathlib import Path
+
+    base = Path(root)
+    missing: list[str] = []
+    for path in cited_repo_paths(text):
+        if not (base / path).is_file():
+            missing.append(path)
+    return missing
+
+
+def cited_path_blockers(text: str, root: str | object) -> list[str]:
+    """Fail closed: need at least one existing cited path; any missing path blocks."""
+    cited = cited_repo_paths(text)
+    missing = missing_cited_paths(text, root)
+    existing = [path for path in cited if path not in missing]
+    blockers: list[str] = []
+    if not existing:
+        blockers.append("no existing cited repo path")
+    for path in missing:
+        blockers.append(f"cited path does not exist: {path}")
+    return blockers
+
+
 def validate_report(data: dict) -> list[str]:
     """Return blockers for a report payload."""
     blockers: list[str] = []
@@ -158,6 +204,9 @@ def main(argv: list[str] | None = None) -> int:
     wrt = sub.add_parser("write")
     wrt.add_argument("--input", required=True)
     wrt.add_argument("--out", required=True)
+    cited = sub.add_parser("cited")
+    cited.add_argument("--text-file", required=True)
+    cited.add_argument("--root", required=True)
     args = parser.parse_args(argv)
 
     if args.cmd == "preflight":
@@ -211,6 +260,15 @@ def main(argv: list[str] | None = None) -> int:
         extra = write_report(args.out, payload)
         if extra:
             print("\n".join(extra))
+            return 2
+        print("ok")
+        return 0
+
+    if args.cmd == "cited":
+        text = Path(args.text_file).read_text(encoding="utf-8", errors="replace")
+        blockers = cited_path_blockers(text, args.root)
+        if blockers:
+            print("\n".join(blockers))
             return 2
         print("ok")
         return 0
