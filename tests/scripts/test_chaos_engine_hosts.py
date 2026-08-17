@@ -2263,6 +2263,27 @@ class ChaosEngineHostsTest(unittest.TestCase):
         self.assertIn("tests.scripts.test_chaos_engine_hosts", workflow)
 
 
+class HostReceiptImageTest(unittest.TestCase):
+    def test_decode_images_keeps_receipt_keys_when_live_inventory_shrinks(self) -> None:
+        hosts = load(HOSTS, "chaos_engine_hosts_receipt")
+        recorded = {path: None for path in hosts.managed_paths()}
+        payload = hosts.encode_images(recorded)
+        shrunk = hosts.LEGACY_MANAGED_PATHS
+        self.assertLess(len(shrunk), len(recorded))
+        with mock.patch.object(hosts, "managed_paths", return_value=shrunk):
+            try:
+                decoded = hosts.decode_images(payload, nullable=True)
+            except ValueError as error:
+                self.fail(f"receipt-owned keys were rejected after inventory shrink: {error}")
+        self.assertEqual(decoded, recorded)
+
+    def test_decode_images_rejects_an_escaped_receipt_path(self) -> None:
+        hosts = load(HOSTS, "chaos_engine_hosts_receipt_escape")
+        payload = hosts.encode_images({path: None for path in hosts.LEGACY_MANAGED_PATHS})
+        payload["../secret"] = None
+        with self.assertRaisesRegex(ValueError, "unsafe receipt path"):
+            hosts.decode_images(payload, nullable=True)
+
 class CompanionPinTest(unittest.TestCase):
     def test_checked_in_blobs_match_pin_digests(self) -> None:
         pins = (
