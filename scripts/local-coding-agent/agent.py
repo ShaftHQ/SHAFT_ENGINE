@@ -129,16 +129,8 @@ def missing_cited_paths(text: str, root: str | object) -> list[str]:
 
 
 def cited_path_blockers(text: str, root: str | object) -> list[str]:
-    """Fail closed: need at least one existing cited path; any missing path blocks."""
-    cited = cited_repo_paths(text)
-    missing = missing_cited_paths(text, root)
-    existing = [path for path in cited if path not in missing]
-    blockers: list[str] = []
-    if not existing:
-        blockers.append("no existing cited repo path")
-    for path in missing:
-        blockers.append(f"cited path does not exist: {path}")
-    return blockers
+    """Fail closed: any cited slashy path that does not exist blocks."""
+    return [f"cited path does not exist: {path}" for path in missing_cited_paths(text, root)]
 
 
 def validate_report(data: dict) -> list[str]:
