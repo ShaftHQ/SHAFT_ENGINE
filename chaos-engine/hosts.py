@@ -2453,7 +2453,11 @@ def desired_content(
         desired_hooks,
         "Codex",
     )
-    after[".grok/hooks/lifecycle.json"] = desired_hooks
+    after[".grok/hooks/lifecycle.json"] = hook_content(
+        without_chaos_hooks(before[".grok/hooks/lifecycle.json"], "Grok"),
+        desired_hooks,
+        "Grok",
+    )
     after["plugins/chaos-engine/hooks/guard.py"] = (
         Path(__file__).resolve().parent / "hooks/guard.py"
     ).read_bytes()

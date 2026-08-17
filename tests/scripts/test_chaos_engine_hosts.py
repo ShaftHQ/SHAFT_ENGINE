@@ -528,12 +528,14 @@ class ChaosEngineHostsTest(unittest.TestCase):
             )["hooks"]
             for document in (lifecycle, plugin_lifecycle, grok_lifecycle, claude_lifecycle):
                 self.assertEqual(required_events, set(document))
-                command = document["SessionStart"][0]["hooks"][0]["command"]
-                self.assertIn(" ", command)
-                self.assertTrue(
-                    ".chaos-engine/hooks/guard.py" in command
-                    or "plugins/chaos-engine/hooks/guard.py" in command
-                )
+                for event in required_events:
+                    command = document[event][0]["hooks"][0]["command"]
+                    self.assertIn(" ", command, event)
+                    self.assertTrue(
+                        ".chaos-engine/hooks/guard.py" in command
+                        or "plugins/chaos-engine/hooks/guard.py" in command,
+                        event,
+                    )
             installed_hook = project / "plugins/chaos-engine/hooks/guard.py"
             hook_environment = {**os.environ, "TMPDIR": temporary, "TEMP": temporary}
             failure = {
@@ -636,6 +638,25 @@ class ChaosEngineHostsTest(unittest.TestCase):
             project.joinpath(".chaos-engine/skills/chaos-engine").mkdir(parents=True)
             project.joinpath(".chaos-engine/skills/chaos-engine/SKILL.md").write_text("# C\n")
             hook_path = project / ".codex/hooks.json"
+            hook_path.parent.mkdir(parents=True)
+            original = {"hooks": {"SessionStart": [{"hooks": [{"type": "command", "command": "user-hook"}]}]}}
+            hook_path.write_text(json.dumps(original), encoding="utf-8")
+
+            module.install(project)
+            merged = json.loads(hook_path.read_text())
+            self.assertEqual("user-hook", merged["hooks"]["SessionStart"][0]["hooks"][0]["command"])
+            self.assertGreater(len(merged["hooks"]["SessionStart"]), 1)
+            self.assertIn("Stop", merged["hooks"])
+            module.uninstall(project)
+            self.assertEqual(original, json.loads(hook_path.read_text()))
+
+    def test_grok_hooks_preserve_unrelated_events(self):
+        module = load(HOSTS, "chaos_engine_grok_hook_merge")
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary) / "consumer"
+            project.joinpath(".chaos-engine/skills/chaos-engine").mkdir(parents=True)
+            project.joinpath(".chaos-engine/skills/chaos-engine/SKILL.md").write_text("# C\n")
+            hook_path = project / ".grok/hooks/lifecycle.json"
             hook_path.parent.mkdir(parents=True)
             original = {"hooks": {"SessionStart": [{"hooks": [{"type": "command", "command": "user-hook"}]}]}}
             hook_path.write_text(json.dumps(original), encoding="utf-8")
