@@ -38,6 +38,7 @@ ROLES = CORE_REFERENCES / "roles.md"
 DELEGATION = CORE_REFERENCES / "delegation.md"
 LENS = CORE_REFERENCES / "verification-gap-lens.md"
 CONSULT = CORE_REFERENCES / "consult-first.md"
+RESEARCH_RECEIPT = CORE_REFERENCES / "research-receipt.md"
 ETHICAL_CONDUCT = CORE_REFERENCES / "ethical-conduct.md"
 TDD_REF = CORE_REFERENCES / "tdd.md"
 VENDOR_CAVEMAN = ROOT / "chaos-engine/vendor/caveman/skills/caveman/SKILL.md"
@@ -1240,7 +1241,8 @@ class ConsultGateTest(unittest.TestCase):
         self.assertIn("steelman", content)
 
     def test_entrypoint_requires_a_complete_research_receipt_before_implementation(self):
-        content = compact(ENTRYPOINT)
+        self.assertIn("references/research-receipt.md", ENTRYPOINT.read_text(encoding="utf-8"))
+        content = compact(RESEARCH_RECEIPT)
         required = (
             "read live files",
             "load the routed skill",
@@ -1256,7 +1258,7 @@ class ConsultGateTest(unittest.TestCase):
         self.assertRegex(content, r"missing .{0,80} blocks implementation")
 
     def test_planning_contract_requires_intent_confidence_detail_and_owned_delivery(self):
-        content = compact(ENTRYPOINT)
+        content = compact(RESEARCH_RECEIPT)
         for clause in (
             "main objective",
             "success criteria",
