@@ -1186,6 +1186,7 @@ def attach_component_status(
             target / "hooks/guard.py",
             target / "hooks/reflection.py",
             project / ".codex/hooks.json",
+            project / ".grok/hooks/lifecycle.json",
             project / "plugins/chaos-engine/hooks/hooks.json",
             project / "plugins/caveman/src/hooks/caveman-activate.js",
             project / "plugins/caveman/src/hooks/caveman-mode-tracker.js",

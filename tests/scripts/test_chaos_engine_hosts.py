@@ -419,6 +419,7 @@ class ChaosEngineHostsTest(unittest.TestCase):
                 "plugins/chaos-engine/hooks/guard.py",
                 "plugins/chaos-engine/hooks/reflection.py",
                 "plugins/chaos-engine/skills/chaos-engine/SKILL.md",
+                ".grok/hooks/lifecycle.json",
                 "plugins/caveman/.codex-plugin/plugin.json",
                 "plugins/caveman/.claude-plugin/plugin.json",
                 "plugins/caveman/skills/caveman/SKILL.md",
@@ -504,13 +505,35 @@ class ChaosEngineHostsTest(unittest.TestCase):
                     project.joinpath(f"plugins/{name}/.claude-plugin/plugin.json").read_text()
                 )
                 self.assertIn("hooks", manifest)
+                self.assertNotIn("SessionStart", manifest.get("hooks", {}))
 
+            required_events = {
+                "SessionStart",
+                "UserPromptSubmit",
+                "PreToolUse",
+                "PostToolUse",
+                "PostToolUseFailure",
+                "Stop",
+                "SubagentStop",
+            }
             lifecycle = json.loads(project.joinpath(".codex/hooks.json").read_text())["hooks"]
-            self.assertEqual({}, lifecycle)
             plugin_lifecycle = json.loads(
                 project.joinpath("plugins/chaos-engine/hooks/hooks.json").read_text()
             )["hooks"]
-            self.assertEqual({}, plugin_lifecycle)
+            grok_lifecycle = json.loads(
+                project.joinpath(".grok/hooks/lifecycle.json").read_text()
+            )["hooks"]
+            claude_lifecycle = json.loads(
+                project.joinpath(".claude/settings.json").read_text()
+            )["hooks"]
+            for document in (lifecycle, plugin_lifecycle, grok_lifecycle, claude_lifecycle):
+                self.assertEqual(required_events, set(document))
+                command = document["SessionStart"][0]["hooks"][0]["command"]
+                self.assertIn(" ", command)
+                self.assertTrue(
+                    ".chaos-engine/hooks/guard.py" in command
+                    or "plugins/chaos-engine/hooks/guard.py" in command
+                )
             installed_hook = project / "plugins/chaos-engine/hooks/guard.py"
             hook_environment = {**os.environ, "TMPDIR": temporary, "TEMP": temporary}
             failure = {
@@ -620,7 +643,8 @@ class ChaosEngineHostsTest(unittest.TestCase):
             module.install(project)
             merged = json.loads(hook_path.read_text())
             self.assertEqual("user-hook", merged["hooks"]["SessionStart"][0]["hooks"][0]["command"])
-            self.assertEqual(original, merged)
+            self.assertGreater(len(merged["hooks"]["SessionStart"]), 1)
+            self.assertIn("Stop", merged["hooks"])
             module.uninstall(project)
             self.assertEqual(original, json.loads(hook_path.read_text()))
 
