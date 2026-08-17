@@ -299,6 +299,7 @@ class ChaosEnginePortableCoreTest(unittest.TestCase):
             for path in CORE.rglob("*")
             if path.is_file()
             and "profiles" not in path.relative_to(CORE).parts
+            and "vendor" not in path.relative_to(CORE).parts
             and "__pycache__" not in path.relative_to(CORE).parts
             and path.suffix != ".pyc"
         )
@@ -308,6 +309,15 @@ class ChaosEnginePortableCoreTest(unittest.TestCase):
             for label, pattern in forbidden.items():
                 with self.subTest(path=path.relative_to(ROOT), forbidden=label):
                     self.assertIsNone(pattern.search(text))
+
+    def test_vendor_companions_are_pinned_trees_outside_owned_core_policy(self):
+        for name in ("caveman", "ponytail"):
+            vendor = CORE / "vendor" / name
+            pin = json.loads((vendor / "PIN.json").read_text(encoding="utf-8"))
+            self.assertTrue((vendor / "skills" / name / "SKILL.md").is_file())
+            self.assertGreaterEqual(len(pin["files"]), 3)
+            for relative in pin["files"]:
+                self.assertTrue((vendor / relative).is_file(), relative)
 
     def test_canonical_cleanup_policy_is_portable_and_has_three_scopes(self):
         canonical = CANONICAL_SKILL.read_text(encoding="utf-8")

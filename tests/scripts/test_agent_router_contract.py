@@ -39,6 +39,9 @@ DELEGATION = CORE_REFERENCES / "delegation.md"
 LENS = CORE_REFERENCES / "verification-gap-lens.md"
 CONSULT = CORE_REFERENCES / "consult-first.md"
 ETHICAL_CONDUCT = CORE_REFERENCES / "ethical-conduct.md"
+TDD_REF = CORE_REFERENCES / "tdd.md"
+VENDOR_CAVEMAN = ROOT / "chaos-engine/vendor/caveman/skills/caveman/SKILL.md"
+VENDOR_PONYTAIL = ROOT / "chaos-engine/vendor/ponytail/skills/ponytail/SKILL.md"
 BUDGET = ROOT / "scripts/ci/agent_guidance_budget.json"
 
 # agentskills.io/specification: keep SKILL.md under 500 lines so a host never
@@ -81,11 +84,11 @@ PINNED_CLAUSES: tuple[tuple[Path, str, str], ...] = (
     # asked for one. The per-pull-request floor is weaker in principle and
     # strictly stronger in practice, because a pull request can be counted.
     (ENTRYPOINT, IRON_LAWS, "every pull request gets at least one before it is armed"),
-    (ENTRYPOINT, TDD, "only an expected assertion failure"),
-    (ENTRYPOINT, TDD, "a pass or setup, syntax, or environment error is not red"),
-    (ENTRYPOINT, TDD, "revert that new code and restart"),
-    (ENTRYPOINT, TDD, "asserts nothing, prints instead of asserting, or mocks the behavior under test"),
-    (ENTRYPOINT, TDD, "never backfill tests after implementation"),
+    (TDD_REF, TDD, "only an expected assertion failure"),
+    (TDD_REF, TDD, "a pass or setup, syntax, or environment error is not red"),
+    (TDD_REF, TDD, "revert that new code and restart"),
+    (TDD_REF, TDD, "asserts nothing, prints instead of asserting, or mocks the behavior under test"),
+    (TDD_REF, TDD, "never backfill tests after implementation"),
     (ENTRYPOINT, RED_FLAGS, "the check covers it"),
     (LENS, GAP_SHAPES, "unbound-check gap"),
     (LENS, BINDING, "apply it, run it, read the failure, revert"),
@@ -155,7 +158,7 @@ class PlanArtifactRoutingTest(unittest.TestCase):
 # that is not pinned.
 PINNED_RULE_COUNTS: dict[tuple[Path, str], int] = {
     (ENTRYPOINT, IRON_LAWS): 6,
-    (ENTRYPOINT, TDD): 3,
+    (TDD_REF, TDD): 3,
     (LENS, GAP_SHAPES): 4,
 }
 
@@ -444,7 +447,7 @@ class EthicalConductContractTest(unittest.TestCase):
             owner = "entrypoint" if path == ENTRYPOINT else "reference"
             fragment = "Implementation note: identifiers are stable."
             mutated = (
-                source.replace("\n### Caveman", f"\n{fragment}\n\n### Caveman", 1)
+                source.replace("\n### Companions", f"\n{fragment}\n\n### Companions", 1)
                 if path == ENTRYPOINT
                 else source + "\n" + fragment
             )
@@ -1263,23 +1266,34 @@ class ConsultGateTest(unittest.TestCase):
         self.assertIn("never ask a question the repository", content)
 
     def test_caveman_preserves_exact_meaning_before_compression(self):
-        content = compact(ENTRYPOINT)
-        caveman = content.split("### caveman", 1)[1].split("### ponytail", 1)[0]
-        for exact in ("negation", "numbers", "units", "user language", "commands", "errors"):
-            self.assertIn(exact, caveman)
+        content = compact(VENDOR_CAVEMAN)
+        for exact in (
+            "not/never/no/only/except",
+            "numbers, units exact",
+            "user's dominant language",
+            "cli commands",
+            "errors quoted exact",
+        ):
+            self.assertIn(exact, content)
+        entrypoint = compact(ENTRYPOINT)
+        self.assertIn("vendor/caveman/skills/caveman/skill.md", entrypoint)
+        self.assertNotIn("not/never/no/only/except", entrypoint)
 
     def test_ponytail_has_separate_reuse_native_dependency_and_code_rungs(self):
-        content = compact(ENTRYPOINT)
-        ponytail = content.split("### ponytail", 1)[1].split("### test-driven", 1)[0]
+        ponytail = compact(VENDOR_PONYTAIL).split("the ladder", 1)[1]
         rungs = (
-            "reuse the existing owner",
-            "standard library",
-            "native platform",
-            "already-installed dependency",
-            "minimum new code",
+            "does this need to exist at all",
+            "already in this codebase",
+            "stdlib does it",
+            "native platform feature covers it",
+            "already-installed dependency solves it",
+            "the minimum code that works",
         )
         positions = [ponytail.index(rung) for rung in rungs]
         self.assertEqual(positions, sorted(positions))
+        entrypoint = compact(ENTRYPOINT)
+        self.assertIn("vendor/ponytail/skills/ponytail/skill.md", entrypoint)
+        self.assertNotIn("does this need to exist at all", entrypoint)
 
     def test_every_ponytail_marker_names_its_ceiling_and_upgrade_trigger(self):
         markers = []
@@ -2116,6 +2130,8 @@ class RetrievalParityTest(unittest.TestCase):
         self.assertRegex(content, r"nothing durable is a valid result|no durable learning")
         self.assertRegex(content, r"search before writing|search first", "must prevent duplicates")
         self.assertRegex(content, r"scan.{0,80}(failure|trap|guard block)")
+        self.assertIn("self-development has no cap", content)
+        self.assertIn("smaller discriminating observation", content)
 
 
 class SoloOrOrchestrateTest(unittest.TestCase):
@@ -2404,7 +2420,9 @@ class DisciplineTest(unittest.TestCase):
         it, "restart" is advice rather than a step.
         """
         self.assertEqual(
-            len(headed_sections(self.source(), TDD)), 1, "entrypoint needs exactly one TDD section"
+            len(headed_sections(TDD_REF.read_text(encoding="utf-8"), TDD)),
+            1,
+            "tdd reference needs exactly one TDD section",
         )
         # RED has to be narrowed to an assertion failure, or any red run qualifies.
         self.assert_clause_holds("only an expected assertion failure")

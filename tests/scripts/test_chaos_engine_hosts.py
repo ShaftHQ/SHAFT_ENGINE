@@ -143,7 +143,7 @@ class ChaosEngineHostsTest(unittest.TestCase):
                     state[plugin_key].discard(removed_id.split("@", 1)[0])
                     value = {}
                 elif command[0] in {"npm", "caveman"}:
-                    value = {}
+                    raise AssertionError(command)
                 else:
                     raise AssertionError(command)
                 return mock.Mock(returncode=0, stdout=json.dumps(value), stderr="")
@@ -160,20 +160,20 @@ class ChaosEngineHostsTest(unittest.TestCase):
             )
 
             self.assertEqual(
-                {"codex:chaos-engine", "codex:caveman", "claude:chaos-engine", "claude:caveman"},
+                {
+                    "codex:chaos-engine",
+                    "codex:caveman",
+                    "codex:ponytail",
+                    "claude:chaos-engine",
+                    "claude:caveman",
+                    "claude:ponytail",
+                },
                 set(receipt["createdPlugins"]),
             )
-            self.assertEqual(
-                {"claude", "codex", "hermes", "gemini", "opencode", "aider"},
-                set(receipt["cavemanProxy"]["providers"]),
+            self.assertNotIn("cavemanProxy", receipt)
+            self.assertFalse(
+                any(command and command[0] in {"npm", "caveman"} for command, _ in calls)
             )
-            proxy_commands = [command for command, _ in calls if command and command[0] in {"npm", "caveman"}]
-            self.assertIn(
-                ["npm", "install", "--global", module.CAVEMAN_CLI_SPEC, "--no-audit", "--no-fund"],
-                proxy_commands,
-            )
-            self.assertIn(["caveman", "setup", "--install"], proxy_commands)
-            self.assertIn(["caveman", "enable", "--detected"], proxy_commands)
             self.assertTrue(all(item["status"] == "healthy" for item in status.values()))
             self.assertTrue(all(cwd == project for _, cwd in calls))
 
@@ -191,6 +191,7 @@ class ChaosEngineHostsTest(unittest.TestCase):
             module.install(project, core_commit="1" * 40)
             root, marketplace_name, _, _ = module.prepare_activation_bundle(project)
             shutil.rmtree(root / "plugins/caveman")
+            shutil.rmtree(root / "plugins/ponytail")
 
             activation = {
                 "marketplaceName": marketplace_name,
@@ -213,16 +214,15 @@ class ChaosEngineHostsTest(unittest.TestCase):
 
             self.assertIn(
                 ["plugin", "marketplace", "add", str(root), "--json"],
-                [command for command in calls if command[0] == "codex"],
+                [command[1:] for command in calls if command[0] == "codex"],
             )
             self.assertIn(
                 ["plugin", "add", f"{module.PLUGIN_NAME}@{marketplace_name}", "--json"],
-                [command for command in calls if command[0] == "codex" and command[1:3] == ["plugin", "add"]],
+                [command[1:] for command in calls if command[0] == "codex"],
             )
-            self.assertNotIn(
-                "caveman",
-                "".join(" ".join(command) for command in calls if command[0] == "codex"),
-            )
+            joined = " ".join(" ".join(command) for command in calls if command[0] == "codex")
+            self.assertNotIn("caveman", joined)
+            self.assertNotIn("ponytail", joined)
 
     def test_activation_marketplace_identity_is_collision_safe_across_projects(self):
         module = load(HOSTS, "chaos_engine_plugin_identity")
@@ -424,6 +424,13 @@ class ChaosEngineHostsTest(unittest.TestCase):
                 "plugins/caveman/skills/caveman/SKILL.md",
                 "plugins/caveman/LICENSE",
                 "plugins/caveman/UPSTREAM.md",
+                "plugins/caveman/src/hooks/caveman-activate.js",
+                "plugins/ponytail/.codex-plugin/plugin.json",
+                "plugins/ponytail/.claude-plugin/plugin.json",
+                "plugins/ponytail/skills/ponytail/SKILL.md",
+                "plugins/ponytail/LICENSE",
+                "plugins/ponytail/UPSTREAM.md",
+                "plugins/ponytail/hooks/ponytail-activate.js",
                 ".codex/hooks.json",
                 ".claude/settings.json",
                 ".memory/config.json",
@@ -480,6 +487,23 @@ class ChaosEngineHostsTest(unittest.TestCase):
             self.assertIn("!.claude/**", ignores)
             self.assertIn("!.codex/**", ignores)
             self.assertIn(".claude/settings.local.json", ignores)
+            for name, vendor in (("caveman", "caveman"), ("ponytail", "ponytail")):
+                pin = json.loads(
+                    (ROOT / "chaos-engine/vendor" / vendor / "PIN.json").read_text(
+                        encoding="utf-8"
+                    )
+                )
+                for relative in pin["files"]:
+                    published = project / "plugins" / name / relative
+                    self.assertTrue(published.is_file(), published)
+                    self.assertEqual(
+                        published.read_bytes(),
+                        (ROOT / "chaos-engine/vendor" / vendor / relative).read_bytes(),
+                    )
+                manifest = json.loads(
+                    project.joinpath(f"plugins/{name}/.claude-plugin/plugin.json").read_text()
+                )
+                self.assertIn("hooks", manifest)
 
             lifecycle = json.loads(project.joinpath(".codex/hooks.json").read_text())["hooks"]
             self.assertEqual({}, lifecycle)
@@ -534,7 +558,7 @@ class ChaosEngineHostsTest(unittest.TestCase):
             module.install(project)
             merged = json.loads(marketplace_path.read_text())
             self.assertEqual(
-                ["unrelated", "chaos-engine", "caveman"],
+                ["unrelated", "chaos-engine", "caveman", "ponytail"],
                 [item["name"] for item in merged["plugins"]],
             )
             self.assertEqual("./plugins/chaos-engine", merged["plugins"][1]["source"]["path"])
@@ -2237,6 +2261,46 @@ class ChaosEngineHostsTest(unittest.TestCase):
         )
         workflow = (ROOT / ".github/workflows/pr-gate.yml").read_text(encoding="utf-8")
         self.assertIn("tests.scripts.test_chaos_engine_hosts", workflow)
+
+
+class CompanionPinTest(unittest.TestCase):
+    def test_checked_in_blobs_match_pin_digests(self) -> None:
+        pins = (
+            ROOT / "chaos-engine/vendor/caveman/PIN.json",
+            ROOT / "chaos-engine/vendor/ponytail/PIN.json",
+        )
+        for pin_path in pins:
+            with self.subTest(pin=pin_path.as_posix()):
+                pin = json.loads(pin_path.read_text(encoding="utf-8"))
+                files = pin["files"]
+                self.assertTrue(files)
+                root = pin_path.parent
+                listed = set(files)
+                on_disk = {
+                    path.relative_to(root).as_posix()
+                    for path in root.rglob("*")
+                    if path.is_file() and path.name not in {"PIN.json", "INVENTORY.md"}
+                }
+                self.assertEqual(listed, on_disk)
+                for relative, expected in files.items():
+                    digest = hashlib.sha256((root / relative).read_bytes()).hexdigest()
+                    self.assertEqual(digest, expected, relative)
+
+    def test_entrypoint_does_not_restate_vendor_skill_bodies(self) -> None:
+        entrypoint = (ROOT / "chaos-engine/skills/chaos-engine/SKILL.md").read_text(
+            encoding="utf-8"
+        )
+        caveman = (
+            ROOT / "chaos-engine/vendor/caveman/skills/caveman/SKILL.md"
+        ).read_text(encoding="utf-8")
+        ponytail = (
+            ROOT / "chaos-engine/vendor/ponytail/skills/ponytail/SKILL.md"
+        ).read_text(encoding="utf-8")
+        self.assertIn("Respond terse like smart caveman", caveman)
+        self.assertIn("You are a lazy senior developer", ponytail)
+        self.assertNotIn("Respond terse like smart caveman", entrypoint)
+        self.assertNotIn("You are a lazy senior developer", entrypoint)
+        self.assertNotIn("@caveman-ai/cli", entrypoint)
 
 
 if __name__ == "__main__":

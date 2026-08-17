@@ -186,58 +186,22 @@ safety boundaries.
 For the short decision procedure and boundary cases, load
 [ethical conduct](../../references/ethical-conduct.md).
 
-### Caveman
+### Companions
 
-If `plugins/caveman/skills/caveman/SKILL.md` exists, use it as this section's response-compression companion. User requests for normal mode still win.
+This file is the only router. It does not restate companion rules.
 
-- [Bundled Caveman skill definition](../../vendor/caveman/SKILL.md)
-- [Bundled Caveman license](../../vendor/caveman/LICENSE)
+After triage, implementation and review load both vendor skills before the
+first mutation. Mechanical one-file edits and consult-only answers skip them
+unless the user invoked `/caveman` or `/ponytail`. User `stop caveman`,
+`stop ponytail`, or `normal mode` still wins. Once loaded, each companion's
+own text applies.
 
-Preserve user language, negation, numbers, units, commands, and errors exactly. `/caveman lite|full|ultra` selects compression; `stop caveman` or `normal mode` disables it.
-
-### Ponytail
-
-Default implementation rule is the first simple option that works after the
-real flow and callers are understood. Stop at the first rung that holds:
-
-1. Skip speculative need.
-2. Reuse the existing owner or pattern.
-3. Use the standard library.
-4. Use native platform behavior.
-5. Use an already-installed dependency.
-6. Use one line, then minimum new code.
-
-Prefer deletion, boring code, few files, and no new dependency, abstraction,
-configuration, or scaffolding for an unproven future. Mark a deliberate shortcut
-with `ponytail:` plus `Ceiling:` and an observable `Upgrade trigger:`. Never simplify away
-explicit requirements, trust-boundary validation, security, accessibility,
-data-loss prevention, error handling, or public API compatibility. Non-trivial
-logic leaves one small runnable check. `/ponytail lite|full|ultra` means suggest
-the simpler option, enforce this ladder, or delete-first YAGNI; `stop ponytail`
-or `normal mode` disables it for the session.
+- [Caveman skill](../../vendor/caveman/skills/caveman/SKILL.md) — [inventory](../../vendor/caveman/INVENTORY.md)
+- [Ponytail skill](../../vendor/ponytail/skills/ponytail/SKILL.md) — [inventory](../../vendor/ponytail/INVENTORY.md)
 
 ### Test-driven development
 
-Features, fixes, refactors, and behavior changes use strict
-RED-GREEN-REFACTOR:
-
-1. RED: add one focused test of observable behavior and run it. Accept only an
-   expected assertion failure caused by missing behavior; a pass or setup,
-   syntax, or environment error is not RED. If production code was written
-   first, revert that new code and restart.
-2. GREEN: write only enough production code to pass. Rerun the focused test,
-   then the nearest plausible regression check. Fix code, not a valid test.
-3. REFACTOR: improve names or duplication only while green, then rerun checks.
-
-Prefer real code; mock only an unavoidable external boundary. A test that
-asserts nothing, prints instead of asserting, or mocks the behavior under test
-is not a test. Never backfill tests after implementation and call it TDD, or
-claim an unrun check. Documentation, guidance, configuration, generated code,
-and discarded prototypes may skip test-first; validate their structure or
-affected flow instead. If RED or GREEN cannot run, report the blocker and do
-not claim verified behavior.
-
-Mocks, or the urge to skip RED: [TDD failure modes](../../references/tdd-failure-modes.md).
+Behavior changes use [test-driven development](../../references/tdd.md).
 
 ### Validation scope and CI failures
 
@@ -359,6 +323,14 @@ merge automatically; an issue still needs normal RED/GREEN and review.
 | A structural change to what calls or depends on what | flag it for the existing Graphify maintenance owner |
 | A procedure that misled you, or one you had to invent | fix the guidance file that should have carried it |
 | Any problem, follow-up action, or potential improvement needing work | after duplicate search, open one new standalone GitHub issue for that action; link its receipt as evidence |
+| Harness friction that forced wasteful or irrelevant work | fix the owning guidance or check so the next session does not repeat it |
+
+Self-development has no cap. When a ritual, suite, or workflow forces work
+that does not change the next decision, reassess the owning rule and improve
+this harness. Prefer a smaller discriminating observation over a larger
+repeated check. Keep learning toward more effective, efficient, and relevant
+output. Iron laws still bind: never invent a passing result, and never weaken
+a valid test to reach green.
 
 Nothing durable is a valid result. Say so rather than manufacturing an entry.
 Re-record nothing already stored: search before writing, and update the existing

@@ -140,12 +140,13 @@ sends you there; the rest by
 - [work GitHub planning](../../chaos-engine/references/work-github-planning.md)
 - [graphify](../../chaos-engine/references/graphify.md)
 - [repository Graphify procedure](../../chaos-engine/profiles/shaft/references/graphify.md)
+- [TDD](../../chaos-engine/references/tdd.md)
 - [TDD failure modes](../../chaos-engine/references/tdd-failure-modes.md)
 
-Caveman, Ponytail and the TDD cycle are not references — they live in the
-entrypoint body, because a rule that governs every task must not cost a second
-read. How the cycle fails is a reference, because it is read while writing one
-test rather than on every task. Only their MIT notices are files:
+Caveman and Ponytail are pinned vendor companions, not restated in the
+entrypoint. The router loads [Caveman](../../chaos-engine/vendor/caveman/INVENTORY.md)
+and [Ponytail](../../chaos-engine/vendor/ponytail/INVENTORY.md) after triage for
+implementation and review. MIT notices stay at
 [Caveman](../../chaos-engine/references/caveman.LICENSE),
 [Ponytail](../../chaos-engine/references/ponytail.LICENSE),
 [TDD](../../chaos-engine/references/test-driven-development.LICENSE).

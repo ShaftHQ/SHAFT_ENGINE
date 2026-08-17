@@ -1171,20 +1171,36 @@ def attach_component_status(
     if not isinstance(capabilities, dict):
         capabilities = legacy_capability_policy()
     component_paths = {
-        "core": [target / "skills/chaos-engine/SKILL.md"],
-        "skills": [project / ".agents/skills/chaos-engine/SKILL.md"],
+        "core": [
+            target / "skills/chaos-engine/SKILL.md",
+            target / "vendor/caveman/PIN.json",
+            target / "vendor/ponytail/PIN.json",
+        ],
+        "skills": [
+            project / ".agents/skills/chaos-engine/SKILL.md",
+            project / "plugins/caveman/skills/caveman/SKILL.md",
+            project / "plugins/ponytail/skills/ponytail/SKILL.md",
+        ],
         "playbooks": [target / "references/work-github-playbook.md"],
         "hooks": [
             target / "hooks/guard.py",
             target / "hooks/reflection.py",
             project / ".codex/hooks.json",
             project / "plugins/chaos-engine/hooks/hooks.json",
+            project / "plugins/caveman/src/hooks/caveman-activate.js",
+            project / "plugins/caveman/src/hooks/caveman-mode-tracker.js",
+            project / "plugins/ponytail/hooks/ponytail-activate.js",
+            project / "plugins/ponytail/hooks/ponytail-mode-tracker.js",
         ],
         "plugins": [
             project / ".agents/plugins/marketplace.json",
             project / ".claude-plugin/marketplace.json",
             project / "plugins/chaos-engine/.codex-plugin/plugin.json",
             project / "plugins/chaos-engine/.claude-plugin/plugin.json",
+            project / "plugins/caveman/.codex-plugin/plugin.json",
+            project / "plugins/caveman/.claude-plugin/plugin.json",
+            project / "plugins/ponytail/.codex-plugin/plugin.json",
+            project / "plugins/ponytail/.claude-plugin/plugin.json",
         ],
         "roles": [
             *(project / ".claude/agents").glob("chaos-engine-*"),
