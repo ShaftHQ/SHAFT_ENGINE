@@ -33,7 +33,9 @@ final class DefaultAgentToolsToolchainOperations implements AgentToolsToolchainO
     public void hostPreflight(List<SetupAction> actions) {
         java.util.Objects.requireNonNull(actions, "actions");
         for (SetupAction action : actions) {
-            if (action.target() != SetupTarget.AGENT_CLI) status(action);
+            if (action.target() != SetupTarget.AGENT_CLI) {
+                java.util.Objects.requireNonNull(status(action), "status");
+            }
         }
     }
 
