@@ -142,11 +142,15 @@ sends you there; the rest by
 - [repository Graphify procedure](../../chaos-engine/profiles/shaft/references/graphify.md)
 - [TDD](../../chaos-engine/references/tdd.md)
 - [TDD failure modes](../../chaos-engine/references/tdd-failure-modes.md)
+- [context economy](../../chaos-engine/references/context-economy.md)
+- [script first](../../chaos-engine/references/script-first.md)
+- [LICENSE](../../chaos-engine/LICENSE)
+- [third-party notices](../../chaos-engine/THIRD_PARTY_NOTICES.md)
 
 Caveman and Ponytail are pinned vendor companions, not restated in the
 entrypoint. The router loads [Caveman](../../chaos-engine/vendor/caveman/INVENTORY.md)
-and [Ponytail](../../chaos-engine/vendor/ponytail/INVENTORY.md) after triage for
-implementation and review. MIT notices stay at
+or [Ponytail](../../chaos-engine/vendor/ponytail/INVENTORY.md) only when the
+user invokes them or the next action needs that companion. MIT notices stay at
 [Caveman](../../chaos-engine/references/caveman.LICENSE),
 [Ponytail](../../chaos-engine/references/ponytail.LICENSE),
 [TDD](../../chaos-engine/references/test-driven-development.LICENSE).

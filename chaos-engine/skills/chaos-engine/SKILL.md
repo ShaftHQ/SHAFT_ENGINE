@@ -4,6 +4,7 @@ description: >-
   Canonical provider-neutral skill router and working contract. Use at the start
   of every task, on every host, in every main thread and delegate, before
   discovery, planning, edits, or answering.
+license: MIT
 ---
 
 # ChaosEngine
@@ -48,13 +49,20 @@ Re-triage when a premise turns out false, the third fix for one symptom fails,
 the blast radius grows, or the user adds scope.
 
 Retrieval depth reads off the same answer. Load
-[retrieve-first](../../references/retrieve-first.md) before broad manual discovery on
-every row, and at completion to keep the stores from drifting.
+[retrieve-first](../../references/retrieve-first.md) before broad manual discovery
+when a store can shorten the task, and at completion to keep the stores from
+drifting. Bound tool reads and prefer one script over a long tool chain:
+[context economy](../../references/context-economy.md) and
+[script first](../../references/script-first.md).
 When this entrypoint was loaded through a role adapter, load
 [retrieve-first](../../references/retrieve-first.md) before task-specific discovery,
 including one-file reversible work.
 
 ## Implementation preflight
+
+Mechanical one-file reversible work still names the eight steps, then records
+store irrelevance without querying. Default and most-intelligent work query a
+store only when it can shorten the task.
 
 Before the first implementation mutation, do these in order for every task:
 
@@ -190,11 +198,14 @@ For the short decision procedure and boundary cases, load
 
 This file is the only router. It does not restate companion rules.
 
-After triage, implementation and review load both vendor skills before the
-first mutation. Mechanical one-file edits and consult-only answers skip them
-unless the user invoked `/caveman` or `/ponytail`. User `stop caveman`,
-`stop ponytail`, or `normal mode` still wins. Once loaded, each companion's
-own text applies.
+Load a vendor skill only when it changes the next action. Implementation and
+review do not auto-load both. Mechanical one-file edits and consult-only
+answers skip them unless the user invoked `/caveman` or `/ponytail`. User
+`stop caveman`, `stop ponytail`, or `normal mode` still wins. Once loaded,
+each companion's own text applies.
+
+- Caveman: `/caveman`, "talk like caveman", or an explicit token-efficiency request
+- Ponytail: `/ponytail`, or when implementing or designing code
 
 - [Caveman skill](../../vendor/caveman/skills/caveman/SKILL.md) — [inventory](../../vendor/caveman/INVENTORY.md)
 - [Ponytail skill](../../vendor/ponytail/skills/ponytail/SKILL.md) — [inventory](../../vendor/ponytail/INVENTORY.md)
@@ -215,7 +226,8 @@ push after they pass. Do not rerun an entire test suite merely because CI failed
 the CI matrix supplies the broader confirmation.
 
 Caveman, Ponytail, and TDD adaptations retain their MIT notices under
-`references/*.LICENSE`.
+`references/*.LICENSE`. The portable tree is MIT:
+[LICENSE](../../LICENSE) and [third-party notices](../../THIRD_PARTY_NOTICES.md).
 
 ## Route
 

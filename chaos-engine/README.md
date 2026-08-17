@@ -134,6 +134,8 @@ default; repository-specific distributions require an explicit selection.
 | Path | Responsibility |
 | --- | --- |
 | [`skills/chaos-engine/SKILL.md`](skills/chaos-engine/SKILL.md) | Canonical router, lifecycle, safety rules, and completion contract |
+| [`LICENSE`](LICENSE) | MIT license for this portable tree |
+| [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md) | Companion pins and reimplemented-pattern attribution |
 | [`references/`](references/) | Focused methods loaded only when their trigger fires |
 | [`profiles/`](profiles/) | Project-specific facts, routes, and permissions |
 | [`install.py`](install.py) | Verified install, status, rollback, and uninstall transactions |

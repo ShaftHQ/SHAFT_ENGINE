@@ -35,6 +35,14 @@ class ChaosEngineResearchTest(unittest.TestCase):
         ):
             self.assertIn(rejected, content.lower())
 
+    def test_token_first_adoption_is_dated_and_rejects_auto_loaded_companions(self):
+        content = MATRIX.read_text(encoding="utf-8")
+        self.assertIn("Accessed: 2026-08-17", content)
+        self.assertIn("context-economy", content)
+        self.assertIn("script-first", content)
+        self.assertIn("auto-load companion bodies every mutation", content.lower())
+        self.assertIn("rejected", content.lower())
+
     def test_top_ten_matrix_is_dated_primary_sourced_and_actionable(self):
         content = MATRIX.read_text(encoding="utf-8")
         self.assertIn("Accessed: 2026-08-12", content)

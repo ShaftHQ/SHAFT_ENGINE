@@ -46,6 +46,7 @@ ALLOWED_EXACT = {
     "chaos-engine/profiles/README.md",
     "chaos-engine/RESEARCH.md",
     "chaos-engine/INSTALL.md",
+    "chaos-engine/THIRD_PARTY_NOTICES.md",
 }
 ALLOWED_NESTED_READMES = {
     path for path in ALLOWED_EXACT
