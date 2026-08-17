@@ -67,10 +67,7 @@ final class DefaultAgentToolsToolchainOperations implements AgentToolsToolchainO
     @Override
     public SetupStatus status(SetupAction action) {
         return switch (action.target()) {
-            case JAVA -> probe(action, List.of(executable("java"), "-version"));
-            case MAVEN -> probe(action, List.of(executable("mvn"), "-version"));
-            case PYTHON -> probe(action, List.of(executable("python"), "--version"));
-            case NODE -> probe(action, List.of(executable("node"), "--version"));
+            case JAVA, MAVEN, PYTHON, NODE -> probe(action, probeCommand(action.target(), plan.platform()));
             case AGENT_CLI -> catalogStatus(action);
             default -> new SetupStatus(action.target(), SetupReadiness.MISSING, "",
                     "Unsupported agent-tools target.");
@@ -116,7 +113,14 @@ final class DefaultAgentToolsToolchainOperations implements AgentToolsToolchainO
         return paths.tools().resolve("agent-tools").resolve("agent-clients.json");
     }
 
-    private String executable(String name) {
-        return plan.platform() == SetupPlatform.WINDOWS ? name + ".exe" : name;
+    static List<String> probeCommand(SetupTarget target, SetupPlatform platform) {
+        boolean windows = platform == SetupPlatform.WINDOWS;
+        return switch (target) {
+            case JAVA -> List.of(windows ? "java.exe" : "java", "-version");
+            case MAVEN -> List.of(windows ? "mvn.cmd" : "mvn", "-version");
+            case PYTHON -> windows ? List.of("py", "-3", "--version") : List.of("python3", "--version");
+            case NODE -> List.of(windows ? "node.exe" : "node", "--version");
+            default -> throw new IllegalArgumentException("No host probe for " + target);
+        };
     }
 }

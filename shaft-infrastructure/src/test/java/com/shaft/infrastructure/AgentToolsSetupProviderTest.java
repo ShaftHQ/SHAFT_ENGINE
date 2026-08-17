@@ -73,6 +73,22 @@ class AgentToolsSetupProviderTest {
         assertFalse(Files.exists(options.paths().receipts().resolve("agent-tools.json")));
     }
 
+    @Test
+    void externalStatusStillProbesHostTools(@TempDir Path temp) {
+        RecordingOperations operations = new RecordingOperations();
+        InfrastructureSetupService service = coordinator(operations);
+        Path cache = temp.resolve("cache");
+        Path data = temp.resolve("data");
+        SetupOptions options = SetupOptions.defaults(SetupProfile.AGENT_TOOLS, new ShaftCachePaths(
+                cache, data, cache.resolve("downloads"), data.resolve("tools"),
+                data.resolve("state"), data.resolve("receipts")));
+
+        service.status(options);
+
+        assertTrue(operations.events.contains("status:" + SetupTarget.JAVA));
+        assertTrue(operations.events.contains("status:" + SetupTarget.AGENT_CLI));
+    }
+
     private static InfrastructureSetupService coordinator(RecordingOperations operations) {
         return new InfrastructureSetupService(new SetupProviderRegistry(
                 List.of(new AgentToolsSetupProvider((paths, plan, offline) -> operations))),
@@ -110,6 +126,7 @@ class AgentToolsSetupProviderTest {
 
         @Override
         public SetupStatus status(SetupAction action) {
+            events.add("status:" + action.target());
             if (action.target() == SetupTarget.AGENT_CLI) {
                 return new SetupStatus(action.target(),
                         installed ? SetupReadiness.READY : SetupReadiness.MISSING,

@@ -27,12 +27,6 @@ final class AgentToolsSetupProvider implements SetupProvider {
     @Override
     public SetupReport status(SetupOptions options, SetupPlatform platform, SetupArchitecture architecture) {
         SetupPlan plan = plan(options, platform, architecture);
-        if (options.effectiveMode() == SetupMode.EXTERNAL) {
-            AgentToolsToolchainOperations operations = operationsFactory.create(options.paths(), plan,
-                    options.offline());
-            return SetupReport.from(new AgentToolsSetupService(options.paths(), plan, operations, options.offline())
-                    .status());
-        }
         AgentToolsToolchainOperations operations = operationsFactory.create(options.paths(), plan, options.offline());
         return SetupReport.from(new AgentToolsSetupService(options.paths(), plan, operations, options.offline())
                 .status());
