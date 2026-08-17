@@ -34,6 +34,35 @@ class DesktopMobileHostProbeTest {
     }
 
     @Test
+    void iosProbeMatchesHostUdidRegardlessOfHexCase(@TempDir Path temp) {
+        AndroidCommandRunner runner = (command, workingDirectory, environment, removed, input, log, timeout) ->
+                result(0, "{\"devices\":{\"com.apple.CoreSimulator.SimRuntime.iOS-18-5\":["
+                        + "{\"udid\":\"00000000-0000-0000-0000-00000000000A\",\"name\":\"iPhone 16\","
+                        + "\"isAvailable\":true}]}}");
+        SystemDesktopMobileHostProbe probe = new SystemDesktopMobileHostProbe(SetupPlatform.MACOS, temp, runner);
+        SetupAction simulator = DesktopMobileSetupPlanner.ios(SetupPlatform.MACOS, SetupArchitecture.ARM64,
+                SetupMode.MANAGED, new SetupSelection(List.of("simulator_00000000_0000_0000_0000_00000000000a")))
+                .actions().getLast();
+
+        SetupStatus status = probe.status(simulator);
+
+        assertEquals(SetupReadiness.READY, status.readiness());
+        assertEquals("00000000-0000-0000-0000-00000000000A", status.detectedVersion());
+    }
+
+    @Test
+    void deviceControllerMatchesHostUdidRegardlessOfHexCase(@TempDir Path temp) throws Exception {
+        AndroidCommandRunner runner = (command, workingDirectory, environment, removed, input, log, timeout) ->
+                result(0, "{\"devices\":{\"r\":[{\"udid\":\"AAAAAAAA-BBBB-CCCC-DDDD-EEEEEEEEEEEE\","
+                        + "\"state\":\"Booted\"}]}}");
+        SystemDesktopMobileDeviceController devices = new SystemDesktopMobileDeviceController(
+                SetupPlatform.MACOS, temp, runner);
+
+        assertEquals(DesktopMobileDeviceController.SimulatorState.BOOTED,
+                devices.simulatorState("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"));
+    }
+
+    @Test
     void iosProbeRejectsASelectedSimulatorThatIsNotAvailable(@TempDir Path temp) {
         AndroidCommandRunner runner = (command, workingDirectory, environment, removed, input, log, timeout) ->
                 result(0, "{\"devices\":{}}");

@@ -5,13 +5,20 @@ import java.io.IOException;
 /** Built-in provider for a pinned Appium XCUITest toolchain and an existing iOS Simulator. */
 final class IosSetupProvider implements SetupProvider {
     private final DesktopMobileOperationsFactory operationsFactory;
+    private final DesktopMobileLifecycleFactory lifecycleFactory;
 
     IosSetupProvider() {
-        this(DefaultDesktopMobileToolchainOperations::new);
+        this(DefaultDesktopMobileToolchainOperations::new, DesktopMobileRuntimeManager::systemLifecycle);
     }
 
     IosSetupProvider(DesktopMobileOperationsFactory operationsFactory) {
+        this(operationsFactory, DesktopMobileRuntimeManager::systemLifecycle);
+    }
+
+    IosSetupProvider(DesktopMobileOperationsFactory operationsFactory,
+                     DesktopMobileLifecycleFactory lifecycleFactory) {
         this.operationsFactory = java.util.Objects.requireNonNull(operationsFactory, "operationsFactory");
+        this.lifecycleFactory = java.util.Objects.requireNonNull(lifecycleFactory, "lifecycleFactory");
     }
 
     @Override public SetupProfile profile() { return SetupProfile.MOBILE_IOS; }
@@ -58,6 +65,38 @@ final class IosSetupProvider implements SetupProvider {
                 options.offline()).install(providerPlan,
                 new SetupApproval(providerPlan.digest(), approval.approvedAt(), approval.acceptedLicenses()));
         return new SetupReceipt(plan.digest(), receipt.completedAt(), receipt.completedActions());
+    }
+
+    @Override
+    public ManagedEnvironment start(SetupPlan plan, SetupApproval approval, SetupOptions options) throws IOException {
+        SetupPlan providerPlan = canonicalPlan(plan, options);
+        DesktopMobileToolchainOperations operations = operationsFactory.create(options.paths(), providerPlan,
+                options.offline());
+        ManagedEnvironment inner = lifecycleFactory.create(options.paths(), providerPlan, operations)
+                .start(providerPlan, new SetupApproval(providerPlan.digest(), approval.approvedAt(),
+                        approval.acceptedLicenses()), options);
+        SetupReceipt receipt = new SetupReceipt(plan.digest(), inner.receipt().completedAt(),
+                inner.receipt().completedActions());
+        return new ManagedEnvironment(profile(), receipt, inner.endpoint(), inner.connectionProperties(),
+                inner::close);
+    }
+
+    @Override
+    public boolean stop(SetupPlan plan, SetupApproval approval, SetupOptions options) throws IOException {
+        SetupExecutor.validate(plan, approval);
+        SetupPlan providerPlan = canonicalPlan(plan, options);
+        DesktopMobileToolchainOperations operations = operationsFactory.create(options.paths(), providerPlan,
+                options.offline());
+        return lifecycleFactory.create(options.paths(), providerPlan, operations).stop(options.shutdownTimeout());
+    }
+
+    @Override
+    public String logs(SetupOptions options, SetupSelection selection, SetupPlatform platform,
+                       SetupArchitecture architecture) throws IOException {
+        SetupPlan plan = plan(options, selection, platform, architecture);
+        DesktopMobileToolchainOperations operations = operationsFactory.create(options.paths(), plan,
+                options.offline());
+        return lifecycleFactory.create(options.paths(), plan, operations).logs();
     }
 
     private SetupPlan canonicalPlan(SetupPlan plan, SetupOptions options) {
