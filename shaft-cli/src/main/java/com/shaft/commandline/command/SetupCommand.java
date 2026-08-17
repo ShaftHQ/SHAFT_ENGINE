@@ -367,7 +367,7 @@ public final class SetupCommand implements Runnable {
         return switch (plan.profile()) {
             case OCR -> ocrSelection(plan, languages);
             case MOBILE_ANDROID -> android.selectionFromPlan(plan);
-            case MOBILE_IOS, MOBILE_WINDOWS, SELENIUM_GRID, HEALENIUM, REPORT_PORTAL -> {
+            case MOBILE_IOS, MOBILE_WINDOWS, SELENIUM_GRID, HEALENIUM, REPORT_PORTAL, BROWSERSTACK_LOCAL -> {
                 android.rejectIfSupplied(plan.profile());
                 yield InfrastructureSetupService.builtIn(plan.platform(), plan.architecture())
                         .selectionFromPlan(plan);
