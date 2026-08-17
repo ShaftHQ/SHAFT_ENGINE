@@ -98,7 +98,7 @@ final class DefaultAgentToolsToolchainOperations implements AgentToolsToolchainO
 
     private SetupStatus probe(SetupAction action, List<String> command) {
         try {
-            ReportingSetupService.ProcessResult result = runner.run(command, paths.cacheRoot(), Map.of(),
+            ReportingSetupService.ProcessResult result = runner.run(command, null, Map.of(),
                     Set.of(), null, null, Duration.ofSeconds(15));
             if (result.exitCode() != 0) {
                 return new SetupStatus(action.target(), SetupReadiness.MISSING, "",

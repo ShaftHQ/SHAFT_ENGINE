@@ -94,6 +94,7 @@ class DefaultAgentToolsToolchainOperationsTest {
                 paths, plan(), (command, workingDirectory, environment, removed, stdin, log, timeout) -> {
                     commands.add(List.copyOf(command));
                     assertTrue(log == null);
+                    assertTrue(workingDirectory == null);
                     return new ReportingSetupService.ProcessResult(0, "ok");
                 }, false);
 
