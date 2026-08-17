@@ -116,7 +116,10 @@ $aiderArgs = @(
     "--edit-format", "whole",
     "--yes-always",
     "--no-show-model-warnings",
+    "--no-gitignore",
     "--no-suggest-shell-commands",
+    "--chat-history-file", (Join-Path $reportDir "aider-chat.md"),
+    "--input-history-file", (Join-Path $reportDir "aider-input.md"),
     "--message-file", $Spec
 )
 foreach ($file in $Allowlist) {

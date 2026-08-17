@@ -117,6 +117,15 @@ class LocalCodingAgentReportTest(unittest.TestCase):
         blockers = MODULE.validate_report(payload)
         self.assertTrue(any("allowlist" in item.lower() or "readme" in item.lower() for item in blockers))
 
+    def test_git_status_ignores_aider_sidecars(self):
+        status = (
+            " M src/Example.java\n"
+            "?? .aider.chat.history.md\n"
+            "?? .aider.tags.cache.v4/cache.db\n"
+        )
+        changed = MODULE.changed_paths_from_git_status(status)
+        self.assertEqual(["src/Example.java"], changed)
+
     def test_git_status_without_pathspec_finds_extra_files(self):
         status = (
             " M shaft-engine/src/test/java/testPackage/LocalCodingAgentAcceptanceTest.java\n"
@@ -204,6 +213,8 @@ class LocalCodingAgentPackagingTest(unittest.TestCase):
         self.assertIn("allowlist", run_text.lower())
         self.assertIn("127.0.0.1", run_text)
         self.assertIn("--no-suggest-shell-commands", run_text)
+        self.assertIn("--no-gitignore", run_text)
+        self.assertIn("aider-chat.md", run_text)
         self.assertIn("git status --porcelain", run_text)
         self.assertNotIn("git status --porcelain --", run_text)
         self.assertIn("git diff --name-only", run_text)

@@ -105,7 +105,9 @@ try {
     & $aider @aiderArgs
     $aiderExit = $LASTEXITCODE
     $after = (git status --porcelain)
-    if ("$after" -ne "$before") {
+    $beforeKept = @($before | Where-Object { $_ -and ($_ -notmatch '\.aider') })
+    $afterKept = @($after | Where-Object { $_ -and ($_ -notmatch '\.aider') })
+    if (("$afterKept") -ne ("$beforeKept")) {
         Write-Error "architect run changed the worktree; read-only contract failed"
         exit 2
     }

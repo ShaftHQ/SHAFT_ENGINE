@@ -72,7 +72,10 @@ def changed_paths_from_git_status(status_text: str) -> list[str]:
         payload = line[3:]
         if " -> " in payload:
             payload = payload.split(" -> ", 1)[1]
-        paths.append(payload.strip().strip('"'))
+        cleaned = payload.strip().strip('"')
+        if ".aider" in cleaned.replace("\\", "/").lower():
+            continue
+        paths.append(cleaned)
     return paths
 
 
