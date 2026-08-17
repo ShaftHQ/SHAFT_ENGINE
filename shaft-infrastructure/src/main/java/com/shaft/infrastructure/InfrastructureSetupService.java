@@ -28,7 +28,7 @@ public final class InfrastructureSetupService {
                 new ReportingSetupProvider(), new OcrSetupProvider(), new LighthouseSetupProvider(),
                 new PlaywrightSetupProvider(), new AndroidSetupProvider(), new SeleniumGridSetupProvider(),
                 new HealeniumSetupProvider(), new ReportPortalSetupProvider(),
-                new BrowserStackLocalSetupProvider()));
+                new BrowserStackLocalSetupProvider(), new AgentToolsSetupProvider()));
         if (platform == SetupPlatform.MACOS) providers.add(new IosSetupProvider());
         if (platform == SetupPlatform.WINDOWS) providers.add(new WindowsSetupProvider());
         ClassLoader contextLoader = Thread.currentThread().getContextClassLoader();
