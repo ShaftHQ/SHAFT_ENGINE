@@ -1273,6 +1273,26 @@ class ConsultGateTest(unittest.TestCase):
         self.assertIn("when dependencies, components, state, or workflows", content)
         self.assertIn("never ask a question the repository", content)
 
+    def test_companions_load_by_default_on_every_task(self):
+        sections = headed_sections(ENTRYPOINT.read_text(encoding="utf-8"), "companions")
+        self.assertEqual(len(sections), 1, "entrypoint needs exactly one Companions section")
+        companions = re.sub(r"\s+", " ", sections[0]).lower()
+        for required in (
+            "start of every task",
+            "every host",
+            "every main thread and delegate",
+        ):
+            self.assertIn(required, companions)
+        entrypoint = compact(ENTRYPOINT)
+        self.assertNotIn("do not auto-load both", entrypoint)
+        self.assertNotIn("only when it changes the next action", entrypoint)
+        install = compact(ROOT / "chaos-engine/INSTALL.md")
+        self.assertIn("load by default", install)
+        self.assertNotIn("only when invoked", install)
+        inventory = compact(ROOT / ".agents/skills/README.md")
+        self.assertNotIn("only when the user invokes them", inventory)
+        self.assertNotIn("the next action needs that companion", inventory)
+
     def test_caveman_preserves_exact_meaning_before_compression(self):
         content = compact(VENDOR_CAVEMAN)
         for exact in (

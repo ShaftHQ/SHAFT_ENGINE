@@ -145,14 +145,10 @@ For the short decision procedure and boundary cases, load
 
 This file is the only router. It does not restate companion rules.
 
-Load a vendor skill only when it changes the next action. Implementation and
-review do not auto-load both. Mechanical one-file edits and consult-only
-answers skip them unless the user invoked `/caveman` or `/ponytail`. User
-`stop caveman`, `stop ponytail`, or `normal mode` still wins. Once loaded,
-each companion's own text applies.
-
-- Caveman: `/caveman`, "talk like caveman", or an explicit token-efficiency request
-- Ponytail: `/ponytail`, or when implementing or designing code
+Load both companion skills at the start of every task, on every host, in every
+main thread and delegate. Default intensity remains each companion's own
+default. Off only: `stop caveman`, `stop ponytail`, or `normal mode`.
+Once loaded, each companion's own text applies.
 
 - [Caveman skill](../../vendor/caveman/skills/caveman/SKILL.md) — [inventory](../../vendor/caveman/INVENTORY.md)
 - [Ponytail skill](../../vendor/ponytail/skills/ponytail/SKILL.md) — [inventory](../../vendor/ponytail/INVENTORY.md)
