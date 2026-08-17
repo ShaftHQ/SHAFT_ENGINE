@@ -95,7 +95,7 @@ final class BrowserStackLocalLifecycleService {
                 writeLease(lease.withRefCount(lease.refCount() - 1));
                 return true;
             }
-            operations.stopProcess(lease.pid(), Path.of(lease.binary()));
+            operations.stopProcess(lease.pid(), Path.of(lease.binary()), timeout);
             Files.deleteIfExists(leasePath());
             return true;
         } finally {
@@ -134,7 +134,7 @@ final class BrowserStackLocalLifecycleService {
         } catch (IOException | RuntimeException failure) {
             if (pid > 0) {
                 try {
-                    operations.stopProcess(pid, binary);
+                    operations.stopProcess(pid, binary, timeout);
                 } catch (IOException cleanup) {
                     failure.addSuppressed(cleanup);
                 }
@@ -198,7 +198,7 @@ final class BrowserStackLocalLifecycleService {
                 writeLease(lease.withRefCount(lease.refCount() - 1));
                 return;
             }
-            operations.stopProcess(lease.pid(), Path.of(lease.binary()));
+            operations.stopProcess(lease.pid(), Path.of(lease.binary()), Duration.ofSeconds(5));
             Files.deleteIfExists(leasePath());
         } finally {
             jvmLock.unlock();

@@ -90,7 +90,7 @@ class BrowserStackLocalLifecycleServiceTest {
     void failedReadinessTearsDownTheStartedProcess(@TempDir Path temp) {
         Fixture fixture = installed(temp);
         RecordingOperations operations = new RecordingOperations();
-        operations.dieImmediately = true;
+        operations.ready = false;
         BrowserStackLocalLifecycleService lifecycle = new BrowserStackLocalLifecycleService(
                 fixture.paths(), fixture.plan(), operations, () -> "test-key");
 
@@ -137,7 +137,7 @@ class BrowserStackLocalLifecycleServiceTest {
         private final List<String> commands = new ArrayList<>();
         private boolean running;
         private boolean inspectFails;
-        private boolean dieImmediately;
+        private boolean ready = true;
 
         @Override public void hostPreflight(List<SetupAction> actions) { /* fixture */ }
         @Override public void lockedPreflight(List<SetupAction> actions, boolean offline) { /* fixture */ }
@@ -152,7 +152,7 @@ class BrowserStackLocalLifecycleServiceTest {
         public long startTunnel(Path binary, String accessKey, Path logFile) {
             starts.add(binary.toString());
             commands.add(binary + " --key (redacted)");
-            running = !dieImmediately;
+            running = true;
             return 4242L;
         }
 
@@ -163,14 +163,16 @@ class BrowserStackLocalLifecycleServiceTest {
         }
 
         @Override
-        public void stopProcess(long pid, Path binary) {
+        public void stopProcess(long pid, Path binary, Duration timeout) {
+            java.util.Objects.requireNonNull(timeout, "timeout");
             stops.add(pid);
             running = false;
         }
 
         @Override
         public void awaitReady(Duration timeout) throws IOException {
-            if (!running) throw new IOException("BrowserStack Local did not become ready.");
+            java.util.Objects.requireNonNull(timeout, "timeout");
+            if (!ready) throw new IOException("BrowserStack Local did not become ready.");
         }
     }
 }

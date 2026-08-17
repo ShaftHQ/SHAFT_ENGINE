@@ -32,8 +32,9 @@ interface BrowserStackLocalToolchainOperations {
         throw new IOException("BrowserStack Local process inspection is not available.");
     }
 
-    default void stopProcess(long pid, Path binary) throws IOException {
+    default void stopProcess(long pid, Path binary, Duration timeout) throws IOException {
         java.util.Objects.requireNonNull(binary, "binary");
+        java.util.Objects.requireNonNull(timeout, "timeout");
         throw new UnsupportedOperationException("BrowserStack Local stop is not available.");
     }
 

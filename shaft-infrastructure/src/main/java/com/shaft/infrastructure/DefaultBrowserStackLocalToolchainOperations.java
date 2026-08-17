@@ -128,18 +128,28 @@ final class DefaultBrowserStackLocalToolchainOperations implements BrowserStackL
     }
 
     @Override
-    public void stopProcess(long pid, Path binary) throws IOException {
+    public void stopProcess(long pid, Path binary, Duration timeout) throws IOException {
         if (!binary.equals(binaryFile())) {
             throw new IOException("Refusing to stop an unowned BrowserStack Local binary.");
         }
+        java.util.Objects.requireNonNull(timeout, "timeout");
         Optional<ProcessHandle> handle = ProcessHandle.of(pid);
         if (handle.isEmpty() || !handle.orElseThrow().isAlive()) return;
         ProcessHandle live = handle.orElseThrow();
         live.destroy();
+        if (awaitExit(live, timeout)) return;
+        live.destroyForcibly();
+        if (!awaitExit(live, timeout)) {
+            throw new IOException("BrowserStack Local process " + pid + " did not exit.");
+        }
+    }
+
+    private static boolean awaitExit(ProcessHandle live, Duration timeout) {
         try {
-            live.onExit().get(5, java.util.concurrent.TimeUnit.SECONDS);
-        } catch (Exception waited) {
-            live.destroyForcibly();
+            live.onExit().get(Math.max(1, timeout.toMillis()), java.util.concurrent.TimeUnit.MILLISECONDS);
+            return true;
+        } catch (Exception ignored) {
+            return !live.isAlive();
         }
     }
 
