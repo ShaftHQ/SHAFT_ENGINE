@@ -8,7 +8,12 @@ Repository contributors use the source-only Graphify resolver
 `tools/repository-map/resolve_graph_out.py`, its focused regression
 `tests/scripts/test_resolve_graph_out.py`, and the lifecycle controller
 `tools/repository-map/graphify_maintenance.py` through the
-[repository Graphify procedure](references/graphify.md); adopters use the
+[repository Graphify procedure](references/graphify.md); the matching
+MemPalace resolver is `tools/repository-map/resolve_mempalace.py` with
+`tests/scripts/test_resolve_mempalace.py`. From any worktree, query both
+stores with `scripts/agents/knowledge_stores.py` (`status`, `search`;
+`refresh` refuses and points at `SHAFT-Nightly-Knowledge-Refresh`). Cover
+that CLI in `tests/scripts/test_knowledge_stores.py`. Adopters use the
 portable installed launcher instead. Repository PRs are watched to confirmed merge with
 `scripts/ci/watch_pr_checks.py`.
 The canonical [reflection checkpoints](../../references/reflection-checkpoints.md)
