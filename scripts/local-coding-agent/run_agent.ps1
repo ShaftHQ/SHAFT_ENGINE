@@ -59,6 +59,11 @@ if (-not (Test-Path -LiteralPath $Worktree)) {
     Write-Error "worktree does not exist: $Worktree"
     exit 2
 }
+git -C $Worktree update-index --index-version 2
+if ($LASTEXITCODE -ne 0) {
+    Write-Error "git update-index --index-version 2 failed: $LASTEXITCODE"
+    exit 2
+}
 if (-not (Test-Path -LiteralPath $Spec)) {
     Write-Error "spec does not exist: $Spec"
     exit 2
