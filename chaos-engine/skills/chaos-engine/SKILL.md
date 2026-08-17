@@ -83,6 +83,8 @@ that profile automatically and must link it from its discoverable skill.
 The repository-local [installer](../../install.py), [bootstrap](../../bootstrap.py),
 [dependency doctor](../../dependencies.py), and [host adapters](../../hosts.py)
 own install, status, rollback, and uninstall. See [INSTALL](../../INSTALL.md).
+`tests/scripts/test_chaos_engine_bootstrap.py` runs the clean/update/failure
+flow on Linux, macOS, and Windows.
 
 ## Task isolation
 
