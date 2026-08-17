@@ -220,6 +220,7 @@ reports, caches, runtime indexes, or `graphify-out/`.
 
 - [Install or upgrade ChaosEngine](INSTALL.md)
 - [Canonical ChaosEngine entrypoint](skills/chaos-engine/SKILL.md)
+- [Lifecycle hooks](references/lifecycle-hooks.md)
 - <a href="profiles/README.md">Project profiles</a>
 - [Research and adoption matrix](RESEARCH.md)
 - [Identity and brand rules](assets/brand/BRAND.md)
