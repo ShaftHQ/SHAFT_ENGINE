@@ -79,6 +79,7 @@ failure this table exists to prevent.
 | A repository CI script or guard under `scripts/`, outside agent guidance | [agent guidance](playbooks/agent-guidance-boundary-guard.md), then the guard's own test |
 | In-repo Markdown for humans, such as README or CONTRIBUTING | [public docs](playbooks/public-behavior-docs-synchronizer.md) |
 | The `.memory` store itself: entries, relations, or hygiene | [agent guidance](playbooks/agent-guidance-boundary-guard.md) |
+| Cheap, bounded, already-specified workstation coding | [workstation local coding](playbooks/workstation-local-coding-agent.md) |
 
 ## Deep SHAFT internals
 

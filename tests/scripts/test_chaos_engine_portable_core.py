@@ -539,6 +539,136 @@ class ChaosEnginePortableCoreTest(unittest.TestCase):
                 links = re.findall(r"\[[^]]+\]\(([^)]+)\)", content)
                 self.assertIn(REPOSITORY_ADAPTER.resolve(), {(alias.parent / link).resolve() for link in links})
 
+    def test_portable_local_coding_delegate_is_optional_and_routed(self):
+        skill = CORE / "skills/local-coding-delegate/SKILL.md"
+        probe = CORE / "skills/local-coding-delegate/scripts/probe_hardware.py"
+        portable_entry = CORE / "profiles/portable/entrypoint.md"
+        portable_routing = CORE / "profiles/portable/references/routing.md"
+        budget = json.loads(
+            (ROOT / "scripts/ci/agent_guidance_budget.json").read_text(encoding="utf-8")
+        )
+
+        self.assertTrue(skill.is_file())
+        self.assertTrue(probe.is_file())
+        self.assertIn("local-coding-delegate/SKILL.md", portable_entry.read_text(encoding="utf-8"))
+        self.assertIn("local-coding-delegate/SKILL.md", portable_routing.read_text(encoding="utf-8"))
+        self.assertIn(
+            "local-coding-delegate",
+            budget["expected_skill_names"]["chaos-engine/skills"],
+        )
+        self.assertIn(
+            "chaos-engine/skills/local-coding-delegate/SKILL.md",
+            budget["total_guidance_globs"],
+        )
+        self.assertIn(
+            "chaos-engine/skills/local-coding-delegate/SKILL.md",
+            budget["reference_scan_globs"],
+        )
+        self.assertNotIn(
+            "chaos-engine/skills/local-coding-delegate/SKILL.md",
+            budget["active_guidance_globs"],
+        )
+        for files in budget["host_contexts"].values():
+            self.assertNotIn(
+                "chaos-engine/skills/local-coding-delegate/SKILL.md", files
+            )
+
+    def test_portable_local_coding_delegate_and_routing_do_not_leak_shaft_facts(self):
+        skill_root = CORE / "skills/local-coding-delegate"
+        portable_routing = CORE / "profiles/portable/references/routing.md"
+        leaks = (
+            r"D:\AI",
+            "shaft-java-agent",
+            "qwen",
+            "Ollama",
+            "Aider",
+            "SHAFT_LOCAL_AI",
+        )
+
+        self.assertTrue(skill_root.is_dir(), "optional portable skill must exist to be scanned")
+        texts = [portable_routing.read_text(encoding="utf-8")]
+        for path in skill_root.rglob("*"):
+            if path.is_file() and "__pycache__" not in path.parts:
+                texts.append(path.read_text(encoding="utf-8", errors="ignore"))
+        combined = "\n".join(texts)
+        for leak in leaks:
+            with self.subTest(leak=leak):
+                self.assertNotIn(leak, combined)
+
+    def test_shaft_workstation_playbook_is_routed_and_names_the_loop(self):
+        playbook = CORE / "profiles/shaft/references/playbooks/workstation-local-coding-agent.md"
+        shaft_entry = CORE / "profiles/shaft/entrypoint.md"
+        shaft_routing = CORE / "profiles/shaft/references/routing.md"
+        required = (
+            "scripts/local-coding-agent/shaft-java-agent.ps1",
+            "scripts/local-coding-agent/shaft-architect.ps1",
+            "scripts/local-coding-agent/shaft-local-ai-stop.ps1",
+            "scripts/agents/knowledge_stores.py",
+        )
+
+        self.assertTrue(playbook.is_file())
+        body = playbook.read_text(encoding="utf-8")
+        for token in required:
+            with self.subTest(token=token):
+                self.assertIn(token, body)
+        self.assertIn("playbooks/workstation-local-coding-agent.md", shaft_routing.read_text(encoding="utf-8"))
+        self.assertIn("playbooks/workstation-local-coding-agent.md", shaft_entry.read_text(encoding="utf-8"))
+
+    def test_local_coding_probe_is_stdlib_and_classifies_or_refuses(self):
+        import ast
+        import importlib.util
+
+        probe = CORE / "skills/local-coding-delegate/scripts/probe_hardware.py"
+        self.assertTrue(probe.is_file())
+        tree = ast.parse(probe.read_text(encoding="utf-8"))
+        imported = {
+            alias.name.split(".", 1)[0]
+            for node in tree.body
+            if isinstance(node, (ast.Import, ast.ImportFrom))
+            for alias in (node.names if isinstance(node, ast.Import) else [ast.alias(node.module or "", None)])
+        }
+        allowed = {
+            "__future__",
+            "argparse",
+            "json",
+            "os",
+            "platform",
+            "ctypes",
+            "subprocess",
+            "sys",
+            "pathlib",
+        }
+        self.assertTrue(imported <= allowed, imported - allowed)
+
+        spec = importlib.util.spec_from_file_location("probe_hardware", probe)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        gib = 1024 ** 3
+        self.assertEqual(
+            "refuse",
+            module.classify(ram_bytes=4 * gib, gpu_bytes=None, os_name="Windows")[
+                "recommendation"
+            ],
+        )
+        self.assertEqual(
+            "small",
+            module.classify(ram_bytes=12 * gib, gpu_bytes=None, os_name="Linux")[
+                "recommendation"
+            ],
+        )
+        self.assertEqual(
+            "medium",
+            module.classify(ram_bytes=24 * gib, gpu_bytes=6 * gib, os_name="Darwin")[
+                "recommendation"
+            ],
+        )
+        self.assertEqual(
+            "large",
+            module.classify(ram_bytes=64 * gib, gpu_bytes=16 * gib, os_name="Linux")[
+                "recommendation"
+            ],
+        )
+
     def test_portable_contract_is_scanned_and_run_by_pull_request_ci(self):
         budget = json.loads(
             (ROOT / "scripts/ci/agent_guidance_budget.json").read_text(encoding="utf-8")
