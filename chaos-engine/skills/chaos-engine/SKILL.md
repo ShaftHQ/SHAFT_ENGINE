@@ -16,8 +16,9 @@ below.
 
 ## Iron laws
 
-1. Research and plan before implementation. Complete the implementation
-   preflight below for every task; triage changes depth, never ordering.
+1. Research and plan before implementation. Complete the
+   [research receipt](../../references/research-receipt.md) for every task;
+   triage changes depth, never ordering.
 2. Evidence over inference. Inspect or run before claiming.
 3. No production code before an observed failing test.
 4. Never weaken, delete, or rewrite a test to reach green. When a test and the
@@ -60,54 +61,9 @@ including one-file reversible work.
 
 ## Implementation preflight
 
-Mechanical one-file reversible work still names the eight steps, then records
-store irrelevance without querying. Default and most-intelligent work query a
-store only when it can shorten the task.
-
-Before the first implementation mutation, do these in order for every task:
-
-1. Read live files and current instructions.
-2. Load the routed skill and any directly required references.
-3. Query native Memory once for a concrete prior constraint or gotcha; otherwise
-   record irrelevance.
-4. Query MemPalace once for concrete cross-session history or relations;
-   otherwise record irrelevance.
-5. Query Graphify once for structural leads; live-verify returned paths and use
-   targeted `rg` for blast radius, or record irrelevance.
-6. Do authoritative online research, preferring current primary documentation,
-   standards, and proven upstream implementations. Record source URLs and date.
-7. Compare proven approaches, steelman the rejected approach, and choose the
-   smallest root-owner fix that preserves the invariants.
-8. Record a concrete plan, proof commands, and the first RED observation in the
-   issue for issue-backed work, otherwise in the transient working context.
-
-This list is the research receipt. Memory, MemPalace, and Graphify are advisory
-for ordinary tasks: store failure records `degraded` and never blocks work.
-Missing non-store evidence blocks implementation. Live evidence outranks every
-index or recollection; reuse proven solutions before inventing one.
-The dated [adoption matrix](../../RESEARCH.md) records the portable harness
-baseline; revalidate a row when its relevant discovery, schema, or install
-contract changes.
-
-### Planning quality and ownership
-
-Every substantive plan is thorough and decision-ready. Establish the main
-objective and reasoning, success criteria, audience, included and excluded
-scope, constraints, current state, callers, assumptions, tradeoffs, risks, and
-proof before reducing the work to files or steps. Ask every material question
-needed for high confidence in the user's intent, but never ask a question the
-repository, retrieval stores, or authoritative sources can answer. Record the
-answer, any remaining unknown, and the evidence behind the confidence level.
-
-Every plan records each store as `used` (scoped query plus verified evidence),
-`skipped` (concrete irrelevance), or `degraded` (attempt plus sanitized reason),
-and includes dated online research. Legacy query/evidence means `used`. Compare two complete
-approaches and steelman the rejected option. Use Mermaid when dependencies,
-components, state, or workflows become materially clearer; otherwise record
-why a diagram would be decorative. Own implementation of the plan: after approval,
-carry it proactively through RED, implementation, independent review, PR
-delivery, authorized merge, and scoped cleanup. Re-ask only for a new HALT
-condition, not for approval already granted.
+Load the [research receipt](../../references/research-receipt.md) before the
+first implementation mutation. Mechanical one-file reversible work names its
+eight steps, then records store irrelevance without querying.
 
 ## Red flags
 
@@ -124,20 +80,9 @@ core never assumes a repository, default branch, local root, or companion
 project. A standalone distribution that bundles exactly one profile selects
 that profile automatically and must link it from its discoverable skill.
 
-The repository-local [installer](../../install.py) owns verified install,
-status, update, rollback, and uninstall transactions for this portable tree.
-Its contract is enforced by `tests/scripts/test_chaos_engine_installer.py`.
-The [latest-main bootstrap](../../bootstrap.py) resolves a configured GitHub
-branch to an immutable commit before invoking that installer. Its universal
-agent command and direct fallback are documented in [INSTALL](../../INSTALL.md),
-and `tests/scripts/test_chaos_engine_bootstrap.py` runs the clean/update/failure
-flow on Linux, macOS, and Windows.
-The [dependency doctor](../../dependencies.py) installs the tracked
-[tool set](../../dependencies.json) into a project-local runtime; its contract
-is enforced by `tests/scripts/test_chaos_engine_dependencies.py`.
-The [host adapter installer](../../hosts.py) wires supported coding agents to
-the canonical skill and the relocatable [local tool launcher](../../tool.py);
-its contract is enforced by `tests/scripts/test_chaos_engine_hosts.py`.
+The repository-local [installer](../../install.py), [bootstrap](../../bootstrap.py),
+[dependency doctor](../../dependencies.py), and [host adapters](../../hosts.py)
+own install, status, rollback, and uninstall. See [INSTALL](../../INSTALL.md).
 
 ## Task isolation
 
@@ -306,49 +251,11 @@ third repeated fix without a receipt; terminal reflection after one hour.
 ## Learning loop
 
 Before reporting done, run the
-[learned-lessons workflow](../../references/work-github-playbook.md#learned-lessons-workflow):
-route every learning exactly once. One row per learning; never two, never a
-diary. Before routing, scan the session for failures, traps, and guard blocks:
-if a refusal was correct, capture the lesson; if it was wrong or needs follow-up,
-open a new standalone GitHub issue after duplicate search.
-
-Meaningful failures, corrections, review findings, and repeated friction first
-become minimal structured candidates through the installed
-[learning controller](../../learning.py) using `.chaos-engine/learning.py queue`.
-Its privacy, confirmation, deduplication, and offline-queue contract is enforced
-by `tests/scripts/test_chaos_engine_learning.py`; the dated adoption matrix is
-enforced by `tests/scripts/test_chaos_engine_research.py`.
-Its privacy gate rejects secrets, paths, repository identity, prompts,
-transcripts, logs, URLs, email, and source excerpts before any local state or
-network call. The local queue is digest-deduplicated. Do not weaken or bypass
-that schema to preserve more detail.
-
-Submission needs user acceptance of the displayed token cost. Privacy, auth, or
-network uncertainty leaves it queued. Never create a PR, change guidance, or
-merge automatically; an issue still needs normal RED/GREEN and review.
-
-| What surfaced | Where it goes |
-| --- | --- |
-| A fact that cost you time and would cost the next agent the same | native Memory, with the evidence that proves it |
-| A decision with a rationale someone will otherwise re-litigate | native Memory as a decision, superseding the entry it replaces |
-| A relation or impact that spans entities or sessions | MemPalace |
-| A structural change to what calls or depends on what | flag it for the existing Graphify maintenance owner |
-| A procedure that misled you, or one you had to invent | fix the guidance file that should have carried it |
-| Any problem, follow-up action, or potential improvement needing work | after duplicate search, open one new standalone GitHub issue for that action; link its receipt as evidence |
-| Harness friction that forced wasteful or irrelevant work | fix the owning guidance or check so the next session does not repeat it |
-
-Self-development has no cap. When a ritual, suite, or workflow forces work
-that does not change the next decision, reassess the owning rule and improve
-this harness. Prefer a smaller discriminating observation over a larger
-repeated check. Keep learning toward more effective, efficient, and relevant
-output. Iron laws still bind: never invent a passing result, and never weaken
-a valid test to reach green.
-
-Nothing durable is a valid result. Say so rather than manufacturing an entry.
-Re-record nothing already stored: search before writing, and update the existing
-knowledge object instead of adding a near-duplicate. Knowledge routing and action
-tracking are separate duties: a receipt, Memory entry, Graphify flag, or existing
-issue reference never replaces the required new issue for an action.
+[learned-lessons workflow](../../references/work-github-playbook.md#learned-lessons-workflow).
+Scan the session for failures, traps, and guard blocks. Route each learning
+once: native Memory, MemPalace, Graphify, guidance, or a new GitHub issue after
+duplicate search. Prefer a smaller discriminating observation. Self-development
+has no cap. Nothing durable is a valid result. Search before writing.
 
 Gambaru.
 

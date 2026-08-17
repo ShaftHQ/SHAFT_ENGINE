@@ -140,6 +140,7 @@ sends you there; the rest by
 - [work GitHub planning](../../chaos-engine/references/work-github-planning.md)
 - [graphify](../../chaos-engine/references/graphify.md)
 - [repository Graphify procedure](../../chaos-engine/profiles/shaft/references/graphify.md)
+- [research receipt](../../chaos-engine/references/research-receipt.md)
 - [TDD](../../chaos-engine/references/tdd.md)
 - [TDD failure modes](../../chaos-engine/references/tdd-failure-modes.md)
 - [context economy](../../chaos-engine/references/context-economy.md)
