@@ -30,6 +30,8 @@ apply unchanged to repository and portable installed hosts.
   from `https://raw.githubusercontent.com/ShaftHQ/SHAFT_ENGINE/main/chaos-engine/bootstrap.py`.
 - Maven modules and SHAFT product behavior route through the playbooks and
   mastery chapters under [references](references/routing.md).
+- Cheap, bounded, already-specified local coding work uses the
+  [workstation local coding agent](references/playbooks/workstation-local-coding-agent.md).
 
 ## Standing artifact sharing authorization
 

@@ -1,0 +1,1 @@
+Issue #5081 locked the split. The optional portable skill chaos-engine/skills/local-coding-delegate and portable routing must not contain D:\AI, shaft-java-agent, qwen, Ollama, Aider, or SHAFT_LOCAL_AI. Workstation commands live only in the SHAFT playbook workstation-local-coding-agent.md. Do not reopen the SHAFT-versus-portable split or put those facts into portable ChaosEngine.

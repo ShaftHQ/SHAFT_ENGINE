@@ -110,6 +110,7 @@
     ".agents/skills/README.md",
     ".agents/skills/*/SKILL.md",
     "chaos-engine/skills/chaos-engine/SKILL.md",
+    "chaos-engine/skills/local-coding-delegate/SKILL.md",
     "chaos-engine/references/*.md",
     "chaos-engine/profiles/shaft/**/*.md",
     ".claude/agents/*.md",
@@ -140,6 +141,10 @@
       "release-dependency-guard",
       "shaft-marketing-ad-producer",
       "shaft-ui-design"
+    ],
+    "chaos-engine/skills": [
+      "chaos-engine",
+      "local-coding-delegate"
     ]
   },
   "skill_budgets": {
@@ -239,6 +244,7 @@
     ".agents/skills/README.md",
     ".agents/skills/*/SKILL.md",
     "chaos-engine/skills/chaos-engine/SKILL.md",
+    "chaos-engine/skills/local-coding-delegate/SKILL.md",
     "chaos-engine/references/*.md",
     "chaos-engine/profiles/shaft/**/*.md",
     ".claude/agents/*.md",

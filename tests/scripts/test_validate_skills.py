@@ -44,7 +44,7 @@ import unittest
 from pathlib import Path, PurePosixPath, PureWindowsPath
 
 from scripts.ci.validate_agent_guidance import expand_reported_globs, require_glob_list
-from scripts.ci.validate_skills import validate_repository
+from scripts.ci.validate_skills import validate_repository, validate_skill
 
 MARKETPLACE_PATH = ".claude-plugin/marketplace.json"
 
@@ -530,6 +530,12 @@ class MarketplaceManifestTest(unittest.TestCase):
     def test_current_repository_marketplace_matches_the_skill_directories(self):
         repository_root = Path(__file__).resolve().parents[2]
         self.assertEqual(marketplace_errors(repository_root), [])
+
+    def test_optional_portable_local_coding_delegate_passes_hygiene(self):
+        repository_root = Path(__file__).resolve().parents[2]
+        skill_dir = repository_root / "chaos-engine/skills/local-coding-delegate"
+        self.assertTrue((skill_dir / "SKILL.md").is_file())
+        self.assertEqual(validate_skill(repository_root, skill_dir, 20000), [])
 
 
 class SourceShapeTest(unittest.TestCase):

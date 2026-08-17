@@ -120,7 +120,7 @@ BUDGET = ROOT / "scripts/ci/agent_guidance_budget.json"
 # from the boundary was invisible. Equality makes shrinking the boundary a
 # deliberate two-line edit that shows up in review, which is the only place the
 # question "why is the harness smaller today" gets asked.
-EXPECTED_ELEMENT_COUNT = 248
+EXPECTED_ELEMENT_COUNT = 254
 
 ATX_HEADING = re.compile(r"(?m)^#{1,6}\s+(.+?)\s*$")
 
@@ -280,6 +280,26 @@ class HarnessReachabilityTest(unittest.TestCase):
         report = harness_report(ROOT)
         self.assertEqual(len(report["orphans"]), 0)
         self.assertIn("tools/repository-map/graphify_maintenance.py", report["elements"])
+        self.assertIn(
+            "chaos-engine/skills/local-coding-delegate/SKILL.md", report["elements"]
+        )
+        self.assertIn(
+            "chaos-engine/skills/local-coding-delegate/scripts/probe_hardware.py",
+            report["elements"],
+        )
+        self.assertIn(
+            "chaos-engine/profiles/shaft/references/playbooks/workstation-local-coding-agent.md",
+            report["elements"],
+        )
+        self.assertIn(
+            "scripts/local-coding-agent/shaft-java-agent.ps1", report["elements"]
+        )
+        self.assertIn(
+            "scripts/local-coding-agent/shaft-architect.ps1", report["elements"]
+        )
+        self.assertIn(
+            "scripts/local-coding-agent/shaft-local-ai-stop.ps1", report["elements"]
+        )
         self.assertEqual(len(report["elements"]), EXPECTED_ELEMENT_COUNT)
         self.assertEqual(report["wildcard_only"], [])
 

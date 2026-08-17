@@ -98,7 +98,7 @@ class AssembleActAsMohabPluginTest(unittest.TestCase):
             path.name for path in (self.package_root / "skills").iterdir()
             if (path / "SKILL.md").is_file()
         }
-        self.assertEqual(packaged_skills, {"act-as-mohab", "chaos-engine"})
+        self.assertEqual(packaged_skills, {"act-as-mohab", "chaos-engine", "local-coding-delegate"})
         for relative in ("plugin.json", ".claude-plugin/plugin.json", ".codex-plugin/plugin.json"):
             manifest = json.loads((self.package_root / relative).read_text(encoding="utf-8"))
             self.assertEqual(manifest["version"], version)
