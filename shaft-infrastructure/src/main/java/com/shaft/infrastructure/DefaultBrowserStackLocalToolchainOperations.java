@@ -1,10 +1,17 @@
 package com.shaft.infrastructure;
 
 import java.io.IOException;
+import java.net.HttpURLConnection;
+import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.LinkOption;
 import java.nio.file.Path;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.Comparator;
+import java.util.HexFormat;
 import java.util.List;
 import java.util.Optional;
 
@@ -54,6 +61,7 @@ final class DefaultBrowserStackLocalToolchainOperations implements BrowserStackL
             Path binary = binaryFile();
             Path quarantine = root.resolve(asset().executableName() + ".prev");
             VerifiedArtifactStore.replaceWithRollback(staged, binary, quarantine);
+            Files.writeString(digestFile(), sha256(binary));
             if (plan.platform() != SetupPlatform.WINDOWS && !binary.toFile().setExecutable(true, false)) {
                 throw new IOException("Unable to mark the BrowserStack Local binary executable: " + binary);
             }
@@ -71,11 +79,13 @@ final class DefaultBrowserStackLocalToolchainOperations implements BrowserStackL
                 return new SetupStatus(action.target(), SetupReadiness.MISSING, "",
                         "Managed BrowserStack Local binary is missing.");
             }
-            Path cached = store.fetch(action, true);
-            if (!Files.isRegularFile(cached, LinkOption.NOFOLLOW_LINKS)) {
+            Path digest = digestFile();
+            if (!Files.isRegularFile(digest, LinkOption.NOFOLLOW_LINKS)
+                    || !sha256(binary).equalsIgnoreCase(Files.readString(digest).trim())) {
                 return new SetupStatus(action.target(), SetupReadiness.DEGRADED, "",
-                        "Verified BrowserStack Local archive is missing.");
+                        "Staged BrowserStack Local binary does not match the install digest.");
             }
+            store.fetch(action, true);
             return new SetupStatus(action.target(), SetupReadiness.READY, action.version(),
                     "Staged BrowserStack Local binary matches the reviewed plan.");
         } catch (IOException failure) {
@@ -110,8 +120,11 @@ final class DefaultBrowserStackLocalToolchainOperations implements BrowserStackL
         Optional<ProcessHandle> handle = ProcessHandle.of(pid);
         if (handle.isEmpty() || !handle.orElseThrow().isAlive()) return false;
         Optional<String> command = handle.orElseThrow().info().command();
-        return command.isEmpty() || command.orElseThrow().equals(binary.toString())
-                || command.orElseThrow().endsWith(binary.getFileName().toString());
+        if (command.isEmpty()) {
+            throw new IOException("Unable to confirm BrowserStack Local process identity for pid " + pid + '.');
+        }
+        String observed = command.orElseThrow();
+        return observed.equals(binary.toString()) || observed.endsWith(binary.getFileName().toString());
     }
 
     @Override
@@ -121,11 +134,60 @@ final class DefaultBrowserStackLocalToolchainOperations implements BrowserStackL
         }
         Optional<ProcessHandle> handle = ProcessHandle.of(pid);
         if (handle.isEmpty() || !handle.orElseThrow().isAlive()) return;
-        handle.orElseThrow().destroy();
+        ProcessHandle live = handle.orElseThrow();
+        live.destroy();
+        try {
+            live.onExit().get(5, java.util.concurrent.TimeUnit.SECONDS);
+        } catch (Exception waited) {
+            live.destroyForcibly();
+        }
+    }
+
+    @Override
+    public void awaitReady(Duration timeout) throws IOException {
+        Instant deadline = Instant.now().plus(timeout);
+        IOException last = new IOException("BrowserStack Local did not become ready.");
+        URI probe = URI.create("http://127.0.0.1:45691/");
+        while (Instant.now().isBefore(deadline)) {
+            try {
+                HttpURLConnection connection = (HttpURLConnection) probe.toURL().openConnection();
+                try {
+                    connection.setConnectTimeout(1_000);
+                    connection.setReadTimeout(1_000);
+                    connection.setRequestMethod("GET");
+                    int code = connection.getResponseCode();
+                    if (code >= 200 && code < 500) return;
+                    last = new IOException("BrowserStack Local status returned HTTP " + code + '.');
+                } finally {
+                    connection.disconnect();
+                }
+            } catch (IOException failure) {
+                last = failure;
+            }
+            try {
+                Thread.sleep(250);
+            } catch (InterruptedException interrupted) {
+                Thread.currentThread().interrupt();
+                throw new IOException("Interrupted while waiting for BrowserStack Local.", interrupted);
+            }
+        }
+        throw last;
     }
 
     private Path binaryFile() {
         return paths.tools().resolve("browserstack-local").resolve(asset().executableName());
+    }
+
+    private Path digestFile() {
+        return Path.of(binaryFile() + ".sha256");
+    }
+
+    private static String sha256(Path file) throws IOException {
+        try {
+            return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(Files.readAllBytes(file)));
+        } catch (NoSuchAlgorithmException impossible) {
+            throw new IllegalStateException("SHA-256 is required by the Java platform.", impossible);
+        }
     }
 
     private BrowserStackLocalSetupPlanner.Asset asset() {

@@ -4,6 +4,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 
@@ -42,6 +43,19 @@ class DefaultBrowserStackLocalToolchainOperationsTest {
         assertFalse(command.contains("--daemon"));
         assertFalse(command.contains("stop"));
         assertEquals(List.of(temp.resolve("BrowserStackLocal").toString(), "--key", "secret-key"), command);
+    }
+
+    @Test
+    void mutatedBinaryDegradesStatus(@TempDir Path temp) throws Exception {
+        ShaftCachePaths paths = paths(temp);
+        DefaultBrowserStackLocalToolchainOperations operations = new DefaultBrowserStackLocalToolchainOperations(
+                paths, plan(), false);
+        Path binary = paths.tools().resolve("browserstack-local").resolve("BrowserStackLocal");
+        Files.createDirectories(binary.getParent());
+        Files.writeString(binary, "not-the-official-binary");
+        Files.writeString(Path.of(binary + ".sha256"), "deadbeef");
+
+        assertEquals(SetupReadiness.DEGRADED, operations.status(plan().actions().getFirst()).readiness());
     }
 
     private static SetupPlan plan() {

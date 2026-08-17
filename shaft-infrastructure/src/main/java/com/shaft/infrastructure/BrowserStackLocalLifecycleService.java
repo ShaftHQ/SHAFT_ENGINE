@@ -64,7 +64,7 @@ final class BrowserStackLocalLifecycleService {
                 requireInstalled(plan);
                 Optional<BrowserStackLocalRuntimeLease> reusable = readReusable(plan, options);
                 if (reusable.isPresent()) return environment(receipt, reusable.orElseThrow());
-                return startNew(plan, receipt, accessKey);
+                return startNew(plan, receipt, accessKey, options.startupTimeout());
             }
         } catch (InterruptedException interrupted) {
             Thread.currentThread().interrupt();
@@ -117,7 +117,8 @@ final class BrowserStackLocalLifecycleService {
         return paths.state().resolve("logs").resolve("browserstack-local.log");
     }
 
-    private ManagedEnvironment startNew(SetupPlan plan, SetupReceipt receipt, String accessKey) throws IOException {
+    private ManagedEnvironment startNew(SetupPlan plan, SetupReceipt receipt, String accessKey, Duration timeout)
+            throws IOException {
         Path binary = binaryFile();
         long pid = 0;
         try {
@@ -125,6 +126,7 @@ final class BrowserStackLocalLifecycleService {
             if (!operations.processRunning(pid, binary)) {
                 throw new IOException("BrowserStack Local process exited before it could be leased.");
             }
+            operations.awaitReady(timeout);
             BrowserStackLocalRuntimeLease lease = new BrowserStackLocalRuntimeLease(1, plan.digest(), pid,
                     binary.toString(), 1);
             writeLease(lease);

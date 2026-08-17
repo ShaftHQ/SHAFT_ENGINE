@@ -167,5 +167,10 @@ class BrowserStackLocalLifecycleServiceTest {
             stops.add(pid);
             running = false;
         }
+
+        @Override
+        public void awaitReady(Duration timeout) throws IOException {
+            if (!running) throw new IOException("BrowserStack Local did not become ready.");
+        }
     }
 }
