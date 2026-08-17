@@ -923,7 +923,7 @@ def publish_vendor_plugin(
     version: str,
 ) -> None:
     root = Path(__file__).resolve().parent / "vendor" / vendor
-    skip = {"PIN.json", "README.md"}
+    skip = {"PIN.json", "INVENTORY.md"}
     for path in root.rglob("*"):
         if not path.is_file() or path.name in skip:
             continue
@@ -953,7 +953,7 @@ def companion_managed_paths() -> tuple[str, ...]:
         )
         root = Path(__file__).resolve().parent / "vendor" / vendor
         for path in sorted(root.rglob("*")):
-            if path.is_file() and path.name not in {"PIN.json", "README.md"}:
+            if path.is_file() and path.name not in {"PIN.json", "INVENTORY.md"}:
                 paths.append(f"plugins/{name}/{path.relative_to(root).as_posix()}")
     return tuple(paths)
 

@@ -144,8 +144,8 @@ sends you there; the rest by
 - [TDD failure modes](../../chaos-engine/references/tdd-failure-modes.md)
 
 Caveman and Ponytail are pinned vendor companions, not restated in the
-entrypoint. The router loads [Caveman](../../chaos-engine/vendor/caveman/README.md)
-and [Ponytail](../../chaos-engine/vendor/ponytail/README.md) after triage for
+entrypoint. The router loads [Caveman](../../chaos-engine/vendor/caveman/INVENTORY.md)
+and [Ponytail](../../chaos-engine/vendor/ponytail/INVENTORY.md) after triage for
 implementation and review. MIT notices stay at
 [Caveman](../../chaos-engine/references/caveman.LICENSE),
 [Ponytail](../../chaos-engine/references/ponytail.LICENSE),

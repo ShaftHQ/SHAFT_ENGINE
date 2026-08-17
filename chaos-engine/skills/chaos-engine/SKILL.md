@@ -196,8 +196,8 @@ unless the user invoked `/caveman` or `/ponytail`. User `stop caveman`,
 `stop ponytail`, or `normal mode` still wins. Once loaded, each companion's
 own text applies.
 
-- [Caveman skill](../../vendor/caveman/skills/caveman/SKILL.md) — [inventory](../../vendor/caveman/README.md)
-- [Ponytail skill](../../vendor/ponytail/skills/ponytail/SKILL.md) — [inventory](../../vendor/ponytail/README.md)
+- [Caveman skill](../../vendor/caveman/skills/caveman/SKILL.md) — [inventory](../../vendor/caveman/INVENTORY.md)
+- [Ponytail skill](../../vendor/ponytail/skills/ponytail/SKILL.md) — [inventory](../../vendor/ponytail/INVENTORY.md)
 
 ### Test-driven development
 

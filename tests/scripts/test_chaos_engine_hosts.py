@@ -2279,7 +2279,7 @@ class CompanionPinTest(unittest.TestCase):
                 on_disk = {
                     path.relative_to(root).as_posix()
                     for path in root.rglob("*")
-                    if path.is_file() and path.name not in {"PIN.json", "README.md"}
+                    if path.is_file() and path.name not in {"PIN.json", "INVENTORY.md"}
                 }
                 self.assertEqual(listed, on_disk)
                 for relative, expected in files.items():
