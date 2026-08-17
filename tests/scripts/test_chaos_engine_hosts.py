@@ -102,9 +102,9 @@ class ChaosEngineHostsTest(unittest.TestCase):
             activation_root, marketplace_name, plugin_id, version = module.activation_contract(project)
             state = {
                 "codex_marketplace": False,
-                "codex_plugin": False,
+                "codex_plugins": set(),
                 "claude_marketplace": False,
-                "claude_plugin": False,
+                "claude_plugins": set(),
             }
             calls = []
 
@@ -113,7 +113,7 @@ class ChaosEngineHostsTest(unittest.TestCase):
                 client = Path(command[0]).stem
                 joined = " ".join(command[1:])
                 key = f"{client}_marketplace"
-                plugin_key = f"{client}_plugin"
+                plugin_key = f"{client}_plugins"
                 if "marketplace list" in joined:
                     if client == "codex":
                         value = {"marketplaces": [{"name": marketplace_name, "root": str(activation_root)}]} if state[key] else {"marketplaces": []}
@@ -126,16 +126,23 @@ class ChaosEngineHostsTest(unittest.TestCase):
                     state[key] = False
                     value = {}
                 elif "plugin list" in joined:
-                    if client == "codex":
-                        record = {"pluginId": plugin_id, "version": version, "installed": True, "enabled": True, "source": {"path": str(activation_root / "plugins/chaos-engine")}}
-                    else:
-                        record = {"id": plugin_id, "version": version, "enabled": True, "projectPath": str(project), "installPath": str(activation_root / "plugins/chaos-engine")}
-                    value = {"installed": [record] if state[plugin_key] else [], "available": []}
+                    records = []
+                    for name in state[plugin_key]:
+                        contract = module.activation_plugins(project, marketplace_name)[name]
+                        if client == "codex":
+                            records.append({"pluginId": contract["id"], "version": contract["version"], "installed": True, "enabled": True, "source": {"path": str(activation_root / f"plugins/{name}")}})
+                        else:
+                            records.append({"id": contract["id"], "version": contract["version"], "enabled": True, "projectPath": str(project), "installPath": str(activation_root / f"plugins/{name}")})
+                    value = {"installed": records, "available": []}
                 elif "plugin add" in joined or "plugin install" in joined:
-                    state[plugin_key] = True
+                    installed_id = next(item for item in command if "@" in item)
+                    state[plugin_key].add(installed_id.split("@", 1)[0])
                     value = {}
                 elif "plugin remove" in joined or "plugin uninstall" in joined:
-                    state[plugin_key] = False
+                    removed_id = next(item for item in command if "@" in item)
+                    state[plugin_key].discard(removed_id.split("@", 1)[0])
+                    value = {}
+                elif command[0] in {"npm", "caveman"}:
                     value = {}
                 else:
                     raise AssertionError(command)
@@ -152,7 +159,11 @@ class ChaosEngineHostsTest(unittest.TestCase):
                 which=lambda name: name,
             )
 
-            self.assertEqual({"codex", "claude"}, set(receipt["createdPlugins"]))
+            self.assertEqual(
+                {"codex:chaos-engine", "codex:caveman", "claude:chaos-engine", "claude:caveman"},
+                set(receipt["createdPlugins"]),
+            )
+            self.assertEqual("detected", receipt["cavemanProxy"]["providers"])
             self.assertTrue(all(item["status"] == "healthy" for item in status.values()))
             self.assertTrue(all(cwd == project for _, cwd in calls))
 
@@ -355,6 +366,11 @@ class ChaosEngineHostsTest(unittest.TestCase):
                 "plugins/chaos-engine/hooks/guard.py",
                 "plugins/chaos-engine/hooks/reflection.py",
                 "plugins/chaos-engine/skills/chaos-engine/SKILL.md",
+                "plugins/caveman/.codex-plugin/plugin.json",
+                "plugins/caveman/.claude-plugin/plugin.json",
+                "plugins/caveman/skills/caveman/SKILL.md",
+                "plugins/caveman/LICENSE",
+                "plugins/caveman/UPSTREAM.md",
                 ".codex/hooks.json",
                 ".claude/settings.json",
                 ".memory/config.json",
@@ -412,30 +428,12 @@ class ChaosEngineHostsTest(unittest.TestCase):
             self.assertIn("!.codex/**", ignores)
             self.assertIn(".claude/settings.local.json", ignores)
 
-            hook_events = set(
-                json.loads(project.joinpath(".codex/hooks.json").read_text())["hooks"]
-            )
-            self.assertEqual(
-                {
-                    "SessionStart",
-                    "UserPromptSubmit",
-                    "PreToolUse",
-                    "PostToolUse",
-                    "Stop",
-                    "SubagentStop",
-                },
-                hook_events,
-            )
             lifecycle = json.loads(project.joinpath(".codex/hooks.json").read_text())["hooks"]
-            for event in ("PreToolUse", "PostToolUse"):
-                matcher = lifecycle[event][0]["matcher"]
-                self.assertIn("exec_command", matcher)
-                self.assertIn("functions[.]exec", matcher)
+            self.assertEqual({}, lifecycle)
             plugin_lifecycle = json.loads(
                 project.joinpath("plugins/chaos-engine/hooks/hooks.json").read_text()
             )["hooks"]
-            self.assertIn("PostToolUseFailure", plugin_lifecycle)
-            self.assertNotIn("PostToolUseFailure", lifecycle)
+            self.assertEqual({}, plugin_lifecycle)
             installed_hook = project / "plugins/chaos-engine/hooks/guard.py"
             hook_environment = {**os.environ, "TMPDIR": temporary, "TEMP": temporary}
             failure = {
@@ -482,7 +480,10 @@ class ChaosEngineHostsTest(unittest.TestCase):
 
             module.install(project)
             merged = json.loads(marketplace_path.read_text())
-            self.assertEqual(["unrelated", "chaos-engine"], [item["name"] for item in merged["plugins"]])
+            self.assertEqual(
+                ["unrelated", "chaos-engine", "caveman"],
+                [item["name"] for item in merged["plugins"]],
+            )
             self.assertEqual("./plugins/chaos-engine", merged["plugins"][1]["source"]["path"])
             module.uninstall(project)
             self.assertEqual(original, json.loads(marketplace_path.read_text()))
@@ -542,9 +543,27 @@ class ChaosEngineHostsTest(unittest.TestCase):
             module.install(project)
             merged = json.loads(hook_path.read_text())
             self.assertEqual("user-hook", merged["hooks"]["SessionStart"][0]["hooks"][0]["command"])
-            self.assertGreater(len(merged["hooks"]["SessionStart"]), 1)
+            self.assertEqual(original, merged)
             module.uninstall(project)
             self.assertEqual(original, json.loads(hook_path.read_text()))
+
+    def test_hook_cleanup_removes_only_owned_handlers_from_mixed_group(self):
+        module = load(HOSTS, "chaos_engine_hook_cleanup")
+        source = {
+            "hooks": {
+                "PreToolUse": [{
+                    "matcher": "Bash",
+                    "hooks": [
+                        {"type": "command", "command": "python .chaos-engine/hooks/guard.py"},
+                        {"type": "command", "command": "python tools/my-guard.py"},
+                    ],
+                }],
+                "Custom": [{"hooks": [{"type": "command", "command": "python tools/scripts/agents/guard.py.backup"}]}],
+            }
+        }
+        cleaned = json.loads(module.without_chaos_hooks(json.dumps(source).encode(), "test"))
+        self.assertEqual("python tools/my-guard.py", cleaned["hooks"]["PreToolUse"][0]["hooks"][0]["command"])
+        self.assertIn("Custom", cleaned["hooks"])
 
     def test_unrelated_claude_marketplace_fails_closed_without_mutation(self):
         module = load(HOSTS, "chaos_engine_claude_marketplace_collision")
