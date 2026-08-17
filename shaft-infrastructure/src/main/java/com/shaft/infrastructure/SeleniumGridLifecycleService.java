@@ -170,14 +170,14 @@ final class SeleniumGridLifecycleService {
         return new ManagedEnvironment(SetupProfile.SELENIUM_GRID, receipt,
                 Optional.of(URI.create(lease.endpoint())), Map.copyOf(properties), () -> {
                     try {
-                        release(lease, options.shutdownTimeout());
+                        release(lease);
                     } catch (IOException failure) {
                         throw new IllegalStateException("Failed to release the owned Selenium Grid.", failure);
                     }
                 });
     }
 
-    private void release(SeleniumGridRuntimeLease started, Duration timeout) throws IOException {
+    private void release(SeleniumGridRuntimeLease started) throws IOException {
         Path lockPath = lockPath();
         ReentrantLock jvmLock = JVM_LOCKS.computeIfAbsent(lockPath, ignored -> new ReentrantLock());
         jvmLock.lock();

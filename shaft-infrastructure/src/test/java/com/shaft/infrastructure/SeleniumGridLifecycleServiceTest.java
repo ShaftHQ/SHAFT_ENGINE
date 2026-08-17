@@ -160,9 +160,9 @@ class SeleniumGridLifecycleServiceTest {
         private boolean ready = true;
         private boolean inspectFails;
 
-        @Override public void hostPreflight(List<SetupAction> actions) { }
-        @Override public void lockedPreflight(List<SetupAction> actions, boolean offline) { }
-        @Override public void install(SetupAction action) { }
+        @Override public void hostPreflight(List<SetupAction> actions) { /* no host mutation in this fixture */ }
+        @Override public void lockedPreflight(List<SetupAction> actions, boolean offline) { /* no locked preflight */ }
+        @Override public void install(SetupAction action) { /* receipt-only fixture */ }
 
         @Override
         public SetupStatus status(SetupAction action) {
