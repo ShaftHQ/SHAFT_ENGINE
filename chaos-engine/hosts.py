@@ -612,6 +612,7 @@ def client_command(
     arguments: list[str],
     project: Path,
     runner=subprocess.run,
+    timeout: int = 30,
 ) -> subprocess.CompletedProcess[str]:
     result = runner(  # nosec B603 - executable is resolved by shutil.which.
         [executable, *arguments],
@@ -619,7 +620,7 @@ def client_command(
         capture_output=True,
         text=True,
         check=False,
-        timeout=30,
+        timeout=timeout,
     )
     if result.returncode != 0:
         detail = (result.stderr or result.stdout).strip()
@@ -1004,13 +1005,29 @@ def install_caveman_proxy(
         ["install", "--global", CAVEMAN_CLI_SPEC, "--no-audit", "--no-fund"],
         project,
         runner=runner,
+        timeout=300,
     )
     caveman = which("caveman")
     if caveman is None:
         raise RuntimeError("Caveman CLI was not available after installation")
-    client_command(caveman, ["setup", "--install"], project, runner=runner)
-    client_command(caveman, ["enable", "--detected"], project, runner=runner)
-    return {"cli": CAVEMAN_CLI_SPEC, "runtime": "installed", "providers": "detected"}
+    client_command(
+        caveman,
+        ["setup", "--install"],
+        project,
+        runner=runner,
+        timeout=300,
+    )
+    supported = ("claude", "codex", "hermes", "gemini", "opencode", "aider")
+    detected = [name for name in supported if which(name) is not None]
+    if detected:
+        client_command(
+            caveman,
+            ["enable", "--detected"],
+            project,
+            runner=runner,
+            timeout=120,
+        )
+    return {"cli": CAVEMAN_CLI_SPEC, "runtime": "installed", "providers": detected}
 
 
 def activate_detected_plugins(

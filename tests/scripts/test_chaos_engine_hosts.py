@@ -163,7 +163,10 @@ class ChaosEngineHostsTest(unittest.TestCase):
                 {"codex:chaos-engine", "codex:caveman", "claude:chaos-engine", "claude:caveman"},
                 set(receipt["createdPlugins"]),
             )
-            self.assertEqual("detected", receipt["cavemanProxy"]["providers"])
+            self.assertEqual(
+                {"claude", "codex", "hermes", "gemini", "opencode", "aider"},
+                set(receipt["cavemanProxy"]["providers"]),
+            )
             self.assertTrue(all(item["status"] == "healthy" for item in status.values()))
             self.assertTrue(all(cwd == project for _, cwd in calls))
 
