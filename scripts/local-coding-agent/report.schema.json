@@ -1,0 +1,42 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "SHAFT local coding-agent report",
+  "type": "object",
+  "required": [
+    "ok",
+    "model",
+    "worktree",
+    "files_allowed",
+    "files_changed",
+    "commit",
+    "test_command",
+    "test_exit",
+    "elapsed_ms",
+    "loopback",
+    "blockers"
+  ],
+  "properties": {
+    "ok": { "type": "boolean" },
+    "model": { "type": "string" },
+    "worktree": { "type": "string" },
+    "files_allowed": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "type": "string" }
+    },
+    "files_changed": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "commit": { "type": "string" },
+    "test_command": { "type": "string" },
+    "test_exit": { "type": "integer" },
+    "elapsed_ms": { "type": "integer" },
+    "loopback": { "type": "string", "pattern": "^127\\.0\\.0\\.1:[0-9]+$" },
+    "blockers": {
+      "type": "array",
+      "items": { "type": "string" }
+    }
+  },
+  "additionalProperties": false
+}
