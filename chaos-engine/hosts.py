@@ -689,6 +689,32 @@ def activation_plugins(project: Path, marketplace_name: str) -> dict[str, dict[s
     return plugins
 
 
+def activation_plugins_from_root(root: Path, marketplace_name: str) -> dict[str, dict[str, object]]:
+    plugins: dict[str, dict[str, object]] = {}
+    source_root = root / "plugins"
+    for name in (PLUGIN_NAME, CAVEMAN_PLUGIN_NAME):
+        manifest_path = source_root / name / ".codex-plugin/plugin.json"
+        if not manifest_path.is_file():
+            continue
+        try:
+            manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        except (OSError, UnicodeDecodeError, json.JSONDecodeError) as error:
+            raise ValueError(f"{name} plugin manifest is unavailable") from error
+        version = manifest.get("version") if isinstance(manifest, dict) else None
+        if (
+            not isinstance(version, str)
+            or re.fullmatch(r"\d+\.\d+\.\d+", version) is None
+            or manifest.get("name") != name
+        ):
+            raise ValueError(f"{name} plugin manifest is invalid")
+        plugins[name] = {
+            "id": f"{name}@{marketplace_name}",
+            "version": version,
+            "source": root / f"plugins/{name}",
+        }
+    return plugins
+
+
 def prepare_activation_bundle(project: Path) -> tuple[Path, str, str, str]:
     """Publish one path-unique generated marketplace without tracked machine paths."""
     project = project.resolve()
@@ -978,7 +1004,9 @@ def restore_client_activation(
     if not isinstance(clients, list) or not all(item in {"codex", "claude"} for item in clients):
         raise ValueError("ChaosEngine client activation receipt is invalid")
     root, marketplace_name, _, _ = activation_contract(project)
-    plugins = activation_plugins(project, marketplace_name)
+    plugins = activation_plugins_from_root(root, marketplace_name)
+    if PLUGIN_NAME not in plugins:
+        raise ValueError(f"{PLUGIN_NAME} plugin manifest is unavailable")
     for client in clients:
         executable = which(client)
         if executable is None:

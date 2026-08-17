@@ -167,12 +167,62 @@ class ChaosEngineHostsTest(unittest.TestCase):
                 {"claude", "codex", "hermes", "gemini", "opencode", "aider"},
                 set(receipt["cavemanProxy"]["providers"]),
             )
+            proxy_commands = [command for command, _ in calls if command and command[0] in {"npm", "caveman"}]
+            self.assertIn(
+                ["npm", "install", "--global", module.CAVEMAN_CLI_SPEC, "--no-audit", "--no-fund"],
+                proxy_commands,
+            )
+            self.assertIn(["caveman", "setup", "--install"], proxy_commands)
+            self.assertIn(["caveman", "enable", "--detected"], proxy_commands)
             self.assertTrue(all(item["status"] == "healthy" for item in status.values()))
             self.assertTrue(all(cwd == project for _, cwd in calls))
 
             module.uninstall(project, runner=runner, which=lambda name: name)
             self.assertFalse(any(state.values()))
             self.assertFalse(activation_root.exists())
+
+    def test_restore_client_activation_uses_snapshot_plugin_set(self):
+        module = load(HOSTS, "chaos_engine_restore_plugin_set")
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary) / "consumer"
+            canonical = project / ".chaos-engine/skills/chaos-engine/SKILL.md"
+            canonical.parent.mkdir(parents=True)
+            canonical.write_text("# ChaosEngine\n", encoding="utf-8")
+            module.install(project, core_commit="1" * 40)
+            root, marketplace_name, _, _ = module.prepare_activation_bundle(project)
+            shutil.rmtree(root / "plugins/caveman")
+
+            activation = {
+                "marketplaceName": marketplace_name,
+                "ownedClients": ["codex"],
+                "pluginVersion": "1.0.0",
+                "claudeLocalBefore": None,
+            }
+            calls = []
+
+            def runner(command, **_options):
+                calls.append(command)
+                return mock.Mock(returncode=0, stdout=json.dumps({}), stderr="")
+
+            module.restore_client_activation(
+                project,
+                activation,
+                runner=runner,
+                which=lambda name: name if name == "codex" else None,
+            )
+
+            self.assertIn(
+                ["plugin", "marketplace", "add", str(root), "--json"],
+                [command for command in calls if command[0] == "codex"],
+            )
+            self.assertIn(
+                ["plugin", "add", f"{module.PLUGIN_NAME}@{marketplace_name}", "--json"],
+                [command for command in calls if command[0] == "codex" and command[1:3] == ["plugin", "add"]],
+            )
+            self.assertNotIn(
+                "caveman",
+                "".join(" ".join(command) for command in calls if command[0] == "codex"),
+            )
 
     def test_activation_marketplace_identity_is_collision_safe_across_projects(self):
         module = load(HOSTS, "chaos_engine_plugin_identity")
