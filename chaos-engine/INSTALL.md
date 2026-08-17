@@ -32,11 +32,13 @@ the project you want to manage:
 
 That agent instruction owns the complete flow: the bootstrap installs the
 neutral core, pinned local tools, Memory and isolated MemPalace MCP servers,
-Graphify CLI, skills, playbooks, five role adapters, lifecycle hooks, Codex and
-Claude plugin manifests/marketplaces, retrieval configuration, and runtime
-ignore rules. When a detected client requires marketplace registration, the
-agent registers the project marketplace and installs `chaos-engine` at project
-local scope, then runs active `doctor` probes. Generated indexes, caches, receipts, and runtimes
+Graphify CLI, skills, playbooks, five role adapters, ChaosEngine lifecycle
+hooks, the pinned Caveman and Ponytail companion skills and hooks, Codex and
+Claude plugin manifests/marketplaces for ChaosEngine plus those companions,
+retrieval configuration, and runtime ignore rules. When a detected client
+requires marketplace registration, the agent registers the project marketplace
+and installs `chaos-engine`, `caveman`, and `ponytail` at project local scope,
+then runs active `doctor` probes. Generated indexes, caches, receipts, and runtimes
 remain untracked; canonical configuration and adapters remain trackable. The
 installer also merges receipt-bound LF attributes for canonical harness paths,
 so Windows Git checkouts retain the exact owned bytes while unrelated

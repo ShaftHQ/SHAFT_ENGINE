@@ -30,8 +30,11 @@ SCHEMA_VERSION = 1
 PLUGIN_NAME = "chaos-engine"
 CAVEMAN_PLUGIN_NAME = "caveman"
 CAVEMAN_PLUGIN_VERSION = "0.1.0"
-CAVEMAN_CLI_SPEC = "@caveman-ai/cli@1.2.0"
 CAVEMAN_UPSTREAM_COMMIT = "766dce6b1394ebb56a3090748d5a0240a5aefb36"
+PONYTAIL_PLUGIN_NAME = "ponytail"
+PONYTAIL_PLUGIN_VERSION = "0.1.0"
+PONYTAIL_UPSTREAM_COMMIT = "2ed6c52c9d7e5e56942508591085fd45dea277d3"
+COMPANION_PLUGIN_NAMES = (CAVEMAN_PLUGIN_NAME, PONYTAIL_PLUGIN_NAME)
 MEMORY_SCHEMA_FILES = (
     "config.schema.json",
     "object.schema.json",
@@ -668,7 +671,7 @@ def activation_contract(project: Path) -> tuple[Path, str, str, str]:
 
 def activation_plugins(project: Path, marketplace_name: str) -> dict[str, dict[str, object]]:
     plugins: dict[str, dict[str, object]] = {}
-    for name in (PLUGIN_NAME, CAVEMAN_PLUGIN_NAME):
+    for name in (PLUGIN_NAME, *COMPANION_PLUGIN_NAMES):
         manifest_path = project / f"plugins/{name}/.codex-plugin/plugin.json"
         try:
             manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
@@ -692,7 +695,7 @@ def activation_plugins(project: Path, marketplace_name: str) -> dict[str, dict[s
 def activation_plugins_from_root(root: Path, marketplace_name: str) -> dict[str, dict[str, object]]:
     plugins: dict[str, dict[str, object]] = {}
     source_root = root / "plugins"
-    for name in (PLUGIN_NAME, CAVEMAN_PLUGIN_NAME):
+    for name in (PLUGIN_NAME, *COMPANION_PLUGIN_NAMES):
         manifest_path = source_root / name / ".codex-plugin/plugin.json"
         if not manifest_path.is_file():
             continue
@@ -755,6 +758,15 @@ def prepare_activation_bundle(project: Path) -> tuple[Path, str, str, str]:
                     },
                     "category": "Productivity",
                 },
+                {
+                    "name": PONYTAIL_PLUGIN_NAME,
+                    "source": {"source": "local", "path": "./plugins/ponytail"},
+                    "policy": {
+                        "installation": "INSTALLED_BY_DEFAULT",
+                        "authentication": "ON_INSTALL",
+                    },
+                    "category": "Productivity",
+                },
             ],
         }
         claude_marketplace = {
@@ -773,6 +785,12 @@ def prepare_activation_bundle(project: Path) -> tuple[Path, str, str, str]:
                     "source": "./plugins/caveman",
                     "description": "Ultra-compressed communication mode.",
                     "version": CAVEMAN_PLUGIN_VERSION,
+                },
+                {
+                    "name": PONYTAIL_PLUGIN_NAME,
+                    "source": "./plugins/ponytail",
+                    "description": "Laziest solution that actually works.",
+                    "version": PONYTAIL_PLUGIN_VERSION,
                 },
             ],
         }
@@ -895,6 +913,69 @@ def detected_plugin_status(
     return status
 
 
+def publish_vendor_plugin(
+    after: dict[str, bytes],
+    *,
+    name: str,
+    vendor: str,
+    repository: str,
+    commit: str,
+    version: str,
+) -> None:
+    root = Path(__file__).resolve().parent / "vendor" / vendor
+    skip = {"PIN.json", "README.md"}
+    for path in root.rglob("*"):
+        if not path.is_file() or path.name in skip:
+            continue
+        relative = path.relative_to(root).as_posix()
+        after[f"plugins/{name}/{relative}"] = path.read_bytes()
+    after[f"plugins/{name}/UPSTREAM.md"] = (
+        f"# {name.capitalize()} provenance\n\n"
+        f"Bundled from `{repository}` under the MIT license.\n\n"
+        f"- Upstream commit: `{commit}`\n"
+        f"- Skill version: `{version}`\n"
+        "- Install is project-local. Companion hooks do not deny tools or hold completion.\n"
+    ).encode()
+
+
+def companion_managed_paths() -> tuple[str, ...]:
+    paths: list[str] = []
+    for name, vendor in (
+        (CAVEMAN_PLUGIN_NAME, "caveman"),
+        (PONYTAIL_PLUGIN_NAME, "ponytail"),
+    ):
+        paths.extend(
+            (
+                f"plugins/{name}/.codex-plugin/plugin.json",
+                f"plugins/{name}/.claude-plugin/plugin.json",
+                f"plugins/{name}/UPSTREAM.md",
+            )
+        )
+        root = Path(__file__).resolve().parent / "vendor" / vendor
+        for path in sorted(root.rglob("*")):
+            if path.is_file() and path.name not in {"PIN.json", "README.md"}:
+                paths.append(f"plugins/{name}/{path.relative_to(root).as_posix()}")
+    return tuple(paths)
+
+
+def companion_required_files(name: str) -> tuple[str, ...]:
+    if name == CAVEMAN_PLUGIN_NAME:
+        return (
+            "skills/caveman/SKILL.md",
+            "LICENSE",
+            "src/hooks/caveman-activate.js",
+            "UPSTREAM.md",
+        )
+    if name == PONYTAIL_PLUGIN_NAME:
+        return (
+            "skills/ponytail/SKILL.md",
+            "LICENSE",
+            "hooks/ponytail-activate.js",
+            "UPSTREAM.md",
+        )
+    raise ValueError(f"unknown companion plugin: {name}")
+
+
 def cached_plugin_matches(installed_path: object, source: Path) -> bool:
     if not isinstance(installed_path, str):
         return False
@@ -902,7 +983,7 @@ def cached_plugin_matches(installed_path: object, source: Path) -> bool:
     required = (
         ("hooks/guard.py", "hooks/reflection.py", "skills/chaos-engine/SKILL.md")
         if source.name == PLUGIN_NAME
-        else ("skills/caveman/SKILL.md", "LICENSE", "UPSTREAM.md")
+        else companion_required_files(source.name)
     )
     for relative in required:
         cached = installed / relative
@@ -946,7 +1027,6 @@ def record_client_activation(project: Path, activation: dict[str, object]) -> No
         "ownedClients": activation["ownedClients"],
         "pluginVersion": activation["pluginVersion"],
         "claudeLocalBefore": activation["claudeLocalBefore"],
-        "cavemanProxy": activation.get("cavemanProxy"),
     }
     write_receipt(project, receipt, raw)
 
@@ -1016,46 +1096,6 @@ def restore_client_activation(
         for contract in plugins.values():
             plugin_commands = activation_commands(root, str(contract["id"]))
             client_command(executable, plugin_commands[client]["install"], project, runner=runner)
-
-
-def install_caveman_proxy(
-    project: Path,
-    *,
-    runner=subprocess.run,
-    which=shutil.which,
-) -> dict[str, object]:
-    """Install Caveman's pinned signed runtime and enable every detected native provider."""
-    npm = which("npm")
-    if npm is None:
-        raise RuntimeError("Caveman proxy installation requires npm")
-    client_command(
-        npm,
-        ["install", "--global", CAVEMAN_CLI_SPEC, "--no-audit", "--no-fund"],
-        project,
-        runner=runner,
-        timeout=300,
-    )
-    caveman = which("caveman")
-    if caveman is None:
-        raise RuntimeError("Caveman CLI was not available after installation")
-    client_command(
-        caveman,
-        ["setup", "--install"],
-        project,
-        runner=runner,
-        timeout=300,
-    )
-    supported = ("claude", "codex", "hermes", "gemini", "opencode", "aider")
-    detected = [name for name in supported if which(name) is not None]
-    if detected:
-        client_command(
-            caveman,
-            ["enable", "--detected"],
-            project,
-            runner=runner,
-            timeout=120,
-        )
-    return {"cli": CAVEMAN_CLI_SPEC, "runtime": "installed", "providers": detected}
 
 
 def activate_detected_plugins(
@@ -1128,7 +1168,6 @@ def activate_detected_plugins(
             verified = detected_plugin_status(project, runner=runner, which=selected_client)[client]
             if verified["status"] != "healthy":
                 raise RuntimeError(f"{client} plugin activation did not verify")
-        receipt["cavemanProxy"] = install_caveman_proxy(project, runner=runner, which=which)
         verified_clients = detected_plugin_status(project, runner=runner, which=which)
         receipt["ownedClients"] = touched_clients
         receipt["pluginVersion"] = activation_contract(project)[3]
@@ -1664,11 +1703,7 @@ def managed_paths() -> tuple[str, ...]:
         "plugins/chaos-engine/hooks/guard.py",
         "plugins/chaos-engine/hooks/reflection.py",
         "plugins/chaos-engine/skills/chaos-engine/SKILL.md",
-        "plugins/caveman/.codex-plugin/plugin.json",
-        "plugins/caveman/.claude-plugin/plugin.json",
-        "plugins/caveman/skills/caveman/SKILL.md",
-        "plugins/caveman/LICENSE",
-        "plugins/caveman/UPSTREAM.md",
+        *companion_managed_paths(),
         ".codex/hooks.json",
         ".claude/settings.json",
         ".claude/agents/chaos-engine-orchestrator.md",
@@ -2097,6 +2132,7 @@ def gitignore_content(before: bytes | None) -> bytes:
         "!.github/skills/chaos-engine/\n!.github/skills/chaos-engine/**\n"
         "!plugins/\n!plugins/chaos-engine/\n!plugins/chaos-engine/**\n"
         "!plugins/caveman/\n!plugins/caveman/**\n"
+        "!plugins/ponytail/\n!plugins/ponytail/**\n"
         "!.mcp.json\n!mempalace.yaml\n!AGENTS.md\n!CLAUDE.md\n!GEMINI.md\n!.gitattributes\n"
         ".chaos-engine-owned-directory\n"
         f"{GITIGNORE_END}\n"
@@ -2129,6 +2165,7 @@ def gitattributes_content(before: bytes | None) -> bytes:
         f"{repository_root_anchor}.memory/** text eol=lf\n"
         f"{repository_root_anchor}plugins/chaos-engine/** text eol=lf\n"
         f"{repository_root_anchor}plugins/caveman/** text eol=lf\n"
+        f"{repository_root_anchor}plugins/ponytail/** text eol=lf\n"
         f"{repository_root_anchor}AGENTS.md text eol=lf\n"
         f"{repository_root_anchor}CLAUDE.md text eol=lf\n"
         f"{repository_root_anchor}GEMINI.md text eol=lf\n"
@@ -2163,7 +2200,8 @@ def desired_content(
         "# Installed agent harness\n\n"
         "- `chaos-engine/`: canonical skill adapter.\n"
         "- `../../plugins/chaos-engine/`: installed plugin and lifecycle hook.\n"
-        "- `../../plugins/caveman/`: bundled Caveman response-compression skill.\n"
+        "- `../../plugins/caveman/`: pinned Caveman skill and hooks.\n"
+        "- `../../plugins/ponytail/`: pinned Ponytail skill and hooks.\n"
         "- `.chaos-engine/`: canonical skills, playbooks, tools, and policy.\n"
     ).encode()
     plugin_entry = {
@@ -2218,6 +2256,27 @@ def desired_content(
         raise ValueError("Caveman plugin marketplace collision")
     if existing_caveman is None:
         marketplace["plugins"].append(caveman_entry)
+    ponytail_entry = {
+        "name": PONYTAIL_PLUGIN_NAME,
+        "source": {"source": "local", "path": "./plugins/ponytail"},
+        "policy": {
+            "installation": "INSTALLED_BY_DEFAULT",
+            "authentication": "ON_INSTALL",
+        },
+        "category": "Productivity",
+    }
+    existing_ponytail = next(
+        (
+            item
+            for item in marketplace["plugins"]
+            if isinstance(item, dict) and item.get("name") == PONYTAIL_PLUGIN_NAME
+        ),
+        None,
+    )
+    if existing_ponytail is not None and existing_ponytail != ponytail_entry:
+        raise ValueError("Ponytail plugin marketplace collision")
+    if existing_ponytail is None:
+        marketplace["plugins"].append(ponytail_entry)
     after[".agents/plugins/marketplace.json"] = (
         json.dumps(marketplace, indent=2, sort_keys=True) + "\n"
     ).encode()
@@ -2276,6 +2335,24 @@ def desired_content(
         raise ValueError("Caveman Claude plugin collision")
     if existing_caveman is None:
         claude_marketplace["plugins"].append(caveman_claude_entry)
+    ponytail_claude_entry = {
+        "name": PONYTAIL_PLUGIN_NAME,
+        "source": "./plugins/ponytail",
+        "description": "Laziest solution that actually works.",
+        "version": PONYTAIL_PLUGIN_VERSION,
+    }
+    existing_ponytail = next(
+        (
+            item
+            for item in claude_marketplace["plugins"]
+            if isinstance(item, dict) and item.get("name") == PONYTAIL_PLUGIN_NAME
+        ),
+        None,
+    )
+    if existing_ponytail is not None and existing_ponytail != ponytail_claude_entry:
+        raise ValueError("Ponytail Claude plugin collision")
+    if existing_ponytail is None:
+        claude_marketplace["plugins"].append(ponytail_claude_entry)
     after[".claude-plugin/marketplace.json"] = (
         json.dumps(claude_marketplace, indent=2, sort_keys=True) + "\n"
     ).encode()
@@ -2324,7 +2401,7 @@ def desired_content(
     after["plugins/chaos-engine/skills/chaos-engine/SKILL.md"] = (
         "---\nname: chaos-engine\ndescription: Load the canonical installed ChaosEngine before every task.\n---\n\n"
         "From the active project root, load `.chaos-engine/skills/chaos-engine/SKILL.md` before every task.\n"
-        "Then load `plugins/caveman/skills/caveman/SKILL.md` as the bundled response-compression companion.\n"
+        "That router decides whether to load the bundled Caveman and Ponytail companions.\n"
     ).encode()
     claude_settings = without_chaos_hooks(before[".claude/settings.json"], "Claude")
     try:
@@ -2347,6 +2424,7 @@ def desired_content(
         raise ValueError("ChaosEngine Claude marketplace collision")
     enabled[plugin_id] = True
     enabled["caveman@chaos-engine-project"] = True
+    enabled["ponytail@chaos-engine-project"] = True
     marketplaces["chaos-engine-project"] = desired_marketplace
     after[".claude/settings.json"] = (
         json.dumps(settings, indent=2, sort_keys=True) + "\n"
@@ -2380,26 +2458,93 @@ def desired_content(
     after["plugins/caveman/.claude-plugin/plugin.json"] = (
         json.dumps(
             {
-                key: caveman_manifest[key]
-                for key in ("name", "version", "description", "author")
+                "name": CAVEMAN_PLUGIN_NAME,
+                "version": CAVEMAN_PLUGIN_VERSION,
+                "description": caveman_manifest["description"],
+                "author": caveman_manifest["author"],
+                "hooks": {
+                    "SessionStart": [
+                        {
+                            "hooks": [
+                                {
+                                    "type": "command",
+                                    "command": 'node "${CLAUDE_PLUGIN_ROOT}/src/hooks/caveman-activate.js"',
+                                    "timeout": 5,
+                                    "statusMessage": "Loading caveman mode...",
+                                }
+                            ]
+                        }
+                    ],
+                    "UserPromptSubmit": [
+                        {
+                            "hooks": [
+                                {
+                                    "type": "command",
+                                    "command": 'node "${CLAUDE_PLUGIN_ROOT}/src/hooks/caveman-mode-tracker.js"',
+                                    "timeout": 5,
+                                    "statusMessage": "Tracking caveman mode...",
+                                }
+                            ]
+                        }
+                    ],
+                },
             },
             indent=2,
             sort_keys=True,
         )
         + "\n"
     ).encode()
-    caveman_vendor = Path(__file__).resolve().parent / "vendor/caveman"
-    after["plugins/caveman/skills/caveman/SKILL.md"] = (
-        caveman_vendor / "SKILL.md"
-    ).read_bytes()
-    after["plugins/caveman/LICENSE"] = (caveman_vendor / "LICENSE").read_bytes()
-    after["plugins/caveman/UPSTREAM.md"] = (
-        "# Caveman provenance\n\n"
-        "Bundled from `JuliusBrussee/caveman` under the MIT license.\n\n"
-        f"- Upstream commit: `{CAVEMAN_UPSTREAM_COMMIT}`\n"
-        f"- Skill version: `{CAVEMAN_PLUGIN_VERSION}`\n"
-        f"- Proxy package: `{CAVEMAN_CLI_SPEC}`\n"
+    publish_vendor_plugin(
+        after,
+        name=CAVEMAN_PLUGIN_NAME,
+        vendor="caveman",
+        repository="JuliusBrussee/caveman",
+        commit=CAVEMAN_UPSTREAM_COMMIT,
+        version=CAVEMAN_PLUGIN_VERSION,
+    )
+    ponytail_manifest = {
+        "name": PONYTAIL_PLUGIN_NAME,
+        "version": PONYTAIL_PLUGIN_VERSION,
+        "description": "Forces the laziest solution that actually works.",
+        "author": {
+            "name": "DietrichGebert",
+            "url": "https://github.com/DietrichGebert",
+        },
+        "homepage": "https://github.com/DietrichGebert/ponytail",
+        "repository": "https://github.com/DietrichGebert/ponytail",
+        "license": "MIT",
+        "skills": "./skills/",
+    }
+    after["plugins/ponytail/.codex-plugin/plugin.json"] = (
+        json.dumps(ponytail_manifest, indent=2, sort_keys=True) + "\n"
     ).encode()
+    ponytail_hooks = json.loads(
+        (
+            Path(__file__).resolve().parent / "vendor/ponytail/hooks/claude-codex-hooks.json"
+        ).read_text(encoding="utf-8")
+    )
+    after["plugins/ponytail/.claude-plugin/plugin.json"] = (
+        json.dumps(
+            {
+                "name": PONYTAIL_PLUGIN_NAME,
+                "version": PONYTAIL_PLUGIN_VERSION,
+                "description": ponytail_manifest["description"],
+                "author": ponytail_manifest["author"],
+                "hooks": ponytail_hooks.get("hooks", ponytail_hooks),
+            },
+            indent=2,
+            sort_keys=True,
+        )
+        + "\n"
+    ).encode()
+    publish_vendor_plugin(
+        after,
+        name=PONYTAIL_PLUGIN_NAME,
+        vendor="ponytail",
+        repository="DietrichGebert/ponytail",
+        commit=PONYTAIL_UPSTREAM_COMMIT,
+        version=PONYTAIL_PLUGIN_VERSION,
+    )
     roles = {
         "orchestrator": "Own planning, architecture, synthesis, and final verification.",
         "implementer": "Implement one bounded specification with test-driven development.",
