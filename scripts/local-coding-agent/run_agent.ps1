@@ -99,6 +99,8 @@ if (-not (Get-LoopbackListener)) {
     $deadline = (Get-Date).AddSeconds(30)
     while (-not (Get-LoopbackListener)) {
         if ((Get-Date) -gt $deadline) {
+            Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue
+            Remove-Item -LiteralPath $pidFile -Force -ErrorAction SilentlyContinue
             Write-Error "Ollama did not bind 127.0.0.1:11434"
             exit 2
         }
@@ -150,6 +152,8 @@ if (Test-Path -LiteralPath $aider) {
 
 Push-Location -LiteralPath $Worktree
 try {
+    Get-ChildItem -Force -LiteralPath $Worktree -Filter ".aider*" -ErrorAction SilentlyContinue |
+        Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
     $statusFile = Join-Path $reportDir "git-status.txt"
     $headFile = Join-Path $reportDir "git-head-files.txt"
     git status --porcelain

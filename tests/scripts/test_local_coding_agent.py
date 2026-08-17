@@ -126,6 +126,11 @@ class LocalCodingAgentReportTest(unittest.TestCase):
         changed = MODULE.changed_paths_from_git_status(status)
         self.assertEqual(["src/Example.java"], changed)
 
+    def test_aider_substring_in_real_filename_is_kept(self):
+        status = " M docs/using.aider.md\n"
+        changed = MODULE.changed_paths_from_git_status(status)
+        self.assertEqual(["docs/using.aider.md"], changed)
+
     def test_git_status_without_pathspec_finds_extra_files(self):
         status = (
             " M shaft-engine/src/test/java/testPackage/LocalCodingAgentAcceptanceTest.java\n"
@@ -224,6 +229,8 @@ class LocalCodingAgentPackagingTest(unittest.TestCase):
         install_text = INSTALL.read_text(encoding="utf-8")
         self.assertIn("release asset digest missing", install_text)
         self.assertIn('$agentPy "write"', run_text)
+        self.assertIn('$agentPy "changed"', run_text)
+        self.assertIn('Filter ".aider*"', run_text)
 
     def test_named_commands_exist(self):
         self.assertTrue(JAVA_AGENT.is_file())
@@ -238,6 +245,7 @@ class LocalCodingAgentPackagingTest(unittest.TestCase):
         self.assertIn("--no-auto-commits", architect_text)
         self.assertIn("--no-gitignore", architect_text)
         self.assertIn("architect-chat.md", architect_text)
+        self.assertIn('Filter ".aider*"', architect_text)
         self.assertIn("push is forbidden", architect_text)
         self.assertIn("read-only contract failed", architect_text)
 

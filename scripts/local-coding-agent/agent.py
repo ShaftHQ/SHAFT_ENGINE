@@ -73,7 +73,9 @@ def changed_paths_from_git_status(status_text: str) -> list[str]:
         if " -> " in payload:
             payload = payload.split(" -> ", 1)[1]
         cleaned = payload.strip().strip('"')
-        if ".aider" in cleaned.replace("\\", "/").lower():
+        normalized = cleaned.replace("\\", "/").lower()
+        name = normalized.rsplit("/", 1)[-1]
+        if name.startswith(".aider") or "/.aider" in f"/{normalized}":
             continue
         paths.append(cleaned)
     return paths
@@ -186,11 +188,15 @@ def main(argv: list[str] | None = None) -> int:
                 )
             )
         if args.head_file:
-            paths.extend(
-                line.strip()
-                for line in Path(args.head_file).read_text(encoding="utf-8", errors="replace").splitlines()
-                if line.strip()
-            )
+            for line in Path(args.head_file).read_text(encoding="utf-8", errors="replace").splitlines():
+                item = line.strip()
+                if not item:
+                    continue
+                normalized = item.replace("\\", "/").lower()
+                name = normalized.rsplit("/", 1)[-1]
+                if name.startswith(".aider") or "/.aider" in f"/{normalized}":
+                    continue
+                paths.append(item)
         seen: set[str] = set()
         for item in paths:
             key = _normalize_path(item)

@@ -104,10 +104,10 @@ try {
     }
     & $aider @aiderArgs
     $aiderExit = $LASTEXITCODE
+    Get-ChildItem -Force -LiteralPath $Worktree -Filter ".aider*" -ErrorAction SilentlyContinue |
+        Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
     $after = (git status --porcelain)
-    $beforeKept = @($before | Where-Object { $_ -and ($_ -notmatch '\.aider') })
-    $afterKept = @($after | Where-Object { $_ -and ($_ -notmatch '\.aider') })
-    if (("$afterKept") -ne ("$beforeKept")) {
+    if ("$after" -ne "$before") {
         Write-Error "architect run changed the worktree; read-only contract failed"
         exit 2
     }
