@@ -337,7 +337,7 @@ if (-not ($resolverOk -and $cacheOk -and $queryOk -and $auditOk)) {
     def _assert_graphify_contention_is_a_degraded_continuation(self, files):
         graphify = re.sub(r"\s+", " ", files["graphify"])
         retrieval = re.sub(r"\s+", " ", files["retrieval"])
-        entrypoint = re.sub(r"\s+", " ", files["entrypoint"])
+        receipt = re.sub(r"\s+", " ", files["receipt"])
 
         for required in (
             "The existing maintenance controller is the sole Graphify refresh owner.",
@@ -356,7 +356,7 @@ if (-not ($resolverOk -and $cacheOk -and $queryOk -and $auditOk)) {
         )
         self.assertIn(
             "never blocks work",
-            entrypoint,
+            receipt,
         )
         # This is a closed contract over canonical unsafe permission clauses,
         # not an attempt to parse unrestricted natural language.
@@ -381,8 +381,8 @@ if (-not ($resolverOk -and $cacheOk -and $queryOk -and $auditOk)) {
             "retrieval": (
                 ROOT / "chaos-engine/references/retrieve-first.md"
             ).read_text(encoding="utf-8"),
-            "entrypoint": (
-                ROOT / "chaos-engine/skills/chaos-engine/SKILL.md"
+            "receipt": (
+                ROOT / "chaos-engine/references/research-receipt.md"
             ).read_text(encoding="utf-8"),
         }
 

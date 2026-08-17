@@ -29,6 +29,10 @@ before broad manual discovery, not all of them by reflex.
 | What calls or depends on this? | [Graphify](../../../references/graphify.md) | Blast radius is unknown, or you are about to change a shared symbol. |
 | What does the code do right now? | targeted `rg` and exact reads | Always. This is the only source that settles a disagreement. |
 
+From any SHAFT worktree, `py -3 scripts/agents/knowledge_stores.py status`
+or `search` hits the centralized palace and a Graphify `--check`. `refresh`
+refuses and names `SHAFT-Nightly-Knowledge-Refresh`.
+
 Each selected store gets one attempt through the existing host timeout. Record
 irrelevant stores as skipped and unavailable stores as degraded; neither blocks
 ordinary implementation or completion. Explicit install, upgrade, maintenance,

@@ -848,6 +848,21 @@ class AgentHarnessPortabilityTest(unittest.TestCase):
         for pattern in ("entities.json", "graphify-out/", "**/target/"):
             self.assertIn(pattern, ignore)
 
+    def test_knowledge_stores_cli_uses_central_resolvers_and_never_creates_a_checkout_palace(self):
+        command = (ROOT / "scripts/agents/knowledge_stores.py").read_text(encoding="utf-8")
+        resolver = (ROOT / "tools/repository-map/resolve_mempalace.py").read_text(encoding="utf-8")
+
+        self.assertIn("tools/repository-map/resolve_mempalace.py", command)
+        self.assertIn("tools/repository-map/resolve_graph_out.py", command)
+        self.assertIn("SHAFT-Nightly-Knowledge-Refresh", command)
+        self.assertIn("graphify_maintenance.py refresh", command)
+        self.assertIn("--backend", command)
+        self.assertIn("sqlite_exact", command)
+        self.assertNotIn(".chaos-engine-state/mempalace", command)
+        self.assertNotIn(".chaos-engine-state/mempalace", resolver)
+        self.assertIn("SHAFT_MEMPALACE must be absolute", resolver)
+        self.assertIn("git-common-dir", resolver)
+
     def test_default_mcp_configs_do_not_launch_docker(self):
         claude = json.loads((ROOT / ".mcp.json").read_text(encoding="utf-8"))[
             "mcpServers"

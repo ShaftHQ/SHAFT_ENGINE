@@ -85,3 +85,23 @@ Because `graphify-out/` is gitignored, it never exists in a fresh `git worktree`
   it. On the primary maintainer machine the nightly maintenance task invokes
   the same controller automatically.
 - The "mandatory entry point" rule is satisfied by running the `--check` resolve, not by building the graph. If the cache is absent, fall back to `rg` and `.memory` instead of blocking the session on a rebuild.
+
+## Shared MemPalace across worktrees
+
+The SHAFT palace lives at `<git-common-dir>/chaos-engine/mempalace` (today the
+primary `.git` tree). Do not create `<checkout>/.chaos-engine-state/mempalace`
+and do not junction that empty path onto the centralized palace.
+
+- Resolve it from any worktree with `python3 tools/repository-map/resolve_mempalace.py`.
+- Set `SHAFT_MEMPALACE` to an absolute palace path when the shared palace is
+  outside that checkout. An explicitly blank or relative value fails closed.
+- Operator command from any worktree cwd:
+
+```powershell
+py -3 scripts/agents/knowledge_stores.py status
+py -3 scripts/agents/knowledge_stores.py search "shared cache" --wing shaft_engine_main
+```
+
+`refresh` refuses linked worktrees and ordinary checkouts. Overnight mine/sync
+stays with `SHAFT-Nightly-Knowledge-Refresh` (#4809). MemPalace `daemon` is an
+opt-in write serializer, not an overnight miner; do not start a second racer.
