@@ -630,12 +630,27 @@ class AgentHarnessPortabilityTest(unittest.TestCase):
             )
             self.assertEqual(completed.returncode, 0, completed.stderr)
             self.assertIn("R1", completed.stdout)
+        settings_path = ROOT / ".claude/settings.json"
         for groups in claude_hooks.values():
             for group in groups:
                 for handler in group["hooks"]:
-                    self.assertEqual(handler["command"], "python3")
-                    self.assertEqual(handler["args"][0], "-c")
-                    self.assertIn("scripts/agents/guard.py", handler["args"][1])
+                    command = handler["command"]
+                    # Grok treats a single-token command as a path relative to
+                    # the settings file, so `python3` becomes `.claude\python3`.
+                    self.assertRegex(
+                        command,
+                        r"\s",
+                        "Grok resolves a single-token command relative to .claude/",
+                    )
+                    self.assertTrue(command.startswith("python3 "))
+                    self.assertIn("scripts/agents/guard.py", command)
+                    self.assertFalse(
+                        handler.get("args"),
+                        "Grok ignores Claude args and only runs command",
+                    )
+                    self.assertTrue(handler.get("commandWindows", "").startswith("py -3 "))
+                    self.assertNotIn(str(ROOT), handler.get("commandWindows", ""))
+                    self.assertFalse((settings_path.parent / "python3").exists())
         for groups in codex_hooks.values():
             for group in groups:
                 for handler in group["hooks"]:
