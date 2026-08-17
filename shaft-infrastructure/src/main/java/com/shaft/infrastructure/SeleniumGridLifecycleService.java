@@ -57,7 +57,7 @@ final class SeleniumGridLifecycleService {
                 receipt = requireInstallReceipt(plan);
                 requireInstalled(plan);
                 Optional<SeleniumGridRuntimeLease> reusable = readReusable(plan, options);
-                if (reusable.isPresent()) return environment(receipt, reusable.orElseThrow(), options);
+                if (reusable.isPresent()) return environment(receipt, reusable.orElseThrow());
                 return startNew(plan, receipt, options);
             }
         } catch (InterruptedException interrupted) {
@@ -124,7 +124,7 @@ final class SeleniumGridLifecycleService {
                     SeleniumGridSetupPlanner.PROJECT, endpoint.toString(), scale.port(), scale.chrome(),
                     scale.edge(), scale.firefox(), 1);
             writeLease(lease);
-            return environment(receipt, lease, options);
+            return environment(receipt, lease);
         } catch (IOException | RuntimeException failure) {
             try {
                 operations.composeDown(composeFile(), SeleniumGridSetupPlanner.PROJECT);
@@ -161,8 +161,7 @@ final class SeleniumGridLifecycleService {
                 scale.firefox(), 1);
     }
 
-    private ManagedEnvironment environment(SetupReceipt receipt, SeleniumGridRuntimeLease lease,
-                                           SetupOptions options) {
+    private ManagedEnvironment environment(SetupReceipt receipt, SeleniumGridRuntimeLease lease) {
         Map<String, String> properties = new LinkedHashMap<>();
         properties.put("executionAddress", "localhost:" + lease.port());
         properties.put("selenium.grid.endpoint", lease.endpoint());
