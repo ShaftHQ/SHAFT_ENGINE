@@ -147,13 +147,19 @@ final class DesktopMobileLifecycleService {
                     endpoint.toString(), simulatorUdid, shaftBootedSimulator, ProcessIdentity.of(appium), 1);
             writeLease(lease);
             return environment(receipt, new ActiveRuntime(lease, appium), options);
-        } catch (IOException | RuntimeException failure) {
-            IOException cleanup = stopStarted(appium, shaftBootedLease(plan, shaftBootedSimulator),
-                    options.shutdownTimeout());
-            if (cleanup != null) failure.addSuppressed(cleanup);
-            if (failure instanceof IOException io) throw io;
+        } catch (IOException failure) {
+            suppressCleanupFailure(failure, appium, shaftBootedSimulator, plan, options.shutdownTimeout());
+            throw failure;
+        } catch (RuntimeException failure) {
+            suppressCleanupFailure(failure, appium, shaftBootedSimulator, plan, options.shutdownTimeout());
             throw failure;
         }
+    }
+
+    private void suppressCleanupFailure(Throwable failure, AndroidOwnedProcess appium,
+                                        boolean shaftBootedSimulator, SetupPlan plan, Duration timeout) {
+        IOException cleanup = stopStarted(appium, shaftBootedLease(plan, shaftBootedSimulator), timeout);
+        if (cleanup != null) failure.addSuppressed(cleanup);
     }
 
     private DesktopMobileRuntimeLease shaftBootedLease(SetupPlan plan, boolean shaftBootedSimulator) {

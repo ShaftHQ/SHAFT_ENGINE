@@ -365,9 +365,9 @@ class DesktopMobileLifecycleServiceTest {
                            ReadyOperations operations) { }
 
     private static final class ReadyOperations implements DesktopMobileToolchainOperations {
-        @Override public void hostPreflight(List<SetupAction> actions) { }
-        @Override public void lockedPreflight(List<SetupAction> actions, boolean offline) { }
-        @Override public void install(SetupAction action) { }
+        @Override public void hostPreflight(List<SetupAction> actions) { /* no host mutation in this fixture */ }
+        @Override public void lockedPreflight(List<SetupAction> actions, boolean offline) { /* no locked preflight */ }
+        @Override public void install(SetupAction action) { /* receipt-only fixture */ }
         @Override public SetupStatus status(SetupAction action) {
             return new SetupStatus(action.target(), SetupReadiness.READY, action.version(), "ready");
         }
@@ -394,16 +394,18 @@ class DesktopMobileLifecycleServiceTest {
         @Override
         public Optional<AndroidOwnedProcess> find(long pid, Instant startInstant, String commandIdentity)
                 throws IOException {
+            FakeProcess match = null;
             for (FakeProcess process : processes) {
-                if (process.pid() != pid) continue;
-                if (!process.isAlive()) return Optional.empty();
-                if (!process.startInstant().equals(startInstant)
-                        || !process.commandIdentity().equals(commandIdentity)) {
-                    throw new IOException("Live process identity does not match the SHAFT runtime lease: " + pid);
+                if (process.pid() == pid) {
+                    match = process;
+                    break;
                 }
-                return Optional.of(process);
             }
-            return Optional.empty();
+            if (match == null || !match.isAlive()) return Optional.empty();
+            if (!match.startInstant().equals(startInstant) || !match.commandIdentity().equals(commandIdentity)) {
+                throw new IOException("Live process identity does not match the SHAFT runtime lease: " + pid);
+            }
+            return Optional.of(match);
         }
 
         private void setAllAlive(boolean alive) {
