@@ -225,6 +225,8 @@ class LocalCodingAgentPackagingTest(unittest.TestCase):
         self.assertIn("stop.ps1", stop_text)
         self.assertIn("--dry-run", architect_text)
         self.assertIn("--no-auto-commits", architect_text)
+        self.assertIn("--no-gitignore", architect_text)
+        self.assertIn("architect-chat.md", architect_text)
         self.assertIn("push is forbidden", architect_text)
         self.assertIn("read-only contract failed", architect_text)
 

@@ -75,14 +75,19 @@ if (-not (Get-LoopbackListener)) {
 }
 
 $agents = Join-Path $Worktree "AGENTS.md"
+$reportDir = Join-Path $Root "reports"
+New-Item -ItemType Directory -Force -Path $reportDir | Out-Null
 $aiderArgs = @(
     "--model", "ollama_chat/$Model",
     "--edit-format", "whole",
     "--yes-always",
     "--dry-run",
     "--no-auto-commits",
+    "--no-gitignore",
     "--no-suggest-shell-commands",
     "--no-show-model-warnings",
+    "--chat-history-file", (Join-Path $reportDir "architect-chat.md"),
+    "--input-history-file", (Join-Path $reportDir "architect-input.md"),
     "--message-file", $Spec
 )
 if (Test-Path -LiteralPath $agents) {
