@@ -27,7 +27,7 @@ public final class InfrastructureSetupService {
         List<SetupProvider> providers = new java.util.ArrayList<>(List.of(
                 new ReportingSetupProvider(), new OcrSetupProvider(), new LighthouseSetupProvider(),
                 new PlaywrightSetupProvider(), new AndroidSetupProvider(), new SeleniumGridSetupProvider(),
-                new HealeniumSetupProvider()));
+                new HealeniumSetupProvider(), new ReportPortalSetupProvider()));
         if (platform == SetupPlatform.MACOS) providers.add(new IosSetupProvider());
         if (platform == SetupPlatform.WINDOWS) providers.add(new WindowsSetupProvider());
         ClassLoader contextLoader = Thread.currentThread().getContextClassLoader();
