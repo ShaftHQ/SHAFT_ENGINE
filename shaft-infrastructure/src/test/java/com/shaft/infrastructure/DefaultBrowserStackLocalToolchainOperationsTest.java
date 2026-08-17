@@ -20,7 +20,7 @@ class DefaultBrowserStackLocalToolchainOperationsTest {
         DefaultBrowserStackLocalToolchainOperations operations = new DefaultBrowserStackLocalToolchainOperations(
                 paths, plan(), false);
 
-        IOException failure = assertThrows(java.io.IOException.class,
+        IOException failure = assertThrows(IOException.class,
                 () -> operations.startTunnel(temp.resolve("BrowserStackLocal"), "key", paths.state().resolve("x.log")));
         assertTrue(failure.getMessage().contains("unowned"));
     }
@@ -31,8 +31,8 @@ class DefaultBrowserStackLocalToolchainOperationsTest {
         DefaultBrowserStackLocalToolchainOperations operations = new DefaultBrowserStackLocalToolchainOperations(
                 paths, plan(), false);
 
-        IOException failure = assertThrows(java.io.IOException.class,
-                () -> operations.stopProcess(1, temp.resolve("BrowserStackLocal")));
+        IOException failure = assertThrows(IOException.class,
+                () -> operations.stopProcess(1, temp.resolve("BrowserStackLocal"), java.time.Duration.ofSeconds(1)));
         assertTrue(failure.getMessage().contains("unowned"));
     }
 
