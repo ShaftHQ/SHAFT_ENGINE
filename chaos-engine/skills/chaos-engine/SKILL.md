@@ -188,6 +188,9 @@ For the short decision procedure and boundary cases, load
 
 ### Caveman
 
+When `plugins/caveman/skills/caveman/SKILL.md` exists, load that bundled skill as this
+section's response-compression companion. User requests for normal mode still win.
+
 Default voice is terse and exact. Lead with outcome; remove filler,
 pleasantries, hedging, repetition, decorative formatting, and unrequested raw
 logs. Prefer short familiar words and fragments, but preserve user language,
