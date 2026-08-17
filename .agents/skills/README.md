@@ -33,7 +33,7 @@ flowchart TD
     CF --> R
 
     R["<b>routing</b><br/>deliverable to one surface"]
-    R --> P["Repository playbooks<br/><i>13</i>"]
+    R --> P["Repository playbooks<br/><i>14</i>"]
     R --> M["SHAFT mastery chapters<br/><i>10</i>"]
     R --> D["Method references"]
     E --> D
@@ -114,6 +114,7 @@ step with the first.
 | Skill | What it does |
 | --- | --- |
 | [ChaosEngine](../../chaos-engine/skills/chaos-engine/SKILL.md) | The single always-loaded entrypoint and global router. Carries the iron laws, the triage that sizes every task, the always-on working style, and the table that sends each deliverable to exactly one surface. |
+| [local-coding-delegate](../../chaos-engine/skills/local-coding-delegate/SKILL.md) | Optional. Not always-loaded. A local coding loop the decider may use as a mechanical or default delegate after a hardware probe. |
 
 The entrypoint reaches the internal [consultation](../../chaos-engine/references/consult-first.md)
 and [retrieval](../../chaos-engine/references/retrieve-first.md) gates after every
@@ -174,6 +175,7 @@ list is the inventory, not a second copy of the triggers.
 - [public docs](../../chaos-engine/profiles/shaft/references/playbooks/public-behavior-docs-synchronizer.md)
 - [UI design](../../chaos-engine/profiles/shaft/references/playbooks/shaft-ui-design.md)
 - [marketing](../../chaos-engine/profiles/shaft/references/playbooks/shaft-marketing-ad-producer.md)
+- [workstation local coding](../../chaos-engine/profiles/shaft/references/playbooks/workstation-local-coding-agent.md)
 
 ### SHAFT mastery chapters
 

@@ -9,7 +9,7 @@ import xml.etree.ElementTree as ET  # nosec B405
 from pathlib import Path
 
 SCHEMA_URL = "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json"
-PORTABLE_SOURCE_SUFFIXES = {".md", ".LICENSE", ".json", ".yaml", ".yml", ".py", ".svg"}
+PORTABLE_SOURCE_SUFFIXES = {".md", ".LICENSE", ".json", ".yaml", ".yml", ".py", ".svg", ".js"}
 RELEASE_FILES = (
     (Path("LICENSE"), Path("LICENSE")),
     (Path("agent-plugins/act-as-mohab/CHANGELOG.md"), Path("CHANGELOG.md")),
@@ -90,7 +90,7 @@ def copy_tree(source: Path, destination: Path, allowed_files: set[Path]) -> None
     source = require_contained(source.parent, source, "canonical reference directory")
     for path in sorted(path for path in allowed_files if path.is_relative_to(source)):
         path = require_contained(source, path, "canonical reference")
-        if path.suffix not in PORTABLE_SOURCE_SUFFIXES:
+        if path.suffix not in PORTABLE_SOURCE_SUFFIXES and path.name != "LICENSE":
             continue
         target = destination / path.relative_to(source)
         target.parent.mkdir(parents=True, exist_ok=True)
