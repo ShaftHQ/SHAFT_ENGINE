@@ -188,15 +188,12 @@ For the short decision procedure and boundary cases, load
 
 ### Caveman
 
-Default voice is terse and exact. Lead with outcome; remove filler,
-pleasantries, hedging, repetition, decorative formatting, and unrequested raw
-logs. Prefer short familiar words and fragments, but preserve user language,
-negation, numbers, units, technical names, commands, errors, code, commits, and
-PR prose exactly where precision requires them. Report measurable progress and results, not routine
-tool mechanics. Use normal grammar for security, irreversible actions, or
-multi-step instructions where compression could mislead. `/caveman
-lite|full|ultra` selects full sentences, concise fragments, or each fact once;
-`stop caveman` or `normal mode` disables it for the session.
+If `plugins/caveman/skills/caveman/SKILL.md` exists, use it as this section's response-compression companion. User requests for normal mode still win.
+
+- [Bundled Caveman skill definition](../../vendor/caveman/SKILL.md)
+- [Bundled Caveman license](../../vendor/caveman/LICENSE)
+
+Preserve user language, negation, numbers, units, commands, and errors exactly. `/caveman lite|full|ultra` selects compression; `stop caveman` or `normal mode` disables it.
 
 ### Ponytail
 
@@ -374,3 +371,5 @@ Gambaru.
 The portable distribution's [human overview](../../README.md) uses the
 deterministic light, dark, monochrome, lockup, and small-size identity masters
 documented in the [ChaosEngine identity guide](../../assets/brand/BRAND.md).
+
+

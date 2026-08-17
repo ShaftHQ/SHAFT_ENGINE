@@ -28,6 +28,10 @@ REMOVING_ANCHOR_PREFIX = ".chaos-engine-hosts.removing-"
 ANCHOR_TOKEN = re.compile(r"^[0-9a-f]{64}$")
 SCHEMA_VERSION = 1
 PLUGIN_NAME = "chaos-engine"
+CAVEMAN_PLUGIN_NAME = "caveman"
+CAVEMAN_PLUGIN_VERSION = "0.1.0"
+CAVEMAN_CLI_SPEC = "@caveman-ai/cli@1.2.0"
+CAVEMAN_UPSTREAM_COMMIT = "766dce6b1394ebb56a3090748d5a0240a5aefb36"
 MEMORY_SCHEMA_FILES = (
     "config.schema.json",
     "object.schema.json",
@@ -608,6 +612,7 @@ def client_command(
     arguments: list[str],
     project: Path,
     runner=subprocess.run,
+    timeout: int = 30,
 ) -> subprocess.CompletedProcess[str]:
     result = runner(  # nosec B603 - executable is resolved by shutil.which.
         [executable, *arguments],
@@ -615,7 +620,7 @@ def client_command(
         capture_output=True,
         text=True,
         check=False,
-        timeout=30,
+        timeout=timeout,
     )
     if result.returncode != 0:
         detail = (result.stderr or result.stdout).strip()
@@ -661,20 +666,76 @@ def activation_contract(project: Path) -> tuple[Path, str, str, str]:
     return root, marketplace_name, f"{PLUGIN_NAME}@{marketplace_name}", version
 
 
+def activation_plugins(project: Path, marketplace_name: str) -> dict[str, dict[str, object]]:
+    plugins: dict[str, dict[str, object]] = {}
+    for name in (PLUGIN_NAME, CAVEMAN_PLUGIN_NAME):
+        manifest_path = project / f"plugins/{name}/.codex-plugin/plugin.json"
+        try:
+            manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        except (OSError, UnicodeDecodeError, json.JSONDecodeError) as error:
+            raise ValueError(f"{name} plugin manifest is unavailable") from error
+        version = manifest.get("version") if isinstance(manifest, dict) else None
+        if (
+            not isinstance(version, str)
+            or re.fullmatch(r"\d+\.\d+\.\d+", version) is None
+            or manifest.get("name") != name
+        ):
+            raise ValueError(f"{name} plugin manifest is invalid")
+        plugins[name] = {
+            "id": f"{name}@{marketplace_name}",
+            "version": version,
+            "source": project / f"plugins/{name}",
+        }
+    return plugins
+
+
+def activation_plugins_from_root(root: Path, marketplace_name: str) -> dict[str, dict[str, object]]:
+    plugins: dict[str, dict[str, object]] = {}
+    source_root = root / "plugins"
+    for name in (PLUGIN_NAME, CAVEMAN_PLUGIN_NAME):
+        manifest_path = source_root / name / ".codex-plugin/plugin.json"
+        if not manifest_path.is_file():
+            continue
+        try:
+            manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        except (OSError, UnicodeDecodeError, json.JSONDecodeError) as error:
+            raise ValueError(f"{name} plugin manifest is unavailable") from error
+        version = manifest.get("version") if isinstance(manifest, dict) else None
+        if (
+            not isinstance(version, str)
+            or re.fullmatch(r"\d+\.\d+\.\d+", version) is None
+            or manifest.get("name") != name
+        ):
+            raise ValueError(f"{name} plugin manifest is invalid")
+        plugins[name] = {
+            "id": f"{name}@{marketplace_name}",
+            "version": version,
+            "source": root / f"plugins/{name}",
+        }
+    return plugins
+
+
 def prepare_activation_bundle(project: Path) -> tuple[Path, str, str, str]:
     """Publish one path-unique generated marketplace without tracked machine paths."""
     project = project.resolve()
     root, marketplace_name, plugin_id, version = activation_contract(project)
-    source_plugin = project / "plugins/chaos-engine"
-    if not source_plugin.is_dir() or is_link_or_reparse(source_plugin):
-        raise ValueError("ChaosEngine plugin source is unavailable")
+    plugins = activation_plugins(project, marketplace_name)
+    for name, contract in plugins.items():
+        source_plugin = contract["source"]
+        if (
+            not isinstance(source_plugin, Path)
+            or not source_plugin.is_dir()
+            or is_link_or_reparse(source_plugin)
+        ):
+            raise ValueError(f"{name} plugin source is unavailable")
     state_root = root.parent
     state_root.mkdir(parents=True, exist_ok=True)
     building = state_root / f".{root.name}.building-{secrets.token_hex(8)}"
     backup = state_root / f".{root.name}.backup-{secrets.token_hex(8)}"
     building.mkdir()
     try:
-        shutil.copytree(source_plugin, building / "plugins/chaos-engine")
+        for name, contract in plugins.items():
+            shutil.copytree(contract["source"], building / f"plugins/{name}")
         codex_marketplace = {
             "name": marketplace_name,
             "interface": {"displayName": "ChaosEngine Project"},
@@ -684,7 +745,16 @@ def prepare_activation_bundle(project: Path) -> tuple[Path, str, str, str]:
                     "source": {"source": "local", "path": "./plugins/chaos-engine"},
                     "policy": {"installation": "INSTALLED_BY_DEFAULT", "authentication": "ON_INSTALL"},
                     "category": "Developer Tools",
-                }
+                },
+                {
+                    "name": CAVEMAN_PLUGIN_NAME,
+                    "source": {"source": "local", "path": "./plugins/caveman"},
+                    "policy": {
+                        "installation": "INSTALLED_BY_DEFAULT",
+                        "authentication": "ON_INSTALL",
+                    },
+                    "category": "Productivity",
+                },
             ],
         }
         claude_marketplace = {
@@ -697,7 +767,13 @@ def prepare_activation_bundle(project: Path) -> tuple[Path, str, str, str]:
                     "source": "./plugins/chaos-engine",
                     "description": "Neutral project-local agent harness.",
                     "version": version,
-                }
+                },
+                {
+                    "name": CAVEMAN_PLUGIN_NAME,
+                    "source": "./plugins/caveman",
+                    "description": "Ultra-compressed communication mode.",
+                    "version": CAVEMAN_PLUGIN_VERSION,
+                },
             ],
         }
         for relative, document in (
@@ -729,11 +805,12 @@ def detected_plugin_status(
     *,
     runner=subprocess.run,
     which=shutil.which,
-) -> dict[str, dict[str, str]]:
+) -> dict[str, dict[str, object]]:
     """Read back native plugin registration for every client installed on the host."""
     project = project.resolve()
     root, marketplace_name, plugin_id, version = activation_contract(project)
-    status: dict[str, dict[str, str]] = {}
+    plugins = activation_plugins(project, marketplace_name)
+    status: dict[str, dict[str, object]] = {}
     for client in ("codex", "claude"):
         executable = which(client)
         if executable is None:
@@ -757,21 +834,24 @@ def detected_plugin_status(
                 and same_path(item.get("root"), root)
                 for item in marketplaces
             )
-            plugin_present = any(
-                isinstance(item, dict)
-                and item.get("pluginId") == plugin_id
-                and item.get("installed") is True
-                and item.get("enabled") is True
-                and isinstance(item.get("source"), dict)
-                and same_path(item["source"].get("path"), root / "plugins/chaos-engine")
-                for item in records
-            )
-            plugin_ok = plugin_present and any(
-                isinstance(item, dict)
-                and item.get("pluginId") == plugin_id
-                and item.get("version") == version
-                for item in records
-            )
+            plugin_states = {}
+            for name, contract in plugins.items():
+                present = any(
+                    isinstance(item, dict)
+                    and item.get("pluginId") == contract["id"]
+                    and item.get("installed") is True
+                    and item.get("enabled") is True
+                    and isinstance(item.get("source"), dict)
+                    and same_path(item["source"].get("path"), root / f"plugins/{name}")
+                    for item in records
+                )
+                healthy = present and any(
+                    isinstance(item, dict)
+                    and item.get("pluginId") == contract["id"]
+                    and item.get("version") == contract["version"]
+                    for item in records
+                )
+                plugin_states[name] = "healthy" if healthy else ("stale" if present else "absent")
         else:
             marketplaces = client_json(
                 executable, ["plugin", "marketplace", "list", "--json"], project, runner=runner
@@ -786,25 +866,31 @@ def detected_plugin_status(
                 and same_path(item.get("path"), root)
                 for item in marketplaces
             )
-            plugin_present = any(
-                isinstance(item, dict)
-                and item.get("id") == plugin_id
-                and item.get("enabled") is True
-                and same_path(item.get("projectPath"), project)
-                for item in records
-            )
-            plugin_ok = plugin_present and any(
-                isinstance(item, dict)
-                and item.get("id") == plugin_id
-                and item.get("version") == version
-                and same_path(item.get("projectPath"), project)
-                and cached_plugin_matches(item.get("installPath"), root / "plugins/chaos-engine")
-                for item in records
-            )
+            plugin_states = {}
+            for name, contract in plugins.items():
+                present = any(
+                    isinstance(item, dict)
+                    and item.get("id") == contract["id"]
+                    and item.get("enabled") is True
+                    and same_path(item.get("projectPath"), project)
+                    for item in records
+                )
+                healthy = present and any(
+                    isinstance(item, dict)
+                    and item.get("id") == contract["id"]
+                    and item.get("version") == contract["version"]
+                    and same_path(item.get("projectPath"), project)
+                    and cached_plugin_matches(item.get("installPath"), root / f"plugins/{name}")
+                    for item in records
+                )
+                plugin_states[name] = "healthy" if healthy else ("stale" if present else "absent")
+        plugin_ok = all(item == "healthy" for item in plugin_states.values())
+        plugin_present = any(item != "absent" for item in plugin_states.values())
         status[client] = {
             "status": "healthy" if marketplace_ok and plugin_ok else "absent",
             "marketplace": "healthy" if marketplace_ok else "absent",
             "plugin": "healthy" if plugin_ok else ("stale" if plugin_present else "absent"),
+            "plugins": plugin_states,
         }
     return status
 
@@ -813,7 +899,12 @@ def cached_plugin_matches(installed_path: object, source: Path) -> bool:
     if not isinstance(installed_path, str):
         return False
     installed = Path(installed_path)
-    for relative in ("hooks/guard.py", "hooks/reflection.py", "skills/chaos-engine/SKILL.md"):
+    required = (
+        ("hooks/guard.py", "hooks/reflection.py", "skills/chaos-engine/SKILL.md")
+        if source.name == PLUGIN_NAME
+        else ("skills/caveman/SKILL.md", "LICENSE", "UPSTREAM.md")
+    )
+    for relative in required:
         cached = installed / relative
         expected = source / relative
         try:
@@ -855,6 +946,7 @@ def record_client_activation(project: Path, activation: dict[str, object]) -> No
         "ownedClients": activation["ownedClients"],
         "pluginVersion": activation["pluginVersion"],
         "claudeLocalBefore": activation["claudeLocalBefore"],
+        "cavemanProxy": activation.get("cavemanProxy"),
     }
     write_receipt(project, receipt, raw)
 
@@ -880,21 +972,23 @@ def remove_client_activation(
     runner=subprocess.run,
     which=shutil.which,
 ) -> None:
-    root, _, plugin_id, _ = activation_contract(project)
-    commands = activation_commands(root, plugin_id)
+    root, marketplace_name, _, _ = activation_contract(project)
+    plugins = activation_plugins(project, marketplace_name)
     for client in reversed(clients):
         executable = which(client)
         if executable is None:
             continue
         selected = lambda name, chosen=client, path=executable: path if name == chosen else None
         current = detected_plugin_status(project, runner=runner, which=selected).get(client, {})
-        if current.get("plugin") in {"healthy", "stale"}:
-            client_command(executable, commands[client]["remove"], project, runner=runner)
+        plugin_states = current.get("plugins", {})
+        for name in reversed(tuple(plugins)):
+            if isinstance(plugin_states, dict) and plugin_states.get(name) in {"healthy", "stale"}:
+                commands = activation_commands(root, str(plugins[name]["id"]))
+                client_command(executable, commands[client]["remove"], project, runner=runner)
         current = detected_plugin_status(project, runner=runner, which=selected).get(client, {})
         if current.get("marketplace") == "healthy":
-            client_command(
-                executable, commands[client]["removeMarketplace"], project, runner=runner
-            )
+            commands = activation_commands(root, str(plugins[PLUGIN_NAME]["id"]))
+            client_command(executable, commands[client]["removeMarketplace"], project, runner=runner)
 
 
 def restore_client_activation(
@@ -909,14 +1003,59 @@ def restore_client_activation(
     clients = activation.get("ownedClients")
     if not isinstance(clients, list) or not all(item in {"codex", "claude"} for item in clients):
         raise ValueError("ChaosEngine client activation receipt is invalid")
-    root, _, plugin_id, _ = activation_contract(project)
-    commands = activation_commands(root, plugin_id)
+    root, marketplace_name, _, _ = activation_contract(project)
+    plugins = activation_plugins_from_root(root, marketplace_name)
+    if PLUGIN_NAME not in plugins:
+        raise ValueError(f"{PLUGIN_NAME} plugin manifest is unavailable")
     for client in clients:
         executable = which(client)
         if executable is None:
             continue
+        commands = activation_commands(root, str(plugins[PLUGIN_NAME]["id"]))
         client_command(executable, commands[client]["marketplace"], project, runner=runner)
-        client_command(executable, commands[client]["install"], project, runner=runner)
+        for contract in plugins.values():
+            plugin_commands = activation_commands(root, str(contract["id"]))
+            client_command(executable, plugin_commands[client]["install"], project, runner=runner)
+
+
+def install_caveman_proxy(
+    project: Path,
+    *,
+    runner=subprocess.run,
+    which=shutil.which,
+) -> dict[str, object]:
+    """Install Caveman's pinned signed runtime and enable every detected native provider."""
+    npm = which("npm")
+    if npm is None:
+        raise RuntimeError("Caveman proxy installation requires npm")
+    client_command(
+        npm,
+        ["install", "--global", CAVEMAN_CLI_SPEC, "--no-audit", "--no-fund"],
+        project,
+        runner=runner,
+        timeout=300,
+    )
+    caveman = which("caveman")
+    if caveman is None:
+        raise RuntimeError("Caveman CLI was not available after installation")
+    client_command(
+        caveman,
+        ["setup", "--install"],
+        project,
+        runner=runner,
+        timeout=300,
+    )
+    supported = ("claude", "codex", "hermes", "gemini", "opencode", "aider")
+    detected = [name for name in supported if which(name) is not None]
+    if detected:
+        client_command(
+            caveman,
+            ["enable", "--detected"],
+            project,
+            runner=runner,
+            timeout=120,
+        )
+    return {"cli": CAVEMAN_CLI_SPEC, "runtime": "installed", "providers": detected}
 
 
 def activate_detected_plugins(
@@ -951,7 +1090,8 @@ def activate_detected_plugins(
     root, marketplace_name, plugin_id, _ = prepare_activation_bundle(project)
     created_marketplaces: list[str] = []
     created_plugins: list[str] = []
-    commands = activation_commands(root, plugin_id)
+    plugins = activation_plugins(project, marketplace_name)
+    marketplace_commands = activation_commands(root, str(plugins[PLUGIN_NAME]["id"]))
     touched_clients: list[str] = []
     receipt: dict[str, object] = {
         "createdMarketplaces": created_marketplaces,
@@ -967,18 +1107,28 @@ def activate_detected_plugins(
             selected_client = lambda name, selected=client, path=executable: path if name == selected else None
             current = detected_plugin_status(project, runner=runner, which=selected_client)[client]
             if current["marketplace"] != "healthy":
-                client_command(executable, commands[client]["marketplace"], project, runner=runner)
+                client_command(
+                    executable,
+                    marketplace_commands[client]["marketplace"],
+                    project,
+                    runner=runner,
+                )
                 created_marketplaces.append(client)
             current = detected_plugin_status(project, runner=runner, which=selected_client)[client]
-            if current["plugin"] == "absent":
-                client_command(executable, commands[client]["install"], project, runner=runner)
-                created_plugins.append(client)
-            elif current["plugin"] == "stale":
-                client_command(executable, commands[client]["remove"], project, runner=runner)
-                client_command(executable, commands[client]["install"], project, runner=runner)
+            plugin_states = current.get("plugins", {})
+            for name, contract in plugins.items():
+                state = plugin_states.get(name) if isinstance(plugin_states, dict) else "absent"
+                commands = activation_commands(root, str(contract["id"]))
+                if state == "absent":
+                    client_command(executable, commands[client]["install"], project, runner=runner)
+                    created_plugins.append(f"{client}:{name}")
+                elif state == "stale":
+                    client_command(executable, commands[client]["remove"], project, runner=runner)
+                    client_command(executable, commands[client]["install"], project, runner=runner)
             verified = detected_plugin_status(project, runner=runner, which=selected_client)[client]
             if verified["status"] != "healthy":
                 raise RuntimeError(f"{client} plugin activation did not verify")
+        receipt["cavemanProxy"] = install_caveman_proxy(project, runner=runner, which=which)
         verified_clients = detected_plugin_status(project, runner=runner, which=which)
         receipt["ownedClients"] = touched_clients
         receipt["pluginVersion"] = activation_contract(project)[3]
@@ -1514,6 +1664,11 @@ def managed_paths() -> tuple[str, ...]:
         "plugins/chaos-engine/hooks/guard.py",
         "plugins/chaos-engine/hooks/reflection.py",
         "plugins/chaos-engine/skills/chaos-engine/SKILL.md",
+        "plugins/caveman/.codex-plugin/plugin.json",
+        "plugins/caveman/.claude-plugin/plugin.json",
+        "plugins/caveman/skills/caveman/SKILL.md",
+        "plugins/caveman/LICENSE",
+        "plugins/caveman/UPSTREAM.md",
         ".codex/hooks.json",
         ".claude/settings.json",
         ".claude/agents/chaos-engine-orchestrator.md",
@@ -1865,6 +2020,55 @@ def hook_content(before: bytes | None, rendered: bytes, label: str) -> bytes:
     return (json.dumps(existing, indent=2, sort_keys=True) + "\n").encode()
 
 
+def chaos_hook_command(command: object) -> bool:
+    if not isinstance(command, str):
+        return False
+    tokens = re.findall(r'"([^"]*)"|\'([^\']*)\'|(\S+)', command)
+    owned_suffixes = (
+        "scripts/agents/guard.py",
+        ".chaos-engine/hooks/guard.py",
+        "${CLAUDE_PLUGIN_ROOT}/hooks/guard.py",
+    )
+    for token_parts in tokens:
+        token = next((part for part in token_parts if part), "").replace("\\", "/")
+        token = token.rstrip(";,)")
+        if any(token == suffix or token.endswith(f"/{suffix}") for suffix in owned_suffixes):
+            return True
+    return False
+
+
+def without_chaos_hooks(before: bytes | None, label: str) -> bytes:
+    """Remove only owned command handlers while preserving foreign handlers and metadata."""
+    try:
+        existing = json.loads(before) if before is not None else {"hooks": {}}
+    except (UnicodeDecodeError, json.JSONDecodeError) as error:
+        raise ValueError(f"invalid {label} hook configuration") from error
+    if not isinstance(existing, dict) or not isinstance(existing.get("hooks"), dict):
+        raise ValueError(f"invalid {label} hook configuration")
+    for event, groups in list(existing["hooks"].items()):
+        if not isinstance(groups, list):
+            raise ValueError(f"invalid {label} hook configuration")
+        retained_groups = []
+        for group in groups:
+            if not isinstance(group, dict) or not isinstance(group.get("hooks"), list):
+                retained_groups.append(group)
+                continue
+            retained_hooks = [
+                hook
+                for hook in group["hooks"]
+                if not (isinstance(hook, dict) and chaos_hook_command(hook.get("command")))
+            ]
+            if retained_hooks:
+                retained_group = dict(group)
+                retained_group["hooks"] = retained_hooks
+                retained_groups.append(retained_group)
+        if retained_groups:
+            existing["hooks"][event] = retained_groups
+        else:
+            del existing["hooks"][event]
+    return (json.dumps(existing, indent=2, sort_keys=True) + "\n").encode()
+
+
 def gitignore_content(before: bytes | None) -> bytes:
     try:
         existing = before.decode("utf-8") if before is not None else ""
@@ -1892,6 +2096,7 @@ def gitignore_content(before: bytes | None) -> bytes:
         "!.github/\n!.github/copilot-instructions.md\n!.github/skills/\n"
         "!.github/skills/chaos-engine/\n!.github/skills/chaos-engine/**\n"
         "!plugins/\n!plugins/chaos-engine/\n!plugins/chaos-engine/**\n"
+        "!plugins/caveman/\n!plugins/caveman/**\n"
         "!.mcp.json\n!mempalace.yaml\n!AGENTS.md\n!CLAUDE.md\n!GEMINI.md\n!.gitattributes\n"
         ".chaos-engine-owned-directory\n"
         f"{GITIGNORE_END}\n"
@@ -1923,6 +2128,7 @@ def gitattributes_content(before: bytes | None) -> bytes:
         f"{repository_root_anchor}.mcp.json text eol=lf\n"
         f"{repository_root_anchor}.memory/** text eol=lf\n"
         f"{repository_root_anchor}plugins/chaos-engine/** text eol=lf\n"
+        f"{repository_root_anchor}plugins/caveman/** text eol=lf\n"
         f"{repository_root_anchor}AGENTS.md text eol=lf\n"
         f"{repository_root_anchor}CLAUDE.md text eol=lf\n"
         f"{repository_root_anchor}GEMINI.md text eol=lf\n"
@@ -1957,6 +2163,7 @@ def desired_content(
         "# Installed agent harness\n\n"
         "- `chaos-engine/`: canonical skill adapter.\n"
         "- `../../plugins/chaos-engine/`: installed plugin and lifecycle hook.\n"
+        "- `../../plugins/caveman/`: bundled Caveman response-compression skill.\n"
         "- `.chaos-engine/`: canonical skills, playbooks, tools, and policy.\n"
     ).encode()
     plugin_entry = {
@@ -1990,6 +2197,27 @@ def desired_content(
         raise ValueError("ChaosEngine plugin marketplace collision")
     if existing_plugin is None:
         marketplace["plugins"].append(plugin_entry)
+    caveman_entry = {
+        "name": CAVEMAN_PLUGIN_NAME,
+        "source": {"source": "local", "path": "./plugins/caveman"},
+        "policy": {
+            "installation": "INSTALLED_BY_DEFAULT",
+            "authentication": "ON_INSTALL",
+        },
+        "category": "Productivity",
+    }
+    existing_caveman = next(
+        (
+            item
+            for item in marketplace["plugins"]
+            if isinstance(item, dict) and item.get("name") == CAVEMAN_PLUGIN_NAME
+        ),
+        None,
+    )
+    if existing_caveman is not None and existing_caveman != caveman_entry:
+        raise ValueError("Caveman plugin marketplace collision")
+    if existing_caveman is None:
+        marketplace["plugins"].append(caveman_entry)
     after[".agents/plugins/marketplace.json"] = (
         json.dumps(marketplace, indent=2, sort_keys=True) + "\n"
     ).encode()
@@ -2030,6 +2258,24 @@ def desired_content(
         raise ValueError("ChaosEngine Claude marketplace collision")
     if existing_claude_plugin is None:
         claude_marketplace["plugins"].append(claude_plugin_entry)
+    caveman_claude_entry = {
+        "name": CAVEMAN_PLUGIN_NAME,
+        "source": "./plugins/caveman",
+        "description": "Ultra-compressed communication mode.",
+        "version": CAVEMAN_PLUGIN_VERSION,
+    }
+    existing_caveman = next(
+        (
+            item
+            for item in claude_marketplace["plugins"]
+            if isinstance(item, dict) and item.get("name") == CAVEMAN_PLUGIN_NAME
+        ),
+        None,
+    )
+    if existing_caveman is not None and existing_caveman != caveman_claude_entry:
+        raise ValueError("Caveman Claude plugin collision")
+    if existing_caveman is None:
+        claude_marketplace["plugins"].append(caveman_claude_entry)
     after[".claude-plugin/marketplace.json"] = (
         json.dumps(claude_marketplace, indent=2, sort_keys=True) + "\n"
     ).encode()
@@ -2045,7 +2291,7 @@ def desired_content(
             "longDescription": "A neutral project-local harness for research, planning, implementation, verification, and durable learning.",
             "developerName": "ChaosEngine contributors",
             "category": "Developer Tools",
-            "capabilities": ["Instructions", "Lifecycle hooks", "MCP servers"],
+            "capabilities": ["Instructions", "MCP servers"],
             "defaultPrompt": ["Use ChaosEngine for this task."],
         },
     }
@@ -2065,41 +2311,9 @@ def desired_content(
         )
         + "\n"
     ).encode()
-    command, prefix = interpreter()
-    hook_command = " ".join([command, *prefix, '"${CLAUDE_PLUGIN_ROOT}/hooks/guard.py"'])
-    lifecycle_events = {
-        "SessionStart": "startup|resume|clear|compact",
-        "UserPromptSubmit": None,
-        "PreToolUse": "Bash|PowerShell|shell_command|exec_command|functions[.]exec",
-        "PostToolUse": "Bash|PowerShell|shell_command|exec_command|functions[.]exec",
-        "PostToolUseFailure": "Bash|PowerShell|shell_command|exec_command|functions[.]exec",
-        "Stop": None,
-        "SubagentStop": None,
-    }
-    hooks: dict[str, list[dict[str, object]]] = {}
-    for event, matcher in lifecycle_events.items():
-        group: dict[str, object] = {
-            "hooks": [{"type": "command", "command": hook_command, "timeout": 5}]
-        }
-        if matcher is not None:
-            group["matcher"] = matcher
-        hooks[event] = [group]
-    rendered_plugin_hooks = (
-        json.dumps({"hooks": hooks}, indent=2, sort_keys=True) + "\n"
-    ).encode()
-    project_command = " ".join([command, *prefix, ".chaos-engine/hooks/guard.py"])
-    project_hooks = json.loads(rendered_plugin_hooks)
-    project_hooks["hooks"].pop("PostToolUseFailure", None)
-    for groups in project_hooks["hooks"].values():
-        for group in groups:
-            for hook in group["hooks"]:
-                hook["command"] = project_command
-    rendered_project_hooks = (json.dumps(project_hooks, indent=2, sort_keys=True) + "\n").encode()
-    after["plugins/chaos-engine/hooks/hooks.json"] = hook_content(
-        before["plugins/chaos-engine/hooks/hooks.json"], rendered_plugin_hooks, "plugin"
-    )
-    after[".codex/hooks.json"] = hook_content(
-        before[".codex/hooks.json"], rendered_project_hooks, "Codex"
+    after["plugins/chaos-engine/hooks/hooks.json"] = b'{\n  "hooks": {}\n}\n'
+    after[".codex/hooks.json"] = without_chaos_hooks(
+        before[".codex/hooks.json"], "Codex"
     )
     after["plugins/chaos-engine/hooks/guard.py"] = (
         Path(__file__).resolve().parent / "hooks/guard.py"
@@ -2110,8 +2324,9 @@ def desired_content(
     after["plugins/chaos-engine/skills/chaos-engine/SKILL.md"] = (
         "---\nname: chaos-engine\ndescription: Load the canonical installed ChaosEngine before every task.\n---\n\n"
         "From the active project root, load `.chaos-engine/skills/chaos-engine/SKILL.md` before every task.\n"
+        "Then load `plugins/caveman/skills/caveman/SKILL.md` as the bundled response-compression companion.\n"
     ).encode()
-    claude_settings = before[".claude/settings.json"]
+    claude_settings = without_chaos_hooks(before[".claude/settings.json"], "Claude")
     try:
         settings = json.loads(claude_settings) if claude_settings is not None else {}
     except (UnicodeDecodeError, json.JSONDecodeError) as error:
@@ -2131,9 +2346,59 @@ def desired_content(
     if "chaos-engine-project" in marketplaces and marketplaces["chaos-engine-project"] != desired_marketplace:
         raise ValueError("ChaosEngine Claude marketplace collision")
     enabled[plugin_id] = True
+    enabled["caveman@chaos-engine-project"] = True
     marketplaces["chaos-engine-project"] = desired_marketplace
     after[".claude/settings.json"] = (
         json.dumps(settings, indent=2, sort_keys=True) + "\n"
+    ).encode()
+    caveman_manifest = {
+        "name": CAVEMAN_PLUGIN_NAME,
+        "version": CAVEMAN_PLUGIN_VERSION,
+        "description": "Ultra-compressed communication mode. Cut filler. Keep technical accuracy.",
+        "author": {
+            "name": "Julius Brussee",
+            "url": "https://github.com/JuliusBrussee",
+        },
+        "homepage": "https://github.com/JuliusBrussee/caveman",
+        "repository": "https://github.com/JuliusBrussee/caveman",
+        "license": "MIT",
+        "skills": "./skills/",
+        "interface": {
+            "displayName": "Caveman",
+            "shortDescription": "Talk like caveman. Cut filler. Keep technical accuracy.",
+            "longDescription": "Ultra-compressed communication mode for coding agents.",
+            "developerName": "Julius Brussee",
+            "category": "Productivity",
+            "capabilities": ["Write"],
+            "websiteURL": "https://github.com/JuliusBrussee/caveman",
+            "defaultPrompt": ["Use caveman mode. Cut filler. Keep technical accuracy."],
+        },
+    }
+    after["plugins/caveman/.codex-plugin/plugin.json"] = (
+        json.dumps(caveman_manifest, indent=2, sort_keys=True) + "\n"
+    ).encode()
+    after["plugins/caveman/.claude-plugin/plugin.json"] = (
+        json.dumps(
+            {
+                key: caveman_manifest[key]
+                for key in ("name", "version", "description", "author")
+            },
+            indent=2,
+            sort_keys=True,
+        )
+        + "\n"
+    ).encode()
+    caveman_vendor = Path(__file__).resolve().parent / "vendor/caveman"
+    after["plugins/caveman/skills/caveman/SKILL.md"] = (
+        caveman_vendor / "SKILL.md"
+    ).read_bytes()
+    after["plugins/caveman/LICENSE"] = (caveman_vendor / "LICENSE").read_bytes()
+    after["plugins/caveman/UPSTREAM.md"] = (
+        "# Caveman provenance\n\n"
+        "Bundled from `JuliusBrussee/caveman` under the MIT license.\n\n"
+        f"- Upstream commit: `{CAVEMAN_UPSTREAM_COMMIT}`\n"
+        f"- Skill version: `{CAVEMAN_PLUGIN_VERSION}`\n"
+        f"- Proxy package: `{CAVEMAN_CLI_SPEC}`\n"
     ).encode()
     roles = {
         "orchestrator": "Own planning, architecture, synthesis, and final verification.",
