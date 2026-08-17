@@ -57,6 +57,18 @@ class LocalCodingAgentSurefireTest(unittest.TestCase):
         output = "[INFO] Tests run: 1, Failures: 0, Errors: 0, Skipped: 0"
         self.assertFalse(MODULE.surefire_failed(output))
 
+    def test_mixed_passing_then_failing_summary_is_failed(self):
+        output = (
+            "[INFO] Tests run: 1, Failures: 0, Errors: 0, Skipped: 0\n"
+            "Status: Failed\n"
+            "[ERROR] Tests run: 1, Failures: 1, Errors: 0, Skipped: 0\n"
+        )
+        self.assertTrue(MODULE.surefire_failed(output))
+
+    def test_zero_tests_run_is_failed(self):
+        output = "[INFO] Tests run: 0, Failures: 0, Errors: 0, Skipped: 0"
+        self.assertTrue(MODULE.surefire_failed(output))
+
 
 class LocalCodingAgentReportTest(unittest.TestCase):
     def valid_payload(self) -> dict:
@@ -102,6 +114,24 @@ class LocalCodingAgentReportTest(unittest.TestCase):
         blockers = MODULE.validate_report(payload)
         self.assertTrue(any("allowlist" in item.lower() or "readme" in item.lower() for item in blockers))
 
+    def test_git_status_without_pathspec_finds_extra_files(self):
+        status = (
+            " M shaft-engine/src/test/java/testPackage/LocalCodingAgentAcceptanceTest.java\n"
+            " M shaft-engine/src/main/java/com/shaft/driver/SHAFT.java\n"
+        )
+        allowed = [
+            "shaft-engine/src/test/java/testPackage/LocalCodingAgentAcceptanceTest.java"
+        ]
+        changed = MODULE.changed_paths_from_git_status(status)
+        blockers = MODULE.allowlist_violations(changed, allowed)
+        self.assertTrue(any("shaft.java" in item.lower() for item in blockers))
+
+    def test_loopback_rejects_adjacent_address(self):
+        payload = self.valid_payload()
+        payload["loopback"] = "127.0.0.10:11434"
+        blockers = MODULE.validate_report(payload)
+        self.assertTrue(any("127.0.0.1" in item for item in blockers))
+
 
 class LocalCodingAgentPackagingTest(unittest.TestCase):
     def test_schema_lists_required_report_keys(self):
@@ -136,7 +166,13 @@ class LocalCodingAgentPackagingTest(unittest.TestCase):
         stop_text = STOP.read_text(encoding="utf-8")
         self.assertIn("allowlist", run_text.lower())
         self.assertIn("127.0.0.1", run_text)
+        self.assertIn("--no-suggest-shell-commands", run_text)
+        self.assertIn("git status --porcelain", run_text)
+        self.assertNotIn("git status --porcelain --", run_text)
+        self.assertIn("git diff --name-only", run_text)
+        self.assertIn("RedirectStandardOutput = $false", run_text)
         self.assertIn("pid", stop_text.lower())
+        self.assertIn("refusing to stop an unproven process", stop_text)
 
 
 if __name__ == "__main__":

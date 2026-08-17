@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import re
+
 REQUIRED_REPORT_KEYS = (
     "ok",
     "model",
@@ -32,19 +34,47 @@ def preflight(worktree: str, spec_path: str, files_allowed: list[str], push: boo
 
 
 def surefire_failed(text: str) -> bool:
-    """True when SHAFT/TestNG output shows a failed test despite Maven exit 0."""
+    """True when SHAFT/TestNG output shows a failed or empty test run."""
     lowered = text.lower()
-    if "failures: 0" in lowered and "errors: 0" in lowered:
-        return False
-    if "status: failed" in lowered:
+    if "status: failed" in lowered or "<<< failure" in lowered:
         return True
-    if "failures:" in lowered:
-        for token in lowered.replace(",", " ").split():
-            if token.startswith("failures:"):
-                continue
-        if "failures: 0" not in lowered and "<<< failure" in lowered:
-            return True
-    return "<<< failure" in lowered or "status: failed" in lowered
+    fail_counts = [int(value) for value in re.findall(r"failures:\s*(\d+)", lowered)]
+    error_counts = [int(value) for value in re.findall(r"errors:\s*(\d+)", lowered)]
+    if any(count > 0 for count in fail_counts + error_counts):
+        return True
+    test_counts = [int(value) for value in re.findall(r"tests run:\s*(\d+)", lowered)]
+    return bool(test_counts) and all(count == 0 for count in test_counts)
+
+
+def _normalize_path(path: str) -> str:
+    return str(path).replace("\\", "/").lower()
+
+
+def changed_paths_from_git_status(status_text: str) -> list[str]:
+    """Parse `git status --porcelain` paths, including the new side of renames."""
+    paths: list[str] = []
+    for raw_line in str(status_text or "").splitlines():
+        line = raw_line.rstrip("\n")
+        if len(line) < 4:
+            continue
+        payload = line[3:]
+        if " -> " in payload:
+            payload = payload.split(" -> ", 1)[1]
+        paths.append(payload.strip().strip('"'))
+    return paths
+
+
+def allowlist_violations(changed: list[str], allowed: list[str]) -> list[str]:
+    allowed_set = {_normalize_path(item) for item in allowed}
+    blockers: list[str] = []
+    for item in changed:
+        if _normalize_path(item) not in allowed_set:
+            blockers.append(f"changed file outside allowlist: {item}")
+    return blockers
+
+
+def loopback_valid(value: str) -> bool:
+    return bool(re.fullmatch(r"127\.0\.0\.1:[0-9]+", str(value or "")))
 
 
 def validate_report(data: dict) -> list[str]:
@@ -60,14 +90,10 @@ def validate_report(data: dict) -> list[str]:
         blockers.append("file allowlist is required")
     changed = data.get("files_changed")
     if isinstance(allowed, list) and isinstance(changed, list):
-        allowed_set = {str(item).replace("\\", "/").lower() for item in allowed}
-        for item in changed:
-            normalized = str(item).replace("\\", "/").lower()
-            if normalized not in allowed_set:
-                blockers.append(f"changed file outside allowlist: {item}")
+        blockers.extend(allowlist_violations(list(changed), list(allowed)))
     loopback = str(data.get("loopback") or "")
-    if loopback and not loopback.startswith("127.0.0.1"):
-        blockers.append("loopback must be 127.0.0.1")
+    if not loopback_valid(loopback):
+        blockers.append("loopback must be 127.0.0.1:<port>")
     return blockers
 
 
@@ -87,6 +113,9 @@ def main(argv: list[str] | None = None) -> int:
     val.add_argument("--report", required=True)
     fire = sub.add_parser("surefire")
     fire.add_argument("--file", required=True)
+    chg = sub.add_parser("changed")
+    chg.add_argument("--status-file", default="")
+    chg.add_argument("--head-file", default="")
     args = parser.parse_args(argv)
 
     if args.cmd == "preflight":
@@ -106,6 +135,29 @@ def main(argv: list[str] | None = None) -> int:
             print("failed")
             return 1
         print("passed")
+        return 0
+
+    if args.cmd == "changed":
+        paths: list[str] = []
+        if args.status_file:
+            paths.extend(
+                changed_paths_from_git_status(
+                    Path(args.status_file).read_text(encoding="utf-8", errors="replace")
+                )
+            )
+        if args.head_file:
+            paths.extend(
+                line.strip()
+                for line in Path(args.head_file).read_text(encoding="utf-8", errors="replace").splitlines()
+                if line.strip()
+            )
+        seen: set[str] = set()
+        for item in paths:
+            key = _normalize_path(item)
+            if key in seen:
+                continue
+            seen.add(key)
+            print(item)
         return 0
 
     payload = json.loads(Path(args.report).read_text(encoding="utf-8"))

@@ -83,15 +83,14 @@ if (-not (Get-LoopbackListener)) {
         Write-Error "port 11434 is already bound to a non-loopback or unknown listener"
         exit 2
     }
-    $log = Join-Path $Root "ollama\serve.log"
     New-Item -ItemType Directory -Force -Path (Split-Path $pidFile) | Out-Null
     $info = [System.Diagnostics.ProcessStartInfo]::new()
     $info.FileName = $ollama
     $info.Arguments = "serve"
     $info.UseShellExecute = $false
     $info.CreateNoWindow = $true
-    $info.RedirectStandardOutput = $true
-    $info.RedirectStandardError = $true
+    $info.RedirectStandardOutput = $false
+    $info.RedirectStandardError = $false
     $info.Environment["OLLAMA_HOST"] = "127.0.0.1:11434"
     $info.Environment["OLLAMA_MODELS"] = Join-Path $Root "ollama\models"
     $proc = [System.Diagnostics.Process]::Start($info)
@@ -118,6 +117,7 @@ $aiderArgs = @(
     "--yes-always",
     "--no-gitignore",
     "--no-show-model-warnings",
+    "--no-suggest-shell-commands",
     "--message-file", $Spec
 )
 foreach ($file in $Allowlist) {
@@ -125,6 +125,13 @@ foreach ($file in $Allowlist) {
 }
 
 $agentLog = Join-Path $reportDir "agent.log"
+$beforeSha = ""
+Push-Location -LiteralPath $Worktree
+try {
+    $beforeSha = (git rev-parse HEAD).Trim()
+} finally {
+    Pop-Location
+}
 $aiderExit = 0
 if (Test-Path -LiteralPath $aider) {
     Push-Location -LiteralPath $Worktree
@@ -141,21 +148,19 @@ if (Test-Path -LiteralPath $aider) {
 
 Push-Location -LiteralPath $Worktree
 try {
-    git diff -- $Allowlist | Set-Content -LiteralPath (Join-Path $reportDir "diff.patch") -Encoding utf8
-    $changed = @()
-    foreach ($file in $Allowlist) {
-        $status = git status --porcelain -- $file
-        if ($status) { $changed += $file }
+    $statusFile = Join-Path $reportDir "git-status.txt"
+    $headFile = Join-Path $reportDir "git-head-files.txt"
+    git status --porcelain | Set-Content -LiteralPath $statusFile -Encoding utf8
+    if ($beforeSha) {
+        git diff --name-only $beforeSha | Set-Content -LiteralPath $headFile -Encoding utf8
+        git diff $beforeSha | Set-Content -LiteralPath (Join-Path $reportDir "diff.patch") -Encoding utf8
+    } else {
+        Set-Content -LiteralPath $headFile -Value ""
+        git diff | Set-Content -LiteralPath (Join-Path $reportDir "diff.patch") -Encoding utf8
     }
-    if ($changed.Count -eq 0) {
-        $fromCommit = @(git show --name-only --pretty=format: HEAD)
-        foreach ($file in $fromCommit) {
-            $normalized = [string]$file
-            if ($normalized -and ($Allowlist | Where-Object { $_ -replace '\\','/' -eq ($normalized -replace '\\','/') })) {
-                $changed += $normalized
-            }
-        }
-    }
+    $changed = @(
+        & py -3 $agentPy "changed" "--status-file" $statusFile "--head-file" $headFile
+    ) | Where-Object { $_ }
     $commit = (git rev-parse HEAD).Trim()
 } finally {
     Pop-Location

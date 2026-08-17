@@ -31,13 +31,17 @@ if ($null -eq $proc) {
 }
 
 $ollama = Join-Path $Root "ollama\ollama.exe"
-try {
-    if ($proc.Path -and $ollama -and ((Resolve-Path $proc.Path).Path -ne (Resolve-Path $ollama).Path)) {
-        Write-Error "pid $owned is not the launcher-owned ollama.exe; refusing to stop it"
-        exit 2
-    }
-} catch {
-    # Path compare can fail if the process has already exited.
+if (-not $proc.Path) {
+    Write-Error "pid $owned has no path; refusing to stop an unproven process"
+    exit 2
+}
+if (-not (Test-Path -LiteralPath $ollama)) {
+    Write-Error "launcher ollama.exe is missing; refusing to stop pid $owned"
+    exit 2
+}
+if ((Resolve-Path $proc.Path).Path -ne (Resolve-Path $ollama).Path) {
+    Write-Error "pid $owned is not the launcher-owned ollama.exe; refusing to stop it"
+    exit 2
 }
 
 Stop-Process -Id ([int]$owned) -Force -ErrorAction SilentlyContinue
