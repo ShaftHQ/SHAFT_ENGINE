@@ -1277,6 +1277,14 @@ class ChaosEngineHostsTest(unittest.TestCase):
                 with self.assertRaisesRegex(ValueError, r"knowledge_stores\.py"):
                     tool.guard_mempalace_mcp(project / ".chaos-engine", arguments)
 
+    def test_hosts_module_source_has_no_portable_forbidden_tokens(self):
+        catalog = json.loads((ROOT / "chaos-engine/distributions.json").read_text(encoding="utf-8"))
+        tokens = catalog["distributions"]["portable"]["forbiddenTokens"]
+        text = HOSTS.read_text(encoding="utf-8").casefold()
+        for token in tokens:
+            with self.subTest(token=token):
+                self.assertNotIn(str(token).casefold(), text)
+
     def test_launcher_rendering_is_explicit_for_windows_and_posix(self):
         module = load(HOSTS, "chaos_engine_hosts")
 

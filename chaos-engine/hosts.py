@@ -301,7 +301,7 @@ def mempalace_runtime_status(project: Path) -> dict[str, str]:
             return {
                 "status": "degraded",
                 "detail": (
-                    "Centralized SHAFT MemPalace is the operator path; "
+                    "Centralized MemPalace is the operator path; "
                     "use py -3 scripts/agents/knowledge_stores.py status"
                 ),
             }
