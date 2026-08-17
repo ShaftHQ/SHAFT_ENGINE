@@ -1289,6 +1289,9 @@ class ConsultGateTest(unittest.TestCase):
         install = compact(ROOT / "chaos-engine/INSTALL.md")
         self.assertIn("load by default", install)
         self.assertNotIn("only when invoked", install)
+        inventory = compact(ROOT / ".agents/skills/README.md")
+        self.assertNotIn("only when the user invokes them", inventory)
+        self.assertNotIn("the next action needs that companion", inventory)
 
     def test_caveman_preserves_exact_meaning_before_compression(self):
         content = compact(VENDOR_CAVEMAN)
