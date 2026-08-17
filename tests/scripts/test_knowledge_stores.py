@@ -36,7 +36,7 @@ class KnowledgeStoresTest(unittest.TestCase):
         if os.name == "nt":
             (fake_bin / "mempalace.cmd").write_text(
                 "@echo off\r\n"
-                "echo mempalace %*>>\"%KNOWLEDGE_STORES_LOG%\"\r\n"
+                "echo mempalace %* >>\"%KNOWLEDGE_STORES_LOG%\"\r\n"  # space before >>; cmd treats N>> as fd N
                 "echo MEMPALACE-FAKE-OUTPUT\r\n",
                 encoding="utf-8",
             )
@@ -116,6 +116,76 @@ class KnowledgeStoresTest(unittest.TestCase):
         logged = self.log.read_text(encoding="utf-8")
         self.assertIn("shared cache", logged)
         self.assertIn("shaft_engine_main", tokens)
+        self.assertFalse(self.checkout_palace_created(self.linked))
+
+    def test_search_query_flag_forwards_to_resolved_palace(self):
+        completed = self.cli(
+            "search",
+            "--query",
+            "flag query",
+            "--wing",
+            "shaft_engine_main",
+            "--room",
+            "scripts",
+            "--results",
+            "4",
+        )
+        combined = completed.stdout + completed.stderr
+
+        self.assertEqual(0, completed.returncode, combined)
+        self.assertIn("MEMPALACE-FAKE-OUTPUT", completed.stdout)
+        tokens = self.assert_global_flags_before("search")
+        logged = self.log.read_text(encoding="utf-8")
+        self.assertIn("flag query", logged)
+        self.assertIn("shaft_engine_main", tokens)
+        self.assertIn("scripts", tokens)
+        self.assertIn("--results", tokens)
+        self.assertIn("4", tokens)
+        self.assertFalse(self.checkout_palace_created(self.linked))
+
+    def test_top_level_query_flag_runs_search(self):
+        completed = self.cli(
+            "--query",
+            "top level query",
+            "--wing",
+            "shaft_engine_main",
+            "--room",
+            "scripts",
+            "--results",
+            "3",
+        )
+        combined = completed.stdout + completed.stderr
+
+        self.assertEqual(0, completed.returncode, combined)
+        self.assertIn("MEMPALACE-FAKE-OUTPUT", completed.stdout)
+        tokens = self.assert_global_flags_before("search")
+        logged = self.log.read_text(encoding="utf-8")
+        self.assertIn("top level query", logged)
+        self.assertIn("shaft_engine_main", tokens)
+        self.assertIn("scripts", tokens)
+        self.assertIn("--results", tokens)
+        self.assertIn("3", tokens)
+        self.assertFalse(self.checkout_palace_created(self.linked))
+
+    def test_search_rejects_disagreeing_positional_and_query_flag(self):
+        completed = self.cli("search", "alpha", "--query", "beta")
+        combined = completed.stdout + completed.stderr
+
+        self.assertNotEqual(0, completed.returncode, combined)
+        self.assertIn("must match", combined)
+        self.assertFalse(self.log.exists())
+        self.assertFalse(self.checkout_palace_created(self.linked))
+
+    def test_search_matching_positional_and_query_flag_forwards_once(self):
+        completed = self.cli("search", "same query", "--query", "same query")
+        combined = completed.stdout + completed.stderr
+
+        self.assertEqual(0, completed.returncode, combined)
+        tokens = self.assert_global_flags_before("search")
+        logged = self.log.read_text(encoding="utf-8")
+        self.assertIn("same query", logged)
+        self.assertEqual(1, logged.count("same query"))
+        self.assertEqual("search", tokens[tokens.index("search")])
         self.assertFalse(self.checkout_palace_created(self.linked))
 
     def test_refresh_refuses_linked_worktree_and_ordinary_checkout(self):

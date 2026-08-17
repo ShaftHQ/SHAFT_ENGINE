@@ -91,13 +91,51 @@ def cmd_refresh() -> int:
     return 1
 
 
+COMMANDS = frozenset({"status", "search", "refresh"})
+
+
+def argv_with_implicit_search(argv: list[str]) -> list[str]:
+    """Treat a top-level --query as search when no subcommand is present."""
+    skip_value = False
+    for token in argv:
+        if skip_value:
+            skip_value = False
+            continue
+        if token in COMMANDS:
+            return argv
+        if token == "--query":
+            skip_value = True
+    if any(token == "--query" or token.startswith("--query=") for token in argv):
+        return ["search", *argv]
+    return argv
+
+
+def resolve_search_query(
+    parser: argparse.ArgumentParser,
+    positional: str | None,
+    flag: str | None,
+) -> str:
+    """Require one query; positional and --query must match when both are set."""
+    if positional and flag and positional != flag:
+        parser.error("positional query and --query must match")
+    query = positional or flag
+    if not query:
+        parser.error("search requires a query")
+    return query
+
+
 def build_parser() -> argparse.ArgumentParser:
     """Build the operator command parser."""
     parser = argparse.ArgumentParser(description=__doc__)
     subparsers = parser.add_subparsers(dest="command", required=True)
     subparsers.add_parser("status", help="Show the resolved palace and Graphify check.")
     search = subparsers.add_parser("search", help="Search the resolved SHAFT palace.")
-    search.add_argument("query", help="Search query")
+    search.add_argument("query", nargs="?", help="Search query")
+    search.add_argument(
+        "--query",
+        dest="query_flag",
+        help="Search query alias. If both this and the positional query are given they must match.",
+    )
     search.add_argument("--wing", help="Limit to one wing")
     search.add_argument("--room", help="Limit to one room")
     search.add_argument("--results", type=int, help="Number of results")
@@ -107,7 +145,9 @@ def build_parser() -> argparse.ArgumentParser:
 
 def main(argv: list[str] | None = None, cwd: Path | None = None) -> int:
     """Run the CLI."""
-    args = build_parser().parse_args(argv)
+    parser = build_parser()
+    tokens = sys.argv[1:] if argv is None else list(argv)
+    args = parser.parse_args(argv_with_implicit_search(tokens))
     working_directory = cwd or Path.cwd()
     try:
         if args.command == "status":
@@ -115,7 +155,7 @@ def main(argv: list[str] | None = None, cwd: Path | None = None) -> int:
         if args.command == "search":
             return cmd_search(
                 working_directory,
-                args.query,
+                resolve_search_query(parser, args.query, args.query_flag),
                 args.wing,
                 args.room,
                 args.results,
