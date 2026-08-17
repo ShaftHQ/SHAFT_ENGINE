@@ -10,7 +10,7 @@ version: "3.3"
 services:
 
   db:
-    image: postgres:11-alpine
+    image: postgres:15.5-alpine
     ports:
       - "5432:5432"
     volumes:
@@ -24,7 +24,7 @@ services:
       - healenium
 
   healenium:
-    image: healenium/hlm-backend:3.2.0
+    image: healenium/hlm-backend:3.4.6
     ports:
       - "7878:7878"
     links:
@@ -40,7 +40,7 @@ services:
       - healenium
 
   selector-imitator:
-    image: healenium/hlm-selector-imitator:1
+    image: healenium/hlm-selector-imitator:1.4
     restart: on-failure
     ports:
       - "8000:8000"
