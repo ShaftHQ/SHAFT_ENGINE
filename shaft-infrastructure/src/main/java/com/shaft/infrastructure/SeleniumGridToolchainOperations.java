@@ -11,7 +11,10 @@ interface SeleniumGridToolchainOperations {
     void hostPreflight(List<SetupAction> actions) throws IOException;
 
     default void preStatePreflight(List<SetupAction> actions, boolean offline) throws IOException {
+        java.util.Objects.requireNonNull(actions, "actions");
         // Grid has no safe read that must occur before the shared state directory exists.
+        // offline is part of the shared provider SPI and is unused until that read exists.
+        if (offline) return;
     }
 
     void lockedPreflight(List<SetupAction> actions, boolean offline) throws IOException;
