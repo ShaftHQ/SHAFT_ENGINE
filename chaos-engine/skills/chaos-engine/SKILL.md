@@ -191,6 +191,11 @@ For the short decision procedure and boundary cases, load
 When `plugins/caveman/skills/caveman/SKILL.md` exists, load that bundled skill as this
 section's response-compression companion. User requests for normal mode still win.
 
+Bundled Caveman artifacts:
+
+- [Bundled Caveman skill definition](../../vendor/caveman/SKILL.md)
+- [Bundled Caveman license](../../vendor/caveman/LICENSE)
+
 Default voice is terse and exact. Lead with outcome; remove filler,
 pleasantries, hedging, repetition, decorative formatting, and unrequested raw
 logs. Prefer short familiar words and fragments, but preserve user language,
