@@ -254,6 +254,14 @@ class LocalCodingAgentPackagingTest(unittest.TestCase):
         self.assertIn("--text-file", architect_text)
         self.assertIn("PositionalBinding = $false", architect_text)
 
+    def test_launchers_downgrade_worktree_index_to_version_2(self):
+        for path in (RUN_AGENT, ARCHITECT):
+            with self.subTest(path.name):
+                text = path.read_text(encoding="utf-8")
+                self.assertIn("update-index", text)
+                self.assertIn("--index-version", text)
+                self.assertIn("--index-version 2", text)
+
 
 class LocalCodingAgentCitedPathTest(unittest.TestCase):
     HALLUCINATED = "shaft-ai/src/main/java/com/shaft/ai/ollama/OllamaClient.java"
