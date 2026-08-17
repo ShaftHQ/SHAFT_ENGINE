@@ -210,15 +210,10 @@ $payload = @{
     blockers = @($blockers)
 }
 $reportPath = Join-Path $reportDir "report.json"
-($payload | ConvertTo-Json -Depth 5) | Set-Content -LiteralPath $reportPath -Encoding utf8
-
-& py -3 $agentPy "validate" "--report" $reportPath
+$rawPath = Join-Path $reportDir "report.raw.json"
+($payload | ConvertTo-Json -Depth 5) | Set-Content -LiteralPath $rawPath -Encoding utf8
+& py -3 $agentPy "write" "--input" $rawPath "--out" $reportPath
 if ($LASTEXITCODE -ne 0) {
-    $payload.ok = $false
-    if ($payload.blockers -notcontains "report validation failed") {
-        $payload.blockers = @($payload.blockers) + @("report validation failed")
-    }
-    ($payload | ConvertTo-Json -Depth 5) | Set-Content -LiteralPath $reportPath -Encoding utf8
     Write-Output $reportPath
     exit $LASTEXITCODE
 }

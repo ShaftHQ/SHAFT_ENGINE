@@ -109,6 +109,28 @@ def validate_report(data: dict) -> list[str]:
     return blockers
 
 
+def write_report(path: str | object, data: dict) -> list[str]:
+    """Normalize arrays, persist report.json, and return validation blockers."""
+    from pathlib import Path
+    import json
+
+    if not isinstance(data, dict):
+        raise TypeError("report must be an object")
+    normalized = dict(data)
+    normalized["files_allowed"] = as_path_list(data.get("files_allowed"))
+    normalized["files_changed"] = as_path_list(data.get("files_changed"))
+    blockers = [str(item) for item in as_path_list(data.get("blockers"))]
+    extra = validate_report(normalized)
+    if extra:
+        normalized["ok"] = False
+        for item in extra:
+            if item not in blockers:
+                blockers.append(item)
+    normalized["blockers"] = blockers
+    Path(path).write_text(json.dumps(normalized, indent=2) + "\n", encoding="utf-8")
+    return extra
+
+
 def main(argv: list[str] | None = None) -> int:
     import argparse
     import json
@@ -128,6 +150,9 @@ def main(argv: list[str] | None = None) -> int:
     chg = sub.add_parser("changed")
     chg.add_argument("--status-file", default="")
     chg.add_argument("--head-file", default="")
+    wrt = sub.add_parser("write")
+    wrt.add_argument("--input", required=True)
+    wrt.add_argument("--out", required=True)
     args = parser.parse_args(argv)
 
     if args.cmd == "preflight":
@@ -170,6 +195,15 @@ def main(argv: list[str] | None = None) -> int:
                 continue
             seen.add(key)
             print(item)
+        return 0
+
+    if args.cmd == "write":
+        payload = json.loads(Path(args.input).read_text(encoding="utf-8"))
+        extra = write_report(args.out, payload)
+        if extra:
+            print("\n".join(extra))
+            return 2
+        print("ok")
         return 0
 
     payload = json.loads(Path(args.report).read_text(encoding="utf-8"))

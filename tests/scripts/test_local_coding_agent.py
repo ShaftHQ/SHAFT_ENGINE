@@ -14,6 +14,9 @@ SCHEMA = ROOT / "scripts" / "local-coding-agent" / "report.schema.json"
 RUN_AGENT = ROOT / "scripts" / "local-coding-agent" / "run_agent.ps1"
 INSTALL = ROOT / "scripts" / "local-coding-agent" / "install.ps1"
 STOP = ROOT / "scripts" / "local-coding-agent" / "stop.ps1"
+JAVA_AGENT = ROOT / "scripts" / "local-coding-agent" / "shaft-java-agent.ps1"
+ARCHITECT = ROOT / "scripts" / "local-coding-agent" / "shaft-architect.ps1"
+STOP_CMD = ROOT / "scripts" / "local-coding-agent" / "shaft-local-ai-stop.ps1"
 
 SPEC = importlib.util.spec_from_file_location("local_coding_agent", SCRIPT)
 if SPEC is None or SPEC.loader is None:
@@ -145,6 +148,27 @@ class LocalCodingAgentReportTest(unittest.TestCase):
         payload["files_changed"] = "src/Example.java"
         self.assertEqual([], MODULE.validate_report(payload))
 
+    def test_write_report_from_porcelain_and_unwrapped_json_fails_sibling(self):
+        import tempfile
+
+        status = (
+            " M src/Example.java\n"
+            " M src/SHAFT.java\n"
+        )
+        changed = MODULE.changed_paths_from_git_status(status)
+        payload = self.valid_payload()
+        payload["ok"] = True
+        payload["files_allowed"] = "src/Example.java"
+        payload["files_changed"] = changed
+        report = Path(tempfile.mkdtemp()) / "report.json"
+        extra = MODULE.write_report(report, payload)
+        saved = json.loads(report.read_text(encoding="utf-8"))
+        self.assertTrue(any("shaft.java" in item.lower() for item in extra))
+        self.assertIsInstance(saved["files_allowed"], list)
+        self.assertIsInstance(saved["files_changed"], list)
+        self.assertGreaterEqual(len(saved["files_changed"]), 2)
+        self.assertFalse(saved["ok"])
+
 
 class LocalCodingAgentPackagingTest(unittest.TestCase):
     def test_schema_lists_required_report_keys(self):
@@ -188,6 +212,21 @@ class LocalCodingAgentPackagingTest(unittest.TestCase):
         self.assertIn("refusing to stop an unproven process", stop_text)
         install_text = INSTALL.read_text(encoding="utf-8")
         self.assertIn("release asset digest missing", install_text)
+        self.assertIn('$agentPy "write"', run_text)
+
+    def test_named_commands_exist(self):
+        self.assertTrue(JAVA_AGENT.is_file())
+        self.assertTrue(ARCHITECT.is_file())
+        self.assertTrue(STOP_CMD.is_file())
+        java_text = JAVA_AGENT.read_text(encoding="utf-8")
+        architect_text = ARCHITECT.read_text(encoding="utf-8")
+        stop_text = STOP_CMD.read_text(encoding="utf-8")
+        self.assertIn("run_agent.ps1", java_text)
+        self.assertIn("stop.ps1", stop_text)
+        self.assertIn("--dry-run", architect_text)
+        self.assertIn("--no-auto-commits", architect_text)
+        self.assertIn("push is forbidden", architect_text)
+        self.assertIn("read-only contract failed", architect_text)
 
 
 if __name__ == "__main__":
