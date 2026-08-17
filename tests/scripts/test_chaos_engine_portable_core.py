@@ -31,6 +31,17 @@ class ChaosEnginePortableCoreTest(unittest.TestCase):
         self.assertIn("only tests created or edited", guidance)
         self.assertIn("Do not rerun an entire test suite merely because CI failed", guidance)
         self.assertNotIn("shaft", guidance.casefold())
+        self.assertIn("license: MIT", guidance)
+        self.assertNotIn("load both vendor skills", guidance.casefold())
+        self.assertLessEqual(len(guidance.splitlines()), 500)
+        for relative in (
+            "references/context-economy.md",
+            "references/script-first.md",
+            "LICENSE",
+            "THIRD_PARTY_NOTICES.md",
+        ):
+            self.assertIn(relative, guidance.replace("\\", "/"))
+            self.assertTrue((CORE / relative).is_file(), relative)
 
     def test_portable_graphify_retrieval_is_read_only_and_ordered(self):
         guidance = (CORE / "references/graphify.md").read_text(encoding="utf-8")

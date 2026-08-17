@@ -33,9 +33,11 @@ the project you want to manage:
 That agent instruction owns the complete flow: the bootstrap installs the
 neutral core, pinned local tools, Memory and isolated MemPalace MCP servers,
 Graphify CLI, skills, playbooks, five role adapters, ChaosEngine lifecycle
-hooks, the pinned Caveman and Ponytail companion skills and hooks, Codex and
-Claude plugin manifests/marketplaces for ChaosEngine plus those companions,
-retrieval configuration, and runtime ignore rules. When a detected client
+hooks, the pinned Caveman and Ponytail companion skills and hooks, the MIT license
+and third-party notices, Codex and Claude plugin manifests/marketplaces for
+ChaosEngine plus those companions, retrieval configuration, and runtime ignore
+rules. Companion skills install with the core; they load at runtime only when
+invoked or when they change the next action. When a detected client
 requires marketplace registration, the agent registers the project marketplace
 and installs `chaos-engine`, `caveman`, and `ponytail` at project local scope,
 then runs active `doctor` probes. Generated indexes, caches, receipts, and runtimes

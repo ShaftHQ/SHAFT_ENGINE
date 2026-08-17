@@ -83,6 +83,7 @@ flowchart LR
         self.write("chaos-engine/profiles/README.md", "# Project profiles\n")
         self.write("chaos-engine/RESEARCH.md", "# Adoption matrix\n")
         self.write("chaos-engine/INSTALL.md", "# Install\n")
+        self.write("chaos-engine/THIRD_PARTY_NOTICES.md", "# Notices\n")
 
         self.assertEqual(validate_repository(self.root), [])
 

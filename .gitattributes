@@ -5,3 +5,4 @@ shaft-skills/references/*.md text eol=lf
 scripts/mcp/*.py text eol=lf
 .memory/events.jsonl merge=union
 shaft-infrastructure/src/main/resources/com/shaft/infrastructure/reporting/package-lock.json text eol=lf
+chaos-engine/** text eol=lf

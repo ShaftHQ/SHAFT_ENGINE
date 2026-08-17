@@ -24,7 +24,7 @@ Primary source: [DeepSeek Harness architecture at commit
 
 | Capability | Decision | ChaosEngine ownership |
 | --- | --- | --- |
-| Capability ownership | Adopted | Keep service definition, provider, and consumer responsibilities explicit in validated component descriptors. |
+| Capability ownership | Adopted | Keep service definition, provider, and consumer responsibilities explicit in `distributions.json`, profile, and dependency component descriptors. |
 | Declarative composition | Adopted | Continue composing one canonical entrypoint with profiles and thin host adapters. |
 | Orthogonal outcomes | Adopted | Report task delivery, cleanup, and each knowledge-store outcome independently. |
 | Bounded asynchronous behavior | Adopted | Bound optional retrieval to one attempt and keep maintenance with its existing owner. |
@@ -36,6 +36,21 @@ replaceable plugin ecosystem with reversible effects and one event model, but
 importing it would create a second execution and persistence stack without a
 current consumer. ChaosEngine adopts the architectural invariants, not the
 preview runtime.
+
+## Token-first adoption — Accessed: 2026-08-17
+
+Primary sources checked live: [Agent Skills specification](https://agentskills.io/specification),
+[Anthropic context engineering](https://www.anthropic.com/engineering/effective-context-engineering-for-ai-agents),
+and DeepSeek Harness [compaction](https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/compaction.md)
+plus code mode. Companion bodies stay MIT-pinned and optional at runtime.
+
+| Pattern | Decision | ChaosEngine ownership |
+| --- | --- | --- |
+| Progressive disclosure | Adopted | Always-on router; references load when their decision is active. |
+| Just-in-time retrieval | Adopted | Query a store only when it can shorten the task; one bounded attempt. |
+| Tool-result prune and spill | Adopted as guidance | [context-economy](references/context-economy.md) |
+| Script over long tool chains | Adopted as guidance | [script-first](references/script-first.md) |
+| Auto-load companion bodies every mutation | Rejected | Caveman and Ponytail load on invoke or when they change the next action. |
 
 ## Architecture decision
 
