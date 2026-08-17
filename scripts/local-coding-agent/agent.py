@@ -98,8 +98,9 @@ def cited_repo_paths(text: str) -> list[str]:
     """Repo-relative paths with a slash and a file extension. URLs and bare names ignored."""
     cleaned = re.sub(r"https?://\S+", " ", str(text or ""), flags=re.IGNORECASE)
     cleaned = cleaned.replace("\\", "/")
+    cleaned = re.sub(r"(?i)\b[a-z]:/\S+", " ", cleaned)
     pattern = re.compile(
-        r"(?<![A-Za-z0-9._-])((?:[A-Za-z0-9._-]+/)+[A-Za-z0-9._-]+\.[A-Za-z0-9]+)"
+        r"(?<![A-Za-z0-9._-])((?:[A-Za-z0-9._-]+/)+[A-Za-z0-9._-]+\.[A-Za-z][A-Za-z0-9]*)"
     )
     found: list[str] = []
     seen: set[str] = set()

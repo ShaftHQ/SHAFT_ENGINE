@@ -3,11 +3,11 @@
 .SYNOPSIS
   Named read-only architect: shaft-architect. Aider --dry-run, no edits or commits.
 #>
-[CmdletBinding()]
+[CmdletBinding(PositionalBinding = $false)]
 param(
-    [Parameter(Mandatory = $true)]
+    [Parameter(Mandatory = $true, Position = 0)]
     [string] $Worktree,
-    [Parameter(Mandatory = $true)]
+    [Parameter(Mandatory = $true, Position = 1)]
     [string] $Spec,
     [string] $Model = "qwen2.5-coder:7b",
     [string] $Root = $(if ($env:SHAFT_LOCAL_AI_ROOT) { $env:SHAFT_LOCAL_AI_ROOT } else { "D:\AI" }),
@@ -132,7 +132,7 @@ try {
     }
     $cited = & py -3 $agentPy "cited" "--text-file" $historyFile "--root" $Worktree
     if ($LASTEXITCODE -ne 0) {
-        Write-Error ($cited -join "`n")
+        Write-Output ($cited -join "`n")
         exit 2
     }
 } finally {
