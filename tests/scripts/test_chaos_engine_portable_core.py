@@ -489,6 +489,10 @@ class ChaosEnginePortableCoreTest(unittest.TestCase):
         self.assertIn("status", retrieval.lower())
         self.assertIn("doctor", retrieval.lower())
         self.assertIn("strict", retrieval.lower())
+        receipt = (CORE / "references/research-receipt.md").read_text(encoding="utf-8").lower()
+        self.assertIn("after a plan is approved", receipt)
+        self.assertIn("first implementation mutation", receipt)
+        self.assertIn("after a plan is approved", retrieval.lower())
         self.assertNotIn("graphify refresh", planning.lower())
         self.assertIn("maintenance owner", planning.lower())
 
