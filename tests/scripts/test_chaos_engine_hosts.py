@@ -1231,6 +1231,60 @@ class ChaosEngineHostsTest(unittest.TestCase):
 
             self.assertFalse((palace / "sqlite_exact.sqlite3").exists())
 
+    def test_shaft_resolver_without_checkout_palace_is_degraded_and_does_not_initialize(self):
+        module = load(HOSTS, "chaos_engine_mempalace_shaft_resolver")
+        with tempfile.TemporaryDirectory() as temporary:
+            shaft = Path(temporary) / "shaft"
+            resolver = shaft / "tools/repository-map/resolve_mempalace.py"
+            resolver.parent.mkdir(parents=True)
+            resolver.write_text("# fixture SHAFT resolver\n", encoding="utf-8")
+
+            state = module.mempalace_runtime_status(shaft)
+            self.assertEqual("degraded", state["status"])
+            self.assertIn("scripts/agents/knowledge_stores.py status", state["detail"])
+            self.assertIn("centralized", state["detail"].lower())
+            self.assertNotIn(".git", state["detail"])
+
+            module.initialize_mempalace_runtime(shaft)
+            self.assertFalse((shaft / ".chaos-engine-state/mempalace").exists())
+
+            portable = Path(temporary) / "portable"
+            portable.mkdir()
+            self.assertEqual(
+                "initialization-required",
+                module.mempalace_runtime_status(portable)["status"],
+            )
+
+    def test_tool_guard_refuses_shaft_degraded_mempalace_and_names_knowledge_stores(self):
+        hosts = load(HOSTS, "chaos_engine_mempalace_shaft_guard_hosts")
+        tool = load(TOOL, "chaos_engine_mempalace_shaft_guard_tool")
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary)
+            resolver = project / "tools/repository-map/resolve_mempalace.py"
+            resolver.parent.mkdir(parents=True)
+            resolver.write_text("# fixture SHAFT resolver\n", encoding="utf-8")
+            arguments = [
+                "--palace",
+                ".chaos-engine-state/mempalace",
+                "--backend",
+                "sqlite_exact",
+            ]
+            with mock.patch.object(
+                tool,
+                "load_host_controller",
+                return_value=hosts.__dict__,
+            ):
+                with self.assertRaisesRegex(ValueError, r"knowledge_stores\.py"):
+                    tool.guard_mempalace_mcp(project / ".chaos-engine", arguments)
+
+    def test_hosts_module_source_has_no_portable_forbidden_tokens(self):
+        catalog = json.loads((ROOT / "chaos-engine/distributions.json").read_text(encoding="utf-8"))
+        tokens = catalog["distributions"]["portable"]["forbiddenTokens"]
+        text = HOSTS.read_text(encoding="utf-8").casefold()
+        for token in tokens:
+            with self.subTest(token=token):
+                self.assertNotIn(str(token).casefold(), text)
+
     def test_launcher_rendering_is_explicit_for_windows_and_posix(self):
         module = load(HOSTS, "chaos_engine_hosts")
 

@@ -297,6 +297,14 @@ def mempalace_runtime_status(project: Path) -> dict[str, str]:
             "detail": "MemPalace state is a link or reparse point",
         }
     if not palace.exists():
+        if (project / "tools/repository-map/resolve_mempalace.py").is_file():
+            return {
+                "status": "degraded",
+                "detail": (
+                    "Centralized MemPalace is the operator path; "
+                    "use py -3 scripts/agents/knowledge_stores.py status"
+                ),
+            }
         return {"status": "initialization-required", "backend": "sqlite_exact"}
     if not palace.is_dir():
         return {
