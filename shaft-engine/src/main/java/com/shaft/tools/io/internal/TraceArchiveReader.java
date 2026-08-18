@@ -62,16 +62,23 @@ public final class TraceArchiveReader {
                 Files.move(temporary, absoluteTarget);
             }
             return written;
-        } catch (IOException | RuntimeException exception) {
-            try {
-                Files.deleteIfExists(temporary);
-                if (found) {
-                    Files.deleteIfExists(absoluteTarget);
-                }
-            } catch (IOException cleanupFailure) {
-                exception.addSuppressed(cleanupFailure);
+        } catch (IOException exception) {
+            cleanupExtract(temporary, found ? absoluteTarget : null, exception);
+            throw exception;
+        } catch (RuntimeException exception) {
+            cleanupExtract(temporary, found ? absoluteTarget : null, exception);
+            throw new IOException(exception);
+        }
+    }
+
+    private static void cleanupExtract(Path temporary, Path published, Exception original) {
+        try {
+            Files.deleteIfExists(temporary);
+            if (published != null) {
+                Files.deleteIfExists(published);
             }
-            throw exception instanceof IOException ioException ? ioException : new IOException(exception);
+        } catch (IOException cleanupFailure) {
+            original.addSuppressed(cleanupFailure);
         }
     }
 
