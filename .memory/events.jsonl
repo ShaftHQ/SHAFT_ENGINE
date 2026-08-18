@@ -1167,6 +1167,9 @@
 {"actor":"agent","event":"memory.deleted","id":"gotcha.sk-secret-patterns-must-allow-hyphens","timestamp":"2026-08-18T17:01:05+03:00"}
 {"actor":"agent","event":"memory.updated","id":"gotcha.secret-like-must-consume-values","timestamp":"2026-08-18T17:01:05+03:00"}
 {"actor":"agent","event":"memory.created","id":"gotcha.portable-core-phrase-pins-do-not-span-newlines","timestamp":"2026-08-18T18:07:05+03:00"}
+{"actor":"agent","event":"memory.updated","id":"gotcha.soup-export-q4-k-m-on-windows-needs-a-prebuilt-llama-quantize","timestamp":"2026-08-18T19:12:19+03:00"}
+{"actor":"agent","event":"memory.created","id":"gotcha.soup-export-q4-k-m-on-windows-needs-a-prebuilt-llama-quantize","timestamp":"2026-08-18T19:11:52+03:00"}
+{"actor":"agent","event":"memory.created","id":"gotcha.tiny-1-5b-soup-sft-is-not-enough-for-aider-whole-format","timestamp":"2026-08-18T19:11:52+03:00"}
 {"actor":"agent","event":"memory.created","id":"gotcha.failed-locator-by-must-not-run-before-getby-on-the-same-line","timestamp":"2026-08-18T19:17:30+03:00"}
 {"actor":"agent","event":"memory.created","id":"gotcha.empty-git-status-porcelain-piped-to-set-content-skips-git-status-txt","timestamp":"2026-08-18T20:03:45+03:00"}
-{"actor":"agent","event":"memory.created","id":"gotcha.tiny-1-5b-soup-sft-is-not-enough-for-aider-whole-format","timestamp":"2026-08-18T20:03:45+03:00"}
+{"actor":"agent","event":"memory.updated","id":"gotcha.tiny-1-5b-soup-sft-is-not-enough-for-aider-whole-format","timestamp":"2026-08-18T20:21:32+03:00"}
