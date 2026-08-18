@@ -10,6 +10,7 @@ import com.shaft.doctor.DoctorAiAnalysisRequest;
 import com.shaft.doctor.format.DoctorFormatException;
 import com.shaft.doctor.format.DoctorJsonCodec;
 import com.shaft.doctor.internal.DoctorHashing;
+import com.shaft.doctor.internal.DoctorProviderDiagnosis;
 import com.shaft.doctor.internal.DoctorRedactor;
 import com.shaft.doctor.model.CauseCategory;
 import com.shaft.doctor.model.Confidence;
@@ -246,7 +247,7 @@ public final class DoctorAiAnalysisService {
                 The deterministic diagnosis remains authoritative; identify uncertainty and contradictions explicitly.
 
                 Deterministic diagnosis:
-                """ + new DoctorJsonCodec().write(diagnosis);
+                """ + DoctorProviderDiagnosis.boundedText(diagnosis);
     }
 
     private static List<EvidenceReference> minimize(

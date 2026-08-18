@@ -5,6 +5,7 @@ import tools.jackson.databind.ObjectMapper;
 import tools.jackson.databind.node.ArrayNode;
 import tools.jackson.databind.node.ObjectNode;
 import com.shaft.capture.generate.CaptureGenerator.CodegenBackend;
+import com.shaft.doctor.internal.DoctorProviderDiagnosis;
 import com.shaft.doctor.model.CauseCategory;
 import com.shaft.doctor.model.Diagnosis;
 import com.shaft.doctor.model.DoctorAnalysisResult;
@@ -34,8 +35,6 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Set;
 import java.util.function.Function;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 /**
  * Builds local MCP remediation actions and safe copy-paste code blocks from Doctor evidence.
@@ -45,15 +44,6 @@ final class McpDoctorRemediationService {
     private static final int MAX_SOURCE_FILES = 5;
     private static final int MAX_SOURCE_BYTES = 20_000;
     private static final int MAX_RANKED_REMEDIATION_CAUSES = 5;
-    private static final Pattern SECRET_LIKE = Pattern.compile(
-            "(?i)([\"']?authorization[\"']?\\s*[:=]\\s*(?:(?:basic|bearer)\\s+)?(?:\"[^\"]+\"|'[^']+'|[^\\s,;]+)"
-                    + "|[\"']?bearer[\"']?\\s+[a-z0-9._\\-]{8,}"
-                    + "|[\"']?api[_-]?key[\"']?\\s*[:=]\\s*(?:\"[^\"]+\"|'[^']+'|[^\\s,;]+)"
-                    + "|sk-[a-z0-9._\\-]{8,})");
-    private static final Pattern FAILED_LOCATOR = Pattern.compile(
-            "(?i)(By\\.(?:id|name|cssSelector|xpath|className|tagName|linkText|partialLinkText)\\s*:?\\s*[^\\r\\n,;]+"
-                    + "|locator\\([^\\r\\n]+?\\)"
-                    + "|[\"']?selector[\"']?\\s*[:=]\\s*(?:\"[^\"]+\"|'[^']+'|[^\\r\\n,;]+))");
 
     private final Function<AiRequest, AiResponse> executor;
 
@@ -374,7 +364,7 @@ final class McpDoctorRemediationService {
                     continue;
                 }
                 String content = new String(bytes, StandardCharsets.UTF_8);
-                if (SECRET_LIKE.matcher(content).find()) {
+                if (DoctorProviderDiagnosis.containsSecret(content)) {
                     warnings.add("Approved source file was omitted because it contained secret-like material.");
                     continue;
                 }
@@ -412,7 +402,7 @@ final class McpDoctorRemediationService {
                 continue;
             }
             String code = block.path("code").asText("");
-            if (code.isBlank() || code.length() > 8_000 || SECRET_LIKE.matcher(code).find()) {
+            if (code.isBlank() || code.length() > 8_000 || DoctorProviderDiagnosis.containsSecret(code)) {
                 warnings.add("AI fallback block was rejected because its code was empty, too large, or secret-like.");
                 continue;
             }
@@ -461,11 +451,6 @@ final class McpDoctorRemediationService {
     }
 
     private static String providerPrompt(Diagnosis diagnosis) {
-        String ranked = diagnosis.rankedCauses().stream()
-                .limit(MAX_RANKED_REMEDIATION_CAUSES)
-                .map(cause -> cause.category() + ":" + cause.trustPercentage())
-                .reduce((left, right) -> left + "," + right)
-                .orElse("");
         return """
                 Produce review-only Java snippets for a SHAFT test failure.
                 Use only submitted evidence IDs. Do not invent locators, paths, classes, commands, or assertions.
@@ -473,15 +458,8 @@ final class McpDoctorRemediationService {
                 Return JSON matching the requested schema; no Markdown fences.
 
                 Deterministic diagnosis:
-                primaryCause=%s
-                confidence=%s
-                summary=%s
-                rankedCauses=%s
-                """.formatted(
-                diagnosis.primaryCause(),
-                diagnosis.confidence(),
-                safeContent(diagnosis.summary()),
-                ranked);
+                %s
+                """.formatted(DoctorProviderDiagnosis.boundedText(diagnosis));
     }
 
     private static McpCodeBlock locatorBlock(List<String> evidenceIds) {
@@ -664,9 +642,9 @@ final class McpDoctorRemediationService {
                 item.attributes().getOrDefault("traceTop", ""),
                 item.content() == null ? "" : item.content());
         for (String text : texts) {
-            Matcher matcher = FAILED_LOCATOR.matcher(text);
-            if (matcher.find()) {
-                return matcher.group(1).replaceAll("\\s+", " ").trim();
+            String locator = DoctorProviderDiagnosis.firstFailedLocator(text);
+            if (!locator.isBlank()) {
+                return locator;
             }
         }
         return "";
@@ -719,11 +697,7 @@ final class McpDoctorRemediationService {
     }
 
     private static String safeContent(String content) {
-        if (content == null) {
-            return "";
-        }
-        String sanitized = SECRET_LIKE.matcher(content).replaceAll("[REDACTED]");
-        sanitized = FAILED_LOCATOR.matcher(sanitized).replaceAll("[LOCATOR]");
+        String sanitized = DoctorProviderDiagnosis.sanitize(content);
         return sanitized.length() > 8_000 ? sanitized.substring(0, 8_000) : sanitized;
     }
 

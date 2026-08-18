@@ -496,6 +496,45 @@ class ChaosEnginePortableCoreTest(unittest.TestCase):
         self.assertNotIn("graphify refresh", planning.lower())
         self.assertIn("maintenance owner", planning.lower())
 
+    def test_planning_grounds_issue_state_before_first_commit(self):
+        planning = (CORE / "references/work-github-planning.md").read_text(encoding="utf-8")
+
+        for phrase in (
+            "First grounding table",
+            "issue state",
+            "closing PRs",
+            "live-file contradiction",
+            "remaining-acceptance",
+            "next RED",
+            "kill-after-merge",
+            "stream count",
+            "host-local",
+            "plan.md",
+            "not enough",
+        ):
+            with self.subTest(phrase=phrase):
+                self.assertIn(phrase, planning)
+
+    def test_project_scoped_memory_objects_do_not_set_branch_or_task(self):
+        gotcha = (
+            ROOT
+            / ".memory/memory/gotchas"
+            / "grok-lifecycle-hooks-must-merge-not-overwrite-foreign-handlers.json"
+        )
+        payload = json.loads(gotcha.read_text(encoding="utf-8"))
+        self.assertEqual("project", payload["scope"]["kind"])
+        self.assertIsNone(payload["scope"]["task"])
+        self.assertIsNone(payload["scope"]["branch"])
+
+        offenders = []
+        for path in (ROOT / ".memory/memory").rglob("*.json"):
+            scope = json.loads(path.read_text(encoding="utf-8")).get("scope") or {}
+            if scope.get("kind") != "project":
+                continue
+            if scope.get("branch") is not None or scope.get("task") is not None:
+                offenders.append(str(path.relative_to(ROOT)))
+        self.assertEqual([], offenders)
+
     def test_graphify_cache_is_only_an_untrusted_positive_lead(self):
         graphify = (CORE / "references/graphify.md").read_text(encoding="utf-8").lower()
         for phrase in (

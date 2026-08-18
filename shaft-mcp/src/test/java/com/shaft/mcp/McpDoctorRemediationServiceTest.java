@@ -94,6 +94,9 @@ class McpDoctorRemediationServiceTest {
         String plantedLocator = org.openqa.selenium.By.cssSelector("#unique-doctor-locator-canary").toString();
         String cssJson = "{\"method\":\"css selector\",\"selector\":\"#unique-doctor-locator-canary\"}";
         String xpathJson = "{\"method\":\"xpath\",\"selector\":\"//*[@id='unique-doctor-xpath-canary']\"}";
+        String plantedPlaywright = "getByRole(\"button\", { name: \"unique-playwright-role-canary\" })";
+        String plantedShaftBuilder = "SHAFT.GUI.Locator.hasId(\"unique-shaft-builder-canary\")";
+        String plantedSelenium3 = "{\"using\":\"css selector\",\"value\":\"#unique-selenium3-value-canary\"}";
         String plantedSecrets = "Authorization: Basic dXNlcjpwYXNz Authorization: planted-no-scheme-token-value"
                 + " api_key=supersecretvalue123"
                 + " {\"authorization\":\"Basic dXNlcjpwYXNz\"}"
@@ -112,7 +115,8 @@ class McpDoctorRemediationServiceTest {
                 "",
                 "sha-1",
                 plantedSecrets.length(),
-                "NoSuchElementException for " + plantedLocator + " " + plantedSecrets,
+                "NoSuchElementException for " + plantedLocator + " " + plantedPlaywright + " "
+                        + plantedShaftBuilder + " " + plantedSelenium3 + " " + plantedSecrets,
                 false,
                 false,
                 Map.of(),
@@ -123,20 +127,25 @@ class McpDoctorRemediationServiceTest {
                 "application/json",
                 "",
                 "sha-2",
-                cssJson.length() + xpathJson.length(),
-                cssJson + " " + xpathJson,
+                cssJson.length() + xpathJson.length() + plantedPlaywright.length()
+                        + plantedShaftBuilder.length() + plantedSelenium3.length(),
+                cssJson + " " + xpathJson + " " + plantedPlaywright + " " + plantedShaftBuilder
+                        + " " + plantedSelenium3,
                 false,
                 false,
                 Map.of(),
                 new EvidenceProvenance("fixture", "fixture/allure-result.json", "sha-2"));
-        String summary = "Locator " + cssJson + " and " + xpathJson + " failed with " + plantedSecrets;
+        String summary = "Locator " + cssJson + " and " + xpathJson + " and " + plantedPlaywright
+                + " and " + plantedShaftBuilder + " and " + plantedSelenium3
+                + " failed with " + plantedSecrets;
         DoctorAnalysisResult result = new DoctorAnalysisResult(
                 new EvidenceBundle(EvidenceBundle.CURRENT_SCHEMA_VERSION, "bundle-1",
                         List.of(exceptionEvidence, allureEvidence),
                         new RedactionSummary(List.of(), List.of(), 0), Map.of()),
                 diagnosis(summary, List.of(rankedCause(CauseCategory.LOCATOR, 88,
-                        "Replace " + plantedLocator + " " + cssJson + " " + xpathJson
-                                + " and keep " + plantedSecrets))),
+                        "Replace " + plantedLocator + " " + cssJson + " " + xpathJson + " "
+                                + plantedPlaywright + " " + plantedShaftBuilder + " "
+                                + plantedSelenium3 + " and keep " + plantedSecrets))),
                 "", "", "");
 
         McpAnalysisReport report = aiService.build(
@@ -152,6 +161,9 @@ class McpDoctorRemediationServiceTest {
         assertFalse(blob.contains(xpathJson), blob);
         assertFalse(blob.contains("#unique-doctor-locator-canary"), blob);
         assertFalse(blob.contains("unique-doctor-xpath-canary"), blob);
+        assertFalse(blob.contains("unique-playwright-role-canary"), blob);
+        assertFalse(blob.contains("unique-shaft-builder-canary"), blob);
+        assertFalse(blob.contains("unique-selenium3-value-canary"), blob);
         assertFalse(blob.contains("Basic dXNlcjpwYXNz"), blob);
         assertFalse(blob.contains("planted-no-scheme-token-value"), blob);
         assertFalse(blob.contains("supersecretvalue123"), blob);
