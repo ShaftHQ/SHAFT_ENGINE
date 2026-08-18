@@ -77,7 +77,7 @@ New-Item -ItemType Directory -Path $work | Out-Null
 try {
     $bootstrap = Join-Path $work "bootstrap.py"
     $url = "https://raw.githubusercontent.com/$repository/$branch/chaos-engine/bootstrap.py"
-    Write-Host "Installing ChaosEngine into $project from $repository@$branch"
+    Write-Output "Installing ChaosEngine into $project from $repository@$branch"
     $response = Read-ChaosEngineUrl $url
     [System.IO.File]::WriteAllText($bootstrap, [string]$response.Content)
     $invoke = @($python) + @(
