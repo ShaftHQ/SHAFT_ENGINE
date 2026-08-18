@@ -1357,6 +1357,11 @@ def project_candidates(directory: Path, client: str) -> list[Path]:
 
 
 def detect_project_override(client: str) -> None:
+    if client == "grok":
+        path = grok_write_path()
+        if path != configuration_path("grok").resolve() and project_entry_exists(path, "grok"):
+            log(f"Existing project configuration at {path} defines {SERVER_NAME}; it will be updated in-place.")
+        return
     user_home = home().resolve()
     directory = Path.cwd().resolve()
     while True:
@@ -1519,17 +1524,29 @@ def verify_grok_entry(path: Path, java: Path, args_file: Path) -> None:
         fail("The resulting shaft-mcp launcher arguments are incorrect.", 5)
 
 
+def git_root(start: Path) -> Path | None:
+    directory = start.resolve()
+    while True:
+        if (directory / ".git").exists():
+            return directory
+        if directory.parent == directory:
+            return None
+        directory = directory.parent
+
+
 def grok_write_path() -> Path:
     user_config = configuration_path("grok").resolve()
-    user_home = home().resolve()
     directory = Path.cwd().resolve()
-    while directory != user_home and directory.parent != directory:
+    stop = git_root(directory)
+    while True:
         for candidate in project_candidates(directory, "grok"):
             resolved = candidate.resolve()
             if resolved == user_config:
                 continue
             if project_entry_exists(candidate, "grok"):
                 return resolved
+        if stop is None or directory == stop or directory.parent == directory:
+            break
         directory = directory.parent
     return user_config
 

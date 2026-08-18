@@ -332,6 +332,27 @@ class InstallShaftMcpTest(unittest.TestCase):
             self.assertEqual(original, project_config.read_text(encoding="utf-8"))
             self.assertFalse((grok_home / "config.toml").exists())
 
+    def test_configure_grok_ignores_shaft_mcp_above_the_git_root(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            outside = root / "outside"
+            repo = outside / "repo"
+            (repo / ".git").mkdir(parents=True)
+            outside_config = outside / ".grok" / "config.toml"
+            outside_config.parent.mkdir(parents=True)
+            outside_config.write_text(
+                '[mcp_servers.shaft-mcp]\ncommand = "outside-old"\nargs = ["@outside-old"]\n',
+                encoding="utf-8",
+            )
+            java = root / "java"
+            args_file = root / "shaft-mcp.args"
+            with isolated_grok_env(root, cwd=repo) as (grok_home, _home, _cwd):
+                MODULE.configure_grok(java, args_file)
+            parsed = tomllib.loads((grok_home / "config.toml").read_text(encoding="utf-8"))
+            outside_parsed = tomllib.loads(outside_config.read_text(encoding="utf-8"))
+            self.assertEqual(str(java), parsed["mcp_servers"]["shaft-mcp"]["command"])
+            self.assertEqual("outside-old", outside_parsed["mcp_servers"]["shaft-mcp"]["command"])
+
     def test_configure_grok_prefers_grok_home_over_default_user_file(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)
