@@ -82,6 +82,16 @@ update, and troubleshooting runbook:
   Optional Maven Tools MCP uses a locally verified Java 25/JAR installation
   discovered by the [ChaosEngine installer](chaos-engine/INSTALL.md#optional-native-maven-tools-mcp);
   default agent configuration does not start Docker.
+- **SHAFT MCP, CLI, and skills** — Change into the target project first, then
+  install from the current working directory:
+
+  ```powershell
+  irm "https://raw.githubusercontent.com/ShaftHQ/SHAFT_ENGINE/main/scripts/mcp/install.ps1" | iex
+  ```
+
+  ```shell
+  curl -fsSL "https://raw.githubusercontent.com/ShaftHQ/SHAFT_ENGINE/main/scripts/mcp/install.sh" | bash
+  ```
 - **Claude Code plugins** — installed automatically from
   `.claude/settings.json` `enabledPlugins`/`extraKnownMarketplaces` on
   first session.

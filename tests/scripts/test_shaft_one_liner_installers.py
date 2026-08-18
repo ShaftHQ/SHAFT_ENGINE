@@ -15,7 +15,7 @@ POSIX = (
 
 class ShaftOneLinerInstallerTest(TestCase):
     def test_documented_one_liners_install_into_the_current_directory(self):
-        path = ROOT / "scripts/mcp/README.md"
+        path = ROOT / "CONTRIBUTING.md"
         self.assertTrue(path.is_file(), path)
         document = path.read_text(encoding="utf-8")
         self.assertIn(WINDOWS, document)
