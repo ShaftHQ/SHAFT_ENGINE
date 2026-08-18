@@ -559,14 +559,16 @@ class ChaosEnginePortableCoreTest(unittest.TestCase):
         self.assertIsNone(windows_absolute.search("https://example.com/tool"))
 
     def test_shaft_behavior_is_selected_by_a_project_profile(self):
-        profile = json.loads(SHAFT_PROFILE.read_text(encoding="utf-8"))
+        profile_text = SHAFT_PROFILE.read_text(encoding="utf-8")
+        profile = json.loads(profile_text)
 
         self.assertEqual(1, profile["schemaVersion"])
         self.assertEqual("shaft", profile["name"])
         self.assertEqual("ChaosEngine/", profile["taskBranchPrefix"])
         self.assertEqual("ShaftHQ/SHAFT_ENGINE", profile["repository"])
         self.assertEqual("ShaftHQ/shafthq.github.io", profile["companionRepositories"][0]["repository"])
-        self.assertNotIn("localRoot", profile["companionRepositories"][0])
+        self.assertNotIn("localRoot", profile_text)
+        self.assertNotIn("../shafthq.github.io", profile_text)
 
     def test_shaft_user_facing_changes_require_companion_docs_prs(self):
         entry = (CORE / "profiles/shaft/entrypoint.md").read_text(encoding="utf-8")
@@ -574,7 +576,9 @@ class ChaosEnginePortableCoreTest(unittest.TestCase):
             CORE
             / "profiles/shaft/references/playbooks/public-behavior-docs-synchronizer.md"
         ).read_text(encoding="utf-8")
-        profile = json.loads(SHAFT_PROFILE.read_text(encoding="utf-8"))
+        agents = (ROOT / "AGENTS.md").read_text(encoding="utf-8")
+        profile_text = SHAFT_PROFILE.read_text(encoding="utf-8")
+        profile = json.loads(profile_text)
         windows_absolute = re.compile(r"(?<![A-Za-z0-9+.-])[A-Za-z]:[\\/]")
 
         for phrase in (
@@ -585,6 +589,7 @@ class ChaosEnginePortableCoreTest(unittest.TestCase):
             "human-facing instructions",
             "replay-proven snippets",
             "locator policy",
+            "AI-supported details",
             "properties",
             "exact commands",
             "never a fixed sibling path",
@@ -593,6 +598,7 @@ class ChaosEnginePortableCoreTest(unittest.TestCase):
                 self.assertIn(phrase, entry)
         for phrase in (
             "companion PR",
+            "same delivery",
             "description of the change",
             "screenshots where a human sees UI",
             "human-facing instructions",
@@ -603,18 +609,41 @@ class ChaosEnginePortableCoreTest(unittest.TestCase):
             "native relative xpath",
             "discover",
             "never a fixed sibling path",
+            "AI-supported details",
             "properties",
             "exact commands",
         ):
             with self.subTest(surface="playbook", phrase=phrase):
                 self.assertIn(phrase, playbook)
+
+        def assert_playbook_first_occurrence_nouns(content: str) -> None:
+            self.assertEqual(2, content.count("properties"))
+            self.assertEqual(2, content.count("exact commands"))
+
+        assert_playbook_first_occurrence_nouns(playbook)
+        for noun, weakened_noun in (
+            ("properties", "settings"),
+            ("exact commands", "exact invocations"),
+        ):
+            weakened = playbook.replace(noun, weakened_noun, 1)
+            self.assertNotEqual(playbook, weakened)
+            with self.subTest(first_occurrence=noun), self.assertRaises(AssertionError):
+                assert_playbook_first_occurrence_nouns(weakened)
+
         self.assertEqual(
             "ShaftHQ/shafthq.github.io",
             profile["companionRepositories"][0]["repository"],
         )
-        self.assertNotIn("localRoot", profile["companionRepositories"][0])
+        self.assertNotIn("localRoot", profile_text)
+        self.assertNotIn("../shafthq.github.io", profile_text)
         self.assertNotIn("../shafthq.github.io", entry)
         self.assertNotIn("../shafthq.github.io", playbook)
+        working_rules = agents.split("## Working rules", 1)[1].split(
+            "## Windows and GUI safety", 1
+        )[0]
+        self.assertIn("never a fixed sibling path", working_rules)
+        self.assertNotIn("../shafthq.github.io", working_rules)
+        self.assertNotIn("../shafthq.github.io", agents)
         self.assertIsNone(windows_absolute.search(entry))
         self.assertIsNone(windows_absolute.search(playbook))
         self.assertNotIn("C:\\Users\\Mohab", entry)
