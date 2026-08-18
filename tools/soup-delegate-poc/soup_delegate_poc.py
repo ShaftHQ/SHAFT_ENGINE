@@ -97,7 +97,7 @@ def validate_spec(path: str | Path) -> list[str]:
         text = Path(path).read_text(encoding="utf-8")
     except OSError as error:
         return [f"cannot read spec {path}: {error}"]
-    found = set(OPERATION_ID_PATTERN.findall(text))
+    found = {item.strip("\"'") for item in OPERATION_ID_PATTERN.findall(text)}
     return [
         f"spec missing operationId {name}"
         for name in REQUIRED_OPERATION_IDS
