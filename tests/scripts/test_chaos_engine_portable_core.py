@@ -529,6 +529,51 @@ class ChaosEnginePortableCoreTest(unittest.TestCase):
         self.assertEqual("ShaftHQ/shafthq.github.io", profile["companionRepositories"][0]["repository"])
         self.assertNotIn("localRoot", profile["companionRepositories"][0])
 
+    def test_shaft_user_facing_changes_require_companion_docs_prs(self):
+        entry = (CORE / "profiles/shaft/entrypoint.md").read_text(encoding="utf-8")
+        playbook = (
+            CORE
+            / "profiles/shaft/references/playbooks/public-behavior-docs-synchronizer.md"
+        ).read_text(encoding="utf-8")
+        profile = json.loads(SHAFT_PROFILE.read_text(encoding="utf-8"))
+        windows_absolute = re.compile(r"(?<![A-Za-z0-9+.-])[A-Za-z]:[\\/]")
+
+        for phrase in (
+            "companion PR",
+            "same delivery",
+            "description of the change",
+            "screenshots where a human sees UI",
+            "human-facing instructions",
+            "replay-proven snippets",
+            "locator policy",
+        ):
+            with self.subTest(surface="entrypoint", phrase=phrase):
+                self.assertIn(phrase, entry)
+        for phrase in (
+            "companion PR",
+            "description of the change",
+            "screenshots where a human sees UI",
+            "human-facing instructions",
+            "replay-proven snippets",
+            "locator policy",
+            "author-written id",
+            "ARIA role",
+            "native relative xpath",
+            "discover",
+            "never a fixed sibling path",
+        ):
+            with self.subTest(surface="playbook", phrase=phrase):
+                self.assertIn(phrase, playbook)
+        self.assertEqual(
+            "ShaftHQ/shafthq.github.io",
+            profile["companionRepositories"][0]["repository"],
+        )
+        self.assertNotIn("localRoot", profile["companionRepositories"][0])
+        self.assertIsNone(windows_absolute.search(entry))
+        self.assertIsNone(windows_absolute.search(playbook))
+        self.assertNotIn("C:\\Users\\Mohab", entry)
+        self.assertNotIn("C:\\Users\\Mohab", playbook)
+
     def test_every_compatibility_alias_selects_the_repository_profile(self):
         for alias in (
             ROOT / ".agents/skills/act-as-mohab/SKILL.md",

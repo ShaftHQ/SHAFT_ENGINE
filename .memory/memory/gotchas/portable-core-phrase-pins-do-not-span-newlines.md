@@ -1,0 +1,1 @@
+tests.scripts.test_chaos_engine_portable_core uses case-sensitive assertIn on exact phrases. A required phrase split across a markdown wrap (for example human-facing\ninstructions) fails GREEN even when the guidance is present. Keep each pinned phrase on one line in entrypoint and playbook files. Observed RED/GREEN on #5146 / PR #5149.

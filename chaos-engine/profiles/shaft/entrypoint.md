@@ -23,7 +23,12 @@ apply unchanged to repository and portable installed hosts.
 - Task branches use `ChaosEngine/*` and start from fetched `origin/main`.
 - The companion public-documentation repository is
   `ShaftHQ/shafthq.github.io` on `master`; discover its local root or use an
-  explicitly configured root, never a fixed sibling path.
+  explicitly configured root, never a fixed sibling path. Every user-facing
+  SHAFT behavior change opens a companion PR on that `master` branch in the
+  same delivery. That companion PR must include a description of the change,
+  screenshots where a human sees UI, human-facing instructions, and
+  AI-supported details (locator policy, replay-proven snippets, properties,
+  exact commands).
 - Install or upgrade this profile from its configured upstream with the
   one-liner in [INSTALL](../../INSTALL.md). From the target folder:
   `irm https://raw.githubusercontent.com/ShaftHQ/SHAFT_ENGINE/main/chaos-engine/install.ps1 | iex`
