@@ -868,6 +868,81 @@ class ChaosEngineHostsTest(unittest.TestCase):
                     module.install(project)
                 self.assertFalse(project.joinpath(module.RECEIPT_NAME).exists())
 
+    def test_healthy_adopter_v4_memory_and_unindented_mempalace_installs(self):
+        module = load(HOSTS, "chaos_engine_healthy_v4_retrieval")
+        v4_config = {
+            "version": 4,
+            "project": {"id": "project.itestflow-agent", "name": "iTestFlow Agent"},
+            "memory": {
+                "autoIndex": True,
+                "defaultTokenBudget": 600,
+                "saveContextPacks": False,
+            },
+            "git": {"trackContextPacks": False},
+        }
+        v4_schema = {"$id": "https://aictx.dev/schemas/v4/config.schema.json", "type": "object"}
+        object_bytes = json.dumps(
+            {
+                "id": "architecture.adopter-core",
+                "type": "architecture",
+                "title": "Adopter core",
+            },
+            indent=2,
+        ).encode() + b"\n"
+        yaml_text = (
+            "wing: itestflow_agent\n"
+            "exclude_patterns:\n"
+            "- .git/**\n"
+            "- .memory/**\n"
+            "rooms:\n"
+            "- name: general\n"
+            "  description: Project source and documentation\n"
+        )
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary) / "consumer"
+            project.joinpath(".chaos-engine/skills/chaos-engine").mkdir(parents=True)
+            project.joinpath(".chaos-engine/skills/chaos-engine/SKILL.md").write_text("# C\n")
+            project.joinpath(".memory/schema").mkdir(parents=True)
+            project.joinpath(".memory/memory").mkdir()
+            project.joinpath(".memory/relations").mkdir()
+            project.joinpath(".memory/config.json").write_text(
+                json.dumps(v4_config, indent=2) + "\n",
+                encoding="utf-8",
+            )
+            for name in module.MEMORY_SCHEMA_FILES:
+                project.joinpath(".memory/schema", name).write_text(
+                    json.dumps(v4_schema, indent=2) + "\n",
+                    encoding="utf-8",
+                )
+            object_path = project / ".memory/memory/architecture.json"
+            object_path.write_bytes(object_bytes)
+            project.joinpath("mempalace.yaml").write_bytes(yaml_text.encode())
+            before_config = project.joinpath(".memory/config.json").read_bytes()
+            before_schemas = {
+                name: project.joinpath(".memory/schema", name).read_bytes()
+                for name in module.MEMORY_SCHEMA_FILES
+            }
+            before_yaml = project.joinpath("mempalace.yaml").read_bytes()
+
+            receipt = module.install(project)
+            second = module.install(project)
+
+            self.assertTrue(project.joinpath(module.RECEIPT_NAME).exists())
+            self.assertEqual("installed", receipt["phase"])
+            self.assertEqual("installed", second["phase"])
+            self.assertTrue(module.retrieval_configs_healthy(project))
+            self.assertEqual(before_config, project.joinpath(".memory/config.json").read_bytes())
+            for name, payload in before_schemas.items():
+                self.assertEqual(payload, project.joinpath(".memory/schema", name).read_bytes())
+                self.assertNotIn(b"/v5/", payload)
+            self.assertEqual(object_bytes, object_path.read_bytes())
+            self.assertEqual(before_yaml, project.joinpath("mempalace.yaml").read_bytes())
+            self.assertTrue(before_yaml.startswith(b"wing: itestflow_agent\nexclude_patterns:\n"))
+            kept = json.loads(before_config)
+            self.assertEqual(4, kept["version"])
+            self.assertIn("git", kept)
+            self.assertIn("saveContextPacks", kept["memory"])
+
     def test_repository_remote_defines_identity_in_a_named_worktree(self):
         module = load(HOSTS, "chaos_engine_repository_identity")
         with tempfile.TemporaryDirectory() as temporary:
