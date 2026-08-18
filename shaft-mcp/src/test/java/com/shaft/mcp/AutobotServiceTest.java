@@ -158,7 +158,11 @@ class AutobotServiceTest {
                     "ollama",
                     "local-model",
                     "ASK",
-                    "Explain Authorization: Basic dXNlcjpwYXNz and Authorization: planted-no-scheme-token-value and api_key=supersecretvalue123",
+                    "Explain Authorization: Basic dXNlcjpwYXNz and Authorization: planted-no-scheme-token-value"
+                            + " and api_key=supersecretvalue123"
+                            + " {\"authorization\":\"Basic dXNlcjpwYXNz\"}"
+                            + " {\"api_key\":\"supersecretvalue123\"}"
+                            + " sk-proj-secret-canary-4864 Bearer planted-bearer-token-value",
                     "",
                     10,
                     false);
@@ -169,6 +173,8 @@ class AutobotServiceTest {
             assertFalse(text.contains("Basic dXNlcjpwYXNz"), text);
             assertFalse(text.contains("planted-no-scheme-token-value"), text);
             assertFalse(text.contains("supersecretvalue123"), text);
+            assertFalse(text.contains("sk-proj-secret-canary-4864"), text);
+            assertFalse(text.contains("planted-bearer-token-value"), text);
         } finally {
             SHAFT.Properties.clearForCurrentThread();
         }

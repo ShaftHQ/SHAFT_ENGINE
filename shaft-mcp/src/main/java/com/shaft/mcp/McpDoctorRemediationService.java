@@ -46,9 +46,9 @@ final class McpDoctorRemediationService {
     private static final int MAX_SOURCE_BYTES = 20_000;
     private static final int MAX_RANKED_REMEDIATION_CAUSES = 5;
     private static final Pattern SECRET_LIKE = Pattern.compile(
-            "(?i)(authorization\\s*[:=]\\s*(?:(?:basic|bearer)\\s+)?(?:\"[^\"]+\"|'[^']+'|[^\\s,;]+)"
-                    + "|bearer\\s+[a-z0-9._\\-]{8,}"
-                    + "|api[_-]?key\\s*[:=]\\s*(?:\"[^\"]+\"|'[^']+'|[^\\s,;]+)"
+            "(?i)([\"']?authorization[\"']?\\s*[:=]\\s*(?:(?:basic|bearer)\\s+)?(?:\"[^\"]+\"|'[^']+'|[^\\s,;]+)"
+                    + "|[\"']?bearer[\"']?\\s+[a-z0-9._\\-]{8,}"
+                    + "|[\"']?api[_-]?key[\"']?\\s*[:=]\\s*(?:\"[^\"]+\"|'[^']+'|[^\\s,;]+)"
                     + "|sk-[a-z0-9._\\-]{8,})");
     private static final Pattern FAILED_LOCATOR = Pattern.compile(
             "(?i)(By\\.(?:id|name|cssSelector|xpath|className|tagName|linkText|partialLinkText)\\s*:?\\s*[^\\r\\n,;]+"

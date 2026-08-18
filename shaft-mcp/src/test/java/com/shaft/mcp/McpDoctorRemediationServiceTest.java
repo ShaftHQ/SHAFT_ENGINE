@@ -94,7 +94,11 @@ class McpDoctorRemediationServiceTest {
         String plantedLocator = org.openqa.selenium.By.cssSelector("#unique-doctor-locator-canary").toString();
         String cssJson = "{\"method\":\"css selector\",\"selector\":\"#unique-doctor-locator-canary\"}";
         String xpathJson = "{\"method\":\"xpath\",\"selector\":\"//*[@id='unique-doctor-xpath-canary']\"}";
-        String plantedSecrets = "Authorization: Basic dXNlcjpwYXNz Authorization: planted-no-scheme-token-value api_key=supersecretvalue123";
+        String plantedSecrets = "Authorization: Basic dXNlcjpwYXNz Authorization: planted-no-scheme-token-value"
+                + " api_key=supersecretvalue123"
+                + " {\"authorization\":\"Basic dXNlcjpwYXNz\"}"
+                + " {\"api_key\":\"supersecretvalue123\"}"
+                + " sk-proj-secret-canary-4864 Bearer planted-bearer-token-value";
         AtomicReference<AiRequest> captured = new AtomicReference<>();
         McpDoctorRemediationService aiService = new McpDoctorRemediationService(request -> {
             captured.set(request);
@@ -151,6 +155,8 @@ class McpDoctorRemediationServiceTest {
         assertFalse(blob.contains("Basic dXNlcjpwYXNz"), blob);
         assertFalse(blob.contains("planted-no-scheme-token-value"), blob);
         assertFalse(blob.contains("supersecretvalue123"), blob);
+        assertFalse(blob.contains("sk-proj-secret-canary-4864"), blob);
+        assertFalse(blob.contains("planted-bearer-token-value"), blob);
         assertTrue(report.actions().stream()
                 .filter(action -> action.id().startsWith("provider-"))
                 .noneMatch(action -> action.status() == McpActionRecord.Status.SUGGESTED),

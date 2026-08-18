@@ -41,9 +41,9 @@ public class AutobotService {
     private static final int DEFAULT_TIMEOUT_SECONDS = 300;
     private static final int MAX_PROMPT_CHARS = 4_000;
     private static final Pattern SECRET_LIKE = Pattern.compile(
-            "(?i)(authorization\\s*[:=]\\s*(?:(?:basic|bearer)\\s+)?(?:\"[^\"]+\"|'[^']+'|[^\\s,;]+)"
-                    + "|bearer\\s+[a-z0-9._\\-]{8,}"
-                    + "|api[_-]?key\\s*[:=]\\s*(?:\"[^\"]+\"|'[^']+'|[^\\s,;]+)"
+            "(?i)([\"']?authorization[\"']?\\s*[:=]\\s*(?:(?:basic|bearer)\\s+)?(?:\"[^\"]+\"|'[^']+'|[^\\s,;]+)"
+                    + "|[\"']?bearer[\"']?\\s+[a-z0-9._\\-]{8,}"
+                    + "|[\"']?api[_-]?key[\"']?\\s*[:=]\\s*(?:\"[^\"]+\"|'[^']+'|[^\\s,;]+)"
                     + "|sk-[a-z0-9._\\-]{8,})");
     static final String CLOUD_AGENT_MODE_WARNING =
             "Cloud provider chat supports Ask and Plan only; use a local CLI runtime for Agent edits.";
