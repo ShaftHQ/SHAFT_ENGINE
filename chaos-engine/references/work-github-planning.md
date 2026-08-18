@@ -11,6 +11,20 @@ Never ask a question the repository can answer. Before the first question:
 - List open issues and PRs in every repository in play.
 - Re-ground each item's file location with the current code, not stale issue line numbers.
 
+First grounding table, recorded before the plan: issue state, closing PRs, and one live-file contradiction check.
+
+| Check | Record |
+| --- | --- |
+| Issue state | Open or closed, plus `state_reason` |
+| Closing PRs | Each PR GitHub reports as closing the issue, plus merged or open |
+| Live-file contradiction | One current-file check that can falsify an issue claim |
+
+A partial-slice merge (`Related to #N`, not `Closes #N`) must leave remaining-acceptance plus the next RED on the issue before the next writer starts.
+
+When the owner names orchestration, grouped PRs, and kill-after-merge, that named grouping is the stream count. Do not rediscover closed children as new streams.
+
+Issue-backed plans must be copied onto the GitHub issue before the first implementing commit. A host-local `plan.md` is not enough.
+
 Only then ask about a decision the user alone must make.
 
 ## 1. Ask once, at the start, then go unattended
