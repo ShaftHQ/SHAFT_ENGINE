@@ -19,11 +19,14 @@ import com.shaft.driver.SHAFT;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.regex.Pattern;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -135,6 +138,45 @@ class AutobotServiceTest {
         assertEquals(AiResponseStatus.SUCCESS.name(), response.status());
         assertEquals("ok", response.answer());
         assertEquals("Explain this failure", capturedText.get());
+    }
+
+    @Test
+    void autobotDoesNotShipPrivateSecretLikeCopyThatCanDriftFromSharedHelper() throws Exception {
+        Path source = Path.of("src/main/java/com/shaft/mcp/AutobotService.java");
+        String text = Files.readString(source, StandardCharsets.UTF_8);
+        assertFalse(Pattern.compile("private\\s+static\\s+final\\s+Pattern\\s+SECRET_LIKE\\b").matcher(text).find(),
+                "AutobotService must not keep a private SECRET_LIKE copy; use DoctorProviderDiagnosis");
+        assertTrue(text.contains("DoctorProviderDiagnosis"),
+                "AutobotService must call the shared DoctorProviderDiagnosis helper");
+    }
+
+    @Test
+    void providerChatRedactsLocatorDialectsThroughSharedHelper() {
+        AtomicReference<String> capturedText = new AtomicReference<>("");
+        AutobotService service = new AutobotService(McpWorkspacePolicy.of(workspace),
+                new LocalAgentService(client -> true, new CapturingRunner()), request -> {
+                    capturedText.set(request.text());
+                    return AiResponse.success("ollama", "local-model",
+                            tools.jackson.databind.node.JsonNodeFactory.instance.objectNode().put("answer", "ok"),
+                            Duration.ofMillis(10), com.shaft.pilot.ai.AiUsage.empty(),
+                            request.deterministicFallback());
+                });
+
+        AutobotProviderChatResponse response = service.runProviderChat(
+                "ollama",
+                "local-model",
+                "ASK",
+                "Explain failure around getByRole(\"button\", { name: \"Submit canary\" }) "
+                        + "and By.cssSelector: #submit-canary",
+                "",
+                10,
+                false);
+
+        assertEquals(AiResponseStatus.SUCCESS.name(), response.status());
+        String text = capturedText.get();
+        assertFalse(text.contains("getByRole(\"button\", { name: \"Submit canary\" })"), text);
+        assertFalse(text.contains("By.cssSelector: #submit-canary"), text);
+        assertTrue(text.contains("[LOCATOR]"), text);
     }
 
     @Test

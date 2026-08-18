@@ -94,26 +94,30 @@ public final class DoctorProviderDiagnosis {
         if (text == null || text.isBlank()) {
             return "";
         }
-        Matcher earliest = null;
-        int start = Integer.MAX_VALUE;
-        boolean useGroup1 = false;
+        Matcher earliestSpecific = null;
+        int specificStart = Integer.MAX_VALUE;
         for (Pattern pattern : SPECIFIC_LOCATORS) {
             Matcher matcher = pattern.matcher(text);
-            if (matcher.find() && matcher.start() < start) {
-                earliest = matcher;
-                start = matcher.start();
-                useGroup1 = false;
+            if (matcher.find() && matcher.start() < specificStart) {
+                earliestSpecific = matcher;
+                specificStart = matcher.start();
             }
         }
         Matcher failed = FAILED_LOCATOR.matcher(text);
-        if (failed.find() && failed.start() < start) {
-            earliest = failed;
-            useGroup1 = true;
+        boolean failedFound = failed.find();
+        int failedStart = failedFound ? failed.start() : Integer.MAX_VALUE;
+        int failedEnd = failedFound ? failed.end() : -1;
+        // Prefer a specific dialect that starts inside a greedy By.* span so same-line
+        // By.cssSelector: ... getByRole(...) does not return truncated getByRole("button".
+        boolean specificSwallowedByFailed = failedFound && earliestSpecific != null
+                && failedStart < specificStart && specificStart < failedEnd;
+        if (earliestSpecific != null
+                && (specificStart <= failedStart || specificSwallowedByFailed)) {
+            return earliestSpecific.group().replaceAll("\\s+", " ").trim();
         }
-        if (earliest == null) {
-            return "";
+        if (failedFound) {
+            return failed.group(1).replaceAll("\\s+", " ").trim();
         }
-        String match = useGroup1 ? earliest.group(1) : earliest.group();
-        return match.replaceAll("\\s+", " ").trim();
+        return "";
     }
 }
