@@ -19,11 +19,11 @@ class AssistantAgentRouteTest {
 
         assertEquals(List.of(
                         "Claude Code", "Claude Desktop", "Codex CLI", "Gemini in IntelliJ",
-                        "GitHub Copilot CLI", "GitHub Copilot in IntelliJ"),
+                        "Grok CLI", "GitHub Copilot CLI", "GitHub Copilot in IntelliJ"),
                 Arrays.stream(routes).map(route -> String.valueOf(invoke(displayName, route))).toList());
         assertEquals(List.of(
                         "CLAUDE_CODE", "CLAUDE_DESKTOP", "CODEX", "INTELLIJ_PLUGIN",
-                        "COPILOT_CLI", "COPILOT_INTELLIJ"),
+                        "GROK", "COPILOT_CLI", "COPILOT_INTELLIJ"),
                 Arrays.stream(routes).map(route -> String.valueOf(invoke(installerTarget, route))).toList());
     }
 
@@ -38,6 +38,7 @@ class AssistantAgentRouteTest {
         assertEquals("CODEX_CLI", routeName(fromSettings, settings("LOCAL", "CODEX", "CLI")));
         assertEquals("CLAUDE_CODE", routeName(fromSettings, settings("LOCAL", "CLAUDE", "CLI")));
         assertEquals("COPILOT_CLI", routeName(fromSettings, settings("LOCAL", "COPILOT", "CLI")));
+        assertEquals("GROK", routeName(fromSettings, settings("LOCAL", "GROK", "CLI")));
     }
 
     @Test

@@ -75,6 +75,7 @@ final class ShaftMcpSetupPanel extends JPanel implements Disposable {
             "CLAUDE_DESKTOP",
             "COPILOT_CLI",
             "COPILOT_INTELLIJ",
+            "GROK",
             "INTELLIJ_PLUGIN"
     };
     private static final String GUIDE_SETUP_STEP =
@@ -309,7 +310,7 @@ final class ShaftMcpSetupPanel extends JPanel implements Disposable {
         progress.setIndeterminate(true);
         progress.setVisible(false);
         progress.setPreferredSize(JBUI.size(96, 14));
-        family = new JComboBox<>(new String[]{"CODEX", "CLAUDE", "COPILOT", GEMINI_FAMILY});
+        family = new JComboBox<>(new String[]{"CODEX", "CLAUDE", "COPILOT", "GROK", GEMINI_FAMILY});
         ShaftUiLabels.applyFriendlyRenderer(family);
         family.setSelectedItem(initialFamily(settings));
         family.getAccessibleContext().setAccessibleName("Assistant family");
@@ -1418,6 +1419,7 @@ final class ShaftMcpSetupPanel extends JPanel implements Disposable {
         return switch (normalize(settings.defaultAutobotClient, "CODEX")) {
             case "CLAUDE_CODE" -> "CLAUDE";
             case "COPILOT_CLI" -> "COPILOT";
+            case "GROK" -> "GROK";
             default -> "CODEX";
         };
     }
@@ -1624,7 +1626,7 @@ final class ShaftMcpSetupPanel extends JPanel implements Disposable {
         if (!"CLI".equals(normalize(settings.assistantRuntime, "CLI"))) {
             return new Recommendation(resolved, RecommendationBasis.SAVED_SELECTION);
         }
-        for (String familyCandidate : List.of("CODEX", "CLAUDE", "COPILOT")) {
+        for (String familyCandidate : List.of("CODEX", "CLAUDE", "COPILOT", "GROK")) {
             ShaftMcpToolResult result = readinessProbe.test(clientFromFamily(familyCandidate), "CLI");
             if (result != null && result.success()) {
                 return new Recommendation(familyCandidate, RecommendationBasis.DETECTED);
@@ -1647,6 +1649,7 @@ final class ShaftMcpSetupPanel extends JPanel implements Disposable {
         return switch (normalize(family, "CODEX")) {
             case "CLAUDE" -> "Claude Code CLI";
             case "COPILOT" -> "GitHub Copilot CLI";
+            case "GROK" -> "Grok CLI";
             default -> "Codex CLI";
         };
     }
@@ -1655,6 +1658,7 @@ final class ShaftMcpSetupPanel extends JPanel implements Disposable {
         return switch (normalize(family, "CODEX")) {
             case "CLAUDE" -> "CLAUDE_CODE";
             case "COPILOT" -> "COPILOT_CLI";
+            case "GROK" -> "GROK";
             default -> "CODEX";
         };
     }
@@ -2002,6 +2006,7 @@ final class ShaftMcpSetupPanel extends JPanel implements Disposable {
         String executable = switch (normalize(String.valueOf(family.getSelectedItem()), "CODEX")) {
             case "CLAUDE" -> "claude";
             case "COPILOT" -> "copilot";
+            case "GROK" -> "grok";
             case GEMINI_FAMILY -> "";
             default -> "codex";
         };
@@ -2038,6 +2043,7 @@ final class ShaftMcpSetupPanel extends JPanel implements Disposable {
         return switch (normalize(String.valueOf(family.getSelectedItem()), "CODEX")) {
             case "CLAUDE" -> "claude --version";
             case "COPILOT" -> "copilot --version";
+            case "GROK" -> "grok --version";
             case GEMINI_FAMILY -> "";
             default -> "codex --version";
         };
@@ -2136,6 +2142,7 @@ final class ShaftMcpSetupPanel extends JPanel implements Disposable {
         return switch (normalize(String.valueOf(family.getSelectedItem()), "CODEX")) {
             case "CLAUDE" -> "For Claude, run `claude mcp list` for Claude Code or restart Claude Desktop after desktop config changes.";
             case "COPILOT" -> "For GitHub Copilot, check the Copilot MCP client configuration and any organization MCP policy.";
+            case "GROK" -> "For Grok, run `grok mcp list` and verify the SHAFT MCP server in ~/.grok/config.toml.";
             case GEMINI_FAMILY -> "For Gemini, paste a valid Google AI Studio API key in the setup form, then check again.";
             default -> "For Codex, run `codex mcp list` and verify the SHAFT MCP server in the Codex config.";
         };

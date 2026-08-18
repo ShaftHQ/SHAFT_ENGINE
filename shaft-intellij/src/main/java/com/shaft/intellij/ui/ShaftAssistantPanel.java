@@ -485,7 +485,7 @@ final class ShaftAssistantPanel extends JPanel implements Disposable {
         providerType = combo("Assistant provider type", "LOCAL", "CLOUD");
         providerType.setSelectedItem(normalize(settings.assistantProviderType, "LOCAL"));
         providerType.setToolTipText("Use Local for CLI agents; Cloud for provider Ask and Plan");
-        assistantFamily = combo("Assistant family", "CODEX", "CLAUDE", "COPILOT");
+        assistantFamily = combo("Assistant family", "CODEX", "CLAUDE", "COPILOT", "GROK");
         assistantFamily.setSelectedItem(resolveFamily(settings));
         assistantFamily.setToolTipText("Local assistant client");
         assistantRuntime = combo("Assistant runtime", "CLI", "IDE_PLUGIN", "DESKTOP_APP");
@@ -5681,6 +5681,7 @@ final class ShaftAssistantPanel extends JPanel implements Disposable {
         return switch (normalize(settings.defaultAutobotClient, "CODEX")) {
             case "CLAUDE_CODE" -> "CLAUDE";
             case "COPILOT_CLI" -> "COPILOT";
+            case "GROK" -> "GROK";
             default -> "CODEX";
         };
     }
@@ -5689,6 +5690,7 @@ final class ShaftAssistantPanel extends JPanel implements Disposable {
         return switch (normalize(family, "CODEX")) {
             case "CLAUDE" -> "CLAUDE_CODE";
             case "COPILOT" -> "COPILOT_CLI";
+            case "GROK" -> "GROK";
             default -> "CODEX";
         };
     }

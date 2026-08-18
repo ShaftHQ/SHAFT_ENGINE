@@ -54,6 +54,22 @@ class SetupPrerequisitesTest {
     }
 
     @Test
+    void grokFamilyAsksForGrokCliWithoutNpmOrNode() {
+        List<SetupPrerequisites.Prerequisite> detected =
+                SetupPrerequisites.detect("GROK", NOTHING_INSTALLED, true, false);
+
+        SetupPrerequisites.Prerequisite agent = detected.stream()
+                .filter(item -> item.name().equals("Grok CLI"))
+                .findFirst().orElseThrow();
+        assertAll(
+                () -> assertFalse(agent.present()),
+                () -> assertTrue(agent.installCommand().contains("Grok CLI"), agent.installCommand()),
+                () -> assertFalse(agent.installCommand().startsWith("npm "), agent.installCommand()),
+                () -> assertTrue(detected.stream().noneMatch(item -> item.name().startsWith("Node.js")),
+                        "Grok is not an npm-installed CLI"));
+    }
+
+    @Test
     void geminiCloudFamilyNeedsNoAgentCli() {
         List<SetupPrerequisites.Prerequisite> detected =
                 SetupPrerequisites.detect("GEMINI", NOTHING_INSTALLED, true, false);
