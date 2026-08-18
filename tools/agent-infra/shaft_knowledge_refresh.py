@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 from contextlib import contextmanager
+import importlib.util
 import json
 import os
 from pathlib import Path
@@ -30,6 +31,21 @@ GIT_ROUTING_VARIABLES = (
     "GIT_CONFIG_COUNT",
     "GIT_CONFIG_PARAMETERS",
 )
+
+
+def _load_promote():
+    path = Path(__file__).resolve().parents[1] / "repository-map/mempalace_promote.py"
+    spec = importlib.util.spec_from_file_location("mempalace_promote", path)
+    if spec is None or spec.loader is None:
+        raise RuntimeError(f"cannot load MemPalace promote helper: {path}")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+_promote = _load_promote()
+list_promote_paths = _promote.list_promote_paths
+include_ignored_batches = _promote.include_ignored_batches
 
 
 def required(name: str) -> str:
@@ -316,8 +332,18 @@ def refresh(requested_root: Path, requested_sentinel: Path) -> None:
             outcomes["Graphify"] = "healthy"
         try:
             run([mempalace, "sync", str(root), "--wing", WING, "--apply"], root, git_env)
-            run([mempalace, "mine", str(root), "--wing", WING,
-                 "--agent", "scheduled-refresh"], root, git_env)
+            mine = [
+                mempalace,
+                "mine",
+                str(root),
+                "--wing",
+                WING,
+                "--agent",
+                "scheduled-refresh",
+            ]
+            run(mine, root, git_env)
+            for batch in include_ignored_batches(list_promote_paths(root)):
+                run([*mine, "--include-ignored", batch], root, git_env)
         except (OSError, ValueError, RuntimeError, subprocess.SubprocessError):
             outcomes["MemPalace"] = "failed"
         else:

@@ -109,8 +109,10 @@ Unclassified extract skips are corpus policy, not a failed install. Noise
 families belong in `.graphifyignore` and `mempalace.yaml` `exclude_patterns`.
 Known first-class SHAFT families that Graphifyy 0.9.43 still drops
 (`.properties`, `META-INF/services/*`, Dockerfiles, plugin XML, `.toml`,
-`.feature`, wrappers) stay on the maintenance allowlist until an upstream
-promote lands. A new suffix is `unclassified_unexpected` and fails
+`.feature`, wrappers) stay on the Graphify allowlist until an upstream
+promote lands. Nightly MemPalace mine force-includes the exact
+`git ls-files` set for `.properties`, SPI, Dockerfiles, plugin XML, and
+`.feature` via `--include-ignored` (#5119). A new suffix is `unclassified_unexpected` and fails
 `graphify_maintenance.py audit`. `knowledge_stores.py refresh` still refuses;
 status/search remain the ordinary-task path. See #5087.
 
