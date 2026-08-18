@@ -548,6 +548,7 @@ final class AssistantLocalAgentRunner {
         return switch (normalize(string(arguments, "client", "CODEX"))) {
             case "CLAUDE_CODE" -> claudeCommand(mode, allowSourceMutation, model, bridge);
             case "COPILOT_CLI" -> copilotCommand(mode, allowSourceMutation, model);
+            case "GROK" -> grokCommand(mode, allowSourceMutation, string(arguments, "prompt", ""));
             default -> codexCommand(mode, allowSourceMutation, unrestrictedLocalAgentAccess, model, effort);
         };
     }
@@ -1412,6 +1413,18 @@ final class AssistantLocalAgentRunner {
      * display, and the CLI's own built-in safety classifier still auto-allows obviously-safe tool
      * calls without ever reaching the bridge, matching what an interactive user would see.
      */
+    private static List<String> grokCommand(String mode, boolean allowSourceMutation, String prompt) {
+        return switch (mode) {
+            case "PLAN" -> List.of("grok", "-p", prompt, "--permission-mode", "plan");
+            case "AGENT" -> allowSourceMutation
+                    ? List.of("grok", "-p", prompt, "--permission-mode", "acceptEdits")
+                    : List.of("grok", "-p", prompt, "--permission-mode", "default",
+                    "--tools", "read_file,grep,list_dir");
+            default -> List.of("grok", "-p", prompt, "--permission-mode", "default",
+                    "--tools", "read_file,grep,list_dir");
+        };
+    }
+
     private static List<String> claudeCommand(
             String mode, boolean allowSourceMutation, String model, LocalAgentApprovalBridge bridge) {
         List<String> command = new ArrayList<>(List.of("claude", "--print"));

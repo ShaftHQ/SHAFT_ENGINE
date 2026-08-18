@@ -8,7 +8,8 @@ import java.util.Locale;
 public enum LocalAgentClient {
     CODEX("codex", "Codex CLI"),
     CLAUDE_CODE("claude", "Claude Code"),
-    COPILOT_CLI("copilot", "Copilot CLI");
+    COPILOT_CLI("copilot", "Copilot CLI"),
+    GROK("grok", "Grok CLI");
 
     private final String executableName;
     private final String displayName;
