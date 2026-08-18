@@ -59,7 +59,7 @@
             <!-- Same failure mode as selenium-bom above: spring-boot-dependencies 4.1.0 manages
                  io.netty:* at 4.2.15.Final (GHSA netty-codec-http/http2/haproxy/compression
                  advisories, alerts #155-#165), which as a child-declared import would beat the
-                 reactor's netty-bom (root pom.xml, already 4.2.16.Final). Import it here, first,
+                 reactor's netty-bom (root pom.xml, already 4.2.17.Final). Import it here, first,
                  so the patched version actually reaches shaft-mcp's resolved classpath. -->
             <dependency>
                 <groupId>io.netty</groupId>
@@ -84,6 +84,31 @@
                 <groupId>org.postgresql</groupId>
                 <artifactId>postgresql</artifactId>
                 <version>42.7.13</version>
+            </dependency>
+            <!-- Boot 4.1.0 manages log4j-api/core at 2.25.4 (GHSA-qv9r-c865-cp47 / #183) and
+                 httpcore5/httpcore5-h2 at 5.4.2 (GHSA-hf6x-8p5f-cgmf / #181,
+                 GHSA-v3jc-474w-2wm6 / #182). Those child-import pins beat the reactor
+                 (log4j2.version 2.26.1, httpclient5 5.6.4 -> httpcore5 5.4.3). Direct entries
+                 restore the patched versions on shaft-mcp's classpath. -->
+            <dependency>
+                <groupId>org.apache.logging.log4j</groupId>
+                <artifactId>log4j-api</artifactId>
+                <version>${log4j2.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.logging.log4j</groupId>
+                <artifactId>log4j-core</artifactId>
+                <version>${log4j2.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.httpcomponents.core5</groupId>
+                <artifactId>httpcore5</artifactId>
+                <version>${httpcore5.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.httpcomponents.core5</groupId>
+                <artifactId>httpcore5-h2</artifactId>
+                <version>${httpcore5.version}</version>
             </dependency>
             <dependency>
                 <groupId>org.springframework.ai</groupId>
