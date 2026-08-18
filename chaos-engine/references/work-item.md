@@ -2,8 +2,7 @@
 
 Portable, source-control agnostic ticket contract. Adapters live in
 [work-item-adapters.md](work-item-adapters.md). GitHub PR merge and watch stay
-in [work-github-playbook.md](work-github-playbook.md) and
-[work-github-planning.md](work-github-planning.md).
+in `work-github-playbook.md` and `work-github-planning.md`.
 
 ## Required Spec Kit sections
 
@@ -34,9 +33,9 @@ Statement, and so on). Spec Kit sections are additive.
 
 Blocked dependency links must be https. Accepted shapes:
 
-- GitHub issue URLs (`/issues/`)
-- GitLab issue URLs (`/-/issues/`)
-- Azure Boards work-item URLs (`/_workitems/`)
+- GitHub issue URLs on `github.com` ending at `issues/N`
+- GitLab issue URLs on `gitlab.com` (or self-hosted) ending at `issues/N`
+- Azure Boards work-item URLs on `dev.azure.com` or `visualstudio.com` ending at a numeric work-item id
 
 Reject `javascript:`, non-https schemes, and unknown hosts/shapes.
 

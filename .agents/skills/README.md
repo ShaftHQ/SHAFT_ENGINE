@@ -115,6 +115,7 @@ step with the first.
 | --- | --- |
 | [ChaosEngine](../../chaos-engine/skills/chaos-engine/SKILL.md) | The single always-loaded entrypoint and global router. Carries the iron laws, the triage that sizes every task, the always-on working style, and the table that sends each deliverable to exactly one surface. |
 | [local-coding-delegate](../../chaos-engine/skills/local-coding-delegate/SKILL.md) | Optional. Not always-loaded. A local coding loop the decider may use as a mechanical or default delegate after a hardware probe. |
+| [work-item](../../chaos-engine/skills/work-item/SKILL.md) | Optional. Not always-loaded. Open or rewrite a work item under the portable Spec Kit contract; SCM adapters are separate. |
 
 The entrypoint reaches the internal [consultation](../../chaos-engine/references/consult-first.md)
 and [retrieval](../../chaos-engine/references/retrieve-first.md) gates after every
@@ -140,6 +141,8 @@ sends you there; the rest by
 - [lifecycle hooks](../../chaos-engine/references/lifecycle-hooks.md)
 - [work GitHub playbook](../../chaos-engine/references/work-github-playbook.md)
 - [work GitHub planning](../../chaos-engine/references/work-github-planning.md)
+- [work item](../../chaos-engine/references/work-item.md)
+- [work-item adapters](../../chaos-engine/references/work-item-adapters.md)
 - [graphify](../../chaos-engine/references/graphify.md)
 - [repository Graphify procedure](../../chaos-engine/profiles/shaft/references/graphify.md)
 - [research receipt](../../chaos-engine/references/research-receipt.md)

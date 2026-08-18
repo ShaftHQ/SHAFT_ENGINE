@@ -23,7 +23,7 @@ URL shape: `https://github.com/OWNER/REPO/issues/N`
 | Create | `glab issue create --repo GROUP/PROJ --title TITLE --description BODY --label LABELS` |
 
 Builder: `scripts.agents.issue_filing.build_glab_issue_create_argv`.
-URL shape: `https://gitlab.com/GROUP/PROJ/-/issues/N` (any https host with `/-/issues/`).
+URL shape: `https://gitlab.com/GROUP/PROJ` issue pages ending at `issues/N`.
 
 Live GitLab network calls are out of scope; tests use fake runners only.
 
@@ -34,7 +34,7 @@ Live GitLab network calls are out of scope; tests use fake runners only.
 | Create | `az boards work-item create --organization ORG_URL --project PROJECT --title TITLE --type Issue --description BODY` |
 
 Builder: `scripts.agents.issue_filing.build_az_boards_create_argv`.
-URL shape: `https://dev.azure.com/ORG/PROJECT/_workitems/edit/N` or `*.visualstudio.com/.../_workitems/...`.
+URL shape: `https://dev.azure.com/ORG/PROJECT` or `ORG.visualstudio.com` work-item edit pages ending at a numeric id.
 
 Live Azure network calls are out of scope; tests use fake runners only.
 
