@@ -42,8 +42,8 @@ ChaosEngine entrypoint.
 - Reproduce defects and add focused regressions. Preserve public API;
   deprecate before removal.
 - User-facing work starts from rendered intent and finishes only when real
-  user flow passes. Function changes update companion docs under
-  `../shafthq.github.io` in a separate PR.
+  user flow passes. Function changes update companion docs in a separate PR;
+  discover the docs root or use a configured root, never a fixed sibling path.
 - Never expose secrets or run deploy, publish, history rewrite, cleanup, or
   cloud suites unless asked.
 - No generated reports, binaries, caches, `target/`, Graphify output, or
