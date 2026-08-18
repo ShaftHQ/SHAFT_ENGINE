@@ -71,8 +71,12 @@ class ManagedLocalAiArtifactsTest {
                 new ByteArrayInputStream(content), content.length + 1, sha256(content), target, () -> false));
         assertThrows(IllegalArgumentException.class, () -> ManagedLocalAiArtifacts.download(
                 new ByteArrayInputStream(content), content.length - 1, sha256(content), target, () -> false));
-        assertThrows(IllegalArgumentException.class, () -> ManagedLocalAiArtifacts.download(
-                new ByteArrayInputStream(content), content.length, "0".repeat(64), target, () -> false));
+        IllegalArgumentException revoked = assertThrows(IllegalArgumentException.class,
+                () -> ManagedLocalAiArtifacts.download(new ByteArrayInputStream(content), content.length,
+                        "0".repeat(64), target, () -> false));
+        assertFalse(revoked.getMessage().contains("http"), revoked.getMessage());
+        assertFalse(revoked.getMessage().toLowerCase(java.util.Locale.ROOT).contains("fallback"),
+                revoked.getMessage());
         AtomicBoolean cancelled = new AtomicBoolean(true);
         assertThrows(InterruptedException.class, () -> ManagedLocalAiArtifacts.download(
                 new ByteArrayInputStream(content), content.length, sha256(content), target, cancelled::get));
