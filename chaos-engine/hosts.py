@@ -1693,21 +1693,34 @@ def discover_maven_tools_runtime() -> tuple[Path, Path] | None:
     return None
 
 
+def portable_python_server(
+    script_args: list[str], extra: dict[str, object] | None = None
+) -> dict[str, object]:
+    posix_command, posix_prefix = interpreter("posix")
+    windows_command, windows_prefix = interpreter("nt")
+    server: dict[str, object] = {
+        "command": posix_command,
+        "args": [*posix_prefix, *script_args],
+        "commandWindows": windows_command,
+        "argsWindows": [*windows_prefix, *script_args],
+        "cwd": ".",
+    }
+    if extra:
+        server.update(extra)
+    return server
+
+
 def owned_servers(
     platform_name: str | None = None,
     maven_runtime: tuple[Path, Path] | None = None,
 ) -> dict[str, dict[str, object]]:
-    command, prefix = interpreter(platform_name)
+    del platform_name
     servers: dict[str, dict[str, object]] = {
-        "chaosengine-memory": {
-            "command": command,
-            "args": [*prefix, ".chaos-engine/tool.py", "memory-mcp"],
-            "cwd": ".",
-        },
-        "chaosengine-mempalace": {
-            "command": command,
-            "args": [
-                *prefix,
+        "chaosengine-memory": portable_python_server(
+            [".chaos-engine/tool.py", "memory-mcp"]
+        ),
+        "chaosengine-mempalace": portable_python_server(
+            [
                 ".chaos-engine/tool.py",
                 "mempalace-mcp",
                 "--palace",
@@ -1715,9 +1728,8 @@ def owned_servers(
                 "--backend",
                 "sqlite_exact",
             ],
-            "cwd": ".",
-            "env": {"MEMPALACE_EMBEDDING_MODEL": "minilm"},
-        },
+            extra={"env": {"MEMPALACE_EMBEDDING_MODEL": "minilm"}},
+        ),
     }
     if maven_runtime is not None:
         java, jar = maven_runtime
@@ -2016,6 +2028,51 @@ def instruction_content(before: bytes | None, instruction: str) -> bytes:
     return (existing + separator + instruction).encode()
 
 
+def legacy_owned_python_server(name: str, platform_name: str) -> dict[str, object]:
+    command, prefix = interpreter(platform_name)
+    args = {
+        "chaosengine-memory": [*prefix, ".chaos-engine/tool.py", "memory-mcp"],
+        "chaosengine-mempalace": [
+            *prefix,
+            ".chaos-engine/tool.py",
+            "mempalace-mcp",
+            "--palace",
+            ".chaos-engine-state/mempalace",
+            "--backend",
+            "sqlite_exact",
+        ],
+    }[name]
+    server: dict[str, object] = {"command": command, "args": args, "cwd": "."}
+    if name == "chaosengine-mempalace":
+        server["env"] = {"MEMPALACE_EMBEDDING_MODEL": "minilm"}
+    return server
+
+
+def replaceable_owned_server(name: str, existing: object, desired: dict[str, object]) -> bool:
+    if existing == desired:
+        return True
+    if name not in {"chaosengine-memory", "chaosengine-mempalace"}:
+        return False
+    return existing in (
+        legacy_owned_python_server(name, "nt"),
+        legacy_owned_python_server(name, "posix"),
+    )
+
+
+def legacy_codex_python_block(platform_name: str) -> str:
+    command, prefix = interpreter(platform_name)
+    prefix_text = '"-3", ' if prefix else ""
+    return (
+        "# CHAOSENGINE:START\n"
+        f'[mcp_servers."chaosengine-memory"]\ncommand = "{command}"\n'
+        f'args = [{prefix_text}".chaos-engine/tool.py", "memory-mcp"]\ncwd = ".."\n\n'
+        f'[mcp_servers."chaosengine-mempalace"]\ncommand = "{command}"\n'
+        f'args = [{prefix_text}".chaos-engine/tool.py", "mempalace-mcp", "--palace", '
+        '".chaos-engine-state/mempalace", "--backend", "sqlite_exact"]\ncwd = ".."\n'
+        'env = { MEMPALACE_EMBEDDING_MODEL = "minilm" }\n# CHAOSENGINE:END\n'
+    )
+
+
 def json_content(
     before: bytes | None, maven_runtime: tuple[Path, Path] | None = None
 ) -> bytes:
@@ -2031,7 +2088,7 @@ def json_content(
     if servers.get("maven-tools-mcp") == LEGACY_MAVEN_TOOLS_SERVER:
         del servers["maven-tools-mcp"]
     for name, desired in owned_servers(maven_runtime=maven_runtime).items():
-        if name in servers and servers[name] != desired:
+        if name in servers and not replaceable_owned_server(name, servers[name], desired):
             raise ValueError(f"ChaosEngine MCP server collision: {name}")
         servers[name] = desired
     return (json.dumps(value, indent=2, sort_keys=True) + "\n").encode()
@@ -2057,15 +2114,26 @@ def codex_content(
     for legacy in legacy_blocks:
         for newline_variant in (legacy, legacy.replace("\n", "\r\n")):
             existing = existing.replace(newline_variant, "")
-    command, prefix = interpreter(platform_name)
-    prefix_text = '"-3", ' if prefix else ""
+    del platform_name
+    posix_command, _posix_prefix = interpreter("posix")
+    windows_command, _windows_prefix = interpreter("nt")
+    memory_args = '".chaos-engine/tool.py", "memory-mcp"'
+    mempalace_args = (
+        '".chaos-engine/tool.py", "mempalace-mcp", "--palace", '
+        '".chaos-engine-state/mempalace", "--backend", "sqlite_exact"'
+    )
     block = (
         "# CHAOSENGINE:START\n"
-        f'[mcp_servers."chaosengine-memory"]\ncommand = "{command}"\n'
-        f'args = [{prefix_text}".chaos-engine/tool.py", "memory-mcp"]\ncwd = ".."\n\n'
-        f'[mcp_servers."chaosengine-mempalace"]\ncommand = "{command}"\n'
-        f'args = [{prefix_text}".chaos-engine/tool.py", "mempalace-mcp", "--palace", '
-        '".chaos-engine-state/mempalace", "--backend", "sqlite_exact"]\ncwd = ".."\n'
+        f'[mcp_servers."chaosengine-memory"]\ncommand = "{posix_command}"\n'
+        f"args = [{memory_args}]\n"
+        f'commandWindows = "{windows_command}"\n'
+        f'argsWindows = ["-3", {memory_args}]\n'
+        'cwd = ".."\n\n'
+        f'[mcp_servers."chaosengine-mempalace"]\ncommand = "{posix_command}"\n'
+        f"args = [{mempalace_args}]\n"
+        f'commandWindows = "{windows_command}"\n'
+        f'argsWindows = ["-3", {mempalace_args}]\n'
+        'cwd = ".."\n'
         'env = { MEMPALACE_EMBEDDING_MODEL = "minilm" }\n# CHAOSENGINE:END\n'
     )
     if maven_runtime is not None:
@@ -2080,9 +2148,14 @@ def codex_content(
             "# CHAOSENGINE:END\n",
         )
     if "# CHAOSENGINE:START" in existing or "# CHAOSENGINE:END" in existing:
-        if block not in existing:
-            raise ValueError("ChaosEngine Codex configuration collision")
-        return existing.encode()
+        if block in existing:
+            return existing.encode()
+        for platform in ("nt", "posix"):
+            legacy = legacy_codex_python_block(platform)
+            for candidate in (legacy, legacy.replace("\n", "\r\n")):
+                if candidate in existing:
+                    return existing.replace(candidate, block).encode()
+        raise ValueError("ChaosEngine Codex configuration collision")
     for name in owned_servers(maven_runtime=maven_runtime):
         if f'mcp_servers."{name}"' in existing or f"mcp_servers.{name}" in existing:
             raise ValueError(f"ChaosEngine Codex server collision: {name}")
