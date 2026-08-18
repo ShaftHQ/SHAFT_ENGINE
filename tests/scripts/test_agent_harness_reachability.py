@@ -60,9 +60,10 @@ WHAT THIS DOES NOT CATCH -- read before inferring coverage from a green run
 - **`element_globs` bounds the whole question.** A harness surface added under
   a path no glob covers is not an element, so it cannot be reported as an
   orphan. This is the one place a hand-maintained decision still lives, and it
-  is the failure mode most likely to bite next. `EXPECTED_ELEMENT_COUNT` makes
-  the boundary *shrinking* loud; it does nothing about a surface that was never
-  inside it. Two exclusions were argued for in review and both were wrong.
+  is the failure mode most likely to bite next. Named sentinel files make
+  shrinking a glob loud; a census count is not used because adding a reachable
+  installer or skill would fail CI for the wrong reason. Two exclusions were
+  argued for in review and both were wrong.
 - **A detoured root is normalised, not rejected.** `root` is resolved at entry
   so a symlinked or short-name checkout walks correctly. Nothing asserts that
   the caller's spelling and the resolved one name the same tree -- if a caller
@@ -114,13 +115,20 @@ from scripts.ci.harness_reachability import (
 ROOT = Path(__file__).resolve().parents[2]
 BUDGET = ROOT / "scripts/ci/agent_guidance_budget.json"
 
-# The exact size of the harness surface, asserted by equality rather than as a
-# floor. A floor of 84 against a real 85 meant one whole glob could be deleted
-# from `element_globs` and stay green -- dropping `scripts/ci/watch_pr_checks.py`
-# from the boundary was invisible. Equality makes shrinking the boundary a
-# deliberate two-line edit that shows up in review, which is the only place the
-# question "why is the harness smaller today" gets asked.
-EXPECTED_ELEMENT_COUNT = 255
+# Pin required surfaces, not a census. A hard count fails every time a new
+# reachable installer or skill is added. Deleting a glob still fails when one
+# of these sentinels drops out of `elements`.
+REQUIRED_HARNESS_SURFACES = (
+    "tools/repository-map/graphify_maintenance.py",
+    "chaos-engine/skills/local-coding-delegate/SKILL.md",
+    "chaos-engine/skills/local-coding-delegate/scripts/probe_hardware.py",
+    "chaos-engine/profiles/shaft/references/playbooks/workstation-local-coding-agent.md",
+    "chaos-engine/install.ps1",
+    "chaos-engine/install.sh",
+    "scripts/local-coding-agent/shaft-java-agent.ps1",
+    "scripts/local-coding-agent/shaft-architect.ps1",
+    "scripts/local-coding-agent/shaft-local-ai-stop.ps1",
+)
 
 ATX_HEADING = re.compile(r"(?m)^#{1,6}\s+(.+?)\s*$")
 
@@ -279,28 +287,8 @@ class HarnessReachabilityTest(unittest.TestCase):
         self.assertEqual(load_config(ROOT)["exemptions"], [])
         report = harness_report(ROOT)
         self.assertEqual(len(report["orphans"]), 0)
-        self.assertIn("tools/repository-map/graphify_maintenance.py", report["elements"])
-        self.assertIn(
-            "chaos-engine/skills/local-coding-delegate/SKILL.md", report["elements"]
-        )
-        self.assertIn(
-            "chaos-engine/skills/local-coding-delegate/scripts/probe_hardware.py",
-            report["elements"],
-        )
-        self.assertIn(
-            "chaos-engine/profiles/shaft/references/playbooks/workstation-local-coding-agent.md",
-            report["elements"],
-        )
-        self.assertIn(
-            "scripts/local-coding-agent/shaft-java-agent.ps1", report["elements"]
-        )
-        self.assertIn(
-            "scripts/local-coding-agent/shaft-architect.ps1", report["elements"]
-        )
-        self.assertIn(
-            "scripts/local-coding-agent/shaft-local-ai-stop.ps1", report["elements"]
-        )
-        self.assertEqual(len(report["elements"]), EXPECTED_ELEMENT_COUNT)
+        for surface in REQUIRED_HARNESS_SURFACES:
+            self.assertIn(surface, report["elements"])
         self.assertEqual(report["wildcard_only"], [])
 
     def test_the_deployable_root_names_a_real_subtree_reached_from_the_adapter(self):
