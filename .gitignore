@@ -243,6 +243,7 @@ __pycache__/
 .memory/recovery/
 .memory/.backup/
 .memory/.lock
+.memory/private/
 
 # Personal Claude Code overrides -- never shared/tracked regardless of the
 # author's own machine-level git excludesFile.

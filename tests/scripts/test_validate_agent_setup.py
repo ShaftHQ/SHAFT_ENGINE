@@ -10,6 +10,7 @@ from scripts.ci import validate_agent_setup
 from scripts.ci.validate_agent_setup import (
     GENERATED_MEMORY_PATHS,
     KNOWN_SECRET_SCANNER_LANDMINE_FILES,
+    PRIVATE_MEMORY_PATHS,
     collect_metrics,
     collect_worktree_metrics,
     format_banner,
@@ -49,7 +50,10 @@ class ValidateAgentSetupTest(unittest.TestCase):
         self.write(".memory/memory/project.json", "{}")
         self.write(".memory/memory/architecture.md", "# Architecture\n")
         self.write(".memory/memory/architecture.json", "{}")
-        self.write(".gitignore", "\n".join(sorted(GENERATED_MEMORY_PATHS)) + "\n")
+        self.write(
+            ".gitignore",
+            "\n".join(sorted(GENERATED_MEMORY_PATHS | PRIVATE_MEMORY_PATHS)) + "\n",
+        )
         self.write(
             ".codex/config.toml",
             """[mcp_servers.shaft-memory]
@@ -485,6 +489,23 @@ approval_mode = "prompt"
         metrics = self.metrics_for_budget()
         self.assertEqual(metrics["memory_objects"], tracked)
         self.assertEqual(metrics["memory_objects_untracked"], 1)
+
+    def test_untracked_non_private_memory_objects_fail_validation(self):
+        self.init_repository()
+        self.git("add", ".")
+        self.git("commit", "-qm", "initial")
+        self.assertEqual(validate_memory_setup(self.root), [])
+
+        self.write(".memory/memory/gotchas/never-added.json", "{}")
+        self.assertIn("memory-untracked", self.codes())
+
+    def test_private_memory_is_ignored_and_does_not_fail_validation(self):
+        self.init_repository()
+        self.git("add", ".")
+        self.git("commit", "-qm", "initial")
+        self.write(".memory/private/local-note.json", '{"note":"machine local"}')
+        self.assertEqual(validate_memory_setup(self.root), [])
+        self.assertEqual(self.metrics_for_budget()["memory_objects_untracked"], 0)
 
     def test_a_committed_memory_object_does_move_the_reported_count(self):
         # The negative half: fixing the untracked case must not be bought by

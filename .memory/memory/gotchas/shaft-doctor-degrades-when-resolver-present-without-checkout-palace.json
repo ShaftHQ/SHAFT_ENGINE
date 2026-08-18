@@ -1,0 +1,48 @@
+{
+  "body_path": "memory/gotchas/shaft-doctor-degrades-when-resolver-present-without-checkout-palace.md",
+  "content_hash": "sha256:b6876a1c53a0737d6efe9cbc8c0d0537232bf5efb83aa4e00691e93a2ed39532",
+  "created_at": "2026-08-17T23:49:55+03:00",
+  "evidence": [
+    {
+      "id": "https://github.com/ShaftHQ/SHAFT_ENGINE/issues/5071",
+      "kind": "task"
+    },
+    {
+      "id": "c6ff9d87daa4540dd29e8b37a43847939e74539a",
+      "kind": "commit"
+    },
+    {
+      "id": "chaos-engine/hosts.py",
+      "kind": "file"
+    }
+  ],
+  "facets": {
+    "applies_to": [
+      "chaos-engine/hosts.py",
+      "chaos-engine/tool.py",
+      "tests/scripts/test_chaos_engine_hosts.py"
+    ],
+    "category": "gotcha"
+  },
+  "id": "gotcha.shaft-doctor-degrades-when-resolver-present-without-checkout-palace",
+  "scope": {
+    "branch": null,
+    "kind": "project",
+    "project": "project.shaft-engine",
+    "task": null
+  },
+  "source": {
+    "kind": "agent",
+    "task": "Record #5071 SHAFT doctor degraded-status gotcha after implementing the locked path"
+  },
+  "status": "active",
+  "tags": [
+    "mempalace",
+    "doctor",
+    "5071",
+    "red-before-green"
+  ],
+  "title": "SHAFT doctor degrades on resolver file, not a git-dir palace path",
+  "type": "gotcha",
+  "updated_at": "2026-08-17T23:49:55+03:00"
+}

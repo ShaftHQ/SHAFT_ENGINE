@@ -1,0 +1,42 @@
+{
+  "body_path": "memory/gotchas/aider-0-86-2-writes-aider-tags-cache-v4-even-with-history-files-redirected.md",
+  "content_hash": "sha256:a6f121e52e5eb2be31239dba9e1915857ab3829b5dcd25365ef1d039b6a6282a",
+  "created_at": "2026-08-17T22:23:32+03:00",
+  "evidence": [
+    {
+      "id": "https://github.com/ShaftHQ/SHAFT_ENGINE/pull/5063",
+      "kind": "task"
+    },
+    {
+      "id": "scripts/local-coding-agent/shaft-architect.ps1",
+      "kind": "file"
+    }
+  ],
+  "facets": {
+    "applies_to": [
+      "scripts/local-coding-agent/shaft-architect.ps1",
+      "scripts/local-coding-agent/run_agent.ps1"
+    ],
+    "category": "gotcha"
+  },
+  "id": "gotcha.aider-0-86-2-writes-aider-tags-cache-v4-even-with-history-files-redirected",
+  "scope": {
+    "branch": null,
+    "kind": "project",
+    "project": "project.shaft-engine",
+    "task": null
+  },
+  "source": {
+    "kind": "agent",
+    "task": "Record Aider sidecar cache after #5063 architect runs"
+  },
+  "status": "active",
+  "tags": [
+    "aider",
+    "5017",
+    "local-coding-agent"
+  ],
+  "title": "Aider 0.86.2 writes .aider.tags.cache.v4 even with history files redirected",
+  "type": "gotcha",
+  "updated_at": "2026-08-17T22:23:32+03:00"
+}

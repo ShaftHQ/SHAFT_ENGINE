@@ -53,6 +53,11 @@ GENERATED_MEMORY_PATHS = {
     ".memory/.backup/",
     ".memory/.lock",
 }
+# Secrets and machine-local notes stay here and are never source-controlled.
+# Canonical objects under `.memory/memory` and `.memory/relations` must be.
+PRIVATE_MEMORY_PATHS = {
+    ".memory/private/",
+}
 # The Memory CLI derives relation filenames by concatenating the "from" and
 # "to" object ids around the predicate, with no length cap of its own. A
 # single overlong pair once produced a 220-character filename that broke
@@ -176,9 +181,33 @@ def validate_memory_setup(root: Path = ROOT) -> list[dict[str, str]]:
         for line in (root / ".gitignore").read_text(encoding="utf-8").splitlines()
         if line.strip()
     }
-    for generated_path in sorted(GENERATED_MEMORY_PATHS - ignored):
+    for generated_path in sorted((GENERATED_MEMORY_PATHS | PRIVATE_MEMORY_PATHS) - ignored):
         errors.append(
             issue("memory-ignore", ".gitignore", f"generated path is not ignored: {generated_path}")
+        )
+
+    memory_root = root / ".memory/memory"
+    _landed, untracked = memory_object_counts(root, memory_root)
+    if untracked:
+        errors.append(
+            issue(
+                "memory-untracked",
+                ".memory/memory",
+                f"{untracked} Memory object(s) are not source-controlled. "
+                "Commit non-private objects on the task branch; keep secrets "
+                "in .memory/private/.",
+            )
+        )
+    relations_root = root / ".memory/relations"
+    _landed_relations, untracked_relations = memory_object_counts(root, relations_root)
+    if untracked_relations:
+        errors.append(
+            issue(
+                "memory-untracked",
+                ".memory/relations",
+                f"{untracked_relations} Memory relation(s) are not source-controlled. "
+                "Commit non-private relations on the task branch.",
+            )
         )
 
     memory_dir = root / ".memory"

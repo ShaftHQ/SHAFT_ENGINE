@@ -1,0 +1,43 @@
+{
+  "body_path": "memory/gotchas/powershell-convertto-json-unwraps-one-element-arrays-into-strings.md",
+  "content_hash": "sha256:b49d21bef2498bac5f27b0d6f948004bd6cd5d950d0d2ad0950f8bd5ada291d9",
+  "created_at": "2026-08-17T21:54:34+03:00",
+  "evidence": [
+    {
+      "id": "https://github.com/ShaftHQ/SHAFT_ENGINE/pull/5063",
+      "kind": "task"
+    },
+    {
+      "id": "scripts/local-coding-agent/agent.py",
+      "kind": "file"
+    }
+  ],
+  "facets": {
+    "applies_to": [
+      "scripts/local-coding-agent/agent.py",
+      "scripts/local-coding-agent/run_agent.ps1"
+    ],
+    "category": "gotcha"
+  },
+  "id": "gotcha.powershell-convertto-json-unwraps-one-element-arrays-into-strings",
+  "scope": {
+    "branch": null,
+    "kind": "project",
+    "project": "project.shaft-engine",
+    "task": null
+  },
+  "source": {
+    "kind": "agent",
+    "task": "Record PowerShell ConvertTo-Json one-element unwrap on #5063 allowlist reports"
+  },
+  "status": "active",
+  "tags": [
+    "powershell",
+    "json",
+    "5017",
+    "local-coding-agent"
+  ],
+  "title": "PowerShell ConvertTo-Json unwraps one-element arrays into strings",
+  "type": "gotcha",
+  "updated_at": "2026-08-17T21:54:34+03:00"
+}
