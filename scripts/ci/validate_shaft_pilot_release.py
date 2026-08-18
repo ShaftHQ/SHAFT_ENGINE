@@ -270,6 +270,17 @@ ISOLATED_RELEASE_CANDIDATE_JOBS = (
     "container-smoke",
 )
 
+def _workflow_job_block(workflow_text: str, job_id: str) -> str | None:
+    """Return one top-level job block from serialized workflow YAML text."""
+    match = re.search(rf"(?m)^  {re.escape(job_id)}:\s*$", workflow_text)
+    if not match:
+        return None
+    rest = workflow_text[match.end() :]
+    next_job = re.search(r"(?m)^  [A-Za-z0-9_-]+:\s*$", rest)
+    end = match.end() + next_job.start() if next_job else len(workflow_text)
+    return workflow_text[match.start() : end]
+
+
 def validate_release_candidate_isolation(workflow_text: str) -> list[str]:
     """Reject a serialized release-candidate job when the file is a real workflow.
 
@@ -277,32 +288,54 @@ def validate_release_candidate_isolation(workflow_text: str) -> list[str]:
     requirements-ci.txt, so it cannot import PyYAML.
     """
     if "jobs:" not in workflow_text:
-        return []
+        return [
+            "shaft-pilot-release.yml must declare jobs: for release-candidate isolation"
+        ]
 
     errors: list[str] = []
+    slice_changed_if = (
+        "if: needs.detect-shaft-version-change.outputs.changed == 'true'"
+    )
     for name in ISOLATED_RELEASE_CANDIDATE_JOBS:
         heading = f"  {name}:"
-        if not re.search(rf"(?m)^{re.escape(heading)}\s*$", workflow_text):
+        block = _workflow_job_block(workflow_text, name)
+        if block is None:
             errors.append(f"shaft-pilot-release.yml must isolate {name} as its own job")
             continue
         needs_only_detect = (
-            f"{heading}\n    needs: detect-shaft-version-change" in workflow_text
-            or f"{heading}\r\n    needs: detect-shaft-version-change" in workflow_text
+            f"{heading}\n    needs: detect-shaft-version-change" in block
+            or f"{heading}\r\n    needs: detect-shaft-version-change" in block
         )
         if not needs_only_detect:
             errors.append(
                 f"shaft-pilot-release.yml job {name} must depend only on detect-shaft-version-change"
             )
-    if not re.search(r"(?m)^  release-candidate:\s*$", workflow_text):
+        if slice_changed_if not in block:
+            errors.append(
+                f"shaft-pilot-release.yml job {name} must gate on detect changed output"
+            )
+    aggregator = _workflow_job_block(workflow_text, "release-candidate")
+    if aggregator is None:
         errors.append("shaft-pilot-release.yml must keep a release-candidate aggregator job")
         return errors
-    if not re.search(r"(?m)^    if: always\(\)\s*$", workflow_text):
+    if not re.search(r"(?m)^    if: always\(\)\s*$", aggregator):
         errors.append(
             "shaft-pilot-release.yml release-candidate aggregator must use if: always()"
         )
     for name in ISOLATED_RELEASE_CANDIDATE_JOBS:
-        if f"- {name}" not in workflow_text:
+        if f"- {name}" not in aggregator:
             errors.append(f"release-candidate aggregator must need isolated job {name}")
+    fail_closed_tokens = (
+        "DETECT_RESULT",
+        "DETECT_CHANGED",
+        '!= "success"',
+        "success)",
+    )
+    if not all(token in aggregator for token in fail_closed_tokens):
+        errors.append(
+            "shaft-pilot-release.yml release-candidate aggregator must stay fail-closed "
+            "on DETECT_RESULT/DETECT_CHANGED and isolated slice success"
+        )
     return errors
 
 

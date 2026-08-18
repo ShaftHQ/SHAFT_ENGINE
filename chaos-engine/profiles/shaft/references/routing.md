@@ -73,6 +73,7 @@ failure this table exists to prevent.
 | Externally documented behavior that changed | [public docs](playbooks/public-behavior-docs-synchronizer.md) |
 | Any visible SHAFT interface, visual QA, UX copy, accessibility | [UI design](playbooks/shaft-ui-design.md) |
 | Marketing or promotional material | [marketing](playbooks/shaft-marketing-ad-producer.md) |
+| Open or rewrite a work item | [work-item skill](../../../skills/work-item/SKILL.md) |
 | One issue through a merged PR | [GitHub playbook](../../../references/work-github-playbook.md) |
 | Reviewing a diff for behavior that no check would catch | [verification-gap lens](../../../references/verification-gap-lens.md) |
 | Holding main thread at session start | [orchestrator bootstrap](../../../references/orchestrator-bootstrap.md) |

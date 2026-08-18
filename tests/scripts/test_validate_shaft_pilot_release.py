@@ -185,16 +185,22 @@ Deploy to Maven Central
 Verify published Maven Central coordinates
 """,
     )
+    isolated = _minimal_isolated_workflow_text()
+    # Named-check tokens remain discoverable for static contract scans that
+    # still look for the historical release-step phrases in this fixture.
     _write_text(
         root / ".github/workflows/shaft-pilot-release.yml",
-        """Verify IntelliJ plugin release candidate
-      uses: ./.github/actions/intellij-verify
-Validate SHAFT Pilot release contract
-Run deterministic SHAFT Pilot tests
-Run headless SHAFT Capture release journey
-Validate Maven publication
-Deploy to Maven Central
-Verify published Maven Central coordinates
+        isolated
+        + """
+# Fixture tokens retained for static phrase scans:
+# Verify IntelliJ plugin release candidate
+# uses: ./.github/actions/intellij-verify
+# Validate SHAFT Pilot release contract
+# Run deterministic SHAFT Pilot tests
+# Run headless SHAFT Capture release journey
+# Validate Maven publication
+# Deploy to Maven Central
+# Verify published Maven Central coordinates
 """,
     )
 
@@ -217,6 +223,73 @@ def _step_blob(job: dict) -> str:
         parts.append(str(step.get("uses") or ""))
         parts.append(str(step.get("run") or ""))
     return "\n".join(parts)
+
+
+SLICE_CHANGED_IF = "needs.detect-shaft-version-change.outputs.changed == 'true'"
+
+
+def _minimal_isolated_workflow_text() -> str:
+    slice_jobs = []
+    for name in ISOLATED_SLICES:
+        slice_jobs.append(
+            f"""  {name}:
+    needs: detect-shaft-version-change
+    if: {SLICE_CHANGED_IF}
+    runs-on: ubuntu-22.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+"""
+        )
+    needs_lines = "\n".join(f"      - {name}" for name in ISOLATED_SLICES)
+    return f"""name: SHAFT Pilot Release Candidate
+jobs:
+  detect-shaft-version-change:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 5
+    outputs:
+      changed: ${{{{ steps.version-diff.outputs.changed }}}}
+    steps:
+      - uses: actions/checkout@v7
+{"".join(slice_jobs)}  release-candidate:
+    needs:
+      - detect-shaft-version-change
+{needs_lines}
+    if: always()
+    runs-on: ubuntu-22.04
+    timeout-minutes: 5
+    steps:
+      - name: Evaluate isolated slice results
+        env:
+          DETECT_RESULT: ${{{{ needs.detect-shaft-version-change.result }}}}
+          DETECT_CHANGED: ${{{{ needs.detect-shaft-version-change.outputs.changed }}}}
+          INTELLIJ_RESULT: ${{{{ needs.intellij-verify.result }}}}
+          CONTRACTS_RESULT: ${{{{ needs.release-contracts.result }}}}
+          PILOT_RESULT: ${{{{ needs.pilot-tests.result }}}}
+          CAPTURE_RESULT: ${{{{ needs.capture-journey.result }}}}
+          PACKAGE_RESULT: ${{{{ needs.package-and-validate.result }}}}
+          CONTAINER_RESULT: ${{{{ needs.container-smoke.result }}}}
+        run: |
+          if [ "${{DETECT_RESULT}}" != "success" ]; then
+            echo "::error::detect-shaft-version-change did not succeed (${{DETECT_RESULT}})"
+            exit 1
+          fi
+          if [ "${{DETECT_CHANGED}}" != "true" ]; then
+            echo "No version or release-candidate infra change; isolated slices skipped."
+            exit 0
+          fi
+          status=0
+          for result in "${{INTELLIJ_RESULT}}" "${{CONTRACTS_RESULT}}" "${{PILOT_RESULT}}" "${{CAPTURE_RESULT}}" "${{PACKAGE_RESULT}}" "${{CONTAINER_RESULT}}"; do
+            case "$result" in
+              success) ;;
+              *)
+                echo "::error::a release-candidate slice did not pass (result: ${{result}})"
+                status=1
+                ;;
+            esac
+          done
+          exit "${{status}}"
+"""
 
 
 class ShaftPilotReleaseValidatorTest(unittest.TestCase):
@@ -530,6 +603,11 @@ class ShaftPilotReleaseIsolationTest(unittest.TestCase):
                 _needs_list(jobs[name]),
                 f"{name} must depend only on detect-shaft-version-change",
             )
+            self.assertEqual(
+                SLICE_CHANGED_IF,
+                jobs[name].get("if"),
+                f"{name} must gate on detect changed output",
+            )
             self.assertIn("timeout-minutes", jobs[name], name)
             self.assertIn("actions/checkout@", _step_blob(jobs[name]), name)
 
@@ -537,13 +615,18 @@ class ShaftPilotReleaseIsolationTest(unittest.TestCase):
         workflow = yaml.safe_load(WORKFLOW_PATH.read_text(encoding="utf-8"))
         aggregator = workflow["jobs"]["release-candidate"]
         needs = _needs_list(aggregator)
+        blob = _step_blob(aggregator)
 
-        self.assertIn("always()", str(aggregator.get("if", "")))
+        self.assertEqual("always()", aggregator.get("if"))
         self.assertIn("detect-shaft-version-change", needs)
         for name in ISOLATED_SLICES:
             self.assertIn(name, needs)
-        self.assertNotIn("mvn --batch-mode", _step_blob(aggregator))
-        self.assertNotIn("./.github/actions/intellij-verify", _step_blob(aggregator))
+        self.assertIn("DETECT_RESULT", blob)
+        self.assertIn("DETECT_CHANGED", blob)
+        self.assertIn('!= "success"', blob)
+        self.assertIn("success)", blob)
+        self.assertNotIn("mvn --batch-mode", blob)
+        self.assertNotIn("./.github/actions/intellij-verify", blob)
 
     def test_isolated_slices_keep_the_named_release_checks(self):
         workflow = yaml.safe_load(WORKFLOW_PATH.read_text(encoding="utf-8"))
@@ -560,6 +643,74 @@ class ShaftPilotReleaseIsolationTest(unittest.TestCase):
         for name, token in required.items():
             self.assertIn(name, jobs, f'missing isolated job {name}')
             self.assertIn(token, _step_blob(jobs[name]), name)
+
+    def test_dropping_slice_changed_if_fails_isolation(self):
+        text = WORKFLOW_PATH.read_text(encoding="utf-8")
+        mutated = text.replace(
+            f"    if: {SLICE_CHANGED_IF}\n",
+            "",
+        )
+        self.assertNotEqual(text, mutated)
+        errors = MODULE.validate_release_candidate_isolation(mutated)
+        self.assertTrue(
+            any("changed" in error for error in errors),
+            errors,
+        )
+
+    def test_stub_exit_0_aggregator_fails_isolation(self):
+        text = WORKFLOW_PATH.read_text(encoding="utf-8")
+        rc_at = text.index("  release-candidate:")
+        env_at = text.index("        env:", rc_at)
+        mutated = text[:env_at] + "        run: exit 0\n"
+        rc_blob = mutated[mutated.index("  release-candidate:") :]
+        self.assertNotIn("DETECT_RESULT", rc_blob)
+        self.assertIn("exit 0", rc_blob)
+        errors = MODULE.validate_release_candidate_isolation(mutated)
+        self.assertTrue(
+            any("fail-closed" in error or "DETECT_RESULT" in error for error in errors),
+            errors,
+        )
+
+    def test_always_must_bind_to_release_candidate_job(self):
+        text = WORKFLOW_PATH.read_text(encoding="utf-8")
+        # Move job-level if: always() onto detect so a width-blind four-space
+        # search still matches, but release-candidate no longer owns it.
+        mutated = text.replace(
+            "    if: always()\n    runs-on: ubuntu-22.04\n    timeout-minutes: 5\n    steps:\n      - name: Evaluate isolated slice results",
+            "    runs-on: ubuntu-22.04\n    timeout-minutes: 5\n    steps:\n      - name: Evaluate isolated slice results",
+            1,
+        )
+        mutated = mutated.replace(
+            "  detect-shaft-version-change:\n    runs-on: ubuntu-22.04\n",
+            "  detect-shaft-version-change:\n    if: always()\n    runs-on: ubuntu-22.04\n",
+            1,
+        )
+        self.assertIn("  detect-shaft-version-change:\n    if: always()\n", mutated)
+        rc_start = mutated.index("  release-candidate:")
+        rc_block = mutated[rc_start:]
+        self.assertNotIn("\n    if: always()\n", rc_block)
+        self.assertIn("    if: always()", mutated)
+        errors = MODULE.validate_release_candidate_isolation(mutated)
+        self.assertTrue(
+            any("release-candidate" in error and "always()" in error for error in errors),
+            errors,
+        )
+
+    def test_workflow_without_jobs_fails_isolation(self):
+        stub = """Verify IntelliJ plugin release candidate
+      uses: ./.github/actions/intellij-verify
+Validate SHAFT Pilot release contract
+Run deterministic SHAFT Pilot tests
+"""
+        self.assertNotIn("jobs:", stub)
+        errors = MODULE.validate_release_candidate_isolation(stub)
+        self.assertTrue(errors, "missing jobs: must fail closed, not return []")
+
+    def test_minimal_isolated_fixture_passes_isolation(self):
+        errors = MODULE.validate_release_candidate_isolation(
+            _minimal_isolated_workflow_text()
+        )
+        self.assertEqual([], errors)
 
 
 if __name__ == "__main__":

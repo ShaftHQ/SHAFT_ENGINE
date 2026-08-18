@@ -20,9 +20,28 @@ from urllib.parse import urlparse
 
 
 REQUIRED_HEADINGS = {
-    "bug": ("Describe the Bug", "Steps to Reproduce", "Expected Behavior", "Actual Behavior"),
-    "enhancement": ("Problem Statement", "Proposed Solution", "Alternatives Considered", "Use Case & Impact"),
+    "bug": (
+        "Describe the Bug",
+        "Steps to Reproduce",
+        "Expected Behavior",
+        "Actual Behavior",
+        "User Scenarios & Testing",
+        "Edge Cases",
+        "Functional Requirements",
+        "Success Criteria",
+    ),
+    "enhancement": (
+        "Problem Statement",
+        "Proposed Solution",
+        "Alternatives Considered",
+        "Use Case & Impact",
+        "User Scenarios & Testing",
+        "Edge Cases",
+        "Functional Requirements",
+        "Success Criteria",
+    ),
 }
+SCOPE_HEADINGS = ("Assumptions", "Out of scope")
 
 
 def _text(value) -> bool:
@@ -37,7 +56,34 @@ def _issue_url(value) -> bool:
     if not _text(value):
         return False
     parsed = urlparse(value)
-    return parsed.scheme == "https" and parsed.netloc == "github.com" and "/issues/" in parsed.path
+    if parsed.scheme != "https" or not parsed.netloc:
+        return False
+    host = parsed.netloc.lower()
+    path = parsed.path or ""
+    if host == "github.com" and "/issues/" in path:
+        return True
+    if "/-/issues/" in path:
+        return True
+    if ("dev.azure.com" in host or host.endswith("visualstudio.com")) and "/_workitems/" in path:
+        return True
+    return False
+
+
+def build_glab_issue_create_argv(plan: dict, repository: str, *, executable: str = "glab") -> list[str]:
+    return [
+        executable, "issue", "create", "--repo", repository, "--title", plan["title"],
+        "--description", plan["body"], "--label", ",".join(plan.get("labels") or []),
+    ]
+
+
+def build_az_boards_create_argv(
+    plan: dict, *, organization: str, project: str, executable: str = "az", work_item_type: str = "Issue",
+) -> list[str]:
+    return [
+        executable, "boards", "work-item", "create", "--organization", organization,
+        "--project", project, "--title", plan["title"], "--type", work_item_type,
+        "--description", plan["body"],
+    ]
 
 
 def validate_issue_plan(plan: object, taxonomy: object) -> dict:  # noqa: MC0001
@@ -71,6 +117,8 @@ def validate_issue_plan(plan: object, taxonomy: object) -> dict:  # noqa: MC0001
         for heading in REQUIRED_HEADINGS[issue_type]:
             if heading not in body:
                 reasons.append(f"template field is missing: {heading}")
+        if not any(heading in body for heading in SCOPE_HEADINGS):
+            reasons.append("template field is missing: Assumptions or Out of scope")
     if not _texts(plan.get("acceptanceCriteria")):
         reasons.append("acceptance criteria are required")
     if state == "ready" and not _texts(plan.get("proofPlan")):
