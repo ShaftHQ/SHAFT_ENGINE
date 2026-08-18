@@ -200,6 +200,8 @@ def download_source(
         relative = PurePosixPath(*path.parts[1:])
         if not relative.parts:
             raise ValueError("ChaosEngine source tree has an unexpected layout")
+        if relative.parts[:2] == ("assets", "brand") or relative.as_posix() == "RESEARCH.md":
+            continue
         selected.append((relative, size))
         total += size
 

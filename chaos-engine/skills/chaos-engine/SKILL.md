@@ -262,5 +262,7 @@ Gambaru.
 The portable distribution's [human overview](../../README.md) uses the
 deterministic light, dark, monochrome, lockup, and small-size identity masters
 documented in the [ChaosEngine identity guide](../../assets/brand/BRAND.md).
+Those masters stay in the origin source tree and are not copied into adopter
+installs.
 
 

@@ -341,6 +341,8 @@ def source_files(source: Path, distribution: str = DEFAULT_DISTRIBUTION) -> tupl
             and relative.parts[1] != selected_profile
         ):
             continue
+        if relative.parts[:2] == ("assets", "brand") or relative.as_posix() == "RESEARCH.md":
+            continue
         if is_link_or_reparse(path):
             raise ValueError(f"source contains a link or reparse point: {relative}")
         if path.is_file():

@@ -673,6 +673,44 @@ class ChaosEngineBootstrapTest(unittest.TestCase):
 
                 self.assertFalse((Path(temporary) / ".chaos-engine").exists())
 
+    def test_download_source_omits_origin_brand_masters(self):
+        module = load()
+        tree = {
+            "truncated": False,
+            "tree": [
+                {"path": "chaos-engine/skills/chaos-engine/SKILL.md", "type": "blob", "mode": "100644", "size": 5},
+                {"path": "chaos-engine/assets/brand/symbol-light.svg", "type": "blob", "mode": "100644", "size": 5},
+                {"path": "chaos-engine/RESEARCH.md", "type": "blob", "mode": "100644", "size": 8},
+                {"path": "chaos-engine/assets/memory-v5/config.schema.json", "type": "blob", "mode": "100644", "size": 6},
+            ],
+        }
+        requested: list[str] = []
+
+        def opener(request, timeout=0):
+            del timeout
+            url = request.full_url if hasattr(request, "full_url") else request
+            requested.append(str(url))
+            if "git/trees" in str(url):
+                return Response(json.dumps(tree).encode())
+            if str(url).endswith("SKILL.md"):
+                return Response(b"skill")
+            if str(url).endswith("symbol-light.svg"):
+                return Response(b"brand")
+            if str(url).endswith("RESEARCH.md"):
+                return Response(b"research")
+            if str(url).endswith("config.schema.json"):
+                return Response(b"schema")
+            raise AssertionError(url)
+
+        with tempfile.TemporaryDirectory() as temporary:
+            source = module.download_source("owner/repo", COMMIT_ONE, Path(temporary), opener=opener)
+
+            self.assertTrue((source / "skills/chaos-engine/SKILL.md").is_file())
+            self.assertTrue((source / "assets/memory-v5/config.schema.json").is_file())
+            self.assertFalse((source / "assets/brand/symbol-light.svg").exists())
+            self.assertFalse((source / "RESEARCH.md").exists())
+            self.assertFalse(any("symbol-light.svg" in url or url.endswith("RESEARCH.md") for url in requested if "git/trees" not in url))
+
     def test_bootstrap_is_reachable_and_runs_in_three_os_ci(self):
         skill = (ROOT / "chaos-engine/skills/chaos-engine/SKILL.md").read_text(encoding="utf-8")
         workflow = (ROOT / ".github/workflows/pr-gate.yml").read_text(encoding="utf-8")
