@@ -3,6 +3,7 @@ package com.shaft.doctor.repair;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 import tools.jackson.databind.node.ObjectNode;
+import com.shaft.doctor.internal.DoctorProviderDiagnosis;
 import com.shaft.doctor.internal.DoctorRedactor;
 import com.shaft.doctor.model.Diagnosis;
 import com.shaft.pilot.ai.AiExecutionService;
@@ -201,24 +202,20 @@ public final class DoctorRepairAiService {
     }
 
     private static String prompt(Diagnosis diagnosis, List<String> allowedPaths) {
-        try {
-            return """
-                    Propose the smallest repair supported by the deterministic SHAFT Doctor diagnosis.
-                    Return only complete UTF-8 file replacements in the requested JSON schema.
-                    Never return shell commands, workflow changes, credentials, generated files, binary data,
-                    hidden reasoning, or paths outside the explicit allowlist. Cite only submitted source IDs.
+        return """
+                Propose the smallest repair supported by the deterministic SHAFT Doctor diagnosis.
+                Return only complete UTF-8 file replacements in the requested JSON schema.
+                Never return shell commands, workflow changes, credentials, generated files, binary data,
+                hidden reasoning, or paths outside the explicit allowlist. Cite only submitted source IDs.
 
-                    Approved paths:
-                    %s
+                Approved paths:
+                %s
 
-                    Deterministic diagnosis:
-                    %s
-                    """.formatted(
-                    String.join("\n", allowedPaths == null ? List.of() : allowedPaths),
-                    JSON.writeValueAsString(diagnosis));
-        } catch (RuntimeException exception) {
-            throw new IllegalArgumentException("Doctor diagnosis could not be serialized.", exception);
-        }
+                Deterministic diagnosis:
+                %s
+                """.formatted(
+                String.join("\n", allowedPaths == null ? List.of() : allowedPaths),
+                DoctorProviderDiagnosis.boundedText(diagnosis));
     }
 
     private static List<String> textList(JsonNode values) {

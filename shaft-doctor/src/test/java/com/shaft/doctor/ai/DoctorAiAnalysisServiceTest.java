@@ -12,7 +12,9 @@ import com.shaft.doctor.model.EvidenceBundle;
 import com.shaft.doctor.model.EvidenceItem;
 import com.shaft.doctor.model.EvidenceProvenance;
 import com.shaft.doctor.model.Finding;
+import com.shaft.doctor.model.RankedCause;
 import com.shaft.doctor.model.RedactionSummary;
+import com.shaft.doctor.model.Remediation;
 import com.shaft.pilot.ai.AiBudget;
 import com.shaft.pilot.ai.AiRequest;
 import com.shaft.pilot.ai.AiResponse;
@@ -83,6 +85,32 @@ class DoctorAiAnalysisServiceTest {
         assertEquals(DoctorAdvisory.RecommendedAction.ActionOperation.UPDATE_TEST_LOCATOR, action.operation());
         assertEquals(DoctorAdvisory.RecommendedAction.ActionTarget.TEST_LOCATOR, action.target());
         assertEquals("Review the test locator", action.title());
+    }
+
+    @Test
+    void providerPromptKeepsBoundedDiagnosisAndRedactsPlantedLocatorSecrets(@TempDir Path temp) {
+        AtomicReference<AiRequest> captured = new AtomicReference<>();
+        DoctorAiAnalysisService service = service(request -> {
+            captured.set(request);
+            return success(request, fixtureUnchecked("high-quality.json"));
+        });
+
+        service.analyze(bundle(), canaryDiagnosis(), DoctorAiAnalysisRequest.defaults(APPROVED), temp);
+
+        String text = captured.get().text();
+        assertFalse(text.contains("By.cssSelector(\"#unique-repair-locator-canary\")"), text);
+        assertFalse(text.contains("#unique-repair-locator-canary"), text);
+        assertFalse(text.contains("{\"selector\":\"#unique-repair-selector-canary\"}"), text);
+        assertFalse(text.contains("#unique-repair-selector-canary"), text);
+        assertFalse(text.contains("Authorization: Basic dXNlcjpwYXNz"), text);
+        assertFalse(text.contains("Basic dXNlcjpwYXNz"), text);
+        assertFalse(text.contains("\"findings\""), text);
+        assertFalse(text.contains("\"remediations\""), text);
+        assertFalse(text.contains("\"fixPrompt\""), text);
+        assertTrue(text.contains("primaryCause="), text);
+        assertTrue(text.contains("confidence="), text);
+        assertTrue(text.contains("summary="), text);
+        assertTrue(text.contains("rankedCauses="), text);
     }
 
     @Test
@@ -417,6 +445,43 @@ class DoctorAiAnalysisServiceTest {
                         List.of("evidence-1"))),
                 List.of(),
                 List.of("Current DOM snapshot"));
+    }
+
+    private static Diagnosis canaryDiagnosis() {
+        String locatorCanary = "By.cssSelector(\"#unique-repair-locator-canary\")";
+        String selectorCanary = "{\"selector\":\"#unique-repair-selector-canary\"}";
+        String secretCanary = "Authorization: Basic dXNlcjpwYXNz";
+        String planted = locatorCanary + " " + selectorCanary + " " + secretCanary;
+        return new Diagnosis(
+                Diagnosis.CURRENT_SCHEMA_VERSION,
+                CauseCategory.LOCATOR,
+                List.of(),
+                Confidence.HIGH,
+                planted,
+                "The deterministic locator rule matched submitted evidence.",
+                List.of(new Finding(
+                        "finding-1",
+                        Finding.Kind.INFERENCE,
+                        CauseCategory.LOCATOR,
+                        Finding.Severity.ERROR,
+                        "Locator not found",
+                        planted,
+                        "locator-not-found",
+                        List.of("evidence-1"))),
+                List.of(new Remediation(
+                        "remediation-1",
+                        "Planted remediation",
+                        planted,
+                        List.of("finding-1"),
+                        List.of("evidence-1"))),
+                List.of("Current DOM snapshot"),
+                List.of(new RankedCause(
+                        CauseCategory.LOCATOR,
+                        88,
+                        Confidence.HIGH,
+                        "Deterministic rationale for LOCATOR.",
+                        List.of("evidence-1"),
+                        planted)));
     }
 
     private static JsonNode fixture(String name) throws IOException {

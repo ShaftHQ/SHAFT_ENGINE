@@ -4,6 +4,9 @@ import tools.jackson.databind.ObjectMapper;
 import com.shaft.doctor.model.CauseCategory;
 import com.shaft.doctor.model.Confidence;
 import com.shaft.doctor.model.Diagnosis;
+import com.shaft.doctor.model.Finding;
+import com.shaft.doctor.model.RankedCause;
+import com.shaft.doctor.model.Remediation;
 import com.shaft.pilot.ai.AiRequest;
 import com.shaft.pilot.ai.AiResponse;
 import com.shaft.pilot.ai.AiResponseStatus;
@@ -21,6 +24,7 @@ import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class DoctorRepairAiServiceTest {
@@ -97,6 +101,41 @@ class DoctorRepairAiServiceTest {
         assertTrue(result.patches().isEmpty());
     }
 
+    @Test
+    void providerPromptKeepsBoundedDiagnosisAndRedactsPlantedLocatorSecrets(@TempDir Path temp)
+            throws Exception {
+        Path source = Files.createDirectories(temp.resolve("src")).resolve("Example.java");
+        Files.writeString(source, "final class Example { int value() { return 1; } }\n");
+        AtomicReference<AiRequest> captured = new AtomicReference<>();
+        DoctorRepairAiService service = new DoctorRepairAiService(request -> {
+            captured.set(request);
+            var payload = JSON.createObjectNode();
+            payload.put("schemaVersion", "1.0");
+            payload.putArray("patches");
+            return AiResponse.success("test-provider", "test-model", payload,
+                    Duration.ofMillis(1), AiUsage.empty(), request.deterministicFallback());
+        });
+
+        service.generate(
+                temp, canaryDiagnosis(), List.of("src/Example.java"),
+                DoctorRepairAiRequest.defaults(APPROVED));
+
+        String text = captured.get().text();
+        assertFalse(text.contains("By.cssSelector(\"#unique-repair-locator-canary\")"), text);
+        assertFalse(text.contains("#unique-repair-locator-canary"), text);
+        assertFalse(text.contains("{\"selector\":\"#unique-repair-selector-canary\"}"), text);
+        assertFalse(text.contains("#unique-repair-selector-canary"), text);
+        assertFalse(text.contains("Authorization: Basic dXNlcjpwYXNz"), text);
+        assertFalse(text.contains("Basic dXNlcjpwYXNz"), text);
+        assertFalse(text.contains("\"findings\""), text);
+        assertFalse(text.contains("\"remediations\""), text);
+        assertFalse(text.contains("\"fixPrompt\""), text);
+        assertTrue(text.contains("primaryCause="), text);
+        assertTrue(text.contains("confidence="), text);
+        assertTrue(text.contains("summary="), text);
+        assertTrue(text.contains("rankedCauses="), text);
+    }
+
     private static AiResponse response(AiRequest request, String path, String content) {
         var payload = JSON.createObjectNode();
         payload.put("schemaVersion", "1.0");
@@ -121,5 +160,42 @@ class DoctorRepairAiServiceTest {
                 List.of(),
                 List.of(),
                 List.of());
+    }
+
+    private static Diagnosis canaryDiagnosis() {
+        String locatorCanary = "By.cssSelector(\"#unique-repair-locator-canary\")";
+        String selectorCanary = "{\"selector\":\"#unique-repair-selector-canary\"}";
+        String secretCanary = "Authorization: Basic dXNlcjpwYXNz";
+        String planted = locatorCanary + " " + selectorCanary + " " + secretCanary;
+        return new Diagnosis(
+                Diagnosis.CURRENT_SCHEMA_VERSION,
+                CauseCategory.TEST,
+                List.of(),
+                Confidence.HIGH,
+                planted,
+                "The submitted evidence points to the test implementation.",
+                List.of(new Finding(
+                        "finding-1",
+                        Finding.Kind.INFERENCE,
+                        CauseCategory.TEST,
+                        Finding.Severity.ERROR,
+                        "Planted finding",
+                        planted,
+                        "planted-rule",
+                        List.of())),
+                List.of(new Remediation(
+                        "remediation-1",
+                        "Planted remediation",
+                        planted,
+                        List.of("finding-1"),
+                        List.of())),
+                List.of(),
+                List.of(new RankedCause(
+                        CauseCategory.TEST,
+                        88,
+                        Confidence.HIGH,
+                        "Deterministic rationale for TEST.",
+                        List.of(),
+                        planted)));
     }
 }
