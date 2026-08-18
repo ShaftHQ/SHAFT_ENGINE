@@ -21,10 +21,7 @@ final class HealingDecisionEngine {
                     "No candidates matched the retained deterministic evidence.");
         }
         List<RankedCandidate> ranked = candidates.stream()
-                .sorted(Comparator
-                        .comparingDouble((RankedCandidate candidate) -> candidate.report().score().finalScore())
-                        .reversed()
-                        .thenComparing(candidate -> candidate.report().candidateId()))
+                .sorted(rankingOrder())
                 .toList();
         List<RankedCandidate> eligible = ranked.stream()
                 .filter(candidate -> candidate.report().unique())
@@ -50,10 +47,7 @@ final class HealingDecisionEngine {
                     null);
         }
         List<RankedCandidate> finalEligible = deterministicEligible.stream()
-                .sorted(Comparator
-                        .comparingDouble((RankedCandidate candidate) -> candidate.report().score().finalScore())
-                        .reversed()
-                        .thenComparing(candidate -> candidate.report().candidateId()))
+                .sorted(rankingOrder())
                 .toList();
         RankedCandidate top = finalEligible.getFirst();
         double confidence = top.report().score().finalScore();
@@ -72,6 +66,15 @@ final class HealingDecisionEngine {
                 true,
                 false);
         return new DecisionResult(decision, top);
+    }
+
+    static Comparator<RankedCandidate> rankingOrder() {
+        return Comparator
+                .comparingDouble((RankedCandidate candidate) -> candidate.report().score().finalScore())
+                .reversed()
+                .thenComparing(Comparator.comparingDouble(
+                        (RankedCandidate candidate) -> candidate.report().score().deterministicScore()).reversed())
+                .thenComparing(candidate -> candidate.report().candidateId());
     }
 
     private static DecisionResult result(
