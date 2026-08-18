@@ -119,30 +119,60 @@ def project_identity_name(project: Path) -> str:
     return project.name
 
 
+def _memory_project_valid(project_config: object) -> bool:
+    return (
+        isinstance(project_config, dict)
+        and set(project_config) == {"id", "name"}
+        and isinstance(project_config.get("id"), str)
+        and re.fullmatch(r"project\.[a-z0-9][a-z0-9-]*", project_config["id"]) is not None
+        and isinstance(project_config.get("name"), str)
+        and bool(project_config["name"].strip())
+    )
+
+
+def _memory_options_valid(memory_options: object, required: set[str]) -> bool:
+    budget = memory_options.get("defaultTokenBudget") if isinstance(memory_options, dict) else None
+    return (
+        isinstance(memory_options, dict)
+        and set(memory_options) == required
+        and isinstance(memory_options.get("autoIndex"), bool)
+        and isinstance(budget, int)
+        and not isinstance(budget, bool)
+        and 501 <= budget <= 50000
+        and (
+            "saveContextPacks" not in required
+            or isinstance(memory_options.get("saveContextPacks"), bool)
+        )
+    )
+
+
 def validate_memory_config(content: bytes) -> None:
     try:
         config = json.loads(content)
     except (UnicodeDecodeError, json.JSONDecodeError) as error:
         raise ValueError("invalid Memory configuration") from error
-    project_config = config.get("project") if isinstance(config, dict) else None
-    memory_options = config.get("memory") if isinstance(config, dict) else None
-    if (
-        not isinstance(config, dict)
-        or set(config) != {"version", "project", "memory"}
-        or config.get("version") != 5
-        or not isinstance(project_config, dict)
-        or set(project_config) != {"id", "name"}
-        or not isinstance(project_config.get("id"), str)
-        or re.fullmatch(r"project\.[a-z0-9][a-z0-9-]*", project_config["id"]) is None
-        or not isinstance(project_config.get("name"), str)
-        or not project_config["name"].strip()
-        or not isinstance(memory_options, dict)
-        or set(memory_options) != {"autoIndex", "defaultTokenBudget"}
-        or not isinstance(memory_options.get("autoIndex"), bool)
-        or not isinstance(memory_options.get("defaultTokenBudget"), int)
-        or isinstance(memory_options.get("defaultTokenBudget"), bool)
-        or not 501 <= memory_options["defaultTokenBudget"] <= 50000
-    ):
+    if not isinstance(config, dict) or not _memory_project_valid(config.get("project")):
+        raise ValueError("invalid Memory configuration")
+    version = config.get("version")
+    if version == 5:
+        valid = set(config) == {"version", "project", "memory"} and _memory_options_valid(
+            config.get("memory"), {"autoIndex", "defaultTokenBudget"}
+        )
+    elif version == 4:
+        git_options = config.get("git")
+        valid = (
+            set(config) == {"version", "project", "memory", "git"}
+            and _memory_options_valid(
+                config.get("memory"),
+                {"autoIndex", "defaultTokenBudget", "saveContextPacks"},
+            )
+            and isinstance(git_options, dict)
+            and set(git_options) == {"trackContextPacks"}
+            and isinstance(git_options.get("trackContextPacks"), bool)
+        )
+    else:
+        valid = False
+    if not valid:
         raise ValueError("invalid Memory configuration")
 
 
@@ -177,15 +207,21 @@ def validate_mempalace_config(content: bytes) -> None:
     except UnicodeDecodeError as error:
         raise ValueError("invalid MemPalace configuration") from error
     wing_matches = re.findall(r"(?m)^wing:\s*([A-Za-z0-9_.-]+)\s*$", text)
-    rooms = re.search(r"(?ms)^rooms:\s*\n(?P<body>.*?)(?=^exclude_patterns:\s*$)", text)
-    excludes = re.search(r"(?ms)^exclude_patterns:\s*\n(?P<body>.*)\Z", text)
+    rooms = re.search(
+        r"(?ms)^rooms:\s*\n(?P<body>.*?)(?=^[A-Za-z_][\w-]*:\s*$|\Z)",
+        text,
+    )
+    excludes = re.search(
+        r"(?ms)^exclude_patterns:\s*\n(?P<body>.*?)(?=^[A-Za-z_][\w-]*:\s*$|\Z)",
+        text,
+    )
     if (
         len(wing_matches) != 1
         or rooms is None
-        or re.search(r"(?m)^\s{2}- name:\s*\S+\s*$", rooms.group("body")) is None
-        or re.search(r"(?m)^\s{4}description:\s*\S+.*$", rooms.group("body")) is None
+        or re.search(r"(?m)^\s*- name:\s*\S+", rooms.group("body")) is None
+        or re.search(r"(?m)^\s*description:\s*\S+", rooms.group("body")) is None
         or excludes is None
-        or re.search(r"(?m)^\s{2}-\s+\S+\s*$", excludes.group("body")) is None
+        or re.search(r"(?m)^\s*-\s+\S+", excludes.group("body")) is None
     ):
         raise ValueError("invalid MemPalace configuration")
 
