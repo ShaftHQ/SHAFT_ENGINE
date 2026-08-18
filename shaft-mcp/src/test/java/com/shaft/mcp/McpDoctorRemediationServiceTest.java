@@ -92,30 +92,47 @@ class McpDoctorRemediationServiceTest {
     @Test
     void unavailableProviderKeepsAdvisoryProseAndAddsNoExecutableAction() {
         String plantedLocator = org.openqa.selenium.By.cssSelector("#unique-doctor-locator-canary").toString();
-        String plantedSecret = "Bearer planted-doctor-secret-token";
+        String cssJson = "{\"method\":\"css selector\",\"selector\":\"#unique-doctor-locator-canary\"}";
+        String xpathJson = "{\"method\":\"xpath\",\"selector\":\"//*[@id='unique-doctor-xpath-canary']\"}";
+        String plantedSecrets = "Authorization: Basic dXNlcjpwYXNz Authorization: planted-no-scheme-token-value api_key=supersecretvalue123";
         AtomicReference<AiRequest> captured = new AtomicReference<>();
         McpDoctorRemediationService aiService = new McpDoctorRemediationService(request -> {
             captured.set(request);
             return AiResponse.failure(AiResponseStatus.PROVIDER_UNAVAILABLE, "none", "", "unavailable",
                     Duration.ZERO, request.deterministicFallback());
         });
-        EvidenceItem leaky = new EvidenceItem(
+        EvidenceItem exceptionEvidence = new EvidenceItem(
                 "e-1",
                 EvidenceCategory.EXCEPTION_CHAIN,
                 "text/plain",
                 "",
                 "sha-1",
-                plantedSecret.length(),
-                "NoSuchElementException for " + plantedLocator + " Authorization: " + plantedSecret,
+                plantedSecrets.length(),
+                "NoSuchElementException for " + plantedLocator + " " + plantedSecrets,
                 false,
                 false,
                 Map.of(),
                 new EvidenceProvenance("fixture", "fixture/result.json", "sha-1"));
+        EvidenceItem allureEvidence = new EvidenceItem(
+                "e-2",
+                EvidenceCategory.ALLURE_RESULT,
+                "application/json",
+                "",
+                "sha-2",
+                cssJson.length() + xpathJson.length(),
+                cssJson + " " + xpathJson,
+                false,
+                false,
+                Map.of(),
+                new EvidenceProvenance("fixture", "fixture/allure-result.json", "sha-2"));
+        String summary = "Locator " + cssJson + " and " + xpathJson + " failed with " + plantedSecrets;
         DoctorAnalysisResult result = new DoctorAnalysisResult(
-                new EvidenceBundle(EvidenceBundle.CURRENT_SCHEMA_VERSION, "bundle-1", List.of(leaky),
+                new EvidenceBundle(EvidenceBundle.CURRENT_SCHEMA_VERSION, "bundle-1",
+                        List.of(exceptionEvidence, allureEvidence),
                         new RedactionSummary(List.of(), List.of(), 0), Map.of()),
-                diagnosis(List.of(rankedCause(CauseCategory.LOCATOR, 88,
-                        "Replace " + plantedLocator + " and keep " + plantedSecret))),
+                diagnosis(summary, List.of(rankedCause(CauseCategory.LOCATOR, 88,
+                        "Replace " + plantedLocator + " " + cssJson + " " + xpathJson
+                                + " and keep " + plantedSecrets))),
                 "", "", "");
 
         McpAnalysisReport report = aiService.build(
@@ -127,8 +144,13 @@ class McpDoctorRemediationServiceTest {
                 .reduce("", (left, right) -> left + "\n" + right);
         assertFalse(blob.contains(plantedLocator), blob);
         assertFalse(blob.contains("By.cssSelector"), blob);
-        assertFalse(blob.contains(plantedSecret), blob);
-        assertFalse(blob.contains("planted-doctor-secret-token"), blob);
+        assertFalse(blob.contains(cssJson), blob);
+        assertFalse(blob.contains(xpathJson), blob);
+        assertFalse(blob.contains("#unique-doctor-locator-canary"), blob);
+        assertFalse(blob.contains("unique-doctor-xpath-canary"), blob);
+        assertFalse(blob.contains("Basic dXNlcjpwYXNz"), blob);
+        assertFalse(blob.contains("planted-no-scheme-token-value"), blob);
+        assertFalse(blob.contains("supersecretvalue123"), blob);
         assertTrue(report.actions().stream()
                 .filter(action -> action.id().startsWith("provider-"))
                 .noneMatch(action -> action.status() == McpActionRecord.Status.SUGGESTED),
@@ -173,12 +195,16 @@ class McpDoctorRemediationServiceTest {
     }
 
     private static Diagnosis diagnosis(List<RankedCause> rankedCauses) {
+        return diagnosis("Locator did not resolve an element.", rankedCauses);
+    }
+
+    private static Diagnosis diagnosis(String summary, List<RankedCause> rankedCauses) {
         return new Diagnosis(
                 Diagnosis.CURRENT_SCHEMA_VERSION,
                 CauseCategory.LOCATOR,
                 List.of(),
                 Confidence.HIGH,
-                "Locator did not resolve an element.",
+                summary,
                 "Deterministic rule precedence selected this primary cause.",
                 List.of(),
                 List.of(),

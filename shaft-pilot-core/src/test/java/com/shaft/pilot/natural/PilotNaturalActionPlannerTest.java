@@ -85,8 +85,10 @@ class PilotNaturalActionPlannerTest {
         assertFalse(blob.contains("access_token"), blob);
         assertFalse(blob.contains("planted-access-token"), blob);
         assertFalse(blob.contains("user:pass"), blob);
-        assertTrue(blob.contains("example.test"), blob);
-        assertTrue(plan.steps().isEmpty() || plan.steps().getFirst().kind() == NaturalActionKind.BROWSER_REFRESH);
+        assertFalse(blob.contains("?"), blob);
+        assertTrue(blob.contains("https://example.test/app/checkout"), blob);
+        assertEquals(1, plan.steps().size(), plan.explanation());
+        assertEquals(NaturalActionKind.BROWSER_REFRESH, plan.steps().getFirst().kind());
     }
 
     @Test

@@ -138,9 +138,11 @@ class AutobotServiceTest {
     }
 
     @Test
-    void providerChatBoundsSecretsAndDoesNotTreatLocalConsentAsRemoteOrToolApproval() {
+    void providerChatRedactsSecretValuesAndRemoteProvidersStillRequireRemoteConsent() {
         SHAFT.Properties.pilot.set().enabled(true).localConsent(true).remoteConsent(false);
         try {
+            assertFalse(PilotConfiguration.current().approvalPolicy().remoteInferenceAllowed(),
+                    "Remote providers require remoteConsent independently of localConsent.");
             AtomicReference<AiRequest> captured = new AtomicReference<>();
             AutobotService service = new AutobotService(McpWorkspacePolicy.of(workspace),
                     new LocalAgentService(client -> true, new CapturingRunner()), request -> {
@@ -156,20 +158,17 @@ class AutobotServiceTest {
                     "ollama",
                     "local-model",
                     "ASK",
-                    "Explain Authorization: Bearer planted-autobot-secret-token and sk-secret-canary-4864",
+                    "Explain Authorization: Basic dXNlcjpwYXNz and Authorization: planted-no-scheme-token-value and api_key=supersecretvalue123",
                     "",
                     10,
                     false);
 
             assertEquals(AiResponseStatus.SUCCESS.name(), response.status());
             assertNotNull(captured.get(), "Chat must submit a request through AiExecutionService.");
-            assertFalse(captured.get().text().contains("planted-autobot-secret-token"), captured.get().text());
-            assertFalse(captured.get().text().contains("sk-secret-canary-4864"), captured.get().text());
-            assertFalse(captured.get().text().contains("Bearer planted"), captured.get().text());
-            assertTrue(captured.get().approvalPolicy().localInferenceAllowed(),
-                    "Local provider chat may use local consent for local inference.");
-            assertFalse(captured.get().approvalPolicy().remoteInferenceAllowed(),
-                    "Local consent must not grant remote inference or tool approval.");
+            String text = captured.get().text();
+            assertFalse(text.contains("Basic dXNlcjpwYXNz"), text);
+            assertFalse(text.contains("planted-no-scheme-token-value"), text);
+            assertFalse(text.contains("supersecretvalue123"), text);
         } finally {
             SHAFT.Properties.clearForCurrentThread();
         }
