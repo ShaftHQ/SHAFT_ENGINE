@@ -1,0 +1,1 @@
+On 2026-08-17 shaft-architect --dry-run still created .aider.tags.cache.v4 in the worktree after --chat-history-file and --input-history-file were pointed at D:\AI\reports. Filter-only porcelain compare hid the dirt. Fix on #5063: delete .aider* after the run and ignore only path components named .aider*, not filenames that merely contain the substring.
