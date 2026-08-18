@@ -83,7 +83,9 @@ class ManagedLocalAiCacheTest {
         assertTrue(first.deletedFiles() >= 2);
         assertFalse(Files.exists(installed.root()));
         assertTrue(Files.exists(unrelated));
+        assertTrue(Files.isDirectory(cache), "cleanup must never delete the cache root");
         assertEquals(0, second.deletedFiles());
+        assertTrue(Files.isDirectory(cache));
     }
 
     @Test

@@ -228,6 +228,23 @@ class ManagedLocalAiSetupProviderTest {
     }
 
     @Test
+    void offlineReadyInstallReusesTheReviewedCacheWithoutDownloading(@TempDir Path temp) throws Exception {
+        SetupOptions options = options(temp).withOffline(true);
+        FakeLifecycle lifecycle = new FakeLifecycle(snapshot(options, ManagedLocalAiSnapshot.State.READY));
+        InfrastructureSetupService setup = setup(lifecycle);
+        SetupPlan plan = setup.plan(options);
+
+        SetupReceipt receipt = setup.install(plan, approval(plan), options);
+
+        assertEquals(plan.actions(), receipt.completedActions());
+        assertEquals(1, lifecycle.provisions.get());
+        assertFalse(lifecycle.allowDownloads);
+        assertEquals(0, lifecycle.downloadAttempts.get());
+        assertEquals(0, lifecycle.rollbacks.get());
+        assertEquals(0, lifecycle.cleans.get());
+    }
+
+    @Test
     void offlineReadyPreflightCannotAuthorizeDownloadsAfterAReadinessRace(@TempDir Path temp) {
         SetupOptions options = options(temp).withOffline(true);
         FakeLifecycle lifecycle = new FakeLifecycle(snapshot(options, ManagedLocalAiSnapshot.State.READY));
@@ -426,6 +443,9 @@ class ManagedLocalAiSetupProviderTest {
         assertTrue(failure.get() instanceof IOException);
         assertTrue(failure.get().getMessage().contains("interrupted"));
         assertFalse(lifecycle.lastOperation.cancel(), "provider must already have requested cancellation");
+        assertEquals(0, lifecycle.cleans.get());
+        assertEquals(0, lifecycle.rollbacks.get());
+        assertEquals(ManagedLocalAiSnapshot.State.NOT_PROVISIONED, lifecycle.inspect().state());
     }
 
     @Test

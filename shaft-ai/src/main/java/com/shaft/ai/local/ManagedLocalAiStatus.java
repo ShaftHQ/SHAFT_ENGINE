@@ -30,7 +30,11 @@ public record ManagedLocalAiStatus(State state, String action) {
                     "Provision the reviewed managed runtime and model explicitly. " + inventory);
         }
         try {
-            ManagedLocalAiCache.verify(cache, installationId);
+            ManagedLocalAiCache.Installation installed = ManagedLocalAiCache.verify(cache, installationId);
+            if (!matchesReviewedPin(installed, manifest)) {
+                return new ManagedLocalAiStatus(State.CORRUPT,
+                        "Rebuild the changed managed installation; unknown files will be preserved. " + inventory);
+            }
             return new ManagedLocalAiStatus(State.READY, "No lifecycle action is required. " + inventory);
         } catch (IllegalStateException missingOrChanged) {
             try {
@@ -81,6 +85,30 @@ public record ManagedLocalAiStatus(State state, String action) {
                 + " update=explicit reviewed plan; pin-bound; no silent float"
                 + " cleanup=owner-manifest only; unknown siblings preserved"
                 + " fallback=deterministic SHAFT result remains authoritative";
+    }
+
+    private static boolean matchesReviewedPin(ManagedLocalAiCache.Installation installed,
+                                             ManagedLocalAiManifest manifest) {
+        for (ManagedLocalAiManifest.RuntimeAsset asset : manifest.runtime().assets()) {
+            if (installed.id().equals(ManagedLocalAiService.runtimeInstallationId(manifest, asset.platform()))) {
+                return hasExactOwnedFile(installed, asset.file(), asset.size(), asset.sha256());
+            }
+        }
+        for (ManagedLocalAiManifest.ModelManifest model : manifest.models()) {
+            if (installed.id().equals(ManagedLocalAiService.modelInstallationId(model))) {
+                return hasExactOwnedFile(installed, model.file(), model.size(), model.sha256());
+            }
+        }
+        return true;
+    }
+
+    private static boolean hasExactOwnedFile(ManagedLocalAiCache.Installation installed, String name, long size,
+                                             String sha256) {
+        return installed.files().stream().filter(file -> {
+            Path path = Path.of(file.path());
+            return path.getFileName() != null && name.equals(path.getFileName().toString())
+                    && file.size() == size && sha256.equals(file.sha256());
+        }).count() == 1;
     }
 
     private static String trimNumber(double value) {

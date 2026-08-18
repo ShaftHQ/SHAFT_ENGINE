@@ -54,6 +54,29 @@ class ManagedLocalAiStatusTest {
         assertReviewedInventory(status.action(), "windows-x86_64");
     }
 
+    @Test
+    void revokedOwnedBytesAreNotReportedReady() throws Exception {
+        Path cache = temp.resolve("revoked-cache");
+        ManagedLocalAiManifest manifest = ManagedLocalAiManifest.loadDefault();
+        ManagedLocalAiManifest.RuntimeAsset runtime = manifest.runtime().assets().stream()
+                .filter(asset -> asset.platform().equals("windows-x86_64")).findFirst().orElseThrow();
+        String pinId = ManagedLocalAiService.runtimeInstallationId(manifest, "windows-x86_64");
+        Path stage = cache.resolve("staging/revoked.extract-test");
+        Files.createDirectories(stage);
+        Files.writeString(stage.resolve(runtime.file()), "revoked-bytes");
+        Files.writeString(stage.resolve(".shaft-ready"), "");
+        ManagedLocalAiCache.withLock(cache, java.time.Duration.ofSeconds(1),
+                () -> ManagedLocalAiCache.adopt(cache, pinId, stage));
+
+        ManagedLocalAiStatus status = ManagedLocalAiStatus.inspect(cache, true, "Windows 11", "amd64",
+                "windows-msvc", "", pinId);
+
+        assertEquals(ManagedLocalAiStatus.State.CORRUPT, status.state());
+        assertTrue(status.action().contains("Rebuild"));
+        assertReviewedInventory(status.action(), "windows-x86_64");
+        assertTrue(ManagedLocalAiCache.ownsInstallation(cache, pinId));
+    }
+
     static void assertReviewedInventory(String listed, String platform) {
         ManagedLocalAiManifest manifest = ManagedLocalAiManifest.loadDefault();
         ManagedLocalAiManifest.RuntimeAsset runtime = manifest.runtime().assets().stream()
