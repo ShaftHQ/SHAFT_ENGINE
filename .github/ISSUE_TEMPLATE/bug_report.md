@@ -96,6 +96,42 @@ Gist / attachment link: <!-- https://gist.github.com/... or drag-and-drop a file
 <!-- Drag and drop images or recordings here -->
 
 
+## User Scenarios & Testing
+
+### User Story 1 - <!-- short name --> (Priority: P1)
+
+**Independent Test**: <!-- how to verify this story alone -->
+
+**Acceptance Scenarios**:
+
+1. **Given** <!-- precondition -->, **When** <!-- action -->, **Then** <!-- expected result -->.
+
+
+## Edge Cases
+
+- <!-- boundary or fail-closed case -->
+
+
+## Functional Requirements
+
+- **FR-001**: <!-- requirement -->
+
+
+## Success Criteria
+
+- **SC-001**: <!-- measurable outcome -->
+
+
+## Assumptions
+
+- <!-- assumption, or delete this heading and use Out of scope -->
+
+
+## Out of scope
+
+- <!-- explicit non-goal -->
+
+
 ## 📝 Additional Context
 
 > Any other information that may be relevant (custom properties, special network setup, proxy, etc.).
