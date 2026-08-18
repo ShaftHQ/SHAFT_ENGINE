@@ -1099,17 +1099,17 @@ class ShaftPanelSetupTest {
         assertEquals("INTELLIJ_PLUGIN", target.getSelectedItem());
         assertTrue(installer.getText().contains("intellij-plugin"));
 
-        selectDisplayValue(agent, "Grok CLI");
-        assertAll(
-                () -> assertEquals("GROK", target.getSelectedItem()),
-                () -> assertTrue(installer.getText().contains("grok")));
-
         manualTarget.doClick();
         target.setSelectedItem("CLAUDE_CODE");
         assertAll(
                 () -> assertFalse(target.isVisible()),
                 () -> assertTrue(installer.getText().contains("intellij-plugin")),
                 () -> assertFalse(installer.getText().contains("--claude ")));
+
+        selectDisplayValue(agent, "Grok CLI");
+        assertAll(
+                () -> assertEquals("GROK", target.getSelectedItem()),
+                () -> assertTrue(installer.getText().contains("grok")));
 
         // Regression lock: INTELLIJ_PLUGIN stays last among the known installer targets.
         List<String> installerTargetTokens = new ArrayList<>();
