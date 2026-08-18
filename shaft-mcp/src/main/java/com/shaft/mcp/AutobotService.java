@@ -106,7 +106,7 @@ public class AutobotService {
     /**
      * Runs an Ask, Plan, or explicitly approved Agent prompt through a local CLI agent.
      *
-     * @param client local agent client: CODEX, CLAUDE_CODE, or COPILOT_CLI
+     * @param client local agent client: CODEX, CLAUDE_CODE, COPILOT_CLI, or GROK
      * @param mode Autobot mode: ASK, PLAN, or AGENT
      * @param prompt prompt written to the local agent
      * @param workingDirectory optional workspace-relative working directory

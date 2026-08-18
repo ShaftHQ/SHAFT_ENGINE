@@ -95,6 +95,7 @@ public final class LocalAgentService {
             case CODEX -> codexCommand(request.mode(), request.allowSourceMutation());
             case CLAUDE_CODE -> claudeCommand(request.mode(), request.allowSourceMutation());
             case COPILOT_CLI -> copilotCommand(request.mode(), request.allowSourceMutation());
+            case GROK -> grokCommand(request.mode(), request.allowSourceMutation(), request.prompt());
         };
     }
 
@@ -116,6 +117,18 @@ public final class LocalAgentService {
             case ASK -> List.of("claude", "--print");
             case PLAN -> List.of("claude", "--print", "--permission-mode", "plan");
             case AGENT -> List.of("claude", "--print", "--permission-mode", allowSourceMutation ? "acceptEdits" : "plan");
+        };
+    }
+
+    private static List<String> grokCommand(LocalAgentMode mode, boolean allowSourceMutation, String prompt) {
+        return switch (mode) {
+            case ASK -> List.of("grok", "-p", prompt, "--permission-mode", "default",
+                    "--tools", "read_file,grep,list_dir");
+            case PLAN -> List.of("grok", "-p", prompt, "--permission-mode", "plan");
+            case AGENT -> allowSourceMutation
+                    ? List.of("grok", "-p", prompt, "--permission-mode", "acceptEdits")
+                    : List.of("grok", "-p", prompt, "--permission-mode", "default",
+                    "--tools", "read_file,grep,list_dir");
         };
     }
 

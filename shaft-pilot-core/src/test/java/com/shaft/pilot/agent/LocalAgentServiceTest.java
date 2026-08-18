@@ -86,6 +86,70 @@ class LocalAgentServiceTest {
     }
 
     @Test
+    void grokAskIsReadOnlyAndNeverUsesYolo() {
+        CapturingRunner runner = new CapturingRunner();
+        LocalAgentService service = new LocalAgentService(client -> true, runner);
+        LocalAgentRequest request = LocalAgentRequest.builder(LocalAgentClient.GROK, LocalAgentMode.ASK,
+                        "Explain this failure")
+                .build();
+
+        LocalAgentResponse response = service.execute(request);
+
+        assertEquals(LocalAgentStatus.SUCCESS, response.status());
+        assertEquals(List.of("grok", "-p", "Explain this failure", "--permission-mode", "default",
+                "--tools", "read_file,grep,list_dir"), runner.command.get());
+        assertFalse(runner.command.get().contains("--yolo"));
+        assertFalse(runner.command.get().contains("--always-approve"));
+        assertFalse(response.toString().contains("secret"));
+    }
+
+    @Test
+    void grokPlanUsesPlanPermissionMode() {
+        CapturingRunner runner = new CapturingRunner();
+        LocalAgentService service = new LocalAgentService(client -> true, runner);
+        LocalAgentRequest request = LocalAgentRequest.builder(LocalAgentClient.GROK, LocalAgentMode.PLAN,
+                        "Plan the fix")
+                .build();
+
+        service.execute(request);
+
+        assertEquals(List.of("grok", "-p", "Plan the fix", "--permission-mode", "plan"), runner.command.get());
+    }
+
+    @Test
+    void grokAgentWithoutMutationStaysReadOnly() {
+        CapturingRunner runner = new CapturingRunner();
+        LocalAgentService service = new LocalAgentService(client -> true, runner);
+        LocalAgentRequest request = LocalAgentRequest.builder(LocalAgentClient.GROK, LocalAgentMode.AGENT,
+                        "Implement the change")
+                .build();
+
+        service.execute(request);
+
+        assertEquals(List.of("grok", "-p", "Implement the change", "--permission-mode", "default",
+                "--tools", "read_file,grep,list_dir"), runner.command.get());
+        assertFalse(runner.command.get().contains("acceptEdits"));
+        assertFalse(runner.command.get().contains("--yolo"));
+    }
+
+    @Test
+    void grokAgentWithMutationUsesAcceptEditsNotYolo() {
+        CapturingRunner runner = new CapturingRunner();
+        LocalAgentService service = new LocalAgentService(client -> true, runner);
+        LocalAgentRequest request = LocalAgentRequest.builder(LocalAgentClient.GROK, LocalAgentMode.AGENT,
+                        "Implement the change")
+                .allowSourceMutation(true)
+                .build();
+
+        service.execute(request);
+
+        assertEquals(List.of("grok", "-p", "Implement the change", "--permission-mode", "acceptEdits"),
+                runner.command.get());
+        assertFalse(runner.command.get().contains("--yolo"));
+        assertFalse(runner.command.get().contains("--always-approve"));
+    }
+
+    @Test
     void configuredCommandOverridesDefaultsAndKeepsEnvironmentOutOfResponse() {
         CapturingRunner runner = new CapturingRunner();
         LocalAgentService service = new LocalAgentService(client -> true, runner);
