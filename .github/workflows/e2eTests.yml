@@ -1202,8 +1202,8 @@ jobs:
           set -euo pipefail
           cd appium-flutter-server/demo-app
           dart pub global activate rps --version 0.8.0
-          flutter build apk --debug
-          cd android && ./gradlew app:assembleDebug -Ptarget="$(pwd)/../integration_test/appium.dart"
+          bash "$GITHUB_WORKSPACE/scripts/ci/build_retry.sh" 2 60 flutter build apk --debug
+          cd android && bash "$GITHUB_WORKSPACE/scripts/ci/build_retry.sh" 2 60 ./gradlew app:assembleDebug -Ptarget="$(pwd)/../integration_test/appium.dart"
       - name: Install Appium and the Flutter Integration Driver
         run: |
           set -euo pipefail
