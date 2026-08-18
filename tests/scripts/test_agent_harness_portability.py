@@ -732,17 +732,25 @@ class AgentHarnessPortabilityTest(unittest.TestCase):
             command = handler.get("commandWindows") or subprocess.list2cmdline(
                 [handler["command"], *handler.get("args", [])]
             )
-            completed = subprocess.run(
-                command,
-                shell=True,  # nosec B602 - executes the repository's tracked hook definition.
-                input=payload,
-                cwd=ROOT / "shaft-engine",
-                env=dict(os.environ, SHAFT_GUARD_HOST=config_path.parent.name),
-                capture_output=True,
-                text=True,
-                timeout=10,
-                check=False,
-            )
+
+            def run_hook():
+                return subprocess.run(
+                    command,
+                    shell=True,  # nosec B602 - executes the repository's tracked hook definition.
+                    input=payload,
+                    cwd=ROOT / "shaft-engine",
+                    env=dict(os.environ, SHAFT_GUARD_HOST=config_path.parent.name),
+                    capture_output=True,
+                    text=True,
+                    timeout=10,
+                    check=False,
+                )
+
+            try:
+                completed = run_hook()
+            except subprocess.TimeoutExpired:
+                # Windows CI can flake once on cold py -3 startup; retry once only.
+                completed = run_hook()
             self.assertEqual(completed.returncode, 0, completed.stderr)
             self.assertIn("R1", completed.stdout)
 

@@ -39,6 +39,7 @@ class MempalacePromoteTest(unittest.TestCase):
                 "samples/login.feature": "Feature: login\n",
                 "shaft-mcp/Dockerfile": "FROM scratch\n",
                 "shaft-mcp/Dockerfile.fly": "FROM scratch\n",
+                "chaos-engine/hosts.toml": "name = \"fixture\"\n",
                 "src/ok.py": "print(1)\n",
             }
             root.mkdir()
@@ -65,6 +66,7 @@ class MempalacePromoteTest(unittest.TestCase):
             listed = module.list_promote_paths(root)
             self.assertEqual(
                 [
+                    "chaos-engine/hosts.toml",
                     "samples/login.feature",
                     "shaft-mcp/Dockerfile",
                     "shaft-mcp/Dockerfile.fly",

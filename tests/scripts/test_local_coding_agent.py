@@ -288,12 +288,30 @@ class LocalCodingAgentPackagingTest(unittest.TestCase):
         self.assertIn("PositionalBinding = $false", architect_text)
 
     def test_launchers_downgrade_worktree_index_to_version_2(self):
+        needle = "git -C $Worktree update-index --index-version 2"
         for path in (RUN_AGENT, ARCHITECT):
             with self.subTest(path.name):
                 text = path.read_text(encoding="utf-8")
-                self.assertIn("update-index", text)
-                self.assertIn("--index-version", text)
-                self.assertIn("--index-version 2", text)
+                index_at = text.find(needle)
+                self.assertNotEqual(-1, index_at, f"missing {needle}")
+                aider_at = text.find("& $aider")
+                self.assertNotEqual(-1, aider_at, "missing Aider invocation")
+                self.assertLess(
+                    index_at,
+                    aider_at,
+                    "index downgrade must run before Aider starts",
+                )
+                fail_closed = text[index_at:aider_at]
+                self.assertIn(
+                    "if ($LASTEXITCODE -ne 0)",
+                    fail_closed,
+                    "index downgrade must fail closed on nonzero exit",
+                )
+                self.assertIn(
+                    "git update-index --index-version 2 failed",
+                    fail_closed,
+                )
+                self.assertIn("exit 2", fail_closed)
 
 
 class LocalCodingAgentCitedPathTest(unittest.TestCase):
