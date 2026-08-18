@@ -620,12 +620,18 @@ class ChaosEnginePortableCoreTest(unittest.TestCase):
             self.assertEqual(2, content.count("AI-supported details"))
             self.assertEqual(2, content.count("properties"))
             self.assertEqual(2, content.count("exact commands"))
+            self.assertEqual(2, content.count("never a fixed sibling path"))
+            self.assertEqual(2, content.count("description of the change"))
+            self.assertEqual(2, content.count("locator policy"))
 
         assert_playbook_first_occurrence_nouns(playbook)
         for noun, weakened_noun in (
             ("AI-supported details", "model-supported details"),
             ("properties", "settings"),
             ("exact commands", "exact invocations"),
+            ("never a fixed sibling path", "never a hardcoded sibling path"),
+            ("description of the change", "description of the edit"),
+            ("locator policy", "selector policy"),
         ):
             weakened = playbook.replace(noun, weakened_noun, 1)
             self.assertNotEqual(playbook, weakened)
