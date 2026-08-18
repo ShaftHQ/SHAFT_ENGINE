@@ -257,6 +257,52 @@ def validate_static(root: Path = ROOT) -> list[str]:
     if any(position < 0 for position in positions) or positions != sorted(positions):
         errors.append("Maven Central workflow does not enforce the Pilot release gate")
 
+    errors.extend(validate_release_candidate_isolation(pilot_release_workflow))
+    return errors
+
+
+ISOLATED_RELEASE_CANDIDATE_JOBS = (
+    "intellij-verify",
+    "release-contracts",
+    "pilot-tests",
+    "capture-journey",
+    "package-and-validate",
+    "container-smoke",
+)
+
+def validate_release_candidate_isolation(workflow_text: str) -> list[str]:
+    """Reject a serialized release-candidate job when the file is a real workflow.
+
+    Stdlib-only: this validator runs on a bare setup-python runner without
+    requirements-ci.txt, so it cannot import PyYAML.
+    """
+    if "jobs:" not in workflow_text:
+        return []
+
+    errors: list[str] = []
+    for name in ISOLATED_RELEASE_CANDIDATE_JOBS:
+        heading = f"  {name}:"
+        if not re.search(rf"(?m)^{re.escape(heading)}\s*$", workflow_text):
+            errors.append(f"shaft-pilot-release.yml must isolate {name} as its own job")
+            continue
+        needs_only_detect = (
+            f"{heading}\n    needs: detect-shaft-version-change" in workflow_text
+            or f"{heading}\r\n    needs: detect-shaft-version-change" in workflow_text
+        )
+        if not needs_only_detect:
+            errors.append(
+                f"shaft-pilot-release.yml job {name} must depend only on detect-shaft-version-change"
+            )
+    if not re.search(r"(?m)^  release-candidate:\s*$", workflow_text):
+        errors.append("shaft-pilot-release.yml must keep a release-candidate aggregator job")
+        return errors
+    if not re.search(r"(?m)^    if: always\(\)\s*$", workflow_text):
+        errors.append(
+            "shaft-pilot-release.yml release-candidate aggregator must use if: always()"
+        )
+    for name in ISOLATED_RELEASE_CANDIDATE_JOBS:
+        if f"- {name}" not in workflow_text:
+            errors.append(f"release-candidate aggregator must need isolated job {name}")
     return errors
 
 

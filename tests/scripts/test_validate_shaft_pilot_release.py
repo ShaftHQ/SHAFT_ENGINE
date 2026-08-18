@@ -4,6 +4,8 @@ import unittest
 import zipfile
 from pathlib import Path
 
+import yaml
+
 
 ROOT = Path(__file__).resolve().parents[2]
 SCRIPT = ROOT / "scripts/ci/validate_shaft_pilot_release.py"
@@ -11,6 +13,15 @@ SPEC = importlib.util.spec_from_file_location("validate_shaft_pilot_release", SC
 MODULE = importlib.util.module_from_spec(SPEC)
 assert SPEC.loader is not None
 SPEC.loader.exec_module(MODULE)
+WORKFLOW_PATH = ROOT / ".github/workflows/shaft-pilot-release.yml"
+ISOLATED_SLICES = (
+    "intellij-verify",
+    "release-contracts",
+    "pilot-tests",
+    "capture-journey",
+    "package-and-validate",
+    "container-smoke",
+)
 
 
 def _write_text(path: Path, text: str) -> None:
@@ -186,6 +197,26 @@ Deploy to Maven Central
 Verify published Maven Central coordinates
 """,
     )
+
+
+def _needs_list(job: dict) -> list[str]:
+    needs = job.get("needs", [])
+    if needs is None:
+        return []
+    if isinstance(needs, str):
+        return [needs]
+    return list(needs)
+
+
+def _step_blob(job: dict) -> str:
+    parts = []
+    for step in job.get("steps") or []:
+        if not isinstance(step, dict):
+            continue
+        parts.append(str(step.get("name") or ""))
+        parts.append(str(step.get("uses") or ""))
+        parts.append(str(step.get("run") or ""))
+    return "\n".join(parts)
 
 
 class ShaftPilotReleaseValidatorTest(unittest.TestCase):
@@ -434,6 +465,40 @@ Verify published Maven Central coordinates
             f"Expected {len(MODULE.PILOT_MODULES)} failed modules, got {len(failed_modules)}: {failed_modules}",
         )
 
+    def test_serial_release_candidate_job_is_rejected(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            _write_minimal_reactor(
+                root, reactor_version="10.2.20260630", plugin_version="10.2.20260630"
+            )
+            _write_text(
+                root / ".github/workflows/shaft-pilot-release.yml",
+                """name: SHAFT Pilot Release Candidate
+jobs:
+  detect-shaft-version-change:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+  release-candidate:
+    needs: detect-shaft-version-change
+    runs-on: ubuntu-22.04
+    timeout-minutes: 60
+    steps:
+      - name: Verify IntelliJ plugin release candidate
+        uses: ./.github/actions/intellij-verify
+      - name: Run deterministic SHAFT Pilot tests
+        run: echo tests
+""",
+            )
+
+            errors = MODULE.validate_static(root)
+
+        self.assertTrue(
+            any("must isolate" in error for error in errors),
+            errors,
+        )
+
     def test_broken_allure_status_is_rejected_across_all_modules(self):
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)
@@ -451,6 +516,50 @@ Verify published Maven Central coordinates
             any("broken" in error for error in errors),
             f"Expected broken status error, got: {errors}",
         )
+
+
+class ShaftPilotReleaseIsolationTest(unittest.TestCase):
+    def test_isolated_slices_run_in_parallel_after_detect_only(self):
+        workflow = yaml.safe_load(WORKFLOW_PATH.read_text(encoding="utf-8"))
+        jobs = workflow["jobs"]
+
+        for name in ISOLATED_SLICES:
+            self.assertIn(name, jobs, f"missing isolated job {name}")
+            self.assertEqual(
+                ["detect-shaft-version-change"],
+                _needs_list(jobs[name]),
+                f"{name} must depend only on detect-shaft-version-change",
+            )
+            self.assertIn("timeout-minutes", jobs[name], name)
+            self.assertIn("actions/checkout@", _step_blob(jobs[name]), name)
+
+    def test_release_candidate_aggregates_isolated_slices(self):
+        workflow = yaml.safe_load(WORKFLOW_PATH.read_text(encoding="utf-8"))
+        aggregator = workflow["jobs"]["release-candidate"]
+        needs = _needs_list(aggregator)
+
+        self.assertIn("always()", str(aggregator.get("if", "")))
+        self.assertIn("detect-shaft-version-change", needs)
+        for name in ISOLATED_SLICES:
+            self.assertIn(name, needs)
+        self.assertNotIn("mvn --batch-mode", _step_blob(aggregator))
+        self.assertNotIn("./.github/actions/intellij-verify", _step_blob(aggregator))
+
+    def test_isolated_slices_keep_the_named_release_checks(self):
+        workflow = yaml.safe_load(WORKFLOW_PATH.read_text(encoding="utf-8"))
+        jobs = workflow["jobs"]
+        required = {
+            "intellij-verify": "./.github/actions/intellij-verify",
+            "release-contracts": "./.github/actions/release-contract-validators",
+            "pilot-tests": "Run deterministic SHAFT Pilot tests",
+            "capture-journey": "./.github/actions/capture-browser-e2e",
+            "package-and-validate": "Validate packaged release outputs and MCP transports",
+            "container-smoke": "./.github/actions/mcp-container-smoke",
+        }
+
+        for name, token in required.items():
+            self.assertIn(name, jobs, f'missing isolated job {name}')
+            self.assertIn(token, _step_blob(jobs[name]), name)
 
 
 if __name__ == "__main__":
