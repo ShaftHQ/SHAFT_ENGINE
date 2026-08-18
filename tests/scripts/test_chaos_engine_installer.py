@@ -848,6 +848,23 @@ class ChaosEngineInstallerTest(unittest.TestCase):
             self.assertFalse(any(relative.endswith(".pyc") for relative in manifest["files"]))
             self.assertFalse(install_root.joinpath("__pycache__").exists())
 
+    def test_portable_source_files_omit_origin_only_docs(self):
+        relatives = [
+            path.relative_to(SOURCE).as_posix()
+            for path in MODULE.source_files(SOURCE, "portable")
+        ]
+
+        self.assertFalse(
+            any(
+                relative == "assets/brand" or relative.startswith("assets/brand/")
+                for relative in relatives
+            )
+        )
+        self.assertNotIn("RESEARCH.md", relatives)
+        self.assertTrue(any(relative.startswith("assets/memory-v5/") for relative in relatives))
+        self.assertIn("INSTALL.md", relatives)
+        self.assertIn("LICENSE", relatives)
+
     def test_stage_loss_fails_before_publish(self):
         with tempfile.TemporaryDirectory() as temporary:
             project = Path(temporary) / "consumer"

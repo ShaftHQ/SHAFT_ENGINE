@@ -160,7 +160,7 @@ default; repository-specific distributions require an explicit selection.
 | [`tool.py`](tool.py) | Relocatable launcher for ChaosEngine-owned local tools |
 | [`learning.py`](learning.py) | Privacy-gated queue for reusable improvement candidates |
 | [`RESEARCH.md`](RESEARCH.md) | Dated adoption decisions and their local proof owners |
-| [`assets/brand/`](assets/brand/) | Canonical identity masters and usage rules |
+| [`assets/brand/`](assets/brand/) | Origin identity masters; not copied into adopter installs |
 
 The installer records provenance and per-file ownership in the consumer
 project. Host adapters redirect to the canonical skill; they do not fork its
