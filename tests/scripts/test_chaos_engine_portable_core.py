@@ -617,11 +617,13 @@ class ChaosEnginePortableCoreTest(unittest.TestCase):
                 self.assertIn(phrase, playbook)
 
         def assert_playbook_first_occurrence_nouns(content: str) -> None:
+            self.assertEqual(2, content.count("AI-supported details"))
             self.assertEqual(2, content.count("properties"))
             self.assertEqual(2, content.count("exact commands"))
 
         assert_playbook_first_occurrence_nouns(playbook)
         for noun, weakened_noun in (
+            ("AI-supported details", "model-supported details"),
             ("properties", "settings"),
             ("exact commands", "exact invocations"),
         ):
