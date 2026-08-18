@@ -553,6 +553,10 @@ class ChaosEnginePortableCoreTest(unittest.TestCase):
         self.assertIn("local-coding-delegate/SKILL.md", portable_entry.read_text(encoding="utf-8"))
         self.assertIn("local-coding-delegate/SKILL.md", portable_routing.read_text(encoding="utf-8"))
         self.assertIn(
+            "Close that writer after its PR exists.",
+            skill.read_text(encoding="utf-8"),
+        )
+        self.assertIn(
             "local-coding-delegate",
             budget["expected_skill_names"]["chaos-engine/skills"],
         )
@@ -604,6 +608,9 @@ class ChaosEnginePortableCoreTest(unittest.TestCase):
             "scripts/local-coding-agent/shaft-architect.ps1",
             "scripts/local-coding-agent/shaft-local-ai-stop.ps1",
             "scripts/agents/knowledge_stores.py",
+            "The host session orchestrates.",
+            "One implementer per batch.",
+            "The writer stops when the PR exists.",
         )
 
         self.assertTrue(playbook.is_file())

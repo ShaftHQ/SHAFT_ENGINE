@@ -5,6 +5,14 @@ and already specified. The default capability's cost and latency are waste
 for those slices. The most-intelligent or default model stays the decider
 and may hand the slice to this loop.
 
+## Orchestration
+
+The host session orchestrates.
+One implementer per batch.
+The writer stops when the PR exists.
+The inner `shaft-java-agent.ps1` loop is optional and allowlisted. The local
+loop still never merges, reviews, or owns GitHub delivery.
+
 ## When to use it
 
 - Read-only `shaft-architect` with the cited-path gate.
