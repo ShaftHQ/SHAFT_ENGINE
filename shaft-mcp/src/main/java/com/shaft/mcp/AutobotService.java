@@ -2,6 +2,7 @@ package com.shaft.mcp;
 
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
+import com.shaft.doctor.internal.DoctorProviderDiagnosis;
 import com.shaft.driver.SHAFT;
 import com.shaft.pilot.ai.AiBudget;
 import com.shaft.pilot.ai.AiExecutionService;
@@ -31,7 +32,6 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.function.Function;
-import java.util.regex.Pattern;
 
 /**
  * MCP adapter for SHAFT Autobot local agent routing.
@@ -40,11 +40,6 @@ import java.util.regex.Pattern;
 public class AutobotService {
     private static final int DEFAULT_TIMEOUT_SECONDS = 300;
     private static final int MAX_PROMPT_CHARS = 4_000;
-    private static final Pattern SECRET_LIKE = Pattern.compile(
-            "(?i)([\"']?authorization[\"']?\\s*[:=]\\s*(?:(?:basic|bearer)\\s+)?(?:\"[^\"]+\"|'[^']+'|[^\\s,;]+)"
-                    + "|[\"']?bearer[\"']?\\s+[a-z0-9._\\-]{8,}"
-                    + "|[\"']?api[_-]?key[\"']?\\s*[:=]\\s*(?:\"[^\"]+\"|'[^']+'|[^\\s,;]+)"
-                    + "|sk-[a-z0-9._\\-]{8,})");
     static final String CLOUD_AGENT_MODE_WARNING =
             "Cloud provider chat supports Ask and Plan only; use a local CLI runtime for Agent edits.";
     private static final ObjectMapper JSON = new ObjectMapper();
@@ -428,7 +423,7 @@ public class AutobotService {
     }
 
     private static String boundedPrompt(String prompt) {
-        String sanitized = SECRET_LIKE.matcher(text(prompt)).replaceAll("[REDACTED]");
+        String sanitized = DoctorProviderDiagnosis.sanitize(text(prompt));
         return sanitized.length() > MAX_PROMPT_CHARS ? sanitized.substring(0, MAX_PROMPT_CHARS) : sanitized;
     }
 
