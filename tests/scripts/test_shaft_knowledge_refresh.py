@@ -140,6 +140,45 @@ class ShaftKnowledgeRefreshTest(unittest.TestCase):
         self.assertTrue(any(command[0:2] == ["mempalace", "sync"] for command in commands))
         self.assertTrue(any(command[0:2] == ["mempalace", "mine"] for command in commands))
 
+    def test_refresh_force_includes_exact_promote_paths_on_mine(self):
+        module = self.module()
+        root = Path(tempfile.mkdtemp()) / "SHAFT_ENGINE-main"
+        sentinel = root.parent / ".shaft-nightly-maintenance.json"
+        commands = []
+
+        def run(arguments, cwd, environment=None, allowed_exit_codes=(0,)):
+            del cwd, environment, allowed_exit_codes
+            commands.append(arguments)
+            if arguments[1:2] == ["rev-parse"]:
+                return SHA + "\n"
+            if arguments[1:2] == ["ls-remote"]:
+                return f"{SHA}\trefs/heads/main\n"
+            return ""
+
+        with mock.patch.object(
+            module, "validate_owned_clone", return_value=(root.resolve(), sentinel.resolve())
+        ), mock.patch.object(
+            module, "validate_owned_paths", return_value=(root.resolve(), sentinel.resolve())
+        ), mock.patch.object(
+            module, "required", side_effect=lambda value: value
+        ), mock.patch.object(module, "run", side_effect=run), mock.patch.object(
+            module, "job_lock", return_value=nullcontext()
+        ), mock.patch.object(
+            module, "trusted_graph_output", return_value=nullcontext()
+        ), mock.patch.object(
+            module,
+            "list_promote_paths",
+            return_value=["src/custom.properties", "META-INF/plugin.xml"],
+        ):
+            module.refresh(root, sentinel)
+
+        mines = [command for command in commands if command[0:2] == ["mempalace", "mine"]]
+        self.assertTrue(mines)
+        included = " ".join(" ".join(command) for command in mines)
+        self.assertIn("--include-ignored", included)
+        self.assertIn("src/custom.properties", included)
+        self.assertIn("META-INF/plugin.xml", included)
+
     def test_mempalace_failure_keeps_the_successful_graphify_outcome(self):
         module = self.module()
         root = Path(tempfile.mkdtemp()) / "SHAFT_ENGINE-main"
