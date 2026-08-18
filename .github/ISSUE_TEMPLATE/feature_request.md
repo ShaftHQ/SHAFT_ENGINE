@@ -73,6 +73,42 @@ driver.browser().tabs().switchToTab(1);
 <!-- Example: "Any team running multi-tab E2E tests. This is a daily need for our team and likely for any project testing OAuth flows or file download dialogs." -->
 
 
+## User Scenarios & Testing
+
+### User Story 1 - <!-- short name --> (Priority: P1)
+
+**Independent Test**: <!-- how to verify this story alone -->
+
+**Acceptance Scenarios**:
+
+1. **Given** <!-- precondition -->, **When** <!-- action -->, **Then** <!-- expected result -->.
+
+
+## Edge Cases
+
+- <!-- boundary or fail-closed case -->
+
+
+## Functional Requirements
+
+- **FR-001**: <!-- requirement -->
+
+
+## Success Criteria
+
+- **SC-001**: <!-- measurable outcome -->
+
+
+## Assumptions
+
+- <!-- assumption, or delete this heading and use Out of scope -->
+
+
+## Out of scope
+
+- <!-- explicit non-goal -->
+
+
 ## 📝 Additional Context
 
 > Any other information, links, references, or screenshots that support this request.

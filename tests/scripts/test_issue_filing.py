@@ -7,17 +7,46 @@ import threading
 import unittest
 from pathlib import Path
 
-from scripts.agents.issue_filing import confirmation_digest, create_issue, prepare_issue_plan, receipt_digest, reconcile_labels, transition_issue, validate_issue_plan
+from scripts.agents.issue_filing import (
+    build_az_boards_create_argv,
+    build_glab_issue_create_argv,
+    confirmation_digest,
+    create_issue,
+    prepare_issue_plan,
+    receipt_digest,
+    reconcile_labels,
+    transition_issue,
+    validate_issue_plan,
+)
 
 
 ROOT = Path(__file__).resolve().parents[2]
 TAXONOMY = json.loads((ROOT / ".github/issue-taxonomy.json").read_text(encoding="utf-8"))
+SPEC_KIT_SECTIONS = (
+    "User Scenarios & Testing",
+    "Edge Cases",
+    "Functional Requirements",
+    "Success Criteria",
+    "Assumptions",
+)
 
 
 def planned() -> dict:
     return {
         "title": "Enforce detailed harness plans", "template": "feature_request.md",
-        "body": "## 🎯 Problem Statement\nPlans miss intent.\n## 💡 Proposed Solution\nValidate evidence.\n## 🔄 Alternatives Considered\nProse only.\n## 🗂️ Area of the Framework\nOther: harness\n## 📈 Use Case & Impact\nMaintainers.",
+        "body": (
+            "## 🎯 Problem Statement\nPlans miss intent.\n"
+            "## 💡 Proposed Solution\nValidate evidence.\n"
+            "## 🔄 Alternatives Considered\nProse only.\n"
+            "## 🗂️ Area of the Framework\nOther: harness\n"
+            "## 📈 Use Case & Impact\nMaintainers.\n"
+            "## User Scenarios & Testing\n### User Story 1\n"
+            "**Acceptance Scenarios**:\n1. **Given** a plan, **When** validated, **Then** allow.\n"
+            "## Edge Cases\n- Missing taxonomy fails closed.\n"
+            "## Functional Requirements\n- **FR-001**: Plans require Spec Kit sections.\n"
+            "## Success Criteria\n- **SC-001**: Incomplete plans are rejected.\n"
+            "## Assumptions\n- GitHub remains the live CLI."
+        ),
         "labels": ["enhancement", "subsystem:agent-harness", "ready"],
         "acceptanceCriteria": ["Validator rejects incomplete plans."],
         "proofPlan": ["Run focused tests."], "dependencies": [], "related": ["#4774"],
@@ -183,6 +212,60 @@ class IssueFilingTest(unittest.TestCase):
         edit = next(command for command in calls if command[1:3] == ["issue", "edit"])
         self.assertIn("blocked", edit)
         self.assertIn("deferred", edit)
+
+    def test_missing_success_criteria_blocks(self):
+        item = planned()
+        item["body"] = item["body"].replace("## Success Criteria\n- **SC-001**: Incomplete plans are rejected.\n", "")
+        receipt = validate_issue_plan(item, TAXONOMY)
+        self.assertEqual("block", receipt["decision"])
+        self.assertTrue(any("Success Criteria" in reason for reason in receipt["reasons"]))
+
+    def test_gitlab_dependency_url_allowed_for_blocked(self):
+        item = planned()
+        item["labels"][-1] = "blocked"
+        item["dependencies"] = ["https://gitlab.com/group/proj/-/issues/12"]
+        self.assertEqual("allow", validate_issue_plan(item, TAXONOMY)["decision"])
+
+    def test_garbage_dependency_url_rejected(self):
+        item = planned()
+        item["labels"][-1] = "blocked"
+        for bad in ("javascript:alert(1)", "http://github.com/x/y/issues/1", "not-a-url", "ftp://example.com/x"):
+            item["dependencies"] = [bad]
+            receipt = validate_issue_plan(item, TAXONOMY)
+            self.assertEqual("block", receipt["decision"], bad)
+
+    def test_azure_boards_dependency_url_allowed_for_blocked(self):
+        item = planned()
+        item["labels"][-1] = "blocked"
+        item["dependencies"] = ["https://dev.azure.com/org/project/_workitems/edit/42"]
+        self.assertEqual("allow", validate_issue_plan(item, TAXONOMY)["decision"])
+
+    def test_fake_glab_and_az_boards_argv(self):
+        item = planned()
+        glab = build_glab_issue_create_argv(item, "group/proj", executable="glab")
+        self.assertEqual(
+            ["glab", "issue", "create", "--repo", "group/proj", "--title", item["title"],
+             "--description", item["body"], "--label", ",".join(item["labels"])],
+            glab,
+        )
+        az = build_az_boards_create_argv(item, organization="https://dev.azure.com/org", project="project", executable="az")
+        self.assertEqual(
+            ["az", "boards", "work-item", "create", "--organization", "https://dev.azure.com/org",
+             "--project", "project", "--title", item["title"], "--type", "Issue",
+             "--description", item["body"]],
+            az,
+        )
+
+    def test_ready_plan_still_allows_with_spec_kit_sections(self):
+        receipt = validate_issue_plan(planned(), TAXONOMY)
+        self.assertEqual("allow", receipt["decision"])
+
+    def test_work_item_contract_names_spec_kit_sections(self):
+        skill = (ROOT / "chaos-engine/skills/work-item/SKILL.md").read_text(encoding="utf-8")
+        contract = (ROOT / "chaos-engine/references/work-item.md").read_text(encoding="utf-8")
+        combined = skill + "\n" + contract
+        for section in SPEC_KIT_SECTIONS:
+            self.assertIn(section, combined)
 
 
 if __name__ == "__main__":
