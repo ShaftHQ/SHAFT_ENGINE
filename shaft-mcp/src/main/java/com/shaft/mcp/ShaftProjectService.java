@@ -42,8 +42,8 @@ public class ShaftProjectService {
     private static final String ROUTER_SKILL_NAME = "shaft-developer";
     private static final String SKILL_PACK_MANIFEST = ".shaft-mcp-managed-files";
     private static final String SKILL_PACK_MANIFEST_HEADER = "# SHAFT MCP managed skill files";
-    private static final List<String> ALL_AGENT_HOSTS = List.of("codex", "claude", "vscode", "opencode");
-    private static final Set<String> AGENT_LOOPS = Set.of("all", "claude", "codex", "opencode", "vscode");
+    private static final List<String> ALL_AGENT_HOSTS = List.of("codex", "claude", "vscode", "opencode", "grok");
+    private static final Set<String> AGENT_LOOPS = Set.of("all", "claude", "codex", "opencode", "vscode", "grok");
     private static final String SHAFT_ENGINE_MAVEN_METADATA_URL =
             "https://repo.maven.apache.org/maven2/io/github/shafthq/shaft-engine/maven-metadata.xml";
     private static final int DEFAULT_COMPILE_TIMEOUT_SECONDS = 900;
@@ -302,14 +302,14 @@ public class ShaftProjectService {
      * thin bridge: verbatim for claude/codex/opencode, and with an injected {@code applyTo: "**"} frontmatter
      * key (body otherwise verbatim) for vscode. Skills without that key keep the thin bridge.
      *
-     * @param loop all, claude, codex, opencode, or vscode
+     * @param loop all, claude, codex, opencode, vscode, or grok
      * @param targetDirectory workspace-relative existing test repo directory
      * @param overwrite whether existing SHAFT-owned skill files may be replaced
      * @return generated agent-scaffolding details
      */
     @Tool(name = "shaft_project_init_agents",
             description = "scaffolds SHAFT skill bridges and managed host-instruction blocks into an existing "
-                    + "test repo for one or all coding-agent loops (all, claude, codex, opencode, vscode); "
+                    + "test repo for one or all coding-agent loops (all, claude, codex, opencode, vscode, grok); "
                     + "preserves user-authored instruction text and only overwrites SHAFT-owned skill files when "
                     + "overwrite=true")
     public McpShaftProjectInitAgentsResult initAgents(String loop, String targetDirectory, boolean overwrite) {
@@ -323,6 +323,9 @@ public class ShaftProjectService {
             Set<String> hosts = agentHosts(target, selectedLoop);
             Map<String, String> skills = bundledSkillFiles();
             for (String host : hosts) {
+                if ("grok".equals(host) && hosts.contains("codex")) {
+                    continue;
+                }
                 installSkills(target, host, skills, overwrite, generatedFiles, warnings);
             }
             installHostAdapters(target, hosts, generatedFiles, warnings);
@@ -347,7 +350,7 @@ public class ShaftProjectService {
 
     private static String agentLoopSkillsDirectory(String loop) {
         return switch (loop) {
-            case "codex" -> ".agents/skills";
+            case "codex", "grok" -> ".agents/skills";
             case "claude" -> ".claude/skills";
             case "opencode" -> ".opencode/skills";
             default -> throw new IllegalArgumentException("Unsupported skill host: " + loop);
@@ -370,6 +373,9 @@ public class ShaftProjectService {
             }
             if (openCodeManaged) {
                 hosts.add("opencode");
+            }
+            if (content.contains(managedBlockStart("grok"))) {
+                hosts.add("grok");
             }
         }
         if (Files.exists(target.resolve("CLAUDE.md")) || Files.exists(target.resolve(".claude/CLAUDE.md"))) {
@@ -410,6 +416,10 @@ public class ShaftProjectService {
             List<String> warnings) throws IOException {
         if (hosts.contains("codex")) {
             writeManagedBlock(target.resolve("AGENTS.md"), target, "codex",
+                    ".agents/skills/shaft-developer/SKILL.md", generatedFiles, warnings);
+        }
+        if (hosts.contains("grok")) {
+            writeManagedBlock(target.resolve("AGENTS.md"), target, "grok",
                     ".agents/skills/shaft-developer/SKILL.md", generatedFiles, warnings);
         }
         if (hosts.contains("opencode")) {

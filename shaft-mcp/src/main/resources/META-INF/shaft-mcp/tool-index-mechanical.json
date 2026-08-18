@@ -1898,7 +1898,7 @@
   }, {
     "name" : "shaft_project_init_agents",
     "service" : "ShaftProjectService",
-    "description" : "scaffolds SHAFT skill bridges and managed host-instruction blocks into an existing test repo for one or all coding-agent loops (all, claude, codex, opencode, vscode); preserves user-authored instruction text and only overwrites SHAFT-owned skill files when overwrite=true",
+    "description" : "scaffolds SHAFT skill bridges and managed host-instruction blocks into an existing test repo for one or all coding-agent loops (all, claude, codex, opencode, vscode, grok); preserves user-authored instruction text and only overwrites SHAFT-owned skill files when overwrite=true",
     "params" : [ {
       "name" : "loop",
       "type" : "string",
