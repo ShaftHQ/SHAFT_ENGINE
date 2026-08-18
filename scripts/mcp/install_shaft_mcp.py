@@ -17,6 +17,7 @@ import tarfile
 import tempfile
 import threading
 import time
+import tomllib
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -48,6 +49,7 @@ SHAFT_SKILLS_NATIVE_DIRECTORIES = {
     "claude-desktop": (".claude/skills",),
     "copilot": (".github/skills",),
     "copilot-intellij": (".github/skills",),
+    "grok": (".agents/skills",),
     "intellij-plugin": (".agents/skills", ".claude/skills", ".github/skills"),
 }
 SHAFT_SKILLS_ALL_NATIVE_DIRECTORIES = (".agents/skills", ".claude/skills", ".github/skills")
@@ -80,13 +82,14 @@ AGENT_VALIDATION_SCRIPT_FILES = (
     "scripts/ci/agent_guidance_budget.json",
 )
 AGENT_GUIDANCE_SCAFFOLD_MARKER = "AGENTS.md"
-TARGETS = ("codex", "claude", "claude-desktop", "copilot", "copilot-intellij", "intellij-plugin")
+TARGETS = ("codex", "claude", "claude-desktop", "copilot", "copilot-intellij", "grok", "intellij-plugin")
 TARGET_CHOICES = (
     ("codex", "Codex CLI / IDE"),
     ("claude", "Claude Code"),
     ("claude-desktop", "Claude Desktop"),
     ("copilot", "GitHub Copilot CLI"),
     ("copilot-intellij", "GitHub Copilot for IntelliJ IDEA"),
+    ("grok", "Grok CLI"),
     ("intellij-plugin", "SHAFT IntelliJ IDEA plugin"),
 )
 
@@ -206,7 +209,7 @@ def choose_client() -> str:
         normalized = normalize_client(answer)
         if normalized in TARGETS:
             return normalized
-        print("Enter a number from 1 to 6, or a target name.")
+        print(f"Enter a number from 1 to {len(TARGET_CHOICES)}, or a target name.")
 
 
 def choose_component(prompt: str, default: bool) -> bool:
@@ -248,7 +251,7 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     parser.add_argument(
         "target",
         nargs="?",
-        help="Optional target name: codex, claude, claude-desktop, copilot, or copilot-intellij.",
+        help="Optional target name: codex, claude, claude-desktop, copilot, copilot-intellij, or grok.",
     )
     args = parser.parse_args(argv)
 
@@ -283,7 +286,7 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     if args.install_mcp and args.client is None:
         args.client = choose_client()
     if args.client is not None and args.client not in TARGETS:
-        fail("Usage: install-shaft-mcp.py [--client <codex|claude|claude-desktop|copilot|copilot-intellij|intellij-plugin>]", 2)
+        fail("Usage: install-shaft-mcp.py [--client <codex|claude|claude-desktop|copilot|copilot-intellij|grok|intellij-plugin>]", 2)
     return args
 
 
@@ -1221,6 +1224,8 @@ def configuration_path(client: str) -> Path:
                 fail("LOCALAPPDATA is unavailable.", 3)
             return Path(local_app_data) / "github-copilot" / "intellij" / "mcp.json"
         return Path(os.environ.get("XDG_CONFIG_HOME") or user_home / ".config") / "github-copilot" / "intellij" / "mcp.json"
+    if client == "grok":
+        return Path(os.environ.get("GROK_HOME") or user_home / ".grok") / "config.toml"
     fail(f"Unsupported client: {client}", 2)
 
 
@@ -1311,6 +1316,14 @@ def update_json_configuration(path: Path, mutation: Any, verification: Any) -> N
 def project_entry_exists(path: Path, client: str) -> bool:
     if not path.is_file():
         return False
+    if client == "grok":
+        try:
+            raw = path.read_text(encoding="utf-8")
+            parsed = tomllib.loads(raw) if raw.strip() else {}
+        except (OSError, tomllib.TOMLDecodeError):
+            return False
+        servers = parsed.get("mcp_servers") if isinstance(parsed, dict) else None
+        return isinstance(servers, dict) and SERVER_NAME in servers
     if client == "codex":
         text = path.read_text(encoding="utf-8", errors="replace")
         return bool(re.search(r'(?m)^\s*(?:\[\s*mcp_servers\.(?:"shaft-mcp"|shaft-mcp)\s*]|mcp_servers\.(?:"shaft-mcp"|shaft-mcp)\s*=)', text))
@@ -1328,6 +1341,8 @@ def project_entry_exists(path: Path, client: str) -> bool:
 def project_candidates(directory: Path, client: str) -> list[Path]:
     if client == "codex":
         return [directory / ".codex" / "config.toml"]
+    if client == "grok":
+        return [directory / ".grok" / "config.toml"]
     if client in {"claude", "claude-desktop"}:
         return [directory / ".mcp.json"]
     if client == "copilot":
@@ -1342,6 +1357,11 @@ def project_candidates(directory: Path, client: str) -> list[Path]:
 
 
 def detect_project_override(client: str) -> None:
+    if client == "grok":
+        path = grok_write_path()
+        if path != configuration_path("grok").resolve() and project_entry_exists(path, "grok"):
+            log(f"Existing project configuration at {path} defines {SERVER_NAME}; it will be updated in-place.")
+        return
     user_home = home().resolve()
     directory = Path.cwd().resolve()
     while True:
@@ -1443,6 +1463,125 @@ def configure_copilot_intellij(java: Path, args_file: Path) -> None:
     update_json_configuration(configuration, mutate, lambda: verify_json_entry(configuration, "servers", java, args_file))
 
 
+_GROK_SERVER_HEADER = re.compile(
+    r'(?m)^\s*\[\s*mcp_servers\.(?:"shaft-mcp"|shaft-mcp)\s*]'
+)
+
+
+def _toml_basic_string(value: str) -> str:
+    return json.dumps(value, ensure_ascii=False)
+
+
+def grok_shaft_mcp_section(java: Path, args_file: Path) -> str:
+    return (
+        "[mcp_servers.shaft-mcp]\n"
+        f"command = {_toml_basic_string(str(java))}\n"
+        f"args = [{_toml_basic_string(f'@{args_file}')}]\n"
+        "enabled = true\n"
+    )
+
+
+def read_toml_mapping(path: Path) -> dict[str, Any]:
+    if not path.exists():
+        return {}
+    raw = path.read_text(encoding="utf-8")
+    if not raw.strip():
+        return {}
+    try:
+        value = tomllib.loads(raw)
+    except tomllib.TOMLDecodeError as exc:
+        fail(f"Grok configuration is malformed: {path}. {exc}", 5)
+    if not isinstance(value, dict):
+        fail(f"Configuration root must be a TOML table: {path}", 5)
+    return value
+
+
+def replace_or_append_grok_section(text: str, section: str) -> str:
+    header = _GROK_SERVER_HEADER.search(text)
+    if not header:
+        prefix = text
+        if prefix and not prefix.endswith("\n"):
+            prefix += "\n"
+        if prefix and not prefix.endswith("\n\n"):
+            prefix += "\n"
+        return prefix + section
+    next_header = re.search(r"(?m)^\s*\[", text[header.end():])
+    section_end = header.end() + next_header.start() if next_header else len(text)
+    remainder = text[section_end:].lstrip("\n")
+    return text[:header.start()] + section + (("\n" + remainder) if remainder else "")
+
+
+def verify_grok_entry(path: Path, java: Path, args_file: Path) -> None:
+    servers = read_toml_mapping(path).get("mcp_servers")
+    if not isinstance(servers, dict) or SERVER_NAME not in servers:
+        fail(f"The resulting configuration does not contain {SERVER_NAME}.", 5)
+    entry = servers[SERVER_NAME]
+    if not isinstance(entry, dict):
+        fail("The resulting shaft-mcp entry is not an object.", 5)
+    if entry.get("command") != str(java):
+        fail("The resulting shaft-mcp Java command is incorrect.", 5)
+    if entry.get("args") != [f"@{args_file}"]:
+        fail("The resulting shaft-mcp launcher arguments are incorrect.", 5)
+
+
+def git_root(start: Path) -> Path | None:
+    directory = start.resolve()
+    while True:
+        if (directory / ".git").exists():
+            return directory
+        if directory.parent == directory:
+            return None
+        directory = directory.parent
+
+
+def grok_write_path() -> Path:
+    user_config = configuration_path("grok").resolve()
+    directory = Path.cwd().resolve()
+    stop = git_root(directory)
+    while True:
+        for candidate in project_candidates(directory, "grok"):
+            resolved = candidate.resolve()
+            if resolved == user_config:
+                continue
+            if project_entry_exists(candidate, "grok"):
+                return resolved
+        if stop is None or directory == stop or directory.parent == directory:
+            break
+        directory = directory.parent
+    return user_config
+
+
+def configure_grok(java: Path, args_file: Path) -> None:
+    configuration = grok_write_path()
+    if configuration.exists() and configuration.stat().st_size > 0:
+        read_toml_mapping(configuration)
+
+    def mutate() -> None:
+        existed = configuration.exists() and configuration.stat().st_size > 0
+        if existed:
+            existing = configuration.read_text(encoding="utf-8")
+            parsed = read_toml_mapping(configuration)
+            servers = parsed.get("mcp_servers")
+            if (
+                isinstance(servers, dict)
+                and SERVER_NAME in servers
+                and not _GROK_SERVER_HEADER.search(existing)
+            ):
+                fail(
+                    f"Grok configuration already defines {SERVER_NAME} in a form "
+                    f"that cannot be updated in-place: {configuration}",
+                    5,
+                )
+            text = replace_or_append_grok_section(existing, grok_shaft_mcp_section(java, args_file))
+        else:
+            text = grok_shaft_mcp_section(java, args_file)
+        write_text_atomically(configuration, text if text.endswith("\n") else text + "\n")
+
+    update_json_configuration(
+        configuration, mutate, lambda: verify_grok_entry(configuration, java, args_file)
+    )
+
+
 def configure_client(client: str, java: Path, args_file: Path) -> None:
     if client == "intellij-plugin":
         return
@@ -1456,6 +1595,8 @@ def configure_client(client: str, java: Path, args_file: Path) -> None:
         configure_copilot(java, args_file)
     elif client == "copilot-intellij":
         configure_copilot_intellij(java, args_file)
+    elif client == "grok":
+        configure_grok(java, args_file)
     else:
         fail(f"Unsupported client: {client}", 2)
 

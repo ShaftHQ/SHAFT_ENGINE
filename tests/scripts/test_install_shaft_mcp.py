@@ -9,6 +9,7 @@ import re
 import subprocess  # nosec B404 -- Windows junction test uses resolved System32 cmd.exe only.
 import sys
 import tempfile
+import tomllib
 import unittest
 import zipfile
 from pathlib import Path
@@ -63,6 +64,20 @@ def scripted_stdin(answer: str):
         yield
     finally:
         MODULE.sys.stdin = original_stdin
+
+
+@contextlib.contextmanager
+def isolated_grok_env(root: Path, grok_home: Path | None = None, cwd: Path | None = None):
+    grok_home = grok_home or (root / "grok-home")
+    fake_home = root / "home"
+    cwd = cwd or (root / "cwd")
+    grok_home.mkdir(parents=True, exist_ok=True)
+    fake_home.mkdir(parents=True, exist_ok=True)
+    cwd.mkdir(parents=True, exist_ok=True)
+    with temporary_environment(GROK_HOME=str(grok_home)), mock.patch.object(
+        MODULE, "home", return_value=fake_home
+    ), temporary_current_directory(cwd):
+        yield grok_home, fake_home, cwd
 
 
 class InstallShaftMcpTest(unittest.TestCase):
@@ -148,6 +163,241 @@ class InstallShaftMcpTest(unittest.TestCase):
 
     def test_intellij_plugin_target_does_not_configure_external_client(self):
         MODULE.configure_client("intellij-plugin", Path("java"), Path("shaft-mcp.args"))
+
+    def test_parse_accepts_grok_client(self):
+        args = MODULE.parse_args(["--client", "grok"])
+
+        self.assertEqual("grok", args.client)
+        self.assertIn("grok", MODULE.TARGETS)
+
+    def test_parse_accepts_grok_flag(self):
+        args = MODULE.parse_args(["--grok"])
+
+        self.assertEqual("grok", args.client)
+
+    def test_configuration_path_grok_uses_grok_home(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            grok_home = Path(temp_dir) / "grok-home"
+            with temporary_environment(GROK_HOME=str(grok_home)):
+                self.assertEqual(grok_home / "config.toml", MODULE.configuration_path("grok"))
+
+    def test_configure_grok_writes_shaft_mcp_and_preserves_siblings(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            with isolated_grok_env(root) as (grok_home, _home, _cwd):
+                config = grok_home / "config.toml"
+                config.write_text(
+                    "[mcp_servers.other]\n"
+                    'command = "npx"\n'
+                    'api_key = "secret-do-not-touch"\n'
+                    "\n"
+                    "[ui]\n"
+                    'permission_mode = "ask"\n',
+                    encoding="utf-8",
+                )
+                java = root / "java"
+                args_file = root / "shaft-mcp.args"
+                MODULE.configure_grok(java, args_file)
+
+            text = config.read_text(encoding="utf-8")
+            self.assertIn("[mcp_servers.other]", text)
+            self.assertIn('api_key = "secret-do-not-touch"', text)
+            self.assertIn('permission_mode = "ask"', text)
+            parsed = tomllib.loads(text)
+            entry = parsed["mcp_servers"]["shaft-mcp"]
+            self.assertEqual(str(java), entry["command"])
+            self.assertEqual([f"@{args_file}"], entry["args"])
+            self.assertEqual("npx", parsed["mcp_servers"]["other"]["command"])
+            self.assertEqual("secret-do-not-touch", parsed["mcp_servers"]["other"]["api_key"])
+
+    def test_configure_grok_is_idempotent(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            java = root / "java"
+            args_file = root / "shaft-mcp.args"
+            with isolated_grok_env(root) as (grok_home, _home, _cwd):
+                MODULE.configure_grok(java, args_file)
+                first = (grok_home / "config.toml").read_text(encoding="utf-8")
+                MODULE.configure_grok(java, args_file)
+                second = (grok_home / "config.toml").read_text(encoding="utf-8")
+            first_entry = tomllib.loads(first)["mcp_servers"]["shaft-mcp"]
+            second_entry = tomllib.loads(second)["mcp_servers"]["shaft-mcp"]
+            self.assertEqual(first_entry["command"], second_entry["command"])
+            self.assertEqual(first_entry["args"], second_entry["args"])
+
+    def test_configure_grok_fails_closed_on_invalid_toml(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            original = "this is not toml [\n"
+            with isolated_grok_env(root) as (grok_home, _home, _cwd):
+                config = grok_home / "config.toml"
+                config.write_text(original, encoding="utf-8")
+                with self.assertRaises(MODULE.InstallError):
+                    MODULE.configure_grok(Path("java"), Path("shaft-mcp.args"))
+            self.assertEqual(original, config.read_text(encoding="utf-8"))
+
+    def test_grok_skills_use_agents_directory(self):
+        self.assertEqual((".agents/skills",), MODULE.SHAFT_SKILLS_NATIVE_DIRECTORIES["grok"])
+
+    def test_project_candidates_grok_use_repo_config(self):
+        directory = Path("repo")
+        self.assertEqual([directory / ".grok" / "config.toml"], MODULE.project_candidates(directory, "grok"))
+
+    def test_configure_grok_creates_config_when_missing_or_empty(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            java = root / "java"
+            args_file = root / "shaft-mcp.args"
+            with isolated_grok_env(root) as (grok_home, _home, _cwd):
+                MODULE.configure_grok(java, args_file)
+                empty = root / "empty-home"
+                empty.mkdir()
+                (empty / "config.toml").write_text("", encoding="utf-8")
+                with isolated_grok_env(root, grok_home=empty):
+                    MODULE.configure_grok(java, args_file)
+            parsed = tomllib.loads((grok_home / "config.toml").read_text(encoding="utf-8"))
+            empty_parsed = tomllib.loads((empty / "config.toml").read_text(encoding="utf-8"))
+            self.assertEqual(str(java), parsed["mcp_servers"]["shaft-mcp"]["command"])
+            self.assertTrue(parsed["mcp_servers"]["shaft-mcp"]["enabled"])
+            self.assertEqual(str(java), empty_parsed["mcp_servers"]["shaft-mcp"]["command"])
+
+    def test_configure_grok_fails_closed_on_inline_assignment(self):
+        original = (
+            'mcp_servers.shaft-mcp = { command = "old", args = ["@old"] }\n'
+            'mcp_servers.other = { command = "npx", api_key = "secret-do-not-touch" }\n'
+            'model = "keep-me"\n'
+            "\n"
+            "[ui]\n"
+            'permission_mode = "ask"\n'
+        )
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            with isolated_grok_env(root) as (grok_home, _home, _cwd):
+                config = grok_home / "config.toml"
+                config.write_text(original, encoding="utf-8")
+                with self.assertRaises(MODULE.InstallError):
+                    MODULE.configure_grok(Path("java"), Path("shaft-mcp.args"))
+            self.assertEqual(original, config.read_text(encoding="utf-8"))
+
+    def test_configure_grok_fails_closed_on_nested_table(self):
+        original = (
+            "[mcp_servers]\n"
+            'shaft-mcp = { command = "old", args = ["@old"] }\n'
+            'other = { command = "npx" }\n'
+        )
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            with isolated_grok_env(root) as (grok_home, _home, _cwd):
+                config = grok_home / "config.toml"
+                config.write_text(original, encoding="utf-8")
+                with self.assertRaises(MODULE.InstallError):
+                    MODULE.configure_grok(Path("java"), Path("shaft-mcp.args"))
+            self.assertEqual(original, config.read_text(encoding="utf-8"))
+
+    def test_configure_grok_updates_project_config_instead_of_user(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            grok_home = root / "user-grok"
+            project = root / "project"
+            project_config = project / ".grok" / "config.toml"
+            project_config.parent.mkdir(parents=True)
+            project_config.write_text(
+                '[mcp_servers.shaft-mcp]\ncommand = "old"\nargs = ["@old"]\n',
+                encoding="utf-8",
+            )
+            java = root / "java"
+            args_file = root / "shaft-mcp.args"
+            with isolated_grok_env(root, grok_home=grok_home, cwd=project):
+                MODULE.configure_grok(java, args_file)
+            parsed = tomllib.loads(project_config.read_text(encoding="utf-8"))
+            self.assertEqual(str(java), parsed["mcp_servers"]["shaft-mcp"]["command"])
+            self.assertEqual([f"@{args_file}"], parsed["mcp_servers"]["shaft-mcp"]["args"])
+            self.assertFalse((grok_home / "config.toml").exists())
+
+    def test_configure_grok_nested_project_form_fail_closes_without_user_write(self):
+        original = (
+            "[mcp_servers]\n"
+            'shaft-mcp = { command = "old", args = ["@old"] }\n'
+        )
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            grok_home = root / "user-grok"
+            project = root / "project"
+            project_config = project / ".grok" / "config.toml"
+            project_config.parent.mkdir(parents=True)
+            project_config.write_text(original, encoding="utf-8")
+            with isolated_grok_env(root, grok_home=grok_home, cwd=project):
+                with self.assertRaises(MODULE.InstallError):
+                    MODULE.configure_grok(root / "java", root / "shaft-mcp.args")
+            self.assertEqual(original, project_config.read_text(encoding="utf-8"))
+            self.assertFalse((grok_home / "config.toml").exists())
+
+    def test_configure_grok_ignores_shaft_mcp_above_the_git_root(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            outside = root / "outside"
+            repo = outside / "repo"
+            (repo / ".git").mkdir(parents=True)
+            outside_config = outside / ".grok" / "config.toml"
+            outside_config.parent.mkdir(parents=True)
+            outside_config.write_text(
+                '[mcp_servers.shaft-mcp]\ncommand = "outside-old"\nargs = ["@outside-old"]\n',
+                encoding="utf-8",
+            )
+            java = root / "java"
+            args_file = root / "shaft-mcp.args"
+            with isolated_grok_env(root, cwd=repo) as (grok_home, _home, _cwd):
+                MODULE.configure_grok(java, args_file)
+            parsed = tomllib.loads((grok_home / "config.toml").read_text(encoding="utf-8"))
+            outside_parsed = tomllib.loads(outside_config.read_text(encoding="utf-8"))
+            self.assertEqual(str(java), parsed["mcp_servers"]["shaft-mcp"]["command"])
+            self.assertEqual("outside-old", outside_parsed["mcp_servers"]["shaft-mcp"]["command"])
+
+    def test_configure_grok_prefers_grok_home_over_default_user_file(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            java = root / "java"
+            args_file = root / "shaft-mcp.args"
+            with isolated_grok_env(root) as (grok_home, fake_home, _cwd):
+                default_user = fake_home / ".grok" / "config.toml"
+                default_user.parent.mkdir(parents=True)
+                default_user.write_text(
+                    '[mcp_servers.shaft-mcp]\ncommand = "home-old"\nargs = ["@home-old"]\n',
+                    encoding="utf-8",
+                )
+                MODULE.configure_grok(java, args_file)
+            parsed = tomllib.loads((grok_home / "config.toml").read_text(encoding="utf-8"))
+            home_parsed = tomllib.loads(default_user.read_text(encoding="utf-8"))
+            self.assertEqual(str(java), parsed["mcp_servers"]["shaft-mcp"]["command"])
+            self.assertEqual("home-old", home_parsed["mcp_servers"]["shaft-mcp"]["command"])
+
+    def test_configure_grok_idempotent_keeps_siblings(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            with isolated_grok_env(root) as (grok_home, _home, _cwd):
+                config = grok_home / "config.toml"
+                config.write_text(
+                    "[mcp_servers.other]\n"
+                    'command = "npx"\n'
+                    'api_key = "secret-do-not-touch"\n',
+                    encoding="utf-8",
+                )
+                java = root / "java"
+                args_file = root / "shaft-mcp.args"
+                MODULE.configure_grok(java, args_file)
+                MODULE.configure_grok(java, args_file)
+            parsed = tomllib.loads(config.read_text(encoding="utf-8"))
+            self.assertEqual("npx", parsed["mcp_servers"]["other"]["command"])
+            self.assertEqual("secret-do-not-touch", parsed["mcp_servers"]["other"]["api_key"])
+            self.assertEqual(str(java), parsed["mcp_servers"]["shaft-mcp"]["command"])
+
+    def test_choose_client_error_uses_current_choice_count(self):
+        stdout = io.StringIO()
+        with scripted_stdin("0\n1"):
+            with contextlib.redirect_stdout(stdout):
+                chosen = MODULE.choose_client()
+        self.assertEqual("codex", chosen)
+        self.assertIn(f"1 to {len(MODULE.TARGET_CHOICES)}", stdout.getvalue())
 
     def test_has_agent_guidance_scaffold_requires_agents_md(self):
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -271,7 +521,7 @@ class InstallShaftMcpTest(unittest.TestCase):
         self.assertEqual(1, len(label_line_indexes))
         self.assertGreater(label_line_indexes[0], advanced_index)
 
-        # Numbered entries stay contiguous 1..6, in TARGET_CHOICES order,
+        # Numbered entries stay contiguous 1..N, in TARGET_CHOICES order,
         # regardless of which section they were printed under.
         numbered_lines = [line.strip() for line in lines if line.strip()[:1].isdigit()]
         expected_numbered_lines = [
@@ -290,8 +540,9 @@ class InstallShaftMcpTest(unittest.TestCase):
         )
 
     def test_choose_client_numeric_and_name_input_resolve_to_same_target(self):
+        plugin_index = str(len(MODULE.TARGET_CHOICES))
         results = []
-        for answer in ("6", "intellij-plugin"):
+        for answer in (plugin_index, "intellij-plugin"):
             with scripted_stdin(answer):
                 with contextlib.redirect_stdout(io.StringIO()):
                     results.append(MODULE.choose_client())

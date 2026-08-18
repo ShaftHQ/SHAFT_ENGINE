@@ -1134,7 +1134,8 @@ class ShaftPanelSetupTest {
                 () -> assertEquals("claude-desktop", installerArgumentFor("CLAUDE_DESKTOP")),
                 () -> assertEquals("copilot", installerArgumentFor("COPILOT_CLI")),
                 () -> assertEquals("copilot-intellij", installerArgumentFor("COPILOT_INTELLIJ")),
-                () -> assertEquals("intellij-plugin", installerArgumentFor("INTELLIJ_PLUGIN")));
+                () -> assertEquals("intellij-plugin", installerArgumentFor("INTELLIJ_PLUGIN")),
+                () -> assertEquals("grok", installerArgumentFor("GROK")));
         for (String token : installerTargetTokens) {
             String argument = installerArgumentFor(token);
             String command = installerCommandFor(argument);
