@@ -5,6 +5,7 @@ from pathlib import Path
 from scripts.ci.validate_quality_configuration import (
     validate_browser_matrix_scope_policy,
     validate_codeql_build_mode,
+    validate_grid_jobs_skip_infrastructure_tests,
     validate_maven_jvm_configuration,
     validate_quality_configuration,
     validate_scheduled_build_retry,
@@ -137,6 +138,63 @@ jobs:
 
     def test_repository_configuration_is_valid(self):
         self.assertEqual(validate_quality_configuration(), [])
+
+    def test_grid_run_tests_must_not_also_make_infrastructure_modules(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            workflows = root / ".github" / "workflows"
+            workflows.mkdir(parents=True)
+            (workflows / "e2eTests.yml").write_text(
+                "jobs:\n"
+                "  Ubuntu_Firefox_Grid:\n"
+                "    steps:\n"
+                "      - name: Run tests\n"
+                '        run: mvn -pl shaft-engine -am -e test "-Dtest=${GLOBAL_TESTING_SCOPE}"\n'
+                "  Ubuntu_Chrome_Grid:\n"
+                "    steps:\n"
+                "      - name: Run tests\n"
+                '        run: mvn -pl shaft-engine -e test "-Dtest=${GLOBAL_TESTING_SCOPE}"\n'
+                "  Ubuntu_MicrosoftEdge_Grid:\n"
+                "    steps:\n"
+                "      - name: Run tests\n"
+                '        run: mvn -pl shaft-engine -e test "-Dtest=${GLOBAL_TESTING_SCOPE}"\n',
+                encoding="utf-8",
+            )
+
+            self.assertEqual(
+                validate_grid_jobs_skip_infrastructure_tests(root),
+                [
+                    "e2eTests.yml job 'Ubuntu_Firefox_Grid' Run tests must not use -am "
+                    "(shaft-infrastructure JUnit tests ignore GLOBAL_TESTING_SCOPE)"
+                ],
+            )
+
+    def test_live_grid_jobs_skip_infrastructure_tests(self):
+        self.assertEqual(validate_grid_jobs_skip_infrastructure_tests(), [])
+
+    def test_grid_run_tests_accepts_shaft_engine_without_also_make(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            workflows = root / ".github" / "workflows"
+            workflows.mkdir(parents=True)
+            (workflows / "e2eTests.yml").write_text(
+                "jobs:\n"
+                "  Ubuntu_Firefox_Grid:\n"
+                "    steps:\n"
+                "      - name: Run tests\n"
+                '        run: mvn -pl shaft-engine -e test "-Dtest=${GLOBAL_TESTING_SCOPE}"\n'
+                "  Ubuntu_Chrome_Grid:\n"
+                "    steps:\n"
+                "      - name: Run tests\n"
+                '        run: mvn -pl shaft-engine -e test "-Dtest=${GLOBAL_TESTING_SCOPE}"\n'
+                "  Ubuntu_MicrosoftEdge_Grid:\n"
+                "    steps:\n"
+                "      - name: Run tests\n"
+                '        run: mvn -pl shaft-engine -e test "-Dtest=${GLOBAL_TESTING_SCOPE}"\n',
+                encoding="utf-8",
+            )
+
+            self.assertEqual(validate_grid_jobs_skip_infrastructure_tests(root), [])
 
     def test_codeql_uses_explicit_manual_build_mode(self):
         root = Path(__file__).resolve().parents[2]
