@@ -12,7 +12,7 @@ def is_promote_path(relative: str) -> bool:
     posix = PurePosixPath(relative.replace("\\", "/"))
     name = posix.name
     suffix = posix.suffix.lower()
-    if suffix == ".properties" or suffix == ".feature":
+    if suffix == ".properties" or suffix == ".feature" or suffix == ".toml":
         return True
     if suffix == ".xml" and name.casefold() != "pom.xml":
         return True
