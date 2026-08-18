@@ -778,14 +778,18 @@ class MemoryIntegrityTest(unittest.TestCase):
         blob = canonical + "\n" + body.replace("\r\n", "\n")
         return "sha256:" + hashlib.sha256(blob.encode("utf-8")).hexdigest()
 
-    def write_object(self, name, body, *, created, updated=None, hash_body=None):
+    def write_object(
+        self, name, body, *, created, updated=None, hash_body=None, scope=None
+    ):
         """Write one hash-correct object; `hash_body` fakes a pre-edit body."""
         relative_body = f"memory/gotchas/{name}.md"
         sidecar = {
             "body_path": relative_body,
             "created_at": created,
             "id": f"gotcha.{name}",
-            "scope": {"kind": "project", "project": "project.shaft-engine"},
+            "scope": scope
+            if scope is not None
+            else {"kind": "project", "project": "project.shaft-engine"},
             "status": "active",
             "title": name,
             "type": "gotcha",
@@ -815,6 +819,36 @@ class MemoryIntegrityTest(unittest.TestCase):
         if not (self.root / ".memory/events.jsonl").is_file():
             self.write_events()
         return [error["code"] for error in validate_memory_integrity(self.root)]
+
+    def test_project_scoped_object_with_task_set_fails_the_gate(self):
+        # #5156: restoring scope.task on a project-scoped object used to pass
+        # --skip-external while search_memory fail-closed with ObjectScopeInvalid.
+        self.write_object(
+            "taskset",
+            "A project-scoped body that should not carry a task.",
+            created="2026-08-01T10:00:00+03:00",
+            scope={
+                "kind": "project",
+                "project": "project.shaft-engine",
+                "branch": None,
+                "task": "5090",
+            },
+        )
+        self.assertEqual(self.codes(), ["memory-project-scope"])
+
+    def test_project_scoped_object_with_branch_set_fails_the_gate(self):
+        self.write_object(
+            "branchset",
+            "A project-scoped body that should not carry a branch.",
+            created="2026-08-01T10:00:00+03:00",
+            scope={
+                "kind": "project",
+                "project": "project.shaft-engine",
+                "branch": "ChaosEngine/memory-project-scope-task-guard-5156",
+                "task": None,
+            },
+        )
+        self.assertEqual(self.codes(), ["memory-project-scope"])
 
     def test_a_body_edited_without_its_hash_fails_the_gate(self):
         # The #4460 flow: the body on disk is the corrected text, the hash

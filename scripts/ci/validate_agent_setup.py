@@ -339,14 +339,16 @@ def memory_update_timestamps(root: Path) -> dict[str, set[str]]:
 
 
 def validate_memory_integrity(root: Path = ROOT) -> list[dict[str, str]]:
-    """Enforce the two store signals that were recorded but never read.
+    """Enforce the store signals `--skip-external` must still catch.
 
     `memory check` reports a stale `content_hash` as a *warning* and still
     exits 0 (#4460), so `run_memory_check` sees success; and nothing at all
     compares `updated_at` against the event log (#4465). Both are recomputed
     here, in-process, so they run under `--skip-external` -- the command
     AGENTS.md prescribes for memory work, and the one CI runs without the
-    pinned CLI on PATH.
+    pinned CLI on PATH. Project-scoped objects that set `scope.task` or
+    `scope.branch` are the same class of hole: the CLI fail-closes with
+    `ObjectScopeInvalid` (#5136) while this validator used to exit 0 (#5156).
 
     Deliberately no grandfathering set. Every one of the 245 live objects
     with a bumped `updated_at` and an event carries an event whose timestamp
@@ -364,6 +366,20 @@ def validate_memory_integrity(root: Path = ROOT) -> list[dict[str, str]]:
         except (OSError, json.JSONDecodeError) as error:
             errors.append(issue("memory-object", relative, str(error)))
             continue
+        scope = sidecar.get("scope")
+        if isinstance(scope, dict) and scope.get("kind") == "project":
+            set_fields = [
+                field for field in ("branch", "task") if scope.get(field) is not None
+            ]
+            if set_fields:
+                errors.append(
+                    issue(
+                        "memory-project-scope",
+                        relative,
+                        "Project-scoped memory must not set "
+                        f"{' or '.join(set_fields)} (issue #5136).",
+                    )
+                )
         body_path = sidecar.get("body_path")
         if not isinstance(body_path, str) or not body_path:
             # Not a body-backed object; nothing to hash against.
