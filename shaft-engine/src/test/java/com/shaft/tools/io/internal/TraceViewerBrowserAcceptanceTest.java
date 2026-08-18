@@ -703,6 +703,10 @@ public class TraceViewerBrowserAcceptanceTest {
                             "application/zip"));
             Assert.assertEquals(page.locator("#artifact-rows tr td:nth-child(4)").allTextContents(),
                     List.of("Available", "Available", "Available", "Available", "Available", "Available"));
+            Assert.assertTrue(page.locator("#artifact-rows tr td:nth-child(5)").allTextContents().stream()
+                    .allMatch(size -> size.endsWith(" B")));
+            Assert.assertTrue(page.locator("#artifact-rows tr td:nth-child(6)").allTextContents().stream()
+                    .allMatch(digest -> digest.matches("[0-9a-f]{12}")));
             Assert.assertTrue(page.locator("#native-trace-handoff").textContent().contains("show-trace"));
             Assert.assertTrue(page.locator("#native-trace-handoff").textContent().contains("trace-viewer-native.zip"));
             page.evaluate("""

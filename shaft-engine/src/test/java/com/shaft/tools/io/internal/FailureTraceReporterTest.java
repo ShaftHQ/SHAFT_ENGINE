@@ -848,6 +848,7 @@ public class FailureTraceReporterTest {
             Assert.assertTrue(SHAFT.Properties.reporting.traceIncludeNetwork());
             Assert.assertTrue(SHAFT.Properties.reporting.traceIncludeConsole());
             Assert.assertEquals(SHAFT.Properties.reporting.traceMaxArtifactMb(), 50);
+            Assert.assertEquals(SHAFT.Properties.reporting.traceMaxSessionMb(), 512);
 
             SHAFT.Properties.reporting.set()
                     .traceEnabled(false)
@@ -859,7 +860,8 @@ public class FailureTraceReporterTest {
                     .traceIncludeNativePageSource(false)
                     .traceIncludeNetwork(false)
                     .traceIncludeConsole(false)
-                    .traceMaxArtifactMb(7);
+                    .traceMaxArtifactMb(7)
+                    .traceMaxSessionMb(3);
 
             Assert.assertFalse(SHAFT.Properties.reporting.traceEnabled());
             Assert.assertEquals(SHAFT.Properties.reporting.traceMode(), "always");
@@ -871,7 +873,70 @@ public class FailureTraceReporterTest {
             Assert.assertFalse(SHAFT.Properties.reporting.traceIncludeNetwork());
             Assert.assertFalse(SHAFT.Properties.reporting.traceIncludeConsole());
             Assert.assertEquals(SHAFT.Properties.reporting.traceMaxArtifactMb(), 7);
+            Assert.assertEquals(SHAFT.Properties.reporting.traceMaxSessionMb(), 3);
         } finally {
+            Properties.clearForCurrentThread();
+        }
+    }
+
+    @Test(description = "An exhausted session budget must omit the next archive instead of writing another ZIP")
+    public void exhaustedSessionBudgetShouldOmitTheNextPersistedArchive() throws Exception {
+        TestExecutionInfo first = info("sessionBudgetFirstScenario", failure());
+        TestExecutionInfo second = info("sessionBudgetSecondScenario", failure());
+        Path firstDirectory = FailureTraceReporter.traceDirectory(first);
+        Path secondDirectory = FailureTraceReporter.traceDirectory(second);
+        TraceSessionBudget.resetForTesting();
+        try {
+            deleteDirectory(firstDirectory);
+            deleteDirectory(secondDirectory);
+            SHAFT.Properties.reporting.set().traceEnabled(true).traceMode("failure").traceMaxSessionMb(1);
+
+            FailureTraceReporter.attachOnFailure(first, "first failed", List.of());
+            Assert.assertTrue(Files.isRegularFile(firstDirectory.resolve("shaft-trace.zip")));
+
+            TraceSessionBudget.recordPublished(TraceSessionBudget.configuredMaxBytes());
+            FailureTraceReporter.attachOnFailure(second, "second failed", List.of());
+
+            Assert.assertFalse(Files.exists(secondDirectory.resolve("shaft-trace.zip")),
+                    "A later archive must not be published after the session budget is exhausted.");
+            JsonNode index = JSON.readTree(Files.readString(secondDirectory.resolve("index.json"),
+                    StandardCharsets.UTF_8));
+            Assert.assertTrue(index.path("omittedEntries").toString().contains("shaft-trace.zip"),
+                    index.toPrettyString());
+            Assert.assertEquals(index.path("sessionOmission").asText(),
+                    "Omitted because the JVM session exceeded shaft.trace.maxSessionMb=1");
+        } finally {
+            TraceEventRecorder.clear();
+            TraceSessionBudget.resetForTesting();
+            deleteDirectory(firstDirectory);
+            deleteDirectory(secondDirectory);
+            Properties.clearForCurrentThread();
+        }
+    }
+
+    @Test(description = "Sidecar screenshots must not be written when they would exceed the session budget")
+    public void sessionBudgetShouldSkipScreenshotSidecarsInsteadOfWritingThemAnyway() throws Exception {
+        TestExecutionInfo info = info("sessionBudgetScreenshotSidecarScenario", failure());
+        Path directory = FailureTraceReporter.traceDirectory(info);
+        Path completed = directory.resolve("completed.zip");
+        TraceSessionBudget.resetForTesting();
+        try {
+            deleteDirectory(directory);
+            Files.createDirectories(directory);
+            Files.writeString(completed, "tiny-archive", StandardCharsets.UTF_8);
+            SHAFT.Properties.reporting.set().traceEnabled(true).traceMode("failure").traceMaxSessionMb(1);
+            Assert.assertTrue(TraceSessionBudget.tryReserve(1024L * 1024L - 64));
+
+            Assert.assertTrue(FailureTraceReporter.persistTraceArtifacts(info, completed,
+                    Map.of("action-1", new byte[256]), 1, List.of()));
+
+            Assert.assertTrue(Files.isRegularFile(directory.resolve("shaft-trace.zip")));
+            Assert.assertFalse(Files.exists(directory.resolve("screenshots").resolve("action-1.png")));
+            JsonNode index = JSON.readTree(Files.readString(directory.resolve("index.json"), StandardCharsets.UTF_8));
+            Assert.assertFalse(index.path("entries").has("screenshots"), index.toPrettyString());
+        } finally {
+            TraceSessionBudget.resetForTesting();
+            deleteDirectory(directory);
             Properties.clearForCurrentThread();
         }
     }
