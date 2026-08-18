@@ -71,6 +71,12 @@ class SoupDelegatePocRowTest(unittest.TestCase):
         blockers = MODULE.validate_row(row)
         self.assertTrue(any("messages" in item.lower() for item in blockers))
 
+    def test_row_missing_source_endpoint_fails(self):
+        row = valid_row()
+        del row["source_endpoint"]
+        blockers = MODULE.validate_row(row)
+        self.assertTrue(any("source_endpoint" in item.lower() for item in blockers))
+
     def test_assistant_tool_name_mismatch_fails(self):
         row = valid_row("read_file")
         row["messages"][1]["tool_calls"][0]["function"]["name"] = "replace_file"
@@ -101,6 +107,28 @@ class SoupDelegatePocSpecTest(unittest.TestCase):
             path.write_text(yaml_text, encoding="utf-8")
             blockers = MODULE.validate_spec(path)
         self.assertTrue(any("run_focused_test" in item for item in blockers))
+
+    def test_spec_accepts_quoted_and_unquoted_operation_ids(self):
+        yaml_text = (
+            "openapi: 3.0.3\n"
+            "info:\n"
+            "  title: quoted\n"
+            "  version: '1.0.0'\n"
+            "paths:\n"
+            "  /read_file:\n"
+            "    post:\n"
+            "      operationId: \"read_file\"\n"
+            "  /replace_file:\n"
+            "    post:\n"
+            "      operationId: replace_file\n"
+            "  /run_focused_test:\n"
+            "    post:\n"
+            "      operationId: \"run_focused_test\"\n"
+        )
+        with tempfile.TemporaryDirectory() as temporary:
+            path = Path(temporary) / "mechanical-tools.yaml"
+            path.write_text(yaml_text, encoding="utf-8")
+            self.assertEqual([], MODULE.validate_spec(path))
 
 
 def _valid_report(**overrides):
