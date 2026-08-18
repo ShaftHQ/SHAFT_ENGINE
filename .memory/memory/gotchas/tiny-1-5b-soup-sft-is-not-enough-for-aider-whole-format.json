@@ -1,15 +1,20 @@
 {
   "body_path": "memory/gotchas/tiny-1-5b-soup-sft-is-not-enough-for-aider-whole-format.md",
-  "content_hash": "sha256:315b9b963d264d74142ef63f4eee13bf9f39ca2521d94bbfc6fd8f9626aaf24d",
+  "content_hash": "sha256:3509e3e0c9dca731d7bf649c474e72cdfacccb5166c621f17907b92e5c09c410",
   "created_at": "2026-08-18T19:11:52+03:00",
   "evidence": [
     {
-      "id": "5144",
+      "id": "https://github.com/ShaftHQ/SHAFT_ENGINE/issues/5144",
       "kind": "task"
+    },
+    {
+      "id": "3ffaa0757e53c5d6aa3498cd49310177286ff66f",
+      "kind": "commit"
     }
   ],
   "facets": {
     "applies_to": [
+      "scripts/local-coding-agent/run_agent.ps1",
       "scripts/local-coding-agent/shaft-java-agent.ps1"
     ],
     "category": "gotcha"
@@ -23,15 +28,16 @@
   },
   "source": {
     "kind": "agent",
-    "task": "Record workstation soup export/deploy gotchas from #5143/#5144 Batch 4"
+    "task": "Merge #5158 object with #5144 hardened-rerun evidence"
   },
   "status": "active",
   "tags": [
-    "soup",
     "aider",
-    "ollama"
+    "soup",
+    "ollama",
+    "issue-5144"
   ],
   "title": "Tiny 1.5B soup SFT is not enough for Aider whole-format",
   "type": "gotcha",
-  "updated_at": "2026-08-18T19:11:52+03:00"
+  "updated_at": "2026-08-18T20:21:32+03:00"
 }

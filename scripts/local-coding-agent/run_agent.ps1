@@ -155,31 +155,58 @@ if (Test-Path -LiteralPath $aider) {
     $aiderExit = 2
 }
 
+$blockers = @()
+$changed = @()
+$commit = ""
 Push-Location -LiteralPath $Worktree
 try {
     Get-ChildItem -Force -LiteralPath $Worktree -Filter ".aider*" -ErrorAction SilentlyContinue |
         Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
     $statusFile = Join-Path $reportDir "git-status.txt"
     $headFile = Join-Path $reportDir "git-head-files.txt"
-    git status --porcelain
+    $statusText = git status --porcelain
     if ($LASTEXITCODE -ne 0) { throw "git status failed: $LASTEXITCODE" }
-    git status --porcelain | Set-Content -LiteralPath $statusFile -Encoding utf8
+    if ($null -eq $statusText) { $statusText = "" }
+    Set-Content -LiteralPath $statusFile -Value $statusText -Encoding utf8
     if ($beforeSha) {
-        git diff --name-only $beforeSha
+        $headText = git diff --name-only $beforeSha
         if ($LASTEXITCODE -ne 0) { throw "git diff --name-only failed: $LASTEXITCODE" }
-        git diff --name-only $beforeSha | Set-Content -LiteralPath $headFile -Encoding utf8
-        git diff $beforeSha | Set-Content -LiteralPath (Join-Path $reportDir "diff.patch") -Encoding utf8
+        if ($null -eq $headText) { $headText = "" }
+        Set-Content -LiteralPath $headFile -Value $headText -Encoding utf8
+        $diffText = git diff $beforeSha
+        if ($null -eq $diffText) { $diffText = "" }
+        Set-Content -LiteralPath (Join-Path $reportDir "diff.patch") -Value $diffText -Encoding utf8
     } else {
         Set-Content -LiteralPath $headFile -Value ""
-        git diff | Set-Content -LiteralPath (Join-Path $reportDir "diff.patch") -Encoding utf8
+        $diffText = git diff
+        if ($null -eq $diffText) { $diffText = "" }
+        Set-Content -LiteralPath (Join-Path $reportDir "diff.patch") -Value $diffText -Encoding utf8
     }
     $changed = @(
         & py -3 $agentPy "changed" "--status-file" $statusFile "--head-file" $headFile
     )
-    if ($LASTEXITCODE -ne 0) { throw "changed-path scan failed: $LASTEXITCODE" }
-    $changed = @($changed | Where-Object { $_ })
+    if ($LASTEXITCODE -ne 0) {
+        $blockers += "changed-path scan failed: $LASTEXITCODE"
+        $changed = @()
+    } else {
+        $changed = @($changed | Where-Object { $_ })
+    }
     $commit = (git rev-parse HEAD).Trim()
     if ($LASTEXITCODE -ne 0 -or -not $commit) { throw "git rev-parse HEAD failed" }
+    $allowedNorm = @($Allowlist | ForEach-Object { (($_ -replace "\\", "/").ToLower()) })
+    $outside = @(
+        $changed | Where-Object { $allowedNorm -notcontains (($_ -replace "\\", "/").ToLower()) }
+    )
+    if ($outside.Count -gt 0) {
+        foreach ($item in $outside) {
+            $blockers += "changed file outside allowlist: $item"
+        }
+        if ($beforeSha) {
+            git reset --hard $beforeSha
+            if ($LASTEXITCODE -ne 0) { throw "allowlist reset failed: $LASTEXITCODE" }
+            $commit = $beforeSha
+        }
+    }
 } finally {
     Pop-Location
 }
@@ -204,7 +231,6 @@ if ($TestCommand) {
 }
 
 $elapsed = [int]((Get-Date) - $started).TotalMilliseconds
-$blockers = @()
 if ($aiderExit -ne 0) { $blockers += "aider exit $aiderExit" }
 if ($TestCommand -and $testExit -ne 0) { $blockers += "test exit $testExit" }
 

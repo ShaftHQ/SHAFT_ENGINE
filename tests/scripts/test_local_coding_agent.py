@@ -183,6 +183,34 @@ class LocalCodingAgentReportTest(unittest.TestCase):
         self.assertGreaterEqual(len(saved["files_changed"]), 2)
         self.assertFalse(saved["ok"])
 
+    def test_path_to_prefix_is_outside_matching_allowlist_suffix(self):
+        changed = ["path/to/scripts/local-coding-agent/loop_probe_fixture.py"]
+        allowed = ["scripts/local-coding-agent/loop_probe_fixture.py"]
+        blockers = MODULE.allowlist_violations(changed, allowed)
+        self.assertTrue(any("path/to/" in item for item in blockers))
+
+    def test_changed_cli_missing_status_file_does_not_crash(self):
+        import tempfile
+        from contextlib import redirect_stdout
+        from io import StringIO
+
+        missing = Path(tempfile.mkdtemp()) / "git-status.txt"
+        head = Path(tempfile.mkdtemp()) / "git-head-files.txt"
+        head.write_text("scripts/local-coding-agent/agent.py\n", encoding="utf-8")
+        buf = StringIO()
+        with redirect_stdout(buf):
+            code = MODULE.main(
+                [
+                    "changed",
+                    "--status-file",
+                    str(missing),
+                    "--head-file",
+                    str(head),
+                ]
+            )
+        self.assertEqual(0, code)
+        self.assertEqual("scripts/local-coding-agent/agent.py", buf.getvalue().strip())
+
 
 class LocalCodingAgentPackagingTest(unittest.TestCase):
     def test_schema_lists_required_report_keys(self):
@@ -231,6 +259,11 @@ class LocalCodingAgentPackagingTest(unittest.TestCase):
         self.assertIn('$agentPy "write"', run_text)
         self.assertIn('$agentPy "changed"', run_text)
         self.assertIn('Filter ".aider*"', run_text)
+        self.assertIn("$statusText", run_text)
+        self.assertIn("-Value $statusText", run_text)
+        self.assertIn("reset --hard", run_text)
+        self.assertIn('$blockers += "changed-path scan failed', run_text)
+        self.assertNotIn('throw "changed-path scan failed', run_text)
 
     def test_named_commands_exist(self):
         self.assertTrue(JAVA_AGENT.is_file())
