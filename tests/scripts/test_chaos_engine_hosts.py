@@ -1377,6 +1377,33 @@ class ChaosEngineHostsTest(unittest.TestCase):
                 module.mempalace_runtime_status(portable)["status"],
             )
 
+    def test_shaft_resolver_with_empty_checkout_palace_is_degraded_and_does_not_initialize(self):
+        module = load(HOSTS, "chaos_engine_mempalace_empty_checkout")
+        with tempfile.TemporaryDirectory() as temporary:
+            shaft = Path(temporary) / "shaft"
+            resolver = shaft / "tools/repository-map/resolve_mempalace.py"
+            resolver.parent.mkdir(parents=True)
+            resolver.write_text("# fixture SHAFT resolver\n", encoding="utf-8")
+            palace = shaft / ".chaos-engine-state/mempalace"
+            palace.mkdir(parents=True)
+
+            state = module.mempalace_runtime_status(shaft)
+            self.assertEqual("degraded", state["status"])
+            self.assertIn("scripts/agents/knowledge_stores.py status", state["detail"])
+            self.assertIn("centralized", state["detail"].lower())
+            self.assertNotIn(".git", state["detail"])
+
+            module.initialize_mempalace_runtime(shaft)
+            self.assertFalse((palace / "sqlite_exact.sqlite3").exists())
+            self.assertEqual([], list(palace.iterdir()))
+
+            portable = Path(temporary) / "portable"
+            (portable / ".chaos-engine-state/mempalace").mkdir(parents=True)
+            self.assertEqual(
+                "initialization-required",
+                module.mempalace_runtime_status(portable)["status"],
+            )
+
     def test_tool_guard_refuses_shaft_degraded_mempalace_and_names_knowledge_stores(self):
         hosts = load(HOSTS, "chaos_engine_mempalace_shaft_guard_hosts")
         tool = load(TOOL, "chaos_engine_mempalace_shaft_guard_tool")
