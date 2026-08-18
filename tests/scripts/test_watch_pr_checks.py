@@ -182,6 +182,104 @@ class WatchPrChecksRepositoryContextTest(unittest.TestCase):
                 self.assertEqual("", stdout.getvalue())
                 self.assertNotIn("Traceback", stderr.getvalue())
 
+    def test_transient_github_http_errors_retry_until_green(self):
+        green = [{"name": "gate", "state": "SUCCESS", "link": "https://checks/green"}]
+        for status in ("503", "429"):
+            with self.subTest(status=status):
+                polls = iter(
+                    (
+                        watch_pr_checks.CheckWatchError(
+                            f"gh pr checks failed: HTTP {status}"
+                        ),
+                        green,
+                    )
+                )
+
+                def poll_once(*_args, **_kwargs):
+                    item = next(polls)
+                    if isinstance(item, Exception):
+                        raise item
+                    return item
+
+                stdout = io.StringIO()
+                stderr = io.StringIO()
+                slept: list[int] = []
+                with (
+                    unittest.mock.patch.object(
+                        sys,
+                        "argv",
+                        [
+                            "watch_pr_checks.py",
+                            "--pr",
+                            "https://github.com/owner/project/pull/9",
+                            "--max-polls",
+                            "3",
+                            "--interval",
+                            "10",
+                        ],
+                    ),
+                    unittest.mock.patch.object(
+                        watch_pr_checks, "resolve_gh", return_value="gh"
+                    ),
+                    unittest.mock.patch.object(
+                        watch_pr_checks, "poll_once", side_effect=poll_once
+                    ),
+                    unittest.mock.patch.object(
+                        watch_pr_checks.time, "sleep", side_effect=slept.append
+                    ),
+                    unittest.mock.patch("sys.stdout", stdout),
+                    unittest.mock.patch("sys.stderr", stderr),
+                ):
+                    exit_code = watch_pr_checks.main()
+
+                self.assertNotEqual(3, exit_code)
+                self.assertEqual(0, exit_code)
+                self.assertEqual([10], slept)
+                self.assertIn("all checks green", stdout.getvalue())
+
+    def test_exhausted_transient_github_http_errors_still_exit_three(self):
+        for status in ("503", "429"):
+            with self.subTest(status=status):
+                stdout = io.StringIO()
+                stderr = io.StringIO()
+                slept: list[int] = []
+                with (
+                    unittest.mock.patch.object(
+                        sys,
+                        "argv",
+                        [
+                            "watch_pr_checks.py",
+                            "--pr",
+                            "https://github.com/owner/project/pull/9",
+                            "--max-polls",
+                            "2",
+                            "--interval",
+                            "10",
+                        ],
+                    ),
+                    unittest.mock.patch.object(
+                        watch_pr_checks, "resolve_gh", return_value="gh"
+                    ),
+                    unittest.mock.patch.object(
+                        watch_pr_checks,
+                        "poll_once",
+                        side_effect=watch_pr_checks.CheckWatchError(
+                            f"gh pr checks failed: HTTP {status}"
+                        ),
+                    ),
+                    unittest.mock.patch.object(
+                        watch_pr_checks.time, "sleep", side_effect=slept.append
+                    ),
+                    unittest.mock.patch("sys.stdout", stdout),
+                    unittest.mock.patch("sys.stderr", stderr),
+                ):
+                    exit_code = watch_pr_checks.main()
+
+                self.assertEqual(3, exit_code)
+                self.assertEqual([10], slept)
+                self.assertEqual("", stdout.getvalue())
+                self.assertIn(status, stderr.getvalue())
+
     def test_pr_gate_runs_every_repository_runtime_test(self):
         workflow = (
             Path(__file__).resolve().parents[2] / ".github/workflows/pr-gate.yml"

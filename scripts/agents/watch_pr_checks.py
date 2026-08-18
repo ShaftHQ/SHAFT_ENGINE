@@ -46,6 +46,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import shutil
 # subprocess is used only for read-only `gh`/`git` invocations below, always
 # as a list of args (never shell=True) with the executable resolved to an
@@ -93,9 +94,15 @@ PENDING_STATES = {
 }
 SUCCESS_STATES = {"SUCCESS", "NEUTRAL", "SKIPPED"}
 KNOWN_STATES = RED_STATES | PENDING_STATES | SUCCESS_STATES
+_TRANSIENT_GITHUB_HTTP = re.compile(r"\b(?:HTTP\s*)?(?:429|503)\b", re.IGNORECASE)
 
 class CheckWatchError(RuntimeError):
     """Raised for gh/environment failures that map to exit code 3."""
+
+
+def is_transient_github_http_error(error: BaseException) -> bool:
+    """True when a read-only gh poll failed with HTTP 429 or 503."""
+    return bool(_TRANSIENT_GITHUB_HTTP.search(str(error)))
 
 
 def validate_checks(payload: object, source: str) -> list[dict]:
@@ -356,6 +363,9 @@ def main(argv: list[str] | None = None) -> int:
             checks = poll_once(gh_executable, root, repo, pr)
         except CheckWatchError as error:
             print(f"watch_pr_checks: {error}", file=sys.stderr)
+            if is_transient_github_http_error(error) and attempt < poll_budget - 1:
+                time.sleep(interval)
+                continue
             return 3
 
         bucket, failing = classify_checks(checks)

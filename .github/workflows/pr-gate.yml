@@ -534,6 +534,7 @@ jobs:
         uses: ./.github/actions/intellij-verify
       - name: Upload IntelliJ coverage to Codecov
         if: always()
+        continue-on-error: true
         uses: ./.github/actions/upload-jacoco-coverage
         with:
           codecov-token: ${{ secrets.CODECOV_TOKEN }}
@@ -587,6 +588,7 @@ jobs:
         run: mvn --batch-mode -pl shaft-cli test '-DheadlessExecution=true' '-Dshaft.intellij.liveToolE2E=true'
       - name: Upload shaft-cli coverage to Codecov
         if: always()
+        continue-on-error: true
         uses: ./.github/actions/upload-jacoco-coverage
         with:
           codecov-token: ${{ secrets.CODECOV_TOKEN }}
@@ -635,6 +637,7 @@ jobs:
         uses: ./.github/actions/capture-browser-e2e
       - name: Upload SHAFT Capture coverage to Codecov
         if: always()
+        continue-on-error: true
         uses: ./.github/actions/upload-jacoco-coverage
         with:
           codecov-token: ${{ secrets.CODECOV_TOKEN }}
@@ -772,6 +775,7 @@ jobs:
           '-DheadlessExecution=true' '-Dallure.automaticallyOpen=false' -Dgpg.skip
       - name: Upload module coverage to Codecov
         if: always()
+        continue-on-error: true
         uses: ./.github/actions/upload-jacoco-coverage
         with:
           codecov-token: ${{ secrets.CODECOV_TOKEN }}
@@ -806,6 +810,7 @@ jobs:
           -Dgpg.skip
       - name: Upload template-coupling coverage to Codecov
         if: always()
+        continue-on-error: true
         uses: ./.github/actions/upload-jacoco-coverage
         with:
           codecov-token: ${{ secrets.CODECOV_TOKEN }}
