@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import ast
 import importlib.util
 import io
 import json
@@ -52,49 +51,25 @@ class Response(io.BytesIO):
 
 class ChaosEngineBootstrapTest(unittest.TestCase):
     def test_documented_command_contains_the_bounded_initial_fetch_contract(self):
-        lines = []
+        windows = 'irm "https://raw.githubusercontent.com/$env:CHAOS_ENGINE_REPOSITORY/main/chaos-engine/install.ps1" | iex'
+        posix = 'curl -fsSL "https://raw.githubusercontent.com/${CHAOS_ENGINE_REPOSITORY}/main/chaos-engine/install.sh" | bash'
         for relative in ("chaos-engine/README.md", "chaos-engine/INSTALL.md"):
             document = ROOT.joinpath(relative).read_text(encoding="utf-8")
-            lines.append(
-                next(item for item in document.splitlines() if item.startswith("py -3 -c "))
-            )
-        self.assertEqual(lines[0], lines[1])
-        source = lines[0][len('py -3 -c "') : -1]
-        outer = ast.parse(source)
-        rendered = ast.unparse(outer)
-        self.assertIn("os.environ['CHAOS_ENGINE_REPOSITORY']", rendered)
-        self.assertNotIn("'S' + 'haftHQ'", rendered)
-        self.assertNotIn("'S' + 'HAFT_ENGINE'", rendered)
-        embedded_call = next(
-            node
-            for node in ast.walk(outer)
-            if isinstance(node, ast.Call)
-            and isinstance(node.func, ast.Name)
-            and node.func.id == "exec"
-        )
-        embedded = ast.parse(ast.literal_eval(embedded_call.args[0]))
-        retry_loop = next(node for node in ast.walk(embedded) if isinstance(node, ast.For))
-        self.assertEqual("range(4)", ast.unparse(retry_loop.iter))
-        calls = {
-            ast.unparse(node.func)
-            for node in ast.walk(embedded)
-            if isinstance(node, ast.Call)
-        }
-        self.assertTrue(
-            {
-                "urllib.request.urlopen",
-                "time.sleep",
-                "error.close",
-                "email.utils.parsedate_to_datetime",
-            }.issubset(calls)
-        )
-        handlers = {
-            ast.unparse(handler.type)
-            for handler in ast.walk(embedded)
-            if isinstance(handler, ast.ExceptHandler) and handler.type is not None
-        }
-        self.assertIn("urllib.error.HTTPError", handlers)
-        self.assertIn("(ConnectionError, TimeoutError, urllib.error.URLError)", handlers)
+            self.assertIn(windows, document)
+            self.assertIn(posix, document)
+            self.assertIn("CHAOS_ENGINE_REPOSITORY", document)
+            self.assertNotIn("haftHQ", document)
+            self.assertNotIn("HAFT_ENGINE", document)
+        powershell = (ROOT / "chaos-engine/install.ps1").read_text(encoding="utf-8")
+        shell = (ROOT / "chaos-engine/install.sh").read_text(encoding="utf-8")
+        self.assertIn("CHAOS_ENGINE_REPOSITORY", powershell)
+        self.assertIn("CHAOS_ENGINE_REPOSITORY", shell)
+        self.assertIn("bootstrap.py", powershell)
+        self.assertIn("bootstrap.py", shell)
+        self.assertIn("--project", powershell)
+        self.assertIn("--project", shell)
+        self.assertIn("for ($attempt = 0; $attempt -lt 4; $attempt++)", powershell)
+        self.assertIn("curl -fsSL --retry 3", shell)
 
     def test_read_response_retries_a_transient_http_failure(self):
         module = load()
@@ -285,12 +260,12 @@ class ChaosEngineBootstrapTest(unittest.TestCase):
         sleeper.assert_called_once_with(5.0)
 
     def test_documented_one_command_contains_valid_python_source(self):
-        for relative in ("chaos-engine/README.md", "chaos-engine/INSTALL.md"):
-            document = ROOT.joinpath(relative).read_text(encoding="utf-8")
-            line = next(item for item in document.splitlines() if item.startswith("py -3 -c "))
-            self.assertTrue(line.startswith('py -3 -c "') and line.endswith('"'))
-            self.assertNotIn('\\"', line)
-            ast.parse(line[len('py -3 -c "') : -1])
+        powershell = (ROOT / "chaos-engine/install.ps1").read_text(encoding="utf-8")
+        shell = (ROOT / "chaos-engine/install.sh").read_text(encoding="utf-8")
+        self.assertIn("Get-Location", powershell)
+        self.assertIn('project="$(pwd)"', shell)
+        self.assertNotIn("shaft", powershell.casefold())
+        self.assertNotIn("shaft", shell.casefold())
 
     def test_public_full_flow_activates_clients_and_runs_doctor(self):
         module = load()

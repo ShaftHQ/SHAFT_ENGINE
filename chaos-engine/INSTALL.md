@@ -22,13 +22,16 @@ Give the following instruction to a coding agent while its working directory is
 the project you want to manage:
 
 > Install or upgrade ChaosEngine in this project from the latest commit of the
-> official upstream. Fetch and inspect that upstream's
-> `chaos-engine/bootstrap.py`, run it with Python 3, `--project .`, and the
-> explicit repository containing this guide. Do not stop until the bootstrap's
-> active doctor reports the resolved 40-character commit and every required
-> component healthy. Treat
-> the installed ChaosEngine skill as the canonical harness and route any
-> existing agent guidance through it without deleting unrelated user content.
+> official upstream. Change into the target project first. Set
+> `CHAOS_ENGINE_REPOSITORY` to the upstream `owner/repository`, then run
+> `chaos-engine/install.ps1` on Windows (`irm ... | iex`) or
+> `chaos-engine/install.sh` on macOS/Linux (`curl -fsSL ... | bash`). Those
+> wrappers download `bootstrap.py` and run the full install: hooks, skills,
+> companions, Memory, MemPalace, Graphify CLI, and doctor. Do not stop until
+> the active doctor reports the resolved 40-character commit and every
+> required component healthy. Treat the installed ChaosEngine skill as the
+> canonical harness and route any existing agent guidance through it without
+> deleting unrelated user content.
 
 That agent instruction owns the complete flow: the bootstrap installs the
 neutral core, pinned local tools, Memory and isolated MemPalace MCP servers,
@@ -48,26 +51,38 @@ so Windows Git checkouts retain the exact owned bytes while unrelated
 
 Configure `CHAOS_ENGINE_REPOSITORY` in the caller's host environment with the
 canonical `owner/repository` source. The installer reads it without copying the
-source identity into the adopter payload. Then use this literal one-command
-terminal flow from the adopter project on Windows PowerShell:
+source identity into the adopter payload. Change into the target project or
+folder first; both scripts install into the current working directory.
+
+Windows PowerShell, using [install.ps1](install.ps1):
 
 ```powershell
-py -3 -c "import email.utils,os,pathlib,runpy,sys,tempfile,time,urllib.error,urllib.request; repo=os.environ['CHAOS_ENGINE_REPOSITORY']; d=tempfile.TemporaryDirectory(prefix='chaos-engine-bootstrap-'); p=pathlib.Path(d.name)/'bootstrap.py'; ns={'url':f'https://raw.githubusercontent.com/{repo}/main/chaos-engine/bootstrap.py','retry_header':'Retry-After','transient':{408,425,429,500,502,503,504}}; exec('for attempt in range(4):\n delay=2**attempt\n try:\n  with urllib.request.urlopen(url,timeout=30) as response: content=response.read()\n  break\n except urllib.error.HTTPError as error:\n  retry_after=error.headers.get(retry_header) if error.headers is not None else None\n  error.close()\n  if (error.code not in transient and not (error.code==403 and retry_after is not None)) or attempt==3: raise\n  if retry_after is not None:\n   try: delay=float(retry_after)\n   except ValueError: delay=max(0,email.utils.parsedate_to_datetime(retry_after).timestamp()-time.time())\n   if not 0<=delay<=60: raise\n  elif error.code==429: delay=60\n except (ConnectionError,TimeoutError,urllib.error.URLError):\n  if attempt==3: raise\n time.sleep(delay)',globals(),ns); p.write_bytes(ns['content']); sys.argv=[str(p),'--project','.','--repository',repo]; runpy.run_path(str(p),run_name='__main__')"
+$env:CHAOS_ENGINE_REPOSITORY = 'owner/repository'
+irm "https://raw.githubusercontent.com/$env:CHAOS_ENGINE_REPOSITORY/main/chaos-engine/install.ps1" | iex
 ```
 
-On macOS or Linux, replace `py -3` with `python3`. Inspect the
-bootstrap source in this upstream repository first when policy requires review
-before execution. The temporary bootstrap resolves the default branch to an
-immutable commit and downloads only its validated `chaos-engine/` subtree;
-`portable` is already the default and need not be supplied. Restart any client that was open during
-installation so it loads its verified local plugin cache.
+macOS or Linux, using [install.sh](install.sh):
 
-Add `--branch branch` to override the repository's configured default branch. The
-bootstrap resolves that mutable branch through the GitHub API, downloads the
-exact commit's declared harness files, rejects unsafe tree entries, and records repository,
-immutable provenance digests and the commit in `.chaos-engine/manifest.json`.
-The public default is always the neutral `portable` distribution; a source
-repository's contributor profile requires an explicit non-default selection. Re-running the
+```bash
+export CHAOS_ENGINE_REPOSITORY=owner/repository
+curl -fsSL "https://raw.githubusercontent.com/${CHAOS_ENGINE_REPOSITORY}/main/chaos-engine/install.sh" | bash
+```
+
+Inspect the linked installer and [bootstrap.py](bootstrap.py) first when policy
+requires review before execution. The bootstrap resolves the default branch to
+an immutable commit and downloads only its validated `chaos-engine/` subtree;
+`portable` is already the default and need not be supplied. Restart any client
+that was open during installation so it loads its verified local plugin cache.
+
+Set `CHAOS_ENGINE_BRANCH` to override the repository's configured default
+branch (otherwise `main`). The bootstrap resolves that mutable branch through
+the GitHub API, downloads the exact commit's declared harness files, rejects
+unsafe tree entries, and records repository, immutable provenance digests and
+the commit in `.chaos-engine/manifest.json`.
+The public default is the neutral `portable` distribution. A bundled
+repository profile is installed only when the target project's root `pom.xml`
+matches that profile's declared Maven artifact ids. Pass `--distribution` to
+the bootstrap if you need to override the detected choice. Re-running the
 same command upgrades to the latest resolved commit; an offline or invalid
 download leaves the last verified installation unchanged. The bootstrap retries
 transient timeout, connection, rate-limit, and server responses with bounded

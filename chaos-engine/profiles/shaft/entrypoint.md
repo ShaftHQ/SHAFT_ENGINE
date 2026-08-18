@@ -24,10 +24,12 @@ apply unchanged to repository and portable installed hosts.
 - The companion public-documentation repository is
   `ShaftHQ/shafthq.github.io` on `master`; discover its local root or use an
   explicitly configured root, never a fixed sibling path.
-- Install or upgrade this profile from its configured upstream with the single
-  agent command in [INSTALL](../../INSTALL.md), supplying
-  `--repository ShaftHQ/SHAFT_ENGINE --branch main` and fetching the bootstrap
-  from `https://raw.githubusercontent.com/ShaftHQ/SHAFT_ENGINE/main/chaos-engine/bootstrap.py`.
+- Install or upgrade this profile from its configured upstream with the
+  one-liner in [INSTALL](../../INSTALL.md). From the target folder:
+  `irm https://raw.githubusercontent.com/ShaftHQ/SHAFT_ENGINE/main/chaos-engine/install.ps1 | iex`
+  on Windows, or
+  `curl -fsSL https://raw.githubusercontent.com/ShaftHQ/SHAFT_ENGINE/main/chaos-engine/install.sh | bash`
+  on macOS/Linux, with `CHAOS_ENGINE_REPOSITORY=ShaftHQ/SHAFT_ENGINE`.
 - Maven modules and SHAFT product behavior route through the playbooks and
   mastery chapters under [references](references/routing.md).
 - Cheap, bounded, already-specified local coding work uses the

@@ -2,6 +2,9 @@
   "schemaVersion": 1,
   "name": "shaft",
   "entrypoint": "./entrypoint.md",
+  "installWhen": {
+    "mavenArtifactIds": ["shaft-engine"]
+  },
   "repository": "ShaftHQ/SHAFT_ENGINE",
   "defaultBranch": "main",
   "taskBranchPrefix": "ChaosEngine/",
