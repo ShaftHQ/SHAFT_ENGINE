@@ -24,6 +24,7 @@ public class ReportingTests {
     boolean traceIncludeNetwork;
     boolean traceIncludeConsole;
     int traceMaxArtifactMb;
+    int traceMaxSessionMb;
 
     @BeforeClass
     public void beforeClass() {
@@ -46,6 +47,7 @@ public class ReportingTests {
         traceIncludeNetwork = SHAFT.Properties.reporting.traceIncludeNetwork();
         traceIncludeConsole = SHAFT.Properties.reporting.traceIncludeConsole();
         traceMaxArtifactMb = SHAFT.Properties.reporting.traceMaxArtifactMb();
+        traceMaxSessionMb = SHAFT.Properties.reporting.traceMaxSessionMb();
 
     }
 
@@ -70,5 +72,6 @@ public class ReportingTests {
         SHAFT.Properties.reporting.set().traceIncludeNetwork(traceIncludeNetwork);
         SHAFT.Properties.reporting.set().traceIncludeConsole(traceIncludeConsole);
         SHAFT.Properties.reporting.set().traceMaxArtifactMb(traceMaxArtifactMb);
+        SHAFT.Properties.reporting.set().traceMaxSessionMb(traceMaxSessionMb);
     }
 }

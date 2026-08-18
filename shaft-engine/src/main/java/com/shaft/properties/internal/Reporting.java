@@ -142,6 +142,10 @@ public interface Reporting extends EngineProperties<Reporting> {
     @DefaultValue("50")
     int traceMaxArtifactMb();
 
+    @Key("shaft.trace.maxSessionMb")
+    @DefaultValue("512")
+    int traceMaxSessionMb();
+
     @Key("shaft.flakeProfiler.enabled")
     @DefaultValue("false")
     boolean flakeProfilerEnabled();
@@ -312,6 +316,11 @@ public interface Reporting extends EngineProperties<Reporting> {
 
         public SetProperty traceMaxArtifactMb(int value) {
             setProperty("shaft.trace.maxArtifactMb", String.valueOf(value));
+            return this;
+        }
+
+        public SetProperty traceMaxSessionMb(int value) {
+            setProperty("shaft.trace.maxSessionMb", String.valueOf(value));
             return this;
         }
 

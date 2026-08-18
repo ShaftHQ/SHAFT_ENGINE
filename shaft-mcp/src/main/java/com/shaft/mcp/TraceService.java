@@ -27,10 +27,8 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.AtomicMoveNotSupportedException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.StandardCopyOption;
 import java.nio.file.attribute.FileTime;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -176,40 +174,22 @@ public class TraceService {
             return new McpTraceViewerResult("1.0", "", false,
                     List.of("No SHAFT Trace Report.html or trace ZIP was found for " + relative(path) + "."));
         }
-        try (InputStream input = Files.newInputStream(archive); ZipInputStream zip = new ZipInputStream(input)) {
-            ZipEntry entry;
-            while ((entry = zip.getNextEntry()) != null) {
-                if ("SHAFT Trace Report.html".equals(entry.getName())) {
-                    try {
-                        extractViewer(zip, entry, htmlPath);
-                        return new McpTraceViewerResult("1.0", relative(htmlPath), true, List.of());
-                    } catch (EntryTooLargeException exception) {
-                        return new McpTraceViewerResult("1.0", "", false,
-                                List.of("Trace viewer exceeds the 64 MiB extraction limit."));
-                    }
-                }
-            }
+        try {
+            com.shaft.tools.io.internal.TraceArchiveReader.extractNamed(
+                    archive, "SHAFT Trace Report.html", htmlPath, MAX_VIEWER_BYTES);
+            return new McpTraceViewerResult("1.0", relative(htmlPath), true, List.of());
         } catch (IOException exception) {
+            String message = exception.getMessage() == null ? "" : exception.getMessage();
+            if (message.toLowerCase(Locale.ROOT).contains("limit")) {
+                return new McpTraceViewerResult("1.0", "", false,
+                        List.of("Trace viewer exceeds the 64 MiB extraction limit."));
+            }
+            if (message.contains("does not contain") || message.contains("unsafe")) {
+                return new McpTraceViewerResult("1.0", "", false,
+                        List.of("Trace ZIP " + relative(archive) + " does not contain SHAFT Trace Report.html."));
+            }
             return new McpTraceViewerResult("1.0", "", false,
                     List.of("Trace ZIP could not be read."));
-        }
-        return new McpTraceViewerResult("1.0", "", false,
-                List.of("Trace ZIP " + relative(archive) + " does not contain SHAFT Trace Report.html."));
-    }
-
-    private static void extractViewer(ZipInputStream zip, ZipEntry entry, Path htmlPath) throws IOException {
-        if (entry.getSize() > MAX_VIEWER_BYTES) {
-            throw new EntryTooLargeException();
-        }
-        Path staging = Files.createTempFile(htmlPath.getParent(), ".shaft-trace-viewer-", ".tmp");
-        try {
-            try (OutputStream output = Files.newOutputStream(staging)) {
-                copyBounded(zip, output, MAX_VIEWER_BYTES);
-            }
-            zip.closeEntry();
-            moveCompleteFile(staging, htmlPath);
-        } finally {
-            Files.deleteIfExists(staging);
         }
     }
 
@@ -223,14 +203,6 @@ public class TraceService {
             }
             output.write(buffer, 0, read);
             retained += read;
-        }
-    }
-
-    private static void moveCompleteFile(Path staging, Path target) throws IOException {
-        try {
-            Files.move(staging, target, StandardCopyOption.ATOMIC_MOVE);
-        } catch (AtomicMoveNotSupportedException exception) {
-            Files.move(staging, target);
         }
     }
 

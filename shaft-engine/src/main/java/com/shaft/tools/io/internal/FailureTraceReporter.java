@@ -133,9 +133,10 @@ public final class FailureTraceReporter {
             String html = bundle.html();
             omitted = bundle.omitted();
             attach("html", "shaft-trace.html", html.getBytes(StandardCharsets.UTF_8), traceViewerLabel(info, attempt));
-            persistTraceArtifacts(info, completedArchive, screenshots, attempt, omitted);
-            AttachmentReporter.attachBasedOnFileType("zip", "shaft-trace.zip", completedArchive,
-                    traceAttachmentLabel(info, attempt));
+            if (persistTraceArtifacts(info, completedArchive, screenshots, attempt, omitted)) {
+                AttachmentReporter.attachBasedOnFileType("zip", "shaft-trace.zip", completedArchive,
+                        traceAttachmentLabel(info, attempt));
+            }
         } catch (RuntimeException e) {
             ReportManagerHelper.logDiscrete("Could not attach SHAFT trace report: " + e.getMessage(), Level.WARN);
         } finally {
@@ -675,11 +676,16 @@ public final class FailureTraceReporter {
                 .filmstrip button{min-width:132px;max-width:180px;padding:6px;text-align:left;background:var(--shaft-surface);color:var(--shaft-text)}
                 .filmstrip button.selected{border-color:var(--shaft-primary);box-shadow:0 0 0 3px rgba(var(--shaft-primary-rgb),.14)}
                 .filmstrip button:not(.inwindow){opacity:.58}
-                .filmstrip img{display:block;width:100%;height:76px;object-fit:contain;background:#fff;margin-bottom:4px}
+                .filmstrip img{display:block;width:100%;height:76px;object-fit:contain;background:var(--shaft-bg);margin-bottom:4px}
                 .filmstrip-missing{display:grid;place-items:center;height:76px;border:1px dashed var(--shaft-border,#ccc);margin-bottom:4px;color:var(--shaft-text-muted)}
                 .comparison-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
                 .comparison-grid section{min-width:0}
-                .comparison-grid iframe,.comparison-grid img{width:100%;height:360px;object-fit:contain;border:1px solid var(--shaft-border,#ccc);background:#fff}
+                .comparison-grid iframe,.comparison-grid img{width:100%;height:360px;object-fit:contain;border:1px solid var(--shaft-border,#ccc);background:var(--shaft-bg)}
+                .trace-status-strip{display:flex;flex-wrap:wrap;gap:10px 16px;align-items:center}
+                .trace-status-strip .status-meta{color:var(--shaft-text-muted)}
+                .tab-groups{display:grid;gap:8px;margin:14px 0}
+                .tab-groups .tabs{margin:0}
+                .tab-groups .tab-secondary button{opacity:.92}
                 :focus-visible{outline:3px solid var(--shaft-primary);outline-offset:2px}
                 @media(prefers-reduced-motion:reduce){*{scroll-behavior:auto!important;transition:none!important;animation:none!important}}
                 @media(max-width:900px){.trace-layout{grid-template-columns:1fr}}
@@ -730,26 +736,30 @@ public final class FailureTraceReporter {
                       <button type="button" class="secondary" onclick="copyJson()">Copy JSON</button>
                     </div>
                     <dl id="details"></dl>
-                    <div class="tabs" id="action-tabs">
+                    <div class="tab-groups" id="action-tabs">
+                      <div class="tabs tab-primary" role="tablist" aria-label="Primary investigation">
                       <button data-tab="timeline" class="selected">Timeline</button>
-                      <button data-tab="exception">Exception</button>
+                      <button data-tab="comparison">Snapshots</button>
+                      <button data-tab="network">Network</button>
+                      <button data-tab="console">Console</button>
                       <button data-tab="source">Source</button>
+                      <button data-tab="artifacts">Artifacts</button>
+                      </div>
+                      <div class="tabs tab-secondary" role="tablist" aria-label="More evidence">
+                      <button data-tab="exception">Exception</button>
                       <button data-tab="snapshot">Snapshot</button>
                       <button data-tab="nativeEvidence">Native evidence</button>
-                      <button data-tab="comparison">Comparison</button>
                       <button data-tab="domSnapshot">DOM Snapshot</button>
                       <button data-tab="screenshot">Screenshot</button>
                       <button data-tab="locatorHealth">Locator Health</button>
-                       <button data-tab="network">Network</button>
-                       <button data-tab="console">Console</button>
                        <button data-tab="webSockets">WebSockets</button>
                        <button data-tab="mobile">Mobile</button>
-                       <button data-tab="artifacts">Artifacts</button>
                        <button data-tab="browserObservability">Observability</button>
                       <button data-tab="environment">Environment</button>
                       <button data-tab="attachments">Attachments</button>
                       <button data-tab="log">Test Log</button>
                       <button data-tab="json">JSON</button>
+                      </div>
                     </div>
                     <pre id="tab-content"></pre>
                     <div id="timeline-panel" hidden>
@@ -770,7 +780,7 @@ public final class FailureTraceReporter {
                         <button data-dom="after">After</button>
                       </div>
                       <iframe id="dom-snapshot-frame" title="DOM snapshot" sandbox=""
-                              style="width:100%;height:420px;border:1px solid var(--shaft-border,#ccc);background:#fff"></iframe>
+                              style="width:100%;height:420px;border:1px solid var(--shaft-border,#ccc);background:var(--shaft-bg)"></iframe>
                     </div>
                     <div id="screenshot-panel" hidden>
                       <img id="screenshot-image" alt="Action screenshot"
@@ -861,7 +871,7 @@ public final class FailureTraceReporter {
                      <p class="muted" id="native-trace-handoff" hidden></p>
                      <output id="artifact-result-count" class="result-count" aria-live="polite"></output>
                      <table class="trace-table"><thead><tr>
-                       <th>Path</th><th>Kind</th><th>Media type</th><th>Status</th><th>Details</th>
+                       <th>Path</th><th>Kind</th><th>Media type</th><th>Status</th><th>Size</th><th>Digest</th><th>Details</th>
                      </tr></thead><tbody id="artifact-rows"></tbody></table>
                    </div>
                  </section>
@@ -1026,18 +1036,18 @@ public final class FailureTraceReporter {
                   const retried = String(test.retried) === 'true';
                   const attemptSuffix = attempt > 1 || retried ? ` - attempt ${attempt}${retried ? ' (retried)' : ''}` : '';
                   document.getElementById('trace-subtitle').textContent = `${test.className || 'Unknown class'}.${test.methodName || 'unknown'}${attemptSuffix} - ${trace.generatedAt || ''}`;
-                  const attemptCard = attempt > 1 || retried
-                    ? `<div class="metric-card"><div class="metric-label">Attempt</div><div class="metric-value"><span class="status-chip warn">#${attempt}${retried ? ' retried' : ''}</span></div></div>`
+                  const attemptChip = attempt > 1 || retried
+                    ? `<span class="status-chip warn">attempt ${attempt}${retried ? ' retried' : ''}</span>`
                     : '';
                   document.getElementById('trace-summary').innerHTML = `
-                    <h2>Run Snapshot</h2>
-                    <div class="metric-grid">
-                      <div class="metric-card"><div class="metric-label">Status</div><div class="metric-value"><span class="status-chip ${statusClass(test.status)}">${esc(test.status || 'unknown')}</span></div></div>
-                      ${attemptCard}
-                      <div class="metric-card"><div class="metric-label">Actions</div><div class="metric-value">${actions.length}${failedActions ? ` <span class="status-chip failed">${failedActions} failed</span>` : ''}</div></div>
-                      <div class="metric-card"><div class="metric-label">Network</div><div class="metric-value">${network.length}${failedNetwork ? ` <span class="status-chip failed">${failedNetwork} failed</span>` : ''}</div></div>
-                      <div class="metric-card"><div class="metric-label">Console Errors</div><div class="metric-value">${consoleErrors}</div></div>
-                      <div class="metric-card"><div class="metric-label">Exception</div><div class="metric-value">${esc(exception.type || 'None')}</div></div>
+                    <h2>Investigation</h2>
+                    <div class="trace-status-strip">
+                      <span class="status-chip ${statusClass(test.status)}">${esc(test.status || 'unknown')}</span>
+                      ${attemptChip}
+                      <span class="status-meta">${actions.length} actions${failedActions ? ` · ${failedActions} failed` : ''}</span>
+                      <span class="status-meta">${network.length} network${failedNetwork ? ` · ${failedNetwork} failed` : ''}</span>
+                      <span class="status-meta">${consoleErrors} console errors</span>
+                      <span class="status-meta">${esc(exception.type || 'No exception')}</span>
                     </div>`;
                   if (truncation.length) {
                     document.getElementById('truncation-banner').hidden = false;
@@ -1448,9 +1458,12 @@ public final class FailureTraceReporter {
                   artifacts.forEach(artifact => {
                     const tr = document.createElement('tr');
                     const status = artifact.omitted ? 'Omitted' : 'Available';
-                    const reason = artifact.omitted && artifact.metadata
-                      ? artifact.metadata.omissionReason || 'No omission reason was recorded.' : '';
-                    tr.innerHTML = `<td>${esc(artifact.path || 'Unknown')}</td><td>${esc(artifact.kind || 'Unknown')}</td><td>${esc(artifact.mimeType || 'Unknown')}</td><td>${status}</td><td>${esc(reason)}</td>`;
+                    const metadata = artifact.metadata || {};
+                    const reason = artifact.omitted
+                      ? metadata.omissionReason || 'No omission reason was recorded.' : '';
+                    const size = metadata.sizeBytes ? metadata.sizeBytes + ' B' : '';
+                    const digest = metadata.sha256 ? metadata.sha256.slice(0, 12) : '';
+                    tr.innerHTML = `<td>${esc(artifact.path || 'Unknown')}</td><td>${esc(artifact.kind || 'Unknown')}</td><td>${esc(artifact.mimeType || 'Unknown')}</td><td>${status}</td><td>${esc(size)}</td><td>${esc(digest)}</td><td>${esc(reason)}</td>`;
                     artifactRows.appendChild(tr);
                   });
                   const nativeTrace = artifacts.find(artifact => artifact.kind === 'native-trace');
@@ -2198,16 +2211,22 @@ public final class FailureTraceReporter {
         AttachmentReporter.attachBasedOnFileType(type, name, output, description);
     }
 
-    static void persistTraceArtifacts(TestExecutionInfo info, Path completedArchive, Map<String, byte[]> screenshots,
+    static boolean persistTraceArtifacts(TestExecutionInfo info, Path completedArchive, Map<String, byte[]> screenshots,
                                       int attempt, List<String> omitted) {
         try {
             Path directory = traceDirectory(info);
             Files.createDirectories(directory);
             boolean failed = info != null && info.throwable() != null;
+            long archiveBytes = Files.size(completedArchive);
+            if (!TraceSessionBudget.tryReserve(archiveBytes)) {
+                persistSessionOmission(info, directory, attempt, failed, omitted);
+                return false;
+            }
             String archiveName = "shaft-trace.zip";
             // Retain failed-attempt bundles under attempt-indexed names so a later passing retry
             // (which rewrites shaft-trace.zip) never erases the flake evidence.
-            if (failed && retriesConfigured() && SHAFT.Properties.reporting.traceRetainFailedAttempts()) {
+            if (failed && retriesConfigured() && SHAFT.Properties.reporting.traceRetainFailedAttempts()
+                    && TraceSessionBudget.tryReserve(archiveBytes)) {
                 archiveName = "shaft-trace-attempt-" + attempt + ".zip";
                 TraceArchiveWriter.copy(completedArchive, directory.resolve(archiveName));
             }
@@ -2215,31 +2234,70 @@ public final class FailureTraceReporter {
             synchronized (TRACE_LOCKS.computeIfAbsent(testId, id -> new Object())) {
                 recordAttempt(info, attempt, failed ? "failed" : "passed", archiveName);
                 if (publishLatest(testId, attempt, completedArchive, directory.resolve("shaft-trace.zip"))) {
+                    boolean persistScreenshots = persistSidecarScreenshots(directory, screenshots);
                     TraceArtifactManifest manifest = CURRENT_ARTIFACT_MANIFEST.get();
                     List<TraceArtifactReference> artifacts = manifest == null ? List.of() : manifest.references();
-                    LATEST_INDEX.put(testId, new TraceIndexSnapshot(info, !screenshots.isEmpty(), attempt,
-                            List.copyOf(omitted), artifacts));
+                    LATEST_INDEX.put(testId, new TraceIndexSnapshot(info, persistScreenshots, attempt,
+                            List.copyOf(omitted), artifacts, ""));
                     Files.deleteIfExists(directory.resolve("SHAFT Trace Report.html"));
                     Files.deleteIfExists(directory.resolve("shaft-trace.json"));
-                    if (!screenshots.isEmpty()) {
-                        Path screenshotsDirectory = directory.resolve("screenshots");
-                        Files.createDirectories(screenshotsDirectory);
-                        for (Map.Entry<String, byte[]> entry : screenshots.entrySet()) {
-                            Files.write(screenshotsDirectory.resolve(entry.getKey() + ".png"), entry.getValue());
-                        }
-                    }
                 }
-                TraceIndexSnapshot latest = LATEST_INDEX.get(testId);
-                if (latest != null) {
-                    byte[] index = renderTraceIndexJson(latest.info(), directory.resolve("shaft-trace.zip"),
-                            latest.hasScreenshots(), latest.attempt(), latest.omitted(), latest.artifacts())
-                            .getBytes(StandardCharsets.UTF_8);
-                    TraceArchiveWriter.writeBytes(directory.resolve("index.json"), index);
-                }
+                writeLatestIndex(testId, directory);
             }
+            return true;
         } catch (IOException e) {
             ReportManagerHelper.logDiscrete("Could not persist SHAFT trace artifacts: " + e.getMessage(), Level.WARN);
+            return false;
         }
+    }
+
+    private static boolean persistSidecarScreenshots(Path directory, Map<String, byte[]> screenshots)
+            throws IOException {
+        if (screenshots == null || screenshots.isEmpty()) {
+            return false;
+        }
+        long screenshotBytes = 0;
+        for (byte[] bytes : screenshots.values()) {
+            screenshotBytes = Math.addExact(screenshotBytes, bytes.length);
+        }
+        if (!TraceSessionBudget.tryReserve(screenshotBytes)) {
+            return false;
+        }
+        Path screenshotsDirectory = directory.resolve("screenshots");
+        Files.createDirectories(screenshotsDirectory);
+        for (Map.Entry<String, byte[]> entry : screenshots.entrySet()) {
+            Files.write(screenshotsDirectory.resolve(entry.getKey() + ".png"), entry.getValue());
+        }
+        return true;
+    }
+
+    private static void persistSessionOmission(TestExecutionInfo info, Path directory, int attempt, boolean failed,
+                                               List<String> omitted) throws IOException {
+        String testId = safeTestId(info);
+        List<String> sessionOmitted = new ArrayList<>(omitted);
+        if (!sessionOmitted.contains("shaft-trace.zip")) {
+            sessionOmitted.add("shaft-trace.zip");
+        }
+        synchronized (TRACE_LOCKS.computeIfAbsent(testId, id -> new Object())) {
+            recordAttempt(info, attempt, failed ? "failed" : "passed", "");
+            TraceArtifactManifest manifest = CURRENT_ARTIFACT_MANIFEST.get();
+            List<TraceArtifactReference> artifacts = manifest == null ? List.of() : manifest.references();
+            LATEST_INDEX.put(testId, new TraceIndexSnapshot(info, false, attempt, List.copyOf(sessionOmitted),
+                    artifacts, TraceSessionBudget.omissionReason()));
+            writeLatestIndex(testId, directory);
+        }
+        ReportManagerHelper.logDiscrete(TraceSessionBudget.omissionReason(), Level.WARN);
+    }
+
+    private static void writeLatestIndex(String testId, Path directory) throws IOException {
+        TraceIndexSnapshot latest = LATEST_INDEX.get(testId);
+        if (latest == null) {
+            return;
+        }
+        byte[] index = renderTraceIndexJson(latest.info(), directory.resolve("shaft-trace.zip"),
+                latest.hasScreenshots(), latest.attempt(), latest.omitted(), latest.artifacts(),
+                latest.sessionOmission()).getBytes(StandardCharsets.UTF_8);
+        TraceArchiveWriter.writeBytes(directory.resolve("index.json"), index);
     }
 
     private static void recordAttempt(TestExecutionInfo info, int attempt, String status, String archiveName) {
@@ -2310,6 +2368,12 @@ public final class FailureTraceReporter {
     static String renderTraceIndexJson(TestExecutionInfo info, Path zipPath, boolean hasScreenshots,
                                                int attempt, List<String> omitted,
                                                List<TraceArtifactReference> artifacts) {
+        return renderTraceIndexJson(info, zipPath, hasScreenshots, attempt, omitted, artifacts, "");
+    }
+
+    static String renderTraceIndexJson(TestExecutionInfo info, Path zipPath, boolean hasScreenshots,
+                                               int attempt, List<String> omitted,
+                                               List<TraceArtifactReference> artifacts, String sessionOmission) {
         boolean failed = info != null && info.throwable() != null;
         StringBuilder json = new StringBuilder();
         json.append("{\n");
@@ -2320,6 +2384,7 @@ public final class FailureTraceReporter {
         field(json, 1, "status", failed ? "failed" : "passed", true);
         field(json, 1, "retried", String.valueOf(info != null && info.retried()), true);
         field(json, 1, "traceMode", effectiveTraceMode(), true);
+        field(json, 1, "sessionOmission", sessionOmission == null ? "" : sessionOmission, true);
         array(json, 1, "omittedEntries", omitted, true);
         rawArray(json, 1, "artifacts", TraceSchemaSerializer.artifactsToJson(artifacts), true);
         appendAttemptHistory(json, safeTestId(info));
@@ -3070,10 +3135,12 @@ public final class FailureTraceReporter {
     }
 
     private record TraceIndexSnapshot(TestExecutionInfo info, boolean hasScreenshots, int attempt,
-                                      List<String> omitted, List<TraceArtifactReference> artifacts) {
+                                      List<String> omitted, List<TraceArtifactReference> artifacts,
+                                      String sessionOmission) {
         private TraceIndexSnapshot {
             omitted = List.copyOf(omitted);
             artifacts = List.copyOf(artifacts);
+            sessionOmission = sessionOmission == null ? "" : sessionOmission;
         }
     }
 

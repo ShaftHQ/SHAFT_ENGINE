@@ -252,6 +252,50 @@ public class TraceArtifactManifestTest {
     }
 
     @Test
+    public void networkAndNativeArtifactsShouldCarryContentAddressedIntegrityMetadata() throws Exception {
+        String networkEntries = "[{\"url\":\"https://example.test\"}]";
+        byte[] network = BrowserObservabilityRecorder.networkHarJson(networkEntries)
+                .getBytes(StandardCharsets.UTF_8);
+        String networkDigest = HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(network));
+        Path nativeTrace = Files.createTempFile("playwright-native-integrity-", ".zip");
+        byte[] nativeBytes = "native-trace-bytes".getBytes(StandardCharsets.UTF_8);
+        Files.write(nativeTrace, nativeBytes);
+        String nativeDigest = HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(nativeBytes));
+        try (TraceArtifactManifest manifest = TraceArtifactManifest.create(
+                networkEntries, Map.of(), nativeTrace, 1024, "omitted")) {
+            var networkArtifact = manifest.references().stream().filter(item -> item.id().equals("network"))
+                    .findFirst().orElseThrow();
+            var nativeArtifact = manifest.references().stream().filter(item -> item.id().equals("native-trace"))
+                    .findFirst().orElseThrow();
+            Assert.assertEquals(networkArtifact.metadata().get("sha256"), networkDigest);
+            Assert.assertEquals(networkArtifact.metadata().get("sizeBytes"), String.valueOf(network.length));
+            Assert.assertEquals(nativeArtifact.metadata().get("sha256"), nativeDigest);
+            Assert.assertEquals(nativeArtifact.metadata().get("sizeBytes"), String.valueOf(nativeBytes.length));
+        } finally {
+            Files.deleteIfExists(nativeTrace);
+        }
+    }
+
+    @Test
+    public void omittedNativeTraceShouldHashTheOmissionReason() throws Exception {
+        String reason = "bounded omission";
+        String digest = HexFormat.of().formatHex(
+                MessageDigest.getInstance("SHA-256").digest(reason.getBytes(StandardCharsets.UTF_8)));
+        Path nativeTrace = Files.createTempFile("playwright-native-omitted-", ".zip");
+        Files.write(nativeTrace, new byte[32]);
+        try (TraceArtifactManifest manifest = TraceArtifactManifest.create("[]", Map.of(), nativeTrace, 16, reason)) {
+            var nativeArtifact = manifest.references().stream().filter(item -> item.id().equals("native-trace"))
+                    .findFirst().orElseThrow();
+            Assert.assertTrue(nativeArtifact.omitted());
+            Assert.assertEquals(nativeArtifact.metadata().get("sha256"), digest);
+            Assert.assertEquals(nativeArtifact.metadata().get("sizeBytes"),
+                    String.valueOf(reason.getBytes(StandardCharsets.UTF_8).length));
+        } finally {
+            Files.deleteIfExists(nativeTrace);
+        }
+    }
+
+    @Test
     public void withinCapNetworkShouldRemainAvailable() {
         try (TraceArtifactManifest manifest = TraceArtifactManifest.create("[]", Map.of(), null, 1024, "omitted")) {
             var network = manifest.references().stream().filter(item -> item.id().equals("network")).findFirst()
