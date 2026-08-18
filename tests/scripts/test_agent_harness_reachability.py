@@ -833,6 +833,30 @@ class EntrypointDutyTest(unittest.TestCase):
                 self.assertIn(link, content, f"the entrypoint must link {link}")
                 self.assertIn(anchor, slugs, f"{anchor} names no heading in the playbook")
 
+    def test_pr_merger_babysit_must_fix_review_comments_and_failed_tests(self):
+        """Babysitting is not watch-only: comments and failed tests are in-scope."""
+        playbook = section_body(
+            self.PLAYBOOK.read_text(encoding="utf-8"),
+            "### PR-merger workflow: arm, watch, fix, confirm",
+        )
+        compact = re.sub(r"\s+", " ", playbook).casefold()
+        self.assertTrue(playbook, "the PR-merger workflow section must exist")
+        self.assertIn("review comments", compact)
+        self.assertIn("failed tests", compact)
+        self.assertIsNone(OPTIONALITY_HEDGE.search(playbook))
+        lifecycle = section_body(
+            (ROOT / "chaos-engine/references/consult-first.md").read_text(
+                encoding="utf-8"
+            ),
+            "## Lifecycle",
+        )
+        lifecycle_compact = re.sub(r"\s+", " ", lifecycle).casefold()
+        self.assertTrue(lifecycle, "the consult-first Lifecycle section must exist")
+        self.assertIn("babysit", lifecycle_compact)
+        self.assertIn("review comments", lifecycle_compact)
+        self.assertIn("failed tests", lifecycle_compact)
+        self.assertIsNone(OPTIONALITY_HEDGE.search(lifecycle))
+
     def test_the_learning_loop_is_required_before_every_report_of_done(self):
         """#4487: the routing table is the classifier; running it is the duty."""
         section = section_body(

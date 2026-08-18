@@ -568,6 +568,55 @@ class ChaosEngineInstallerTest(unittest.TestCase):
     def test_detect_distribution_selects_repository_from_reactor_module(self):
         self.assertEqual("repository", MODULE.detect_distribution(ROOT, SOURCE))
 
+    def test_maven_coordinate_ids_ignore_plugins_comments_and_broken_xml(self):
+        wanted = json.loads(
+            (SOURCE / "profiles/shaft/profile.json").read_text(encoding="utf-8")
+        )["installWhen"]["mavenArtifactIds"][0]
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary) / "consumer"
+            project.mkdir()
+            project.joinpath("pom.xml").write_text(
+                f"""<project>
+                  <parent>
+                    <artifactId>{wanted}</artifactId>
+                  </parent>
+                  <artifactId>demo</artifactId>
+                  <build>
+                    <plugins>
+                      <plugin>
+                        <artifactId>{wanted}</artifactId>
+                      </plugin>
+                    </plugins>
+                  </build>
+                  <dependencies>
+                    <dependency>
+                      <artifactId>junit-jupiter</artifactId>
+                      <exclusions>
+                        <exclusion>
+                          <artifactId>{wanted}</artifactId>
+                        </exclusion>
+                      </exclusions>
+                    </dependency>
+                  </dependencies>
+                  <!-- <dependency><artifactId>{wanted}</artifactId></dependency> -->
+                </project>
+                """,
+                encoding="utf-8",
+            )
+            self.assertEqual("portable", MODULE.detect_distribution(project, SOURCE))
+            self.assertEqual(
+                {"demo", "junit-jupiter"},
+                MODULE.maven_coordinate_ids(project / "pom.xml"),
+            )
+            project.joinpath("pom.xml").write_text("<project><unclosed>", encoding="utf-8")
+            self.assertEqual("portable", MODULE.detect_distribution(project, SOURCE))
+
+    def test_portable_installer_avoids_flagged_host_and_xml_parsers(self):
+        installer = INSTALLER.read_text(encoding="utf-8")
+        self.assertNotIn("xml.etree", installer)
+        self.assertNotIn("ElementTree", installer)
+        self.assertNotIn("Write-Host", (SOURCE / "install.ps1").read_text(encoding="utf-8"))
+
     def test_portable_installer_source_does_not_name_the_repository_profile(self):
         text = INSTALLER.read_text(encoding="utf-8").casefold()
         self.assertNotIn("shaft", text)

@@ -15,7 +15,6 @@ import shutil
 import sys
 import tempfile
 import types
-import xml.etree.ElementTree as ET  # nosec B405 - local pom.xml only.
 import zipfile
 from pathlib import Path
 
@@ -154,27 +153,52 @@ def require_absent(path: Path, label: str) -> None:
         raise ValueError(f"{label} collision: {path}")
 
 
-def _xml_local_name(tag: str) -> str:
-    return tag.rsplit("}", 1)[-1]
+_XML_COMMENT = re.compile(r"<!--.*?-->", re.DOTALL)
+_XML_TAG = re.compile(
+    r"<(/?)(?:[\w.-]+:)?([A-Za-z_][\w.-]*)(?:\s[^>]*)?(/?)>",
+    re.DOTALL,
+)
+_MAX_POM_BYTES = 2_000_000
+_MAVEN_ID_PARENTS = {
+    ("project", "artifactId"),
+    ("modules", "module"),
+    ("dependency", "artifactId"),
+}
 
 
 def maven_coordinate_ids(pom: Path) -> set[str]:
     """Return project, module, and dependency artifact ids from one POM."""
     try:
-        root = ET.parse(pom).getroot()
-    except (OSError, ET.ParseError):
+        raw = pom.read_bytes()
+    except OSError:
+        return set()
+    if len(raw) > _MAX_POM_BYTES:
+        return set()
+    try:
+        text = _XML_COMMENT.sub("", raw.decode("utf-8"))
+    except UnicodeDecodeError:
         return set()
     ids: set[str] = set()
-    for parent in root.iter():
-        parent_name = _xml_local_name(parent.tag)
-        if parent_name not in {"project", "modules", "dependency"}:
+    stack: list[str] = []
+    pending_parent: str | None = None
+    last_end = 0
+    for match in _XML_TAG.finditer(text):
+        if pending_parent is not None:
+            value = text[last_end:match.start()].strip()
+            if value:
+                ids.add(value)
+            pending_parent = None
+        closing, name, self_close = match.group(1), match.group(2), match.group(3)
+        last_end = match.end()
+        if closing:
+            if stack and stack[-1] == name:
+                stack.pop()
             continue
-        for child in list(parent):
-            child_name = _xml_local_name(child.tag)
-            if child_name not in {"artifactId", "module"}:
-                continue
-            if isinstance(child.text, str) and child.text.strip():
-                ids.add(child.text.strip())
+        if self_close:
+            continue
+        stack.append(name)
+        if len(stack) >= 2 and (stack[-2], stack[-1]) in _MAVEN_ID_PARENTS:
+            pending_parent = stack[-2]
     return ids
 
 
