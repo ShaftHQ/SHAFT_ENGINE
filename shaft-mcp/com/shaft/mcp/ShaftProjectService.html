@@ -298,7 +298,7 @@
 <h3>initAgents</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="annotations">@Tool(name="shaft_project_init_agents",
-      description="scaffolds SHAFT skill bridges and managed host-instruction blocks into an existing test repo for one or all coding-agent loops (all, claude, codex, opencode, vscode); preserves user-authored instruction text and only overwrites SHAFT-owned skill files when overwrite=true")
+      description="scaffolds SHAFT skill bridges and managed host-instruction blocks into an existing test repo for one or all coding-agent loops (all, claude, codex, opencode, vscode, grok); preserves user-authored instruction text and only overwrites SHAFT-owned skill files when overwrite=true")
 </span><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="McpShaftProjectInitAgentsResult.html" title="class in com.shaft.mcp">McpShaftProjectInitAgentsResult</a></span>&nbsp;<span class="element-name">initAgents</span><wbr><span class="parameters">(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;loop,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;targetDirectory,
  boolean&nbsp;overwrite)</span></div>
@@ -318,7 +318,7 @@ thin bridge: verbatim for claude/codex/opencode, and with an injected <code>appl
 key (body otherwise verbatim) for vscode. Skills without that key keep the thin bridge.</div>
 <dl class="notes">
 <dt>Parameters:</dt>
-<dd><code>loop</code> - all, claude, codex, opencode, or vscode</dd>
+<dd><code>loop</code> - all, claude, codex, opencode, vscode, or grok</dd>
 <dd><code>targetDirectory</code> - workspace-relative existing test repo directory</dd>
 <dd><code>overwrite</code> - whether existing SHAFT-owned skill files may be replaced</dd>
 <dt>Returns:</dt>
