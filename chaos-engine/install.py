@@ -15,6 +15,7 @@ import shutil
 import sys
 import tempfile
 import types
+import xml.etree.ElementTree as ET  # nosec B405 - local pom.xml only.
 import zipfile
 from pathlib import Path
 
@@ -151,6 +152,83 @@ def reject_link_or_reparse(path: Path) -> None:
 def require_absent(path: Path, label: str) -> None:
     if path.exists() or is_link_or_reparse(path):
         raise ValueError(f"{label} collision: {path}")
+
+
+def _xml_local_name(tag: str) -> str:
+    return tag.rsplit("}", 1)[-1]
+
+
+def maven_coordinate_ids(pom: Path) -> set[str]:
+    """Return project, module, and dependency artifact ids from one POM."""
+    try:
+        root = ET.parse(pom).getroot()
+    except (OSError, ET.ParseError):
+        return set()
+    ids: set[str] = set()
+    for parent in root.iter():
+        parent_name = _xml_local_name(parent.tag)
+        if parent_name not in {"project", "modules", "dependency"}:
+            continue
+        for child in list(parent):
+            child_name = _xml_local_name(child.tag)
+            if child_name not in {"artifactId", "module"}:
+                continue
+            if isinstance(child.text, str) and child.text.strip():
+                ids.add(child.text.strip())
+    return ids
+
+
+def project_maven_ids(project: Path) -> set[str]:
+    pom = project / "pom.xml"
+    if not pom.is_file():
+        return set()
+    return maven_coordinate_ids(pom)
+
+
+def profile_install_predicate(profile: dict[str, object]) -> set[str]:
+    when = profile.get("installWhen")
+    if when is None:
+        return set()
+    if not isinstance(when, dict):
+        raise ValueError("profile installWhen must be an object")
+    raw = when.get("mavenArtifactIds")
+    if raw is None:
+        return set()
+    if not isinstance(raw, list) or not all(isinstance(item, str) and item.strip() for item in raw):
+        raise ValueError("profile installWhen.mavenArtifactIds must be a list of ids")
+    return {item.strip() for item in raw}
+
+
+def detect_distribution(project: Path, source: Path) -> str:
+    """Select a distribution from profile predicates; default stays portable."""
+    catalog = json.loads((source / DISTRIBUTIONS_NAME).read_text(encoding="utf-8"))
+    distributions = catalog.get("distributions")
+    if not isinstance(distributions, dict):
+        raise ValueError("ChaosEngine distribution catalog is invalid")
+    declared = project_maven_ids(project)
+    matches: list[str] = []
+    for name, policy in distributions.items():
+        if not isinstance(name, str) or not isinstance(policy, dict):
+            continue
+        if name == DEFAULT_DISTRIBUTION:
+            continue
+        profile_name = policy.get("profile")
+        if not isinstance(profile_name, str):
+            continue
+        profile_path = source / "profiles" / profile_name / "profile.json"
+        if not profile_path.is_file():
+            continue
+        profile = json.loads(profile_path.read_text(encoding="utf-8"))
+        if not isinstance(profile, dict):
+            raise ValueError(f"invalid ChaosEngine profile: {profile_name}")
+        wanted = profile_install_predicate(profile)
+        if wanted and wanted & declared:
+            matches.append(name)
+    if len(matches) > 1:
+        raise ValueError("multiple ChaosEngine distributions match this project")
+    if len(matches) == 1:
+        return matches[0]
+    return DEFAULT_DISTRIBUTION
 
 
 def load_distribution(source: Path, distribution: str) -> tuple[dict[str, object], str]:

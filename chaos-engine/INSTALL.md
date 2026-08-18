@@ -79,8 +79,10 @@ branch (otherwise `main`). The bootstrap resolves that mutable branch through
 the GitHub API, downloads the exact commit's declared harness files, rejects
 unsafe tree entries, and records repository, immutable provenance digests and
 the commit in `.chaos-engine/manifest.json`.
-The public default is always the neutral `portable` distribution; a source
-repository's contributor profile requires an explicit non-default selection. Re-running the
+The public default is the neutral `portable` distribution. A bundled
+repository profile is installed only when the target project's root `pom.xml`
+matches that profile's declared Maven artifact ids. Pass `--distribution` to
+the bootstrap if you need to override the detected choice. Re-running the
 same command upgrades to the latest resolved commit; an offline or invalid
 download leaves the last verified installation unchanged. The bootstrap retries
 transient timeout, connection, rate-limit, and server responses with bounded

@@ -234,13 +234,24 @@ def load_installer(source: Path):
     return types.SimpleNamespace(**runpy.run_path(str(path)))
 
 
+def resolve_distribution(installer, project: Path, source: Path, requested: str | None) -> str:
+    if isinstance(requested, str) and requested.strip():
+        return requested.strip()
+    detect = getattr(installer, "detect_distribution", None)
+    if callable(detect):
+        guessed = detect(project, source)
+        if isinstance(guessed, str) and guessed.strip():
+            return guessed.strip()
+    return "portable"
+
+
 def install_latest(
     project: Path,
     *,
     repository: str,
     branch: str | None = None,
     skip_tools: bool = False,
-    distribution: str = "portable",
+    distribution: str | None = None,
     opener=urllib.request.urlopen,
     provisioner=None,
 ) -> dict[str, object]:
@@ -252,6 +263,7 @@ def install_latest(
     with tempfile.TemporaryDirectory(prefix="chaos-engine-bootstrap-") as temporary:
         source = download_source(repository, commit, Path(temporary), opener=opener)
         installer = load_installer(source)
+        distribution = resolve_distribution(installer, project, source, distribution)
         if distribution == "portable":
             provenance = {
                 "kind": "git-digest",
@@ -308,7 +320,7 @@ def parser() -> argparse.ArgumentParser:
     result.add_argument("--project", type=Path, default=Path.cwd())
     result.add_argument("--repository", required=True)
     result.add_argument("--branch")
-    result.add_argument("--distribution", default="portable")
+    result.add_argument("--distribution")
     result.add_argument("--skip-tools", action="store_true", help=argparse.SUPPRESS)
     return result
 

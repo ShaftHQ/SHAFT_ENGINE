@@ -515,6 +515,63 @@ class ChaosEngineInstallerTest(unittest.TestCase):
             )
             controller.mempalace_runtime_status.assert_called_once_with(project)
 
+    def test_detect_distribution_stays_portable_without_matching_pom(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary) / "consumer"
+            project.mkdir()
+            self.assertEqual("portable", MODULE.detect_distribution(project, SOURCE))
+            project.joinpath("pom.xml").write_text(
+                """<project>
+                  <modelVersion>4.0.0</modelVersion>
+                  <groupId>example</groupId>
+                  <artifactId>demo</artifactId>
+                  <version>1.0.0</version>
+                  <dependencies>
+                    <dependency>
+                      <groupId>org.junit.jupiter</groupId>
+                      <artifactId>junit-jupiter</artifactId>
+                      <version>5.11.0</version>
+                    </dependency>
+                  </dependencies>
+                </project>
+                """,
+                encoding="utf-8",
+            )
+            self.assertEqual("portable", MODULE.detect_distribution(project, SOURCE))
+
+    def test_detect_distribution_selects_repository_from_matching_pom(self):
+        wanted = json.loads(
+            (SOURCE / "profiles/shaft/profile.json").read_text(encoding="utf-8")
+        )["installWhen"]["mavenArtifactIds"][0]
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary) / "consumer"
+            project.mkdir()
+            project.joinpath("pom.xml").write_text(
+                f"""<project>
+                  <modelVersion>4.0.0</modelVersion>
+                  <groupId>example</groupId>
+                  <artifactId>consumer</artifactId>
+                  <version>1.0.0</version>
+                  <dependencies>
+                    <dependency>
+                      <groupId>io.github.example</groupId>
+                      <artifactId>{wanted}</artifactId>
+                      <version>1.0.0</version>
+                    </dependency>
+                  </dependencies>
+                </project>
+                """,
+                encoding="utf-8",
+            )
+            self.assertEqual("repository", MODULE.detect_distribution(project, SOURCE))
+
+    def test_detect_distribution_selects_repository_from_reactor_module(self):
+        self.assertEqual("repository", MODULE.detect_distribution(ROOT, SOURCE))
+
+    def test_portable_installer_source_does_not_name_the_repository_profile(self):
+        text = INSTALLER.read_text(encoding="utf-8").casefold()
+        self.assertNotIn("shaft", text)
+
     def test_default_distribution_installs_only_neutral_portable_payload(self):
         with tempfile.TemporaryDirectory() as temporary:
             project = Path(temporary) / "consumer"
