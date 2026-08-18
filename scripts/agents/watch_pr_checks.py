@@ -94,7 +94,7 @@ PENDING_STATES = {
 }
 SUCCESS_STATES = {"SUCCESS", "NEUTRAL", "SKIPPED"}
 KNOWN_STATES = RED_STATES | PENDING_STATES | SUCCESS_STATES
-_TRANSIENT_GITHUB_HTTP = re.compile(r"\b(?:HTTP\s*)?(?:429|503)\b", re.IGNORECASE)
+_TRANSIENT_GITHUB_HTTP = re.compile(r"\bHTTP\s*(?:429|503)\b", re.IGNORECASE)
 
 class CheckWatchError(RuntimeError):
     """Raised for gh/environment failures that map to exit code 3."""
