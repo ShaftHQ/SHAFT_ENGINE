@@ -2,8 +2,6 @@ import tempfile
 import unittest
 from pathlib import Path
 
-import yaml
-
 from scripts.ci.validate_quality_configuration import (
     validate_browser_matrix_scope_policy,
     validate_codeql_build_mode,
@@ -817,40 +815,6 @@ jobs:
 
             self.assertIn("root pom.xml must include report-aggregate", errors)
             self.assertIn("report-aggregate/pom.xml is missing", errors)
-
-    def test_required_pr_gate_coverage_uploads_continue_on_error(self):
-        # #5050: GitHub downloads codecov-action before the composite's main-only
-        # `if`, so a 429 fails the required job after Maven is already green.
-        workflow_path = Path(__file__).resolve().parents[2] / ".github/workflows/pr-gate.yml"
-        workflow = yaml.safe_load(workflow_path.read_text(encoding="utf-8"))
-        jobs = workflow["jobs"]
-        required_jobs = {
-            name
-            for name in jobs["summary"]["needs"]
-            if name != "changes"
-        }
-        found = []
-        missing = []
-        for job_id, job in jobs.items():
-            if job_id not in required_jobs or not isinstance(job, dict):
-                continue
-            for index, step in enumerate(job.get("steps") or []):
-                if not isinstance(step, dict):
-                    continue
-                uses = str(step.get("uses") or "").rstrip("/")
-                if uses != "./.github/actions/upload-jacoco-coverage":
-                    continue
-                found.append(job_id)
-                if step.get("continue-on-error") is not True:
-                    missing.append(f"{job_id}[{index}] {step.get('name')}")
-        self.assertIn("cli", found)
-        self.assertGreaterEqual(len(found), 2)
-        self.assertEqual(
-            missing,
-            [],
-            "required PR Gate coverage uploads must continue-on-error so a "
-            "Codecov action download 429 cannot fail a green Maven job",
-        )
 
 
 if __name__ == "__main__":

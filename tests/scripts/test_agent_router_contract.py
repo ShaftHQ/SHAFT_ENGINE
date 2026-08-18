@@ -1849,6 +1849,61 @@ class CiGateIsBlockingTest(unittest.TestCase):
             workflow["jobs"]["dependency-review"]["if"],
         )
 
+    def test_coverage_continue_on_error_pin_runs_in_agent_guidance_gate(self):
+        # #5172: deleting continue-on-error must fail required CI, not only a
+        # local module the Agent Guidance Gate never runs.
+        pin_def = "def test_required_pr_gate_coverage_uploads_continue_on_error"
+        yaml = __import__("yaml")
+        workflow = yaml.safe_load(self.WORKFLOW.read_text(encoding="utf-8"))
+        commands = " ".join(
+            str(step.get("run", "")) for step in workflow["jobs"]["agent-guidance"]["steps"]
+        )
+        owners = []
+        for path in (ROOT / "tests" / "scripts").glob("test_*.py"):
+            if pin_def in path.read_text(encoding="utf-8"):
+                owners.append(f"tests.scripts.{path.stem}")
+        self.assertTrue(owners, "continue-on-error coverage pin is missing")
+        missing = [module for module in owners if module not in commands]
+        self.assertEqual(
+            missing,
+            [],
+            "coverage continue-on-error pin must live in an Agent Guidance Gate unittest module",
+        )
+
+    def test_required_pr_gate_coverage_uploads_continue_on_error(self):
+        # #5050 / #5172: codecov-action downloads before the composite's
+        # main-only `if`, so a 429 fails the required job after Maven is green.
+        yaml = __import__("yaml")
+        workflow = yaml.safe_load(self.WORKFLOW.read_text(encoding="utf-8"))
+        jobs = workflow["jobs"]
+        required_jobs = {
+            name
+            for name in jobs["summary"]["needs"]
+            if name != "changes"
+        }
+        found = []
+        missing = []
+        for job_id, job in jobs.items():
+            if job_id not in required_jobs or not isinstance(job, dict):
+                continue
+            for index, step in enumerate(job.get("steps") or []):
+                if not isinstance(step, dict):
+                    continue
+                uses = str(step.get("uses") or "").rstrip("/")
+                if uses != "./.github/actions/upload-jacoco-coverage":
+                    continue
+                found.append(job_id)
+                if step.get("continue-on-error") is not True:
+                    missing.append(f"{job_id}[{index}] {step.get('name')}")
+        self.assertIn("cli", found)
+        self.assertGreaterEqual(len(found), 2)
+        self.assertEqual(
+            missing,
+            [],
+            "required PR Gate coverage uploads must continue-on-error so a "
+            "Codecov action download 429 cannot fail a green Maven job",
+        )
+
 
 class GlobFilesHelperTest(unittest.TestCase):
     """The resolver every GUIDANCE_GLOBS consumer in this file shares.

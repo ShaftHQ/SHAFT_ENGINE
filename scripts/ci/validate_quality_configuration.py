@@ -702,7 +702,9 @@ def validate_scheduled_build_retry(workflows: dict[str, str]) -> list[str]:
     """Require transfer-only retries for restartable builds, never runtime tests."""
     errors: list[str] = []
     build_launch = re.compile(r"(?:^|\s)(?:mvn|(?:\./)?gradlew)(?:\s|$)")
-    runtime_test = re.compile(r"(?:^|\s)mvn\s+.*(?:^|\s)test(?:\s|$)")
+    # `(?:.*\s)?` lets `test` be the first token after `mvn ` (`mvn test`),
+    # which the previous `(?:^|\s)test` form missed after consuming that space.
+    runtime_test = re.compile(r"(?:^|\s)mvn\s+(?:.*\s)?test(?:\s|$)")
     for workflow_name, workflow_text in workflows.items():
         try:
             document = yaml.safe_load(workflow_text) or {}
