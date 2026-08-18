@@ -695,6 +695,10 @@ class ChaosEnginePortableCoreTest(unittest.TestCase):
             "The host session orchestrates.",
             "One implementer per batch.",
             "The writer stops when the PR exists.",
+            "Owner-gated train, export, and deploy stay out of tree only.",
+            "Never auto-train from harvest.",
+            "Never overwrite qwen2.5-coder:7b.",
+            "Deploy a new Ollama name.",
         )
 
         self.assertTrue(playbook.is_file())

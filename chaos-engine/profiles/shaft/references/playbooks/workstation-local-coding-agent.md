@@ -13,6 +13,13 @@ The writer stops when the PR exists.
 The inner `shaft-java-agent.ps1` loop is optional and allowlisted. The local
 loop still never merges, reviews, or owns GitHub delivery.
 
+## Owner-gated train
+
+Owner-gated train, export, and deploy stay out of tree only.
+Never auto-train from harvest.
+Never overwrite qwen2.5-coder:7b.
+Deploy a new Ollama name.
+
 ## When to use it
 
 - Read-only `shaft-architect` with the cited-path gate.
