@@ -41,6 +41,34 @@ public class AiCandidateRerankerTest {
     }
 
     @Test
+    public void uncitedProviderRankingReturnsExactDeterministicOrdering() {
+        SHAFT.Properties.pilot.set()
+                .enabled(true)
+                .provider("ollama")
+                .localConsent(true)
+                .allowedEvidenceCategories("DOM,TEXT")
+                .ollamaModel("test-model");
+        RankedCandidate first = candidate("candidate-2", 0.90);
+        RankedCandidate second = candidate("candidate-1", 0.80);
+        List<RankedCandidate> deterministicOrder = List.of(first, second);
+        var payload = JsonNodeFactory.instance.objectNode();
+        payload.putArray("ranking").addObject()
+                .put("candidateId", "candidate-2")
+                .put("score", 0.98);
+        AiExecutionService service = mock(AiExecutionService.class);
+        when(service.execute(any())).thenReturn(AiResponse.success(
+                "ollama", "test-model", payload, Duration.ofMillis(1), AiUsage.empty(),
+                JsonNodeFactory.instance.objectNode()));
+
+        AiCandidateReranker.RerankResult result = new AiCandidateReranker(configuration(), service)
+                .apply(deterministicOrder);
+
+        Assert.assertEquals(result.metadata().status(), "REJECTED");
+        Assert.assertSame(result.candidates(), deterministicOrder);
+        Assert.assertNull(result.candidates().getFirst().report().score().providerScore());
+    }
+
+    @Test
     public void inventedProviderCandidateShouldBeRejected() {
         SHAFT.Properties.pilot.set()
                 .enabled(true)
@@ -77,7 +105,8 @@ public class AiCandidateRerankerTest {
         var payload = JsonNodeFactory.instance.objectNode();
         payload.putArray("ranking").addObject()
                 .put("candidateId", "invented")
-                .put("score", 1.0);
+                .put("confidence", 1.0)
+                .putArray("citedFeatures").add("accessibility");
         AiExecutionService service = mock(AiExecutionService.class);
         when(service.execute(any())).thenReturn(AiResponse.success(
                 "ollama", "test-model", payload, Duration.ofMillis(1), AiUsage.empty(),
@@ -102,7 +131,7 @@ public class AiCandidateRerankerTest {
                       "model": "heal-test-model",
                       "message": {
                         "role": "assistant",
-                        "content": "{\\"ranking\\":[{\\"candidateId\\":\\"candidate-1\\",\\"score\\":0.98}]}"
+                        "content": "{\\"ranking\\":[{\\"candidateId\\":\\"candidate-1\\",\\"confidence\\":0.98,\\"citedFeatures\\":[\\"accessibility\\"]}]}"
                       },
                       "prompt_eval_count": 20,
                       "eval_count": 8
@@ -157,6 +186,21 @@ public class AiCandidateRerankerTest {
                 false,
                 true,
                 false);
+    }
+
+    private static RankedCandidate candidate(String candidateId, double deterministicScore) {
+        HealingCandidate report = new HealingCandidate(
+                candidateId,
+                By.id(candidateId).toString(),
+                DeterministicScorerTest.fingerprint(candidateId, "Username"),
+                new HealingScore(deterministicScore, null, null, deterministicScore,
+                        Map.of("accessibility", deterministicScore)),
+                List.of("accessibility=" + deterministicScore),
+                true,
+                true,
+                true,
+                true);
+        return new RankedCandidate(mock(WebElement.class), By.id(candidateId), report);
     }
 
     private static void respond(HttpExchange exchange, String body) throws IOException {
