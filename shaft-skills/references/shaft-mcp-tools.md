@@ -136,7 +136,7 @@ Agents should use these exact tool names instead of guessing or listing tools at
 
 - `shaft_project_create` — creates a new SHAFT Maven project from the same examples and rules used by the guide generator
 - `shaft_project_upgrade` — runs the existing SHAFT modular project upgrader script against the current Java project
-- `shaft_project_init_agents` — scaffolds SHAFT skill bridges and managed host-instruction blocks into an existing test repo for one or all coding-agent loops (all, claude, codex, opencode, vscode); preserves user-authored instruction text and only overwrites SHAFT-owned skill files when overwrite=true
+- `shaft_project_init_agents` — scaffolds SHAFT skill bridges and managed host-instruction blocks into an existing test repo for one or all coding-agent loops (all, claude, codex, opencode, vscode, grok); preserves user-authored instruction text and only overwrites SHAFT-owned skill files when overwrite=true
 
 ## Test Automation (TestAutomationService)
 
