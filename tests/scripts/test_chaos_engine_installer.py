@@ -561,6 +561,14 @@ class ChaosEngineInstallerTest(unittest.TestCase):
                 capture_output=True, text=True, env=environment, check=False,
             )
             self.assertEqual(0, start.returncode, start.stderr)
+            installed_context = json.loads(start.stdout).get("additionalContext")
+            for relative in (
+                "vendor/caveman/skills/caveman/SKILL.md",
+                "vendor/ponytail/skills/ponytail/SKILL.md",
+            ):
+                vendor = install_root / relative
+                self.assertTrue(vendor.is_file(), relative)
+                self.assertIn(vendor.read_text(encoding="utf-8"), installed_context)
             self.assertEqual(0, first.returncode, first.stderr)
             self.assertEqual(0, second.returncode, second.stderr)
             self.assertIn("Reflection required", second.stdout)

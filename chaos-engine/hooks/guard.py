@@ -20,6 +20,7 @@ except ImportError:  # Repository source layout; installed hooks keep it beside 
 
 
 ACTIVATION = "Follow .chaos-engine/skills/chaos-engine/SKILL.md before continuing."
+COMPANION_NAMES = ("caveman", "ponytail")
 ROOT_DRIVE = re.compile(r"(?i)(?:^|\s)[a-z]:\\(?:\s|$)")
 ENV_ASSIGNMENT = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*=")
 SHELLS = {"bash", "sh", "zsh"}
@@ -33,6 +34,81 @@ TERMINAL_LABELS = (
     "remaining risk or follow-up",
     "learning loop disposition",
 )
+
+
+def companion_skill_relatives(name: str) -> tuple[str, ...]:
+    return (
+        f"vendor/{name}/skills/{name}/SKILL.md",
+        f"plugins/{name}/skills/{name}/SKILL.md",
+        f"{name}/skills/{name}/SKILL.md",
+        f"chaos-engine/vendor/{name}/skills/{name}/SKILL.md",
+    )
+
+
+def search_roots() -> list[Path]:
+    roots: list[Path] = []
+    seen: set[Path] = set()
+    here = Path(__file__).resolve().parent
+    candidates = [here, *here.parents]
+    try:
+        cwd = Path.cwd().resolve()
+    except OSError:
+        cwd = None
+    if cwd is not None:
+        candidates.extend((cwd, *cwd.parents))
+    for candidate in candidates:
+        if candidate not in seen:
+            seen.add(candidate)
+            roots.append(candidate)
+    return roots
+
+
+def read_companion_skill(name: str) -> str | None:
+    for root in search_roots():
+        for relative in companion_skill_relatives(name):
+            path = root / relative
+            try:
+                if path.is_file():
+                    return path.read_text(encoding="utf-8")
+            except OSError:
+                continue
+    return None
+
+
+def session_start_context(token: str | None) -> str:
+    parts = [f"ChaosEngine: {ACTIVATION}"]
+    if token:
+        parts.append(f"Reflection session token (never track it): {token}")
+    for name in COMPANION_NAMES:
+        text = read_companion_skill(name)
+        if text:
+            parts.append(text)
+    return "\n\n".join(parts)
+
+
+def learning_loop_reason(session_id: str, event: dict) -> str | None:
+    if bool(event.get("stop_hook_active") or event.get("stopHookActive")):
+        return None
+    recorded = reflection.entries(session_id)
+    activities = {
+        item.get("activity")
+        for item in recorded
+        if item.get("kind") == "task-activity"
+    }
+    if "mutation-or-delivery" not in activities:
+        return None
+    if activities & {"nothing-durable", "learning-none"}:
+        return None
+    if any(
+        item.get("kind") == "reflection-receipt"
+        and item.get("durableDisposition") in reflection.DISPOSITIONS
+        for item in recorded
+    ):
+        return None
+    return (
+        "Learning loop: this session recorded mutation or delivery and routed no learning. "
+        "Nothing durable is a valid result -- say so and end the turn."
+    )
 
 
 def outcome_target(command: str, tool_name: str, explicit: object = None) -> str:
@@ -241,7 +317,11 @@ def main() -> int:
         commands = wrapped_exec_commands(tool_input)
     else:
         commands = ()
-    event_name = str(event.get("hook_event_name", "")) if isinstance(event, dict) else ""
+    event_name = (
+        str(event.get("hook_event_name") or event.get("hookEventName") or "")
+        if isinstance(event, dict)
+        else ""
+    )
     session_id = str(event.get("session_id") or event.get("sessionId") or "")
     if event_name == "SessionStart":
         token = reflection.record_session_start(session_id)
@@ -343,18 +423,23 @@ def main() -> int:
             if missing:
                 print(json.dumps({"decision": "block", "reason": "Terminal reflection summary is missing: " + ", ".join(missing) + "."}))
                 return 2
-    if event_name in {"Stop", "SubagentStop"} and not bool(event.get("stop_hook_active")):
-        print(
-            json.dumps(
-                {
-                    "decision": "block",
-                    "reason": "Complete verification, independent review, delivery status, and the learning loop before stopping.",
-                }
+    if event_name in {"Stop", "SubagentStop"}:
+        loop_reason = learning_loop_reason(session_id, event if isinstance(event, dict) else {})
+        if loop_reason:
+            print(json.dumps({"decision": "block", "reason": loop_reason}))
+            return 2
+        if not bool(event.get("stop_hook_active") or event.get("stopHookActive")):
+            print(
+                json.dumps(
+                    {
+                        "decision": "block",
+                        "reason": "Complete verification, independent review, delivery status, and the learning loop before stopping.",
+                    }
+                )
             )
-        )
-        return 2
-    context = f"ChaosEngine: {ACTIVATION}"
-    if token:
+            return 2
+    context = session_start_context(token) if event_name == "SessionStart" else f"ChaosEngine: {ACTIVATION}"
+    if token and event_name != "SessionStart":
         context += f" Reflection session token (never track it): {token}"
     print(json.dumps({"additionalContext": context}))
     return 0

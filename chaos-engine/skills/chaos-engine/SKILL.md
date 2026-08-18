@@ -146,7 +146,9 @@ For the short decision procedure and boundary cases, load
 This file is the only router. It does not restate companion rules.
 
 Load both companion skills at the start of every task, on every host, in every
-main thread and delegate. Default intensity remains each companion's own
+main thread and delegate. [Lifecycle hooks](../../references/lifecycle-hooks.md)
+make that a SessionStart injection of each vendor `SKILL.md` verbatim, not a
+second optional read. Default intensity remains each companion's own
 default. Off only: `stop caveman`, `stop ponytail`, or `normal mode`.
 Once loaded, each companion's own text applies.
 

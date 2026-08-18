@@ -1713,6 +1713,7 @@ def managed_paths() -> tuple[str, ...]:
         "plugins/chaos-engine/skills/chaos-engine/SKILL.md",
         *companion_managed_paths(),
         ".codex/hooks.json",
+        ".grok/hooks/lifecycle.json",
         ".claude/settings.json",
         ".claude/agents/chaos-engine-orchestrator.md",
         ".claude/agents/chaos-engine-implementer.md",
@@ -2071,6 +2072,39 @@ def hook_content(before: bytes | None, rendered: bytes, label: str) -> bytes:
     return (json.dumps(existing, indent=2, sort_keys=True) + "\n").encode()
 
 
+REQUIRED_HOOK_EVENTS = (
+    "SessionStart",
+    "UserPromptSubmit",
+    "PreToolUse",
+    "PostToolUse",
+    "PostToolUseFailure",
+    "Stop",
+    "SubagentStop",
+)
+
+
+def chaos_guard_locator_command(*, windows: bool) -> str:
+    interpreter = "py -3" if windows else "python3"
+    return (
+        f'{interpreter} -c "import pathlib,runpy;'
+        "cands=('.chaos-engine/hooks/guard.py','plugins/chaos-engine/hooks/guard.py');"
+        "p=next(root/rel for root in (pathlib.Path.cwd(),*pathlib.Path.cwd().parents) "
+        "for rel in cands if (root/rel).is_file());"
+        "runpy.run_path(str(p),run_name='__main__')\""
+    )
+
+
+def lifecycle_hooks_document() -> bytes:
+    handler = {
+        "type": "command",
+        "command": chaos_guard_locator_command(windows=False),
+        "commandWindows": chaos_guard_locator_command(windows=True),
+        "timeout": 30,
+    }
+    hooks = {event: [{"hooks": [handler]}] for event in REQUIRED_HOOK_EVENTS}
+    return (json.dumps({"hooks": hooks}, indent=2, sort_keys=True) + "\n").encode()
+
+
 def chaos_hook_command(command: object) -> bool:
     if not isinstance(command, str):
         return False
@@ -2078,13 +2112,19 @@ def chaos_hook_command(command: object) -> bool:
     owned_suffixes = (
         "scripts/agents/guard.py",
         ".chaos-engine/hooks/guard.py",
+        "plugins/chaos-engine/hooks/guard.py",
         "${CLAUDE_PLUGIN_ROOT}/hooks/guard.py",
     )
     for token_parts in tokens:
         token = next((part for part in token_parts if part), "").replace("\\", "/")
         token = token.rstrip(";,)")
-        if any(token == suffix or token.endswith(f"/{suffix}") for suffix in owned_suffixes):
-            return True
+        for suffix in owned_suffixes:
+            found = token.find(suffix)
+            if found < 0:
+                continue
+            after = found + len(suffix)
+            if after == len(token) or token[after] in "/\"';, )|":
+                return True
     return False
 
 
@@ -2142,6 +2182,7 @@ def gitignore_content(before: bytes | None) -> bytes:
         "!.agents/skills/\n!.agents/skills/README.md\n"
         "!.agents/skills/chaos-engine/\n!.agents/skills/chaos-engine/**\n"
         "!.claude/\n!.claude/**\n.claude/settings.local.json\n!.codex/\n!.codex/**\n"
+        "!.grok/\n!.grok/hooks/\n!.grok/hooks/*.json\n"
         "!.gemini/\n!.gemini/settings.json\n!.gemini/skills/\n"
         "!.gemini/skills/chaos-engine/\n!.gemini/skills/chaos-engine/**\n"
         "!.github/\n!.github/copilot-instructions.md\n!.github/skills/\n"
@@ -2174,6 +2215,7 @@ def gitattributes_content(before: bytes | None) -> bytes:
         f"{repository_root_anchor}.claude-plugin/** text eol=lf\n"
         f"{repository_root_anchor}.claude/** text eol=lf\n"
         f"{repository_root_anchor}.codex/** text eol=lf\n"
+        f"{repository_root_anchor}.grok/hooks/** text eol=lf\n"
         f"{repository_root_anchor}.gemini/** text eol=lf\n"
         f"{repository_root_anchor}.github/copilot-instructions.md text eol=lf\n"
         f"{repository_root_anchor}.github/skills/chaos-engine/** text eol=lf\n"
@@ -2404,9 +2446,17 @@ def desired_content(
         )
         + "\n"
     ).encode()
-    after["plugins/chaos-engine/hooks/hooks.json"] = b'{\n  "hooks": {}\n}\n'
-    after[".codex/hooks.json"] = without_chaos_hooks(
-        before[".codex/hooks.json"], "Codex"
+    desired_hooks = lifecycle_hooks_document()
+    after["plugins/chaos-engine/hooks/hooks.json"] = desired_hooks
+    after[".codex/hooks.json"] = hook_content(
+        without_chaos_hooks(before[".codex/hooks.json"], "Codex"),
+        desired_hooks,
+        "Codex",
+    )
+    after[".grok/hooks/lifecycle.json"] = hook_content(
+        without_chaos_hooks(before[".grok/hooks/lifecycle.json"], "Grok"),
+        desired_hooks,
+        "Grok",
     )
     after["plugins/chaos-engine/hooks/guard.py"] = (
         Path(__file__).resolve().parent / "hooks/guard.py"
@@ -2419,7 +2469,11 @@ def desired_content(
         "From the active project root, load `.chaos-engine/skills/chaos-engine/SKILL.md` before every task.\n"
         "That router decides whether to load the bundled Caveman and Ponytail companions.\n"
     ).encode()
-    claude_settings = without_chaos_hooks(before[".claude/settings.json"], "Claude")
+    claude_settings = hook_content(
+        without_chaos_hooks(before[".claude/settings.json"], "Claude"),
+        desired_hooks,
+        "Claude",
+    )
     try:
         settings = json.loads(claude_settings) if claude_settings is not None else {}
     except (UnicodeDecodeError, json.JSONDecodeError) as error:
@@ -2479,18 +2533,6 @@ def desired_content(
                 "description": caveman_manifest["description"],
                 "author": caveman_manifest["author"],
                 "hooks": {
-                    "SessionStart": [
-                        {
-                            "hooks": [
-                                {
-                                    "type": "command",
-                                    "command": 'node "${CLAUDE_PLUGIN_ROOT}/src/hooks/caveman-activate.js"',
-                                    "timeout": 5,
-                                    "statusMessage": "Loading caveman mode...",
-                                }
-                            ]
-                        }
-                    ],
                     "UserPromptSubmit": [
                         {
                             "hooks": [
@@ -2539,6 +2581,8 @@ def desired_content(
             Path(__file__).resolve().parent / "vendor/ponytail/hooks/claude-codex-hooks.json"
         ).read_text(encoding="utf-8")
     )
+    published_ponytail_hooks = dict(ponytail_hooks.get("hooks", ponytail_hooks))
+    published_ponytail_hooks.pop("SessionStart", None)
     after["plugins/ponytail/.claude-plugin/plugin.json"] = (
         json.dumps(
             {
@@ -2546,7 +2590,7 @@ def desired_content(
                 "version": PONYTAIL_PLUGIN_VERSION,
                 "description": ponytail_manifest["description"],
                 "author": ponytail_manifest["author"],
-                "hooks": ponytail_hooks.get("hooks", ponytail_hooks),
+                "hooks": published_ponytail_hooks,
             },
             indent=2,
             sort_keys=True,

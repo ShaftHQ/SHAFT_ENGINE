@@ -35,6 +35,57 @@ class ChaosEngineHookTest(unittest.TestCase):
         self.assertEqual(0, result.returncode)
         self.assertIn(".chaos-engine/skills/chaos-engine/SKILL.md", result.stdout)
 
+    def test_session_start_injects_vendor_companion_skills_verbatim(self):
+        result = self.run_hook({"hook_event_name": "SessionStart"})
+        payload = json.loads(result.stdout)
+        context = payload.get("additionalContext") or payload["hookSpecificOutput"]["additionalContext"]
+        caveman = (
+            ROOT / "chaos-engine/vendor/caveman/skills/caveman/SKILL.md"
+        ).read_text(encoding="utf-8")
+        ponytail = (
+            ROOT / "chaos-engine/vendor/ponytail/skills/ponytail/SKILL.md"
+        ).read_text(encoding="utf-8")
+
+        self.assertEqual(0, result.returncode)
+        self.assertIn(caveman, context)
+        self.assertIn(ponytail, context)
+        self.assertEqual(1, context.count(caveman))
+        self.assertEqual(1, context.count(ponytail))
+
+    def test_stop_learning_loop_rule_fires_only_after_unrouted_mutation(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            environment = {**os.environ, "TMPDIR": temporary, "TEMP": temporary}
+            readonly = self.run_hook(
+                {"hook_event_name": "Stop", "session_id": "learn-ro", "stop_hook_active": False},
+                environment,
+            )
+            self.run_hook(
+                {
+                    "hook_event_name": "PostToolUse",
+                    "tool_name": "Write",
+                    "tool_input": {"command": "git commit -am x"},
+                    "session_id": "learn-mut",
+                },
+                environment,
+            )
+            mutated = self.run_hook(
+                {
+                    "hook_event_name": "Stop",
+                    "session_id": "learn-mut",
+                    "stop_hook_active": False,
+                },
+                environment,
+            )
+
+            self.assertEqual(2, readonly.returncode)
+            self.assertFalse(
+                json.loads(readonly.stdout)["reason"].casefold().startswith("learning loop:")
+            )
+            self.assertEqual(2, mutated.returncode)
+            self.assertTrue(
+                json.loads(mutated.stdout)["reason"].casefold().startswith("learning loop:")
+            )
+
     def test_pre_tool_event_blocks_catastrophic_broad_scope(self):
         for command in (
             "rm -rf /",
