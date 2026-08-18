@@ -1,0 +1,1 @@
+After owner-gated soup train of Qwen2.5-Coder-1.5B-Instruct on 3 JSONL rows, Aider 0.86.2 whole-format against ollama_chat/shaft-soup-coder-1.5b wrote path/to/scripts/local-coding-agent/agent.py and auto-committed it. The real allowlisted file was untouched. Keep qwen2.5-coder:7b as the workstation default until a later accepted run. Do not overwrite that name.

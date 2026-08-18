@@ -1,0 +1,37 @@
+{
+  "body_path": "memory/gotchas/tiny-1-5b-soup-sft-is-not-enough-for-aider-whole-format.md",
+  "content_hash": "sha256:315b9b963d264d74142ef63f4eee13bf9f39ca2521d94bbfc6fd8f9626aaf24d",
+  "created_at": "2026-08-18T19:11:52+03:00",
+  "evidence": [
+    {
+      "id": "5144",
+      "kind": "task"
+    }
+  ],
+  "facets": {
+    "applies_to": [
+      "scripts/local-coding-agent/shaft-java-agent.ps1"
+    ],
+    "category": "gotcha"
+  },
+  "id": "gotcha.tiny-1-5b-soup-sft-is-not-enough-for-aider-whole-format",
+  "scope": {
+    "branch": null,
+    "kind": "project",
+    "project": "project.shaft-engine",
+    "task": null
+  },
+  "source": {
+    "kind": "agent",
+    "task": "Record workstation soup export/deploy gotchas from #5143/#5144 Batch 4"
+  },
+  "status": "active",
+  "tags": [
+    "soup",
+    "aider",
+    "ollama"
+  ],
+  "title": "Tiny 1.5B soup SFT is not enough for Aider whole-format",
+  "type": "gotcha",
+  "updated_at": "2026-08-18T19:11:52+03:00"
+}
