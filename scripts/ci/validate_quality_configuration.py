@@ -228,6 +228,17 @@ def _normalize_workflow_condition(condition: str) -> str:
     return condition.strip().lower().replace("${{", "").replace("}}", "").strip()
 
 
+_SAFE_COVERAGE_GUARDS = (
+    r"steps\.[a-z0-9_-]+\.outcome\s*!=\s*['\"]skipped['\"]",
+    r"github\.event_name\s*!=\s*['\"]pull_request['\"]",
+    r"github\.ref\s*==\s*['\"]refs/heads/main['\"]",
+)
+
+
+def _coverage_guard_is_safe(guard: str) -> bool:
+    return any(re.fullmatch(pattern, guard) for pattern in _SAFE_COVERAGE_GUARDS)
+
+
 def _coverage_step_runs_after_failure_on_main(
     step: dict[object, object], test_conditions: set[str]
 ) -> bool:
@@ -238,16 +249,16 @@ def _coverage_step_runs_after_failure_on_main(
     if not isinstance(condition, str):
         return False
     normalized = _normalize_workflow_condition(condition)
-    safe_conditions = (
-        r"always\(\)",
-        r"always\(\)\s*&&\s*steps\.[a-z0-9_-]+\.outcome\s*!=\s*['\"]skipped['\"]",
-        r"always\(\)\s*&&\s*github\.event_name\s*!=\s*['\"]pull_request['\"]",
-        r"always\(\)\s*&&\s*github\.ref\s*==\s*['\"]refs/heads/main['\"]",
-    )
-    if any(re.fullmatch(pattern, normalized) for pattern in safe_conditions):
+    if normalized == "always()":
         return True
     conditional = re.fullmatch(r"always\(\)\s*&&\s*(.+)", normalized)
-    return bool(conditional and conditional.group(1).strip() in test_conditions)
+    if not conditional:
+        return False
+    remainder = conditional.group(1).strip()
+    if remainder in test_conditions:
+        return True
+    guards = [part.strip() for part in re.split(r"\s*&&\s*", remainder) if part.strip()]
+    return bool(guards) and all(_coverage_guard_is_safe(guard) for guard in guards)
 
 
 def validate_workflow_coverage_policy(root: Path = ROOT) -> list[str]:

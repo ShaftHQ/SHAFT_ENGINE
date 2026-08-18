@@ -643,6 +643,35 @@ jobs:
 
             self.assertEqual(validate_workflow_coverage_policy(root), [])
 
+    def test_accepts_conjunction_of_individually_safe_coverage_guards(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            workflows = root / ".github" / "workflows"
+            workflows.mkdir(parents=True)
+            (workflows / "coverage.yml").write_text(
+                "jobs:\n"
+                "  combined-safe-guards:\n"
+                "    steps:\n"
+                "      - id: pilot_tests\n"
+                "        run: mvn -pl shaft-pilot-core test\n"
+                "      - if: always() && github.event_name != 'pull_request' && steps.pilot_tests.outcome != 'skipped'\n"
+                "        uses: ./.github/actions/upload-jacoco-coverage\n"
+                "  single-event-guard:\n"
+                "    steps:\n"
+                "      - run: mvn test\n"
+                "      - if: always() && github.event_name != 'pull_request'\n"
+                "        uses: ./.github/actions/upload-jacoco-coverage\n"
+                "  single-outcome-guard:\n"
+                "    steps:\n"
+                "      - id: unit_tests\n"
+                "        run: mvn test\n"
+                "      - if: always() && steps.unit_tests.outcome != 'skipped'\n"
+                "        uses: ./.github/actions/upload-jacoco-coverage\n",
+                encoding="utf-8",
+            )
+
+            self.assertEqual(validate_workflow_coverage_policy(root), [])
+
     def test_detects_maven_wrapper_lifecycle_and_explicit_skip_tests_false(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)
