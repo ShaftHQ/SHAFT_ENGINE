@@ -56,6 +56,14 @@ refresh, retry-loop, clear or replace the lock or cache, or alter the primary
 checkout to manufacture freshness. Only the maintenance owner updates derived
 store state.
 
+An extract line that says files were not classified (no supported extension or
+shebang) means the scanner saw those paths and has no file type. It is coverage
+policy, not a missing install, corrupt cache, or doctor failure. File types are
+hardcoded in Graphify; there is no install-time extension knob. Add a type
+upstream, or ignore the path in `.graphifyignore`. Refresh owners split skips
+into ignore versus promote. A file missing from the graph is not automatically
+in MemPalace; that store has its own readable-extension list.
+
 Useful bounded reads:
 
 ```text

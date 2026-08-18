@@ -108,6 +108,56 @@ class GraphifyMaintenanceTest(TestCase):
         self.assertEqual(["fixtures/data.json"], report["expected_data_only"])
         self.assertEqual(["fixtures/data.yaml"], report["unexpected_parser_gap"])
 
+    def _git_tracked_fixture(self, files: dict[str, str], ignore: str = "") -> None:
+        git = shutil.which("git")
+        if git is None:
+            self.skipTest("git is required")
+        self.repository.mkdir(parents=True, exist_ok=True)
+        (self.repository / ".graphifyignore").write_text(ignore, encoding="utf-8")
+        for relative, content in files.items():
+            path = self.repository / relative
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(content, encoding="utf-8")
+
+        def run_git(*args):
+            return subprocess.run(  # nosec B603 - resolved Git and controlled fixture paths.
+                [git, *args],
+                cwd=self.repository,
+                check=True,
+                capture_output=True,
+                text=True,
+            )
+
+        run_git("init")
+        run_git("config", "user.email", "graphify@example.invalid")
+        run_git("config", "user.name", "Graphify Test")
+        run_git("add", ".")
+        run_git("commit", "-m", "fixture")
+
+    def test_unclassified_unexpected_suffix_fails_audit(self):
+        self._git_tracked_fixture(
+            {
+                "src/ok.py": "print(1)\n",
+                "noise/.sdkmanrc": "java=21\n",
+                "keep/custom.properties": "k=v\n",
+                "keep/new.weirdsuffix": "nope\n",
+            },
+            ignore=".sdkmanrc\n",
+        )
+        self.write_cache(["src/ok.py"], covered=("src/ok.py",))
+
+        completed = self.command(
+            "audit", "--root", str(self.repository), "--graph-out", "cache/map"
+        )
+
+        self.assertEqual(1, completed.returncode, completed.stderr)
+        report = json.loads(completed.stdout)
+        self.assertEqual(["src/ok.py"], report["covered"])
+        self.assertIn("keep/custom.properties", report["unclassified_allowlisted"])
+        self.assertIn("keep/new.weirdsuffix", report["unclassified_unexpected"])
+        self.assertNotIn("noise/.sdkmanrc", report["unclassified_unexpected"])
+        self.assertNotIn("noise/.sdkmanrc", report["unclassified_allowlisted"])
+
     def test_normalization_preserves_leading_dot_directories(self):
         self.write_cache(["./.github/config.json"], covered=(".github\\config.json",))
 

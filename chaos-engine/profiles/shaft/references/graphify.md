@@ -105,4 +105,13 @@ cluster -> freshness marker. JSON sources with no emitted nodes remain visible
 expected data-only inputs; SQL or other parser gaps stop the refresh before the marker
 is recorded.
 
+Unclassified extract skips are corpus policy, not a failed install. Noise
+families belong in `.graphifyignore` and `mempalace.yaml` `exclude_patterns`.
+Known first-class SHAFT families that Graphifyy 0.9.43 still drops
+(`.properties`, `META-INF/services/*`, Dockerfiles, plugin XML, `.toml`,
+`.feature`, wrappers) stay on the maintenance allowlist until an upstream
+promote lands. A new suffix is `unclassified_unexpected` and fails
+`graphify_maintenance.py audit`. `knowledge_stores.py refresh` still refuses;
+status/search remain the ordinary-task path. See #5087.
+
 Freshness behavior is pinned by `tests/scripts/test_resolve_graph_out.py`.

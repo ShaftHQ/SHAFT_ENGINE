@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 from contextlib import contextmanager
+import fnmatch
 import json
 import os
 import shutil
@@ -18,8 +19,27 @@ CLASSIFICATIONS = (
     "expected_data_only",
     "missing_optional_parser",
     "unexpected_parser_gap",
+    "ignored_by_policy",
+    "unclassified_allowlisted",
+    "unclassified_unexpected",
 )
 DEFAULT_GRAPH_OUT = Path("graphify-out")
+UNCLASSIFIED_ALLOWLIST_SUFFIXES = {
+    ".properties",
+    ".toml",
+    ".xml",
+    ".feature",
+    ".cmd",
+    ".bat",
+    ".license",
+    ".config",
+}
+UNCLASSIFIED_ALLOWLIST_NAMES = {
+    "gradlew",
+    "mvnw",
+    "start_emu_headless",
+}
+GRAPHIFYIGNORE_NAME = ".graphifyignore"
 
 
 def normalized_source(value: str) -> str:
@@ -28,6 +48,66 @@ def normalized_source(value: str) -> str:
     while normalized.startswith("./"):
         normalized = normalized[2:]
     return PurePosixPath(normalized).as_posix()
+
+
+def load_graphifyignore(root: Path) -> list[str]:
+    path = root / GRAPHIFYIGNORE_NAME
+    if not path.is_file():
+        return []
+    patterns: list[str] = []
+    for raw in path.read_text(encoding="utf-8").splitlines():
+        line = raw.strip()
+        if not line or line.startswith("#"):
+            continue
+        patterns.append(line.replace("\\", "/"))
+    return patterns
+
+
+def matches_graphify_ignore(path: str, patterns: list[str]) -> bool:
+    posix = normalized_source(path)
+    name = PurePosixPath(posix).name
+    for pattern in patterns:
+        candidate = pattern[:-1] if pattern.endswith("/") else pattern
+        if posix == candidate or posix.startswith(f"{candidate}/"):
+            return True
+        if fnmatch.fnmatch(posix, candidate) or fnmatch.fnmatch(name, candidate):
+            return True
+        if candidate.startswith("**/") and fnmatch.fnmatch(posix, candidate[3:]):
+            return True
+    return False
+
+
+def unclassified_allowlisted(path: str) -> bool:
+    posix = normalized_source(path)
+    suffix = PurePosixPath(posix).suffix.lower()
+    name = PurePosixPath(posix).name
+    if suffix in UNCLASSIFIED_ALLOWLIST_SUFFIXES or name in UNCLASSIFIED_ALLOWLIST_NAMES:
+        return True
+    if name.startswith("Dockerfile"):
+        return True
+    return "/META-INF/services/" in f"/{posix}"
+
+
+def git_tracked_files(root: Path) -> list[str] | None:
+    git = shutil.which("git")
+    if git is None:
+        return None
+    try:
+        completed = subprocess.run(  # nosec B603 - resolved git, list-form, no shell.
+            [git, "ls-files", "-z"],
+            cwd=root,
+            check=False,
+            capture_output=True,
+        )
+    except OSError:
+        return None
+    if completed.returncode != 0:
+        return None
+    return [
+        normalized_source(item.decode("utf-8", "surrogateescape"))
+        for item in completed.stdout.split(b"\0")
+        if item
+    ]
 
 
 def load_json(path: Path, expected_type: type) -> object:
@@ -76,6 +156,20 @@ def audit_graph(root: Path, graph_out: Path) -> dict[str, object]:
             classification = "unexpected_parser_gap"
         result[classification].append(path)  # type: ignore[union-attr]
     result["total_manifest_paths"] = len(manifest)
+    tracked = git_tracked_files(root)
+    if tracked is None:
+        return result
+    manifest_paths = {normalized_source(str(key)) for key in manifest}
+    patterns = load_graphifyignore(root)
+    for path in tracked:
+        if path in manifest_paths:
+            continue
+        if path == GRAPHIFYIGNORE_NAME or matches_graphify_ignore(path, patterns):
+            result["ignored_by_policy"].append(path)  # type: ignore[union-attr]
+        elif unclassified_allowlisted(path):
+            result["unclassified_allowlisted"].append(path)  # type: ignore[union-attr]
+        else:
+            result["unclassified_unexpected"].append(path)  # type: ignore[union-attr]
     return result
 
 
@@ -91,7 +185,11 @@ def run_audit(root: Path, graph_out: Path) -> dict[str, object]:
     """Run the audit stage and reject actionable extraction gaps."""
     report = audit_graph(root, graph_out)
     print(json.dumps(report, indent=2, sort_keys=True))
-    if report["missing_optional_parser"] or report["unexpected_parser_gap"]:
+    if (
+        report["missing_optional_parser"]
+        or report["unexpected_parser_gap"]
+        or report["unclassified_unexpected"]
+    ):
         raise RuntimeError("Graphify coverage audit found actionable parser gaps")
     return report
 
@@ -225,7 +323,11 @@ def main(argv: list[str] | None = None) -> int:
             report = audit_graph(root, args.graph_out)
             print(json.dumps(report, indent=2, sort_keys=True))
             return int(
-                bool(report["missing_optional_parser"] or report["unexpected_parser_gap"])
+                bool(
+                    report["missing_optional_parser"]
+                    or report["unexpected_parser_gap"]
+                    or report["unclassified_unexpected"]
+                )
             )
         refresh(root, DEFAULT_GRAPH_OUT)
     except (OSError, ValueError, RuntimeError) as error:
