@@ -12,6 +12,23 @@ exclude_patterns:
 - '**/performanceReport/**'
 - '**/.pytest_cache/**'
 - '**/__pycache__/**'
+- LICENSE
+- '**/LICENSE'
+- '*.LICENSE'
+- .gitignore
+- '**/.gitignore'
+- .gitattributes
+- '**/.gitattributes'
+- .dockerignore
+- .graphifyignore
+- .java-version
+- .sdkmanrc
+- '*.apk'
+- '*.jar'
+- '*.log'
+- '*.csv'
+- '*.tsv'
+- '*.jsonl'
 rooms:
 - name: agent_harness
   description: Agent policy, adapters, hooks, skills, and knowledge routing

@@ -25,7 +25,7 @@ store is `degraded`. Neither state blocks implementation or completion.
 | --- | --- |
 | Has this constraint or gotcha already bitten us? | native Memory — `memory search`, then `memory inspect <id>` |
 | What happened around this before, and what does it touch? | MemPalace |
-| What calls or depends on this? | [Graphify](graphify.md) |
+| What calls or depends on this? | [Graphify](graphify.md) — unclassified extract skips are coverage, not a failed install |
 | What does the code do right now? | targeted `rg` and exact reads |
 
 Only the last one settles a disagreement. A retrieved claim is a lead: confirm
