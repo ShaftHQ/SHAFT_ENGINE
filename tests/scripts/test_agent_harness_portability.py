@@ -486,6 +486,24 @@ class AgentHarnessPortabilityTest(unittest.TestCase):
         ):
             self.assertIn(required, compact)
 
+    def test_shaft_profile_orchestrates_multi_ticket_assignments_by_default(self):
+        content = (ROOT / "chaos-engine/profiles/shaft/entrypoint.md").read_text(
+            encoding="utf-8"
+        )
+        compact = re.sub(r"\s+", " ", content)
+        for required in (
+            "Load every assigned ticket (and linked/deferred children) before grouping or dispatching.",
+            "fewest PRs that still keep one problem per issue",
+            "`Closes #N` per completed subtask",
+            "Main session orchestrates: status, owner commands, review, merge.",
+            "does not implement product or guidance chunks",
+            "Remaining chunks run one at a time, ordered by dependency then priority.",
+            "destroy that writer and start the next from a fresh `ChaosEngine/*` branch off fetched `origin/main`",
+            "two or more SHAFT issues in one owner request **are** orchestration",
+            'Do not wait for the owner to say "orchestrate"',
+        ):
+            self.assertIn(required, compact)
+
     def test_host_token_budgets_include_mandatory_entrypoint(self):
         budget = json.loads(
             (ROOT / "scripts/ci/agent_guidance_budget.json").read_text(encoding="utf-8")
