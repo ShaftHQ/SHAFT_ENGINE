@@ -48,19 +48,28 @@ so Windows Git checkouts retain the exact owned bytes while unrelated
 
 Configure `CHAOS_ENGINE_REPOSITORY` in the caller's host environment with the
 canonical `owner/repository` source. The installer reads it without copying the
-source identity into the adopter payload. Then use this literal one-command
-terminal flow from the adopter project on Windows PowerShell:
+source identity into the adopter payload. Change into the target project or
+folder first; both scripts install into the current working directory.
+
+Windows PowerShell, using [install.ps1](install.ps1):
 
 ```powershell
-py -3 -c "import email.utils,os,pathlib,runpy,sys,tempfile,time,urllib.error,urllib.request; repo=os.environ['CHAOS_ENGINE_REPOSITORY']; d=tempfile.TemporaryDirectory(prefix='chaos-engine-bootstrap-'); p=pathlib.Path(d.name)/'bootstrap.py'; ns={'url':f'https://raw.githubusercontent.com/{repo}/main/chaos-engine/bootstrap.py','retry_header':'Retry-After','transient':{408,425,429,500,502,503,504}}; exec('for attempt in range(4):\n delay=2**attempt\n try:\n  with urllib.request.urlopen(url,timeout=30) as response: content=response.read()\n  break\n except urllib.error.HTTPError as error:\n  retry_after=error.headers.get(retry_header) if error.headers is not None else None\n  error.close()\n  if (error.code not in transient and not (error.code==403 and retry_after is not None)) or attempt==3: raise\n  if retry_after is not None:\n   try: delay=float(retry_after)\n   except ValueError: delay=max(0,email.utils.parsedate_to_datetime(retry_after).timestamp()-time.time())\n   if not 0<=delay<=60: raise\n  elif error.code==429: delay=60\n except (ConnectionError,TimeoutError,urllib.error.URLError):\n  if attempt==3: raise\n time.sleep(delay)',globals(),ns); p.write_bytes(ns['content']); sys.argv=[str(p),'--project','.','--repository',repo]; runpy.run_path(str(p),run_name='__main__')"
+$env:CHAOS_ENGINE_REPOSITORY = 'owner/repository'
+irm "https://raw.githubusercontent.com/$env:CHAOS_ENGINE_REPOSITORY/main/chaos-engine/install.ps1" | iex
 ```
 
-On macOS or Linux, replace `py -3` with `python3`. Inspect the
-bootstrap source in this upstream repository first when policy requires review
-before execution. The temporary bootstrap resolves the default branch to an
-immutable commit and downloads only its validated `chaos-engine/` subtree;
-`portable` is already the default and need not be supplied. Restart any client that was open during
-installation so it loads its verified local plugin cache.
+macOS or Linux, using [install.sh](install.sh):
+
+```bash
+export CHAOS_ENGINE_REPOSITORY=owner/repository
+curl -fsSL "https://raw.githubusercontent.com/${CHAOS_ENGINE_REPOSITORY}/main/chaos-engine/install.sh" | bash
+```
+
+Inspect the linked installer and [bootstrap.py](bootstrap.py) first when policy
+requires review before execution. The bootstrap resolves the default branch to
+an immutable commit and downloads only its validated `chaos-engine/` subtree;
+`portable` is already the default and need not be supplied. Restart any client
+that was open during installation so it loads its verified local plugin cache.
 
 Add `--branch branch` to override the repository's configured default branch. The
 bootstrap resolves that mutable branch through the GitHub API, downloads the
