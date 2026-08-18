@@ -50,6 +50,18 @@ def _normalize_path(path: str) -> str:
     return str(path).replace("\\", "/").lower()
 
 
+def optional_text(path: str) -> str:
+    """Read a sidecar file; missing paths are empty so the scan can still report."""
+    from pathlib import Path
+
+    if not str(path or "").strip():
+        return ""
+    target = Path(path)
+    if not target.is_file():
+        return ""
+    return target.read_text(encoding="utf-8", errors="replace")
+
+
 def as_path_list(value: object) -> list[str]:
     """PowerShell ConvertTo-Json unwraps a one-element array into a string."""
     if value is None:
@@ -224,13 +236,9 @@ def main(argv: list[str] | None = None) -> int:
     if args.cmd == "changed":
         paths: list[str] = []
         if args.status_file:
-            paths.extend(
-                changed_paths_from_git_status(
-                    Path(args.status_file).read_text(encoding="utf-8", errors="replace")
-                )
-            )
+            paths.extend(changed_paths_from_git_status(optional_text(args.status_file)))
         if args.head_file:
-            for line in Path(args.head_file).read_text(encoding="utf-8", errors="replace").splitlines():
+            for line in optional_text(args.head_file).splitlines():
                 item = line.strip()
                 if not item:
                     continue
