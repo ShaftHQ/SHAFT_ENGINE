@@ -69,6 +69,6 @@ disposition and must satisfy the hook.
   injected context or if the injected bytes differ from the vendor file.
 - Stop tests fail if the learning-loop rule is not invoked.
 
-See [`hooks/guard.py`](../hooks/guard.py) and
-[`test_chaos_engine_hook.py`](../../tests/scripts/test_chaos_engine_hook.py)
-in the source repository. Adopters receive the same hook file through install.
+See [`hooks/guard.py`](../hooks/guard.py). The source repository pins the
+contract with `tests.scripts.test_chaos_engine_hook`. Adopters receive the
+same hook file through install.
