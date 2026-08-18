@@ -2,8 +2,9 @@ name: Maven Central Continuous Delivery
 # Executed automatically when a new PR is merged to main.
 # Already-published immutable Maven Central versions skip delivery cleanly (see check_release_needed)
 # instead of failing, since most pushes to main land between releases with nothing new to deliver.
-# build_release_and_deliver's build/test/package steps are MIRRORED in shaft-pilot-release.yml's
-# release-candidate job (PR gate vs. real release execution of the same steps) - keep both in sync.
+# build_release_and_deliver stays sequential so deploy cannot run after a failed test.
+# Named checks stay mirrored with shaft-pilot-release.yml's isolated jobs. Keep the
+# named checks in sync; do not re-serialize the PR gate to match this deploy path.
 
 on:
   push:
