@@ -216,7 +216,9 @@ class ShaftProjectServiceTest {
         assertEquals(repo, result.targetDirectory());
         assertEquals("all", result.loop());
         assertTrue(result.warnings().isEmpty());
+        String agents = Files.readString(repo.resolve("AGENTS.md"));
         assertHostAdapter(repo.resolve("AGENTS.md"), ".agents/skills/shaft-developer/SKILL.md");
+        assertTrue(agents.contains("SHAFT-MANAGED:BEGIN shaft-developer:grok"));
         assertHostAdapter(repo.resolve("CLAUDE.md"), ".claude/skills/shaft-developer/SKILL.md");
         assertHostAdapter(repo.resolve(".github/copilot-instructions.md"),
                 "instructions/shaft-developer/SKILL.md");
@@ -240,6 +242,44 @@ class ShaftProjectServiceTest {
         assertFalse(Files.exists(repo.resolve(".github/instructions/act-as-shaft-dev.instructions.md")));
         assertFalse(Files.exists(repo.resolve(".codex")));
         assertFalse(Files.exists(repo.resolve("SHAFT-AGENTS.md")));
+    }
+
+    @Test
+    void initAgentsScaffoldsGrokLoopOnAgentsMdOnly() throws Exception {
+        ShaftProjectService service = new ShaftProjectService(
+                McpWorkspacePolicy.of(temp),
+                new FakeRunner(),
+                temp.resolve("upgrade_to_modular_shaft.py"),
+                List.of("python"));
+
+        McpShaftProjectInitAgentsResult result = service.initAgents("grok", "grok-repo", false);
+
+        assertEquals("grok", result.loop());
+        Path repo = temp.resolve("grok-repo");
+        Path agents = repo.resolve("AGENTS.md");
+        assertTrue(Files.exists(repo.resolve(".agents/skills/shaft-developer/SKILL.md")));
+        assertHostAdapter(agents, ".agents/skills/shaft-developer/SKILL.md");
+        assertTrue(Files.readString(agents).contains("SHAFT-MANAGED:BEGIN shaft-developer:grok"));
+        assertFalse(Files.exists(repo.resolve(".grok")));
+        assertFalse(Files.exists(repo.resolve("SHAFT-AGENTS.md")));
+    }
+
+    @Test
+    void initAgentsPreservesUserAgentsProseOutsideGrokManagedBlock() throws Exception {
+        ShaftProjectService service = new ShaftProjectService(
+                McpWorkspacePolicy.of(temp),
+                new FakeRunner(),
+                temp.resolve("upgrade_to_modular_shaft.py"),
+                List.of("python"));
+        Path repo = Files.createDirectories(temp.resolve("grok-prose"));
+        Path agents = repo.resolve("AGENTS.md");
+        Files.writeString(agents, "user owned grok notes\n");
+
+        service.initAgents("grok", "grok-prose", false);
+
+        String text = Files.readString(agents);
+        assertTrue(text.startsWith("user owned grok notes"));
+        assertHostAdapter(agents, ".agents/skills/shaft-developer/SKILL.md");
     }
 
     @Test
