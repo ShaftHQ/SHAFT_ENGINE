@@ -79,6 +79,7 @@
 <li><a href="#traceIncludeNetwork()" tabindex="0">traceIncludeNetwork()</a></li>
 <li><a href="#traceIncludeConsole()" tabindex="0">traceIncludeConsole()</a></li>
 <li><a href="#traceMaxArtifactMb()" tabindex="0">traceMaxArtifactMb()</a></li>
+<li><a href="#traceMaxSessionMb()" tabindex="0">traceMaxSessionMb()</a></li>
 <li><a href="#flakeProfilerEnabled()" tabindex="0">flakeProfilerEnabled()</a></li>
 <li><a href="#flakeProfilerAttachPerTest()" tabindex="0">flakeProfilerAttachPerTest()</a></li>
 <li><a href="#flakeProfilerFailOnSevereFlakeRisk()" tabindex="0">flakeProfilerFailOnSevereFlakeRisk()</a></li>
@@ -244,12 +245,15 @@ of individual configuration properties at runtime.</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code>int</code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#traceMaxArtifactMb()" class="member-name-link">traceMaxArtifactMb</a>()</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">&nbsp;</div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#traceMode()" class="member-name-link">traceMode</a>()</code></div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code>int</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#traceMaxSessionMb()" class="member-name-link">traceMaxSessionMb</a>()</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">&nbsp;</div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code>boolean</code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#traceRetainFailedAttempts()" class="member-name-link">traceRetainFailedAttempts</a>()</code></div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#traceMode()" class="member-name-link">traceMode</a>()</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">&nbsp;</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code>boolean</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#traceRetainFailedAttempts()" class="member-name-link">traceRetainFailedAttempts</a>()</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">&nbsp;</div>
 </div>
 </div>
 </div>
@@ -561,6 +565,16 @@ of individual configuration properties at runtime.</div>
 <div class="member-signature"><span class="annotations">@Key("shaft.trace.maxArtifactMb")
 @DefaultValue("50")
 </span><span class="return-type">int</span>&nbsp;<span class="element-name">traceMaxArtifactMb</span>()</div>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="traceMaxSessionMb()">
+<h3>traceMaxSessionMb</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="annotations">@Key("shaft.trace.maxSessionMb")
+@DefaultValue("512")
+</span><span class="return-type">int</span>&nbsp;<span class="element-name">traceMaxSessionMb</span>()</div>
 </div>
 </section>
 </li>
