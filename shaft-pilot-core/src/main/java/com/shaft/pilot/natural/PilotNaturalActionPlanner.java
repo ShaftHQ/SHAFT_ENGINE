@@ -18,6 +18,8 @@ import com.shaft.pilot.ai.EvidenceReference;
 import com.shaft.pilot.config.PilotConfiguration;
 import org.openqa.selenium.By;
 
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -75,6 +77,9 @@ public class PilotNaturalActionPlanner implements NaturalActionPlanner {
             configuration = PilotConfiguration.current();
         } catch (RuntimeException exception) {
             return NaturalActionPlan.unsupported(id(), request.intent(), "Pilot configuration is invalid.");
+        }
+        if (!inferenceApproved(configuration)) {
+            return NaturalActionPlan.unsupported(id(), request.intent(), "Pilot inference is not approved.");
         }
         AiRequest aiRequest = AiRequest.builder("natural-action-plan", responseSchema())
                 .text("""
@@ -172,9 +177,46 @@ public class PilotNaturalActionPlanner implements NaturalActionPlanner {
         }
         return "intent=" + request.intent()
                 + System.lineSeparator() + "argumentCount=" + request.arguments().size()
-                + System.lineSeparator() + "currentUrl=" + url
+                + System.lineSeparator() + "currentUrl=" + boundedUrl(url)
                 + System.lineSeparator() + "mobileNative=" + request.mobileNativeExecution()
                 + System.lineSeparator() + "mobileWeb=" + request.mobileWebExecution();
+    }
+
+    private static boolean inferenceApproved(PilotConfiguration configuration) {
+        var policy = configuration.approvalPolicy();
+        return policy.localInferenceAllowed()
+                || policy.onPremInferenceAllowed()
+                || policy.remoteInferenceAllowed();
+    }
+
+    private static String boundedUrl(String url) {
+        if (url == null || url.isBlank()) {
+            return "";
+        }
+        try {
+            URI uri = URI.create(url);
+            String host = uri.getHost();
+            if (uri.getScheme() == null || host == null) {
+                return stripQuery(url);
+            }
+            String path = uri.getRawPath();
+            return new URI(uri.getScheme(), hostAuthority(uri, host),
+                    path == null || path.isBlank() ? "/" : path, null, null).toString();
+        } catch (IllegalArgumentException | URISyntaxException exception) {
+            return stripQuery(url);
+        }
+    }
+
+    private static String hostAuthority(URI uri, String host) {
+        return uri.getPort() > 0 ? host + ":" + uri.getPort() : host;
+    }
+
+    private static String stripQuery(String url) {
+        int userinfo = url.indexOf('@');
+        int scheme = url.indexOf("://");
+        String withoutUserinfo = userinfo > scheme ? url.substring(0, scheme + 3) + url.substring(userinfo + 1) : url;
+        int query = withoutUserinfo.indexOf('?');
+        return query >= 0 ? withoutUserinfo.substring(0, query) : withoutUserinfo;
     }
 
     private static ObjectNode responseSchema() {

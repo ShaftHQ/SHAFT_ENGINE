@@ -46,7 +46,7 @@ final class McpDoctorRemediationService {
     private static final int MAX_SOURCE_BYTES = 20_000;
     private static final int MAX_RANKED_REMEDIATION_CAUSES = 5;
     private static final Pattern SECRET_LIKE = Pattern.compile(
-            "(?i)(authorization\\s*[:=]|bearer\\s+[a-z0-9._\\-]{8,}|api[_-]?key\\s*[:=]|sk-[a-z0-9]{8,})");
+            "(?i)(authorization\\s*[:=]|bearer\\s+[a-z0-9._\\-]{8,}|api[_-]?key\\s*[:=]|sk-[a-z0-9._\\-]{8,})");
     private static final Pattern FAILED_LOCATOR = Pattern.compile(
             "(?i)(By\\.(?:id|name|cssSelector|xpath|className|tagName|linkText|partialLinkText)\\s*:?\\s*[^\\r\\n,;]+"
                     + "|locator\\([^\\r\\n]+?\\)|selector\\s*[:=]\\s*[^\\r\\n,;]+)");
@@ -457,19 +457,27 @@ final class McpDoctorRemediationService {
     }
 
     private static String providerPrompt(Diagnosis diagnosis) {
-        try {
-            return """
-                    Produce review-only Java snippets for a SHAFT test failure.
-                    Use only submitted evidence IDs. Do not invent locators, paths, classes, commands, or assertions.
-                    Prefer copy-pasteable snippets for an existing class. Use placeholders only when evidence is insufficient.
-                    Return JSON matching the requested schema; no Markdown fences.
+        String ranked = diagnosis.rankedCauses().stream()
+                .limit(MAX_RANKED_REMEDIATION_CAUSES)
+                .map(cause -> cause.category() + ":" + cause.trustPercentage())
+                .reduce((left, right) -> left + "," + right)
+                .orElse("");
+        return """
+                Produce review-only Java snippets for a SHAFT test failure.
+                Use only submitted evidence IDs. Do not invent locators, paths, classes, commands, or assertions.
+                Prefer copy-pasteable snippets for an existing class. Use placeholders only when evidence is insufficient.
+                Return JSON matching the requested schema; no Markdown fences.
 
-                    Deterministic diagnosis:
-                    %s
-                    """.formatted(JSON.writeValueAsString(diagnosis));
-        } catch (RuntimeException exception) {
-            throw new IllegalArgumentException("Doctor diagnosis could not be serialized.", exception);
-        }
+                Deterministic diagnosis:
+                primaryCause=%s
+                confidence=%s
+                summary=%s
+                rankedCauses=%s
+                """.formatted(
+                diagnosis.primaryCause(),
+                diagnosis.confidence(),
+                safeContent(diagnosis.summary()),
+                ranked);
     }
 
     private static McpCodeBlock locatorBlock(List<String> evidenceIds) {
@@ -710,7 +718,9 @@ final class McpDoctorRemediationService {
         if (content == null) {
             return "";
         }
-        return content.length() > 8_000 ? content.substring(0, 8_000) : content;
+        String sanitized = SECRET_LIKE.matcher(content).replaceAll("[REDACTED]");
+        sanitized = FAILED_LOCATOR.matcher(sanitized).replaceAll("[LOCATOR]");
+        return sanitized.length() > 8_000 ? sanitized.substring(0, 8_000) : sanitized;
     }
 
     private static String mediaType(String path) {

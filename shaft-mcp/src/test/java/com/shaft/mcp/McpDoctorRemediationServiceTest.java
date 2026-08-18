@@ -6,19 +6,27 @@ import com.shaft.doctor.model.Confidence;
 import com.shaft.doctor.model.Diagnosis;
 import com.shaft.doctor.model.DoctorAnalysisResult;
 import com.shaft.doctor.model.EvidenceBundle;
+import com.shaft.doctor.model.EvidenceCategory;
+import com.shaft.doctor.model.EvidenceItem;
+import com.shaft.doctor.model.EvidenceProvenance;
 import com.shaft.doctor.model.RankedCause;
 import com.shaft.doctor.model.RedactionSummary;
+import com.shaft.pilot.ai.AiRequest;
 import com.shaft.pilot.ai.AiResponse;
 import com.shaft.pilot.ai.AiResponseStatus;
 import com.shaft.pilot.ai.ApprovalPolicy;
+import com.shaft.pilot.ai.EvidenceReference;
 import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -83,21 +91,51 @@ class McpDoctorRemediationServiceTest {
 
     @Test
     void unavailableProviderKeepsAdvisoryProseAndAddsNoExecutableAction() {
-        McpDoctorRemediationService aiService = new McpDoctorRemediationService(request ->
-                AiResponse.failure(AiResponseStatus.PROVIDER_UNAVAILABLE, "none", "", "unavailable",
-                        Duration.ZERO, request.deterministicFallback()));
+        String plantedLocator = org.openqa.selenium.By.cssSelector("#unique-doctor-locator-canary").toString();
+        String plantedSecret = "Bearer planted-doctor-secret-token";
+        AtomicReference<AiRequest> captured = new AtomicReference<>();
+        McpDoctorRemediationService aiService = new McpDoctorRemediationService(request -> {
+            captured.set(request);
+            return AiResponse.failure(AiResponseStatus.PROVIDER_UNAVAILABLE, "none", "", "unavailable",
+                    Duration.ZERO, request.deterministicFallback());
+        });
+        EvidenceItem leaky = new EvidenceItem(
+                "e-1",
+                EvidenceCategory.EXCEPTION_CHAIN,
+                "text/plain",
+                "",
+                "sha-1",
+                plantedSecret.length(),
+                "NoSuchElementException for " + plantedLocator + " Authorization: " + plantedSecret,
+                false,
+                false,
+                Map.of(),
+                new EvidenceProvenance("fixture", "fixture/result.json", "sha-1"));
         DoctorAnalysisResult result = new DoctorAnalysisResult(
-                new EvidenceBundle(EvidenceBundle.CURRENT_SCHEMA_VERSION, "bundle-1", List.of(),
+                new EvidenceBundle(EvidenceBundle.CURRENT_SCHEMA_VERSION, "bundle-1", List.of(leaky),
                         new RedactionSummary(List.of(), List.of(), 0), Map.of()),
-                diagnosis(List.of(rankedCause(CauseCategory.LOCATOR, 88, "Locator fix prompt body."))),
+                diagnosis(List.of(rankedCause(CauseCategory.LOCATOR, 88,
+                        "Replace " + plantedLocator + " and keep " + plantedSecret))),
                 "", "", "");
 
         McpAnalysisReport report = aiService.build(
                 result, null, List.of(), true, ApprovalPolicy.denyAll(), "driver");
 
+        assertNotNull(captured.get(), "Unavailable fallback must still build a provider request.");
+        String blob = captured.get().text() + "\n" + captured.get().evidence().stream()
+                .map(EvidenceReference::content)
+                .reduce("", (left, right) -> left + "\n" + right);
+        assertFalse(blob.contains(plantedLocator), blob);
+        assertFalse(blob.contains("By.cssSelector"), blob);
+        assertFalse(blob.contains(plantedSecret), blob);
+        assertFalse(blob.contains("planted-doctor-secret-token"), blob);
+        assertTrue(report.actions().stream()
+                .filter(action -> action.id().startsWith("provider-"))
+                .noneMatch(action -> action.status() == McpActionRecord.Status.SUGGESTED),
+                report.actions().toString());
         assertTrue(report.actions().stream().noneMatch(action ->
-                action.status() != McpActionRecord.Status.PROVIDER_ADVISORY
-                        && action.id().startsWith("provider-")), report.actions().toString());
+                action.status() == McpActionRecord.Status.SUGGESTED
+                        && "PROVIDER_ADVISORY".equals(action.category())), report.actions().toString());
         assertTrue(report.codeBlocks().stream().anyMatch(block ->
                 block.kind() == McpCodeBlock.Kind.PROVIDER_ADVISORY), report.codeBlocks().toString());
     }

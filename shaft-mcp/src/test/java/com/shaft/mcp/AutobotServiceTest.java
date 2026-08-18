@@ -28,6 +28,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class AutobotServiceTest {
@@ -134,6 +135,44 @@ class AutobotServiceTest {
         assertEquals(AiResponseStatus.SUCCESS.name(), response.status());
         assertEquals("ok", response.answer());
         assertEquals("Explain this failure", capturedText.get());
+    }
+
+    @Test
+    void providerChatBoundsSecretsAndDoesNotTreatLocalConsentAsRemoteOrToolApproval() {
+        SHAFT.Properties.pilot.set().enabled(true).localConsent(true).remoteConsent(false);
+        try {
+            AtomicReference<AiRequest> captured = new AtomicReference<>();
+            AutobotService service = new AutobotService(McpWorkspacePolicy.of(workspace),
+                    new LocalAgentService(client -> true, new CapturingRunner()), request -> {
+                        captured.set(request);
+                        return AiResponse.success("ollama", "local-model",
+                                tools.jackson.databind.node.JsonNodeFactory.instance.objectNode()
+                                        .put("answer", "ok"),
+                                Duration.ofMillis(10), com.shaft.pilot.ai.AiUsage.empty(),
+                                request.deterministicFallback());
+                    });
+
+            AutobotProviderChatResponse response = service.runProviderChat(
+                    "ollama",
+                    "local-model",
+                    "ASK",
+                    "Explain Authorization: Bearer planted-autobot-secret-token and sk-secret-canary-4864",
+                    "",
+                    10,
+                    false);
+
+            assertEquals(AiResponseStatus.SUCCESS.name(), response.status());
+            assertNotNull(captured.get(), "Chat must submit a request through AiExecutionService.");
+            assertFalse(captured.get().text().contains("planted-autobot-secret-token"), captured.get().text());
+            assertFalse(captured.get().text().contains("sk-secret-canary-4864"), captured.get().text());
+            assertFalse(captured.get().text().contains("Bearer planted"), captured.get().text());
+            assertTrue(captured.get().approvalPolicy().localInferenceAllowed(),
+                    "Local provider chat may use local consent for local inference.");
+            assertFalse(captured.get().approvalPolicy().remoteInferenceAllowed(),
+                    "Local consent must not grant remote inference or tool approval.");
+        } finally {
+            SHAFT.Properties.clearForCurrentThread();
+        }
     }
 
     @Test

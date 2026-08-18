@@ -81,6 +81,8 @@ class CaptureEnrichmentServiceTest {
 
     @Test
     void plantedSecretNeverEntersEnrichmentRequest() {
+        SHAFT.Properties.healing.set().aiEnabled(false);
+        SHAFT.Properties.pilot.set().enabled(false);
         ElementSnapshot leaky = new ElementSnapshot(
                 "username-input",
                 "input",

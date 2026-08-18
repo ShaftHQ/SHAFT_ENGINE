@@ -8,19 +8,26 @@ import com.shaft.pilot.ai.AiRequest;
 import com.shaft.pilot.ai.AiResponse;
 import com.shaft.pilot.ai.AiResponseStatus;
 import com.shaft.pilot.ai.AiUsage;
+import com.shaft.pilot.ai.EvidenceReference;
+import com.shaft.pilot.config.PilotConfiguration;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.openqa.selenium.WebDriver;
 import tools.jackson.databind.node.JsonNodeFactory;
 import tools.jackson.databind.node.ObjectNode;
 
+import java.lang.reflect.Proxy;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class PilotNaturalActionPlannerTest {
@@ -36,30 +43,50 @@ class PilotNaturalActionPlannerTest {
     }
 
     @Test
-    void unknownActionKindReturnsUnsupportedAndDoesNotReachExecutor() {
-        AtomicInteger executions = new AtomicInteger();
+    void unknownActionKindReturnsUnsupported() {
         NaturalActionPlan plan = plan(payload(step -> {
             step.put("kind", "SHELL_EXEC");
             step.put("trust", 0.99);
             step.put("label", "terminal");
-        }), executions);
+        }));
 
         assertUnsupported(plan);
-        assertEquals(0, executions.get());
     }
 
     @Test
-    void extraParameterInSuccessfulPayloadReturnsUnsupportedAndDoesNotReachExecutor() {
-        AtomicInteger executions = new AtomicInteger();
+    void extraParameterInSuccessfulPayloadReturnsUnsupported() {
         NaturalActionPlan plan = plan(payload(step -> {
             step.put("kind", NaturalActionKind.ELEMENT_CLICK.name());
             step.put("trust", 0.99);
             step.put("label", "Submit");
             step.put("script", "alert(1)");
-        }), executions);
+        }));
 
         assertUnsupported(plan);
-        assertEquals(0, executions.get());
+    }
+
+    @Test
+    void capturedRequestMustOmitAccessTokenFromCurrentUrl() {
+        AtomicReference<AiRequest> captured = new AtomicReference<>();
+        WebDriver driver = driverReturning(
+                "https://user:pass@example.test/app/checkout?access_token=planted-access-token&q=1");
+        NaturalActionPlan plan = planner(request -> {
+            captured.set(request);
+            return success(payload(step -> {
+                step.put("kind", NaturalActionKind.BROWSER_REFRESH.name());
+                step.put("trust", 0.99);
+            }));
+        }).plan(request(driver, "refresh the checkout page"));
+
+        assertNotNull(captured.get(), "Planner must submit a request through AiExecutionService.");
+        String blob = captured.get().text() + "\n" + captured.get().evidence().stream()
+                .map(EvidenceReference::content)
+                .reduce("", (left, right) -> left + "\n" + right);
+        assertFalse(blob.contains("access_token"), blob);
+        assertFalse(blob.contains("planted-access-token"), blob);
+        assertFalse(blob.contains("user:pass"), blob);
+        assertTrue(blob.contains("example.test"), blob);
+        assertTrue(plan.steps().isEmpty() || plan.steps().getFirst().kind() == NaturalActionKind.BROWSER_REFRESH);
     }
 
     @Test
@@ -94,25 +121,23 @@ class PilotNaturalActionPlannerTest {
             assertUnsupported(plan);
             assertTrue(plan.steps().isEmpty(), testCase.name);
         }
-        SHAFT.Properties.naturalActions.set().aiFallbackEnabled(false);
+        SHAFT.Properties.pilot.set().localConsent(false).onPremConsent(false).remoteConsent(false);
         AtomicInteger calls = new AtomicInteger();
-        NaturalActionPlan disabled = planner(request -> {
+        NaturalActionPlan missingApproval = planner(request -> {
             calls.incrementAndGet();
             return success(payload(step -> {
                 step.put("kind", NaturalActionKind.BROWSER_REFRESH.name());
                 step.put("trust", 0.99);
             }));
         }).plan(request("refresh"));
-        assertUnsupported(disabled);
+        assertUnsupported(missingApproval);
         assertEquals(0, calls.get(), "missing approval must not call the provider");
-        assertFalse(SHAFT.Properties.naturalActions.enabled());
+        assertFalse(PilotConfiguration.current().approvalPolicy().localInferenceAllowed());
+        assertFalse(PilotConfiguration.current().approvalPolicy().onPremInferenceAllowed());
+        assertFalse(PilotConfiguration.current().approvalPolicy().remoteInferenceAllowed());
     }
 
-    private static void assertFalse(boolean condition) {
-        org.junit.jupiter.api.Assertions.assertFalse(condition);
-    }
-
-    private NaturalActionPlan plan(ObjectNode payload, AtomicInteger executions) {
+    private NaturalActionPlan plan(ObjectNode payload) {
         return planner(request -> success(payload)).plan(request("click Submit"));
     }
 
@@ -123,7 +148,39 @@ class PilotNaturalActionPlannerTest {
     }
 
     private static NaturalActionRequest request(String intent) {
-        return new NaturalActionRequest(null, intent, List.of(), false, false);
+        return request(null, intent);
+    }
+
+    private static NaturalActionRequest request(WebDriver driver, String intent) {
+        return new NaturalActionRequest(driver, intent, List.of(), false, false);
+    }
+
+    private static WebDriver driverReturning(String currentUrl) {
+        return (WebDriver) Proxy.newProxyInstance(
+                WebDriver.class.getClassLoader(),
+                new Class<?>[]{WebDriver.class},
+                (proxy, method, args) -> {
+                    if ("getCurrentUrl".equals(method.getName())) {
+                        return currentUrl;
+                    }
+                    if ("toString".equals(method.getName())) {
+                        return "stub-driver";
+                    }
+                    Class<?> type = method.getReturnType();
+                    if (type == boolean.class) {
+                        return false;
+                    }
+                    if (type == int.class || type == long.class || type == short.class || type == byte.class) {
+                        return 0;
+                    }
+                    if (type == float.class || type == double.class) {
+                        return 0d;
+                    }
+                    if (type == char.class) {
+                        return '\0';
+                    }
+                    return null;
+                });
     }
 
     private static ObjectNode payload(java.util.function.Consumer<ObjectNode> stepCustomizer) {
