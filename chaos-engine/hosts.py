@@ -324,7 +324,7 @@ def _sqlite_runtime_valid(
             connection.close()
 
 
-def shaft_resolver_present(project: Path) -> bool:
+def repository_map_resolver_present(project: Path) -> bool:
     return (project / "tools/repository-map/resolve_mempalace.py").is_file()
 
 
@@ -347,7 +347,7 @@ def mempalace_runtime_status(project: Path) -> dict[str, str]:
             "detail": "MemPalace state is a link or reparse point",
         }
     if not palace.exists():
-        if shaft_resolver_present(project):
+        if repository_map_resolver_present(project):
             return centralized_mempalace_status()
         return {"status": "initialization-required", "backend": "sqlite_exact"}
     if not palace.is_dir():
@@ -431,7 +431,7 @@ def mempalace_runtime_status(project: Path) -> dict[str, str]:
                 "detail": "SQLite-exact MemPalace state is unreadable or malformed",
             }
         return {"status": "healthy", "backend": "sqlite_exact"}
-    if shaft_resolver_present(project):
+    if repository_map_resolver_present(project):
         return centralized_mempalace_status()
     return {"status": "initialization-required", "backend": "sqlite_exact"}
 
