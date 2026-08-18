@@ -22,13 +22,16 @@ Give the following instruction to a coding agent while its working directory is
 the project you want to manage:
 
 > Install or upgrade ChaosEngine in this project from the latest commit of the
-> official upstream. Fetch and inspect that upstream's
-> `chaos-engine/bootstrap.py`, run it with Python 3, `--project .`, and the
-> explicit repository containing this guide. Do not stop until the bootstrap's
-> active doctor reports the resolved 40-character commit and every required
-> component healthy. Treat
-> the installed ChaosEngine skill as the canonical harness and route any
-> existing agent guidance through it without deleting unrelated user content.
+> official upstream. Change into the target project first. Set
+> `CHAOS_ENGINE_REPOSITORY` to the upstream `owner/repository`, then run
+> `chaos-engine/install.ps1` on Windows (`irm ... | iex`) or
+> `chaos-engine/install.sh` on macOS/Linux (`curl -fsSL ... | bash`). Those
+> wrappers download `bootstrap.py` and run the full install: hooks, skills,
+> companions, Memory, MemPalace, Graphify CLI, and doctor. Do not stop until
+> the active doctor reports the resolved 40-character commit and every
+> required component healthy. Treat the installed ChaosEngine skill as the
+> canonical harness and route any existing agent guidance through it without
+> deleting unrelated user content.
 
 That agent instruction owns the complete flow: the bootstrap installs the
 neutral core, pinned local tools, Memory and isolated MemPalace MCP servers,
@@ -71,10 +74,11 @@ an immutable commit and downloads only its validated `chaos-engine/` subtree;
 `portable` is already the default and need not be supplied. Restart any client
 that was open during installation so it loads its verified local plugin cache.
 
-Add `--branch branch` to override the repository's configured default branch. The
-bootstrap resolves that mutable branch through the GitHub API, downloads the
-exact commit's declared harness files, rejects unsafe tree entries, and records repository,
-immutable provenance digests and the commit in `.chaos-engine/manifest.json`.
+Set `CHAOS_ENGINE_BRANCH` to override the repository's configured default
+branch (otherwise `main`). The bootstrap resolves that mutable branch through
+the GitHub API, downloads the exact commit's declared harness files, rejects
+unsafe tree entries, and records repository, immutable provenance digests and
+the commit in `.chaos-engine/manifest.json`.
 The public default is always the neutral `portable` distribution; a source
 repository's contributor profile requires an explicit non-default selection. Re-running the
 same command upgrades to the latest resolved commit; an offline or invalid

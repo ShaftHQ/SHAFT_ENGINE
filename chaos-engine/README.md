@@ -102,7 +102,7 @@ path-unique local marketplace registration and cached plugin.
 
 ### Upgrade, recover, or remove
 
-- **Upgrade:** run the same bootstrap command again. A failed or invalid
+- **Upgrade:** run the same one-liner again. A failed or invalid
   download leaves the last verified installation unchanged. Transient timeout,
   connection, rate-limit, and server responses receive bounded retries before
   that fail-closed result; permanent client errors do not.
