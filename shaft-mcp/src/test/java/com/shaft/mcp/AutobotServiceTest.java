@@ -72,6 +72,26 @@ class AutobotServiceTest {
     }
 
     @Test
+    void localConsentIsNotToolApprovalForCustomAgentCommands() {
+        com.shaft.driver.SHAFT.Properties.pilot.set().enabled(true).localConsent(true);
+        try {
+            CapturingRunner runner = new CapturingRunner();
+            AutobotService service = new AutobotService(McpWorkspacePolicy.of(workspace),
+                    new LocalAgentService(client -> true, runner));
+
+            LocalAgentResponse response = service.runLocalAgent(
+                    "codex", "agent", "Delete every test.",
+                    "", List.of("codex", "exec", "--full-auto", "-"), Map.of(), 10, false);
+
+            assertEquals(LocalAgentStatus.REJECTED, response.status());
+            assertTrue(runner.command.get() == null || runner.command.get().isEmpty(),
+                    "Rejected Agent command must not reach the process runner.");
+        } finally {
+            com.shaft.properties.internal.Properties.clearForCurrentThread();
+        }
+    }
+
+    @Test
     void clientsExposeLocalRoutesWithoutCloudApiKeys() {
         AutobotService service = new AutobotService(McpWorkspacePolicy.of(workspace),
                 new LocalAgentService(client -> true, new CapturingRunner()));

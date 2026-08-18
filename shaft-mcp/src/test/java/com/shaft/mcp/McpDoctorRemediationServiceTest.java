@@ -4,11 +4,19 @@ import com.shaft.capture.generate.CaptureGenerator.CodegenBackend;
 import com.shaft.doctor.model.CauseCategory;
 import com.shaft.doctor.model.Confidence;
 import com.shaft.doctor.model.Diagnosis;
+import com.shaft.doctor.model.DoctorAnalysisResult;
+import com.shaft.doctor.model.EvidenceBundle;
 import com.shaft.doctor.model.RankedCause;
+import com.shaft.doctor.model.RedactionSummary;
+import com.shaft.pilot.ai.AiResponse;
+import com.shaft.pilot.ai.AiResponseStatus;
+import com.shaft.pilot.ai.ApprovalPolicy;
 import org.junit.jupiter.api.Test;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -71,6 +79,27 @@ class McpDoctorRemediationServiceTest {
         assertTrue(blocks.stream().anyMatch(block -> block.kind() == McpCodeBlock.Kind.WAIT));
         assertTrue(blocks.stream().noneMatch(block -> block.title().contains("trust")), blocks.toString());
         assertTrue(blocks.stream().noneMatch(block -> block.id().startsWith("fix-prompt-")), blocks.toString());
+    }
+
+    @Test
+    void unavailableProviderKeepsAdvisoryProseAndAddsNoExecutableAction() {
+        McpDoctorRemediationService aiService = new McpDoctorRemediationService(request ->
+                AiResponse.failure(AiResponseStatus.PROVIDER_UNAVAILABLE, "none", "", "unavailable",
+                        Duration.ZERO, request.deterministicFallback()));
+        DoctorAnalysisResult result = new DoctorAnalysisResult(
+                new EvidenceBundle(EvidenceBundle.CURRENT_SCHEMA_VERSION, "bundle-1", List.of(),
+                        new RedactionSummary(List.of(), List.of(), 0), Map.of()),
+                diagnosis(List.of(rankedCause(CauseCategory.LOCATOR, 88, "Locator fix prompt body."))),
+                "", "", "");
+
+        McpAnalysisReport report = aiService.build(
+                result, null, List.of(), true, ApprovalPolicy.denyAll(), "driver");
+
+        assertTrue(report.actions().stream().noneMatch(action ->
+                action.status() != McpActionRecord.Status.PROVIDER_ADVISORY
+                        && action.id().startsWith("provider-")), report.actions().toString());
+        assertTrue(report.codeBlocks().stream().anyMatch(block ->
+                block.kind() == McpCodeBlock.Kind.PROVIDER_ADVISORY), report.codeBlocks().toString());
     }
 
     @Test

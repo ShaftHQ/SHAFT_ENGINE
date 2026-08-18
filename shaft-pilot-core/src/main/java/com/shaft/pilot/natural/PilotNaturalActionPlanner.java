@@ -20,25 +20,34 @@ import org.openqa.selenium.By;
 
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Set;
+import java.util.function.Function;
 
 /**
  * Optional plan-only AI planner for SHAFT natural actions.
  */
 public class PilotNaturalActionPlanner implements NaturalActionPlanner {
     private static final ObjectMapper JSON = new ObjectMapper();
-    private final AiExecutionService executionService;
+    private static final Set<String> ALLOWED_STEP_FIELDS = Set.of("kind", "label", "argIndex", "trust");
+    private static final int MAX_STEPS = 8;
+    private final Function<AiRequest, com.shaft.pilot.ai.AiResponse> executor;
 
     /**
      * Creates the service-loadable planner.
      */
     public PilotNaturalActionPlanner() {
-        this(new AiExecutionService());
+        this(new AiExecutionService()::execute);
     }
 
     PilotNaturalActionPlanner(AiExecutionService executionService) {
-        this.executionService = executionService;
+        this(executionService::execute);
+    }
+
+    PilotNaturalActionPlanner(Function<AiRequest, com.shaft.pilot.ai.AiResponse> executor) {
+        this.executor = executor;
     }
 
     @Override
@@ -86,7 +95,7 @@ public class PilotNaturalActionPlanner implements NaturalActionPlanner {
                 .approvalPolicy(configuration.approvalPolicy())
                 .deterministicFallback(unsupportedPayload(request.intent(), "Provider fallback was used."))
                 .build();
-        var response = executionService.execute(aiRequest);
+        var response = executor.apply(aiRequest);
         if (!response.successful()) {
             return NaturalActionPlan.unsupported(id(), request.intent(), response.fallbackReason());
         }
@@ -94,8 +103,20 @@ public class PilotNaturalActionPlanner implements NaturalActionPlanner {
     }
 
     private NaturalActionPlan parse(NaturalActionRequest request, JsonNode payload) {
+        JsonNode stepsNode = payload.path("steps");
+        if (!payload.path("trust").isNumber() || !stepsNode.isArray() || stepsNode.size() > MAX_STEPS) {
+            return NaturalActionPlan.unsupported(id(), request.intent(), "Provider returned a malformed plan.");
+        }
         List<NaturalActionStep> steps = new ArrayList<>();
-        for (JsonNode node : payload.path("steps")) {
+        for (JsonNode node : stepsNode) {
+            if (!node.isObject()) {
+                return NaturalActionPlan.unsupported(id(), request.intent(), "Provider returned a malformed plan.");
+            }
+            Set<String> fields = new HashSet<>();
+            node.propertyNames().forEach(fields::add);
+            if (!ALLOWED_STEP_FIELDS.containsAll(fields)) {
+                return NaturalActionPlan.unsupported(id(), request.intent(), "Provider returned an unknown parameter.");
+            }
             NaturalActionKind kind;
             try {
                 kind = NaturalActionKind.valueOf(node.path("kind").asText("").toUpperCase(Locale.ROOT));
@@ -103,20 +124,32 @@ public class PilotNaturalActionPlanner implements NaturalActionPlanner {
                 return NaturalActionPlan.unsupported(id(), request.intent(), "Provider returned an unknown action kind.");
             }
             String label = node.path("label").asText("");
+            if (unsafeLabel(label)) {
+                return NaturalActionPlan.unsupported(id(), request.intent(), "Provider returned an unsafe parameter.");
+            }
             int argIndex = node.path("argIndex").asInt(-1);
             Object data = argIndex >= 0 && argIndex < request.arguments().size()
                     ? request.arguments().get(argIndex)
-                    : node.path("value").asText(null);
+                    : null;
             By locator = locator(kind, label);
             double trust = node.path("trust").asDouble(0);
             steps.add(new NaturalActionStep(kind, locator, data, trust, "Provider-planned " + kind.name() + "."));
         }
+        String explanation = payload.path("explanation").asText("Provider returned a structured plan.");
         return NaturalActionPlan.of(
                 id(),
                 request.intent(),
                 steps,
                 payload.path("trust").asDouble(0),
-                payload.path("explanation").asText("Provider returned a structured plan."));
+                "Untrusted advisory: " + explanation);
+    }
+
+    private static boolean unsafeLabel(String label) {
+        if (label == null || label.isBlank()) {
+            return false;
+        }
+        String normalized = label.strip().toLowerCase(Locale.ROOT);
+        return normalized.startsWith("javascript:") || normalized.startsWith("data:");
     }
 
     private static By locator(NaturalActionKind kind, String label) {
@@ -155,9 +188,13 @@ public class PilotNaturalActionPlanner implements NaturalActionPlanner {
         ObjectNode item = steps.putObject("items");
         item.put("type", "object");
         ObjectNode itemProperties = item.putObject("properties");
-        itemProperties.putObject("kind").put("type", "string");
+        ObjectNode kindSchema = itemProperties.putObject("kind");
+        kindSchema.put("type", "string");
+        ArrayNode kinds = kindSchema.putArray("enum");
+        for (NaturalActionKind kind : NaturalActionKind.values()) {
+            kinds.add(kind.name());
+        }
         itemProperties.putObject("label").put("type", "string");
-        itemProperties.putObject("value").put("type", "string");
         itemProperties.putObject("argIndex").put("type", "integer");
         itemProperties.putObject("trust").put("type", "number").put("minimum", 0).put("maximum", 1);
         ArrayNode requiredItem = item.putArray("required");
