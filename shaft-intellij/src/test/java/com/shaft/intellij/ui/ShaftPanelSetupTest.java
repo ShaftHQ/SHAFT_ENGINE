@@ -1018,7 +1018,7 @@ class ShaftPanelSetupTest {
                     () -> assertTrue(command instanceof JBTextArea),
                     () -> assertTrue(((JBTextArea) command).getRows() >= 4),
                     () -> assertFalse(findByAccessibleName(panel, "MCP installer target", JComboBox.class).isVisible()),
-                    () -> assertEquals(6, findByAccessibleName(panel, "MCP installer target", JComboBox.class)
+                    () -> assertEquals(7, findByAccessibleName(panel, "MCP installer target", JComboBox.class)
                             .getItemCount()),
                     () -> assertEquals("INTELLIJ_PLUGIN", lastComboItem(
                             findByAccessibleName(panel, "MCP installer target", JComboBox.class))),
@@ -1068,9 +1068,9 @@ class ShaftPanelSetupTest {
                 () -> assertNotNull(manualTarget),
                 () -> assertFalse(manualTarget.isVisible()),
                 () -> assertFalse(target.isVisible()),
-                () -> assertEquals(6, agent.getItemCount()),
+                () -> assertEquals(7, agent.getItemCount()),
                 () -> assertEquals("Claude Code", String.valueOf(agent.getItemAt(0))),
-                () -> assertEquals("GitHub Copilot in IntelliJ", String.valueOf(agent.getItemAt(5))),
+                () -> assertEquals("GitHub Copilot in IntelliJ", String.valueOf(agent.getItemAt(6))),
                 () -> assertEquals("CODEX", target.getSelectedItem()),
                 () -> assertTrue(installer.getText().contains("codex")),
                 () -> assertTrue(installer.getText().contains("--install-shaft-skills")));
@@ -1106,16 +1106,21 @@ class ShaftPanelSetupTest {
                 () -> assertTrue(installer.getText().contains("intellij-plugin")),
                 () -> assertFalse(installer.getText().contains("--claude ")));
 
-        // Regression lock: INTELLIJ_PLUGIN stays last among exactly the 6 known installer targets.
+        selectDisplayValue(agent, "Grok CLI");
+        assertAll(
+                () -> assertEquals("GROK", target.getSelectedItem()),
+                () -> assertTrue(installer.getText().contains("grok")));
+
+        // Regression lock: INTELLIJ_PLUGIN stays last among the known installer targets.
         List<String> installerTargetTokens = new ArrayList<>();
         for (int index = 0; index < target.getItemCount(); index++) {
             installerTargetTokens.add(String.valueOf(target.getItemAt(index)));
         }
         assertAll(
-                () -> assertEquals(6, target.getItemCount()),
+                () -> assertEquals(7, target.getItemCount()),
                 () -> assertEquals("INTELLIJ_PLUGIN", lastComboItem(target)),
                 () -> assertEquals(List.of("CODEX", "CLAUDE_CODE", "CLAUDE_DESKTOP", "COPILOT_CLI",
-                        "COPILOT_INTELLIJ", "INTELLIJ_PLUGIN"), installerTargetTokens));
+                        "COPILOT_INTELLIJ", "GROK", "INTELLIJ_PLUGIN"), installerTargetTokens));
 
         // The disambiguated label must not collapse back to a bare peer-agent name, and the
         // distinct IDE_PLUGIN runtime token (used by the runtime combo, not this target combo)
@@ -3077,7 +3082,7 @@ class ShaftPanelSetupTest {
         assertAll(
                 () -> assertNotNull(agent),
                 () -> assertTrue(agent.isVisible()),
-                () -> assertEquals(6, agent.getItemCount()),
+                () -> assertEquals(7, agent.getItemCount()),
                 () -> assertFalse(family.isVisible()),
                 () -> assertFalse(runtime.isVisible()));
     }

@@ -54,7 +54,8 @@ final class SetupPrerequisites {
         String agentExecutable = agentExecutableFor(family);
         if (agentExecutable != null) {
             boolean agentPresent = commandAvailable.test(agentExecutable);
-            if (!agentPresent && !commandAvailable.test("node")) {
+            if (!agentPresent && agentInstallCommandFor(family).startsWith("npm ")
+                    && !commandAvailable.test("node")) {
                 prerequisites.add(new Prerequisite("Node.js (required to install " + agentDisplayNameFor(family) + ")",
                         false, true, nodeInstallCommand(windows, mac)));
             }
@@ -68,6 +69,7 @@ final class SetupPrerequisites {
         return switch (normalize(family)) {
             case "CLAUDE" -> "claude";
             case "COPILOT" -> "copilot";
+            case "GROK" -> "grok";
             case "GEMINI" -> null;
             default -> "codex";
         };
@@ -77,6 +79,7 @@ final class SetupPrerequisites {
         return switch (normalize(family)) {
             case "CLAUDE" -> "Claude Code CLI";
             case "COPILOT" -> "GitHub Copilot CLI";
+            case "GROK" -> "Grok CLI";
             default -> "Codex CLI";
         };
     }
@@ -85,6 +88,7 @@ final class SetupPrerequisites {
         return switch (normalize(family)) {
             case "CLAUDE" -> "npm install -g @anthropic-ai/claude-code";
             case "COPILOT" -> "npm install -g @github/copilot";
+            case "GROK" -> "Install the Grok CLI (grok) and ensure it is on PATH";
             default -> "npm install -g @openai/codex";
         };
     }

@@ -293,7 +293,7 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
         assistantAgent.getAccessibleContext().setAccessibleDescription(
                 "Select the agent route used by SHAFT Assistant and MCP setup.");
         assistantAgent.addActionListener(event -> syncLegacyAgentControls());
-        assistantFamily = new JComboBox<>(model("CODEX", "CLAUDE", "COPILOT"));
+        assistantFamily = new JComboBox<>(model("CODEX", "CLAUDE", "COPILOT", "GROK"));
         ShaftUiLabels.applyFriendlyRenderer(assistantFamily);
         assistantFamily.getAccessibleContext().setAccessibleName("Assistant family");
         assistantFamily.getAccessibleContext().setAccessibleDescription("Local assistant family used by the Assistant tab.");
@@ -318,7 +318,7 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
         cloudCredentialSource.getAccessibleContext().setAccessibleName("Assistant cloud credential source");
         cloudCredentialSource.getAccessibleContext().setAccessibleDescription(
                 "Use a provider-standard environment variable without storing its secret value, or use Password Safe.");
-        defaultClient = new JComboBox<>(model("CODEX", "CLAUDE_CODE", "COPILOT_CLI"));
+        defaultClient = new JComboBox<>(model("CODEX", "CLAUDE_CODE", "COPILOT_CLI", "GROK"));
         ShaftUiLabels.applyFriendlyRenderer(defaultClient);
         defaultClient.getAccessibleContext().setAccessibleName("Default assistant provider");
         defaultClient.getAccessibleContext().setAccessibleDescription("Default assistant provider used when opening the assistant panel.");
@@ -735,6 +735,7 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
         return switch (normalize(state.defaultAutobotClient, "CODEX")) {
             case "CLAUDE_CODE" -> "CLAUDE";
             case "COPILOT_CLI" -> "COPILOT";
+            case "GROK" -> "GROK";
             default -> "CODEX";
         };
     }
@@ -743,6 +744,7 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
         return switch (normalize(family, "CODEX")) {
             case "CLAUDE" -> "CLAUDE_CODE";
             case "COPILOT" -> "COPILOT_CLI";
+            case "GROK" -> "GROK";
             default -> "CODEX";
         };
     }

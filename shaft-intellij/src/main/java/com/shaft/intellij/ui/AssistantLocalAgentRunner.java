@@ -410,6 +410,7 @@ final class AssistantLocalAgentRunner {
         String executable = switch (normalize(client)) {
             case "CLAUDE_CODE" -> "claude";
             case "COPILOT_CLI" -> "copilot";
+            case "GROK" -> "grok";
             default -> "codex";
         };
         String displayName = displayName(client);
@@ -443,6 +444,7 @@ final class AssistantLocalAgentRunner {
         return switch (normalize(client)) {
             case "CLAUDE_CODE" -> List.of("claude", "mcp", "get", "shaft-mcp");
             case "COPILOT_CLI" -> List.of();
+            case "GROK" -> List.of("grok", "mcp", "list");
             default -> List.of("codex", "mcp", "get", "shaft-mcp");
         };
     }
@@ -2218,6 +2220,7 @@ final class AssistantLocalAgentRunner {
         return switch (normalize(client)) {
             case "CLAUDE_CODE" -> "Claude Code";
             case "COPILOT_CLI" -> "GitHub Copilot CLI";
+            case "GROK" -> "Grok CLI";
             default -> "Codex CLI";
         };
     }

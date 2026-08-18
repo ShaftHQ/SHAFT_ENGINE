@@ -121,6 +121,8 @@ class AssistantLocalAgentRunnerReadinessTest {
         assertEquals(List.of("claude", "mcp", "get", "shaft-mcp"), launched.get());
         assertEquals(List.of("codex", "mcp", "get", "shaft-mcp"),
                 AssistantLocalAgentRunner.mcpAccessCommandFor("CODEX"));
+        assertEquals(List.of("grok", "mcp", "list"),
+                AssistantLocalAgentRunner.mcpAccessCommandFor("GROK"));
     }
 
     private static AssistantLocalAgentRunner.ProcessLauncher stub(String stdout, int exitCode) {

@@ -13,6 +13,7 @@ public enum AssistantAgentRoute {
     CLAUDE_DESKTOP("Claude Desktop", "LOCAL", "CLAUDE", "DESKTOP_APP", "CLAUDE_CODE", "CLAUDE_DESKTOP"),
     CODEX_CLI("Codex CLI", "LOCAL", "CODEX", "CLI", "CODEX", "CODEX"),
     GEMINI_INTELLIJ("Gemini in IntelliJ", "CLOUD", "GEMINI", "IDE_PLUGIN", "CODEX", "INTELLIJ_PLUGIN"),
+    GROK("Grok CLI", "LOCAL", "GROK", "CLI", "GROK", "GROK"),
     COPILOT_CLI("GitHub Copilot CLI", "LOCAL", "COPILOT", "CLI", "COPILOT_CLI", "COPILOT_CLI"),
     COPILOT_INTELLIJ("GitHub Copilot in IntelliJ", "LOCAL", "COPILOT", "IDE_PLUGIN", "COPILOT_CLI", "COPILOT_INTELLIJ");
 
@@ -88,6 +89,7 @@ public enum AssistantAgentRoute {
             family = switch (normalize(settings.defaultAutobotClient, "CODEX")) {
                 case "CLAUDE_CODE" -> "CLAUDE";
                 case "COPILOT_CLI" -> "COPILOT";
+                case "GROK" -> "GROK";
                 default -> "CODEX";
             };
         }
@@ -95,6 +97,7 @@ public enum AssistantAgentRoute {
         return switch (family) {
             case "CLAUDE" -> "DESKTOP_APP".equals(runtime) ? CLAUDE_DESKTOP : CLAUDE_CODE;
             case "COPILOT" -> "IDE_PLUGIN".equals(runtime) ? COPILOT_INTELLIJ : COPILOT_CLI;
+            case "GROK" -> GROK;
             default -> CODEX_CLI;
         };
     }
