@@ -585,6 +585,9 @@ class ChaosEnginePortableCoreTest(unittest.TestCase):
             "human-facing instructions",
             "replay-proven snippets",
             "locator policy",
+            "properties",
+            "exact commands",
+            "never a fixed sibling path",
         ):
             with self.subTest(surface="entrypoint", phrase=phrase):
                 self.assertIn(phrase, entry)
@@ -600,6 +603,8 @@ class ChaosEnginePortableCoreTest(unittest.TestCase):
             "native relative xpath",
             "discover",
             "never a fixed sibling path",
+            "properties",
+            "exact commands",
         ):
             with self.subTest(surface="playbook", phrase=phrase):
                 self.assertIn(phrase, playbook)
@@ -608,6 +613,8 @@ class ChaosEnginePortableCoreTest(unittest.TestCase):
             profile["companionRepositories"][0]["repository"],
         )
         self.assertNotIn("localRoot", profile["companionRepositories"][0])
+        self.assertNotIn("../shafthq.github.io", entry)
+        self.assertNotIn("../shafthq.github.io", playbook)
         self.assertIsNone(windows_absolute.search(entry))
         self.assertIsNone(windows_absolute.search(playbook))
         self.assertNotIn("C:\\Users\\Mohab", entry)
