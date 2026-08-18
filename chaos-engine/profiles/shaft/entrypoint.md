@@ -40,6 +40,21 @@ apply unchanged to repository and portable installed hosts.
 - Cheap, bounded, already-specified local coding work uses the
   [workstation local coding agent](references/playbooks/workstation-local-coding-agent.md).
 
+## Multi-ticket assignment orchestration
+
+This specializes the portable solo-or-orchestrate rule: two or more SHAFT
+issues in one owner request **are** orchestration. Do not wait for the owner
+to say "orchestrate".
+
+- Load every assigned ticket (and linked/deferred children) before grouping or dispatching.
+- Group related work to the fewest PRs that still keep one problem per issue
+  (`Closes #N` per completed subtask).
+- Main session orchestrates: status, owner commands, review, merge. It does
+  not implement product or guidance chunks.
+- Remaining chunks run one at a time, ordered by dependency then priority.
+- After a chunk's PR is merged, destroy that writer and start the next from a
+  fresh `ChaosEngine/*` branch off fetched `origin/main`.
+
 ## Standing artifact sharing authorization
 
 The standing authorization applies to artifacts produced for SHAFT repository
