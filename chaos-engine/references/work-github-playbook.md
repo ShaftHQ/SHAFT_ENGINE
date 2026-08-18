@@ -85,6 +85,9 @@ before final Stop and Learning Loop reporting.
    issue comment is evidence only and never replaces the action ticket.
 5. Write the knowledge result, or explicitly record that nothing durable or
    actionable surfaced. Do not manufacture an issue for a genuinely no-action result.
+   Non-private Memory objects and relations are source-controlled: commit them on
+   the task branch. Secrets never enter `.memory/memory`; they stay in
+   `.memory/private/` (gitignored).
 
 For a meaningful event, record an evidence-consistent `signal`, then `assess`
 it into a quarantined candidate using one distinct `--tracking-issue-url` per

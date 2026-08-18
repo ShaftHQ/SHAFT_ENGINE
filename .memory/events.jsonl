@@ -1157,3 +1157,5 @@
 {"actor":"agent","event":"memory.created","id":"decision.unreproducible-e2e-ci-blind-fix-and-close","timestamp":"2026-08-18T00:58:19+03:00"}
 {"actor":"agent","event":"memory.created","id":"gotcha.windows-cmd-echo-log-treats-a-trailing-digit-as-a-file-descriptor","timestamp":"2026-08-18T01:09:15+03:00"}
 {"actor":"agent","event":"memory.created","id":"gotcha.grok-lifecycle-hooks-must-merge-not-overwrite-foreign-handlers","timestamp":"2026-08-18T00:00:00+00:00"}
+{"actor":"agent","event":"memory.created","id":"gotcha.grid-am-runs-junit-infrastructure-tests","timestamp":"2026-08-18T12:04:22+03:00"}
+{"actor":"agent","event":"memory.created","id":"gotcha.spring-boot-bom-overrides-patched-httpcore5-and-log4j-on-shaft-mcp","timestamp":"2026-08-18T12:05:01+03:00"}
