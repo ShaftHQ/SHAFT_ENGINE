@@ -12,6 +12,8 @@ import com.shaft.pilot.ai.AiExecutionService;
 import com.shaft.pilot.ai.AiRequest;
 import com.shaft.pilot.ai.AiResponse;
 import com.shaft.pilot.ai.ApprovalPolicy;
+import com.shaft.pilot.ai.EvidenceCategory;
+import com.shaft.pilot.ai.EvidenceReference;
 
 import java.math.BigDecimal;
 import java.time.Duration;
@@ -71,7 +73,14 @@ public final class CaptureEnrichmentService {
         JsonNode fallback = JSON.valueToTree(CaptureEnrichmentPreview.Proposal.empty());
         AiRequest request = AiRequest.builder("shaft-capture-generation-enrichment", schema())
                 .requestId("capture-enrichment-" + fingerprint.substring(0, Math.min(16, fingerprint.length())))
-                .text(prompt(session, deterministicClassName, deterministicMethodName, deterministicElementNames))
+                .text("Suggest concise Java names and optional state assertions only. "
+                        + "Do not suggest locators, values, URLs, credentials, or assertions that are not supported "
+                        + "by captured visible/enabled/selected state.")
+                .evidence(new EvidenceReference(
+                        "capture-context",
+                        EvidenceCategory.TEXT,
+                        "application/json",
+                        prompt(session, deterministicClassName, deterministicMethodName, deterministicElementNames)))
                 .timeout(Duration.ofSeconds(30))
                 .budget(new AiBudget(8_000, 1_500, BigDecimal.ZERO))
                 .approvalPolicy(approvalPolicy)
@@ -120,7 +129,13 @@ public final class CaptureEnrichmentService {
         JsonNode fallback = JSON.valueToTree(CaptureEnrichmentPreview.Proposal.empty());
         AiRequest request = AiRequest.builder("shaft-capture-api-generation-enrichment", apiNamingSchema())
                 .requestId("capture-api-enrichment-" + fingerprint.substring(0, Math.min(16, fingerprint.length())))
-                .text(apiNamingPrompt(sessionId, deterministicClassName, deterministicMethodName, transactionSummaries))
+                .text("Suggest a concise Java class name and test method name describing this recorded "
+                        + "API scenario. Do not suggest element names, locators, values, URLs, credentials, or assertions.")
+                .evidence(new EvidenceReference(
+                        "capture-api-context",
+                        EvidenceCategory.TEXT,
+                        "application/json",
+                        apiNamingPrompt(sessionId, deterministicClassName, deterministicMethodName, transactionSummaries)))
                 .timeout(Duration.ofSeconds(30))
                 .budget(new AiBudget(4_000, 500, BigDecimal.ZERO))
                 .approvalPolicy(approvalPolicy)
@@ -145,13 +160,11 @@ public final class CaptureEnrichmentService {
     private static String apiNamingPrompt(
             String sessionId, String className, String methodName, List<String> transactionSummaries) {
         ObjectNode root = JSON.createObjectNode();
-        root.put("instruction", "Suggest a concise Java class name and test method name describing this recorded "
-                + "API scenario. Do not suggest element names, locators, values, URLs, credentials, or assertions.");
         root.put("sessionId", sessionId);
         root.put("className", className);
         root.put("methodName", methodName);
         ArrayNode transactions = root.putArray("transactions");
-        transactionSummaries.forEach(transactions::add);
+        transactionSummaries.forEach(summary -> transactions.add(boundedTransactionSummary(summary)));
         try {
             return JSON.writeValueAsString(root);
         } catch (JacksonException exception) {
@@ -182,9 +195,6 @@ public final class CaptureEnrichmentService {
             String methodName,
             Map<String, String> elementNames) {
         ObjectNode root = JSON.createObjectNode();
-        root.put("instruction", "Suggest concise Java names and optional state assertions only. "
-                + "Do not suggest locators, values, URLs, credentials, or assertions that are not supported "
-                + "by captured visible/enabled/selected state.");
         root.put("sessionId", session.sessionId());
         root.put("className", className);
         root.put("methodName", methodName);
@@ -198,8 +208,8 @@ public final class CaptureEnrichmentService {
                 item.put("logicalElementId", target.logicalElementId());
                 item.put("tagName", target.tagName());
                 item.put("role", target.role());
-                item.put("accessibleName", target.accessibleName());
-                item.put("label", target.label());
+                item.put("hasAccessibleName", !target.accessibleName().isBlank());
+                item.put("hasLabel", !target.label().isBlank());
                 item.put("visible", target.visible());
                 item.put("enabled", target.enabled());
                 item.put("selected", target.selected());
@@ -300,6 +310,39 @@ public final class CaptureEnrichmentService {
     private static void addChange(List<String> diff, String label, String before, String after) {
         if (after != null && !after.isBlank() && !after.equals(before)) {
             diff.add(label + ": " + before + " -> " + after);
+        }
+    }
+
+    /**
+     * Returns a method-and-path summary with credentials and query strings removed.
+     *
+     * @param summary recorded {@code METHOD url} line
+     * @return bounded {@code METHOD path} summary
+     */
+    public static String boundedTransactionSummary(String summary) {
+        if (summary == null || summary.isBlank()) {
+            return "";
+        }
+        String trimmed = summary.trim();
+        int separator = trimmed.indexOf(' ');
+        if (separator <= 0 || separator == trimmed.length() - 1) {
+            return trimmed;
+        }
+        String method = trimmed.substring(0, separator);
+        String remainder = trimmed.substring(separator + 1).trim();
+        try {
+            java.net.URI uri = java.net.URI.create(remainder);
+            String path = uri.getRawPath();
+            return method + " " + (path == null || path.isBlank() ? "/" : path);
+        } catch (IllegalArgumentException exception) {
+            int query = remainder.indexOf('?');
+            String path = query >= 0 ? remainder.substring(0, query) : remainder;
+            int scheme = path.indexOf("://");
+            if (scheme >= 0) {
+                int pathStart = path.indexOf('/', scheme + 3);
+                path = pathStart >= 0 ? path.substring(pathStart) : "/";
+            }
+            return method + " " + path;
         }
     }
 

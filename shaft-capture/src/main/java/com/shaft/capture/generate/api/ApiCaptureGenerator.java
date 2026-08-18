@@ -243,14 +243,21 @@ public final class ApiCaptureGenerator {
         String fingerprint = fingerprint(session.sessionId(), deterministicClassName, deterministicMethodName);
 
         if (request.enrichmentMode() == CaptureGenerationRequest.EnrichmentMode.PREVIEW) {
-            CaptureEnrichmentPreview preview = enrichmentService.previewApiScenarioName(
-                    session.sessionId(), fingerprint, transactionSummaries(session),
-                    deterministicClassName, deterministicMethodName, request.aiApprovalPolicy());
-            atomicWrite(previewPath, writeJson(preview));
-            CaptureGenerationReport.Enrichment enrichment = new CaptureGenerationReport.Enrichment(
-                    CaptureGenerationReport.Enrichment.EnrichmentStatus.PREVIEWED,
-                    relative(outputRoot, previewPath), preview.diff(), preview.provider());
-            return new EnrichmentOutcome(deterministicClassName, enrichment, List.of());
+            try {
+                CaptureEnrichmentPreview preview = enrichmentService.previewApiScenarioName(
+                        session.sessionId(), fingerprint, transactionSummaries(session),
+                        deterministicClassName, deterministicMethodName, request.aiApprovalPolicy());
+                atomicWrite(previewPath, writeJson(preview));
+                CaptureGenerationReport.Enrichment enrichment = new CaptureGenerationReport.Enrichment(
+                        CaptureGenerationReport.Enrichment.EnrichmentStatus.PREVIEWED,
+                        relative(outputRoot, previewPath), preview.diff(), preview.provider());
+                return new EnrichmentOutcome(deterministicClassName, enrichment, List.of());
+            } catch (RuntimeException exception) {
+                CaptureGenerationReport.Enrichment rejected = new CaptureGenerationReport.Enrichment(
+                        CaptureGenerationReport.Enrichment.EnrichmentStatus.REJECTED,
+                        relative(outputRoot, previewPath), List.of(), "none");
+                return new EnrichmentOutcome(deterministicClassName, rejected, List.of());
+            }
         }
 
         CaptureEnrichmentPreview preview;
@@ -277,7 +284,8 @@ public final class ApiCaptureGenerator {
         List<String> summaries = new ArrayList<>();
         for (CaptureEvent event : session.events()) {
             if (event instanceof CaptureEvent.NetworkEvent networkEvent) {
-                summaries.add(networkEvent.request().method() + " " + networkEvent.request().url());
+                summaries.add(CaptureEnrichmentService.boundedTransactionSummary(
+                        networkEvent.request().method() + " " + networkEvent.request().url()));
             }
         }
         return List.copyOf(summaries);

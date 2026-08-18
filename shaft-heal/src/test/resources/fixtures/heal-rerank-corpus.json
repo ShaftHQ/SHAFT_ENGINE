@@ -1,0 +1,26 @@
+{
+  "defaults": {
+    "healingAiEnabled": false,
+    "healingVisualEnabled": false
+  },
+  "cases": [
+    {
+      "id": "cited-accessibility-top1",
+      "providerOutcome": "cited",
+      "expectedTop1": "candidate-1",
+      "expectedTopK": ["candidate-1", "candidate-2"],
+      "regression": false,
+      "inventedCount": 0,
+      "latencyMs": 1
+    },
+    {
+      "id": "invented-candidate-fallback",
+      "providerOutcome": "invented",
+      "expectedTop1": "candidate-1",
+      "expectedTopK": ["candidate-1", "candidate-2"],
+      "regression": false,
+      "inventedCount": 1,
+      "latencyMs": 1
+    }
+  ]
+}

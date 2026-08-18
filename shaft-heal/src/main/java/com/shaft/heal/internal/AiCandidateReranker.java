@@ -58,16 +58,21 @@ final class AiCandidateReranker {
                 .timeout(Duration.ofSeconds(Math.max(1, pilotConfiguration.timeout().toSeconds())))
                 .approvalPolicy(pilotConfiguration.approvalPolicy())
                 .deterministicFallback(deterministicFallback);
-        for (RankedCandidate candidate : candidates) {
-            try {
+        try {
+            builder.evidence(new EvidenceReference(
+                    "failure-context",
+                    EvidenceCategory.DOM,
+                    "application/json",
+                    JSON.writeValueAsString(minimizedFailureContext(candidates))));
+            for (RankedCandidate candidate : candidates) {
                 builder.evidence(new EvidenceReference(
                         candidate.report().candidateId(),
                         EvidenceCategory.DOM,
                         "application/json",
-                        JSON.writeValueAsString(candidate.report())));
-            } catch (tools.jackson.core.JacksonException exception) {
-                return fallback(candidates, "Candidate evidence could not be serialized.");
+                        JSON.writeValueAsString(boundedCandidateEvidence(candidate))));
             }
+        } catch (tools.jackson.core.JacksonException exception) {
+            return fallback(candidates, "Candidate evidence could not be serialized.");
         }
 
         AiResponse response = executionService.execute(builder.build());
@@ -166,6 +171,42 @@ final class AiCandidateReranker {
             throw new IllegalArgumentException("Provider returned no candidate scores.");
         }
         return Map.copyOf(scores);
+    }
+
+    private static ObjectNode boundedCandidateEvidence(RankedCandidate candidate) {
+        HealingCandidate report = candidate.report();
+        ObjectNode item = JSON.createObjectNode();
+        item.put("candidateId", report.candidateId());
+        item.put("deterministicScore", report.score().deterministicScore());
+        ObjectNode featureScores = item.putObject("featureScores");
+        report.score().evidenceScores().forEach(featureScores::put);
+        if (report.score().visualScore() != null) {
+            featureScores.put("visualScore", report.score().visualScore());
+        }
+        item.put("unique", report.unique());
+        item.put("visible", report.visible());
+        item.put("interactable", report.interactable());
+        item.put("contextMatched", report.contextMatched());
+        return item;
+    }
+
+    private static ObjectNode minimizedFailureContext(List<RankedCandidate> candidates) {
+        ObjectNode context = JSON.createObjectNode();
+        context.put("candidateCount", candidates.size());
+        if (candidates.isEmpty()) {
+            return context;
+        }
+        var fingerprint = candidates.getFirst().report().fingerprint();
+        context.put("platform", fingerprint.platform().name());
+        context.put("tagName", fingerprint.tagName());
+        context.put("role", fingerprint.role());
+        context.put("type", fingerprint.type());
+        context.put("hasAccessibleName", !fingerprint.accessibleName().isBlank());
+        context.put("hasAssociatedLabel", !fingerprint.associatedLabel().isBlank());
+        context.put("hasVisibleText", !fingerprint.visibleText().isBlank());
+        context.put("displayed", fingerprint.displayed());
+        context.put("enabled", fingerprint.enabled());
+        return context;
     }
 
     private static Set<String> allowedFeatures(RankedCandidate candidate) {

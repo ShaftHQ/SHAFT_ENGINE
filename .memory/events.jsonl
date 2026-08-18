@@ -1159,3 +1159,10 @@
 {"actor":"agent","event":"memory.created","id":"gotcha.grok-lifecycle-hooks-must-merge-not-overwrite-foreign-handlers","timestamp":"2026-08-18T00:00:00+00:00"}
 {"actor":"agent","event":"memory.created","id":"gotcha.grid-am-runs-junit-infrastructure-tests","timestamp":"2026-08-18T12:04:22+03:00"}
 {"actor":"agent","event":"memory.created","id":"gotcha.spring-boot-bom-overrides-patched-httpcore5-and-log4j-on-shaft-mcp","timestamp":"2026-08-18T12:05:01+03:00"}
+{"actor":"agent","event":"memory.created","id":"gotcha.sk-secret-patterns-must-allow-hyphens","timestamp":"2026-08-18T16:13:04+03:00"}
+{"actor":"agent","event":"memory.updated","id":"gotcha.sk-secret-patterns-must-allow-hyphens","timestamp":"2026-08-18T16:14:21+03:00"}
+{"actor":"agent","event":"memory.created","id":"gotcha.secret-like-must-consume-values","timestamp":"2026-08-18T16:33:12+03:00"}
+{"actor":"agent","event":"memory.created","id":"gotcha.secret-like-labels-must-allow-optional-quotes-around-json-keys","timestamp":"2026-08-18T16:54:45+03:00"}
+{"actor":"agent","event":"memory.updated","id":"gotcha.sk-secret-patterns-must-allow-hyphens","timestamp":"2026-08-18T16:54:45+03:00"}
+{"actor":"agent","event":"memory.deleted","id":"gotcha.sk-secret-patterns-must-allow-hyphens","timestamp":"2026-08-18T17:01:05+03:00"}
+{"actor":"agent","event":"memory.updated","id":"gotcha.secret-like-must-consume-values","timestamp":"2026-08-18T17:01:05+03:00"}

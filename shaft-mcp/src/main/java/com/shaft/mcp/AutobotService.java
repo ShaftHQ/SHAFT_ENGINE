@@ -31,6 +31,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.function.Function;
+import java.util.regex.Pattern;
 
 /**
  * MCP adapter for SHAFT Autobot local agent routing.
@@ -38,6 +39,12 @@ import java.util.function.Function;
 @Service
 public class AutobotService {
     private static final int DEFAULT_TIMEOUT_SECONDS = 300;
+    private static final int MAX_PROMPT_CHARS = 4_000;
+    private static final Pattern SECRET_LIKE = Pattern.compile(
+            "(?i)([\"']?authorization[\"']?\\s*[:=]\\s*(?:(?:basic|bearer)\\s+)?(?:\"[^\"]+\"|'[^']+'|[^\\s,;]+)"
+                    + "|[\"']?bearer[\"']?\\s+[a-z0-9._\\-]{8,}"
+                    + "|[\"']?api[_-]?key[\"']?\\s*[:=]\\s*(?:\"[^\"]+\"|'[^']+'|[^\\s,;]+)"
+                    + "|sk-[a-z0-9._\\-]{8,})");
     static final String CLOUD_AGENT_MODE_WARNING =
             "Cloud provider chat supports Ask and Plan only; use a local CLI runtime for Agent edits.";
     private static final ObjectMapper JSON = new ObjectMapper();
@@ -174,9 +181,13 @@ public class AutobotService {
         String normalizedProvider = normalizeProvider(provider);
         try {
             configureProvider(normalizedProvider, model);
+            boolean localProvider = "ollama".equals(normalizedProvider) || "lmstudio".equals(normalizedProvider);
+            // Local consent is inference location only; it never grants remote or tool approval.
+            ApprovalPolicy policy = new ApprovalPolicy(
+                    localProvider, false, !localProvider, EnumSet.of(EvidenceCategory.TEXT));
             AiRequest request = AiRequest.builder("autobot-provider-chat", codegenSchema())
-                    .text(prompt == null ? "" : prompt)
-                    .approvalPolicy(new ApprovalPolicy(false, true, EnumSet.of(EvidenceCategory.TEXT)))
+                    .text(boundedPrompt(prompt))
+                    .approvalPolicy(policy)
                     // Reasoning models spend thinking tokens from the same output budget; 2k
                     // routinely truncated a full generated test class into malformed JSON
                     // (live Gemini evidence in ShaftHQ/SHAFT_ENGINE#3369).
@@ -414,6 +425,11 @@ public class AutobotService {
 
     private static String text(String value) {
         return value == null ? "" : value.trim();
+    }
+
+    private static String boundedPrompt(String prompt) {
+        String sanitized = SECRET_LIKE.matcher(text(prompt)).replaceAll("[REDACTED]");
+        return sanitized.length() > MAX_PROMPT_CHARS ? sanitized.substring(0, MAX_PROMPT_CHARS) : sanitized;
     }
 
     private static void configureProvider(String provider, String model) {

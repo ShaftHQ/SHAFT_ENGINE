@@ -58,6 +58,42 @@ public class DeterministicScorerTest {
     }
 
     @Test
+    public void equalFinalScoreShouldPreferHigherDeterministicScoreThenCandidateId() {
+        HealingConfiguration configuration = configuration(0.75, 0.0);
+        RankedCandidate lowerDeterministic = candidate("a", 0.80, 0.90, 0.85);
+        RankedCandidate higherDeterministic = candidate("z", 0.90, 0.50, 0.85);
+
+        HealingDecisionEngine.DecisionResult result = HealingDecisionEngine.decide(
+                List.of(lowerDeterministic, higherDeterministic), configuration, true);
+
+        Assert.assertEquals(result.decision().status(), HealingDecision.Status.RECOVERED);
+        Assert.assertSame(result.selected(), higherDeterministic);
+    }
+
+    @Test
+    public void providerScoreShouldNotMakeIneligibleCandidateEligible() {
+        HealingConfiguration configuration = configuration(0.75, 0.10);
+        LocatorFingerprint fingerprint = fingerprint("a", "Username");
+        HealingCandidate report = new HealingCandidate(
+                "a",
+                By.id("a").toString(),
+                fingerprint,
+                new HealingScore(0.95, null, 0.99, 0.99, Map.of("accessibility", 1.0)),
+                List.of("accessibility=1.000"),
+                false,
+                true,
+                true,
+                true);
+        RankedCandidate ineligible = new RankedCandidate(mock(WebElement.class), By.id("a"), report);
+
+        HealingDecisionEngine.DecisionResult result = HealingDecisionEngine.decide(
+                List.of(ineligible), configuration, true);
+
+        Assert.assertEquals(result.decision().status(), HealingDecision.Status.REJECTED_PRECONDITION);
+        Assert.assertNull(result.selected());
+    }
+
+    @Test
     public void providerScoreShouldNotOverrideMinimumDeterministicConfidence() {
         HealingConfiguration configuration = configuration(0.75, 0.10);
         RankedCandidate aiBoostedCandidate = candidate("a", 0.70, 0.98, 0.98);

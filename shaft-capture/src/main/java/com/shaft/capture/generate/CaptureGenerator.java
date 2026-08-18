@@ -246,29 +246,36 @@ public final class CaptureGenerator {
             CaptureEnrichmentPreview.Proposal appliedProposal = CaptureEnrichmentPreview.Proposal.empty();
             stage = "processing the enrichment preview/apply request";
             if (request.enrichmentMode() == CaptureGenerationRequest.EnrichmentMode.PREVIEW) {
-                CaptureEnrichmentPreview preview = enrichmentService.preview(
-                        session,
-                        fingerprint,
-                        deterministicClassName,
-                        deterministicMethodName,
-                        elementNames,
-                        request.aiApprovalPolicy());
-                List<String> previewPrivacy = privacyFindings(writeJson(preview), privacyRoot);
-                if (!previewPrivacy.isEmpty()) {
-                    state.unsupported().addAll(previewPrivacy);
+                try {
+                    CaptureEnrichmentPreview preview = enrichmentService.preview(
+                            session,
+                            fingerprint,
+                            deterministicClassName,
+                            deterministicMethodName,
+                            elementNames,
+                            request.aiApprovalPolicy());
+                    List<String> previewPrivacy = privacyFindings(writeJson(preview), privacyRoot);
+                    if (!previewPrivacy.isEmpty()) {
+                        enrichment = new CaptureGenerationReport.Enrichment(
+                                CaptureGenerationReport.Enrichment.EnrichmentStatus.REJECTED,
+                                relative(outputRoot, request.enrichmentPreviewPath().toAbsolutePath().normalize()),
+                                preview.diff(),
+                                preview.provider());
+                    } else {
+                        ensureWritable(request.enrichmentPreviewPath().toAbsolutePath().normalize(), request.overwrite());
+                        atomicWrite(request.enrichmentPreviewPath().toAbsolutePath().normalize(), writeJson(preview));
+                        enrichment = new CaptureGenerationReport.Enrichment(
+                                CaptureGenerationReport.Enrichment.EnrichmentStatus.PREVIEWED,
+                                relative(outputRoot, request.enrichmentPreviewPath().toAbsolutePath().normalize()),
+                                preview.diff(),
+                                preview.provider());
+                    }
+                } catch (RuntimeException exception) {
                     enrichment = new CaptureGenerationReport.Enrichment(
                             CaptureGenerationReport.Enrichment.EnrichmentStatus.REJECTED,
                             relative(outputRoot, request.enrichmentPreviewPath().toAbsolutePath().normalize()),
-                            preview.diff(),
-                            preview.provider());
-                } else {
-                    ensureWritable(request.enrichmentPreviewPath().toAbsolutePath().normalize(), request.overwrite());
-                    atomicWrite(request.enrichmentPreviewPath().toAbsolutePath().normalize(), writeJson(preview));
-                    enrichment = new CaptureGenerationReport.Enrichment(
-                            CaptureGenerationReport.Enrichment.EnrichmentStatus.PREVIEWED,
-                            relative(outputRoot, request.enrichmentPreviewPath().toAbsolutePath().normalize()),
-                            preview.diff(),
-                            preview.provider());
+                            List.of(),
+                            "none");
                 }
             } else if (request.enrichmentMode() == CaptureGenerationRequest.EnrichmentMode.APPLY) {
                 CaptureEnrichmentPreview preview = readPreview(request.enrichmentPreviewPath());

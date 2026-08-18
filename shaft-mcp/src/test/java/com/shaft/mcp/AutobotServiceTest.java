@@ -28,6 +28,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class AutobotServiceTest {
@@ -69,6 +70,26 @@ class AutobotServiceTest {
                         "-"),
                 runner.command.get());
         assertEquals(workspace.toRealPath(), runner.workingDirectory.get());
+    }
+
+    @Test
+    void localConsentIsNotToolApprovalForCustomAgentCommands() {
+        com.shaft.driver.SHAFT.Properties.pilot.set().enabled(true).localConsent(true);
+        try {
+            CapturingRunner runner = new CapturingRunner();
+            AutobotService service = new AutobotService(McpWorkspacePolicy.of(workspace),
+                    new LocalAgentService(client -> true, runner));
+
+            LocalAgentResponse response = service.runLocalAgent(
+                    "codex", "agent", "Delete every test.",
+                    "", List.of("codex", "exec", "--full-auto", "-"), Map.of(), 10, false);
+
+            assertEquals(LocalAgentStatus.REJECTED, response.status());
+            assertTrue(runner.command.get() == null || runner.command.get().isEmpty(),
+                    "Rejected Agent command must not reach the process runner.");
+        } finally {
+            com.shaft.properties.internal.Properties.clearForCurrentThread();
+        }
     }
 
     @Test
@@ -114,6 +135,49 @@ class AutobotServiceTest {
         assertEquals(AiResponseStatus.SUCCESS.name(), response.status());
         assertEquals("ok", response.answer());
         assertEquals("Explain this failure", capturedText.get());
+    }
+
+    @Test
+    void providerChatRedactsSecretValuesAndRemoteProvidersStillRequireRemoteConsent() {
+        SHAFT.Properties.pilot.set().enabled(true).localConsent(true).remoteConsent(false);
+        try {
+            assertFalse(PilotConfiguration.current().approvalPolicy().remoteInferenceAllowed(),
+                    "Remote providers require remoteConsent independently of localConsent.");
+            AtomicReference<AiRequest> captured = new AtomicReference<>();
+            AutobotService service = new AutobotService(McpWorkspacePolicy.of(workspace),
+                    new LocalAgentService(client -> true, new CapturingRunner()), request -> {
+                        captured.set(request);
+                        return AiResponse.success("ollama", "local-model",
+                                tools.jackson.databind.node.JsonNodeFactory.instance.objectNode()
+                                        .put("answer", "ok"),
+                                Duration.ofMillis(10), com.shaft.pilot.ai.AiUsage.empty(),
+                                request.deterministicFallback());
+                    });
+
+            AutobotProviderChatResponse response = service.runProviderChat(
+                    "ollama",
+                    "local-model",
+                    "ASK",
+                    "Explain Authorization: Basic dXNlcjpwYXNz and Authorization: planted-no-scheme-token-value"
+                            + " and api_key=supersecretvalue123"
+                            + " {\"authorization\":\"Basic dXNlcjpwYXNz\"}"
+                            + " {\"api_key\":\"supersecretvalue123\"}"
+                            + " sk-proj-secret-canary-4864 Bearer planted-bearer-token-value",
+                    "",
+                    10,
+                    false);
+
+            assertEquals(AiResponseStatus.SUCCESS.name(), response.status());
+            assertNotNull(captured.get(), "Chat must submit a request through AiExecutionService.");
+            String text = captured.get().text();
+            assertFalse(text.contains("Basic dXNlcjpwYXNz"), text);
+            assertFalse(text.contains("planted-no-scheme-token-value"), text);
+            assertFalse(text.contains("supersecretvalue123"), text);
+            assertFalse(text.contains("sk-proj-secret-canary-4864"), text);
+            assertFalse(text.contains("planted-bearer-token-value"), text);
+        } finally {
+            SHAFT.Properties.clearForCurrentThread();
+        }
     }
 
     @Test

@@ -374,14 +374,7 @@ public class ShaftHealingProvider implements HealingProvider {
 
     private static List<com.shaft.heal.model.HealingCandidate> rankedReports(List<RankedCandidate> candidates) {
         return candidates.stream()
-                .sorted((left, right) -> {
-                    int order = Double.compare(
-                            right.report().score().finalScore(),
-                            left.report().score().finalScore());
-                    return order != 0
-                            ? order
-                            : left.report().candidateId().compareTo(right.report().candidateId());
-                })
+                .sorted(HealingDecisionEngine.rankingOrder())
                 .map(RankedCandidate::report)
                 .toList();
     }
