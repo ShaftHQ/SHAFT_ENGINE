@@ -59,6 +59,13 @@ GRID_ONLY_SCOPE_EXCLUSIONS = (
     "!%regex[.*playwright.*PlaywrightActionsE2ETest.*]",
     "!%regex[.*LazyLoadingFixtureLiveTest.*]",
 )
+NATIVE_SELENIUM_GRID_JOBS = (
+    "Ubuntu_Firefox_Grid",
+    "Ubuntu_Chrome_Grid",
+    "Ubuntu_MicrosoftEdge_Grid",
+)
+MAVEN_ALSO_MAKE = re.compile(r"(^|\s)-am(\s|$)")
+SHAFT_ENGINE_PL = re.compile(r"(^|\s)-pl\s+shaft-engine(\s|$)")
 
 
 def text(element: ET.Element, path: str) -> str | None:
@@ -428,6 +435,49 @@ def validate_browser_matrix_scope_policy(root: Path = ROOT) -> list[str]:
     return errors
 
 
+def validate_grid_jobs_skip_infrastructure_tests(root: Path = ROOT) -> list[str]:
+    path = root / ".github" / "workflows" / "e2eTests.yml"
+    if not path.is_file():
+        return ["e2eTests.yml is missing"]
+    document = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+    jobs = document.get("jobs") if isinstance(document, dict) else None
+    if not isinstance(jobs, dict):
+        return ["e2eTests.yml must define jobs"]
+
+    errors: list[str] = []
+    for job_name in NATIVE_SELENIUM_GRID_JOBS:
+        job = jobs.get(job_name)
+        if not isinstance(job, dict):
+            errors.append(f"e2eTests.yml is missing job {job_name!r}")
+            continue
+        steps = job.get("steps")
+        if not isinstance(steps, list):
+            errors.append(f"e2eTests.yml job {job_name!r} is missing a Run tests step")
+            continue
+        run_tests = next(
+            (
+                step
+                for step in steps
+                if isinstance(step, dict) and step.get("name") == "Run tests"
+            ),
+            None,
+        )
+        if run_tests is None:
+            errors.append(f"e2eTests.yml job {job_name!r} is missing a Run tests step")
+            continue
+        command = str(run_tests.get("run") or "")
+        if not SHAFT_ENGINE_PL.search(command):
+            errors.append(
+                f"e2eTests.yml job {job_name!r} Run tests must select -pl shaft-engine"
+            )
+        if MAVEN_ALSO_MAKE.search(command):
+            errors.append(
+                f"e2eTests.yml job {job_name!r} Run tests must not use -am "
+                "(shaft-infrastructure JUnit tests ignore GLOBAL_TESTING_SCOPE)"
+            )
+    return errors
+
+
 def validate_codeql_build_mode(workflow: str) -> list[str]:
     document = yaml.safe_load(workflow) or {}
     error = ["CodeQL initialization must use explicit manual build mode"]
@@ -474,6 +524,7 @@ def validate_quality_configuration(root: Path = ROOT) -> list[str]:
     errors.extend(validate_workflow_coverage_policy(root))
     errors.extend(validate_workflow_readme_inventory(root))
     errors.extend(validate_browser_matrix_scope_policy(root))
+    errors.extend(validate_grid_jobs_skip_infrastructure_tests(root))
 
     aggregate_path = root / "report-aggregate" / "pom.xml"
     if not aggregate_path.is_file():
