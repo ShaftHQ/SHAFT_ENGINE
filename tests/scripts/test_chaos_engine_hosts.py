@@ -386,10 +386,12 @@ class ChaosEngineHostsTest(unittest.TestCase):
                     {"chaosengine-memory", "chaosengine-mempalace"}, set(servers)
                 )
                 for server in servers.values():
-                    self.assertEqual("py" if os.name == "nt" else "python3", server["command"])
-                    if os.name == "nt":
-                        self.assertEqual("-3", server["args"][0])
+                    self.assertEqual("python3", server["command"])
+                    self.assertNotEqual("-3", server["args"][0])
+                    self.assertEqual("py", server["commandWindows"])
+                    self.assertEqual("-3", server["argsWindows"][0])
                     self.assertIn(".chaos-engine/tool.py", server["args"])
+                    self.assertIn(".chaos-engine/tool.py", server["argsWindows"])
                 mempalace = servers["chaosengine-mempalace"]
                 self.assertEqual(
                     ["--backend", "sqlite_exact"],
@@ -1411,12 +1413,55 @@ class ChaosEngineHostsTest(unittest.TestCase):
         windows = module.owned_servers("nt")
         posix = module.owned_servers("posix")
 
-        for server in windows.values():
-            self.assertEqual("py", server["command"])
-            self.assertEqual("-3", server["args"][0])
-        for server in posix.values():
+        self.assertEqual(windows, posix)
+        for server in (*windows.values(), *posix.values()):
             self.assertEqual("python3", server["command"])
             self.assertNotEqual("-3", server["args"][0])
+            self.assertEqual("py", server["commandWindows"])
+            self.assertEqual("-3", server["argsWindows"][0])
+
+    def test_windows_install_writes_portable_mcp_launchers(self):
+        module = load(HOSTS, "chaos_engine_hosts_portable_mcp")
+        with mock.patch.object(module.os, "name", "nt"):
+            windows_json = json.loads(module.json_content(None))["mcpServers"]
+            windows_codex = module.codex_content(None).decode("utf-8")
+        with mock.patch.object(module.os, "name", "posix"):
+            posix_json = json.loads(module.json_content(None))["mcpServers"]
+            posix_codex = module.codex_content(None).decode("utf-8")
+
+        self.assertEqual(windows_json, posix_json)
+        self.assertEqual(windows_codex, posix_codex)
+        for name, server in windows_json.items():
+            self.assertEqual("python3", server["command"], name)
+            self.assertNotEqual("-3", server["args"][0], name)
+            self.assertIn(".chaos-engine/tool.py", server["args"], name)
+            self.assertEqual("py", server["commandWindows"], name)
+            self.assertEqual("-3", server["argsWindows"][0], name)
+            self.assertIn(".chaos-engine/tool.py", server["argsWindows"], name)
+        self.assertIn('command = "python3"', windows_codex)
+        self.assertNotIn('command = "py"', windows_codex)
+        self.assertIn('commandWindows = "py"', windows_codex)
+        self.assertIn('"-3", ".chaos-engine/tool.py"', windows_codex)
+
+    def test_legacy_os_baked_mcp_servers_are_replaced_not_collided(self):
+        module = load(HOSTS, "chaos_engine_hosts_legacy_mcp_launch")
+        desired = json.loads(module.json_content(None))
+        desired_codex = module.codex_content(None)
+        for platform in ("nt", "posix"):
+            legacy = {
+                "mcpServers": {
+                    name: module.legacy_owned_python_server(name, platform)
+                    for name in ("chaosengine-memory", "chaosengine-mempalace")
+                }
+            }
+            upgraded = json.loads(module.json_content(json.dumps(legacy).encode()))
+            self.assertEqual(desired, upgraded)
+            legacy_codex = module.legacy_codex_python_block(platform).encode()
+            self.assertEqual(desired_codex, module.codex_content(legacy_codex))
+            self.assertEqual(
+                desired_codex,
+                module.codex_content(legacy_codex.replace(b"\n", b"\r\n")),
+            )
 
     def test_native_maven_tools_runtime_uses_resolved_host_paths(self):
         module = load(HOSTS, "chaos_engine_hosts_native_maven")
