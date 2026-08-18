@@ -47,5 +47,7 @@ python3 chaos-engine/skills/local-coding-delegate/scripts/probe_hardware.py
 ## Bounds
 
 The local loop never replaces independent review, never owns merge or GitHub
-delivery, and never decides architecture. If the probe refuses, or the task
-outgrows the recommended class, keep the work on the decider model.
+delivery, and never decides architecture. The host session may hand one
+mechanical batch to a writer. Close that writer after its PR exists. If the
+probe refuses, or the task outgrows the recommended class, keep the work on
+the decider model.
