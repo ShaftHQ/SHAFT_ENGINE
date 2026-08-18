@@ -138,10 +138,12 @@ public final class ManagedLocalAiSetupProvider implements SetupProvider {
         if (model == SetupReadiness.READY && snapshot.selectedModelId() != null) {
             modelVersion = snapshot.models().get(snapshot.selectedModelId()).revision();
         }
+        String inventory = ManagedLocalAiStatus.reviewedInventory(snapshot);
+        String detail = snapshot.action() + " " + inventory;
         return new SetupReport(1, SetupProfile.LOCAL_AI, overall, List.of(
-                new SetupStatus(SetupTarget.MANAGED_LOCAL_AI_RUNTIME, runtime, runtimeVersion, snapshot.action()),
-                new SetupStatus(SetupTarget.MANAGED_LOCAL_AI_MODEL, model, modelVersion, snapshot.action())),
-                List.of());
+                new SetupStatus(SetupTarget.MANAGED_LOCAL_AI_RUNTIME, runtime, runtimeVersion, detail),
+                new SetupStatus(SetupTarget.MANAGED_LOCAL_AI_MODEL, model, modelVersion, detail)),
+                List.of(inventory));
     }
 
     @Override

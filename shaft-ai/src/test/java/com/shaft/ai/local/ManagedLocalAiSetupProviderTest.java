@@ -308,6 +308,9 @@ class ManagedLocalAiSetupProviderTest {
             assertEquals(List.of(SetupTarget.MANAGED_LOCAL_AI_RUNTIME, SetupTarget.MANAGED_LOCAL_AI_MODEL),
                     report.targets().stream().map(status -> status.target()).toList());
             assertEquals(0, lifecycle.provisions.get());
+            String listed = String.join("\n", report.diagnostics()) + "\n"
+                    + report.targets().stream().map(status -> status.detail()).reduce("", (left, right) -> left + "\n" + right);
+            ManagedLocalAiStatusTest.assertReviewedInventory(listed, "windows-x86_64");
         }
         assertFalse(Files.exists(options.paths().cacheRoot()));
         assertFalse(Files.exists(options.paths().dataRoot()));
