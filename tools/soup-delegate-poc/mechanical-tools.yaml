@@ -1,0 +1,58 @@
+openapi: 3.0.3
+info:
+  title: Mechanical workstation tools
+  version: "1.0.0"
+paths:
+  /read_file:
+    post:
+      operationId: read_file
+      summary: Read one allowlisted file
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [path]
+              properties:
+                path:
+                  type: string
+      responses:
+        "200":
+          description: File contents
+  /replace_file:
+    post:
+      operationId: replace_file
+      summary: Replace one allowlisted file
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [path, content]
+              properties:
+                path:
+                  type: string
+                content:
+                  type: string
+      responses:
+        "200":
+          description: File replaced
+  /run_focused_test:
+    post:
+      operationId: run_focused_test
+      summary: Run one focused test command
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [command]
+              properties:
+                command:
+                  type: string
+      responses:
+        "200":
+          description: Test command result
