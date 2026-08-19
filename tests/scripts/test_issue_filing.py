@@ -8,13 +8,16 @@ import unittest
 from pathlib import Path
 
 from scripts.agents.issue_filing import (
+    GENERIC_USER_STORY_STAMP,
     build_az_boards_create_argv,
     build_glab_issue_create_argv,
     confirmation_digest,
     create_issue,
+    has_generic_spec_kit_stamp,
     prepare_issue_plan,
     receipt_digest,
     reconcile_labels,
+    rewrite_body_spec_kit,
     transition_issue,
     validate_issue_plan,
 )
@@ -266,6 +269,71 @@ class IssueFilingTest(unittest.TestCase):
         combined = skill + "\n" + contract
         for section in SPEC_KIT_SECTIONS:
             self.assertIn(section, combined)
+
+    def test_hygiene_rewrite_specializes_user_story_from_acceptance(self):
+        stamped = (
+            "## Describe the Bug\nSelenium logging drift.\n"
+            "## Steps to Reproduce\n1. Enable debug.\n"
+            "## Expected Behavior\nConsistent JUL.\n"
+            "## Actual Behavior\nTwo switches disagree.\n"
+            "## User Scenarios & Testing\n"
+            f"### User Story 1 - {GENERIC_USER_STORY_STAMP} (Priority: P1)\n"
+            "**Acceptance Scenarios**:\n1. **Given** x, **When** y, **Then** z.\n"
+            "## Edge Cases\n- Preserve prior acceptance.\n"
+            "## Functional Requirements\n"
+            "- **FR-001**: Implement only the problem and proposed solution already stated above.\n"
+            "## Success Criteria\n"
+            "- **SC-001**: The Acceptance / proof statements on this issue pass under the focused checks named here.\n"
+            "## Assumptions\n- Prior acceptance remains authoritative."
+        )
+        selenium = rewrite_body_spec_kit(
+            stamped,
+            title="Selenium Java logging consistency",
+            acceptance=["Unify Debug switches onto SE_DEBUG / logger level-setting."],
+        )
+        soup = rewrite_body_spec_kit(
+            stamped,
+            title="Aider Java flow against Soup-trained Ollama name",
+            acceptance=["One accepted report.json using the new Ollama model name."],
+        )
+        self.assertFalse(has_generic_spec_kit_stamp(selenium))
+        self.assertFalse(has_generic_spec_kit_stamp(soup))
+        self.assertIn("### User Story 1 - Selenium Java logging consistency", selenium)
+        self.assertIn("### User Story 1 - Aider Java flow against Soup-trained Ollama name", soup)
+        self.assertNotEqual(
+            _first_fr(selenium),
+            _first_fr(soup),
+        )
+        self.assertIn("Unify Debug switches", _first_fr(selenium))
+        self.assertIn("accepted report.json", _first_fr(soup))
+        for section in SPEC_KIT_SECTIONS:
+            self.assertIn(section, selenium)
+            self.assertIn(section, soup)
+
+    def test_generic_deliver_the_stated_acceptance_stamp_is_rejected(self):
+        item = planned()
+        item["body"] = item["body"].replace(
+            "### User Story 1\n",
+            f"### User Story 1 - {GENERIC_USER_STORY_STAMP} (Priority: P1)\n",
+        )
+        self.assertTrue(has_generic_spec_kit_stamp(item["body"]))
+        receipt = validate_issue_plan(item, TAXONOMY)
+        self.assertEqual("block", receipt["decision"])
+        self.assertTrue(any("Deliver the stated acceptance" in reason for reason in receipt["reasons"]))
+
+    def test_work_item_contract_forbids_generic_spec_kit_stamp(self):
+        skill = (ROOT / "chaos-engine/skills/work-item/SKILL.md").read_text(encoding="utf-8")
+        contract = (ROOT / "chaos-engine/references/work-item.md").read_text(encoding="utf-8")
+        combined = skill + "\n" + contract
+        self.assertIn("Deliver the stated acceptance", combined)
+        self.assertRegex(combined, r"(?i)specialize")
+
+
+def _first_fr(body: str) -> str:
+    for line in body.splitlines():
+        if line.strip().startswith("- **FR-001**"):
+            return line
+    raise AssertionError("FR-001 missing")
 
 
 if __name__ == "__main__":

@@ -19,6 +19,11 @@ Every opened or rewritten work item body must contain these section names:
 Adopter templates may keep their own headings (Describe the Bug, Problem
 Statement, and so on). Spec Kit sections are additive.
 
+Hygiene rewrites must specialize User Story / `FR-*` / `SC-*` from the issue's
+own acceptance via `rewrite_body_spec_kit`. Do not stamp
+`Deliver the stated acceptance` (or identical FR/SC boilerplate) onto unrelated
+issues. Trackers may keep a campaign-level story. Closed issues need no rewrite.
+
 ## Taxonomy rules
 
 - Exactly one primary type.
