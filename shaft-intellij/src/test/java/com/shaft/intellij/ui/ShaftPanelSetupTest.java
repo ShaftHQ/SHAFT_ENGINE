@@ -1585,6 +1585,7 @@ class ShaftPanelSetupTest {
         setField(panel, "mcpVersionChecker", (java.util.function.Supplier<ShaftMcpVersionCheck.Result>) () ->
                 new ShaftMcpVersionCheck.Result(
                         ShaftMcpVersionCheck.State.UP_TO_DATE, "10.3.20260710", "10.3.20260710"));
+        selectAgent(panel, AssistantAgentRoute.GROK);
         clickAccessible(panel, "Check SHAFT MCP version");
         assertAll(
                 () -> assertEquals("Done", installState.getText()),
@@ -1653,6 +1654,7 @@ class ShaftPanelSetupTest {
             JLabel mcpVersionDetail = findByAccessibleName(panel, "SHAFT MCP version status", JLabel.class);
             assertTrue(mcpVersionDetail.getText().isBlank(), mcpVersionDetail.getText());
 
+            selectAgent(panel, AssistantAgentRoute.GROK);
             clickAccessible(panel, "Check SHAFT MCP version");
             assertTrue(mcpVersionDetail.getText().contains("10.3.20260703"), mcpVersionDetail.getText());
         } finally {
@@ -1826,6 +1828,57 @@ class ShaftPanelSetupTest {
                 () -> assertTrue(containsText(panel, "5 Check tools installation")),
                 () -> assertNull(findByAccessibleName((JPanel) getField(panel, "chooseRow"),
                         "Check agent connection", JButton.class)));
+    }
+
+    @Test
+    void setupToolsRowIsCopyOnlyAndChecksStayDisabledUntilAgentIsSelected() throws Exception {
+        ShaftMcpSetupPanel panel = new ShaftMcpSetupPanel(fakeProject(), blankMcpSettings(), () -> {
+        });
+        JPanel chooseRow = (JPanel) getField(panel, "chooseRow");
+        JPanel installRow = (JPanel) getField(panel, "installRow");
+        JComboBox<?> family = (JComboBox<?>) getField(panel, "family");
+
+        assertAll(
+                () -> assertTrue(checkButtons(chooseRow).isEmpty(), "choose-agent must not host a Check"),
+                () -> assertTrue(checkButtons(installRow).isEmpty(), "setup-tools row is Copy only"),
+                () -> assertNull(findByAccessibleName(installRow, "Check SHAFT MCP version", JButton.class)),
+                () -> assertFalse(findByAccessibleName(panel, "Copy SHAFT Tools & Skills setup command",
+                        JButton.class).isEnabled()),
+                () -> assertFalse(findByAccessibleName(panel, "Check agent connection", JButton.class).isEnabled()),
+                () -> assertFalse(findByAccessibleName(panel, "Test SHAFT MCP connection", JButton.class).isEnabled()),
+                () -> assertFalse(findByAccessibleName(panel, "Check SHAFT MCP version", JButton.class).isEnabled()),
+                () -> assertNotEquals("CODEX", family.getSelectedItem()));
+    }
+
+    @Test
+    void emptySetupFamilyAndClientDoNotCoerceToCodex() throws Exception {
+        Method resolveFamily = ShaftMcpSetupPanel.class.getDeclaredMethod(
+                "resolveFamily", ShaftSettingsState.Settings.class);
+        resolveFamily.setAccessible(true);
+        Method clientFromFamily = ShaftMcpSetupPanel.class.getDeclaredMethod("clientFromFamily", String.class);
+        clientFromFamily.setAccessible(true);
+        Method assistantResolve = ShaftAssistantPanel.class.getDeclaredMethod(
+                "resolveFamily", ShaftSettingsState.Settings.class);
+        assistantResolve.setAccessible(true);
+        Method assistantClient = ShaftAssistantPanel.class.getDeclaredMethod("clientFromFamily", String.class);
+        assistantClient.setAccessible(true);
+
+        ShaftSettingsState.Settings settings = blankMcpSettings();
+        String family = String.valueOf(resolveFamily.invoke(null, settings));
+        String client = String.valueOf(clientFromFamily.invoke(null, ""));
+        String assistantFamily = String.valueOf(assistantResolve.invoke(null, settings));
+        String assistantClientValue = String.valueOf(assistantClient.invoke(null, ""));
+
+        assertAll(
+                () -> assertTrue(family.isBlank() || "null".equals(family), family),
+                () -> assertNotEquals("CODEX", family),
+                () -> assertTrue(client.isBlank() || "null".equals(client), client),
+                () -> assertNotEquals("CODEX", client),
+                () -> assertTrue(assistantFamily.isBlank() || "null".equals(assistantFamily), assistantFamily),
+                () -> assertNotEquals("CODEX", assistantFamily),
+                () -> assertTrue(assistantClientValue.isBlank() || "null".equals(assistantClientValue),
+                        assistantClientValue),
+                () -> assertNotEquals("CODEX", assistantClientValue));
     }
 
     @Test
@@ -2911,6 +2964,7 @@ class ShaftPanelSetupTest {
         setField(panel, "mcpVersionChecker", (java.util.function.Supplier<ShaftMcpVersionCheck.Result>) () ->
                 new ShaftMcpVersionCheck.Result(
                         ShaftMcpVersionCheck.State.UP_TO_DATE, "10.3.20260710", "10.3.20260710"));
+        selectAgent(panel, AssistantAgentRoute.GROK);
         clickAccessible(panel, "Check SHAFT MCP version");
         String firstMcpVersionDescription = mcpVersionDetail.getAccessibleContext().getAccessibleDescription();
         assertAll(
@@ -3094,14 +3148,14 @@ class ShaftPanelSetupTest {
         JPanel chooseRow = (JPanel) getField(panel, "chooseRow");
         JPanel installRow = (JPanel) getField(panel, "installRow");
         JComboBox<?> familyCombo = findByAccessibleName(chooseRow, "Assistant family", JComboBox.class);
-        JButton checkMcpVersionButton = findByAccessibleName(installRow, "Check SHAFT MCP version", JButton.class);
+        JButton copySetupButton = findByAccessibleName(installRow, "Copy SHAFT Tools & Skills setup command", JButton.class);
         JLabel chooseState = (JLabel) getField(panel, "chooseState");
         JComponent chooseAction = stepRowAction(panel, chooseRow);
         JComponent installAction = stepRowAction(panel, installRow);
 
         assertAll(
                 () -> assertNotNull(familyCombo),
-                () -> assertNotNull(checkMcpVersionButton),
+                () -> assertNotNull(copySetupButton),
                 () -> assertFalse(chooseAction.isVisible(),
                         "Choose-agent row is done and a later step is active, so its detail should collapse"),
                 () -> assertTrue(installAction.isVisible(),
@@ -9106,6 +9160,24 @@ class ShaftPanelSetupTest {
         } else {
             UIManager.put(key, value);
         }
+    }
+
+    private static void selectAgent(ShaftMcpSetupPanel panel, AssistantAgentRoute route) {
+        JComboBox<?> agent = findByAccessibleName(panel, "Assistant agent", JComboBox.class);
+        agent.setSelectedItem(route);
+    }
+
+    private static List<JButton> checkButtons(Component root) {
+        List<JButton> found = new ArrayList<>();
+        walkComponents(root, component -> {
+            if (component instanceof JButton button) {
+                String name = accessibleName(button);
+                if (name != null && name.contains("Check")) {
+                    found.add(button);
+                }
+            }
+        });
+        return found;
     }
 
     private static List<JButton> collectButtons(Component root) {

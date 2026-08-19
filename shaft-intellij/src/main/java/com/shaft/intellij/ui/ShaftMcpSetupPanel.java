@@ -315,7 +315,12 @@ final class ShaftMcpSetupPanel extends JPanel implements Disposable {
         progress.setPreferredSize(JBUI.size(96, 14));
         family = new JComboBox<>(new String[]{"CODEX", "CLAUDE", "COPILOT", "GROK", GEMINI_FAMILY});
         ShaftUiLabels.applyFriendlyRenderer(family);
-        family.setSelectedItem(initialFamily(settings));
+        String familyValue = initialFamily(settings);
+        if (familyValue.isBlank()) {
+            family.setSelectedIndex(-1);
+        } else {
+            family.setSelectedItem(familyValue);
+        }
         family.getAccessibleContext().setAccessibleName("Assistant family");
         runtime = new JComboBox<>(new String[]{"CLI", "IDE_PLUGIN", "DESKTOP_APP"});
         ShaftUiLabels.applyFriendlyRenderer(runtime);
@@ -625,7 +630,6 @@ final class ShaftMcpSetupPanel extends JPanel implements Disposable {
         JPanel installActions = new JPanel(new FlowLayout(FlowLayout.LEFT, 4, 0));
         installActions.setOpaque(false);
         installActions.add(installNow);
-        installActions.add(checkMcpVersion);
         installActions.add(mcpVersionDetail);
         JPanel agentCheckActions = new JPanel(new FlowLayout(FlowLayout.LEFT, 4, 0));
         agentCheckActions.setOpaque(false);
@@ -787,6 +791,7 @@ final class ShaftMcpSetupPanel extends JPanel implements Disposable {
         moreOptionsPanel.setLayout(new javax.swing.BoxLayout(moreOptionsPanel, javax.swing.BoxLayout.Y_AXIS));
         moreOptionsPanel.setOpaque(false);
         moreOptionsPanel.add(advancedInstallerToggle);
+        moreOptionsPanel.add(checkMcpVersion);
         moreOptionsPanel.add(installerDetailsPanel);
         moreOptionsPanel.add(secondaryActions);
         moreOptionsPanel.add(postSetupControls);
@@ -1358,7 +1363,7 @@ final class ShaftMcpSetupPanel extends JPanel implements Disposable {
         checkChosenAgent.setEnabled(!running && agentChosen);
         checkUpgrade.setEnabled(!running);
         copyUpgradeCommand.setEnabled(!running);
-        checkMcpVersion.setEnabled(!running);
+        checkMcpVersion.setEnabled(!running && agentChosen);
         installNow.setEnabled(!running && agentChosen);
         test.setEnabled(!running && agentChosen);
         startChatting.setVisible((complete && !startWithoutAgent.isVisible()) || startChatting.isVisible());
@@ -1426,11 +1431,16 @@ final class ShaftMcpSetupPanel extends JPanel implements Disposable {
         if (!family.isBlank()) {
             return family;
         }
-        return switch (normalize(settings.defaultAutobotClient, "CODEX")) {
+        String client = settings.defaultAutobotClient == null ? "" : settings.defaultAutobotClient.trim();
+        if (client.isBlank()) {
+            return "";
+        }
+        return switch (client.toUpperCase(Locale.ROOT).replace('-', '_').replace(' ', '_')) {
             case "CLAUDE_CODE" -> "CLAUDE";
             case "COPILOT_CLI" -> "COPILOT";
             case "GROK" -> "GROK";
-            default -> "CODEX";
+            case "CODEX" -> "CODEX";
+            default -> "";
         };
     }
 
@@ -1448,6 +1458,7 @@ final class ShaftMcpSetupPanel extends JPanel implements Disposable {
     private void syncLegacySelectionFromRoute() {
         AssistantAgentRoute route = selectedAgentRoute();
         if (route == null) {
+            family.setSelectedIndex(-1);
             return;
         }
         family.setSelectedItem(route.family());
@@ -1669,20 +1680,30 @@ final class ShaftMcpSetupPanel extends JPanel implements Disposable {
     }
 
     private static String cliAgentLabel(String family) {
-        return switch (normalize(family, "CODEX")) {
+        String normalized = normalize(family, "");
+        if (normalized.isBlank()) {
+            return "";
+        }
+        return switch (normalized) {
             case "CLAUDE" -> "Claude Code CLI";
             case "COPILOT" -> "GitHub Copilot CLI";
             case "GROK" -> "Grok CLI";
-            default -> "Codex CLI";
+            case "CODEX" -> "Codex CLI";
+            default -> "";
         };
     }
 
     private static String clientFromFamily(String family) {
-        return switch (normalize(family, "CODEX")) {
+        String normalized = normalize(family, "");
+        if (normalized.isBlank()) {
+            return "";
+        }
+        return switch (normalized) {
             case "CLAUDE" -> "CLAUDE_CODE";
             case "COPILOT" -> "COPILOT_CLI";
             case "GROK" -> "GROK";
-            default -> "CODEX";
+            case "CODEX" -> "CODEX";
+            default -> "";
         };
     }
 
@@ -1706,13 +1727,15 @@ final class ShaftMcpSetupPanel extends JPanel implements Disposable {
     }
 
     private static String installerArgumentFor(String target) {
-        return switch (normalize(target, "CODEX")) {
+        return switch (normalize(target, "")) {
+            case "" -> "";
             case "CLAUDE_CODE" -> "claude";
             case "CLAUDE_DESKTOP" -> "claude-desktop";
             case "COPILOT_CLI" -> "copilot";
             case "COPILOT_INTELLIJ" -> "copilot-intellij";
             case "INTELLIJ_PLUGIN" -> "intellij-plugin";
             case "GROK" -> "grok";
+            case "CODEX" -> "codex";
             default -> "codex";
         };
     }
@@ -2031,12 +2054,16 @@ final class ShaftMcpSetupPanel extends JPanel implements Disposable {
      * stale processes are stopped and a fresh invocation re-checks shaft-mcp access.
      */
     String restartCommand() {
-        String executable = switch (normalize(String.valueOf(family.getSelectedItem()), "CODEX")) {
+        AssistantAgentRoute route = selectedAgentRoute();
+        if (route == null) {
+            return "";
+        }
+        String executable = route.gemini() ? "" : switch (route.family()) {
             case "CLAUDE" -> "claude";
             case "COPILOT" -> "copilot";
             case "GROK" -> "grok";
-            case GEMINI_FAMILY -> "";
-            default -> "codex";
+            case "CODEX" -> "codex";
+            default -> "";
         };
         if (executable.isBlank()) {
             return "";
@@ -2068,12 +2095,19 @@ final class ShaftMcpSetupPanel extends JPanel implements Disposable {
     }
 
     private String readinessDiagnosticCommand() {
-        return switch (normalize(String.valueOf(family.getSelectedItem()), "CODEX")) {
+        AssistantAgentRoute route = selectedAgentRoute();
+        if (route == null) {
+            return "";
+        }
+        if (route.gemini()) {
+            return "";
+        }
+        return switch (route.family()) {
             case "CLAUDE" -> "claude --version";
             case "COPILOT" -> "copilot --version";
             case "GROK" -> "grok --version";
-            case GEMINI_FAMILY -> "";
-            default -> "codex --version";
+            case "CODEX" -> "codex --version";
+            default -> "";
         };
     }
 
@@ -2167,12 +2201,19 @@ final class ShaftMcpSetupPanel extends JPanel implements Disposable {
     }
 
     private String clientSpecificStep() {
-        return switch (normalize(String.valueOf(family.getSelectedItem()), "CODEX")) {
+        AssistantAgentRoute route = selectedAgentRoute();
+        if (route == null) {
+            return "Select an agent, then retry the check.";
+        }
+        if (route.gemini()) {
+            return "For Gemini, paste a valid Google AI Studio API key in the setup form, then check again.";
+        }
+        return switch (route.family()) {
             case "CLAUDE" -> "For Claude, run `claude mcp list` for Claude Code or restart Claude Desktop after desktop config changes.";
             case "COPILOT" -> "For GitHub Copilot, check the Copilot MCP client configuration and any organization MCP policy.";
             case "GROK" -> "For Grok, run `grok mcp list` and verify the SHAFT MCP server in ~/.grok/config.toml.";
-            case GEMINI_FAMILY -> "For Gemini, paste a valid Google AI Studio API key in the setup form, then check again.";
-            default -> "For Codex, run `codex mcp list` and verify the SHAFT MCP server in the Codex config.";
+            case "CODEX" -> "For Codex, run `codex mcp list` and verify the SHAFT MCP server in the Codex config.";
+            default -> "Select an agent, then retry the check.";
         };
     }
 

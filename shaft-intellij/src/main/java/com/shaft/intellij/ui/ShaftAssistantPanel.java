@@ -5682,20 +5682,30 @@ final class ShaftAssistantPanel extends JPanel implements Disposable {
         if (!family.isBlank()) {
             return family;
         }
-        return switch (normalize(settings.defaultAutobotClient, "CODEX")) {
+        String client = settings.defaultAutobotClient == null ? "" : settings.defaultAutobotClient.trim();
+        if (client.isBlank()) {
+            return "";
+        }
+        return switch (client.toUpperCase(Locale.ROOT).replace('-', '_').replace(' ', '_')) {
             case "CLAUDE_CODE" -> "CLAUDE";
             case "COPILOT_CLI" -> "COPILOT";
             case "GROK" -> "GROK";
-            default -> "CODEX";
+            case "CODEX" -> "CODEX";
+            default -> "";
         };
     }
 
     private static String clientFromFamily(String family) {
-        return switch (normalize(family, "CODEX")) {
+        String normalized = normalize(family, "");
+        if (normalized.isBlank()) {
+            return "";
+        }
+        return switch (normalized) {
             case "CLAUDE" -> "CLAUDE_CODE";
             case "COPILOT" -> "COPILOT_CLI";
             case "GROK" -> "GROK";
-            default -> "CODEX";
+            case "CODEX" -> "CODEX";
+            default -> "";
         };
     }
 

@@ -42,6 +42,7 @@ SHAFT_CLI_MAIN_CLASS = "com.shaft.commandline.ShaftCli"
 FALLBACK_WORKSPACE_SYSTEM_PROPERTY = "shaft.mcp.fallbackWorkspaceRoot"
 USER_GUIDE_URL = "https://shafthq.github.io/docs/agentic/mcp"
 BOOTSTRAP_BANNER_SHOWN = "SHAFT_MCP_BOOTSTRAP_BANNER_SHOWN"
+_OVERALL_TTY_ACTIVE = False
 SHAFT_SKILLS_DIRECTORY = "shaft-skills"
 SHAFT_SKILLS_ROUTER = "shaft-developer"
 SHAFT_SKILLS_NATIVE_DIRECTORIES = {
@@ -166,21 +167,23 @@ def progress_count(label: str, completed: int, total: int, final: bool = False) 
 
 
 def overall_progress(phase: str, completed: int, total: int, final: bool = False) -> None:
+    global _OVERALL_TTY_ACTIVE
     percent = min(1.0, completed / total) if total else 0.0
     if not sys.stderr.isatty():
+        _OVERALL_TTY_ACTIVE = False
         log(f"{phase}: {percent:.0%}")
         return
     width = 28
     filled = int(percent * width)
     bar = "#" * filled + "-" * (width - filled)
-    print(
-        f"\rOverall [{bar}] {percent:>6.1%} {phase}",
-        end="",
-        file=sys.stderr,
-        flush=True,
-    )
+    line = f"Overall [{bar}] {percent:>6.1%} {phase}"
+    if _OVERALL_TTY_ACTIVE:
+        print(f"\033[1A\r{line}", file=sys.stderr, flush=True)
+    else:
+        print(line, file=sys.stderr, flush=True)
+        _OVERALL_TTY_ACTIVE = True
     if final:
-        print(file=sys.stderr)
+        _OVERALL_TTY_ACTIVE = False
 
 
 def normalize_client(value: str | None) -> str | None:

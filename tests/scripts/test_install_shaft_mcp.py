@@ -1335,6 +1335,24 @@ class AgenticToolsInstallerSurfaceTest(unittest.TestCase):
             MODULE.overall_progress("MCP", 1, 4)
         self.assertRegex(stderr.getvalue(), r"MCP.*25%")
 
+    def test_tty_keeps_overall_progress_on_a_separate_line_from_current_item(self):
+        stderr = io.StringIO()
+        stderr.isatty = lambda: True  # type: ignore[method-assign]
+        with contextlib.redirect_stderr(stderr):
+            MODULE.overall_progress("MCP", 1, 4)
+            MODULE.progress("jar", 10, 100)
+        text = stderr.getvalue()
+        self.assertIn("Overall", text)
+        self.assertIn("jar", text)
+        overall_at = text.find("Overall")
+        item_at = text.find("jar")
+        self.assertGreater(item_at, overall_at)
+        self.assertIn(
+            "\n",
+            text[overall_at:item_at],
+            "overall and current-item bars must not share one \\r overwrite",
+        )
+
     def test_primary_scripts_use_agentic_tools_name_and_old_names_are_shims(self):
         scripts = REPO_ROOT / "scripts" / "mcp"
         self.assertTrue((scripts / "install_shaft_agentic_tools.py").is_file())
