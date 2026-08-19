@@ -29,6 +29,7 @@ import com.shaft.performance.internal.LightHouseGenerateReport;
 import com.shaft.tools.internal.support.JavaScriptHelper;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.io.internal.FlakeProfiler;
+import com.shaft.tools.io.internal.FailureReporter;
 import com.shaft.tools.io.internal.FailureTraceReporter;
 import com.shaft.tools.io.internal.HttpContractRecorder;
 import com.shaft.tools.io.internal.MobileTraceMetadata;
@@ -1341,9 +1342,24 @@ public class BrowserActions extends FluentWebDriverAction implements com.shaft.g
             }
             browserActionsHelper.passAction(driverFactoryHelper.getDriver(), "navigateToUrl", modifiedTargetUrlForLogging);
         } catch (Exception rootCauseException) {
+            if (alreadyReportedByFailureReporter(rootCauseException)) {
+                if (rootCauseException instanceof RuntimeException runtimeException) {
+                    throw runtimeException;
+                }
+                throw new RuntimeException(rootCauseException);
+            }
             browserActionsHelper.failAction(driverFactoryHelper.getDriver(), modifiedTargetUrlForLogging, rootCauseException);
         }
         return this;
+    }
+
+    private static boolean alreadyReportedByFailureReporter(Throwable throwable) {
+        for (StackTraceElement frame : throwable.getStackTrace()) {
+            if (FailureReporter.class.getName().equals(frame.getClassName())) {
+                return true;
+            }
+        }
+        return throwable.getCause() != null && alreadyReportedByFailureReporter(throwable.getCause());
     }
 
     private void forceStopCurrentNavigation() {

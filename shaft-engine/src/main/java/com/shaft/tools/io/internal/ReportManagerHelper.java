@@ -913,10 +913,12 @@ public class ReportManagerHelper {
      * @param logText the text that needs to be logged in this action
      */
     public static void writeStepToReport(String logText) {
-        if (!SHAFT.Properties.reporting.disableLogging()) {
-            createLogEntry(logText, true);
-            Allure.step(logText, getStepStatus());
+        Status stepStatus = getStepStatus();
+        if (shouldSuppressStep(stepStatus)) {
+            return;
         }
+        createLogEntry(logText, true);
+        writeOrReuseAllureStep(logText, stepStatus, null);
     }
 
     /**
@@ -927,10 +929,12 @@ public class ReportManagerHelper {
      * @param logLevel the log level to use for the console log entry
      */
     public static void writeStepToReport(String logText, Level logLevel) {
-        if (!SHAFT.Properties.reporting.disableLogging()) {
-            createLogEntry(logText, logLevel);
-            Allure.step(logText, getStepStatus());
+        Status stepStatus = getStepStatus();
+        if (shouldSuppressStep(stepStatus)) {
+            return;
         }
+        createLogEntry(logText, logLevel);
+        writeOrReuseAllureStep(logText, stepStatus, null);
     }
 
     /**
@@ -942,10 +946,11 @@ public class ReportManagerHelper {
      * @param stepStatus the exact status to render for this step in the execution report
      */
     public static void writeStepToReport(String logText, Level logLevel, Status stepStatus) {
-        if (!SHAFT.Properties.reporting.disableLogging()) {
-            createLogEntry(logText, logLevel);
-            Allure.step(logText, stepStatus);
+        if (shouldSuppressStep(stepStatus)) {
+            return;
         }
+        createLogEntry(logText, logLevel);
+        writeOrReuseAllureStep(logText, stepStatus, null);
     }
 
     /**
@@ -960,14 +965,19 @@ public class ReportManagerHelper {
      * @param stepStartMillis epoch milliseconds at which the summarized work started
      */
     public static void writeStepToReport(String logText, Level logLevel, Status stepStatus, long stepStartMillis) {
-        if (!SHAFT.Properties.reporting.disableLogging()) {
-            createLogEntry(logText, logLevel);
-            var lifecycle = Allure.getLifecycle();
-            var uuid = UUID.randomUUID().toString();
-            lifecycle.startStep(uuid, new StepResult().setName(logText).setStatus(stepStatus));
-            lifecycle.updateStep(uuid, step -> step.setStart(stepStartMillis));
-            lifecycle.stopStep(uuid);
+        if (shouldSuppressStep(stepStatus)) {
+            return;
         }
+        createLogEntry(logText, logLevel);
+        if (isInsideOpenAllureStep()) {
+            updateCurrentStepStatus(stepStatus);
+            return;
+        }
+        var lifecycle = Allure.getLifecycle();
+        var uuid = UUID.randomUUID().toString();
+        lifecycle.startStep(uuid, new StepResult().setName(logText).setStatus(stepStatus));
+        lifecycle.updateStep(uuid, step -> step.setStart(stepStartMillis));
+        lifecycle.stopStep(uuid);
     }
 
     private static Status getStepStatus() {
@@ -976,39 +986,60 @@ public class ReportManagerHelper {
     }
 
     static void writeStepToReport(String logText, List<List<Object>> attachments, CheckpointStatus status) {
-        if (SHAFT.Properties.reporting.disableLogging()) {
+        Status stepStatus = status == CheckpointStatus.FAIL ? Status.FAILED : Status.PASSED;
+        if (shouldSuppressStep(stepStatus)) {
             return;
         }
         createLogEntry(logText, true);
+        writeOrReuseAllureStep(logText, stepStatus, attachments);
+    }
+
+    private static boolean shouldSuppressStep(Status stepStatus) {
+        if (SHAFT.Properties.reporting == null || !SHAFT.Properties.reporting.disableLogging()) {
+            return false;
+        }
+        return stepStatus != Status.FAILED && stepStatus != Status.BROKEN;
+    }
+
+    private static boolean isInsideOpenAllureStep() {
         var lifecycle = Allure.getLifecycle();
+        var current = lifecycle.getCurrentTestCaseOrStep();
+        var testCase = lifecycle.getCurrentTestCase();
+        return current.isPresent() && testCase.isPresent() && !current.get().equals(testCase.get());
+    }
+
+    private static void updateCurrentStepStatus(Status stepStatus) {
+        if (stepStatus != Status.FAILED && stepStatus != Status.BROKEN) {
+            return;
+        }
+        Allure.getLifecycle().updateStep(update -> update.setStatus(stepStatus));
+    }
+
+    private static void writeOrReuseAllureStep(String logText, Status stepStatus, List<List<Object>> attachments) {
+        var lifecycle = Allure.getLifecycle();
+        if (isInsideOpenAllureStep()) {
+            attach(attachments);
+            updateCurrentStepStatus(stepStatus);
+            return;
+        }
         var uuid = UUID.randomUUID().toString();
-        Status stepStatus = status == CheckpointStatus.FAIL ? Status.FAILED : Status.PASSED;
         lifecycle.startStep(uuid, new StepResult().setName(logText).setStatus(stepStatus));
         try {
-            if (attachments != null && !attachments.isEmpty()) {
-                attachments.forEach(attachment -> {
-                    if (attachment != null && !attachment.isEmpty() && attachment.get(2)!=null && attachment.get(2).getClass().toString().toLowerCase().contains("string")
-                            && !attachment.get(2).getClass().toString().contains("StringInputStream")) {
-                        if (!attachment.get(2).toString().isEmpty()) {
-                            attach(attachment.get(0).toString(), attachment.get(1).toString(), attachment.get(2).toString());
-                        }
-                    } else if (attachment != null && !attachment.isEmpty()) {
-                        if (attachment.get(2) instanceof byte[]) {
-                            attach(attachment.get(0).toString(), attachment.get(1).toString(), new ByteArrayInputStream((byte[]) attachment.get(2)));
-                        } else {
-                            attach(attachment.get(0).toString(), attachment.get(1).toString(), (InputStream) attachment.get(2));
-                        }
-                    }
-                    if (status.equals(CheckpointStatus.FAIL)) {
-                        lifecycle.updateStep(uuid, update -> {
-                            update.setStatus(Status.FAILED);
-                            if (attachment != null && !attachment.isEmpty() && attachment.get(2) != null) {
-                                String trace = update.getStatusDetails() == null ? attachment.get(2).toString() : update.getStatusDetails().getTrace() + System.lineSeparator() + attachment.get(2).toString();
+            attach(attachments);
+            if (stepStatus == Status.FAILED || stepStatus == Status.BROKEN) {
+                lifecycle.updateStep(uuid, update -> {
+                    update.setStatus(stepStatus);
+                    if (attachments != null) {
+                        for (List<Object> attachment : attachments) {
+                            if (attachment != null && attachment.size() > 2 && attachment.get(2) != null) {
+                                String trace = update.getStatusDetails() == null
+                                        ? attachment.get(2).toString()
+                                        : update.getStatusDetails().getTrace() + System.lineSeparator() + attachment.get(2).toString();
                                 StatusDetails details = update.getStatusDetails() == null ? new StatusDetails() : update.getStatusDetails();
                                 details.setTrace(trace.trim());
                                 update.setStatusDetails(details);
                             }
-                        });
+                        }
                     }
                 });
             }
