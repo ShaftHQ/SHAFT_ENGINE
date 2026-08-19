@@ -1202,3 +1202,4 @@
 {"actor":"agent","event":"memory.created","id":"gotcha.transient-github-http-matcher-must-require-an-http-token-before-429-503","timestamp":"2026-08-19T09:09:00+03:00"}
 {"actor":"agent","event":"memory.created","id":"gotcha.blank-events-jsonl-lines-fail-close-aictx-memory","timestamp":"2026-08-20T01:06:05+03:00"}
 {"actor":"agent","event":"relation.created","relation_id":"rel.gotcha-blank-events-jsonl-lines-fail-close-aictx-memory-related-to-gotcha-memory-events-jsonl-append-log-conflicts-on-every-concurrent-session-merge","timestamp":"2026-08-20T01:06:05+03:00"}
+{"actor":"agent","event":"memory.created","id":"gotcha.graphify-extract-omits-path-segments-named-build","timestamp":"2026-08-20T01:11:57+03:00"}
