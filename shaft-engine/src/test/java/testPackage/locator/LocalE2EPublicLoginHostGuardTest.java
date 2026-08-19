@@ -47,7 +47,7 @@ public class LocalE2EPublicLoginHostGuardTest {
                 hits.add(testRoot.relativize(path).toString().replace('\\', '/'));
             }
         } catch (IOException exception) {
-            throw new RuntimeException(exception);
+            Assert.fail(exception.getMessage(), exception);
         }
     }
 }

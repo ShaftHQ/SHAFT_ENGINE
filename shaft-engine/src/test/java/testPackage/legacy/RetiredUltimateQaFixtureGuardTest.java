@@ -19,23 +19,13 @@ class RetiredUltimateQaFixtureGuardTest {
 
     @Test
     void nightlyFixturesUseTheSeleniumOwnedForm() throws IOException {
-        Path localForm = Path.of("src/test/java/testPackage/legacy/BigPageActionsTest.java");
-        Path junitForm = Path.of("src/test/java/junitTestPackage/JunitTest.java");
-        Path mobileForm = Path.of("src/test/java/testPackage/appium/MobileWebTest.java");
         for (Path fixture : NIGHTLY_FIXTURES) {
             String source = Files.readString(fixture);
             assertFalse(source.contains("ultimateqa.com/complicated-page"), fixture + " still uses UltimateQA");
             assertFalse(source.contains("et_pb_contact_name_0"), fixture + " still uses the retired form");
             assertFalse(source.contains("saucedemo.com"), fixture + " still uses Sauce Demo");
+            assertTrue(source.contains("https://www.selenium.dev/selenium/web/web-form.html"),
+                    fixture + " must use Selenium's owned web form");
         }
-        String localSource = Files.readString(localForm);
-        String junitSource = Files.readString(junitForm);
-        String mobileSource = Files.readString(mobileForm);
-        assertTrue(localSource.contains("TestPageServer.url(\"smartWebFormFixture.html\")"),
-                localForm + " must use the repo-owned web form fixture");
-        assertTrue(junitSource.contains("TestPageServer.url(\"smartWebFormFixture.html\")"),
-                junitForm + " must use the repo-owned web form fixture");
-        assertTrue(mobileSource.contains("https://www.selenium.dev/selenium/web/web-form.html"),
-                mobileForm + " stays on Selenium's owned web form (not Local E2E GUI)");
     }
 }
