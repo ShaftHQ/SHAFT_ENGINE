@@ -889,6 +889,8 @@ class ChaosEngineOrchestratorModeTest(unittest.TestCase):
         self.assertIn('Do not wait for the owner to say "orchestrate"', skill)
         self.assertIn("do no task work yourself", skill.lower())
         self.assertIn("one writer at a time", skill.lower())
+        self.assertRegex(skill, r"1[–-]4")
+        self.assertIn("still shows the live status table", skill)
         self.assertIn("never start an edit in the same breath as adopting", skill.lower())
 
     def test_delegation_pins_status_table_serial_cap_and_learning_loop_before_kill(self):
@@ -917,6 +919,7 @@ class ChaosEngineOrchestratorModeTest(unittest.TestCase):
                 self.assertIn(status, delegation)
         self.assertIn("Learning Loop before kill", delegation)
         self.assertIn("Refuse a requested cap above 4", delegation)
+        self.assertRegex(delegation, r"1[–-]4")
         self.assertIn("File-overlapping writers never run in parallel", delegation)
         self.assertIn("one writer at a time", delegation.lower())
 

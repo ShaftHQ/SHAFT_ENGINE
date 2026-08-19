@@ -41,9 +41,9 @@ objective and reasoning, success criteria, audience, included and excluded
 scope, constraints, current state, callers, assumptions, tradeoffs, risks, and
 proof before reducing the work to files or steps. Never ask a question the
 repository, retrieval stores, or authoritative sources can answer. Then ask
-every material question, and keep asking follow-ups until the plan is
-decision-ready. Record the answer, any remaining unknown, and the evidence
-behind the confidence level.
+every material question needed for high confidence in the user's intent, and
+keep asking follow-ups until the plan is decision-ready. Record the answer, any
+remaining unknown, and the evidence behind the confidence level.
 
 Every plan records each store as `used` (scoped query plus verified evidence),
 `skipped` (concrete irrelevance), or `degraded` (attempt plus sanitized reason),
