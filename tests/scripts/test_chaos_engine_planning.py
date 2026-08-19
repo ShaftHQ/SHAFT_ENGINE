@@ -23,12 +23,17 @@ def contract_violations(planning: str, receipt: str, consult: str, skill: str) -
         )
     if FORBIDDEN in receipt or FORBIDDEN in consult or FORBIDDEN in skill:
         violations.append("aligned guidance restored Ask once, at the start, then go unattended")
+    if "contradicts the approved plan: it changes" in planning:
+        violations.append(
+            "HALT subsection treats plan contradiction as only branch/PR/merge-authority shape"
+        )
     for required in (
         "keep asking follow-ups",
         "decision-ready",
         "consultant agent",
         "implementation clarifications",
         "never granted",
+        "contradicts the approved plan",
     ):
         if required not in planning:
             violations.append(f"work-github-planning.md missing {required!r}")
@@ -75,6 +80,13 @@ class ChaosEnginePlanningContractTest(unittest.TestCase):
             if FORBIDDEN in path.read_text(encoding="utf-8")
         ]
         self.assertEqual([], hits)
+
+    def test_agent_guidance_gate_runs_this_module(self):
+        workflow = (ROOT / ".github/workflows/pr-gate.yml").read_text(encoding="utf-8")
+        self.assertIn(
+            "tests.scripts.test_chaos_engine_planning\n",
+            workflow,
+        )
 
 
 if __name__ == "__main__":

@@ -46,10 +46,12 @@ The default is one branch/worktree, linked subtask issues, and one PR per relate
 ### Mid-session realignment: named HALT conditions
 
 HALT and ask only when merge authority was never granted, or a new request
-contradicts the approved plan: it changes the agreed branch, PR, or
-merge-authority shape, or conflicts with work in flight (surface the conflict
-and two options). If execution cannot be grounded in current code, say what you searched to the consultant agent; do not ask the user. Otherwise absorb
-the request into the owned plan.
+contradicts the approved plan. That includes a demand to take the rejected
+approach, a change to the agreed branch, PR, or merge-authority shape, or a
+conflict with work in flight (surface the conflict and two options). If
+execution cannot be grounded in current code, say what you searched to the
+consultant agent; do not ask the user. Otherwise absorb the request into the
+owned plan.
 
 ## 2. Branch and track
 

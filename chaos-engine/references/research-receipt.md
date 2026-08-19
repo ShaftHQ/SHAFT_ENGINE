@@ -63,5 +63,6 @@ and are enforced by `tests/scripts/test_chaos_engine_installer.py`,
 `tests/scripts/test_chaos_engine_bootstrap.py`,
 `tests/scripts/test_chaos_engine_dependencies.py`,
 `tests/scripts/test_chaos_engine_hosts.py`,
-`tests/scripts/test_chaos_engine_learning.py`, and
-`tests/scripts/test_chaos_engine_research.py`.
+`tests/scripts/test_chaos_engine_learning.py`,
+`tests/scripts/test_chaos_engine_research.py`, and
+`tests/scripts/test_chaos_engine_planning.py`.
