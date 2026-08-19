@@ -1,6 +1,0 @@
-interface:
-  display_name: "IntelliJ plugin development"
-  short_description: "Route IntelliJ plugin work to the canonical playbook"
-  default_prompt: "Use $intellij-plugin-development for this IntelliJ plugin task."
-policy:
-  allow_implicit_invocation: true
