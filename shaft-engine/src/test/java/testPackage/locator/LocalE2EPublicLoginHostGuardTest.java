@@ -12,13 +12,18 @@ import java.util.stream.Stream;
 
 /**
  * Inventory guard for #5207: Local E2E GUI tests must not depend on the
- * public practice-test-login host that failed Safari nightly (#5204).
+ * public static-markup hosts that were migrated off live sites (#5216).
  */
 public class LocalE2EPublicLoginHostGuardTest {
-    private static final String FORBIDDEN_HOST = "practicetestautomation" + ".com";
+    private static final List<String> FORBIDDEN_HOSTS = List.of(
+            "practicetestautomation" + ".com",
+            "saucedemo.com" + "/v1",
+            "selenium.dev" + "/selenium/web/login.html",
+            "moatazeldebsy" + ".github.io"
+    );
 
     @Test
-    public void localE2EGuiTestsMustNotUsePracticeTestAutomation() throws IOException {
+    public void localE2EGuiTestsMustNotUseMigratedPublicLoginHosts() throws IOException {
         Path testRoot = Path.of("src/test/java");
         Assert.assertTrue(Files.isDirectory(testRoot),
                 "expected shaft-engine test sources at " + testRoot.toAbsolutePath());
@@ -31,7 +36,31 @@ public class LocalE2EPublicLoginHostGuardTest {
         }
 
         Assert.assertTrue(hits.isEmpty(),
-                "Local E2E GUI tests still use " + FORBIDDEN_HOST + ": " + hits);
+                "Local E2E GUI tests still use a migrated public login host: " + hits);
+    }
+
+    @Test
+    public void guardDetectsHostsMigratedBy5207() {
+        Assert.assertTrue(containsForbiddenHost("https://www.saucedemo.com" + "/v1"),
+                "saucedemo v1 login was migrated and must stay forbidden");
+        Assert.assertTrue(containsForbiddenHost("https://www.selenium.dev" + "/selenium/web/login.html"),
+                "selenium.dev login.html was migrated and must stay forbidden");
+        Assert.assertTrue(containsForbiddenHost("https://moatazeldebsy" + ".github.io/test-automation-practices/#/login"),
+                "moatazeldebsy forms were migrated and must stay forbidden");
+        Assert.assertTrue(containsForbiddenHost("https://practicetestautomation" + ".com/practice-test-login/"),
+                "practice-test-automation host remains forbidden");
+    }
+
+    @Test
+    public void guardAllowsIntentionalLeftoverAndCloudHosts() {
+        Assert.assertFalse(containsForbiddenHost("https://www.saucedemo.com/inventory.html"),
+                "saucedemo.com without /v1 is an intentional leftover live URL");
+        Assert.assertFalse(containsForbiddenHost("https://www.selenium.dev/selenium/web/web-form.html"),
+                "selenium web-form stays on cloud/grid jobs");
+        Assert.assertFalse(containsForbiddenHost("https://hub.browserstack.com/wd/hub"),
+                "BrowserStack/cloud hosts must not be forbidden");
+        Assert.assertFalse(containsForbiddenHost("https://the-internet.herokuapp.com/dynamic_loading/2"),
+                "leftover live URLs kept on purpose must not be forbidden");
     }
 
     private static boolean isLocalE2EGuiTest(Path path) {
@@ -43,11 +72,20 @@ public class LocalE2EPublicLoginHostGuardTest {
 
     private static void addHitIfForbidden(Path testRoot, Path path, List<String> hits) {
         try {
-            if (Files.readString(path).contains(FORBIDDEN_HOST)) {
+            if (containsForbiddenHost(Files.readString(path))) {
                 hits.add(testRoot.relativize(path).toString().replace('\\', '/'));
             }
         } catch (IOException exception) {
             Assert.fail(exception.getMessage(), exception);
         }
+    }
+
+    static boolean containsForbiddenHost(String source) {
+        for (String host : FORBIDDEN_HOSTS) {
+            if (source.contains(host)) {
+                return true;
+            }
+        }
+        return false;
     }
 }
