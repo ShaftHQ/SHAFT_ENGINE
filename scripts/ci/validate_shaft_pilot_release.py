@@ -258,6 +258,21 @@ def validate_static(root: Path = ROOT) -> list[str]:
         errors.append("Maven Central workflow does not enforce the Pilot release gate")
 
     errors.extend(validate_release_candidate_isolation(pilot_release_workflow))
+    publish_workflow_path = root / ".github/workflows/publish-intellij-plugin.yml"
+    if not publish_workflow_path.is_file():
+        errors.append("publish-intellij-plugin.yml must publish the IntelliJ plugin to Marketplace")
+    else:
+        action_text = (
+            intellij_verify_action.read_text(encoding="utf-8")
+            if intellij_verify_action.is_file()
+            else ""
+        )
+        errors.extend(
+            validate_intellij_marketplace_publish(
+                publish_workflow_path.read_text(encoding="utf-8"),
+                action_text,
+            )
+        )
     return errors
 
 
@@ -336,6 +351,78 @@ def validate_release_candidate_isolation(workflow_text: str) -> list[str]:
             "shaft-pilot-release.yml release-candidate aggregator must stay fail-closed "
             "on DETECT_RESULT/DETECT_CHANGED and isolated slice success"
         )
+    return errors
+
+
+def validate_intellij_marketplace_publish(
+    workflow_text: str, action_text: str = ""
+) -> list[str]:
+    """Reject a publish-on-release workflow that can cancel before Marketplace.
+
+    Stdlib-only: this validator runs on a bare setup-python runner without
+    requirements-ci.txt, so it cannot import PyYAML.
+    """
+    errors: list[str] = []
+    if "notify-nightly-failure" in workflow_text:
+        errors.append(
+            "publish-intellij-plugin.yml must not reuse nightly cancelled=skip for Marketplace publish"
+        )
+    if re.search(
+        r"contains\(needs\.\*\.result,\s*'cancelled'\)\s*&&\s*'skip'",
+        workflow_text,
+    ):
+        errors.append(
+            "publish-intellij-plugin.yml must not map a cancelled release publish to skip"
+        )
+    if "intellij-marketplace-publish-miss" not in workflow_text:
+        errors.append(
+            "publish-intellij-plugin.yml must file a dedicated intellij-marketplace-publish-miss issue"
+        )
+    if "issues: write" not in workflow_text:
+        errors.append(
+            "publish-intellij-plugin.yml must grant issues: write for the dedicated miss tracker"
+        )
+    if "if: always()" not in workflow_text:
+        errors.append(
+            "publish-intellij-plugin.yml must fail closed with if: always() when publishPlugin is missed"
+        )
+    verify_block = _workflow_job_block(workflow_text, "verify")
+    publish_block = _workflow_job_block(workflow_text, "publish")
+    if verify_block is None:
+        errors.append("publish-intellij-plugin.yml must isolate verify as its own job")
+    if publish_block is None:
+        errors.append("publish-intellij-plugin.yml must isolate publish as its own job")
+    if verify_block is not None:
+        if "timeout-minutes:" not in verify_block:
+            errors.append("publish-intellij-plugin.yml verify job must declare timeout-minutes")
+        if re.search(r"publish:\s*'true'", verify_block):
+            errors.append("publish-intellij-plugin.yml verify job must not publish to Marketplace")
+    if publish_block is not None:
+        if "timeout-minutes:" not in publish_block:
+            errors.append("publish-intellij-plugin.yml publish job must declare timeout-minutes")
+        if "needs: verify" not in publish_block:
+            errors.append("publish-intellij-plugin.yml publish job must need the verify job")
+        if not re.search(r"verify:\s*'false'", publish_block):
+            errors.append(
+                "publish-intellij-plugin.yml publish job must skip verifyPlugin so it cannot eat the publish timeout"
+            )
+        for run_match in re.finditer(
+            r"(?m)^\s+run:\s*(?:\|[^\n]*\n((?:[ \t]+.*\n?)+)|(.+))$",
+            publish_block,
+        ):
+            run_text = run_match.group(1) or run_match.group(2) or ""
+            if "build_retry.sh" in run_text and "publishPlugin" in run_text:
+                errors.append("publishPlugin must not be wrapped in build_retry.sh")
+    blob = workflow_text + "\n" + action_text
+    if "assert_intellij_marketplace_receipt" not in blob:
+        errors.append(
+            "publishPlugin must assert a Gradle or Marketplace receipt via assert_intellij_marketplace_receipt"
+        )
+    if action_text:
+        for match in re.finditer(r"run:\s*\|?(.*?)(?=\n    - |\n    [A-Za-z]|\Z)", action_text, re.S):
+            run_text = match.group(1)
+            if "publishPlugin" in run_text and "build_retry.sh" in run_text:
+                errors.append("intellij-verify must not retry publishPlugin")
     return errors
 
 

@@ -276,6 +276,13 @@ jobs:
               # build a second attempt -- so it belongs to the same filter that
               # re-runs on any workflow edit, not to the agent-guidance one.
               - 'tests/scripts/test_intellij_verify_retry.py'
+              # Issue #5221: a 20-minute verify+publish job cancelled before
+              # Marketplace. These pins live next to the timeout guard so a
+              # workflow edit cannot drop the split, receipt, or miss tracker.
+              - 'scripts/ci/assert_intellij_marketplace_receipt.py'
+              - 'tests/scripts/test_assert_intellij_marketplace_receipt.py'
+              - 'scripts/ci/validate_shaft_pilot_release.py'
+              - 'tests/scripts/test_validate_shaft_pilot_release.py'
               # Issue #4529: the timeout guard's own implementation and test
               # were in no filter, so a timeout could not be lowered unnoticed
               # but the check preventing it could be gutted green. A guard
@@ -842,6 +849,8 @@ jobs:
           python3 -m unittest
           tests.scripts.test_validate_workflow_timeouts
           tests.scripts.test_intellij_verify_retry
+          tests.scripts.test_assert_intellij_marketplace_receipt
+          tests.scripts.test_validate_shaft_pilot_release
           -v
       - name: Validate every workflow job declares timeout-minutes
         run: python3 scripts/ci/validate_workflow_timeouts.py

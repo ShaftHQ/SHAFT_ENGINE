@@ -1,0 +1,99 @@
+name: 'Notify IntelliJ Marketplace Publish Miss'
+description: >-
+  Fail closed when a Publish IntelliJ Plugin run does not complete publishPlugin.
+  A release cancelled/timeout/failure files or keeps a dedicated tracking issue.
+  Nightly cancelled=skip must not own this path.
+inputs:
+  verify-result:
+    description: 'needs.verify.result'
+    required: true
+  publish-result:
+    description: 'needs.publish.result'
+    required: true
+  event-name:
+    description: 'github.event_name'
+    required: true
+  plugin-version:
+    description: 'Plugin version. Falls back to shaft-intellij/gradle.properties.'
+    required: false
+    default: ''
+  label:
+    description: 'Dedupe label for the dedicated miss tracker.'
+    required: false
+    default: 'intellij-marketplace-publish-miss'
+  github-token:
+    description: 'Token with issues:write. Defaults to the job token.'
+    required: false
+    default: ${{ github.token }}
+runs:
+  using: 'composite'
+  steps:
+    - name: File, keep, or close the Marketplace publish tracker
+      shell: bash
+      env:
+        GH_TOKEN: ${{ inputs.github-token }}
+        VERIFY_RESULT: ${{ inputs.verify-result }}
+        PUBLISH_RESULT: ${{ inputs.publish-result }}
+        EVENT_NAME: ${{ inputs.event-name }}
+        PLUGIN_VERSION: ${{ inputs.plugin-version }}
+        LABEL: ${{ inputs.label }}
+        REPO: ${{ github.repository }}
+        RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+      run: |
+        set -euo pipefail
+
+        version="$PLUGIN_VERSION"
+        if [ -z "$version" ] && [ -f shaft-intellij/gradle.properties ]; then
+          version=$(awk -F= '/^pluginVersion=/{print $2; exit}' shaft-intellij/gradle.properties)
+        fi
+        if [ -z "$version" ]; then
+          version="unknown"
+        fi
+
+        if [ "$PUBLISH_RESULT" = "success" ]; then
+          if [ "$EVENT_NAME" = "release" ]; then
+            existing=$(gh issue list --repo "$REPO" --state open --label "$LABEL" \
+              --json number --jq '.[0].number // empty')
+            if [ -n "$existing" ]; then
+              gh issue comment "$existing" --repo "$REPO" \
+                --body "✅ Recovered: IntelliJ Marketplace publish of \`$version\` succeeded on [\`run $GITHUB_RUN_ID\`]($RUN_URL). Closing this dedicated tracker."
+              gh issue close "$existing" --repo "$REPO" --reason completed
+              echo "Closed recovered tracking issue #$existing."
+            fi
+          fi
+          echo "Marketplace publish succeeded for $version."
+          exit 0
+        fi
+
+        echo "::error::IntelliJ Marketplace publish did not succeed (verify=$VERIFY_RESULT publish=$PUBLISH_RESULT version=$version). Coverage success must not hide this miss."
+
+        if [ "$EVENT_NAME" = "release" ]; then
+          gh label create "$LABEL" --repo "$REPO" --color B60205 \
+            --description "Dedicated tracker for a missed IntelliJ Marketplace publish" --force >/dev/null 2>&1 || true
+          existing=$(gh issue list --repo "$REPO" --state open --label "$LABEL" \
+            --json number --jq '.[0].number // empty')
+          if [ -n "$existing" ]; then
+            gh issue comment "$existing" --repo "$REPO" \
+              --body "❌ Still missing: release publish of \`$version\` ended with verify=\`$VERIFY_RESULT\` publish=\`$PUBLISH_RESULT\` on [\`run $GITHUB_RUN_ID\`]($RUN_URL)."
+            echo "Updated existing tracking issue #$existing."
+          else
+            BODY=$(printf '%s\n' \
+              "A **release-triggered** IntelliJ Marketplace publish did not complete \`publishPlugin\`." \
+              "" \
+              "- Version: \`$version\`" \
+              "- Verify job: \`$VERIFY_RESULT\`" \
+              "- Publish job: \`$PUBLISH_RESULT\`" \
+              "- Run: $RUN_URL" \
+              "" \
+              "Cancelled or timed out is a **failure**, not a nightly skip. Coverage upload success does not mean Marketplace received this version." \
+              "" \
+              "Filed automatically. Dedupes on the \`$LABEL\` label.")
+            url=$(gh issue create --repo "$REPO" \
+              --title "IntelliJ Marketplace publish missed: $version" \
+              --label "$LABEL" \
+              --body "$BODY")
+            echo "Filed new tracking issue: $url"
+          fi
+        fi
+
+        exit 1

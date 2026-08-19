@@ -1,0 +1,120 @@
+import importlib.util
+import tempfile
+import unittest
+from pathlib import Path
+from urllib.error import URLError
+
+ROOT = Path(__file__).resolve().parents[2]
+SCRIPT = ROOT / "scripts/ci/assert_intellij_marketplace_receipt.py"
+SPEC = importlib.util.spec_from_file_location("assert_intellij_marketplace_receipt", SCRIPT)
+MODULE = importlib.util.module_from_spec(SPEC)
+assert SPEC.loader is not None
+SPEC.loader.exec_module(MODULE)
+
+SUCCESS_LOG = "> Task :signPlugin\n> Task :publishPlugin\nBUILD SUCCESSFUL in 1m 2s\n"
+PROPERTIES = "pluginVersion=10.3.20260818\npluginSinceBuild=243\n"
+LISTED = '[{"version":"10.3.20260818"},{"version":"10.3.20260817"}]'
+MISSING = '[{"version":"10.3.20260817"}]'
+
+
+class IntellijMarketplaceReceiptTest(unittest.TestCase):
+    def test_successful_log_and_listed_version_pass(self):
+        self.assertEqual(
+            [],
+            MODULE.receipt_errors(SUCCESS_LOG, PROPERTIES, LISTED),
+        )
+
+    def test_missing_build_successful_fails(self):
+        errors = MODULE.receipt_errors(
+            "> Task :publishPlugin\nBUILD FAILED in 12s\n",
+            PROPERTIES,
+            LISTED,
+        )
+        self.assertTrue(any("BUILD SUCCESSFUL" in error for error in errors), errors)
+
+    def test_marketplace_without_the_version_fails(self):
+        errors = MODULE.receipt_errors(SUCCESS_LOG, PROPERTIES, MISSING)
+        self.assertTrue(
+            any("10.3.20260818" in error for error in errors),
+            errors,
+        )
+
+    def test_empty_log_fails_even_if_marketplace_lists_the_version(self):
+        errors = MODULE.receipt_errors("", PROPERTIES, LISTED)
+        self.assertTrue(any("BUILD SUCCESSFUL" in error for error in errors), errors)
+
+    def test_missing_plugin_version_fails(self):
+        errors = MODULE.receipt_errors(SUCCESS_LOG, "pluginSinceBuild=243\n", LISTED)
+        self.assertTrue(any("pluginVersion" in error for error in errors), errors)
+
+    def test_unreadable_updates_json_fails(self):
+        errors = MODULE.receipt_errors(SUCCESS_LOG, PROPERTIES, "not-json")
+        self.assertTrue(any("unreadable" in error for error in errors), errors)
+
+    def test_cli_accepts_fixture_updates_json(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            log = root / "publish.log"
+            properties = root / "gradle.properties"
+            updates = root / "updates.json"
+            log.write_text(SUCCESS_LOG, encoding="utf-8")
+            properties.write_text(PROPERTIES, encoding="utf-8")
+            updates.write_text(LISTED, encoding="utf-8")
+            self.assertEqual(
+                0,
+                MODULE.main(
+                    [
+                        "--log",
+                        str(log),
+                        "--properties",
+                        str(properties),
+                        "--updates-json",
+                        str(updates),
+                    ]
+                ),
+            )
+
+    def test_cli_fails_when_marketplace_omits_the_version(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            log = root / "publish.log"
+            properties = root / "gradle.properties"
+            updates = root / "updates.json"
+            log.write_text(SUCCESS_LOG, encoding="utf-8")
+            properties.write_text(PROPERTIES, encoding="utf-8")
+            updates.write_text(MISSING, encoding="utf-8")
+            self.assertEqual(
+                1,
+                MODULE.main(
+                    [
+                        "--log",
+                        str(log),
+                        "--properties",
+                        str(properties),
+                        "--updates-json",
+                        str(updates),
+                    ]
+                ),
+            )
+
+    def test_fetch_retries_then_raises(self):
+        attempts = {"n": 0}
+
+        def fetcher(_url: str) -> str:
+            attempts["n"] += 1
+            raise URLError("timed out")
+
+        sleeps: list[float] = []
+        with self.assertRaises(RuntimeError):
+            MODULE.fetch_updates_with_retry(
+                attempts=3,
+                delay_seconds=0.01,
+                sleeper=sleeps.append,
+                fetcher=fetcher,
+            )
+        self.assertEqual(3, attempts["n"])
+        self.assertEqual([0.01, 0.01], sleeps)
+
+
+if __name__ == "__main__":
+    unittest.main()
