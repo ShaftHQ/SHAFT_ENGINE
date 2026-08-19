@@ -2,6 +2,7 @@ package testPackage.locator;
 
 import org.openqa.selenium.Keys;
 import org.testng.annotations.Test;
+import testPackage.TestPageServer;
 import testPackage.Tests;
 
 @Test
@@ -17,28 +18,28 @@ public class SmartLocatorsTests extends Tests {
     // AI (and personal experience) adjusted priorities
 
     public void testSmartLocators1() {
-        driver.get().browser().navigateToURL("https://www.saucedemo.com/v1/index.html")
+        driver.get().browser().navigateToURL(TestPageServer.url("smartLoginFixture.html"))
                 .and().element().type("Username", "standard_user")
                 .and().type("Password", "secret_sauce")
                 .and().click("LOGIN");
     }
 
     public void testSmartLocators2() {
-        driver.get().browser().navigateToURL("https://practicetestautomation.com/practice-test-login/")
+        driver.get().browser().navigateToURL(TestPageServer.url("smartLoginFixture.html"))
                 .and().element().type("Username", "student")
                 .and().type("Password", "Password123")
                 .and().click("Submit");
     }
 
     public void testSmartLocators3() {
-        driver.get().browser().navigateToURL("https://www.selenium.dev/selenium/web/login.html")
+        driver.get().browser().navigateToURL(TestPageServer.url("smartLoginFixture.html"))
                 .and().element().type("Username", "test")
                 .and().type("Password", "test")
                 .and().click("login");
     }
 
     public void testSmartLocators6() {
-        driver.get().browser().navigateToURL("https://www.selenium.dev/selenium/web/web-form.html")
+        driver.get().browser().navigateToURL(TestPageServer.url("smartWebFormFixture.html"))
                 .and().element().type("Text input", "text")
                 .and().type("Password", "password")
                 .and().type("Textarea", "a lot\nof text")
@@ -53,14 +54,14 @@ public class SmartLocatorsTests extends Tests {
     }
 
     public void testSmartLocators8() {
-        driver.get().browser().navigateToURL("https://www.selenium.dev/selenium/web/login.html")
+        driver.get().browser().navigateToURL(TestPageServer.url("smartLoginFixture.html"))
                 .and().element().type("Username", "test")
                 .and().type("Password", "test")
                 .and().click("Login");
     }
 
     public void testSmartLocators9() {
-        driver.get().browser().navigateToURL("https://moatazeldebsy.github.io/test-automation-practices/#/forms")
+        driver.get().browser().navigateToURL(TestPageServer.url("smartLoginFixture.html"))
                 .and().element().type("Username", "USERNAME")
                 .and().type("Email", "EMAIL@DOMAIN.COM")
                 .and().type("Password", "PASSWORD")

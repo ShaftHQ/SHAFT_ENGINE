@@ -6,6 +6,7 @@ import org.openqa.selenium.By;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
+import testPackage.TestPageServer;
 
 public class IsElementClickableTest {
 
@@ -13,7 +14,7 @@ public class IsElementClickableTest {
 
     @Test
     public void testIsElementClickable() {
-        driver.get().browser().navigateToURL("https://the-internet.herokuapp.com/");
+        driver.get().browser().navigateToURL(TestPageServer.url("uploadFixture.html"));
         Validations.assertThat().object(driver.get().element().get().isEnabled(By.linkText("File Upload"))).isTrue().perform();
     }
 

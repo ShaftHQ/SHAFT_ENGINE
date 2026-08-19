@@ -5,9 +5,9 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.openqa.selenium.By;
+import testPackage.TestPageServer;
 
 public class JunitTest {
-    private static final String FORM_URL = "https://www.selenium.dev/selenium/web/web-form.html";
     private static final By TEXT_INPUT = By.id("my-text-id");
     private static final By PASSWORD = By.name("my-password");
     private static final ThreadLocal<SHAFT.GUI.WebDriver> driver = new ThreadLocal<>();
@@ -15,7 +15,7 @@ public class JunitTest {
     @Test
     void testMethod() {
         enterFormAndCaptureEvidence();
-        driver.get().assertThat().browser().url().contains("web-form.html").perform();
+        driver.get().assertThat().browser().url().contains("smartWebFormFixture.html").perform();
     }
 
     @Test
@@ -36,7 +36,7 @@ public class JunitTest {
     @BeforeEach
     void beforeEach() {
         driver.set(new SHAFT.GUI.WebDriver());
-        driver.get().browser().navigateToURL(FORM_URL);
+        driver.get().browser().navigateToURL(TestPageServer.url("smartWebFormFixture.html"));
     }
 
     @AfterEach

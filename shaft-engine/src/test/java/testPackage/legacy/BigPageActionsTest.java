@@ -5,9 +5,9 @@ import org.openqa.selenium.By;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
+import testPackage.TestPageServer;
 
 public class BigPageActionsTest {
-    private static final String FORM_URL = "https://www.selenium.dev/selenium/web/web-form.html";
     private static final By TEXT_INPUT = By.id("my-text-id");
     private static final By PASSWORD = By.name("my-password");
     private static final ThreadLocal<SHAFT.GUI.WebDriver> driver = new ThreadLocal<>();
@@ -15,7 +15,7 @@ public class BigPageActionsTest {
     @Test
     public void virtualThreads_1_sequential() {
         enterFormAndCaptureEvidence();
-        driver.get().assertThat().browser().url().contains("web-form.html").perform();
+        driver.get().assertThat().browser().url().contains("smartWebFormFixture.html").perform();
     }
 
     @Test
@@ -36,7 +36,7 @@ public class BigPageActionsTest {
     @BeforeMethod
     public void beforeMethod() {
         driver.set(new SHAFT.GUI.WebDriver());
-        driver.get().browser().navigateToURL(FORM_URL);
+        driver.get().browser().navigateToURL(TestPageServer.url("smartWebFormFixture.html"));
     }
 
     @AfterMethod(alwaysRun = true)
