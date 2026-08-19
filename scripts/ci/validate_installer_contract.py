@@ -133,10 +133,13 @@ def validate(root: Path = ROOT) -> list[str]:
 
     # Parse and verify installer command references in Java
     java_content = java_setup.read_text(encoding="utf-8")
-    # installerCommandFor builds: /scripts/mcp/install-shaft-mcp + .ps1 or .sh
-    if "/scripts/mcp/install-shaft-mcp" not in java_content:
+    if "/scripts/mcp/install-shaft-agentic-tools" not in java_content:
         errors.append(
-            f"installerCommandFor must reference '/scripts/mcp/install-shaft-mcp' in {java_setup}"
+            f"installerCommandFor must reference '/scripts/mcp/install-shaft-agentic-tools' in {java_setup}"
+        )
+    if "/scripts/mcp/install-shaft-mcp" in java_content:
+        errors.append(
+            f"installerCommandFor must not copy install-shaft-mcp as the primary command in {java_setup}"
         )
 
     # Primary inner scripts plus deprecation shims.

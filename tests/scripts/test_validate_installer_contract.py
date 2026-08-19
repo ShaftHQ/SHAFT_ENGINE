@@ -85,7 +85,7 @@ class ValidateInstallerContractTest(unittest.TestCase):
 
                 private static String installerCommandFor(String target) {
                     String url = "https://raw.githubusercontent.com/ShaftHQ/SHAFT_ENGINE/main"
-                            + "/scripts/mcp/install-shaft-mcp";
+                            + "/scripts/mcp/install-shaft-agentic-tools";
                     if (isWindows()) {
                         return "powershell ...";
                     }
@@ -134,7 +134,7 @@ class ValidateInstallerContractTest(unittest.TestCase):
                 }
 
                 private static String installerCommandFor(String target) {
-                    return "https://raw.githubusercontent.com/ShaftHQ/SHAFT_ENGINE/main/scripts/mcp/install-shaft-mcp";
+                    return "https://raw.githubusercontent.com/ShaftHQ/SHAFT_ENGINE/main/scripts/mcp/install-shaft-agentic-tools";
                 }
                 ''',
                 encoding="utf-8"
@@ -180,7 +180,7 @@ class ValidateInstallerContractTest(unittest.TestCase):
                 }
 
                 private static String installerCommandFor(String target) {
-                    return "https://raw.githubusercontent.com/ShaftHQ/SHAFT_ENGINE/main/scripts/mcp/install-shaft-mcp";
+                    return "https://raw.githubusercontent.com/ShaftHQ/SHAFT_ENGINE/main/scripts/mcp/install-shaft-agentic-tools";
                 }
                 ''',
                 encoding="utf-8"
@@ -225,7 +225,7 @@ class ValidateInstallerContractTest(unittest.TestCase):
                 }
 
                 private static String installerCommandFor(String target) {
-                    return "https://raw.githubusercontent.com/ShaftHQ/SHAFT_ENGINE/main/scripts/mcp/install-shaft-mcp";
+                    return "https://raw.githubusercontent.com/ShaftHQ/SHAFT_ENGINE/main/scripts/mcp/install-shaft-agentic-tools";
                 }
                 ''',
                 encoding="utf-8"

@@ -278,6 +278,8 @@ class ShaftSettingsConfigurableTest {
         settings.mcpCommand = "\"java\" \"@target/shaft-mcp.args\"";
         settings.mcpSetupComplete = true;
         settings.agentLaneReady = true;
+        settings.assistantFamily = "CODEX";
+        settings.defaultAutobotClient = "CODEX";
         ShaftSettingsConfigurable configurable = new ShaftSettingsConfigurable(settings, new InMemoryCredentials());
         JComponent panel = (JComponent) configurable.createComponent();
         JComboBox<?> agent = findByAccessibleName(panel, "Assistant agent", JComboBox.class);
@@ -299,6 +301,8 @@ class ShaftSettingsConfigurableTest {
         settings.mcpCommand = "\"java\" \"@target/shaft-mcp.args\"";
         settings.mcpSetupComplete = true;
         settings.agentLaneReady = true;
+        settings.assistantFamily = "CODEX";
+        settings.defaultAutobotClient = "CODEX";
         ShaftSettingsConfigurable configurable = new ShaftSettingsConfigurable(settings, new InMemoryCredentials());
         configurable.createComponent();
 

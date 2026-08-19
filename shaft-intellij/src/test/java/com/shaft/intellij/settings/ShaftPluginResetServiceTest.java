@@ -39,7 +39,7 @@ class ShaftPluginResetServiceTest {
                 () -> assertEquals("CLI", factoryDefaults.assistantRuntime),
                 () -> assertEquals("gemini", factoryDefaults.cloudProvider),
                 () -> assertEquals("gemini-3.5-flash", factoryDefaults.cloudModel),
-                () -> assertEquals("CODEX", factoryDefaults.defaultAutobotClient),
+                () -> assertEquals("", factoryDefaults.defaultAutobotClient),
                 () -> assertEquals("AGENT", factoryDefaults.defaultAutobotMode),
                 () -> assertEquals("none", factoryDefaults.pilotAiProvider),
                 () -> assertEquals("http://127.0.0.1:11434/api/chat", factoryDefaults.pilotAiEndpoint),

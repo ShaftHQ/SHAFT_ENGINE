@@ -501,7 +501,10 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
         boolean advancedSelected = advancedUiEnabled.isSelected();
         AssistantAgentRoute selectedRoute = selectedAgentRoute();
         String selectedProviderType = advancedSelected
-                ? String.valueOf(assistantProviderType.getSelectedItem()) : selectedRoute.providerType();
+                ? String.valueOf(assistantProviderType.getSelectedItem())
+                : (selectedRoute == null
+                        ? normalize(state.assistantProviderType, "LOCAL")
+                        : selectedRoute.providerType());
         String stateProviderType = normalize(state.assistantProviderType, "LOCAL");
         String cloudProviderName = String.valueOf(cloudProvider.getSelectedItem());
         String pilotProviderName = String.valueOf(pilotAiProvider.getSelectedItem());
@@ -556,10 +559,13 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
         state.mcpCommand = command;
         state.advancedUiEnabled = advancedUiEnabled.isSelected();
         state.watchModeEnabled = watchModeEnabled.isSelected();
-        selectedAgentRoute().applyTo(state);
-        state.assistantProviderType = state.advancedUiEnabled
-                ? String.valueOf(assistantProviderType.getSelectedItem())
-                : selectedAgentRoute().providerType();
+        AssistantAgentRoute selectedRoute = selectedAgentRoute();
+        if (selectedRoute != null) {
+            selectedRoute.applyTo(state);
+            state.assistantProviderType = state.advancedUiEnabled
+                    ? String.valueOf(assistantProviderType.getSelectedItem())
+                    : selectedRoute.providerType();
+        }
         state.cloudProvider = String.valueOf(cloudProvider.getSelectedItem());
         state.cloudModel = cloudModel.getText().trim();
         boolean cloudRouteActive = "CLOUD".equalsIgnoreCase(state.assistantProviderType);
@@ -1289,10 +1295,13 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
         ShaftSettingsState.Settings settings = new ShaftSettingsState.Settings();
         settings.mcpCommand = mcpCommand.getText() == null ? "" : mcpCommand.getText().trim();
         settings.advancedUiEnabled = advancedUiEnabled.isSelected();
-        selectedAgentRoute().applyTo(settings);
-        settings.assistantProviderType = settings.advancedUiEnabled
-                ? String.valueOf(assistantProviderType.getSelectedItem())
-                : selectedAgentRoute().providerType();
+        AssistantAgentRoute selectedRoute = selectedAgentRoute();
+        if (selectedRoute != null) {
+            selectedRoute.applyTo(settings);
+            settings.assistantProviderType = settings.advancedUiEnabled
+                    ? String.valueOf(assistantProviderType.getSelectedItem())
+                    : selectedRoute.providerType();
+        }
         settings.cloudProvider = String.valueOf(cloudProvider.getSelectedItem());
         settings.cloudModel = cloudModel.getText() == null ? "" : cloudModel.getText().trim();
         boolean cloudRouteActive = "CLOUD".equalsIgnoreCase(settings.assistantProviderType);
@@ -1406,7 +1415,7 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
 
     private AssistantAgentRoute selectedAgentRoute() {
         Object selected = assistantAgent == null ? null : assistantAgent.getSelectedItem();
-        return selected instanceof AssistantAgentRoute route ? route : AssistantAgentRoute.CODEX_CLI;
+        return selected instanceof AssistantAgentRoute route ? route : null;
     }
 
     private void syncLegacyAgentControls() {
@@ -1414,6 +1423,9 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
             return;
         }
         AssistantAgentRoute route = selectedAgentRoute();
+        if (route == null) {
+            return;
+        }
         assistantProviderType.setSelectedItem(route.providerType());
         assistantFamily.setSelectedItem(route.family());
         assistantRuntime.setSelectedItem(route.runtime());
