@@ -13,6 +13,7 @@ composite action leaves room for a second attempt instead of trading a red
 check for a timed-out one.
 """
 
+import importlib.util
 import unittest
 from pathlib import Path
 
@@ -214,10 +215,61 @@ class IntellijMarketplacePublishSplitTest(unittest.TestCase):
                 text,
                 f"cancelled/timeout before publishPlugin must file a dedicated tracker ({marker})",
             )
-        self.assertIn(
-            "if: always()",
-            text,
-            "coverage success must not hide a cancelled Marketplace publish",
+        jobs = _publish_workflow()["jobs"]
+        notify = jobs.get("notify-missed-publish") or jobs.get(
+            "notify-intellij-marketplace-publish"
+        )
+        self.assertIsNotNone(
+            notify,
+            "cancelled/timeout before publishPlugin must run notify-missed-publish",
+        )
+        self.assertEqual(
+            "always()",
+            notify.get("if"),
+            "notify-missed-publish must use if: always(); coverage upload always() is not the pin",
+        )
+
+    def test_coverage_upload_always_does_not_satisfy_notify_always_pin(self):
+        text = PUBLISH_WORKFLOW.read_text(encoding="utf-8")
+        mutated = text.replace(
+            "  notify-missed-publish:\n"
+            "    name: Fail closed on missed Marketplace publish\n"
+            "    needs: [verify, publish]\n"
+            "    if: always()\n",
+            "  notify-missed-publish:\n"
+            "    name: Fail closed on missed Marketplace publish\n"
+            "    needs: [verify, publish]\n",
+            1,
+        )
+        self.assertIn("if: always()", mutated)
+        jobs = (yaml.safe_load(mutated) or {}).get("jobs") or {}
+        notify = jobs.get("notify-missed-publish") or jobs.get(
+            "notify-intellij-marketplace-publish"
+        )
+        self.assertIsNotNone(notify)
+        self.assertNotEqual(
+            "always()",
+            notify.get("if"),
+            "deleting notify-missed-publish if: always() must fail even when coverage keeps if: always()",
+        )
+        coverage_always = any(
+            isinstance(step, dict) and step.get("if") == "always()"
+            for step in (jobs.get("verify") or {}).get("steps") or []
+        )
+        self.assertTrue(coverage_always, mutated)
+        spec = importlib.util.spec_from_file_location(
+            "validate_shaft_pilot_release",
+            REPO_ROOT / "scripts/ci/validate_shaft_pilot_release.py",
+        )
+        validator = importlib.util.module_from_spec(spec)
+        assert spec.loader is not None
+        spec.loader.exec_module(validator)
+        errors = validator.validate_intellij_marketplace_publish(
+            mutated, ACTION.read_text(encoding="utf-8")
+        )
+        self.assertTrue(
+            any("always()" in error and "notify" in error for error in errors),
+            errors,
         )
 
     def test_publish_plugin_requires_a_marketplace_or_gradle_receipt(self):

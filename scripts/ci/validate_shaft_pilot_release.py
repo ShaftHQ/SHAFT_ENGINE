@@ -382,9 +382,18 @@ def validate_intellij_marketplace_publish(
         errors.append(
             "publish-intellij-plugin.yml must grant issues: write for the dedicated miss tracker"
         )
-    if "if: always()" not in workflow_text:
+    notify_block = _workflow_job_block(workflow_text, "notify-missed-publish")
+    if notify_block is None:
+        notify_block = _workflow_job_block(
+            workflow_text, "notify-intellij-marketplace-publish"
+        )
+    if notify_block is None:
         errors.append(
-            "publish-intellij-plugin.yml must fail closed with if: always() when publishPlugin is missed"
+            "publish-intellij-plugin.yml must fail closed with a notify-missed-publish job"
+        )
+    elif not re.search(r"(?m)^    if: always\(\)\s*$", notify_block):
+        errors.append(
+            "publish-intellij-plugin.yml notify-missed-publish job must use if: always()"
         )
     verify_block = _workflow_job_block(workflow_text, "verify")
     publish_block = _workflow_job_block(workflow_text, "publish")

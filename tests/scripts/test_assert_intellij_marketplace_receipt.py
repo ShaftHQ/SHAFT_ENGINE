@@ -74,6 +74,37 @@ class IntellijMarketplaceReceiptTest(unittest.TestCase):
                 ),
             )
 
+    def test_cli_live_fetch_passes_plugin_version_into_retry(self):
+        seen: dict[str, str | None] = {}
+        original = MODULE.fetch_updates_with_retry
+
+        def wrapper(*args, **kwargs):
+            seen["version"] = kwargs.get("version")
+            return LISTED
+
+        MODULE.fetch_updates_with_retry = wrapper
+        try:
+            with tempfile.TemporaryDirectory() as temp:
+                root = Path(temp)
+                log = root / "publish.log"
+                properties = root / "gradle.properties"
+                log.write_text(SUCCESS_LOG, encoding="utf-8")
+                properties.write_text(PROPERTIES, encoding="utf-8")
+                self.assertEqual(
+                    0,
+                    MODULE.main(
+                        [
+                            "--log",
+                            str(log),
+                            "--properties",
+                            str(properties),
+                        ]
+                    ),
+                )
+        finally:
+            MODULE.fetch_updates_with_retry = original
+        self.assertEqual("10.3.20260818", seen.get("version"))
+
     def test_cli_fails_when_marketplace_omits_the_version(self):
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)
@@ -114,6 +145,47 @@ class IntellijMarketplaceReceiptTest(unittest.TestCase):
             )
         self.assertEqual(3, attempts["n"])
         self.assertEqual([0.01, 0.01], sleeps)
+
+    def test_fetch_retries_when_version_is_absent_then_listed(self):
+        payloads = [MISSING, LISTED]
+        attempts = {"n": 0}
+
+        def fetcher(_url: str) -> str:
+            attempts["n"] += 1
+            return payloads[attempts["n"] - 1]
+
+        sleeps: list[float] = []
+        body = MODULE.fetch_updates_with_retry(
+            attempts=5,
+            delay_seconds=0.01,
+            sleeper=sleeps.append,
+            fetcher=fetcher,
+            version="10.3.20260818",
+        )
+        self.assertEqual(LISTED, body)
+        self.assertEqual(2, attempts["n"])
+        self.assertEqual([0.01], sleeps)
+
+    def test_fetch_fails_closed_when_version_stays_absent(self):
+        attempts = {"n": 0}
+
+        def fetcher(_url: str) -> str:
+            attempts["n"] += 1
+            return MISSING
+
+        sleeps: list[float] = []
+        body = MODULE.fetch_updates_with_retry(
+            attempts=3,
+            delay_seconds=0.01,
+            sleeper=sleeps.append,
+            fetcher=fetcher,
+            version="10.3.20260818",
+        )
+        self.assertEqual(MISSING, body)
+        self.assertEqual(3, attempts["n"])
+        self.assertEqual([0.01, 0.01], sleeps)
+        errors = MODULE.marketplace_receipt_errors(body, "10.3.20260818")
+        self.assertTrue(any("10.3.20260818" in error for error in errors), errors)
 
 
 if __name__ == "__main__":

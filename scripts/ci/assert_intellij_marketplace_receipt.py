@@ -86,15 +86,31 @@ def fetch_updates_with_retry(
     delay_seconds: float = 15,
     sleeper=time.sleep,
     fetcher=fetch_updates,
+    version: str | None = None,
 ) -> str:
     last_error: Exception | None = None
+    last_json: str | None = None
     for attempt in range(1, attempts + 1):
         try:
-            return fetcher(url)
+            updates_json = fetcher(url)
         except (urllib.error.URLError, TimeoutError, OSError) as error:
             last_error = error
             if attempt < attempts:
                 sleeper(delay_seconds)
+            continue
+        last_json = updates_json
+        if version is None:
+            return updates_json
+        try:
+            versions = marketplace_versions(updates_json)
+        except (ValueError, json.JSONDecodeError):
+            return updates_json
+        if version in versions:
+            return updates_json
+        if attempt < attempts:
+            sleeper(delay_seconds)
+    if last_json is not None:
+        return last_json
     raise RuntimeError(f"Marketplace updates fetch failed: {last_error}") from last_error
 
 
@@ -115,7 +131,15 @@ def main(argv: list[str] | None = None) -> int:
         updates_json = args.updates_json.read_text(encoding="utf-8")
     else:
         try:
-            updates_json = fetch_updates_with_retry(url=args.updates_url)
+            version = plugin_version_from_properties(properties_text)
+        except ValueError as error:
+            print(str(error), file=sys.stderr)
+            return 1
+        try:
+            updates_json = fetch_updates_with_retry(
+                url=args.updates_url,
+                version=version,
+            )
         except RuntimeError as error:
             print(str(error), file=sys.stderr)
             return 1

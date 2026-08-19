@@ -792,6 +792,37 @@ jobs:
             errors,
         )
 
+    def test_always_must_bind_to_notify_missed_publish_job(self):
+        workflow = (
+            ROOT / ".github/workflows/publish-intellij-plugin.yml"
+        ).read_text(encoding="utf-8")
+        action = (ROOT / ".github/actions/intellij-verify/action.yml").read_text(
+            encoding="utf-8"
+        )
+        mutated = workflow.replace(
+            "  notify-missed-publish:\n"
+            "    name: Fail closed on missed Marketplace publish\n"
+            "    needs: [verify, publish]\n"
+            "    if: always()\n",
+            "  notify-missed-publish:\n"
+            "    name: Fail closed on missed Marketplace publish\n"
+            "    needs: [verify, publish]\n",
+            1,
+        )
+        self.assertNotEqual(workflow, mutated)
+        self.assertIn("if: always()", mutated)
+        notify_at = mutated.index("  notify-missed-publish:")
+        notify_block = mutated[notify_at:]
+        next_job = notify_block.find("\n  ", 4)
+        if next_job != -1:
+            notify_block = notify_block[:next_job]
+        self.assertNotIn("if: always()", notify_block)
+        errors = MODULE.validate_intellij_marketplace_publish(mutated, action)
+        self.assertTrue(
+            any("always()" in error and "notify" in error for error in errors),
+            errors,
+        )
+
     def test_nightly_cancelled_skip_fails(self):
         mutated = _minimal_publish_intellij_workflow_text().replace(
             "if: always()",
