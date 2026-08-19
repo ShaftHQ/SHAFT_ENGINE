@@ -2319,10 +2319,10 @@ final class ShaftMcpSetupPanel extends JPanel implements Disposable {
         boolean complete = settings.mcpSetupComplete && hasCommand;
         setStep(upgradeStep, upgradeState, "1 Upgrade project", upgradeStepState());
         setStep(chooseStep, chooseState, "2 Choose agent", chooseStepState());
-        setStep(installStep, installState, "3 Setup SHAFT Tools & Skills", mcpVersionStepState());
+        setStep(installStep, installState, "3 Setup tools & skills", mcpVersionStepState());
         setStep(agentCheckStep, agentCheckState, "4 Check agent connection",
                 selectedAgentRoute() == null ? "wait" : "next");
-        setStep(testStep, testState, "5 Check SHAFT agentic tools installation",
+        setStep(testStep, testState, "5 Check tools installation",
                 checkStepState(running, complete, hasCommand));
         setStep(null, readyState, "Ready", complete ? "next" : "wait");
         alignStepLabelWidths();
@@ -2575,7 +2575,9 @@ final class ShaftMcpSetupPanel extends JPanel implements Disposable {
      * label's natural width slightly — so no label is ever clamped narrower than its own text needs.
      */
     private void alignStepLabelWidths() {
-        JLabel[] stepLabels = {prerequisitesStep, upgradeStep, chooseStep, installStep, testStep, readyStep};
+        JLabel[] stepLabels = {
+                prerequisitesStep, upgradeStep, chooseStep, installStep, agentCheckStep, testStep, readyStep
+        };
         int maxWidth = 0;
         for (JLabel label : stepLabels) {
             label.setMinimumSize(null);

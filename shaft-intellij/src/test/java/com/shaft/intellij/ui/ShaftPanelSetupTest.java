@@ -813,8 +813,8 @@ class ShaftPanelSetupTest {
             assertTrue(containsText(toolWindow, "Runtime"));
             assertTrue(containsText(toolWindow, "1 Upgrade project"));
             assertTrue(containsText(toolWindow, "2 Choose agent"));
-            assertTrue(containsText(toolWindow, "3 Setup SHAFT Tools & Skills"));
-            assertTrue(containsText(toolWindow, "5 Check SHAFT agentic tools installation"));
+            assertTrue(containsText(toolWindow, "3 Setup tools & skills"));
+            assertTrue(containsText(toolWindow, "5 Check tools installation"));
             assertTrue(containsText(toolWindow, "Connect SHAFT Assistant"));
             // Issue #4314 fix 1: the redundant "Target: X. Runtime: Y." setupSummary caption is
             // removed -- the family/runtime combo boxes above it already show the live selection.
@@ -1571,7 +1571,7 @@ class ShaftPanelSetupTest {
     void setupPanelMcpVersionStepReflectsRealVersionCheck() throws Exception {
         ShaftMcpSetupPanel panel = new ShaftMcpSetupPanel(fakeProject(), blankMcpSettings(), () -> {
         });
-        // The merged "3 Setup SHAFT Tools & Skills" row's badge is driven by this same check (issue #3560):
+        // The merged "3 Setup tools & skills" row's badge is driven by this same check (issue #3560):
         // there is no separate "SHAFT MCP version" row anymore.
         JLabel installState = findByAccessibleName(panel, "Setup SHAFT Tools & Skills state", JLabel.class);
         JLabel mcpVersionDetail = findByAccessibleName(panel, "SHAFT MCP version status", JLabel.class);
@@ -1821,9 +1821,9 @@ class ShaftPanelSetupTest {
                 () -> assertFalse(copy.isEnabled()),
                 () -> assertNull(findByAccessibleName(panel, "Recommended assistant agent", JLabel.class)),
                 () -> assertTrue(containsText(panel, "2 Choose agent")),
-                () -> assertTrue(containsText(panel, "3 Setup SHAFT Tools & Skills")),
+                () -> assertTrue(containsText(panel, "3 Setup tools & skills")),
                 () -> assertTrue(containsText(panel, "4 Check agent connection")),
-                () -> assertTrue(containsText(panel, "5 Check SHAFT agentic tools installation")),
+                () -> assertTrue(containsText(panel, "5 Check tools installation")),
                 () -> assertNull(findByAccessibleName((JPanel) getField(panel, "chooseRow"),
                         "Check agent connection", JButton.class)));
     }
@@ -3074,7 +3074,7 @@ class ShaftPanelSetupTest {
     @Test
     void doneStepRowCollapsesOnceLaterStepIsActiveAndReExpandsOnClick() throws Exception {
         ShaftSettingsState.Settings settings = connectedMcpSettings();
-        // "2 Choose agent" reaches done, and "3 Setup SHAFT Tools & Skills" is still next -- the flow has
+        // "2 Choose agent" reaches done, and "3 Setup tools & skills" is still next -- the flow has
         // moved past the choose row, so it should collapse (issue #3601 S2) while install stays
         // fully expanded, since it is the step actually in front of the user.
         settings.agentLaneReady = true;
