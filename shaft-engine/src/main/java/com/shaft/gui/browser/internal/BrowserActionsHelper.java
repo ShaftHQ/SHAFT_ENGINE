@@ -166,11 +166,10 @@ public class BrowserActionsHelper {
     public void failAction(WebDriver driver, String actionName, String testData,
                            Exception... rootCauseException) {
         String message = reportActionResult(driver, actionName, testData, false, rootCauseException);
-        if (rootCauseException != null && rootCauseException.length > 0) {
-            FailureReporter.fail(BrowserActionsHelper.class, message, rootCauseException[0]);
-        } else {
-            FailureReporter.fail(message);
-        }
+        Throwable cause = (rootCauseException != null && rootCauseException.length > 0)
+                ? rootCauseException[0]
+                : new RuntimeException(message);
+        FailureReporter.fail(BrowserActionsHelper.class, message, cause);
     }
 
     private String reportActionResult(WebDriver driver, String actionName, String testData,

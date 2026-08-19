@@ -121,6 +121,28 @@ public class AllureActionStepReportingTest extends Tests {
     }
 
     @Test
+    public void failedNavigateAgainstInvalidUrlBodyWritesExactlyOneFailedAllureStep() throws IOException {
+        String url = TestPageServer.url("navigationErrorFixture.html");
+        SHAFT.Properties.flags.set().forceCheckNavigationWasSuccessful(true);
+        RuntimeException thrown = null;
+        try {
+            driver.get().browser().navigateToURL(url);
+        } catch (RuntimeException exception) {
+            thrown = exception;
+        }
+        Assert.assertNotNull(thrown,
+                "forceCheckNavigationWasSuccessful against navigationErrorFixture.html must fail navigateToURL.");
+
+        JsonObject result = snapshotCurrentAllureResult();
+        List<JsonObject> failedStepsForUrl = actionSteps(result, step ->
+                isFailedOrBroken(step) && stepName(step).contains(url)
+                        && !stepName(step).toLowerCase(Locale.ROOT).startsWith("attachment:"));
+        Assert.assertEquals(failedStepsForUrl.size(), 1,
+                "failAction with no throwable must not let FailureReporter.fail(String) add a second FAIL step. Steps: "
+                        + summarizeSteps(result));
+    }
+
+    @Test
     public void fluentNavigateTypeClickWritesDistinctActionSteps() throws IOException {
         String url = TestPageServer.url("smartLoginFixture.html");
         var username = SHAFT.GUI.Locator.hasAnyTagName().hasId("username").build();

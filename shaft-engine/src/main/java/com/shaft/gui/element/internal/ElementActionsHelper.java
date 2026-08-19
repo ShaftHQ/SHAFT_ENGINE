@@ -875,10 +875,13 @@ public class ElementActionsHelper {
             switch (Integer.parseInt(matchingElementsInformation.get(0).toString())) {
                 case 0 -> {
                     reportActionResult(driver, null, null, null, null, null, false);
-                    if (matchingElementsInformation.size() > 2 && matchingElementsInformation.get(2) instanceof Throwable) {
-                        FailureReporter.fail(ElementActionsHelper.class, "Failed to identify unique element using this locator \"" + JavaHelper.formatLocatorToString(elementLocator) + "\"", (Throwable) matchingElementsInformation.get(2));
-                    }
-                    FailureReporter.fail("Failed to identify unique element using this locator \"" + JavaHelper.formatLocatorToString(elementLocator) + "\"");
+                    String uniqueElementMessage = "Failed to identify unique element using this locator \""
+                            + JavaHelper.formatLocatorToString(elementLocator) + "\"";
+                    Throwable uniqueElementCause = (matchingElementsInformation.size() > 2
+                            && matchingElementsInformation.get(2) instanceof Throwable throwable)
+                            ? throwable
+                            : new RuntimeException(uniqueElementMessage);
+                    FailureReporter.fail(ElementActionsHelper.class, uniqueElementMessage, uniqueElementCause);
                 }
                 case 1 -> {
                     return matchingElementsInformation;
