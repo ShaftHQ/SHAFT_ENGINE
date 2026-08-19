@@ -27,7 +27,7 @@
   "hooks": {
     "PreToolUse": [
       {
-        "matcher": "Task|Agent|Read|Grep|Bash|PowerShell|shell_command|Write|Edit|NotebookEdit|apply_patch|WebSearch|WebFetch|web__run|update_plan|mcp__shaft-memory__(?:remember_memory|save_memory_patch)|mcp__mempalace__.*|mcp__graphify__.*",
+        "matcher": "Task|Agent|Read|Grep|Bash|PowerShell|shell_command|Write|Edit|NotebookEdit|apply_patch|WebSearch|WebFetch|web__run|update_plan|enter_plan_mode|EnterPlanMode|exit_plan_mode|ExitPlanMode|todo_write|TodoWrite|mcp__shaft-memory__(?:remember_memory|save_memory_patch)|mcp__mempalace__.*|mcp__graphify__.*",
         "hooks": [
           {
             "type": "command",
@@ -40,7 +40,7 @@
     ],
     "PostToolUse": [
       {
-        "matcher": "Read|Grep|Bash|PowerShell|shell_command|WebSearch|WebFetch|web__run|update_plan|mcp__shaft-memory__.*|mcp__mempalace__.*|mcp__graphify__.*",
+        "matcher": "Read|Grep|Bash|PowerShell|shell_command|WebSearch|WebFetch|web__run|update_plan|enter_plan_mode|EnterPlanMode|exit_plan_mode|ExitPlanMode|todo_write|TodoWrite|mcp__shaft-memory__.*|mcp__mempalace__.*|mcp__graphify__.*",
         "hooks": [
           {
             "type": "command",
@@ -53,7 +53,7 @@
     ],
     "PostToolUseFailure": [
       {
-        "matcher": "Read|Grep|Bash|PowerShell|shell_command|WebSearch|WebFetch|web__run|update_plan|mcp__shaft-memory__.*|mcp__mempalace__.*|mcp__graphify__.*",
+        "matcher": "Read|Grep|Bash|PowerShell|shell_command|WebSearch|WebFetch|web__run|update_plan|enter_plan_mode|EnterPlanMode|exit_plan_mode|ExitPlanMode|todo_write|TodoWrite|mcp__shaft-memory__.*|mcp__mempalace__.*|mcp__graphify__.*",
         "hooks": [
           {
             "type": "command",
