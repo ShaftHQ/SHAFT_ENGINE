@@ -242,9 +242,9 @@ def validate(root: Path = ROOT) -> list[str]:
         errors.append("shaft-pilot-release.yml must copy shaft-mcp runtime dependencies to the root target/dependency path")
     if "-pl shaft-mcp -am install" not in mcp_workflow:
         errors.append("shaft-mcp workflow must install reactor artifacts before copying thin runtime dependencies")
-    installer_implementation = root / "scripts/mcp/install_shaft_mcp.py"
+    installer_implementation = root / "scripts/mcp/install_shaft_agentic_tools.py"
     if not installer_implementation.is_file():
-        errors.append("missing shared Python MCP installer implementation: scripts/mcp/install_shaft_mcp.py")
+        errors.append("missing shared Python MCP installer implementation: scripts/mcp/install_shaft_agentic_tools.py")
         installer_implementation_text = ""
     else:
         installer_implementation_text = installer_implementation.read_text(encoding="utf-8")
@@ -262,7 +262,10 @@ def validate(root: Path = ROOT) -> list[str]:
         for legacy_client in ("codex-app",):
             if legacy_client in installer_implementation_text:
                 errors.append(f"shared Python MCP installer must not contain removed client target: {legacy_client}")
-    for installer in ("scripts/mcp/install-shaft-mcp.ps1", "scripts/mcp/install-shaft-mcp.sh"):
+    for installer in (
+        "scripts/mcp/install-shaft-agentic-tools.ps1",
+        "scripts/mcp/install-shaft-agentic-tools.sh",
+    ):
         if not (root / installer).is_file():
             errors.append(f"missing standalone MCP installer bootstrap: {installer}")
         else:
@@ -283,7 +286,7 @@ def validate(root: Path = ROOT) -> list[str]:
             for token in forbidden:
                 if token in installer_text:
                     errors.append(f"{installer} must not contain implementation or legacy installer token: {token}")
-            for required in ("install_shaft_mcp.py", "python-build-standalone"):
+            for required in ("install_shaft_agentic_tools.py", "python-build-standalone"):
                 if required not in installer_text:
                     errors.append(f"{installer} must be a thin Python bootstrapper containing {required}")
             if "progress" not in installer_text:
