@@ -104,7 +104,7 @@ final class AssistantLocalAgentRunner {
      * all.
      */
     static boolean hasStructuredStream(JsonObject arguments) {
-        return defaultCommand(arguments) && !"COPILOT_CLI".equals(normalize(string(arguments, "client", "CODEX")));
+        return defaultCommand(arguments) && !"COPILOT_CLI".equals(normalize(string(arguments, "client", "")));
     }
 
     static boolean supports(AssistantCommand.Invocation invocation) {
@@ -545,11 +545,12 @@ final class AssistantLocalAgentRunner {
         String mode = normalize(string(arguments, "mode", "ASK"));
         String model = string(arguments, "model", "").trim();
         String effort = normalize(string(arguments, "effort", ""));
-        return switch (normalize(string(arguments, "client", "CODEX"))) {
+        return switch (normalize(string(arguments, "client", ""))) {
             case "CLAUDE_CODE" -> claudeCommand(mode, allowSourceMutation, model, bridge);
             case "COPILOT_CLI" -> copilotCommand(mode, allowSourceMutation, model);
             case "GROK" -> grokCommand(mode, allowSourceMutation, string(arguments, "prompt", ""));
-            default -> codexCommand(mode, allowSourceMutation, unrestrictedLocalAgentAccess, model, effort);
+            case "CODEX" -> codexCommand(mode, allowSourceMutation, unrestrictedLocalAgentAccess, model, effort);
+            default -> List.of();
         };
     }
 
@@ -569,7 +570,7 @@ final class AssistantLocalAgentRunner {
         if (approvalHandler == null || !defaultCommand(arguments)) {
             return false;
         }
-        if (!"CLAUDE_CODE".equals(normalize(string(arguments, "client", "CODEX")))) {
+        if (!"CLAUDE_CODE".equals(normalize(string(arguments, "client", "")))) {
             return false;
         }
         return "AGENT".equals(normalize(string(arguments, "mode", "ASK")));
@@ -660,7 +661,7 @@ final class AssistantLocalAgentRunner {
                 if (outputConsumer != null) {
                     outputConsumer.accept("Interactive approval is unavailable (" + exception.getMessage()
                             + "); "
-                            + (AgentApprovalCapability.forClient(string(arguments, "client", "CODEX"))
+                            + (AgentApprovalCapability.forClient(string(arguments, "client", ""))
                             .isAutoApproveGranted(allowSourceMutation(arguments))
                             ? "file edits stay auto-approved, but other tool calls will be denied."
                             : "running in propose-only plan mode."));
@@ -683,7 +684,7 @@ final class AssistantLocalAgentRunner {
                 return ShaftMcpToolResult.failure(CUSTOM_AGENT_APPROVAL_WARNING);
             }
             if (requireCommandAvailable && defaultCommand(arguments) && !isCommandAvailable(command.get(0))) {
-                return ShaftMcpToolResult.failure(displayName(string(arguments, "client", "CODEX"))
+                return ShaftMcpToolResult.failure(displayName(string(arguments, "client", ""))
                         + " executable is not available on PATH.");
             }
             String stdin = string(arguments, "prompt", "");
@@ -1502,10 +1503,11 @@ final class AssistantLocalAgentRunner {
      * empty list when the CLI has no known model-listing capability.
      */
     static List<String> modelsCommandFor(JsonObject arguments) {
-        return switch (normalize(string(arguments, "client", "CODEX"))) {
+        return switch (normalize(string(arguments, "client", ""))) {
             case "CLAUDE_CODE" -> List.of("claude", "config", "list-models");
             case "COPILOT_CLI" -> List.of("copilot", "models");
-            default -> List.of("codex", "debug", "models");
+            case "CODEX" -> List.of("codex", "debug", "models");
+            default -> List.of();
         };
     }
 
@@ -1601,7 +1603,7 @@ final class AssistantLocalAgentRunner {
     }
 
     private static List<String> parseDiscoveredModelNames(JsonObject arguments, String output) {
-        if (!"CODEX".equals(normalize(string(arguments, "client", "CODEX")))) {
+        if (!"CODEX".equals(normalize(string(arguments, "client", "")))) {
             return parseModelNames(output);
         }
         try {
@@ -1663,7 +1665,7 @@ final class AssistantLocalAgentRunner {
      * selected client has no known compaction command.
      */
     static List<String> compactCommandFor(JsonObject arguments) {
-        return switch (normalize(string(arguments, "client", "CODEX"))) {
+        return switch (normalize(string(arguments, "client", ""))) {
             case "CLAUDE_CODE" -> List.of("claude", "--print", "/compact");
             case "COPILOT_CLI" -> List.of();
             default -> List.of();
@@ -2234,7 +2236,8 @@ final class AssistantLocalAgentRunner {
             case "CLAUDE_CODE" -> "Claude Code";
             case "COPILOT_CLI" -> "GitHub Copilot CLI";
             case "GROK" -> "Grok CLI";
-            default -> "Codex CLI";
+            case "CODEX" -> "Codex CLI";
+            default -> "Select an option";
         };
     }
 

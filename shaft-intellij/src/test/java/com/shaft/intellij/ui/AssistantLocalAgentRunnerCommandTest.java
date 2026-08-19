@@ -78,6 +78,21 @@ class AssistantLocalAgentRunnerCommandTest {
     }
 
     @Test
+    void grokCommandLaunchesGrokExecutable() {
+        List<String> command = AssistantLocalAgentRunner.commandFor(arguments("GROK", "AGENT", true));
+        assertEquals("grok", command.get(0), command.toString());
+        assertFalse(command.contains("codex"), command.toString());
+    }
+
+    @Test
+    void emptyClientDoesNotCoerceToCodex() {
+        JsonObject arguments = arguments("", "AGENT", true);
+        arguments.addProperty("client", "");
+        List<String> command = AssistantLocalAgentRunner.commandFor(arguments);
+        assertTrue(command.isEmpty(), command.toString());
+    }
+
+    @Test
     void claudeAgentCommandOnlyUsesAcceptEditsPermissionModeWhenApprovalStoreGrantsIt() {
         List<String> granted = AssistantLocalAgentRunner.commandFor(arguments("CLAUDE_CODE", "AGENT", true));
         List<String> ungranted = AssistantLocalAgentRunner.commandFor(arguments("CLAUDE_CODE", "AGENT", false));

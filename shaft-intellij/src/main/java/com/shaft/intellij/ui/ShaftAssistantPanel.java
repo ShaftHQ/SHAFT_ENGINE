@@ -1658,7 +1658,11 @@ final class ShaftAssistantPanel extends JPanel implements Disposable {
             captureIntegrationRunning = approvingCaptureReview;
             maybeAnnounceOrchestrationStages(text);
             int streamToken = ++localAgentStreamToken;
-            appendAgentMilestone("Tool selected: local assistant");
+            String client = invocation.arguments() == null || !invocation.arguments().has("client")
+                    ? ""
+                    : invocation.arguments().get("client").getAsString();
+            String toolName = AssistantCommand.Selection.fromClient(client).displayName();
+            appendAgentMilestone("Tool selected: " + toolName);
             setRunning(true, "Thinking...");
             appendStreamingLocalAgentBubble(streamToken);
             // Issue #3918: resolved once per run, before any output arrives, so appendLocalAgentOutput
