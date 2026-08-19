@@ -79,15 +79,13 @@ current working directory.
 Windows PowerShell:
 
 ```powershell
-$env:CHAOS_ENGINE_REPOSITORY = 'owner/repository'
-irm "https://raw.githubusercontent.com/$env:CHAOS_ENGINE_REPOSITORY/main/chaos-engine/install.ps1" | iex
+irm "https://raw.githubusercontent.com/ShaftHQ/SHAFT_ENGINE/main/chaos-engine/install.ps1" | iex
 ```
 
 macOS or Linux:
 
 ```bash
-export CHAOS_ENGINE_REPOSITORY=owner/repository
-curl -fsSL "https://raw.githubusercontent.com/${CHAOS_ENGINE_REPOSITORY}/main/chaos-engine/install.sh" | bash
+curl -fsSL "https://raw.githubusercontent.com/ShaftHQ/SHAFT_ENGINE/main/chaos-engine/install.sh" | bash
 ```
 
 Inspect [install.ps1](install.ps1), [install.sh](install.sh), and
