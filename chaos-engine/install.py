@@ -319,6 +319,13 @@ def load_capability_policy(source: Path, distribution: str) -> tuple[dict[str, d
     return merged, hashlib.sha256(encoded).hexdigest()
 
 
+def is_origin_only(relative: Path) -> bool:
+    return relative.parts[:2] == ("assets", "brand") or relative.as_posix() in {
+        "RESEARCH.md",
+        "STANDALONE.md",
+    }
+
+
 def source_files(source: Path, distribution: str = DEFAULT_DISTRIBUTION) -> tuple[Path, ...]:
     reject_link_or_reparse(source)
     if not (source / "skills/chaos-engine/SKILL.md").is_file():
@@ -341,10 +348,7 @@ def source_files(source: Path, distribution: str = DEFAULT_DISTRIBUTION) -> tupl
             and relative.parts[1] != selected_profile
         ):
             continue
-        if relative.parts[:2] == ("assets", "brand") or relative.as_posix() in {
-            "RESEARCH.md",
-            "STANDALONE.md",
-        }:
+        if is_origin_only(relative):
             continue
         if is_link_or_reparse(path):
             raise ValueError(f"source contains a link or reparse point: {relative}")

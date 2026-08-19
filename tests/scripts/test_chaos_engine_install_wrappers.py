@@ -5,7 +5,7 @@ from __future__ import annotations
 import os
 import re
 import shutil
-import subprocess
+import subprocess  # nosec B404 - tests invoke local pwsh/bash on repo wrappers only.
 import tempfile
 import unittest
 from pathlib import Path
@@ -181,7 +181,7 @@ foreach ($sample in $samples) {
             handle.write(script)
             driver = handle.name
         try:
-            completed = subprocess.run(
+            completed = subprocess.run(  # nosec B603 - local pwsh plus the repo wrapper
                 [pwsh, "-NoProfile", "-File", driver, str(POWERSHELL)],
                 check=False,
                 capture_output=True,
@@ -194,11 +194,11 @@ foreach ($sample in $samples) {
         self.assertEqual(
             [
                 "ShaftHQ/SHAFT_ENGINE|main|chaos-engine|"
-                "https://raw.githubusercontent.com/ShaftHQ/SHAFT_ENGINE/main/chaos-engine/bootstrap.py",
+                + "https://raw.githubusercontent.com/ShaftHQ/SHAFT_ENGINE/main/chaos-engine/bootstrap.py",
                 "Other/SHAFT_ENGINE|main|chaos-engine|"
-                "https://raw.githubusercontent.com/Other/SHAFT_ENGINE/main/chaos-engine/bootstrap.py",
+                + "https://raw.githubusercontent.com/Other/SHAFT_ENGINE/main/chaos-engine/bootstrap.py",
                 "Example/chaos-engine|main||"
-                "https://raw.githubusercontent.com/Example/chaos-engine/main/bootstrap.py",
+                + "https://raw.githubusercontent.com/Example/chaos-engine/main/bootstrap.py",
                 "NONE",
             ],
             lines,
@@ -325,7 +325,7 @@ Write-Output (Get-ChaosEngineHeader $message.Headers 'X-Missing')
         script = SHELL.as_posix()
         if os.name == "nt" and script[1:3] == ":/":
             wsl = "/mnt/" + script[0].lower() + script[2:]
-            probe = subprocess.run(
+            probe = subprocess.run(  # nosec B603 - local bash path probe, no user input
                 [shell, "-c", f"test -f '{wsl}' && echo wsl || test -f '{script}' && echo win || echo missing"],
                 check=False,
                 capture_output=True,

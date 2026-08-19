@@ -36,6 +36,7 @@ function Get-ChaosEngineHeader([object]$Headers, [string]$Name) {
         return $null
     }
     catch {
+        Write-Verbose "Retry-After lookup via header API failed"
     }
     try {
         $got = $Headers.GetValues($Name)
@@ -44,6 +45,7 @@ function Get-ChaosEngineHeader([object]$Headers, [string]$Name) {
         }
     }
     catch {
+        Write-Verbose "Retry-After lookup via header API failed"
     }
     try {
         $indexed = $Headers[$Name]
@@ -52,6 +54,7 @@ function Get-ChaosEngineHeader([object]$Headers, [string]$Name) {
         }
     }
     catch {
+        Write-Verbose "Retry-After lookup via header API failed"
     }
     return $null
 }

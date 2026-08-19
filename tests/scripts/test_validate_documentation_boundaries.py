@@ -82,6 +82,7 @@ flowchart LR
         self.write("chaos-engine/skills/chaos-engine/SKILL.md", "# ChaosEngine\n")
         self.write("chaos-engine/profiles/README.md", "# Project profiles\n")
         self.write("chaos-engine/RESEARCH.md", "# Adoption matrix\n")
+        self.write("chaos-engine/STANDALONE.md", "# Spec\n")
         self.write("chaos-engine/INSTALL.md", "# Install\n")
         self.write("chaos-engine/THIRD_PARTY_NOTICES.md", "# Notices\n")
 
