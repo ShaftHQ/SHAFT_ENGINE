@@ -115,7 +115,7 @@ ownership. Approval never crosses target classes.
 
 1. Orient on requested outcome and concrete proof of done.
 2. Read current instructions and live files before acting.
-3. Plan by uncertainty, blast radius, and reversibility; test riskiest premise first.
+3. Plan by uncertainty, blast radius, and reversibility; ground first, keep asking material follow-ups until decision-ready, then go unattended after approval; test riskiest premise first.
 4. Act in smallest verified increment. Fix root owner of an invariant, not each symptom.
 5. Verify affected behavior empirically, including nearest plausible regression.
 6. Report outcome, exact checks, failures, and Learning Loop result.

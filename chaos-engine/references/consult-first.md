@@ -2,7 +2,8 @@
 
 You are here because the entrypoint's triage selected a depth beyond the
 trivial row. Decide what good looks like and how the change will be proved
-before touching anything. No edits yet.
+before touching anything. No edits yet. Planning that skipped the material
+owner-only questions is incomplete.
 
 Triage is unconditional and lives in the entrypoint, so a trivial task never
 loads this file. Arrive already knowing which points you owe. If triage and the

@@ -39,9 +39,10 @@ contract changes.
 Every substantive plan is thorough and decision-ready. Establish the main
 objective and reasoning, success criteria, audience, included and excluded
 scope, constraints, current state, callers, assumptions, tradeoffs, risks, and
-proof before reducing the work to files or steps. Ask every material question
-needed for high confidence in the user's intent, but never ask a question the
-repository, retrieval stores, or authoritative sources can answer. Record the
+proof before reducing the work to files or steps. Ground first: never ask a
+question the repository, retrieval stores, or authoritative sources can answer.
+Then ask every material question and keep asking follow-ups until the plan is
+decision-ready. A plan that skipped those questions is incomplete. Record the
 answer, any remaining unknown, and the evidence behind the confidence level.
 
 Every plan records each store as `used` (scoped query plus verified evidence),
@@ -50,9 +51,12 @@ and includes dated online research. Legacy query/evidence means `used`. Compare
 two complete approaches and steelman the rejected option. Use Mermaid when
 dependencies, components, state, or workflows become materially clearer;
 otherwise record why a diagram would be decorative. Own implementation of the
-plan: after approval, carry it proactively through RED, implementation,
-independent review, PR delivery, authorized merge, and scoped cleanup. Re-ask
-only for a new HALT condition, not for approval already granted.
+plan: after approval, go unattended and carry it proactively through RED,
+implementation, independent review, PR delivery, authorized merge, and scoped
+cleanup. Do not ask the user for implementation clarifications or permission
+already granted. If execution hits ambiguity, take a consultant agent's
+guidance. Re-ask the user only for a new HALT condition: merge authority that
+was never granted, or a request that contradicts the approved plan.
 
 Install and learning contracts live in [dependencies.json](../dependencies.json)
 and are enforced by `tests/scripts/test_chaos_engine_installer.py`,

@@ -725,7 +725,7 @@ class EntrypointDutyTest(unittest.TestCase):
         planning = self.PLANNING_PLAYBOOK.read_text(encoding="utf-8")
         for heading in (
             "## 0. Ground the scope before asking anything",
-            "## 1. Ask once, at the start, then go unattended",
+            "## 1. Keep asking until the plan is decision-ready, then go unattended",
             "## 2. Branch and track",
             "## 3. Work items in dependency order, front-loading risk",
             "## 3b. Tracking issue + one-issue-per-subtask (mandatory default for new work)",
