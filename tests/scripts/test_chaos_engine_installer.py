@@ -1569,7 +1569,7 @@ class ChaosEngineInstallerTest(unittest.TestCase):
             self.assertEqual(old_digest, tree_digest(project / ".chaos-engine"))
             self.assertEqual(TEST_COMMIT, MODULE.status(project)["commit"])
 
-    def test_drift_rejects_update_and_uninstall(self):
+    def test_content_drift_repairs_on_update_and_still_rejects_uninstall(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
             project = root / "consumer"
@@ -1579,11 +1579,206 @@ class ChaosEngineInstallerTest(unittest.TestCase):
             installed.joinpath("profiles/README.md").write_text("user edit\n", encoding="utf-8")
 
             with self.assertRaisesRegex(ValueError, "drift"):
-                MODULE.install(project, source, "2" * 40)
-            with self.assertRaisesRegex(ValueError, "drift"):
                 MODULE.uninstall(project)
 
+            MODULE.install(project, source, "2" * 40)
+
+            repaired = project / ".chaos-engine"
+            self.assertNotEqual("user edit\n", (repaired / "profiles/README.md").read_text(encoding="utf-8"))
+            MODULE.verify_install(repaired)
+            self.assertEqual("2" * 40, MODULE.status(project)["commit"])
+            self.assertFalse(project.joinpath(".chaos-engine.backup").exists())
+            self.assertFalse(project.joinpath(".chaos-engine.backup.next").exists())
             self.assertTrue(installed.exists())
+
+    def test_crlf_drifted_install_upgrades_to_clean_payload(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            project = root / "consumer"
+            project.mkdir()
+            source = copy_source(root / "source")
+            installed = MODULE.install(project, source, TEST_COMMIT)
+            host_token = json.loads((installed / "manifest.json").read_text(encoding="utf-8"))["hostToken"]
+            for path in installed.rglob("*"):
+                if path.is_file():
+                    data = path.read_bytes()
+                    path.write_bytes(data.replace(b"\n", b"\r\n"))
+
+            with self.assertRaisesRegex(ValueError, "ownership drift"):
+                MODULE.verify_install(installed)
+
+            MODULE.install(project, source, "2" * 40)
+
+            repaired = project / ".chaos-engine"
+            MODULE.verify_install(repaired)
+            manifest = json.loads((repaired / "manifest.json").read_text(encoding="utf-8"))
+            self.assertEqual(host_token, manifest["hostToken"])
+            self.assertEqual("2" * 40, manifest["source"]["commit"])
+            self.assertNotIn(b"\r\n", (repaired / "README.md").read_bytes())
+            self.assertFalse(project.joinpath(".chaos-engine.backup").exists())
+            self.assertFalse(project.joinpath(".chaos-engine.backup.next").exists())
+
+    def test_generated_python_cache_is_not_ownership_drift(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary) / "consumer"
+            project.mkdir()
+            installed = MODULE.install(project, SOURCE, TEST_COMMIT)
+            cache = installed / "__pycache__"
+            cache.mkdir()
+            (cache / "hosts.cpython-314.pyc").write_bytes(b"generated")
+            before = tree_digest(project)
+
+            MODULE.verify_install(installed)
+            same = MODULE.install(project, SOURCE, TEST_COMMIT)
+
+            self.assertEqual(installed, same)
+            self.assertEqual(before, tree_digest(project))
+            self.assertTrue((cache / "hosts.cpython-314.pyc").is_file())
+
+    def test_repair_install_never_executes_a_drifted_controller(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary) / "consumer"
+            project.mkdir()
+            installed = MODULE.install(project, SOURCE, TEST_COMMIT)
+            sentinel = project / "executed.txt"
+            for name in ("hosts.py", "dependencies.py"):
+                controller = installed / name
+                controller.write_text(
+                    controller.read_text(encoding="utf-8")
+                    + f"\nfrom pathlib import Path\nPath({str(sentinel)!r}).write_text('executed')\n",
+                    encoding="utf-8",
+                )
+
+            MODULE.install_with_dependencies(
+                project, SOURCE, "2" * 40, provisioner=lambda *_args, **_kwargs: None
+            )
+
+            self.assertFalse(sentinel.exists())
+            MODULE.verify_install(project / ".chaos-engine")
+            self.assertEqual("2" * 40, MODULE.status(project)["commit"])
+            self.assertFalse(project.joinpath(".chaos-engine.backup").exists())
+            self.assertFalse(project.joinpath(".chaos-engine.backup.next").exists())
+
+    def test_invalid_manifest_tree_is_replaced_on_install(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary) / "consumer"
+            project.mkdir()
+            leftover = project / ".chaos-engine"
+            leftover.mkdir()
+            leftover.joinpath("leftover.txt").write_text("junk\n", encoding="utf-8")
+
+            MODULE.install(project, SOURCE, TEST_COMMIT)
+
+            repaired = project / ".chaos-engine"
+            self.assertFalse((repaired / "leftover.txt").exists())
+            MODULE.verify_install(repaired)
+            self.assertEqual(TEST_COMMIT, MODULE.status(project)["commit"])
+            self.assertFalse(project.joinpath(".chaos-engine.backup").exists())
+            self.assertFalse(project.joinpath(".chaos-engine.backup.next").exists())
+
+    def test_content_drift_repair_ignores_link_in_the_project_path(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary) / "linkage-app"
+            project.mkdir()
+            installed = MODULE.install(project, SOURCE, TEST_COMMIT)
+            installed.joinpath("profiles/README.md").write_text("user edit\n", encoding="utf-8")
+
+            MODULE.install(project, SOURCE, "2" * 40)
+
+            MODULE.verify_install(project / ".chaos-engine")
+            self.assertEqual("2" * 40, MODULE.status(project)["commit"])
+            self.assertFalse(project.joinpath(".chaos-engine.backup").exists())
+            self.assertFalse(project.joinpath(".chaos-engine.backup.next").exists())
+
+    def test_rollback_never_executes_a_drifted_controller(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary) / "consumer"
+            project.mkdir()
+            installed = MODULE.install(project, SOURCE, TEST_COMMIT)
+            sentinel = project / "executed.txt"
+            controller = installed / "hosts.py"
+            controller.write_text(
+                controller.read_text(encoding="utf-8")
+                + f"\nfrom pathlib import Path\nPath({str(sentinel)!r}).write_text('executed')\n",
+                encoding="utf-8",
+            )
+
+            with self.assertRaisesRegex(ValueError, "ownership drift"):
+                MODULE.rollback(project)
+
+            self.assertFalse(sentinel.exists())
+            self.assertTrue(installed.exists())
+
+    def test_failed_repair_publish_is_retryable(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            project = root / "consumer"
+            project.mkdir()
+            source = copy_source(root / "source")
+            installed = MODULE.install(project, source, TEST_COMMIT)
+            installed.joinpath("profiles/README.md").write_text("user edit\n", encoding="utf-8")
+            source.joinpath("profiles/README.md").write_text("updated\n", encoding="utf-8")
+            real_replace = Path.replace
+
+            def fail_stage_publish(path, destination):
+                if path.name.startswith(".chaos-engine-stage-") and destination == installed:
+                    raise OSError("injected")
+                return real_replace(path, destination)
+
+            with mock.patch.object(Path, "replace", autospec=True, side_effect=fail_stage_publish):
+                with self.assertRaisesRegex(OSError, "injected"):
+                    MODULE.install(project, source, "2" * 40)
+
+            MODULE.install(project, source, "2" * 40)
+
+            repaired = project / ".chaos-engine"
+            MODULE.verify_install(repaired)
+            self.assertEqual("2" * 40, MODULE.status(project)["commit"])
+            self.assertFalse(project.joinpath(".chaos-engine.transaction.json").exists())
+            self.assertFalse(project.joinpath(".chaos-engine.backup").exists())
+            self.assertFalse(project.joinpath(".chaos-engine.backup.next").exists())
+
+    def test_update_recovery_discards_a_drifted_displaced_tree(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            project = root / "consumer"
+            other = root / "other"
+            project.mkdir()
+            other.mkdir()
+            MODULE.install(project, SOURCE, TEST_COMMIT)
+            MODULE.install(other, SOURCE, TEST_COMMIT)
+            drifted = other / ".chaos-engine"
+            drifted.joinpath("profiles/README.md").write_text("user edit\n", encoding="utf-8")
+            MODULE.write_journal(project, "update", "2" * 40)
+            drifted.replace(project / MODULE.NEXT_BACKUP_NAME)
+
+            MODULE.recover_transaction(project)
+
+            MODULE.verify_install(project / ".chaos-engine")
+            self.assertFalse((project / MODULE.NEXT_BACKUP_NAME).exists())
+            self.assertFalse((project / MODULE.BACKUP_NAME).exists())
+            self.assertEqual(TEST_COMMIT, MODULE.status(project)["commit"])
+
+    def test_update_recovery_restores_verified_displaced_over_drifted_target(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            project = root / "consumer"
+            other = root / "other"
+            project.mkdir()
+            other.mkdir()
+            MODULE.install(project, SOURCE, TEST_COMMIT)
+            MODULE.install(other, SOURCE, TEST_COMMIT)
+            (project / ".chaos-engine" / "profiles/README.md").write_text(
+                "user edit\n", encoding="utf-8"
+            )
+            MODULE.write_journal(project, "update", "2" * 40)
+            (other / ".chaos-engine").replace(project / MODULE.NEXT_BACKUP_NAME)
+
+            MODULE.recover_transaction(project)
+
+            MODULE.verify_install(project / ".chaos-engine")
+            self.assertFalse((project / MODULE.NEXT_BACKUP_NAME).exists())
+            self.assertEqual(TEST_COMMIT, MODULE.status(project)["commit"])
 
     def test_failed_publish_restores_last_known_good(self):
         with tempfile.TemporaryDirectory() as temporary:

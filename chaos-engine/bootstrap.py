@@ -306,7 +306,7 @@ def install_latest(
         clients = host_controller.activate_detected_plugins(project)
         doctor["clients"] = clients.get("clients", {})
     except BaseException:
-        if prior_install:
+        if prior_install and (project / ".chaos-engine.backup").exists():
             installer.rollback(project)
         else:
             installer.uninstall_with_dependencies(project)

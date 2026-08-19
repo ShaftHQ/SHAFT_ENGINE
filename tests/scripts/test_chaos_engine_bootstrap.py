@@ -325,6 +325,54 @@ class ChaosEngineBootstrapTest(unittest.TestCase):
 
             host.activate_detected_plugins.assert_not_called()
             installer.uninstall_with_dependencies.assert_called_once_with(project.resolve())
+            installer.rollback.assert_not_called()
+
+    def test_failed_doctor_after_unverified_prior_tree_uninstalls_instead_of_rollback(self):
+        module = load()
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary) / "project"
+            project.mkdir()
+            (project / ".chaos-engine").mkdir()
+            opener, _ = self.opener([(COMMIT_ONE, "full")])
+            installer = mock.Mock()
+            installer.install_with_dependencies.return_value = project / ".chaos-engine"
+            installer.doctor_with_dependencies.side_effect = RuntimeError("probe failed")
+
+            with mock.patch.object(module, "load_installer", return_value=installer):
+                with self.assertRaisesRegex(RuntimeError, "probe failed"):
+                    module.install_latest(
+                        project,
+                        repository="Example/Project",
+                        branch="main",
+                        opener=opener,
+                    )
+
+            installer.uninstall_with_dependencies.assert_called_once_with(project.resolve())
+            installer.rollback.assert_not_called()
+
+    def test_failed_doctor_after_prior_install_with_backup_rolls_back(self):
+        module = load()
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary) / "project"
+            project.mkdir()
+            (project / ".chaos-engine").mkdir()
+            (project / ".chaos-engine.backup").mkdir()
+            opener, _ = self.opener([(COMMIT_ONE, "full")])
+            installer = mock.Mock()
+            installer.install_with_dependencies.return_value = project / ".chaos-engine"
+            installer.doctor_with_dependencies.side_effect = RuntimeError("probe failed")
+
+            with mock.patch.object(module, "load_installer", return_value=installer):
+                with self.assertRaisesRegex(RuntimeError, "probe failed"):
+                    module.install_latest(
+                        project,
+                        repository="Example/Project",
+                        branch="main",
+                        opener=opener,
+                    )
+
+            installer.rollback.assert_called_once_with(project.resolve())
+            installer.uninstall_with_dependencies.assert_not_called()
 
     def opener(self, commits: list[tuple[str, str]]):
         calls: list[str] = []

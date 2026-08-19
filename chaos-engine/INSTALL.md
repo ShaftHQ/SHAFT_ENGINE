@@ -87,7 +87,14 @@ repository profile is installed only when the target project's root `pom.xml`
 matches that profile's declared Maven artifact ids. Pass `--distribution` to
 the bootstrap if you need to override the detected choice. Re-running the
 same command upgrades to the latest resolved commit; an offline or invalid
-download leaves the last verified installation unchanged. The bootstrap retries
+download leaves the last verified installation unchanged. A drifted, CRLF-converted,
+extra-file, or otherwise broken `.chaos-engine` directory is replaced with a
+fresh verified payload. Controllers from that broken tree are not executed, and
+the broken tree is not kept as a rollback backup. A leftover install journal
+in front of a still-broken tree is dropped so the next run can retry. Link or
+reparse trees stay fail-closed. Uninstall and rollback of a still-drifted tree
+also stay fail-closed. Generated `__pycache__` files are not treated as
+ownership drift. The bootstrap retries
 transient timeout, connection, rate-limit, and server responses with bounded
 backoff, while permanent client errors fail immediately.
 
