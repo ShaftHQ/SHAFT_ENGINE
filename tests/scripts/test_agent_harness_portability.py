@@ -504,6 +504,25 @@ class AgentHarnessPortabilityTest(unittest.TestCase):
         ):
             self.assertIn(required, compact)
 
+    def test_portable_orchestrator_mode_groups_fewest_prs_and_keeps_working(self):
+        """#5246 #5249: portable orchestrator mode, not only the SHAFT profile."""
+        delegation = (ROOT / "chaos-engine/references/delegation.md").read_text(
+            encoding="utf-8"
+        )
+        skill = (ROOT / "chaos-engine/skills/chaos-engine/SKILL.md").read_text(
+            encoding="utf-8"
+        )
+        compact = re.sub(r"\s+", " ", "\n".join((delegation, skill)))
+        for required in (
+            "fewest PRs that still keep one problem per issue",
+            "stay available",
+            "live status table",
+            "keep working until every in-scope ticket is delivered",
+            "one writer at a time",
+            'Do not wait for the owner to say "orchestrate"',
+        ):
+            self.assertIn(required, compact)
+
     def test_host_token_budgets_include_mandatory_entrypoint(self):
         budget = json.loads(
             (ROOT / "scripts/ci/agent_guidance_budget.json").read_text(encoding="utf-8")
