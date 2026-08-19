@@ -8,6 +8,7 @@ import hashlib
 import json
 import os
 from pathlib import Path
+import re
 import shutil
 import subprocess  # nosec B404 - fixed gh list/create arguments, no shell.
 import tempfile
@@ -42,7 +43,112 @@ REQUIRED_HEADINGS = {
     ),
 }
 SCOPE_HEADINGS = ("Assumptions", "Out of scope")
+GENERIC_USER_STORY_STAMP = "Deliver the stated acceptance"
+_SPEC_KIT_FALLBACK_RE = re.compile(
+    r"## User Scenarios & Testing\b.*?(?=\n## (?!User Scenarios & Testing\b)|$)",
+    re.DOTALL,
+)
+_SPEC_KIT_CLUSTER_RE = re.compile(
+    r"## User Scenarios & Testing\b.*?"
+    r"(?=(?:\n## Dependencies\b|\n## Blocked\b|\n## Additional Context\b|\n## 📝|\Z))",
+    re.DOTALL,
+)
 
+
+def has_generic_spec_kit_stamp(body: str) -> bool:
+    return GENERIC_USER_STORY_STAMP in (body or "")
+
+
+def _acceptance_lines(body: str, acceptance: list[str] | None) -> list[str]:
+    if acceptance:
+        return [item.strip() for item in acceptance if _text(item)]
+    lines: list[str] = []
+    in_acceptance = False
+    for raw in (body or "").splitlines():
+        stripped = raw.strip()
+        if stripped.startswith("## ") and "Acceptance" in stripped and "Scenario" not in stripped:
+            in_acceptance = True
+            continue
+        if in_acceptance and stripped.startswith("## "):
+            break
+        if in_acceptance and stripped.startswith(("- ", "* ")):
+            lines.append(stripped[2:].strip())
+    return lines
+
+
+def _story_title(title: str, *, tracker: bool) -> str:
+    cleaned = " ".join((title or "").split()).strip() or "Deliver this work item"
+    if tracker:
+        return cleaned
+    for prefix in ("Tracking:", "[Feature Request]:", "[Bug]:", "Bug:", "Feature:"):
+        if cleaned.lower().startswith(prefix.lower()):
+            cleaned = cleaned[len(prefix):].strip(" -:")
+            break
+    return cleaned or "Deliver this work item"
+
+
+def _specialized_spec_kit_block(title: str, acceptance: list[str], *, tracker: bool) -> str:
+    story = _story_title(title, tracker=tracker)
+    primary = acceptance[0] if acceptance else story
+    secondary = acceptance[1] if len(acceptance) > 1 else primary
+    return "\n".join(
+        [
+            "## User Scenarios & Testing",
+            f"### User Story 1 - {story} (Priority: P1)",
+            "",
+            f"**Independent Test**: {primary}",
+            "",
+            "**Acceptance Scenarios**:",
+            "",
+            f"1. **Given** the current state described in this issue, **When** the proposed fix lands, "
+            f"**Then** {primary}",
+            "",
+            "## Edge Cases",
+            "",
+            "- Preserve prior acceptance; do not reopen closed parents named in this issue.",
+            "- Do not broaden into unrelated leftovers.",
+            "",
+            "## Functional Requirements",
+            "",
+            f"- **FR-001**: {primary}",
+            "- **FR-002**: Keep taxonomy labels valid (one primary, one lifecycle, at least one subsystem/module).",
+            "",
+            "## Success Criteria",
+            "",
+            f"- **SC-001**: {secondary}",
+            "- **SC-002**: Existing related acceptance is preserved, not weakened.",
+            "",
+            "## Assumptions",
+            "",
+            "- Prior problem statement and acceptance on this issue remain authoritative.",
+            "",
+            "## Out of scope",
+            "",
+            "- Unrelated campaign leftovers not named above.",
+        ]
+    )
+
+
+def rewrite_body_spec_kit(
+    body: str,
+    *,
+    title: str,
+    acceptance: list[str] | None = None,
+    tracker: bool = False,
+) -> str:
+    """Specialize Spec Kit User Story / FR / SC from this issue's acceptance.
+
+    Shared heading names stay required. Trackers may keep a campaign-level story
+    when tracker=True. Never paste GENERIC_USER_STORY_STAMP onto unrelated issues.
+    """
+    text = body or ""
+    criteria = _acceptance_lines(text, acceptance)
+    block = _specialized_spec_kit_block(title, criteria, tracker=tracker)
+    if _SPEC_KIT_CLUSTER_RE.search(text):
+        return _SPEC_KIT_CLUSTER_RE.sub(block.rstrip() + "\n", text, count=1).rstrip() + "\n"
+    if "## User Scenarios & Testing" in text:
+        return _SPEC_KIT_FALLBACK_RE.sub(block.rstrip() + "\n", text, count=1).rstrip() + "\n"
+    return text.rstrip() + "\n\n" + block + "\n"
 
 def _text(value) -> bool:
     return isinstance(value, str) and bool(value.strip())
@@ -119,6 +225,10 @@ def validate_issue_plan(plan: object, taxonomy: object) -> dict:  # noqa: MC0001
                 reasons.append(f"template field is missing: {heading}")
         if not any(heading in body for heading in SCOPE_HEADINGS):
             reasons.append("template field is missing: Assumptions or Out of scope")
+        if has_generic_spec_kit_stamp(body):
+            reasons.append(
+                f"generic Spec Kit stamp is forbidden: {GENERIC_USER_STORY_STAMP}"
+            )
     if not _texts(plan.get("acceptanceCriteria")):
         reasons.append("acceptance criteria are required")
     if state == "ready" and not _texts(plan.get("proofPlan")):

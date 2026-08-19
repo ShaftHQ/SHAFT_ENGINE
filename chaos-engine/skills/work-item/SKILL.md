@@ -32,6 +32,12 @@ Every body must include:
 Keep adopter template headings (for example bug or feature fields) so existing
 validators still match.
 
+When rewriting an existing item for Spec Kit hygiene, specialize User Story,
+`FR-*`, and `SC-*` from that issue's own acceptance (see
+`scripts.agents.issue_filing.rewrite_body_spec_kit`). Keep the shared heading
+checklist; never paste the generic stamp `Deliver the stated acceptance` onto
+unrelated tickets. Trackers may keep a campaign-level story.
+
 ## Taxonomy
 
 Exactly one primary type, exactly one lifecycle, at least one subsystem or
