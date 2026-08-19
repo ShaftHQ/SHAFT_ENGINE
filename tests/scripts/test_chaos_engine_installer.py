@@ -861,6 +861,8 @@ class ChaosEngineInstallerTest(unittest.TestCase):
             )
         )
         self.assertNotIn("RESEARCH.md", relatives)
+        self.assertNotIn("STANDALONE.md", relatives)
+        self.assertTrue((SOURCE / "STANDALONE.md").is_file())
         self.assertTrue(any(relative.startswith("assets/memory-v5/") for relative in relatives))
         self.assertIn("INSTALL.md", relatives)
         self.assertIn("LICENSE", relatives)

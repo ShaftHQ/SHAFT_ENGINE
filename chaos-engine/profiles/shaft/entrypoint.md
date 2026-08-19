@@ -33,8 +33,8 @@ apply unchanged to repository and portable installed hosts.
   one-liner in [INSTALL](../../INSTALL.md). From the target folder:
   `irm https://raw.githubusercontent.com/ShaftHQ/SHAFT_ENGINE/main/chaos-engine/install.ps1 | iex`
   on Windows, or
-  `curl -fsSL https://raw.githubusercontent.com/ShaftHQ/SHAFT_ENGINE/main/chaos-engine/install.sh | bash`
-  on macOS/Linux, with `CHAOS_ENGINE_REPOSITORY=ShaftHQ/SHAFT_ENGINE`.
+  `curl -fsSL https://raw.githubusercontent.com/ShaftHQ/SHAFT_ENGINE/main/chaos-engine/install.sh | bash -s -- https://raw.githubusercontent.com/ShaftHQ/SHAFT_ENGINE/main/chaos-engine/install.sh`
+  on macOS/Linux.
 - Maven modules and SHAFT product behavior route through the playbooks and
   mastery chapters under [references](references/routing.md).
 - Cheap, bounded, already-specified local coding work uses the

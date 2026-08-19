@@ -71,21 +71,22 @@ flow resolves a configured upstream branch to an immutable commit, downloads
 only that commit's validated `chaos-engine/` subtree, and installs ChaosEngine
 inside the target project.
 
-Configure `CHAOS_ENGINE_REPOSITORY` in the caller's host environment with the
-canonical `owner/repository` source; it is not copied into the adopter payload.
-Change into the target project or folder first; both scripts install into the
-current working directory.
+Replace `owner/repository` in the URL with the upstream that hosts the wrapper;
+it is not copied into the adopter payload. `CHAOS_ENGINE_REPOSITORY` remains a
+local-file override when the invocation URL cannot be parsed. Change into the
+target project or folder first; both scripts install into the current working
+directory.
 
 Windows PowerShell:
 
 ```powershell
-irm "https://raw.githubusercontent.com/ShaftHQ/SHAFT_ENGINE/main/chaos-engine/install.ps1" | iex
+irm "https://raw.githubusercontent.com/owner/repository/main/chaos-engine/install.ps1" | iex
 ```
 
 macOS or Linux:
 
 ```bash
-curl -fsSL "https://raw.githubusercontent.com/ShaftHQ/SHAFT_ENGINE/main/chaos-engine/install.sh" | bash
+curl -fsSL "https://raw.githubusercontent.com/owner/repository/main/chaos-engine/install.sh" | bash -s -- "https://raw.githubusercontent.com/owner/repository/main/chaos-engine/install.sh"
 ```
 
 Inspect [install.ps1](install.ps1), [install.sh](install.sh), and
