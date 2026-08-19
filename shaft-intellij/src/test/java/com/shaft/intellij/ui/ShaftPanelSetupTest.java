@@ -813,8 +813,8 @@ class ShaftPanelSetupTest {
             assertTrue(containsText(toolWindow, "Runtime"));
             assertTrue(containsText(toolWindow, "1 Upgrade project"));
             assertTrue(containsText(toolWindow, "2 Choose agent"));
-            assertTrue(containsText(toolWindow, "3 Setup tools & skills"));
-            assertTrue(containsText(toolWindow, "5 Check tools installation"));
+            assertTrue(containsText(toolWindow, "3 Setup SHAFT Tools & Skills"));
+            assertTrue(containsText(toolWindow, "5 Check SHAFT agentic tools installation"));
             assertTrue(containsText(toolWindow, "Connect SHAFT Assistant"));
             // Issue #4314 fix 1: the redundant "Target: X. Runtime: Y." setupSummary caption is
             // removed -- the family/runtime combo boxes above it already show the live selection.
@@ -1571,7 +1571,7 @@ class ShaftPanelSetupTest {
     void setupPanelMcpVersionStepReflectsRealVersionCheck() throws Exception {
         ShaftMcpSetupPanel panel = new ShaftMcpSetupPanel(fakeProject(), blankMcpSettings(), () -> {
         });
-        // The merged "3 Setup tools & skills" row's badge is driven by this same check (issue #3560):
+        // The merged "3 Setup SHAFT Tools & Skills" row's badge is driven by this same check (issue #3560):
         // there is no separate "SHAFT MCP version" row anymore.
         JLabel installState = findByAccessibleName(panel, "Setup SHAFT Tools & Skills state", JLabel.class);
         JLabel mcpVersionDetail = findByAccessibleName(panel, "SHAFT MCP version status", JLabel.class);
@@ -1823,9 +1823,9 @@ class ShaftPanelSetupTest {
                 () -> assertFalse(copy.isEnabled()),
                 () -> assertNull(findByAccessibleName(panel, "Recommended assistant agent", JLabel.class)),
                 () -> assertTrue(containsText(panel, "2 Choose agent")),
-                () -> assertTrue(containsText(panel, "3 Setup tools & skills")),
+                () -> assertTrue(containsText(panel, "3 Setup SHAFT Tools & Skills")),
                 () -> assertTrue(containsText(panel, "4 Check agent connection")),
-                () -> assertTrue(containsText(panel, "5 Check tools installation")),
+                () -> assertTrue(containsText(panel, "5 Check SHAFT agentic tools installation")),
                 () -> assertNull(findByAccessibleName((JPanel) getField(panel, "chooseRow"),
                         "Check agent connection", JButton.class)));
     }
@@ -1959,7 +1959,7 @@ class ShaftPanelSetupTest {
                     () -> assertFalse(findByAccessibleName(panel, "Copy setup diagnostic command", JButton.class).isVisible()),
                     () -> assertTrue(findByAccessibleName(panel, "Copy setup diagnostic output", JButton.class).isEnabled()),
                     () -> assertTrue(findByAccessibleName(panel, "Copy SHAFT MCP docs link", JButton.class).isEnabled()),
-                    () -> assertTrue(containsText(panel, "Recovery: retry Check tools installation")),
+                    () -> assertTrue(containsText(panel, "Recovery: retry Check SHAFT agentic tools installation")),
                     () -> assertNull(findButton(panel, "Install / Update SHAFT MCP")),
                     () -> assertTrue(findByAccessibleName(panel, "Test SHAFT MCP connection", JButton.class).isEnabled()));
             clickAccessible(panel, "Copy setup diagnostic output");
@@ -2486,7 +2486,7 @@ class ShaftPanelSetupTest {
 
     @Test
     void assistantLocalModelTooltipExplainsWhenCliReportsNoModels() throws Exception {
-        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, codexAssistantSettings());
         JComboBox<?> localModel = findByAccessibleName(panel, "Assistant local agent model", JComboBox.class);
 
         applyLocalModels(panel, "CODEX", List.of());
@@ -2498,7 +2498,7 @@ class ShaftPanelSetupTest {
 
     @Test
     void assistantKeepsCliDefaultAvailableAndShowsModelDiscoveryStatus() throws Exception {
-        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, codexAssistantSettings());
         JComboBox<?> localModel = findByAccessibleName(panel, "Assistant local agent model", JComboBox.class);
         JLabel status = findByAccessibleName(panel, "Local model discovery status", JLabel.class);
 
@@ -2524,7 +2524,7 @@ class ShaftPanelSetupTest {
 
     @Test
     void modelDiscoveryCheckingStateIsVisibleAndAccessibleUntilCompletion() throws Exception {
-        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, codexAssistantSettings());
         JLabel status = findByAccessibleName(panel, "Local model discovery status", JLabel.class);
         CompletableFuture<AssistantLocalAgentRunner.ModelDiscovery> discovery = new CompletableFuture<>();
 
@@ -2552,7 +2552,7 @@ class ShaftPanelSetupTest {
 
     @Test
     void assistantModelFailureStatusesRemainAccessibleAndFitNarrowSettings() throws Exception {
-        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, codexAssistantSettings());
         JLabel status = findByAccessibleName(panel, "Local model discovery status", JLabel.class);
 
         applyLocalModelDiscovery(panel, "CODEX", AssistantLocalAgentRunner.ModelDiscoveryState.UNAVAILABLE);
@@ -2572,7 +2572,7 @@ class ShaftPanelSetupTest {
 
     @Test
     void assistantKeepsManualModelDuringAcceptedSameFamilyRefresh() throws Exception {
-        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, codexAssistantSettings());
         JComboBox<String> localModel = findByAccessibleName(panel, "Assistant local agent model", JComboBox.class);
         localModel.getEditor().setItem("manual-account-model");
 
@@ -2662,7 +2662,7 @@ class ShaftPanelSetupTest {
 
     @Test
     void assistantKeepsPersistedCodexModelWhenModelDiscoveryIsEmpty() throws Exception {
-        ShaftSettingsState.Settings settings = blankMcpSettings();
+        ShaftSettingsState.Settings settings = codexAssistantSettings();
         settings.localModel = "gpt-5.2-codex";
         ShaftAssistantPanel panel = new ShaftAssistantPanel(null, settings);
 
@@ -2693,7 +2693,7 @@ class ShaftPanelSetupTest {
 
     @Test
     void assistantKeepsExplicitCodexModelWhenModelDiscoveryIsEmpty() throws Exception {
-        ShaftSettingsState.Settings settings = blankMcpSettings();
+        ShaftSettingsState.Settings settings = codexAssistantSettings();
         settings.localModel = "account-compatible-model";
         ShaftAssistantPanel panel = new ShaftAssistantPanel(null, settings);
 
@@ -2709,7 +2709,7 @@ class ShaftPanelSetupTest {
 
     @Test
     void assistantRefreshLocalModelsButtonIsVisibleForLocalCliAndResetsModelListFamily() throws Exception {
-        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, codexAssistantSettings());
         JButton refresh = findByAccessibleName(panel, "Refresh local agent models", JButton.class);
 
         assertNotNull(refresh);
@@ -3158,7 +3158,7 @@ class ShaftPanelSetupTest {
     @Test
     void doneStepRowCollapsesOnceLaterStepIsActiveAndReExpandsOnClick() throws Exception {
         ShaftSettingsState.Settings settings = connectedMcpSettings();
-        // "2 Choose agent" reaches done, and "3 Setup tools & skills" is still next -- the flow has
+        // "2 Choose agent" reaches done, and "3 Setup SHAFT Tools & Skills" is still next -- the flow has
         // moved past the choose row, so it should collapse (issue #3601 S2) while install stays
         // fully expanded, since it is the step actually in front of the user.
         settings.agentLaneReady = true;
@@ -7081,7 +7081,7 @@ class ShaftPanelSetupTest {
 
     @Test
     void assistantGateResendUsesAnInjectedLocalAgentLauncher() throws Exception {
-        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, codexAssistantSettings());
         assertTrue(Arrays.stream(ShaftAssistantPanel.class.getDeclaredFields())
                 .anyMatch(field -> field.getName().equals("localAgentProcessLauncher")),
                 "panel resend tests need a local-agent launcher seam");
@@ -7124,7 +7124,7 @@ class ShaftPanelSetupTest {
     @Test
     void assistantBlocksLocalAgentWhenRequiredShaftSkillsAreMissing(@TempDir Path projectRoot) throws Exception {
         ShaftAssistantPanel panel = new ShaftAssistantPanel(
-                fakeProject(new ShaftAssistantChatState(), projectRoot.toString()), blankMcpSettings());
+                fakeProject(new ShaftAssistantChatState(), projectRoot.toString()), codexAssistantSettings());
         CountDownLatch launchAttempted = new CountDownLatch(1);
         setField(panel, "localAgentProcessLauncher",
                 (AssistantLocalAgentRunner.ProcessLauncher) (command, directory, environment) -> {
@@ -8413,6 +8413,13 @@ class ShaftPanelSetupTest {
     private static ShaftSettingsState.Settings blankMcpSettings() {
         ShaftSettingsState.Settings settings = new ShaftSettingsState.Settings();
         settings.mcpCommand = "";
+        return settings;
+    }
+
+    private static ShaftSettingsState.Settings codexAssistantSettings() {
+        ShaftSettingsState.Settings settings = blankMcpSettings();
+        settings.assistantFamily = "CODEX";
+        settings.defaultAutobotClient = "CODEX";
         return settings;
     }
 

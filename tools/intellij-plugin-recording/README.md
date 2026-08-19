@@ -27,9 +27,9 @@ The default assistant route is local. The advanced UI flag is disabled by defaul
 1. Open SHAFT and complete **0 Prerequisites**. Use **Recheck** after installing a missing requirement.
 2. Complete **1 Upgrade project** so the project uses the current modular SHAFT coordinates.
 3. In **2 Choose agent**, pick a route (Codex CLI, Claude Code, Grok CLI, Copilot, Gemini, or SHAFT IntelliJ plugin). The combo starts unselected. Copy and later checks stay disabled until that pick. Codex is selectable, never a default.
-4. In **3 Setup tools & skills**, click **Copy**, then press Enter in the IntelliJ terminal that opens with the generated command pre-typed. Do not paste a hand-built stdio command into the UI. The plugin never executes the installer.
+4. In **3 Setup SHAFT Tools & Skills**, click **Copy**, then press Enter in the IntelliJ terminal that opens with the generated command pre-typed. Do not paste a hand-built stdio command into the UI. The plugin never executes the installer.
 5. In **4 Check agent connection**, confirm the selected agent is reachable.
-6. In **5 Check tools installation**, confirm SHAFT Agentic Tools (MCP, workspace, skills) are detected.
+6. In **5 Check SHAFT agentic tools installation**, confirm SHAFT Agentic Tools (MCP, workspace, skills) are detected.
 7. Confirm the separate **Ready** row appears, then choose **Start chatting** to open SHAFT Assistant.
 
 The [official IntelliJ guide](https://shafthq.github.io/docs/agentic/intellij)
