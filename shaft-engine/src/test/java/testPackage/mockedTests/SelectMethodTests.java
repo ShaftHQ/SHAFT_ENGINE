@@ -56,6 +56,7 @@ public class SelectMethodTests {
         if (driver.get() != null) {
             driver.get().quit();
         }
+        driver.remove();
     }
 
 }

@@ -411,12 +411,7 @@ public final class FailureDiagnosticsReporter {
     }
 
     private static String escapeJson(String value) {
-        return value(value)
-                .replace("\\", "\\\\")
-                .replace("\"", "\\\"")
-                .replace("\n", "\\n")
-                .replace("\r", "\\r")
-                .replace("\t", "\\t");
+        return JsonEscapes.escape(value);
     }
 
     private static String relative(Path path) {

@@ -7,6 +7,7 @@ from scripts.ci.validate_quality_configuration import (
     validate_codeql_build_mode,
     validate_grid_jobs_skip_infrastructure_tests,
     validate_maven_jvm_configuration,
+    validate_pr_gate_shaft_engine_unit_selectors,
     validate_quality_configuration,
     validate_scheduled_build_retry,
     validate_surefire_jacoco_arg_lines,
@@ -138,6 +139,27 @@ jobs:
 
     def test_repository_configuration_is_valid(self):
         self.assertEqual(validate_quality_configuration(), [])
+
+    def test_live_pr_gate_includes_rfc8259_and_threadlocal_guards(self):
+        self.assertEqual(validate_pr_gate_shaft_engine_unit_selectors(), [])
+
+    def test_pr_gate_shaft_engine_unit_selector_requires_rfc8259_and_threadlocal_guards(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            workflows = root / ".github" / "workflows"
+            workflows.mkdir(parents=True)
+            (workflows / "pr-gate.yml").write_text(
+                pr_gate_unit_job("'-Dtest=testPackage/unitTests/*, FailureTraceReporterTest'"),
+                encoding="utf-8",
+            )
+            self.assertEqual(
+                validate_pr_gate_shaft_engine_unit_selectors(root),
+                [
+                    "pr-gate.yml shaft-engine -Dtest must include "
+                    "com.shaft.tools.io.internal.Rfc8259SiblingEscapeJsonTest, "
+                    "testPackage.ThreadLocalGuiTeardownGuardTest"
+                ],
+            )
 
     def test_grid_run_tests_must_not_also_make_infrastructure_modules(self):
         with tempfile.TemporaryDirectory() as temp_dir:

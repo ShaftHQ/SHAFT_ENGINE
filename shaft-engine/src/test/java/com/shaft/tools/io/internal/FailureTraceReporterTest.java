@@ -220,6 +220,44 @@ public class FailureTraceReporterTest {
                 String decoded = encoded.replace("&lt;", "<").replace("&gt;", ">").replace("&amp;", "&");
                 assertRfc8259ControlCharsEscaped(decoded);
                 Assert.assertEquals(JSON.readTree(decoded).path("timeline").path(0).asText(), ansiBanner);
+                parseWithEcmaJsonParse(decoded);
+            }
+        } finally {
+            TraceEventRecorder.clear();
+            deleteDirectory(traceDirectory);
+            Properties.clearForCurrentThread();
+        }
+    }
+
+    @Test(description = "U+0008 in a timeline log line must be RFC 8259-escaped so a revert of the remaining-control branch fails")
+    public void backspaceInTimelineMustProduceStrictlyValidJson() throws Exception {
+        TestExecutionInfo failingInfo = info("backspaceTimelineScenario", failure());
+        Path traceDirectory = FailureTraceReporter.traceDirectory(failingInfo);
+        try {
+            deleteDirectory(traceDirectory);
+            SHAFT.Properties.reporting.set().traceEnabled(true).traceMode("failure");
+            String banner = "before\u0008after\u0000nul";
+            FailureTraceReporter.attachOnFailure(failingInfo, banner, List.of());
+
+            try (ZipFile zip = new ZipFile(traceDirectory.resolve("shaft-trace.zip").toFile())) {
+                String json = readZipEntry(zip, "shaft-trace.json");
+                assertRfc8259ControlCharsEscaped(json);
+                JsonNode root = JSON.readTree(json);
+                Assert.assertEquals(root.path("timeline").path(0).asText(), banner, json);
+                Assert.assertTrue(json.contains("\\u0008"), json);
+                Assert.assertTrue(json.contains("\\u0000"), json);
+
+                String html = readZipEntry(zip, "SHAFT Trace Report.html");
+                String marker = "<pre hidden id=\"trace-data\">";
+                int payloadStart = html.indexOf(marker);
+                Assert.assertTrue(payloadStart >= 0, html);
+                payloadStart += marker.length();
+                int payloadEnd = html.indexOf("</pre>", payloadStart);
+                String encoded = html.substring(payloadStart, payloadEnd);
+                String decoded = encoded.replace("&lt;", "<").replace("&gt;", ">").replace("&amp;", "&");
+                assertRfc8259ControlCharsEscaped(decoded);
+                Assert.assertEquals(JSON.readTree(decoded).path("timeline").path(0).asText(), banner);
+                parseWithEcmaJsonParse(decoded);
             }
         } finally {
             TraceEventRecorder.clear();
@@ -2642,6 +2680,24 @@ public class FailureTraceReporterTest {
                 Assert.fail("Unescaped RFC 8259 control character U+" + String.format("%04X", (int) c)
                         + " at index " + i);
             }
+        }
+    }
+
+    private static void parseWithEcmaJsonParse(String json) throws Exception {
+        Path payload = Files.createTempFile("trace-data", ".json");
+        try {
+            Files.writeString(payload, json, StandardCharsets.UTF_8);
+            Process process = new ProcessBuilder(
+                    "node",
+                    "-e",
+                    "JSON.parse(require('fs').readFileSync(process.argv[1], 'utf8'));",
+                    payload.toString())
+                    .redirectErrorStream(true)
+                    .start();
+            String output = new String(process.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
+            Assert.assertEquals(process.waitFor(), 0, "ECMA JSON.parse rejected #trace-data: " + output);
+        } finally {
+            Files.deleteIfExists(payload);
         }
     }
 

@@ -44,5 +44,6 @@ public class BigPageActionsTest {
         if (driver.get() != null) {
             driver.get().quit();
         }
+        driver.remove();
     }
 }

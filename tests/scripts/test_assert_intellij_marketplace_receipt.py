@@ -215,6 +215,68 @@ class IntellijMarketplaceReceiptTest(unittest.TestCase):
         self.assertNotIn("listing still lagging", blob)
         self.assertNotIn("Do not re-dispatch", blob)
 
+    def test_cli_skips_marketplace_poll_when_gradle_receipt_missing(self):
+        calls = {"n": 0}
+        original = MODULE.fetch_updates_with_retry
+
+        def wrapper(*args, **kwargs):
+            calls["n"] += 1
+            return LISTED
+
+        MODULE.fetch_updates_with_retry = wrapper
+        try:
+            with tempfile.TemporaryDirectory() as temp:
+                root = Path(temp)
+                log = root / "publish.log"
+                properties = root / "gradle.properties"
+                log.write_text("> Task :publishPlugin\nBUILD FAILED in 12s\n", encoding="utf-8")
+                properties.write_text(PROPERTIES, encoding="utf-8")
+                self.assertEqual(
+                    1,
+                    MODULE.main(
+                        [
+                            "--log",
+                            str(log),
+                            "--properties",
+                            str(properties),
+                        ]
+                    ),
+                )
+        finally:
+            MODULE.fetch_updates_with_retry = original
+        self.assertEqual(0, calls["n"])
+
+    def test_cli_retries_listing_when_gradle_succeeded_and_version_is_omitted(self):
+        calls = {"n": 0}
+        original = MODULE.fetch_updates_with_retry
+
+        def wrapper(*args, **kwargs):
+            calls["n"] += 1
+            return MISSING
+
+        MODULE.fetch_updates_with_retry = wrapper
+        try:
+            with tempfile.TemporaryDirectory() as temp:
+                root = Path(temp)
+                log = root / "publish.log"
+                properties = root / "gradle.properties"
+                log.write_text(SUCCESS_LOG, encoding="utf-8")
+                properties.write_text(PROPERTIES, encoding="utf-8")
+                self.assertEqual(
+                    1,
+                    MODULE.main(
+                        [
+                            "--log",
+                            str(log),
+                            "--properties",
+                            str(properties),
+                        ]
+                    ),
+                )
+        finally:
+            MODULE.fetch_updates_with_retry = original
+        self.assertEqual(1, calls["n"])
+
 
 if __name__ == "__main__":
     unittest.main()
