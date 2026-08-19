@@ -7,6 +7,9 @@ before touching anything. No edits yet.
 Triage is unconditional and lives in the entrypoint, so a trivial task never
 loads this file. Arrive already knowing which points you owe. If triage and the
 user's framing disagree about size, say so in one line and work to the larger.
+During planning, keep asking material follow-ups until the plan is
+decision-ready. After owner approval, execution is unattended; dispatch a
+consultant agent for implementation ambiguity rather than asking the user.
 
 ## Full pass
 

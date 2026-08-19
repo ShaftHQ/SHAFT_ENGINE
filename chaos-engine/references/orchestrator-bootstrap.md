@@ -14,17 +14,23 @@ does. A single stream skips this file and is worked solo, in sequence.
    owner asks, then backlog. Finish before opening new fronts.
 4. Compare file scopes. Sequence overlap; isolate independent writers in
    worktrees, within the concurrency cap in [delegation](delegation.md).
-5. Ticket substantial multi-part work before dispatch: tracker plus linked
-   subtask issues.
-6. Dispatch bounded specs: exact behavior, files, precedent, exclusions,
+   Default one writer at a time; parallel only on owner request.
+5. After loading every assigned ticket, group related work into the fewest PRs
+   that still keep one problem per issue. Ticket substantial multi-part work
+   before dispatch: tracker plus linked subtask issues.
+6. Create a delivery loop whose done condition is every in-scope ticket
+   delivered or explicitly out of scope. Do not stop after a plan, a status
+   table, or one PR.
+7. Dispatch bounded specs: exact behavior, files, precedent, exclusions,
    expected RED, and proof command. Select the most intelligent, default, or
    mechanical capability using [delegation](delegation.md), never provider
-   identity.
-7. Stay available for architecture and consult decisions, on the check-in
+   identity. After every dispatch, update the live status table.
+8. Stay available for architecture and consult decisions, on the check-in
    cadence in [delegation](delegation.md).
-8. Review the actual diff and tests as [delegation](delegation.md) defines.
-   Main thread owns synthesis and final verification.
-9. File adjacent findings and route durable Learning Loop output before close.
+9. Review the actual diff and tests as [delegation](delegation.md) defines.
+   Main thread owns synthesis and final verification. Verify Learning Loop
+   before kill, then destroy the finished writer and continue the delivery loop.
+10. File adjacent findings and route durable Learning Loop output before close.
 
 For branch, tracker, and PR mechanics use
 [work GitHub](work-github-playbook.md).
