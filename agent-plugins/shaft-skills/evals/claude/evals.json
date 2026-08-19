@@ -283,12 +283,12 @@
     },
     {
       "id": 29,
-      "prompt": "Capture the approved live checkout flow with privacy-safe browser evidence, readiness checks, interactions, and assertions for later code generation.",
+      "prompt": "generate code for opening Chrome, navigating to https://shafthq.github.io/, asserting \"Reliable automation evidence for every release.\"",
       "expected_output": "One structured chosen_skill value naming the specialist for the immediate deliverable.",
       "files": [],
       "expectations": [
         "The structured chosen_skill is exactly shaft-test-recording.",
-        "The structured chosen_skill is none of: shaft-recording-codegen."
+        "The structured chosen_skill is none of: shaft-recording-codegen, shaft-automated-test-authoring."
       ]
     },
     {

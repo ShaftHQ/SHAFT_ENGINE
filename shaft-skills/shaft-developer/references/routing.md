@@ -52,5 +52,13 @@ of duplicating their guidance.
 | Select or call an interactive, stateful, exploratory SHAFT MCP capability | [`shaft-mcp`](../../shaft-mcp/SKILL.md) |
 | Select or run a deterministic one-shot SHAFT CLI command | [`shaft-cli`](../../shaft-cli/SKILL.md) |
 
+When the requested output is generated test code from a natural-language web,
+mobile, or API scenario and no persisted recording exists, load
+[`shaft-test-recording`](../../shaft-test-recording/SKILL.md) first. After the
+recording is persisted and replay-proven, return here and load
+[`shaft-recording-codegen`](../../shaft-recording-codegen/SKILL.md). Do not send
+that request to
+[`shaft-automated-test-authoring`](../../shaft-automated-test-authoring/SKILL.md).
+
 Do not infer exact MCP names, parameters, or CLI flags from this map. The two
 tool specialists resolve them from the generated canonical catalogs.

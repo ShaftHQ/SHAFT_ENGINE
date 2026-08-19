@@ -176,9 +176,9 @@
     },
     {
       "id": "route-test-recording",
-      "prompt": "Capture the approved live checkout flow with privacy-safe browser evidence, readiness checks, interactions, and assertions for later code generation.",
+      "prompt": "generate code for opening Chrome, navigating to https://shafthq.github.io/, asserting \"Reliable automation evidence for every release.\"",
       "expected_skill": "shaft-test-recording",
-      "rejected_skills": ["shaft-recording-codegen"]
+      "rejected_skills": ["shaft-recording-codegen", "shaft-automated-test-authoring"]
     },
     {
       "id": "route-web-actions",

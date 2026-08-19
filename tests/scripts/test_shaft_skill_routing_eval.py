@@ -1,6 +1,7 @@
 """Routing corpus, native compiler, and result evaluator tests (#4642)."""
 
 import json
+import re
 import tempfile
 import unittest
 from pathlib import Path
@@ -26,6 +27,11 @@ except ImportError:
 ROOT = Path(__file__).resolve().parents[2]
 CORPUS_PATH = ROOT / "agent-plugins/shaft-skills/evals/cases.json"
 REVIEW_PATH = ROOT / "shaft-skills/quality-review.json"
+ROUTING_PATH = ROOT / "shaft-skills/shaft-developer/references/routing.md"
+OWNER_GENERATE_PROMPT = (
+    "generate code for opening Chrome, navigating to https://shafthq.github.io/, "
+    'asserting "Reliable automation evidence for every release."'
+)
 
 
 class ShaftSkillRoutingEvalTest(unittest.TestCase):
@@ -254,6 +260,36 @@ class ShaftSkillRoutingEvalTest(unittest.TestCase):
             defects = validate_repository(root)
 
         self.assertIn("generated-drift", {defect["code"] for defect in defects})
+
+
+class OwnerGenerateFromScenarioRoutingTest(unittest.TestCase):
+    """#5247: generate-from-scenario is record then replay+heal then generate."""
+
+    def test_routing_map_sends_scenario_generate_to_recording_then_codegen(self):
+        routing = ROUTING_PATH.read_text(encoding="utf-8")
+        compact = re.sub(r"\s+", " ", routing).casefold()
+        self.assertIn("no persisted recording", compact)
+        self.assertRegex(
+            compact,
+            r"shaft-test-recording.{0,160}shaft-recording-codegen",
+        )
+        self.assertRegex(
+            compact,
+            r"do not send that request to .{0,40}shaft-automated-test-authoring",
+        )
+
+    def test_owner_prompt_selects_recording_and_rejects_authoring_and_codegen(self):
+        corpus = json.loads(CORPUS_PATH.read_text(encoding="utf-8"))
+        matches = [
+            case
+            for case in corpus["cases"]
+            if case["prompt"] == OWNER_GENERATE_PROMPT
+        ]
+        self.assertTrue(matches, "owner generate-from-scenario prompt missing from corpus")
+        case = matches[0]
+        self.assertEqual(case["expected_skill"], "shaft-test-recording")
+        self.assertIn("shaft-recording-codegen", case["rejected_skills"])
+        self.assertIn("shaft-automated-test-authoring", case["rejected_skills"])
 
 
 if __name__ == "__main__":

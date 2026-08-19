@@ -12,6 +12,9 @@ description: Use when starting any SHAFT testing task to select exactly one life
 - Tools: [`shaft-mcp`](../shaft-mcp/SKILL.md), [`shaft-cli`](../shaft-cli/SKILL.md)
 
 Read [the deterministic routing map](references/routing.md), select the single
-closest specialist for the current deliverable, and load only that skill. Return
-here only when the user asks for a distinct next deliverable. Never guess SHAFT
-syntax, tool names, execution evidence, or product behavior.
+closest specialist for the current deliverable, and load only that skill. A
+natural-language web, mobile, or API scenario whose output is generated test
+code starts at `shaft-test-recording`, then returns here for
+`shaft-recording-codegen` after the recording is persisted and replay-proven.
+Return here only when the user asks for a distinct next deliverable. Never guess
+SHAFT syntax, tool names, execution evidence, or product behavior.
