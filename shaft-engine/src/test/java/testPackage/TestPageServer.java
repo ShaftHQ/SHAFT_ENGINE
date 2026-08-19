@@ -29,6 +29,25 @@ public final class TestPageServer {
         return "http://" + browserHost() + ":" + port + "/" + fixtureName;
     }
 
+    /**
+     * URL that accepts TCP and never writes an HTTP response, so a driver that
+     * actually waits for page load cannot complete navigation.
+     */
+    public static String neverRespondUrl() {
+        ensureStarted();
+        return "http://" + browserHost() + ":" + port + "/__never_respond";
+    }
+
+    private static void neverRespond(HttpExchange exchange) {
+        try {
+            Thread.sleep(Long.MAX_VALUE);
+        } catch (InterruptedException interruptedException) {
+            Thread.currentThread().interrupt();
+        } finally {
+            exchange.close();
+        }
+    }
+
     private static void ensureStarted() {
         if (server != null) {
             return;
@@ -41,6 +60,7 @@ public final class TestPageServer {
                 var newServer = HttpServer.create(new InetSocketAddress("0.0.0.0", 0), 0);
                 var root = Path.of(SHAFT.Properties.paths.testData()).toAbsolutePath().normalize();
                 newServer.createContext("/", exchange -> serveFixture(exchange, root));
+                newServer.createContext("/__never_respond", TestPageServer::neverRespond);
                 newServer.setExecutor(Executors.newCachedThreadPool(runnable -> {
                     Thread thread = new Thread(runnable, "test-page-server");
                     thread.setDaemon(true);

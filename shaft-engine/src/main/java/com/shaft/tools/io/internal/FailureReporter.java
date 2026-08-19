@@ -1,6 +1,7 @@
 package com.shaft.tools.io.internal;
 
 import com.google.common.base.Throwables;
+import com.shaft.gui.browser.internal.BrowserActionsHelper;
 import com.shaft.gui.element.internal.ElementActionsHelper;
 import com.shaft.tools.internal.support.JavaHelper;
 
@@ -12,7 +13,7 @@ public class FailureReporter {
     public static void fail(Class<?> failedFileManager, String message, Throwable throwable) {
         String rootCause = getRootCause(throwable);
 
-        if (failedFileManager != ElementActionsHelper.class) {
+        if (failedFileManager != ElementActionsHelper.class && failedFileManager != BrowserActionsHelper.class) {
             String actionName = "fail";
             for (StackTraceElement stackTraceElement : Arrays.stream(Thread.currentThread().getStackTrace()).toList()) {
                 var methodName = stackTraceElement.getMethodName();
