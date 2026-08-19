@@ -2742,7 +2742,7 @@ final class ShaftMcpSetupPanel extends JPanel implements Disposable {
         copyOutput.setEnabled(!diagnosticOutput.isBlank());
         copyDocs.setVisible(!diagnosticOutput.isBlank());
         copyDocs.setEnabled(!diagnosticOutput.isBlank());
-        String recoveryStatusText = "Recovery: retry Check setup, copy diagnostics, or open the SHAFT MCP docs link.";
+        String recoveryStatusText = "Recovery: retry Check tools installation, copy diagnostics, or open the SHAFT MCP docs link.";
         recoveryStatus.setText(recoveryStatusText);
         recoveryStatus.getAccessibleContext().setAccessibleDescription(recoveryStatusText);
         recoveryStatus.setVisible(!diagnosticOutput.isBlank());

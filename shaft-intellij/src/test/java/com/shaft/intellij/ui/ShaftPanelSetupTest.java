@@ -1876,7 +1876,7 @@ class ShaftPanelSetupTest {
                     () -> assertFalse(findByAccessibleName(panel, "Copy setup diagnostic command", JButton.class).isVisible()),
                     () -> assertTrue(findByAccessibleName(panel, "Copy setup diagnostic output", JButton.class).isEnabled()),
                     () -> assertTrue(findByAccessibleName(panel, "Copy SHAFT MCP docs link", JButton.class).isEnabled()),
-                    () -> assertTrue(containsText(panel, "Recovery: retry Check setup")),
+                    () -> assertTrue(containsText(panel, "Recovery: retry Check tools installation")),
                     () -> assertNull(findButton(panel, "Install / Update SHAFT MCP")),
                     () -> assertTrue(findByAccessibleName(panel, "Test SHAFT MCP connection", JButton.class).isEnabled()));
             clickAccessible(panel, "Copy setup diagnostic output");
