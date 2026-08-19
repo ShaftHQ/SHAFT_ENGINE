@@ -617,13 +617,19 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
         watchModeEnabled.setSelected(state.watchModeEnabled);
         assistantAgent.setSelectedItem(AssistantAgentRoute.fromSettings(state));
         assistantProviderType.setSelectedItem(normalize(state.assistantProviderType, "LOCAL"));
-        assistantFamily.setSelectedItem(resolveFamily(state));
+        String family = resolveFamily(state);
+        if (family.isBlank()) {
+            assistantFamily.setSelectedIndex(-1);
+            defaultClient.setSelectedIndex(-1);
+        } else {
+            assistantFamily.setSelectedItem(family);
+            defaultClient.setSelectedItem(clientFromFamily(family));
+        }
         assistantRuntime.setSelectedItem(normalize(state.assistantRuntime, "CLI"));
         cloudProvider.setSelectedItem(normalizeLower(state.cloudProvider, "gemini"));
         cloudModel.setText(state.cloudModel == null ? "" : state.cloudModel);
         updateCloudCredentialSources();
         selectCloudCredentialSource(state.providerApiKeyEnvironmentVariable(state.cloudProvider));
-        defaultClient.setSelectedItem(clientFromFamily(resolveFamily(state)));
         defaultMode.setSelectedItem(state.defaultAutobotMode);
         pilotAiProvider.setSelectedItem(state.pilotAiProvider == null || state.pilotAiProvider.isBlank()
                 ? "none" : state.pilotAiProvider);
@@ -738,20 +744,30 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
         if (!family.isBlank()) {
             return family;
         }
-        return switch (normalize(state.defaultAutobotClient, "CODEX")) {
+        String client = state.defaultAutobotClient == null ? "" : state.defaultAutobotClient.trim();
+        if (client.isBlank()) {
+            return "";
+        }
+        return switch (client.toUpperCase(Locale.ROOT).replace('-', '_').replace(' ', '_')) {
             case "CLAUDE_CODE" -> "CLAUDE";
             case "COPILOT_CLI" -> "COPILOT";
             case "GROK" -> "GROK";
-            default -> "CODEX";
+            case "CODEX" -> "CODEX";
+            default -> "";
         };
     }
 
     private static String clientFromFamily(String family) {
-        return switch (normalize(family, "CODEX")) {
+        String normalized = normalize(family, "");
+        if (normalized.isBlank()) {
+            return "";
+        }
+        return switch (normalized) {
             case "CLAUDE" -> "CLAUDE_CODE";
             case "COPILOT" -> "COPILOT_CLI";
             case "GROK" -> "GROK";
-            default -> "CODEX";
+            case "CODEX" -> "CODEX";
+            default -> "";
         };
     }
 

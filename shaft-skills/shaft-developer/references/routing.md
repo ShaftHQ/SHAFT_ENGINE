@@ -54,11 +54,9 @@ of duplicating their guidance.
 
 When the requested output is generated test code from a natural-language web,
 mobile, or API scenario and no persisted recording exists, load
-[`shaft-test-recording`](../../shaft-test-recording/SKILL.md) first. After the
-recording is persisted and replay-proven, return here and load
-[`shaft-recording-codegen`](../../shaft-recording-codegen/SKILL.md). Do not send
-that request to
-[`shaft-automated-test-authoring`](../../shaft-automated-test-authoring/SKILL.md).
+`shaft-test-recording` first. After the recording is persisted and replay-proven,
+return here and load `shaft-recording-codegen`. Do not send that request to
+`shaft-automated-test-authoring`.
 
 Do not infer exact MCP names, parameters, or CLI flags from this map. The two
 tool specialists resolve them from the generated canonical catalogs.

@@ -316,6 +316,36 @@ class ShaftSettingsConfigurableTest {
     }
 
     @Test
+    void emptyFamilyAndClientDoNotCoerceToCodex() throws Exception {
+        ShaftSettingsState.Settings settings = new ShaftSettingsState.Settings();
+        settings.assistantFamily = "";
+        settings.defaultAutobotClient = "";
+        ShaftSettingsConfigurable configurable = new ShaftSettingsConfigurable(settings, new InMemoryCredentials());
+        JComponent panel = (JComponent) configurable.createComponent();
+
+        Method resolveFamily = ShaftSettingsConfigurable.class.getDeclaredMethod(
+                "resolveFamily", ShaftSettingsState.Settings.class);
+        resolveFamily.setAccessible(true);
+        Method clientFromFamily = ShaftSettingsConfigurable.class.getDeclaredMethod("clientFromFamily", String.class);
+        clientFromFamily.setAccessible(true);
+
+        String family = String.valueOf(resolveFamily.invoke(null, settings));
+        String mappedClient = String.valueOf(clientFromFamily.invoke(null, ""));
+        JComboBox<?> agent = findByAccessibleName(panel, "Assistant agent", JComboBox.class);
+        JComboBox<?> familyCombo = (JComboBox<?>) getField(configurable, "assistantFamily");
+        JComboBox<?> clientCombo = (JComboBox<?>) getField(configurable, "defaultClient");
+
+        assertAll(
+                () -> assertTrue(family.isBlank() || "null".equals(family), family),
+                () -> assertNotEquals("CODEX", family),
+                () -> assertTrue(mappedClient.isBlank() || "null".equals(mappedClient), mappedClient),
+                () -> assertNotEquals("CODEX", mappedClient),
+                () -> assertNull(agent.getSelectedItem()),
+                () -> assertNotEquals("CODEX", familyCombo.getSelectedItem()),
+                () -> assertNotEquals("CODEX", clientCombo.getSelectedItem()));
+    }
+
+    @Test
     void advancedUiFlagIsPersistedBySettingsPanel() throws Exception {
         ShaftSettingsState.Settings settings = new ShaftSettingsState.Settings();
         ShaftSettingsConfigurable configurable = new ShaftSettingsConfigurable(settings, new InMemoryCredentials());
