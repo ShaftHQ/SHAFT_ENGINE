@@ -65,6 +65,6 @@ LICENSE
 # Graphify extract omits path segments named build/ (compiled-output convention).
 # These two contract tests live in package com.shaft.intellij.build, so they are
 # absent from manifest.json after a successful extract. Ignore them here so they
-# do not block freshness until the package moves or Graphifyy stops dropping
+# do not block freshness until the package moves or Graphify stops dropping
 # build/ sources. Do not ignore other IntelliJ Java tests.
 shaft-intellij/src/test/java/com/shaft/intellij/build/
