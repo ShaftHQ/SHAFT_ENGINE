@@ -1,4 +1,5 @@
 import importlib.util
+import inspect
 import tempfile
 import unittest
 from pathlib import Path
@@ -186,6 +187,33 @@ class IntellijMarketplaceReceiptTest(unittest.TestCase):
         self.assertEqual([0.01, 0.01], sleeps)
         errors = MODULE.marketplace_receipt_errors(body, "10.3.20260818")
         self.assertTrue(any("10.3.20260818" in error for error in errors), errors)
+
+    def test_default_retry_budget_covers_observed_marketplace_listing_lag(self):
+        # Run 32247439124: BUILD SUCCESSFUL at 11:35:30Z, receipt miss at 11:36:32Z (~62s).
+        parameters = inspect.signature(MODULE.fetch_updates_with_retry).parameters
+        attempts = parameters["attempts"].default
+        delay_seconds = parameters["delay_seconds"].default
+        wait_seconds = (attempts - 1) * delay_seconds
+        self.assertGreaterEqual(
+            wait_seconds,
+            90,
+            f"default listing-lag wait is {wait_seconds}s; observed miss was ~62s",
+        )
+
+    def test_gradle_success_with_omitted_version_names_listing_lag(self):
+        errors = MODULE.receipt_errors(SUCCESS_LOG, PROPERTIES, MISSING)
+        blob = "\n".join(errors)
+        self.assertTrue(any("10.3.20260818" in error for error in errors), errors)
+        self.assertIn("listing still lagging", blob)
+        self.assertIn("Do not re-dispatch", blob)
+        self.assertNotIn("Gradle publish log is missing BUILD SUCCESSFUL", blob)
+
+    def test_missing_gradle_receipt_does_not_claim_listing_lag(self):
+        errors = MODULE.receipt_errors("", PROPERTIES, MISSING)
+        blob = "\n".join(errors)
+        self.assertTrue(any("BUILD SUCCESSFUL" in error for error in errors), errors)
+        self.assertNotIn("listing still lagging", blob)
+        self.assertNotIn("Do not re-dispatch", blob)
 
 
 if __name__ == "__main__":
