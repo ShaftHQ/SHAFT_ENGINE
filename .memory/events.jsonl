@@ -1173,3 +1173,4 @@
 {"actor":"agent","event":"memory.created","id":"gotcha.failed-locator-by-must-not-run-before-getby-on-the-same-line","timestamp":"2026-08-18T19:17:30+03:00"}
 {"actor":"agent","event":"memory.created","id":"gotcha.empty-git-status-porcelain-piped-to-set-content-skips-git-status-txt","timestamp":"2026-08-18T20:03:45+03:00"}
 {"actor":"agent","event":"memory.updated","id":"gotcha.tiny-1-5b-soup-sft-is-not-enough-for-aider-whole-format","timestamp":"2026-08-18T20:21:32+03:00"}
+{"actor":"agent","event":"memory.created","id":"gotcha.plan-surface-receipt-mapping-must-normalize-snake-case-and-pascalcase-tool-names","timestamp":"2026-08-19T03:51:15+03:00"}
