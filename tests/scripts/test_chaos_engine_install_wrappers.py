@@ -111,6 +111,10 @@ class ChaosEngineInstallWrapperTest(unittest.TestCase):
         self.assertIn(PLACEHOLDER, shell)
         self.assertIn("Get-PSCallStack", powershell)
         self.assertIn("TryGetValues", powershell)
+        self.assertIn("Test-ChaosEngineSourceTree", powershell)
+        self.assertIn("is_chaos_engine_source_tree", shell)
+        self.assertIn("skills/chaos-engine/SKILL.md", powershell)
+        self.assertIn("skills/chaos-engine/SKILL.md", shell)
         self.assertNotIn('$response.Headers["Retry-After"]', powershell)
         self.assertNotIn("$response.Headers['Retry-After']", powershell)
         self.assertNotIn("shaft", powershell.casefold())
@@ -299,6 +303,9 @@ Write-Output (Get-ChaosEngineHeader $message.Headers 'X-Missing')
             wrapper = Path(temporary) / "install.ps1"
             wrapper.write_text(POWERSHELL.read_text(encoding="utf-8"), encoding="utf-8")
             (Path(temporary) / "bootstrap.py").write_text("marker = 1\n", encoding="utf-8")
+            skill = Path(temporary) / "skills" / "chaos-engine" / "SKILL.md"
+            skill.parent.mkdir(parents=True)
+            skill.write_text("# ChaosEngine\n", encoding="utf-8")
             completed = subprocess.run(
                 [
                     pwsh,
@@ -317,6 +324,35 @@ Write-Output (Get-ChaosEngineHeader $message.Headers 'X-Missing')
             )
         self.assertEqual(0, completed.returncode, completed.stderr + completed.stdout)
         self.assertIn("Example/Project|main|local|", completed.stdout)
+
+
+    def test_powershell_scratch_directory_with_stale_sibling_bootstrap_is_rejected(self):
+        pwsh = shutil.which("pwsh") or shutil.which("powershell")
+        if pwsh is None:
+            self.skipTest("pwsh is not on PATH")
+        with tempfile.TemporaryDirectory() as temporary:
+            wrapper = Path(temporary) / "install.ps1"
+            wrapper.write_text(POWERSHELL.read_text(encoding="utf-8"), encoding="utf-8")
+            (Path(temporary) / "bootstrap.py").write_text("marker = 1\n", encoding="utf-8")
+            completed = subprocess.run(
+                [
+                    pwsh,
+                    "-NoProfile",
+                    "-File",
+                    str(wrapper),
+                ],
+                check=False,
+                capture_output=True,
+                text=True,
+                env={
+                    **os.environ,
+                    "CHAOS_ENGINE_RESOLVE_ONLY": "1",
+                    "CHAOS_ENGINE_REPOSITORY": "Example/Project",
+                },
+            )
+        self.assertEqual(0, completed.returncode, completed.stderr + completed.stdout)
+        self.assertIn("Example/Project|main|remote|", completed.stdout)
+        self.assertNotIn("|local|", completed.stdout)
 
     def test_shell_wrapper_uses_positional_url_over_env(self):
         shell = shutil.which("bash") or shutil.which("sh")

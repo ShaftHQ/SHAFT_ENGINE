@@ -19,6 +19,12 @@ valid_repository() {
   printf '%s\n' "$1" | grep -Eq '^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$'
 }
 
+is_chaos_engine_source_tree() {
+  script_dir="$1"
+  [ -n "$script_dir" ] || return 1
+  [ -f "$script_dir/skills/chaos-engine/SKILL.md" ]
+}
+
 parse_chaos_engine_raw_url() {
   rest=$(printf '%s\n' "$1" | sed -n 's#.*https://raw.githubusercontent.com/\([A-Za-z0-9_.-]*\)/\([A-Za-z0-9_.-]*\)/\(.*\)/install\.sh.*#\1/\2|\3#p' | head -n 1)
   if [ -z "$rest" ]; then
@@ -131,7 +137,7 @@ echo "Installing ChaosEngine into ${project} from ${repository}@${branch}"
 case "$0" in
   */install.sh|install.sh)
     script_dir=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
-    if [ -f "$script_dir/bootstrap.py" ]; then
+    if [ -f "$script_dir/bootstrap.py" ] && is_chaos_engine_source_tree "$script_dir"; then
       cp "$script_dir/bootstrap.py" "$bootstrap"
     else
       fetch "$bootstrap" "$bootstrap_url"
