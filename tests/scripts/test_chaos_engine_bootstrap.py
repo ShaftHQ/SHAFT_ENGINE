@@ -336,7 +336,6 @@ class ChaosEngineBootstrapTest(unittest.TestCase):
             opener, _ = self.opener([(COMMIT_ONE, "full")])
             installer = mock.Mock()
             installer.install_with_dependencies.return_value = project / ".chaos-engine"
-            host = installer.load_installed_controller.return_value
             installer.doctor_with_dependencies.side_effect = RuntimeError("probe failed")
 
             with mock.patch.object(module, "load_installer", return_value=installer):
