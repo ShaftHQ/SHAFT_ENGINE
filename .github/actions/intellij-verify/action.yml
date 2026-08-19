@@ -8,6 +8,12 @@ inputs:
     description: 'When "true", also sign and publish the plugin to the JetBrains Marketplace.'
     required: false
     default: 'false'
+  verify:
+    description: >-
+      When "false", skip check/buildPlugin/verifyPlugin. Use with publish=="true"
+      so a long :verifyPlugin cannot consume the Marketplace publish timeout.
+    required: false
+    default: 'true'
   marketplace-token:
     description: 'JetBrains Marketplace publishing token. Required when publish=="true".'
     required: false
@@ -79,6 +85,7 @@ runs:
     # established for Maven Central, and it retries a transfer refusal only:
     # a verifier finding or a compile error still fails on the first attempt.
     - name: Run Gradle build
+      if: inputs.verify != 'false'
       shell: bash
       run: bash scripts/ci/build_retry.sh 2 15 bash shaft-intellij/gradlew -p shaft-intellij check buildPlugin verifyPlugin
     # Deliberately not retried. A JetBrains Marketplace version number is
@@ -94,4 +101,10 @@ runs:
         ORG_GRADLE_PROJECT_intellijPlatformCertificateChain: ${{ inputs.certificate-chain }}
         ORG_GRADLE_PROJECT_intellijPlatformPrivateKey: ${{ inputs.private-key }}
         ORG_GRADLE_PROJECT_intellijPlatformPrivateKeyPassword: ${{ inputs.private-key-password }}
-      run: bash shaft-intellij/gradlew -p shaft-intellij signPlugin publishPlugin
+      run: |
+        set -euo pipefail
+        log="${RUNNER_TEMP:-/tmp}/shaft-intellij-publishPlugin.log"
+        bash shaft-intellij/gradlew -p shaft-intellij signPlugin publishPlugin --console=plain 2>&1 | tee "$log"
+        python3 scripts/ci/assert_intellij_marketplace_receipt.py \
+          --log "$log" \
+          --properties shaft-intellij/gradle.properties

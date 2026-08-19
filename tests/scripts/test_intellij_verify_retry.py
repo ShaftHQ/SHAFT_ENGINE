@@ -13,6 +13,7 @@ composite action leaves room for a second attempt instead of trading a red
 check for a timed-out one.
 """
 
+import importlib.util
 import unittest
 from pathlib import Path
 
@@ -22,7 +23,16 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 ACTION = REPO_ROOT / ".github/actions/intellij-verify/action.yml"
 RETRY_SCRIPT = REPO_ROOT / "scripts/ci/build_retry.sh"
 WORKFLOWS = REPO_ROOT / ".github/workflows"
+PUBLISH_WORKFLOW = WORKFLOWS / "publish-intellij-plugin.yml"
 BUILD_FILE = REPO_ROOT / "shaft-intellij/build.gradle.kts"
+MARKETPLACE_RECEIPT_MARKERS = (
+    "assert_intellij_marketplace_receipt",
+    "BUILD SUCCESSFUL",
+)
+MARKETPLACE_MISS_MARKERS = (
+    "intellij-marketplace-publish-miss",
+    "issues: write",
+)
 
 # One failed attempt (2m38s in the run this issue was filed from) plus a pause
 # plus a full successful build (5m11s in run 30940070004) does not fit in ten
@@ -34,6 +44,21 @@ MINIMUM_TIMEOUT_MINUTES = 20
 def _run_steps() -> list[dict]:
     document = yaml.safe_load(ACTION.read_text(encoding="utf-8"))
     return [step for step in document["runs"]["steps"] if "run" in step]
+
+
+def _publish_workflow() -> dict:
+    return yaml.safe_load(PUBLISH_WORKFLOW.read_text(encoding="utf-8")) or {}
+
+
+def _intellij_verify_with(step: dict) -> dict:
+    if "intellij-verify" not in str(step.get("uses", "")):
+        return {}
+    with_block = step.get("with") or {}
+    return with_block if isinstance(with_block, dict) else {}
+
+
+def _truthy(value: object) -> bool:
+    return str(value).strip().strip("'\"").lower() == "true"
 
 
 class IntellijVerifyRetryTest(unittest.TestCase):
@@ -77,8 +102,17 @@ class IntellijVerifyRetryTest(unittest.TestCase):
             for name, job in (document.get("jobs") or {}).items():
                 if not isinstance(job, dict):
                     continue
-                steps = job.get("steps") or []
-                if any("intellij-verify" in str(step.get("uses", "")) for step in steps):
+                runs_verify = False
+                for step in job.get("steps") or []:
+                    if not isinstance(step, dict):
+                        continue
+                    extras = _intellij_verify_with(step)
+                    if "intellij-verify" not in str(step.get("uses", "")):
+                        continue
+                    if "verify" in extras and not _truthy(extras.get("verify")):
+                        continue
+                    runs_verify = True
+                if runs_verify:
                     callers.append((path.name, name, job.get("timeout-minutes")))
         self.assertTrue(callers, "no workflow calls the intellij-verify action")
         for workflow, job, timeout in callers:
@@ -108,6 +142,156 @@ class IntellijVerifyRetryTest(unittest.TestCase):
             setup_gradle.get("with", {}).get("gradle-home-cache-excludes", ""),
             "the shared 10 GiB Actions cache must not retain Gradle's multi-gigabyte artifact transforms",
         )
+
+
+class IntellijMarketplacePublishSplitTest(unittest.TestCase):
+    """Issue #5221: a 20-minute verify+publish job can cancel before Marketplace."""
+
+    def test_publish_on_release_does_not_share_the_verify_timeout(self):
+        jobs = _publish_workflow().get("jobs") or {}
+        verify_jobs = []
+        publish_jobs = []
+        shared = []
+        for name, job in jobs.items():
+            if not isinstance(job, dict):
+                continue
+            publish_true = False
+            verify_enabled = False
+            for step in job.get("steps") or []:
+                if not isinstance(step, dict):
+                    continue
+                extras = _intellij_verify_with(step)
+                if not extras and "intellij-verify" not in str(step.get("uses", "")):
+                    continue
+                publish_true = publish_true or _truthy(extras.get("publish"))
+                # Default verify stays on. An explicit false is the publish-only path.
+                verify_enabled = verify_enabled or not (
+                    "verify" in extras and not _truthy(extras.get("verify"))
+                )
+            if publish_true and verify_enabled:
+                shared.append((name, job.get("timeout-minutes")))
+            elif publish_true:
+                publish_jobs.append((name, job.get("timeout-minutes")))
+            elif verify_enabled and any(
+                "intellij-verify" in str(step.get("uses", ""))
+                for step in job.get("steps") or []
+                if isinstance(step, dict)
+            ):
+                verify_jobs.append((name, job.get("timeout-minutes")))
+
+        self.assertEqual(
+            [],
+            shared,
+            "publish-on-release still runs verifyPlugin and publishPlugin in one job; "
+            "a 20-minute timeout can cancel before Marketplace",
+        )
+        self.assertTrue(verify_jobs, "publish-intellij-plugin.yml has no verify-only job")
+        self.assertTrue(publish_jobs, "publish-intellij-plugin.yml has no publish-only job")
+        for name, timeout in verify_jobs:
+            self.assertGreaterEqual(
+                timeout,
+                MINIMUM_TIMEOUT_MINUTES,
+                f"{name} cannot fit a retried IntelliJ verify",
+            )
+        for name, timeout in publish_jobs:
+            self.assertIsNotNone(timeout, f"{name} declares no timeout")
+            self.assertGreater(timeout, 0, f"{name} timeout must be a real bound")
+
+    def test_release_cancelled_or_timed_out_publish_is_a_failure_not_skip(self):
+        text = PUBLISH_WORKFLOW.read_text(encoding="utf-8")
+        self.assertNotIn(
+            "notify-nightly-failure",
+            text,
+            "nightly cancelled=skip must not own a missed Marketplace publish",
+        )
+        self.assertNotRegex(
+            text,
+            r"contains\(needs\.\*\.result,\s*'cancelled'\)\s*&&\s*'skip'",
+            "a cancelled release publish must not be mapped to skip",
+        )
+        for marker in MARKETPLACE_MISS_MARKERS:
+            self.assertIn(
+                marker,
+                text,
+                f"cancelled/timeout before publishPlugin must file a dedicated tracker ({marker})",
+            )
+        jobs = _publish_workflow()["jobs"]
+        notify = jobs.get("notify-missed-publish") or jobs.get(
+            "notify-intellij-marketplace-publish"
+        )
+        self.assertIsNotNone(
+            notify,
+            "cancelled/timeout before publishPlugin must run notify-missed-publish",
+        )
+        self.assertEqual(
+            "always()",
+            notify.get("if"),
+            "notify-missed-publish must use if: always(); coverage upload always() is not the pin",
+        )
+
+    def test_coverage_upload_always_does_not_satisfy_notify_always_pin(self):
+        text = PUBLISH_WORKFLOW.read_text(encoding="utf-8")
+        mutated = text.replace(
+            "  notify-missed-publish:\n"
+            "    name: Fail closed on missed Marketplace publish\n"
+            "    needs: [verify, publish]\n"
+            "    if: always()\n",
+            "  notify-missed-publish:\n"
+            "    name: Fail closed on missed Marketplace publish\n"
+            "    needs: [verify, publish]\n",
+            1,
+        )
+        self.assertIn("if: always()", mutated)
+        jobs = (yaml.safe_load(mutated) or {}).get("jobs") or {}
+        notify = jobs.get("notify-missed-publish") or jobs.get(
+            "notify-intellij-marketplace-publish"
+        )
+        self.assertIsNotNone(notify)
+        self.assertNotEqual(
+            "always()",
+            notify.get("if"),
+            "deleting notify-missed-publish if: always() must fail even when coverage keeps if: always()",
+        )
+        coverage_always = any(
+            isinstance(step, dict) and step.get("if") == "always()"
+            for step in (jobs.get("verify") or {}).get("steps") or []
+        )
+        self.assertTrue(coverage_always, mutated)
+        spec = importlib.util.spec_from_file_location(
+            "validate_shaft_pilot_release",
+            REPO_ROOT / "scripts/ci/validate_shaft_pilot_release.py",
+        )
+        validator = importlib.util.module_from_spec(spec)
+        assert spec.loader is not None
+        spec.loader.exec_module(validator)
+        errors = validator.validate_intellij_marketplace_publish(
+            mutated, ACTION.read_text(encoding="utf-8")
+        )
+        self.assertTrue(
+            any("always()" in error and "notify" in error for error in errors),
+            errors,
+        )
+
+    def test_publish_plugin_requires_a_marketplace_or_gradle_receipt(self):
+        action = ACTION.read_text(encoding="utf-8")
+        workflow = PUBLISH_WORKFLOW.read_text(encoding="utf-8")
+        blob = action + "\n" + workflow
+        self.assertIn("publishPlugin", blob)
+        self.assertTrue(
+            any(marker in blob for marker in MARKETPLACE_RECEIPT_MARKERS),
+            "successful publishPlugin must assert a Gradle or Marketplace receipt",
+        )
+
+    def test_pr_gate_runs_the_marketplace_publish_pins(self):
+        gate = (REPO_ROOT / ".github/workflows/pr-gate.yml").read_text(encoding="utf-8")
+        for token in (
+            "tests.scripts.test_intellij_verify_retry",
+            "tests.scripts.test_assert_intellij_marketplace_receipt",
+            "tests.scripts.test_validate_shaft_pilot_release",
+            "scripts/ci/assert_intellij_marketplace_receipt.py",
+            "tests/scripts/test_assert_intellij_marketplace_receipt.py",
+        ):
+            self.assertIn(token, gate, f"PR Gate must re-run {token} on workflow edits")
 
 
 if __name__ == "__main__":

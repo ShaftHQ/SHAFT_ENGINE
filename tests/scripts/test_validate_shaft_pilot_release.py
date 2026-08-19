@@ -185,6 +185,10 @@ Deploy to Maven Central
 Verify published Maven Central coordinates
 """,
     )
+    _write_text(
+        root / ".github/workflows/publish-intellij-plugin.yml",
+        _minimal_publish_intellij_workflow_text(),
+    )
     isolated = _minimal_isolated_workflow_text()
     # Named-check tokens remain discoverable for static contract scans that
     # still look for the historical release-step phrases in this fixture.
@@ -226,6 +230,38 @@ def _step_blob(job: dict) -> str:
 
 
 SLICE_CHANGED_IF = "needs.detect-shaft-version-change.outputs.changed == 'true'"
+
+
+def _minimal_publish_intellij_workflow_text() -> str:
+    return """name: Publish IntelliJ Plugin
+jobs:
+  verify:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 20
+    steps:
+      - uses: ./.github/actions/intellij-verify
+  publish:
+    needs: verify
+    runs-on: ubuntu-22.04
+    timeout-minutes: 15
+    steps:
+      - uses: ./.github/actions/intellij-verify
+        with:
+          publish: 'true'
+          verify: 'false'
+      - run: python3 scripts/ci/assert_intellij_marketplace_receipt.py --log log --properties props
+  notify-missed-publish:
+    if: always()
+    needs: [verify, publish]
+    runs-on: ubuntu-22.04
+    timeout-minutes: 5
+    permissions:
+      issues: write
+    steps:
+      - uses: ./.github/actions/notify-intellij-marketplace-publish
+        with:
+          label: intellij-marketplace-publish-miss
+"""
 
 
 def _minimal_isolated_workflow_text() -> str:
@@ -711,6 +747,127 @@ Run deterministic SHAFT Pilot tests
             _minimal_isolated_workflow_text()
         )
         self.assertEqual([], errors)
+
+
+class IntellijMarketplacePublishContractTest(unittest.TestCase):
+    def test_live_publish_workflow_matches_the_marketplace_contract(self):
+        workflow = (
+            ROOT / ".github/workflows/publish-intellij-plugin.yml"
+        ).read_text(encoding="utf-8")
+        action = (ROOT / ".github/actions/intellij-verify/action.yml").read_text(
+            encoding="utf-8"
+        )
+        self.assertEqual([], MODULE.validate_intellij_marketplace_publish(workflow, action))
+
+    def test_minimal_publish_fixture_passes(self):
+        self.assertEqual(
+            [],
+            MODULE.validate_intellij_marketplace_publish(
+                _minimal_publish_intellij_workflow_text()
+            ),
+        )
+
+    def test_one_job_verify_and_publish_fails(self):
+        collapsed = """name: Publish IntelliJ Plugin
+jobs:
+  publish:
+    timeout-minutes: 20
+    steps:
+      - uses: ./.github/actions/intellij-verify
+        with:
+          publish: 'true'
+      - run: python3 scripts/ci/assert_intellij_marketplace_receipt.py
+  notify-missed-publish:
+    if: always()
+    permissions:
+      issues: write
+    steps:
+      - uses: ./.github/actions/notify-intellij-marketplace-publish
+        with:
+          label: intellij-marketplace-publish-miss
+"""
+        errors = MODULE.validate_intellij_marketplace_publish(collapsed)
+        self.assertTrue(
+            any("isolate verify" in error or "skip verifyPlugin" in error for error in errors),
+            errors,
+        )
+
+    def test_always_must_bind_to_notify_missed_publish_job(self):
+        workflow = (
+            ROOT / ".github/workflows/publish-intellij-plugin.yml"
+        ).read_text(encoding="utf-8")
+        action = (ROOT / ".github/actions/intellij-verify/action.yml").read_text(
+            encoding="utf-8"
+        )
+        mutated = workflow.replace(
+            "  notify-missed-publish:\n"
+            "    name: Fail closed on missed Marketplace publish\n"
+            "    needs: [verify, publish]\n"
+            "    if: always()\n",
+            "  notify-missed-publish:\n"
+            "    name: Fail closed on missed Marketplace publish\n"
+            "    needs: [verify, publish]\n",
+            1,
+        )
+        self.assertNotEqual(workflow, mutated)
+        self.assertIn("if: always()", mutated)
+        notify_at = mutated.index("  notify-missed-publish:")
+        notify_block = mutated[notify_at:]
+        next_job = notify_block.find("\n  ", 4)
+        if next_job != -1:
+            notify_block = notify_block[:next_job]
+        self.assertNotIn("if: always()", notify_block)
+        errors = MODULE.validate_intellij_marketplace_publish(mutated, action)
+        self.assertTrue(
+            any("always()" in error and "notify" in error for error in errors),
+            errors,
+        )
+
+    def test_nightly_cancelled_skip_fails(self):
+        mutated = _minimal_publish_intellij_workflow_text().replace(
+            "if: always()",
+            "uses: ./.github/actions/notify-nightly-failure\n"
+            "        with:\n"
+            "          outcome: ${{ contains(needs.*.result, 'cancelled') && 'skip' || 'success' }}",
+            1,
+        )
+        errors = MODULE.validate_intellij_marketplace_publish(mutated)
+        self.assertTrue(
+            any("nightly" in error or "skip" in error for error in errors),
+            errors,
+        )
+
+    def test_missing_receipt_pin_fails(self):
+        mutated = _minimal_publish_intellij_workflow_text().replace(
+            "assert_intellij_marketplace_receipt.py --log log --properties props",
+            "echo no receipt",
+        )
+        errors = MODULE.validate_intellij_marketplace_publish(mutated)
+        self.assertTrue(any("receipt" in error for error in errors), errors)
+
+    def test_publish_wrapped_in_build_retry_fails(self):
+        action = """
+    - name: Sign and publish the plugin
+      run: bash scripts/ci/build_retry.sh 2 15 bash shaft-intellij/gradlew signPlugin publishPlugin
+"""
+        errors = MODULE.validate_intellij_marketplace_publish(
+            _minimal_publish_intellij_workflow_text(),
+            action,
+        )
+        self.assertTrue(any("retry publishPlugin" in error for error in errors), errors)
+
+    def test_missing_publish_workflow_fails_static_contract(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            _write_minimal_reactor(
+                root, reactor_version="10.2.20260630", plugin_version="10.2.20260630"
+            )
+            (root / ".github/workflows/publish-intellij-plugin.yml").unlink()
+            errors = MODULE.validate_static(root)
+        self.assertTrue(
+            any("publish-intellij-plugin.yml" in error for error in errors),
+            errors,
+        )
 
 
 if __name__ == "__main__":

@@ -13,7 +13,7 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  publish:
+  verify:
     # Runs only for an actual published SHAFT release (created by mavenCentral_cd.yml's
     # announce_release job), not merely because that workflow's run concluded successfully -
     # its build_release_and_deliver job now also concludes successfully when it skips a
@@ -21,8 +21,8 @@ jobs:
     if: github.event_name == 'workflow_dispatch' || github.event_name == 'release'
     runs-on: ubuntu-22.04
     # Room for the one retry the verification half of intellij-verify now takes
-    # when the JetBrains host refuses a connect (issue #4494). The publish half
-    # is never retried.
+    # when the JetBrains host refuses a connect (issue #4494). Publish is a
+    # separate job so this budget cannot cancel Marketplace upload.
     timeout-minutes: 20
     steps:
       - name: Checkout Code
@@ -31,14 +31,8 @@ jobs:
           ref: ${{ github.event_name == 'release' && github.event.release.tag_name || github.sha }}
       - name: Validate release metadata
         run: python3 scripts/ci/validate_shaft_pilot_release.py
-      - name: Publish to JetBrains Marketplace
+      - name: Verify IntelliJ plugin
         uses: ./.github/actions/intellij-verify
-        with:
-          publish: 'true'
-          marketplace-token: ${{ secrets.JETBRAINS_MARKETPLACE_TOKEN }}
-          certificate-chain: ${{ secrets.JETBRAINS_PLUGIN_CERTIFICATE_CHAIN }}
-          private-key: ${{ secrets.JETBRAINS_PLUGIN_PRIVATE_KEY }}
-          private-key-password: ${{ secrets.JETBRAINS_PLUGIN_PRIVATE_KEY_PASSWORD }}
       - name: Upload IntelliJ coverage to Codecov
         if: always()
         uses: ./.github/actions/upload-jacoco-coverage
@@ -47,3 +41,48 @@ jobs:
           files: ./shaft-intellij/build/reports/jacoco/test/jacocoTestReport.xml
           required-files: ./shaft-intellij/build/reports/jacoco/test/jacocoTestReport.xml
           source-id: publish-intellij-plugin
+
+  publish:
+    needs: verify
+    if: github.event_name == 'workflow_dispatch' || github.event_name == 'release'
+    runs-on: ubuntu-22.04
+    # Own budget for sign and Marketplace upload. Never wrap that upload in
+    # the verify retry helper: a Marketplace version number is single-use.
+    timeout-minutes: 15
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event_name == 'release' && github.event.release.tag_name || github.sha }}
+      - name: Publish to JetBrains Marketplace
+        uses: ./.github/actions/intellij-verify
+        with:
+          publish: 'true'
+          verify: 'false'
+          marketplace-token: ${{ secrets.JETBRAINS_MARKETPLACE_TOKEN }}
+          certificate-chain: ${{ secrets.JETBRAINS_PLUGIN_CERTIFICATE_CHAIN }}
+          private-key: ${{ secrets.JETBRAINS_PLUGIN_PRIVATE_KEY }}
+          private-key-password: ${{ secrets.JETBRAINS_PLUGIN_PRIVATE_KEY_PASSWORD }}
+
+  notify-missed-publish:
+    name: Fail closed on missed Marketplace publish
+    needs: [verify, publish]
+    if: always()
+    runs-on: ubuntu-22.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event_name == 'release' && github.event.release.tag_name || github.sha }}
+      - name: File a dedicated miss issue when a release does not publish
+        uses: ./.github/actions/notify-intellij-marketplace-publish
+        with:
+          verify-result: ${{ needs.verify.result }}
+          publish-result: ${{ needs.publish.result }}
+          event-name: ${{ github.event_name }}
+          plugin-version: ${{ github.event_name == 'release' && github.event.release.tag_name || '' }}
+          label: intellij-marketplace-publish-miss
