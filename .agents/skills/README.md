@@ -33,7 +33,7 @@ flowchart TD
     CF --> R
 
     R["<b>routing</b><br/>deliverable to one surface"]
-    R --> P["Repository playbooks<br/><i>14</i>"]
+    R --> P["Repository playbooks<br/><i>15</i>"]
     R --> M["SHAFT mastery chapters<br/><i>10</i>"]
     R --> D["Method references"]
     E --> D
@@ -180,6 +180,7 @@ list is the inventory, not a second copy of the triggers.
 - [UI design](../../chaos-engine/profiles/shaft/references/playbooks/shaft-ui-design.md)
 - [marketing](../../chaos-engine/profiles/shaft/references/playbooks/shaft-marketing-ad-producer.md)
 - [workstation local coding](../../chaos-engine/profiles/shaft/references/playbooks/workstation-local-coding-agent.md)
+- [IntelliJ plugin development](../../chaos-engine/profiles/shaft/references/playbooks/intellij-plugin-development.md)
 
 ### SHAFT mastery chapters
 
@@ -232,7 +233,7 @@ file is added, moved or deleted, which is the only way a map stays true.
 
 | Host | Files |
 | --- | --- |
-| Codex | `AGENTS.md`; `.agents/skills/chaos-engine/SKILL.md`; `.agents/skills/chaos-engine/agents/openai.yaml`; compatibility alias `.agents/skills/act-as-mohab/SKILL.md` with `.agents/skills/act-as-mohab/agents/openai.yaml`; `.codex/config.toml`; `.codex/hooks.json`; roles `.codex/agents/chaos-engine.toml`, `.codex/agents/coder.toml`, `.codex/agents/helper.toml`, `.codex/agents/reviewer.toml`, `.codex/agents/tester.toml` |
+| Codex | `AGENTS.md`; `.agents/skills/chaos-engine/SKILL.md`; `.agents/skills/chaos-engine/agents/openai.yaml`; `.agents/skills/intellij-plugin-development/SKILL.md`; `.agents/skills/intellij-plugin-development/agents/openai.yaml`; compatibility alias `.agents/skills/act-as-mohab/SKILL.md` with `.agents/skills/act-as-mohab/agents/openai.yaml`; `.codex/config.toml`; `.codex/hooks.json`; roles `.codex/agents/chaos-engine.toml`, `.codex/agents/coder.toml`, `.codex/agents/helper.toml`, `.codex/agents/reviewer.toml`, `.codex/agents/tester.toml` |
 | Claude | `CLAUDE.md`; `.claude/settings.json`; `.mcp.json`; redirect `.claude/skills/chaos-engine/SKILL.md`; compatibility alias `.claude/skills/act-as-mohab/SKILL.md`; roles `.claude/agents/chaos-engine.md`, `.claude/agents/coder.md`, `.claude/agents/helper.md`, `.claude/agents/reviewer.md`, `.claude/agents/tester.md` |
 | Copilot | `.github/copilot-instructions.md`; scope files `.github/instructions/framework-source.instructions.md`, `.github/instructions/java-tests.instructions.md`; the redirect pack indexed by `.github/skills/README.md` |
 | Your own configuration | `.claude/user-harness/CLAUDE.md`, `.claude/user-harness/README.md`, `.claude/user-harness/settings.json` |

@@ -94,11 +94,15 @@ incident history that is expensive to re-derive.
 | Mobile recording and replay, emulators, Appium or WinAppDriver CI | [Appium mobile](shaft-mastery/appium-mobile.md) |
 | Versioning, Central publishing, BOM, dependency convergence | [Maven release](shaft-mastery/maven-release.md) |
 | Listeners, forked JVMs, properties precedence, scoped runs | [TestNG lifecycle](shaft-mastery/testng-lifecycle.md) |
-| The IntelliJ plugin, its desktop UI, tool windows, Gradle or JDK setup | [IntelliJ plugin](shaft-mastery/intellij-plugin.md) |
+| The IntelliJ plugin, its desktop UI, tool windows, Gradle or JDK setup | [IntelliJ plugin development](playbooks/intellij-plugin-development.md) |
 | MCP tools, stdio transport, workspace roots, clients | [MCP protocol](shaft-mastery/mcp-protocol.md) |
 | Red CI runs, scheduled suites, workflow YAML, sharding | [CI forensics](shaft-mastery/ci-forensics.md) |
 | Races, synchronization, deterministic reproduction | [Wait strategies](shaft-mastery/wait-strategies.md) |
 | Locator choice, semantic selectors, healer or doctor | [Locator healing](shaft-mastery/locator-healing.md) |
+
+The plugin-development playbook loads the
+[IntelliJ plugin](shaft-mastery/intellij-plugin.md) mastery chapter and must
+not duplicate it.
 
 ## SHAFT product and test authoring
 

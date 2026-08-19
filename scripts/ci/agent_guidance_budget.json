@@ -124,7 +124,8 @@
   "expected_skill_names": {
     ".agents/skills": [
       "act-as-mohab",
-      "chaos-engine"
+      "chaos-engine",
+      "intellij-plugin-development"
     ],
     ".claude/skills": [
       "act-as-mohab",
