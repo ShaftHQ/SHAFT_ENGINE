@@ -1,0 +1,1 @@
+gh run rerun and gh run rerun --failed reject a run that is still in progress (already running). Wait until the run status is completed, then retry only the failed jobs. Do not cancel a healthy in-progress run just to rerun. Observed while babysitting PR #5052 after GitHub 429/503 action-download flakes.

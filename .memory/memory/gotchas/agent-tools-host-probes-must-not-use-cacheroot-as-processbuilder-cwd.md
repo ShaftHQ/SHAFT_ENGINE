@@ -1,0 +1,1 @@
+Diagnose-only AGENT_TOOLS never creates cacheRoot. Passing it as workingDirectory makes ProcessBuilder.start() fail and status() report MISSING even when java/mvn/python/node are on PATH. Pass null so the JVM cwd is inherited. Bound by asserting the injected runner received a null workingDirectory. Reviewed on #5052 / #5051.

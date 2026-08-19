@@ -1,0 +1,42 @@
+{
+  "body_path": "memory/gotchas/named-setup-worktree-can-be-raced-by-a-sibling-writer.md",
+  "content_hash": "sha256:82ef1e3480c85d4e9ca55bb85197ac82df37234bff2fa2cf72ae8d0f8e607e17",
+  "created_at": "2026-08-17T17:36:27+03:00",
+  "evidence": [
+    {
+      "id": "e523b07a7ff8ade3d98f69d41615a894761a5197",
+      "kind": "commit"
+    },
+    {
+      "id": "https://github.com/ShaftHQ/SHAFT_ENGINE/pull/5049",
+      "kind": "task"
+    }
+  ],
+  "facets": {
+    "applies_to": [
+      "chaos-engine/references/task-isolation.md",
+      "C:/Users/Mohab/.grok/worktrees/ideaprojects-shaft-engine/setup-browserstack"
+    ],
+    "category": "gotcha"
+  },
+  "id": "gotcha.named-setup-worktree-can-be-raced-by-a-sibling-writer",
+  "scope": {
+    "branch": null,
+    "kind": "project",
+    "project": "project.shaft-engine",
+    "task": null
+  },
+  "source": {
+    "kind": "agent",
+    "task": "Record durable gotchas from babysitting #5048/#5049"
+  },
+  "status": "active",
+  "tags": [
+    "worktree",
+    "concurrency",
+    "setup"
+  ],
+  "title": "A named ChaosEngine worktree can be rewritten by a sibling writer",
+  "type": "gotcha",
+  "updated_at": "2026-08-17T17:36:27+03:00"
+}
