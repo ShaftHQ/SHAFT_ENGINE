@@ -1,5 +1,6 @@
 """Portable ChaosEngine core and project-profile contract tests (#4792)."""
 
+import importlib.util
 import json
 import re
 import unittest
@@ -9,6 +10,13 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 CORE = ROOT / "chaos-engine"
+INSTALLER_SPEC = importlib.util.spec_from_file_location(
+    "chaos_engine_installer_portable_core", CORE / "install.py"
+)
+if INSTALLER_SPEC is None or INSTALLER_SPEC.loader is None:
+    raise RuntimeError("portable core tests could not load install.py")
+INSTALLER = importlib.util.module_from_spec(INSTALLER_SPEC)
+INSTALLER_SPEC.loader.exec_module(INSTALLER)
 CANONICAL_SKILL = CORE / "skills/chaos-engine/SKILL.md"
 CLEANUP_SCOPES = CORE / "references/cleanup-scopes.md"
 TASK_ISOLATION = CORE / "references/task-isolation.md"
@@ -305,6 +313,9 @@ class ChaosEnginePortableCoreTest(unittest.TestCase):
             "POSIX absolute path": POSIX_ABSOLUTE_PATH,
             "hard-coded default branch": re.compile(r"origin/main", re.IGNORECASE),
         }
+        self.assertTrue((CORE / "STANDALONE.md").is_file())
+        self.assertTrue((CORE / "RESEARCH.md").is_file())
+        self.assertTrue(INSTALLER.is_origin_only(Path("STANDALONE.md")))
         sources = sorted(
             path
             for path in CORE.rglob("*")
@@ -313,6 +324,7 @@ class ChaosEnginePortableCoreTest(unittest.TestCase):
             and "vendor" not in path.relative_to(CORE).parts
             and "__pycache__" not in path.relative_to(CORE).parts
             and path.suffix != ".pyc"
+            and not INSTALLER.is_origin_only(path.relative_to(CORE))
         )
         self.assertTrue(sources, "portable core sources must exist")
         for path in sources:

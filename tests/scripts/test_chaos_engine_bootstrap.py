@@ -51,8 +51,11 @@ class Response(io.BytesIO):
 
 class ChaosEngineBootstrapTest(unittest.TestCase):
     def test_documented_command_contains_the_bounded_initial_fetch_contract(self):
-        windows = 'irm "https://raw.githubusercontent.com/$env:CHAOS_ENGINE_REPOSITORY/main/chaos-engine/install.ps1" | iex'
-        posix = 'curl -fsSL "https://raw.githubusercontent.com/${CHAOS_ENGINE_REPOSITORY}/main/chaos-engine/install.sh" | bash'
+        windows = 'irm "https://raw.githubusercontent.com/owner/repository/main/chaos-engine/install.ps1" | iex'
+        posix = (
+            'curl -fsSL "https://raw.githubusercontent.com/owner/repository/main/chaos-engine/install.sh"'
+            ' | bash -s -- "https://raw.githubusercontent.com/owner/repository/main/chaos-engine/install.sh"'
+        )
         for relative in ("chaos-engine/README.md", "chaos-engine/INSTALL.md"):
             document = ROOT.joinpath(relative).read_text(encoding="utf-8")
             self.assertIn(windows, document)
@@ -681,6 +684,7 @@ class ChaosEngineBootstrapTest(unittest.TestCase):
                 {"path": "chaos-engine/skills/chaos-engine/SKILL.md", "type": "blob", "mode": "100644", "size": 5},
                 {"path": "chaos-engine/assets/brand/symbol-light.svg", "type": "blob", "mode": "100644", "size": 5},
                 {"path": "chaos-engine/RESEARCH.md", "type": "blob", "mode": "100644", "size": 8},
+                {"path": "chaos-engine/STANDALONE.md", "type": "blob", "mode": "100644", "size": 9},
                 {"path": "chaos-engine/assets/memory-v5/config.schema.json", "type": "blob", "mode": "100644", "size": 6},
             ],
         }
@@ -698,6 +702,8 @@ class ChaosEngineBootstrapTest(unittest.TestCase):
                 return Response(b"brand")
             if str(url).endswith("RESEARCH.md"):
                 return Response(b"research")
+            if str(url).endswith("STANDALONE.md"):
+                return Response(b"standalone")
             if str(url).endswith("config.schema.json"):
                 return Response(b"schema")
             raise AssertionError(url)
@@ -709,7 +715,16 @@ class ChaosEngineBootstrapTest(unittest.TestCase):
             self.assertTrue((source / "assets/memory-v5/config.schema.json").is_file())
             self.assertFalse((source / "assets/brand/symbol-light.svg").exists())
             self.assertFalse((source / "RESEARCH.md").exists())
-            self.assertFalse(any("symbol-light.svg" in url or url.endswith("RESEARCH.md") for url in requested if "git/trees" not in url))
+            self.assertFalse((source / "STANDALONE.md").exists())
+            self.assertFalse(
+                any(
+                    "symbol-light.svg" in url
+                    or url.endswith("RESEARCH.md")
+                    or url.endswith("STANDALONE.md")
+                    for url in requested
+                    if "git/trees" not in url
+                )
+            )
 
     def test_bootstrap_is_reachable_and_runs_in_three_os_ci(self):
         skill = (ROOT / "chaos-engine/skills/chaos-engine/SKILL.md").read_text(encoding="utf-8")

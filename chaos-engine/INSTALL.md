@@ -22,11 +22,11 @@ Give the following instruction to a coding agent while its working directory is
 the project you want to manage:
 
 > Install or upgrade ChaosEngine in this project from the latest commit of the
-> official upstream. Change into the target project first. Set
-> `CHAOS_ENGINE_REPOSITORY` to the upstream `owner/repository`, then run
+> official upstream. Change into the target project first. Run
 > `chaos-engine/install.ps1` on Windows (`irm ... | iex`) or
-> `chaos-engine/install.sh` on macOS/Linux (`curl -fsSL ... | bash`). Those
-> wrappers download `bootstrap.py` and run the full install: hooks, skills,
+> `chaos-engine/install.sh` on macOS/Linux (`curl -fsSL ... | bash -s -- <url>`).
+> Those wrappers read owner/repository from the invocation URL, then download
+> `bootstrap.py` and run the full install: hooks, skills,
 > companions, Memory, MemPalace, Graphify CLI, and doctor. Do not stop until
 > the active doctor reports the resolved 40-character commit and every
 > required component healthy. Treat the installed ChaosEngine skill as the
@@ -45,31 +45,30 @@ requires marketplace registration, the agent registers the project marketplace
 and installs `chaos-engine`, `caveman`, and `ponytail` at project local scope,
 then runs active `doctor` probes. Generated indexes, caches, receipts, and runtimes
 remain untracked; canonical configuration and adapters remain trackable.
-Origin identity masters under `assets/brand/` and the origin adoption matrix
-`RESEARCH.md` stay in the source tree and are not copied into the adopter
-payload. The
+Origin identity masters under `assets/brand/`, the origin adoption matrix
+`RESEARCH.md`, and `STANDALONE.md` stay in the source tree and are not copied
+into the adopter payload. The
 
 installer also merges receipt-bound LF attributes for canonical harness paths,
 so Windows Git checkouts retain the exact owned bytes while unrelated
 `.gitattributes` rules remain untouched.
 
-Configure `CHAOS_ENGINE_REPOSITORY` in the caller's host environment with the
-canonical `owner/repository` source. The installer reads it without copying the
-source identity into the adopter payload. Change into the target project or
-folder first; both scripts install into the current working directory.
+Replace `owner/repository` in the URL with the upstream that hosts the wrapper.
+The scripts parse that URL and do not copy the source identity into the adopter
+payload. `CHAOS_ENGINE_REPOSITORY` remains a local-file override when the
+invocation URL cannot be parsed. Change into the target project or folder first;
+both scripts install into the current working directory.
 
 Windows PowerShell, using [install.ps1](install.ps1):
 
 ```powershell
-$env:CHAOS_ENGINE_REPOSITORY = 'owner/repository'
-irm "https://raw.githubusercontent.com/$env:CHAOS_ENGINE_REPOSITORY/main/chaos-engine/install.ps1" | iex
+irm "https://raw.githubusercontent.com/owner/repository/main/chaos-engine/install.ps1" | iex
 ```
 
 macOS or Linux, using [install.sh](install.sh):
 
 ```bash
-export CHAOS_ENGINE_REPOSITORY=owner/repository
-curl -fsSL "https://raw.githubusercontent.com/${CHAOS_ENGINE_REPOSITORY}/main/chaos-engine/install.sh" | bash
+curl -fsSL "https://raw.githubusercontent.com/owner/repository/main/chaos-engine/install.sh" | bash -s -- "https://raw.githubusercontent.com/owner/repository/main/chaos-engine/install.sh"
 ```
 
 Inspect the linked installer and [bootstrap.py](bootstrap.py) first when policy

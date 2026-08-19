@@ -71,21 +71,22 @@ flow resolves a configured upstream branch to an immutable commit, downloads
 only that commit's validated `chaos-engine/` subtree, and installs ChaosEngine
 inside the target project.
 
-Configure `CHAOS_ENGINE_REPOSITORY` in the caller's host environment with the
-canonical `owner/repository` source; it is not copied into the adopter payload.
-Change into the target project or folder first; both scripts install into the
-current working directory.
+Replace `owner/repository` in the URL with the upstream that hosts the wrapper;
+it is not copied into the adopter payload. `CHAOS_ENGINE_REPOSITORY` remains a
+local-file override when the invocation URL cannot be parsed. Change into the
+target project or folder first; both scripts install into the current working
+directory.
 
 Windows PowerShell:
 
 ```powershell
-irm "https://raw.githubusercontent.com/ShaftHQ/SHAFT_ENGINE/main/chaos-engine/install.ps1" | iex
+irm "https://raw.githubusercontent.com/owner/repository/main/chaos-engine/install.ps1" | iex
 ```
 
 macOS or Linux:
 
 ```bash
-curl -fsSL "https://raw.githubusercontent.com/ShaftHQ/SHAFT_ENGINE/main/chaos-engine/install.sh" | bash
+curl -fsSL "https://raw.githubusercontent.com/owner/repository/main/chaos-engine/install.sh" | bash -s -- "https://raw.githubusercontent.com/owner/repository/main/chaos-engine/install.sh"
 ```
 
 Inspect [install.ps1](install.ps1), [install.sh](install.sh), and
@@ -158,6 +159,7 @@ default; repository-specific distributions require an explicit selection.
 | [`tool.py`](tool.py) | Relocatable launcher for ChaosEngine-owned local tools |
 | [`learning.py`](learning.py) | Privacy-gated queue for reusable improvement candidates |
 | [`RESEARCH.md`](RESEARCH.md) | Dated adoption decisions and their local proof owners |
+| [`STANDALONE.md`](STANDALONE.md) | Origin-only spec for a later standalone source repository |
 | [`assets/brand/`](assets/brand/) | Origin identity masters; not copied into adopter installs |
 
 The installer records provenance and per-file ownership in the consumer
@@ -234,6 +236,7 @@ reports, caches, runtime indexes, or `graphify-out/`.
 - [Lifecycle hooks](references/lifecycle-hooks.md)
 - <a href="profiles/README.md">Project profiles</a>
 - [Research and adoption matrix](RESEARCH.md)
+- [Standalone source-repository spec](STANDALONE.md)
 - [Identity and brand rules](assets/brand/BRAND.md)
 
 ChaosEngine supports rigorous, evidence-led software delivery. Gambaru.
