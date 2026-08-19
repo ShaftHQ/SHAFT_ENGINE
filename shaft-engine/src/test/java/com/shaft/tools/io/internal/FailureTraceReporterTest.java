@@ -193,6 +193,41 @@ public class FailureTraceReporterTest {
         }
     }
 
+    @Test(description = "ANSI ESC in a timeline log line must be RFC 8259-escaped so strict JSON.parse can load the payload")
+    public void ansiEscapeInTimelineMustProduceStrictlyValidJson() throws Exception {
+        TestExecutionInfo failingInfo = info("ansiTimelineScenario", failure());
+        Path traceDirectory = FailureTraceReporter.traceDirectory(failingInfo);
+        try {
+            deleteDirectory(traceDirectory);
+            SHAFT.Properties.reporting.set().traceEnabled(true).traceMode("failure");
+            String ansiBanner = "\u001B[1;36m=============== Starting execution... ===============\u001B[0m";
+            FailureTraceReporter.attachOnFailure(failingInfo, ansiBanner, List.of());
+
+            try (ZipFile zip = new ZipFile(traceDirectory.resolve("shaft-trace.zip").toFile())) {
+                String json = readZipEntry(zip, "shaft-trace.json");
+                assertRfc8259ControlCharsEscaped(json);
+                JsonNode root = JSON.readTree(json);
+                Assert.assertEquals(root.path("timeline").path(0).asText(), ansiBanner, json);
+                Assert.assertTrue(json.contains("\\u001b") || json.contains("\\u001B"), json);
+
+                String html = readZipEntry(zip, "SHAFT Trace Report.html");
+                String marker = "<pre hidden id=\"trace-data\">";
+                int payloadStart = html.indexOf(marker);
+                Assert.assertTrue(payloadStart >= 0, html);
+                payloadStart += marker.length();
+                int payloadEnd = html.indexOf("</pre>", payloadStart);
+                String encoded = html.substring(payloadStart, payloadEnd);
+                String decoded = encoded.replace("&lt;", "<").replace("&gt;", ">").replace("&amp;", "&");
+                assertRfc8259ControlCharsEscaped(decoded);
+                Assert.assertEquals(JSON.readTree(decoded).path("timeline").path(0).asText(), ansiBanner);
+            }
+        } finally {
+            TraceEventRecorder.clear();
+            deleteDirectory(traceDirectory);
+            Properties.clearForCurrentThread();
+        }
+    }
+
     @Test(description = "Rendered trace JSON should redact sensitive values and keep source fallback frame")
     public void traceJsonShouldRedactSecretsAndKeepFallbackFrame() throws Exception {
         RuntimeException throwable = failure();
@@ -2597,6 +2632,16 @@ public class FailureTraceReporterTest {
     private static String readZipEntry(ZipFile zip, String entryName) throws Exception {
         try (var input = zip.getInputStream(zip.getEntry(entryName))) {
             return new String(input.readAllBytes(), StandardCharsets.UTF_8);
+        }
+    }
+
+    private static void assertRfc8259ControlCharsEscaped(String json) {
+        for (int i = 0; i < json.length(); i++) {
+            char c = json.charAt(i);
+            if (c < 0x20 && c != '\n' && c != '\r' && c != '\t') {
+                Assert.fail("Unescaped RFC 8259 control character U+" + String.format("%04X", (int) c)
+                        + " at index " + i);
+            }
         }
     }
 
