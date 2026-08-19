@@ -2125,6 +2125,17 @@ def _research_preflight_events(
         plan = details.get("plan")
         if isinstance(plan, list) and plan:
             events.append("record-plan")
+    plan_surface = lowered_name.replace("_", "").replace("-", "")
+    if plan_surface == "enterplanmode":
+        events.append("compare-proven-approaches")
+    if plan_surface == "exitplanmode":
+        events.append("record-plan")
+    if plan_surface == "todowrite":
+        if "compare proven approaches" in rendered:
+            events.append("compare-proven-approaches")
+        todos = details.get("todos")
+        if isinstance(todos, list) and todos:
+            events.append("record-plan")
     if tool_name in _SHELL_TOOLS and _is_plan_receipt_command(
         str(details.get("command") or details.get("cmd") or "")
     ):

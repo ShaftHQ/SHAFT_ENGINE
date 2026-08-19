@@ -1362,6 +1362,34 @@ class GuardLifecycleTest(unittest.TestCase):
             ("WebSearch", {"query": "official hook documentation"}, {"url": "https://docs.github.com/en/actions"}, "authoritative-online-research"),
             ("update_plan", {"explanation": "Compare proven approaches", "plan": []}, None, "compare-proven-approaches"),
             ("update_plan", {"explanation": "Compare proven approaches", "plan": [{"step": "Implement", "status": "pending"}]}, None, "record-plan"),
+            ("enter_plan_mode", {}, None, "compare-proven-approaches"),
+            ("EnterPlanMode", {}, None, "compare-proven-approaches"),
+            ("exit_plan_mode", {}, None, "record-plan"),
+            ("ExitPlanMode", {}, None, "record-plan"),
+            (
+                "todo_write",
+                {
+                    "todos": [
+                        {
+                            "id": "1",
+                            "content": "Compare proven approaches then implement",
+                            "status": "in_progress",
+                        }
+                    ]
+                },
+                None,
+                "compare-proven-approaches",
+            ),
+            (
+                "todo_write",
+                {
+                    "todos": [
+                        {"id": "1", "content": "Implement mapping", "status": "pending"}
+                    ]
+                },
+                None,
+                "record-plan",
+            ),
         )
         for tool_name, tool_input, tool_result, expected in fixtures:
             with self.subTest(tool_name=tool_name, expected=expected):
@@ -1387,6 +1415,16 @@ class GuardLifecycleTest(unittest.TestCase):
                     ),
                     (),
                 )
+
+    def test_todo_write_without_compare_marker_does_not_emit_compare(self):
+        events = guard._research_preflight_events(
+            "todo_write",
+            {"todos": [{"id": "1", "content": "Implement mapping", "status": "pending"}]},
+        )
+        self.assertIn("record-plan", events)
+        self.assertNotIn("compare-proven-approaches", events)
+        self.assertEqual(guard._research_preflight_events("todo_write", {"todos": []}), ())
+        self.assertEqual(guard._research_preflight_events("todo_write", {}), ())
 
     def test_shell_command_maps_research_clis_in_command_order(self):
         self.assertEqual(
@@ -1607,10 +1645,21 @@ class GuardLifecycleTest(unittest.TestCase):
         self.assertEqual(observed, [])
 
     def test_portable_hook_matchers_observe_receipt_and_mutation_tools(self):
+        plan_surfaces = (
+            "update_plan",
+            "enter_plan_mode",
+            "EnterPlanMode",
+            "exit_plan_mode",
+            "ExitPlanMode",
+            "todo_write",
+            "TodoWrite",
+        )
         for relative in (".claude/settings.json", ".codex/hooks.json"):
             with self.subTest(relative=relative):
-                text = (Path(__file__).resolve().parents[2] / relative).read_text(encoding="utf-8")
-                for tool in ("Read", "WebSearch", "WebFetch", "update_plan", "apply_patch"):
+                text = (Path(__file__).resolve().parents[2] / relative).read_text(
+                    encoding="utf-8"
+                )
+                for tool in ("Read", "WebSearch", "WebFetch", "apply_patch", *plan_surfaces):
                     self.assertIn(tool, text)
                 self.assertIn("PostToolUse", text)
         codex = (Path(__file__).resolve().parents[2] / ".codex/hooks.json").read_text(
@@ -1622,6 +1671,9 @@ class GuardLifecycleTest(unittest.TestCase):
         hooks = json.loads(codex)["hooks"]
         self.assertIn("functions[.]exec", hooks["PreToolUse"][0]["matcher"])
         self.assertIn("functions[.]exec", hooks["PostToolUse"][0]["matcher"])
+        for tool in plan_surfaces:
+            self.assertIn(tool, hooks["PreToolUse"][0]["matcher"])
+            self.assertIn(tool, hooks["PostToolUse"][0]["matcher"])
 
     def test_every_live_mutation_lane_requires_the_receipt(self):
         fixtures = (
