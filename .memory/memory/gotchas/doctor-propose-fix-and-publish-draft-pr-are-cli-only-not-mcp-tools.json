@@ -1,0 +1,47 @@
+{
+  "body_path": "memory/gotchas/doctor-propose-fix-and-publish-draft-pr-are-cli-only-not-mcp-tools.md",
+  "content_hash": "sha256:59ae1622a0c8596e5e9d785d20a437c2bc64991b2e389d3a3c53730727672245",
+  "created_at": "2026-08-19T04:49:17+03:00",
+  "evidence": [
+    {
+      "id": "shaft-mcp/src/test/java/com/shaft/mcp/ShaftMcpApplicationTests.java:116",
+      "kind": "file"
+    },
+    {
+      "id": "shaft-mcp/src/main/java/com/shaft/mcp/DoctorService.java:367",
+      "kind": "file"
+    },
+    {
+      "id": "ShaftHQ/SHAFT_ENGINE#5147",
+      "kind": "task"
+    }
+  ],
+  "facets": {
+    "applies_to": [
+      "docs/agentic/doctor.mdx",
+      "docs/agentic/pilot.md",
+      "shaft-mcp"
+    ],
+    "category": "gotcha"
+  },
+  "id": "gotcha.doctor-propose-fix-and-publish-draft-pr-are-cli-only-not-mcp-tools",
+  "scope": {
+    "branch": null,
+    "kind": "project",
+    "project": "project.shaft-engine",
+    "task": null
+  },
+  "source": {
+    "kind": "agent",
+    "task": "5147 docs sync gotcha: Doctor full repair publish is CLI-only"
+  },
+  "status": "active",
+  "tags": [
+    "docs",
+    "mcp",
+    "doctor"
+  ],
+  "title": "doctor propose-fix and publish-draft-pr are CLI-only, not MCP tools",
+  "type": "gotcha",
+  "updated_at": "2026-08-19T04:49:17+03:00"
+}

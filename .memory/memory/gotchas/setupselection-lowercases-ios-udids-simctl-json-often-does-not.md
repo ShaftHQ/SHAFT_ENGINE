@@ -1,0 +1,1 @@
+SetupSelection normalizes components to lowercase. Desktop-mobile plans therefore store udid values as [0-9a-f]. Apple simctl list JSON commonly returns canonical mixed-case UUIDs. Lifecycle start and host diagnosis must compare UDIDs with equalsIgnoreCase and report the host's canonical UDID. Exact-equals made a selected Simulator look MISSING. Fixed in #5024 / #5039.

@@ -1,0 +1,1 @@
+On 2026-08-17 GitHub returned HTTP 503 No server for gh pr create (GraphQL). POST /repos/{owner}/{repo}/pulls via gh api succeeded and opened ShaftHQ/shafthq.github.io#985. Retry REST when GraphQL auto-merge and gh pr comment 503. Do not treat GraphQL 503 as a missing PR after a successful push.

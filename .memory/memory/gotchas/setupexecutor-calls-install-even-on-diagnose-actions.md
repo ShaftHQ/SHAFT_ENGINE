@@ -1,0 +1,1 @@
+SetupExecutor still invokes install() when the requested action is DIAGNOSE. Diagnose-only providers (JAVA, MAVEN, PYTHON, NODE, AGENT_TOOLS host prerequisites) must make install() a no-op that writes nothing: no cacheRoot, no state/, no receipts. Bound by tests that assert install() does not create paths. Reviewed on #5052 / #5051.

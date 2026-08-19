@@ -1,0 +1,1 @@
+github__add_issue_comment, github__request_copilot_review, and github__sub_issue_write returned 403/404 Resource not accessible by integration during #5045 delivery. gh issue comment, gh pr create, and gh pr merge worked. Search tools still work. Default to gh CLI for writes.

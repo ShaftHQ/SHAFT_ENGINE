@@ -1,0 +1,1 @@
+On Windows, a Maven command that does not Set-Location into the isolated worktree first builds C:\Users\Mohab\IdeaProjects\SHAFT_ENGINE. New worktree tests then report Nothing to compile / BUILD SUCCESS with zero matching tests when -DfailIfNoTests=false. Always cd to the ChaosEngine worktree before mvn, and refuse a run that does not compile the new test sources.

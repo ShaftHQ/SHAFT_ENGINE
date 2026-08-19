@@ -1,0 +1,1 @@
+Review of #5048/#5049: destroy() + one onExit wait + destroyForcibly() without a second wait lets stop() return while the process is still dying, so the next start can collide on 127.0.0.1:45691. Match Android/ReportingSetupService: wait, force, wait, throw if still alive, and forward stop(Duration). Follow-up PR #5049.
