@@ -46,7 +46,7 @@ function Install-ShaftMcp {
 "@
     }
 
-    function Bootstrap-Root {
+    function Get-BootstrapRoot {
         if (-not [string]::IsNullOrWhiteSpace($env:SHAFT_MCP_BOOTSTRAP_HOME)) {
             return [System.IO.Path]::GetFullPath($env:SHAFT_MCP_BOOTSTRAP_HOME)
         }
@@ -57,7 +57,7 @@ function Install-ShaftMcp {
         return (Join-Path $base "ShaftHQ\shaft-mcp\bootstrap")
     }
 
-    function File-Sha256([string] $Path) {
+    function Get-FileSha256([string] $Path) {
         $stream = [System.IO.File]::OpenRead($Path)
         try {
             $sha256 = [System.Security.Cryptography.SHA256]::Create()
@@ -118,7 +118,7 @@ function Install-ShaftMcp {
         return $null
     }
 
-    function Python-Target {
+    function Get-PythonTarget {
         switch (([System.Runtime.InteropServices.RuntimeInformation]::ProcessArchitecture).ToString()) {
             "X64" { return "x86_64-pc-windows-msvc" }
             "Arm64" { return "aarch64-pc-windows-msvc" }
@@ -138,7 +138,7 @@ function Install-ShaftMcp {
     }
 
     function Install-PortablePython([string] $Root) {
-        $target = Python-Target
+        $target = Get-PythonTarget
         $asset = $pythonAssets[$target]
         $installRoot = Join-Path $Root "tools\python\$pythonVersion-$pythonRelease-$target"
         $cached = if (Test-Path -LiteralPath $installRoot) { Find-PortablePython $installRoot } else { $null }
@@ -154,7 +154,7 @@ function Install-ShaftMcp {
         $download = Join-Path $Root "downloads\python-$pythonVersion-$pythonRelease-$target.tar.gz"
         Write-Host "Downloading portable Python $pythonVersion for $target..."
         Save-Url $asset.Url $download
-        $actual = File-Sha256 $download
+        $actual = Get-FileSha256 $download
         if ($actual -ne $asset.Sha256) {
             Fail "Checksum verification failed for the portable Python runtime." 3
         }
@@ -217,7 +217,7 @@ function Install-ShaftMcp {
 
     Show-Banner
     $env:SHAFT_MCP_BOOTSTRAP_BANNER_SHOWN = "1"
-    $root = Bootstrap-Root
+    $root = Get-BootstrapRoot
     New-Item -ItemType Directory -Force -Path $root | Out-Null
     $python = Find-Python
     if ($null -eq $python) {

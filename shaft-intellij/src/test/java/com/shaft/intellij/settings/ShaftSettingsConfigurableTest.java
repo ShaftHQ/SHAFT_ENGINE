@@ -325,9 +325,9 @@ class ShaftSettingsConfigurableTest {
 
         Method resolveFamily = ShaftSettingsConfigurable.class.getDeclaredMethod(
                 "resolveFamily", ShaftSettingsState.Settings.class);
-        resolveFamily.setAccessible(true);
+        resolveFamily.setAccessible(true); // NOPMD - test-only private mapper, matching getField
         Method clientFromFamily = ShaftSettingsConfigurable.class.getDeclaredMethod("clientFromFamily", String.class);
-        clientFromFamily.setAccessible(true);
+        clientFromFamily.setAccessible(true); // NOPMD - test-only private mapper, matching getField
 
         String family = String.valueOf(resolveFamily.invoke(null, settings));
         String mappedClient = String.valueOf(clientFromFamily.invoke(null, ""));

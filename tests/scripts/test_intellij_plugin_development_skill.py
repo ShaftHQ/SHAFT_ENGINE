@@ -70,7 +70,7 @@ class IntelliJPluginDevelopmentSkillTest(unittest.TestCase):
         self.assertTrue(PLAYBOOK.is_file(), f"missing playbook {PLAYBOOK}")
 
     def test_intellij_routing_row_loads_the_playbook_not_mastery_alone(self) -> None:
-        deliverable, target = routing_row_for("The IntelliJ plugin")
+        _, target = routing_row_for("The IntelliJ plugin")
         match = re.search(r"\[[^]]+\]\(([^)]+)\)", target)
         self.assertIsNotNone(match, f"row target is not a link: {target}")
         first_href = match.group(1).split("#", 1)[0]

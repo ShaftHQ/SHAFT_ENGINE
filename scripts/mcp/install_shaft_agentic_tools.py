@@ -22,7 +22,7 @@ import tomllib
 import urllib.error
 import urllib.parse
 import urllib.request
-import xml.etree.ElementTree as ET
+import xml.etree.ElementTree as ET  # nosec B314 - Maven metadata from HTTPS URLs this installer builds
 import zipfile
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from hashlib import sha1, sha256
@@ -412,13 +412,25 @@ def _is_http_404(exc: BaseException) -> bool:
     return isinstance(exc, urllib.error.HTTPError) and exc.code == 404
 
 
+def require_allowed_url(url: str) -> str:
+    parsed = urllib.parse.urlparse(url)
+    scheme = parsed.scheme.lower()
+    if scheme == "https" and parsed.netloc:
+        return url
+    if scheme == "file" and parsed.path:
+        return url
+    fail(f"Refusing URL scheme {parsed.scheme or 'missing'}: HTTPS or local file only.", 4)
+    return url
+
+
 def download_bytes(url: str, attempts: int = 5) -> bytes:
+    require_allowed_url(url)
     headers = {"User-Agent": "shaft-agentic-tools-installer"}
     last_error: BaseException | None = None
     for attempt in range(1, attempts + 1):
         try:
             request = urllib.request.Request(url, headers=headers)
-            with urllib.request.urlopen(request, timeout=120) as response:
+            with urllib.request.urlopen(request, timeout=120) as response:  # nosec B310 - HTTPS or local file via require_allowed_url
                 return response.read()
         except urllib.error.HTTPError as exc:
             if exc.code == 404:
@@ -429,7 +441,8 @@ def download_bytes(url: str, attempts: int = 5) -> bytes:
                 raise
             last_error = exc
         time.sleep(min(attempt * 2, 10))
-    assert last_error is not None
+    if last_error is None:
+        fail(f"Failed to download {url} without an error.", 4)
     raise last_error
 
 
@@ -439,6 +452,7 @@ def download_file(
         label: str | None = None,
         show_progress: bool = True,
         announce: bool = True) -> None:
+    require_allowed_url(url)
     output.parent.mkdir(parents=True, exist_ok=True)
     temporary = output.with_name(f".{output.name}.{os.getpid()}.tmp")
     headers = {"User-Agent": "shaft-agentic-tools-installer"}
@@ -449,7 +463,7 @@ def download_file(
             request = urllib.request.Request(url, headers=headers)
             if announce:
                 log(f"Downloading {display}...")
-            with urllib.request.urlopen(request, timeout=120) as response, temporary.open("wb") as target:
+            with urllib.request.urlopen(request, timeout=120) as response, temporary.open("wb") as target:  # nosec B310 - HTTPS or local file via require_allowed_url
                 length = response.headers.get("Content-Length")
                 total = int(length) if length and length.isdigit() else None
                 downloaded = 0
@@ -482,7 +496,8 @@ def download_file(
             last_error = exc
             temporary.unlink(missing_ok=True)
             time.sleep(min(attempt * 2, 10))
-    assert last_error is not None
+    if last_error is None:
+        fail(f"Failed to download {url} without an error.", 4)
     raise last_error
 
 
@@ -513,7 +528,8 @@ def file_sha256(path: Path) -> str:
 
 def java_feature(java: Path) -> int | None:
     try:
-        result = subprocess.run([str(java), "-version"], text=True, capture_output=True, timeout=20)
+        result = subprocess.run(  # nosec B603 - java is the Adoptium/PATH binary this installer resolved
+            [str(java), "-version"], text=True, capture_output=True, timeout=20)
     except (OSError, subprocess.SubprocessError):
         return None
     if result.returncode != 0:
@@ -626,7 +642,7 @@ def resolve_shaft_mcp_version(requested_version: str | None, repository: str, ro
     metadata_path = root / "downloads" / "shaft-mcp-maven-metadata.xml"
     download_file(metadata_url, metadata_path, "shaft-mcp Maven metadata", show_progress=False)
     try:
-        xml_root = ET.fromstring(metadata_path.read_text(encoding="utf-8"))
+        xml_root = ET.fromstring(metadata_path.read_text(encoding="utf-8"))  # nosec B314 - HTTPS Maven metadata this installer downloaded
     except ET.ParseError as exc:
         fail(f"Maven Central metadata is malformed: {exc}", 4)
     versioning = xml_root.find("versioning")
@@ -1131,7 +1147,7 @@ def read_lines(stream: Any, target: queue.Queue[str], sink: list[str] | None = N
         try:
             stream.close()
         except Exception:
-            pass
+            pass  # probe pipe already dead; closing must not fail the installer
 
 
 def await_probe_response(lines: queue.Queue[str], process: subprocess.Popen[str], request_id: int, stderr: list[str]) -> dict[str, Any]:
@@ -1160,7 +1176,7 @@ def await_probe_response(lines: queue.Queue[str], process: subprocess.Popen[str]
 
 
 def probe_stdio(java: Path, args_file: Path) -> None:
-    process = subprocess.Popen(
+    process = subprocess.Popen(  # nosec B603 - java and args file are installer-resolved
         [str(java), f"@{args_file}"],
         stdin=subprocess.PIPE,
         stdout=subprocess.PIPE,
@@ -1172,9 +1188,8 @@ def probe_stdio(java: Path, args_file: Path) -> None:
     )
     lines: queue.Queue[str] = queue.Queue()
     stderr: list[str] = []
-    assert process.stdout is not None
-    assert process.stderr is not None
-    assert process.stdin is not None
+    if process.stdout is None or process.stderr is None or process.stdin is None:
+        fail("shaft-mcp probe process did not expose stdio pipes.", 4)
     stdout_thread = threading.Thread(target=read_lines, args=(process.stdout, lines), daemon=True)
     stderr_thread = threading.Thread(target=read_lines, args=(process.stderr, queue.Queue(), stderr), daemon=True)
     stdout_thread.start()
@@ -1210,7 +1225,7 @@ def probe_stdio(java: Path, args_file: Path) -> None:
             try:
                 process.wait(timeout=5)
             except subprocess.TimeoutExpired:
-                pass
+                pass  # killed process may already be gone
 
 
 def command_path(name: str) -> Path | None:
@@ -1227,7 +1242,8 @@ def require_command(name: str, display_name: str) -> Path:
 
 def run_checked(command: list[str], message: str, allow_failure: bool = False) -> subprocess.CompletedProcess[str]:
     try:
-        result = subprocess.run(command, text=True, capture_output=True, timeout=60)
+        result = subprocess.run(  # nosec B603 - command is a list of installer-resolved binaries
+            command, text=True, capture_output=True, timeout=60)
     except (OSError, subprocess.SubprocessError) as exc:
         if allow_failure:
             return subprocess.CompletedProcess(command, 1, "", str(exc))

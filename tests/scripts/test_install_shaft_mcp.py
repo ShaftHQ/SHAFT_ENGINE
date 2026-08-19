@@ -1318,6 +1318,18 @@ class TransientDownloadRetryTest(unittest.TestCase):
         self.assertEqual(attempts["n"], 1)
 
 
+class HttpsUrlGuardTest(unittest.TestCase):
+    def test_download_bytes_rejects_http_and_custom_schemes(self):
+        with mock.patch("urllib.request.urlopen") as urlopen:
+            with self.assertRaises(MODULE.InstallError) as http_error:
+                MODULE.download_bytes("http://example.invalid/artifact")
+            with self.assertRaises(MODULE.InstallError) as ftp_error:
+                MODULE.download_bytes("ftp://example.invalid/artifact")
+        urlopen.assert_not_called()
+        self.assertIn("http", str(http_error.exception))
+        self.assertIn("ftp", str(ftp_error.exception))
+
+
 class AgenticToolsInstallerSurfaceTest(unittest.TestCase):
     def test_banner_names_agentic_tools_and_stays_available(self):
         stderr = io.StringIO()
