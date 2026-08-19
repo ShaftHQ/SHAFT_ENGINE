@@ -13,13 +13,10 @@ import re
 import unittest
 from pathlib import Path
 
-from scripts.ci.validate_agent_guidance import parse_frontmatter
-
 
 ROOT = Path(__file__).resolve().parents[2]
 SKILL_NAME = "intellij-plugin-development"
 ADAPTER = ROOT / ".agents/skills" / SKILL_NAME / "SKILL.md"
-OPENAI_YAML = ROOT / ".agents/skills" / SKILL_NAME / "agents" / "openai.yaml"
 PLAYBOOK = (
     ROOT
     / "chaos-engine/profiles/shaft/references/playbooks"
@@ -64,22 +61,13 @@ def markdown_link_targets(markdown: str) -> list[str]:
 
 
 class IntelliJPluginDevelopmentSkillTest(unittest.TestCase):
-    def test_adapter_and_playbook_exist_as_thin_wrapper(self) -> None:
-        self.assertTrue(ADAPTER.is_file(), f"missing adapter {ADAPTER}")
-        self.assertTrue(OPENAI_YAML.is_file(), f"missing {OPENAI_YAML}")
-        self.assertTrue(PLAYBOOK.is_file(), f"missing playbook {PLAYBOOK}")
-
-        frontmatter = parse_frontmatter(ADAPTER.read_text(encoding="utf-8"))
-        self.assertIsNotNone(frontmatter)
-        self.assertEqual(frontmatter.get("name"), SKILL_NAME)
-        adapter_body = ADAPTER.read_text(encoding="utf-8")
-        self.assertIn("playbooks/intellij-plugin-development.md", adapter_body)
-        self.assertNotIn("ProcessBuilder", adapter_body)
-        self.assertLess(
-            len(adapter_body.encode("utf-8")),
-            1024,
-            "adapter must stay a thin pointer at the playbook",
+    def test_playbook_exists_without_a_first_level_agents_adapter(self) -> None:
+        self.assertFalse(ADAPTER.is_file(), f"Codex must not discover {ADAPTER}")
+        self.assertFalse(
+            ADAPTER.parent.is_dir(),
+            f"first-level skill directory must not exist: {ADAPTER.parent}",
         )
+        self.assertTrue(PLAYBOOK.is_file(), f"missing playbook {PLAYBOOK}")
 
     def test_intellij_routing_row_loads_the_playbook_not_mastery_alone(self) -> None:
         deliverable, target = routing_row_for("The IntelliJ plugin")
@@ -115,14 +103,14 @@ class IntelliJPluginDevelopmentSkillTest(unittest.TestCase):
                 self.assertNotIn(token, body)
                 self.assertIn(token, MASTERY.read_text(encoding="utf-8"))
 
-    def test_expected_skill_names_and_skills_map_include_the_adapter(self) -> None:
+    def test_expected_skill_names_exclude_adapter_and_map_lists_playbook(self) -> None:
         budget = json.loads(BUDGET.read_text(encoding="utf-8"))
-        self.assertIn(
+        self.assertNotIn(
             SKILL_NAME,
             budget["expected_skill_names"][".agents/skills"],
         )
         map_text = SKILLS_MAP.read_text(encoding="utf-8")
-        self.assertIn(f".agents/skills/{SKILL_NAME}/SKILL.md", map_text)
+        self.assertNotIn(f".agents/skills/{SKILL_NAME}/SKILL.md", map_text)
         self.assertIn(f"playbooks/{SKILL_NAME}.md", map_text)
 
 
