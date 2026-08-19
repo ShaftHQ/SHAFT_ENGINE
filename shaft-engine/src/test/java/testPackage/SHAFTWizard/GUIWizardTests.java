@@ -2,6 +2,7 @@ package testPackage.SHAFTWizard;
 
 import org.openqa.selenium.By;
 import org.testng.annotations.Test;
+import testPackage.TestPageServer;
 import testPackage.Tests;
 
 public class GUIWizardTests extends Tests {
@@ -26,7 +27,7 @@ public class GUIWizardTests extends Tests {
 
     @Test
     public void test_selectFromDropdownList(){
-        driver.get().browser().navigateToURL("http://the-internet.herokuapp.com/dropdown");
+        driver.get().browser().navigateToURL(TestPageServer.url("dropdownFixture.html"));
        //"1" is attribute value string value
         driver.get().element().select(By.id("dropdown"), "1");
         driver.get().element().captureScreenshot(By.id("dropdown"));
@@ -38,7 +39,7 @@ public class GUIWizardTests extends Tests {
 
     @Test (expectedExceptions =  {RuntimeException.class})
     public void test_selectOptionNotExistFromDropdownList(){
-        driver.get().browser().navigateToURL("http://the-internet.herokuapp.com/dropdown");
+        driver.get().browser().navigateToURL(TestPageServer.url("dropdownFixture.html"));
         //"1" is attribute value string value
         driver.get().element().select(By.id("dropdown"), "1");
         driver.get().element().captureScreenshot(By.id("dropdown"));
