@@ -338,7 +338,7 @@ def source_files(source: Path, distribution: str = DEFAULT_DISTRIBUTION) -> tupl
     files: list[Path] = []
     for path in sorted(source.rglob("*")):
         relative = path.relative_to(source)
-        if "__pycache__" in relative.parts or path.suffix == ".pyc":
+        if is_generated_python_cache(relative):
             continue
         if relative.as_posix() == DISTRIBUTIONS_NAME:
             continue
@@ -417,14 +417,20 @@ def load_manifest(target: Path) -> dict[str, object]:
     return manifest
 
 
+def is_generated_python_cache(relative: Path) -> bool:
+    return "__pycache__" in relative.parts or relative.suffix == ".pyc"
+
+
 def installed_payload(target: Path) -> dict[str, str]:
     reject_link_or_reparse(target)
     payload: dict[str, str] = {}
     for path in sorted(target.rglob("*")):
         reject_link_or_reparse(path)
-        relative = path.relative_to(target).as_posix()
-        if path.is_file() and relative != MANIFEST_NAME:
-            payload[relative] = file_sha256(path)
+        relative = path.relative_to(target)
+        if is_generated_python_cache(relative):
+            continue
+        if path.is_file() and relative.as_posix() != MANIFEST_NAME:
+            payload[relative.as_posix()] = file_sha256(path)
     return payload
 
 
@@ -433,6 +439,44 @@ def verify_install(target: Path) -> dict[str, object]:
     if installed_payload(target) != manifest["files"]:
         raise ValueError(f"ChaosEngine ownership drift detected: {target}")
     return manifest
+
+
+def _is_link_or_reparse_error(error: BaseException) -> bool:
+    return str(error).startswith("path is a link or reparse point:")
+
+
+def try_verify_install(target: Path) -> dict[str, object] | None:
+    try:
+        return verify_install(target)
+    except ValueError as error:
+        if _is_link_or_reparse_error(error):
+            raise
+        return None
+
+
+def inspect_current_install(target: Path) -> dict[str, object] | None:
+    reject_link_or_reparse(target)
+    if not target.is_dir():
+        raise ValueError(f"ChaosEngine install path is not a directory: {target}")
+    return try_verify_install(target)
+
+
+def peek_host_token(target: Path) -> str | None:
+    try:
+        manifest = load_manifest(target)
+    except ValueError:
+        return None
+    token = manifest.get("hostToken")
+    if isinstance(token, str) and re.fullmatch(r"[0-9a-f]{64}", token) is not None:
+        return token
+    return None
+
+
+def remove_repairable_tree(path: Path) -> None:
+    if path.is_dir():
+        shutil.rmtree(path)
+    elif path.exists():
+        path.unlink()
 
 
 @contextmanager
@@ -759,24 +803,36 @@ def _recover_transaction(  # noqa: MC0001 - one auditable recovery state machine
         reject_link_or_reparse(path)
     if operation in ("install", "update"):
         if not target.exists() and displaced.exists():
-            verify_install(displaced)
-            displaced.replace(target)
-        elif not target.exists() and backup.exists() and not displaced.exists():
+            if try_verify_install(displaced) is None:
+                remove_repairable_tree(displaced)
+            else:
+                displaced.replace(target)
+        if not target.exists() and backup.exists() and not displaced.exists():
             verify_install(backup)
             backup.replace(target)
-        elif not target.exists() and not backup.exists() and not displaced.exists():
+        if not target.exists() and not backup.exists() and not displaced.exists():
             journal.unlink()
             return
-        verify_install(target)
+        if try_verify_install(target) is None:
+            if displaced.exists() and try_verify_install(displaced) is not None:
+                remove_repairable_tree(target)
+                displaced.replace(target)
+            else:
+                if displaced.exists():
+                    remove_repairable_tree(displaced)
+                journal.unlink()
+                return
         if backup.exists():
             verify_install(backup)
         if displaced.exists():
-            verify_install(displaced)
-            if backup.exists():
-                require_absent(old_backup, "obsolete backup path")
-                backup.replace(old_backup)
-            displaced.replace(backup)
-            verify_install(backup)
+            if try_verify_install(displaced) is None:
+                remove_repairable_tree(displaced)
+            else:
+                if backup.exists():
+                    require_absent(old_backup, "obsolete backup path")
+                    backup.replace(old_backup)
+                displaced.replace(backup)
+                verify_install(backup)
         if old_backup.exists():
             shutil.rmtree(old_backup)
     elif operation == "rollback":
@@ -867,8 +923,8 @@ def install(  # noqa: MC0001 - publication and compensation form one transaction
         _recover_transaction(project)
         if read_cross_rollback_journal(project) is not None:
             raise ValueError("rollback recovery is required before install")
-        if target.exists():
-            current = verify_install(target)
+        current = inspect_current_install(target) if target.exists() else None
+        if current is not None:
             current_commit = current["source"]["commit"]  # type: ignore[index]
             current_distribution = current.get("distribution")
             legacy_distribution = (
@@ -946,7 +1002,10 @@ def install(  # noqa: MC0001 - publication and compensation form one transaction
                 "source": desired_source,
                 "files": ownership,
                 "hostToken": (
-                    str(current["hostToken"]) if target.exists() else secrets.token_hex(32)
+                    str(current["hostToken"])
+                    if current is not None
+                    else (peek_host_token(target) if target.exists() else None)
+                    or secrets.token_hex(32)
                 ),
             }
             (stage / MANIFEST_NAME).write_text(
@@ -956,13 +1015,15 @@ def install(  # noqa: MC0001 - publication and compensation form one transaction
             publish_staged_tree(stage, target, displaced)
             verify_install(target)
             if displaced.exists():
-                verify_install(displaced)
-                if backup.exists():
+                if try_verify_install(displaced) is None:
+                    remove_repairable_tree(displaced)
+                else:
+                    if backup.exists():
+                        verify_install(backup)
+                        require_absent(old_backup, "obsolete backup path")
+                        backup.replace(old_backup)
+                    displaced.replace(backup)
                     verify_install(backup)
-                    require_absent(old_backup, "obsolete backup path")
-                    backup.replace(old_backup)
-                displaced.replace(backup)
-                verify_install(backup)
             if old_backup.exists():
                 shutil.rmtree(old_backup)
             journal.unlink()
@@ -998,6 +1059,7 @@ def rollback(  # noqa: MC0001 - cross-resource rollback is one journaled state m
             receipt_controller = None
             receipt_value = None
             if target.exists():
+                verify_install(target)
                 receipt_controller = load_installed_controller(target, "hosts")
                 host_receipt_path = project / ".chaos-engine-hosts.json"
                 if host_receipt_path.exists() or is_link_or_reparse(host_receipt_path):
@@ -1188,12 +1250,13 @@ def install_with_dependencies(  # noqa: MC0001 - owned resources share one compe
         old_manifest = None
         host_snapshot = None
         if current.exists():
-            old_manifest = verify_install(current)
-            old_commit = str(old_manifest["source"]["commit"])
-            old_host_controller = load_installed_controller(current, "hosts")
-            host_receipt_path = project / old_host_controller.RECEIPT_NAME
-            if host_receipt_path.exists() or is_link_or_reparse(host_receipt_path):
-                host_snapshot = old_host_controller.snapshot(project)
+            old_manifest = inspect_current_install(current)
+            if old_manifest is not None:
+                old_commit = str(old_manifest["source"]["commit"])
+                old_host_controller = load_installed_controller(current, "hosts")
+                host_receipt_path = project / old_host_controller.RECEIPT_NAME
+                if host_receipt_path.exists() or is_link_or_reparse(host_receipt_path):
+                    host_snapshot = old_host_controller.snapshot(project)
         target = install(
             project,
             source,
@@ -1255,9 +1318,12 @@ def install_with_dependencies(  # noqa: MC0001 - owned resources share one compe
                 except BaseException as cleanup_error:
                     compensation_errors.append(cleanup_error)
             try:
-                if old_commit is None:
+                backup_path = project / BACKUP_NAME
+                if old_commit is None and try_verify_install(backup_path) is not None:
+                    rollback(project, _locked=True)
+                elif old_commit is None:
                     uninstall(project, expected_commit=commit, _locked=True)
-                elif core_changed and (project / BACKUP_NAME).exists():
+                elif core_changed and backup_path.exists():
                     rollback(project, _locked=True)
             except BaseException as cleanup_error:
                 compensation_errors.append(cleanup_error)
