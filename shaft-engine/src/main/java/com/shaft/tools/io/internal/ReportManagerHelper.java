@@ -975,35 +975,45 @@ public class ReportManagerHelper {
         return currentStatus == null ? Status.PASSED : currentStatus;
     }
 
-    @Step("{logText}")
     static void writeStepToReport(String logText, List<List<Object>> attachments, CheckpointStatus status) {
+        if (SHAFT.Properties.reporting.disableLogging()) {
+            return;
+        }
         createLogEntry(logText, true);
-        if (attachments != null && !attachments.isEmpty()) {
-            attachments.forEach(attachment -> {
-                if (attachment != null && !attachment.isEmpty() && attachment.get(2)!=null && attachment.get(2).getClass().toString().toLowerCase().contains("string")
-                        && !attachment.get(2).getClass().toString().contains("StringInputStream")) {
-                    if (!attachment.get(2).toString().isEmpty()) {
-                        attach(attachment.get(0).toString(), attachment.get(1).toString(), attachment.get(2).toString());
-                    }
-                } else if (attachment != null && !attachment.isEmpty()) {
-                    if (attachment.get(2) instanceof byte[]) {
-                        attach(attachment.get(0).toString(), attachment.get(1).toString(), new ByteArrayInputStream((byte[]) attachment.get(2)));
-                    } else {
-                        attach(attachment.get(0).toString(), attachment.get(1).toString(), (InputStream) attachment.get(2));
-                    }
-                }
-                if (status.equals(CheckpointStatus.FAIL)) {
-                    Allure.getLifecycle().updateStep(update -> {
-                        update.setStatus(Status.FAILED);
-                        if (attachment != null && !attachment.isEmpty() && attachment.get(2) != null) {
-                            String trace = update.getStatusDetails() == null ? attachment.get(2).toString() : update.getStatusDetails().getTrace() + System.lineSeparator() + attachment.get(2).toString();
-                            StatusDetails details = update.getStatusDetails() == null ? new StatusDetails() : update.getStatusDetails();
-                            details.setTrace(trace.trim());
-                            update.setStatusDetails(details);
+        var lifecycle = Allure.getLifecycle();
+        var uuid = UUID.randomUUID().toString();
+        Status stepStatus = status == CheckpointStatus.FAIL ? Status.FAILED : Status.PASSED;
+        lifecycle.startStep(uuid, new StepResult().setName(logText).setStatus(stepStatus));
+        try {
+            if (attachments != null && !attachments.isEmpty()) {
+                attachments.forEach(attachment -> {
+                    if (attachment != null && !attachment.isEmpty() && attachment.get(2)!=null && attachment.get(2).getClass().toString().toLowerCase().contains("string")
+                            && !attachment.get(2).getClass().toString().contains("StringInputStream")) {
+                        if (!attachment.get(2).toString().isEmpty()) {
+                            attach(attachment.get(0).toString(), attachment.get(1).toString(), attachment.get(2).toString());
                         }
-                    });
-                }
-            });
+                    } else if (attachment != null && !attachment.isEmpty()) {
+                        if (attachment.get(2) instanceof byte[]) {
+                            attach(attachment.get(0).toString(), attachment.get(1).toString(), new ByteArrayInputStream((byte[]) attachment.get(2)));
+                        } else {
+                            attach(attachment.get(0).toString(), attachment.get(1).toString(), (InputStream) attachment.get(2));
+                        }
+                    }
+                    if (status.equals(CheckpointStatus.FAIL)) {
+                        lifecycle.updateStep(uuid, update -> {
+                            update.setStatus(Status.FAILED);
+                            if (attachment != null && !attachment.isEmpty() && attachment.get(2) != null) {
+                                String trace = update.getStatusDetails() == null ? attachment.get(2).toString() : update.getStatusDetails().getTrace() + System.lineSeparator() + attachment.get(2).toString();
+                                StatusDetails details = update.getStatusDetails() == null ? new StatusDetails() : update.getStatusDetails();
+                                details.setTrace(trace.trim());
+                                update.setStatusDetails(details);
+                            }
+                        });
+                    }
+                });
+            }
+        } finally {
+            lifecycle.stopStep(uuid);
         }
     }
 
@@ -1113,32 +1123,12 @@ public class ReportManagerHelper {
         if (!SHAFT.Properties.reporting.disableLogging()) {
             boolean hasAttachments = attachments != null && !attachments.isEmpty()
                     && (attachments.size() > 1 || (attachments.getFirst() != null && !attachments.getFirst().isEmpty()));
-            if (status != CheckpointStatus.FAIL && getDiscreteLogging() && isInternalStep()) {
-                createLogEntry(logText, Level.DEBUG);
-                if (hasAttachments) {
-                    attachments.forEach(attachment -> {
-                        if (attachment != null && !attachment.isEmpty()) {
-                            if (attachment.get(2) instanceof String string) {
-                                attachAsStep(attachment.get(0).toString(), attachment.get(1).toString(),
-                                        new ByteArrayInputStream(string.getBytes(StandardCharsets.UTF_8)));
-                            } else if (attachment.get(2) instanceof StringBuilder stringBuilder) {
-                                attachAsStep(attachment.get(0).toString(), attachment.get(1).toString(),
-                                        new ByteArrayInputStream(stringBuilder.toString().getBytes(StandardCharsets.UTF_8)));
-                            } else {
-                                attachAsStep(attachment.get(0).toString(), attachment.get(1).toString(),
-                                        (InputStream) attachment.get(2));
-                            }
-                        }
-                    });
-                }
+            if (hasAttachments) {
+                writeStepToReport(logText, attachments, status);
             } else {
-                if (hasAttachments) {
-                    writeStepToReport(logText, attachments, status);
-                } else {
-                    writeStepToReport(logText,
-                            status == CheckpointStatus.FAIL ? Level.ERROR : Level.INFO,
-                            status == CheckpointStatus.FAIL ? Status.FAILED : Status.PASSED);
-                }
+                writeStepToReport(logText,
+                        status == CheckpointStatus.FAIL ? Level.ERROR : Level.INFO,
+                        status == CheckpointStatus.FAIL ? Status.FAILED : Status.PASSED);
             }
         }
     }
