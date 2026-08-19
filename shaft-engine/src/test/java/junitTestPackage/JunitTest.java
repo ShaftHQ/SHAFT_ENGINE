@@ -44,5 +44,6 @@ public class JunitTest {
         if (driver.get() != null) {
             driver.get().quit();
         }
+        driver.remove();
     }
 }

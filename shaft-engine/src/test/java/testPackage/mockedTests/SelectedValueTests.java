@@ -44,6 +44,7 @@ public class SelectedValueTests {
         if (driver.get() != null) {
             driver.get().quit();
         }
+        driver.remove();
     }
 
 }

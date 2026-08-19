@@ -49,6 +49,9 @@ public class JDK21VirtualThreadsAndAsyncActionsTests {
 
     @AfterMethod(alwaysRun = true)
     public void afterMethod() {
-        if (driver.get() != null) driver.get().quit();
+        if (driver.get() != null) {
+            driver.get().quit();
+        }
+        driver.remove();
     }
 }

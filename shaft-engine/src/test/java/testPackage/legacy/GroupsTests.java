@@ -43,6 +43,9 @@ public class GroupsTests {
 
     @AfterMethod(description = "quit browser", alwaysRun = true)
     public void afterMethod() {
-        driver.get().quit();
+        if (driver.get() != null) {
+            driver.get().quit();
+        }
+        driver.remove();
     }
 }

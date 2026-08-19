@@ -134,6 +134,91 @@ class GraphifyMaintenanceTest(TestCase):
         run_git("add", ".")
         run_git("commit", "-m", "fixture")
 
+    def test_json_absent_from_manifest_is_expected_data_only(self):
+        self._git_tracked_fixture(
+            {
+                "src/ok.py": "print(1)\n",
+                "data/config.json": "{}\n",
+            }
+        )
+        self.write_cache(["src/ok.py"], covered=("src/ok.py",))
+
+        completed = self.command(
+            "audit", "--root", str(self.repository), "--graph-out", "cache/map"
+        )
+
+        self.assertEqual(0, completed.returncode, completed.stderr)
+        report = json.loads(completed.stdout)
+        self.assertEqual(["src/ok.py"], report["covered"])
+        self.assertIn("data/config.json", report["expected_data_only"])
+        self.assertEqual([], report["unclassified_unexpected"])
+
+    def test_intellij_build_contract_tests_are_ignored_because_graphify_skips_build_segments(self):
+        ignore = (ROOT / ".graphifyignore").read_text(encoding="utf-8")
+        self.assertIn(
+            "Graphify extract omits path segments named build/",
+            ignore,
+        )
+        self.assertIn(
+            "shaft-intellij/src/test/java/com/shaft/intellij/build/",
+            ignore,
+        )
+        self._git_tracked_fixture(
+            {
+                "src/ok.py": "print(1)\n",
+                "shaft-intellij/src/test/java/com/shaft/intellij/build/IntellijBuildJdkContractTest.java": "class T {}\n",
+                "shaft-intellij/src/test/java/com/shaft/intellij/build/IntellijRunIdeCrashLogContractTest.java": "class U {}\n",
+                "shaft-intellij/src/test/java/com/shaft/intellij/ui/OtherTest.java": "class V {}\n",
+            },
+            ignore=ignore,
+        )
+        self.write_cache(
+            ["src/ok.py", "shaft-intellij/src/test/java/com/shaft/intellij/ui/OtherTest.java"],
+            covered=("src/ok.py", "shaft-intellij/src/test/java/com/shaft/intellij/ui/OtherTest.java"),
+        )
+
+        completed = self.command(
+            "audit", "--root", str(self.repository), "--graph-out", "cache/map"
+        )
+
+        self.assertEqual(0, completed.returncode, completed.stderr)
+        report = json.loads(completed.stdout)
+        self.assertIn(
+            "shaft-intellij/src/test/java/com/shaft/intellij/build/IntellijBuildJdkContractTest.java",
+            report["ignored_by_policy"],
+        )
+        self.assertIn(
+            "shaft-intellij/src/test/java/com/shaft/intellij/build/IntellijRunIdeCrashLogContractTest.java",
+            report["ignored_by_policy"],
+        )
+        self.assertIn(
+            "shaft-intellij/src/test/java/com/shaft/intellij/ui/OtherTest.java",
+            report["covered"],
+        )
+        self.assertNotIn(
+            "shaft-intellij/src/test/java/com/shaft/intellij/ui/OtherTest.java",
+            report["ignored_by_policy"],
+        )
+
+    def test_css_ignored_by_policy_does_not_fail_audit(self):
+        self._git_tracked_fixture(
+            {
+                "src/ok.py": "print(1)\n",
+                "docs/javadoc.css": "body{}\n",
+            },
+            ignore="*.css\n",
+        )
+        self.write_cache(["src/ok.py"], covered=("src/ok.py",))
+
+        completed = self.command(
+            "audit", "--root", str(self.repository), "--graph-out", "cache/map"
+        )
+
+        self.assertEqual(0, completed.returncode, completed.stderr)
+        report = json.loads(completed.stdout)
+        self.assertIn("docs/javadoc.css", report["ignored_by_policy"])
+        self.assertNotIn("docs/javadoc.css", report["unclassified_unexpected"])
+
     def test_unclassified_unexpected_suffix_fails_audit(self):
         self._git_tracked_fixture(
             {

@@ -166,6 +166,8 @@ def audit_graph(root: Path, graph_out: Path) -> dict[str, object]:
             continue
         if path == GRAPHIFYIGNORE_NAME or matches_graphify_ignore(path, patterns):
             result["ignored_by_policy"].append(path)  # type: ignore[union-attr]
+        elif Path(path).suffix.lower() == ".json":
+            result["expected_data_only"].append(path)  # type: ignore[union-attr]
         elif unclassified_allowlisted(path):
             result["unclassified_allowlisted"].append(path)  # type: ignore[union-attr]
         else:
