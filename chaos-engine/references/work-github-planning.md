@@ -27,19 +27,29 @@ Issue-backed plans must be copied onto the GitHub issue before the first impleme
 
 Only then ask about a decision the user alone must make.
 
-## 1. Ask once, at the start, then go unattended
+## 1. Keep asking follow-ups until decision-ready; then go unattended
 
-Ground one batch of decisions: branch/PR shape, merge authority, and any truly
-ambiguous scope. The default is one branch/worktree, linked subtask issues, and
-one PR per related group; for genuinely disjoint work, offer a separate branch+PR per item looped sequentially. Do not ask piecemeal later unless a real HALT condition applies.
+During planning, ground first. Never ask what the repository, retrieval stores,
+or authoritative docs can answer. Then ask every material question, and keep
+asking follow-ups until the plan is decision-ready. A plan that skipped those
+questions is incomplete.
+
+Ground remaining owner-only decisions: branch/PR shape, merge authority, and any
+truly ambiguous scope. The default is one branch/worktree, linked subtask issues, and
+one PR per related group; for genuinely disjoint work, offer a separate branch+PR per item looped sequentially.
+
+After the owner approves the plan, go completely unattended. Do not ask the user
+for implementation clarifications or for permission already granted. If execution
+hits ambiguity, dispatch a consultant agent (read-only, independent) and take
+its guidance. Absorb owner-initiated mid-flight requests.
 
 ### Mid-session realignment: named HALT conditions
 
 HALT and ask when a new request changes the agreed branch, PR, or merge-authority
 shape; cannot be grounded in current code (say what you searched); conflicts
-with work in flight (surface the conflict and two options); or needs merge
-authority that was never granted. Otherwise absorb the request into the owned
-plan.
+with work in flight (surface the conflict and two options); needs merge
+authority that was never granted; or a new request contradicts the approved
+plan. Otherwise absorb the request into the owned plan.
 
 ## 2. Branch and track
 

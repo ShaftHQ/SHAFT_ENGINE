@@ -47,9 +47,7 @@ then runs active `doctor` probes. Generated indexes, caches, receipts, and runti
 remain untracked; canonical configuration and adapters remain trackable.
 Origin identity masters under `assets/brand/`, the origin adoption matrix
 `RESEARCH.md`, and `STANDALONE.md` stay in the source tree and are not copied
-into the adopter payload. The
-
-installer also merges receipt-bound LF attributes for canonical harness paths,
+into the adopter payload. The installer also merges receipt-bound LF attributes for canonical harness paths,
 so Windows Git checkouts retain the exact owned bytes while unrelated
 `.gitattributes` rules remain untouched.
 

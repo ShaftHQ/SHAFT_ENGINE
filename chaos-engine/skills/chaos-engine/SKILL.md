@@ -115,7 +115,7 @@ ownership. Approval never crosses target classes.
 
 1. Orient on requested outcome and concrete proof of done.
 2. Read current instructions and live files before acting.
-3. Plan by uncertainty, blast radius, and reversibility; test riskiest premise first.
+3. Plan by uncertainty, blast radius, and reversibility; test riskiest premise first; keep asking follow-ups until the plan is decision-ready. After owner approval, go unattended and dispatch a consultant agent for execution ambiguity.
 4. Act in smallest verified increment. Fix root owner of an invariant, not each symptom.
 5. Verify affected behavior empirically, including nearest plausible regression.
 6. Report outcome, exact checks, failures, and Learning Loop result.
@@ -205,19 +205,27 @@ on each other.
 | Work streams | Mode |
 | --- | --- |
 | One | **Solo.** Do the work yourself, in sequence. Do not delegate it. |
-| Two or more | **Orchestrate.** One agent per stream, each in its own worktree, up to four. Do no task work yourself. |
+| Two or more | **Orchestrate.** Do not wait for the owner to say "orchestrate". Default one writer at a time, each in its own worktree. Do no task work yourself. |
 
 Orchestrating keeps you reachable for owner or delegate decisions. In this mode
 you make no edits, run no long job, and install nothing;
-[delegation](../../references/delegation.md) lists what stays yours.
+[delegation](../../references/delegation.md) lists what stays yours, including the
+live status table, fewest-PR grouping, keep-working-until-delivered loop, and
+Learning Loop before kill.
+
+**Default serial, optional parallel.** One writer at a time, ordered by
+dependency then priority. On owner request, parallelize independent writers up to
+a hard cap of four; the owner may set a cap of 1–4. Refuse a requested cap above
+4. File-overlapping writers never run in parallel.
 
 **Switching mode.** Finish or hand over what you hold before you switch. While
 any delegate still owns a stream you remain orchestrating, even if the count
 alone would say otherwise. Never start an edit in the same breath as adopting
-solo mode; land the transition first.
+solo mode or orchestrator mode; land the transition first.
 
 **A host with no subagent primitive cannot orchestrate.** It works solo at any
-count, sequentially, and still owes the review gate a separate instance.
+count, sequentially, still shows the live status table, and still owes the review
+gate a separate instance.
 
 **A reviewer is never a work stream.** Review does not turn a solo session into
 an orchestrated one, and a read-only reviewer does not consume one of the four

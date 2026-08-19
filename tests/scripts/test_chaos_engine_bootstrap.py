@@ -74,6 +74,23 @@ class ChaosEngineBootstrapTest(unittest.TestCase):
         self.assertIn("for ($attempt = 0; $attempt -lt 4; $attempt++)", powershell)
         self.assertIn("curl -fsSL --retry 3", shell)
 
+    def test_posix_copy_gate_calls_source_tree_helper_after_resolve_only(self):
+        """#5232: a helper definition alone must not keep leftover-copy CI green."""
+        shell = (ROOT / "chaos-engine/install.sh").read_text(encoding="utf-8")
+        self.assertIn("CHAOS_ENGINE_RESOLVE_ONLY", shell)
+        after_resolve = shell.split("CHAOS_ENGINE_RESOLVE_ONLY", 1)[1]
+        self.assertIn("is_chaos_engine_source_tree", after_resolve)
+        self.assertIn('cp "$script_dir/bootstrap.py"', after_resolve)
+
+    def test_install_md_joins_the_installer_lf_attributes_sentence(self):
+        """#5234: origin omit-list and LF-attributes stay one paragraph."""
+        document = (ROOT / "chaos-engine/INSTALL.md").read_text(encoding="utf-8")
+        self.assertIn(
+            "into the adopter payload. The installer also merges receipt-bound LF attributes",
+            document,
+        )
+        self.assertNotRegex(document, r"The\s*\n\s*\n\s*installer also merges")
+
     def test_read_response_retries_a_transient_http_failure(self):
         module = load()
         transient = urllib.error.HTTPError(

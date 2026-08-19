@@ -833,6 +833,108 @@ class ChaosEnginePortableCoreTest(unittest.TestCase):
         workflow = (ROOT / ".github/workflows/pr-gate.yml").read_text(encoding="utf-8")
         self.assertIn("tests.scripts.test_chaos_engine_portable_core", workflow)
 
+    def test_planning_keeps_asking_follow_ups_then_runs_unattended(self):
+        """#5248: ask-once-then-unattended cannot silently return."""
+        planning = (CORE / "references/work-github-planning.md").read_text(encoding="utf-8")
+        receipt = (CORE / "references/research-receipt.md").read_text(encoding="utf-8")
+        consult = (CORE / "references/consult-first.md").read_text(encoding="utf-8")
+        skill = CANONICAL_SKILL.read_text(encoding="utf-8")
+        forbidden = "Ask once, at the start, then go unattended"
+        for text, name in (
+            (planning, "work-github-planning.md"),
+            (receipt, "research-receipt.md"),
+            (consult, "consult-first.md"),
+            (skill, "SKILL.md"),
+        ):
+            with self.subTest(file=name):
+                self.assertNotIn(forbidden, text)
+        compact_planning = re.sub(r"\s+", " ", planning)
+        compact_receipt = re.sub(r"\s+", " ", receipt)
+        compact_consult = re.sub(r"\s+", " ", consult)
+        compact_skill = re.sub(r"\s+", " ", skill)
+        self.assertIn("keep asking follow-ups until the plan is decision-ready", compact_planning)
+        self.assertIn("go completely unattended", compact_planning)
+        self.assertIn("consultant agent", compact_planning)
+        self.assertIn("keep asking follow-ups until the plan is decision-ready", compact_receipt)
+        self.assertIn("consultant agent", compact_receipt)
+        self.assertIn("consultant agent", compact_consult)
+        self.assertIn("keep asking follow-ups until the plan is decision-ready", compact_skill)
+        self.assertIn("consultant agent", compact_skill)
+
+
+class ChaosEngineOrchestratorModeTest(unittest.TestCase):
+    """Portable orchestrator-mode pins (#5210, #5246, #5249)."""
+
+    def _skill(self) -> str:
+        return re.sub(r"\s+", " ", CANONICAL_SKILL.read_text(encoding="utf-8"))
+
+    def _delegation(self) -> str:
+        return re.sub(
+            r"\s+",
+            " ",
+            (CORE / "references/delegation.md").read_text(encoding="utf-8"),
+        )
+
+    def _combined(self) -> str:
+        texts = [
+            CANONICAL_SKILL.read_text(encoding="utf-8"),
+            (CORE / "references/delegation.md").read_text(encoding="utf-8"),
+            (CORE / "references/roles.md").read_text(encoding="utf-8"),
+            (CORE / "references/orchestrator-bootstrap.md").read_text(encoding="utf-8"),
+        ]
+        return re.sub(r"\s+", " ", "\n".join(texts))
+
+    def test_entrypoint_auto_switches_and_forbids_self_work_with_serial_default(self):
+        skill = self._skill()
+        self.assertIn('Do not wait for the owner to say "orchestrate"', skill)
+        self.assertIn("do no task work yourself", skill.lower())
+        self.assertIn("one writer at a time", skill.lower())
+        self.assertIn("never start an edit in the same breath as adopting", skill.lower())
+
+    def test_delegation_pins_status_table_serial_cap_and_learning_loop_before_kill(self):
+        delegation = self._delegation()
+        for column in (
+            "ID / work item",
+            "Mode stream",
+            "Status",
+            "Owner / agent",
+            "Dependency",
+            "Last update",
+            "Details / evidence",
+            "Next action",
+        ):
+            with self.subTest(column=column):
+                self.assertIn(column, delegation)
+        for status in (
+            "planned",
+            "in progress",
+            "blocked",
+            "review",
+            "completed",
+            "out of scope",
+        ):
+            with self.subTest(status=status):
+                self.assertIn(status, delegation)
+        self.assertIn("Learning Loop before kill", delegation)
+        self.assertIn("Refuse a requested cap above 4", delegation)
+        self.assertIn("File-overlapping writers never run in parallel", delegation)
+        self.assertIn("one writer at a time", delegation.lower())
+
+    def test_portable_orchestrator_groups_fewest_prs_and_keeps_working(self):
+        delegation = self._delegation()
+        for phrase in (
+            "stay available",
+            "live status table",
+            "fewest PRs that still keep one problem per issue",
+            "keep working until every in-scope ticket is delivered",
+            "Do not treat planning, a status table, or one PR as session complete",
+        ):
+            with self.subTest(phrase=phrase):
+                self.assertIn(phrase, delegation)
+        combined = self._combined()
+        self.assertIn("stay available", combined)
+        self.assertIn("live status table", combined)
+
 
 if __name__ == "__main__":
     unittest.main()
