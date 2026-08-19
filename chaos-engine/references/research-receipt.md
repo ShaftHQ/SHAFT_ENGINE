@@ -41,8 +41,8 @@ objective and reasoning, success criteria, audience, included and excluded
 scope, constraints, current state, callers, assumptions, tradeoffs, risks, and
 proof before reducing the work to files or steps. Ground first: never ask a
 question the repository, retrieval stores, or authoritative sources can answer.
-Then ask every material question and keep asking follow-ups until the plan is
-decision-ready. A plan that skipped those questions is incomplete. Record the
+Then ask every material question needed for high confidence in the user's
+intent and keep asking follow-ups until the plan is decision-ready. A plan that skipped those questions is incomplete. Record the
 answer, any remaining unknown, and the evidence behind the confidence level.
 
 Every plan records each store as `used` (scoped query plus verified evidence),
