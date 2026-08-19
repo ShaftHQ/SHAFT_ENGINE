@@ -70,8 +70,9 @@ final class SetupPrerequisites {
             case "CLAUDE" -> "claude";
             case "COPILOT" -> "copilot";
             case "GROK" -> "grok";
-            case "GEMINI" -> null;
-            default -> "codex";
+            case "CODEX" -> "codex";
+            case "GEMINI", "" -> null;
+            default -> null;
         };
     }
 
@@ -80,7 +81,8 @@ final class SetupPrerequisites {
             case "CLAUDE" -> "Claude Code CLI";
             case "COPILOT" -> "GitHub Copilot CLI";
             case "GROK" -> "Grok CLI";
-            default -> "Codex CLI";
+            case "CODEX" -> "Codex CLI";
+            default -> "";
         };
     }
 
@@ -89,7 +91,8 @@ final class SetupPrerequisites {
             case "CLAUDE" -> "npm install -g @anthropic-ai/claude-code";
             case "COPILOT" -> "npm install -g @github/copilot";
             case "GROK" -> "Install the Grok CLI (grok) and ensure it is on PATH";
-            default -> "npm install -g @openai/codex";
+            case "CODEX" -> "npm install -g @openai/codex";
+            default -> "";
         };
     }
 

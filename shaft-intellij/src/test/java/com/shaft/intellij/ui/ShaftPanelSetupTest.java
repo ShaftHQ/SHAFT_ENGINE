@@ -1882,6 +1882,36 @@ class ShaftPanelSetupTest {
     }
 
     @Test
+    void firstVisitPrerequisitesDoNotRequireCodexWhenNoAgentIsSelected() {
+        ShaftMcpSetupPanel panel = new ShaftMcpSetupPanel(fakeProject(), blankMcpSettings(), () -> {
+        });
+        assertAll(
+                () -> assertFalse(containsText(panel, "Codex CLI"), "step 0 must not require Codex before an agent pick"),
+                () -> assertNull(findByAccessibleName(panel, "Copy Codex CLI install command", JButton.class)));
+    }
+
+    @Test
+    void blankAssistantFamilyComboDoesNotStayOnCodexOrPersistIt() throws Exception {
+        ShaftSettingsState.Settings settings = blankMcpSettings();
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, settings);
+        JComboBox<?> family = (JComboBox<?>) getField(panel, "assistantFamily");
+        Method selectedRoute = ShaftAssistantPanel.class.getDeclaredMethod("selectedRoute");
+        selectedRoute.setAccessible(true);
+        Object selection = selectedRoute.invoke(panel);
+
+        assertAll(
+                () -> assertNotEquals("CODEX", family.getSelectedItem()),
+                () -> assertNull(family.getSelectedItem()),
+                () -> assertNotEquals("CODEX", settings.assistantFamily),
+                () -> assertTrue(settings.assistantFamily == null || settings.assistantFamily.isBlank()
+                        || "null".equals(settings.assistantFamily), settings.assistantFamily),
+                () -> assertNotEquals("CODEX", settings.defaultAutobotClient),
+                () -> assertTrue(settings.defaultAutobotClient == null || settings.defaultAutobotClient.isBlank(),
+                        settings.defaultAutobotClient),
+                () -> assertFalse(String.valueOf(selection).contains("CODEX"), String.valueOf(selection)));
+    }
+
+    @Test
     void copyingSetupCommandUsesSelectedAgentAndAgenticToolsScript() throws Exception {
         ShaftSettingsState.Settings settings = blankMcpSettings();
         settings.assistantFamily = "GROK";

@@ -486,7 +486,12 @@ final class ShaftAssistantPanel extends JPanel implements Disposable {
         providerType.setSelectedItem(normalize(settings.assistantProviderType, "LOCAL"));
         providerType.setToolTipText("Use Local for CLI agents; Cloud for provider Ask and Plan");
         assistantFamily = combo("Assistant family", "CODEX", "CLAUDE", "COPILOT", "GROK");
-        assistantFamily.setSelectedItem(resolveFamily(settings));
+        String familyValue = resolveFamily(settings);
+        if (familyValue.isBlank()) {
+            assistantFamily.setSelectedIndex(-1);
+        } else {
+            assistantFamily.setSelectedItem(familyValue);
+        }
         assistantFamily.setToolTipText("Local assistant client");
         assistantRuntime = combo("Assistant runtime", "CLI", "IDE_PLUGIN", "DESKTOP_APP");
         assistantRuntime.setSelectedItem(normalize(settings.assistantRuntime, "CLI"));
@@ -2137,7 +2142,8 @@ final class ShaftAssistantPanel extends JPanel implements Disposable {
     private AssistantCommand.Selection selectedRoute() {
         settings.defaultAutobotMode = String.valueOf(mode.getSelectedItem());
         settings.assistantProviderType = String.valueOf(providerType.getSelectedItem());
-        settings.assistantFamily = String.valueOf(assistantFamily.getSelectedItem());
+        Object familyItem = assistantFamily.getSelectedItem();
+        settings.assistantFamily = familyItem == null ? "" : String.valueOf(familyItem);
         settings.assistantRuntime = String.valueOf(assistantRuntime.getSelectedItem());
         settings.cloudProvider = String.valueOf(cloudProvider.getSelectedItem());
         settings.cloudModel = editableComboText(cloudModel);
