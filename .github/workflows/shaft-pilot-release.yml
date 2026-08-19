@@ -82,6 +82,14 @@ jobs:
         uses: actions/checkout@v7
       - name: Verify IntelliJ plugin release candidate
         uses: ./.github/actions/intellij-verify
+      - name: Upload IntelliJ coverage to Codecov
+        if: always()
+        uses: ./.github/actions/upload-jacoco-coverage
+        with:
+          codecov-token: ${{ secrets.CODECOV_TOKEN }}
+          files: ./shaft-intellij/build/reports/jacoco/test/jacocoTestReport.xml
+          required-files: ./shaft-intellij/build/reports/jacoco/test/jacocoTestReport.xml
+          source-id: shaft-pilot-release-intellij-verify
 
   release-contracts:
     needs: detect-shaft-version-change
@@ -183,6 +191,13 @@ jobs:
           -am install -DskipTests -Dgpg.skip
       - name: Run headless SHAFT Capture release journey
         uses: ./.github/actions/capture-browser-e2e
+      - name: Upload Capture journey coverage to Codecov
+        if: always()
+        uses: ./.github/actions/upload-jacoco-coverage
+        with:
+          codecov-token: ${{ secrets.CODECOV_TOKEN }}
+          required-files: ./shaft-capture/target/jacoco/jacoco.xml
+          source-id: shaft-pilot-release-capture-journey
 
   package-and-validate:
     needs: detect-shaft-version-change
