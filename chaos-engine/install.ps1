@@ -124,6 +124,17 @@ function Get-ChaosEngineInvocationText {
     return $chunks
 }
 
+function Test-ChaosEngineSourceTree([string]$ScriptDirectory) {
+    if ([string]::IsNullOrWhiteSpace($ScriptDirectory)) {
+        return $false
+    }
+    $skill = $ScriptDirectory
+    foreach ($part in "skills/chaos-engine/SKILL.md".Split("/")) {
+        $skill = Join-Path $skill $part
+    }
+    return Test-Path -LiteralPath $skill
+}
+
 function Test-ChaosEngineRepository([string]$Repository) {
     if ([string]::IsNullOrWhiteSpace($Repository)) {
         return $false
@@ -225,7 +236,7 @@ if (-not [string]::IsNullOrWhiteSpace($env:CHAOS_ENGINE_BRANCH)) {
 }
 $project = (Get-Location).Path
 $localBootstrap = $null
-if (-not [string]::IsNullOrWhiteSpace($PSScriptRoot)) {
+if ((-not [string]::IsNullOrWhiteSpace($PSScriptRoot)) -and (Test-ChaosEngineSourceTree $PSScriptRoot)) {
     $candidate = Join-Path $PSScriptRoot "bootstrap.py"
     if (Test-Path -LiteralPath $candidate) {
         $localBootstrap = $candidate
