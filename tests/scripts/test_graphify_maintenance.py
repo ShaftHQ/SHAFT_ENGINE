@@ -153,6 +153,53 @@ class GraphifyMaintenanceTest(TestCase):
         self.assertIn("data/config.json", report["expected_data_only"])
         self.assertEqual([], report["unclassified_unexpected"])
 
+    def test_intellij_build_contract_tests_are_ignored_because_graphify_skips_build_segments(self):
+        ignore = (ROOT / ".graphifyignore").read_text(encoding="utf-8")
+        self.assertIn(
+            "Graphify extract omits path segments named build/",
+            ignore,
+        )
+        self.assertIn(
+            "shaft-intellij/src/test/java/com/shaft/intellij/build/",
+            ignore,
+        )
+        self._git_tracked_fixture(
+            {
+                "src/ok.py": "print(1)\n",
+                "shaft-intellij/src/test/java/com/shaft/intellij/build/IntellijBuildJdkContractTest.java": "class T {}\n",
+                "shaft-intellij/src/test/java/com/shaft/intellij/build/IntellijRunIdeCrashLogContractTest.java": "class U {}\n",
+                "shaft-intellij/src/test/java/com/shaft/intellij/ui/OtherTest.java": "class V {}\n",
+            },
+            ignore=ignore,
+        )
+        self.write_cache(
+            ["src/ok.py", "shaft-intellij/src/test/java/com/shaft/intellij/ui/OtherTest.java"],
+            covered=("src/ok.py", "shaft-intellij/src/test/java/com/shaft/intellij/ui/OtherTest.java"),
+        )
+
+        completed = self.command(
+            "audit", "--root", str(self.repository), "--graph-out", "cache/map"
+        )
+
+        self.assertEqual(0, completed.returncode, completed.stderr)
+        report = json.loads(completed.stdout)
+        self.assertIn(
+            "shaft-intellij/src/test/java/com/shaft/intellij/build/IntellijBuildJdkContractTest.java",
+            report["ignored_by_policy"],
+        )
+        self.assertIn(
+            "shaft-intellij/src/test/java/com/shaft/intellij/build/IntellijRunIdeCrashLogContractTest.java",
+            report["ignored_by_policy"],
+        )
+        self.assertIn(
+            "shaft-intellij/src/test/java/com/shaft/intellij/ui/OtherTest.java",
+            report["covered"],
+        )
+        self.assertNotIn(
+            "shaft-intellij/src/test/java/com/shaft/intellij/ui/OtherTest.java",
+            report["ignored_by_policy"],
+        )
+
     def test_css_ignored_by_policy_does_not_fail_audit(self):
         self._git_tracked_fixture(
             {
