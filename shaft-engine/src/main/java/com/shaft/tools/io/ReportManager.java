@@ -32,11 +32,7 @@ public class ReportManager {
      */
     public static void log(String logText) {
         if (logText != null && !logText.isBlank()) {
-            if (getDiscreteLogging() && isInternalStep()) {
-                createLogEntry(logText, Level.INFO);
-            } else {
-                writeStepToReport(logText);
-            }
+            writeStepToReport(logText);
         }
     }
 
@@ -48,11 +44,7 @@ public class ReportManager {
      */
     public static void log(String logText, Level logLevel) {
         if (logText != null && !logText.isBlank()) {
-            if (getDiscreteLogging() && isInternalStep()) {
-                createLogEntry(logText, logLevel);
-            } else {
-                writeStepToReport(logText, logLevel);
-            }
+            writeStepToReport(logText, logLevel);
         }
     }
 
@@ -69,11 +61,7 @@ public class ReportManager {
     public static void log(String logText, Status stepStatus) {
         if (logText != null && !logText.isBlank()) {
             boolean isFailure = Status.FAILED.equals(stepStatus) || Status.BROKEN.equals(stepStatus);
-            if (!isFailure && getDiscreteLogging() && isInternalStep()) {
-                createLogEntry(logText, Level.INFO);
-            } else {
-                writeStepToReport(logText, isFailure ? Level.ERROR : Level.INFO, stepStatus);
-            }
+            writeStepToReport(logText, isFailure ? Level.ERROR : Level.INFO, stepStatus);
         }
     }
 
