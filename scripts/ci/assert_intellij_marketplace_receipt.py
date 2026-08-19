@@ -4,6 +4,11 @@
 Issue #5221: a cancelled verify+publish composite looked partly healthy because
 coverage uploaded `if: always()`. A successful Marketplace publish must leave a
 Gradle `BUILD SUCCESSFUL` receipt and the version must appear on plugin 32529.
+
+Issue #5227: Marketplace listing can lag the upload by more than the original
+5x15s budget. Wait long enough for a valid public listing, and if the version
+is still absent after a Gradle success, say listing is lagging rather than
+treating the landed upload as a miss that invites another dispatch.
 """
 
 from __future__ import annotations
@@ -52,12 +57,23 @@ def marketplace_versions(updates_json: str) -> list[str]:
     return versions
 
 
-def marketplace_receipt_errors(updates_json: str, version: str) -> list[str]:
+def marketplace_receipt_errors(
+    updates_json: str,
+    version: str,
+    *,
+    gradle_succeeded: bool = False,
+) -> list[str]:
     try:
         versions = marketplace_versions(updates_json)
     except (ValueError, json.JSONDecodeError) as error:
         return [f"Marketplace updates JSON is unreadable: {error}"]
     if version not in versions:
+        if gradle_succeeded:
+            return [
+                f"Marketplace plugin {MARKETPLACE_PLUGIN_ID} does not list version {version} "
+                "after a successful Gradle publishPlugin; listing still lagging. "
+                "Do not re-dispatch this single-use version."
+            ]
         return [
             f"Marketplace plugin {MARKETPLACE_PLUGIN_ID} does not list version {version}"
         ]
@@ -66,11 +82,16 @@ def marketplace_receipt_errors(updates_json: str, version: str) -> list[str]:
 
 def receipt_errors(log_text: str, properties_text: str, updates_json: str) -> list[str]:
     errors = gradle_receipt_errors(log_text)
+    gradle_succeeded = not errors
     try:
         version = plugin_version_from_properties(properties_text)
     except ValueError as error:
         return errors + [str(error)]
-    errors.extend(marketplace_receipt_errors(updates_json, version))
+    errors.extend(
+        marketplace_receipt_errors(
+            updates_json, version, gradle_succeeded=gradle_succeeded
+        )
+    )
     return errors
 
 
@@ -82,7 +103,7 @@ def fetch_updates(url: str = MARKETPLACE_UPDATES_URL, timeout: int = 30) -> str:
 
 def fetch_updates_with_retry(
     url: str = MARKETPLACE_UPDATES_URL,
-    attempts: int = 5,
+    attempts: int = 12,
     delay_seconds: float = 15,
     sleeper=time.sleep,
     fetcher=fetch_updates,
