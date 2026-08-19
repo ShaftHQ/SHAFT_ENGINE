@@ -14,6 +14,11 @@ from pathlib import Path
 from types import SimpleNamespace
 from urllib.parse import unquote, urlparse
 
+from tests.scripts.test_chaos_engine_install_wrappers import (
+    has_implicit_string_concat,
+    source_segment_for_function,
+)
+
 
 ROOT = Path(__file__).resolve().parents[2]
 BOOTSTRAP = ROOT / "chaos-engine/bootstrap.py"
@@ -54,7 +59,7 @@ class ChaosEngineBootstrapTest(unittest.TestCase):
         windows = 'irm "https://raw.githubusercontent.com/owner/repository/main/chaos-engine/install.ps1" | iex'
         posix = (
             'curl -fsSL "https://raw.githubusercontent.com/owner/repository/main/chaos-engine/install.sh"'
-            ' | bash -s -- "https://raw.githubusercontent.com/owner/repository/main/chaos-engine/install.sh"'
+            + ' | bash -s -- "https://raw.githubusercontent.com/owner/repository/main/chaos-engine/install.sh"'
         )
         for relative in ("chaos-engine/README.md", "chaos-engine/INSTALL.md"):
             document = ROOT.joinpath(relative).read_text(encoding="utf-8")
@@ -73,6 +78,39 @@ class ChaosEngineBootstrapTest(unittest.TestCase):
         self.assertIn("--project", shell)
         self.assertIn("for ($attempt = 0; $attempt -lt 4; $attempt++)", powershell)
         self.assertIn("curl -fsSL --retry 3", shell)
+
+    def test_documented_posix_one_liner_uses_explicit_concatenation(self):
+        """#5253: adjacent literals in the documented POSIX one-liner go red."""
+        source = Path(__file__).read_text(encoding="utf-8")
+        snippet = source_segment_for_function(
+            source, "test_documented_command_contains_the_bounded_initial_fetch_contract"
+        )
+        self.assertTrue(
+            has_implicit_string_concat("X = (\n    'a'\n    'b'\n)\n"),
+            "detector must catch adjacent literals",
+        )
+        self.assertFalse(has_implicit_string_concat("X = (\n    'a'\n    + 'b'\n)\n"))
+        self.assertFalse(
+            has_implicit_string_concat(snippet),
+            "documented POSIX one-liner must use explicit + or one line",
+        )
+
+    def test_posix_copy_gate_calls_source_tree_helper_after_resolve_only(self):
+        """#5232: a helper definition alone must not keep leftover-copy CI green."""
+        shell = (ROOT / "chaos-engine/install.sh").read_text(encoding="utf-8")
+        self.assertIn("CHAOS_ENGINE_RESOLVE_ONLY", shell)
+        after_resolve = shell.split("CHAOS_ENGINE_RESOLVE_ONLY", 1)[1]
+        self.assertIn("is_chaos_engine_source_tree", after_resolve)
+        self.assertIn('cp "$script_dir/bootstrap.py"', after_resolve)
+
+    def test_install_md_joins_the_installer_lf_attributes_sentence(self):
+        """#5234: origin omit-list and LF-attributes stay one paragraph."""
+        document = (ROOT / "chaos-engine/INSTALL.md").read_text(encoding="utf-8")
+        self.assertIn(
+            "into the adopter payload. The installer also merges receipt-bound LF attributes",
+            document,
+        )
+        self.assertNotRegex(document, r"The\s*\n\s*\n\s*installer also merges")
 
     def test_read_response_retries_a_transient_http_failure(self):
         module = load()
