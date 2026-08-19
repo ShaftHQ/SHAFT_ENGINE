@@ -99,6 +99,7 @@ final class ShaftMcpSetupPanel extends JPanel implements Disposable {
      * dedicated field per row. */
     private static final String STEP_RECHECK_KEY = "shaft.stepRow.recheck";
     private static final String STEP_BORDER_KEY = "shaft.stepRow.border";
+    private static final String STEP_TITLE_KEY = "shaft.stepLabel.title";
 
     @FunctionalInterface
     interface AgentReadinessProbe {
@@ -2360,10 +2361,10 @@ final class ShaftMcpSetupPanel extends JPanel implements Disposable {
         boolean complete = settings.mcpSetupComplete && hasCommand;
         setStep(upgradeStep, upgradeState, "1 Upgrade project", upgradeStepState());
         setStep(chooseStep, chooseState, "2 Choose agent", chooseStepState());
-        setStep(installStep, installState, "3 Setup tools & skills", mcpVersionStepState());
+        setStep(installStep, installState, "3 Setup SHAFT Tools & Skills", mcpVersionStepState());
         setStep(agentCheckStep, agentCheckState, "4 Check agent connection",
                 selectedAgentRoute() == null ? "wait" : "next");
-        setStep(testStep, testState, "5 Check tools installation",
+        setStep(testStep, testState, "5 Check SHAFT agentic tools installation",
                 checkStepState(running, complete, hasCommand));
         setStep(null, readyState, "Ready", complete ? "next" : "wait");
         alignStepLabelWidths();
@@ -2395,6 +2396,7 @@ final class ShaftMcpSetupPanel extends JPanel implements Disposable {
 
     private static void setStep(JLabel label, JLabel stateLabel, String name, String state) {
         if (label != null) {
+            label.putClientProperty(STEP_TITLE_KEY, name);
             label.setText(name);
             label.setToolTipText(name + " is " + displayState(state));
             label.getAccessibleContext().setAccessibleName(name + " setup step: " + state);
@@ -2608,24 +2610,38 @@ final class ShaftMcpSetupPanel extends JPanel implements Disposable {
         return -1;
     }
 
+    @Override
+    public void doLayout() {
+        alignStepLabelWidths();
+        super.doLayout();
+    }
+
     /**
      * Keeps every workflow row's step-label column the same width (issue #3560) so the state
      * badges and action columns line up across rows despite each row being an independently laid
      * out {@link GridBagLayout} panel. The shared width is the widest label's own natural preferred
-     * width — recomputed on every call since bold/plain font weight (see {@link #setStep}) shifts a
-     * label's natural width slightly — so no label is ever clamped narrower than its own text needs.
+     * width, capped to the panel so exact FR-001 titles wrap instead of cropping at 360px.
      */
     private void alignStepLabelWidths() {
         JLabel[] stepLabels = {
                 prerequisitesStep, upgradeStep, chooseStep, installStep, agentCheckStep, testStep, readyStep
         };
+        int budget = stepLabelColumnBudget();
         int maxWidth = 0;
         for (JLabel label : stepLabels) {
             label.setMinimumSize(null);
             label.setPreferredSize(null);
+            applyStepLabelText(label, 0);
             maxWidth = Math.max(maxWidth, label.getPreferredSize().width);
         }
+        if (budget > 0) {
+            maxWidth = Math.min(maxWidth, budget);
+        }
         for (JLabel label : stepLabels) {
+            if (budget > 0) {
+                int innerWidth = Math.max(1, maxWidth - label.getInsets().left - label.getInsets().right);
+                applyStepLabelText(label, innerWidth);
+            }
             Dimension shared = new Dimension(maxWidth, label.getPreferredSize().height);
             label.setPreferredSize(shared);
             // Pin the minimum to the same shared width (issue #3560): a JLabel's UI-computed
@@ -2636,6 +2652,27 @@ final class ShaftMcpSetupPanel extends JPanel implements Disposable {
             // meant to absorb any width pressure instead.
             label.setMinimumSize(shared);
         }
+    }
+
+    private int stepLabelColumnBudget() {
+        int width = getWidth();
+        if (width <= 0) {
+            return 0;
+        }
+        return Math.max(JBUI.scale(96), width - JBUI.scale(180));
+    }
+
+    private static void applyStepLabelText(JLabel label, int wrapWidth) {
+        Object title = label.getClientProperty(STEP_TITLE_KEY);
+        String name = title instanceof String text ? text : null;
+        if (name == null || name.isBlank()) {
+            return;
+        }
+        if (wrapWidth <= 0) {
+            label.setText(name);
+            return;
+        }
+        label.setText("<html><body style='width:" + wrapWidth + "px'>" + escapeHtml(name) + "</body></html>");
     }
 
     private void updateLiveSummary() {
@@ -2783,7 +2820,7 @@ final class ShaftMcpSetupPanel extends JPanel implements Disposable {
         copyOutput.setEnabled(!diagnosticOutput.isBlank());
         copyDocs.setVisible(!diagnosticOutput.isBlank());
         copyDocs.setEnabled(!diagnosticOutput.isBlank());
-        String recoveryStatusText = "Recovery: retry Check tools installation, copy diagnostics, or open the SHAFT MCP docs link.";
+        String recoveryStatusText = "Recovery: retry Check SHAFT agentic tools installation, copy diagnostics, or open the SHAFT MCP docs link.";
         recoveryStatus.setText(recoveryStatusText);
         recoveryStatus.getAccessibleContext().setAccessibleDescription(recoveryStatusText);
         recoveryStatus.setVisible(!diagnosticOutput.isBlank());
