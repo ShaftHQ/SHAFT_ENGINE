@@ -44,7 +44,10 @@ public class UploadFileTests {
 
     @AfterMethod(alwaysRun = true)
     public void afterMethod() {
-        driver.get().quit();
+        if (driver.get() != null) {
+            driver.get().quit();
+        }
+        driver.remove();
     }
 
     private static String uploadFixture() {

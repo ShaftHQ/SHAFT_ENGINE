@@ -15,6 +15,7 @@ from scripts.ci.validate_agent_setup import (
     collect_worktree_metrics,
     format_banner,
     memory_content_hash,
+    memory_update_timestamps,
     reduction_percent,
     run_memory_check,
     validate_host_parity,
@@ -22,6 +23,8 @@ from scripts.ci.validate_agent_setup import (
     validate_memory_setup,
     validate_repository,
 )
+
+REPO = Path(__file__).resolve().parents[2]
 
 
 class ValidateAgentSetupTest(unittest.TestCase):
@@ -807,6 +810,23 @@ class MemoryIntegrityTest(unittest.TestCase):
             json.dumps(sidecar, indent=2), encoding="utf-8"
         )
         return sidecar
+
+    def test_blank_events_jsonl_lines_are_skipped(self):
+        events_path = self.root / ".memory/events.jsonl"
+        events_path.parent.mkdir(parents=True, exist_ok=True)
+        events_path.write_text(
+            '{"actor":"agent","event":"memory.updated","id":"gotcha.sample","timestamp":"t1"}\n'
+            "\n"
+            '{"actor":"agent","event":"memory.updated","id":"gotcha.sample","timestamp":"t2"}\n',
+            encoding="utf-8",
+        )
+        stamps = memory_update_timestamps(self.root)
+        self.assertEqual({"gotcha.sample": {"t1", "t2"}}, stamps)
+
+    def test_tracked_events_jsonl_has_no_blank_lines(self):
+        events = (REPO / ".memory/events.jsonl").read_text(encoding="utf-8")
+        blanks = [index for index, line in enumerate(events.splitlines(), 1) if not line.strip()]
+        self.assertEqual([], blanks, f"blank events.jsonl lines: {blanks}")
 
     def write_events(self, *events):
         path = self.root / ".memory/events.jsonl"

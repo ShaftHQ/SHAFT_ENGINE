@@ -148,6 +148,10 @@ def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     log_text = args.log.read_text(encoding="utf-8")
     properties_text = args.properties.read_text(encoding="utf-8")
+    gradle_errors = gradle_receipt_errors(log_text)
+    if gradle_errors and args.updates_json is None:
+        print("\n".join(gradle_errors), file=sys.stderr)
+        return 1
     if args.updates_json is not None:
         updates_json = args.updates_json.read_text(encoding="utf-8")
     else:

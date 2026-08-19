@@ -41,10 +41,10 @@ public class ShadowDomTest {
 
     @AfterMethod(alwaysRun = true)
     public void afterMethod() {
-        if (SHAFT.Properties.web.targetBrowserName().equalsIgnoreCase(Browser.CHROME.browserName())
-                || SHAFT.Properties.web.targetBrowserName().equalsIgnoreCase(Browser.EDGE.browserName())) {
+        if (driver.get() != null) {
             driver.get().quit();
         }
+        driver.remove();
     }
 
     //@Test

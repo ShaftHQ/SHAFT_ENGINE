@@ -136,7 +136,10 @@ public class MultipleElementsFailureTest {
 
     @AfterMethod(alwaysRun = true)
     void afterMethod() {
-        if (driver.get() != null) driver.get().quit();
+        if (driver.get() != null) {
+            driver.get().quit();
+        }
+        driver.remove();
         Properties.clearForCurrentThread();
     }
 

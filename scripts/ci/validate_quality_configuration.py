@@ -55,6 +55,10 @@ GRADLE_TEST_TASKS = {"test", "check", "build"}
 COMMAND_WRAPPERS = {"bash", "sh", "pwsh", "powershell", "cmd", "sudo", "env", "timeout"}
 SHELL_ASSIGNMENT = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*=.*$")
 UNIT_SCOPE_SENTINEL = "!%regex[.*testPackage.unitTests.*]"
+REQUIRED_PR_GATE_SHAFT_ENGINE_UNIT_SELECTORS = (
+    "com.shaft.tools.io.internal.Rfc8259SiblingEscapeJsonTest",
+    "testPackage.ThreadLocalGuiTeardownGuardTest",
+)
 GRID_ONLY_SCOPE_EXCLUSIONS = (
     "!%regex[.*playwright.*PlaywrightActionsE2ETest.*]",
     "!%regex[.*LazyLoadingFixtureLiveTest.*]",
@@ -446,6 +450,24 @@ def validate_browser_matrix_scope_policy(root: Path = ROOT) -> list[str]:
     return errors
 
 
+def validate_pr_gate_shaft_engine_unit_selectors(root: Path = ROOT) -> list[str]:
+    """Fail closed if PR Gate omits shaft-engine unit tests that pin leftover defects."""
+    path = root / ".github" / "workflows" / "pr-gate.yml"
+    if not path.is_file():
+        return ["pr-gate.yml is missing"]
+    selectors = _pr_gate_unit_selectors(path.read_text(encoding="utf-8"))
+    missing = [
+        name
+        for name in REQUIRED_PR_GATE_SHAFT_ENGINE_UNIT_SELECTORS
+        if name not in selectors
+    ]
+    if missing:
+        return [
+            "pr-gate.yml shaft-engine -Dtest must include " + ", ".join(missing)
+        ]
+    return []
+
+
 def validate_grid_jobs_skip_infrastructure_tests(root: Path = ROOT) -> list[str]:
     path = root / ".github" / "workflows" / "e2eTests.yml"
     if not path.is_file():
@@ -535,6 +557,7 @@ def validate_quality_configuration(root: Path = ROOT) -> list[str]:
     errors.extend(validate_workflow_coverage_policy(root))
     errors.extend(validate_workflow_readme_inventory(root))
     errors.extend(validate_browser_matrix_scope_policy(root))
+    errors.extend(validate_pr_gate_shaft_engine_unit_selectors(root))
     errors.extend(validate_grid_jobs_skip_infrastructure_tests(root))
 
     aggregate_path = root / "report-aggregate" / "pom.xml"

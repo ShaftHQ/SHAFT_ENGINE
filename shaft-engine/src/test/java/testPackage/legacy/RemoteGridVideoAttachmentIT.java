@@ -45,6 +45,7 @@ public class RemoteGridVideoAttachmentIT {
         if (driver.get() != null) {
             driver.get().quit();
         }
+        driver.remove();
         if (!Boolean.parseBoolean(System.getProperty("runGridVideoIT", "false"))) {
             return;
         }
