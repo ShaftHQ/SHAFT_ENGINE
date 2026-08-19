@@ -1173,7 +1173,6 @@
 {"actor":"agent","event":"memory.created","id":"gotcha.failed-locator-by-must-not-run-before-getby-on-the-same-line","timestamp":"2026-08-18T19:17:30+03:00"}
 {"actor":"agent","event":"memory.created","id":"gotcha.empty-git-status-porcelain-piped-to-set-content-skips-git-status-txt","timestamp":"2026-08-18T20:03:45+03:00"}
 {"actor":"agent","event":"memory.updated","id":"gotcha.tiny-1-5b-soup-sft-is-not-enough-for-aider-whole-format","timestamp":"2026-08-18T20:21:32+03:00"}
-
 {"actor":"agent","event":"memory.created","id":"decision.grok-is-a-product-install-target-not-a-second-policy-tree","timestamp":"2026-08-18T14:40:29+03:00"}
 {"actor":"agent","event":"memory.created","id":"decision.soup-is-a-trainer-for-the-workstation-local-coder-not-its-runtime","timestamp":"2026-08-18T16:42:34+03:00"}
 {"actor":"agent","event":"memory.created","id":"gotcha.soup-cli-requires-python-3-10-3-12-host-default-3-14-needs-uv-venv","timestamp":"2026-08-18T16:42:34+03:00"}

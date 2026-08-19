@@ -29,6 +29,9 @@ public class GetTableRowsDataTests {
 
     @AfterMethod(description = "Teardown Browser instance.", alwaysRun = true)
     public void afterMethod() {
-        driver.get().quit();
+        if (driver.get() != null) {
+            driver.get().quit();
+        }
+        driver.remove();
     }
 }

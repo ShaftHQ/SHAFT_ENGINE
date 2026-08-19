@@ -61,3 +61,4 @@ LICENSE
 *.csv
 *.tsv
 *.jsonl
+*.css
