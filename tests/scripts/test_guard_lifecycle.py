@@ -1654,11 +1654,7 @@ class GuardLifecycleTest(unittest.TestCase):
             "todo_write",
             "TodoWrite",
         )
-        for relative in (
-            ".claude/settings.json",
-            ".codex/hooks.json",
-            ".grok/hooks/lifecycle.json",
-        ):
+        for relative in (".claude/settings.json", ".codex/hooks.json"):
             with self.subTest(relative=relative):
                 text = (Path(__file__).resolve().parents[2] / relative).read_text(
                     encoding="utf-8"

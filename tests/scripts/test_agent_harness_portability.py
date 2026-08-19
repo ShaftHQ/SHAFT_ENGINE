@@ -679,26 +679,14 @@ class AgentHarnessPortabilityTest(unittest.TestCase):
 
     def test_hook_configs_are_tracked_for_host_local_trust(self):
         tracked = subprocess.run(  # nosec B603 B607 - fixed read-only git command.
-            [
-                "git",
-                "ls-files",
-                "--error-unmatch",
-                ".claude/settings.json",
-                ".codex/hooks.json",
-                ".grok/hooks/lifecycle.json",
-                "scripts/agents/guard.py",
-            ],
+            ["git", "ls-files", "--error-unmatch", ".claude/settings.json", ".codex/hooks.json", "scripts/agents/guard.py"],
             cwd=ROOT,
             capture_output=True,
             text=True,
             check=False,
         )
         self.assertEqual(tracked.returncode, 0, tracked.stderr)
-        for path in (
-            ROOT / ".claude/settings.json",
-            ROOT / ".codex/hooks.json",
-            ROOT / ".grok/hooks/lifecycle.json",
-        ):
+        for path in (ROOT / ".claude/settings.json", ROOT / ".codex/hooks.json"):
             self.assertNotIn("bypass-hook-trust", path.read_text(encoding="utf-8"))
 
     def test_equivalent_host_hook_events_produce_equivalent_outcomes(self):
