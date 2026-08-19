@@ -419,7 +419,6 @@ class AgentHarnessPortabilityTest(unittest.TestCase):
             [
                 ROOT / ".agents/skills/act-as-mohab/SKILL.md",
                 ROOT / ".agents/skills/chaos-engine/SKILL.md",
-                ROOT / ".agents/skills/intellij-plugin-development/SKILL.md",
             ],
         )
 
