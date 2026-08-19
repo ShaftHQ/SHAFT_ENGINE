@@ -14,7 +14,7 @@ public class IsElementClickableTest {
 
     @Test
     public void testIsElementClickable() {
-        driver.get().browser().navigateToURL(TestPageServer.url("uploadFixture.html"));
+        driver.get().browser().navigateToURL(TestPageServer.url("clickableFixture.html"));
         Validations.assertThat().object(driver.get().element().get().isEnabled(By.linkText("File Upload"))).isTrue().perform();
     }
 
@@ -25,6 +25,9 @@ public class IsElementClickableTest {
 
     @AfterMethod(alwaysRun = true)
     public void afterMethod() {
-        driver.get().quit();
+        if (driver.get() != null) {
+            driver.get().quit();
+        }
+        driver.remove();
     }
 }
