@@ -2486,7 +2486,7 @@ class ShaftPanelSetupTest {
 
     @Test
     void assistantLocalModelTooltipExplainsWhenCliReportsNoModels() throws Exception {
-        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, codexAssistantSettings());
         JComboBox<?> localModel = findByAccessibleName(panel, "Assistant local agent model", JComboBox.class);
 
         applyLocalModels(panel, "CODEX", List.of());
@@ -2498,7 +2498,7 @@ class ShaftPanelSetupTest {
 
     @Test
     void assistantKeepsCliDefaultAvailableAndShowsModelDiscoveryStatus() throws Exception {
-        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, codexAssistantSettings());
         JComboBox<?> localModel = findByAccessibleName(panel, "Assistant local agent model", JComboBox.class);
         JLabel status = findByAccessibleName(panel, "Local model discovery status", JLabel.class);
 
@@ -2524,7 +2524,7 @@ class ShaftPanelSetupTest {
 
     @Test
     void modelDiscoveryCheckingStateIsVisibleAndAccessibleUntilCompletion() throws Exception {
-        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, codexAssistantSettings());
         JLabel status = findByAccessibleName(panel, "Local model discovery status", JLabel.class);
         CompletableFuture<AssistantLocalAgentRunner.ModelDiscovery> discovery = new CompletableFuture<>();
 
@@ -2552,7 +2552,7 @@ class ShaftPanelSetupTest {
 
     @Test
     void assistantModelFailureStatusesRemainAccessibleAndFitNarrowSettings() throws Exception {
-        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, codexAssistantSettings());
         JLabel status = findByAccessibleName(panel, "Local model discovery status", JLabel.class);
 
         applyLocalModelDiscovery(panel, "CODEX", AssistantLocalAgentRunner.ModelDiscoveryState.UNAVAILABLE);
@@ -2572,7 +2572,7 @@ class ShaftPanelSetupTest {
 
     @Test
     void assistantKeepsManualModelDuringAcceptedSameFamilyRefresh() throws Exception {
-        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, codexAssistantSettings());
         JComboBox<String> localModel = findByAccessibleName(panel, "Assistant local agent model", JComboBox.class);
         localModel.getEditor().setItem("manual-account-model");
 
@@ -2662,7 +2662,7 @@ class ShaftPanelSetupTest {
 
     @Test
     void assistantKeepsPersistedCodexModelWhenModelDiscoveryIsEmpty() throws Exception {
-        ShaftSettingsState.Settings settings = blankMcpSettings();
+        ShaftSettingsState.Settings settings = codexAssistantSettings();
         settings.localModel = "gpt-5.2-codex";
         ShaftAssistantPanel panel = new ShaftAssistantPanel(null, settings);
 
@@ -2693,7 +2693,7 @@ class ShaftPanelSetupTest {
 
     @Test
     void assistantKeepsExplicitCodexModelWhenModelDiscoveryIsEmpty() throws Exception {
-        ShaftSettingsState.Settings settings = blankMcpSettings();
+        ShaftSettingsState.Settings settings = codexAssistantSettings();
         settings.localModel = "account-compatible-model";
         ShaftAssistantPanel panel = new ShaftAssistantPanel(null, settings);
 
@@ -2709,7 +2709,7 @@ class ShaftPanelSetupTest {
 
     @Test
     void assistantRefreshLocalModelsButtonIsVisibleForLocalCliAndResetsModelListFamily() throws Exception {
-        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, codexAssistantSettings());
         JButton refresh = findByAccessibleName(panel, "Refresh local agent models", JButton.class);
 
         assertNotNull(refresh);
@@ -7081,7 +7081,7 @@ class ShaftPanelSetupTest {
 
     @Test
     void assistantGateResendUsesAnInjectedLocalAgentLauncher() throws Exception {
-        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, codexAssistantSettings());
         assertTrue(Arrays.stream(ShaftAssistantPanel.class.getDeclaredFields())
                 .anyMatch(field -> field.getName().equals("localAgentProcessLauncher")),
                 "panel resend tests need a local-agent launcher seam");
@@ -7124,7 +7124,7 @@ class ShaftPanelSetupTest {
     @Test
     void assistantBlocksLocalAgentWhenRequiredShaftSkillsAreMissing(@TempDir Path projectRoot) throws Exception {
         ShaftAssistantPanel panel = new ShaftAssistantPanel(
-                fakeProject(new ShaftAssistantChatState(), projectRoot.toString()), blankMcpSettings());
+                fakeProject(new ShaftAssistantChatState(), projectRoot.toString()), codexAssistantSettings());
         CountDownLatch launchAttempted = new CountDownLatch(1);
         setField(panel, "localAgentProcessLauncher",
                 (AssistantLocalAgentRunner.ProcessLauncher) (command, directory, environment) -> {
@@ -8413,6 +8413,13 @@ class ShaftPanelSetupTest {
     private static ShaftSettingsState.Settings blankMcpSettings() {
         ShaftSettingsState.Settings settings = new ShaftSettingsState.Settings();
         settings.mcpCommand = "";
+        return settings;
+    }
+
+    private static ShaftSettingsState.Settings codexAssistantSettings() {
+        ShaftSettingsState.Settings settings = blankMcpSettings();
+        settings.assistantFamily = "CODEX";
+        settings.defaultAutobotClient = "CODEX";
         return settings;
     }
 
