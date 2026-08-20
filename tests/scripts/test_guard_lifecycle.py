@@ -4565,6 +4565,23 @@ class ObservedReviewDispatchTest(unittest.TestCase):
                 "review:feature",
             )
 
+    def test_collaboration_reviewer_dispatch_is_recorded_by_the_hook(self):
+        payload = {
+            "tool_name": "collaboration.spawn_agent",
+            "tool_input": {"agent_type": "reviewer"},
+            "session_id": "s",
+            "cwd": ".",
+        }
+        events: list[str] = []
+        with patch("scripts.agents.guard._current_branch", return_value="feature"):
+            with patch(
+                "scripts.agents.guard.ledger_record",
+                side_effect=lambda _payload, event: events.append(event) or True,
+            ):
+                with redirect_stdout(io.StringIO()):
+                    guard.run_pretooluse(payload)
+        self.assertIn("review:feature", events)
+
     def test_any_other_subagent_produces_nothing(self):
         for subagent in ("coder", "tester", "general-purpose", ""):
             with self.subTest(subagent=subagent):
@@ -4699,6 +4716,16 @@ class DispatchAdapterGateTest(unittest.TestCase):
             with self.subTest(host=name):
                 text = open(os.path.join(root, name), encoding="utf-8").read()
                 self.assertIn("Task|Agent", text)
+
+    def test_codex_intercepts_collaboration_dispatches(self):
+        root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        config = json.loads(
+            Path(root, ".codex", "hooks.json").read_text(encoding="utf-8")
+        )
+        matcher = config["hooks"]["PreToolUse"][0]["matcher"]
+        for tool_name in ("collaboration.spawn_agent", "spawn_agent"):
+            with self.subTest(tool_name=tool_name):
+                self.assertIsNotNone(re.fullmatch(matcher, tool_name))
 
 
 class HistoricalDispatchReplayTest(unittest.TestCase):
