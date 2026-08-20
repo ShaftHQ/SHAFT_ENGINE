@@ -548,6 +548,33 @@ class ShaftSettingsConfigurableTest {
         assertTrue(containsComponent(chip, configure), "chip must contain the configure/settings gear button");
     }
 
+    /**
+     * Issue #5263: MCP-ready Settings with no selected family used to paint
+     * {@code Agent: Local /  / CLI}. Use setup's unselected wording instead.
+     */
+    @Test
+    void unselectedAgentRouteUsesSetupPlaceholderOnCurrentAgentRow() {
+        ShaftSettingsState.Settings settings = new ShaftSettingsState.Settings();
+        settings.mcpCommand = "\"java\" \"@target/shaft-mcp.args\"";
+        settings.mcpSetupComplete = true;
+        ShaftSettingsConfigurable configurable = new ShaftSettingsConfigurable(settings, new InMemoryCredentials());
+        JComponent panel = (JComponent) configurable.createComponent();
+
+        JLabel currentAgent = findByAccessibleName(panel, "Current agent configuration", JLabel.class);
+        assertNotNull(currentAgent);
+        String text = currentAgent.getText();
+        assertAll(
+                () -> assertTrue(currentAgent.isVisible(), "MCP-ready Settings still show the current-agent row"),
+                () -> assertTrue(text.contains("Select an option"),
+                        "unselected current-agent row must use setup's placeholder, was: " + text),
+                () -> assertFalse(text.contains("null"),
+                        "unselected current-agent row must not paint literal null, was: " + text),
+                () -> assertFalse(text.contains("Local /  /"),
+                        "unselected current-agent row must not leave an empty family gap, was: " + text),
+                () -> assertFalse(text.contains("Local / /"),
+                        "unselected current-agent row must not leave an empty family gap, was: " + text));
+    }
+
     /** Same summary-shown gate {@code currentAgentConfiguration}/{@code configureAgent} already used individually. */
     @Test
     void currentAgentChipHiddenWhenSummaryIsNotShown() throws Exception {
