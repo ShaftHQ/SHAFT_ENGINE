@@ -1,0 +1,47 @@
+{
+  "body_path": "memory/gotchas/intellij-setup-step-titles-wrap-html-so-raw-jlabel-contains-misses-ampersands.md",
+  "content_hash": "sha256:6689126db4201789a692719bc9d25cf69bc1e606d5e5becabc85ed37df6d0e67",
+  "created_at": "2026-08-20T03:53:17+03:00",
+  "evidence": [
+    {
+      "id": "bf45838a881ff47b011b846279b48552f4aa5c00",
+      "kind": "commit"
+    },
+    {
+      "id": "https://github.com/ShaftHQ/SHAFT_ENGINE/issues/5151",
+      "kind": "task"
+    }
+  ],
+  "facets": {
+    "applies_to": [
+      "shaft-intellij/src/test/java/com/shaft/intellij/ui/ShaftPluginScreenshotRendererTest.java",
+      "shaft-intellij/src/main/java/com/shaft/intellij/ui/ShaftMcpSetupPanel.java"
+    ],
+    "category": "gotcha"
+  },
+  "id": "gotcha.intellij-setup-step-titles-wrap-html-so-raw-jlabel-contains-misses-ampersands",
+  "origin": {
+    "captured_at": "2026-08-20T01:30:00Z",
+    "kind": "file",
+    "locator": "shaft-intellij/src/test/java/com/shaft/intellij/ui/ShaftPluginScreenshotRendererTest.java"
+  },
+  "scope": {
+    "branch": null,
+    "kind": "project",
+    "project": "project.shaft-engine",
+    "task": null
+  },
+  "source": {
+    "kind": "agent",
+    "task": "Record IntelliJ screenshot label HTML gotcha found while closing #5151"
+  },
+  "status": "active",
+  "tags": [
+    "intellij",
+    "screenshots",
+    "swing"
+  ],
+  "title": "IntelliJ setup step titles wrap HTML so raw JLabel contains misses ampersands",
+  "type": "gotcha",
+  "updated_at": "2026-08-20T03:53:17+03:00"
+}
