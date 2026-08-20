@@ -1461,7 +1461,9 @@ class GuardLifecycleTest(unittest.TestCase):
                     guard,
                     "ledger_events",
                     return_value=[*required_prefix, *events],
-                ):
+                ), patch.object(
+                    guard, "_act_as_mohab_root", return_value=str(Path.cwd())
+                ), patch.object(guard, "_path_is_inside", return_value=True):
                     self.assertIsNotNone(
                         guard.check_r25_research_before_implementation(
                             self.payload(), "Write"
