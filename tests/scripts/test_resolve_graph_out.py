@@ -196,6 +196,7 @@ class ResolveGraphOutTest(unittest.TestCase):
         self.assertIn("'tools/repository-map/README.md'", workflow)
         self.assertIn("stale", guidance.lower())
         self.assertIn("graphify_maintenance.py refresh", readme)
+        self.assertIn("Do not run `graphify hook install`", readme)
         self.assertIn("before the marker", guidance)
         self.assertIn("primary checkout", readme)
         self.assertIn(

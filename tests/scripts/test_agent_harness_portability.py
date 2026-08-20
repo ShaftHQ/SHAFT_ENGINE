@@ -879,15 +879,20 @@ class AgentHarnessPortabilityTest(unittest.TestCase):
             (ROOT / ".claude/user-harness/settings.json").read_text(encoding="utf-8")
         )
         self.assertIs(user_settings["enabledPlugins"]["mempalace@mempalace"], False)
+        expected_mempalace_env = {
+            "MEMPALACE_EMBEDDING_MODEL": "minilm",
+            "MEMPALACE_BACKEND": "sqlite_exact",
+        }
         self.assertEqual(
-            claude_mcp["mcpServers"]["mempalace"]["env"]["MEMPALACE_EMBEDDING_MODEL"],
-            "minilm",
+            claude_mcp["mcpServers"]["mempalace"]["env"],
+            expected_mempalace_env,
         )
         codex = tomllib.loads((ROOT / ".codex/config.toml").read_text(encoding="utf-8"))
         project_mcp = claude_mcp["mcpServers"]["mempalace"]
         codex_mcp = codex["mcp_servers"]["mempalace"]
         self.assertEqual(codex_mcp["command"], project_mcp["command"])
         self.assertEqual(codex_mcp["env"], project_mcp["env"])
+        self.assertEqual(codex_mcp["env"], expected_mempalace_env)
         ignore = (ROOT / ".gitignore").read_text(encoding="utf-8")
         self.assertNotRegex(ignore, r"(?m)^mempalace\.yaml$")
         for pattern in ("entities.json", "graphify-out/", "**/target/"):

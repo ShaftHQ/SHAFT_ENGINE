@@ -68,6 +68,14 @@ SQLITE_EXACT_INDEXES = {
         (1, ("collection_id", "id")),
     },
 }
+MEMPALACE_MCP_ENV = {
+    "MEMPALACE_EMBEDDING_MODEL": "minilm",
+    "MEMPALACE_BACKEND": "sqlite_exact",
+}
+MEMPALACE_MCP_ENV_TOML = (
+    'env = { MEMPALACE_EMBEDDING_MODEL = "minilm", '
+    'MEMPALACE_BACKEND = "sqlite_exact" }\n'
+)
 CHROMA_SCHEMA = {
     "collections": {
         "id": ("TEXT", 0, 1), "name": ("TEXT", 1, 0),
@@ -432,12 +440,34 @@ def mempalace_directory_status(palace: Path) -> dict[str, str]:
 
     wal = Path(f"{exact}-wal")
     shared_memory = Path(f"{exact}-shm")
-    allowed_names = {path.name for path in (exact, wal, shared_memory)}
+    sidecar = palace / ".mempalace"
+    allowed_names = {path.name for path in (exact, wal, shared_memory, sidecar)}
     if any(child.name not in allowed_names for child in children):
         return {
             "status": "recovery-required",
             "detail": "MemPalace state contains unrecognized recoverable data",
         }
+    if sidecar.exists():
+        if not sidecar.is_dir() or is_link_or_reparse(sidecar):
+            return {
+                "status": "recovery-required",
+                "detail": "MemPalace state contains unrecognized recoverable data",
+            }
+        try:
+            sidecar_children = list(sidecar.iterdir())
+        except OSError:
+            return {
+                "status": "recovery-required",
+                "detail": "MemPalace state is unreadable or contains a link or reparse point",
+            }
+        if any(
+            child.name != "origin.json" or is_link_or_reparse(child)
+            for child in sidecar_children
+        ):
+            return {
+                "status": "recovery-required",
+                "detail": "MemPalace state contains unrecognized recoverable data",
+            }
     wal_exists = wal.exists()
     shared_memory_exists = shared_memory.exists()
     if not exact.exists() and (wal_exists or shared_memory_exists):
@@ -649,7 +679,7 @@ def mcp_runtime_healthy(project: Path) -> bool:
     tool = project / ".chaos-engine/tool.py"
     environment = os.environ.copy()
     environment["PYTHONDONTWRITEBYTECODE"] = "1"
-    environment["MEMPALACE_EMBEDDING_MODEL"] = "minilm"
+    environment.update(MEMPALACE_MCP_ENV)
     commands = (
         [sys.executable, str(tool), "memory-mcp"],
         [
@@ -1799,7 +1829,7 @@ def owned_servers(
                 "--backend",
                 "sqlite_exact",
             ],
-            extra={"env": {"MEMPALACE_EMBEDDING_MODEL": "minilm"}},
+            extra={"env": dict(MEMPALACE_MCP_ENV)},
         ),
     }
     if maven_runtime is not None:
@@ -2115,7 +2145,7 @@ def legacy_owned_python_server(name: str, platform_name: str) -> dict[str, objec
     }[name]
     server: dict[str, object] = {"command": command, "args": args, "cwd": "."}
     if name == "chaosengine-mempalace":
-        server["env"] = {"MEMPALACE_EMBEDDING_MODEL": "minilm"}
+        server["env"] = dict(MEMPALACE_MCP_ENV)
     return server
 
 
@@ -2140,7 +2170,7 @@ def legacy_codex_python_block(platform_name: str) -> str:
         f'[mcp_servers."chaosengine-mempalace"]\ncommand = "{command}"\n'
         f'args = [{prefix_text}".chaos-engine/tool.py", "mempalace-mcp", "--palace", '
         '".chaos-engine-state/mempalace", "--backend", "sqlite_exact"]\ncwd = ".."\n'
-        'env = { MEMPALACE_EMBEDDING_MODEL = "minilm" }\n# CHAOSENGINE:END\n'
+        f"{MEMPALACE_MCP_ENV_TOML}# CHAOSENGINE:END\n"
     )
 
 
@@ -2205,7 +2235,7 @@ def codex_content(
         f'commandWindows = "{windows_command}"\n'
         f'argsWindows = ["-3", {mempalace_args}]\n'
         'cwd = ".."\n'
-        'env = { MEMPALACE_EMBEDDING_MODEL = "minilm" }\n# CHAOSENGINE:END\n'
+        f"{MEMPALACE_MCP_ENV_TOML}# CHAOSENGINE:END\n"
     )
     if maven_runtime is not None:
         java, jar = maven_runtime

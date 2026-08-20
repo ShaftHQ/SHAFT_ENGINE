@@ -13,7 +13,7 @@ approval_mode = "prompt"
 
 [mcp_servers.mempalace]
 command = "mempalace-mcp"
-env = { MEMPALACE_EMBEDDING_MODEL = "minilm" }
+env = { MEMPALACE_EMBEDDING_MODEL = "minilm", MEMPALACE_BACKEND = "sqlite_exact" }
 required = false
 
 [mcp_servers.context7]

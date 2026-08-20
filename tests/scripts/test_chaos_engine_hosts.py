@@ -397,10 +397,13 @@ class ChaosEngineHostsTest(unittest.TestCase):
                     ["--backend", "sqlite_exact"],
                     mempalace["args"][-2:],
                 )
+                self.assertEqual(module.MEMPALACE_MCP_ENV, mempalace["env"])
             self.assertIn('[mcp_servers."chaosengine-memory"]', codex)
             self.assertIn('".chaos-engine/tool.py", "memory-mcp"]', codex)
             self.assertIn(".chaos-engine-state/mempalace", str(claude))
             self.assertIn('"--backend", "sqlite_exact"', codex)
+            self.assertIn("MEMPALACE_BACKEND = \"sqlite_exact\"", codex)
+            self.assertIn("MEMPALACE_EMBEDDING_MODEL = \"minilm\"", codex)
 
     def test_complete_host_harness_installs_inventory_roles_hooks_and_plugin(self):
         module = load(HOSTS, "chaos_engine_complete_hosts")
@@ -1256,6 +1259,34 @@ class ChaosEngineHostsTest(unittest.TestCase):
                 module.mempalace_runtime_status(project)["status"],
             )
 
+    def test_mempalace_runtime_accepts_sqlite_exact_origin_sidecar(self):
+        module = load(HOSTS, "chaos_engine_mempalace_origin_sidecar")
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary)
+            palace = project / ".chaos-engine-state/mempalace"
+            palace.mkdir(parents=True)
+            create_sqlite_exact_state(palace / "sqlite_exact.sqlite3")
+            sidecar = palace / ".mempalace"
+            sidecar.mkdir()
+            (sidecar / "origin.json").write_text("{}", encoding="utf-8")
+
+            self.assertEqual(
+                "healthy",
+                module.mempalace_runtime_status(project)["status"],
+            )
+
+            (sidecar / "unknown.sqlite3").write_bytes(b"nope")
+            self.assertEqual(
+                "recovery-required",
+                module.mempalace_runtime_status(project)["status"],
+            )
+            (sidecar / "unknown.sqlite3").unlink()
+            (palace / "unknown.sqlite3").write_bytes(b"nope")
+            self.assertEqual(
+                "recovery-required",
+                module.mempalace_runtime_status(project)["status"],
+            )
+
     def test_mempalace_runtime_rejects_reparse_state_before_native_launch(self):
         module = load(HOSTS, "chaos_engine_mempalace_reparse_state")
         self.assertTrue(hasattr(module, "mempalace_runtime_status"))
@@ -1369,6 +1400,8 @@ class ChaosEngineHostsTest(unittest.TestCase):
             palace = Path(temporary) / "shared-palace"
             palace.mkdir(parents=True)
             create_sqlite_exact_state(palace / "sqlite_exact.sqlite3")
+            (palace / ".mempalace").mkdir()
+            (palace / ".mempalace" / "origin.json").write_text("{}", encoding="utf-8")
             resolver = shaft / "tools/repository-map/resolve_mempalace.py"
             resolver.parent.mkdir(parents=True)
             resolver.write_text(

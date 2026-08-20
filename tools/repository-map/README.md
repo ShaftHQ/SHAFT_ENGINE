@@ -70,6 +70,17 @@ The default `.graphifyignore` keeps semantic document/media formats out of the g
 
 `graphify-out/` is intentionally ignored (`.gitignore`). Do not commit generated graph reports, HTML, JSON, caches, or binary exports unless a maintainer explicitly asks for a reviewed snapshot.
 
+Do not run `graphify hook install` here. Git LFS already owns `post-commit`,
+`post-checkout`, and `pre-push`. Graphify's installer would replace those
+hooks. Per-commit rebuilds also violate the primary-only refresh owner
+(`graphify_maintenance.py`) and would race linked worktrees.
+
+Do not set `MEMPAL_DIR` to this checkout. Official MemPalace Stop/PreCompact
+hooks may live in a host user profile, but auto-mining the SHAFT tree on every
+save races `SHAFT-Nightly-Knowledge-Refresh` and duplicates `shaft_engine_main`.
+Conversation ingest stays `--mode convos` against transcript dirs, never the
+repository root.
+
 ## Shared cache across worktrees
 
 Because `graphify-out/` is gitignored, it never exists in a fresh `git worktree` clone. Rather than rebuilding per worktree, treat the **main checkout's** `graphify-out/` as one shared, read-only cache for all linked worktrees:
