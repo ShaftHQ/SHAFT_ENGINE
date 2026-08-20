@@ -606,6 +606,34 @@ class ShaftPluginScreenshotRendererTest {
     }
 
     /**
+     * Issue #5263: after #5247/#5251 first-run has no selected agent. The compact Run settings
+     * chip must reuse setup's {@code Select an option} wording instead of {@code null CLI}.
+     */
+    @Test
+    void unselectedAgentRouteUsesSetupPlaceholderOnCompactRunSettingsChip()
+            throws InterruptedException, InvocationTargetException {
+        AtomicReference<String> summary = new AtomicReference<>();
+        SwingUtilities.invokeAndWait(() -> {
+            configureLookAndFeel(LIGHT_THEME, false);
+            JComponent panel = new ShaftToolWindowPanel(
+                    screenshotProject(), defaultSettings(), AssistantLocalAgentRunner::readiness,
+                    new ShaftAssistantChatState());
+            JToggleButton settings = findByAccessibleName(panel, "Run settings", JToggleButton.class);
+            assertNotNull(settings, "first-run Assistant must expose the compact Run settings chip");
+            summary.set(settings.getText());
+        });
+
+        String text = summary.get();
+        assertAll(
+                () -> assertTrue(text.contains("Select an option"),
+                        "unselected compact chip must use setup's placeholder, was: " + text),
+                () -> assertFalse(text.contains("null CLI"),
+                        "unselected compact chip must not paint literal null CLI, was: " + text),
+                () -> assertFalse(text.contains("null"),
+                        "unselected compact chip must not paint the literal null token, was: " + text));
+    }
+
+    /**
      * Issue #4191 (tracker #4160): PR #4184's {@link AssistantTranscriptView#widthCappedWidget}
      * javadoc claimed {@link ToolApprovalPromptPanel} has zero insets and is therefore unaffected by
      * that fix's insets-aware cap widening. Measuring the panel's real border

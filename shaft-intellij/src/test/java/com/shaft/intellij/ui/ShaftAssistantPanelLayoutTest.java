@@ -679,8 +679,10 @@ class ShaftAssistantPanelLayoutTest {
 
     @Test
     void runSettingsDisclosureStartsCollapsedAndKeepsRouteControlsTogether() throws ReflectiveOperationException {
+        ShaftSettingsState.Settings configured = readySettingsForExistingProject();
+        configured.assistantFamily = "CODEX";
         ShaftAssistantPanel panel = new ShaftAssistantPanel(
-                null, readySettingsForExistingProject(), ShaftAssistantChatState.getInstance(null));
+                null, configured, ShaftAssistantChatState.getInstance(null));
 
         JToggleButton toggle = (JToggleButton) fieldOf(panel, "runSettingsToggle");
         JPanel settings = (JPanel) fieldOf(panel, "runSettingsPanel");

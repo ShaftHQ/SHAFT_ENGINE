@@ -80,6 +80,39 @@ public final class ShaftUiLabels {
         };
     }
 
+    /**
+     * Compact local-agent route text. A blank family means no agent is selected, matching setup's
+     * {@code Select an option} placeholder.
+     *
+     * @param family persisted family token or combo selection
+     * @param runtime persisted runtime token or combo selection
+     * @return selected route label, or setup's unselected wording
+     */
+    public static String localAgentRoute(Object family, Object runtime) {
+        if (unselectedFamily(family)) {
+            return "Select an option";
+        }
+        return friendly(family) + " " + friendly(runtime);
+    }
+
+    /**
+     * Settings-style local-agent summary. A blank family means no agent is selected.
+     *
+     * @param family persisted family token or combo selection
+     * @param runtime persisted runtime token or combo selection
+     * @return {@code Agent: Local / family / runtime}, or {@code Agent: Select an option}
+     */
+    public static String localAgentSummary(Object family, Object runtime) {
+        if (unselectedFamily(family)) {
+            return "Agent: Select an option";
+        }
+        return "Agent: Local / " + friendly(family) + " / " + friendly(runtime);
+    }
+
+    private static boolean unselectedFamily(Object family) {
+        return family == null || String.valueOf(family).isBlank();
+    }
+
     private static String normalize(String value) {
         return value.trim().toUpperCase(Locale.ROOT).replace('-', '_').replace(' ', '_');
     }
