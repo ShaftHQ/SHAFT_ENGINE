@@ -9,6 +9,8 @@ import java.util.function.Predicate;
 import static org.junit.jupiter.api.Assertions.assertAll;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -67,6 +69,28 @@ class SetupPrerequisitesTest {
                 () -> assertFalse(agent.installCommand().startsWith("npm "), agent.installCommand()),
                 () -> assertTrue(detected.stream().noneMatch(item -> item.name().startsWith("Node.js")),
                         "Grok is not an npm-installed CLI"));
+    }
+
+    @Test
+    void blankFamilyDoesNotRequireCodexCli() {
+        List<SetupPrerequisites.Prerequisite> empty =
+                SetupPrerequisites.detect("", NOTHING_INSTALLED, true, false);
+        List<SetupPrerequisites.Prerequisite> blank =
+                SetupPrerequisites.detect("   ", NOTHING_INSTALLED, true, false);
+        List<SetupPrerequisites.Prerequisite> missing =
+                SetupPrerequisites.detect(null, NOTHING_INSTALLED, true, false);
+
+        assertAll(
+                () -> assertNull(SetupPrerequisites.agentExecutableFor("")),
+                () -> assertNull(SetupPrerequisites.agentExecutableFor("   ")),
+                () -> assertNull(SetupPrerequisites.agentExecutableFor(null)),
+                () -> assertNotEquals("codex", SetupPrerequisites.agentExecutableFor("")),
+                () -> assertNotEquals("Codex CLI", SetupPrerequisites.agentDisplayNameFor("")),
+                () -> assertFalse(SetupPrerequisites.agentInstallCommandFor("").contains("codex")),
+                () -> assertTrue(empty.stream().noneMatch(item -> item.name().contains("Codex")), empty.toString()),
+                () -> assertTrue(blank.stream().noneMatch(item -> item.name().contains("Codex")), blank.toString()),
+                () -> assertTrue(missing.stream().noneMatch(item -> item.name().contains("CLI")), missing.toString()),
+                () -> assertTrue(empty.stream().anyMatch(item -> item.name().equals("Python 3"))));
     }
 
     @Test

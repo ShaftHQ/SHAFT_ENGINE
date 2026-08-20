@@ -501,7 +501,10 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
         boolean advancedSelected = advancedUiEnabled.isSelected();
         AssistantAgentRoute selectedRoute = selectedAgentRoute();
         String selectedProviderType = advancedSelected
-                ? String.valueOf(assistantProviderType.getSelectedItem()) : selectedRoute.providerType();
+                ? String.valueOf(assistantProviderType.getSelectedItem())
+                : (selectedRoute == null
+                        ? normalize(state.assistantProviderType, "LOCAL")
+                        : selectedRoute.providerType());
         String stateProviderType = normalize(state.assistantProviderType, "LOCAL");
         String cloudProviderName = String.valueOf(cloudProvider.getSelectedItem());
         String pilotProviderName = String.valueOf(pilotAiProvider.getSelectedItem());
@@ -556,10 +559,13 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
         state.mcpCommand = command;
         state.advancedUiEnabled = advancedUiEnabled.isSelected();
         state.watchModeEnabled = watchModeEnabled.isSelected();
-        selectedAgentRoute().applyTo(state);
-        state.assistantProviderType = state.advancedUiEnabled
-                ? String.valueOf(assistantProviderType.getSelectedItem())
-                : selectedAgentRoute().providerType();
+        AssistantAgentRoute selectedRoute = selectedAgentRoute();
+        if (selectedRoute != null) {
+            selectedRoute.applyTo(state);
+            state.assistantProviderType = state.advancedUiEnabled
+                    ? String.valueOf(assistantProviderType.getSelectedItem())
+                    : selectedRoute.providerType();
+        }
         state.cloudProvider = String.valueOf(cloudProvider.getSelectedItem());
         state.cloudModel = cloudModel.getText().trim();
         boolean cloudRouteActive = "CLOUD".equalsIgnoreCase(state.assistantProviderType);
@@ -611,13 +617,19 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
         watchModeEnabled.setSelected(state.watchModeEnabled);
         assistantAgent.setSelectedItem(AssistantAgentRoute.fromSettings(state));
         assistantProviderType.setSelectedItem(normalize(state.assistantProviderType, "LOCAL"));
-        assistantFamily.setSelectedItem(resolveFamily(state));
+        String family = resolveFamily(state);
+        if (family.isBlank()) {
+            assistantFamily.setSelectedIndex(-1);
+            defaultClient.setSelectedIndex(-1);
+        } else {
+            assistantFamily.setSelectedItem(family);
+            defaultClient.setSelectedItem(clientFromFamily(family));
+        }
         assistantRuntime.setSelectedItem(normalize(state.assistantRuntime, "CLI"));
         cloudProvider.setSelectedItem(normalizeLower(state.cloudProvider, "gemini"));
         cloudModel.setText(state.cloudModel == null ? "" : state.cloudModel);
         updateCloudCredentialSources();
         selectCloudCredentialSource(state.providerApiKeyEnvironmentVariable(state.cloudProvider));
-        defaultClient.setSelectedItem(clientFromFamily(resolveFamily(state)));
         defaultMode.setSelectedItem(state.defaultAutobotMode);
         pilotAiProvider.setSelectedItem(state.pilotAiProvider == null || state.pilotAiProvider.isBlank()
                 ? "none" : state.pilotAiProvider);
@@ -732,20 +744,30 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
         if (!family.isBlank()) {
             return family;
         }
-        return switch (normalize(state.defaultAutobotClient, "CODEX")) {
+        String client = state.defaultAutobotClient == null ? "" : state.defaultAutobotClient.trim();
+        if (client.isBlank()) {
+            return "";
+        }
+        return switch (client.toUpperCase(Locale.ROOT).replace('-', '_').replace(' ', '_')) {
             case "CLAUDE_CODE" -> "CLAUDE";
             case "COPILOT_CLI" -> "COPILOT";
             case "GROK" -> "GROK";
-            default -> "CODEX";
+            case "CODEX" -> "CODEX";
+            default -> "";
         };
     }
 
     private static String clientFromFamily(String family) {
-        return switch (normalize(family, "CODEX")) {
+        String normalized = normalize(family, "");
+        if (normalized.isBlank()) {
+            return "";
+        }
+        return switch (normalized) {
             case "CLAUDE" -> "CLAUDE_CODE";
             case "COPILOT" -> "COPILOT_CLI";
             case "GROK" -> "GROK";
-            default -> "CODEX";
+            case "CODEX" -> "CODEX";
+            default -> "";
         };
     }
 
@@ -1289,10 +1311,13 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
         ShaftSettingsState.Settings settings = new ShaftSettingsState.Settings();
         settings.mcpCommand = mcpCommand.getText() == null ? "" : mcpCommand.getText().trim();
         settings.advancedUiEnabled = advancedUiEnabled.isSelected();
-        selectedAgentRoute().applyTo(settings);
-        settings.assistantProviderType = settings.advancedUiEnabled
-                ? String.valueOf(assistantProviderType.getSelectedItem())
-                : selectedAgentRoute().providerType();
+        AssistantAgentRoute selectedRoute = selectedAgentRoute();
+        if (selectedRoute != null) {
+            selectedRoute.applyTo(settings);
+            settings.assistantProviderType = settings.advancedUiEnabled
+                    ? String.valueOf(assistantProviderType.getSelectedItem())
+                    : selectedRoute.providerType();
+        }
         settings.cloudProvider = String.valueOf(cloudProvider.getSelectedItem());
         settings.cloudModel = cloudModel.getText() == null ? "" : cloudModel.getText().trim();
         boolean cloudRouteActive = "CLOUD".equalsIgnoreCase(settings.assistantProviderType);
@@ -1406,7 +1431,7 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
 
     private AssistantAgentRoute selectedAgentRoute() {
         Object selected = assistantAgent == null ? null : assistantAgent.getSelectedItem();
-        return selected instanceof AssistantAgentRoute route ? route : AssistantAgentRoute.CODEX_CLI;
+        return selected instanceof AssistantAgentRoute route ? route : null;
     }
 
     private void syncLegacyAgentControls() {
@@ -1414,6 +1439,9 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
             return;
         }
         AssistantAgentRoute route = selectedAgentRoute();
+        if (route == null) {
+            return;
+        }
         assistantProviderType.setSelectedItem(route.providerType());
         assistantFamily.setSelectedItem(route.family());
         assistantRuntime.setSelectedItem(route.runtime());

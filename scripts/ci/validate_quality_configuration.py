@@ -189,7 +189,57 @@ def _run_value_runs_jvm_tests(run: object) -> bool:
     )
 
 
-def _local_action_runs_jvm_tests(root: Path, action: str, seen: set[Path] | None = None) -> bool:
+COMPOSITE_INPUT_CONDITION = re.compile(
+    r"^inputs\.([A-Za-z0-9_-]+)\s*(==|!=)\s*(.+)$"
+)
+
+
+def _normalize_composite_input(value: object) -> str:
+    if value is True:
+        return "true"
+    if value is False:
+        return "false"
+    if value is None:
+        return ""
+    return str(value).strip()
+
+
+def _composite_action_inputs(document: dict[object, object], with_inputs: object) -> dict[str, str]:
+    resolved: dict[str, str] = {}
+    spec = document.get("inputs")
+    if isinstance(spec, dict):
+        for name, definition in spec.items():
+            if isinstance(definition, dict) and "default" in definition:
+                resolved[str(name)] = _normalize_composite_input(definition.get("default"))
+    if isinstance(with_inputs, dict):
+        for name, value in with_inputs.items():
+            resolved[str(name)] = _normalize_composite_input(value)
+    return resolved
+
+
+def _composite_step_skipped(step: dict[object, object], inputs: dict[str, str]) -> bool:
+    if _step_is_disabled(step):
+        return True
+    condition = step.get("if")
+    if not isinstance(condition, str):
+        return False
+    normalized = condition.strip().replace("${{", "").replace("}}", "").strip()
+    match = COMPOSITE_INPUT_CONDITION.fullmatch(normalized)
+    if not match:
+        return False
+    name, operator, raw_expected = match.groups()
+    actual = inputs.get(name, "")
+    expected = raw_expected.strip().strip("'\"")
+    equal = actual == expected
+    return (not equal) if operator == "==" else equal
+
+
+def _local_action_runs_jvm_tests(
+    root: Path,
+    action: str,
+    seen: set[Path] | None = None,
+    inputs: object = None,
+) -> bool:
     if not action.startswith("./"):
         return False
     action_path = root / action.removeprefix("./")
@@ -205,14 +255,17 @@ def _local_action_runs_jvm_tests(root: Path, action: str, seen: set[Path] | None
         document = yaml.safe_load(metadata_path.read_text(encoding="utf-8")) or {}
     except yaml.YAMLError:
         return False
+    if not isinstance(document, dict):
+        return False
+    resolved_inputs = _composite_action_inputs(document, inputs)
     for step in document.get("runs", {}).get("steps", []):
-        if not isinstance(step, dict):
+        if not isinstance(step, dict) or _composite_step_skipped(step, resolved_inputs):
             continue
         if _run_value_runs_jvm_tests(step.get("run")):
             return True
         nested_action = step.get("uses")
         if isinstance(nested_action, str) and _local_action_runs_jvm_tests(
-            root, nested_action, seen
+            root, nested_action, seen, step.get("with")
         ):
             return True
     return False
@@ -303,7 +356,7 @@ def validate_workflow_coverage_policy(root: Path = ROOT) -> list[str]:
                 if isinstance(action, str):
                     if action in COVERAGE_ACTIONS:
                         coverage_steps.append((step_index, step))
-                    if _local_action_runs_jvm_tests(root, action):
+                    if _local_action_runs_jvm_tests(root, action, inputs=step.get("with")):
                         test_step_indexes.append(step_index)
                         if isinstance(step.get("if"), str):
                             test_conditions.add(_normalize_workflow_condition(step["if"]))

@@ -83,12 +83,12 @@ def installer_command(client: str, *extra_args: str) -> list[str]:
             "-ExecutionPolicy",
             "Bypass",
             "-File",
-            str(ROOT / "scripts" / "mcp" / "install-shaft-mcp.ps1"),
+            str(ROOT / "scripts" / "mcp" / "install-shaft-agentic-tools.ps1"),
             "-Client",
             client,
             *extra_args,
         ]
-    return ["sh", str(ROOT / "scripts" / "mcp" / "install-shaft-mcp.sh"), f"--{client}", *extra_args]
+    return ["sh", str(ROOT / "scripts" / "mcp" / "install-shaft-agentic-tools.sh"), f"--{client}", *extra_args]
 
 
 def run_installer(

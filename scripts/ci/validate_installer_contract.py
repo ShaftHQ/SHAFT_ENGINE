@@ -77,8 +77,10 @@ def parse_installer_targets_from_java(java_file: Path) -> dict[str, str]:
 def validate(root: Path = ROOT) -> list[str]:
     errors: list[str] = []
 
-    # Parse TARGETS from Python installer
-    py_installer = root / "scripts/mcp/install_shaft_mcp.py"
+    # Parse TARGETS from the primary Python installer; the old filename is a shim.
+    py_installer = root / "scripts/mcp/install_shaft_agentic_tools.py"
+    if not py_installer.is_file():
+        py_installer = root / "scripts/mcp/install_shaft_mcp.py"
     if not py_installer.is_file():
         errors.append(f"missing Python installer: {py_installer}")
         return errors
@@ -131,25 +133,42 @@ def validate(root: Path = ROOT) -> list[str]:
 
     # Parse and verify installer command references in Java
     java_content = java_setup.read_text(encoding="utf-8")
-    # installerCommandFor builds: /scripts/mcp/install-shaft-mcp + .ps1 or .sh
-    if "/scripts/mcp/install-shaft-mcp" not in java_content:
+    if "/scripts/mcp/install-shaft-agentic-tools" not in java_content:
         errors.append(
-            f"installerCommandFor must reference '/scripts/mcp/install-shaft-mcp' in {java_setup}"
+            f"installerCommandFor must reference '/scripts/mcp/install-shaft-agentic-tools' in {java_setup}"
+        )
+    if "/scripts/mcp/install-shaft-mcp" in java_content:
+        errors.append(
+            f"installerCommandFor must not copy install-shaft-mcp as the primary command in {java_setup}"
         )
 
-    # Verify shell scripts exist
-    ps1_installer = root / "scripts/mcp/install-shaft-mcp.ps1"
-    sh_installer = root / "scripts/mcp/install-shaft-mcp.sh"
+    # Primary inner scripts plus deprecation shims.
+    ps1_installer = root / "scripts/mcp/install-shaft-agentic-tools.ps1"
+    sh_installer = root / "scripts/mcp/install-shaft-agentic-tools.sh"
+    ps1_shim = root / "scripts/mcp/install-shaft-mcp.ps1"
+    sh_shim = root / "scripts/mcp/install-shaft-mcp.sh"
 
     if not ps1_installer.is_file():
-        errors.append(
-            f"missing Windows installer script referenced by installerCommandFor: {ps1_installer}"
-        )
-
+        errors.append(f"missing Windows installer script: {ps1_installer}")
     if not sh_installer.is_file():
-        errors.append(
-            f"missing Unix installer script referenced by installerCommandFor: {sh_installer}"
-        )
+        errors.append(f"missing Unix installer script: {sh_installer}")
+    if not ps1_shim.is_file():
+        errors.append(f"missing Windows deprecation shim: {ps1_shim}")
+    elif "deprecat" not in ps1_shim.read_text(encoding="utf-8").casefold():
+        errors.append(f"Windows shim must mention deprecation: {ps1_shim}")
+    if not sh_shim.is_file():
+        errors.append(f"missing Unix deprecation shim: {sh_shim}")
+    elif "deprecat" not in sh_shim.read_text(encoding="utf-8").casefold():
+        errors.append(f"Unix shim must mention deprecation: {sh_shim}")
+
+    # Plugin may still copy the old name until the setup-panel slice; live primary
+    # one-liners must already download the Agentic Tools inner scripts.
+    one_liner_ps1 = root / "scripts/mcp/install.ps1"
+    one_liner_sh = root / "scripts/mcp/install.sh"
+    if one_liner_ps1.is_file() and "install-shaft-agentic-tools.ps1" not in one_liner_ps1.read_text(encoding="utf-8"):
+        errors.append(f"install.ps1 must download install-shaft-agentic-tools.ps1: {one_liner_ps1}")
+    if one_liner_sh.is_file() and "install-shaft-agentic-tools.sh" not in one_liner_sh.read_text(encoding="utf-8"):
+        errors.append(f"install.sh must download install-shaft-agentic-tools.sh: {one_liner_sh}")
 
     return errors
 

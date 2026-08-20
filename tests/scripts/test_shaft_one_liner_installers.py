@@ -29,14 +29,16 @@ class ShaftOneLinerInstallerTest(TestCase):
         self.assertTrue(shell_path.is_file(), shell_path)
         powershell = powershell_path.read_text(encoding="utf-8")
         shell = shell_path.read_text(encoding="utf-8")
-        self.assertIn("install-shaft-mcp.ps1", powershell)
-        self.assertIn("install-shaft-mcp.sh", shell)
+        self.assertIn("install-shaft-agentic-tools.ps1", powershell)
+        self.assertIn("install-shaft-agentic-tools.sh", shell)
         self.assertIn("Invoke-WebRequest", powershell)
         self.assertIn("curl -fsSL", shell)
         for body in (powershell, shell):
             self.assertNotIn("python-build-standalone", body)
             self.assertNotIn("cpython-3.13", body)
-            self.assertIn("install-shaft-mcp", body)
+            self.assertIn("install-shaft-agentic-tools", body)
+            self.assertNotIn("install-shaft-mcp.ps1", body)
+            self.assertNotIn("install-shaft-mcp.sh", body)
 
 
 if __name__ == "__main__":

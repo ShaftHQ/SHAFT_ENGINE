@@ -7,6 +7,7 @@ import java.util.Arrays;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 
 class AssistantAgentRouteTest {
 
@@ -39,6 +40,17 @@ class AssistantAgentRouteTest {
         assertEquals("CLAUDE_CODE", routeName(fromSettings, settings("LOCAL", "CLAUDE", "CLI")));
         assertEquals("COPILOT_CLI", routeName(fromSettings, settings("LOCAL", "COPILOT", "CLI")));
         assertEquals("GROK", routeName(fromSettings, settings("LOCAL", "GROK", "CLI")));
+    }
+
+    @Test
+    void emptyFamilyAndClientDoNotCoerceToCodex() throws Exception {
+        Class<?> type = Class.forName("com.shaft.intellij.settings.AssistantAgentRoute");
+        Method fromSettings = type.getMethod("fromSettings", ShaftSettingsState.Settings.class);
+        ShaftSettingsState.Settings settings = new ShaftSettingsState.Settings();
+        settings.assistantProviderType = "LOCAL";
+        settings.assistantFamily = "";
+        settings.defaultAutobotClient = "";
+        assertNull(invoke(fromSettings, null, settings));
     }
 
     @Test

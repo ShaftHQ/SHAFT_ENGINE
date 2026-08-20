@@ -278,6 +278,8 @@ class ShaftSettingsConfigurableTest {
         settings.mcpCommand = "\"java\" \"@target/shaft-mcp.args\"";
         settings.mcpSetupComplete = true;
         settings.agentLaneReady = true;
+        settings.assistantFamily = "CODEX";
+        settings.defaultAutobotClient = "CODEX";
         ShaftSettingsConfigurable configurable = new ShaftSettingsConfigurable(settings, new InMemoryCredentials());
         JComponent panel = (JComponent) configurable.createComponent();
         JComboBox<?> agent = findByAccessibleName(panel, "Assistant agent", JComboBox.class);
@@ -299,6 +301,8 @@ class ShaftSettingsConfigurableTest {
         settings.mcpCommand = "\"java\" \"@target/shaft-mcp.args\"";
         settings.mcpSetupComplete = true;
         settings.agentLaneReady = true;
+        settings.assistantFamily = "CODEX";
+        settings.defaultAutobotClient = "CODEX";
         ShaftSettingsConfigurable configurable = new ShaftSettingsConfigurable(settings, new InMemoryCredentials());
         configurable.createComponent();
 
@@ -309,6 +313,36 @@ class ShaftSettingsConfigurableTest {
                 () -> assertTrue(settings.agentLaneReady),
                 () -> assertEquals("CODEX", settings.assistantFamily),
                 () -> assertEquals("CLI", settings.assistantRuntime));
+    }
+
+    @Test
+    void emptyFamilyAndClientDoNotCoerceToCodex() throws Exception {
+        ShaftSettingsState.Settings settings = new ShaftSettingsState.Settings();
+        settings.assistantFamily = "";
+        settings.defaultAutobotClient = "";
+        ShaftSettingsConfigurable configurable = new ShaftSettingsConfigurable(settings, new InMemoryCredentials());
+        JComponent panel = (JComponent) configurable.createComponent();
+
+        Method resolveFamily = ShaftSettingsConfigurable.class.getDeclaredMethod(
+                "resolveFamily", ShaftSettingsState.Settings.class);
+        resolveFamily.setAccessible(true); // NOPMD - test-only private mapper, matching getField
+        Method clientFromFamily = ShaftSettingsConfigurable.class.getDeclaredMethod("clientFromFamily", String.class);
+        clientFromFamily.setAccessible(true); // NOPMD - test-only private mapper, matching getField
+
+        String family = String.valueOf(resolveFamily.invoke(null, settings));
+        String mappedClient = String.valueOf(clientFromFamily.invoke(null, ""));
+        JComboBox<?> agent = findByAccessibleName(panel, "Assistant agent", JComboBox.class);
+        JComboBox<?> familyCombo = (JComboBox<?>) getField(configurable, "assistantFamily");
+        JComboBox<?> clientCombo = (JComboBox<?>) getField(configurable, "defaultClient");
+
+        assertAll(
+                () -> assertTrue(family.isBlank() || "null".equals(family), family),
+                () -> assertNotEquals("CODEX", family),
+                () -> assertTrue(mappedClient.isBlank() || "null".equals(mappedClient), mappedClient),
+                () -> assertNotEquals("CODEX", mappedClient),
+                () -> assertNull(agent.getSelectedItem()),
+                () -> assertNotEquals("CODEX", familyCombo.getSelectedItem()),
+                () -> assertNotEquals("CODEX", clientCombo.getSelectedItem()));
     }
 
     @Test

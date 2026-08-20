@@ -115,7 +115,7 @@ public final class ShaftSettingsState implements PersistentStateComponent<ShaftS
         public String lmStudioApiKeyEnvironmentVariable = "";
         public String localModel = "";
         public String assistantEffort = "DEFAULT";
-        public String defaultAutobotClient = "CODEX";
+        public String defaultAutobotClient = "";
         /**
          * Agent mode is the first-contact default: the assistant can actually execute recording,
          * codegen, and diagnosis flows instead of only talking about them.

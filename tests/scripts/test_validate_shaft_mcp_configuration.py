@@ -231,14 +231,14 @@ INSTALL_SHAFT_MCP_PY = """# shaft-mcp installer implementation
 
 INSTALL_PS1 = """# Thin bootstrapper for shaft-mcp
 # downloads python-build-standalone runtime and shows progress
-# then runs install_shaft_mcp.py
+# then runs install_shaft_agentic_tools.py
 Write-Host "progress: downloading"
 """
 
 INSTALL_SH = """#!/usr/bin/env bash
 # Thin bootstrapper for shaft-mcp
 # downloads python-build-standalone runtime and shows progress
-# then runs install_shaft_mcp.py
+# then runs install_shaft_agentic_tools.py
 echo "progress: downloading"
 """
 
@@ -277,9 +277,9 @@ def _write_minimal_mcp_root(root: Path) -> None:
     _write_text(root / ".github/workflows/mavenCentral_cd.yml", MAVEN_CENTRAL_WORKFLOW)
     _write_text(root / ".github/workflows/shaft-pilot-release.yml", PILOT_RELEASE_WORKFLOW)
     _write_text(root / ".github/actions/mcp-jar-build/action.yml", MCP_JAR_BUILD_ACTION)
-    _write_text(root / "scripts/mcp/install_shaft_mcp.py", INSTALL_SHAFT_MCP_PY)
-    _write_text(root / "scripts/mcp/install-shaft-mcp.ps1", INSTALL_PS1)
-    _write_text(root / "scripts/mcp/install-shaft-mcp.sh", INSTALL_SH)
+    _write_text(root / "scripts/mcp/install_shaft_agentic_tools.py", INSTALL_SHAFT_MCP_PY)
+    _write_text(root / "scripts/mcp/install-shaft-agentic-tools.ps1", INSTALL_PS1)
+    _write_text(root / "scripts/mcp/install-shaft-agentic-tools.sh", INSTALL_SH)
     _write_text(root / "scripts/ci/verify_shaft_mcp_installer_release.py", VERIFY_INSTALLER_PY)
     _write_text(root / "shaft-mcp/Dockerfile", DOCKERFILE)
 
@@ -530,7 +530,7 @@ class ValidateShaftMcpConfigurationFullContractTest(unittest.TestCase):
             root = Path(temp)
             _write_minimal_mcp_root(root)
             _write_text(
-                root / "scripts/mcp/install_shaft_mcp.py",
+                root / "scripts/mcp/install_shaft_agentic_tools.py",
                 INSTALL_SHAFT_MCP_PY.replace(
                     '# USER_GUIDE_URL = "https://example.invalid/guide"\n', ""
                 ),
@@ -547,7 +547,7 @@ class ValidateShaftMcpConfigurationFullContractTest(unittest.TestCase):
             root = Path(temp)
             _write_minimal_mcp_root(root)
             _write_text(
-                root / "scripts/mcp/install-shaft-mcp.ps1",
+                root / "scripts/mcp/install-shaft-agentic-tools.ps1",
                 INSTALL_PS1.replace(
                     "# downloads python-build-standalone runtime and shows progress\n",
                     "# downloads a runtime and shows progress\n",
@@ -557,7 +557,7 @@ class ValidateShaftMcpConfigurationFullContractTest(unittest.TestCase):
             errors = MODULE.validate(root)
 
         self.assertIn(
-            "scripts/mcp/install-shaft-mcp.ps1 must be a thin Python bootstrapper containing python-build-standalone",
+            "scripts/mcp/install-shaft-agentic-tools.ps1 must be a thin Python bootstrapper containing python-build-standalone",
             errors,
         )
 

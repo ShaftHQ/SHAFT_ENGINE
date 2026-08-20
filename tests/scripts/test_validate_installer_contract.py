@@ -55,9 +55,10 @@ class ValidateInstallerContractTest(unittest.TestCase):
                 encoding="utf-8"
             )
 
-            # Write installer scripts
-            (root / "scripts/mcp/install-shaft-mcp.ps1").write_text("# PowerShell installer", encoding="utf-8")
-            (root / "scripts/mcp/install-shaft-mcp.sh").write_text("#!/bin/bash\n# Shell installer", encoding="utf-8")
+            (root / "scripts/mcp/install-shaft-agentic-tools.ps1").write_text("# PowerShell installer", encoding="utf-8")
+            (root / "scripts/mcp/install-shaft-agentic-tools.sh").write_text("#!/bin/bash\n# Shell installer", encoding="utf-8")
+            (root / "scripts/mcp/install-shaft-mcp.ps1").write_text("# deprecated shim", encoding="utf-8")
+            (root / "scripts/mcp/install-shaft-mcp.sh").write_text("#!/bin/bash\n# deprecated shim", encoding="utf-8")
 
             # Write a minimal Java file referencing the installer command
             java_setup.write_text(
@@ -84,7 +85,7 @@ class ValidateInstallerContractTest(unittest.TestCase):
 
                 private static String installerCommandFor(String target) {
                     String url = "https://raw.githubusercontent.com/ShaftHQ/SHAFT_ENGINE/main"
-                            + "/scripts/mcp/install-shaft-mcp";
+                            + "/scripts/mcp/install-shaft-agentic-tools";
                     if (isWindows()) {
                         return "powershell ...";
                     }
@@ -133,7 +134,7 @@ class ValidateInstallerContractTest(unittest.TestCase):
                 }
 
                 private static String installerCommandFor(String target) {
-                    return "https://raw.githubusercontent.com/ShaftHQ/SHAFT_ENGINE/main/scripts/mcp/install-shaft-mcp";
+                    return "https://raw.githubusercontent.com/ShaftHQ/SHAFT_ENGINE/main/scripts/mcp/install-shaft-agentic-tools";
                 }
                 ''',
                 encoding="utf-8"
@@ -179,7 +180,7 @@ class ValidateInstallerContractTest(unittest.TestCase):
                 }
 
                 private static String installerCommandFor(String target) {
-                    return "https://raw.githubusercontent.com/ShaftHQ/SHAFT_ENGINE/main/scripts/mcp/install-shaft-mcp";
+                    return "https://raw.githubusercontent.com/ShaftHQ/SHAFT_ENGINE/main/scripts/mcp/install-shaft-agentic-tools";
                 }
                 ''',
                 encoding="utf-8"
@@ -224,18 +225,19 @@ class ValidateInstallerContractTest(unittest.TestCase):
                 }
 
                 private static String installerCommandFor(String target) {
-                    return "https://raw.githubusercontent.com/ShaftHQ/SHAFT_ENGINE/main/scripts/mcp/install-shaft-mcp";
+                    return "https://raw.githubusercontent.com/ShaftHQ/SHAFT_ENGINE/main/scripts/mcp/install-shaft-agentic-tools";
                 }
                 ''',
                 encoding="utf-8"
             )
 
-            # Only write .ps1, not .sh
-            (root / "scripts/mcp/install-shaft-mcp.ps1").write_text("# PowerShell", encoding="utf-8")
+            (root / "scripts/mcp/install-shaft-agentic-tools.ps1").write_text("# PowerShell", encoding="utf-8")
 
             errors = MODULE.validate(root)
-            self.assertTrue(any("install-shaft-mcp.sh" in e and "missing" in e.lower() for e in errors),
-                            f"Expected error about missing .sh script, got: {errors}")
+            self.assertTrue(
+                any("install-shaft-agentic-tools.sh" in e and "missing" in e.lower() for e in errors),
+                f"Expected error about missing .sh script, got: {errors}",
+            )
 
     def test_parse_targets_extracts_all_targets(self):
         """Parsing TARGETS should extract all quoted strings from tuple."""

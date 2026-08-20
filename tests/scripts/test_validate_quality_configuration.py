@@ -846,6 +846,48 @@ jobs:
                 [missing_coverage_error("coverage.yml", "intellij")],
             )
 
+    def test_ignores_composite_jvm_tests_when_verify_input_is_false(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            workflows = root / ".github" / "workflows"
+            action = root / ".github" / "actions" / "intellij-verify"
+            workflows.mkdir(parents=True)
+            action.mkdir(parents=True)
+            action.joinpath("action.yml").write_text(
+                "inputs:\n"
+                "  verify:\n"
+                "    default: 'true'\n"
+                "  publish:\n"
+                "    default: 'false'\n"
+                "runs:\n"
+                "  using: composite\n"
+                "  steps:\n"
+                "    - if: inputs.verify != 'false'\n"
+                "      shell: bash\n"
+                "      run: bash scripts/ci/build_retry.sh 2 15 bash shaft-intellij/gradlew -p shaft-intellij check\n"
+                "    - if: inputs.publish == 'true'\n"
+                "      shell: bash\n"
+                "      run: bash shaft-intellij/gradlew -p shaft-intellij signPlugin publishPlugin\n",
+                encoding="utf-8",
+            )
+            (workflows / "publish-intellij-plugin.yml").write_text(
+                "jobs:\n"
+                "  verify:\n"
+                "    steps:\n"
+                "      - uses: ./.github/actions/intellij-verify\n"
+                "      - if: always()\n"
+                "        uses: ./.github/actions/upload-jacoco-coverage\n"
+                "  publish:\n"
+                "    steps:\n"
+                "      - uses: ./.github/actions/intellij-verify\n"
+                "        with:\n"
+                "          publish: 'true'\n"
+                "          verify: 'false'\n",
+                encoding="utf-8",
+            )
+
+            self.assertEqual(validate_workflow_coverage_policy(root), [])
+
     def test_reports_missing_aggregate_module(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)

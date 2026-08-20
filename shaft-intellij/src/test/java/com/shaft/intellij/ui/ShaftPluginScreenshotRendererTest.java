@@ -5,6 +5,7 @@ import com.intellij.openapi.project.Project;
 import com.intellij.ui.JBColor;
 import com.intellij.ui.components.JBScrollPane;
 import com.shaft.intellij.mcp.ShaftMcpToolResult;
+import com.shaft.intellij.settings.AssistantAgentRoute;
 import com.shaft.intellij.settings.ShaftSettingsConfigurable;
 import com.shaft.intellij.settings.ShaftSettingsState;
 import com.shaft.intellij.testindex.ShaftTestDiscovery;
@@ -1593,6 +1594,8 @@ class ShaftPluginScreenshotRendererTest {
             setField(component, "mcpVersionChecker",
                     (java.util.function.Supplier<ShaftMcpVersionCheck.Result>) () -> new ShaftMcpVersionCheck.Result(
                             ShaftMcpVersionCheck.State.LATEST_UNKNOWN, "10.3.20260703", ""));
+            JComboBox<?> agent = findByAccessibleName(component, "Assistant agent", JComboBox.class);
+            agent.setSelectedItem(AssistantAgentRoute.GROK);
             clickAccessible(component, "Check SHAFT MCP version");
             component.setSize(new Dimension(WIDTH, HEIGHT));
             component.setPreferredSize(new Dimension(WIDTH, HEIGHT));

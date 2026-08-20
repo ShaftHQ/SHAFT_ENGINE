@@ -5,17 +5,20 @@ import hashlib
 import io
 import json
 import os
+import queue
 import re
+import ssl
 import subprocess  # nosec B404 -- Windows junction test uses resolved System32 cmd.exe only.
 import sys
 import tempfile
 import tomllib
 import unittest
+import urllib.error
 import zipfile
 from pathlib import Path
 from unittest import mock
 
-MODULE_PATH = Path(__file__).resolve().parents[2] / "scripts" / "mcp" / "install_shaft_mcp.py"
+MODULE_PATH = Path(__file__).resolve().parents[2] / "scripts" / "mcp" / "install_shaft_agentic_tools.py"
 REPO_ROOT = MODULE_PATH.parents[2]
 SPEC = importlib.util.spec_from_file_location("install_shaft_mcp", MODULE_PATH)
 MODULE = importlib.util.module_from_spec(SPEC)
@@ -657,8 +660,8 @@ class InstallShaftMcpTest(unittest.TestCase):
         self.assertEqual(["probe"], calls)
 
     def test_wrappers_forward_arguments_without_implicit_skills_selection(self):
-        shell = (MODULE_PATH.parent / "install-shaft-mcp.sh").read_text(encoding="utf-8")
-        powershell = (MODULE_PATH.parent / "install-shaft-mcp.ps1").read_text(encoding="utf-8")
+        shell = (MODULE_PATH.parent / "install-shaft-agentic-tools.sh").read_text(encoding="utf-8")
+        powershell = (MODULE_PATH.parent / "install-shaft-agentic-tools.ps1").read_text(encoding="utf-8")
 
         self.assertIn('exec "$python_path" "$python_script" "$@"', shell)
         self.assertNotIn('set -- "$@" --install-shaft-skills', shell)
@@ -1241,5 +1244,180 @@ class InstallShaftMcpTest(unittest.TestCase):
                 self.assertTrue(os.access(launcher, os.X_OK))
 
 
+class _UrlResponse:
+    def __init__(self, payload: bytes) -> None:
+        self._payload = payload
+        self.headers = {"Content-Length": str(len(payload))}
+
+    def read(self, size: int = -1) -> bytes:
+        if size is None or size < 0:
+            data = self._payload
+            self._payload = b""
+            return data
+        data = self._payload[:size]
+        self._payload = self._payload[size:]
+        return data
+
+    def __enter__(self) -> "_UrlResponse":
+        return self
+
+    def __exit__(self, *_args) -> None:
+        return None
+
+
+def _record_layer_failure() -> urllib.error.URLError:
+    return urllib.error.URLError(ssl.SSLError(1, "[SSL: RECORD_LAYER_FAILURE] record layer failure"))
+
+
+class TransientDownloadRetryTest(unittest.TestCase):
+    def test_url_text_or_none_retries_record_layer_failure_then_succeeds(self):
+        attempts = {"n": 0}
+
+        def flaky(_request, timeout=120):
+            attempts["n"] += 1
+            if attempts["n"] == 1:
+                raise _record_layer_failure()
+            return _UrlResponse(b"checksum")
+
+        with mock.patch("urllib.request.urlopen", side_effect=flaky), mock.patch.object(
+            MODULE.time, "sleep", return_value=None
+        ):
+            self.assertEqual("checksum", MODULE.url_text_or_none("https://example.invalid/artifact.sha1"))
+        self.assertGreaterEqual(attempts["n"], 2)
+
+    def test_url_text_or_none_exhausted_retries_fail_closed(self):
+        attempts = {"n": 0}
+
+        def always_fail(_request, timeout=120):
+            attempts["n"] += 1
+            raise _record_layer_failure()
+
+        with mock.patch("urllib.request.urlopen", side_effect=always_fail), mock.patch.object(
+            MODULE.time, "sleep", return_value=None
+        ):
+            with self.assertRaises(urllib.error.URLError):
+                MODULE.url_text_or_none("https://example.invalid/artifact.sha1")
+        self.assertGreaterEqual(attempts["n"], 5)
+
+    def test_url_text_or_none_returns_none_on_404_without_retrying(self):
+        attempts = {"n": 0}
+
+        def missing(_request, timeout=120):
+            attempts["n"] += 1
+            raise urllib.error.HTTPError(
+                "https://example.invalid/missing.sha1",
+                404,
+                "Not Found",
+                hdrs=None,
+                fp=None,
+            )
+
+        with mock.patch("urllib.request.urlopen", side_effect=missing), mock.patch.object(
+            MODULE.time, "sleep", return_value=None
+        ):
+            self.assertIsNone(MODULE.url_text_or_none("https://example.invalid/missing.sha1"))
+        self.assertEqual(attempts["n"], 1)
+
+
+class HttpsUrlGuardTest(unittest.TestCase):
+    def test_download_bytes_rejects_http_and_custom_schemes(self):
+        with mock.patch("urllib.request.urlopen") as urlopen:
+            with self.assertRaises(MODULE.InstallError) as http_error:
+                MODULE.download_bytes("http://example.invalid/artifact")
+            with self.assertRaises(MODULE.InstallError) as ftp_error:
+                MODULE.download_bytes("ftp://example.invalid/artifact")
+        urlopen.assert_not_called()
+        self.assertIn("http", str(http_error.exception))
+        self.assertIn("ftp", str(ftp_error.exception))
+
+
+class DownloadErrorReraiseTest(unittest.TestCase):
+    def test_raise_download_error_fails_when_error_is_none(self):
+        with self.assertRaises(MODULE.InstallError) as caught:
+            MODULE.raise_download_error(None, "https://example.invalid/a")
+        self.assertIn("without an error", str(caught.exception))
+
+    def test_raise_download_error_reraises_the_instance(self):
+        original = urllib.error.URLError("boom")
+        with self.assertRaises(urllib.error.URLError) as caught:
+            MODULE.raise_download_error(original, "https://example.invalid/a")
+        self.assertIs(caught.exception, original)
+
+
+class AgenticToolsInstallerSurfaceTest(unittest.TestCase):
+    def test_banner_names_agentic_tools_and_stays_available(self):
+        stderr = io.StringIO()
+        with temporary_environment(), contextlib.redirect_stderr(stderr):
+            os.environ.pop(MODULE.BOOTSTRAP_BANNER_SHOWN, None)
+            MODULE.banner()
+        text = stderr.getvalue()
+        self.assertIn("Agentic Tools", text)
+        self.assertNotIn("MCP installer", text)
+
+    def test_overall_progress_logs_phase_percent_when_stderr_is_not_a_tty(self):
+        stderr = io.StringIO()
+        stderr.isatty = lambda: False  # type: ignore[method-assign]
+        with contextlib.redirect_stderr(stderr):
+            MODULE.overall_progress("MCP", 1, 4)
+        self.assertRegex(stderr.getvalue(), r"MCP.*25%")
+
+    def test_tty_keeps_overall_progress_on_a_separate_line_from_current_item(self):
+        stderr = io.StringIO()
+        stderr.isatty = lambda: True  # type: ignore[method-assign]
+        with contextlib.redirect_stderr(stderr):
+            MODULE.overall_progress("MCP", 1, 4)
+            MODULE.progress("jar", 10, 100)
+        text = stderr.getvalue()
+        self.assertIn("Overall", text)
+        self.assertIn("jar", text)
+        overall_at = text.find("Overall")
+        item_at = text.find("jar")
+        self.assertGreater(item_at, overall_at)
+        self.assertIn(
+            "\n",
+            text[overall_at:item_at],
+            "overall and current-item bars must not share one \\r overwrite",
+        )
+
+    def test_tty_overall_progress_overwrites_previous_overall_line(self):
+        stderr = io.StringIO()
+        stderr.isatty = lambda: True  # type: ignore[method-assign]
+        with contextlib.redirect_stderr(stderr):
+            MODULE.overall_progress("MCP", 1, 4)
+            MODULE.overall_progress("CLI", 2, 4)
+        self.assertIn("\033[1A", stderr.getvalue())
+
+    def test_read_lines_swallows_close_errors(self):
+        class BoomStream:
+            def readline(self):
+                return ""
+
+            def close(self):
+                raise OSError("already closed")
+
+        MODULE.read_lines(BoomStream(), queue.Queue())
+
+    def test_primary_scripts_use_agentic_tools_name_and_old_names_are_shims(self):
+        scripts = REPO_ROOT / "scripts" / "mcp"
+        self.assertTrue((scripts / "install_shaft_agentic_tools.py").is_file())
+        self.assertTrue((scripts / "install-shaft-agentic-tools.ps1").is_file())
+        self.assertTrue((scripts / "install-shaft-agentic-tools.sh").is_file())
+        ps1 = (scripts / "install-shaft-mcp.ps1").read_text(encoding="utf-8")
+        sh = (scripts / "install-shaft-mcp.sh").read_text(encoding="utf-8")
+        self.assertRegex(ps1, r"(?i)deprecat")
+        self.assertRegex(sh, r"(?i)deprecat")
+        self.assertIn("install-shaft-agentic-tools.ps1", ps1)
+        self.assertIn("install-shaft-agentic-tools.sh", sh)
+        one_liner_ps1 = (scripts / "install.ps1").read_text(encoding="utf-8")
+        one_liner_sh = (scripts / "install.sh").read_text(encoding="utf-8")
+        self.assertIn("install-shaft-agentic-tools.ps1", one_liner_ps1)
+        self.assertIn("Agentic Tools", one_liner_ps1)
+        self.assertIn("install-shaft-agentic-tools.sh", one_liner_sh)
+        self.assertIn("Agentic Tools", one_liner_sh)
+        self.assertNotIn("install-shaft-mcp.ps1", one_liner_ps1)
+        self.assertNotIn("install-shaft-mcp.sh", one_liner_sh)
+
+
 if __name__ == "__main__":
     unittest.main()
+

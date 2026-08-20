@@ -3376,7 +3376,7 @@ final class AssistantCommand {
         }
 
         static Selection local(String family, String runtime, String model, String effort) {
-            return new Selection(false, normalize(family, "CODEX"), normalize(runtime, "CLI"), "", "",
+            return new Selection(false, normalize(family, ""), normalize(runtime, "CLI"), "", "",
                     model == null ? "" : model.trim(), normalizeEffort(effort));
         }
 
@@ -3397,10 +3397,12 @@ final class AssistantCommand {
         }
 
         static Selection fromClient(String client) {
-            return switch (normalize(client, "CODEX")) {
+            return switch (normalize(client, "")) {
                 case "CLAUDE_CODE" -> local("CLAUDE", "CLI");
                 case "COPILOT_CLI" -> local("COPILOT", "CLI");
-                default -> local("CODEX", "CLI");
+                case "GROK" -> local("GROK", "CLI");
+                case "CODEX" -> local("CODEX", "CLI");
+                default -> local("", "CLI");
             };
         }
 
@@ -3408,15 +3410,22 @@ final class AssistantCommand {
             return switch (family) {
                 case "CLAUDE" -> "CLAUDE_CODE";
                 case "COPILOT" -> "COPILOT_CLI";
-                default -> "CODEX";
+                case "GROK" -> "GROK";
+                case "CODEX" -> "CODEX";
+                default -> "";
             };
         }
 
         String displayName() {
+            if (family == null || family.isBlank()) {
+                return "Select an option";
+            }
             String familyName = switch (family) {
                 case "CLAUDE" -> "Claude";
                 case "COPILOT" -> "GitHub Copilot";
-                default -> "Codex";
+                case "GROK" -> "Grok";
+                case "CODEX" -> "Codex";
+                default -> family;
             };
             String runtimeName = switch (runtime) {
                 case "IDE_PLUGIN" -> "plugin";

@@ -486,7 +486,12 @@ final class ShaftAssistantPanel extends JPanel implements Disposable {
         providerType.setSelectedItem(normalize(settings.assistantProviderType, "LOCAL"));
         providerType.setToolTipText("Use Local for CLI agents; Cloud for provider Ask and Plan");
         assistantFamily = combo("Assistant family", "CODEX", "CLAUDE", "COPILOT", "GROK");
-        assistantFamily.setSelectedItem(resolveFamily(settings));
+        String familyValue = resolveFamily(settings);
+        if (familyValue.isBlank()) {
+            assistantFamily.setSelectedIndex(-1);
+        } else {
+            assistantFamily.setSelectedItem(familyValue);
+        }
         assistantFamily.setToolTipText("Local assistant client");
         assistantRuntime = combo("Assistant runtime", "CLI", "IDE_PLUGIN", "DESKTOP_APP");
         assistantRuntime.setSelectedItem(normalize(settings.assistantRuntime, "CLI"));
@@ -1658,7 +1663,11 @@ final class ShaftAssistantPanel extends JPanel implements Disposable {
             captureIntegrationRunning = approvingCaptureReview;
             maybeAnnounceOrchestrationStages(text);
             int streamToken = ++localAgentStreamToken;
-            appendAgentMilestone("Tool selected: local assistant");
+            String client = invocation.arguments() == null || !invocation.arguments().has("client")
+                    ? ""
+                    : invocation.arguments().get("client").getAsString();
+            String toolName = AssistantCommand.Selection.fromClient(client).displayName();
+            appendAgentMilestone("Tool selected: " + toolName);
             setRunning(true, "Thinking...");
             appendStreamingLocalAgentBubble(streamToken);
             // Issue #3918: resolved once per run, before any output arrives, so appendLocalAgentOutput
@@ -2133,7 +2142,8 @@ final class ShaftAssistantPanel extends JPanel implements Disposable {
     private AssistantCommand.Selection selectedRoute() {
         settings.defaultAutobotMode = String.valueOf(mode.getSelectedItem());
         settings.assistantProviderType = String.valueOf(providerType.getSelectedItem());
-        settings.assistantFamily = String.valueOf(assistantFamily.getSelectedItem());
+        Object familyItem = assistantFamily.getSelectedItem();
+        settings.assistantFamily = familyItem == null ? "" : String.valueOf(familyItem);
         settings.assistantRuntime = String.valueOf(assistantRuntime.getSelectedItem());
         settings.cloudProvider = String.valueOf(cloudProvider.getSelectedItem());
         settings.cloudModel = editableComboText(cloudModel);
@@ -5678,20 +5688,30 @@ final class ShaftAssistantPanel extends JPanel implements Disposable {
         if (!family.isBlank()) {
             return family;
         }
-        return switch (normalize(settings.defaultAutobotClient, "CODEX")) {
+        String client = settings.defaultAutobotClient == null ? "" : settings.defaultAutobotClient.trim();
+        if (client.isBlank()) {
+            return "";
+        }
+        return switch (client.toUpperCase(Locale.ROOT).replace('-', '_').replace(' ', '_')) {
             case "CLAUDE_CODE" -> "CLAUDE";
             case "COPILOT_CLI" -> "COPILOT";
             case "GROK" -> "GROK";
-            default -> "CODEX";
+            case "CODEX" -> "CODEX";
+            default -> "";
         };
     }
 
     private static String clientFromFamily(String family) {
-        return switch (normalize(family, "CODEX")) {
+        String normalized = normalize(family, "");
+        if (normalized.isBlank()) {
+            return "";
+        }
+        return switch (normalized) {
             case "CLAUDE" -> "CLAUDE_CODE";
             case "COPILOT" -> "COPILOT_CLI";
             case "GROK" -> "GROK";
-            default -> "CODEX";
+            case "CODEX" -> "CODEX";
+            default -> "";
         };
     }
 

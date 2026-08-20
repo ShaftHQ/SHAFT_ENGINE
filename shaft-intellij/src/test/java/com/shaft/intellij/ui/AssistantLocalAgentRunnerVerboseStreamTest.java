@@ -206,6 +206,15 @@ class AssistantLocalAgentRunnerVerboseStreamTest {
     }
 
     @Test
+    void grokStreamDoesNotUseCodexSessionWording() throws Exception {
+        String threadStarted = "{\"type\":\"thread.started\",\"thread_id\":\"t-1\"}";
+        List<String> lines = run(grokInvocation(),
+                threadStarted + "\n" + "done\n");
+        assertFalse(lines.contains("Codex session started."), lines.toString());
+        assertFalse(lines.stream().anyMatch(line -> line.contains("Codex turn")), lines.toString());
+    }
+
+    @Test
     void codexTopLevelErrorFeedsAPlainLanguageFailureReasonInsteadOfTheGenericExitCodeFallback() throws Exception {
         // ThreadEvent::Error is Codex's fatal top-level error (distinct from turn.failed's nested
         // error) and previously had no handling at all, so failureOutput fell back to the generic
@@ -1135,6 +1144,10 @@ class AssistantLocalAgentRunnerVerboseStreamTest {
 
     private static AssistantCommand.Invocation claudeInvocation() {
         return AssistantCommand.fromPrompt("Explain this failure", "CLAUDE_CODE", "ASK", ".", "", false);
+    }
+
+    private static AssistantCommand.Invocation grokInvocation() {
+        return AssistantCommand.fromPrompt("Explain this failure", "GROK", "ASK", ".", "", false);
     }
 
     private static AssistantCommand.Invocation codexInvocation() {

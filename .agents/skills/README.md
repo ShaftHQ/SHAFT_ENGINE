@@ -33,7 +33,7 @@ flowchart TD
     CF --> R
 
     R["<b>routing</b><br/>deliverable to one surface"]
-    R --> P["Repository playbooks<br/><i>14</i>"]
+    R --> P["Repository playbooks<br/><i>15</i>"]
     R --> M["SHAFT mastery chapters<br/><i>10</i>"]
     R --> D["Method references"]
     E --> D
@@ -180,6 +180,7 @@ list is the inventory, not a second copy of the triggers.
 - [UI design](../../chaos-engine/profiles/shaft/references/playbooks/shaft-ui-design.md)
 - [marketing](../../chaos-engine/profiles/shaft/references/playbooks/shaft-marketing-ad-producer.md)
 - [workstation local coding](../../chaos-engine/profiles/shaft/references/playbooks/workstation-local-coding-agent.md)
+- [IntelliJ plugin development](../../chaos-engine/profiles/shaft/references/playbooks/intellij-plugin-development.md)
 
 ### SHAFT mastery chapters
 

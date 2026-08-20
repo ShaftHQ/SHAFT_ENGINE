@@ -85,20 +85,26 @@ public enum AssistantAgentRoute {
             return GEMINI_INTELLIJ;
         }
         String family = normalize(settings.assistantFamily, "");
+        String client = settings.defaultAutobotClient == null ? "" : settings.defaultAutobotClient.trim();
         if (family.isBlank()) {
-            family = switch (normalize(settings.defaultAutobotClient, "CODEX")) {
+            family = switch (client.toUpperCase(Locale.ROOT)) {
                 case "CLAUDE_CODE" -> "CLAUDE";
                 case "COPILOT_CLI" -> "COPILOT";
                 case "GROK" -> "GROK";
-                default -> "CODEX";
+                case "CODEX" -> "CODEX";
+                default -> "";
             };
+        }
+        if (family.isBlank()) {
+            return null;
         }
         String runtime = normalize(settings.assistantRuntime, "CLI");
         return switch (family) {
             case "CLAUDE" -> "DESKTOP_APP".equals(runtime) ? CLAUDE_DESKTOP : CLAUDE_CODE;
             case "COPILOT" -> "IDE_PLUGIN".equals(runtime) ? COPILOT_INTELLIJ : COPILOT_CLI;
             case "GROK" -> GROK;
-            default -> CODEX_CLI;
+            case "CODEX" -> CODEX_CLI;
+            default -> null;
         };
     }
 
