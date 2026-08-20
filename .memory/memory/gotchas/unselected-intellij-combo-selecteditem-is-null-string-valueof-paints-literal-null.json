@@ -1,0 +1,42 @@
+{
+  "body_path": "memory/gotchas/unselected-intellij-combo-selecteditem-is-null-string-valueof-paints-literal-null.md",
+  "content_hash": "sha256:1e2b31b13b0a7e75fce5b8e15f9030c3948f47e92bbd2f64ce01474fa3fa4ab8",
+  "created_at": "2026-08-20T04:40:49+03:00",
+  "evidence": [
+    {
+      "id": "https://github.com/ShaftHQ/SHAFT_ENGINE/issues/5263",
+      "kind": "task"
+    },
+    {
+      "id": "cff59f8a51417dd1347743413db7c76cd621d926",
+      "kind": "commit"
+    }
+  ],
+  "facets": {
+    "applies_to": [
+      "shaft-intellij/src/main/java/com/shaft/intellij/ui/ShaftUiLabels.java",
+      "shaft-intellij/src/main/java/com/shaft/intellij/ui/ShaftAssistantPanel.java"
+    ],
+    "category": "gotcha"
+  },
+  "id": "gotcha.unselected-intellij-combo-selecteditem-is-null-string-valueof-paints-literal-null",
+  "scope": {
+    "branch": null,
+    "kind": "project",
+    "project": "project.shaft-engine",
+    "task": null
+  },
+  "source": {
+    "kind": "agent",
+    "task": "Record #5263 unselected JComboBox display gotcha after implementing Select an option wording"
+  },
+  "status": "active",
+  "tags": [
+    "intellij",
+    "combo",
+    "unselected-agent"
+  ],
+  "title": "Unselected IntelliJ combo selectedItem is null; String.valueOf paints literal null",
+  "type": "gotcha",
+  "updated_at": "2026-08-20T04:40:49+03:00"
+}
