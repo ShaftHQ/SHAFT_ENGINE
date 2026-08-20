@@ -188,9 +188,9 @@ class ManagedLocalAiServiceTest {
         Path unknown = cache.resolve("user-note.txt");
         Files.writeString(unknown, "mine");
         provisioning.blockModel.set(true);
-        provisioning.modelStarted = new CountDownLatch(1);
+        provisioning.modelWaitingForCancellation = new CountDownLatch(1);
         ManagedLocalAiOperation cancelled = service.provision(ignored -> { });
-        assertTrue(provisioning.modelStarted.await(5, TimeUnit.SECONDS));
+        assertTrue(provisioning.modelWaitingForCancellation.await(5, TimeUnit.SECONDS));
         assertTrue(cancelled.cancel());
         assertThrows(java.util.concurrent.CancellationException.class,
                 () -> cancelled.completion().get(5, TimeUnit.SECONDS));
@@ -849,7 +849,7 @@ class ManagedLocalAiServiceTest {
         private final byte[] runtime;
         private final byte[] model;
         private final AtomicBoolean blockModel = new AtomicBoolean();
-        private volatile CountDownLatch modelStarted = new CountDownLatch(1);
+        private volatile CountDownLatch modelWaitingForCancellation = new CountDownLatch(1);
         private int runtimeDownloads;
         private int modelDownloads;
 
@@ -891,9 +891,9 @@ class ManagedLocalAiServiceTest {
                 modelDownloads++;
                 progress.accept(new ManagedLocalAiService.Progress(
                         ManagedLocalAiSnapshot.Phase.DOWNLOADING_MODEL, runtime.length, total));
-                modelStarted.countDown();
                 try {
                     while (blockModel.get() && !cancelled.getAsBoolean()) {
+                        modelWaitingForCancellation.countDown();
                         Thread.sleep(10);
                     }
                     if (!cancelled.getAsBoolean()) {
