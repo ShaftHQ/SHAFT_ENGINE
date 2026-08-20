@@ -5634,11 +5634,10 @@ final class ShaftAssistantPanel extends JPanel implements Disposable {
     }
 
     private void updateRunSettingsSummary() {
-        String selectedMode = ShaftUiLabels.friendly(String.valueOf(mode.getSelectedItem()));
+        String selectedMode = ShaftUiLabels.friendly(mode.getSelectedItem());
         String route = usesCloud()
                 ? providerRouteLabel(String.valueOf(cloudProvider.getSelectedItem()))
-                : ShaftUiLabels.friendly(String.valueOf(assistantFamily.getSelectedItem())) + " "
-                + ShaftUiLabels.friendly(String.valueOf(assistantRuntime.getSelectedItem()));
+                : ShaftUiLabels.localAgentRoute(assistantFamily.getSelectedItem(), assistantRuntime.getSelectedItem());
         runSettingsToggle.setText("Run settings · " + selectedMode + " · " + route + " · Effort: "
                 + String.valueOf(effort.getSelectedItem()));
     }
@@ -5739,8 +5738,8 @@ final class ShaftAssistantPanel extends JPanel implements Disposable {
             String model = selectedModel.isBlank() ? "" : " " + selectedModel;
             return providerRouteLabel(settings.cloudProvider) + model;
         }
-        return ShaftUiLabels.friendly(resolveFamily(settings)) + " "
-                + ShaftUiLabels.friendly(normalize(settings.assistantRuntime, "CLI"));
+        return ShaftUiLabels.localAgentRoute(resolveFamily(settings),
+                normalize(settings.assistantRuntime, "CLI"));
     }
 
     private String currentAgentConfigurationTooltip() {
@@ -5749,8 +5748,8 @@ final class ShaftAssistantPanel extends JPanel implements Disposable {
             String model = selectedModel.isBlank() ? "" : " / " + selectedModel;
             return "Agent: " + providerRouteLabel(settings.cloudProvider) + model;
         }
-        return "Agent: Local / " + ShaftUiLabels.friendly(resolveFamily(settings))
-                + " / " + ShaftUiLabels.friendly(normalize(settings.assistantRuntime, "CLI"));
+        return ShaftUiLabels.localAgentSummary(resolveFamily(settings),
+                normalize(settings.assistantRuntime, "CLI"));
     }
 
     private static String providerKeyName(String provider) {

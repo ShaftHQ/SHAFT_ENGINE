@@ -346,6 +346,26 @@ class ShaftSettingsConfigurableTest {
     }
 
     @Test
+    void currentAgentRowUsesUnselectedWordingWhenNoAgentIsSelected() {
+        ShaftSettingsState.Settings settings = new ShaftSettingsState.Settings();
+        settings.mcpCommand = "\"java\" \"@target/shaft-mcp.args\"";
+        settings.mcpSetupComplete = true;
+        settings.assistantFamily = "";
+        settings.defaultAutobotClient = "";
+        ShaftSettingsConfigurable configurable = new ShaftSettingsConfigurable(settings, new InMemoryCredentials());
+        JComponent panel = (JComponent) configurable.createComponent();
+        JLabel currentAgent = findByAccessibleName(panel, "Current agent configuration", JLabel.class);
+
+        assertNotNull(currentAgent);
+        String text = currentAgent.getText();
+        assertAll(
+                () -> assertFalse(text.contains("null"), text),
+                () -> assertFalse(text.matches("(?s).*Local\\s*/\\s*/\\s*CLI.*"), text),
+                () -> assertTrue(text.contains("Select an option"), text),
+                () -> assertEquals(text, currentAgent.getAccessibleContext().getAccessibleDescription()));
+    }
+
+    @Test
     void advancedUiFlagIsPersistedBySettingsPanel() throws Exception {
         ShaftSettingsState.Settings settings = new ShaftSettingsState.Settings();
         ShaftSettingsConfigurable configurable = new ShaftSettingsConfigurable(settings, new InMemoryCredentials());

@@ -691,8 +691,10 @@ class ShaftAssistantPanelLayoutTest {
                 () -> assertFalse(toggle.isSelected(), "the everyday composer must start compact"),
                 () -> assertFalse(settings.isVisible(), "route and configuration controls belong behind Run settings"),
                 () -> assertTrue(containsDescendant(settings, mode), "mode must remain in the settings disclosure"),
-                () -> assertTrue(toggle.getText().contains("CLI"),
-                        "the collapsed summary must name the effective agent/runtime"),
+                () -> assertTrue(toggle.getText().contains("Select an option"),
+                        "the collapsed summary must name the unselected agent: " + toggle.getText()),
+                () -> assertFalse(toggle.getText().contains("null"),
+                        "the collapsed summary must not stringify a missing family: " + toggle.getText()),
                 () -> assertTrue(toggle.getText().toLowerCase(java.util.Locale.ROOT).contains("effort"),
                         "the collapsed summary must name the selected effort"));
 

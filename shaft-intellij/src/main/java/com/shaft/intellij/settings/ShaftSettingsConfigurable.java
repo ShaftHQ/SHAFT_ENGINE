@@ -1565,8 +1565,8 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
             String model = state.cloudModel == null || state.cloudModel.isBlank() ? "" : " / " + state.cloudModel.trim();
             return "Agent: Cloud / " + ShaftUiLabels.friendly(normalizeLower(state.cloudProvider, "gemini")) + model;
         }
-        return "Agent: Local / " + ShaftUiLabels.friendly(resolveFamily(state))
-                + " / " + ShaftUiLabels.friendly(normalize(state.assistantRuntime, "CLI"));
+        return ShaftUiLabels.localAgentSummary(resolveFamily(state),
+                normalize(state.assistantRuntime, "CLI"));
     }
 
     interface CredentialAccess {

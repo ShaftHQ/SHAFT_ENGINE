@@ -11,6 +11,8 @@ import java.util.Locale;
  * Human-friendly labels for persisted Assistant option tokens.
  */
 public final class ShaftUiLabels {
+    private static final String UNSELECTED_OPTION = "Select an option";
+
     private ShaftUiLabels() {
         throw new IllegalStateException("Utility class");
     }
@@ -37,13 +39,42 @@ public final class ShaftUiLabels {
     }
 
     /**
+     * Compact local-agent route, or setup's unselected wording when no family is chosen.
+     *
+     * @param family persisted family token or combo selection
+     * @param runtime persisted runtime token or combo selection
+     * @return {@code Codex CLI}-style label, or {@code Select an option}
+     */
+    public static String localAgentRoute(Object family, Object runtime) {
+        if (unselected(family)) {
+            return UNSELECTED_OPTION;
+        }
+        String runtimeLabel = friendly(runtime);
+        return runtimeLabel.isBlank() ? friendly(family) : friendly(family) + " " + runtimeLabel;
+    }
+
+    /**
+     * Settings/tooltip current-agent row, or setup's unselected wording when no family is chosen.
+     *
+     * @param family persisted family token or combo selection
+     * @param runtime persisted runtime token or combo selection
+     * @return {@code Agent: Local / Codex / CLI}, or {@code Agent: Select an option}
+     */
+    public static String localAgentSummary(Object family, Object runtime) {
+        if (unselected(family)) {
+            return "Agent: " + UNSELECTED_OPTION;
+        }
+        return "Agent: Local / " + friendly(family) + " / " + friendly(runtime);
+    }
+
+    /**
      * Returns display text for known Assistant option tokens.
      *
      * @param value token
      * @return readable label
      */
     public static String friendly(Object value) {
-        if (value == null) {
+        if (unselected(value)) {
             return "";
         }
         String text = value.toString();
@@ -78,6 +109,10 @@ public final class ShaftUiLabels {
             case "HIGH" -> "High effort";
             default -> text;
         };
+    }
+
+    private static boolean unselected(Object value) {
+        return value == null || value.toString().isBlank();
     }
 
     private static String normalize(String value) {

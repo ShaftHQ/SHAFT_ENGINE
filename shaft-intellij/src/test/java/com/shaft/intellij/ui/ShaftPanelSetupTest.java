@@ -37,6 +37,7 @@ import javax.swing.JPanel;
 import javax.swing.JPopupMenu;
 import javax.swing.JProgressBar;
 import javax.swing.JScrollPane;
+import javax.swing.JToggleButton;
 import javax.swing.JViewport;
 import javax.swing.RepaintManager;
 import javax.swing.SwingUtilities;
@@ -1909,6 +1910,30 @@ class ShaftPanelSetupTest {
                 () -> assertTrue(settings.defaultAutobotClient == null || settings.defaultAutobotClient.isBlank(),
                         settings.defaultAutobotClient),
                 () -> assertFalse(String.valueOf(selection).contains("CODEX"), String.valueOf(selection)));
+    }
+
+    @Test
+    void compactRunSettingsAndCurrentAgentUseUnselectedWordingWhenNoAgentIsSelected() {
+        ShaftAssistantPanel firstRun = new ShaftAssistantPanel(null, blankMcpSettings());
+        JToggleButton firstRunChip = findByAccessibleName(firstRun, "Run settings", JToggleButton.class);
+
+        ShaftSettingsState.Settings connectedEmpty = connectedMcpSettings();
+        connectedEmpty.assistantFamily = "";
+        connectedEmpty.defaultAutobotClient = "";
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, connectedEmpty, new ShaftAssistantChatState(),
+                () -> {
+                });
+        JToggleButton compactChip = findByAccessibleName(panel, "Run settings", JToggleButton.class);
+        JLabel currentAgent = findByAccessibleName(panel, "Current agent configuration", JLabel.class);
+        assertNotNull(firstRunChip);
+        assertNotNull(compactChip);
+        assertNotNull(currentAgent);
+
+        assertAll(
+                () -> assertUnselectedAgentWording("first-run compact chip", firstRunChip.getText()),
+                () -> assertUnselectedAgentWording("connected empty compact chip", compactChip.getText()),
+                () -> assertUnselectedAgentWording("current-agent text", currentAgent.getText()),
+                () -> assertUnselectedAgentWording("current-agent tooltip", currentAgent.getToolTipText()));
     }
 
     @Test
@@ -8446,6 +8471,15 @@ class ShaftPanelSetupTest {
 
     private static ShaftMcpSetupPanel.AgentReadinessProbe readyProbe() {
         return (client, runtime) -> ShaftMcpToolResult.success("Codex CLI executable is available on PATH.");
+    }
+
+    private static void assertUnselectedAgentWording(String surface, String wording) {
+        assertNotNull(wording, surface + " must have wording");
+        assertFalse(wording.contains("null"), surface + " leaked literal null: " + wording);
+        assertFalse(wording.matches("(?s).*Local\\s*/\\s*/\\s*CLI.*"),
+                surface + " leaked empty Local / / CLI gap: " + wording);
+        assertTrue(wording.contains("Select an option"),
+                surface + " must use setup unselected wording: " + wording);
     }
 
     private static boolean containsText(Component component, String expected) {
