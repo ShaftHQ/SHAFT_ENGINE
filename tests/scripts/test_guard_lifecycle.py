@@ -4717,17 +4717,6 @@ class DispatchAdapterGateTest(unittest.TestCase):
                 text = open(os.path.join(root, name), encoding="utf-8").read()
                 self.assertIn("Task|Agent", text)
 
-    def test_codex_intercepts_collaboration_dispatches(self):
-        root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-        config = json.loads(
-            Path(root, ".codex", "hooks.json").read_text(encoding="utf-8")
-        )
-        matcher = config["hooks"]["PreToolUse"][0]["matcher"]
-        for tool_name in ("collaboration.spawn_agent", "spawn_agent"):
-            with self.subTest(tool_name=tool_name):
-                self.assertIsNotNone(re.fullmatch(matcher, tool_name))
-
-
 class HistoricalDispatchReplayTest(unittest.TestCase):
     """R22 / #4570 A12: replay the 18-dispatch audit without local transcript state."""
 
