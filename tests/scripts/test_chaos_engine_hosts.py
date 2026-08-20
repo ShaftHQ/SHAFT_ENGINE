@@ -1256,6 +1256,28 @@ class ChaosEngineHostsTest(unittest.TestCase):
                 module.mempalace_runtime_status(project)["status"],
             )
 
+    def test_mempalace_runtime_accepts_sqlite_exact_origin_sidecar(self):
+        module = load(HOSTS, "chaos_engine_mempalace_origin_sidecar")
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary)
+            palace = project / ".chaos-engine-state/mempalace"
+            palace.mkdir(parents=True)
+            create_sqlite_exact_state(palace / "sqlite_exact.sqlite3")
+            sidecar = palace / ".mempalace"
+            sidecar.mkdir()
+            (sidecar / "origin.json").write_text("{}", encoding="utf-8")
+
+            self.assertEqual(
+                "healthy",
+                module.mempalace_runtime_status(project)["status"],
+            )
+
+            (palace / "unknown.sqlite3").write_bytes(b"nope")
+            self.assertEqual(
+                "recovery-required",
+                module.mempalace_runtime_status(project)["status"],
+            )
+
     def test_mempalace_runtime_rejects_reparse_state_before_native_launch(self):
         module = load(HOSTS, "chaos_engine_mempalace_reparse_state")
         self.assertTrue(hasattr(module, "mempalace_runtime_status"))
@@ -1369,6 +1391,8 @@ class ChaosEngineHostsTest(unittest.TestCase):
             palace = Path(temporary) / "shared-palace"
             palace.mkdir(parents=True)
             create_sqlite_exact_state(palace / "sqlite_exact.sqlite3")
+            (palace / ".mempalace").mkdir()
+            (palace / ".mempalace" / "origin.json").write_text("{}", encoding="utf-8")
             resolver = shaft / "tools/repository-map/resolve_mempalace.py"
             resolver.parent.mkdir(parents=True)
             resolver.write_text(
