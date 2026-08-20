@@ -1457,8 +1457,9 @@ class GuardLifecycleTest(unittest.TestCase):
             with self.subTest(invalid_source=invalid_source):
                 events = guard._research_preflight_events("functions.exec", invalid_source, {})
                 self.assertEqual(events, ())
-                with patch(
-                    "scripts.agents.guard.ledger_events",
+                with patch.object(
+                    guard,
+                    "ledger_events",
                     return_value=[*required_prefix, *events],
                 ):
                     self.assertIsNotNone(
