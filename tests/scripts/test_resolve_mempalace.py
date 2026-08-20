@@ -108,7 +108,7 @@ class ResolveMempalaceTest(unittest.TestCase):
         self.assertIn("scripts/agents/knowledge_stores.py", entrypoint)
         self.assertIn("tools/repository-map/resolve_mempalace.py", entrypoint)
         self.assertIn("SHAFT-Nightly-Knowledge-Refresh", readme)
-        self.assertIn("MEMPAL_DIR", readme)
+        self.assertIn("Do not set `MEMPAL_DIR`", readme)
         self.assertIn("knowledge_stores.py", routing)
         self.assertNotIn("daydream", readme.lower())
         self.assertNotIn("daydream", entrypoint.lower())

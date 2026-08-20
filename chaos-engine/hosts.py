@@ -447,11 +447,27 @@ def mempalace_directory_status(palace: Path) -> dict[str, str]:
             "status": "recovery-required",
             "detail": "MemPalace state contains unrecognized recoverable data",
         }
-    if sidecar.exists() and (not sidecar.is_dir() or is_link_or_reparse(sidecar)):
-        return {
-            "status": "recovery-required",
-            "detail": "MemPalace state contains unrecognized recoverable data",
-        }
+    if sidecar.exists():
+        if not sidecar.is_dir() or is_link_or_reparse(sidecar):
+            return {
+                "status": "recovery-required",
+                "detail": "MemPalace state contains unrecognized recoverable data",
+            }
+        try:
+            sidecar_children = list(sidecar.iterdir())
+        except OSError:
+            return {
+                "status": "recovery-required",
+                "detail": "MemPalace state is unreadable or contains a link or reparse point",
+            }
+        if any(
+            child.name != "origin.json" or is_link_or_reparse(child)
+            for child in sidecar_children
+        ):
+            return {
+                "status": "recovery-required",
+                "detail": "MemPalace state contains unrecognized recoverable data",
+            }
     wal_exists = wal.exists()
     shared_memory_exists = shared_memory.exists()
     if not exact.exists() and (wal_exists or shared_memory_exists):
