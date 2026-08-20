@@ -2459,6 +2459,24 @@ class HookJsonProtocolTest(unittest.TestCase):
         self.assertNotIn("Lifecycle hook produced invalid JSON output", output)
         self.assertIsInstance(json.loads(output), dict)
 
+    def test_functions_exec_cmd_wrapped_shell_is_inspected(self):
+        output = self.invoke(
+            {
+                "hook_event_name": "PreToolUse",
+                "tool_name": "functions.exec",
+                "tool_input": {"cmd": "git reset --hard HEAD~1"},
+                "cwd": str(Path(__file__).resolve().parents[2]),
+                "session_id": "cmd-wrapped-functions-exec",
+            }
+        )
+
+        decision = json.loads(output)["hookSpecificOutput"]
+        self.assertEqual("deny", decision["permissionDecision"])
+        self.assertNotIn(
+            "Lifecycle hook produced invalid JSON output",
+            decision["permissionDecisionReason"],
+        )
+
     def test_main_emits_one_json_object_for_every_lifecycle_event(self):
         callbacks = {
             "SessionStart": "run_session_start",

@@ -582,9 +582,53 @@ class ChaosEngineHostsTest(unittest.TestCase):
                 input=json.dumps(failure), capture_output=True, text=True,
                 env=hook_environment, check=False,
             )
+            wrapped_destruction = subprocess.run(  # nosec B603 - installed local hook.
+                [os.sys.executable, str(installed_hook)],
+                input=json.dumps(
+                    {
+                        "hook_event_name": "PreToolUse",
+                        "tool_name": "functions.exec",
+                        "tool_input": {"cmd": "git reset --hard HEAD~1"},
+                        "session_id": "installed-object-wrapper",
+                    }
+                ),
+                capture_output=True,
+                text=True,
+                env=hook_environment,
+                check=False,
+            )
+            wrapped_source_destruction = subprocess.run(  # nosec B603 - installed local hook.
+                [os.sys.executable, str(installed_hook)],
+                input=json.dumps(
+                    {
+                        "hook_event_name": "PreToolUse",
+                        "tool_name": "functions.exec",
+                        "tool_input": {
+                            "input": (
+                                'await tools.exec_command('
+                                '{cmd:"git reset --hard HEAD~1"});'
+                            )
+                        },
+                        "session_id": "installed-source-wrapper",
+                    }
+                ),
+                capture_output=True,
+                text=True,
+                env=hook_environment,
+                check=False,
+            )
             self.assertEqual(0, first.returncode, first.stderr)
             self.assertEqual(0, second.returncode, second.stderr)
             self.assertIn("Reflection required", second.stdout)
+            self.assertEqual(2, wrapped_destruction.returncode)
+            self.assertEqual(
+                "block", json.loads(wrapped_destruction.stdout)["decision"]
+            )
+            self.assertEqual(2, wrapped_source_destruction.returncode)
+            self.assertEqual(
+                "block",
+                json.loads(wrapped_source_destruction.stdout)["decision"],
+            )
 
     def test_lifecycle_hook_is_a_noop_outside_an_installed_project(self):
         module = load(HOSTS, "chaos_engine_hook_noop")

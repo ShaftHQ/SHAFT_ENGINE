@@ -124,6 +124,18 @@ class ChaosEngineHookTest(unittest.TestCase):
             {
                 "hook_event_name": "PreToolUse",
                 "tool_name": "functions.exec",
+                "tool_input": {
+                    "input": 'await tools.exec_command({cmd:"git reset --hard HEAD~1"});'
+                },
+            },
+            {
+                "hook_event_name": "PreToolUse",
+                "tool_name": "functions.exec",
+                "tool_input": {"cmd": "git reset --hard HEAD~1"},
+            },
+            {
+                "hook_event_name": "PreToolUse",
+                "tool_name": "functions.exec",
                 "tool_input": "const bad = 'git reset --hard HEAD~1'; "
                 "await tools.exec_command({cmd: bad});",
             },
@@ -141,7 +153,14 @@ class ChaosEngineHookTest(unittest.TestCase):
                 (result.returncode, json.loads(result.stdout).get("decision"))
                 for result in results
             ],
-            [(2, "block"), (2, "block"), (2, "block"), (2, "block")],
+            [
+                (2, "block"),
+                (2, "block"),
+                (2, "block"),
+                (2, "block"),
+                (2, "block"),
+                (2, "block"),
+            ],
         )
 
     def test_first_stop_event_requires_completion_gate_then_avoids_a_loop(self):

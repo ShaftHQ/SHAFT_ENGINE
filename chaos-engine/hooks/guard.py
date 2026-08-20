@@ -303,6 +303,25 @@ def wrapped_exec_call_count(source: str) -> int:
     return len(re.findall(r"\btools\.exec_command\s*\(", source))
 
 
+def functions_exec_source(tool_input: object) -> str:
+    if isinstance(tool_input, str):
+        return tool_input
+    if isinstance(tool_input, dict):
+        for key in ("input", "source", "code"):
+            source = tool_input.get(key)
+            if isinstance(source, str):
+                return source
+    return ""
+
+
+def functions_exec_direct_command(tool_input: object) -> str:
+    if isinstance(tool_input, dict):
+        command = tool_input.get("cmd") or tool_input.get("command")
+        if isinstance(command, str):
+            return command
+    return ""
+
+
 def main() -> int:
     try:
         event = json.load(sys.stdin)
@@ -310,11 +329,15 @@ def main() -> int:
         event = {}
     tool_input = event.get("tool_input", {}) if isinstance(event, dict) else {}
     tool_name = str(event.get("tool_name", "")) if isinstance(event, dict) else ""
-    if isinstance(tool_input, dict):
+    functions_source = functions_exec_source(tool_input)
+    functions_direct = functions_exec_direct_command(tool_input)
+    if tool_name == "functions.exec" and functions_direct:
+        commands = (functions_direct,)
+    elif tool_name == "functions.exec" and functions_source:
+        commands = wrapped_exec_commands(functions_source)
+    elif isinstance(tool_input, dict):
         command = str(tool_input.get("command") or tool_input.get("cmd") or "")
         commands = (command,) if command else ()
-    elif tool_name == "functions.exec" and isinstance(tool_input, str):
-        commands = wrapped_exec_commands(tool_input)
     else:
         commands = ()
     event_name = (
@@ -377,8 +400,12 @@ def main() -> int:
         return 2
     uninspectable = (
         tool_name == "functions.exec"
-        and isinstance(tool_input, str)
-        and wrapped_exec_call_count(tool_input) != len(commands)
+        and not functions_direct
+        and (
+            not isinstance(tool_input, (str, dict))
+            or (isinstance(tool_input, dict) and not functions_source)
+            or wrapped_exec_call_count(functions_source) != len(commands)
+        )
     )
     destructive = uninspectable or any(
         catastrophic_posix(candidate)
