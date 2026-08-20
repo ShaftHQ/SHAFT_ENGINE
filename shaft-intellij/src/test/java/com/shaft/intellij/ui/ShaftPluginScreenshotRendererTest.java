@@ -1978,12 +1978,25 @@ class ShaftPluginScreenshotRendererTest {
         // "ready" chat row before setup completes) are intentionally zero-sized and
         // must not be treated as cropping regressions.
         final List<JLabel> labels = new ArrayList<>();
+        final List<String> allLabelTexts = new ArrayList<>();
         walkComponentsForVerification(setupPanel, comp -> {
-            if (comp instanceof JLabel lbl && lbl.getText() != null && !lbl.getText().isEmpty()
-                    && isEffectivelyVisible(lbl)) {
-                labels.add(lbl);
+            if (comp instanceof JLabel lbl && lbl.getText() != null && !lbl.getText().isEmpty()) {
+                allLabelTexts.add(lbl.getText());
+                if (isEffectivelyVisible(lbl)) {
+                    labels.add(lbl);
+                }
             }
         });
+        assertTrue(containsLabelText(allLabelTexts, "3 Setup SHAFT Tools & Skills"),
+                "Screenshot setup must paint FR-001 title 3 Setup SHAFT Tools & Skills. Labels: "
+                        + allLabelTexts);
+        assertTrue(containsLabelText(allLabelTexts, "5 Check SHAFT agentic tools installation"),
+                "Screenshot setup must paint FR-001 title 5 Check SHAFT agentic tools installation. Labels: "
+                        + allLabelTexts);
+        assertFalse(containsLabelText(allLabelTexts, "3 Copy setup command"),
+                "Screenshot setup must not paint the retired Copy setup command title");
+        assertFalse(containsLabelText(allLabelTexts, "4 Check setup"),
+                "Screenshot setup must not paint the retired Check setup title");
 
         // Check that labels render at their preferred size (no cropping)
         for (JLabel label : labels) {
@@ -2072,6 +2085,22 @@ class ShaftPluginScreenshotRendererTest {
             }
         }
         return true;
+    }
+
+    private static boolean containsLabelText(List<String> labelTexts, String expected) {
+        for (String text : labelTexts) {
+            if (visibleLabelText(text).contains(expected)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static String visibleLabelText(String text) {
+        return text.replace("&amp;", "&")
+                .replaceAll("(?i)<[^>]+>", " ")
+                .replaceAll("\\s+", " ")
+                .trim();
     }
 
     /** Recursively collects the top-level wizard-step row panels (as produced by
