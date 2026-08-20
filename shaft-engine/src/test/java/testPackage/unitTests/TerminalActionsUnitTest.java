@@ -61,7 +61,7 @@ public class TerminalActionsUnitTest {
     }
 
     @Test(description = "docker constructor should create a dockerized, non-remote terminal")
-    @SuppressWarnings("deprecation")
+    @SuppressWarnings("removal")
     public void dockerConstructorShouldCreateDockerizedTerminal() {
         TerminalActions terminal = new TerminalActions("myContainer", "root");
         Assert.assertFalse(terminal.isRemoteTerminal(),
@@ -95,7 +95,7 @@ public class TerminalActionsUnitTest {
     }
 
     @Test(description = "combined SSH + Docker constructor should create both remote and dockerized terminal")
-    @SuppressWarnings("deprecation")
+    @SuppressWarnings("removal")
     public void combinedSshDockerConstructorShouldCreateBoth() {
         TerminalActions terminal = new TerminalActions(
                 "host.example.com", 2222, "admin", "/ssh/", "key.pem",
@@ -243,7 +243,7 @@ public class TerminalActionsUnitTest {
     }
 
     @Test(description = "uploadFile should fail for dockerized remote terminals")
-    @SuppressWarnings("deprecation")
+    @SuppressWarnings("removal")
     public void uploadFileShouldFailForDockerizedRemoteTerminal() throws Exception {
         Path tempDir = createTempDir("upload");
         Path localFile = tempDir.resolve("upload-source.txt");
@@ -283,7 +283,7 @@ public class TerminalActionsUnitTest {
     }
 
     @Test(description = "forwardRemotePort should fail for dockerized remote terminals")
-    @SuppressWarnings("deprecation")
+    @SuppressWarnings("removal")
     public void forwardRemotePortShouldFailForDockerizedRemoteTerminal() {
         TerminalActions dockerizedTerminal = new TerminalActions(
                 "host.example.com", 22, "user", "/keys/", "id_rsa", "appContainer", "appUser");
@@ -484,7 +484,7 @@ public class TerminalActionsUnitTest {
     }
 
     @Test(description = "buildLongCommand should prepend docker exec wrapper for dockerized terminals")
-    @SuppressWarnings("deprecation")
+    @SuppressWarnings("removal")
     public void buildLongCommandShouldWrapDockerCommand() throws Exception {
         TerminalActions terminal = new TerminalActions("myContainer", "root");
         Method buildLongCommand = TerminalActions.class.getDeclaredMethod("buildLongCommand", List.class);
@@ -805,7 +805,7 @@ public class TerminalActionsUnitTest {
     }
 
     @Test(description = "openShell should fail for dockerized remote terminals")
-    @SuppressWarnings("deprecation")
+    @SuppressWarnings("removal")
     public void openShellShouldFailForDockerizedRemoteTerminal() {
         TerminalActions terminal = new TerminalActions(
                 "host.example.com", 22, "user", "/keys/", "id_rsa", "appContainer", "appUser");

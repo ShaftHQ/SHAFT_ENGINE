@@ -4,8 +4,12 @@ import com.shaft.driver.SHAFT;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
+import testPackage.TestPageServer;
+
+import java.net.URI;
 
 public class CookiesTests {
+    private static final String COOKIE_FIXTURE = "cookieFixture.html";
     private static final ThreadLocal<SHAFT.GUI.WebDriver> driver = new ThreadLocal<>();
 
     @Test
@@ -17,7 +21,8 @@ public class CookiesTests {
     @Test
     public void test_getCookieAttributes() {
         driver.get().browser().addCookie("foo", "bar");
-        SHAFT.Validations.verifyThat().object(driver.get().browser().getCookieDomain("foo")).isEqualTo("www.example.com").perform();
+        SHAFT.Validations.verifyThat().object(driver.get().browser().getCookieDomain("foo"))
+                .isEqualTo(URI.create(TestPageServer.url(COOKIE_FIXTURE)).getHost()).perform();
         SHAFT.Validations.verifyThat().object(driver.get().browser().getCookiePath("foo")).isEqualTo("/").perform();
         SHAFT.Validations.verifyThat().object(driver.get().browser().getCookieValue("foo")).isEqualTo("bar").perform();
     }
@@ -60,7 +65,7 @@ public class CookiesTests {
     @BeforeMethod
     public void beforeMethod() {
         driver.set(new SHAFT.GUI.WebDriver());
-        driver.get().browser().navigateToURL("http://www.example.com");
+        driver.get().browser().navigateToURL(TestPageServer.url(COOKIE_FIXTURE));
     }
 
     @AfterMethod(alwaysRun = true)

@@ -45,6 +45,7 @@ public class ChecksumTests {
     }
 
     @Test(enabled = false)
+    @SuppressWarnings("removal")
     public void readRemoteDockerizedFileChecksum() {
         String targetFileFolderPath = "/home/incorta/Farid/";
         String targetFileName = "Ahmed.csv";
