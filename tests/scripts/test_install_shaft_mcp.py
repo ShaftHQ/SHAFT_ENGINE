@@ -5,6 +5,7 @@ import hashlib
 import io
 import json
 import os
+import queue
 import re
 import ssl
 import subprocess  # nosec B404 -- Windows junction test uses resolved System32 cmd.exe only.
@@ -1330,6 +1331,19 @@ class HttpsUrlGuardTest(unittest.TestCase):
         self.assertIn("ftp", str(ftp_error.exception))
 
 
+class DownloadErrorReraiseTest(unittest.TestCase):
+    def test_raise_download_error_fails_when_error_is_none(self):
+        with self.assertRaises(MODULE.InstallError) as caught:
+            MODULE.raise_download_error(None, "https://example.invalid/a")
+        self.assertIn("without an error", str(caught.exception))
+
+    def test_raise_download_error_reraises_the_instance(self):
+        original = urllib.error.URLError("boom")
+        with self.assertRaises(urllib.error.URLError) as caught:
+            MODULE.raise_download_error(original, "https://example.invalid/a")
+        self.assertIs(caught.exception, original)
+
+
 class AgenticToolsInstallerSurfaceTest(unittest.TestCase):
     def test_banner_names_agentic_tools_and_stays_available(self):
         stderr = io.StringIO()
@@ -1364,6 +1378,24 @@ class AgenticToolsInstallerSurfaceTest(unittest.TestCase):
             text[overall_at:item_at],
             "overall and current-item bars must not share one \\r overwrite",
         )
+
+    def test_tty_overall_progress_overwrites_previous_overall_line(self):
+        stderr = io.StringIO()
+        stderr.isatty = lambda: True  # type: ignore[method-assign]
+        with contextlib.redirect_stderr(stderr):
+            MODULE.overall_progress("MCP", 1, 4)
+            MODULE.overall_progress("CLI", 2, 4)
+        self.assertIn("\033[1A", stderr.getvalue())
+
+    def test_read_lines_swallows_close_errors(self):
+        class BoomStream:
+            def readline(self):
+                return ""
+
+            def close(self):
+                raise OSError("already closed")
+
+        MODULE.read_lines(BoomStream(), queue.Queue())
 
     def test_primary_scripts_use_agentic_tools_name_and_old_names_are_shims(self):
         scripts = REPO_ROOT / "scripts" / "mcp"

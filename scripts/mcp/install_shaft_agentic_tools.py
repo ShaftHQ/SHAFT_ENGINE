@@ -42,7 +42,7 @@ SHAFT_CLI_MAIN_CLASS = "com.shaft.commandline.ShaftCli"
 FALLBACK_WORKSPACE_SYSTEM_PROPERTY = "shaft.mcp.fallbackWorkspaceRoot"
 USER_GUIDE_URL = "https://shafthq.github.io/docs/agentic/mcp"
 BOOTSTRAP_BANNER_SHOWN = "SHAFT_MCP_BOOTSTRAP_BANNER_SHOWN"
-_OVERALL_TTY_ACTIVE = False
+_OVERALL_TTY = [False]
 SHAFT_SKILLS_DIRECTORY = "shaft-skills"
 SHAFT_SKILLS_ROUTER = "shaft-developer"
 SHAFT_SKILLS_NATIVE_DIRECTORIES = {
@@ -167,23 +167,22 @@ def progress_count(label: str, completed: int, total: int, final: bool = False) 
 
 
 def overall_progress(phase: str, completed: int, total: int, final: bool = False) -> None:
-    global _OVERALL_TTY_ACTIVE
     percent = min(1.0, completed / total) if total else 0.0
     if not sys.stderr.isatty():
-        _OVERALL_TTY_ACTIVE = False
+        _OVERALL_TTY[0] = False
         log(f"{phase}: {percent:.0%}")
         return
     width = 28
     filled = int(percent * width)
     bar = "#" * filled + "-" * (width - filled)
     line = f"Overall [{bar}] {percent:>6.1%} {phase}"
-    if _OVERALL_TTY_ACTIVE:
+    if _OVERALL_TTY[0]:
         print(f"\033[1A\r{line}", file=sys.stderr, flush=True)
     else:
         print(line, file=sys.stderr, flush=True)
-        _OVERALL_TTY_ACTIVE = True
+        _OVERALL_TTY[0] = True
     if final:
-        _OVERALL_TTY_ACTIVE = False
+        _OVERALL_TTY[0] = False
 
 
 def normalize_client(value: str | None) -> str | None:
@@ -412,6 +411,13 @@ def _is_http_404(exc: BaseException) -> bool:
     return isinstance(exc, urllib.error.HTTPError) and exc.code == 404
 
 
+def raise_download_error(error: BaseException | None, url: str) -> None:
+    if error is None:
+        fail(f"Failed to download {url} without an error.", 4)
+    else:
+        raise error
+
+
 def require_allowed_url(url: str) -> str:
     parsed = urllib.parse.urlparse(url)
     scheme = parsed.scheme.lower()
@@ -441,9 +447,7 @@ def download_bytes(url: str, attempts: int = 5) -> bytes:
                 raise
             last_error = exc
         time.sleep(min(attempt * 2, 10))
-    if last_error is None:
-        fail(f"Failed to download {url} without an error.", 4)
-    raise last_error
+    raise_download_error(last_error, url)
 
 
 def download_file(
@@ -496,9 +500,7 @@ def download_file(
             last_error = exc
             temporary.unlink(missing_ok=True)
             time.sleep(min(attempt * 2, 10))
-    if last_error is None:
-        fail(f"Failed to download {url} without an error.", 4)
-    raise last_error
+    raise_download_error(last_error, url)
 
 
 def url_text(url: str) -> str:
@@ -1147,7 +1149,7 @@ def read_lines(stream: Any, target: queue.Queue[str], sink: list[str] | None = N
         try:
             stream.close()
         except Exception:
-            pass  # probe pipe already dead; closing must not fail the installer
+            debug("ignored close of dead probe pipe")
 
 
 def await_probe_response(lines: queue.Queue[str], process: subprocess.Popen[str], request_id: int, stderr: list[str]) -> dict[str, Any]:
@@ -1225,7 +1227,7 @@ def probe_stdio(java: Path, args_file: Path) -> None:
             try:
                 process.wait(timeout=5)
             except subprocess.TimeoutExpired:
-                pass  # killed process may already be gone
+                debug("killed process may already be gone")
 
 
 def command_path(name: str) -> Path | None:
