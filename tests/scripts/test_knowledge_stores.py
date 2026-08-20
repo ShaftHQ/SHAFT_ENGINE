@@ -106,6 +106,38 @@ class KnowledgeStoresTest(unittest.TestCase):
         self.assertFalse(self.checkout_palace_created(self.linked))
         self.assertFalse(self.checkout_palace_created(self.primary))
 
+    def test_search_without_wing_uses_checkout_yaml_wing(self):
+        (self.linked / "mempalace.yaml").write_text(
+            "wing: checkout_main\n"
+            "rooms:\n- name: general\n  description: Checkout files\n"
+            "exclude_patterns:\n- .git/**\n",
+            encoding="utf-8",
+        )
+
+        completed = self.cli("search", "shared cache")
+        combined = completed.stdout + completed.stderr
+
+        self.assertEqual(0, completed.returncode, combined)
+        tokens = self.assert_global_flags_before("search")
+        self.assertIn("checkout_main", tokens)
+        self.assertFalse(self.checkout_palace_created(self.linked))
+
+    def test_search_explicit_wing_overrides_checkout_yaml_wing(self):
+        (self.linked / "mempalace.yaml").write_text(
+            "wing: checkout_main\n"
+            "rooms:\n- name: general\n  description: Checkout files\n"
+            "exclude_patterns:\n- .git/**\n",
+            encoding="utf-8",
+        )
+
+        completed = self.cli("search", "shared cache", "--wing", "explicit_main")
+        combined = completed.stdout + completed.stderr
+
+        self.assertEqual(0, completed.returncode, combined)
+        tokens = self.assert_global_flags_before("search")
+        self.assertIn("explicit_main", tokens)
+        self.assertNotIn("checkout_main", tokens)
+
     def test_search_from_linked_worktree_forwards_query_to_resolved_palace(self):
         completed = self.cli("search", "shared cache", "--wing", "shaft_engine_main")
         combined = completed.stdout + completed.stderr

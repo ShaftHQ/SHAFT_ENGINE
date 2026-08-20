@@ -17,7 +17,6 @@ import sys
 from typing import Iterator
 
 ORIGIN = "https://github.com/ShaftHQ/SHAFT_ENGINE"
-WING = "shaft_engine_main"
 TRUST_MODEL = "exclusive-maintenance-home-v1"
 GIT_ROUTING_VARIABLES = (
     "GIT_DIR",
@@ -293,6 +292,17 @@ def validate_pending_receipt(pending: Path, requested_root: Path) -> dict[str, o
     return data
 
 
+def configured_wing(root: Path) -> str:
+    """Return the shared wing declared by this checkout's mempalace.yaml."""
+    matches = re.findall(
+        r"(?m)^wing:\s*([A-Za-z0-9_.-]+)\s*$",
+        (root / "mempalace.yaml").read_text(encoding="utf-8"),
+    )
+    if len(matches) != 1:
+        raise ValueError("mempalace.yaml must declare exactly one wing")
+    return matches[0]
+
+
 def refresh(requested_root: Path, requested_sentinel: Path) -> None:
     root, sentinel = validate_owned_clone(requested_root, requested_sentinel)
     git_exe, mempalace = required("git"), required("mempalace")
@@ -318,6 +328,7 @@ def refresh(requested_root: Path, requested_sentinel: Path) -> None:
         validate_owned_paths(requested_root, requested_sentinel)
         run([git_exe, "reset", "--hard", fetched], root, git_env)
         run([git_exe, "clean", "-ffd"], root, git_env)
+        wing = configured_wing(root)
         environment = git_env.copy()
         environment["SHAFT_GRAPHIFY_OUT"] = str(root / "graphify-out")
         outcomes: dict[str, str] = {}
@@ -331,13 +342,13 @@ def refresh(requested_root: Path, requested_sentinel: Path) -> None:
         else:
             outcomes["Graphify"] = "healthy"
         try:
-            run([mempalace, "sync", str(root), "--wing", WING, "--apply"], root, git_env)
+            run([mempalace, "sync", str(root), "--wing", wing, "--apply"], root, git_env)
             mine = [
                 mempalace,
                 "mine",
                 str(root),
                 "--wing",
-                WING,
+                wing,
                 "--agent",
                 "scheduled-refresh",
             ]

@@ -100,6 +100,12 @@ LEGACY_MANAGED_PATHS = (
 )
 
 
+def default_mempalace_wing(project_name: str) -> str:
+    """Return the shared `{repository}_main` wing for a new MemPalace config."""
+    safe = re.sub(r"[^a-z0-9]+", "_", project_name.casefold()).strip("_") or "project"
+    return f"{safe}_main"
+
+
 def project_identity_name(project: Path) -> str:
     """Return the repository identity, independent of a checkout/worktree folder name."""
     result = subprocess.run(  # nosec B603 B607 - fixed git query, no shell.
@@ -338,17 +344,37 @@ def centralized_mempalace_status() -> dict[str, str]:
     }
 
 
-def mempalace_runtime_status(project: Path) -> dict[str, str]:
-    """Classify project-local MemPalace state without importing its native backend."""
-    palace = project / ".chaos-engine-state/mempalace"
+def resolved_central_palace(project: Path) -> Path | None:
+    """Return the resolver palace path when it is absolute and printable."""
+    resolver = project / "tools/repository-map/resolve_mempalace.py"
+    if not resolver.is_file():
+        return None
+    try:
+        completed = subprocess.run(  # nosec B603 - owned resolver, no shell.
+            [sys.executable, str(resolver)],
+            cwd=project,
+            capture_output=True,
+            text=True,
+            check=False,
+            timeout=5,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return None
+    palace = completed.stdout.strip()
+    if completed.returncode != 0 or not palace:
+        return None
+    path = Path(palace)
+    return path if path.is_absolute() else None
+
+
+def mempalace_directory_status(palace: Path) -> dict[str, str]:
+    """Classify one MemPalace directory without importing its native backend."""
     if is_link_or_reparse(palace):
         return {
             "status": "recovery-required",
             "detail": "MemPalace state is a link or reparse point",
         }
     if not palace.exists():
-        if repository_map_resolver_present(project):
-            return centralized_mempalace_status()
         return {"status": "initialization-required", "backend": "sqlite_exact"}
     if not palace.is_dir():
         return {
@@ -431,9 +457,38 @@ def mempalace_runtime_status(project: Path) -> dict[str, str]:
                 "detail": "SQLite-exact MemPalace state is unreadable or malformed",
             }
         return {"status": "healthy", "backend": "sqlite_exact"}
-    if repository_map_resolver_present(project):
-        return centralized_mempalace_status()
     return {"status": "initialization-required", "backend": "sqlite_exact"}
+
+
+def mempalace_runtime_status(project: Path) -> dict[str, str]:
+    """Classify project-local or centralized MemPalace state."""
+    palace = project / ".chaos-engine-state/mempalace"
+    if is_link_or_reparse(palace):
+        return {
+            "status": "recovery-required",
+            "detail": "MemPalace state is a link or reparse point",
+        }
+    if not palace.exists():
+        central = resolved_central_palace(project)
+        if central is not None and central.exists():
+            status = mempalace_directory_status(central)
+            if status.get("status") != "initialization-required":
+                return status
+        if repository_map_resolver_present(project):
+            return centralized_mempalace_status()
+        return {"status": "initialization-required", "backend": "sqlite_exact"}
+    status = mempalace_directory_status(palace)
+    if (
+        status.get("status") == "initialization-required"
+        and repository_map_resolver_present(project)
+    ):
+        central = resolved_central_palace(project)
+        if central is not None and central.exists():
+            central_status = mempalace_directory_status(central)
+            if central_status.get("status") != "initialization-required":
+                return central_status
+        return centralized_mempalace_status()
+    return status
 
 
 def _cleanup_failed_mempalace_initialization(
@@ -559,6 +614,10 @@ def initialize_mempalace_runtime(project: Path) -> None:
 def mcp_runtime_healthy(project: Path) -> bool:
     if mempalace_runtime_status(project)["status"] != "healthy":
         return False
+    skip_checkout_mempalace = (
+        repository_map_resolver_present(project)
+        and not (project / ".chaos-engine-state/mempalace/sqlite_exact.sqlite3").is_file()
+    )
     initialize = json.dumps(
         {
             "jsonrpc": "2.0",
@@ -604,6 +663,8 @@ def mcp_runtime_healthy(project: Path) -> bool:
         ],
     )
     for index, command in enumerate(commands):
+        if index == 1 and skip_checkout_mempalace:
+            continue
         result = subprocess.run(  # nosec B603 - fixed owned launcher and arguments.
             command,
             cwd=project,
@@ -2796,9 +2857,8 @@ def desired_content(
         after[relative] = b""
     mempalace_before = before["mempalace.yaml"]
     if mempalace_before is None:
-        safe_name = re.sub(r"[^A-Za-z0-9_.-]+", "-", project_name).strip("-") or "project"
         after["mempalace.yaml"] = (
-            f"wing: {safe_name}\n"
+            f"wing: {default_mempalace_wing(project_name)}\n"
             "rooms:\n  - name: general\n    description: Project source and documentation\n"
             "    keywords: [project, source, documentation]\n"
             "exclude_patterns:\n  - mempalace.yaml\n  - .memory/**\n"

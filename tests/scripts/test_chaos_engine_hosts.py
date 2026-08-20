@@ -473,7 +473,9 @@ class ChaosEngineHostsTest(unittest.TestCase):
             self.assertEqual({"version", "project", "memory"}, set(memory_config))
             self.assertEqual("consumer", memory_config["project"]["name"])
             self.assertTrue(module.retrieval_configs_healthy(project))
-            self.assertIn("wing: consumer", project.joinpath("mempalace.yaml").read_text())
+            self.assertEqual("consumer_main", module.default_mempalace_wing("consumer"))
+            self.assertEqual("shaft_engine_main", module.default_mempalace_wing("SHAFT_ENGINE"))
+            self.assertIn("wing: consumer_main", project.joinpath("mempalace.yaml").read_text())
             ignores = project.joinpath(".gitignore").read_text()
             self.assertIn(".chaos-engine-runtime/", ignores)
             self.assertIn(".chaos-engine.lock", ignores)
@@ -970,7 +972,14 @@ class ChaosEngineHostsTest(unittest.TestCase):
 
             memory = json.loads(project.joinpath(".memory/config.json").read_text())
             self.assertEqual("actual-project", memory["project"]["name"])
-            self.assertIn("wing: actual-project", project.joinpath("mempalace.yaml").read_text())
+            self.assertEqual(
+                "actual_project_main",
+                module.default_mempalace_wing("actual-project"),
+            )
+            self.assertIn(
+                "wing: actual_project_main",
+                project.joinpath("mempalace.yaml").read_text(),
+            )
 
     def test_retrieval_runtime_executes_memory_status_and_check(self):
         module = load(HOSTS, "chaos_engine_retrieval_runtime")
@@ -1352,6 +1361,72 @@ class ChaosEngineHostsTest(unittest.TestCase):
                     module.initialize_mempalace_runtime(project)
 
             self.assertFalse((palace / "sqlite_exact.sqlite3").exists())
+
+    def test_shaft_resolver_with_healthy_central_palace_is_healthy_and_skips_checkout_mcp(self):
+        module = load(HOSTS, "chaos_engine_mempalace_central_healthy")
+        with tempfile.TemporaryDirectory() as temporary:
+            shaft = Path(temporary) / "shaft"
+            palace = Path(temporary) / "shared-palace"
+            palace.mkdir(parents=True)
+            create_sqlite_exact_state(palace / "sqlite_exact.sqlite3")
+            resolver = shaft / "tools/repository-map/resolve_mempalace.py"
+            resolver.parent.mkdir(parents=True)
+            resolver.write_text(
+                "from pathlib import Path\nprint(Path(r'%s').resolve())\n"
+                % str(palace).replace("\\", "\\\\"),
+                encoding="utf-8",
+            )
+
+            state = module.mempalace_runtime_status(shaft)
+            self.assertEqual("healthy", state["status"])
+            self.assertEqual("sqlite_exact", state["backend"])
+
+            module.initialize_mempalace_runtime(shaft)
+            self.assertFalse((shaft / ".chaos-engine-state/mempalace").exists())
+            shaft.joinpath(".chaos-engine").mkdir()
+            shaft.joinpath(".chaos-engine/tool.py").write_text("# owned\n")
+            memory_ok = mock.Mock(
+                returncode=0,
+                stdout=json.dumps({"jsonrpc": "2.0", "id": 1, "result": {}}) + "\n",
+            )
+            real_run = module.subprocess.run
+
+            def runner(command, **kwargs):
+                if len(command) >= 2 and str(command[1]).endswith("resolve_mempalace.py"):
+                    return real_run(command, **kwargs)
+                return memory_ok
+
+            with mock.patch.object(module.subprocess, "run", side_effect=runner) as run:
+                self.assertTrue(module.mcp_runtime_healthy(shaft))
+            launched = [
+                call.args[0]
+                for call in run.call_args_list
+                if call.args and "memory-mcp" in call.args[0]
+            ]
+            self.assertEqual(1, len(launched))
+            self.assertTrue(
+                all("mempalace-mcp" not in call.args[0] for call in run.call_args_list)
+            )
+
+    def test_shaft_resolver_with_empty_central_palace_is_degraded_and_does_not_initialize(self):
+        module = load(HOSTS, "chaos_engine_mempalace_central_empty")
+        with tempfile.TemporaryDirectory() as temporary:
+            shaft = Path(temporary) / "shaft"
+            palace = Path(temporary) / "shared-palace"
+            palace.mkdir(parents=True)
+            resolver = shaft / "tools/repository-map/resolve_mempalace.py"
+            resolver.parent.mkdir(parents=True)
+            resolver.write_text(
+                "from pathlib import Path\nprint(Path(r'%s').resolve())\n"
+                % str(palace).replace("\\", "\\\\"),
+                encoding="utf-8",
+            )
+
+            state = module.mempalace_runtime_status(shaft)
+            self.assertEqual("degraded", state["status"])
+            module.initialize_mempalace_runtime(shaft)
+            self.assertFalse((shaft / ".chaos-engine-state/mempalace").exists())
+            self.assertEqual([], list(palace.iterdir()))
 
     def test_shaft_resolver_without_checkout_palace_is_degraded_and_does_not_initialize(self):
         module = load(HOSTS, "chaos_engine_mempalace_shaft_resolver")

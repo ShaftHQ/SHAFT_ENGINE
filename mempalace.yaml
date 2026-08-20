@@ -1,4 +1,4 @@
-wing: shaft_engine
+wing: shaft_engine_main
 exclude_patterns:
 - .git/**
 - .idea/**
