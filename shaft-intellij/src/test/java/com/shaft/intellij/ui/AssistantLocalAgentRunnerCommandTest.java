@@ -127,6 +127,29 @@ class AssistantLocalAgentRunnerCommandTest {
                 () -> assertTrue(process.stdinClosed(), "Buffered/custom command paths must close stdin immediately"));
     }
 
+    @Test
+    void customAgentCommandFailsClosedBecauseReadOnlyCodegenCannotSandboxIt() {
+        String request = "/codegen visit https://example.com and verify the title";
+        AssistantCommand.Invocation base = AssistantCommand.fromPrompt(
+                request, "CODEX", "AGENT", ".", "stub-agent --record", false);
+        AssistantCodegenWorkflowCoordinator coordinator = new AssistantCodegenWorkflowCoordinator();
+        AssistantCommand.Invocation record = coordinator.route("custom-record", request, base, ".");
+
+        assertAll(
+                () -> assertTrue(record.isLocal()),
+                () -> assertTrue(record.localResponse().contains("built-in Local / CLI")),
+                () -> assertFalse(record.arguments().has("allowSourceMutation")));
+    }
+
+    @Test
+    void claudeReadOnlyCodegenCommandHasNoBestEffortPermissionFallback() {
+        JsonObject readOnlyRecord = arguments("CLAUDE_CODE", "AGENT", false);
+        readOnlyRecord.addProperty("readOnlyCodegenRecording", true);
+
+        assertTrue(AssistantLocalAgentRunner.commandFor(readOnlyRecord).isEmpty(),
+                "Claude Code cannot enforce the browser/capture-only boundary, so RECORD must not launch");
+    }
+
     /**
      * Regression test for the bug behind #5/#6/#7: a prior approval-bridge implementation held
      * stdin open past the initial prompt write for every Claude Code invocation, but Claude's

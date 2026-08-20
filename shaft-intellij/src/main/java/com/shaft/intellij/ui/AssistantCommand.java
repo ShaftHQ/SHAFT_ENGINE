@@ -75,6 +75,17 @@ final class AssistantCommand {
                     Source edits are approved for this session.
                     You may apply patches, write files, and run filesystem commands needed to make the requested source changes.
                     """.stripIndent().trim();
+    private static final String AUTOBOT_SCENARIO_CODEGEN_WORKFLOW =
+            """
+                    This is an AutoBot scenario-to-recording code-generation workflow. You own every workflow action; the IntelliJ plugin only presents progress, cancellation, disposal, confirmations, and your final result.
+                    Use only negotiated SHAFT MCP capabilities. Initialize before use and shut down cleanly when this run ends. Cloud routes are forbidden; fail closed if this is not a local CLI run.
+
+                    1. Resolve target URL from the scenario first, then existing project configuration. If still absent, ask exactly one URL question before recording and do not start recording.
+                    2. Own capture_start, browser actions, capture_stop/save, project inspection, reuse planning, generation, replay, healing, and final summary. Do not ask the plugin to perform any browser, capture, generation, replay, or healing action.
+                    3. Before edits, inspect existing tests and page objects. Propose reused and new owners, preserve Page Object Model and locator guidance, and prefer stable author IDs before project conventions. Require explicit approval before any source edit or replay. Until that approval, do not write files or replay.
+                    4. After approval, make the smallest change using existing owners where possible; create a class only when required. Replay once. If it fails, analyze and make at most one heal retry unless the scenario explicitly requests more. Never weaken an assertion to heal it.
+                    5. End with a concise terminal summary: phase outcomes, changed/created classes, final status, and `allure-report/AllureReport.html` only if it exists. State absent report links honestly.
+                    """.stripIndent().trim();
     // Split out so cloudPrompt's non-code-generation branch (which has no other reason to mention
     // shaft-mcp -- cloud providers don't have it) can still ask cloud models to emit the structured
     // line (or, failing that, the fence) that AssistantQuestion looks for, without pulling in the
@@ -785,7 +796,8 @@ final class AssistantCommand {
         String liveCodegen = liveCodegenSlashPrompt(text);
         boolean upgradeAgentRequest = false;
         if (!liveCodegen.isBlank()) {
-            return Invocation.tool("capture_start", captureStart(liveCodegen))
+            return autobotScenarioCodegen(liveCodegen, selection, mode, workingDirectory, customCommand,
+                    conversationContext, attachmentsContext)
                     .withDefaultRoutedVia("slash command");
         } else if (isUpgradeSlashCommand(text) || isNaturalUpgradeIntent(text)) {
             // Upgrading is an action, not a recipe: the local agent performs the upgrade itself
@@ -865,6 +877,37 @@ final class AssistantCommand {
         arguments.add("environment", new JsonObject());
         arguments.addProperty("timeoutSeconds", DEFAULT_TIMEOUT_SECONDS);
         arguments.addProperty("allowSourceMutation", "AGENT".equals(mode) && allowSourceMutation);
+        return Invocation.tool("autobot_local_agent_run", arguments);
+    }
+
+    private static Invocation autobotScenarioCodegen(
+            String scenario,
+            Selection selection,
+            String mode,
+            String workingDirectory,
+            String customCommand,
+            String conversationContext,
+            String attachmentsContext) {
+        if (selection.cloud() || !"CLI".equals(selection.runtime())) {
+            return Invocation.local("AutoBot scenario codegen requires a Local / CLI route; cloud and non-CLI routes are unavailable.");
+        }
+        JsonObject arguments = new JsonObject();
+        arguments.addProperty("client", selection.client());
+        arguments.addProperty("mode", mode);
+        arguments.addProperty("model", selection.localModel());
+        arguments.addProperty("effort", selection.effort());
+        String prompt = AUTOBOT_SCENARIO_CODEGEN_WORKFLOW + "\n\nScenario:\n" + scenario;
+        prompt = withConversationContext(prompt, conversationContext);
+        prompt = withAttachments(prompt, attachmentsContext);
+        arguments.addProperty("prompt", "CODEX".equals(selection.family())
+                ? prompt
+                : withEffortHint(prompt, selection.effort()));
+        arguments.addProperty("workingDirectory", workingDirectory == null ? "" : workingDirectory);
+        arguments.add("command", commandArray(customCommand));
+        arguments.add("environment", new JsonObject());
+        arguments.addProperty("timeoutSeconds", DEFAULT_TIMEOUT_SECONDS);
+        // The workflow itself obtains a visible, per-change consent after it has presented reuse.
+        arguments.addProperty("allowSourceMutation", false);
         return Invocation.tool("autobot_local_agent_run", arguments);
     }
 

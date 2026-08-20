@@ -170,6 +170,8 @@ final class ShaftAssistantPanel extends JPanel implements Disposable {
     // one process-wide flag (issue #3591 item 3).
     private final String recordingKey = "assistant#" + Integer.toHexString(System.identityHashCode(this));
     private final ShaftAssistantChatState chatState;
+    private final AssistantCodegenWorkflowCoordinator codegenCoordinator;
+    private String activeCodegenSessionId = "";
     private final JComboBox<ShaftAssistantChatState.Session> chatSelector;
     private final JButton newChat;
     private final JComboBox<String> mode;
@@ -447,6 +449,7 @@ final class ShaftAssistantPanel extends JPanel implements Disposable {
         this.project = project;
         this.settings = settings;
         this.chatState = chatState;
+        this.codegenCoordinator = AssistantCodegenWorkflowCoordinator.getInstance(project);
         this.configureFlow = setupFlow;
         this.apiKeySaver = apiKeySaver;
         setBorder(JBUI.Borders.empty(12));
@@ -1581,6 +1584,21 @@ final class ShaftAssistantPanel extends JPanel implements Disposable {
                 openFileContext(project),
                 conversationContext,
                 attachmentsContext);
+        String codegenSessionId = chatState.activeSession().id;
+        AssistantCodegenWorkflowCoordinator.Phase codegenPhase = codegenCoordinator.phase(codegenSessionId);
+        boolean continuingCodegen = codegenPhase == AssistantCodegenWorkflowCoordinator.Phase.AWAITING_URL
+                || codegenPhase == AssistantCodegenWorkflowCoordinator.Phase.AWAITING_EDIT_CONFIRMATION;
+        boolean startingCodegen = "autobot_local_agent_run".equals(invocation.toolName())
+                && text.stripLeading().toLowerCase(Locale.ROOT).startsWith("/codegen");
+        boolean codegenWorkflowInvocation = continuingCodegen || startingCodegen;
+        if (codegenWorkflowInvocation) {
+            invocation = codegenCoordinator.route(
+                    codegenSessionId,
+                    text,
+                    continuingCodegen ? null : invocation,
+                    workingDirectory);
+            activeCodegenSessionId = codegenSessionId;
+        }
         if ("autobot_local_agent_run".equals(invocation.toolName())) {
             invocation.arguments().addProperty("unrestrictedLocalAgentAccess",
                     unrestrictedLocalAgentAccess.isSelected());
@@ -1604,7 +1622,10 @@ final class ShaftAssistantPanel extends JPanel implements Disposable {
         // rendered/persisted, never the actual invocation (built from `text` directly at
         // AssistantCommand.fromPrompt() above), so this never changes agent behavior.
         append("user", text, "");
-        if (!approvingCaptureReview && AssistantCommand.requiresAgentModeForMcp(text, selectedMode, invocation)) {
+        String invocationMode = invocation.arguments().has("mode")
+                ? invocation.arguments().get("mode").getAsString()
+                : selectedMode;
+        if (!approvingCaptureReview && AssistantCommand.requiresAgentModeForMcp(text, invocationMode, invocation)) {
             setRunning(false, "Switch to Agent mode");
             showGateConfirmation(
                     project,
@@ -1616,6 +1637,7 @@ final class ShaftAssistantPanel extends JPanel implements Disposable {
         }
         if (agentMode
                 && !approvingCaptureReview
+                && !codegenWorkflowInvocation
                 && requiresSourceEditApprovalBeforeSend(
                         agentMode,
                         route.cloud(),
@@ -1652,6 +1674,9 @@ final class ShaftAssistantPanel extends JPanel implements Disposable {
         }
         if (invocation.isLocal()) {
             showLocalResponse(invocation.localResponse());
+            if (codegenWorkflowInvocation) {
+                setStatus(codegenCoordinator.status(codegenSessionId));
+            }
             return;
         }
         if (requiresMcpSetup(invocation, mcpConfigured())) {
@@ -2353,6 +2378,20 @@ final class ShaftAssistantPanel extends JPanel implements Disposable {
             localAgentOutputCoalescer.flush();
         }
         boolean cancelled = error instanceof CancellationException;
+        AssistantCodegenWorkflowCoordinator.Phase completingCodegenPhase =
+                codegenCoordinator.phase(activeCodegenSessionId);
+        boolean completingCodegen = completingCodegenPhase == AssistantCodegenWorkflowCoordinator.Phase.RECORD
+                || completingCodegenPhase == AssistantCodegenWorkflowCoordinator.Phase.GENERATE
+                || completingCodegenPhase == AssistantCodegenWorkflowCoordinator.Phase.REPLAY
+                || completingCodegenPhase == AssistantCodegenWorkflowCoordinator.Phase.HEAL;
+        if (cancelled && completingCodegen) {
+            codegenCoordinator.cancel(activeCodegenSessionId);
+        } else if (completingCodegen) {
+            result = codegenCoordinator.complete(
+                    activeCodegenSessionId,
+                    result,
+                    project == null || project.getBasePath() == null ? "" : project.getBasePath());
+        }
         // Snapshot before setRunning(false, ...) clears killRequested for the next run.
         boolean killed = cancelled && killRequested;
         boolean success = error == null && result != null && result.success();
@@ -2405,6 +2444,10 @@ final class ShaftAssistantPanel extends JPanel implements Disposable {
             return;
         }
         showAgentToolResult(streamToken, currentStream, success, result, error, captureIntegrationRun, partialOutput);
+        String codegenStatus = completingCodegen ? codegenCoordinator.status(activeCodegenSessionId) : "";
+        if (!codegenStatus.isBlank()) {
+            setStatus(codegenStatus);
+        }
     }
 
     private boolean handleKilledOrStaleAgentStream(int streamToken) {
@@ -2687,6 +2730,13 @@ final class ShaftAssistantPanel extends JPanel implements Disposable {
         // never reach localAgentOutput (the Verbose/Killed raw-buffer source) or a transcript bubble.
         boolean rawPassthrough = line != null && line.startsWith(AssistantLocalAgentRunner.RAW_STDOUT_MARKER);
         String content = rawPassthrough ? line.substring(AssistantLocalAgentRunner.RAW_STDOUT_MARKER.length()) : line;
+        AssistantCodegenWorkflowCoordinator.Phase codegenPhase =
+                codegenCoordinator.progress(activeCodegenSessionId, content);
+        if (codegenPhase == AssistantCodegenWorkflowCoordinator.Phase.GENERATE
+                || codegenPhase == AssistantCodegenWorkflowCoordinator.Phase.REPLAY
+                || codegenPhase == AssistantCodegenWorkflowCoordinator.Phase.HEAL) {
+            setStatus(codegenCoordinator.status(activeCodegenSessionId));
+        }
         if (localAgentOutput.length() > 0) {
             localAgentOutput.append("\n");
         }
@@ -3164,10 +3214,17 @@ final class ShaftAssistantPanel extends JPanel implements Disposable {
             future.complete(LocalAgentApprovalBridge.Decision.deny("The Assistant run has ended."));
             return;
         }
-        // SHAFT's own MCP tools are first-party Assistant capabilities and are always allowed.
-        // The command line already pre-approves them via --allowedTools, so this is defense in
-        // depth for CLI versions or configurations where that flag does not take effect.
+        // The read-only AutoBot RECORD invocation gets only browser/capture tools. In particular,
+        // generate/replay/heal stay unavailable until the user approves the mutable invocation.
         if (isShaftMcpTool(toolName)) {
+            if (codegenCoordinator.phase(activeCodegenSessionId)
+                    == AssistantCodegenWorkflowCoordinator.Phase.RECORD
+                    && !codegenCoordinator.allowsRecordMcpTool(activeCodegenSessionId, toolName)) {
+                appendAgentMilestone("Blocked SHAFT tool before edit confirmation: " + toolName);
+                future.complete(LocalAgentApprovalBridge.Decision.deny(
+                        "This SHAFT tool is unavailable until AutoBot edit confirmation."));
+                return;
+            }
             appendAgentMilestone("Auto-approved SHAFT tool: " + toolName);
             future.complete(LocalAgentApprovalBridge.Decision.allow());
             return;
@@ -3604,6 +3661,7 @@ final class ShaftAssistantPanel extends JPanel implements Disposable {
         if (invocation != null) {
             invocation.kill();
         }
+        codegenCoordinator.disposeSession(activeCodegenSessionId);
     }
 
     /**
@@ -5118,6 +5176,7 @@ final class ShaftAssistantPanel extends JPanel implements Disposable {
 
     private void cancelOrKillCurrent() {
         if (currentInvocation != null) {
+            codegenCoordinator.cancel(activeCodegenSessionId);
             if (cancelRequested) {
                 killRequested = true;
                 stopLocalAgentStreaming();

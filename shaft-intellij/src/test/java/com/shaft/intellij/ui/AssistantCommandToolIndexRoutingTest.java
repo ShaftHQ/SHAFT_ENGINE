@@ -249,10 +249,10 @@ class AssistantCommandToolIndexRoutingTest {
                 "an explicit recording path must still deterministically drive the replay generator");
         AssistantCommand.Invocation liveCodegen =
                 command("/codegen navigate to https://example.com and click login");
-        assertEquals("capture_start", liveCodegen.toolName(),
-                "a free-text /codegen flow description must start the plugin-owned recorder");
-        assertEquals("navigate to https://example.com and click login",
-                liveCodegen.arguments().get("sessionGoal").getAsString());
+        assertEquals("autobot_local_agent_run", liveCodegen.toolName(),
+                "a free-text /codegen flow description must route to the AutoBot local CLI");
+        assertFalse(liveCodegen.arguments().has("targetUrl"),
+                "the plugin must not drive capture_start for the AutoBot workflow");
     }
 
     private static AssistantCommand.Invocation command(String prompt) {
