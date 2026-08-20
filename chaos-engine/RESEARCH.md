@@ -42,7 +42,8 @@ preview runtime.
 Primary sources checked live: [Agent Skills specification](https://agentskills.io/specification),
 [Anthropic context engineering](https://www.anthropic.com/engineering/effective-context-engineering-for-ai-agents),
 and DeepSeek Harness [compaction](https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/compaction.md)
-plus code mode. Companion bodies stay MIT-pinned and optional at runtime.
+plus code mode. Companion bodies stay MIT-pinned. ChaosEngine selects ultra
+and loads them at task start on every host; they are not optional at runtime.
 
 | Pattern | Decision | ChaosEngine ownership |
 | --- | --- | --- |
@@ -50,7 +51,7 @@ plus code mode. Companion bodies stay MIT-pinned and optional at runtime.
 | Just-in-time retrieval | Adopted | Query a store only when it can shorten the task; one bounded attempt. |
 | Tool-result prune and spill | Adopted as guidance | [context-economy](references/context-economy.md) |
 | Script over long tool chains | Adopted as guidance | [script-first](references/script-first.md) |
-| Auto-load companion bodies every mutation | Rejected | Caveman and Ponytail load on invoke or when they change the next action. |
+| Auto-load companion bodies every mutation | Rejected | SessionStart injects each vendor `SKILL.md` once. Do not re-inject on every tool. Companions stay active at ultra until off. |
 
 ## Architecture decision
 

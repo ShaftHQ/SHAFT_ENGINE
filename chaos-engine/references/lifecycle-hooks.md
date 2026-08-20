@@ -30,14 +30,26 @@ A host with no hook primitive cannot enforce this table. Say so in the install
 receipt. Do not pretend a README sentence is a substitute. Grok currently
 ignores SessionStart and UserPromptSubmit stdout, so companion injection is
 host-capable on Claude and Codex; Grok still gets the same registration and
-the PreToolUse/Stop gates.
+the PreToolUse/Stop gates. Hosts that ignore SessionStart stdout still apply
+companions through the entrypoint load. ChaosEngine selects ultra through
+every supported host adapter.
 
 ## Registration
 
-`hosts.py` writes the same command groups into every generated hook document it
-owns: Codex `hooks.json`, Claude settings, the plugin hook pack, and Grok
-project hooks. Foreign handlers stay. Empty `{"hooks": {}}` after install is a
-defect.
+`hosts.py` writes the same command groups into the source-controlled,
+project-local hook document for each host with a hook primitive: Codex
+`hooks.json`, Claude settings, and Grok project hooks. Those direct provider
+documents are the only lifecycle-hook owners. The ChaosEngine plugin carries
+skills and portable hook code but does not register a second hook pack. Its
+legacy hook document is overwritten with an empty `hooks` mapping during
+install and upgrade so older active copies cannot survive. Hosts without a
+hook primitive receive their tracked guidance adapters and no unsupported hook
+configuration. Foreign handlers stay. An empty direct provider hook document
+after install is a defect.
+
+Machine-installed ChaosEngine copies are not persistence. Remove conflicting
+global copies and change the source-controlled harness so reinstalling or
+syncing cannot recreate duplicate lifecycle handlers.
 
 The command must be cwd-independent, contain a space so a host cannot treat it
 as a path relative to the settings file, and resolve `hooks/guard.py` from the
@@ -48,8 +60,9 @@ installed tree (`.chaos-engine/hooks/guard.py` or
 
 Caveman and Ponytail remain pinned vendor files. Do not rewrite, filter,
 summarize, or truncate them for injection. Intensity tables and examples stay.
-Default intensity is each companion's own default. Off only: `stop caveman`,
-`stop ponytail`, or `normal mode`.
+ChaosEngine selects **ultra** for both. Off only: `stop caveman`,
+`stop ponytail`, or `normal mode`. Host chat and formatting rules that fight
+those vendor files yield to them.
 
 Persisted artifacts (commits, issues, reviews, memory objects) stay in ordinary
 prose, as those files already require.

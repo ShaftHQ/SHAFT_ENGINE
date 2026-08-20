@@ -51,8 +51,8 @@ ChaosEngine entrypoint.
 - Fix small blockers in path. Search before filing every non-blocking adjacent
   finding as its own standalone issue; receipts and existing issue references
   are evidence, not substitutes for a new action ticket.
-- Preserve structured data with structured APIs. Keep prose natural; avoid
-  repetitive filler and stock AI wording.
+- Preserve structured data with structured APIs. Chat follows Caveman at
+  ChaosEngine ultra. Persisted artifacts stay ordinary prose.
 
 ## Windows and GUI safety
 

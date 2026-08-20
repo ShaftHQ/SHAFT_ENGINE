@@ -1990,6 +1990,18 @@ def _wrapped_exec_commands(source: str) -> tuple[str, ...]:
     return tuple(commands)
 
 
+def _functions_exec_source(tool_input: object) -> str:
+    """Return the freeform JavaScript source from supported Codex wire shapes."""
+    if isinstance(tool_input, str):
+        return tool_input
+    if isinstance(tool_input, dict):
+        for key in ("input", "source", "code"):
+            source = tool_input.get(key)
+            if isinstance(source, str):
+                return source
+    return ""
+
+
 def _wrapped_exec_call_count(source: str) -> int:
     return len(re.findall(r"\btools\.exec_command\s*\(", source))
 
@@ -2056,7 +2068,11 @@ def _research_preflight_events(
 ) -> tuple[str, ...]:
     """Map one successful native-client tool call to receipt events in observed order."""
     details = tool_input if isinstance(tool_input, dict) else {}
-    source = tool_input if isinstance(tool_input, str) else json.dumps(details, sort_keys=True)
+    source = (
+        _functions_exec_source(tool_input)
+        if tool_name == "functions.exec"
+        else tool_input if isinstance(tool_input, str) else json.dumps(details, sort_keys=True)
+    )
     rendered = source.lower()
     events: list[str] = []
     if tool_name in {"Read", "Grep"}:
@@ -2213,7 +2229,7 @@ def _shell_is_mutation(command: str) -> bool:
 
 
 def _functions_exec_is_mutation(tool_input: object) -> bool:
-    source = tool_input if isinstance(tool_input, str) else ""
+    source = _functions_exec_source(tool_input)
     if re.search(r"\btools\.apply_patch\s*\(", source):
         return True
     if re.search(r"\btools\.exec_command\s*\(", source):
@@ -2229,7 +2245,9 @@ def _hook_commands(hook_input: dict, tool_name: str) -> tuple[str, ...]:
         command = _extract_command(hook_input)
         return (command,) if command else ()
     if tool_name == "functions.exec":
-        return _wrapped_exec_commands(hook_input.get("tool_input", ""))
+        return _wrapped_exec_commands(
+            _functions_exec_source(hook_input.get("tool_input", ""))
+        )
     return ()
 
 
@@ -4018,8 +4036,10 @@ def run_pretooluse(hook_input: dict, host: str = "portable") -> int:
     commands = _hook_commands(hook_input, tool_name)
     if (
         tool_name == "functions.exec"
-        and isinstance(hook_input.get("tool_input"), str)
-        and _wrapped_exec_call_count(hook_input["tool_input"]) != len(commands)
+        and _wrapped_exec_call_count(
+            _functions_exec_source(hook_input.get("tool_input"))
+        )
+        != len(commands)
     ):
         _record_guard_block_and_deny(
             hook_input,
