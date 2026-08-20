@@ -618,7 +618,7 @@ jobs:
     needs: changes
     if: needs.changes.outputs.capture == 'true' || needs.changes.outputs.infra == 'true'
     runs-on: ubuntu-22.04
-    timeout-minutes: 10
+    timeout-minutes: 15
     steps:
       - name: Checkout Code
         uses: actions/checkout@v7

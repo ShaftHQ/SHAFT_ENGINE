@@ -110,6 +110,14 @@ jobs:
         timeout = workflow["jobs"]["agent-guidance"].get("timeout-minutes", 0)
         self.assertGreaterEqual(timeout, 15)
 
+    def test_capture_browser_e2e_job_allows_prerequisite_and_browser_runtime_headroom(self):
+        repository_root = Path(__file__).resolve().parents[2]
+        workflow = yaml.safe_load(
+            (repository_root / ".github/workflows/pr-gate.yml").read_text(encoding="utf-8")
+        )
+        timeout = workflow["jobs"]["capture-e2e"].get("timeout-minutes", 0)
+        self.assertGreaterEqual(timeout, 15)
+
     def test_local_safari_job_allows_observed_nightly_runtime_headroom(self):
         repository_root = Path(__file__).resolve().parents[2]
         workflow = yaml.safe_load(
