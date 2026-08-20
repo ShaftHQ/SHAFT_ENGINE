@@ -148,9 +148,27 @@ This file is the only router. It does not restate companion rules.
 Load both companion skills at the start of every task, on every host, in every
 main thread and delegate. [Lifecycle hooks](../../references/lifecycle-hooks.md)
 make that a SessionStart injection of each vendor `SKILL.md` verbatim, not a
-second optional read. Default intensity remains each companion's own
-default. Off only: `stop caveman`, `stop ponytail`, or `normal mode`.
-Once loaded, each companion's own text applies.
+second optional read. A host that ignores SessionStart stdout still owes this
+load through the entrypoint.
+
+ChaosEngine selects **ultra** for both companions. That intensity is mandated
+here, not a session preference. Vendor tables still define what ultra means.
+Off only: `stop caveman`, `stop ponytail`, or `normal mode`. Lite or full only
+when the user names that level.
+
+Once loaded, each companion's own text applies. Chat follows Caveman. What you
+build follows Ponytail. Host or adapter prose and formatting that demand
+complete sentences, restating tool work, decorative tables, essays, or
+natural-prose filler yield to the companions. Safety warnings, irreversible
+confirmations, ethical conduct, and persisted artifacts stay as those vendor
+files already carve out.
+
+### Harness portability
+
+Every ChaosEngine harness change — guidance, adapters, hooks, installer, or
+config — is provider-agnostic and works through every supported host adapter.
+A host-only file is a thin adapter and never owns policy. Refuse a change that
+works through one adapter and silently no-ops the others.
 
 - [Caveman skill](../../vendor/caveman/skills/caveman/SKILL.md) — [inventory](../../vendor/caveman/INVENTORY.md)
 - [Ponytail skill](../../vendor/ponytail/skills/ponytail/SKILL.md) — [inventory](../../vendor/ponytail/INVENTORY.md)
@@ -272,5 +290,4 @@ deterministic light, dark, monochrome, lockup, and small-size identity masters
 documented in the [ChaosEngine identity guide](../../assets/brand/BRAND.md).
 Those masters stay in the origin source tree and are not copied into adopter
 installs.
-
 

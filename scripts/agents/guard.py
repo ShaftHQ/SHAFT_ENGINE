@@ -1990,6 +1990,34 @@ def _wrapped_exec_commands(source: str) -> tuple[str, ...]:
     return tuple(commands)
 
 
+def _functions_exec_source(tool_input: object) -> str:
+    """Return the freeform JavaScript source from supported Codex wire shapes."""
+    if isinstance(tool_input, str):
+        return tool_input
+    if isinstance(tool_input, dict):
+        for key in ("input", "source", "code"):
+            source = tool_input.get(key)
+            if isinstance(source, str):
+                return source
+    return ""
+
+
+def _functions_exec_direct_command(tool_input: object) -> str:
+    """Return a shell command supplied directly by a wrapped Codex event."""
+    if isinstance(tool_input, dict):
+        command = tool_input.get("cmd") or tool_input.get("command")
+        if isinstance(command, str):
+            return command
+    return ""
+
+
+def _functions_exec_commands(tool_input: object) -> tuple[str, ...]:
+    direct = _functions_exec_direct_command(tool_input)
+    if direct:
+        return (direct,)
+    return _wrapped_exec_commands(_functions_exec_source(tool_input))
+
+
 def _wrapped_exec_call_count(source: str) -> int:
     return len(re.findall(r"\btools\.exec_command\s*\(", source))
 
@@ -2056,7 +2084,11 @@ def _research_preflight_events(
 ) -> tuple[str, ...]:
     """Map one successful native-client tool call to receipt events in observed order."""
     details = tool_input if isinstance(tool_input, dict) else {}
-    source = tool_input if isinstance(tool_input, str) else json.dumps(details, sort_keys=True)
+    source = (
+        _functions_exec_source(tool_input)
+        if tool_name == "functions.exec"
+        else tool_input if isinstance(tool_input, str) else json.dumps(details, sort_keys=True)
+    )
     rendered = source.lower()
     events: list[str] = []
     if tool_name in {"Read", "Grep"}:
@@ -2089,9 +2121,10 @@ def _research_preflight_events(
             if len(segments) == 1 and _shell_requests_primary_source(lowered):
                 events.append("authoritative-online-research")
     if tool_name == "functions.exec":
-        wrapped_commands = _wrapped_exec_commands(source)
+        wrapped_commands = _functions_exec_commands(tool_input)
         wrapped_call_count = _wrapped_exec_call_count(source)
-        if wrapped_call_count == 1 and len(wrapped_commands) == 1:
+        direct_command = _functions_exec_direct_command(tool_input)
+        if direct_command or (wrapped_call_count == 1 and len(wrapped_commands) == 1):
             command = wrapped_commands[0]
             events.extend(
                 _research_preflight_events(
@@ -2213,7 +2246,10 @@ def _shell_is_mutation(command: str) -> bool:
 
 
 def _functions_exec_is_mutation(tool_input: object) -> bool:
-    source = tool_input if isinstance(tool_input, str) else ""
+    direct = _functions_exec_direct_command(tool_input)
+    if direct:
+        return _shell_is_mutation(direct)
+    source = _functions_exec_source(tool_input)
     if re.search(r"\btools\.apply_patch\s*\(", source):
         return True
     if re.search(r"\btools\.exec_command\s*\(", source):
@@ -2229,7 +2265,7 @@ def _hook_commands(hook_input: dict, tool_name: str) -> tuple[str, ...]:
         command = _extract_command(hook_input)
         return (command,) if command else ()
     if tool_name == "functions.exec":
-        return _wrapped_exec_commands(hook_input.get("tool_input", ""))
+        return _functions_exec_commands(hook_input.get("tool_input", ""))
     return ()
 
 
@@ -4016,10 +4052,17 @@ def run_pretooluse(hook_input: dict, host: str = "portable") -> int:
         return 0
 
     commands = _hook_commands(hook_input, tool_name)
+    functions_input = hook_input.get("tool_input")
+    functions_source = _functions_exec_source(functions_input)
+    functions_direct = _functions_exec_direct_command(functions_input)
     if (
         tool_name == "functions.exec"
-        and isinstance(hook_input.get("tool_input"), str)
-        and _wrapped_exec_call_count(hook_input["tool_input"]) != len(commands)
+        and not functions_direct
+        and (
+            not isinstance(functions_input, (str, dict))
+            or (isinstance(functions_input, dict) and not functions_source)
+            or _wrapped_exec_call_count(functions_source) != len(commands)
+        )
     ):
         _record_guard_block_and_deny(
             hook_input,

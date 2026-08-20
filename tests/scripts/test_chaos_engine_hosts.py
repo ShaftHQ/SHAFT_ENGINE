@@ -411,6 +411,9 @@ class ChaosEngineHostsTest(unittest.TestCase):
             project = Path(temporary) / "consumer"
             project.joinpath(".chaos-engine/skills/chaos-engine").mkdir(parents=True)
             project.joinpath(".chaos-engine/skills/chaos-engine/SKILL.md").write_text("# C\n")
+            legacy_plugin_hooks = project / "plugins/chaos-engine/hooks/hooks.json"
+            legacy_plugin_hooks.parent.mkdir(parents=True)
+            legacy_plugin_hooks.write_bytes(module.lifecycle_hooks_document())
 
             receipt = module.install(project)
 
@@ -458,6 +461,14 @@ class ChaosEngineHostsTest(unittest.TestCase):
             self.assertLessEqual(required, set(receipt["after"]))
             for relative in required:
                 self.assertTrue(project.joinpath(relative).is_file(), relative)
+            self.assertEqual(
+                {},
+                json.loads(
+                    project.joinpath(
+                        "plugins/chaos-engine/hooks/hooks.json"
+                    ).read_text()
+                )["hooks"],
+            )
             marketplace = json.loads(
                 project.joinpath(".agents/plugins/marketplace.json").read_text()
             )
@@ -524,18 +535,17 @@ class ChaosEngineHostsTest(unittest.TestCase):
                 "SubagentStop",
             }
             lifecycle = json.loads(project.joinpath(".codex/hooks.json").read_text())["hooks"]
-            plugin_lifecycle = json.loads(
-                project.joinpath("plugins/chaos-engine/hooks/hooks.json").read_text()
-            )["hooks"]
             grok_lifecycle = json.loads(
                 project.joinpath(".grok/hooks/lifecycle.json").read_text()
             )["hooks"]
             claude_lifecycle = json.loads(
                 project.joinpath(".claude/settings.json").read_text()
             )["hooks"]
-            for document in (lifecycle, plugin_lifecycle, grok_lifecycle, claude_lifecycle):
+            for document in (lifecycle, grok_lifecycle, claude_lifecycle):
                 self.assertEqual(required_events, set(document))
                 for event in required_events:
+                    self.assertEqual(1, len(document[event]), event)
+                    self.assertEqual(1, len(document[event][0]["hooks"]), event)
                     command = document[event][0]["hooks"][0]["command"]
                     self.assertIn(" ", command, event)
                     self.assertTrue(
@@ -543,6 +553,17 @@ class ChaosEngineHostsTest(unittest.TestCase):
                         or "plugins/chaos-engine/hooks/guard.py" in command,
                         event,
                     )
+            for manifest_path in (
+                "plugins/chaos-engine/.codex-plugin/plugin.json",
+                "plugins/chaos-engine/.claude-plugin/plugin.json",
+            ):
+                manifest = json.loads(project.joinpath(manifest_path).read_text())
+                self.assertNotIn("hooks", manifest)
+            self.assertNotIn(
+                "hooks",
+                json.loads(project.joinpath(".gemini/settings.json").read_text()),
+            )
+            self.assertFalse(project.joinpath(".github/hooks.json").exists())
             installed_hook = project / "plugins/chaos-engine/hooks/guard.py"
             hook_environment = {**os.environ, "TMPDIR": temporary, "TEMP": temporary}
             failure = {
@@ -561,9 +582,73 @@ class ChaosEngineHostsTest(unittest.TestCase):
                 input=json.dumps(failure), capture_output=True, text=True,
                 env=hook_environment, check=False,
             )
+            wrapped_destruction = subprocess.run(  # nosec B603 - installed local hook.
+                [os.sys.executable, str(installed_hook)],
+                input=json.dumps(
+                    {
+                        "hook_event_name": "PreToolUse",
+                        "tool_name": "functions.exec",
+                        "tool_input": {"cmd": "git reset --hard HEAD~1"},
+                        "session_id": "installed-object-wrapper",
+                    }
+                ),
+                capture_output=True,
+                text=True,
+                env=hook_environment,
+                check=False,
+            )
+            wrapped_source_destruction = subprocess.run(  # nosec B603 - installed local hook.
+                [os.sys.executable, str(installed_hook)],
+                input=json.dumps(
+                    {
+                        "hook_event_name": "PreToolUse",
+                        "tool_name": "functions.exec",
+                        "tool_input": {
+                            "input": (
+                                'await tools.exec_command('
+                                '{cmd:"git reset --hard HEAD~1"});'
+                            )
+                        },
+                        "session_id": "installed-source-wrapper",
+                    }
+                ),
+                capture_output=True,
+                text=True,
+                env=hook_environment,
+                check=False,
+            )
             self.assertEqual(0, first.returncode, first.stderr)
             self.assertEqual(0, second.returncode, second.stderr)
             self.assertIn("Reflection required", second.stdout)
+            self.assertEqual(2, wrapped_destruction.returncode)
+            self.assertEqual(
+                "block", json.loads(wrapped_destruction.stdout)["decision"]
+            )
+            self.assertEqual(2, wrapped_source_destruction.returncode)
+            self.assertEqual(
+                "block",
+                json.loads(wrapped_source_destruction.stdout)["decision"],
+            )
+
+    def test_lifecycle_hook_is_a_noop_outside_an_installed_project(self):
+        module = load(HOSTS, "chaos_engine_hook_noop")
+        document = json.loads(module.lifecycle_hooks_document())
+        handler = document["hooks"]["PreToolUse"][0]["hooks"][0]
+        command = handler["commandWindows"] if os.name == "nt" else handler["command"]
+
+        with tempfile.TemporaryDirectory() as temporary:
+            completed = subprocess.run(  # nosec B602 - generated fixed hook command.
+                command,
+                shell=True,
+                cwd=temporary,
+                input=json.dumps({"hook_event_name": "PreToolUse"}),
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+
+        self.assertEqual(0, completed.returncode, completed.stderr)
+        self.assertEqual({}, json.loads(completed.stdout))
 
     def test_plugin_marketplace_preserves_unrelated_entries(self):
         module = load(HOSTS, "chaos_engine_marketplace_merge")

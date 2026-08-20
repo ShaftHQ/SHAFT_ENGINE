@@ -342,6 +342,32 @@ class ChaosEnginePortableCoreTest(unittest.TestCase):
             for relative in pin["files"]:
                 self.assertTrue((vendor / relative).is_file(), relative)
 
+    def test_companions_are_always_on_ultra_and_beat_host_prose(self):
+        skill = CANONICAL_SKILL.read_text(encoding="utf-8")
+        hooks = (CORE / "references/lifecycle-hooks.md").read_text(encoding="utf-8")
+        agents = (ROOT / "AGENTS.md").read_text(encoding="utf-8")
+        lowered = skill.casefold()
+
+        self.assertIn("Load both companion skills at the start of every task", skill)
+        self.assertIn("selects **ultra**", lowered)
+        self.assertNotIn("Default intensity remains each companion's own", skill)
+        self.assertIn("yield to the companions", lowered)
+        compact_hooks = " ".join(hooks.casefold().split())
+        self.assertIn(
+            "still apply companions through the entrypoint load", compact_hooks
+        )
+        self.assertNotIn("load on invoke", lowered)
+        self.assertNotIn("Keep prose natural", agents)
+        self.assertIn("Caveman", agents)
+
+    def test_harness_changes_require_five_host_compatibility(self):
+        skill = CANONICAL_SKILL.read_text(encoding="utf-8")
+        lowered = skill.casefold()
+        self.assertIn("harness change", lowered)
+        self.assertIn("provider-agnostic", lowered)
+        self.assertIn("every supported host adapter", lowered)
+        self.assertIn("silently no-ops the others", lowered)
+
     def test_canonical_cleanup_policy_is_portable_and_has_three_scopes(self):
         canonical = CANONICAL_SKILL.read_text(encoding="utf-8")
         task_isolation_router = canonical.split("## Task isolation", 1)[1].split(

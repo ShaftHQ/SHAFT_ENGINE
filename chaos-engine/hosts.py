@@ -2298,9 +2298,9 @@ def chaos_guard_locator_command(*, windows: bool) -> str:
     return (
         f'{interpreter} -c "import pathlib,runpy;'
         "cands=('.chaos-engine/hooks/guard.py','plugins/chaos-engine/hooks/guard.py');"
-        "p=next(root/rel for root in (pathlib.Path.cwd(),*pathlib.Path.cwd().parents) "
-        "for rel in cands if (root/rel).is_file());"
-        "runpy.run_path(str(p),run_name='__main__')\""
+        "p=next((root/rel for root in (pathlib.Path.cwd(),*pathlib.Path.cwd().parents) "
+        "for rel in cands if (root/rel).is_file()),None);"
+        "runpy.run_path(str(p),run_name='__main__') if p else print('{}')\""
     )
 
 
@@ -2657,7 +2657,9 @@ def desired_content(
         + "\n"
     ).encode()
     desired_hooks = lifecycle_hooks_document()
-    after["plugins/chaos-engine/hooks/hooks.json"] = desired_hooks
+    after["plugins/chaos-engine/hooks/hooks.json"] = (
+        json.dumps({"hooks": {}}, indent=2, sort_keys=True) + "\n"
+    ).encode()
     after[".codex/hooks.json"] = hook_content(
         without_chaos_hooks(before[".codex/hooks.json"], "Codex"),
         desired_hooks,
