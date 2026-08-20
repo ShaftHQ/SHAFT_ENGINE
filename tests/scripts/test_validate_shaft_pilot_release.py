@@ -628,6 +628,22 @@ jobs:
 
 
 class ShaftPilotReleaseIsolationTest(unittest.TestCase):
+    def test_detect_fetches_only_exact_pull_request_commits(self):
+        workflow = yaml.safe_load(WORKFLOW_PATH.read_text(encoding="utf-8"))
+        detect_job = workflow["jobs"]["detect-shaft-version-change"]
+        checkout = detect_job["steps"][0]
+        detect = _step_blob(detect_job)
+
+        self.assertEqual(1, checkout.get("with", {}).get("fetch-depth"))
+        self.assertEqual(
+            "ref: ${{ github.event.pull_request.head.sha || github.sha }}",
+            "ref: " + checkout.get("with", {}).get("ref", ""),
+        )
+        self.assertIn(
+            'git fetch --no-tags --depth=1 origin "${BASE_SHA}"',
+            detect,
+        )
+
     def test_isolated_slices_run_in_parallel_after_detect_only(self):
         workflow = yaml.safe_load(WORKFLOW_PATH.read_text(encoding="utf-8"))
         jobs = workflow["jobs"]
