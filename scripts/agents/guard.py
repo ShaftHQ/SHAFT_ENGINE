@@ -2018,6 +2018,49 @@ def _functions_exec_commands(tool_input: object) -> tuple[str, ...]:
     return _wrapped_exec_commands(_functions_exec_source(tool_input))
 
 
+def _functions_exec_plan_events(source: str) -> tuple[str, ...]:
+    """Map one literal wrapped update_plan call without executing JavaScript."""
+    wrapper = re.fullmatch(
+        r"\s*(?:// @exec:[^\r\n]*\r?\n\s*)?"
+        r"(?:const\s+[A-Za-z_$][\w$]*\s*=\s*)?await\s+tools\.update_plan\s*"
+        r"\(\s*(?P<details>\{.*\})\s*\)\s*;\s*"
+        r"(?:text\s*\(\s*[A-Za-z_$][\w$]*\s*\)\s*;?\s*)?",
+        source,
+        re.DOTALL,
+    )
+    if wrapper is None:
+        return ()
+    details = wrapper.group("details")
+    string_literal = r'(?:"(?:\\.|[^"\\])*"|\'(?:\\.|[^\'\\])*\')'
+    step = (
+        r"\{\s*(?:step|\"step\"|'step')\s*:\s*" + string_literal
+        + r"\s*,\s*(?:status|\"status\"|'status')\s*:\s*"
+        + r'(?:"(?:pending|in_progress|completed)"|\'(?:pending|in_progress|completed)\')'
+        + r"\s*\}"
+    )
+    plan = r"\[\s*" + step + r"(?:\s*,\s*" + step + r")*\s*\]"
+    explanation_key = r'(?:explanation|"explanation"|\'explanation\')'
+    plan_key = r'(?:plan|"plan"|\'plan\')'
+    shapes = (
+        r"\{\s*" + explanation_key + r"\s*:\s*(?P<explanation>" + string_literal
+        + r")\s*,\s*" + plan_key + r"\s*:\s*" + plan + r"\s*\}",
+        r"\{\s*" + plan_key + r"\s*:\s*" + plan + r"\s*,\s*"
+        + explanation_key + r"\s*:\s*(?P<explanation>" + string_literal + r")\s*\}",
+        r"\{\s*" + plan_key + r"\s*:\s*" + plan + r"\s*\}",
+    )
+    literal = next(
+        (candidate for shape in shapes if (candidate := re.fullmatch(shape, details, re.DOTALL))),
+        None,
+    )
+    if literal is None:
+        return ()
+    explanation = literal.groupdict().get("explanation") or ""
+    events: list[str] = ["record-plan"]
+    if "compare proven approaches" in explanation[1:-1].lower():
+        events.insert(0, "compare-proven-approaches")
+    return tuple(events)
+
+
 def _wrapped_exec_call_count(source: str) -> int:
     return len(re.findall(r"\btools\.exec_command\s*\(", source))
 
@@ -2131,6 +2174,7 @@ def _research_preflight_events(
                     "exec_command", {"cmd": command}, tool_result
                 )
             )
+        events.extend(_functions_exec_plan_events(source))
     lowered_name = tool_name.lower()
     if ("shaft-memory" in lowered_name or "shaft_memory" in lowered_name) and any(
         verb in lowered_name for verb in ("search", "load", "inspect")
@@ -3071,7 +3115,9 @@ def check_r30_merge_authority_before_arming(command: str, tool_name: str, hook_i
 # finds something requests changes. Neither is a comment.
 REVIEW_VERDICTS = frozenset({"APPROVED", "CHANGES_REQUESTED"})
 
-DISPATCH_TOOLS = frozenset({"Task", "Agent"})
+DISPATCH_TOOLS = frozenset(
+    {"Task", "Agent", "spawn_agent", "collaboration.spawn_agent"}
+)
 REVIEWER_SUBAGENT_TYPES = frozenset({"reviewer"})
 ADAPTED_SUBAGENT_TYPES = frozenset({"chaos-engine", "coder", "helper", "reviewer", "tester"})
 
@@ -3092,13 +3138,18 @@ def check_r22_dispatch_adapter(hook_input: dict, tool_name: str) -> str | None:
     if not isinstance(tool_input, dict):
         subagent = ""
     else:
-        subagent = tool_input.get("subagent_type") or tool_input.get("subagent") or ""
+        subagent = (
+            tool_input.get("subagent_type")
+            or tool_input.get("agent_type")
+            or tool_input.get("subagent")
+            or ""
+        )
     if isinstance(subagent, str) and subagent.strip().lower() in ADAPTED_SUBAGENT_TYPES:
         return None
     legal = " | ".join(sorted(ADAPTED_SUBAGENT_TYPES))
     return (
         "R22 blocked: this dispatch has no role adapter, so it cannot receive the "
-        "mandatory entrypoint. Re-dispatch with subagent_type: " + legal + "."
+        "mandatory entrypoint. Re-dispatch with subagent_type/agent_type: " + legal + "."
     )
 
 
@@ -3463,7 +3514,12 @@ def _reviewer_dispatch_event(hook_input: dict, tool_name: str) -> str | None:
     tool_input = hook_input.get("tool_input")
     if not isinstance(tool_input, dict):
         return None
-    subagent = tool_input.get("subagent_type") or tool_input.get("subagent") or ""
+    subagent = (
+        tool_input.get("subagent_type")
+        or tool_input.get("agent_type")
+        or tool_input.get("subagent")
+        or ""
+    )
     if not isinstance(subagent, str):
         return None
     if subagent.strip().lower() not in REVIEWER_SUBAGENT_TYPES:

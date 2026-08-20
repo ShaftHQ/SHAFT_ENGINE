@@ -1426,6 +1426,50 @@ class GuardLifecycleTest(unittest.TestCase):
         self.assertEqual(guard._research_preflight_events("todo_write", {"todos": []}), ())
         self.assertEqual(guard._research_preflight_events("todo_write", {}), ())
 
+    def test_wrapped_update_plan_maps_plan_receipt_events(self):
+        source = (
+            'const result = await tools.update_plan({explanation:"Compare proven approaches",'
+            'plan:[{step:"Implement",status:"in_progress"}]}); text(result);'
+        )
+
+        self.assertEqual(
+            guard._research_preflight_events("functions.exec", source, {}),
+            ("compare-proven-approaches", "record-plan"),
+        )
+        self.assertEqual(
+            guard._research_preflight_events(
+                "functions.exec", f'const example = {json.dumps(source)}; text(example);', {}
+            ),
+            (),
+        )
+        invalid_sources = (
+            'await tools.update_plan({/* explanation:"Compare proven approaches" */'
+            'plan:[{step:"Implement",status:"in_progress"}]});',
+            'await tools.update_plan({explanation:"Compare proven approaches",'
+            'plan:[buildStep()]});',
+            'await tools.update_plan({...payload,explanation:"Compare proven approaches",'
+            'plan:[{step:"Implement",status:"in_progress"}]});',
+            'await tools.update_plan({metadata:{explanation:"Compare proven approaches"},'
+            'plan:[{step:"Implement",status:"in_progress"}]});',
+        )
+        required_prefix = list(guard.IMPLEMENTATION_PREFLIGHT_EVENTS[:3])
+        for invalid_source in invalid_sources:
+            with self.subTest(invalid_source=invalid_source):
+                events = guard._research_preflight_events("functions.exec", invalid_source, {})
+                self.assertEqual(events, ())
+                with patch.object(
+                    guard,
+                    "ledger_events",
+                    return_value=[*required_prefix, *events],
+                ), patch.object(
+                    guard, "_act_as_mohab_root", return_value=str(Path.cwd())
+                ), patch.object(guard, "_path_is_inside", return_value=True):
+                    self.assertIsNotNone(
+                        guard.check_r25_research_before_implementation(
+                            self.payload(), "Write"
+                        )
+                    )
+
     def test_shell_command_maps_research_clis_in_command_order(self):
         self.assertEqual(
             guard._research_preflight_events(
@@ -4508,6 +4552,36 @@ class ObservedReviewDispatchTest(unittest.TestCase):
                 "review:feature",
             )
 
+    def test_a_collaboration_reviewer_dispatch_produces_a_review_event(self):
+        payload = {
+            "tool_name": "collaboration.spawn_agent",
+            "tool_input": {"agent_type": "reviewer"},
+            "session_id": "s",
+            "cwd": ".",
+        }
+        with patch("scripts.agents.guard._current_branch", return_value="feature"):
+            self.assertEqual(
+                guard._reviewer_dispatch_event(payload, "collaboration.spawn_agent"),
+                "review:feature",
+            )
+
+    def test_collaboration_reviewer_dispatch_is_recorded_by_the_hook(self):
+        payload = {
+            "tool_name": "collaboration.spawn_agent",
+            "tool_input": {"agent_type": "reviewer"},
+            "session_id": "s",
+            "cwd": ".",
+        }
+        events: list[str] = []
+        with patch("scripts.agents.guard._current_branch", return_value="feature"):
+            with patch(
+                "scripts.agents.guard.ledger_record",
+                side_effect=lambda _payload, event: events.append(event) or True,
+            ):
+                with redirect_stdout(io.StringIO()):
+                    guard.run_pretooluse(payload)
+        self.assertIn("review:feature", events)
+
     def test_any_other_subagent_produces_nothing(self):
         for subagent in ("coder", "tester", "general-purpose", ""):
             with self.subTest(subagent=subagent):
@@ -4608,6 +4682,21 @@ class DispatchAdapterGateTest(unittest.TestCase):
                         self.assertEqual(guard.run_pretooluse(self.payload(subagent)), 0)
                 self.assertNotIn("R22 blocked", output.getvalue())
 
+    def test_collaboration_dispatch_reads_the_agent_type_adapter(self):
+        payload = {
+            "tool_name": "collaboration.spawn_agent",
+            "tool_input": {"agent_type": "reviewer"},
+            "session_id": "r22",
+            "cwd": ".",
+        }
+        self.assertIsNone(
+            guard.check_r22_dispatch_adapter(payload, "collaboration.spawn_agent")
+        )
+        payload["tool_input"]["agent_type"] = "general-purpose"
+        self.assertIsNotNone(
+            guard.check_r22_dispatch_adapter(payload, "collaboration.spawn_agent")
+        )
+
     def test_r22_records_the_learning_loop_arming_escape(self):
         source = inspect.getsource(guard.check_r22_dispatch_adapter).lower()
         self.assertIn("learning-loop", source)
@@ -4627,7 +4716,6 @@ class DispatchAdapterGateTest(unittest.TestCase):
             with self.subTest(host=name):
                 text = open(os.path.join(root, name), encoding="utf-8").read()
                 self.assertIn("Task|Agent", text)
-
 
 class HistoricalDispatchReplayTest(unittest.TestCase):
     """R22 / #4570 A12: replay the 18-dispatch audit without local transcript state."""

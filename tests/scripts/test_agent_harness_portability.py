@@ -708,6 +708,13 @@ class AgentHarnessPortabilityTest(unittest.TestCase):
         for path in (ROOT / ".claude/settings.json", ROOT / ".codex/hooks.json"):
             self.assertNotIn("bypass-hook-trust", path.read_text(encoding="utf-8"))
 
+    def test_codex_intercepts_collaboration_dispatches(self):
+        config = json.loads((ROOT / ".codex/hooks.json").read_text(encoding="utf-8"))
+        matcher = config["hooks"]["PreToolUse"][0]["matcher"]
+        for tool_name in ("collaboration.spawn_agent", "spawn_agent"):
+            with self.subTest(tool_name=tool_name):
+                self.assertIsNotNone(re.fullmatch(matcher, tool_name))
+
     def test_equivalent_host_hook_events_produce_equivalent_outcomes(self):
         fixtures = {
             "claude": {
