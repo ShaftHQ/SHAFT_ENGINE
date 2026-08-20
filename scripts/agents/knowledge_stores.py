@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import re
 import shutil
 # Fixed list-form calls to repository resolvers and the MemPalace CLI.
 import subprocess  # nosec B404
@@ -24,6 +25,21 @@ def run_python(script: Path, arguments: list[str], cwd: Path) -> subprocess.Comp
         text=True,
         check=False,
     )
+
+
+def configured_wing(cwd: Path) -> str | None:
+    """Return the checkout MemPalace wing when mempalace.yaml declares exactly one."""
+    path = cwd / "mempalace.yaml"
+    if not path.is_file():
+        return None
+    try:
+        text = path.read_text(encoding="utf-8")
+    except OSError:
+        return None
+    matches = re.findall(r"(?m)^wing:\s*([A-Za-z0-9_.-]+)\s*$", text)
+    if len(matches) != 1:
+        return None
+    return matches[0]
 
 
 def resolve_palace(cwd: Path) -> str:
@@ -70,8 +86,9 @@ def cmd_search(cwd: Path, query: str, wing: str | None, room: str | None, result
     """Search the resolved palace without creating a checkout-local copy."""
     palace = resolve_palace(cwd)
     arguments = ["search", query]
-    if wing:
-        arguments.extend(["--wing", wing])
+    selected_wing = wing or configured_wing(cwd)
+    if selected_wing:
+        arguments.extend(["--wing", selected_wing])
     if room:
         arguments.extend(["--room", room])
     if results is not None:

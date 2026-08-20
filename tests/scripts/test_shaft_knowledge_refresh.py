@@ -33,6 +33,13 @@ class ShaftKnowledgeRefreshTest(unittest.TestCase):
     def test_refresh_uses_approved_url_and_verified_sha_not_mutable_names(self):
         module = self.module()
         root = Path(tempfile.mkdtemp()) / "SHAFT_ENGINE-main"
+        root.mkdir(parents=True)
+        (root / "mempalace.yaml").write_text(
+            "wing: from_yaml_main\n"
+            "rooms:\n- name: general\n  description: SHAFT source\n"
+            "exclude_patterns:\n- .git/**\n",
+            encoding="utf-8",
+        )
         sentinel = root.parent / ".shaft-nightly-maintenance.json"
         commands = []
 
@@ -86,7 +93,7 @@ class ShaftKnowledgeRefreshTest(unittest.TestCase):
         self.assertIn(["git", "clean", "-ffd"], invoked)
         self.assertFalse(any("--dry-run" in command for command in invoked))
         self.assertIn(
-            ["mempalace", "sync", str(root.resolve()), "--wing", "shaft_engine_main", "--apply"],
+            ["mempalace", "sync", str(root.resolve()), "--wing", "from_yaml_main", "--apply"],
             invoked,
         )
         child_commands = [
@@ -109,6 +116,13 @@ class ShaftKnowledgeRefreshTest(unittest.TestCase):
     def test_store_maintenance_reports_both_outcomes_when_either_store_fails(self):
         module = self.module()
         root = Path(tempfile.mkdtemp()) / "SHAFT_ENGINE-main"
+        root.mkdir(parents=True)
+        (root / "mempalace.yaml").write_text(
+            "wing: from_yaml_main\n"
+            "rooms:\n- name: general\n  description: SHAFT source\n"
+            "exclude_patterns:\n- .git/**\n",
+            encoding="utf-8",
+        )
         sentinel = root.parent / ".shaft-nightly-maintenance.json"
         commands = []
 
@@ -143,6 +157,13 @@ class ShaftKnowledgeRefreshTest(unittest.TestCase):
     def test_refresh_force_includes_exact_promote_paths_on_mine(self):
         module = self.module()
         root = Path(tempfile.mkdtemp()) / "SHAFT_ENGINE-main"
+        root.mkdir(parents=True)
+        (root / "mempalace.yaml").write_text(
+            "wing: from_yaml_main\n"
+            "rooms:\n- name: general\n  description: SHAFT source\n"
+            "exclude_patterns:\n- .git/**\n",
+            encoding="utf-8",
+        )
         sentinel = root.parent / ".shaft-nightly-maintenance.json"
         commands = []
 
@@ -174,6 +195,7 @@ class ShaftKnowledgeRefreshTest(unittest.TestCase):
 
         mines = [command for command in commands if command[0:2] == ["mempalace", "mine"]]
         self.assertTrue(mines)
+        self.assertIn("from_yaml_main", mines[0])
         included = " ".join(" ".join(command) for command in mines)
         self.assertIn("--include-ignored", included)
         self.assertIn("src/custom.properties", included)
@@ -182,6 +204,13 @@ class ShaftKnowledgeRefreshTest(unittest.TestCase):
     def test_mempalace_failure_keeps_the_successful_graphify_outcome(self):
         module = self.module()
         root = Path(tempfile.mkdtemp()) / "SHAFT_ENGINE-main"
+        root.mkdir(parents=True)
+        (root / "mempalace.yaml").write_text(
+            "wing: from_yaml_main\n"
+            "rooms:\n- name: general\n  description: SHAFT source\n"
+            "exclude_patterns:\n- .git/**\n",
+            encoding="utf-8",
+        )
         sentinel = root.parent / ".shaft-nightly-maintenance.json"
         commands = []
 
@@ -217,6 +246,13 @@ class ShaftKnowledgeRefreshTest(unittest.TestCase):
     def test_local_url_rewrite_stops_before_fetch(self):
         module = self.module()
         root = Path(tempfile.mkdtemp()) / "SHAFT_ENGINE-main"
+        root.mkdir(parents=True)
+        (root / "mempalace.yaml").write_text(
+            "wing: from_yaml_main\n"
+            "rooms:\n- name: general\n  description: SHAFT source\n"
+            "exclude_patterns:\n- .git/**\n",
+            encoding="utf-8",
+        )
         sentinel = root.parent / ".shaft-nightly-maintenance.json"
         commands = []
 
