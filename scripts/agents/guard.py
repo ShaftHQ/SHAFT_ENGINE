@@ -3115,7 +3115,9 @@ def check_r30_merge_authority_before_arming(command: str, tool_name: str, hook_i
 # finds something requests changes. Neither is a comment.
 REVIEW_VERDICTS = frozenset({"APPROVED", "CHANGES_REQUESTED"})
 
-DISPATCH_TOOLS = frozenset({"Task", "Agent"})
+DISPATCH_TOOLS = frozenset(
+    {"Task", "Agent", "spawn_agent", "collaboration.spawn_agent"}
+)
 REVIEWER_SUBAGENT_TYPES = frozenset({"reviewer"})
 ADAPTED_SUBAGENT_TYPES = frozenset({"chaos-engine", "coder", "helper", "reviewer", "tester"})
 
@@ -3136,13 +3138,18 @@ def check_r22_dispatch_adapter(hook_input: dict, tool_name: str) -> str | None:
     if not isinstance(tool_input, dict):
         subagent = ""
     else:
-        subagent = tool_input.get("subagent_type") or tool_input.get("subagent") or ""
+        subagent = (
+            tool_input.get("subagent_type")
+            or tool_input.get("agent_type")
+            or tool_input.get("subagent")
+            or ""
+        )
     if isinstance(subagent, str) and subagent.strip().lower() in ADAPTED_SUBAGENT_TYPES:
         return None
     legal = " | ".join(sorted(ADAPTED_SUBAGENT_TYPES))
     return (
         "R22 blocked: this dispatch has no role adapter, so it cannot receive the "
-        "mandatory entrypoint. Re-dispatch with subagent_type: " + legal + "."
+        "mandatory entrypoint. Re-dispatch with subagent_type/agent_type: " + legal + "."
     )
 
 
@@ -3507,7 +3514,12 @@ def _reviewer_dispatch_event(hook_input: dict, tool_name: str) -> str | None:
     tool_input = hook_input.get("tool_input")
     if not isinstance(tool_input, dict):
         return None
-    subagent = tool_input.get("subagent_type") or tool_input.get("subagent") or ""
+    subagent = (
+        tool_input.get("subagent_type")
+        or tool_input.get("agent_type")
+        or tool_input.get("subagent")
+        or ""
+    )
     if not isinstance(subagent, str):
         return None
     if subagent.strip().lower() not in REVIEWER_SUBAGENT_TYPES:

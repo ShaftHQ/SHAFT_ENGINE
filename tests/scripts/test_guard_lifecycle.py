@@ -4552,6 +4552,19 @@ class ObservedReviewDispatchTest(unittest.TestCase):
                 "review:feature",
             )
 
+    def test_a_collaboration_reviewer_dispatch_produces_a_review_event(self):
+        payload = {
+            "tool_name": "collaboration.spawn_agent",
+            "tool_input": {"agent_type": "reviewer"},
+            "session_id": "s",
+            "cwd": ".",
+        }
+        with patch("scripts.agents.guard._current_branch", return_value="feature"):
+            self.assertEqual(
+                guard._reviewer_dispatch_event(payload, "collaboration.spawn_agent"),
+                "review:feature",
+            )
+
     def test_any_other_subagent_produces_nothing(self):
         for subagent in ("coder", "tester", "general-purpose", ""):
             with self.subTest(subagent=subagent):
@@ -4651,6 +4664,21 @@ class DispatchAdapterGateTest(unittest.TestCase):
                     with redirect_stdout(output):
                         self.assertEqual(guard.run_pretooluse(self.payload(subagent)), 0)
                 self.assertNotIn("R22 blocked", output.getvalue())
+
+    def test_collaboration_dispatch_reads_the_agent_type_adapter(self):
+        payload = {
+            "tool_name": "collaboration.spawn_agent",
+            "tool_input": {"agent_type": "reviewer"},
+            "session_id": "r22",
+            "cwd": ".",
+        }
+        self.assertIsNone(
+            guard.check_r22_dispatch_adapter(payload, "collaboration.spawn_agent")
+        )
+        payload["tool_input"]["agent_type"] = "general-purpose"
+        self.assertIsNotNone(
+            guard.check_r22_dispatch_adapter(payload, "collaboration.spawn_agent")
+        )
 
     def test_r22_records_the_learning_loop_arming_escape(self):
         source = inspect.getsource(guard.check_r22_dispatch_adapter).lower()
