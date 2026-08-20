@@ -1426,6 +1426,47 @@ class GuardLifecycleTest(unittest.TestCase):
         self.assertEqual(guard._research_preflight_events("todo_write", {"todos": []}), ())
         self.assertEqual(guard._research_preflight_events("todo_write", {}), ())
 
+    def test_wrapped_update_plan_maps_plan_receipt_events(self):
+        source = (
+            'const result = await tools.update_plan({explanation:"Compare proven approaches",'
+            'plan:[{step:"Implement",status:"in_progress"}]}); text(result);'
+        )
+
+        self.assertEqual(
+            guard._research_preflight_events("functions.exec", source, {}),
+            ("compare-proven-approaches", "record-plan"),
+        )
+        self.assertEqual(
+            guard._research_preflight_events(
+                "functions.exec", f'const example = {json.dumps(source)}; text(example);', {}
+            ),
+            (),
+        )
+        invalid_sources = (
+            'await tools.update_plan({/* explanation:"Compare proven approaches" */'
+            'plan:[{step:"Implement",status:"in_progress"}]});',
+            'await tools.update_plan({explanation:"Compare proven approaches",'
+            'plan:[buildStep()]});',
+            'await tools.update_plan({...payload,explanation:"Compare proven approaches",'
+            'plan:[{step:"Implement",status:"in_progress"}]});',
+            'await tools.update_plan({metadata:{explanation:"Compare proven approaches"},'
+            'plan:[{step:"Implement",status:"in_progress"}]});',
+        )
+        required_prefix = list(guard.IMPLEMENTATION_PREFLIGHT_EVENTS[:3])
+        for invalid_source in invalid_sources:
+            with self.subTest(invalid_source=invalid_source):
+                events = guard._research_preflight_events("functions.exec", invalid_source, {})
+                self.assertEqual(events, ())
+                with patch(
+                    "scripts.agents.guard.ledger_events",
+                    return_value=[*required_prefix, *events],
+                ):
+                    self.assertIsNotNone(
+                        guard.check_r25_research_before_implementation(
+                            self.payload(), "Write"
+                        )
+                    )
+
     def test_shell_command_maps_research_clis_in_command_order(self):
         self.assertEqual(
             guard._research_preflight_events(

@@ -2018,6 +2018,49 @@ def _functions_exec_commands(tool_input: object) -> tuple[str, ...]:
     return _wrapped_exec_commands(_functions_exec_source(tool_input))
 
 
+def _functions_exec_plan_events(source: str) -> tuple[str, ...]:
+    """Map one literal wrapped update_plan call without executing JavaScript."""
+    wrapper = re.fullmatch(
+        r"\s*(?:// @exec:[^\r\n]*\r?\n\s*)?"
+        r"(?:const\s+[A-Za-z_$][\w$]*\s*=\s*)?await\s+tools\.update_plan\s*"
+        r"\(\s*(?P<details>\{.*\})\s*\)\s*;\s*"
+        r"(?:text\s*\(\s*[A-Za-z_$][\w$]*\s*\)\s*;?\s*)?",
+        source,
+        re.DOTALL,
+    )
+    if wrapper is None:
+        return ()
+    details = wrapper.group("details")
+    string_literal = r'(?:"(?:\\.|[^"\\])*"|\'(?:\\.|[^\'\\])*\')'
+    step = (
+        r"\{\s*(?:step|\"step\"|'step')\s*:\s*" + string_literal
+        + r"\s*,\s*(?:status|\"status\"|'status')\s*:\s*"
+        + r'(?:"(?:pending|in_progress|completed)"|\'(?:pending|in_progress|completed)\')'
+        + r"\s*\}"
+    )
+    plan = r"\[\s*" + step + r"(?:\s*,\s*" + step + r")*\s*\]"
+    explanation_key = r'(?:explanation|"explanation"|\'explanation\')'
+    plan_key = r'(?:plan|"plan"|\'plan\')'
+    shapes = (
+        r"\{\s*" + explanation_key + r"\s*:\s*(?P<explanation>" + string_literal
+        + r")\s*,\s*" + plan_key + r"\s*:\s*" + plan + r"\s*\}",
+        r"\{\s*" + plan_key + r"\s*:\s*" + plan + r"\s*,\s*"
+        + explanation_key + r"\s*:\s*(?P<explanation>" + string_literal + r")\s*\}",
+        r"\{\s*" + plan_key + r"\s*:\s*" + plan + r"\s*\}",
+    )
+    literal = next(
+        (candidate for shape in shapes if (candidate := re.fullmatch(shape, details, re.DOTALL))),
+        None,
+    )
+    if literal is None:
+        return ()
+    explanation = literal.groupdict().get("explanation") or ""
+    events: list[str] = ["record-plan"]
+    if "compare proven approaches" in explanation[1:-1].lower():
+        events.insert(0, "compare-proven-approaches")
+    return tuple(events)
+
+
 def _wrapped_exec_call_count(source: str) -> int:
     return len(re.findall(r"\btools\.exec_command\s*\(", source))
 
@@ -2131,6 +2174,7 @@ def _research_preflight_events(
                     "exec_command", {"cmd": command}, tool_result
                 )
             )
+        events.extend(_functions_exec_plan_events(source))
     lowered_name = tool_name.lower()
     if ("shaft-memory" in lowered_name or "shaft_memory" in lowered_name) and any(
         verb in lowered_name for verb in ("search", "load", "inspect")
