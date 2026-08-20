@@ -31,7 +31,8 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v7
         with:
-          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 1
       - name: Detect SHAFT version change
         id: version-diff
         shell: bash
@@ -43,6 +44,8 @@ jobs:
             echo "changed=true" >> "${GITHUB_OUTPUT}"
             exit 0
           fi
+
+          git fetch --no-tags --depth=1 origin "${BASE_SHA}"
 
           # Release-candidate infra (this workflow's own file or the composite actions
           # it depends on) must be exercised on its own PR, not only on the next real
