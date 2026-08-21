@@ -44,7 +44,7 @@ command unexamined for about twenty minutes, and supply a decision, a solved
 subproblem, or a re-spec — never a heartbeat.
 
 Treat agent lifetime as part of the assignment. Verify that the writer's
-Learning Loop before kill actually landed in a source-controlled place
+Learning Session before kill actually landed in a source-controlled place
 (Memory, a GitHub issue after duplicate search, or an explicit nothing-durable
 result). Then close every no-longer-needed agent and its descendants before
 moving to the next phase. Never use `followup_task` to reactivate a completed
@@ -75,7 +75,7 @@ missing issue or Memory as an owner-command; do not implement the leftover work.
 After every dispatch and after every subagent finishes, post or update a status
 table the owner can read without reconstructing the session. Include completed,
 in progress, planned, and out of scope rows so out of scope is not silently
-dropped. Enhance with blocker, PR/issue links, HEAD SHA, and Learning Loop
+dropped. Enhance with blocker, PR/issue links, HEAD SHA, and Learning Session
 result (`memory` / `issue` / `nothing durable`). Do not put secrets in the
 table.
 

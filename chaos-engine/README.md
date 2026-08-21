@@ -56,7 +56,7 @@ flowchart LR
     V --> A[Adversarial review]
     A --> G[Pull request and checks]
     G --> M[Confirmed merge]
-    M --> L[Learning loop]
+    M --> L[Learning Session]
 ```
 
 The canonical rules live in
@@ -130,7 +130,7 @@ entrypoint will:
 5. choose the narrowest applicable routed surface;
 6. plan and execute in verified increments;
 7. require independent review for consequential work; and
-8. report exact checks, delivery state, and the Learning Loop result.
+8. report exact checks, delivery state, and the Learning Session result.
 
 Projects select one profile after loading the portable core. A profile supplies
 repository-specific facts such as the upstream, default branch, task-branch

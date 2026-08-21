@@ -41,7 +41,7 @@ ACTIVE_GUIDANCE_PATHS = ("AGENTS.md", "CLAUDE.md", ".mcp.json", ".agents", ".cla
 # own id, instead of hoping an unbounded grammar recognises the phrasing it
 # happened to use. #4461 rejected an opt-out because it "needs nothing of the
 # author"; three rounds falsified that -- the automatic inference cost a review
-# round each time, and in #4477 it rejected the exact record the Learning-loop
+# round each time, and in #4477 it rejected the exact record the Learning Session
 # table asks an agent to write.
 
 # An id is a pointer, not an assertion, and ids are immutable here:
@@ -1105,7 +1105,7 @@ class AgentHarnessPortabilityTest(unittest.TestCase):
         *asserts* a policy is a semantic call, and it failed twice: it needed an
         unbounded abbreviation lexicon to find its sentence boundaries (#4468),
         and in #4477 a current-tense refinement of it rejected the exact record
-        the Learning-loop table asks an agent to write. Naming a retired policy
+        the Learning Session table asks an agent to write. Naming a retired policy
         is now simply naming it; whether that is legitimate is answered by
         `POLICY_RECORD_ALLOWLIST`, one reviewable line, not by a word list that
         has to guess the author's intent (#4484).
@@ -1610,7 +1610,7 @@ class AgentHarnessPortabilityTest(unittest.TestCase):
             "I read the delegate's partial output 20 minutes in and it was looping.",
             "The subagent wake cost 30 minutes of wall clock.",
             # The plainest of the lot, and the one the shipped check used to
-            # pass. It is the ordinary shape of a Learning-loop note, so it
+            # pass. It is the ordinary shape of a Learning Session note, so it
             # belongs on this list rather than deleted from the module.
             "A delegate's first pass takes about 40 min; size the wakeup accordingly.",
         ):

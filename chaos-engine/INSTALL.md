@@ -10,7 +10,7 @@
 
 ChaosEngine is a portable, provider-neutral working contract for software
 agents. It routes work through research, planning, focused playbooks, empirical
-verification, independent adversarial review, and a durable learning loop.
+verification, independent adversarial review, and a durable learning session.
 
 This page is the direct installation reference. Start with the human-facing
 [`README.md`](README.md) for the purpose, operating loop, trust boundaries, and

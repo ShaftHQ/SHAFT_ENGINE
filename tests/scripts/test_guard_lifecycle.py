@@ -23,7 +23,7 @@ from pathlib import Path
 from unittest import mock
 from unittest.mock import patch
 
-from scripts.agents import guard, learning_loop
+from scripts.agents import guard, learning_session
 
 try:
     reflection = importlib.import_module("scripts.agents.reflection")
@@ -54,7 +54,7 @@ except ModuleNotFoundError as error:
 
     reflection = _MissingReflection()
 
-LEARNING_CONTROLLER = str(Path(learning_loop.__file__))
+LEARNING_CONTROLLER = str(Path(learning_session.__file__))
 
 
 def preflight_context_bytes(context: str) -> int:
@@ -84,7 +84,7 @@ def preflight_context_bytes(context: str) -> int:
 # overlooked. `StopRuleIsolationIsCompleteTest` fails until a newly added rule
 # is named here, which is the part that prevents a third repeat.
 ISOLATED_STOP_RULES = (
-    "check_r16_learning_loop",
+    "check_r16_learning_session",
     "check_r17_unarmed_pull_request",
     "check_r18_unpushed_work",
     # R20 shells out to the sync helper, so leaving it live would make every
@@ -1283,7 +1283,7 @@ class ResearchPreflightAdvisoryStoreTest(unittest.TestCase):
 
 
 class DelegatePreflightRedTest(unittest.TestCase):
-    """#4570's missing delegate and learning-loop behavior."""
+    """#4570's missing delegate and learning-session behavior."""
 
     def test_unadapted_dispatch_is_denied_before_it_can_run(self):
         output = io.StringIO()
@@ -1298,10 +1298,10 @@ class DelegatePreflightRedTest(unittest.TestCase):
                 self.assertEqual(guard.run_pretooluse(payload), 0)
         self.assertIn("R22 blocked", output.getvalue())
 
-    def test_committed_work_without_a_learning_route_cannot_arm_auto_merge(self):
+    def test_auto_merge_does_not_start_terminal_learning(self):
         with patch("scripts.agents.guard.ledger_events", return_value=["commit"]):
             with patch("scripts.agents.guard._independent_review_count", return_value=1):
-                self.assertIsNotNone(
+                self.assertIsNone(
                     guard.check_r15_review_before_arming(
                         "gh pr merge 1 --auto --merge", "Bash", {"session_id": "red-r15"}
                     )
@@ -1336,11 +1336,11 @@ class DelegatePreflightRedTest(unittest.TestCase):
                 "session_id": "red-learning-none",
                 "cwd": directory,
             }
-            learning_loop.attest_no_learning(state, "red-learning-none", "no_new_evidence")
-            learning_loop.record_completion(
+            learning_session.attest_no_learning(state, "red-learning-none", "no_new_evidence")
+            learning_session.record_completion(
                 state, "red-learning-none", "red-none-op", "attest-none"
             )
-            with patch.object(learning_loop, "default_state_dir", return_value=state):
+            with patch.object(learning_session, "default_state_dir", return_value=state):
                 with patch(
                     "scripts.agents.guard.ledger_record",
                     side_effect=lambda _payload, event: events.append(event),
@@ -1722,17 +1722,18 @@ class GuardLifecycleTest(unittest.TestCase):
             "scripts.agents.guard.ledger_events",
             return_value=list(guard.RESEARCH_PREFLIGHT_EVENTS),
         ):
-            with patch("scripts.agents.guard.check_r19_fresh_base", return_value=None):
-                with patch(
-                    "scripts.agents.guard.check_r27_checkpoint_pull_request",
-                    return_value=None,
-                ):
+            with patch("scripts.agents.guard._reflection.pending_checkpoint", return_value=None):
+                with patch("scripts.agents.guard.check_r19_fresh_base", return_value=None):
                     with patch(
-                        "scripts.agents.guard._uncommitted_file_count",
-                        return_value=1,
+                        "scripts.agents.guard.check_r27_checkpoint_pull_request",
+                        return_value=None,
                     ):
-                        with redirect_stdout(output):
-                            guard.run_pretooluse(wrapped)
+                        with patch(
+                            "scripts.agents.guard._uncommitted_file_count",
+                            return_value=1,
+                        ):
+                            with redirect_stdout(output):
+                                guard.run_pretooluse(wrapped)
         self.assertIn("R14", output.getvalue())
         dynamic_output = io.StringIO()
         dynamic = {
@@ -1746,13 +1747,14 @@ class GuardLifecycleTest(unittest.TestCase):
             "scripts.agents.guard.ledger_events",
             return_value=list(guard.RESEARCH_PREFLIGHT_EVENTS),
         ):
-            with patch("scripts.agents.guard.check_r19_fresh_base", return_value=None):
-                with patch(
-                    "scripts.agents.guard.check_r27_checkpoint_pull_request",
-                    return_value=None,
-                ):
-                    with redirect_stdout(dynamic_output):
-                        guard.run_pretooluse(dynamic)
+            with patch("scripts.agents.guard._reflection.pending_checkpoint", return_value=None):
+                with patch("scripts.agents.guard.check_r19_fresh_base", return_value=None):
+                    with patch(
+                        "scripts.agents.guard.check_r27_checkpoint_pull_request",
+                        return_value=None,
+                    ):
+                        with redirect_stdout(dynamic_output):
+                            guard.run_pretooluse(dynamic)
         self.assertIn("cannot inspect", dynamic_output.getvalue())
         mixed_output = io.StringIO()
         mixed = {
@@ -1765,13 +1767,14 @@ class GuardLifecycleTest(unittest.TestCase):
             "scripts.agents.guard.ledger_events",
             return_value=list(guard.RESEARCH_PREFLIGHT_EVENTS),
         ):
-            with patch("scripts.agents.guard.check_r19_fresh_base", return_value=None):
-                with patch(
-                    "scripts.agents.guard.check_r27_checkpoint_pull_request",
-                    return_value=None,
-                ):
-                    with redirect_stdout(mixed_output):
-                        guard.run_pretooluse(mixed)
+            with patch("scripts.agents.guard._reflection.pending_checkpoint", return_value=None):
+                with patch("scripts.agents.guard.check_r19_fresh_base", return_value=None):
+                    with patch(
+                        "scripts.agents.guard.check_r27_checkpoint_pull_request",
+                        return_value=None,
+                    ):
+                        with redirect_stdout(mixed_output):
+                            guard.run_pretooluse(mixed)
         self.assertIn("cannot inspect", mixed_output.getvalue())
 
     def test_wrapped_functions_exec_command_maps_official_source(self):
@@ -3043,21 +3046,20 @@ class ReviewBeforeArmingGateTest(unittest.TestCase):
                     self.assertIsNotNone(reason)
                     self.assertIn("--merge", reason)
 
-    def test_arming_after_a_commit_requires_a_learning_route(self):
+    def test_arming_after_a_commit_does_not_start_terminal_learning(self):
         with patch("scripts.agents.guard._independent_review_count", return_value=1):
             with patch("scripts.agents.guard.ledger_events", return_value=["commit"]):
                 reason = guard.check_r15_review_before_arming(
                     "gh pr merge 4539 --auto --merge", "Bash", {"session_id": "s"}
                 )
-        self.assertIsNotNone(reason)
-        self.assertIn("learning", reason.lower())
+        self.assertIsNone(reason)
 
-    def test_auto_equals_true_cannot_bypass_the_learning_route(self):
+    def test_auto_equals_true_does_not_start_terminal_learning(self):
         with patch("scripts.agents.guard._independent_review_count", return_value=1):
             with patch("scripts.agents.guard.ledger_events", return_value=["commit"]):
                 for auto in ("true", "1", "t", "T"):
                     with self.subTest(auto=auto):
-                        self.assertIsNotNone(
+                        self.assertIsNone(
                             guard.check_r15_review_before_arming(
                                 f"gh pr merge 4539 --auto={auto} --merge",
                                 "Bash",
@@ -3176,8 +3178,8 @@ class ReviewBeforeArmingGateTest(unittest.TestCase):
             )
 
 
-class LearningLoopStopGateTest(unittest.TestCase):
-    """R16: the learning loop, which the entrypoint requires before reporting done.
+class LearningSessionStopGateTest(unittest.TestCase):
+    """R16: exactly one learning session after delivery, before final report.
 
     "Before reporting done, run the learned-lessons workflow: route every
     learning exactly once." It had no mechanism, and this session is the
@@ -3200,61 +3202,61 @@ class LearningLoopStopGateTest(unittest.TestCase):
     keeps that impossible.
     """
 
-    def test_committing_without_routing_a_learning_is_interrupted_once(self):
+    def test_commit_or_guard_refusal_never_starts_learning_before_delivery(self):
         with patch("scripts.agents.guard.ledger_events", return_value=["commit"]):
-            self.assertIsNotNone(guard.check_r16_learning_loop({"session_id": "s"}))
+            self.assertIsNone(guard.check_r16_learning_session({"session_id": "s"}))
+        with patch("scripts.agents.guard.ledger_events", return_value=["guard-block"]):
+            self.assertIsNone(guard.check_r16_learning_session({"session_id": "s"}))
+
+    def test_fresh_delivery_requires_one_terminal_learning_session(self):
+        events = ["commit", 'delivery:{"repository":"ShaftHQ/SHAFT_ENGINE"}']
+        with patch("scripts.agents.guard.ledger_events", return_value=events), patch(
+            "scripts.agents.guard.check_r29_delivery_complete", return_value=None
+        ):
+            reason = guard.check_r16_learning_session({"session_id": "s"})
+        self.assertIsNotNone(reason)
+        self.assertIn("Learning Session", reason)
+
+    def test_one_completion_receipt_permanently_satisfies_terminal_gate(self):
+        events = [
+            "commit",
+            'delivery:{"repository":"ShaftHQ/SHAFT_ENGINE"}',
+            "learning-session-complete:" + "a" * 64,
+        ]
+        with patch("scripts.agents.guard.ledger_events", return_value=events), patch(
+            "scripts.agents.guard.check_r29_delivery_complete", return_value=None
+        ):
+            self.assertIsNone(guard.check_r16_learning_session({"session_id": "s"}))
 
     def test_a_recorded_memory_write_satisfies_it(self):
         with patch(
             "scripts.agents.guard.ledger_events", return_value=["commit", "memory-write"]
         ):
-            self.assertIsNone(guard.check_r16_learning_loop({"session_id": "s"}))
+            self.assertIsNone(guard.check_r16_learning_session({"session_id": "s"}))
         with patch(
             "scripts.agents.guard.ledger_events",
             return_value=["commit", "learning-none:store_degraded"],
         ):
-            self.assertIsNone(guard.check_r16_learning_loop({"session_id": "s"}))
+            self.assertIsNone(guard.check_r16_learning_session({"session_id": "s"}))
 
     def test_a_created_issue_satisfies_it(self):
         with patch(
             "scripts.agents.guard.ledger_events",
             return_value=["commit", "issue-created:4995"],
         ):
-            self.assertIsNone(guard.check_r16_learning_loop({"session_id": "s"}))
+            self.assertIsNone(guard.check_r16_learning_session({"session_id": "s"}))
 
     def test_a_successful_existing_issue_reference_satisfies_it(self):
         with patch(
             "scripts.agents.guard.ledger_events",
             return_value=["commit", "learning-issue:4995"],
         ):
-            self.assertIsNone(guard.check_r16_learning_loop({"session_id": "s"}))
-
-    def test_a_guard_block_requires_a_new_issue_or_no_learning(self):
-        """A receipt or old issue update cannot replace a new actionable ticket."""
-        with patch("scripts.agents.guard.ledger_events", return_value=["guard-block"]):
-            self.assertIn("refusal", guard.check_r16_learning_loop({"session_id": "s"}))
-        with patch(
-            "scripts.agents.guard.ledger_events",
-            return_value=["guard-block", "issue-update"],
-        ):
-            reason = guard.check_r16_learning_loop({"session_id": "s"})
-            self.assertIsNotNone(reason)
-            self.assertIn("new standalone GitHub issue", reason)
-        with patch(
-            "scripts.agents.guard.ledger_events",
-            return_value=["guard-block", "issue-created:4731"],
-        ):
-            self.assertIsNone(guard.check_r16_learning_loop({"session_id": "s"}))
-        with patch(
-            "scripts.agents.guard.ledger_events",
-            return_value=["guard-block", "learning-none:nothing-recurred"],
-        ):
-            self.assertIsNone(guard.check_r16_learning_loop({"session_id": "s"}))
+            self.assertIsNone(guard.check_r16_learning_session({"session_id": "s"}))
 
     def test_a_session_that_changed_nothing_is_never_interrupted(self):
         """A read-only session owes no learning; asking would train the block away."""
         with patch("scripts.agents.guard.ledger_events", return_value=["test-run"]):
-            self.assertIsNone(guard.check_r16_learning_loop({"session_id": "s"}))
+            self.assertIsNone(guard.check_r16_learning_session({"session_id": "s"}))
 
     def test_the_second_stop_attempt_is_always_allowed(self):
         """Block once. `run_stop` returns 0 on stop_hook_active, so this cannot loop.
@@ -3273,12 +3275,12 @@ class LearningLoopStopGateTest(unittest.TestCase):
 
 
 class DelegateStopHookTest(unittest.TestCase):
-    """A committed delegate must reach R16 through the host stop event (#4570 A8)."""
+    """R16: a delegate stop cannot start the root terminal Learning Session."""
 
     def setUp(self):
-        isolate_stop_rules(self, except_for=("check_r16_learning_loop",))
+        isolate_stop_rules(self, except_for=("check_r16_learning_session",))
 
-    def test_subagent_stop_registration_reaches_r16(self):
+    def test_subagent_stop_registration_does_not_start_terminal_learning(self):
         root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
         for name in (".claude/settings.json", ".codex/hooks.json"):
             with self.subTest(host=name):
@@ -3292,7 +3294,7 @@ class DelegateStopHookTest(unittest.TestCase):
             with patch("sys.stdin", io.StringIO(payload)):
                 with redirect_stdout(output):
                     self.assertEqual(guard.main([]), 0)
-        self.assertIn("Learning loop", output.getvalue())
+        self.assertNotIn("Learning", output.getvalue())
 
 
 class LearningWriteObservationTest(unittest.TestCase):
@@ -3550,16 +3552,16 @@ class LearningNoneEscapeTest(unittest.TestCase):
                     "tool_input": {"command": command},
                 }
                 if "--reason-code no_new_evidence" in command:
-                    learning_loop.attest_no_learning(
+                    learning_session.attest_no_learning(
                         state, "learning-none-session", "no_new_evidence"
                     )
-                    learning_loop.record_completion(
+                    learning_session.record_completion(
                         state,
                         "learning-none-session",
                         "learning-none-op",
                         "attest-none",
                     )
-                with patch.object(learning_loop, "default_state_dir", return_value=state):
+                with patch.object(learning_session, "default_state_dir", return_value=state):
                     self.assertEqual(guard.run_pretooluse(payload), 0)
                     self.assertEqual(guard.run_posttooluse(payload), 0)
                 return guard.ledger_events(payload)
@@ -3806,7 +3808,7 @@ class StopReasonsAreCollectedTest(unittest.TestCase):
         return_value={"worktrees": [{"is_current": True, "state": "clean"}], "advisories": []},
     )
     def test_a_learning_and_an_unarmed_pull_request_are_reported_together(self, _report):
-        with patch("scripts.agents.guard.check_r16_learning_loop", return_value="LEARNING"):
+        with patch("scripts.agents.guard.check_r16_learning_session", return_value="LEARNING"):
             with patch(
                 "scripts.agents.guard.check_r17_unarmed_pull_request", return_value="UNARMED"
             ):
@@ -3823,7 +3825,7 @@ class StopReasonsAreCollectedTest(unittest.TestCase):
         return_value={"worktrees": [{"is_current": True, "state": "clean"}], "advisories": []},
     )
     def test_a_clean_session_still_produces_no_block(self, _report):
-        with patch("scripts.agents.guard.check_r16_learning_loop", return_value=None):
+        with patch("scripts.agents.guard.check_r16_learning_session", return_value=None):
             with patch("scripts.agents.guard.check_r17_unarmed_pull_request", return_value=None):
                 output = io.StringIO()
                 with redirect_stdout(output):
@@ -4531,7 +4533,7 @@ class StopTestsAreIndependentOfLiveStateTest(unittest.TestCase):
         "UserHarnessDriftStopGateTest",
         "UnarmedPullRequestStopGateTest",
         "UnpushedWorkStopGateTest",
-        "LearningLoopStopGateTest",
+        "LearningSessionStopGateTest",
         "RunStateStopGateTest",
         "ForeignWorktreeStopGateTest",
         "DeliveryCompleteStopGateTest",
@@ -4629,7 +4631,7 @@ class GuardTestClassesNameTheRuleTheyDefendTest(unittest.TestCase):
         directory = os.path.dirname(os.path.abspath(__file__))
         for name in self.FILES:
             path = os.path.join(directory, name)
-            tree = ast.parse(open(path, encoding="utf-8").read())
+            tree = ast.parse(Path(path).read_text(encoding="utf-8"))
             for node in tree.body:
                 if not isinstance(node, ast.ClassDef):
                     continue
@@ -4919,9 +4921,9 @@ class DispatchAdapterGateTest(unittest.TestCase):
             guard.check_r22_dispatch_adapter(payload, "collaboration.spawn_agent")
         )
 
-    def test_r22_records_the_learning_loop_arming_escape(self):
+    def test_r22_records_the_learning_session_arming_escape(self):
         source = inspect.getsource(guard.check_r22_dispatch_adapter).lower()
-        self.assertIn("learning-loop", source)
+        self.assertIn("learning-session", source)
         self.assertIn("escape", source)
 
     def test_the_recorder_is_wired_into_the_hook(self):
@@ -4936,7 +4938,7 @@ class DispatchAdapterGateTest(unittest.TestCase):
         root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
         for name in (".claude/settings.json", ".codex/hooks.json"):
             with self.subTest(host=name):
-                text = open(os.path.join(root, name), encoding="utf-8").read()
+                text = Path(root, name).read_text(encoding="utf-8")
                 self.assertIn("Task|Agent", text)
 
 class HistoricalDispatchReplayTest(unittest.TestCase):

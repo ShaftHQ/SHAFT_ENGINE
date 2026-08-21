@@ -46,11 +46,11 @@ TERMINAL_LABELS = (
     "changed assumption or approach",
     "successful proof",
     "remaining risk or follow-up",
-    "learning loop disposition",
+    "learning session disposition",
 )
 
 
-def learning_loop_reason(session_id: str, event: dict) -> str | None:
+def learning_session_reason(session_id: str, event: dict) -> str | None:
     if bool(event.get("stop_hook_active") or event.get("stopHookActive")):
         return None
     recorded = reflection.entries(session_id)
@@ -59,9 +59,9 @@ def learning_loop_reason(session_id: str, event: dict) -> str | None:
         for item in recorded
         if item.get("kind") == "task-activity"
     }
-    if "mutation-or-delivery" not in activities:
+    if "delivery-complete" not in activities:
         return None
-    if activities & {"nothing-durable", "learning-none"}:
+    if "learning-session-complete" in activities:
         return None
     if any(
         item.get("kind") == "reflection-receipt"
@@ -70,8 +70,8 @@ def learning_loop_reason(session_id: str, event: dict) -> str | None:
     ):
         return None
     return (
-        "Learning loop: this session recorded mutation or delivery and routed no learning. "
-        "Nothing durable is a valid result -- say so and end the turn."
+        "Learning Session: delivery is complete. Run exactly one terminal Learning "
+        "Session immediately before the final report."
     )
 
 
@@ -131,6 +131,31 @@ def delivery_command(command: str) -> bool:
     return arguments[0] in {"pr", "issue"} and arguments[1] in {
         "create", "edit", "merge", "comment", "review", "ready", "close", "reopen"
     }
+
+
+def terminal_delivery_command(command: str) -> bool:
+    """True only for canonical final delivery-status verification."""
+    return "delivery-status" in shell_tokens(command)
+
+
+def learning_session_finalize_command(command: str) -> bool:
+    """True only for one direct terminal Learning Session finalizer."""
+    parsed = shell_tokens(command)
+    if not parsed or any(item in {";", "&&", "||", "|", "&"} for item in parsed):
+        return False
+    head, arguments = command_head(parsed)
+    if head not in {"py", "python", "python3"}:
+        return False
+    while arguments and arguments[0] in {"-3", "-u", "-B"}:
+        arguments = arguments[1:]
+    if len(arguments) < 4:
+        return False
+    script = arguments[0].replace("\\", "/").casefold()
+    return bool(
+        script.endswith("scripts/agents/learning_session.py")
+        and arguments[1] == "finalize"
+        and "--session-id" in arguments[2:]
+    )
 
 
 def checkpoint_reason(checkpoint: dict) -> str:
@@ -332,11 +357,11 @@ def _stop_block_reason(event: dict, session_id: str) -> str:
         missing = [label for label in TERMINAL_LABELS if label not in message]
         if missing:
             return "Terminal reflection summary is missing: " + ", ".join(missing) + "."
-    loop_reason = learning_loop_reason(session_id, event)
+    loop_reason = learning_session_reason(session_id, event)
     if loop_reason:
         return loop_reason
     if not bool(event.get("stop_hook_active") or event.get("stopHookActive")):
-        return "Complete verification, independent review, delivery status, and the learning loop before stopping."
+        return "Complete verification, independent review, delivery status, and the learning session before stopping."
     return ""
 
 
@@ -449,10 +474,13 @@ def _run_event(event: dict, _host: str) -> int:
     if guard_reason:
         print(json.dumps({"decision": "block", "reason": guard_reason}))
         return 2
-    if event_name == "PostToolUse" and not receipt_command and (
-        mutation or any(delivery_command(candidate) for candidate in commands)
-    ):
-        reflection.record_activity(session_id, "mutation-or-delivery")
+    if event_name == "PostToolUse" and not receipt_command:
+        if any(learning_session_finalize_command(candidate) for candidate in commands):
+            reflection.record_activity(session_id, "learning-session-complete")
+        elif any(terminal_delivery_command(candidate) for candidate in commands):
+            reflection.record_activity(session_id, "delivery-complete")
+        elif mutation or any(delivery_command(candidate) for candidate in commands):
+            reflection.record_activity(session_id, "mutation")
     if event_name in {"Stop", "SubagentStop"}:
         stop_reason = _stop_block_reason(event, session_id)
         if stop_reason:

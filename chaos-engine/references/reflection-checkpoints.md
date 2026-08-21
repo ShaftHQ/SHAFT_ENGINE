@@ -60,4 +60,4 @@ same subcommands through `.chaos-engine/hooks/reflection.py`.
 For a terminal receipt, the final user-facing summary must label the elapsed
 estimate, main time consumer, repeated failures or corrections, changed
 assumption or approach, successful proof, remaining risk or follow-up, and
-Learning Loop disposition.
+Learning Session disposition.

@@ -105,7 +105,7 @@ not restate or override them.
 3. Plan by uncertainty, blast radius, and reversibility; test riskiest premise first; keep asking follow-ups until the plan is decision-ready. After owner approval, go unattended and dispatch a consultant agent for execution ambiguity.
 4. Act in smallest verified increment. Fix root owner of an invariant, not each symptom.
 5. Verify affected behavior empirically, including nearest plausible regression.
-6. Report outcome, exact checks, failures, and Learning Loop result.
+6. Report outcome, exact checks, failures, and Learning Session result.
 
 Consult [field heuristics](../../references/heuristics.md) only for deeper
 investigation, risk analysis, or review.
@@ -216,7 +216,7 @@ Orchestrating keeps you reachable for owner or delegate decisions. In this mode
 you make no edits, run no long job, and install nothing;
 [delegation](../../references/delegation.md) lists what stays yours, including the
 live status table, fewest-PR grouping, keep-working-until-delivered loop, and
-Learning Loop before kill.
+Learning Session before kill.
 
 **Default serial, optional parallel.** One writer at a time, ordered by
 dependency then priority. On owner request, parallelize independent writers up to
@@ -261,7 +261,7 @@ task that opened the PR:
 Follow [reflection checkpoints](../../references/reflection-checkpoints.md): no
 third repeated fix without a receipt; terminal reflection after one hour.
 
-## Learning loop
+## Learning Session
 
 Before reporting done, run the
 [learned-lessons workflow](../../references/work-github-playbook.md#learned-lessons-workflow).

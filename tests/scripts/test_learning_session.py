@@ -1,4 +1,4 @@
-"""Outcome-certified learning signals for the portable agent hook."""
+"""Outcome-certified terminal Learning Session for the portable agent hook."""
 
 from __future__ import annotations
 
@@ -7,22 +7,24 @@ import unittest
 import importlib
 import importlib.util
 import hashlib
+import io
 import json
 import os
 import subprocess  # nosec B404 - tests launch fixed interpreters with controlled fixtures.
 import sys
 import time
 from concurrent.futures import ThreadPoolExecutor
+from contextlib import redirect_stdout
 from pathlib import Path
 from unittest.mock import patch
 
 from scripts.agents import guard
 
-CONTROLLER = str(Path(guard.__file__).with_name("learning_loop.py"))
+CONTROLLER = str(Path(guard.__file__).with_name("learning_session.py"))
 
 
 class LearningWriteOutcomeTest(unittest.TestCase):
-    def test_failed_learning_write_does_not_satisfy_r16(self):
+    def test_failed_learning_write_does_not_start_terminal_session(self):
         with tempfile.TemporaryDirectory() as directory:
             payload = {
                 "session_id": "failed-memory-write",
@@ -36,7 +38,7 @@ class LearningWriteOutcomeTest(unittest.TestCase):
 
         self.assertNotIn("memory-write", events)
         with patch("scripts.agents.guard.ledger_events", return_value=["commit", *events]):
-            self.assertIsNotNone(guard.check_r16_learning_loop(payload))
+            self.assertIsNone(guard.check_r16_learning_session(payload))
 
     def test_successful_learning_write_is_certified_only_after_posttooluse(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -54,7 +56,7 @@ class LearningWriteOutcomeTest(unittest.TestCase):
                 self.assertIn("memory-write", guard.ledger_events(payload))
 
     def test_structured_signal_requires_successful_assessment(self):
-        learning_loop = importlib.import_module("scripts.agents.learning_loop")
+        learning_session = importlib.import_module("scripts.agents.learning_session")
         signal = (
             f'py -3 "{CONTROLLER}" signal '
             "--session-id s --operation-id signal-op-1 --kind user_correction "
@@ -83,8 +85,8 @@ class LearningWriteOutcomeTest(unittest.TestCase):
                 "tool_input": {"command": signal},
             }
             with patch.dict(guard.os.environ, {"TMPDIR": directory, "TEMP": directory}):
-                with patch.object(learning_loop, "default_state_dir", return_value=state):
-                    learning_loop.record_signal(
+                with patch.object(learning_session, "default_state_dir", return_value=state):
+                    learning_session.record_signal(
                         state,
                         session_id="s",
                         kind="user_correction",
@@ -93,20 +95,19 @@ class LearningWriteOutcomeTest(unittest.TestCase):
                         evidence=[{"kind": "test", "id": "red.txt", "sha256": digest}],
                         evidence_root=state,
                     )
-                    learning_loop.record_completion(
+                    learning_session.record_completion(
                         state,
                         "s",
                         "signal-op-1",
                         "signal",
-                        [learning_loop.incident_hash("r16")],
+                        [learning_session.incident_hash("r16")],
                     )
                     guard.run_posttooluse(payload)
                     events = guard.ledger_events(payload)
                     self.assertTrue(
                         any(event.startswith("learning-signal:") for event in events)
                     )
-                    self.assertIsNotNone(guard.check_r16_learning_loop(payload))
-                    learning_loop.assess(
+                    learning_session.assess(
                         state,
                         session_id="s",
                         hypothesis="x",
@@ -119,22 +120,28 @@ class LearningWriteOutcomeTest(unittest.TestCase):
                         risk_tier="ordinary",
                         tracking_issue_urls=["https://github.com/ShaftHQ/SHAFT_ENGINE/issues/4731"],
                     )
-                    learning_loop.record_completion(
+                    learning_session.record_completion(
                         state,
                         "s",
                         "assess-op-1",
                         "assess",
-                        [learning_loop.incident_hash("r16")],
+                        [learning_session.incident_hash("r16")],
                     )
                     payload["tool_input"] = {"command": assessment}
                     guard.run_posttooluse(payload)
-                    self.assertIsNotNone(guard.check_r16_learning_loop(payload))
                     guard.ledger_record(payload, "issue-created:9999")
                     guard.run_posttooluse(payload)
-                    self.assertIsNotNone(guard.check_r16_learning_loop(payload))
                     guard.ledger_record(payload, "issue-created:4731")
                     guard.run_posttooluse(payload)
-                    self.assertIsNone(guard.check_r16_learning_loop(payload))
+                    learning_session.finalize_session(state, "s")
+                    payload["tool_input"] = {
+                        "command": f'py -3 "{CONTROLLER}" finalize --session-id s'
+                    }
+                    guard.run_posttooluse(payload)
+                    events = guard.ledger_events(payload)
+                    self.assertTrue(
+                        any(event.startswith("learning-session-complete:") for event in events)
+                    )
 
     def test_free_form_legacy_no_learning_does_not_unlock_r16(self):
         command = 'py -3 scripts/agents/guard.py --learning-none "No durable learning surfaced"'
@@ -210,13 +217,13 @@ class LearningWriteOutcomeTest(unittest.TestCase):
         self.assertFalse(guard._is_learning_write_command(command))
 
     def test_help_text_cannot_create_or_assess_a_signal(self):
-        learning_loop = importlib.import_module("scripts.agents.learning_loop")
+        learning_session = importlib.import_module("scripts.agents.learning_session")
         with tempfile.TemporaryDirectory() as directory:
             state = Path(directory)
             artifact = state / "red.txt"
             artifact.write_text("red", encoding="utf-8")
             digest = hashlib.sha256(b"red").hexdigest()
-            learning_loop.record_signal(
+            learning_session.record_signal(
                 state,
                 session_id="help-bypass",
                 kind="user_correction",
@@ -225,7 +232,7 @@ class LearningWriteOutcomeTest(unittest.TestCase):
                 evidence=[{"kind": "test", "id": "red.txt", "sha256": digest}],
                 evidence_root=state,
             )
-            learning_loop.assess(
+            learning_session.assess(
                 state,
                 session_id="help-bypass",
                 hypothesis="old",
@@ -246,10 +253,10 @@ class LearningWriteOutcomeTest(unittest.TestCase):
                     "command": f'py -3 "{CONTROLLER}" assess '
                     "--session-id help-bypass --operation-id stale-help --help"
                 },
-                "tool_response": "usage: learning_loop.py",
+                "tool_response": "usage: learning_session.py",
             }
             with patch.dict(guard.os.environ, {"TMPDIR": directory, "TEMP": directory}):
-                with patch.object(learning_loop, "default_state_dir", return_value=state):
+                with patch.object(learning_session, "default_state_dir", return_value=state):
                     guard.ledger_record(payload, "issue-created:4731")
                     guard.run_posttooluse(payload)
                     self.assertFalse(
@@ -260,13 +267,13 @@ class LearningWriteOutcomeTest(unittest.TestCase):
                     )
 
     def test_wrapped_controller_command_cannot_replay_a_completion(self):
-        learning_loop = importlib.import_module("scripts.agents.learning_loop")
+        learning_session = importlib.import_module("scripts.agents.learning_session")
         with tempfile.TemporaryDirectory() as directory:
             state = Path(directory)
             artifact = state / "red.txt"
             artifact.write_text("red", encoding="utf-8")
             digest = hashlib.sha256(b"red").hexdigest()
-            receipt = learning_loop.record_signal(
+            receipt = learning_session.record_signal(
                 state,
                 session_id="wrapped-controller",
                 kind="user_correction",
@@ -275,7 +282,7 @@ class LearningWriteOutcomeTest(unittest.TestCase):
                 evidence=[{"kind": "test", "id": "red.txt", "sha256": digest}],
                 evidence_root=state,
             )
-            learning_loop.record_completion(
+            learning_session.record_completion(
                 state,
                 "wrapped-controller",
                 "wrapped-op",
@@ -293,7 +300,7 @@ class LearningWriteOutcomeTest(unittest.TestCase):
                 "tool_response": "exit 0",
             }
             with patch.dict(guard.os.environ, {"TMPDIR": directory, "TEMP": directory}):
-                with patch.object(learning_loop, "default_state_dir", return_value=state):
+                with patch.object(learning_session, "default_state_dir", return_value=state):
                     guard.run_posttooluse(payload)
                     self.assertFalse(
                         any(
@@ -310,7 +317,7 @@ class LearningWriteOutcomeTest(unittest.TestCase):
                 "--session-id inert-controller --operation-id inert-op"},
             "tool_response": "exit 0",
         }
-        with patch("scripts.agents.guard._learning_loop.load_completion") as completion:
+        with patch("scripts.agents.guard._learning_session.load_completion") as completion:
             completion.return_value = {
                 "operation": "assess", "incident_hashes": ["a" * 64], "reason_code": None
             }
@@ -318,26 +325,26 @@ class LearningWriteOutcomeTest(unittest.TestCase):
         self.assertFalse(completion.called)
 
     def test_quoted_separator_inside_argument_keeps_controller_credit(self):
-        learning_loop = importlib.import_module("scripts.agents.learning_loop")
+        learning_session = importlib.import_module("scripts.agents.learning_session")
         with tempfile.TemporaryDirectory() as directory:
             state = Path(directory)
             artifact = state / "red.txt"
             artifact.write_text("red", encoding="utf-8")
             digest = hashlib.sha256(b"red").hexdigest()
-            learning_loop.record_signal(
+            learning_session.record_signal(
                 state, session_id="quoted-separator", kind="user_correction",
                 incident_id="quoted", origin="user",
                 evidence=[{"kind": "test", "id": "red.txt", "sha256": digest}],
                 evidence_root=state,
             )
-            candidates = learning_loop.assess(
+            candidates = learning_session.assess(
                 state, session_id="quoted-separator", hypothesis="quoted argument",
                 owner="scripts/agents/guard.py", baseline_ref="e" * 40,
                 allowed_paths=["scripts/agents/guard.py"], red_command="red; then green",
                 success_predicates=["fixed"], invariants=["safe"], risk_tier="ordinary",
                 tracking_issue_urls=["https://github.com/ShaftHQ/SHAFT_ENGINE/issues/4731"],
             )
-            learning_loop.record_completion(
+            learning_session.record_completion(
                 state, "quoted-separator", "quoted-op", "assess",
                 [item["incident_hash"] for item in candidates],
             )
@@ -350,7 +357,7 @@ class LearningWriteOutcomeTest(unittest.TestCase):
                 "tool_response": "exit 0",
             }
             with patch.dict(guard.os.environ, {"TMPDIR": directory, "TEMP": directory}):
-                with patch.object(learning_loop, "default_state_dir", return_value=state):
+                with patch.object(learning_session, "default_state_dir", return_value=state):
                     guard.ledger_record(payload, "issue-created:4731")
                     guard.run_posttooluse(payload)
                     observed = guard.ledger_events(payload)
@@ -359,25 +366,27 @@ class LearningWriteOutcomeTest(unittest.TestCase):
                         observed,
                     )
 
-    def test_each_signal_requires_a_later_incident_bound_assessment(self):
+    def test_unfinalized_delivery_requires_terminal_session_completion(self):
         with patch(
             "scripts.agents.guard.ledger_events",
             return_value=[
+                "commit",
+                'delivery:{"repository":"ShaftHQ/SHAFT_ENGINE"}',
                 "learning-signal:first",
                 "learning-assessed:first",
                 "learning-signal:second",
             ],
-        ):
-            self.assertIsNotNone(guard.check_r16_learning_loop({"session_id": "s"}))
+        ), patch("scripts.agents.guard.check_r29_delivery_complete", return_value=None):
+            self.assertIsNotNone(guard.check_r16_learning_session({"session_id": "s"}))
 
 
 class StructuredLearningReceiptTest(unittest.TestCase):
     def controller(self):
         self.assertIsNotNone(
-            importlib.util.find_spec("scripts.agents.learning_loop"),
+            importlib.util.find_spec("scripts.agents.learning_session"),
             "structured learning controller is missing",
         )
-        return importlib.import_module("scripts.agents.learning_loop")
+        return importlib.import_module("scripts.agents.learning_session")
 
     @staticmethod
     def evidence(root: Path, name: str, contents: str, kind: str = "test") -> list[dict]:
@@ -392,11 +401,11 @@ class StructuredLearningReceiptTest(unittest.TestCase):
         ]
 
     def test_signal_is_redacted_hashed_and_deduplicated_by_incident(self):
-        learning_loop = self.controller()
+        learning_session = self.controller()
         with tempfile.TemporaryDirectory() as directory:
             state = Path(directory)
             evidence = self.evidence(state, "red.txt", "expected assertion failure")
-            receipt = learning_loop.record_signal(
+            receipt = learning_session.record_signal(
                 state,
                 session_id="session-secret",
                 kind="user_correction",
@@ -406,7 +415,7 @@ class StructuredLearningReceiptTest(unittest.TestCase):
                 evidence_root=state,
                 task_ref="#4721",
             )
-            duplicate = learning_loop.record_signal(
+            duplicate = learning_session.record_signal(
                 state,
                 session_id="session-secret",
                 kind="user_correction",
@@ -416,7 +425,7 @@ class StructuredLearningReceiptTest(unittest.TestCase):
                 evidence_root=state,
                 task_ref="#4721",
             )
-            stored = learning_loop.load_receipts(state, "session-secret")
+            stored = learning_session.load_receipts(state, "session-secret")
 
         self.assertNotIn("session-secret", str(receipt))
         self.assertNotIn("wrong-r16-credit", str(receipt))
@@ -426,11 +435,11 @@ class StructuredLearningReceiptTest(unittest.TestCase):
         self.assertEqual([receipt], stored)
 
     def test_assessment_creates_one_quarantined_candidate_per_incident(self):
-        learning_loop = self.controller()
+        learning_session = self.controller()
         with tempfile.TemporaryDirectory() as directory:
             state = Path(directory)
             evidence = self.evidence(state, "red.txt", "failure")
-            learning_loop.record_signal(
+            learning_session.record_signal(
                 state,
                 session_id="s",
                 kind="test_failure",
@@ -439,7 +448,7 @@ class StructuredLearningReceiptTest(unittest.TestCase):
                 evidence=evidence,
                 evidence_root=state,
             )
-            candidates = learning_loop.assess(
+            candidates = learning_session.assess(
                 state,
                 session_id="s",
                 hypothesis="Successful tool outcomes must be required for learning credit.",
@@ -459,11 +468,11 @@ class StructuredLearningReceiptTest(unittest.TestCase):
         self.assertNotIn("Successful tool outcomes", str(candidates[0]))
 
     def test_no_learning_attestation_fails_when_a_signal_exists(self):
-        learning_loop = self.controller()
+        learning_session = self.controller()
         with tempfile.TemporaryDirectory() as directory:
             state = Path(directory)
             evidence = self.evidence(state, "guard.txt", "R11 refused")
-            learning_loop.record_signal(
+            learning_session.record_signal(
                 state,
                 session_id="s",
                 kind="guard_block",
@@ -473,22 +482,22 @@ class StructuredLearningReceiptTest(unittest.TestCase):
                 evidence_root=state,
             )
             with self.assertRaisesRegex(ValueError, "meaningful signals"):
-                learning_loop.attest_no_learning(state, "s", "no_new_evidence")
+                learning_session.attest_no_learning(state, "s", "no_new_evidence")
 
     def test_degraded_store_is_an_explicit_non_blocking_disposition(self):
-        learning_loop = self.controller()
+        learning_session = self.controller()
         with tempfile.TemporaryDirectory() as directory:
             state = Path(directory)
-            result = learning_loop.attest_no_learning(state, "s", "store_degraded")
+            result = learning_session.attest_no_learning(state, "s", "store_degraded")
             self.assertEqual("store_degraded", result["reason_code"])
 
     def test_new_signal_invalidates_a_prior_no_learning_attestation(self):
-        learning_loop = self.controller()
+        learning_session = self.controller()
         with tempfile.TemporaryDirectory() as directory:
             state = Path(directory)
-            learning_loop.attest_no_learning(state, "s", "no_new_evidence")
+            learning_session.attest_no_learning(state, "s", "no_new_evidence")
             evidence = self.evidence(state, "event.txt", "later signal")
-            learning_loop.record_signal(
+            learning_session.record_signal(
                 state,
                 session_id="s",
                 kind="user_correction",
@@ -497,10 +506,10 @@ class StructuredLearningReceiptTest(unittest.TestCase):
                 evidence=evidence,
                 evidence_root=state,
             )
-            self.assertIsNone(learning_loop.load_attestation(state, "s"))
+            self.assertIsNone(learning_session.load_attestation(state, "s"))
 
     def test_receipt_loader_rejects_tampering_and_incomplete_objects(self):
-        learning_loop = self.controller()
+        learning_session = self.controller()
         with tempfile.TemporaryDirectory() as directory:
             state = Path(directory)
             session_hash = hashlib.sha256(b"s").hexdigest()
@@ -510,13 +519,13 @@ class StructuredLearningReceiptTest(unittest.TestCase):
                 json.dumps({"receipt_id": "forged", "incident_hash": "invented"}) + "\n",
                 encoding="utf-8",
             )
-            self.assertEqual(learning_loop.load_receipts(state, "s"), [])
+            self.assertEqual(learning_session.load_receipts(state, "s"), [])
 
     def test_receipt_loader_rejects_creator_invalid_kind_and_timestamp(self):
-        learning_loop = self.controller()
+        learning_session = self.controller()
         with tempfile.TemporaryDirectory() as directory:
             state = Path(directory)
-            receipt = learning_loop.record_signal(
+            receipt = learning_session.record_signal(
                 state, session_id="s", kind="tool_failure",
                 incident_id="invalid-persisted-receipt", origin="tool",
                 evidence=self.evidence(state, "event.txt", "event"), evidence_root=state,
@@ -533,13 +542,13 @@ class StructuredLearningReceiptTest(unittest.TestCase):
             next((state / "receipts").glob("*.jsonl")).write_text(
                 json.dumps(receipt) + "\n", encoding="utf-8"
             )
-            self.assertEqual(learning_loop.load_receipts(state, "s"), [])
+            self.assertEqual(learning_session.load_receipts(state, "s"), [])
 
     def test_receipt_loader_rejects_non_utc_timestamp(self):
-        learning_loop = self.controller()
+        learning_session = self.controller()
         with tempfile.TemporaryDirectory() as directory:
             state = Path(directory)
-            receipt = learning_loop.record_signal(
+            receipt = learning_session.record_signal(
                 state, session_id="s", kind="tool_failure", incident_id="non-utc",
                 origin="tool", evidence=self.evidence(state, "event.txt", "event"),
                 evidence_root=state,
@@ -548,16 +557,16 @@ class StructuredLearningReceiptTest(unittest.TestCase):
             next((state / "receipts").glob("*.jsonl")).write_text(
                 json.dumps(receipt) + "\n", encoding="utf-8"
             )
-            self.assertEqual(learning_loop.load_receipts(state, "s"), [])
+            self.assertEqual(learning_session.load_receipts(state, "s"), [])
 
     def test_evidence_digest_is_recomputed_before_a_signal_is_recorded(self):
-        learning_loop = self.controller()
+        learning_session = self.controller()
         with tempfile.TemporaryDirectory() as directory:
             state = Path(directory)
             evidence = self.evidence(state, "actual.txt", "actual")
             evidence[0]["sha256"] = "f" * 64
             with self.assertRaisesRegex(ValueError, "digest"):
-                learning_loop.record_signal(
+                learning_session.record_signal(
                     state,
                     session_id="s",
                     kind="tool_failure",
@@ -568,13 +577,13 @@ class StructuredLearningReceiptTest(unittest.TestCase):
                 )
 
     def test_whitespace_and_concurrent_duplicates_create_one_receipt(self):
-        learning_loop = self.controller()
+        learning_session = self.controller()
         with tempfile.TemporaryDirectory() as directory:
             state = Path(directory)
             evidence = self.evidence(state, "event.txt", "one incident")
 
             def record(incident: str):
-                return learning_loop.record_signal(
+                return learning_session.record_signal(
                     state,
                     session_id="s",
                     kind="review_finding",
@@ -586,7 +595,7 @@ class StructuredLearningReceiptTest(unittest.TestCase):
 
             with ThreadPoolExecutor(max_workers=4) as executor:
                 list(executor.map(record, ["incident", " incident ", "incident", " incident "]))
-            stored = learning_loop.load_receipts(state, "s")
+            stored = learning_session.load_receipts(state, "s")
             lines = next((state / "receipts").glob("*.jsonl")).read_text(
                 encoding="utf-8"
             ).splitlines()
@@ -594,14 +603,14 @@ class StructuredLearningReceiptTest(unittest.TestCase):
         self.assertEqual(len(lines), 1)
 
     def test_multiprocess_duplicates_all_succeed_and_create_one_receipt(self):
-        learning_loop = self.controller()
+        learning_session = self.controller()
         with tempfile.TemporaryDirectory() as directory:
             state = Path(directory) / "state"
             evidence_root = Path(directory) / "source"
             evidence_root.mkdir()
             evidence = self.evidence(evidence_root, "event.txt", "same incident")
             code = (
-                "from pathlib import Path; from scripts.agents.learning_loop import record_signal; "
+                "from pathlib import Path; from scripts.agents.learning_session import record_signal; "
                 "import sys; record_signal(Path(sys.argv[1]), session_id='s', "
                 "kind='tool_failure', incident_id='same', origin='tool', "
                 "evidence=[{'kind':'test','id':'event.txt','sha256':sys.argv[3]}], "
@@ -617,16 +626,16 @@ class StructuredLearningReceiptTest(unittest.TestCase):
             ]
             results = [process.communicate(timeout=10) + (process.returncode,) for process in processes]
             self.assertEqual([result[2] for result in results], [0] * 6, results)
-            self.assertEqual(len(learning_loop.load_receipts(state, "s")), 1)
+            self.assertEqual(len(learning_session.load_receipts(state, "s")), 1)
 
     def test_candidate_identity_covers_the_complete_spec(self):
-        learning_loop = self.controller()
+        learning_session = self.controller()
         candidates = []
         for risk_tier in ("ordinary", "kernel"):
             with tempfile.TemporaryDirectory() as directory:
                 state = Path(directory)
                 evidence = self.evidence(state, "red.txt", "failure")
-                learning_loop.record_signal(
+                learning_session.record_signal(
                     state,
                     session_id="s",
                     kind="test_failure",
@@ -635,7 +644,7 @@ class StructuredLearningReceiptTest(unittest.TestCase):
                     evidence=evidence,
                     evidence_root=state,
                 )
-                candidates.append(learning_loop.assess(
+                candidates.append(learning_session.assess(
                     state, session_id="s", hypothesis="Fix it.",
                     owner="scripts/agents/guard.py", baseline_ref="e" * 40,
                     allowed_paths=["scripts/agents/guard.py"],
@@ -652,10 +661,10 @@ class StructuredLearningReceiptTest(unittest.TestCase):
         self.assertNotIn("RAW_INVARIANT_SECRET", str(ordinary))
 
     def test_assessment_requires_one_standalone_tracking_issue_per_incident(self):
-        learning_loop = self.controller()
+        learning_session = self.controller()
         with tempfile.TemporaryDirectory() as directory:
             state = Path(directory)
-            learning_loop.record_signal(
+            learning_session.record_signal(
                 state,
                 session_id="s",
                 kind="user_correction",
@@ -665,7 +674,7 @@ class StructuredLearningReceiptTest(unittest.TestCase):
                 evidence_root=state,
             )
             with self.assertRaisesRegex(ValueError, "tracking issue"):
-                learning_loop.assess(
+                learning_session.assess(
                     state,
                     session_id="s",
                     hypothesis="Fix it.",
@@ -679,11 +688,11 @@ class StructuredLearningReceiptTest(unittest.TestCase):
                 )
 
     def test_assessment_binds_distinct_canonical_issues_and_rejects_tampering(self):
-        learning_loop = self.controller()
+        learning_session = self.controller()
         with tempfile.TemporaryDirectory() as directory:
             state = Path(directory)
             for incident, filename in (("first-action", "first.txt"), ("second-action", "second.txt")):
-                learning_loop.record_signal(
+                learning_session.record_signal(
                     state,
                     session_id="s",
                     kind="review_finding",
@@ -705,14 +714,14 @@ class StructuredLearningReceiptTest(unittest.TestCase):
             )
             issue = "https://github.com/ShaftHQ/SHAFT_ENGINE/issues/4731"
             with self.assertRaisesRegex(ValueError, "distinct tracking issue"):
-                learning_loop.assess(state, tracking_issue_urls=[issue, issue], **common)
+                learning_session.assess(state, tracking_issue_urls=[issue, issue], **common)
             with self.assertRaisesRegex(ValueError, "tracking issue URLs"):
-                learning_loop.assess(
+                learning_session.assess(
                     state,
                     tracking_issue_urls=[issue, "https://github.com/ShaftHQ/other/issues/9"],
                     **common,
                 )
-            candidates = learning_loop.assess(
+            candidates = learning_session.assess(
                 state,
                 tracking_issue_urls=[
                     issue,
@@ -731,10 +740,10 @@ class StructuredLearningReceiptTest(unittest.TestCase):
             tampered = json.loads(candidate_path.read_text(encoding="utf-8"))
             tampered["tracking_issue_url"] = "https://github.com/ShaftHQ/SHAFT_ENGINE/issues/9999"
             candidate_path.write_text(json.dumps(tampered), encoding="utf-8")
-            self.assertEqual(len(learning_loop.load_candidates(state)), 1)
+            self.assertEqual(len(learning_session.load_candidates(state)), 1)
 
     def test_tracking_issue_mapping_is_global_and_cannot_be_rebound(self):
-        learning_loop = self.controller()
+        learning_session = self.controller()
         with tempfile.TemporaryDirectory() as directory:
             state = Path(directory)
             common = dict(
@@ -747,21 +756,21 @@ class StructuredLearningReceiptTest(unittest.TestCase):
                 ("first-session", "first-action", "first.txt"),
                 ("second-session", "second-action", "second.txt"),
             ):
-                learning_loop.record_signal(
+                learning_session.record_signal(
                     state, session_id=session, kind="review_finding", incident_id=incident,
                     origin="reviewer", evidence=self.evidence(state, filename, incident),
                     evidence_root=state,
                 )
             first_issue = "https://github.com/ShaftHQ/SHAFT_ENGINE/issues/4731"
-            learning_loop.assess(
+            learning_session.assess(
                 state, session_id="first-session", tracking_issue_urls=[first_issue], **common
             )
             with self.assertRaisesRegex(ValueError, "tracking issue already belongs"):
-                learning_loop.assess(
+                learning_session.assess(
                     state, session_id="second-session", tracking_issue_urls=[first_issue], **common
                 )
             with self.assertRaisesRegex(ValueError, "incident already bound"):
-                learning_loop.assess(
+                learning_session.assess(
                     state,
                     session_id="first-session",
                     tracking_issue_urls=["https://github.com/ShaftHQ/SHAFT_ENGINE/issues/4732"],
@@ -769,7 +778,7 @@ class StructuredLearningReceiptTest(unittest.TestCase):
                 )
 
     def test_concurrent_sessions_cannot_claim_the_same_tracking_issue(self):
-        learning_loop = self.controller()
+        learning_session = self.controller()
         with tempfile.TemporaryDirectory() as directory:
             state = Path(directory) / "state"
             state.mkdir()
@@ -777,7 +786,7 @@ class StructuredLearningReceiptTest(unittest.TestCase):
                 ("first-session", "first-action", "first.txt"),
                 ("second-session", "second-action", "second.txt"),
             ):
-                learning_loop.record_signal(
+                learning_session.record_signal(
                     state, session_id=session, kind="review_finding", incident_id=incident,
                     origin="reviewer", evidence=self.evidence(state, filename, incident),
                     evidence_root=state,
@@ -794,7 +803,7 @@ class StructuredLearningReceiptTest(unittest.TestCase):
             )
             holder_code = (
                 "from pathlib import Path; from contextlib import contextmanager; "
-                "import sys,time; import scripts.agents.learning_loop as ll; "
+                "import sys,time; import scripts.agents.learning_session as ll; "
                 "real=ll._state_lock; "
                 "exec(\"@contextmanager\\ndef held(state,name):\\n with real(state,name):\\n  "
                 "Path(sys.argv[3]).write_text('yes')\\n  while not Path(sys.argv[4]).exists(): "
@@ -803,7 +812,7 @@ class StructuredLearningReceiptTest(unittest.TestCase):
             )
             contender_code = (
                 "from pathlib import Path; from contextlib import contextmanager; "
-                "import sys; import scripts.agents.learning_loop as ll; real=ll._state_lock; "
+                "import sys; import scripts.agents.learning_session as ll; real=ll._state_lock; "
                 "exec(\"@contextmanager\\ndef observed(state,name):\\n "
                 "Path(sys.argv[3]).write_text('yes')\\n with real(state,name):\\n  yield\"); "
                 "ll._state_lock=observed; "
@@ -851,18 +860,18 @@ class StructuredLearningReceiptTest(unittest.TestCase):
                 any("tracking issue already belongs" in result[1] for result in results),
                 results,
             )
-            self.assertEqual(len(learning_loop.load_candidates(state)), 1)
+            self.assertEqual(len(learning_session.load_candidates(state)), 1)
 
     def test_candidate_loader_rejects_schema_v1_without_other_corruption(self):
-        learning_loop = self.controller()
+        learning_session = self.controller()
         with tempfile.TemporaryDirectory() as directory:
             state = Path(directory)
-            learning_loop.record_signal(
+            learning_session.record_signal(
                 state, session_id="s", kind="tool_failure", incident_id="old-schema",
                 origin="tool", evidence=self.evidence(state, "event.txt", "event"),
                 evidence_root=state,
             )
-            learning_loop.assess(
+            learning_session.assess(
                 state, session_id="s", hypothesis="valid", owner="scripts/agents/guard.py",
                 baseline_ref="e" * 40, allowed_paths=["scripts/agents/guard.py"],
                 red_command="red", success_predicates=["fixed"], invariants=["safe"],
@@ -873,18 +882,18 @@ class StructuredLearningReceiptTest(unittest.TestCase):
             candidate = json.loads(candidate_path.read_text(encoding="utf-8"))
             candidate["schema_version"] = 1
             candidate_path.write_text(json.dumps(candidate), encoding="utf-8")
-            self.assertEqual(learning_loop.load_candidates(state), [])
+            self.assertEqual(learning_session.load_candidates(state), [])
 
     def test_candidate_loader_rejects_creator_invalid_field_shapes(self):
-        learning_loop = self.controller()
+        learning_session = self.controller()
         with tempfile.TemporaryDirectory() as directory:
             state = Path(directory)
-            learning_loop.record_signal(
+            learning_session.record_signal(
                 state, session_id="s", kind="tool_failure", incident_id="invalid-candidate",
                 origin="tool", evidence=self.evidence(state, "event.txt", "event"),
                 evidence_root=state,
             )
-            candidate = learning_loop.assess(
+            candidate = learning_session.assess(
                 state, session_id="s", hypothesis="valid first",
                 owner="scripts/agents/guard.py", baseline_ref="e" * 40,
                 allowed_paths=["scripts/agents/guard.py"], red_command="red",
@@ -906,17 +915,17 @@ class StructuredLearningReceiptTest(unittest.TestCase):
             next((state / "candidates").glob("*.json")).write_text(
                 json.dumps(candidate), encoding="utf-8"
             )
-            self.assertEqual(learning_loop.load_candidates(state), [])
+            self.assertEqual(learning_session.load_candidates(state), [])
 
     def test_unbounded_evidence_kind_is_rejected(self):
-        learning_loop = self.controller()
+        learning_session = self.controller()
         with tempfile.TemporaryDirectory() as directory:
             state = Path(directory)
             evidence = self.evidence(
                 state, "event.txt", "event", kind="RAW_TRANSCRIPT_PASSWORD=hunter2"  # nosec B105 - redaction sentinel, not a credential.
             )
             with self.assertRaisesRegex(ValueError, "evidence kind"):
-                learning_loop.record_signal(
+                learning_session.record_signal(
                     state,
                     session_id="s",
                     kind="tool_failure",
@@ -927,11 +936,11 @@ class StructuredLearningReceiptTest(unittest.TestCase):
                 )
 
     def test_receipt_is_invalid_when_content_addressed_evidence_disappears(self):
-        learning_loop = self.controller()
+        learning_session = self.controller()
         with tempfile.TemporaryDirectory() as directory:
             state = Path(directory)
             evidence = self.evidence(state, "event.txt", "event")
-            learning_loop.record_signal(
+            learning_session.record_signal(
                 state,
                 session_id="s",
                 kind="tool_failure",
@@ -942,17 +951,17 @@ class StructuredLearningReceiptTest(unittest.TestCase):
             )
             for artifact in (state / "evidence").iterdir():
                 artifact.unlink()
-            self.assertEqual(learning_loop.load_receipts(state, "s"), [])
+            self.assertEqual(learning_session.load_receipts(state, "s"), [])
 
     def test_runtime_state_never_persists_raw_evidence_bytes(self):
-        learning_loop = self.controller()
+        learning_session = self.controller()
         secret = "RAW_TRANSCRIPT_PASSWORD=hunter2"  # nosec B105 - redaction sentinel, not a credential.
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             state = root / "state"
             evidence_root = root / "source"
             evidence_root.mkdir()
-            learning_loop.record_signal(
+            learning_session.record_signal(
                 state, session_id="s", kind="tool_failure", incident_id="redacted-bytes",
                 origin="tool",
                 evidence=self.evidence(evidence_root, "trace.txt", secret, kind="trace"),
@@ -966,10 +975,10 @@ class StructuredLearningReceiptTest(unittest.TestCase):
             self.assertNotIn(secret, persisted)
 
     def test_receipt_binds_the_redacted_evidence_proof_length(self):
-        learning_loop = self.controller()
+        learning_session = self.controller()
         with tempfile.TemporaryDirectory() as directory:
             state = Path(directory)
-            learning_loop.record_signal(
+            learning_session.record_signal(
                 state, session_id="s", kind="tool_failure", incident_id="proof-length",
                 origin="tool", evidence=self.evidence(state, "event.txt", "abc"),
                 evidence_root=state,
@@ -978,10 +987,10 @@ class StructuredLearningReceiptTest(unittest.TestCase):
             proof = json.loads(proof_path.read_text(encoding="utf-8"))
             proof["byte_length"] = 999999
             proof_path.write_text(json.dumps(proof), encoding="utf-8")
-            self.assertEqual(learning_loop.load_receipts(state, "s"), [])
+            self.assertEqual(learning_session.load_receipts(state, "s"), [])
 
     def test_incomplete_forged_attestation_is_rejected(self):
-        learning_loop = self.controller()
+        learning_session = self.controller()
         with tempfile.TemporaryDirectory() as directory:
             state = Path(directory)
             session_hash = hashlib.sha256(b"s").hexdigest()
@@ -1001,14 +1010,14 @@ class StructuredLearningReceiptTest(unittest.TestCase):
                 ),
                 encoding="utf-8",
             )
-            self.assertIsNone(learning_loop.load_attestation(state, "s"))
+            self.assertIsNone(learning_session.load_attestation(state, "s"))
 
     def test_non_utc_attestation_and_completion_timestamps_are_rejected(self):
-        learning_loop = self.controller()
+        learning_session = self.controller()
         with tempfile.TemporaryDirectory() as directory:
             state = Path(directory)
-            learning_loop.attest_no_learning(state, "s", "no_new_evidence")
-            learning_loop.record_completion(state, "s", "timestamp-op", "attest-none")
+            learning_session.attest_no_learning(state, "s", "no_new_evidence")
+            learning_session.record_completion(state, "s", "timestamp-op", "attest-none")
             attestation_path = next((state / "attestations").glob("*.json"))
             attestation = json.loads(attestation_path.read_text(encoding="utf-8"))
             attestation["assessed_at"] = "2026-08-11T10:00:00+02:00"
@@ -1017,15 +1026,15 @@ class StructuredLearningReceiptTest(unittest.TestCase):
             completion = json.loads(completion_path.read_text(encoding="utf-8"))
             completion["completed_at"] = "forged-but-string"
             completion_path.write_text(json.dumps(completion), encoding="utf-8")
-            self.assertIsNone(learning_loop.load_attestation(state, "s"))
-            self.assertIsNone(learning_loop.load_completion(state, "s", "timestamp-op"))
+            self.assertIsNone(learning_session.load_attestation(state, "s"))
+            self.assertIsNone(learning_session.load_completion(state, "s", "timestamp-op"))
 
     def test_abandoned_lock_is_recovered(self):
-        learning_loop = self.controller()
+        learning_session = self.controller()
         with tempfile.TemporaryDirectory() as directory:
             state = Path(directory)
             evidence = self.evidence(state, "event.txt", "event")
-            learning_loop.record_signal(
+            learning_session.record_signal(
                 state,
                 session_id="s",
                 kind="tool_failure",
@@ -1038,7 +1047,7 @@ class StructuredLearningReceiptTest(unittest.TestCase):
             (state / f".candidate-{session_hash}.lock").write_text(
                 "not-a-pid", encoding="ascii"
             )
-            candidates = learning_loop.assess(
+            candidates = learning_session.assess(
                 state,
                 session_id="s",
                 hypothesis="recover",
@@ -1054,7 +1063,7 @@ class StructuredLearningReceiptTest(unittest.TestCase):
         self.assertEqual(len(candidates), 1)
 
     def test_hard_linked_lock_file_cannot_mutate_outside_state(self):
-        learning_loop = self.controller()
+        learning_session = self.controller()
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             state = root / "state"
@@ -1067,12 +1076,12 @@ class StructuredLearningReceiptTest(unittest.TestCase):
             except OSError as error:
                 self.skipTest(f"hard links are unavailable: {error}")
             with self.assertRaisesRegex(ValueError, "lock.*link|hard link"):
-                with learning_loop._state_lock(state, "demo"):
+                with learning_session._state_lock(state, "demo"):
                     pass
             self.assertEqual(outside.read_bytes(), b"")
 
     def test_symlinked_lock_file_cannot_mutate_outside_state(self):
-        learning_loop = self.controller()
+        learning_session = self.controller()
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             state = root / "state"
@@ -1085,25 +1094,25 @@ class StructuredLearningReceiptTest(unittest.TestCase):
             except OSError as error:
                 self.skipTest(f"file links are unavailable: {error}")
             with self.assertRaisesRegex(ValueError, "lock.*link|reparse"):
-                with learning_loop._state_lock(state, "demo"):
+                with learning_session._state_lock(state, "demo"):
                     pass
             self.assertEqual(outside.read_bytes(), b"")
 
     def test_lock_handle_closes_when_identity_stat_fails(self):
-        learning_loop = self.controller()
+        learning_session = self.controller()
         with tempfile.TemporaryDirectory() as directory:
             handle = unittest.mock.MagicMock()
             handle.fileno.return_value = 123
-            with patch.object(learning_loop.os, "open", return_value=123):
-                with patch.object(learning_loop.os, "fdopen", return_value=handle):
-                    with patch.object(learning_loop.os, "fstat", side_effect=OSError("stat failed")):
+            with patch.object(learning_session.os, "open", return_value=123):
+                with patch.object(learning_session.os, "fdopen", return_value=handle):
+                    with patch.object(learning_session.os, "fstat", side_effect=OSError("stat failed")):
                         with self.assertRaises(OSError):
-                            with learning_loop._state_lock(Path(directory), "demo"):
+                            with learning_session._state_lock(Path(directory), "demo"):
                                 pass
             handle.close.assert_called_once_with()
 
     def test_state_subdirectory_link_cannot_escape_the_runtime_root(self):
-        learning_loop = self.controller()
+        learning_session = self.controller()
         with tempfile.TemporaryDirectory() as directory, tempfile.TemporaryDirectory() as outside:
             state = Path(directory)
             link = state / "receipts"
@@ -1113,7 +1122,7 @@ class StructuredLearningReceiptTest(unittest.TestCase):
                 self.skipTest(f"directory links are unavailable: {error}")
             evidence = self.evidence(state, "event.txt", "contained")
             with self.assertRaisesRegex(ValueError, "escapes runtime root|link/reparse"):
-                learning_loop.record_signal(
+                learning_session.record_signal(
                     state,
                     session_id="s",
                     kind="tool_failure",
@@ -1124,7 +1133,7 @@ class StructuredLearningReceiptTest(unittest.TestCase):
                 )
 
     def test_state_root_link_cannot_redirect_runtime_writes(self):
-        learning_loop = self.controller()
+        learning_session = self.controller()
         with tempfile.TemporaryDirectory() as parent, tempfile.TemporaryDirectory() as outside:
             state = Path(parent) / "state"
             try:
@@ -1134,7 +1143,7 @@ class StructuredLearningReceiptTest(unittest.TestCase):
             evidence_root = Path(parent)
             evidence = self.evidence(evidence_root, "event.txt", "contained")
             with self.assertRaisesRegex(ValueError, "reparse|link"):
-                learning_loop.record_signal(
+                learning_session.record_signal(
                     state,
                     session_id="s",
                     kind="tool_failure",
@@ -1145,14 +1154,14 @@ class StructuredLearningReceiptTest(unittest.TestCase):
                 )
 
     def test_evidence_directory_swap_is_rejected_before_final_write(self):
-        learning_loop = self.controller()
+        learning_session = self.controller()
         with tempfile.TemporaryDirectory() as directory, tempfile.TemporaryDirectory() as outside:
             root = Path(directory)
             state = root / "state"
             source = root / "source"
             source.mkdir()
             evidence = self.evidence(source, "event.txt", "contained")
-            original = learning_loop._contained_directory
+            original = learning_session._contained_directory
             swapped = False
 
             def swap_after_validation(state_path, name):
@@ -1166,9 +1175,9 @@ class StructuredLearningReceiptTest(unittest.TestCase):
                 return result
 
             try:
-                with patch.object(learning_loop, "_contained_directory", swap_after_validation):
+                with patch.object(learning_session, "_contained_directory", swap_after_validation):
                     with self.assertRaisesRegex(ValueError, "changed|link|reparse"):
-                        learning_loop.record_signal(
+                        learning_session.record_signal(
                             state, session_id="s", kind="tool_failure",
                             incident_id="directory-swap", origin="tool", evidence=evidence,
                             evidence_root=source,
@@ -1180,6 +1189,154 @@ class StructuredLearningReceiptTest(unittest.TestCase):
                 linked = state / "evidence"
                 if linked.is_symlink():
                     linked.unlink()
+
+class TerminalLearningSessionTest(unittest.TestCase):
+    """One immutable completion closes the only terminal learning phase."""
+
+    def controller(self):
+        return importlib.import_module("scripts.agents.learning_session")
+
+    def evidence(self, root: Path) -> list[dict[str, str]]:
+        artifact = root / "failure.json"
+        artifact.write_text('{"failure":"guard recursion"}', encoding="utf-8")
+        return [
+            {
+                "kind": "guard",
+                "id": artifact.name,
+                "sha256": hashlib.sha256(artifact.read_bytes()).hexdigest(),
+            }
+        ]
+
+    def test_controller_cannot_start_terminal_session_before_delivery(self):
+        payload = {
+            "session_id": "too-early",
+            "cwd": str(Path(CONTROLLER).parents[2]),
+            "tool_name": "PowerShell",
+            "tool_input": {
+                "command": f'py -3 "{CONTROLLER}" finalize --session-id too-early'
+            },
+        }
+        output = io.StringIO()
+        with patch("scripts.agents.guard.check_r29_delivery_complete", return_value="pending"):
+            with redirect_stdout(output):
+                guard.run_pretooluse(payload)
+
+        self.assertIn("only after delivery", output.getvalue())
+
+    def test_controller_can_start_terminal_session_after_delivery(self):
+        payload = {
+            "session_id": "delivered",
+            "cwd": str(Path(CONTROLLER).parents[2]),
+            "tool_name": "PowerShell",
+            "tool_input": {
+                "command": f'py -3 "{CONTROLLER}" finalize --session-id delivered'
+            },
+        }
+        output = io.StringIO()
+        with patch("scripts.agents.guard.check_r29_delivery_complete", return_value=None):
+            with redirect_stdout(output):
+                guard.run_pretooluse(payload)
+
+        self.assertEqual("", output.getvalue())
+
+    def test_no_learning_completion_is_atomic_idempotent_and_closes_session(self):
+        controller = self.controller()
+        with tempfile.TemporaryDirectory() as directory:
+            state = Path(directory)
+            controller.attest_no_learning(state, "terminal", "no_new_evidence")
+
+            first = controller.finalize_session(state, "terminal")
+            second = controller.finalize_session(state, "terminal")
+
+            self.assertEqual(first, second)
+            self.assertEqual("learning-session-complete", first["kind"])
+            self.assertEqual(first, controller.load_session_completion(state, "terminal"))
+            with self.assertRaisesRegex(ValueError, "already complete"):
+                controller.record_signal(
+                    state,
+                    session_id="terminal",
+                    kind="guard_block",
+                    incident_id="late-signal",
+                    origin="tool",
+                    evidence=self.evidence(state),
+                    evidence_root=state,
+                )
+
+    def test_pending_signal_cannot_finalize_until_assessed(self):
+        controller = self.controller()
+        with tempfile.TemporaryDirectory() as directory:
+            state = Path(directory)
+            controller.record_signal(
+                state,
+                session_id="assessed",
+                kind="guard_block",
+                incident_id="guard-recursion",
+                origin="tool",
+                evidence=self.evidence(state),
+                evidence_root=state,
+                task_ref="https://github.com/ShaftHQ/SHAFT_ENGINE/issues/5296",
+            )
+            with self.assertRaisesRegex(ValueError, "assessed"):
+                controller.finalize_session(state, "assessed")
+            controller.assess(
+                state,
+                session_id="assessed",
+                hypothesis="Receipt-scoped refusals prevent recursive checkpoints.",
+                owner="scripts/agents/guard.py",
+                baseline_ref="e" * 40,
+                allowed_paths=["scripts/agents/guard.py"],
+                red_command="py -3 -m unittest focused",
+                success_predicates=["pending denial adds no failure"],
+                invariants=["one terminal learning session"],
+                risk_tier="ordinary",
+                tracking_issue_urls=[
+                    "https://github.com/ShaftHQ/SHAFT_ENGINE/issues/5296"
+                ],
+            )
+
+            completed = controller.finalize_session(state, "assessed")
+
+            self.assertEqual("assessed", completed["disposition"])
+            self.assertEqual(1, len(completed["incident_hashes"]))
+
+    def test_cli_finalize_emits_the_existing_single_completion(self):
+        controller = self.controller()
+        with tempfile.TemporaryDirectory() as directory:
+            state = Path(directory)
+            controller.attest_no_learning(state, "cli-terminal", "no_new_evidence")
+            with patch.object(controller, "default_state_dir", return_value=state), redirect_stdout(
+                io.StringIO()
+            ):
+                self.assertEqual(0, controller.main(["finalize", "--session-id", "cli-terminal"]))
+                self.assertEqual(0, controller.main(["finalize", "--session-id", "cli-terminal"]))
+            self.assertIsNotNone(
+                controller.load_session_completion(state, "cli-terminal")
+            )
+
+    def test_successful_finalize_is_the_only_terminal_guard_event(self):
+        controller = self.controller()
+        with tempfile.TemporaryDirectory() as directory, patch.dict(
+            guard.os.environ, {"TMPDIR": directory, "TEMP": directory}
+        ):
+            state = Path(directory)
+            controller.attest_no_learning(state, "guard-terminal", "no_new_evidence")
+            completed = controller.finalize_session(state, "guard-terminal")
+            payload = {
+                "session_id": "guard-terminal",
+                "cwd": str(Path(CONTROLLER).parents[2]),
+                "tool_name": "PowerShell",
+                "tool_input": {
+                    "command": f'py -3 "{CONTROLLER}" finalize --session-id guard-terminal'
+                },
+                "tool_response": {"exit_code": 0},
+            }
+            with patch.object(controller, "default_state_dir", return_value=state):
+                guard.run_posttooluse(payload)
+
+            self.assertIn(
+                "learning-session-complete:" + completed["completion_id"],
+                guard.ledger_events(payload),
+            )
 
 
 if __name__ == "__main__":

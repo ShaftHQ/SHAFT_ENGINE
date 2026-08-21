@@ -24,7 +24,7 @@ events and point them at the installed ChaosEngine guard:
 | `PreToolUse` | Deny catastrophic or out-of-contract tool use. Hold work that owes a reflection receipt. |
 | `PostToolUse` | Record mutation, delivery, and outcome for reflection. |
 | `PostToolUseFailure` | Record the failure and inject a pending reflection checkpoint when one is owed. |
-| `Stop` | Collect every owed completion duty in one turn: learning-loop disposition, unarmed pull request, unpushed work, harness drift, run-state, leftover worktrees, checkpoint, delivery. Interrupt once. `stop_hook_active` lets the second attempt proceed. |
+| `Stop` | Collect every owed completion duty in one turn: learning-session disposition, unarmed pull request, unpushed work, harness drift, run-state, leftover worktrees, checkpoint, delivery. Interrupt once. `stop_hook_active` lets the second attempt proceed. |
 | `SubagentStop` | Same Stop duties for a delegate. A delegate that missed SessionStart still owes the entrypoint through its role adapter. |
 
 A host with no hook primitive cannot enforce this table. Say so in the install
@@ -75,9 +75,9 @@ session. This is a host capability boundary, not simulated persistence.
 Persisted artifacts (commits, issues, reviews, memory objects) stay in ordinary
 prose, as those files already require.
 
-## Learning loop
+## Learning Session
 
-Stop is the learning-loop gate. The entrypoint's learned-lessons workflow is
+Stop is the learning-session gate. The entrypoint's learned-lessons workflow is
 the policy; the Stop hook is what interrupts an agent that skips it after a
 commit, a guard refusal, or a recorded signal. "Nothing durable" is a valid
 disposition and must satisfy the hook.
@@ -88,7 +88,7 @@ disposition and must satisfy the hook.
   hook documents.
 - SessionStart tests fail if either companion `SKILL.md` is absent from the
   injected context or if the injected bytes differ from the vendor file.
-- Stop tests fail if the learning-loop rule is not invoked.
+- Stop tests fail if the learning-session rule is not invoked.
 
 See [`hooks/guard.py`](../hooks/guard.py). The source repository pins the
 contract with `tests.scripts.test_chaos_engine_hook`. Adopters receive the

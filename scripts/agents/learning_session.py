@@ -1,4 +1,4 @@
-"""Redacted learning receipts and quarantined self-improvement candidates."""
+"""One terminal Learning Session with redacted, quarantined evidence."""
 
 from __future__ import annotations
 
@@ -424,6 +424,8 @@ def record_signal(
     task_ref: str | None = None,
 ) -> dict:
     """Append one redacted meaningful-event receipt, deduplicated by incident."""
+    if load_session_completion(Path(state), session_id) is not None:
+        raise ValueError("learning session is already complete")
     if kind not in SIGNAL_KINDS:
         raise ValueError(f"unknown signal kind: {kind}")
     if origin not in ORIGINS:
@@ -616,6 +618,8 @@ def assess(
     tracking_issue_urls: list[str] | None = None,
 ) -> list[dict]:
     """Create one complete, quarantined candidate for every session incident."""
+    if load_session_completion(Path(state), session_id) is not None:
+        raise ValueError("learning session is already complete")
     _validate_candidate_spec(
         hypothesis=hypothesis,
         owner=owner,
@@ -729,6 +733,8 @@ def load_attestation(state: Path, session_id: str) -> dict | None:
 
 def attest_no_learning(state: Path, session_id: str, reason_code: str) -> dict:
     """Record a structured no-learning result only for a signal-free session."""
+    if load_session_completion(Path(state), session_id) is not None:
+        raise ValueError("learning session is already complete")
     if reason_code not in NO_LEARNING_REASONS:
         raise ValueError(f"unknown no-learning reason: {reason_code}")
     session_hash = _session_hash(session_id)
@@ -747,6 +753,108 @@ def attest_no_learning(state: Path, session_id: str, reason_code: str) -> dict:
             raise ValueError("cannot attest no learning while meaningful signals remain")
         _atomic_json(_attestation_path(Path(state), session_id), value)
     return value
+
+
+def _session_completion_path(state: Path, session_id: str) -> Path:
+    return _contained_directory(Path(state), "sessions") / f"{_session_hash(session_id)}.json"
+
+
+def _session_completion_identity(value: dict) -> dict:
+    return {
+        key: value[key]
+        for key in (
+            "kind",
+            "session_hash",
+            "disposition",
+            "incident_hashes",
+            "candidate_ids",
+            "reason_code",
+        )
+    }
+
+
+def load_session_completion(state: Path, session_id: str) -> dict | None:
+    """Load the one immutable terminal completion for a root session."""
+    try:
+        value = json.loads(
+            _session_completion_path(Path(state), session_id).read_text(encoding="utf-8")
+        )
+    except (OSError, ValueError, UnicodeError):
+        return None
+    required = {
+        "schema_version",
+        "completion_id",
+        "kind",
+        "session_hash",
+        "disposition",
+        "incident_hashes",
+        "candidate_ids",
+        "reason_code",
+        "completed_at",
+    }
+    try:
+        valid = bool(
+            isinstance(value, dict)
+            and set(value) == required
+            and value["schema_version"] == 1
+            and value["kind"] == "learning-session-complete"
+            and value["session_hash"] == _session_hash(session_id)
+            and value["disposition"] in {"assessed", "nothing-durable"}
+            and isinstance(value["incident_hashes"], list)
+            and all(SHA256_RE.fullmatch(item) for item in value["incident_hashes"])
+            and isinstance(value["candidate_ids"], list)
+            and all(SHA256_RE.fullmatch(item) for item in value["candidate_ids"])
+            and _valid_utc_timestamp(value["completed_at"])
+            and value["completion_id"]
+            == _hash_text(_canonical(_session_completion_identity(value)))
+        )
+    except (KeyError, TypeError):
+        return None
+    return value if valid else None
+
+
+def finalize_session(state: Path, session_id: str) -> dict:
+    """Atomically close the only terminal Learning Session; retries are reads."""
+    session_hash = _session_hash(session_id)
+    with _state_lock(Path(state), f"session-{session_hash}"):
+        existing = load_session_completion(Path(state), session_id)
+        if existing is not None:
+            return existing
+        receipts = load_receipts(Path(state), session_id)
+        receipt_incidents = {item["incident_hash"] for item in receipts}
+        candidates = [
+            item
+            for item in load_candidates(Path(state))
+            if item["incident_hash"] in receipt_incidents
+        ]
+        candidate_incidents = {item["incident_hash"] for item in candidates}
+        reason_code = None
+        if receipts:
+            if candidate_incidents != receipt_incidents:
+                raise ValueError("every learning signal must be assessed before finalization")
+            disposition = "assessed"
+        else:
+            attestation = load_attestation(Path(state), session_id)
+            if attestation is None:
+                raise ValueError("learning session requires assessed signals or no-learning attestation")
+            disposition = "nothing-durable"
+            reason_code = attestation["reason_code"]
+        identity = {
+            "kind": "learning-session-complete",
+            "session_hash": session_hash,
+            "disposition": disposition,
+            "incident_hashes": sorted(receipt_incidents),
+            "candidate_ids": sorted(item["candidate_id"] for item in candidates),
+            "reason_code": reason_code,
+        }
+        value = {
+            "schema_version": 1,
+            "completion_id": _hash_text(_canonical(identity)),
+            **identity,
+            "completed_at": datetime.now(timezone.utc).isoformat(),
+        }
+        _atomic_json(_session_completion_path(Path(state), session_id), value)
+        return value
 
 
 def _completion_identity(value: dict) -> dict:
@@ -1258,6 +1366,8 @@ def build_parser() -> argparse.ArgumentParser:
     none.add_argument("--session-id", required=True)
     none.add_argument("--operation-id", required=True)
     none.add_argument("--reason-code", choices=sorted(NO_LEARNING_REASONS), required=True)
+    final = commands.add_parser("finalize")
+    final.add_argument("--session-id", required=True)
     evaluate = commands.add_parser("evaluate")
     evaluate.add_argument("--candidate-id", required=True)
     evaluate.add_argument("--manifest", type=Path, required=True)
@@ -1319,6 +1429,8 @@ def main(arguments: list[str] | None = None) -> int:
             record_completion(
                 state, options.session_id, options.operation_id, "attest-none"
             )
+        elif options.command == "finalize":
+            result = finalize_session(state, options.session_id)
         elif options.command == "evaluate":
             manifest = _load_json_object(options.manifest)
             if manifest is None:

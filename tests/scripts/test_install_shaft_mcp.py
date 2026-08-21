@@ -444,6 +444,9 @@ class InstallShaftMcpTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temp_dir:
             target = Path(temp_dir).resolve()
             (target / "AGENTS.md").write_text("# Installed guidance\n", encoding="utf-8")
+            retired = target / "scripts" / "agents" / "learning_loop.py"
+            retired.parent.mkdir(parents=True)
+            retired.write_text("# installer-owned retired controller\n", encoding="utf-8")
 
             def install_repository_file(_url, destination, _label, **_kwargs):
                 relative = destination.relative_to(target)
@@ -453,7 +456,8 @@ class InstallShaftMcpTest(unittest.TestCase):
             with mock.patch.object(MODULE, "download_file", side_effect=install_repository_file):
                 MODULE.download_agent_validation_script_files(target)
 
-            self.assertTrue((target / "scripts" / "agents" / "learning_loop.py").is_file())
+            self.assertTrue((target / "scripts" / "agents" / "learning_session.py").is_file())
+            self.assertFalse(retired.exists())
             self.assertTrue((target / "scripts" / "ci" / "agent_ownership.json").is_file())
             command = (
                 "import sys; "

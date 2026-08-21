@@ -730,9 +730,9 @@ REQUIRED_ACTION_REGISTRY: tuple[dict, ...] = (
     },
     {
         "law": None,
-        "rule": "run the learning loop before reporting done",
+        "rule": "run the learning session before reporting done",
         "status": "reports",
-        "mechanism": "check_r16_learning_loop",
+        "mechanism": "check_r16_learning_session",
     },
     {
         "law": None,
@@ -2203,13 +2203,13 @@ class RetrievalParityTest(unittest.TestCase):
         self.assertIn("query it when", content, "each store needs a stated trigger")
         self.assertIn("degraded", content, "unavailable stores must be reported")
 
-    def test_the_learning_loop_routes_each_outcome_to_one_destination(self):
+    def test_the_learning_session_routes_each_outcome_to_one_destination(self):
         sections = re.split(r"(?m)^## ", ENTRYPOINT.read_text(encoding="utf-8"))
-        loop = [body for body in sections if body.lower().startswith("learning loop")]
-        self.assertEqual(len(loop), 1, "entrypoint needs exactly one Learning loop section")
+        loop = [body for body in sections if body.lower().startswith("learning session")]
+        self.assertEqual(len(loop), 1, "entrypoint needs exactly one Learning Session section")
         content = re.sub(r"\s+", " ", loop[0]).lower()
         for destination in ("native memory", "mempalace", "graphify", "issue"):
-            self.assertIn(destination, content, f"learning loop omits {destination}")
+            self.assertIn(destination, content, f"learning session omits {destination}")
         self.assertRegex(content, r"nothing durable is a valid result|no durable learning")
         self.assertRegex(content, r"search before writing|search first", "must prevent duplicates")
         self.assertRegex(content, r"scan.{0,80}(failure|trap|guard block)")
