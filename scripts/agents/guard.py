@@ -1787,8 +1787,7 @@ def _deny_output(reason: str, host: str) -> dict:
 
 
 def _record_guard_block_and_deny(hook_input: dict, reason: str, host: str) -> None:
-    """Preserve one unresolved refusal; receipt-cleared history never retriggers."""
-    ledger_record(hook_input, "guard-block")
+    """Record a refusal as an observation; policy decisions are not failed attempts."""
     if str(hook_input.get("session_id") or "").strip():
         _reflection.record_failure(
             _reflection_session_id(hook_input),
@@ -1797,6 +1796,7 @@ def _record_guard_block_and_deny(hook_input: dict, reason: str, host: str) -> No
             failure_class="guard-refusal",
             platform=hook_input.get("platform") or sys.platform,
             invariant="allowed-route",
+            attempted=False,
             observation_id=hook_input.get("tool_use_id"),
         )
     _print_deny(reason, host)

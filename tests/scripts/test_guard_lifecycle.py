@@ -269,7 +269,7 @@ class ReflectionCheckpointContractTest(unittest.TestCase):
             self.assertEqual(before, after)
             self.assertEqual(2, reflection.pending_checkpoint("non-recursive")["attemptCount"])
 
-    def test_guard_refusal_threshold_is_receipt_scoped(self):
+    def test_guard_refusals_are_non_attempt_observations(self):
         with tempfile.TemporaryDirectory() as temporary, patch.dict(
             os.environ, {"TMPDIR": temporary, "TEMP": temporary}
         ):
@@ -279,16 +279,14 @@ class ReflectionCheckpointContractTest(unittest.TestCase):
                 guard._record_guard_block_and_deny(
                     {**payload, "tool_use_id": "second"}, "same refusal", "portable"
                 )
-            checkpoint = reflection.pending_checkpoint("guard-scope")
-            self.assertIsNotNone(checkpoint)
-            token = reflection.record_session_start("guard-scope")
-            reflection.record_receipt("guard-scope", self._receipt(checkpoint), token)
-            with redirect_stdout(io.StringIO()):
-                guard._record_guard_block_and_deny(
-                    {**payload, "tool_use_id": "third"}, "same refusal", "portable"
-                )
-
             self.assertIsNone(reflection.pending_checkpoint("guard-scope"))
+            failures = [
+                item
+                for item in reflection.entries("guard-scope")
+                if item.get("kind") == "task-failure"
+            ]
+            self.assertEqual(2, len(failures))
+            self.assertTrue(all(item["attempted"] is False for item in failures))
 
     def test_agent_ids_isolate_reflection_checkpoints(self):
         with tempfile.TemporaryDirectory() as temporary, patch.dict(
@@ -3366,8 +3364,8 @@ class LearningWriteObservationTest(unittest.TestCase):
         self.assertNotIn("memory-write", self.events_after("mcp__mempalace__mempalace_sync"))
         self.assertNotIn("memory-write", self.events_after("Bash", 'echo "memory remember"'))
 
-    def test_a_denied_command_is_recorded_as_a_guard_block(self):
-        self.assertIn("guard-block", self.events_after("Bash", "git stash pop"))
+    def test_a_denied_command_does_not_create_a_learning_trigger(self):
+        self.assertNotIn("guard-block", self.events_after("Bash", "git stash pop"))
 
     def test_standalone_issue_creation_is_credited_only_after_a_successful_result(self):
         with tempfile.TemporaryDirectory() as directory:
