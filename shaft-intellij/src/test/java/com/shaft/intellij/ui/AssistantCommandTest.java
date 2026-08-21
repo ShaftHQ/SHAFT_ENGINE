@@ -268,7 +268,7 @@ class AssistantCommandTest {
     }
 
     @Test
-    void slashCodegenScenarioStartsCaptureWithFullGoalAndTargetUrl() {
+    void slashCodegenScenarioRoutesToAutobotWithFullWorkflowContract() {
         String scenario = "navigate to https://duckduckgo.com, search for shaft_engine, "
                 + "open the first result and assert that the url is correct.";
 
@@ -281,14 +281,27 @@ class AssistantCommandTest {
                 true);
 
         assertAll(
-                () -> assertEquals("capture_start", invocation.toolName()),
-                () -> assertEquals(scenario, invocation.arguments().get("sessionGoal").getAsString()),
-                () -> assertEquals("https://duckduckgo.com", invocation.arguments().get("targetUrl").getAsString()),
-                () -> assertFalse(invocation.isSequence()));
+                () -> assertEquals("autobot_local_agent_run", invocation.toolName()),
+                () -> assertEquals("AGENT", invocation.arguments().get("mode").getAsString()),
+                () -> assertFalse(invocation.arguments().get("allowSourceMutation").getAsBoolean()),
+                () -> assertFalse(invocation.arguments().has("targetUrl"),
+                        "the plugin must not own browser orchestration"),
+                () -> assertFalse(invocation.isSequence()),
+                () -> assertTrue(invocation.arguments().get("prompt").getAsString().contains(scenario)),
+                () -> assertTrue(invocation.arguments().get("prompt").getAsString()
+                        .contains("capture_start, browser actions, capture_stop/save")),
+                () -> assertTrue(invocation.arguments().get("prompt").getAsString()
+                        .contains("exactly one URL question")),
+                () -> assertTrue(invocation.arguments().get("prompt").getAsString()
+                        .contains("explicit approval before any source edit or replay")),
+                () -> assertTrue(invocation.arguments().get("prompt").getAsString()
+                        .contains("one heal retry")),
+                () -> assertTrue(invocation.arguments().get("prompt").getAsString()
+                        .contains("allure-report/AllureReport.html")));
     }
 
     @Test
-    void multilineSlashCodegenScenarioStartsCapture() {
+    void multilineSlashCodegenScenarioRoutesToAutobot() {
         AssistantCommand.Invocation invocation = AssistantCommand.fromPrompt(
                 "/codegen\nnavigate to https://example.com and click login",
                 AssistantCommand.Selection.local("CODEX", "CLI"),
@@ -298,9 +311,24 @@ class AssistantCommandTest {
                 true);
 
         assertAll(
-                () -> assertEquals("capture_start", invocation.toolName()),
-                () -> assertEquals("navigate to https://example.com and click login",
-                        invocation.arguments().get("sessionGoal").getAsString()));
+                () -> assertEquals("autobot_local_agent_run", invocation.toolName()),
+                () -> assertTrue(invocation.arguments().get("prompt").getAsString()
+                        .contains("navigate to https://example.com and click login")));
+    }
+
+    @Test
+    void slashCodegenScenarioFailsClosedForCloudRoute() {
+        AssistantCommand.Invocation invocation = AssistantCommand.fromPrompt(
+                "/codegen navigate to https://example.com and click login",
+                AssistantCommand.Selection.cloud("openai", "gpt-5"),
+                "AGENT",
+                ".",
+                "",
+                true);
+
+        assertAll(
+                () -> assertTrue(invocation.isLocal()),
+                () -> assertTrue(invocation.localResponse().contains("Local / CLI route")));
     }
 
     @Test

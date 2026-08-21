@@ -541,15 +541,20 @@ final class AssistantLocalAgentRunner {
             return custom;
         }
         boolean allowSourceMutation = allowSourceMutation(arguments);
+        boolean readOnlyCodegenRecording = booleanValue(arguments, "readOnlyCodegenRecording");
         boolean unrestrictedLocalAgentAccess = booleanValue(arguments, "unrestrictedLocalAgentAccess");
         String mode = normalize(string(arguments, "mode", "ASK"));
         String model = string(arguments, "model", "").trim();
         String effort = normalize(string(arguments, "effort", ""));
         return switch (normalize(string(arguments, "client", ""))) {
-            case "CLAUDE_CODE" -> claudeCommand(mode, allowSourceMutation, model, bridge);
+            case "CLAUDE_CODE" -> readOnlyCodegenRecording
+                    ? List.of()
+                    : claudeCommand(mode, allowSourceMutation, model, bridge);
             case "COPILOT_CLI" -> copilotCommand(mode, allowSourceMutation, model);
             case "GROK" -> grokCommand(mode, allowSourceMutation, string(arguments, "prompt", ""));
-            case "CODEX" -> codexCommand(mode, allowSourceMutation, unrestrictedLocalAgentAccess, model, effort);
+            case "CODEX" -> codexCommand(
+                    mode, allowSourceMutation, readOnlyCodegenRecording,
+                    unrestrictedLocalAgentAccess, model, effort);
             default -> List.of();
         };
     }
@@ -1131,13 +1136,36 @@ final class AssistantLocalAgentRunner {
             if (!activity.isBlank()) {
                 output.append("\n\n").append(activity);
             }
-            return output + "\n\n" + usageHolder();
+            return output + "\n\n" + usageHolder(core);
+        }
+
+        static String modelOutput(String composedOutput) {
+            if (composedOutput == null || composedOutput.isBlank()) {
+                return composedOutput;
+            }
+            int end = composedOutput.length();
+            while (end > 0 && Character.isWhitespace(composedOutput.charAt(end - 1))) {
+                end--;
+            }
+            int lineStart = composedOutput.lastIndexOf('\n', end - 1) + 1;
+            JsonObject metadata = StreamJson.parseObject(composedOutput.substring(lineStart, end).trim());
+            if (!validRunnerMetadata(metadata)) {
+                return composedOutput;
+            }
+            int modelOutputCharacters = metadata.getAsJsonObject("shaft_runner")
+                    .get("model_output_characters").getAsInt();
+            if (modelOutputCharacters < 0
+                    || modelOutputCharacters > lineStart
+                    || !composedOutput.substring(modelOutputCharacters, lineStart).startsWith("\n\n")) {
+                return composedOutput;
+            }
+            return composedOutput.substring(0, modelOutputCharacters);
         }
 
         /**
          * Detects the structured question protocol (issue #3719) in a just-captured terminal
          * answer, via {@link AssistantQuestion#detectStructuredLine}, stashing it in {@link
-         * #structuredQuestion} for {@link #usageHolder()} and returning the answer text with the
+         * #structuredQuestion} for {@link #usageHolder(String)} and returning the answer text with the
          * marker line removed. Detecting here -- at the moment the terminal event's raw text is
          * captured, before {@link #activitySummary()} or the usage/plan metadata line are appended
          * after it -- is what keeps this reliable: those later append their own trailing lines,
@@ -1156,7 +1184,7 @@ final class AssistantLocalAgentRunner {
             return detected.promptMarkdown();
         }
 
-        private JsonObject usageHolder() {
+        private JsonObject usageHolder(String core) {
             JsonObject usage = new JsonObject();
             usage.addProperty("input_tokens", StreamJson.orZero(inputTokens));
             usage.addProperty("output_tokens", StreamJson.orZero(outputTokens));
@@ -1175,7 +1203,65 @@ final class AssistantLocalAgentRunner {
                 question.add("options", options);
                 usageHolder.add("question", question);
             }
+            if (endsWithCodegenMarker(core)) {
+                JsonObject runner = new JsonObject();
+                runner.addProperty("model_output_characters", core.length());
+                usageHolder.add("shaft_runner", runner);
+            }
             return usageHolder;
+        }
+
+        private static boolean endsWithCodegenMarker(String core) {
+            String[] lines = core.split("\\R");
+            for (int index = lines.length - 1; index >= 0; index--) {
+                String line = lines[index].trim();
+                if (!line.isBlank()) {
+                    return line.startsWith(AssistantCodegenWorkflowCoordinator.PROPOSAL_PREFIX)
+                            || line.startsWith(AssistantCodegenWorkflowCoordinator.RESULT_PREFIX);
+                }
+            }
+            return false;
+        }
+
+        private static boolean validRunnerMetadata(JsonObject metadata) {
+            if (!validRunnerMetadataShape(metadata) || !validRunnerMetadataKeys(metadata)) {
+                return false;
+            }
+            JsonObject usage = metadata.getAsJsonObject("usage");
+            JsonObject runner = metadata.getAsJsonObject("shaft_runner");
+            return validUsageMetadata(usage) && validModelOutputMetadata(runner);
+        }
+
+        private static boolean validRunnerMetadataShape(JsonObject metadata) {
+            return metadata != null
+                    && metadata.has("usage")
+                    && metadata.get("usage").isJsonObject()
+                    && metadata.has("shaft_runner")
+                    && metadata.get("shaft_runner").isJsonObject();
+        }
+
+        private static boolean validRunnerMetadataKeys(JsonObject metadata) {
+            return metadata.keySet().stream().allMatch(key -> "usage".equals(key)
+                    || "plan".equals(key)
+                    || "question".equals(key)
+                    || "shaft_runner".equals(key));
+        }
+
+        private static boolean validUsageMetadata(JsonObject usage) {
+            return usage.size() == 2
+                    && usage.has("input_tokens")
+                    && usage.get("input_tokens").isJsonPrimitive()
+                    && usage.get("input_tokens").getAsJsonPrimitive().isNumber()
+                    && usage.has("output_tokens")
+                    && usage.get("output_tokens").isJsonPrimitive()
+                    && usage.get("output_tokens").getAsJsonPrimitive().isNumber();
+        }
+
+        private static boolean validModelOutputMetadata(JsonObject runner) {
+            return runner.size() == 1
+                    && runner.has("model_output_characters")
+                    && runner.get("model_output_characters").isJsonPrimitive()
+                    && runner.get("model_output_characters").getAsJsonPrimitive().isNumber();
         }
 
         /**
@@ -1293,7 +1379,7 @@ final class AssistantLocalAgentRunner {
         /**
          * Sets the terminal answer text, running it through {@link #captureStructuredQuestion} so the
          * structured-question protocol (issue #3719) is detected and stripped at the moment the raw
-         * text is captured, before {@link #activitySummary()}/{@link #usageHolder()} append their own
+         * text is captured, before {@link #activitySummary(boolean)}/{@link #usageHolder(String)} append their own
          * trailing content.
          */
         void setAnswer(String rawAnswer) {
@@ -1366,7 +1452,8 @@ final class AssistantLocalAgentRunner {
      * unrestricted recovery option; ungranted runs retain the read-only sandbox.
      */
     private static List<String> codexCommand(
-            String mode, boolean allowSourceMutation, boolean unrestrictedLocalAgentAccess,
+            String mode, boolean allowSourceMutation, boolean readOnlyCodegenRecording,
+            boolean unrestrictedLocalAgentAccess,
             String model, String effort) {
         boolean unrestrictedAgent = "AGENT".equals(mode) && allowSourceMutation && unrestrictedLocalAgentAccess;
         List<String> command = new ArrayList<>(unrestrictedAgent
@@ -1386,9 +1473,14 @@ final class AssistantLocalAgentRunner {
             command.add("AGENT".equals(mode) && allowSourceMutation ? "workspace-write" : "read-only");
         }
         if ("AGENT".equals(mode)) {
-            if (AgentApprovalCapability.CODEX.isAutoApproveGranted(allowSourceMutation)) {
+            if (AgentApprovalCapability.CODEX.isAutoApproveGranted(allowSourceMutation)
+                    || readOnlyCodegenRecording) {
                 command.add("-c");
                 command.add("mcp_servers.shaft-mcp.default_tools_approval_mode=\"approve\"");
+            }
+            if (readOnlyCodegenRecording) {
+                command.add("-c");
+                command.add("mcp_servers.shaft-mcp.enabled_tools=" + recordMcpToolsToml());
             }
             command.add("-c");
             command.add("mcp_servers.shaft-mcp.tool_timeout_sec=600");
@@ -1480,6 +1572,12 @@ final class AssistantLocalAgentRunner {
     private static void addShaftMcpAllowedTools(List<String> command) {
         command.add("--allowedTools");
         command.add("mcp__shaft-mcp");
+    }
+
+    private static String recordMcpToolsToml() {
+        return AssistantCodegenWorkflowCoordinator.recordMcpTools().stream()
+                .map(tool -> "\"" + tool + "\"")
+                .collect(Collectors.joining(",", "[", "]"));
     }
 
     private static List<String> copilotCommand(String mode, boolean allowSourceMutation, String model) {
