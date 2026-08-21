@@ -118,6 +118,14 @@ jobs:
         timeout = workflow["jobs"]["capture-e2e"].get("timeout-minutes", 0)
         self.assertGreaterEqual(timeout, 15)
 
+    def test_ios_web_safari_job_allows_observed_nightly_runtime_headroom(self):
+        repository_root = Path(__file__).resolve().parents[2]
+        workflow = yaml.safe_load(
+            (repository_root / ".github/workflows/e2eTests.yml").read_text(encoding="utf-8")
+        )
+        timeout = workflow["jobs"]["iOS_Web_SAFARI_BrowserStack"].get("timeout-minutes", 0)
+        self.assertEqual(timeout, 15)
+
     def test_local_safari_job_allows_observed_nightly_runtime_headroom(self):
         repository_root = Path(__file__).resolve().parents[2]
         workflow = yaml.safe_load(
