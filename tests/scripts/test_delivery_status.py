@@ -137,6 +137,34 @@ class DeliveryStatusTest(unittest.TestCase):
         self.assertEqual(1, receipt["mergedCount"])
         self.assertEqual("complete", receipt["cleanupDecision"])
 
+    def test_legacy_commit_proofs_are_manifest_bound_to_owned_heads(self):
+        plan = manifest()
+        head = "a" * 40
+        plan["ownedPullRequests"][0]["headOid"] = head
+        plan["legacyCommitProofs"] = [
+            {"repository": "ShaftHQ/SHAFT_ENGINE", "headOid": head}
+        ]
+        status = {**merged(), "headOid": head}
+
+        receipt = evaluate_delivery(plan, [status], self.cleanup)
+
+        self.assertEqual("allow", receipt["decision"])
+        self.assertEqual(
+            [{"repository": "ShaftHQ/SHAFT_ENGINE", "head": head}],
+            receipt["legacyCommitProofs"],
+        )
+
+    def test_legacy_commit_proof_outside_owned_heads_fails_closed(self):
+        plan = manifest()
+        plan["legacyCommitProofs"] = [
+            {"repository": "other/project", "headOid": "b" * 40}
+        ]
+
+        receipt = evaluate_delivery(plan, [merged()], self.cleanup)
+
+        self.assertNotEqual("allow", receipt["decision"])
+        self.assertTrue(any("legacy commit proof" in reason for reason in receipt["reasons"]))
+
     def test_merged_delivery_reports_safe_denied_cleanup_as_degraded(self):
         cleanup = {
             **self.cleanup,

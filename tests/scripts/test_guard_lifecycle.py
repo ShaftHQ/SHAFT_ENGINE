@@ -310,6 +310,31 @@ class ReflectionCheckpointContractTest(unittest.TestCase):
                 guard.normalize_hook_input({"agentId": "audit-a"})["agent_id"],
             )
 
+    def test_failed_read_only_subagent_diagnostics_never_open_a_checkpoint(self):
+        for command in (
+            "rg -n needle scripts",
+            "Get-Content scripts/agents/guard.py",
+            "git branch --show-current",
+        ):
+            with self.subTest(command=command), tempfile.TemporaryDirectory() as temporary, patch.dict(
+                os.environ, {"TMPDIR": temporary, "TEMP": temporary}
+            ):
+                payload = self._failure("root-readonly", command=command)
+                payload["agent_id"] = "audit-readonly"
+                with redirect_stdout(io.StringIO()):
+                    guard.run_posttooluse(payload)
+                    guard.run_posttooluse(payload)
+
+                scoped = reflection.scope_session_id("root-readonly", "audit-readonly")
+                self.assertIsNone(reflection.pending_checkpoint(scoped))
+                failures = [
+                    item
+                    for item in reflection.entries(scoped)
+                    if item.get("kind") == "task-failure"
+                ]
+                self.assertTrue(failures)
+                self.assertTrue(all(item["attempted"] is False for item in failures))
+
     def test_valid_receipt_resets_checkpoint_and_replay_reopens_it(self):
         with tempfile.TemporaryDirectory() as temporary, patch.dict(
             os.environ, {"TMPDIR": temporary, "TEMP": temporary}
@@ -3605,6 +3630,43 @@ class DeliveryCompleteStopGateTest(unittest.TestCase):
         ):
             self.assertIsNone(guard.check_r29_delivery_complete({"session_id": "s"}))
 
+    def test_legacy_commits_require_one_manifest_bound_identity_proof_each(self):
+        identity = ("consumer/project", "ChaosEngine/task", "a" * 40)
+        proof = {"repository": identity[0], "head": identity[2]}
+        event = guard._checkpoint_json_event(
+            "delivery",
+            identity[0],
+            identity[1],
+            identity[2],
+            observedAt=int(time.time()),
+            taskHeads=[proof],
+            legacyCommitProofs=[proof, proof],
+        )
+        with mock.patch.object(
+            guard, "ledger_events", return_value=["commit", "commit", event]
+        ):
+            self.assertIsNone(guard.check_r29_delivery_complete({"session_id": "legacy"}))
+
+        for malformed in (
+            [proof],
+            [proof, {"repository": "other/project", "head": "b" * 40}],
+        ):
+            bad_event = guard._checkpoint_json_event(
+                "delivery",
+                identity[0],
+                identity[1],
+                identity[2],
+                observedAt=int(time.time()),
+                taskHeads=[proof],
+                legacyCommitProofs=malformed,
+            )
+            with self.subTest(proofs=malformed), mock.patch.object(
+                guard, "ledger_events", return_value=["commit", "commit", bad_event]
+            ):
+                self.assertIsNotNone(
+                    guard.check_r29_delivery_complete({"session_id": "legacy"})
+                )
+
     def test_cleanup_receipt_can_be_recorded_from_primary_after_task_worktree_removal(self):
         task = ("consumer/project", "ChaosEngine/task", "a" * 40)
         primary = ("consumer/project", "main", "b" * 40)
@@ -3689,6 +3751,14 @@ class DeliveryCompleteStopGateTest(unittest.TestCase):
                         guard._successful_delivery_event({"cwd": str(root)}, command),
                         field,
                     )
+                malformed = json.loads(json.dumps(receipt))
+                malformed["legacyCommitProofs"] = [
+                    {"repository": "other/project", "head": "b" * 40}
+                ]
+                receipt_path.write_text(json.dumps(malformed), encoding="utf-8")
+                self.assertIsNone(
+                    guard._successful_delivery_event({"cwd": str(root)}, command)
+                )
         self.assertIsNotNone(event)
 
     def test_unrelated_delivery_event_cannot_complete_this_task(self):

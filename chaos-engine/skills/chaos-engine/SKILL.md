@@ -216,7 +216,7 @@ Orchestrating keeps you reachable for owner or delegate decisions. In this mode
 you make no edits, run no long job, and install nothing;
 [delegation](../../references/delegation.md) lists what stays yours, including the
 live status table, fewest-PR grouping, keep-working-until-delivered loop, and
-Learning Session before kill.
+delegate finding handoff before kill. The root owns the sole terminal Learning Session.
 
 **Default serial, optional parallel.** One writer at a time, ordered by
 dependency then priority. On owner request, parallelize independent writers up to
@@ -263,7 +263,9 @@ third repeated fix without a receipt; terminal reflection after one hour.
 
 ## Learning Session
 
-Before reporting done, run the
+After confirmed delivery and any terminal reflection, run exactly one root-owned
+Learning Session immediately before the final report. Never start it from a
+commit, guard refusal, failed diagnostic, delegate stop, or intermediate push. Run the
 [learned-lessons workflow](../../references/work-github-playbook.md#learned-lessons-workflow).
 Scan the session for failures, traps, and guard blocks. Route each learning
 once: native Memory, MemPalace, Graphify, guidance, or a new GitHub issue after

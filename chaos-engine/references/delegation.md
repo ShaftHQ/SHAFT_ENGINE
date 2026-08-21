@@ -43,10 +43,9 @@ consume a slot. Check real progress for any agent or
 command unexamined for about twenty minutes, and supply a decision, a solved
 subproblem, or a re-spec — never a heartbeat.
 
-Treat agent lifetime as part of the assignment. Verify that the writer's
-Learning Session before kill actually landed in a source-controlled place
-(Memory, a GitHub issue after duplicate search, or an explicit nothing-durable
-result). Then close every no-longer-needed agent and its descendants before
+Treat agent lifetime as part of the assignment. Collect the writer's bounded
+failures, findings, and durable-learning candidates for the root session; a
+delegate never runs the terminal Learning Session. Then close every no-longer-needed agent and its descendants before
 moving to the next phase. Never use `followup_task` to reactivate a completed
 or finished assignment; a new review round gets a new reviewer instance.
 Preserve the closed relationship as history instead of deleting it. A final
@@ -75,8 +74,8 @@ missing issue or Memory as an owner-command; do not implement the leftover work.
 After every dispatch and after every subagent finishes, post or update a status
 table the owner can read without reconstructing the session. Include completed,
 in progress, planned, and out of scope rows so out of scope is not silently
-dropped. Enhance with blocker, PR/issue links, HEAD SHA, and Learning Session
-result (`memory` / `issue` / `nothing durable`). Do not put secrets in the
+dropped. Enhance with blocker, PR/issue links, HEAD SHA, and root-learning
+handoff (`findings` / `nothing durable`). Do not put secrets in the
 table.
 
 | ID / work item | Mode stream | Status | Owner / agent | Dependency | Last update | Details / evidence | Next action |

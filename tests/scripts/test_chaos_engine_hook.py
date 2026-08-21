@@ -141,11 +141,11 @@ class ChaosEngineHookTest(unittest.TestCase):
                 environment,
             )
 
-            self.assertEqual(2, readonly.returncode)
+            self.assertEqual(0, readonly.returncode)
             self.assertFalse(
                 json.loads(readonly.stdout)["reason"].casefold().startswith("learning session:")
             )
-            self.assertEqual(2, mutated.returncode)
+            self.assertEqual(0, mutated.returncode)
             self.assertFalse(
                 json.loads(mutated.stdout)["reason"].casefold().startswith("learning session:")
             )
@@ -181,10 +181,38 @@ class ChaosEngineHookTest(unittest.TestCase):
                 environment,
             )
 
-            self.assertEqual(2, stopped.returncode)
+            self.assertEqual(0, stopped.returncode)
             self.assertFalse(
                 json.loads(stopped.stdout)["reason"].casefold().startswith("learning session:")
             )
+
+    def test_failed_read_only_agent_diagnostics_do_not_open_portable_checkpoint(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            environment = {**os.environ, "TMPDIR": temporary, "TEMP": temporary}
+            failure = {
+                "hook_event_name": "PostToolUseFailure",
+                "tool_name": "PowerShell",
+                "tool_input": {"command": "git branch --show-current"},
+                "tool_response": {"status": "failed", "exit_code": 1},
+                "session_id": "portable-readonly",
+                "agent_id": "audit",
+            }
+            self.run_hook(failure, environment)
+            self.run_hook(failure, environment)
+
+            mutation = self.run_hook(
+                {
+                    "hook_event_name": "PreToolUse",
+                    "tool_name": "PowerShell",
+                    "tool_input": {"command": "touch output.txt"},
+                    "session_id": "portable-readonly",
+                    "agent_id": "audit",
+                },
+                environment,
+            )
+
+            self.assertEqual(0, mutation.returncode)
+            self.assertNotIn("Reflection required", mutation.stdout)
 
     def test_pre_tool_event_blocks_catastrophic_broad_scope(self):
         for command in (

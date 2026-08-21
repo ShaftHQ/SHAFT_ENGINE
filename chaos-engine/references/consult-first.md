@@ -93,7 +93,8 @@ rule overrides an imported skill's default path.
 Work runs in this order, and each phase ends before the next begins:
 
 analyze -> plan -> design -> RED -> GREEN -> refactor -> commit ->
-pull request -> babysit (fix review comments and failed tests) to green -> merge.
+pull request -> babysit (fix review comments and failed tests) to green -> merge ->
+terminal reflection when owed -> one root Learning Session -> final report.
 
 Every phase that changes behavior ends with the independent adversarial review
 defined in [delegation](delegation.md), at the depth this task's triage set.

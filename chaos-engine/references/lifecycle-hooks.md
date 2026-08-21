@@ -24,8 +24,8 @@ events and point them at the installed ChaosEngine guard:
 | `PreToolUse` | Deny catastrophic or out-of-contract tool use. Hold work that owes a reflection receipt. |
 | `PostToolUse` | Record mutation, delivery, and outcome for reflection. |
 | `PostToolUseFailure` | Record the failure and inject a pending reflection checkpoint when one is owed. |
-| `Stop` | Collect every owed completion duty in one turn: learning-session disposition, unarmed pull request, unpushed work, harness drift, run-state, leftover worktrees, checkpoint, delivery. Interrupt once. `stop_hook_active` lets the second attempt proceed. |
-| `SubagentStop` | Same Stop duties for a delegate. A delegate that missed SessionStart still owes the entrypoint through its role adapter. |
+| `Stop` | Collect incomplete delivery duties once without manufacturing work. Never start learning before delivery. After delivery, require exactly one root-owned terminal Learning Session completion immediately before the final report. `stop_hook_active` lets the retry proceed. |
+| `SubagentStop` | Apply delegate-owned completion duties only. Never start or inherit the root terminal Learning Session. A delegate that missed SessionStart still owes the entrypoint through its role adapter. |
 
 A host with no hook primitive cannot enforce this table. Say so in the install
 receipt. Do not pretend a README sentence is a substitute. Grok currently
@@ -77,10 +77,10 @@ prose, as those files already require.
 
 ## Learning Session
 
-Stop is the learning-session gate. The entrypoint's learned-lessons workflow is
-the policy; the Stop hook is what interrupts an agent that skips it after a
-commit, a guard refusal, or a recorded signal. "Nothing durable" is a valid
-disposition and must satisfy the hook.
+Stop becomes the Learning Session gate only after delivery is complete. Commits,
+guard refusals, diagnostics, and recorded signals never start it early. The root
+session records one immutable completion after routing every assessed signal or
+attesting that nothing durable surfaced. Delegates never own this terminal phase.
 
 ## Checks
 

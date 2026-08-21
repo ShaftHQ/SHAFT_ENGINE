@@ -158,6 +158,20 @@ def learning_session_finalize_command(command: str) -> bool:
     )
 
 
+def read_only_diagnostic_command(command: str) -> bool:
+    parsed = shell_tokens(command)
+    if not parsed or any(item in {";", "&&", "||", "|", "&"} for item in parsed):
+        return False
+    head, arguments = command_head(parsed)
+    if head in {"rg", "grep", "get-content"}:
+        return True
+    if head != "git" or not arguments:
+        return False
+    if arguments[0] in {"status", "diff", "show", "log", "rev-parse"}:
+        return True
+    return arguments == ["branch", "--show-current"]
+
+
 def checkpoint_reason(checkpoint: dict) -> str:
     fingerprints = ",".join(checkpoint["failureFingerprints"])
     return (
@@ -360,8 +374,6 @@ def _stop_block_reason(event: dict, session_id: str) -> str:
     loop_reason = learning_session_reason(session_id, event)
     if loop_reason:
         return loop_reason
-    if not bool(event.get("stop_hook_active") or event.get("stopHookActive")):
-        return "Complete verification, independent review, delivery status, and the learning session before stopping."
     return ""
 
 
@@ -376,12 +388,16 @@ def _record_failed_result(
         tool_name,
         event.get("target") or event.get("job") or event.get("test"),
     )
+    read_only = tool_name in {"Read", "Grep", "Glob", "WebSearch", "WebFetch", "Skill"} or bool(
+        commands and all(read_only_diagnostic_command(command) for command in commands)
+    )
     reflection.record_failure(
         session_id,
         phase="tool-outcome",
         target=target,
         failure_class="interrupted" if event.get("is_interrupt") else "tool-failure",
         platform=event.get("platform") or sys.platform,
+        attempted=not read_only,
         observation_id=event.get("tool_use_id") or event.get("toolUseId"),
     )
     checkpoint = reflection.pending_checkpoint(session_id)

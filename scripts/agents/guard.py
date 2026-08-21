@@ -3291,6 +3291,9 @@ def _successful_delivery_event(hook_input: dict, command: str) -> str | None:
     except (OSError, ValueError):
         return None
     pull_requests = receipt.get("pullRequests") if isinstance(receipt, dict) else None
+    legacy_commit_proofs = (
+        receipt.get("legacyCommitProofs", []) if isinstance(receipt, dict) else None
+    )
     cleanup = receipt.get("cleanup") if isinstance(receipt, dict) else None
     try:
         observed = datetime.fromisoformat(str(receipt.get("observedAt")))
@@ -3392,6 +3395,27 @@ def _successful_delivery_event(hook_input: dict, command: str) -> str | None:
             for item in pull_requests if isinstance(item, dict)
         )
         or any(not isinstance(item, dict) for item in pull_requests)
+        or not isinstance(legacy_commit_proofs, list)
+        or any(
+            not isinstance(item, dict)
+            or set(item) != {"repository", "head"}
+            or re.fullmatch(
+                r"[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+", str(item.get("repository", ""))
+            )
+            is None
+            or re.fullmatch(r"[0-9a-f]{40}", str(item.get("head", ""))) is None
+            for item in legacy_commit_proofs
+        )
+        or any(
+            (item.get("repository"), item.get("head"))
+            not in {
+                (pull_request.get("repository"), pull_request.get("headOid"))
+                for pull_request in pull_requests
+                if isinstance(pull_request, dict)
+            }
+            for item in legacy_commit_proofs
+            if isinstance(item, dict)
+        )
         or not (cleanup_complete or cleanup_degraded)
         or not -60 <= receipt_age <= 600
     ):
@@ -3404,6 +3428,7 @@ def _successful_delivery_event(hook_input: dict, command: str) -> str | None:
     return _checkpoint_json_event(
         "delivery", identity[0], identity[1], identity[2],
         observedAt=int(time.time()), digest=digest, taskHeads=task_heads,
+        legacyCommitProofs=legacy_commit_proofs,
     )
 
 
@@ -3499,6 +3524,7 @@ def check_r29_delivery_complete(hook_input: dict) -> str | None:
         if payload
     ]
     required = {(item["repository"], item["head"].lower()) for item in checkpoints}
+    legacy_commit_count = sum(event == "commit" for event in events) if not required else 0
     now = int(time.time())
     for event in reversed(events):
         payload = _checkpoint_event_payload(event, "delivery")
@@ -3510,16 +3536,34 @@ def check_r29_delivery_complete(hook_input: dict) -> str | None:
                 (item["repository"], item["head"].lower())
                 for item in payload.get("taskHeads", []) if isinstance(item, dict)
             }
+            legacy_proofs = payload.get("legacyCommitProofs", [])
+            legacy_required = {
+                (item["repository"], item["head"].lower())
+                for item in legacy_proofs
+                if isinstance(item, dict)
+            }
         except (ValueError, TypeError, KeyError, AttributeError):
             continue
-        if required and required.issubset(task_heads) and -60 <= now - observed <= 600:
+        legacy_complete = bool(
+            legacy_commit_count
+            and isinstance(legacy_proofs, list)
+            and len(legacy_proofs) == legacy_commit_count
+            and len(legacy_required) <= len(legacy_proofs)
+            and legacy_required
+            and legacy_required.issubset(task_heads)
+        )
+        if (
+            (required and required.issubset(task_heads)) or legacy_complete
+        ) and -60 <= now - observed <= 600:
             return None
     return (
         "R29 blocked completion: this session committed work but has no fresh live delivery-status "
         "receipt proving every owned authorized PR has mergedAt, every feedback audit is clear, "
         "and scoped cleanup preserved unrelated dirty work. Run `py -3 scripts/agents/"
         "act_as_mohab_cli.py delivery-status --manifest <file> --receipt-out <file>` and keep the "
-        "goal incomplete if merge authority is absent."
+        "goal incomplete if merge authority is absent. Legacy ledgers must add one "
+        "`legacyCommitProofs` repository/headOid entry per bare commit; every proof must match "
+        "an owned pull-request head."
     )
 
 
@@ -4833,6 +4877,38 @@ def _failure_target(hook_input: dict) -> str:
     return str(hook_input.get("tool_name") or "unknown")
 
 
+def _read_only_diagnostic(hook_input: dict) -> bool:
+    """Classify bounded discovery failures as observations, never attempts."""
+    tool_name = str(hook_input.get("tool_name") or "")
+    if tool_name in {"Read", "Grep", "Glob", "WebSearch", "WebFetch", "Skill"}:
+        return True
+    commands = _hook_commands(hook_input, tool_name)
+    if not commands:
+        return False
+    for command in commands:
+        segments = _command_segments(command)
+        if not segments:
+            return False
+        for segment in segments:
+            tokens = _segment_tokens(segment)
+            if not tokens:
+                return False
+            head = re.split(r"[/\\]", tokens[0].strip("\"'"))[-1].casefold()
+            if head in {"rg", "grep", "get-content"}:
+                continue
+            rest = _tokens_after_head(segment, _GIT_NAMES)
+            if rest is None:
+                return False
+            subcommand, _directories, argument_index = _split_global_options(rest)
+            arguments = rest[argument_index:]
+            if subcommand in {"status", "diff", "show", "log", "rev-parse"}:
+                continue
+            if subcommand == "branch" and arguments == ["--show-current"]:
+                continue
+            return False
+    return True
+
+
 def _record_task_failure(hook_input: dict, result: object = None) -> dict | None:
     return _reflection.record_failure(
         _reflection_session_id(hook_input),
@@ -4842,7 +4918,7 @@ def _record_task_failure(hook_input: dict, result: object = None) -> dict | None
         platform=hook_input.get("platform") or sys.platform,
         invariant=hook_input.get("invariant") or "command-outcome",
         head=hook_input.get("head") or "unknown",
-        attempted=True,
+        attempted=not _read_only_diagnostic(hook_input),
         observation_id=hook_input.get("tool_use_id"),
     )
 
