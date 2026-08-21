@@ -117,7 +117,7 @@ class AssistantCodegenWorkflowCoordinatorTest {
                 .setText("/codegen visit https://example.com");
 
         Method send = ShaftAssistantPanel.class.getDeclaredMethod("send", com.intellij.openapi.project.Project.class);
-        send.setAccessible(true);
+        send.setAccessible(true); // NOPMD - invokes the real panel send path for this integration test
         send.invoke(panel, new Object[]{null});
 
         Object panelCoordinator = fieldValue(panel, "codegenCoordinator");
@@ -341,13 +341,13 @@ class AssistantCodegenWorkflowCoordinatorTest {
         ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
         Field coordinatorField = findField(ShaftAssistantPanel.class, "codegenCoordinator");
         assertNotNull(coordinatorField, "panel must retain its workflow coordinator");
-        coordinatorField.setAccessible(true);
+        coordinatorField.setAccessible(true); // NOPMD - test-only inspection of the panel-owned coordinator
         Object panelCoordinator = coordinatorField.get(panel);
         route(panelCoordinator, "panel-session", "/codegen visit https://example.com",
                 codegen("/codegen visit https://example.com"));
         Field sessionField = findField(ShaftAssistantPanel.class, "activeCodegenSessionId");
         assertNotNull(sessionField, "panel must identify the workflow session it owns");
-        sessionField.setAccessible(true);
+        sessionField.setAccessible(true); // NOPMD - test-only setup of the panel-owned workflow session
         sessionField.set(panel, "panel-session");
         panel.dispose();
 
@@ -668,7 +668,7 @@ class AssistantCodegenWorkflowCoordinatorTest {
     private static void showAgentResult(ShaftAssistantPanel panel, ShaftMcpToolResult result) throws Exception {
         Method method = ShaftAssistantPanel.class.getDeclaredMethod(
                 "showAgentResult", ShaftMcpToolResult.class, Throwable.class);
-        method.setAccessible(true);
+        method.setAccessible(true); // NOPMD - invokes the real asynchronous completion target in this integration test
         method.invoke(panel, result, null);
     }
 
@@ -737,14 +737,14 @@ class AssistantCodegenWorkflowCoordinatorTest {
             return null;
         }
         Constructor<?> constructor = type.getDeclaredConstructor();
-        constructor.setAccessible(true);
+        constructor.setAccessible(true); // NOPMD - test-only construction of the package-private coordinator seam
         return constructor.newInstance();
     }
 
     private static Object invoke(Object target, String name, Class<?>[] parameterTypes, Object... arguments)
             throws Exception {
         Method method = target.getClass().getDeclaredMethod(name, parameterTypes);
-        method.setAccessible(true);
+        method.setAccessible(true); // NOPMD - test-only invocation of package-private coordinator behavior
         return method.invoke(target, arguments);
     }
 
@@ -758,13 +758,13 @@ class AssistantCodegenWorkflowCoordinatorTest {
 
     private static Object fieldValue(Object target, String name) throws Exception {
         Field field = target.getClass().getDeclaredField(name);
-        field.setAccessible(true);
+        field.setAccessible(true); // NOPMD - test-only field inspection through the established helper
         return field.get(target);
     }
 
     private static void setField(Object target, String name, Object value) throws Exception {
         Field field = target.getClass().getDeclaredField(name);
-        field.setAccessible(true);
+        field.setAccessible(true); // NOPMD - test-only field injection through the established helper
         field.set(target, value);
     }
 

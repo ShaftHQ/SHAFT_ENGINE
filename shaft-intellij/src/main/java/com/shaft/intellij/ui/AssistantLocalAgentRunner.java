@@ -1224,29 +1224,41 @@ final class AssistantLocalAgentRunner {
         }
 
         private static boolean validRunnerMetadata(JsonObject metadata) {
-            if (metadata == null
-                    || !metadata.has("usage")
-                    || !metadata.get("usage").isJsonObject()
-                    || !metadata.has("shaft_runner")
-                    || !metadata.get("shaft_runner").isJsonObject()) {
+            if (!validRunnerMetadataShape(metadata) || !validRunnerMetadataKeys(metadata)) {
                 return false;
-            }
-            for (String key : metadata.keySet()) {
-                if (!"usage".equals(key) && !"plan".equals(key)
-                        && !"question".equals(key) && !"shaft_runner".equals(key)) {
-                    return false;
-                }
             }
             JsonObject usage = metadata.getAsJsonObject("usage");
             JsonObject runner = metadata.getAsJsonObject("shaft_runner");
+            return validUsageMetadata(usage) && validModelOutputMetadata(runner);
+        }
+
+        private static boolean validRunnerMetadataShape(JsonObject metadata) {
+            return metadata != null
+                    && metadata.has("usage")
+                    && metadata.get("usage").isJsonObject()
+                    && metadata.has("shaft_runner")
+                    && metadata.get("shaft_runner").isJsonObject();
+        }
+
+        private static boolean validRunnerMetadataKeys(JsonObject metadata) {
+            return metadata.keySet().stream().allMatch(key -> "usage".equals(key)
+                    || "plan".equals(key)
+                    || "question".equals(key)
+                    || "shaft_runner".equals(key));
+        }
+
+        private static boolean validUsageMetadata(JsonObject usage) {
             return usage.size() == 2
                     && usage.has("input_tokens")
                     && usage.get("input_tokens").isJsonPrimitive()
                     && usage.get("input_tokens").getAsJsonPrimitive().isNumber()
                     && usage.has("output_tokens")
                     && usage.get("output_tokens").isJsonPrimitive()
-                    && usage.get("output_tokens").getAsJsonPrimitive().isNumber()
-                    && runner.size() == 1
+                    && usage.get("output_tokens").getAsJsonPrimitive().isNumber();
+        }
+
+        private static boolean validModelOutputMetadata(JsonObject runner) {
+            return runner.size() == 1
                     && runner.has("model_output_characters")
                     && runner.get("model_output_characters").isJsonPrimitive()
                     && runner.get("model_output_characters").getAsJsonPrimitive().isNumber();
@@ -1565,7 +1577,7 @@ final class AssistantLocalAgentRunner {
     private static String recordMcpToolsToml() {
         return AssistantCodegenWorkflowCoordinator.recordMcpTools().stream()
                 .map(tool -> "\"" + tool + "\"")
-                .collect(java.util.stream.Collectors.joining(",", "[", "]"));
+                .collect(Collectors.joining(",", "[", "]"));
     }
 
     private static List<String> copilotCommand(String mode, boolean allowSourceMutation, String model) {

@@ -65,9 +65,6 @@ public final class AssistantCodegenWorkflowCoordinator implements Disposable {
             "element_upload_file");
     private final Map<String, Workflow> workflows = new ConcurrentHashMap<>();
 
-    public AssistantCodegenWorkflowCoordinator() {
-    }
-
     static AssistantCodegenWorkflowCoordinator getInstance(Project project) {
         if (project == null) {
             return new AssistantCodegenWorkflowCoordinator();
@@ -84,21 +81,9 @@ public final class AssistantCodegenWorkflowCoordinator implements Disposable {
         String key = sessionKey(sessionId);
         Workflow current = workflows.get(key);
         if (current != null) {
-            if (current.phase == Phase.AWAITING_URL) {
-                return acceptUrl(current, userText);
-            }
-            if (current.phase == Phase.AWAITING_EDIT_CONFIRMATION) {
-                return acceptConsent(current, userText);
-            }
-            if (current.phase.terminal()) {
-                if (baseInvocation == null) {
-                    return AssistantCommand.Invocation.local("This AutoBot codegen workflow already ended with "
-                            + current.phase.name().toLowerCase(Locale.ROOT) + ". Start a new `/codegen` request.");
-                }
-                workflows.remove(key);
-            } else {
-                return AssistantCommand.Invocation.local("AutoBot codegen is already running in phase "
-                        + current.phase + ". Cancel it before starting another workflow.");
+            AssistantCommand.Invocation currentRoute = routeCurrentWorkflow(key, current, userText, baseInvocation);
+            if (currentRoute != null) {
+                return currentRoute;
             }
         }
         if (!scenarioCodegen(baseInvocation, userText)) {
@@ -126,6 +111,29 @@ public final class AssistantCodegenWorkflowCoordinator implements Disposable {
             return AssistantCommand.Invocation.local(URL_QUESTION);
         }
         return recordInvocation(workflow);
+    }
+
+    private AssistantCommand.Invocation routeCurrentWorkflow(
+            String key,
+            Workflow current,
+            String userText,
+            AssistantCommand.Invocation baseInvocation) {
+        if (current.phase == Phase.AWAITING_URL) {
+            return acceptUrl(current, userText);
+        }
+        if (current.phase == Phase.AWAITING_EDIT_CONFIRMATION) {
+            return acceptConsent(current, userText);
+        }
+        if (!current.phase.terminal()) {
+            return AssistantCommand.Invocation.local("AutoBot codegen is already running in phase "
+                    + current.phase + ". Cancel it before starting another workflow.");
+        }
+        if (baseInvocation == null) {
+            return AssistantCommand.Invocation.local("This AutoBot codegen workflow already ended with "
+                    + current.phase.name().toLowerCase(Locale.ROOT) + ". Start a new `/codegen` request.");
+        }
+        workflows.remove(key);
+        return null;
     }
 
     ShaftMcpToolResult complete(String sessionId, ShaftMcpToolResult result, String workingDirectory) {
@@ -403,30 +411,41 @@ public final class AssistantCodegenWorkflowCoordinator implements Disposable {
     }
 
     private static boolean validTerminal(JsonObject terminal) {
-        if (terminal == null
-                || !nonBlankString(terminal, "status")
-                || !terminal.has("phaseOutcomes")
-                || !terminal.get("phaseOutcomes").isJsonObject()
-                || !terminal.has("changedClasses")
-                || !terminal.get("changedClasses").isJsonArray()
-                || !terminal.has("createdClasses")
-                || !terminal.get("createdClasses").isJsonArray()
-                || !optionalString(terminal, "reportPath")) {
+        if (!validTerminalShape(terminal)) {
             return false;
         }
         String status = terminal.get("status").getAsString().trim().toLowerCase(Locale.ROOT);
         JsonArray changedClasses = terminal.getAsJsonArray("changedClasses");
         JsonArray createdClasses = terminal.getAsJsonArray("createdClasses");
         JsonObject phaseOutcomes = terminal.getAsJsonObject("phaseOutcomes");
-        if (!("passed".equals(status) || "failed".equals(status))
-                || !validClassNames(changedClasses)
-                || !validClassNames(createdClasses)
-                || !validPhaseOutcomes(phaseOutcomes)) {
+        if (!validTerminalValues(status, changedClasses, createdClasses, phaseOutcomes)) {
             return false;
         }
-        if (!"passed".equals(status)) {
-            return true;
-        }
+        return !"passed".equals(status) || validPassedTerminal(changedClasses, createdClasses, phaseOutcomes);
+    }
+
+    private static boolean validTerminalShape(JsonObject terminal) {
+        return terminal != null
+                && nonBlankString(terminal, "status")
+                && terminal.has("phaseOutcomes")
+                && terminal.get("phaseOutcomes").isJsonObject()
+                && terminal.has("changedClasses")
+                && terminal.get("changedClasses").isJsonArray()
+                && terminal.has("createdClasses")
+                && terminal.get("createdClasses").isJsonArray()
+                && optionalString(terminal, "reportPath");
+    }
+
+    private static boolean validTerminalValues(
+            String status, JsonArray changedClasses, JsonArray createdClasses, JsonObject phaseOutcomes) {
+        return ("passed".equals(status) || "failed".equals(status))
+                && validClassNames(changedClasses)
+                && validClassNames(createdClasses)
+                && validPhaseOutcomes(phaseOutcomes);
+    }
+
+    private static boolean validPassedTerminal(
+            JsonArray changedClasses, JsonArray createdClasses, JsonObject phaseOutcomes) {
         return nonBlankOutcome(phaseOutcomes, "GENERATE")
                 && nonBlankOutcome(phaseOutcomes, "REPLAY")
                 && nonBlankOutcome(phaseOutcomes, "HEAL")
