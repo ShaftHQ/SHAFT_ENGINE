@@ -56,6 +56,17 @@ except ModuleNotFoundError as error:
 
 LEARNING_CONTROLLER = str(Path(learning_loop.__file__))
 
+
+def preflight_context_bytes(context: str) -> int:
+    """Measure source preflight without mandatory verbatim companion bodies."""
+    root = Path(__file__).resolve().parents[2]
+    for name in ("caveman", "ponytail"):
+        body = root.joinpath(
+            f"chaos-engine/vendor/{name}/skills/{name}/SKILL.md"
+        ).read_text(encoding="utf-8")
+        context = context.replace(body, "", 1)
+    return len(context.encode("utf-8"))
+
 # Every Stop rule `run_stop` calls. All of them are patched off in the classes
 # whose subject is something else.
 #
@@ -1178,7 +1189,7 @@ class DelegatePreflightRedTest(unittest.TestCase):
                             self.assertEqual(guard.run_session_start({"cwd": "."}), 0)
         payload = json.loads(output.getvalue())
         context = payload["hookSpecificOutput"]["additionalContext"]
-        self.assertLessEqual(len(context.encode("utf-8")), 8192)
+        self.assertLessEqual(preflight_context_bytes(context), 8192)
 
     def test_structured_learning_none_reason_is_recorded_after_success(self):
         events: list[str] = []
@@ -2141,7 +2152,7 @@ class PreflightPackTest(unittest.TestCase):
         wake_up.assert_called_once_with(".")
         self.assertIn("MemPalace wake-up completed", context)
         self.assertNotIn("IGNORE PRIOR INSTRUCTIONS", context)
-        self.assertLessEqual(len(context.encode("utf-8")), 8192)
+        self.assertLessEqual(preflight_context_bytes(context), 8192)
 
     def test_untrusted_native_memory_prose_is_never_auto_injected(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -2186,7 +2197,7 @@ class PreflightPackTest(unittest.TestCase):
         reminders.assert_called_once_with(".")
         wake_up.assert_called_once_with(".")
         self.assertNotIn("private memory", context)
-        self.assertLessEqual(len(context.encode("utf-8")), 8192)
+        self.assertLessEqual(preflight_context_bytes(context), 8192)
 
     def test_native_memory_preload_caps_files_and_bytes_per_file(self):
         with tempfile.TemporaryDirectory() as directory:

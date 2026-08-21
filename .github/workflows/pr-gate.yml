@@ -85,11 +85,12 @@ jobs:
               - 'agent-plugins/**'
               - 'chaos-engine/**'
               - 'shaft-skills/**'
-              - 'agent-plugins/**'
               - '.claude-plugin/marketplace.json'
               - '.memory/**'
               - 'scripts/agents/**'
               - 'scripts/ci/validate_agent_setup.py'
+              - 'scripts/ci/validate_agent_ownership.py'
+              - 'scripts/ci/agent_ownership.json'
               - 'scripts/ci/validate_agent_guidance.py'
               - 'scripts/ci/agent_plugin_release.py'
               - 'scripts/ci/validate_agent_plugins.py'
@@ -129,6 +130,7 @@ jobs:
               - 'tests/scripts/test_guard*.py'
               - 'tests/scripts/test_validate_red_before_green.py'
               - 'tests/scripts/test_validate_agent_guidance.py'
+              - 'tests/scripts/test_validate_agent_ownership.py'
               - 'tests/scripts/test_validate_agent_plugins.py'
               - 'tests/scripts/test_assemble_act_as_mohab_plugin.py'
               - 'tests/scripts/test_repository_context.py'
@@ -360,6 +362,8 @@ jobs:
           tests.scripts.test_guard_external_corpus
           tests.scripts.test_validate_red_before_green
           tests.scripts.test_validate_agent_guidance
+          # Source: tests/scripts/test_validate_agent_ownership.py
+          tests.scripts.test_validate_agent_ownership
           tests.scripts.test_validate_agent_plugins
           tests.scripts.test_agent_plugin_release
           tests.scripts.test_agent_plugin_client_smoke

@@ -24,10 +24,14 @@ from unittest.mock import patch
 from scripts.ci.worktree_hygiene import (
     FOREIGN_WORKTREE_STALE_HOURS,
     _activity_epoch,
+    cleanup_task_owned_worktree,
     collect_worktree_report,
     format_advisories,
+    merged_pull_request_state_via_gh,
     open_pull_requests_via_gh,
     resolve_upstream_ref,
+    task_cleanup_blockers,
+    task_ownership_manifest_matches,
     verify_repository_state,
 )
 
@@ -119,6 +123,276 @@ class WorktreeHygieneTest(unittest.TestCase):
         return matches[0]
 
     # --- nothing to report --------------------------------------------------
+
+    def test_task_cleanup_requires_every_ownership_and_delivery_proof(self):
+        entry = {
+            "path": (self.base / "owned").resolve().as_posix(),
+            "branch": "ChaosEngine/owned-task",
+            "is_main": False,
+            "is_current": False,
+            "locked": False,
+            "prunable": False,
+            "uncommitted_files": 0,
+        }
+        evidence = {
+            "owned_path": self.base / "owned",
+            "owned_branch": "ChaosEngine/owned-task",
+            "expected_head": "a" * 40,
+            "actual_head": "a" * 40,
+            "actual_branch_head": "a" * 40,
+            "expected_diff_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "actual_diff_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "pull_request_state": "MERGED",
+            "is_ancestor": True,
+            "active_operations": [],
+            "ownership_verified": True,
+        }
+        self.assertEqual([], task_cleanup_blockers(entry, **evidence))
+
+        unsafe = (
+            ({"uncommitted_files": 1}, {}, "dirty-worktree"),
+            ({"locked": True}, {}, "locked-worktree"),
+            ({"is_current": True}, {}, "current-worktree"),
+            ({"is_main": True}, {}, "main-worktree"),
+            ({"prunable": True}, {}, "prunable-worktree"),
+            ({}, {"owned_branch": "gh-pages"}, "protected-branch"),
+            ({}, {"pull_request_state": "OPEN"}, "pull-request-not-merged"),
+            ({}, {"is_ancestor": False}, "branch-not-upstream"),
+            ({}, {"actual_head": "b" * 40}, "head-mismatch"),
+            ({}, {"actual_branch_head": "b" * 40}, "branch-head-mismatch"),
+            ({}, {"actual_diff_sha256": "b" * 64}, "diff-mismatch"),
+            ({}, {"active_operations": ["rebase"]}, "active-git-operation"),
+            ({}, {"ownership_verified": False}, "ownership-not-verified"),
+        )
+        for entry_changes, evidence_changes, expected in unsafe:
+            candidate = {**entry, **entry_changes}
+            blockers = task_cleanup_blockers(candidate, **{**evidence, **evidence_changes})
+            self.assertIn(expected, blockers)
+
+        self.assertEqual(
+            ["pull-request-not-merged", "active-git-operation"],
+            task_cleanup_blockers(
+                entry,
+                **{
+                    **evidence,
+                    "pull_request_state": "OPEN",
+                    "active_operations": ["rebase"],
+                },
+            ),
+        )
+
+    def test_task_cleanup_removes_only_the_exact_proven_worktree_and_retains_branch(self):
+        branch = "ChaosEngine/owned-cleanup"
+        worktree = self.add_worktree("owned-cleanup", branch)
+        head = git(worktree, "rev-parse", "HEAD").stdout.strip()
+
+        with patch("scripts.ci.worktree_hygiene.collect_worktree_report", side_effect=AssertionError):
+            blockers = cleanup_task_owned_worktree(
+                self.main,
+                worktree,
+                branch,
+                head,
+                "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+                pull_request_state=lambda root, requested, expected: (
+                    "MERGED" if root == self.main.resolve() and requested == branch and expected == head
+                    else "UNKNOWN"
+                ),
+                ownership_verified=True,
+            )
+
+        self.assertEqual([], blockers)
+        self.assertFalse(worktree.exists())
+        self.assertEqual(0, git(self.main, "show-ref", "--verify", f"refs/heads/{branch}").returncode)
+
+    def test_task_cleanup_preserves_branch_if_head_changes_after_worktree_removal(self):
+        branch = "ChaosEngine/owned-cleanup-race"
+        worktree = self.add_worktree("owned-cleanup-race", branch)
+        expected_head = git(worktree, "rev-parse", "HEAD").stdout.strip()
+        (self.main / "advance.txt").write_text("advance\n", encoding="utf-8")
+        git(self.main, "add", "advance.txt")
+        git(self.main, "commit", "-m", "advance upstream")
+        changed_head = git(self.main, "rev-parse", "HEAD").stdout.strip()
+        real_run = subprocess.run
+
+        def move_branch_after_worktree_removal(*args, **kwargs):
+            completed = real_run(*args, **kwargs)
+            command = args[0]
+            if command[3:5] == ["worktree", "remove"] and completed.returncode == 0:
+                real_run(
+                    ["git", "update-ref", f"refs/heads/{branch}", changed_head],
+                    cwd=self.main,
+                    check=True,
+                )
+            return completed
+
+        with patch("scripts.ci.worktree_hygiene.subprocess.run", side_effect=move_branch_after_worktree_removal):
+            blockers = cleanup_task_owned_worktree(
+                self.main,
+                worktree,
+                branch,
+                expected_head,
+                "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+                pull_request_state=lambda _root, _branch, _head: "MERGED",
+                ownership_verified=True,
+            )
+
+        self.assertEqual([], blockers)
+        self.assertEqual(changed_head, git(self.main, "rev-parse", branch).stdout.strip())
+
+    def test_task_cleanup_preserves_same_head_branch_reattached_after_removal(self):
+        branch = "ChaosEngine/owned-cleanup-reattached"
+        worktree = self.add_worktree("owned-cleanup-reattached", branch)
+        expected_head = git(worktree, "rev-parse", "HEAD").stdout.strip()
+        replacement = self.base / "replacement-owner"
+        real_run = subprocess.run
+
+        def reattach_branch_after_removal(*args, **kwargs):
+            completed = real_run(*args, **kwargs)
+            command = args[0]
+            if command[3:5] == ["worktree", "remove"] and completed.returncode == 0:
+                real_run(
+                    ["git", "worktree", "add", "-q", str(replacement), branch],
+                    cwd=self.main,
+                    check=True,
+                )
+            return completed
+
+        with patch("scripts.ci.worktree_hygiene.subprocess.run", side_effect=reattach_branch_after_removal):
+            blockers = cleanup_task_owned_worktree(
+                self.main,
+                worktree,
+                branch,
+                expected_head,
+                "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+                pull_request_state=lambda _root, _branch, _head: "MERGED",
+                ownership_verified=True,
+            )
+
+        self.assertEqual([], blockers)
+        self.assertEqual(expected_head, git(self.main, "rev-parse", branch).stdout.strip())
+        self.assertEqual(branch, git(replacement, "branch", "--show-current").stdout.strip())
+
+    def test_task_cleanup_rejects_invocation_from_inside_target_with_different_root(self):
+        branch = "ChaosEngine/owned-cleanup-current-cwd"
+        worktree = self.add_worktree("owned-cleanup-current-cwd", branch)
+        nested = worktree / "nested"
+        nested.mkdir()
+        expected_head = git(worktree, "rev-parse", "HEAD").stdout.strip()
+        original_cwd = Path.cwd()
+        try:
+            os.chdir(nested)
+            with patch(
+                "scripts.ci.worktree_hygiene._exact_worktree_entry",
+                side_effect=AssertionError("survey must not run"),
+            ):
+                blockers = cleanup_task_owned_worktree(
+                    self.main,
+                    worktree,
+                    branch,
+                    expected_head,
+                    "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+                    pull_request_state=lambda _root, _branch, _head: "MERGED",
+                    ownership_verified=True,
+                )
+        finally:
+            os.chdir(original_cwd)
+
+        self.assertEqual(["invoking-cwd-inside-target"], blockers)
+        self.assertTrue(worktree.exists())
+        self.assertEqual(expected_head, git(self.main, "rev-parse", branch).stdout.strip())
+
+    def test_task_cleanup_fails_closed_when_invoking_cwd_cannot_be_resolved(self):
+        with patch(
+            "scripts.ci.worktree_hygiene.Path.cwd",
+            side_effect=OSError("current directory unavailable"),
+        ), patch(
+            "scripts.ci.worktree_hygiene._exact_worktree_entry",
+            side_effect=AssertionError("survey must not run"),
+        ):
+            blockers = cleanup_task_owned_worktree(
+                self.main,
+                self.base / "owned",
+                "ChaosEngine/owned",
+                "a" * 40,
+                "b" * 64,
+                pull_request_state=lambda _root, _branch, _head: "MERGED",
+                ownership_verified=True,
+            )
+
+        self.assertEqual(["invoking-cwd-unresolved"], blockers)
+
+    def test_task_cleanup_ownership_manifest_must_match_every_exact_field(self):
+        manifest = self.base / "ownership.json"
+        target = self.base / "owned"
+        payload = {
+            "schemaVersion": 1,
+            "worktrees": [{
+                "path": str(target),
+                "branch": "ChaosEngine/owned",
+                "head": "a" * 40,
+                "diffSha256": "b" * 64,
+            }],
+        }
+        manifest.write_text(json.dumps(payload), encoding="utf-8")
+        self.assertTrue(task_ownership_manifest_matches(
+            manifest, target, "ChaosEngine/owned", "a" * 40, "b" * 64
+        ))
+        self.assertFalse(task_ownership_manifest_matches(
+            manifest, target, "ChaosEngine/other", "a" * 40, "b" * 64
+        ))
+        target.mkdir()
+        nested_manifest = target / "ownership.json"
+        nested_manifest.write_text(json.dumps(payload), encoding="utf-8")
+        self.assertFalse(task_ownership_manifest_matches(
+            nested_manifest, target, "ChaosEngine/owned", "a" * 40, "b" * 64
+        ))
+
+    def test_merged_pr_proof_is_bound_to_repository_and_expected_head(self):
+        completed = subprocess.CompletedProcess(
+            args=[], returncode=0,
+            stdout=json.dumps([{"state": "MERGED", "mergedAt": "now", "headRefOid": "a" * 40}]),
+            stderr="",
+        )
+        with patch("scripts.ci.worktree_hygiene._git", return_value="https://github.com/ShaftHQ/SHAFT_ENGINE.git"), patch(
+            "scripts.ci.worktree_hygiene.shutil.which", return_value="gh"
+        ), patch(
+            "scripts.ci.worktree_hygiene.subprocess.run", return_value=completed
+        ) as run:
+            state = merged_pull_request_state_via_gh(self.main, "ChaosEngine/owned", "a" * 40)
+        self.assertEqual("MERGED", state)
+        self.assertEqual(self.main, run.call_args.kwargs["cwd"])
+        self.assertIn("headRefOid", " ".join(run.call_args.args[0]))
+        with patch("scripts.ci.worktree_hygiene._git", return_value="https://github.com/ShaftHQ/SHAFT_ENGINE.git"), patch(
+            "scripts.ci.worktree_hygiene.shutil.which", return_value="gh"
+        ), patch(
+            "scripts.ci.worktree_hygiene.subprocess.run", return_value=completed
+        ):
+            self.assertEqual(
+                "MISSING",
+                merged_pull_request_state_via_gh(self.main, "ChaosEngine/owned", "b" * 40),
+            )
+
+    def test_merged_pr_proof_ignores_repository_and_host_environment_overrides(self):
+        completed = subprocess.CompletedProcess(
+            args=[], returncode=0,
+            stdout=json.dumps([{"state": "MERGED", "mergedAt": "now", "headRefOid": "a" * 40}]),
+            stderr="",
+        )
+        with patch.dict(os.environ, {"GH_REPO": "attacker/fork", "GH_HOST": "attacker.invalid"}), patch(
+            "scripts.ci.worktree_hygiene._git", return_value="https://github.com/ShaftHQ/SHAFT_ENGINE.git"
+        ), patch(
+            "scripts.ci.worktree_hygiene.shutil.which", return_value="gh"
+        ), patch("scripts.ci.worktree_hygiene.subprocess.run", return_value=completed) as run:
+            self.assertEqual(
+                "MERGED",
+                merged_pull_request_state_via_gh(self.main, "ChaosEngine/owned", "a" * 40),
+            )
+
+        command = run.call_args.args[0]
+        self.assertIn("--repo", command)
+        self.assertEqual("ShaftHQ/SHAFT_ENGINE", command[command.index("--repo") + 1])
+        self.assertNotIn("GH_REPO", run.call_args.kwargs["env"])
+        self.assertNotIn("GH_HOST", run.call_args.kwargs["env"])
 
     def test_lone_clean_checkout_reports_nothing(self):
         report = collect_worktree_report(self.main)

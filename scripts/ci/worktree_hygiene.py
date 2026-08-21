@@ -29,6 +29,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 import shutil
@@ -43,6 +44,10 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from scripts.agents.guard import scan_for_nul_corruption  # noqa: E402
+from scripts.agents.repository_context import (  # noqa: E402
+    RepositoryContextError,
+    parse_git_remote,
+)
 
 GIT_TIMEOUT_SECONDS = 30
 PULL_REQUEST_TIMEOUT_SECONDS = 30
@@ -806,6 +811,260 @@ def verify_repository_state(root: Path, upstream: str | None = None) -> list[str
     return list(dict.fromkeys(violations))
 
 
+def _cleanup_identity_blockers(
+    entry: dict, owned_path: Path, owned_branch: str, ownership_verified: bool
+) -> list[str]:
+    blockers: list[str] = []
+    if not ownership_verified:
+        blockers.append("ownership-not-verified")
+    try:
+        recorded_path = Path(str(entry.get("path", ""))).resolve()
+        requested_path = owned_path.resolve()
+    except OSError:
+        return ["unresolved-path"]
+    if recorded_path != requested_path:
+        blockers.append("path-mismatch")
+    if entry.get("branch") != owned_branch:
+        blockers.append("branch-mismatch")
+    normalized_branch = owned_branch.casefold()
+    if normalized_branch in {"origin", "gh-pages"} or normalized_branch.startswith(
+        ("origin/", "refs/remotes/origin/")
+    ):
+        blockers.append("protected-branch")
+    return blockers
+
+
+def _cleanup_worktree_blockers(entry: dict) -> list[str]:
+    blockers: list[str] = []
+    if entry.get("is_current"):
+        blockers.append("current-worktree")
+    if entry.get("is_main"):
+        blockers.append("main-worktree")
+    if entry.get("locked"):
+        blockers.append("locked-worktree")
+    if entry.get("prunable"):
+        blockers.append("prunable-worktree")
+    if entry.get("uncommitted_files") != 0:
+        blockers.append("dirty-worktree")
+    return blockers
+
+
+def _cleanup_delivery_blockers(
+    *, expected_head: str, actual_head: str, actual_branch_head: str,
+    expected_diff_sha256: str, actual_diff_sha256: str,
+    pull_request_state: str, is_ancestor: bool,
+) -> list[str]:
+    blockers: list[str] = []
+    if pull_request_state != "MERGED":
+        blockers.append("pull-request-not-merged")
+    if not is_ancestor:
+        blockers.append("branch-not-upstream")
+    if not expected_head or actual_head != expected_head:
+        blockers.append("head-mismatch")
+    if actual_branch_head != expected_head:
+        blockers.append("branch-head-mismatch")
+    if not expected_diff_sha256 or actual_diff_sha256 != expected_diff_sha256:
+        blockers.append("diff-mismatch")
+    return blockers
+
+
+def task_cleanup_blockers(
+    entry: dict,
+    *,
+    owned_path: Path,
+    owned_branch: str,
+    expected_head: str,
+    actual_head: str,
+    actual_branch_head: str,
+    expected_diff_sha256: str,
+    actual_diff_sha256: str,
+    pull_request_state: str,
+    is_ancestor: bool,
+    active_operations: list[str],
+    ownership_verified: bool,
+) -> list[str]:
+    """Return every failed proof for one explicitly task-owned cleanup target."""
+    blockers = _cleanup_identity_blockers(entry, owned_path, owned_branch, ownership_verified)
+    blockers.extend(_cleanup_worktree_blockers(entry))
+    blockers.extend(_cleanup_delivery_blockers(
+        expected_head=expected_head,
+        actual_head=actual_head,
+        actual_branch_head=actual_branch_head,
+        expected_diff_sha256=expected_diff_sha256,
+        actual_diff_sha256=actual_diff_sha256,
+        pull_request_state=pull_request_state,
+        is_ancestor=is_ancestor,
+    ))
+    if active_operations:
+        blockers.append("active-git-operation")
+    return list(dict.fromkeys(blockers))
+
+
+def merged_pull_request_state_via_gh(root: Path, branch: str, expected_head: str) -> str:
+    """Return MERGED only when GitHub proves a merged PR and no open PR."""
+    if shutil.which("gh") is None:
+        return "UNKNOWN"
+    remote = _git(root, "remote", "get-url", "origin")
+    try:
+        repository = parse_git_remote(remote or "")
+    except RepositoryContextError:
+        return "UNKNOWN"
+    environment = os.environ.copy()
+    environment.pop("GH_REPO", None)
+    environment.pop("GH_HOST", None)
+    completed = subprocess.run(  # nosec B603 B607 - fixed read-only gh query.
+        ["gh", "pr", "list", "--repo", repository, "--head", branch,
+         "--state", "all", "--json", "state,mergedAt,headRefOid"],
+        cwd=root,
+        env=environment,
+        capture_output=True,
+        text=True,
+        timeout=PULL_REQUEST_TIMEOUT_SECONDS,
+        check=False,
+    )
+    if completed.returncode != 0:
+        return "UNKNOWN"
+    try:
+        pull_requests = json.loads(completed.stdout or "[]")
+    except json.JSONDecodeError:
+        return "UNKNOWN"
+    if any(str(item.get("state", "")).upper() == "OPEN" for item in pull_requests):
+        return "OPEN"
+    return "MERGED" if any(
+        item.get("mergedAt") and item.get("headRefOid") == expected_head
+        for item in pull_requests
+    ) else "MISSING"
+
+
+def _worktree_diff_sha256(worktree: Path) -> str | None:
+    completed = subprocess.run(  # nosec B603 B607 - fixed read-only git query.
+        ["git", "-c", "core.longpaths=true", "diff", "--binary", "--no-ext-diff", "HEAD", "--"],
+        cwd=worktree,
+        capture_output=True,
+        timeout=GIT_TIMEOUT_SECONDS,
+        check=False,
+    )
+    return hashlib.sha256(completed.stdout).hexdigest() if completed.returncode == 0 else None
+
+
+def _exact_worktree_entry(root: Path, target: Path) -> dict | None:
+    """Read only one linked-worktree record and its status, bounded and fail closed."""
+    listing = _git(root, "worktree", "list", "--porcelain")
+    if listing is None:
+        return None
+    toplevel = _git(root, "rev-parse", "--show-toplevel")
+    try:
+        current = Path(toplevel.strip()).resolve() if toplevel else root.resolve()
+        requested = target.resolve()
+    except OSError:
+        return None
+    matches = []
+    for index, record in enumerate(_parse_worktree_list(listing)[:MAX_REPORTED_WORKTREES]):
+        try:
+            resolved = Path(record["path"]).resolve()
+        except OSError:
+            continue
+        if resolved != requested:
+            continue
+        uncommitted = None if record["prunable"] else _uncommitted_paths(resolved)
+        matches.append({
+            "path": resolved.as_posix(),
+            "branch": record["branch"],
+            "is_main": index == 0,
+            "is_current": resolved == current,
+            "locked": record["locked"],
+            "prunable": record["prunable"],
+            "uncommitted_files": None if uncommitted is None else len(uncommitted),
+        })
+    return matches[0] if len(matches) == 1 else None
+
+
+def cleanup_task_owned_worktree(
+    root: Path,
+    target: Path,
+    branch: str,
+    expected_head: str,
+    expected_diff_sha256: str,
+    *,
+    pull_request_state: Callable[[Path, str, str], str] = merged_pull_request_state_via_gh,
+    ownership_verified: bool = False,
+) -> list[str]:
+    """Remove one proven task-owned worktree while retaining its local branch, or return blockers."""
+    resolved_root = root.resolve()
+    resolved_target = target.resolve()
+    try:
+        invoking_cwd = Path.cwd().resolve()
+    except OSError:
+        return ["invoking-cwd-unresolved"]
+    if invoking_cwd == resolved_target or resolved_target in invoking_cwd.parents:
+        return ["invoking-cwd-inside-target"]
+    upstream = resolve_upstream_ref(resolved_root)
+    entry = _exact_worktree_entry(resolved_root, resolved_target)
+    if entry is None or upstream is None:
+        return ["target-not-found" if entry is None else "missing-upstream"]
+    actual_head = (_git(resolved_target, "rev-parse", "HEAD") or "").strip()
+    actual_branch_head = (_git(resolved_root, "rev-parse", branch) or "").strip()
+    actual_diff = _worktree_diff_sha256(resolved_target) or ""
+    ancestor = subprocess.run(  # nosec B603 B607 - fixed read-only git query.
+        ["git", "-c", "core.longpaths=true", "merge-base", "--is-ancestor", branch, upstream],
+        cwd=resolved_root,
+        capture_output=True,
+        timeout=GIT_TIMEOUT_SECONDS,
+        check=False,
+    ).returncode == 0
+    blockers = task_cleanup_blockers(
+        entry, owned_path=resolved_target, owned_branch=branch,
+        expected_head=expected_head, actual_head=actual_head,
+        actual_branch_head=actual_branch_head,
+        expected_diff_sha256=expected_diff_sha256, actual_diff_sha256=actual_diff,
+        pull_request_state=pull_request_state(resolved_root, branch, expected_head), is_ancestor=ancestor,
+        active_operations=_active_git_operations(resolved_target),
+        ownership_verified=ownership_verified,
+    )
+    if blockers:
+        return blockers
+    removed = subprocess.run(  # nosec B603 B607 - exact validated target, no force.
+        ["git", "-c", "core.longpaths=true", "worktree", "remove", "--", str(resolved_target)],
+        cwd=resolved_root, capture_output=True, text=True, timeout=GIT_TIMEOUT_SECONDS, check=False,
+    )
+    if removed.returncode != 0:
+        return ["worktree-remove-failed"]
+    return []
+
+
+def task_ownership_manifest_matches(
+    manifest_path: Path,
+    target: Path,
+    branch: str,
+    expected_head: str,
+    expected_diff_sha256: str,
+) -> bool:
+    """Verify one immutable ownership receipt without widening its scope."""
+    try:
+        resolved_manifest = manifest_path.resolve()
+        resolved_target = target.resolve()
+        if resolved_manifest == resolved_target or resolved_manifest.is_relative_to(resolved_target):
+            return False
+        payload = json.loads(resolved_manifest.read_text(encoding="utf-8"))
+        entries = payload.get("worktrees", [])
+    except (OSError, json.JSONDecodeError, AttributeError):
+        return False
+    if payload.get("schemaVersion") != 1 or not isinstance(entries, list):
+        return False
+    matches = []
+    for entry in entries:
+        if not isinstance(entry, dict):
+            continue
+        try:
+            recorded_path = Path(str(entry.get("path", ""))).resolve()
+        except OSError:
+            continue
+        if recorded_path == resolved_target and entry.get("branch") == branch:
+            matches.append(entry)
+    return len(matches) == 1 and matches[0].get("head") == expected_head \
+        and matches[0].get("diffSha256") == expected_diff_sha256
+
+
 def build_parser() -> argparse.ArgumentParser:
     """Build the command-line parser."""
     parser = argparse.ArgumentParser(description=__doc__)
@@ -825,6 +1084,22 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Ask the GitHub CLI whether each branch has an open pull request.",
     )
+    parser.add_argument(
+        "--cleanup-task-worktree",
+        type=Path,
+        help="Remove one explicitly task-owned worktree after every safety proof passes.",
+    )
+    parser.add_argument("--owned-branch", help="Exact local branch owned by this task.")
+    parser.add_argument("--expected-head", help="Exact target HEAD captured before cleanup.")
+    parser.add_argument(
+        "--ownership-manifest",
+        type=Path,
+        help="Task ledger JSON that recorded the exact worktree before cleanup.",
+    )
+    parser.add_argument(
+        "--expected-diff-sha256",
+        help="SHA-256 of `git diff --binary --no-ext-diff HEAD --` captured before cleanup.",
+    )
     return parser
 
 
@@ -832,6 +1107,37 @@ def main() -> int:
     """Run the advisory reporter or the opt-in repository verification gate."""
     args = build_parser().parse_args()
     resolved_root = args.root.resolve()
+    if args.cleanup_task_worktree is not None:
+        required = (
+            args.owned_branch, args.expected_head, args.expected_diff_sha256,
+            args.ownership_manifest,
+        )
+        if not all(required):
+            print("task-cleanup: ownership manifest, branch, head, and diff SHA-256 are required")
+            return 2
+        ownership_verified = task_ownership_manifest_matches(
+            args.ownership_manifest,
+            args.cleanup_task_worktree,
+            args.owned_branch,
+            args.expected_head,
+            args.expected_diff_sha256,
+        )
+        blockers = cleanup_task_owned_worktree(
+            resolved_root,
+            args.cleanup_task_worktree,
+            args.owned_branch,
+            args.expected_head,
+            args.expected_diff_sha256,
+            ownership_verified=ownership_verified,
+        )
+        if blockers:
+            print("task-cleanup-blocked: " + ", ".join(blockers))
+            return 1
+        print(
+            f"Task-owned worktree removed: {args.cleanup_task_worktree}; "
+            f"local branch retained for a fresh ownership check: {args.owned_branch}."
+        )
+        return 0
     upstream_ref = resolve_upstream_ref(resolved_root, args.upstream)
     report = collect_worktree_report(
         resolved_root,

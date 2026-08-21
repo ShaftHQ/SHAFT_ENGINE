@@ -16,12 +16,23 @@ from scripts.agents import reflection
 
 ROOT = Path(__file__).resolve().parents[2]
 HOOK = ROOT / "chaos-engine/hooks/guard.py"
+SOURCE_HOOK = ROOT / "scripts/agents/guard.py"
 
 
 class ChaosEngineHookTest(unittest.TestCase):
     def run_hook(self, event: dict[str, object], env=None):
         return subprocess.run(  # nosec B603 - fixed interpreter and hook.
             [sys.executable, str(HOOK)],
+            input=json.dumps(event),
+            capture_output=True,
+            text=True,
+            check=False,
+            env=env,
+        )
+
+    def run_source_hook(self, event: dict[str, object], env=None):
+        return subprocess.run(  # nosec B603 - fixed repository hook.
+            [sys.executable, str(SOURCE_HOOK)],
             input=json.dumps(event),
             capture_output=True,
             text=True,
@@ -51,6 +62,40 @@ class ChaosEngineHookTest(unittest.TestCase):
         self.assertIn(ponytail, context)
         self.assertEqual(1, context.count(caveman))
         self.assertEqual(1, context.count(ponytail))
+
+    def test_source_and_portable_session_start_share_exact_companion_context(self):
+        event = {"hook_event_name": "SessionStart", "session_id": "companion-parity", "cwd": str(ROOT)}
+        portable = self.run_hook(event)
+        source = self.run_source_hook(event)
+        portable_context = json.loads(portable.stdout)["additionalContext"]
+        source_context = json.loads(source.stdout)["hookSpecificOutput"]["additionalContext"]
+        caveman = (ROOT / "chaos-engine/vendor/caveman/skills/caveman/SKILL.md").read_text(encoding="utf-8")
+        ponytail = (ROOT / "chaos-engine/vendor/ponytail/skills/ponytail/SKILL.md").read_text(encoding="utf-8")
+        selector = "ChaosEngine companion intensity: caveman=ultra; ponytail=ultra. Off only: stop caveman, stop ponytail, or normal mode."
+
+        for context in (portable_context, source_context):
+            self.assertEqual(1, context.count(caveman))
+            self.assertEqual(1, context.count(ponytail))
+            self.assertEqual(1, context.count(selector))
+        portable_shared = portable_context[
+            portable_context.index(selector):portable_context.index(ponytail) + len(ponytail)
+        ]
+        source_shared = source_context[
+            source_context.index(selector):source_context.index(ponytail) + len(ponytail)
+        ]
+        self.assertEqual(portable_shared.encode("utf-8"), source_shared.encode("utf-8"))
+
+    def test_shared_lifecycle_core_owns_protocol_dispatch_for_both_launchers(self):
+        lifecycle = (ROOT / "chaos-engine/hooks/lifecycle.py").read_text(encoding="utf-8")
+        portable = HOOK.read_text(encoding="utf-8")
+        source = SOURCE_HOOK.read_text(encoding="utf-8")
+
+        self.assertIn("def run_hook_protocol(", lifecycle)
+        for launcher in (portable, source):
+            self.assertIn("run_hook_protocol(", launcher)
+            self.assertNotIn("def _run_hook_protocol(", launcher)
+            self.assertNotIn("def _strict_json_loads(", launcher)
+            self.assertNotIn("def _write_hook_json(", launcher)
 
     def test_stop_learning_loop_rule_fires_only_after_unrouted_mutation(self):
         with tempfile.TemporaryDirectory() as temporary:

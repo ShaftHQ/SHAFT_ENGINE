@@ -646,11 +646,34 @@ class ChaosEngineInstallerTest(unittest.TestCase):
             self.assertNotIn("mohab", owned_text)
             hook = install_root / "hooks/guard.py"
             self.assertTrue((install_root / "hooks/reflection.py").is_file())
+            self.assertTrue((install_root / "hooks/lifecycle.py").is_file())
+            (project / "lifecycle.py").write_text(
+                "raise RuntimeError('consumer lifecycle shadow imported')\n",
+                encoding="utf-8",
+            )
+            (project / "reflection.py").write_text(
+                "raise RuntimeError('consumer reflection shadow imported')\n",
+                encoding="utf-8",
+            )
             environment = {**os.environ, "TMPDIR": temporary, "TEMP": temporary}
             start = subprocess.run(  # nosec B603 - fixed interpreter and installed local hook.
                 [sys.executable, str(hook)],
                 input=json.dumps({"hook_event_name": "SessionStart", "session_id": "real-install"}),
                 capture_output=True, text=True, env=environment, check=False,
+            )
+            locator_start = subprocess.run(  # nosec B603 - mirrors generated runpy locator.
+                [
+                    sys.executable,
+                    "-c",
+                    "import runpy,sys;runpy.run_path(sys.argv[1],run_name='__main__')",
+                    str(hook),
+                ],
+                cwd=project,
+                input=json.dumps({"hook_event_name": "SessionStart", "session_id": "locator-install"}),
+                capture_output=True,
+                text=True,
+                env=environment,
+                check=False,
             )
             failure = {
                 "hook_event_name": "PostToolUseFailure",
@@ -667,6 +690,8 @@ class ChaosEngineInstallerTest(unittest.TestCase):
                 capture_output=True, text=True, env=environment, check=False,
             )
             self.assertEqual(0, start.returncode, start.stderr)
+            self.assertEqual(0, locator_start.returncode, locator_start.stderr)
+            self.assertIn("additionalContext", json.loads(locator_start.stdout))
             installed_context = json.loads(start.stdout).get("additionalContext")
             for relative in (
                 "vendor/caveman/skills/caveman/SKILL.md",
@@ -675,6 +700,7 @@ class ChaosEngineInstallerTest(unittest.TestCase):
                 vendor = install_root / relative
                 self.assertTrue(vendor.is_file(), relative)
                 self.assertIn(vendor.read_text(encoding="utf-8"), installed_context)
+            self.assertIn("caveman=ultra; ponytail=ultra", installed_context)
             self.assertEqual(0, first.returncode, first.stderr)
             self.assertEqual(0, second.returncode, second.stderr)
             self.assertIn("Reflection required", second.stdout)

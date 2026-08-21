@@ -1,101 +1,39 @@
 # AGENTS.md
 
-## Repository
+## Repository facts
 
-ChaosEngine by Mohab Mohie. SHAFT_ENGINE is a Maven Java automation
-framework: core `shaft-engine/`, optional `shaft-*`, CI tools `scripts/ci/`.
-Config wins. Start from requested goal and affected files.
+ChaosEngine by Mohab Mohie. SHAFT_ENGINE is a Maven Java automation framework:
+core `shaft-engine/`, optional `shaft-*`, IntelliJ plugin `shaft-intellij/`,
+and CI tooling under `scripts/ci/`. Configuration wins. Start from the
+requested goal and affected files.
 
-## Mandatory entrypoint
+## Canonical policy
 
 Before every task, read and follow
-[ChaosEngine](.agents/skills/chaos-engine/SKILL.md). It is the single
-provider-agnostic router for intent, capability levels, skills, MCPs, Caveman,
-Ponytail, TDD, PDCA, Memory, MemPalace, Graphify, delegation, and completion.
-Every main thread and delegate loads it; repo playbooks are reached through
-that entrypoint, never as competing policy. Its triage runs before every task
-and decides whether the change also earns
-[consult-first](chaos-engine/references/consult-first.md).
+[ChaosEngine](.agents/skills/chaos-engine/SKILL.md). It is the only router and
+working-policy owner. Its selected profile and references own lifecycle hooks,
+roles, capability levels, skills, tools, Caveman, Ponytail, TDD, research,
+memory, task isolation, cleanup, delegation, review, delivery, and completion.
+Do not restate those policies in host adapters.
 
-Name capability only as most intelligent, default, or mechanical. Never name a
-model or product in tracked guidance.
+Cleanup scope is defined only by
+[cleanup-scopes](chaos-engine/references/cleanup-scopes.md). Harness duty
+ownership is machine-readable in
+[agent_ownership.json](scripts/ci/agent_ownership.json). `CLAUDE.md`, host
+skills, and provider guidance remain thin pointers to the canonical router.
 
-`CLAUDE.md` and `.claude/skills/chaos-engine/SKILL.md` are thin adapters.
-Grok uses `AGENTS.md` plus that compatible adapter; do not add duplicate Grok
-guidance. All operational paths in tracked guidance/config stay relative.
+## Repository safety
 
-## Work lifecycle
-
-Session branch and worktree cleanup, and the fresh `ChaosEngine/*` base, are
-owned by the entrypoint's Task isolation section. Reuse one session and make
-dependent subtasks commits. Before PR: sync default, resolve conflicts, rerun
-affected checks, commit, push, and maintain tracker plus linked subtask issues
-per the routed GitHub playbook. `.memory/events.jsonl` alone may report
-`CONFLICTING`; its union merge is authoritative locally (#4137).
-
-Role boundaries and capability-level delegation live only in the mandatory
-ChaosEngine entrypoint.
-
-## Working rules
-
-- Read first; follow patterns; tight scope; preserve user work.
-- Reproduce defects and add focused regressions. Preserve public API;
-  deprecate before removal.
-- User-facing work starts from rendered intent and finishes only when real
-  user flow passes. Function changes update companion docs in a separate PR;
-  discover the docs root or use a configured root, never a fixed sibling path.
-- Never expose secrets or run deploy, publish, history rewrite, cleanup, or
-  cloud suites unless asked.
-- No generated reports, binaries, caches, `target/`, Graphify output, or
-  MemPalace runtime indexes in git. Canonical non-secret policy/config stays tracked.
-- Fix small blockers in path. Search before filing every non-blocking adjacent
-  finding as its own standalone issue; receipts and existing issue references
-  are evidence, not substitutes for a new action ticket.
-- Preserve structured data with structured APIs. Chat follows Caveman at
-  ChaosEngine ultra. Persisted artifacts stay ordinary prose.
-
-## Windows and GUI safety
-
-Do not launch GUI applications or handlers: `start`, `explorer`, `Invoke-Item`,
-`Start-Process`, `rundll32`, `os.startfile`, browsers, editors, or installers.
-Use non-interactive `py -3`, `python3`, `node`, PowerShell scripts, Maven,
-`npm`, `dotnet`, and git. Ask before servers/watchers, Allure report serving,
-browser capture, mobile inspector/emulator, or waits.
-
-Maven tests remain scoped and headless. Always include
-`-Dallure.automaticallyOpen=false`; disable GUI Lighthouse behavior. In
-PowerShell quote property arguments and tokens containing `{}`, `@`, `;`,
-`&`, or `|`.
-
-## Memory and validation
-
-Current files beat every index. Query native `.memory/`, MemPalace, or Graphify
-through ChaosEngine only when one can answer a concrete task question; make one
-bounded attempt and verify useful leads with targeted `rg`. Store failures are
-advisory for ordinary tasks. Store durable decisions/gotchas once with evidence,
-reuse IDs, delete dead entries, and never create diaries.
-
-Use smallest non-redundant check after edits/rebases/dependency changes:
-
-During planning, offer tests created or edited only, the recommended balanced
-scope of those tests plus directly impacted tests, or the full suite. For a CI
-failure, inspect the failing job, fix its exact cause, rerun only tests created
-or edited for that fix, then push. Never rerun an entire suite merely because a
-CI job failed.
-
-- Guidance/memory: `py -3 scripts/ci/validate_agent_setup.py --skip-external`.
-- Local code: affected tests, then one affected compile/package.
-- Shared API/build/release: targeted check, then full compile/package.
-- UI/report: relevant test plus image/browser evidence; report if blocked.
-- External/cloud E2E: only required infrastructure.
-
-Never trust a Maven/Allure banner alone; confirm test reports before verdict.
-User harness drift/check deploys through
-`py -3 scripts/agents/sync_user_harness.py [--apply]`. Secrets stay only in
-user-level host directories and are never synced.
-
-## Completion
-
-Report outcomes, exact checks, and Learning Loop result: store write, degraded
-store disposition, issue reference, explicit nothing durable, or guidance fix.
-Do not refresh, mine, poll, or watch knowledge stores after an ordinary task.
+- Read live files first, preserve unrelated and pre-existing work, and keep
+  changes within the requested repository and task scope.
+- Do not launch GUI applications, browsers, editors, installers, servers, or
+  watchers without explicit authorization.
+- Keep Maven tests scoped and headless with
+  `-Dallure.automaticallyOpen=false -DheadlessExecution=true`.
+- Never track generated reports, binaries, caches, `target/`, build output,
+  Graphify output, MemPalace runtime indexes, secrets, or machine-local state.
+- Preserve public APIs; reproduce defects with focused regressions. Functional
+  documentation changes remain a separate PR and use the configured docs root.
+- Validate harness changes with
+  `py -3 scripts/ci/validate_agent_setup.py --skip-external` and the smallest
+  directly affected tests. Inspect result artifacts rather than banners alone.

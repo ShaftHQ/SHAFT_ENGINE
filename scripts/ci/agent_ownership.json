@@ -1,0 +1,62 @@
+{
+  "duties": {
+    "router": {
+      "owner": "chaos-engine/skills/chaos-engine/SKILL.md",
+      "terms": ["Canonical provider-neutral skill router", "Roles and capability levels"]
+    },
+    "lifecycle dispatch and protocol": {
+      "owner": "chaos-engine/hooks/lifecycle.py",
+      "terms": ["run_hook_protocol", "LIFECYCLE_EVENTS", "session_start_context"],
+      "allowed": ["chaos-engine/hooks/guard.py", "scripts/agents/guard.py"]
+    },
+    "repository guard policy": {
+      "owner": "scripts/agents/guard.py",
+      "terms": ["run_session_start", "run_pretooluse", "run_stop"],
+      "allowed": [".agents/skills/README.md"]
+    },
+    "portable guard adapter": {
+      "owner": "chaos-engine/hooks/guard.py",
+      "terms": ["_lifecycle.run_hook_protocol", "def main"],
+      "allowed": ["scripts/agents/guard.py"]
+    },
+    "cleanup policy": {
+      "owner": "chaos-engine/references/cleanup-scopes.md",
+      "terms": ["Task scope (default)", "Repository scope (explicit)", "Machine scope (approval-gated)"]
+    },
+    "host installer": {
+      "owner": "chaos-engine/hosts.py",
+      "terms": ["REQUIRED_HOOK_EVENTS", "chaos_guard_locator_command", "lifecycle_hooks_document"]
+    },
+    "tool dispatch": {
+      "owner": "chaos-engine/tool.py",
+      "terms": ["load_host_controller", "guard_mempalace_mcp", "resolve_command"]
+    },
+    "plugin manifests": {
+      "owner": "scripts/ci/validate_agent_plugins.py",
+      "terms": ["MANIFEST_PATH", "ALLOWED_MANIFEST_FIELDS", "manifest_field_errors"]
+    },
+    "shaft skill routing": {
+      "owner": "shaft-skills/shaft-developer/SKILL.md",
+      "terms": ["select exactly one lifecycle implementation or tool specialist", "closest specialist"]
+    },
+    "CI aggregation": {
+      "owner": "scripts/ci/validate_agent_setup.py",
+      "terms": ["validate_repository", "collect_metrics", "collect_worktree_metrics"]
+    },
+    "Markdown harness map": {
+      "owner": ".agents/skills/README.md",
+      "terms": ["Every harness element", "reachable from the entrypoint", "assertions themselves are unit tests"]
+    },
+    "repository adapter": {
+      "owner": "AGENTS.md",
+      "terms": ["SHAFT_ENGINE Maven Java automation framework", "Repository safety", "Canonical policy"]
+    }
+  },
+  "adapters": [
+    "AGENTS.md",
+    "CLAUDE.md",
+    ".agents/skills/chaos-engine/SKILL.md",
+    ".claude/skills/chaos-engine/SKILL.md",
+    ".github/copilot-instructions.md"
+  ]
+}

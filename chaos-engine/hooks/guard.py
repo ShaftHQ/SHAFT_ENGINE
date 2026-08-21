@@ -5,22 +5,36 @@ from __future__ import annotations
 
 import json
 import hashlib
+import importlib.util
 import posixpath
 import re
 import shlex
 import sys
 from pathlib import Path
 
-try:
-    import reflection
-except ImportError:  # Repository source layout; installed hooks keep it beside guard.py.
+def _load_sibling(module_name: str):
+    path = Path(__file__).resolve().with_name(f"{module_name}.py")
+    if not path.is_file():
+        return None
+    specification = importlib.util.spec_from_file_location(f"chaos_engine_{module_name}", path)
+    if specification is None or specification.loader is None:
+        raise RuntimeError(f"ChaosEngine {module_name} module is unavailable")
+    module = importlib.util.module_from_spec(specification)
+    specification.loader.exec_module(module)
+    return module
+
+
+_lifecycle = _load_sibling("lifecycle")
+if _lifecycle is None:
+    raise RuntimeError("ChaosEngine lifecycle core is unavailable")
+reflection = _load_sibling("reflection")
+if reflection is None:  # Repository adapter fallback for a source-only layout.
     repository_root = Path(__file__).resolve().parents[2]
     sys.path.insert(0, str(repository_root))
     from scripts.agents import reflection
 
 
 ACTIVATION = "Follow .chaos-engine/skills/chaos-engine/SKILL.md before continuing."
-COMPANION_NAMES = ("caveman", "ponytail")
 ROOT_DRIVE = re.compile(r"(?i)(?:^|\s)[a-z]:\\(?:\s|$)")
 ENV_ASSIGNMENT = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*=")
 SHELLS = {"bash", "sh", "zsh"}
@@ -34,56 +48,6 @@ TERMINAL_LABELS = (
     "remaining risk or follow-up",
     "learning loop disposition",
 )
-
-
-def companion_skill_relatives(name: str) -> tuple[str, ...]:
-    return (
-        f"vendor/{name}/skills/{name}/SKILL.md",
-        f"plugins/{name}/skills/{name}/SKILL.md",
-        f"{name}/skills/{name}/SKILL.md",
-        f"chaos-engine/vendor/{name}/skills/{name}/SKILL.md",
-    )
-
-
-def search_roots() -> list[Path]:
-    roots: list[Path] = []
-    seen: set[Path] = set()
-    here = Path(__file__).resolve().parent
-    candidates = [here, *here.parents]
-    try:
-        cwd = Path.cwd().resolve()
-    except OSError:
-        cwd = None
-    if cwd is not None:
-        candidates.extend((cwd, *cwd.parents))
-    for candidate in candidates:
-        if candidate not in seen:
-            seen.add(candidate)
-            roots.append(candidate)
-    return roots
-
-
-def read_companion_skill(name: str) -> str | None:
-    for root in search_roots():
-        for relative in companion_skill_relatives(name):
-            path = root / relative
-            try:
-                if path.is_file():
-                    return path.read_text(encoding="utf-8")
-            except OSError:
-                continue
-    return None
-
-
-def session_start_context(token: str | None) -> str:
-    parts = [f"ChaosEngine: {ACTIVATION}"]
-    if token:
-        parts.append(f"Reflection session token (never track it): {token}")
-    for name in COMPANION_NAMES:
-        text = read_companion_skill(name)
-        if text:
-            parts.append(text)
-    return "\n\n".join(parts)
 
 
 def learning_loop_reason(session_id: str, event: dict) -> str | None:
@@ -322,24 +286,148 @@ def functions_exec_direct_command(tool_input: object) -> str:
     return ""
 
 
-def main() -> int:
-    try:
-        event = json.load(sys.stdin)
-    except (json.JSONDecodeError, OSError):
-        event = {}
+def _event_commands(tool_name: str, tool_input: object) -> tuple[str, ...]:
+    functions_source = functions_exec_source(tool_input)
+    functions_direct = functions_exec_direct_command(tool_input)
+    if tool_name == "functions.exec" and functions_direct:
+        return (functions_direct,)
+    if tool_name == "functions.exec" and functions_source:
+        return wrapped_exec_commands(functions_source)
+    if not isinstance(tool_input, dict):
+        return ()
+    command = str(tool_input.get("command") or tool_input.get("cmd") or "")
+    return (command,) if command else ()
+
+
+def _tool_result_failed(event_name: str, result: object) -> bool:
+    if event_name == "PostToolUseFailure":
+        return True
+    return bool(
+        isinstance(result, dict)
+        and (
+            result.get("isError") is True
+            or result.get("interrupted") is True
+            or str(result.get("status", "")).casefold() in {"error", "failed", "failure"}
+            or result.get("exit_code", result.get("exitCode", 0)) not in {0, None}
+        )
+    )
+
+
+def _command_is_destructive(command: str) -> bool:
+    folded = command.casefold()
+    broad_remove = (
+        "remove-item" in folded
+        and "-recurse" in folded
+        and (ROOT_DRIVE.search(command) is not None or "$home" in folded or "~" in command)
+    )
+    return catastrophic_posix(command) or "git reset --hard" in folded or broad_remove
+
+
+def _stop_block_reason(event: dict, session_id: str) -> str:
+    elapsed = reflection.session_elapsed_seconds(session_id)
+    if elapsed is not None and elapsed > 3600 and not reflection.has_valid_terminal_receipt(session_id):
+        return "Terminal reflection required before this session can stop."
+    if elapsed is not None and elapsed > 3600:
+        message = str(event.get("last_assistant_message") or event.get("lastAssistantMessage") or "").casefold()
+        missing = [label for label in TERMINAL_LABELS if label not in message]
+        if missing:
+            return "Terminal reflection summary is missing: " + ", ".join(missing) + "."
+    loop_reason = learning_loop_reason(session_id, event)
+    if loop_reason:
+        return loop_reason
+    if not bool(event.get("stop_hook_active") or event.get("stopHookActive")):
+        return "Complete verification, independent review, delivery status, and the learning loop before stopping."
+    return ""
+
+
+def _record_failed_result(
+    event: dict, event_name: str, commands: tuple[str, ...], tool_name: str, session_id: str
+) -> bool:
+    result = event.get("tool_response", event.get("tool_result"))
+    if event_name not in {"PostToolUse", "PostToolUseFailure"} or not _tool_result_failed(event_name, result):
+        return False
+    target = outcome_target(
+        commands[0] if commands else "",
+        tool_name,
+        event.get("target") or event.get("job") or event.get("test"),
+    )
+    reflection.record_failure(
+        session_id,
+        phase="tool-outcome",
+        target=target,
+        failure_class="interrupted" if event.get("is_interrupt") else "tool-failure",
+        platform=event.get("platform") or sys.platform,
+        observation_id=event.get("tool_use_id") or event.get("toolUseId"),
+    )
+    checkpoint = reflection.pending_checkpoint(session_id)
+    if checkpoint:
+        print(json.dumps({"additionalContext": checkpoint_reason(checkpoint)}))
+    return bool(checkpoint)
+
+
+def _unchanged_test_requested(event: dict, commands: tuple[str, ...], tool_name: str, session_id: str) -> bool:
+    active_targets = {
+        item.get("target")
+        for item in reflection.active_entries(session_id)
+        if item.get("kind") == "task-failure"
+    }
+    target = event.get("target") or event.get("job") or event.get("test")
+    return any(
+        test_command(candidate) and outcome_target(candidate, tool_name, target) in active_targets
+        for candidate in commands
+    )
+
+
+def _uninspectable_functions_call(
+    tool_name: str, tool_input: object, functions_source: str,
+    functions_direct: str, commands: tuple[str, ...],
+) -> bool:
+    return bool(
+        tool_name == "functions.exec"
+        and not functions_direct
+        and (
+            not isinstance(tool_input, (str, dict))
+            or (isinstance(tool_input, dict) and not functions_source)
+            or wrapped_exec_call_count(functions_source) != len(commands)
+        )
+    )
+
+
+def _command_guard_state(
+    event: dict, event_name: str, commands: tuple[str, ...], tool_name: str, tool_input: object,
+    functions_source: str, functions_direct: str, session_id: str,
+) -> tuple[bool, bool, str]:
+    receipt_command = any(reflection_recovery(candidate) for candidate in commands)
+    mutation = tool_name in {"Write", "Edit", "apply_patch"} or any(
+        mutation_command(candidate) and not tracker_command(candidate) for candidate in commands
+    )
+    checkpoint = reflection.pending_checkpoint(session_id)
+    unchanged_test = _unchanged_test_requested(event, commands, tool_name, session_id)
+    if event_name == "PreToolUse" and checkpoint and not receipt_command and (mutation or unchanged_test):
+        return receipt_command, mutation, checkpoint_reason(checkpoint)
+    uninspectable = _uninspectable_functions_call(
+        tool_name, tool_input, functions_source, functions_direct, commands
+    )
+    if uninspectable or any(_command_is_destructive(candidate) for candidate in commands):
+        return receipt_command, mutation, "ChaosEngine rejected destructive broad scope."
+    return receipt_command, mutation, ""
+
+
+def _event_context(event_name: str, token: object) -> str:
+    if event_name == "SessionStart":
+        return _lifecycle.session_start_context(token, ACTIVATION)
+    context = f"ChaosEngine: {ACTIVATION}"
+    if token:
+        context += f" Reflection session token (never track it): {token}"
+    return context
+
+
+def _run_event(event: dict, _host: str) -> int:
     tool_input = event.get("tool_input", {}) if isinstance(event, dict) else {}
     tool_name = str(event.get("tool_name", "")) if isinstance(event, dict) else ""
     functions_source = functions_exec_source(tool_input)
     functions_direct = functions_exec_direct_command(tool_input)
-    if tool_name == "functions.exec" and functions_direct:
-        commands = (functions_direct,)
-    elif tool_name == "functions.exec" and functions_source:
-        commands = wrapped_exec_commands(functions_source)
-    elif isinstance(tool_input, dict):
-        command = str(tool_input.get("command") or tool_input.get("cmd") or "")
-        commands = (command,) if command else ()
-    else:
-        commands = ()
+    commands = _event_commands(tool_name, tool_input)
     event_name = (
         str(event.get("hook_event_name") or event.get("hookEventName") or "")
         if isinstance(event, dict)
@@ -350,126 +438,30 @@ def main() -> int:
         token = reflection.record_session_start(session_id)
     else:
         token = None
-    result = event.get("tool_response", event.get("tool_result")) if isinstance(event, dict) else None
-    result_failed = event_name == "PostToolUseFailure" or bool(
-        isinstance(result, dict)
-        and (
-            result.get("isError") is True
-            or result.get("interrupted") is True
-            or str(result.get("status", "")).casefold() in {"error", "failed", "failure"}
-            or result.get("exit_code", result.get("exitCode", 0)) not in {0, None}
-        )
+    if _record_failed_result(event, event_name, commands, tool_name, session_id):
+        return 0
+    receipt_command, mutation, guard_reason = _command_guard_state(
+        event, event_name, commands, tool_name, tool_input, functions_source, functions_direct, session_id
     )
-    if event_name in {"PostToolUse", "PostToolUseFailure"} and result_failed:
-        target = outcome_target(
-            commands[0] if commands else "",
-            tool_name,
-            event.get("target") or event.get("job") or event.get("test"),
-        )
-        reflection.record_failure(
-            session_id,
-            phase="tool-outcome",
-            target=target,
-            failure_class="interrupted" if event.get("is_interrupt") else "tool-failure",
-            platform=event.get("platform") or sys.platform,
-            observation_id=event.get("tool_use_id") or event.get("toolUseId"),
-        )
-        checkpoint = reflection.pending_checkpoint(session_id)
-        if checkpoint:
-            print(json.dumps({"additionalContext": checkpoint_reason(checkpoint)}))
-            return 0
-    checkpoint = reflection.pending_checkpoint(session_id)
-    receipt_command = any(reflection_recovery(candidate) for candidate in commands)
-    active_targets = {
-        item.get("target")
-        for item in reflection.active_entries(session_id)
-        if item.get("kind") == "task-failure"
-    }
-    unchanged_test = any(
-        test_command(candidate)
-        and outcome_target(
-            candidate, tool_name, event.get("target") or event.get("job") or event.get("test")
-        ) in active_targets
-        for candidate in commands
-    )
-    mutation = tool_name in {"Write", "Edit", "apply_patch"} or any(
-        mutation_command(candidate) and not tracker_command(candidate) for candidate in commands
-    )
-    if event_name == "PreToolUse" and checkpoint and not receipt_command and (mutation or unchanged_test):
-        print(json.dumps({"decision": "block", "reason": checkpoint_reason(checkpoint)}))
-        return 2
-    uninspectable = (
-        tool_name == "functions.exec"
-        and not functions_direct
-        and (
-            not isinstance(tool_input, (str, dict))
-            or (isinstance(tool_input, dict) and not functions_source)
-            or wrapped_exec_call_count(functions_source) != len(commands)
-        )
-    )
-    destructive = uninspectable or any(
-        catastrophic_posix(candidate)
-        or "git reset --hard" in candidate.casefold()
-        or (
-            "remove-item" in candidate.casefold()
-            and "-recurse" in candidate.casefold()
-            and (
-                ROOT_DRIVE.search(candidate) is not None
-                or "$home" in candidate.casefold()
-                or "~" in candidate
-            )
-        )
-        for candidate in commands
-    )
-    if destructive:
-        print(
-            json.dumps(
-                {
-                    "decision": "block",
-                    "reason": "ChaosEngine rejected destructive broad scope.",
-                }
-            )
-        )
+    if guard_reason:
+        print(json.dumps({"decision": "block", "reason": guard_reason}))
         return 2
     if event_name == "PostToolUse" and not receipt_command and (
         mutation or any(delivery_command(candidate) for candidate in commands)
     ):
         reflection.record_activity(session_id, "mutation-or-delivery")
     if event_name in {"Stop", "SubagentStop"}:
-        elapsed = reflection.session_elapsed_seconds(session_id)
-        if elapsed is not None and elapsed > 3600 and not reflection.has_valid_terminal_receipt(session_id):
-            print(json.dumps({"decision": "block", "reason": "Terminal reflection required before this session can stop."}))
+        stop_reason = _stop_block_reason(event, session_id)
+        if stop_reason:
+            print(json.dumps({"decision": "block", "reason": stop_reason}))
             return 2
-        if elapsed is not None and elapsed > 3600:
-            message = str(
-                event.get("last_assistant_message")
-                or event.get("lastAssistantMessage")
-                or ""
-            ).casefold()
-            missing = [label for label in TERMINAL_LABELS if label not in message]
-            if missing:
-                print(json.dumps({"decision": "block", "reason": "Terminal reflection summary is missing: " + ", ".join(missing) + "."}))
-                return 2
-    if event_name in {"Stop", "SubagentStop"}:
-        loop_reason = learning_loop_reason(session_id, event if isinstance(event, dict) else {})
-        if loop_reason:
-            print(json.dumps({"decision": "block", "reason": loop_reason}))
-            return 2
-        if not bool(event.get("stop_hook_active") or event.get("stopHookActive")):
-            print(
-                json.dumps(
-                    {
-                        "decision": "block",
-                        "reason": "Complete verification, independent review, delivery status, and the learning loop before stopping.",
-                    }
-                )
-            )
-            return 2
-    context = session_start_context(token) if event_name == "SessionStart" else f"ChaosEngine: {ACTIVATION}"
-    if token and event_name != "SessionStart":
-        context += f" Reflection session token (never track it): {token}"
-    print(json.dumps({"additionalContext": context}))
+    print(json.dumps({"additionalContext": _event_context(event_name, token)}))
     return 0
+
+
+def main() -> int:
+    callbacks = {event: _run_event for event in _lifecycle.LIFECYCLE_EVENTS}
+    return _lifecycle.run_hook_protocol(sys.stdin.read(), callbacks)
 
 
 if __name__ == "__main__":
