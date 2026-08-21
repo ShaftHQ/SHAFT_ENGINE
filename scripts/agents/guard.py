@@ -150,7 +150,7 @@ def _sanitize_for_command_head(command: str) -> str:
 
 def _command_segments(command: str) -> list[str]:
     """Split into command segments (separators plus real newlines)."""
-    return re.split(r"(?:;|&&|\|\||\||&|\r?\n)", command)
+    return _top_level_shell_parts(command)[0]
 
 
 def _top_level_shell_parts(
@@ -1958,7 +1958,10 @@ _PRIMARY_SOURCE_HOSTS = frozenset(
         "nodejs.org",
         "docs.npmjs.com",
         "platform.openai.com",
+        "developers.openai.com",
         "docs.anthropic.com",
+        "code.claude.com",
+        "code.visualstudio.com",
         "developer.mozilla.org",
         "selenium.dev",
         "playwright.dev",
@@ -2174,6 +2177,46 @@ def _wrapped_exec_commands(source: str) -> tuple[str, ...]:
     return tuple(commands)
 
 
+def _wrapped_exec_workdirs(source: str) -> tuple[str | None, ...]:
+    """Return one literal workdir, or None, per unambiguous wrapped exec call."""
+    calls = _wrapped_exec_call_objects(source)
+    if calls is None:
+        return ()
+    workdirs: list[str | None] = []
+    key = r'''(?:\bworkdir\b|["']workdir["'])'''
+    for details in calls:
+        properties = _top_level_javascript_properties(details)
+        if properties is None:
+            return ()
+        values: list[str] = []
+        for property_text in properties:
+            if property_text.startswith(("...", "[")):
+                return ()
+            match = re.fullmatch(
+                key + r'''\s*:\s*(?P<literal>"(?:\\.|[^"\\])*")''',
+                property_text,
+                re.DOTALL,
+            )
+            if match is not None:
+                values.append(match.group("literal"))
+                continue
+            if re.match(r'''(?:get|set|async)?\s*''' + key + r'''(?:\s*:|\s*\()''', property_text):
+                return ()
+        if len(values) > 1:
+            return ()
+        if not values:
+            workdirs.append(None)
+            continue
+        try:
+            value = json.loads(values[0])
+        except (json.JSONDecodeError, ValueError):
+            return ()
+        if not isinstance(value, str) or not value.strip():
+            return ()
+        workdirs.append(value)
+    return tuple(workdirs)
+
+
 def _functions_exec_source(tool_input: object) -> str:
     """Return the freeform JavaScript source from supported Codex wire shapes."""
     if isinstance(tool_input, str):
@@ -2252,7 +2295,7 @@ def _wrapped_exec_call_count(source: str) -> int:
 
 def _shell_requests_primary_source(segment: str) -> bool:
     if re.match(
-        r"\s*(?:&\s*)?(?:curl(?:\.exe)?|invoke-webrequest|iwr)\b",
+        r"\s*(?:\(\s*)?(?:&\s*)?(?:curl(?:\.exe)?|invoke-webrequest|iwr)\b",
         segment,
         re.IGNORECASE,
     ) is None:
@@ -2262,25 +2305,52 @@ def _shell_requests_primary_source(segment: str) -> bool:
         (
             index
             for index, token in enumerate(tokens)
-            if re.split(r"[/\\]", token.strip("\"'"))[-1].lower()
+            if re.split(r"[/\\]", token.strip("\"'()"))[-1].lower()
             in {"curl", "curl.exe", "invoke-webrequest", "iwr"}
         ),
         None,
     )
     if head_index is None:
         return False
-    head = re.split(r"[/\\]", tokens[head_index].strip("\"'"))[-1].lower()
+    head = re.split(r"[/\\]", tokens[head_index].strip("\"'()"))[-1].lower()
     candidates: list[str] = []
     arguments = tokens[head_index + 1 :]
-    if arguments and re.match(r"https?://", arguments[0], re.IGNORECASE):
-        candidates.append(arguments[0])
     request_flags = {"--url"} if head in {"curl", "curl.exe"} else {"-uri"}
-    for index, token in enumerate(arguments):
+    value_options = (
+        {
+            "-A", "-b", "-c", "-d", "-e", "-F", "-H", "-o", "-u", "-X", "-x",
+            "--config", "--cookie", "--cookie-jar", "--data", "--data-ascii",
+            "--data-binary", "--data-raw", "--form", "--header", "--output",
+            "--proxy", "--referer", "--request", "--user", "--user-agent",
+        }
+        if head in {"curl", "curl.exe"}
+        else {"-body", "-contenttype", "-headers", "-method", "-outfile", "-proxy"}
+    )
+    index = 0
+    while index < len(arguments):
+        token = arguments[index]
         lowered = token.lower()
         if any(lowered.startswith(flag + "=") for flag in request_flags):
             candidates.append(token.split("=", 1)[1])
+            index += 1
+            continue
         if lowered in request_flags and index + 1 < len(arguments):
             candidates.append(arguments[index + 1])
+            index += 2
+            continue
+        if token in value_options or lowered in value_options:
+            index += 2
+            continue
+        if any(
+            lowered.startswith(option + "=")
+            for option in value_options
+            if option.startswith("--")
+        ):
+            index += 1
+            continue
+        if not lowered.startswith("-") and re.match(r"https?://", token, re.IGNORECASE):
+            candidates.append(token)
+        index += 1
     for candidate in candidates:
         if _has_primary_source_url({"request_url": candidate}):
             return True
@@ -2538,7 +2608,9 @@ def _shell_is_mutation(command: str) -> bool:
             return True
         if re.search(r"(?<![0-9])>(?![>&])", lowered):
             return True
-        if re.search(r"\bgit\s+(?:add|commit|push|merge|rebase|reset|restore|rm|mv|tag|branch|checkout|switch|cherry-pick)\b", lowered):
+        if re.search(r"\bgit\s+(?:add|commit|push|merge|rebase|reset|restore|rm|mv|tag|checkout|switch|cherry-pick)\b", lowered):
+            return True
+        if _git_branch_is_mutation(segment):
             return True
         if re.search(r"\bgh\s+(?:api\b.*--method\s+(?:post|put|patch|delete)|pr\s+(?:create|merge|close|comment|edit)|issue\s+(?:create|close|comment|edit))\b", lowered):
             return True
@@ -2547,6 +2619,83 @@ def _shell_is_mutation(command: str) -> bool:
         if re.search(r"\bmempalace\s+(?:add|delete|mine|sync|sweep|update|checkpoint)\b", lowered):
             return True
     return False
+
+
+_GIT_BRANCH_MUTATION_OPTIONS = frozenset(
+    {
+        "-c",
+        "-C",
+        "-d",
+        "-D",
+        "-f",
+        "-m",
+        "-M",
+        "--copy",
+        "--create-reflog",
+        "--delete",
+        "--edit-description",
+        "--force",
+        "--move",
+        "--no-track",
+        "--set-upstream-to",
+        "--track",
+        "--unset-upstream",
+    }
+)
+_GIT_BRANCH_LIST_OPTIONS = frozenset(
+    {
+        "-a",
+        "-l",
+        "-r",
+        "-v",
+        "-vv",
+        "--all",
+        "--contains",
+        "--format",
+        "--list",
+        "--merged",
+        "--no-merged",
+        "--points-at",
+        "--remotes",
+        "--show-current",
+        "--sort",
+        "--verbose",
+    }
+)
+
+
+def _git_branch_is_mutation(segment: str) -> bool:
+    """True only for branch creation, deletion, rename, copy, or metadata edits."""
+    rest = _tokens_after_head(segment, _GIT_NAMES)
+    if rest is None:
+        return False
+    subcommand, _, index = _split_global_options(rest)
+    if subcommand != "branch":
+        return False
+    arguments = rest[index:]
+    if not arguments:
+        return False
+    if any(
+        argument in _GIT_BRANCH_MUTATION_OPTIONS
+        or any(
+            argument.startswith(option + "=")
+            for option in _GIT_BRANCH_MUTATION_OPTIONS
+            if option.startswith("--")
+        )
+        for argument in arguments
+    ):
+        return True
+    if any(
+        argument in _GIT_BRANCH_LIST_OPTIONS
+        or any(
+            argument.startswith(option + "=")
+            for option in _GIT_BRANCH_LIST_OPTIONS
+            if option.startswith("--")
+        )
+        for argument in arguments
+    ):
+        return False
+    return any(not argument.startswith("-") for argument in arguments)
 
 
 def _functions_exec_is_mutation(tool_input: object) -> bool:
@@ -4207,11 +4356,114 @@ def _independent_reviews(reviews: object, author: object) -> list:
 DEFAULT_BRANCHES = frozenset({"main", "master"})
 
 
+class _InvocationContext(NamedTuple):
+    """One normalized repository and mutation view for a guarded invocation."""
+
+    cwd: str | None
+    targets: tuple[str, ...]
+    repositories: tuple[str, ...]
+    repository: str | None
+    branch: str | None
+    mutation: bool
+    ambiguous: bool
+    unresolved: bool
+
+
 def _repository_root(cwd: object) -> str | None:
     """Absolute root of the checkout `cwd` sits in, or None if git will not say."""
     output = _git_output(["rev-parse", "--show-toplevel"], cwd)
     root = (output or "").strip()
     return os.path.realpath(root) if root else None
+
+
+def _existing_ancestor(path: str) -> str | None:
+    """Nearest existing directory at or above path, for not-yet-created targets."""
+    current = os.path.realpath(path)
+    if os.path.isfile(current):
+        current = os.path.dirname(current)
+    while not os.path.isdir(current):
+        parent = os.path.dirname(current)
+        if parent == current:
+            return None
+        current = parent
+    return current
+
+
+def _target_repository(path: str, cwd: str | None) -> str | None:
+    """Repository that will receive path, if its existing ancestry names one."""
+    try:
+        absolute = path if os.path.isabs(path) else os.path.join(cwd or os.getcwd(), path)
+    except (OSError, ValueError):
+        return None
+    probe = _existing_ancestor(absolute)
+    root = _repository_root(probe) if probe else None
+    if not root or not _path_is_inside(absolute, root, cwd):
+        return None
+    return root
+
+
+def _invocation_workdirs(
+    tool_name: str, tool_input: object, fallback: str | None
+) -> tuple[str, ...]:
+    """Effective working directory for each explicit wrapped shell invocation."""
+    details = tool_input if isinstance(tool_input, dict) else {}
+    if tool_name in _SHELL_TOOLS:
+        value = details.get("workdir")
+        return (str(value),) if isinstance(value, str) and value.strip() else ()
+    if tool_name != "functions.exec":
+        return ()
+    direct = _functions_exec_direct_command(tool_input)
+    if direct:
+        value = details.get("workdir")
+        return (str(value),) if isinstance(value, str) and value.strip() else ()
+    source = _functions_exec_source(tool_input)
+    workdirs = _wrapped_exec_workdirs(source)
+    if len(workdirs) != _wrapped_exec_call_count(source):
+        return ()
+    return tuple(value or fallback for value in workdirs if value or fallback)
+
+
+def _invocation_context(hook_input: dict, tool_name: str) -> _InvocationContext:
+    """Normalize repository identity once from workdir and mutation targets."""
+    cwd = _hook_working_directory(hook_input)
+    tool_input = hook_input.get("tool_input")
+    mutation = _is_implementation_mutation(tool_name, tool_input)
+    targets = _implementation_targets(tool_name, tool_input)
+    workdirs = _invocation_workdirs(tool_name, tool_input, cwd)
+    target_base = workdirs[0] if len(set(workdirs)) == 1 else cwd
+    target_repositories = tuple(
+        dict.fromkeys(
+            repository
+            for repository in (_target_repository(target, target_base) for target in targets)
+            if repository
+        )
+    )
+    workdir_repositories = tuple(
+        dict.fromkeys(
+            repository
+            for repository in (_repository_root(workdir) for workdir in workdirs)
+            if repository
+        )
+    )
+    repositories = target_repositories or workdir_repositories
+    cwd_repository = _repository_root(cwd) if not repositories else None
+    if not repositories and not targets:
+        repositories = (cwd_repository,) if cwd_repository else ()
+    ambiguous = len(repositories) > 1
+    unresolved = bool(targets and not repositories and not cwd_repository)
+    repository = repositories[0] if len(repositories) == 1 else None
+    branch_cwd = repository or (workdirs[0] if len(set(workdirs)) == 1 and workdirs else cwd)
+    branch = _current_branch(branch_cwd) if branch_cwd else None
+    return _InvocationContext(
+        cwd=cwd,
+        targets=targets,
+        repositories=repositories,
+        repository=repository,
+        branch=branch,
+        mutation=mutation,
+        ambiguous=ambiguous,
+        unresolved=unresolved,
+    )
 
 
 def _path_is_inside(path: object, root: str, cwd: object) -> bool:
@@ -4280,21 +4532,27 @@ def check_r19_fresh_base(hook_input: dict, tool_name: str) -> str | None:
     the abnormal case -- so an ordinary edit costs exactly the one subprocess
     it cost before, which is what keeps this inside HOOK_BUDGET_SECONDS.
     """
-    if (
-        tool_name not in _FILE_MUTATION_TOOLS
-        and tool_name not in _SHELL_TOOLS
-        and not _functions_exec_is_mutation(hook_input.get("tool_input"))
-    ):
+    context = _invocation_context(hook_input, tool_name)
+    if not context.mutation:
         return None
-    targets = _implementation_targets(tool_name, hook_input.get("tool_input"))
-    if tool_name in _SHELL_TOOLS and not targets:
+    if tool_name in _SHELL_TOOLS and not context.targets:
         return None
-    cwd = _hook_working_directory(hook_input)
-    branch = _current_branch(cwd)
+    if context.ambiguous:
+        return (
+            "R19 blocked: one mutation spans multiple repositories, so no single "
+            "branch can authorize it. Split the mutation by repository and rerun each "
+            "call from that repository's task branch."
+        )
+    branch = context.branch
     if not branch or branch not in DEFAULT_BRANCHES:
         return None
-    root = _repository_root(cwd)
-    if targets and root and all(not _path_is_inside(path, root, cwd) for path in targets):
+    if context.unresolved:
+        return (
+            f"R19 blocked: HEAD is {branch}, but Git could not resolve the repository "
+            "receiving this mutation. Retry from the target repository after confirming "
+            "its task branch."
+        )
+    if context.targets and not context.repository:
         return None
     return (
         f"R19 blocked: HEAD is {branch}, and task work never lands on the default "

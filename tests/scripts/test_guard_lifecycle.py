@@ -5645,3 +5645,132 @@ class FreshBaseGateTest(unittest.TestCase):
             self.assertIsNone(
                 guard.check_r14_hard_reset("git checkout -b ChaosEngine/new", "Bash", ".")
             )
+
+
+class CanonicalInvocationContextRegressionTest(unittest.TestCase):
+    """#5291/#5292: classify the actual wrapped invocation, not hook prose/cwd."""
+
+    def repository(self, parent: str, name: str, branch: str) -> str:
+        root = os.path.join(parent, name)
+        os.makedirs(root)
+        subprocess.run(
+            ["git", "init", "-b", "main"],
+            cwd=root,
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+        subprocess.run(
+            [
+                "git",
+                "-c",
+                "user.name=Hook Test",
+                "-c",
+                "user.email=hook@test.invalid",
+                "commit",
+                "--allow-empty",
+                "-m",
+                "base",
+            ],
+            cwd=root,
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+        if branch != "main":
+            subprocess.run(
+                ["git", "switch", "-c", branch],
+                cwd=root,
+                capture_output=True,
+                text=True,
+                check=True,
+            )
+        return os.path.realpath(root)
+
+    def test_wrapped_exec_uses_its_explicit_workdir_repository(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            desktop = self.repository(temporary, "desktop", "main")
+            task = self.repository(temporary, "task", "ChaosEngine/5291")
+            source = (
+                "await tools.exec_command({"
+                f'cmd:"Set-Content note.txt value",workdir:{json.dumps(task)}'
+                "});"
+            )
+            payload = {"cwd": desktop, "tool_input": source}
+
+            self.assertIsNone(guard.check_r19_fresh_base(payload, "functions.exec"))
+
+    def test_patch_target_repository_default_branch_is_refused(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            desktop = self.repository(temporary, "desktop", "ChaosEngine/source")
+            target = self.repository(temporary, "target", "main")
+            patch_text = f"*** Update File: {target}/guard.py\n"
+            payload = {
+                "cwd": desktop,
+                "tool_input": f"await tools.apply_patch({json.dumps(patch_text)});",
+            }
+
+            reason = guard.check_r19_fresh_base(payload, "functions.exec")
+
+            self.assertIsNotNone(reason)
+            self.assertIn("HEAD is main", reason)
+
+    def test_patch_targets_spanning_repositories_fail_closed(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            desktop = self.repository(temporary, "desktop", "ChaosEngine/source")
+            first = self.repository(temporary, "first", "ChaosEngine/first")
+            second = self.repository(temporary, "second", "ChaosEngine/second")
+            patch_text = (
+                f"*** Update File: {first}/one.py\n"
+                f"*** Update File: {second}/two.py\n"
+            )
+            payload = {
+                "cwd": desktop,
+                "tool_input": f"await tools.apply_patch({json.dumps(patch_text)});",
+            }
+
+            reason = guard.check_r19_fresh_base(payload, "functions.exec")
+
+            self.assertIsNotNone(reason)
+            self.assertIn("multiple repositories", reason)
+
+    def test_quoted_search_pattern_does_not_create_maven_segments(self):
+        command = 'rg -n "literal|mvn -pl shaft-engine test" scripts'
+
+        self.assertEqual([], guard._mvn_segments(command))
+        self.assertIsNone(guard.check_r1_maven(command))
+        self.assertIsNotNone(
+            guard.check_r1_maven("mvn test -DheadlessExecution=true")
+        )
+
+    def test_read_only_branch_inspection_is_not_mutation(self):
+        self.assertFalse(guard._shell_is_mutation("git branch --show-current"))
+        self.assertFalse(guard._shell_is_mutation("git branch --list ChaosEngine/*"))
+        self.assertTrue(guard._shell_is_mutation("git branch -D ChaosEngine/old"))
+
+    def test_current_official_hook_documentation_hosts_are_authoritative(self):
+        for url in (
+            "https://code.visualstudio.com/docs/agents/reference/hooks-reference",
+            "https://code.claude.com/docs/en/hooks",
+            "https://developers.openai.com/codex/",
+        ):
+            with self.subTest(url=url):
+                self.assertTrue(guard._has_primary_source_url({"url": url}))
+
+    def test_wrapped_web_clients_recognize_the_request_url_only(self):
+        for command in (
+            "curl.exe -L https://code.visualstudio.com/docs/agents/reference/hooks-reference",
+            "(Invoke-WebRequest -Uri https://code.claude.com/docs/en/hooks).StatusCode",
+        ):
+            with self.subTest(command=command):
+                self.assertIn(
+                    "authoritative-online-research",
+                    guard._research_preflight_events("exec_command", {"cmd": command}),
+                )
+        self.assertNotIn(
+            "authoritative-online-research",
+            guard._research_preflight_events(
+                "exec_command",
+                {"cmd": "curl.exe -o https://code.visualstudio.com/output https://example.com"},
+            ),
+        )
