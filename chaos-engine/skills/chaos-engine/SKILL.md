@@ -94,22 +94,9 @@ profiles, adapters, configuration, or integration playbooks.
 
 Follow [task isolation](../../references/task-isolation.md) before task-specific
 planning or discovery. Its fresh-primary gate and continuation exception are
-mandatory. Apply the [cleanup scopes](../../references/cleanup-scopes.md) exactly.
-
-### Task scope (default)
-
-Clean only state this task touched. Preserve and report all other state.
-
-### Repository scope (explicit)
-
-Only an explicit request widens cleanup to one repository. Normalize it and
-refresh native Memory, Graphify, and MemPalace; do not touch siblings.
-
-### Machine scope (approval-gated)
-
-The widest scope requires specific user approval and an exact validated
-manifest. Process only approved entries; halt on changed identity or live
-ownership. Approval never crosses target classes.
+mandatory. Apply the canonical
+[cleanup scopes](../../references/cleanup-scopes.md) exactly; this router does
+not restate or override them.
 
 ## Operating contract
 
@@ -290,4 +277,3 @@ deterministic light, dark, monochrome, lockup, and small-size identity masters
 documented in the [ChaosEngine identity guide](../../assets/brand/BRAND.md).
 Those masters stay in the origin source tree and are not copied into adopter
 installs.
-

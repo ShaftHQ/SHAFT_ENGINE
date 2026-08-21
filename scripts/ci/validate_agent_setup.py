@@ -29,6 +29,7 @@ from scripts.ci.validate_agent_guidance import (  # noqa: E402
     skill_listing_chars,
     validate_repository as validate_guidance,
 )
+from scripts.ci.validate_agent_ownership import validate as validate_ownership  # noqa: E402
 from scripts.ci.validate_documentation_boundaries import (  # noqa: E402
     validate_repository as validate_documentation,
 )
@@ -888,6 +889,8 @@ def validate_repository(
     """Run all agent setup checks."""
     errors = [
         *validate_guidance(root),
+        *[issue("semantic-owner", "scripts/ci/agent_ownership.json", message)
+          for message in validate_ownership(root)],
         *[
             issue("documentation-boundary", "documentation", message)
             for message in validate_documentation(root)

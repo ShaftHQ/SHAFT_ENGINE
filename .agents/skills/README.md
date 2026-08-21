@@ -336,7 +336,9 @@ Run them locally with:
 py -3 scripts/ci/validate_agent_setup.py --skip-external
 ```
 
-That command drives `scripts/ci/validate_agent_guidance.py` and
+That command drives `scripts/ci/validate_agent_guidance.py`, the duty manifest
+`scripts/ci/agent_ownership.json` through
+`scripts/ci/validate_agent_ownership.py`, and
 `scripts/ci/validate_skills.py`, while the Agent Plugin contract is checked by
 `scripts/ci/validate_agent_plugins.py`; its ceilings come from
 `scripts/ci/agent_guidance_budget.json` and the cross-host capability matrix
@@ -354,6 +356,7 @@ change it:
 | `tests/scripts/test_agent_harness_adherence.py` | Reviewed deterministic episodes, unknown evidence, and fail-closed adherence comparison. |
 | `tests/scripts/test_agent_harness_reachability.py` | That every element on this page is reachable from the entrypoint, and that the duties below stay unqualified. |
 | `tests/scripts/test_validate_agent_guidance.py` | The budget validator itself. |
+| `tests/scripts/test_validate_agent_ownership.py` | Single semantic owners for router, adapters, hooks, tools, plugins, and guidance plus unique PR-gate paths. |
 | `tests/scripts/test_validate_agent_plugins.py` | Portable Agent Plugin manifests, Agent Skills, and containment. |
 | `tests/scripts/test_validate_agent_setup.py` | The aggregate gate and the host-parity matrix. |
 | `tests/scripts/test_validate_skills.py` | Skill frontmatter, names, and body limits. |
