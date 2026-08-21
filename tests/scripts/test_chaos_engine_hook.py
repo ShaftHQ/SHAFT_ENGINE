@@ -85,6 +85,18 @@ class ChaosEngineHookTest(unittest.TestCase):
         ]
         self.assertEqual(portable_shared.encode("utf-8"), source_shared.encode("utf-8"))
 
+    def test_shared_lifecycle_core_owns_protocol_dispatch_for_both_launchers(self):
+        lifecycle = (ROOT / "chaos-engine/hooks/lifecycle.py").read_text(encoding="utf-8")
+        portable = HOOK.read_text(encoding="utf-8")
+        source = SOURCE_HOOK.read_text(encoding="utf-8")
+
+        self.assertIn("def run_hook_protocol(", lifecycle)
+        for launcher in (portable, source):
+            self.assertIn("run_hook_protocol(", launcher)
+            self.assertNotIn("def _run_hook_protocol(", launcher)
+            self.assertNotIn("def _strict_json_loads(", launcher)
+            self.assertNotIn("def _write_hook_json(", launcher)
+
     def test_stop_learning_loop_rule_fires_only_after_unrouted_mutation(self):
         with tempfile.TemporaryDirectory() as temporary:
             environment = {**os.environ, "TMPDIR": temporary, "TEMP": temporary}

@@ -12,7 +12,7 @@ MANIFEST = ROOT / "scripts/ci/agent_ownership.json"
 TEXT_SUFFIXES = {".json", ".md", ".py", ".yml", ".yaml"}
 IGNORED_PARTS = {".git", ".gradle", "build", "target"}
 REQUIRED_DUTIES = {
-    "router", "companion lifecycle", "repository guard policy",
+    "router", "lifecycle dispatch and protocol", "repository guard policy",
     "portable guard adapter", "repository adapter", "tool dispatch",
     "plugin manifests", "Markdown harness map", "shaft skill routing",
     "CI aggregation", "cleanup policy", "host installer",

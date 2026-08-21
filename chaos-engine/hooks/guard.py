@@ -5,17 +5,30 @@ from __future__ import annotations
 
 import json
 import hashlib
+import importlib.util
 import posixpath
 import re
 import shlex
 import sys
 from pathlib import Path
 
-from lifecycle import session_start_context
+def _load_sibling(module_name: str):
+    path = Path(__file__).resolve().with_name(f"{module_name}.py")
+    if not path.is_file():
+        return None
+    specification = importlib.util.spec_from_file_location(f"chaos_engine_{module_name}", path)
+    if specification is None or specification.loader is None:
+        raise RuntimeError(f"ChaosEngine {module_name} module is unavailable")
+    module = importlib.util.module_from_spec(specification)
+    specification.loader.exec_module(module)
+    return module
 
-try:
-    import reflection
-except ImportError:  # Repository source layout; installed hooks keep it beside guard.py.
+
+_lifecycle = _load_sibling("lifecycle")
+if _lifecycle is None:
+    raise RuntimeError("ChaosEngine lifecycle core is unavailable")
+reflection = _load_sibling("reflection")
+if reflection is None:  # Repository adapter fallback for a source-only layout.
     repository_root = Path(__file__).resolve().parents[2]
     sys.path.insert(0, str(repository_root))
     from scripts.agents import reflection
@@ -273,11 +286,7 @@ def functions_exec_direct_command(tool_input: object) -> str:
     return ""
 
 
-def main() -> int:
-    try:
-        event = json.load(sys.stdin)
-    except (json.JSONDecodeError, OSError):
-        event = {}
+def _run_event(event: dict, _host: str) -> int:
     tool_input = event.get("tool_input", {}) if isinstance(event, dict) else {}
     tool_name = str(event.get("tool_name", "")) if isinstance(event, dict) else ""
     functions_source = functions_exec_source(tool_input)
@@ -416,11 +425,16 @@ def main() -> int:
                 )
             )
             return 2
-    context = session_start_context(token, ACTIVATION) if event_name == "SessionStart" else f"ChaosEngine: {ACTIVATION}"
+    context = _lifecycle.session_start_context(token, ACTIVATION) if event_name == "SessionStart" else f"ChaosEngine: {ACTIVATION}"
     if token and event_name != "SessionStart":
         context += f" Reflection session token (never track it): {token}"
     print(json.dumps({"additionalContext": context}))
     return 0
+
+
+def main() -> int:
+    callbacks = {event: _run_event for event in _lifecycle.LIFECYCLE_EVENTS}
+    return _lifecycle.run_hook_protocol(sys.stdin.read(), callbacks)
 
 
 if __name__ == "__main__":

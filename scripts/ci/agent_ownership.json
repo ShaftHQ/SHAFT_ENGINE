@@ -4,9 +4,10 @@
       "owner": "chaos-engine/skills/chaos-engine/SKILL.md",
       "terms": ["Canonical provider-neutral skill router", "Roles and capability levels"]
     },
-    "companion lifecycle": {
+    "lifecycle dispatch and protocol": {
       "owner": "chaos-engine/hooks/lifecycle.py",
-      "terms": ["session_start_context", "ULTRA_SELECTOR", "COMPANION_NAMES"]
+      "terms": ["run_hook_protocol", "LIFECYCLE_EVENTS", "session_start_context"],
+      "allowed": ["chaos-engine/hooks/guard.py", "scripts/agents/guard.py"]
     },
     "repository guard policy": {
       "owner": "scripts/agents/guard.py",
@@ -15,7 +16,7 @@
     },
     "portable guard adapter": {
       "owner": "chaos-engine/hooks/guard.py",
-      "terms": ["from lifecycle import session_start_context", "def main"],
+      "terms": ["_lifecycle.run_hook_protocol", "def main"],
       "allowed": ["scripts/agents/guard.py"]
     },
     "cleanup policy": {
