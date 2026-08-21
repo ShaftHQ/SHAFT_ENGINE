@@ -684,11 +684,8 @@ class ChaosEnginePortableCoreTest(unittest.TestCase):
         self.assertNotIn("../shafthq.github.io", profile_text)
         self.assertNotIn("../shafthq.github.io", entry)
         self.assertNotIn("../shafthq.github.io", playbook)
-        working_rules = agents.split("## Working rules", 1)[1].split(
-            "## Windows and GUI safety", 1
-        )[0]
-        self.assertIn("never a fixed sibling path", working_rules)
-        self.assertNotIn("../shafthq.github.io", working_rules)
+        self.assertIn("[ChaosEngine](.agents/skills/chaos-engine/SKILL.md)", agents)
+        self.assertIn("the only router and\nworking-policy owner", agents)
         self.assertNotIn("../shafthq.github.io", agents)
         self.assertIsNone(windows_absolute.search(entry))
         self.assertIsNone(windows_absolute.search(playbook))
