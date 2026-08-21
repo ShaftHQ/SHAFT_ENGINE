@@ -2943,6 +2943,86 @@ class ReviewBeforeArmingGateTest(unittest.TestCase):
                     )
                 )
 
+    def test_successful_functions_exec_issue_comment_records_learning_route_for_r15(self):
+        repository = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        command = 'gh issue comment 5290 --repo ShaftHQ/SHAFT_ENGINE --body-file "receipt, cmd: }) evidence.md"'
+
+        def payload(session_id: str, source: str) -> dict:
+            return {
+                "session_id": session_id,
+                "cwd": repository,
+                "tool_name": "functions.exec",
+                "tool_input": source,
+                "tool_response": {"exit_code": 0},
+            }
+
+        source = f'const result = await tools.exec_command({{"cmd":{json.dumps(command)}}}); text(result);'
+        for key in ("cmd", "command", '"cmd"', '"command"', "'cmd'", "'command'"):
+            trailing_comma_source = f"await tools.exec_command({{{key}:{json.dumps(command)},}});"
+            self.assertEqual((command,), guard._wrapped_exec_commands(trailing_comma_source))
+        with tempfile.TemporaryDirectory() as directory, patch.dict(
+            guard.os.environ, {"TMPDIR": directory, "TEMP": directory}
+        ), patch(
+            "scripts.agents.guard._git_output",
+            return_value="https://github.com/ShaftHQ/SHAFT_ENGINE.git",
+        ):
+            successful = payload("wrapped-learning-route", source)
+            guard.run_posttooluse(successful)
+            self.assertIn("learning-issue:5290", guard.ledger_events(successful))
+            committed = {
+                **successful,
+                "tool_name": "PowerShell",
+                "tool_input": {"command": "git commit -m checkpoint"},
+            }
+            with patch("scripts.agents.guard._record_successful_commit_checkpoint"):
+                guard.run_posttooluse(committed)
+            self.assertIn("commit", guard.ledger_events(successful))
+            with patch("scripts.agents.guard._independent_review_count", return_value=1):
+                self.assertIsNone(
+                    guard.check_r15_review_before_arming(
+                        "gh pr merge 5290 --auto --merge", "Bash", successful
+                    )
+                )
+
+            decoy = f'await tools.exec_command({{"cmd":{json.dumps(command)}}});'
+            for session_id, candidate_source in (
+                ("wrapped-dynamic-command", 'await tools.exec_command({"cmd": command});'),
+                ("wrapped-ambiguous-command", f'await tools.exec_command({{"cmd":{json.dumps(command)} + suffix}});'),
+                ("wrapped-duplicate-command", f'await tools.exec_command({{"cmd":{json.dumps(command)}, command: override}});'),
+                ("wrapped-spread-override", f'await tools.exec_command({{"cmd":{json.dumps(command)}, ...override}});'),
+                ("wrapped-computed-override", f'await tools.exec_command({{"cmd":{json.dumps(command)}, ["cmd"]: override}});'),
+                ("wrapped-escaped-key", f'await tools.exec_command({{"cmd":{json.dumps(command)}, "c\\u006dd": override}});'),
+                ("wrapped-malformed-trailing-comma", f'await tools.exec_command({{"cmd":{json.dumps(command)},,}});'),
+                ("wrapped-string-decoy", f'const prose = {json.dumps(decoy)}; await tools.exec_command({{"cmd":"echo harmless"}});'),
+            ):
+                with self.subTest(session_id=session_id):
+                    candidate = payload(session_id, candidate_source)
+                    guard.run_posttooluse(candidate)
+                    self.assertNotIn("learning-issue:5290", guard.ledger_events(candidate))
+
+            for source in (
+                f'await tools["exec_command"]({{"cmd":{json.dumps(command)}}});',
+                f'await tools["exec\\u005fcommand"]({{"cmd":{json.dumps(command)}}});',
+                f'await tools.\\u0065xec_command({{"cmd":{json.dumps(command)}}});',
+                f'await tools.exec\\u005fcommand({{"cmd":{json.dumps(command)}}});',
+                f'const result = `${{tools.exec_command({{"cmd":{json.dumps(command)}}})}}`;',
+            ):
+                with self.subTest(source=source):
+                    self.assertEqual(1, guard._wrapped_exec_call_count(source))
+                    self.assertEqual((), guard._wrapped_exec_commands(source))
+            self.assertEqual(
+                0,
+                guard._wrapped_exec_call_count(
+                    f'const prose = `tools.exec_command({{"cmd":{json.dumps(command)}}})`;'
+                ),
+            )
+            self.assertEqual(
+                0,
+                guard._wrapped_exec_call_count(
+                    f'await mytools["exec_command"]({{"cmd":{json.dumps(command)}}});'
+                ),
+            )
+
     def test_it_fails_open_when_the_review_state_cannot_be_answered(self):
         """No gh, no auth, no network: unknown is not zero (#4542)."""
         with patch("scripts.agents.guard._independent_review_count", return_value=None):
@@ -5328,6 +5408,74 @@ class FreshBaseGateTest(unittest.TestCase):
         os.makedirs(root, exist_ok=True)
         os.makedirs(outside, exist_ok=True)
         return root, outside
+
+    def test_functions_exec_apply_patch_uses_absolute_target_worktree_for_r19_scoping(self):
+        """Literal wrapped patch targets, not hook cwd, scope R19 (#5289)."""
+        main_root, _ = self.repository()
+        task_root = os.path.join(os.path.dirname(main_root), "task-worktree")
+        os.makedirs(task_root)
+        task_target = os.path.join(task_root, "scripts", "guard.py")
+        main_target = os.path.join(main_root, "scripts", "guard.py")
+
+        def wrapped(*targets: str, quote: str = '"') -> dict:
+            patch_text = "".join(f"*** Update File: {target}\n" for target in targets)
+            if quote == '"':
+                literal = json.dumps(patch_text)
+            else:
+                escaped = patch_text.replace("\\", "\\\\").replace(quote, "\\" + quote)
+                literal = quote + (escaped.replace("\n", "\\n") if quote == "'" else escaped) + quote
+            return {
+                "cwd": main_root,
+                "tool_input": f"await tools.apply_patch({literal});",
+            }
+
+        with patch("scripts.agents.guard._current_branch", return_value="main"):
+            with patch("scripts.agents.guard._repository_root", return_value=main_root):
+                self.assertIsNone(guard.check_r19_fresh_base(wrapped(task_target), "functions.exec"))
+                for quote in ("'", "`"):
+                    with self.subTest(quote=quote):
+                        self.assertIsNone(
+                            guard.check_r19_fresh_base(
+                                wrapped(task_target, quote=quote), "functions.exec"
+                            )
+                        )
+                self.assertIsNotNone(guard.check_r19_fresh_base(wrapped(main_target), "functions.exec"))
+                self.assertIsNotNone(
+                    guard.check_r19_fresh_base(wrapped(main_target, task_target), "functions.exec")
+                )
+                dynamic = {
+                    "cwd": main_root,
+                    "tool_input": (
+                        f"const patch = {json.dumps('*** Update File: ' + task_target + chr(10))}; "
+                        "await tools.apply_patch(patch);"
+                    ),
+                }
+                self.assertIsNotNone(guard.check_r19_fresh_base(dynamic, "functions.exec"))
+                mixed_dynamic = {
+                    "cwd": main_root,
+                    "tool_input": (
+                        f"await tools.apply_patch({json.dumps('*** Update File: ' + task_target + chr(10))}); "
+                        "await tools.apply_patch(patch);"
+                    ),
+                }
+                self.assertIsNotNone(
+                    guard.check_r19_fresh_base(mixed_dynamic, "functions.exec")
+                )
+                mixed_interpolated = {
+                    "cwd": main_root,
+                    "tool_input": (
+                        f"await tools.apply_patch({json.dumps('*** Update File: ' + task_target + chr(10))}); "
+                        "await tools.apply_patch(`*** Update File: ${task_target}\\n`);"
+                    ),
+                }
+                self.assertIsNotNone(
+                    guard.check_r19_fresh_base(mixed_interpolated, "functions.exec")
+                )
+                interpolated = {
+                    "cwd": main_root,
+                    "tool_input": "await tools.apply_patch(`*** Update File: ${task_target}\\n`);",
+                }
+                self.assertIsNotNone(guard.check_r19_fresh_base(interpolated, "functions.exec"))
 
     def test_a_write_outside_the_repository_is_not_refused(self):
         """R19 governs where this repository's work lands, and nothing else.

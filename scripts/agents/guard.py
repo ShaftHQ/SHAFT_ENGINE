@@ -1977,20 +1977,200 @@ def _has_primary_source_url(tool_result: object) -> bool:
     return False
 
 
-def _wrapped_exec_commands(source: str) -> tuple[str, ...]:
-    """Extract literal cmd/command strings from wrapped exec_command calls."""
-    commands: list[str] = []
-    for match in re.finditer(
-        r'''\btools\.exec_command\s*\(\s*\{.*?\b(?:cmd|command)\s*:\s*(?P<literal>"(?:\\.|[^"\\])*")''',
-        source,
-        re.DOTALL,
-    ):
-        try:
-            command = json.loads(match.group("literal"))
-        except (json.JSONDecodeError, ValueError):
+def _top_level_javascript_properties(details: str) -> tuple[str, ...] | None:
+    """Split a literal JavaScript object without evaluating source."""
+    properties: list[str] = []
+    start = 0
+    stack: list[str] = []
+    quote: str | None = None
+    index = 0
+    pairs = {")": "(", "]": "[", "}": "{"}
+    while index < len(details):
+        character = details[index]
+        following = details[index + 1] if index + 1 < len(details) else ""
+        if quote is not None:
+            if quote == "`" and character == "$" and following == "{":
+                return None
+            if character == "\\" and following:
+                index += 2
+                continue
+            if character == quote:
+                quote = None
+            index += 1
             continue
-        if isinstance(command, str) and command:
-            commands.append(command)
+        if character in {"'", '"', "`"}:
+            quote = character
+        elif character == "/" and following in {"/", "*"}:
+            return None
+        elif character in "([{":
+            stack.append(character)
+        elif character in ")]}":
+            if not stack or stack.pop() != pairs[character]:
+                return None
+        elif character == "," and not stack:
+            property_text = details[start:index].strip()
+            if not property_text:
+                return None
+            properties.append(property_text)
+            start = index + 1
+        index += 1
+    property_text = details[start:].strip()
+    if quote is not None or stack:
+        return None
+    if not property_text:
+        return tuple(properties) if properties and details.rstrip().endswith(",") else None
+    properties.append(property_text)
+    return tuple(properties)
+
+
+def _wrapped_exec_call_objects(source: str) -> tuple[str, ...] | None:
+    """Find literal exec_command object arguments outside JavaScript data."""
+    calls: list[str] = []
+    quote: str | None = None
+    line_comment = False
+    block_comment = False
+    index = 0
+    prefix = "tools.exec_command"
+    while index < len(source):
+        character = source[index]
+        following = source[index + 1] if index + 1 < len(source) else ""
+        if line_comment:
+            line_comment = character not in "\r\n"
+            index += 1
+            continue
+        if block_comment:
+            if character == "*" and following == "/":
+                block_comment = False
+                index += 2
+            else:
+                index += 1
+            continue
+        if quote is not None:
+            if quote == "`" and character == "$" and following == "{":
+                return None
+            if character == "\\" and following:
+                index += 2
+                continue
+            if character == quote:
+                quote = None
+            index += 1
+            continue
+        if character in {"'", '"', "`"}:
+            quote = character
+            index += 1
+            continue
+        if character == "/" and following == "/":
+            line_comment = True
+            index += 2
+            continue
+        if character == "/" and following == "*":
+            block_comment = True
+            index += 2
+            continue
+        at_tools_boundary = index == 0 or not (
+            source[index - 1].isalnum() or source[index - 1] in "_$."
+        )
+        if at_tools_boundary and (
+            re.match(r'''tools\s*\[''', source[index:])
+            or re.match(
+                r'''tools\s*\.\s*[A-Za-z_$]*\\(?:u[0-9A-Fa-f]{4}|x[0-9A-Fa-f]{2})[A-Za-z0-9_$\\]*\s*\(''',
+                source[index:],
+            )
+        ):
+            return None
+        if source.startswith(prefix, index) and at_tools_boundary:
+            cursor = index + len(prefix)
+            if cursor < len(source) and (source[cursor].isalnum() or source[cursor] in "_$"):
+                index += 1
+                continue
+            while cursor < len(source) and source[cursor].isspace():
+                cursor += 1
+            if cursor >= len(source) or source[cursor] != "(":
+                return None
+            cursor += 1
+            while cursor < len(source) and source[cursor].isspace():
+                cursor += 1
+            if cursor >= len(source) or source[cursor] != "{":
+                return None
+            start = cursor + 1
+            depth = 1
+            object_quote: str | None = None
+            cursor += 1
+            while cursor < len(source) and depth:
+                nested = source[cursor]
+                nested_following = source[cursor + 1] if cursor + 1 < len(source) else ""
+                if object_quote is not None:
+                    if object_quote == "`" and nested == "$" and nested_following == "{":
+                        return None
+                    if nested == "\\" and nested_following:
+                        cursor += 2
+                        continue
+                    if nested == object_quote:
+                        object_quote = None
+                    cursor += 1
+                    continue
+                if nested in {"'", '"', "`"}:
+                    object_quote = nested
+                elif nested == "{":
+                    depth += 1
+                elif nested == "}":
+                    depth -= 1
+                cursor += 1
+            if depth or object_quote is not None:
+                return None
+            details = source[start:cursor - 1]
+            while cursor < len(source) and source[cursor].isspace():
+                cursor += 1
+            if cursor >= len(source) or source[cursor] != ")":
+                return None
+            calls.append(details)
+            index = cursor + 1
+            continue
+        index += 1
+    return None if quote is not None or block_comment else tuple(calls)
+
+
+def _wrapped_exec_commands(source: str) -> tuple[str, ...]:
+    """Extract one literal cmd/command string per unambiguous wrapped call."""
+    commands: list[str] = []
+    key = r'''(?:\b(?:cmd|command)\b|["'](?:cmd|command)["'])'''
+    calls = _wrapped_exec_call_objects(source)
+    if calls is None:
+        return ()
+    for details in calls:
+        properties = _top_level_javascript_properties(details)
+        if properties is None:
+            return ()
+        literals: list[str] = []
+        for property_text in properties:
+            if property_text.startswith(("...", "[")):
+                return ()
+            quoted_key = re.match(
+                r'''(?P<key>"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*')\s*:''',
+                property_text,
+                re.DOTALL,
+            )
+            if quoted_key is not None and "\\" in quoted_key.group("key"):
+                return ()
+            match = re.fullmatch(
+                key + r'''\s*:\s*(?P<literal>"(?:\\.|[^"\\])*")''',
+                property_text,
+                re.DOTALL,
+            )
+            if match is not None:
+                literals.append(match.group("literal"))
+                continue
+            if re.match(r'''(?:get|set|async)?\s*''' + key + r'''(?:\s*:|\s*\()''', property_text):
+                return ()
+        if len(literals) != 1:
+            return ()
+        try:
+            command = json.loads(literals[0])
+        except (json.JSONDecodeError, ValueError):
+            return ()
+        if not isinstance(command, str) or not command:
+            return ()
+        commands.append(command)
     return tuple(commands)
 
 
@@ -2066,7 +2246,8 @@ def _functions_exec_plan_events(source: str) -> tuple[str, ...]:
 
 
 def _wrapped_exec_call_count(source: str) -> int:
-    return len(re.findall(r"\btools\.exec_command\s*\(", source))
+    calls = _wrapped_exec_call_objects(source)
+    return len(calls) if calls is not None else 1
 
 
 def _shell_requests_primary_source(segment: str) -> bool:
@@ -2224,6 +2405,69 @@ def _research_preflight_events(
     return tuple(dict.fromkeys(events))
 
 
+def _patch_header_targets(patch_text: str) -> tuple[str, ...]:
+    return tuple(
+        match.group(1).strip()
+        for match in re.finditer(
+            r"(?m)^\*\*\* (?:Add|Update|Delete) File:\s*(.+?)\s*$", patch_text
+        )
+    )
+
+
+def _static_javascript_literal(literal: str) -> str | None:
+    """Decode one inspectable JavaScript string literal without evaluating source."""
+    if len(literal) < 2 or literal[0] != literal[-1] or literal[0] not in {'"', "'", "`"}:
+        return None
+    quote = literal[0]
+    if quote == '"':
+        try:
+            value = json.loads(literal)
+        except (json.JSONDecodeError, ValueError):
+            return None
+        return value if isinstance(value, str) else None
+    body = literal[1:-1]
+    if (quote == "'" and ("\n" in body or "\r" in body)) or (quote == "`" and "${" in body):
+        return None
+    values: list[str] = []
+    index = 0
+    escapes = {"b": "\b", "f": "\f", "n": "\n", "r": "\r", "t": "\t", "v": "\v"}
+    while index < len(body):
+        character = body[index]
+        if character != "\\":
+            values.append(character)
+            index += 1
+            continue
+        index += 1
+        if index == len(body):
+            return None
+        escaped = body[index]
+        if escaped in {"'", '"', "`", "\\", "/"}:
+            values.append(escaped)
+        elif escaped in escapes:
+            values.append(escapes[escaped])
+        elif escaped == "x" and index + 2 < len(body):
+            digits = body[index + 1:index + 3]
+            if not re.fullmatch(r"[0-9a-fA-F]{2}", digits):
+                return None
+            values.append(chr(int(digits, 16)))
+            index += 2
+        elif escaped == "u" and index + 4 < len(body):
+            digits = body[index + 1:index + 5]
+            if not re.fullmatch(r"[0-9a-fA-F]{4}", digits):
+                return None
+            values.append(chr(int(digits, 16)))
+            index += 4
+        elif escaped == "\r":
+            if index + 1 < len(body) and body[index + 1] == "\n":
+                index += 1
+        elif escaped == "\n":
+            pass
+        else:
+            return None
+        index += 1
+    return "".join(values)
+
+
 def _implementation_targets(tool_name: str, tool_input: object) -> tuple[str, ...]:
     """File targets for supported mutation tools; empty means no explicit target."""
     details = tool_input if isinstance(tool_input, dict) else {}
@@ -2231,13 +2475,25 @@ def _implementation_targets(tool_name: str, tool_input: object) -> tuple[str, ..
         path = details.get("file_path") or details.get("path") or details.get("notebook_path")
         return (str(path),) if path else ()
     if tool_name == "apply_patch":
-        patch_text = str(details.get("patch") or details.get("input") or "")
-        return tuple(
-            match.group(1).strip()
-            for match in re.finditer(
-                r"(?m)^\*\*\* (?:Add|Update|Delete) File:\s*(.+?)\s*$", patch_text
+        return _patch_header_targets(str(details.get("patch") or details.get("input") or ""))
+    if tool_name == "functions.exec":
+        source = _functions_exec_source(tool_input)
+        matches = tuple(
+            re.finditer(
+                r'''\btools\.apply_patch\s*\(\s*(?P<literal>"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|`(?:\\.|[^`\\])*`)\s*\)''',
+                source,
+                re.DOTALL,
             )
         )
+        if len(matches) != len(re.findall(r"\btools\.apply_patch\s*\(", source)):
+            return ()
+        targets: list[str] = []
+        for match in matches:
+            patch_text = _static_javascript_literal(match.group("literal"))
+            if patch_text is None:
+                return ()
+            targets.extend(_patch_header_targets(patch_text))
+        return tuple(dict.fromkeys(targets))
     if tool_name in _SHELL_TOOLS:
         return _shell_mutation_targets(
             str(details.get("command") or details.get("cmd") or "")
