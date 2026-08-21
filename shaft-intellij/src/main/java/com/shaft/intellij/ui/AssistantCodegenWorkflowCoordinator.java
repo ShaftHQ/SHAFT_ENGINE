@@ -165,11 +165,25 @@ public final class AssistantCodegenWorkflowCoordinator implements Disposable {
         } catch (IllegalArgumentException | UnsupportedOperationException error) {
             return workflow.phase;
         }
-        if ((reported == Phase.GENERATE || reported == Phase.REPLAY || reported == Phase.HEAL)
-                && workflow.phase.mutableOrder() <= reported.mutableOrder()) {
+        if (allowedProgressTransition(workflow, reported)) {
+            if (reported == Phase.HEAL && workflow.phase != Phase.HEAL) {
+                workflow.healAttempts++;
+            }
             workflow.phase = reported;
         }
         return workflow.phase;
+    }
+
+    private static boolean allowedProgressTransition(Workflow workflow, Phase reported) {
+        if (!(reported == Phase.GENERATE || reported == Phase.REPLAY || reported == Phase.HEAL)) {
+            return false;
+        }
+        Phase current = workflow.phase;
+        if (reported == Phase.HEAL && current != Phase.HEAL) {
+            return workflow.healAttempts < workflow.healRetryAllowance;
+        }
+        return current.mutableOrder() <= reported.mutableOrder()
+                || (current == Phase.HEAL && reported == Phase.REPLAY);
     }
 
     Phase phase(String sessionId) {
@@ -335,7 +349,7 @@ public final class AssistantCodegenWorkflowCoordinator implements Disposable {
         state.addProperty("recordingPath", AssistantCommand.DEFAULT_CAPTURE_RECORDING_PATH);
         return """
                 AutoBot free-text codegen, read-only RECORD invocation. You own all browser and SHAFT MCP actions; the IntelliJ plugin coordinates state and presentation only.
-                Initialize negotiated SHAFT MCP capabilities, call capture_start with the exact state below, perform the requested browser journey, call capture_stop/save, then inspect existing test and page-object classes and propose reuse/new owners. Do not edit source. Do not generate, replay, or heal. Preserve MCP timeout, cancellation, shutdown, and client lifecycle.
+                Load and follow `$shaft-recording-codegen`, `$shaft-locator-design`, and `$shaft-web-actions` plus the repository's SHAFT recording guidance. Use negotiated SHAFT MCP/CLI capabilities to call capture_start with the exact state below, perform the requested browser journey, and call capture_stop/save. Then inspect existing test classes and page objects and propose which existing owners to reuse and which owners are genuinely missing. Do not edit source. Do not generate, replay, or heal. Preserve MCP timeout, cancellation, shutdown, and client lifecycle.
 
                 Workflow state:
                 %s
@@ -354,7 +368,9 @@ public final class AssistantCodegenWorkflowCoordinator implements Disposable {
         state.addProperty("healRetryAllowance", workflow.healRetryAllowance);
         return """
                 AutoBot free-text codegen, approved mutable invocation. Explicit edit consent was granted before this process launched. You own GENERATE, REPLAY, and HEAL through negotiated SHAFT MCP and local project tools; the IntelliJ plugin coordinates state and presentation only.
-                Reuse the approved proposal and saved recording. Make the smallest source change, reporting exact changed and created class names. Replay once. On failure, heal and replay no more than the exact healRetryAllowance in state; never inherit another default and never weaken assertions. Preserve MCP timeout, cancellation, shutdown, and client lifecycle.
+                Load and follow `$shaft-automated-test-authoring`, `$shaft-page-objects`, `$shaft-recording-codegen`, `$shaft-locator-design`, `$shaft-web-actions`, and `$shaft-change-verification` plus the repository's SHAFT test-generation guidance. Before any source edit, inspect existing test classes and page objects and call `shaft_coding_partner_plan` (or the negotiated equivalent owner/reuse planning capability). Reuse the approved proposal, saved recording, existing test classes, page objects, locator fields, and action methods. Create a new owner only when none fits.
+                Follow the Page Object Model and the project's existing package and class ownership. Keep locators and page actions in page objects, not test methods. Locator priority is stable author-written IDs first, then existing project locator conventions, then accessible semantic locators, with XPath only as a last fallback. Use SHAFT syntax and fluent action chaining.
+                Make the smallest source change, reporting exact changed and created class names. Replay once. On failure, heal and replay no more than the exact healRetryAllowance in state; never inherit another default and never weaken assertions. Preserve MCP timeout, cancellation, shutdown, and client lifecycle.
                 Emit a parseable progress line when each phase starts: SHAFT_CODEGEN_PROGRESS {"phase":"GENERATE|REPLAY|HEAL"}
 
                 Workflow state:
@@ -680,6 +696,7 @@ public final class AssistantCodegenWorkflowCoordinator implements Disposable {
         private String proposalMarkdown = "";
         private JsonObject proposal = new JsonObject();
         private Phase phase = Phase.IDLE;
+        private int healAttempts;
 
         private Workflow(
                 String scenario,

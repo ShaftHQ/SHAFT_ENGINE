@@ -281,7 +281,36 @@ class AssistantCodegenWorkflowCoordinatorTest {
     }
 
     @Test
-    void mutableRunProgressUpdatesGenerateReplayAndHealState() throws Exception {
+    void launchedRecordAndMutablePromptsRetainTheShaftCodeGenerationContract() throws Exception {
+        Object coordinator = coordinator();
+        String sessionId = "launched-prompt-contract";
+        String request = "/codegen visit https://example.com and log in";
+
+        AssistantCommand.Invocation record = route(coordinator, sessionId, request, codegen(request));
+        writeRecording();
+        complete(coordinator, sessionId, ShaftMcpToolResult.success(
+                "SHAFT_CODEGEN_PROPOSAL " + proposalJson()));
+        AssistantCommand.Invocation mutable = route(coordinator, sessionId, "approve edits", null);
+
+        String recordPrompt = record.arguments().get("prompt").getAsString();
+        String mutablePrompt = mutable.arguments().get("prompt").getAsString();
+        assertAll(
+                () -> assertTrue(recordPrompt.contains("$shaft-recording-codegen"), recordPrompt),
+                () -> assertTrue(recordPrompt.contains("SHAFT MCP/CLI"), recordPrompt),
+                () -> assertTrue(recordPrompt.contains("existing test classes and page objects"), recordPrompt),
+                () -> assertTrue(mutablePrompt.contains("$shaft-automated-test-authoring"), mutablePrompt),
+                () -> assertTrue(mutablePrompt.contains("$shaft-page-objects"), mutablePrompt),
+                () -> assertTrue(mutablePrompt.contains("shaft_coding_partner_plan"), mutablePrompt),
+                () -> assertTrue(mutablePrompt.contains("Page Object Model"), mutablePrompt),
+                () -> assertTrue(mutablePrompt.contains("stable author-written IDs first"), mutablePrompt),
+                () -> assertTrue(mutablePrompt.contains("existing project locator conventions"), mutablePrompt),
+                () -> assertTrue(mutablePrompt.contains("Create a new owner only when none fits"), mutablePrompt),
+                () -> assertTrue(mutablePrompt.contains("Replay once"), mutablePrompt),
+                () -> assertTrue(mutablePrompt.contains("healRetryAllowance"), mutablePrompt));
+    }
+
+    @Test
+    void mutableRunProgressAllowsTheSingleHealReplayLoopButRejectsOtherBacktracking() throws Exception {
         Object coordinator = coordinator();
         startAndCompleteProposal(coordinator, "progress", "/codegen visit https://example.com");
         route(coordinator, "progress", "approve", null);
@@ -291,10 +320,21 @@ class AssistantCodegenWorkflowCoordinatorTest {
         String replay = phase(coordinator, "progress");
         invoke(coordinator, "progress", new Class<?>[]{String.class, String.class},
                 "progress", "SHAFT_CODEGEN_PROGRESS {\"phase\":\"HEAL\"}");
+        String heal = phase(coordinator, "progress");
+        invoke(coordinator, "progress", new Class<?>[]{String.class, String.class},
+                "progress", "SHAFT_CODEGEN_PROGRESS {\"phase\":\"REPLAY\"}");
+        String replayAfterHeal = phase(coordinator, "progress");
+        invoke(coordinator, "progress", new Class<?>[]{String.class, String.class},
+                "progress", "SHAFT_CODEGEN_PROGRESS {\"phase\":\"GENERATE\"}");
+        invoke(coordinator, "progress", new Class<?>[]{String.class, String.class},
+                "progress", "SHAFT_CODEGEN_PROGRESS {\"phase\":\"HEAL\"}");
 
         assertAll(
                 () -> assertEquals("REPLAY", replay),
-                () -> assertEquals("HEAL", phase(coordinator, "progress")));
+                () -> assertEquals("HEAL", heal),
+                () -> assertEquals("REPLAY", replayAfterHeal),
+                () -> assertEquals("REPLAY", phase(coordinator, "progress"),
+                        "the default allowance must reject a second heal/replay loop"));
     }
 
     @Test
@@ -324,10 +364,20 @@ class AssistantCodegenWorkflowCoordinatorTest {
         startAndCompleteProposal(overrideCoordinator, "override-retry",
                 "/codegen visit https://example.com; allow 3 heal retries");
         AssistantCommand.Invocation overrideMutable = route(overrideCoordinator, "override-retry", "approve", null);
+        invoke(overrideCoordinator, "progress", new Class<?>[]{String.class, String.class},
+                "override-retry", "SHAFT_CODEGEN_PROGRESS {\"phase\":\"REPLAY\"}");
+        invoke(overrideCoordinator, "progress", new Class<?>[]{String.class, String.class},
+                "override-retry", "SHAFT_CODEGEN_PROGRESS {\"phase\":\"HEAL\"}");
+        invoke(overrideCoordinator, "progress", new Class<?>[]{String.class, String.class},
+                "override-retry", "SHAFT_CODEGEN_PROGRESS {\"phase\":\"REPLAY\"}");
+        invoke(overrideCoordinator, "progress", new Class<?>[]{String.class, String.class},
+                "override-retry", "SHAFT_CODEGEN_PROGRESS {\"phase\":\"HEAL\"}");
 
         assertAll(
                 () -> assertEquals(1, defaultMutable.arguments().get("healRetryAllowance").getAsInt()),
-                () -> assertEquals(3, overrideMutable.arguments().get("healRetryAllowance").getAsInt()));
+                () -> assertEquals(3, overrideMutable.arguments().get("healRetryAllowance").getAsInt()),
+                () -> assertEquals("HEAL", phase(overrideCoordinator, "override-retry"),
+                        "an explicit allowance must permit the requested additional loop"));
     }
 
     @Test
