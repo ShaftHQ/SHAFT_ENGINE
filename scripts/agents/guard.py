@@ -1516,6 +1516,7 @@ _FIELD_ALIASES = {
     "toolName": "tool_name",
     "toolInput": "tool_input",
     "sessionId": "session_id",
+    "agentId": "agent_id",
     "agentType": "agent_type",
     "toolResponse": "tool_response",
     "toolResult": "tool_result",
@@ -1724,6 +1725,13 @@ def _hook_working_directory(hook_input: dict) -> str | None:
         return None
 
 
+def _reflection_session_id(hook_input: dict) -> str:
+    """Isolate reflection recovery by host agent while preserving root ledgers."""
+    return _reflection.scope_session_id(
+        str(hook_input.get("session_id") or ""), hook_input.get("agent_id")
+    )
+
+
 def _print_deny(reason: str, host: str) -> None:
     print(json.dumps(_deny_output(reason, host)))
 
@@ -1741,14 +1749,17 @@ def _deny_output(reason: str, host: str) -> dict:
 
 
 def _record_guard_block_and_deny(hook_input: dict, reason: str, host: str) -> None:
-    """Preserve an observed refusal for R16 before returning the denial."""
+    """Preserve one unresolved refusal; receipt-cleared history never retriggers."""
     ledger_record(hook_input, "guard-block")
-    if ledger_events(hook_input).count("guard-block") >= 2:
-        _reflection.record_trigger(
-            str(hook_input.get("session_id") or ""),
-            "guard-repeat",
-            hashlib.sha256(reason.encode("utf-8")).hexdigest()[:24],
-        )
+    _reflection.record_failure(
+        _reflection_session_id(hook_input),
+        phase="guard",
+        target="refusal-" + hashlib.sha256(reason.encode("utf-8")).hexdigest()[:24],
+        failure_class="guard-refusal",
+        platform=hook_input.get("platform") or sys.platform,
+        invariant="allowed-route",
+        observation_id=hook_input.get("tool_use_id"),
+    )
     _print_deny(reason, host)
 
 
@@ -4566,7 +4577,7 @@ def check_r19_fresh_base(hook_input: dict, tool_name: str) -> str | None:
 def run_pretooluse(hook_input: dict, host: str = "portable") -> int:
     tool_name = hook_input.get("tool_name", "")
 
-    checkpoint = _reflection.pending_checkpoint(str(hook_input.get("session_id") or ""))
+    checkpoint = _reflection.pending_checkpoint(_reflection_session_id(hook_input))
     if checkpoint is not None:
         commands = _hook_commands(hook_input, tool_name)
         if len(commands) == 1 and (
@@ -4575,7 +4586,7 @@ def run_pretooluse(hook_input: dict, host: str = "portable") -> int:
         ):
             return 0
         if _reflection_blocks_tool(hook_input, tool_name, checkpoint):
-            _record_guard_block_and_deny(hook_input, _reflection_block_reason(checkpoint), host)
+            _print_deny(_reflection_block_reason(checkpoint), host)
             return 0
 
     reason = check_r22_dispatch_adapter(hook_input, tool_name)
@@ -4705,14 +4716,14 @@ def run_posttooluse(hook_input: dict) -> int:
     )
     if result_failed:
         failure = _record_task_failure(hook_input, result)
-        checkpoint = _reflection.pending_checkpoint(str(hook_input.get("session_id") or ""))
+        checkpoint = _reflection.pending_checkpoint(_reflection_session_id(hook_input))
         if failure and checkpoint:
             print(json.dumps({"additionalContext": _reflection_block_reason(checkpoint)}))
     commands = _hook_commands(hook_input, tool_name)
     for command in commands:
         if looks_like_a_test_run(command):
             _reflection.record_platform_outcome(
-                str(hook_input.get("session_id") or ""),
+                _reflection_session_id(hook_input),
                 target=_failure_target(hook_input),
                 platform=str(hook_input.get("platform") or sys.platform),
                 outcome="failed" if result_failed else "passed",
@@ -4726,7 +4737,7 @@ def run_posttooluse(hook_input: dict) -> int:
         )
     ):
         _reflection.record_activity(
-            str(hook_input.get("session_id") or ""), "mutation-or-delivery"
+            _reflection_session_id(hook_input), "mutation-or-delivery"
         )
     if not result_failed and (
         tool_name in _NATIVE_MEMORY_WRITE_TOOLS or tool_name in _MEMPALACE_LEARNING_TOOLS
@@ -4794,7 +4805,7 @@ def _failure_target(hook_input: dict) -> str:
 
 def _record_task_failure(hook_input: dict, result: object = None) -> dict | None:
     return _reflection.record_failure(
-        str(hook_input.get("session_id") or ""),
+        _reflection_session_id(hook_input),
         phase="tool-outcome",
         target=_failure_target(hook_input),
         failure_class=_failure_class(result, hook_input),
@@ -4848,7 +4859,7 @@ def _reflection_blocks_tool(hook_input: dict, tool_name: str, checkpoint: dict) 
             if looks_like_a_test_run(command):
                 active_targets = {
                     item.get("target")
-                    for item in _reflection.active_entries(str(hook_input.get("session_id") or ""))
+                    for item in _reflection.active_entries(_reflection_session_id(hook_input))
                     if item.get("kind") == "task-failure"
                 }
                 if _failure_target(hook_input) in active_targets:
@@ -5348,7 +5359,7 @@ def _lifecycle_core():
 def run_session_start(hook_input: dict) -> int:
     """Inject the mandatory entrypoint plus read-only hygiene and sync findings."""
     reflection_token = _reflection.record_session_start(
-        str(hook_input.get("session_id") or "")
+        _reflection_session_id(hook_input)
     )
     shared_context = _lifecycle_core().session_start_context(
         reflection_token,
@@ -5865,7 +5876,7 @@ _TERMINAL_REFLECTION_LABELS = (
 
 
 def _terminal_reflection_reason(hook_input: dict) -> str | None:
-    session_id = str(hook_input.get("session_id") or "")
+    session_id = _reflection_session_id(hook_input)
     elapsed = _reflection.session_elapsed_seconds(session_id)
     if elapsed is None or elapsed <= 60 * 60:
         return None

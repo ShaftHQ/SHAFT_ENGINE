@@ -239,6 +239,77 @@ class ReflectionCheckpointContractTest(unittest.TestCase):
             reflection.mark_non_attempt("diagnosis", newest["failureId"], "capability-probe")
             self.assertEqual(2, reflection.pending_checkpoint("diagnosis")["attemptCount"])
 
+    def test_pending_checkpoint_denial_does_not_create_another_failure(self):
+        with tempfile.TemporaryDirectory() as temporary, patch.dict(
+            os.environ, {"TMPDIR": temporary, "TEMP": temporary}
+        ):
+            payload = self._failure("non-recursive")
+            with redirect_stdout(io.StringIO()):
+                guard.run_posttooluse(payload)
+                guard.run_posttooluse(payload)
+            before = [
+                item
+                for item in reflection.active_entries("non-recursive")
+            ]
+            denied = {
+                "hook_event_name": "PreToolUse",
+                "tool_name": "Write",
+                "tool_input": {"file_path": "scripts/agents/probe.py"},
+                "session_id": "non-recursive",
+                "cwd": ".",
+            }
+            with redirect_stdout(io.StringIO()):
+                guard.run_pretooluse(denied, "portable")
+                guard.run_pretooluse(denied, "portable")
+            after = [
+                item
+                for item in reflection.active_entries("non-recursive")
+            ]
+
+            self.assertEqual(before, after)
+            self.assertEqual(2, reflection.pending_checkpoint("non-recursive")["attemptCount"])
+
+    def test_guard_refusal_threshold_is_receipt_scoped(self):
+        with tempfile.TemporaryDirectory() as temporary, patch.dict(
+            os.environ, {"TMPDIR": temporary, "TEMP": temporary}
+        ):
+            payload = {"session_id": "guard-scope", "tool_use_id": "first"}
+            with redirect_stdout(io.StringIO()):
+                guard._record_guard_block_and_deny(payload, "same refusal", "portable")
+                guard._record_guard_block_and_deny(
+                    {**payload, "tool_use_id": "second"}, "same refusal", "portable"
+                )
+            checkpoint = reflection.pending_checkpoint("guard-scope")
+            self.assertIsNotNone(checkpoint)
+            token = reflection.record_session_start("guard-scope")
+            reflection.record_receipt("guard-scope", self._receipt(checkpoint), token)
+            with redirect_stdout(io.StringIO()):
+                guard._record_guard_block_and_deny(
+                    {**payload, "tool_use_id": "third"}, "same refusal", "portable"
+                )
+
+            self.assertIsNone(reflection.pending_checkpoint("guard-scope"))
+
+    def test_agent_ids_isolate_reflection_checkpoints(self):
+        with tempfile.TemporaryDirectory() as temporary, patch.dict(
+            os.environ, {"TMPDIR": temporary, "TEMP": temporary}
+        ):
+            payload = self._failure("root-session")
+            payload["agent_id"] = "audit-a"
+            with redirect_stdout(io.StringIO()):
+                guard.run_posttooluse(payload)
+                guard.run_posttooluse(payload)
+
+            agent_session = reflection.scope_session_id("root-session", "audit-a")
+            other_session = reflection.scope_session_id("root-session", "audit-b")
+            self.assertIsNotNone(reflection.pending_checkpoint(agent_session))
+            self.assertIsNone(reflection.pending_checkpoint(other_session))
+            self.assertIsNone(reflection.pending_checkpoint("root-session"))
+            self.assertEqual(
+                "audit-a",
+                guard.normalize_hook_input({"agentId": "audit-a"})["agent_id"],
+            )
+
     def test_valid_receipt_resets_checkpoint_and_replay_reopens_it(self):
         with tempfile.TemporaryDirectory() as temporary, patch.dict(
             os.environ, {"TMPDIR": temporary, "TEMP": temporary}
@@ -495,6 +566,38 @@ class ReflectionReceiptPrivacyTest(unittest.TestCase):
                         token,
                     )
 
+    def test_canonical_issue_url_and_harmless_token_prose_are_accepted(self):
+        with tempfile.TemporaryDirectory() as temporary, patch.dict(
+            os.environ, {"TMPDIR": temporary, "TEMP": temporary}
+        ):
+            checkpoint = self._pending("issue-url")
+            token = reflection.record_session_start("issue-url")
+            recorded = reflection.record_receipt(
+                "issue-url",
+                self._receipt(
+                    checkpoint,
+                    issue="https://github.com/ShaftHQ/SHAFT_ENGINE/issues/5296",
+                    failedAssumption="The session token label implied shared recovery state.",
+                ),
+                token,
+            )
+            self.assertEqual(
+                "https://github.com/ShaftHQ/SHAFT_ENGINE/issues/5296",
+                recorded["issue"],
+            )
+
+            near_miss = self._pending("issue-near-miss")
+            near_miss_token = reflection.record_session_start("issue-near-miss")
+            with self.assertRaises(ValueError):
+                reflection.record_receipt(
+                    "issue-near-miss",
+                    self._receipt(
+                        near_miss,
+                        issue="https://github.com/ShaftHQ/SHAFT_ENGINE/pull/5296",
+                    ),
+                    near_miss_token,
+                )
+
     def test_exact_recovery_command_allowed_and_substring_bypass_blocked(self):
         with tempfile.TemporaryDirectory() as temporary, patch.dict(
             os.environ, {"TMPDIR": temporary, "TEMP": temporary}
@@ -561,6 +664,34 @@ class ReflectionReceiptPrivacyTest(unittest.TestCase):
             self.assertIsNone(reflection.pending_checkpoint("cli-non-attempt"))
             remaining = reflection.active_entries("cli-non-attempt")
             self.assertEqual([failure_ids[0]], [item["failureId"] for item in remaining])
+
+    def test_cli_recovery_resolves_agent_scope_from_root_identity(self):
+        with tempfile.TemporaryDirectory() as temporary, patch.dict(
+            os.environ, {"TMPDIR": temporary, "TEMP": temporary}
+        ):
+            scoped = reflection.scope_session_id("root-cli", "audit-a")
+            checkpoint = self._pending(scoped)
+            self.assertIsNotNone(checkpoint)
+            failure_id = [
+                item["failureId"] for item in reflection.active_entries(scoped)
+            ][-1]
+            with redirect_stdout(io.StringIO()):
+                result = reflection.main(
+                    [
+                        "non-attempt",
+                        "--session-id",
+                        "root-cli",
+                        "--agent-id",
+                        "audit-a",
+                        "--failure-id",
+                        failure_id,
+                        "--reason",
+                        "capability-probe",
+                    ]
+                )
+
+            self.assertEqual(0, result)
+            self.assertIsNone(reflection.pending_checkpoint(scoped))
 
     def test_cli_json_receipt_completes_without_an_intermediate_file(self):
         with tempfile.TemporaryDirectory() as temporary, patch.dict(

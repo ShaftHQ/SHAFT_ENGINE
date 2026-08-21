@@ -433,7 +433,10 @@ def _run_event(event: dict, _host: str) -> int:
         if isinstance(event, dict)
         else ""
     )
-    session_id = str(event.get("session_id") or event.get("sessionId") or "")
+    root_session_id = str(event.get("session_id") or event.get("sessionId") or "")
+    session_id = reflection.scope_session_id(
+        root_session_id, event.get("agent_id") or event.get("agentId")
+    )
     if event_name == "SessionStart":
         token = reflection.record_session_start(session_id)
     else:
