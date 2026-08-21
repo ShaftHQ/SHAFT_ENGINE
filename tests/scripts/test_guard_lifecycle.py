@@ -2943,6 +2943,86 @@ class ReviewBeforeArmingGateTest(unittest.TestCase):
                     )
                 )
 
+    def test_successful_functions_exec_issue_comment_records_learning_route_for_r15(self):
+        repository = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        command = 'gh issue comment 5290 --repo ShaftHQ/SHAFT_ENGINE --body-file "receipt, cmd: }) evidence.md"'
+
+        def payload(session_id: str, source: str) -> dict:
+            return {
+                "session_id": session_id,
+                "cwd": repository,
+                "tool_name": "functions.exec",
+                "tool_input": source,
+                "tool_response": {"exit_code": 0},
+            }
+
+        source = f'const result = await tools.exec_command({{"cmd":{json.dumps(command)}}}); text(result);'
+        for key in ("cmd", "command", '"cmd"', '"command"', "'cmd'", "'command'"):
+            trailing_comma_source = f"await tools.exec_command({{{key}:{json.dumps(command)},}});"
+            self.assertEqual((command,), guard._wrapped_exec_commands(trailing_comma_source))
+        with tempfile.TemporaryDirectory() as directory, patch.dict(
+            guard.os.environ, {"TMPDIR": directory, "TEMP": directory}
+        ), patch(
+            "scripts.agents.guard._git_output",
+            return_value="https://github.com/ShaftHQ/SHAFT_ENGINE.git",
+        ):
+            successful = payload("wrapped-learning-route", source)
+            guard.run_posttooluse(successful)
+            self.assertIn("learning-issue:5290", guard.ledger_events(successful))
+            committed = {
+                **successful,
+                "tool_name": "PowerShell",
+                "tool_input": {"command": "git commit -m checkpoint"},
+            }
+            with patch("scripts.agents.guard._record_successful_commit_checkpoint"):
+                guard.run_posttooluse(committed)
+            self.assertIn("commit", guard.ledger_events(successful))
+            with patch("scripts.agents.guard._independent_review_count", return_value=1):
+                self.assertIsNone(
+                    guard.check_r15_review_before_arming(
+                        "gh pr merge 5290 --auto --merge", "Bash", successful
+                    )
+                )
+
+            decoy = f'await tools.exec_command({{"cmd":{json.dumps(command)}}});'
+            for session_id, candidate_source in (
+                ("wrapped-dynamic-command", 'await tools.exec_command({"cmd": command});'),
+                ("wrapped-ambiguous-command", f'await tools.exec_command({{"cmd":{json.dumps(command)} + suffix}});'),
+                ("wrapped-duplicate-command", f'await tools.exec_command({{"cmd":{json.dumps(command)}, command: override}});'),
+                ("wrapped-spread-override", f'await tools.exec_command({{"cmd":{json.dumps(command)}, ...override}});'),
+                ("wrapped-computed-override", f'await tools.exec_command({{"cmd":{json.dumps(command)}, ["cmd"]: override}});'),
+                ("wrapped-escaped-key", f'await tools.exec_command({{"cmd":{json.dumps(command)}, "c\\u006dd": override}});'),
+                ("wrapped-malformed-trailing-comma", f'await tools.exec_command({{"cmd":{json.dumps(command)},,}});'),
+                ("wrapped-string-decoy", f'const prose = {json.dumps(decoy)}; await tools.exec_command({{"cmd":"echo harmless"}});'),
+            ):
+                with self.subTest(session_id=session_id):
+                    candidate = payload(session_id, candidate_source)
+                    guard.run_posttooluse(candidate)
+                    self.assertNotIn("learning-issue:5290", guard.ledger_events(candidate))
+
+            for source in (
+                f'await tools["exec_command"]({{"cmd":{json.dumps(command)}}});',
+                f'await tools["exec\\u005fcommand"]({{"cmd":{json.dumps(command)}}});',
+                f'await tools.\\u0065xec_command({{"cmd":{json.dumps(command)}}});',
+                f'await tools.exec\\u005fcommand({{"cmd":{json.dumps(command)}}});',
+                f'const result = `${{tools.exec_command({{"cmd":{json.dumps(command)}}})}}`;',
+            ):
+                with self.subTest(source=source):
+                    self.assertEqual(1, guard._wrapped_exec_call_count(source))
+                    self.assertEqual((), guard._wrapped_exec_commands(source))
+            self.assertEqual(
+                0,
+                guard._wrapped_exec_call_count(
+                    f'const prose = `tools.exec_command({{"cmd":{json.dumps(command)}}})`;'
+                ),
+            )
+            self.assertEqual(
+                0,
+                guard._wrapped_exec_call_count(
+                    f'await mytools["exec_command"]({{"cmd":{json.dumps(command)}}});'
+                ),
+            )
+
     def test_it_fails_open_when_the_review_state_cannot_be_answered(self):
         """No gh, no auth, no network: unknown is not zero (#4542)."""
         with patch("scripts.agents.guard._independent_review_count", return_value=None):
