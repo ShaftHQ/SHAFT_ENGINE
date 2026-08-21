@@ -72,7 +72,7 @@ AGENT_VALIDATION_SCRIPT_FILES = (
     "scripts/agents/guard.py",
     "scripts/agents/reflection.py",
     "chaos-engine/hooks/reflection.py",
-    "scripts/agents/learning_loop.py",
+    "scripts/agents/learning_session.py",
     "scripts/agents/repository_context.py",
     "scripts/ci/validate_agent_setup.py",
     "scripts/ci/validate_agent_ownership.py",
@@ -84,6 +84,9 @@ AGENT_VALIDATION_SCRIPT_FILES = (
     "scripts/ci/worktree_hygiene.py",
     "scripts/ci/agent_guidance_budget.json",
     "scripts/ci/agent_ownership.json",
+)
+RETIRED_AGENT_VALIDATION_SCRIPT_FILES = (
+    "scripts/agents/learning_loop.py",
 )
 AGENT_GUIDANCE_SCAFFOLD_MARKER = "AGENTS.md"
 TARGETS = ("codex", "claude", "claude-desktop", "copilot", "copilot-intellij", "grok", "intellij-plugin")
@@ -1030,6 +1033,11 @@ def download_agent_validation_script_files(target: Path) -> Path:
             f"Agent validation script {relative.split('/')[-1]}",
             show_progress=False,
         )
+    for relative in RETIRED_AGENT_VALIDATION_SCRIPT_FILES:
+        retired = (target / relative).resolve()
+        if target != retired and target not in retired.parents:
+            fail(f"Retired agent validation path escapes target: {relative}", 4)
+        retired.unlink(missing_ok=True)
     # Verify the main entry point was downloaded
     main_script = target / "scripts" / "ci" / "validate_agent_setup.py"
     if not main_script.is_file():

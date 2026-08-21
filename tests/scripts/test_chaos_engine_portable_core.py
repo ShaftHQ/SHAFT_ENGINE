@@ -916,7 +916,7 @@ class ChaosEngineOrchestratorModeTest(unittest.TestCase):
         self.assertIn("still shows the live status table", skill)
         self.assertIn("never start an edit in the same breath as adopting", skill.lower())
 
-    def test_delegation_pins_status_table_serial_cap_and_learning_loop_before_kill(self):
+    def test_delegation_pins_status_table_serial_cap_and_learning_session_before_kill(self):
         delegation = self._delegation()
         for column in (
             "ID / work item",
@@ -940,7 +940,8 @@ class ChaosEngineOrchestratorModeTest(unittest.TestCase):
         ):
             with self.subTest(status=status):
                 self.assertIn(status, delegation)
-        self.assertIn("Learning Loop before kill", delegation)
+        self.assertIn("delegate never runs the terminal Learning Session", delegation)
+        self.assertIn("durable-learning candidates for the root session", delegation)
         self.assertIn("Refuse a requested cap above 4", delegation)
         self.assertRegex(delegation, r"1[–-]4")
         self.assertIn("File-overlapping writers never run in parallel", delegation)

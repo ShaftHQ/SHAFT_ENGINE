@@ -77,7 +77,7 @@ from urllib.parse import urlparse
 _HARNESS_IMPORT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 if _HARNESS_IMPORT_ROOT not in sys.path:
     sys.path.insert(0, _HARNESS_IMPORT_ROOT)
-from scripts.agents import learning_loop as _learning_loop
+from scripts.agents import learning_session as _learning_session
 from scripts.agents import reflection as _reflection
 from scripts.agents.repository_context import (
     RepositoryContextError,
@@ -150,7 +150,7 @@ def _sanitize_for_command_head(command: str) -> str:
 
 def _command_segments(command: str) -> list[str]:
     """Split into command segments (separators plus real newlines)."""
-    return re.split(r"(?:;|&&|\|\||\||&|\r?\n)", command)
+    return _top_level_shell_parts(command)[0]
 
 
 def _top_level_shell_parts(
@@ -1516,6 +1516,7 @@ _FIELD_ALIASES = {
     "toolName": "tool_name",
     "toolInput": "tool_input",
     "sessionId": "session_id",
+    "agentId": "agent_id",
     "agentType": "agent_type",
     "toolResponse": "tool_response",
     "toolResult": "tool_result",
@@ -1607,43 +1608,81 @@ def _controller_script_argument(arguments: list[str]) -> str | None:
 
 def _is_canonical_controller(hook_input: dict, argument: str) -> bool:
     expected = os.path.realpath(
-        os.path.join(_harness_root(), "scripts", "agents", "learning_loop.py")
+        os.path.join(_harness_root(), "scripts", "agents", "learning_session.py")
     )
     cwd = _hook_working_directory(hook_input)
     supplied = argument if os.path.isabs(argument) else os.path.join(cwd, argument)
     return os.path.normcase(os.path.realpath(supplied)) == os.path.normcase(expected)
 
 
-def _learning_loop_events(hook_input: dict, command: str) -> list[str]:
-    """Return only controller events proven by validated runtime artifacts."""
+def _learning_session_operation(hook_input: dict, command: str) -> tuple[str, list[str]] | None:
+    """Return one direct canonical controller operation and its arguments."""
     segments, separators = _top_level_shell_parts(_sanitize_for_command_head(command))
     if separators or len(segments) != 1:
-        return []
+        return None
     arguments = _tokens_after_head(segments[0], frozenset({"py", "python", "python3"}))
     if not arguments:
-        return []
+        return None
     argument = _controller_script_argument(arguments)
     if argument is None or not _is_canonical_controller(hook_input, argument):
-        return []
+        return None
     remaining = arguments[arguments.index(argument) + 1 :]
     if "--help" in remaining or "-h" in remaining:
-        return []
+        return None
     operation = next(
-        (item for item in remaining if item in {"signal", "assess", "attest-none"}), None
+        (
+            item
+            for item in remaining
+            if item in {"signal", "assess", "attest-none", "finalize"}
+        ),
+        None,
     )
+    if operation is None:
+        return None
+    return operation, remaining
+
+
+def check_r31_learning_session_timing(hook_input: dict, command: str) -> str | None:
+    """Keep the sole Learning Session terminal and root-session owned."""
+    parsed = _learning_session_operation(hook_input, command)
+    if parsed is None:
+        return None
+    if hook_input.get("agent_id") or hook_input.get("agentId"):
+        return "R31 blocked: only the root session can run the terminal Learning Session."
+    if check_r29_delivery_complete(hook_input) is not None:
+        return (
+            "R31 blocked: the Learning Session can run only after delivery is complete, "
+            "immediately before the final report."
+        )
+    return None
+
+
+def _learning_session_events(hook_input: dict, command: str) -> list[str]:
+    """Return only controller events proven by validated runtime artifacts."""
+    parsed = _learning_session_operation(hook_input, command)
+    if parsed is None:
+        return []
+    operation, remaining = parsed
     try:
         supplied_session = remaining[remaining.index("--session-id") + 1]
-        operation_id = remaining[remaining.index("--operation-id") + 1]
     except (ValueError, IndexError):
         return []
     if supplied_session != hook_input.get("session_id"):
         return []
-    state = _learning_loop.default_state_dir()
+    state = _learning_session.default_state_dir()
     try:
-        completion = _learning_loop.load_completion(state, supplied_session, operation_id)
+        if operation == "finalize":
+            completed = _learning_session.load_session_completion(state, supplied_session)
+            if completed is not None:
+                return [
+                    "learning-session-complete:" + completed["completion_id"]
+                ]
+            return []
+        operation_id = remaining[remaining.index("--operation-id") + 1]
+        completion = _learning_session.load_completion(state, supplied_session, operation_id)
         if completion is None or completion["operation"] != operation:
             return []
-        receipts = _learning_loop.load_receipts(state, supplied_session)
+        receipts = _learning_session.load_receipts(state, supplied_session)
         if operation == "signal":
             valid = {receipt["incident_hash"] for receipt in receipts}
             if set(completion["incident_hashes"]).issubset(valid):
@@ -1657,7 +1696,7 @@ def _learning_loop_events(hook_input: dict, command: str) -> list[str]:
             }
             valid = {
                 candidate["incident_hash"]
-                for candidate in _learning_loop.load_candidates(state)
+                for candidate in _learning_session.load_candidates(state)
                 if candidate["receipt_ids"]
                 and candidate["receipt_ids"][0] in receipt_ids
                 and receipt_ids[candidate["receipt_ids"][0]]["incident_hash"]
@@ -1668,7 +1707,7 @@ def _learning_loop_events(hook_input: dict, command: str) -> list[str]:
             if set(completion["incident_hashes"]).issubset(valid):
                 return [f"learning-assessed:{item}" for item in completion["incident_hashes"]]
         if operation == "attest-none":
-            attestation = _learning_loop.load_attestation(state, supplied_session)
+            attestation = _learning_session.load_attestation(state, supplied_session)
             if attestation is not None and completion["reason_code"] == attestation["reason_code"]:
                 return [f"learning-none:{attestation['reason_code']}"]
     except (OSError, ValueError, KeyError, TypeError):
@@ -1724,6 +1763,13 @@ def _hook_working_directory(hook_input: dict) -> str | None:
         return None
 
 
+def _reflection_session_id(hook_input: dict) -> str:
+    """Isolate reflection recovery by host agent while preserving root ledgers."""
+    return _reflection.scope_session_id(
+        str(hook_input.get("session_id") or ""), hook_input.get("agent_id")
+    )
+
+
 def _print_deny(reason: str, host: str) -> None:
     print(json.dumps(_deny_output(reason, host)))
 
@@ -1741,13 +1787,17 @@ def _deny_output(reason: str, host: str) -> dict:
 
 
 def _record_guard_block_and_deny(hook_input: dict, reason: str, host: str) -> None:
-    """Preserve an observed refusal for R16 before returning the denial."""
-    ledger_record(hook_input, "guard-block")
-    if ledger_events(hook_input).count("guard-block") >= 2:
-        _reflection.record_trigger(
-            str(hook_input.get("session_id") or ""),
-            "guard-repeat",
-            hashlib.sha256(reason.encode("utf-8")).hexdigest()[:24],
+    """Record a refusal as an observation; policy decisions are not failed attempts."""
+    if str(hook_input.get("session_id") or "").strip():
+        _reflection.record_failure(
+            _reflection_session_id(hook_input),
+            phase="guard",
+            target="refusal-" + hashlib.sha256(reason.encode("utf-8")).hexdigest()[:24],
+            failure_class="guard-refusal",
+            platform=hook_input.get("platform") or sys.platform,
+            invariant="allowed-route",
+            attempted=False,
+            observation_id=hook_input.get("tool_use_id"),
         )
     _print_deny(reason, host)
 
@@ -1958,7 +2008,10 @@ _PRIMARY_SOURCE_HOSTS = frozenset(
         "nodejs.org",
         "docs.npmjs.com",
         "platform.openai.com",
+        "developers.openai.com",
         "docs.anthropic.com",
+        "code.claude.com",
+        "code.visualstudio.com",
         "developer.mozilla.org",
         "selenium.dev",
         "playwright.dev",
@@ -2174,6 +2227,46 @@ def _wrapped_exec_commands(source: str) -> tuple[str, ...]:
     return tuple(commands)
 
 
+def _wrapped_exec_workdirs(source: str) -> tuple[str | None, ...]:
+    """Return one literal workdir, or None, per unambiguous wrapped exec call."""
+    calls = _wrapped_exec_call_objects(source)
+    if calls is None:
+        return ()
+    workdirs: list[str | None] = []
+    key = r'''(?:\bworkdir\b|["']workdir["'])'''
+    for details in calls:
+        properties = _top_level_javascript_properties(details)
+        if properties is None:
+            return ()
+        values: list[str] = []
+        for property_text in properties:
+            if property_text.startswith(("...", "[")):
+                return ()
+            match = re.fullmatch(
+                key + r'''\s*:\s*(?P<literal>"(?:\\.|[^"\\])*")''',
+                property_text,
+                re.DOTALL,
+            )
+            if match is not None:
+                values.append(match.group("literal"))
+                continue
+            if re.match(r'''(?:get|set|async)?\s*''' + key + r'''(?:\s*:|\s*\()''', property_text):
+                return ()
+        if len(values) > 1:
+            return ()
+        if not values:
+            workdirs.append(None)
+            continue
+        try:
+            value = json.loads(values[0])
+        except (json.JSONDecodeError, ValueError):
+            return ()
+        if not isinstance(value, str) or not value.strip():
+            return ()
+        workdirs.append(value)
+    return tuple(workdirs)
+
+
 def _functions_exec_source(tool_input: object) -> str:
     """Return the freeform JavaScript source from supported Codex wire shapes."""
     if isinstance(tool_input, str):
@@ -2252,7 +2345,7 @@ def _wrapped_exec_call_count(source: str) -> int:
 
 def _shell_requests_primary_source(segment: str) -> bool:
     if re.match(
-        r"\s*(?:&\s*)?(?:curl(?:\.exe)?|invoke-webrequest|iwr)\b",
+        r"\s*(?:\(\s*)?(?:&\s*)?(?:curl(?:\.exe)?|invoke-webrequest|iwr)\b",
         segment,
         re.IGNORECASE,
     ) is None:
@@ -2262,25 +2355,52 @@ def _shell_requests_primary_source(segment: str) -> bool:
         (
             index
             for index, token in enumerate(tokens)
-            if re.split(r"[/\\]", token.strip("\"'"))[-1].lower()
+            if re.split(r"[/\\]", token.strip("\"'()"))[-1].lower()
             in {"curl", "curl.exe", "invoke-webrequest", "iwr"}
         ),
         None,
     )
     if head_index is None:
         return False
-    head = re.split(r"[/\\]", tokens[head_index].strip("\"'"))[-1].lower()
+    head = re.split(r"[/\\]", tokens[head_index].strip("\"'()"))[-1].lower()
     candidates: list[str] = []
     arguments = tokens[head_index + 1 :]
-    if arguments and re.match(r"https?://", arguments[0], re.IGNORECASE):
-        candidates.append(arguments[0])
     request_flags = {"--url"} if head in {"curl", "curl.exe"} else {"-uri"}
-    for index, token in enumerate(arguments):
+    value_options = (
+        {
+            "-A", "-b", "-c", "-d", "-e", "-F", "-H", "-o", "-u", "-X", "-x",
+            "--config", "--cookie", "--cookie-jar", "--data", "--data-ascii",
+            "--data-binary", "--data-raw", "--form", "--header", "--output",
+            "--proxy", "--referer", "--request", "--user", "--user-agent",
+        }
+        if head in {"curl", "curl.exe"}
+        else {"-body", "-contenttype", "-headers", "-method", "-outfile", "-proxy"}
+    )
+    index = 0
+    while index < len(arguments):
+        token = arguments[index]
         lowered = token.lower()
         if any(lowered.startswith(flag + "=") for flag in request_flags):
             candidates.append(token.split("=", 1)[1])
+            index += 1
+            continue
         if lowered in request_flags and index + 1 < len(arguments):
             candidates.append(arguments[index + 1])
+            index += 2
+            continue
+        if token in value_options or lowered in value_options:
+            index += 2
+            continue
+        if any(
+            lowered.startswith(option + "=")
+            for option in value_options
+            if option.startswith("--")
+        ):
+            index += 1
+            continue
+        if not lowered.startswith("-") and re.match(r"https?://", token, re.IGNORECASE):
+            candidates.append(token)
+        index += 1
     for candidate in candidates:
         if _has_primary_source_url({"request_url": candidate}):
             return True
@@ -2538,7 +2658,9 @@ def _shell_is_mutation(command: str) -> bool:
             return True
         if re.search(r"(?<![0-9])>(?![>&])", lowered):
             return True
-        if re.search(r"\bgit\s+(?:add|commit|push|merge|rebase|reset|restore|rm|mv|tag|branch|checkout|switch|cherry-pick)\b", lowered):
+        if re.search(r"\bgit\s+(?:add|commit|push|merge|rebase|reset|restore|rm|mv|tag|checkout|switch|cherry-pick)\b", lowered):
+            return True
+        if _git_branch_is_mutation(segment):
             return True
         if re.search(r"\bgh\s+(?:api\b.*--method\s+(?:post|put|patch|delete)|pr\s+(?:create|merge|close|comment|edit)|issue\s+(?:create|close|comment|edit))\b", lowered):
             return True
@@ -2547,6 +2669,83 @@ def _shell_is_mutation(command: str) -> bool:
         if re.search(r"\bmempalace\s+(?:add|delete|mine|sync|sweep|update|checkpoint)\b", lowered):
             return True
     return False
+
+
+_GIT_BRANCH_MUTATION_OPTIONS = frozenset(
+    {
+        "-c",
+        "-C",
+        "-d",
+        "-D",
+        "-f",
+        "-m",
+        "-M",
+        "--copy",
+        "--create-reflog",
+        "--delete",
+        "--edit-description",
+        "--force",
+        "--move",
+        "--no-track",
+        "--set-upstream-to",
+        "--track",
+        "--unset-upstream",
+    }
+)
+_GIT_BRANCH_LIST_OPTIONS = frozenset(
+    {
+        "-a",
+        "-l",
+        "-r",
+        "-v",
+        "-vv",
+        "--all",
+        "--contains",
+        "--format",
+        "--list",
+        "--merged",
+        "--no-merged",
+        "--points-at",
+        "--remotes",
+        "--show-current",
+        "--sort",
+        "--verbose",
+    }
+)
+
+
+def _git_branch_is_mutation(segment: str) -> bool:
+    """True only for branch creation, deletion, rename, copy, or metadata edits."""
+    rest = _tokens_after_head(segment, _GIT_NAMES)
+    if rest is None:
+        return False
+    subcommand, _, index = _split_global_options(rest)
+    if subcommand != "branch":
+        return False
+    arguments = rest[index:]
+    if not arguments:
+        return False
+    if any(
+        argument in _GIT_BRANCH_MUTATION_OPTIONS
+        or any(
+            argument.startswith(option + "=")
+            for option in _GIT_BRANCH_MUTATION_OPTIONS
+            if option.startswith("--")
+        )
+        for argument in arguments
+    ):
+        return True
+    if any(
+        argument in _GIT_BRANCH_LIST_OPTIONS
+        or any(
+            argument.startswith(option + "=")
+            for option in _GIT_BRANCH_LIST_OPTIONS
+            if option.startswith("--")
+        )
+        for argument in arguments
+    ):
+        return False
+    return any(not argument.startswith("-") for argument in arguments)
 
 
 def _functions_exec_is_mutation(tool_input: object) -> bool:
@@ -2904,17 +3103,6 @@ def check_r15_review_before_arming(
             or (argument.lower().startswith("--auto=") and argument.lower()[7:] not in {"false", "0", "f"})
             for argument in arguments
         )
-        if auto_merge and "commit" in ledger_events(hook_input or {}) and not _learning_route_recorded(hook_input):
-            session_id = str((hook_input or {}).get("session_id") or "session")
-            controller = os.path.join(_harness_root(), "scripts", "agents", "learning_loop.py")
-            operation_id = f"r15-{hashlib.sha256(session_id.encode('utf-8')).hexdigest()[:12]}"
-            return (
-                "R15 blocked: this session committed work but recorded no learning route. "
-                "Write one evidence-backed learning through native Memory. When no meaningful "
-                f"signal exists, run `py -3 \"{controller}\" attest-none --session-id "
-                f"\"{session_id}\" --operation-id \"{operation_id}\" --reason-code "
-                "no_new_evidence`."
-            )
         positional = [token for token in arguments if not token.startswith("-")]
         target = positional[0] if positional else None
         reviews = _independent_review_count(
@@ -3103,6 +3291,9 @@ def _successful_delivery_event(hook_input: dict, command: str) -> str | None:
     except (OSError, ValueError):
         return None
     pull_requests = receipt.get("pullRequests") if isinstance(receipt, dict) else None
+    legacy_commit_proofs = (
+        receipt.get("legacyCommitProofs", []) if isinstance(receipt, dict) else None
+    )
     cleanup = receipt.get("cleanup") if isinstance(receipt, dict) else None
     try:
         observed = datetime.fromisoformat(str(receipt.get("observedAt")))
@@ -3204,6 +3395,27 @@ def _successful_delivery_event(hook_input: dict, command: str) -> str | None:
             for item in pull_requests if isinstance(item, dict)
         )
         or any(not isinstance(item, dict) for item in pull_requests)
+        or not isinstance(legacy_commit_proofs, list)
+        or any(
+            not isinstance(item, dict)
+            or set(item) != {"repository", "head"}
+            or re.fullmatch(
+                r"[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+", str(item.get("repository", ""))
+            )
+            is None
+            or re.fullmatch(r"[0-9a-f]{40}", str(item.get("head", ""))) is None
+            for item in legacy_commit_proofs
+        )
+        or any(
+            (item.get("repository"), item.get("head"))
+            not in {
+                (pull_request.get("repository"), pull_request.get("headOid"))
+                for pull_request in pull_requests
+                if isinstance(pull_request, dict)
+            }
+            for item in legacy_commit_proofs
+            if isinstance(item, dict)
+        )
         or not (cleanup_complete or cleanup_degraded)
         or not -60 <= receipt_age <= 600
     ):
@@ -3216,6 +3428,7 @@ def _successful_delivery_event(hook_input: dict, command: str) -> str | None:
     return _checkpoint_json_event(
         "delivery", identity[0], identity[1], identity[2],
         observedAt=int(time.time()), digest=digest, taskHeads=task_heads,
+        legacyCommitProofs=legacy_commit_proofs,
     )
 
 
@@ -3311,6 +3524,7 @@ def check_r29_delivery_complete(hook_input: dict) -> str | None:
         if payload
     ]
     required = {(item["repository"], item["head"].lower()) for item in checkpoints}
+    legacy_commit_count = sum(event == "commit" for event in events) if not required else 0
     now = int(time.time())
     for event in reversed(events):
         payload = _checkpoint_event_payload(event, "delivery")
@@ -3322,16 +3536,34 @@ def check_r29_delivery_complete(hook_input: dict) -> str | None:
                 (item["repository"], item["head"].lower())
                 for item in payload.get("taskHeads", []) if isinstance(item, dict)
             }
+            legacy_proofs = payload.get("legacyCommitProofs", [])
+            legacy_required = {
+                (item["repository"], item["head"].lower())
+                for item in legacy_proofs
+                if isinstance(item, dict)
+            }
         except (ValueError, TypeError, KeyError, AttributeError):
             continue
-        if required and required.issubset(task_heads) and -60 <= now - observed <= 600:
+        legacy_complete = bool(
+            legacy_commit_count
+            and isinstance(legacy_proofs, list)
+            and len(legacy_proofs) == legacy_commit_count
+            and len(legacy_required) <= len(legacy_proofs)
+            and legacy_required
+            and legacy_required.issubset(task_heads)
+        )
+        if (
+            (required and required.issubset(task_heads)) or legacy_complete
+        ) and -60 <= now - observed <= 600:
             return None
     return (
         "R29 blocked completion: this session committed work but has no fresh live delivery-status "
         "receipt proving every owned authorized PR has mergedAt, every feedback audit is clear, "
         "and scoped cleanup preserved unrelated dirty work. Run `py -3 scripts/agents/"
         "act_as_mohab_cli.py delivery-status --manifest <file> --receipt-out <file>` and keep the "
-        "goal incomplete if merge authority is absent."
+        "goal incomplete if merge authority is absent. Legacy ledgers must add one "
+        "`legacyCommitProofs` repository/headOid entry per bare commit; every proof must match "
+        "an owned pull-request head."
     )
 
 
@@ -3387,7 +3619,7 @@ def check_r22_dispatch_adapter(hook_input: dict, tool_name: str) -> str | None:
 
     R22 owns only the shape of a new delegate. It runs before R11, R12, R15,
     R17, and R19 can apply to the delegate's own tool calls. Choosing any
-    listed type delivers the entrypoint; after a commit, the learning-loop
+    listed type delivers the entrypoint; after a commit, the learning-session
     arming clause remains satisfiable by a learning write or its explicit
     escape, then R15 review and R17 arming have their existing remedies. This
     does not assert that an agent obeyed the delivered text.
@@ -4207,11 +4439,114 @@ def _independent_reviews(reviews: object, author: object) -> list:
 DEFAULT_BRANCHES = frozenset({"main", "master"})
 
 
+class _InvocationContext(NamedTuple):
+    """One normalized repository and mutation view for a guarded invocation."""
+
+    cwd: str | None
+    targets: tuple[str, ...]
+    repositories: tuple[str, ...]
+    repository: str | None
+    branch: str | None
+    mutation: bool
+    ambiguous: bool
+    unresolved: bool
+
+
 def _repository_root(cwd: object) -> str | None:
     """Absolute root of the checkout `cwd` sits in, or None if git will not say."""
     output = _git_output(["rev-parse", "--show-toplevel"], cwd)
     root = (output or "").strip()
     return os.path.realpath(root) if root else None
+
+
+def _existing_ancestor(path: str) -> str | None:
+    """Nearest existing directory at or above path, for not-yet-created targets."""
+    current = os.path.realpath(path)
+    if os.path.isfile(current):
+        current = os.path.dirname(current)
+    while not os.path.isdir(current):
+        parent = os.path.dirname(current)
+        if parent == current:
+            return None
+        current = parent
+    return current
+
+
+def _target_repository(path: str, cwd: str | None) -> str | None:
+    """Repository that will receive path, if its existing ancestry names one."""
+    try:
+        absolute = path if os.path.isabs(path) else os.path.join(cwd or os.getcwd(), path)
+    except (OSError, ValueError):
+        return None
+    probe = _existing_ancestor(absolute)
+    root = _repository_root(probe) if probe else None
+    if not root or not _path_is_inside(absolute, root, cwd):
+        return None
+    return root
+
+
+def _invocation_workdirs(
+    tool_name: str, tool_input: object, fallback: str | None
+) -> tuple[str, ...]:
+    """Effective working directory for each explicit wrapped shell invocation."""
+    details = tool_input if isinstance(tool_input, dict) else {}
+    if tool_name in _SHELL_TOOLS:
+        value = details.get("workdir")
+        return (str(value),) if isinstance(value, str) and value.strip() else ()
+    if tool_name != "functions.exec":
+        return ()
+    direct = _functions_exec_direct_command(tool_input)
+    if direct:
+        value = details.get("workdir")
+        return (str(value),) if isinstance(value, str) and value.strip() else ()
+    source = _functions_exec_source(tool_input)
+    workdirs = _wrapped_exec_workdirs(source)
+    if len(workdirs) != _wrapped_exec_call_count(source):
+        return ()
+    return tuple(value or fallback for value in workdirs if value or fallback)
+
+
+def _invocation_context(hook_input: dict, tool_name: str) -> _InvocationContext:
+    """Normalize repository identity once from workdir and mutation targets."""
+    cwd = _hook_working_directory(hook_input)
+    tool_input = hook_input.get("tool_input")
+    mutation = _is_implementation_mutation(tool_name, tool_input)
+    targets = _implementation_targets(tool_name, tool_input)
+    workdirs = _invocation_workdirs(tool_name, tool_input, cwd)
+    target_base = workdirs[0] if len(set(workdirs)) == 1 else cwd
+    target_repositories = tuple(
+        dict.fromkeys(
+            repository
+            for repository in (_target_repository(target, target_base) for target in targets)
+            if repository
+        )
+    )
+    workdir_repositories = tuple(
+        dict.fromkeys(
+            repository
+            for repository in (_repository_root(workdir) for workdir in workdirs)
+            if repository
+        )
+    )
+    repositories = target_repositories or workdir_repositories
+    cwd_repository = _repository_root(cwd) if not repositories else None
+    if not repositories and not targets:
+        repositories = (cwd_repository,) if cwd_repository else ()
+    ambiguous = len(repositories) > 1
+    unresolved = bool(targets and not repositories and not cwd_repository)
+    repository = repositories[0] if len(repositories) == 1 else None
+    branch_cwd = repository or (workdirs[0] if len(set(workdirs)) == 1 and workdirs else cwd)
+    branch = _current_branch(branch_cwd) if branch_cwd else None
+    return _InvocationContext(
+        cwd=cwd,
+        targets=targets,
+        repositories=repositories,
+        repository=repository,
+        branch=branch,
+        mutation=mutation,
+        ambiguous=ambiguous,
+        unresolved=unresolved,
+    )
 
 
 def _path_is_inside(path: object, root: str, cwd: object) -> bool:
@@ -4280,21 +4615,27 @@ def check_r19_fresh_base(hook_input: dict, tool_name: str) -> str | None:
     the abnormal case -- so an ordinary edit costs exactly the one subprocess
     it cost before, which is what keeps this inside HOOK_BUDGET_SECONDS.
     """
-    if (
-        tool_name not in _FILE_MUTATION_TOOLS
-        and tool_name not in _SHELL_TOOLS
-        and not _functions_exec_is_mutation(hook_input.get("tool_input"))
-    ):
+    context = _invocation_context(hook_input, tool_name)
+    if not context.mutation:
         return None
-    targets = _implementation_targets(tool_name, hook_input.get("tool_input"))
-    if tool_name in _SHELL_TOOLS and not targets:
+    if tool_name in _SHELL_TOOLS and not context.targets:
         return None
-    cwd = _hook_working_directory(hook_input)
-    branch = _current_branch(cwd)
+    if context.ambiguous:
+        return (
+            "R19 blocked: one mutation spans multiple repositories, so no single "
+            "branch can authorize it. Split the mutation by repository and rerun each "
+            "call from that repository's task branch."
+        )
+    branch = context.branch
     if not branch or branch not in DEFAULT_BRANCHES:
         return None
-    root = _repository_root(cwd)
-    if targets and root and all(not _path_is_inside(path, root, cwd) for path in targets):
+    if context.unresolved:
+        return (
+            f"R19 blocked: HEAD is {branch}, but Git could not resolve the repository "
+            "receiving this mutation. Retry from the target repository after confirming "
+            "its task branch."
+        )
+    if context.targets and not context.repository:
         return None
     return (
         f"R19 blocked: HEAD is {branch}, and task work never lands on the default "
@@ -4308,7 +4649,7 @@ def check_r19_fresh_base(hook_input: dict, tool_name: str) -> str | None:
 def run_pretooluse(hook_input: dict, host: str = "portable") -> int:
     tool_name = hook_input.get("tool_name", "")
 
-    checkpoint = _reflection.pending_checkpoint(str(hook_input.get("session_id") or ""))
+    checkpoint = _reflection.pending_checkpoint(_reflection_session_id(hook_input))
     if checkpoint is not None:
         commands = _hook_commands(hook_input, tool_name)
         if len(commands) == 1 and (
@@ -4317,7 +4658,7 @@ def run_pretooluse(hook_input: dict, host: str = "portable") -> int:
         ):
             return 0
         if _reflection_blocks_tool(hook_input, tool_name, checkpoint):
-            _record_guard_block_and_deny(hook_input, _reflection_block_reason(checkpoint), host)
+            _print_deny(_reflection_block_reason(checkpoint), host)
             return 0
 
     reason = check_r22_dispatch_adapter(hook_input, tool_name)
@@ -4413,6 +4754,8 @@ def run_pretooluse(hook_input: dict, host: str = "portable") -> int:
                     command, command_tool, hook_input
                 )
             if reason is None:
+                reason = check_r31_learning_session_timing(hook_input, command)
+            if reason is None:
                 reason = check_r14_hard_reset(
                     command, command_tool, _hook_working_directory(hook_input)
                 )
@@ -4447,14 +4790,14 @@ def run_posttooluse(hook_input: dict) -> int:
     )
     if result_failed:
         failure = _record_task_failure(hook_input, result)
-        checkpoint = _reflection.pending_checkpoint(str(hook_input.get("session_id") or ""))
+        checkpoint = _reflection.pending_checkpoint(_reflection_session_id(hook_input))
         if failure and checkpoint:
             print(json.dumps({"additionalContext": _reflection_block_reason(checkpoint)}))
     commands = _hook_commands(hook_input, tool_name)
     for command in commands:
         if looks_like_a_test_run(command):
             _reflection.record_platform_outcome(
-                str(hook_input.get("session_id") or ""),
+                _reflection_session_id(hook_input),
                 target=_failure_target(hook_input),
                 platform=str(hook_input.get("platform") or sys.platform),
                 outcome="failed" if result_failed else "passed",
@@ -4468,7 +4811,7 @@ def run_posttooluse(hook_input: dict) -> int:
         )
     ):
         _reflection.record_activity(
-            str(hook_input.get("session_id") or ""), "mutation-or-delivery"
+            _reflection_session_id(hook_input), "mutation-or-delivery"
         )
     if not result_failed and (
         tool_name in _NATIVE_MEMORY_WRITE_TOOLS or tool_name in _MEMPALACE_LEARNING_TOOLS
@@ -4490,7 +4833,7 @@ def run_posttooluse(hook_input: dict) -> int:
             authority_event = _successful_authority_event(hook_input, command)
             if authority_event:
                 ledger_record(hook_input, authority_event)
-            for learning_event in _learning_loop_events(hook_input, command):
+            for learning_event in _learning_session_events(hook_input, command):
                 ledger_record(hook_input, learning_event)
             issue_event = _standalone_issue_created_event(
                 command, result, _hook_working_directory(hook_input)
@@ -4534,16 +4877,48 @@ def _failure_target(hook_input: dict) -> str:
     return str(hook_input.get("tool_name") or "unknown")
 
 
+def _read_only_diagnostic(hook_input: dict) -> bool:
+    """Classify bounded discovery failures as observations, never attempts."""
+    tool_name = str(hook_input.get("tool_name") or "")
+    if tool_name in {"Read", "Grep", "Glob", "WebSearch", "WebFetch", "Skill"}:
+        return True
+    commands = _hook_commands(hook_input, tool_name)
+    if not commands:
+        return False
+    for command in commands:
+        segments = _command_segments(command)
+        if not segments:
+            return False
+        for segment in segments:
+            tokens = _segment_tokens(segment)
+            if not tokens:
+                return False
+            head = re.split(r"[/\\]", tokens[0].strip("\"'"))[-1].casefold()
+            if head in {"rg", "grep", "get-content"}:
+                continue
+            rest = _tokens_after_head(segment, _GIT_NAMES)
+            if rest is None:
+                return False
+            subcommand, _directories, argument_index = _split_global_options(rest)
+            arguments = rest[argument_index:]
+            if subcommand in {"status", "diff", "show", "log", "rev-parse"}:
+                continue
+            if subcommand == "branch" and arguments == ["--show-current"]:
+                continue
+            return False
+    return True
+
+
 def _record_task_failure(hook_input: dict, result: object = None) -> dict | None:
     return _reflection.record_failure(
-        str(hook_input.get("session_id") or ""),
+        _reflection_session_id(hook_input),
         phase="tool-outcome",
         target=_failure_target(hook_input),
         failure_class=_failure_class(result, hook_input),
         platform=hook_input.get("platform") or sys.platform,
         invariant=hook_input.get("invariant") or "command-outcome",
         head=hook_input.get("head") or "unknown",
-        attempted=True,
+        attempted=not _read_only_diagnostic(hook_input),
         observation_id=hook_input.get("tool_use_id"),
     )
 
@@ -4590,7 +4965,7 @@ def _reflection_blocks_tool(hook_input: dict, tool_name: str, checkpoint: dict) 
             if looks_like_a_test_run(command):
                 active_targets = {
                     item.get("target")
-                    for item in _reflection.active_entries(str(hook_input.get("session_id") or ""))
+                    for item in _reflection.active_entries(_reflection_session_id(hook_input))
                     if item.get("kind") == "task-failure"
                 }
                 if _failure_target(hook_input) in active_targets:
@@ -5090,7 +5465,7 @@ def _lifecycle_core():
 def run_session_start(hook_input: dict) -> int:
     """Inject the mandatory entrypoint plus read-only hygiene and sync findings."""
     reflection_token = _reflection.record_session_start(
-        str(hook_input.get("session_id") or "")
+        _reflection_session_id(hook_input)
     )
     shared_context = _lifecycle_core().session_start_context(
         reflection_token,
@@ -5179,65 +5554,21 @@ def _open_pull_request_count(branch: str | None, cwd: object = None) -> int | No
     return len(listed) if isinstance(listed, list) else None
 
 
-def check_r16_learning_loop(hook_input: dict) -> str | None:
-    """Interrupt once when a session changed or a guard refused un-routed work.
-
-    The entrypoint requires the learned-lessons workflow before reporting
-    done, and it had no mechanism. This session is the evidence: an iteration
-    reported done having skipped the mandatory retrieval entirely, and the
-    owner caught it rather than any check.
-
-    A reminder that blocks once, not a hard gate, and the distinction is
-    load-bearing. "Nothing durable surfaced" is a legitimate outcome the
-    entrypoint explicitly endorses, so a rule that could not be satisfied by
-    saying so would manufacture memory objects rather than learnings. And a
-    delegate in a linked worktree cannot write memory at all -- R11 refuses it
-    by design -- so a hard gate would strand every worktree agent
-    permanently. `run_stop` returns 0 when `stop_hook_active` is set, so the
-    second attempt always proceeds.
-    """
-    events = ledger_events(hook_input)
-    guard_blocked = "guard-block" in events
-    has_signal = any(event.startswith("learning-signal:") for event in events)
-    if "commit" not in events and not guard_blocked and not has_signal:
-        return None  # a read-only session owes no learning
-    if has_signal:
-        if not _unresolved_learning_signals(events):
-            return None
-        return (
-            "Learning loop: this session recorded a meaningful signal that has not been "
-            "assessed into a quarantined candidate. Run `py -3 scripts/agents/learning_loop.py "
-            "assess ...` with an evidence-bound hypothesis, RED command, success predicates, "
-            "and invariants before reporting done."
-        )
-    if (
-        "memory-write" in events
-        or any(event.startswith("learning-none:") for event in events)
-        or any(event.startswith("issue-created:") for event in events)
-        or any(event.startswith("learning-issue:") for event in events)
-    ):
+def check_r16_learning_session(hook_input: dict) -> str | None:
+    """Require one Learning Session only after delivery is already complete."""
+    if hook_input.get("hook_event_name") == "SubagentStop" or hook_input.get(
+        "hookEventName"
+    ) == "SubagentStop":
         return None
-    if guard_blocked:
-        return (
-            "Learning loop: this session had an observed guard refusal with no route. "
-            "Before reporting done, route it once: if the refusal was correct, write the "
-            "lesson to native Memory with its evidence; if it was wrong or needs follow-up, "
-            "record a signal, open a new standalone GitHub issue after duplicate search, and "
-            "assess the receipt with that issue URL. An existing issue comment is evidence, "
-            "not a new action route. Nothing durable is a valid result -- say so "
-            "and end the turn. This interrupts once per turn: `stop_hook_active` makes the "
-            "retry proceed, and it is owed again next turn until it is satisfied."
-        )
+    events = ledger_events(hook_input)
+    if "commit" not in events or check_r29_delivery_complete(hook_input) is not None:
+        return None
+    if any(event.startswith("learning-session-complete:") for event in events):
+        return None
     return (
-        "Learning loop: this session committed work and routed no learning. Before "
-        "reporting done, run the routing table once -- a fact that cost you time to "
-        "native Memory with its evidence, a decision someone would re-litigate as a "
-        "decision, a cross-entity relation to MemPalace, a structural change flagged "
-        "for Graphify, a procedure that misled you fixed in the guidance file that "
-        "should have carried it, and adjacent work you skipped searched for and then "
-        "filed. Nothing durable is a valid result -- say so and end the turn. This "
-        "interrupts once per turn: `stop_hook_active` makes the retry proceed, and "
-        "it is owed again next turn until it is satisfied."
+        "Learning Session: delivery is complete. Run exactly one terminal Learning "
+        "Session now, after timing, failed-call, recursion, and cleanup analysis, then "
+        "record its immutable completion receipt immediately before the final report."
     )
 
 
@@ -5602,12 +5933,12 @@ _TERMINAL_REFLECTION_LABELS = (
     "changed assumption or approach",
     "successful proof",
     "remaining risk or follow-up",
-    "learning loop disposition",
+    "learning session disposition",
 )
 
 
 def _terminal_reflection_reason(hook_input: dict) -> str | None:
-    session_id = str(hook_input.get("session_id") or "")
+    session_id = _reflection_session_id(hook_input)
     elapsed = _reflection.session_elapsed_seconds(session_id)
     if elapsed is None or elapsed <= 60 * 60:
         return None
@@ -5645,7 +5976,7 @@ def run_stop(hook_input: dict) -> int:
     reasons = [
         item
         for item in (
-            check_r16_learning_loop(hook_input),
+            check_r16_learning_session(hook_input),
             check_r17_unarmed_pull_request(hook_input),
             check_r18_unpushed_work(hook_input),
             check_r20_user_harness_drift(hook_input),
@@ -5915,7 +6246,7 @@ _SELF_TEST_COVERAGE: dict[str, str] = {
     "check_r13_push_before_delete": "run_required_action_self_test",
     "check_r14_hard_reset": "run_required_action_self_test",
     "check_r15_review_before_arming": "run_required_action_self_test",
-    "check_r16_learning_loop": "run_required_action_self_test",
+    "check_r16_learning_session": "run_required_action_self_test",
     "check_r17_unarmed_pull_request": "run_required_action_self_test",
     "check_r18_unpushed_work": "run_required_action_self_test",
     "check_r19_fresh_base": "run_required_action_self_test",
@@ -5928,6 +6259,7 @@ _SELF_TEST_COVERAGE: dict[str, str] = {
     "check_r28_pr_audit_before_arming": "run_required_action_self_test",
     "check_r29_delivery_complete": "run_required_action_self_test",
     "check_r30_merge_authority_before_arming": "run_required_action_self_test",
+    "check_r31_learning_session_timing": "run_required_action_self_test",
 }
 
 
@@ -5984,9 +6316,12 @@ def _with_stubs(replacements: dict, action):
 
 
 _STOP_RULE_RENDERERS = {
-    "check_r16_learning_loop": lambda: _with_stubs(
-        {"ledger_events": lambda payload: {"commit"}},
-        lambda: check_r16_learning_loop({"session_id": "s"}),
+    "check_r16_learning_session": lambda: _with_stubs(
+        {
+            "ledger_events": lambda payload: ["commit", "delivery:{}"],
+            "check_r29_delivery_complete": lambda payload: None,
+        },
+        lambda: check_r16_learning_session({"session_id": "s"}),
     ),
     "check_r17_unarmed_pull_request": lambda: _with_stubs(
         {"_unarmed_reviewed_pull_request": lambda cwd, payload=None: "1"},
@@ -6241,38 +6576,64 @@ def run_required_action_self_test() -> int:
         is None,
     )
 
-    # R16: a session that committed owes the learning loop.
+    # R16: only completed delivery owes one terminal Learning Session.
     check(
-        "R16 reports a session that committed and routed no learning",
+        "R16 ignores a commit before delivery",
         _with_stubs(
-            {"ledger_events": lambda payload: {"commit"}},
-            lambda: check_r16_learning_loop({"session_id": "s"}),
-        )
-        is not None,
-    )
-    check(
-        "R16 is satisfied once a learning is routed",
-        _with_stubs(
-            {"ledger_events": lambda payload: {"commit", "memory-write"}},
-            lambda: check_r16_learning_loop({"session_id": "s"}),
+            {"ledger_events": lambda payload: ["commit"]},
+            lambda: check_r16_learning_session({"session_id": "s"}),
         )
         is None,
     )
     check(
-        "R16 reports an observed guard block with no route",
+        "R16 reports delivered work without terminal completion",
         _with_stubs(
-            {"ledger_events": lambda payload: {"guard-block"}},
-            lambda: check_r16_learning_loop({"session_id": "s"}),
+            {
+                "ledger_events": lambda payload: ["commit", "delivery:{}"],
+                "check_r29_delivery_complete": lambda payload: None,
+            },
+            lambda: check_r16_learning_session({"session_id": "s"}),
         )
         is not None,
     )
     check(
-        "R16 rejects a bare issue update for an observed guard block",
+        "R16 accepts one immutable terminal completion",
         _with_stubs(
-            {"ledger_events": lambda payload: {"guard-block", "issue-update"}},
-            lambda: check_r16_learning_loop({"session_id": "s"}),
+            {
+                "ledger_events": lambda payload: [
+                    "commit",
+                    "delivery:{}",
+                    "learning-session-complete:" + "a" * 64,
+                ],
+                "check_r29_delivery_complete": lambda payload: None,
+            },
+            lambda: check_r16_learning_session({"session_id": "s"}),
+        )
+        is None,
+    )
+
+    # R31: controller operations are terminal and root-session owned.
+    check(
+        "R31 blocks Learning Session before delivery",
+        _with_stubs(
+            {"check_r29_delivery_complete": lambda payload: "pending"},
+            lambda: check_r31_learning_session_timing(
+                {"session_id": "s", "cwd": _harness_root()},
+                "py -3 scripts/agents/learning_session.py finalize --session-id s",
+            ),
         )
         is not None,
+    )
+    check(
+        "R31 allows Learning Session after delivery",
+        _with_stubs(
+            {"check_r29_delivery_complete": lambda payload: None},
+            lambda: check_r31_learning_session_timing(
+                {"session_id": "s", "cwd": _harness_root()},
+                "py -3 scripts/agents/learning_session.py finalize --session-id s",
+            ),
+        )
+        is None,
     )
 
     # R17: a reviewed pull request nobody armed.

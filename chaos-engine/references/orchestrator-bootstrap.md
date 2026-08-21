@@ -28,9 +28,9 @@ does. A single stream skips this file and is worked solo, in sequence.
 8. Stay available for architecture and consult decisions, on the check-in
    cadence in [delegation](delegation.md).
 9. Review the actual diff and tests as [delegation](delegation.md) defines.
-   Main thread owns synthesis and final verification. Verify Learning Loop
-   before kill, then destroy the finished writer and continue the delivery loop.
-10. File adjacent findings and route durable Learning Loop output before close.
+   Main thread owns synthesis and final verification. Collect the writer's
+   bounded learning handoff, then destroy the finished writer and continue.
+10. After every delivery completes, run the one root Learning Session immediately before the final report.
 
 For branch, tracker, and PR mechanics use
 [work GitHub](work-github-playbook.md).

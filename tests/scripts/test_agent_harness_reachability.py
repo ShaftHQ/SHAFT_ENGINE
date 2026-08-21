@@ -857,14 +857,15 @@ class EntrypointDutyTest(unittest.TestCase):
         self.assertIn("failed tests", lifecycle_compact)
         self.assertIsNone(OPTIONALITY_HEDGE.search(lifecycle))
 
-    def test_the_learning_loop_is_required_before_every_report_of_done(self):
+    def test_the_learning_session_is_required_before_every_report_of_done(self):
         """#4487: the routing table is the classifier; running it is the duty."""
         section = section_body(
-            self.ENTRYPOINT.read_text(encoding="utf-8"), "## Learning loop"
+            self.ENTRYPOINT.read_text(encoding="utf-8"), "## Learning Session"
         )
-        self.assertTrue(section, "the entrypoint must keep the Learning loop section")
+        self.assertTrue(section, "the entrypoint must keep the Learning Session section")
         compact = re.sub(r"\s+", " ", section)
-        self.assertIn("Before reporting done", compact)
+        self.assertIn("immediately before the final report", compact)
+        self.assertIn("exactly one root-owned Learning Session", compact)
         self.assertIn("Nothing durable is a valid result", compact)
         self.assertIsNone(OPTIONALITY_HEDGE.search(section))
 

@@ -135,6 +135,7 @@ def evaluate_delivery(  # noqa: MC0001
     seen: set[str] = set()
     merged_count = 0
     results = []
+    owned_heads: set[tuple[str, str]] = set()
     for item in owned:
         if not isinstance(item, dict) or not _text(item.get("repository")) or not isinstance(item.get("number"), int) or not _text(item.get("headOid")):
             reasons.append("invalid owned pull-request entry")
@@ -149,6 +150,7 @@ def evaluate_delivery(  # noqa: MC0001
             if dependency not in seen:
                 reasons.append(f"dependency {dependency} must precede {key}")
         seen.add(key)
+        owned_heads.add((item["repository"], item["headOid"]))
         status = by_key.get(key)
         if not isinstance(status, dict):
             reasons.append(f"live status unavailable for {key}")
@@ -172,6 +174,27 @@ def evaluate_delivery(  # noqa: MC0001
         else:
             merged_count += 1
         results.append(status)
+    legacy_commit_proofs: list[dict[str, str]] = []
+    supplied_legacy_proofs = manifest.get("legacyCommitProofs", [])
+    if not isinstance(supplied_legacy_proofs, list):
+        reasons.append("legacy commit proofs must be a list")
+        delivery_unavailable = True
+    else:
+        for proof in supplied_legacy_proofs:
+            valid = bool(
+                isinstance(proof, dict)
+                and set(proof) == {"repository", "headOid"}
+                and _text(proof.get("repository"))
+                and re.fullmatch(r"[0-9a-f]{40}", str(proof.get("headOid", "")))
+                and (proof["repository"], proof["headOid"]) in owned_heads
+            )
+            if not valid:
+                reasons.append("legacy commit proof is not bound to an owned pull-request head")
+                delivery_unavailable = True
+                continue
+            legacy_commit_proofs.append(
+                {"repository": proof["repository"], "head": proof["headOid"]}
+            )
     delivery_reasons = list(reasons)
     cleanup_reasons: list[str] = []
     cleanup_decision = "unavailable"
@@ -237,6 +260,7 @@ def evaluate_delivery(  # noqa: MC0001
         "deliveryDecision": delivery_decision,
         "cleanupDecision": cleanup_decision,
         "reasons": reasons, "mergedCount": merged_count, "pullRequests": results,
+        "legacyCommitProofs": legacy_commit_proofs,
         "cleanup": cleanup,
     }
 

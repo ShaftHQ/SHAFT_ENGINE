@@ -62,7 +62,7 @@ a requested doctor result `recovery-required`.
 
 ## The completion half
 
-The [learning loop](work-github-playbook.md#learned-lessons-workflow) routes
+The [learning session](work-github-playbook.md#learned-lessons-workflow) routes
 each learning to its home. That is where a *fact* goes. It does not make the
 task responsible for keeping derived stores usable:
 
@@ -88,6 +88,6 @@ only with materially new sanitized evidence. Never close or automatically
 recover a store issue, and never put issue management in a hook or scheduler.
 Failure to reach GitHub is non-blocking.
 
-The Learning Loop accepts a successful store write, a non-blocking degraded
+The Learning Session accepts a successful store write, a non-blocking degraded
 disposition, an issue reference, or an explicit “nothing durable.” It never
 demands a retry or derived-store refresh.

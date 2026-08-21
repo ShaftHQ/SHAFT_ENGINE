@@ -41,8 +41,20 @@ _ABSOLUTE_PATH = re.compile(
     r"(?:home|users?|workspace|server)[\\/:-][^\s]+)"
 )
 _SECRET = re.compile(
-    r"(?i)(?:password|secret|access[_-]?token|token|bearer|credential|api[_-]?key|authorization)(?:\W|$)"
+    r"(?i)(?:(?:password|secret|access[_-]?token|token|credential|api[_-]?key|"
+    r"authorization)\s*(?:=|:)\s*\S+|bearer\s+\S+)"
 )
+_GITHUB_ISSUE_URL = re.compile(r"https://github\.com/[^/]+/[^/]+/issues/[1-9]\d*")
+
+
+def scope_session_id(session_id: str, agent_id: object = None) -> str:
+    """Return root session identity or an isolated, non-reversible agent scope."""
+    root = str(session_id or "").strip()
+    agent = str(agent_id or "").strip()
+    if not agent:
+        return root
+    digest = hashlib.sha256(agent.encode("utf-8")).hexdigest()[:24]
+    return f"{root}:agent:{digest}"
 
 
 def ledger_path(session_id: str) -> Path:
@@ -421,11 +433,12 @@ def has_valid_terminal_receipt(session_id: str) -> bool:
     return terminal
 
 
-def _safe_text(name: str, value: object) -> str:
+def _safe_text(name: str, value: object, *, allow_github_issue: bool = False) -> str:
     rendered = str(value or "").strip()
     if not _SAFE_TEXT.fullmatch(rendered):
         raise ValueError(f"{name} must be 1-240 characters on one line")
-    if _ABSOLUTE_PATH.search(rendered) or _SECRET.search(rendered):
+    issue_url = allow_github_issue and _GITHUB_ISSUE_URL.fullmatch(rendered)
+    if (not issue_url and _ABSOLUTE_PATH.search(rendered)) or _SECRET.search(rendered):
         raise ValueError(f"{name} contains forbidden path or credential-shaped text")
     return rendered
 
@@ -497,8 +510,8 @@ def record_receipt(session_id: str, receipt: dict, session_token: str) -> dict:
     if entry["proofOutcome"].casefold() in {"pending", "unknown", "not run"}:
         raise ValueError("proofOutcome must describe a completed proof")
     if receipt.get("issue"):
-        issue = _safe_text("issue", receipt["issue"])
-        if not re.fullmatch(r"https://github\.com/[^/]+/[^/]+/issues/\d+", issue):
+        issue = _safe_text("issue", receipt["issue"], allow_github_issue=True)
+        if not _GITHUB_ISSUE_URL.fullmatch(issue):
             raise ValueError("issue must be a GitHub issue URL")
         entry["issue"] = issue
     entry["receiptHash"] = _receipt_hash(session_id, entry)
@@ -512,29 +525,33 @@ def main(argv: list[str] | None = None) -> int:
     commands = parser.add_subparsers(dest="operation", required=True)
     receipt_command = commands.add_parser("receipt", help="append a bounded JSON receipt")
     receipt_command.add_argument("--session-id", required=True)
+    receipt_command.add_argument("--agent-id")
     receipt_command.add_argument("--session-token", required=True)
     receipt_input = receipt_command.add_mutually_exclusive_group(required=True)
     receipt_input.add_argument("--json", dest="receipt_json")
     receipt_input.add_argument("--file", type=Path)
     trigger_command = commands.add_parser("trigger", help="record an explicit semantic trigger")
     trigger_command.add_argument("--session-id", required=True)
+    trigger_command.add_argument("--agent-id")
     trigger_command.add_argument("--trigger", required=True, choices=sorted(TRIGGERS - {"long-session-completion"}))
     trigger_command.add_argument("--fingerprint", default="manual")
     non_attempt = commands.add_parser("non-attempt", help="exclude one exact setup/probe failure")
     non_attempt.add_argument("--session-id", required=True)
+    non_attempt.add_argument("--agent-id")
     non_attempt.add_argument("--failure-id", required=True)
     non_attempt.add_argument("--reason", required=True, choices=sorted(NON_ATTEMPT_REASONS))
     arguments = parser.parse_args(argv)
+    session_id = scope_session_id(arguments.session_id, arguments.agent_id)
     if arguments.operation == "trigger":
         try:
-            recorded = record_trigger(arguments.session_id, arguments.trigger, arguments.fingerprint)
+            recorded = record_trigger(session_id, arguments.trigger, arguments.fingerprint)
         except ValueError as error:
             parser.error(str(error))
         print(json.dumps({"recorded": recorded, "trigger": arguments.trigger}, separators=(",", ":")))
         return 0
     if arguments.operation == "non-attempt":
         try:
-            recorded = mark_non_attempt(arguments.session_id, arguments.failure_id, arguments.reason)
+            recorded = mark_non_attempt(session_id, arguments.failure_id, arguments.reason)
         except ValueError as error:
             parser.error(str(error))
         print(json.dumps({"recorded": recorded, "failureId": arguments.failure_id}, separators=(",", ":")))
@@ -546,7 +563,7 @@ def main(argv: list[str] | None = None) -> int:
             else arguments.file.read_text(encoding="utf-8")
         )
         payload = json.loads(rendered)
-        recorded = record_receipt(arguments.session_id, payload, arguments.session_token)
+        recorded = record_receipt(session_id, payload, arguments.session_token)
     except (OSError, ValueError, TypeError, json.JSONDecodeError) as error:
         parser.error(str(error))
     print(json.dumps(recorded, separators=(",", ":"), sort_keys=True))

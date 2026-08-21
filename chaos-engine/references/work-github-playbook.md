@@ -61,20 +61,20 @@ Update user documentation and the feature catalog only for shipped behavior.
 Regenerate screenshots only for changed panels. Externally documented behavior
 changes in the companion documentation repository require their own PR.
 
-## 6. Learning Loop before wrapping up
+## 6. Terminal Learning Session
 
-Route durable findings through the entrypoint's Learning Loop before the final
-push; a later push loses the context needed to record it accurately.
+Collect durable findings during work, but route them through exactly one root-owned
+Learning Session only after confirmed delivery and immediately before the final report.
+Delegates and intermediate pushes never start another session.
 When reflection is required, put the changed approach and focused proof on the
 tracker before resuming. The hook never writes issues. After delivery, a
-session over one hour records its terminal receipt and labeled user summary
-before final Stop and Learning Loop reporting.
+session over one hour records its terminal reflection receipt before the Learning Session.
 
 ### Learned-lessons workflow
 
 1. Collect durable costs, decisions, structural changes, procedure gaps, and
    deliberately deferred work.
-2. Classify each knowledge result with the entrypoint's Learning-loop table and
+2. Classify each knowledge result with the entrypoint's Learning Session table and
    use exactly one knowledge destination.
 3. Separately classify actionability. For every problem, follow-up action, or
    potential improvement needing work, search for duplicates and then open one

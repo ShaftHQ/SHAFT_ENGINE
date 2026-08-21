@@ -291,8 +291,8 @@ does not know they exist meets them as an interruption instead of a tool.
 
 | Part | Where it lives | What it does to a session |
 | --- | --- | --- |
-| Lifecycle guard | `scripts/agents/guard.py`, registered by `.claude/settings.json` and `.codex/hooks.json` | Fires on PreToolUse, SessionStart and Stop. It denies a command that breaks a repository rule, injects the session preflight, and can hold the Stop event open. This is the part most likely to interrupt you. |
-| Learning controller | `scripts/agents/learning_loop.py` | Stores redacted, evidence-consistent event receipts outside git; binds every actionable incident candidate to one distinct standalone `ShaftHQ/SHAFT_ENGINE` issue; records evaluation and exact-commit promotion intent; and records repair-once then frozen-revert recovery intent. Receipts are evidence, never the action queue. GitHub/git workflows separately create and verify issues and execute those intents. Hashes detect corruption; runtime state is not an authentication boundary against another process running as the same OS user. |
+| Lifecycle guard | `scripts/agents/guard.py`, registered by `.claude/settings.json` and `.codex/hooks.json` | One repository-policy owner handles SessionStart, UserPromptSubmit, PreToolUse, PostToolUse, PostToolUseFailure, Stop, and SubagentStop. Host documents only register it. |
+| Learning controller | `scripts/agents/learning_session.py` | Stores redacted, evidence-consistent event receipts outside git; binds every actionable incident candidate to one distinct standalone `ShaftHQ/SHAFT_ENGINE` issue; records evaluation and exact-commit promotion intent; and records repair-once then frozen-revert recovery intent. Receipts are evidence, never the action queue. GitHub/git workflows separately create and verify issues and execute those intents. Hashes detect corruption; runtime state is not an authentication boundary against another process running as the same OS user. |
 | Retrieval servers | `.mcp.json`, `.codex/config.toml`, `mempalace.yaml` | Declare the memory, MemPalace and Graphify servers the knowledge table sends you to, and gate memory writes behind a prompt. |
 | Plugin manifest | `.claude-plugin/marketplace.json` | Publishes this repository's skills to a host that installs them as a plugin rather than reading them in place. |
 | Repository operations | `scripts/agents/repository_context.py`, `scripts/agents/watch_pr_checks.py`, `scripts/agents/github_client.py`, `scripts/agents/pr_audit.py`, `scripts/agents/delivery_status.py`, `scripts/agents/issue_filing.py`, `scripts/agents/planning_contract.py`, `scripts/agents/act_as_mohab_cli.py` | Resolve the caller's repository and expose bounded PR watching, checkpoint status, evidence-backed plan validation, complete PR feedback audit, owned-PR delivery proof, and template/taxonomy issue operations through the source adapter, portable zipapp, and bounded MCP surfaces. Delivery cleanup alone may make one exact removal attempt after live merge and safety checks. |
@@ -350,7 +350,7 @@ change it:
 
 | Module | Guards |
 | --- | --- |
-| `tests/scripts/test_agent_router_contract.py` | The router: triage, the routing table, role adapters, budgets, the learning loop. |
+| `tests/scripts/test_agent_router_contract.py` | The router: triage, the routing table, role adapters, budgets, the learning session. |
 | `tests/scripts/test_agent_harness_portability.py` | One policy body per rule, relative paths, hook parity, memory against guidance. |
 | `tests/scripts/test_chaos_engine_portable_core.py` | Portable core isolation, compatibility aliases, and project-profile selection. |
 | `tests/scripts/test_agent_harness_adherence.py` | Reviewed deterministic episodes, unknown evidence, and fail-closed adherence comparison. |

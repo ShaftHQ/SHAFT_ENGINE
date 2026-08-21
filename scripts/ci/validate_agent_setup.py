@@ -558,7 +558,7 @@ def validate_harness_reachability(root: Path) -> list[dict[str, str]]:
 def run_memory_check(root: Path) -> list[dict[str, str]]:
     """Run `memory check` against the PATH-resolved Memory CLI.
 
-    Agents invoke `memory` from PATH (AGENTS.md, "Memory & Learning Loop"),
+    Agents invoke `memory` from PATH (AGENTS.md, "Memory & Learning Session"),
     so this validates the toolchain copy actually in use rather than an
     `npx --package`-cached copy nobody runs. Fails loudly with an actionable
     message when the binary is missing instead of falling back to a download.

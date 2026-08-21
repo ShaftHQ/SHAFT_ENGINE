@@ -97,7 +97,7 @@ class ChaosEngineHookTest(unittest.TestCase):
             self.assertNotIn("def _strict_json_loads(", launcher)
             self.assertNotIn("def _write_hook_json(", launcher)
 
-    def test_stop_learning_loop_rule_fires_only_after_unrouted_mutation(self):
+    def test_stop_learning_session_rule_fires_only_after_terminal_delivery(self):
         with tempfile.TemporaryDirectory() as temporary:
             environment = {**os.environ, "TMPDIR": temporary, "TEMP": temporary}
             readonly = self.run_hook(
@@ -121,15 +121,98 @@ class ChaosEngineHookTest(unittest.TestCase):
                 },
                 environment,
             )
+            self.run_hook(
+                {
+                    "hook_event_name": "PostToolUse",
+                    "tool_name": "PowerShell",
+                    "tool_input": {
+                        "command": "py -3 scripts/agents/act_as_mohab_cli.py delivery-status --manifest m --receipt-out r"
+                    },
+                    "session_id": "learn-delivered",
+                },
+                environment,
+            )
+            delivered = self.run_hook(
+                {
+                    "hook_event_name": "Stop",
+                    "session_id": "learn-delivered",
+                    "stop_hook_active": False,
+                },
+                environment,
+            )
 
-            self.assertEqual(2, readonly.returncode)
+            self.assertEqual(0, readonly.returncode)
             self.assertFalse(
-                json.loads(readonly.stdout)["reason"].casefold().startswith("learning loop:")
+                json.loads(readonly.stdout)["reason"].casefold().startswith("learning session:")
             )
-            self.assertEqual(2, mutated.returncode)
+            self.assertEqual(0, mutated.returncode)
+            self.assertFalse(
+                json.loads(mutated.stdout)["reason"].casefold().startswith("learning session:")
+            )
+            self.assertEqual(2, delivered.returncode)
             self.assertTrue(
-                json.loads(mutated.stdout)["reason"].casefold().startswith("learning loop:")
+                json.loads(delivered.stdout)["reason"].casefold().startswith("learning session:")
             )
+
+    def test_terminal_learning_session_completion_clears_portable_stop_gate(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            environment = {**os.environ, "TMPDIR": temporary, "TEMP": temporary}
+            session = "learn-complete"
+            for command in (
+                "py -3 scripts/agents/act_as_mohab_cli.py delivery-status --manifest m --receipt-out r",
+                "py -3 scripts/agents/learning_session.py finalize --session-id learn-complete",
+            ):
+                self.run_hook(
+                    {
+                        "hook_event_name": "PostToolUse",
+                        "tool_name": "PowerShell",
+                        "tool_input": {"command": command},
+                        "session_id": session,
+                    },
+                    environment,
+                )
+
+            stopped = self.run_hook(
+                {
+                    "hook_event_name": "Stop",
+                    "session_id": session,
+                    "stop_hook_active": False,
+                },
+                environment,
+            )
+
+            self.assertEqual(0, stopped.returncode)
+            self.assertFalse(
+                json.loads(stopped.stdout)["reason"].casefold().startswith("learning session:")
+            )
+
+    def test_failed_read_only_agent_diagnostics_do_not_open_portable_checkpoint(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            environment = {**os.environ, "TMPDIR": temporary, "TEMP": temporary}
+            failure = {
+                "hook_event_name": "PostToolUseFailure",
+                "tool_name": "PowerShell",
+                "tool_input": {"command": "git branch --show-current"},
+                "tool_response": {"status": "failed", "exit_code": 1},
+                "session_id": "portable-readonly",
+                "agent_id": "audit",
+            }
+            self.run_hook(failure, environment)
+            self.run_hook(failure, environment)
+
+            mutation = self.run_hook(
+                {
+                    "hook_event_name": "PreToolUse",
+                    "tool_name": "PowerShell",
+                    "tool_input": {"command": "touch output.txt"},
+                    "session_id": "portable-readonly",
+                    "agent_id": "audit",
+                },
+                environment,
+            )
+
+            self.assertEqual(0, mutation.returncode)
+            self.assertNotIn("Reflection required", mutation.stdout)
 
     def test_pre_tool_event_blocks_catastrophic_broad_scope(self):
         for command in (

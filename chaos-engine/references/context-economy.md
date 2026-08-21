@@ -35,7 +35,7 @@ transcript unless the user asked for the raw body.
 - A subagent returns a distillate: what changed, what was proved, what remains.
   It does not return its transcript.
 - Structured notes belong at session end or after repeated failure, through the
-  existing learning loop. They are not a running diary.
+  existing learning session. They are not a running diary.
 - On failure, change the premise or the discriminating observation. Do not
   repeat the same action with different wording.
 
