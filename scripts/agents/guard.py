@@ -2224,6 +2224,69 @@ def _research_preflight_events(
     return tuple(dict.fromkeys(events))
 
 
+def _patch_header_targets(patch_text: str) -> tuple[str, ...]:
+    return tuple(
+        match.group(1).strip()
+        for match in re.finditer(
+            r"(?m)^\*\*\* (?:Add|Update|Delete) File:\s*(.+?)\s*$", patch_text
+        )
+    )
+
+
+def _static_javascript_literal(literal: str) -> str | None:
+    """Decode one inspectable JavaScript string literal without evaluating source."""
+    if len(literal) < 2 or literal[0] != literal[-1] or literal[0] not in {'"', "'", "`"}:
+        return None
+    quote = literal[0]
+    if quote == '"':
+        try:
+            value = json.loads(literal)
+        except (json.JSONDecodeError, ValueError):
+            return None
+        return value if isinstance(value, str) else None
+    body = literal[1:-1]
+    if (quote == "'" and ("\n" in body or "\r" in body)) or (quote == "`" and "${" in body):
+        return None
+    values: list[str] = []
+    index = 0
+    escapes = {"b": "\b", "f": "\f", "n": "\n", "r": "\r", "t": "\t", "v": "\v"}
+    while index < len(body):
+        character = body[index]
+        if character != "\\":
+            values.append(character)
+            index += 1
+            continue
+        index += 1
+        if index == len(body):
+            return None
+        escaped = body[index]
+        if escaped in {"'", '"', "`", "\\", "/"}:
+            values.append(escaped)
+        elif escaped in escapes:
+            values.append(escapes[escaped])
+        elif escaped == "x" and index + 2 < len(body):
+            digits = body[index + 1:index + 3]
+            if not re.fullmatch(r"[0-9a-fA-F]{2}", digits):
+                return None
+            values.append(chr(int(digits, 16)))
+            index += 2
+        elif escaped == "u" and index + 4 < len(body):
+            digits = body[index + 1:index + 5]
+            if not re.fullmatch(r"[0-9a-fA-F]{4}", digits):
+                return None
+            values.append(chr(int(digits, 16)))
+            index += 4
+        elif escaped == "\r":
+            if index + 1 < len(body) and body[index + 1] == "\n":
+                index += 1
+        elif escaped == "\n":
+            pass
+        else:
+            return None
+        index += 1
+    return "".join(values)
+
+
 def _implementation_targets(tool_name: str, tool_input: object) -> tuple[str, ...]:
     """File targets for supported mutation tools; empty means no explicit target."""
     details = tool_input if isinstance(tool_input, dict) else {}
@@ -2231,13 +2294,25 @@ def _implementation_targets(tool_name: str, tool_input: object) -> tuple[str, ..
         path = details.get("file_path") or details.get("path") or details.get("notebook_path")
         return (str(path),) if path else ()
     if tool_name == "apply_patch":
-        patch_text = str(details.get("patch") or details.get("input") or "")
-        return tuple(
-            match.group(1).strip()
-            for match in re.finditer(
-                r"(?m)^\*\*\* (?:Add|Update|Delete) File:\s*(.+?)\s*$", patch_text
+        return _patch_header_targets(str(details.get("patch") or details.get("input") or ""))
+    if tool_name == "functions.exec":
+        source = _functions_exec_source(tool_input)
+        matches = tuple(
+            re.finditer(
+                r'''\btools\.apply_patch\s*\(\s*(?P<literal>"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|`(?:\\.|[^`\\])*`)\s*\)''',
+                source,
+                re.DOTALL,
             )
         )
+        if len(matches) != len(re.findall(r"\btools\.apply_patch\s*\(", source)):
+            return ()
+        targets: list[str] = []
+        for match in matches:
+            patch_text = _static_javascript_literal(match.group("literal"))
+            if patch_text is None:
+                return ()
+            targets.extend(_patch_header_targets(patch_text))
+        return tuple(dict.fromkeys(targets))
     if tool_name in _SHELL_TOOLS:
         return _shell_mutation_targets(
             str(details.get("command") or details.get("cmd") or "")

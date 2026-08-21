@@ -5329,6 +5329,74 @@ class FreshBaseGateTest(unittest.TestCase):
         os.makedirs(outside, exist_ok=True)
         return root, outside
 
+    def test_functions_exec_apply_patch_uses_absolute_target_worktree_for_r19_scoping(self):
+        """Literal wrapped patch targets, not hook cwd, scope R19 (#5289)."""
+        main_root, _ = self.repository()
+        task_root = os.path.join(os.path.dirname(main_root), "task-worktree")
+        os.makedirs(task_root)
+        task_target = os.path.join(task_root, "scripts", "guard.py")
+        main_target = os.path.join(main_root, "scripts", "guard.py")
+
+        def wrapped(*targets: str, quote: str = '"') -> dict:
+            patch_text = "".join(f"*** Update File: {target}\n" for target in targets)
+            if quote == '"':
+                literal = json.dumps(patch_text)
+            else:
+                escaped = patch_text.replace("\\", "\\\\").replace(quote, "\\" + quote)
+                literal = quote + (escaped.replace("\n", "\\n") if quote == "'" else escaped) + quote
+            return {
+                "cwd": main_root,
+                "tool_input": f"await tools.apply_patch({literal});",
+            }
+
+        with patch("scripts.agents.guard._current_branch", return_value="main"):
+            with patch("scripts.agents.guard._repository_root", return_value=main_root):
+                self.assertIsNone(guard.check_r19_fresh_base(wrapped(task_target), "functions.exec"))
+                for quote in ("'", "`"):
+                    with self.subTest(quote=quote):
+                        self.assertIsNone(
+                            guard.check_r19_fresh_base(
+                                wrapped(task_target, quote=quote), "functions.exec"
+                            )
+                        )
+                self.assertIsNotNone(guard.check_r19_fresh_base(wrapped(main_target), "functions.exec"))
+                self.assertIsNotNone(
+                    guard.check_r19_fresh_base(wrapped(main_target, task_target), "functions.exec")
+                )
+                dynamic = {
+                    "cwd": main_root,
+                    "tool_input": (
+                        f"const patch = {json.dumps('*** Update File: ' + task_target + chr(10))}; "
+                        "await tools.apply_patch(patch);"
+                    ),
+                }
+                self.assertIsNotNone(guard.check_r19_fresh_base(dynamic, "functions.exec"))
+                mixed_dynamic = {
+                    "cwd": main_root,
+                    "tool_input": (
+                        f"await tools.apply_patch({json.dumps('*** Update File: ' + task_target + chr(10))}); "
+                        "await tools.apply_patch(patch);"
+                    ),
+                }
+                self.assertIsNotNone(
+                    guard.check_r19_fresh_base(mixed_dynamic, "functions.exec")
+                )
+                mixed_interpolated = {
+                    "cwd": main_root,
+                    "tool_input": (
+                        f"await tools.apply_patch({json.dumps('*** Update File: ' + task_target + chr(10))}); "
+                        "await tools.apply_patch(`*** Update File: ${task_target}\\n`);"
+                    ),
+                }
+                self.assertIsNotNone(
+                    guard.check_r19_fresh_base(mixed_interpolated, "functions.exec")
+                )
+                interpolated = {
+                    "cwd": main_root,
+                    "tool_input": "await tools.apply_patch(`*** Update File: ${task_target}\\n`);",
+                }
+                self.assertIsNotNone(guard.check_r19_fresh_base(interpolated, "functions.exec"))
+
     def test_a_write_outside_the_repository_is_not_refused(self):
         """R19 governs where this repository's work lands, and nothing else.
 
