@@ -153,7 +153,9 @@ def _command_segments(command: str) -> list[str]:
     return re.split(r"(?:;|&&|\|\||\||&|\r?\n)", command)
 
 
-def _top_level_shell_parts(command: str) -> tuple[list[str], list[str]]:
+def _top_level_shell_parts(
+    command: str, *, backslash_escapes_double_quote: bool = True
+) -> tuple[list[str], list[str]]:
     """Split shell control operators while preserving quoted argument data."""
     parts: list[str] = []
     separators: list[str] = []
@@ -165,7 +167,9 @@ def _top_level_shell_parts(command: str) -> tuple[list[str], list[str]]:
         following = command[index + 1] if index + 1 < len(command) else ""
         if quote is not None:
             current.append(character)
-            if quote == '"' and character in {"\\", "`"} and following:
+            if quote == '"' and (
+                character == "`" or (backslash_escapes_double_quote and character == "\\")
+            ) and following:
                 current.append(following)
                 index += 2
                 continue
@@ -486,12 +490,12 @@ def _sanitize_for_cmd_c_check(command: str) -> str:
 # `cmd /c start ...`
 _CMD_C_START_RE = re.compile(r"(?<![\w.\-])cmd(?:\.exe)?\s+/c\s+start(?![\w.\-])", re.IGNORECASE)
 
-# Command-segment separators used to find "start of a command position".
+# R23 uses lexical separators after it blanks quoted prose.
 _SEGMENT_SPLIT_RE = re.compile(r"(?:;|&&|\|\||\||&)")
 
 
 def _segments(command: str) -> list[str]:
-    return _SEGMENT_SPLIT_RE.split(command)
+    return _top_level_shell_parts(command, backslash_escapes_double_quote=False)[0]
 
 
 def _segment_starts_with_word(segment: str, word: str) -> bool:
@@ -5522,6 +5526,10 @@ _SELF_TEST_CASES: list[tuple[str, str, bool]] = [
      "py -3 -c \"import re; p = re.compile(r'[Ii]mplement')\"", False),
     ("start inside quoted text in a py -c argument is not blocked (sibling check, same root cause)",
      "py -3 -c \"s = 'start something'\"", False),
+    ("quoted rg alternation before Start stays data, not a command segment (issue #5283)",
+     'rg -n "foo' + chr(124) + 'Start" docs/agentic/intellij.md', False),
+    ("PowerShell backslash does not hide a later start command (issue #5283)",
+     'Write-Output "x' + chr(92) + '"; start chrome', True),
     ("--start-maximized not blocked", "chromedriver --start-maximized", False),
     ("restart not blocked", "sudo systemctl restart nginx", False),
     ("capture_start not blocked", "mcp__shaft-mcp__capture_start", False),
