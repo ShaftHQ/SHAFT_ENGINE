@@ -260,6 +260,55 @@ class WorktreeHygieneTest(unittest.TestCase):
         self.assertEqual(expected_head, git(self.main, "rev-parse", branch).stdout.strip())
         self.assertEqual(branch, git(replacement, "branch", "--show-current").stdout.strip())
 
+    def test_task_cleanup_rejects_invocation_from_inside_target_with_different_root(self):
+        branch = "ChaosEngine/owned-cleanup-current-cwd"
+        worktree = self.add_worktree("owned-cleanup-current-cwd", branch)
+        nested = worktree / "nested"
+        nested.mkdir()
+        expected_head = git(worktree, "rev-parse", "HEAD").stdout.strip()
+        original_cwd = Path.cwd()
+        try:
+            os.chdir(nested)
+            with patch(
+                "scripts.ci.worktree_hygiene._exact_worktree_entry",
+                side_effect=AssertionError("survey must not run"),
+            ):
+                blockers = cleanup_task_owned_worktree(
+                    self.main,
+                    worktree,
+                    branch,
+                    expected_head,
+                    "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+                    pull_request_state=lambda _root, _branch, _head: "MERGED",
+                    ownership_verified=True,
+                )
+        finally:
+            os.chdir(original_cwd)
+
+        self.assertEqual(["invoking-cwd-inside-target"], blockers)
+        self.assertTrue(worktree.exists())
+        self.assertEqual(expected_head, git(self.main, "rev-parse", branch).stdout.strip())
+
+    def test_task_cleanup_fails_closed_when_invoking_cwd_cannot_be_resolved(self):
+        with patch(
+            "scripts.ci.worktree_hygiene.Path.cwd",
+            side_effect=OSError("current directory unavailable"),
+        ), patch(
+            "scripts.ci.worktree_hygiene._exact_worktree_entry",
+            side_effect=AssertionError("survey must not run"),
+        ):
+            blockers = cleanup_task_owned_worktree(
+                self.main,
+                self.base / "owned",
+                "ChaosEngine/owned",
+                "a" * 40,
+                "b" * 64,
+                pull_request_state=lambda _root, _branch, _head: "MERGED",
+                ownership_verified=True,
+            )
+
+        self.assertEqual(["invoking-cwd-unresolved"], blockers)
+
     def test_task_cleanup_ownership_manifest_must_match_every_exact_field(self):
         manifest = self.base / "ownership.json"
         target = self.base / "owned"

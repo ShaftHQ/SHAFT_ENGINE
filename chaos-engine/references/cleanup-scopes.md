@@ -77,3 +77,5 @@ ancestry, and pull-request checks.
 The action never performs repository- or machine-scope cleanup, never removes
 remote branches, and rejects `origin` and `gh-pages`. A missing, ambiguous, or
 changed proof blocks the action; it does not widen or guess cleanup authority.
+Invocation from the target worktree or any descendant also blocks cleanup,
+independent of which checkout was supplied as `--root`.

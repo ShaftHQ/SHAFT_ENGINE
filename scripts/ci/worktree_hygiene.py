@@ -961,6 +961,12 @@ def cleanup_task_owned_worktree(
     """Remove one proven task-owned worktree while retaining its local branch, or return blockers."""
     resolved_root = root.resolve()
     resolved_target = target.resolve()
+    try:
+        invoking_cwd = Path.cwd().resolve()
+    except OSError:
+        return ["invoking-cwd-unresolved"]
+    if invoking_cwd == resolved_target or resolved_target in invoking_cwd.parents:
+        return ["invoking-cwd-inside-target"]
     upstream = resolve_upstream_ref(resolved_root)
     entry = _exact_worktree_entry(resolved_root, resolved_target)
     if entry is None or upstream is None:
