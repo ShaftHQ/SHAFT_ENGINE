@@ -646,6 +646,7 @@ class ChaosEngineInstallerTest(unittest.TestCase):
             self.assertNotIn("mohab", owned_text)
             hook = install_root / "hooks/guard.py"
             self.assertTrue((install_root / "hooks/reflection.py").is_file())
+            self.assertTrue((install_root / "hooks/lifecycle.py").is_file())
             environment = {**os.environ, "TMPDIR": temporary, "TEMP": temporary}
             start = subprocess.run(  # nosec B603 - fixed interpreter and installed local hook.
                 [sys.executable, str(hook)],
@@ -675,6 +676,7 @@ class ChaosEngineInstallerTest(unittest.TestCase):
                 vendor = install_root / relative
                 self.assertTrue(vendor.is_file(), relative)
                 self.assertIn(vendor.read_text(encoding="utf-8"), installed_context)
+            self.assertIn("caveman=ultra; ponytail=ultra", installed_context)
             self.assertEqual(0, first.returncode, first.stderr)
             self.assertEqual(0, second.returncode, second.stderr)
             self.assertIn("Reflection required", second.stdout)

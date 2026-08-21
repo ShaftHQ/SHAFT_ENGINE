@@ -11,6 +11,8 @@ import shlex
 import sys
 from pathlib import Path
 
+from lifecycle import session_start_context
+
 try:
     import reflection
 except ImportError:  # Repository source layout; installed hooks keep it beside guard.py.
@@ -20,7 +22,6 @@ except ImportError:  # Repository source layout; installed hooks keep it beside 
 
 
 ACTIVATION = "Follow .chaos-engine/skills/chaos-engine/SKILL.md before continuing."
-COMPANION_NAMES = ("caveman", "ponytail")
 ROOT_DRIVE = re.compile(r"(?i)(?:^|\s)[a-z]:\\(?:\s|$)")
 ENV_ASSIGNMENT = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*=")
 SHELLS = {"bash", "sh", "zsh"}
@@ -34,56 +35,6 @@ TERMINAL_LABELS = (
     "remaining risk or follow-up",
     "learning loop disposition",
 )
-
-
-def companion_skill_relatives(name: str) -> tuple[str, ...]:
-    return (
-        f"vendor/{name}/skills/{name}/SKILL.md",
-        f"plugins/{name}/skills/{name}/SKILL.md",
-        f"{name}/skills/{name}/SKILL.md",
-        f"chaos-engine/vendor/{name}/skills/{name}/SKILL.md",
-    )
-
-
-def search_roots() -> list[Path]:
-    roots: list[Path] = []
-    seen: set[Path] = set()
-    here = Path(__file__).resolve().parent
-    candidates = [here, *here.parents]
-    try:
-        cwd = Path.cwd().resolve()
-    except OSError:
-        cwd = None
-    if cwd is not None:
-        candidates.extend((cwd, *cwd.parents))
-    for candidate in candidates:
-        if candidate not in seen:
-            seen.add(candidate)
-            roots.append(candidate)
-    return roots
-
-
-def read_companion_skill(name: str) -> str | None:
-    for root in search_roots():
-        for relative in companion_skill_relatives(name):
-            path = root / relative
-            try:
-                if path.is_file():
-                    return path.read_text(encoding="utf-8")
-            except OSError:
-                continue
-    return None
-
-
-def session_start_context(token: str | None) -> str:
-    parts = [f"ChaosEngine: {ACTIVATION}"]
-    if token:
-        parts.append(f"Reflection session token (never track it): {token}")
-    for name in COMPANION_NAMES:
-        text = read_companion_skill(name)
-        if text:
-            parts.append(text)
-    return "\n\n".join(parts)
 
 
 def learning_loop_reason(session_id: str, event: dict) -> str | None:
@@ -465,7 +416,7 @@ def main() -> int:
                 )
             )
             return 2
-    context = session_start_context(token) if event_name == "SessionStart" else f"ChaosEngine: {ACTIVATION}"
+    context = session_start_context(token, ACTIVATION) if event_name == "SessionStart" else f"ChaosEngine: {ACTIVATION}"
     if token and event_name != "SessionStart":
         context += f" Reflection session token (never track it): {token}"
     print(json.dumps({"additionalContext": context}))
