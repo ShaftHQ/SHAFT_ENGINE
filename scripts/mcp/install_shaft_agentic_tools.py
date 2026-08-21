@@ -75,6 +75,7 @@ AGENT_VALIDATION_SCRIPT_FILES = (
     "scripts/agents/learning_loop.py",
     "scripts/agents/repository_context.py",
     "scripts/ci/validate_agent_setup.py",
+    "scripts/ci/validate_agent_ownership.py",
     "scripts/ci/validate_agent_guidance.py",
     "scripts/ci/harness_reachability.py",
     "scripts/ci/validate_documentation_boundaries.py",
@@ -82,6 +83,7 @@ AGENT_VALIDATION_SCRIPT_FILES = (
     "scripts/ci/validate_skills.py",
     "scripts/ci/worktree_hygiene.py",
     "scripts/ci/agent_guidance_budget.json",
+    "scripts/ci/agent_ownership.json",
 )
 AGENT_GUIDANCE_SCAFFOLD_MARKER = "AGENTS.md"
 TARGETS = ("codex", "claude", "claude-desktop", "copilot", "copilot-intellij", "grok", "intellij-plugin")

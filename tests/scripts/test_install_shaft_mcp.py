@@ -418,6 +418,10 @@ class InstallShaftMcpTest(unittest.TestCase):
         # FileNotFoundError on any project that installed them.
         self.assertIn("scripts/ci/agent_guidance_budget.json", MODULE.AGENT_VALIDATION_SCRIPT_FILES)
 
+    def test_agent_validation_script_files_includes_ownership_validator_and_manifest(self):
+        self.assertIn("scripts/ci/validate_agent_ownership.py", MODULE.AGENT_VALIDATION_SCRIPT_FILES)
+        self.assertIn("scripts/ci/agent_ownership.json", MODULE.AGENT_VALIDATION_SCRIPT_FILES)
+
     def test_agent_validation_manifest_ships_every_module_the_validator_imports(self):
         # Same class of defect as issue #3363 bug 9, one level up: the manifest
         # copies validate_agent_setup.py into a user's project, so any sibling
@@ -450,11 +454,13 @@ class InstallShaftMcpTest(unittest.TestCase):
                 MODULE.download_agent_validation_script_files(target)
 
             self.assertTrue((target / "scripts" / "agents" / "learning_loop.py").is_file())
+            self.assertTrue((target / "scripts" / "ci" / "agent_ownership.json").is_file())
             command = (
                 "import sys; "
                 f"sys.path.insert(0, {str(target)!r}); "
                 "import scripts.agents.guard; "
-                "import scripts.ci.validate_agent_setup"
+                "import scripts.ci.validate_agent_setup; "
+                "import scripts.ci.validate_agent_ownership"
             )
             completed = subprocess.run(  # nosec B603 - fixed interpreter and generated local import script.
                 [sys.executable, "-I", "-S", "-c", command],

@@ -169,6 +169,18 @@ class WorktreeHygieneTest(unittest.TestCase):
             blockers = task_cleanup_blockers(candidate, **{**evidence, **evidence_changes})
             self.assertIn(expected, blockers)
 
+        self.assertEqual(
+            ["pull-request-not-merged", "active-git-operation"],
+            task_cleanup_blockers(
+                entry,
+                **{
+                    **evidence,
+                    "pull_request_state": "OPEN",
+                    "active_operations": ["rebase"],
+                },
+            ),
+        )
+
     def test_task_cleanup_removes_only_the_exact_proven_worktree_and_retains_branch(self):
         branch = "ChaosEngine/owned-cleanup"
         worktree = self.add_worktree("owned-cleanup", branch)

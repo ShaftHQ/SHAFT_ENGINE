@@ -49,13 +49,7 @@ def _contains_markers(text: str, phrases: list[object]) -> bool:
     )
 
 
-def validate(root: Path = ROOT, manifest_path: Path | None = None) -> list[str]:
-    manifest_path = manifest_path or root / "scripts/ci/agent_ownership.json"
-    try:
-        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError) as error:
-        return [f"ownership manifest unreadable: {error}"]
-    adapters = set(manifest.get("adapters", []))
+def _policy_texts(root: Path, manifest_path: Path) -> dict[str, str]:
     texts: dict[str, str] = {}
     for path in root.rglob("*"):
         if not path.is_file() or path.suffix.casefold() not in TEXT_SUFFIXES or IGNORED_PARTS & set(path.parts):
@@ -67,27 +61,45 @@ def validate(root: Path = ROOT, manifest_path: Path | None = None) -> list[str]:
             texts[relative] = path.read_text(encoding="utf-8", errors="ignore")
         except OSError:
             continue
+    return texts
+
+
+def _manifest_errors(manifest: dict, texts: dict[str, str]) -> list[str]:
     errors: list[str] = []
     missing_duties = REQUIRED_DUTIES - set(manifest.get("duties", {}))
     if missing_duties:
         errors.append("required duties missing: " + ", ".join(sorted(missing_duties)))
-    for adapter in sorted(adapters):
+    for adapter in sorted(set(manifest.get("adapters", []))):
         if adapter not in texts:
             errors.append(f"adapter missing: {adapter}")
+    return errors
+
+
+def _duty_errors(duty: str, contract: dict, texts: dict[str, str]) -> list[str]:
+    owner = contract.get("owner", "")
+    if owner not in texts:
+        return [f"{duty}: owner missing: {owner}"]
+    errors: list[str] = []
+    phrases = contract.get("terms") or contract.get("markers") or []
+    if phrases and not _contains_markers(texts[owner], phrases):
+        errors.append(f"{duty}: owner does not contain its semantic markers: {owner}")
+    allowed = set(contract.get("allowed", []))
+    for relative, text in texts.items():
+        if relative != owner and relative not in allowed and phrases and _contains_markers(text, phrases):
+            errors.append(f"{duty}: semantic owner conflict in {relative}; canonical owner is {owner}")
+    return errors
+
+
+def validate(root: Path = ROOT, manifest_path: Path | None = None) -> list[str]:
+    manifest_path = manifest_path or root / "scripts/ci/agent_ownership.json"
+    try:
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as error:
+        return [f"ownership manifest unreadable: {error}"]
+    texts = _policy_texts(root, manifest_path)
+    errors = _manifest_errors(manifest, texts)
     for duty, contract in manifest.get("duties", {}).items():
-        owner = contract.get("owner", "")
-        if owner not in texts:
-            errors.append(f"{duty}: owner missing: {owner}")
-            continue
-        phrases = contract.get("terms") or contract.get("markers") or []
-        if phrases and not _contains_markers(texts[owner], phrases):
-            errors.append(f"{duty}: owner does not contain its semantic markers: {owner}")
-        allowed = set(contract.get("allowed", []))
-        for relative, text in texts.items():
-            if relative == owner or relative in allowed:
-                continue
-            if phrases and _contains_markers(text, phrases):
-                errors.append(f"{duty}: semantic owner conflict in {relative}; canonical owner is {owner}")
+        errors.extend(_duty_errors(duty, contract, texts))
     return sorted(errors)
 
 

@@ -69,6 +69,7 @@ import sys
 import tempfile
 import time
 from datetime import UTC, datetime
+from functools import lru_cache
 from pathlib import Path
 from typing import NamedTuple
 from urllib.parse import urlparse
@@ -4814,21 +4815,15 @@ def _standing_constraints(working_directory: object) -> str | None:
     )
 
 
-_LIFECYCLE_CORE = None
-
-
+@lru_cache(maxsize=1)
 def _lifecycle_core():
     """Load the neutral lifecycle owner from the source or installed layout."""
-    global _LIFECYCLE_CORE
-    if _LIFECYCLE_CORE is not None:
-        return _LIFECYCLE_CORE
     lifecycle_path = os.path.join(_harness_root(), "chaos-engine", "hooks", "lifecycle.py")
     specification = importlib.util.spec_from_file_location("chaos_engine_lifecycle", lifecycle_path)
     if specification is None or specification.loader is None:
         raise RuntimeError("ChaosEngine lifecycle core is unavailable")
     lifecycle = importlib.util.module_from_spec(specification)
     specification.loader.exec_module(lifecycle)
-    _LIFECYCLE_CORE = lifecycle
     return lifecycle
 
 
@@ -6614,7 +6609,7 @@ def main(argv: list[str]) -> int:
         "UserPromptSubmit": lambda event, _host: run_user_prompt_submit(event),
         "Stop": lambda event, _host: run_stop(event),
         "SubagentStop": lambda event, _host: run_stop(event),
-        "PreToolUse": lambda event, host: run_pretooluse(event, host),
+        "PreToolUse": run_pretooluse,
         "PostToolUse": lambda event, _host: run_posttooluse(event),
         "PostToolUseFailure": lambda event, _host: run_posttooluse(event),
     }

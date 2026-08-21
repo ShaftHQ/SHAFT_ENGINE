@@ -811,22 +811,9 @@ def verify_repository_state(root: Path, upstream: str | None = None) -> list[str
     return list(dict.fromkeys(violations))
 
 
-def task_cleanup_blockers(
-    entry: dict,
-    *,
-    owned_path: Path,
-    owned_branch: str,
-    expected_head: str,
-    actual_head: str,
-    actual_branch_head: str,
-    expected_diff_sha256: str,
-    actual_diff_sha256: str,
-    pull_request_state: str,
-    is_ancestor: bool,
-    active_operations: list[str],
-    ownership_verified: bool,
+def _cleanup_identity_blockers(
+    entry: dict, owned_path: Path, owned_branch: str, ownership_verified: bool
 ) -> list[str]:
-    """Return every failed proof for one explicitly task-owned cleanup target."""
     blockers: list[str] = []
     if not ownership_verified:
         blockers.append("ownership-not-verified")
@@ -844,6 +831,11 @@ def task_cleanup_blockers(
         ("origin/", "refs/remotes/origin/")
     ):
         blockers.append("protected-branch")
+    return blockers
+
+
+def _cleanup_worktree_blockers(entry: dict) -> list[str]:
+    blockers: list[str] = []
     if entry.get("is_current"):
         blockers.append("current-worktree")
     if entry.get("is_main"):
@@ -854,6 +846,15 @@ def task_cleanup_blockers(
         blockers.append("prunable-worktree")
     if entry.get("uncommitted_files") != 0:
         blockers.append("dirty-worktree")
+    return blockers
+
+
+def _cleanup_delivery_blockers(
+    *, expected_head: str, actual_head: str, actual_branch_head: str,
+    expected_diff_sha256: str, actual_diff_sha256: str,
+    pull_request_state: str, is_ancestor: bool,
+) -> list[str]:
+    blockers: list[str] = []
     if pull_request_state != "MERGED":
         blockers.append("pull-request-not-merged")
     if not is_ancestor:
@@ -864,6 +865,36 @@ def task_cleanup_blockers(
         blockers.append("branch-head-mismatch")
     if not expected_diff_sha256 or actual_diff_sha256 != expected_diff_sha256:
         blockers.append("diff-mismatch")
+    return blockers
+
+
+def task_cleanup_blockers(
+    entry: dict,
+    *,
+    owned_path: Path,
+    owned_branch: str,
+    expected_head: str,
+    actual_head: str,
+    actual_branch_head: str,
+    expected_diff_sha256: str,
+    actual_diff_sha256: str,
+    pull_request_state: str,
+    is_ancestor: bool,
+    active_operations: list[str],
+    ownership_verified: bool,
+) -> list[str]:
+    """Return every failed proof for one explicitly task-owned cleanup target."""
+    blockers = _cleanup_identity_blockers(entry, owned_path, owned_branch, ownership_verified)
+    blockers.extend(_cleanup_worktree_blockers(entry))
+    blockers.extend(_cleanup_delivery_blockers(
+        expected_head=expected_head,
+        actual_head=actual_head,
+        actual_branch_head=actual_branch_head,
+        expected_diff_sha256=expected_diff_sha256,
+        actual_diff_sha256=actual_diff_sha256,
+        pull_request_state=pull_request_state,
+        is_ancestor=is_ancestor,
+    ))
     if active_operations:
         blockers.append("active-git-operation")
     return list(dict.fromkeys(blockers))
