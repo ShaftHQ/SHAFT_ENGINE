@@ -864,7 +864,8 @@ class EntrypointDutyTest(unittest.TestCase):
         )
         self.assertTrue(section, "the entrypoint must keep the Learning Session section")
         compact = re.sub(r"\s+", " ", section)
-        self.assertIn("Before reporting done", compact)
+        self.assertIn("immediately before the final report", compact)
+        self.assertIn("exactly one root-owned Learning Session", compact)
         self.assertIn("Nothing durable is a valid result", compact)
         self.assertIsNone(OPTIONALITY_HEDGE.search(section))
 

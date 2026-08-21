@@ -940,7 +940,8 @@ class ChaosEngineOrchestratorModeTest(unittest.TestCase):
         ):
             with self.subTest(status=status):
                 self.assertIn(status, delegation)
-        self.assertIn("Learning Session before kill", delegation)
+        self.assertIn("delegate never runs the terminal Learning Session", delegation)
+        self.assertIn("durable-learning candidates for the root session", delegation)
         self.assertIn("Refuse a requested cap above 4", delegation)
         self.assertRegex(delegation, r"1[–-]4")
         self.assertIn("File-overlapping writers never run in parallel", delegation)
