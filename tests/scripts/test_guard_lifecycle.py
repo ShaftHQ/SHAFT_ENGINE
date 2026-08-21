@@ -23,7 +23,11 @@ from pathlib import Path
 from unittest import mock
 from unittest.mock import patch
 
-from scripts.agents import guard, learning_session
+from scripts.agents import guard
+try:
+    from scripts.agents import learning_session
+except ImportError:  # RED replay runs this test file against pre-rename production.
+    from scripts.agents import learning_loop as learning_session
 
 try:
     reflection = importlib.import_module("scripts.agents.reflection")
