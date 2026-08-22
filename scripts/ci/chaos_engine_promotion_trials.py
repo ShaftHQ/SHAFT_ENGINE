@@ -160,10 +160,12 @@ def _terminate_process_tree(process: subprocess.Popen[bytes]) -> None:
         try:
             os.killpg(process.pid, signal.SIGKILL)
         except ProcessLookupError:
+            # The process group exited after the poll above.
             pass
     try:
         process.kill()
     except ProcessLookupError:
+        # Tree termination may have already reaped the process.
         pass
 
 
@@ -222,6 +224,7 @@ def _run_bounded(
                 process.stdin.write(request)
                 process.stdin.flush()
             except BrokenPipeError:
+                # Early child exit is classified from its status and bounded output.
                 pass
             finally:
                 process.stdin.close()

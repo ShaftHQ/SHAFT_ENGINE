@@ -1287,6 +1287,7 @@ def prepare_candidate(
                 try:
                     os.mkdir(path.name, dir_fd=project_descriptor)
                 except FileExistsError:
+                    # Re-entry authenticates the existing directory immediately below.
                     pass
                 expected = os.stat(
                     path.name, dir_fd=project_descriptor, follow_symlinks=False

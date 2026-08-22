@@ -7,9 +7,8 @@ import json
 import os
 import sys
 import tempfile
-import unittest
 from pathlib import Path
-from unittest import mock
+from unittest import TestCase, main, mock
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -71,7 +70,7 @@ def credentials() -> dict[str, str]:
     }
 
 
-class ChaosEnginePromotionTest(unittest.TestCase):
+class ChaosEnginePromotionTest(TestCase):
     def test_manifest_resolves_the_issue_arithmetic_without_dropping_trials(self):
         manifest = MODULE.case_manifest()
 
@@ -244,4 +243,4 @@ class ChaosEnginePromotionTest(unittest.TestCase):
 
 
 if __name__ == "__main__":
-    unittest.main()
+    main()

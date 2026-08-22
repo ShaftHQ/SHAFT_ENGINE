@@ -724,7 +724,6 @@ class AgentHarnessPortabilityTest(unittest.TestCase):
             },
             "codex": {
                 "hook_event_name": "PreToolUse",
-                "session_id": "windows-hook-contract",
                 "tool_name": "shell_command",
                 "tool_input": {"command": "mvn -pl shaft-engine test"},
                 "session_id": "portable-codex",
