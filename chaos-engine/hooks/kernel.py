@@ -323,6 +323,7 @@ class HarnessSnapshot:
     _inflight: dict[str, _FactFlight] = field(default_factory=dict, init=False, repr=False)
 
     def __post_init__(self) -> None:
+        """Freeze providers and validate the bounded wait."""
         self.providers = MappingProxyType(dict(self.providers))
         if self.wait_timeout < 0:
             raise ValueError("fact wait timeout must be non-negative")
@@ -977,8 +978,7 @@ def evaluate_session(
     snapshot: HarnessSnapshot | None = None,
     rules: tuple[Rule, ...] = RULES,
 ) -> EvaluationReport:
-    """
-    Evaluate and persist one session transition under the journal lock.
+    """Evaluate and persist one session transition under the journal lock.
 
     Native hosts do not send lifecycle phases. The first event starts at
     ReadOnly; later events load the last authenticated v2 phase. Appending the

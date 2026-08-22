@@ -6,7 +6,7 @@ import importlib.util
 import json
 import os
 import shutil
-import subprocess
+import subprocess  # nosec B404 - fixed test fixture commands only.
 import tempfile
 import threading
 import unittest

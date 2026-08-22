@@ -9,7 +9,7 @@ import os
 import sys
 import tempfile
 from pathlib import Path, PurePosixPath
-from subprocess import CompletedProcess
+from subprocess import CompletedProcess  # nosec B404 - test fixture type only.
 from unittest import TestCase, main, mock
 
 import yaml

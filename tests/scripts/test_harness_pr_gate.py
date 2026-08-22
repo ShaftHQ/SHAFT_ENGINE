@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 import re
 import shutil
-import subprocess
+import subprocess  # nosec B404 - fixed test fixture commands only.
 import tempfile
 import unittest
 from datetime import datetime, timezone

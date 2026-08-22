@@ -1381,8 +1381,7 @@ def prepare_candidate(
     generation_id: str | None = None,
     transaction_id: str | None = None,
 ) -> dict[str, str]:
-    """
-    Build once at final path.
+    """Build once at final path.
 
     Concurrent path substitution is contained with held no-follow identities. A
     same-user installer subprocess remains trusted: ambient write authority can
