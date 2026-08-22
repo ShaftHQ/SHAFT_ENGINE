@@ -24,7 +24,7 @@ def _load_sibling(module_name: str):
     sys.modules[specification.name] = module
     try:
         specification.loader.exec_module(module)
-    except BaseException:
+    except (Exception, KeyboardInterrupt, SystemExit):
         if previous is None:
             sys.modules.pop(specification.name, None)
         else:

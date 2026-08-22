@@ -117,7 +117,7 @@ def runtime_lock(runtime: Path):
         descriptor = os.open(lock, flags)
     try:
         stream = os.fdopen(descriptor, "r+b", closefd=True)
-    except BaseException:
+    except (Exception, KeyboardInterrupt, SystemExit):
         os.close(descriptor)
         raise
     try:
@@ -136,7 +136,7 @@ def runtime_lock(runtime: Path):
     except (OSError, BlockingIOError) as error:
         stream.close()
         raise RuntimeError(f"dependency runtime is locked: {runtime}") from error
-    except BaseException:
+    except (Exception, KeyboardInterrupt, SystemExit):
         stream.close()
         raise
     try:
@@ -512,7 +512,7 @@ def _open_regular_relative(root: Path, relative: str, label: str) -> int:
         opened = os.fstat(descriptor)
         if not stat.S_ISREG(opened.st_mode):
             raise ValueError(f"dependency {label} is not a regular file")
-    except BaseException:
+    except (Exception, KeyboardInterrupt, SystemExit):
         os.close(descriptor)
         raise
     return descriptor
@@ -1480,7 +1480,7 @@ def unlink_owned_marker(path: Path, identity: tuple[int, int]) -> None:
         if scratch.read_text(encoding="utf-8") != BUILD_MARKER_MAGIC:
             raise ValueError("dependency build marker ownership drift detected")
         scratch.unlink()
-    except BaseException:
+    except (Exception, KeyboardInterrupt, SystemExit):
         if scratch.exists() and not path.exists():
             scratch.replace(path)
         raise
@@ -2368,7 +2368,7 @@ def repair(  # noqa: MC0001 - one locked transaction keeps recovery and publicat
                 marker_identity = (opened.st_dev, opened.st_ino)
             runtime.mkdir()
             receipt = execute_plan(runtime, specification, runner=runner, now=now)
-        except BaseException:
+        except (Exception, KeyboardInterrupt, SystemExit):
             if runtime.exists():
                 shutil.rmtree(runtime, ignore_errors=True)
             if previous and backup.exists() and not runtime.exists():

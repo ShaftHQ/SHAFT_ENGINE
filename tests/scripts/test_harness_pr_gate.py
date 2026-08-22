@@ -11,8 +11,8 @@ from unittest.mock import patch
 
 import yaml
 
-from scripts.ci import harness_pr_gate as harness_gate
 from scripts.ci.harness_pr_gate import (
+    DISPLACED_PR_MODULES,
     GateError,
     GatePlan,
     WaiverReceipt,
@@ -158,7 +158,7 @@ class ClassifierTest(unittest.TestCase):
         self.assertEqual(("scripts/agents/new_runtime_surface.py",), plan.unknown_paths)
         self.assertIn("fallback-contract", {check.id for check in plan.checks})
         self.assertIn("tests.scripts.test_validate_agent_setup", plan.test_modules)
-        displaced = getattr(harness_gate, "DISPLACED_PR_MODULES", ())
+        displaced = DISPLACED_PR_MODULES
         self.assertTrue(displaced)
         self.assertLessEqual(set(displaced), set(plan.test_modules))
 
@@ -585,7 +585,7 @@ class OutputAndWorkflowTest(unittest.TestCase):
         deterministic = scheduled.split("  deterministic-harness-full:", 1)[1].split(
             "  chaos-engine-cross-platform:", 1
         )[0]
-        displaced = getattr(harness_gate, "DISPLACED_PR_MODULES", ())
+        displaced = DISPLACED_PR_MODULES
 
         self.assertTrue(displaced)
         missing = [module for module in displaced if module not in deterministic]
