@@ -39,6 +39,44 @@ def load_module(path: Path):
     return module
 
 
+class LegacyDependencyController:
+    """Expose an installed controller through the pre-generation test seam."""
+
+    GENERATION_CAPABILITIES = frozenset(
+        {
+            "active_generation",
+            "generation_environment",
+            "generation_install_plan",
+            "pointer_records",
+            "prepare_candidate",
+            "publish_pointer",
+            "remove_generation",
+            "validated_previous",
+        }
+    )
+
+    def __init__(self, controller):
+        self._controller = controller
+
+    def __getattr__(self, name):
+        if name in self.GENERATION_CAPABILITIES:
+            raise AttributeError(name)
+        return getattr(self._controller, name)
+
+
+def legacy_dependency_controller_fixture():
+    load_controller = MODULE.load_dependency_controller
+
+    def load_without_generation_capabilities(installed_root: Path):
+        return LegacyDependencyController(load_controller(installed_root))
+
+    return mock.patch.object(
+        MODULE,
+        "load_dependency_controller",
+        side_effect=load_without_generation_capabilities,
+    )
+
+
 class ChaosEngineDependenciesRunner:
     def __init__(self, runtime: Path):
         self.runtime = runtime
@@ -1180,7 +1218,8 @@ class ChaosEngineInstallerTest(unittest.TestCase):
                     runner=ChaosEngineDependenciesRunner(runtime),
                 )
 
-            MODULE.rollback(project, provisioner=rollback_provision)
+            with legacy_dependency_controller_fixture():
+                MODULE.rollback(project, provisioner=rollback_provision)
 
             self.assertEqual([], rollback_calls)
             status = MODULE.status_with_dependencies(project)
@@ -1421,7 +1460,8 @@ class ChaosEngineInstallerTest(unittest.TestCase):
                 project, changed_source, "2" * 40, provisioner=lambda *_args, **_kwargs: None
             )
 
-            MODULE.rollback(project, provisioner=lambda *_args, **_kwargs: None)
+            with legacy_dependency_controller_fixture():
+                MODULE.rollback(project, provisioner=lambda *_args, **_kwargs: None)
 
             self.assertEqual(TEST_COMMIT, MODULE.status_with_dependencies(project)["commit"])
             self.assertEqual(
@@ -1452,7 +1492,8 @@ class ChaosEngineInstallerTest(unittest.TestCase):
             MODULE.write_cross_rollback_journal(project, TEST_COMMIT, "2" * 40)
             MODULE.rollback(project, _locked=True)
 
-            MODULE.rollback(project, provisioner=lambda *_args, **_kwargs: None)
+            with legacy_dependency_controller_fixture():
+                MODULE.rollback(project, provisioner=lambda *_args, **_kwargs: None)
 
             self.assertEqual(TEST_COMMIT, MODULE.status_with_dependencies(project)["commit"])
             self.assertFalse(project.joinpath(MODULE.CROSS_ROLLBACK_JOURNAL_NAME).exists())
@@ -1546,7 +1587,8 @@ class ChaosEngineInstallerTest(unittest.TestCase):
             transaction.joinpath("journal.json").unlink()
             transaction.rmdir()
 
-            MODULE.rollback(project, provisioner=lambda *_args, **_kwargs: None)
+            with legacy_dependency_controller_fixture():
+                MODULE.rollback(project, provisioner=lambda *_args, **_kwargs: None)
 
             self.assertEqual(TEST_COMMIT, MODULE.status_with_dependencies(project)["commit"])
 
