@@ -506,10 +506,22 @@ def _digest_regular_relative(
     descriptor = _open_regular_relative(root, relative, label)
     digest = hashlib.sha256()
     try:
-        if os.fstat(descriptor).st_size != expected_size:
+        before = os.fstat(descriptor)
+        if before.st_size != expected_size:
             raise ValueError(f"dependency {label} size drift detected")
         while chunk := os.read(descriptor, 1024 * 1024):
             digest.update(chunk)
+        after = os.fstat(descriptor)
+        identity = lambda item: (
+            item.st_dev,
+            item.st_ino,
+            item.st_size,
+            item.st_mtime_ns,
+            item.st_ctime_ns,
+            item.st_mode,
+        )
+        if identity(before) != identity(after):
+            raise ValueError(f"dependency {label} changed while hashing")
     finally:
         os.close(descriptor)
     return digest.hexdigest()
@@ -899,6 +911,32 @@ def _generation_dispatches(generation: Path) -> dict[str, dict[str, object]]:
     return records
 
 
+def _verify_dispatch_set(
+    generation: Path, records: dict[str, dict[str, object]]
+) -> None:
+    for name in REQUIRED_DISPATCHES:
+        dispatch_command(generation, {"tools": records}, name, [])
+
+
+def _crosscheck_dispatch_ownership(
+    ownership: dict[str, object], records: dict[str, dict[str, object]]
+) -> None:
+    files = ownership.get("files")
+    if not isinstance(files, dict):
+        raise ValueError("dependency sealed ownership files are invalid")
+    for name, record in records.items():
+        dispatch = record["dispatch"]
+        kind = dispatch["kind"]
+        if kind == "python":
+            path, digest = dispatch["interpreter"], dispatch["interpreterSha256"]
+        elif kind == "npm":
+            path, digest = dispatch["script"], dispatch["scriptSha256"]
+        else:
+            path, digest = dispatch["path"], dispatch["sha256"]
+        if files.get(path) != digest:
+            raise ValueError(f"dependency dispatch ownership digest drift detected: {name}")
+
+
 def prepare_candidate(
     project: Path,
     specification: dict[str, object],
@@ -909,7 +947,12 @@ def prepare_candidate(
     generation_id: str | None = None,
     transaction_id: str | None = None,
 ) -> dict[str, str]:
-    """Build and probe one complete immutable generation at its final path."""
+    """Build once at final path.
+
+    Concurrent path substitution is contained with held no-follow identities. A
+    same-user installer subprocess remains trusted: ambient write authority can
+    mutate any user-owned path and cannot be sandboxed by this stdlib controller.
+    """
     project = _trusted_root(project.absolute(), "project")
     command_runner = runner or run_command
     generation_name = generation_id or secrets.token_hex(16)
@@ -928,46 +971,78 @@ def prepare_candidate(
     generation = generations / generation_name
     transaction = transactions / transaction_name
     holds = ExitStack()
-    project_hold = holds.enter_context(_hold_directory(project, "project"))
-    project_descriptor = project_hold[0]
-    for path in (generations, transactions):
-        if not path.exists():
-            if os.name != "nt" and project_descriptor is not None:
-                os.mkdir(path.name, dir_fd=project_descriptor)
-            else:
-                path.mkdir()
-        holds.enter_context(_hold_directory(path, path.name))
-    if any(path.exists() or is_link_or_reparse(path) for path in (generation, transaction)):
-        holds.close()
-        raise ValueError("dependency generation or transaction collision")
-    generation_hold = holds.enter_context(_hold_directory(generations, "generations"))
-    transaction_hold = holds.enter_context(_hold_directory(transactions, "transactions"))
-    generation_parent = generation_hold[0]
-    transaction_parent = transaction_hold[0]
-    if os.name != "nt" and generation_parent is not None and transaction_parent is not None:
-        os.mkdir(generation_name, dir_fd=generation_parent)
-        os.mkdir(transaction_name, dir_fd=transaction_parent)
-    else:
-        generation.mkdir()
-        transaction.mkdir()
-    candidate_hold = holds.enter_context(_hold_directory(generation, "candidate generation"))
-    candidate_transaction_hold = holds.enter_context(
-        _hold_directory(transaction, "candidate transaction")
-    )
-    environment = generation_environment(generation, transaction)
-    completed: dict[str, list[str]] = {}
+    created_generation: tuple[int, int] | None = None
+    created_transaction: tuple[int, int] | None = None
     try:
+        project_hold = holds.enter_context(_hold_directory(project, "project"))
+        project_descriptor = project_hold[0]
+        container_holds = []
+        for path in (generations, transactions):
+            if os.name != "nt" and project_descriptor is not None:
+                try:
+                    os.mkdir(path.name, dir_fd=project_descriptor)
+                except FileExistsError:
+                    pass
+                expected = os.stat(
+                    path.name, dir_fd=project_descriptor, follow_symlinks=False
+                )
+            else:
+                path.mkdir(exist_ok=True)
+                expected = os.stat(path, follow_symlinks=False)
+            held = holds.enter_context(_hold_directory(path, path.name))
+            if held[1] != (expected.st_dev, expected.st_ino):
+                raise ValueError("dependency container identity changed during open")
+            container_holds.append((path, held, path.name))
+        generation_hold = container_holds[0][1]
+        transaction_hold = container_holds[1][1]
+        if os.name != "nt":
+            os.mkdir(generation_name, dir_fd=generation_hold[0])
+            created = os.stat(
+                generation_name, dir_fd=generation_hold[0], follow_symlinks=False
+            )
+            created_generation = (created.st_dev, created.st_ino)
+            os.mkdir(transaction_name, dir_fd=transaction_hold[0])
+            created = os.stat(
+                transaction_name, dir_fd=transaction_hold[0], follow_symlinks=False
+            )
+            created_transaction = (created.st_dev, created.st_ino)
+        else:
+            generation.mkdir()
+            created = os.stat(generation, follow_symlinks=False)
+            created_generation = (created.st_dev, created.st_ino)
+            transaction.mkdir()
+            created = os.stat(transaction, follow_symlinks=False)
+            created_transaction = (created.st_dev, created.st_ino)
+        candidate_hold = holds.enter_context(
+            _hold_directory(generation, "candidate generation")
+        )
+        candidate_transaction_hold = holds.enter_context(
+            _hold_directory(transaction, "candidate transaction")
+        )
+        if candidate_hold[1] != created_generation or candidate_transaction_hold[1] != created_transaction:
+            raise ValueError("dependency candidate identity changed during open")
+        held_paths = [
+            (project, project_hold, "project"),
+            *container_holds,
+            (generation, candidate_hold, "candidate generation"),
+            (transaction, candidate_transaction_hold, "candidate transaction"),
+        ]
+
+        def validate_holds() -> None:
+            for path, held, label in held_paths:
+                _assert_held_directory(path, held, label)
+
+        environment = generation_environment(generation, transaction)
+        completed: dict[str, list[str]] = {}
         for tool, commands in generation_install_plan(generation, specification).items():
             completed[tool] = []
             for command in commands:
-                _assert_held_directory(generation, candidate_hold, "candidate generation")
-                _assert_held_directory(
-                    transaction, candidate_transaction_hold, "candidate transaction"
-                )
+                validate_holds()
                 try:
                     result = command_runner(command, environment)
                 except (OSError, subprocess.SubprocessError) as error:
                     raise RuntimeError(f"{tool} install command failed: {command[0]}") from error
+                validate_holds()
                 completed[tool].append((result.stdout or result.stderr).strip())
         records = _generation_dispatches(generation)
         probes = {
@@ -979,10 +1054,7 @@ def prepare_candidate(
             "memory-mcp": ["--help"],
         }
         for name, arguments in probes.items():
-            _assert_held_directory(generation, candidate_hold, "candidate generation")
-            _assert_held_directory(
-                transaction, candidate_transaction_hold, "candidate transaction"
-            )
+            validate_holds()
             try:
                 result = command_runner(
                     dispatch_command(generation, {"tools": records}, name, arguments),
@@ -990,7 +1062,11 @@ def prepare_candidate(
                 )
             except (OSError, subprocess.SubprocessError) as error:
                 raise RuntimeError(f"{name} entrypoint probe failed") from error
+            validate_holds()
+            _verify_dispatch_set(generation, records)
             records[name]["resolved"] = (result.stdout or result.stderr).strip()
+        ownership = sealed_ownership_record(generation)
+        _crosscheck_dispatch_ownership(ownership, records)
         receipt: dict[str, object] = {
             "schemaVersion": 2,
             "runtimeContractVersion": 3,
@@ -1009,7 +1085,7 @@ def prepare_candidate(
             },
             "installed": completed,
             "tools": records,
-            "ownership": sealed_ownership_record(generation),
+            "ownership": ownership,
         }
         receipt["receiptIntegritySha256"] = json_integrity(receipt)
         receipt_path = generation / RECEIPT_NAME
@@ -1029,15 +1105,18 @@ def prepare_candidate(
         )
         holds.close()
         return record
-    except BaseException:
-        holds.close()
-        if generation.exists() and not is_link_or_reparse(generation):
-            shutil.rmtree(generation)
-        raise
     finally:
         holds.close()
-        if transaction.exists() and not is_link_or_reparse(transaction):
-            shutil.rmtree(transaction)
+        for path, identity in (
+            (transaction, created_transaction),
+            (generation, created_generation if sys.exc_info()[0] is not None else None),
+        ):
+            if identity is None or not path.exists() or is_link_or_reparse(path):
+                continue
+            current = os.stat(path, follow_symlinks=False)
+            if (current.st_dev, current.st_ino) != identity:
+                raise ValueError("dependency candidate cleanup identity changed")
+            shutil.rmtree(path)
         if transactions.exists() and not any(transactions.iterdir()):
             transactions.rmdir()
 
@@ -1297,12 +1376,21 @@ def verify_sealed_ownership(runtime: Path, expected: object) -> None:
         if not isinstance(expected_identity, dict):
             raise ValueError("dependency sealed generation identity is invalid")
         current = _file_identity(runtime / relative)
-        if current == expected_identity:
+        if os.name != "nt" and current == expected_identity:
             continue
         immutable = {"size", "mode", "device", "inode"}
         if any(current.get(key) != expected_identity.get(key) for key in immutable):
             raise ValueError("dependency sealed generation identity drift detected")
-        if sha256(runtime / relative) != files[relative]:
+        digest = _digest_regular_relative(
+            runtime,
+            relative,
+            f"sealed generation file {relative}",
+            current["size"],
+        )
+        after = _file_identity(runtime / relative)
+        if after != current:
+            raise ValueError("dependency sealed generation identity changed during verification")
+        if digest != files[relative]:
             raise ValueError("dependency sealed generation content drift detected")
 
 

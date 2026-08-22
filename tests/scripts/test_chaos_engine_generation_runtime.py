@@ -7,6 +7,7 @@ import json
 import os
 import shutil
 import tempfile
+import threading
 import unittest
 import unittest.mock as mock
 from datetime import datetime, timezone
@@ -321,7 +322,12 @@ class GenerationRuntimeTests(unittest.TestCase):
             scripts = "Scripts" if os.name == "nt" else "bin"
             python_name = "python.exe" if os.name == "nt" else "python"
             interpreter = generation / f"uv-tools/mempalace/{scripts}/{python_name}"
-            interpreter.write_bytes(b"changed")
+            original = interpreter.stat()
+            interpreter.write_bytes(b"X" * original.st_size)
+            os.utime(
+                interpreter,
+                ns=(original.st_atime_ns, original.st_mtime_ns),
+            )
             with self.assertRaisesRegex(ValueError, "sealed generation|ownership"):
                 self.select(module, project, active)
 
@@ -542,6 +548,159 @@ class GenerationRuntimeTests(unittest.TestCase):
                     if key in {"UV_CACHE_DIR", "UV_TOOL_BIN_DIR", "NPM_CONFIG_CACHE"}
                 )
             )
+
+    def test_candidate_cleanup_covers_transaction_creation_failure(self):
+        module = load_controller()
+        specification = json.loads(
+            (ROOT / "chaos-engine/dependencies.json").read_text(encoding="utf-8")
+        )
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary)
+            core = project / ".chaos-engine/manifest.json"
+            core.parent.mkdir()
+            core.write_text('{"owned":true}\n', encoding="utf-8")
+            transaction_id = "d" * 32
+            if os.name == "nt":
+                original = module.Path.mkdir
+
+                def fail_transaction(path, *args, **kwargs):
+                    if path.name == transaction_id:
+                        raise OSError("transaction mkdir failed")
+                    return original(path, *args, **kwargs)
+
+                patcher = mock.patch.object(module.Path, "mkdir", fail_transaction)
+            else:
+                original = module.os.mkdir
+
+                def fail_transaction(path, *args, **kwargs):
+                    if str(path) == transaction_id:
+                        raise OSError("transaction mkdir failed")
+                    return original(path, *args, **kwargs)
+
+                patcher = mock.patch.object(module.os, "mkdir", fail_transaction)
+            with patcher, self.assertRaisesRegex(OSError, "transaction mkdir failed"):
+                module.prepare_candidate(
+                    project,
+                    specification,
+                    module.sha256(core),
+                    runner=lambda *_args: self.fail("runner must not execute"),
+                    generation_id="a" * 32,
+                    transaction_id=transaction_id,
+                )
+
+            generations = project / ".chaos-engine-runtime-generations"
+            transactions = project / ".chaos-engine-runtime-transactions"
+            self.assertFalse((generations / ("a" * 32)).exists())
+            self.assertFalse((transactions / transaction_id).exists())
+
+    def test_final_probe_mutation_cannot_be_sealed(self):
+        module = load_controller()
+        specification = json.loads(
+            (ROOT / "chaos-engine/dependencies.json").read_text(encoding="utf-8")
+        )
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary)
+            core = project / ".chaos-engine/manifest.json"
+            core.parent.mkdir()
+            core.write_text('{"owned":true}\n', encoding="utf-8")
+            base_test = GenerationRuntimeTests.test_candidate_builds_once_at_final_path_with_transaction_local_caches
+            del base_test  # Runner below mirrors only external boundary materialization.
+            probe_count = 0
+
+            def runner(command, environment):
+                nonlocal probe_count
+                del environment
+                generation = project / ".chaos-engine-runtime-generations" / ("a" * 32)
+                scripts = "Scripts" if os.name == "nt" else "bin"
+                python_name = "python.exe" if os.name == "nt" else "python"
+                uv_name = "uv.exe" if os.name == "nt" else "uv"
+                if command[1:3] == ["-m", "venv"]:
+                    path = generation / f"bootstrap/{scripts}/{python_name}"
+                    path.parent.mkdir(parents=True, exist_ok=True)
+                    path.write_bytes(b"python")
+                elif "pip" in command and "install" in command:
+                    path = generation / f"bootstrap/{scripts}/{uv_name}"
+                    path.parent.mkdir(parents=True, exist_ok=True)
+                    path.write_bytes(b"uv")
+                elif command[1:3] == ["tool", "install"]:
+                    name = "graphifyy" if "graphifyy" in command[-1] else "mempalace"
+                    path = generation / f"uv-tools/{name}/{scripts}/{python_name}"
+                    path.parent.mkdir(parents=True, exist_ok=True)
+                    path.write_bytes(f"python-{name}".encode())
+                elif "npm" in Path(command[0]).name and "install" in command:
+                    for suffix in ("dist/cli/main.js", "dist/mcp/server.js"):
+                        path = generation / f"npm/node_modules/@aictx/memory/{suffix}"
+                        path.parent.mkdir(parents=True, exist_ok=True)
+                        path.write_text("// memory\n", encoding="utf-8")
+                else:
+                    probe_count += 1
+                    if probe_count == 6:
+                        target = generation / f"uv-tools/mempalace/{scripts}/{python_name}"
+                        target.write_bytes(b"X" * target.stat().st_size)
+                return SimpleNamespace(stdout="ok\n", stderr="")
+
+            with self.assertRaisesRegex(ValueError, "drift|identity|digest"):
+                module.prepare_candidate(
+                    project,
+                    specification,
+                    module.sha256(core),
+                    runner=runner,
+                    generation_id="a" * 32,
+                    transaction_id="d" * 32,
+                )
+
+            self.assertFalse(
+                (project / ".chaos-engine-runtime-generations" / ("a" * 32)).exists()
+            )
+
+    @unittest.skipIf(os.name == "nt", "POSIX ancestor substitution regression")
+    def test_candidate_ancestor_swap_fails_before_outside_canary_is_touched(self):
+        module = load_controller()
+        specification = json.loads(
+            (ROOT / "chaos-engine/dependencies.json").read_text(encoding="utf-8")
+        )
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary) / "project"
+            project.mkdir()
+            core = project / ".chaos-engine/manifest.json"
+            core.parent.mkdir()
+            core.write_text('{"owned":true}\n', encoding="utf-8")
+            outside = Path(temporary) / "outside"
+            outside.mkdir()
+            canary = outside / "canary.txt"
+            canary.write_text("keep\n", encoding="utf-8")
+            swapped = threading.Event()
+
+            def actor():
+                generations = project / ".chaos-engine-runtime-generations"
+                generations.rename(project / ".generations-displaced")
+                generations.symlink_to(outside, target_is_directory=True)
+                swapped.set()
+
+            started = False
+
+            def runner(_command, _environment):
+                nonlocal started
+                if not started:
+                    started = True
+                    thread = threading.Thread(target=actor)
+                    thread.start()
+                    thread.join(timeout=5)
+                    self.assertTrue(swapped.is_set())
+                return SimpleNamespace(stdout="ok\n", stderr="")
+
+            with self.assertRaisesRegex(ValueError, "unsafe|identity changed"):
+                module.prepare_candidate(
+                    project,
+                    specification,
+                    module.sha256(core),
+                    runner=runner,
+                    generation_id="a" * 32,
+                    transaction_id="d" * 32,
+                )
+
+            self.assertEqual("keep\n", canary.read_text(encoding="utf-8"))
+            self.assertEqual([], [path.name for path in outside.iterdir() if path != canary])
 
 
 if __name__ == "__main__":
