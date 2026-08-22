@@ -40,6 +40,11 @@ REQUIRED_DISPATCHES = {
     "memory",
     "memory-mcp",
 }
+CANDIDATE_TRUST_BOUNDARY = (
+    "A same-user trusted subprocess has ambient write authority and this stdlib "
+    "controller cannot sandbox it. Held handles and no-follow operations contain "
+    "concurrent path substitution by other actors; command output remains untrusted."
+)
 PYTHON_DISPATCH = (
     "import importlib.metadata as m,sys;"
     "e=next(e for e in m.distribution(sys.argv[1]).entry_points "
@@ -363,6 +368,75 @@ def _assert_held_directory(path: Path, held: tuple[object, tuple[int, int]], lab
         raise ValueError(f"dependency {label} directory identity changed")
 
 
+def _delete_fd_contents(directory: int) -> None:
+    for name in os.listdir(directory):
+        value = os.stat(name, dir_fd=directory, follow_symlinks=False)
+        if stat.S_ISDIR(value.st_mode):
+            child = os.open(
+                name,
+                os.O_RDONLY
+                | getattr(os, "O_DIRECTORY", 0)
+                | getattr(os, "O_NOFOLLOW", 0),
+                dir_fd=directory,
+            )
+            try:
+                opened = os.fstat(child)
+                if (opened.st_dev, opened.st_ino) != (value.st_dev, value.st_ino):
+                    raise ValueError("dependency cleanup directory identity changed")
+                _delete_fd_contents(child)
+                after = os.fstat(child)
+                if (after.st_dev, after.st_ino) != (opened.st_dev, opened.st_ino):
+                    raise ValueError("dependency cleanup directory identity changed")
+            finally:
+                os.close(child)
+            os.rmdir(name, dir_fd=directory)
+        else:
+            os.unlink(name, dir_fd=directory)
+
+
+def _delete_held_child(
+    parent: tuple[object, tuple[int, int]],
+    name: str,
+    child: tuple[object, tuple[int, int]],
+    expected: tuple[int, int],
+) -> None:
+    parent_fd, child_identity = parent[0], child[1]
+    child_fd = child[0]
+    if not isinstance(parent_fd, int) or not isinstance(child_fd, int):
+        raise ValueError("descriptor-relative cleanup is unavailable")
+    named = os.stat(name, dir_fd=parent_fd, follow_symlinks=False)
+    opened = os.fstat(child_fd)
+    identities = {
+        (named.st_dev, named.st_ino),
+        (opened.st_dev, opened.st_ino),
+        child_identity,
+    }
+    if identities != {expected}:
+        raise ValueError("dependency cleanup identity changed; quarantine retained")
+    _delete_fd_contents(child_fd)
+    os.rmdir(name, dir_fd=parent_fd)
+
+
+def _delete_windows_tree(path: Path, expected: tuple[int, int]) -> None:
+    if is_link_or_reparse(path):
+        raise ValueError("dependency cleanup path is unsafe; quarantine retained")
+    value = os.stat(path, follow_symlinks=False)
+    if (value.st_dev, value.st_ino) != expected:
+        raise ValueError("dependency cleanup identity changed; quarantine retained")
+    for child in sorted(path.iterdir(), reverse=True):
+        if is_link_or_reparse(child):
+            if child.is_symlink():
+                child.unlink()
+                continue
+            raise ValueError("dependency cleanup contains unsupported reparse state")
+        if child.is_dir():
+            state = os.stat(child, follow_symlinks=False)
+            _delete_windows_tree(child, (state.st_dev, state.st_ino))
+        else:
+            child.unlink()
+    path.rmdir()
+
+
 def _open_regular_relative(root: Path, relative: str, label: str) -> int:
     """Open a regular descendant without following POSIX links in any component."""
     root = _trusted_root(root, label)
@@ -498,16 +572,21 @@ def _read_regular_relative(
         os.close(descriptor)
 
 
-def _digest_regular_relative(
-    root: Path, relative: str, label: str, expected_size: int
-) -> str:
-    if not isinstance(expected_size, int) or not 0 < expected_size <= MAX_EXECUTABLE_BYTES:
+def _capture_regular_relative(
+    root: Path,
+    relative: str,
+    label: str,
+    expected_size: int | None = None,
+) -> tuple[str, dict[str, int]]:
+    if expected_size is not None and (
+        not isinstance(expected_size, int) or not 0 < expected_size <= MAX_EXECUTABLE_BYTES
+    ):
         raise ValueError(f"dependency {label} size is invalid")
     descriptor = _open_regular_relative(root, relative, label)
     digest = hashlib.sha256()
     try:
         before = os.fstat(descriptor)
-        if before.st_size != expected_size:
+        if expected_size is not None and before.st_size != expected_size:
             raise ValueError(f"dependency {label} size drift detected")
         while chunk := os.read(descriptor, 1024 * 1024):
             digest.update(chunk)
@@ -524,7 +603,13 @@ def _digest_regular_relative(
             raise ValueError(f"dependency {label} changed while hashing")
     finally:
         os.close(descriptor)
-    return digest.hexdigest()
+    return digest.hexdigest(), _identity_from_stat(after)
+
+
+def _digest_regular_relative(
+    root: Path, relative: str, label: str, expected_size: int
+) -> str:
+    return _capture_regular_relative(root, relative, label, expected_size)[0]
 
 
 def _bounded_json(root: Path, relative: str, label: str) -> tuple[dict[str, object], bytes]:
@@ -785,9 +870,7 @@ def dispatch_command(
         )
         if digest != dispatch["scriptSha256"]:
             raise ValueError(f"dependency npm script drift detected: {tool}")
-        node = shutil.which("node")
-        if node is None:
-            raise ValueError("Node.js is required to run the Memory tool")
+        node = shutil.which("node") or "node"
         return [node, str(generation / relative), *arguments]
     raise ValueError(f"dependency tool dispatch kind is unsupported: {tool}")
 
@@ -915,7 +998,29 @@ def _verify_dispatch_set(
     generation: Path, records: dict[str, dict[str, object]]
 ) -> None:
     for name in REQUIRED_DISPATCHES:
-        dispatch_command(generation, {"tools": records}, name, [])
+        dispatch = _validate_dispatch_metadata(name, records[name]["dispatch"])
+        if dispatch["kind"] == "python":
+            path, digest, size = (
+                dispatch["interpreter"],
+                dispatch["interpreterSha256"],
+                dispatch["interpreterSize"],
+            )
+        elif dispatch["kind"] == "npm":
+            path, digest, size = (
+                dispatch["script"],
+                dispatch["scriptSha256"],
+                dispatch["scriptSize"],
+            )
+        else:
+            path, digest, size = dispatch["path"], dispatch["sha256"], dispatch["size"]
+        actual = _digest_regular_relative(
+            generation,
+            str(path),
+            f"dispatch target for {name}",
+            size,  # type: ignore[arg-type]
+        )
+        if actual != digest:
+            raise ValueError(f"dependency dispatch digest drift detected: {name}")
 
 
 def _crosscheck_dispatch_ownership(
@@ -973,6 +1078,10 @@ def prepare_candidate(
     holds = ExitStack()
     created_generation: tuple[int, int] | None = None
     created_transaction: tuple[int, int] | None = None
+    generation_hold = None
+    transaction_hold = None
+    candidate_hold = None
+    candidate_transaction_hold = None
     try:
         project_hold = holds.enter_context(_hold_directory(project, "project"))
         project_descriptor = project_hold[0]
@@ -1103,22 +1212,52 @@ def prepare_candidate(
             core_sha256,
             verify_installed_core=True,
         )
-        holds.close()
         return record
     finally:
-        holds.close()
-        for path, identity in (
-            (transaction, created_transaction),
-            (generation, created_generation if sys.exc_info()[0] is not None else None),
-        ):
-            if identity is None or not path.exists() or is_link_or_reparse(path):
-                continue
-            current = os.stat(path, follow_symlinks=False)
-            if (current.st_dev, current.st_ino) != identity:
-                raise ValueError("dependency candidate cleanup identity changed")
-            shutil.rmtree(path)
-        if transactions.exists() and not any(transactions.iterdir()):
-            transactions.rmdir()
+        failed = sys.exc_info()[0] is not None
+        removals = (
+            (
+                transaction,
+                transaction_name,
+                transaction_hold,
+                candidate_transaction_hold,
+                created_transaction,
+            ),
+            (
+                generation,
+                generation_name,
+                generation_hold,
+                candidate_hold,
+                created_generation if failed else None,
+            ),
+        )
+        if os.name != "nt":
+            for _, name, parent_hold, child_hold, identity in removals:
+                if identity is None or parent_hold is None:
+                    continue
+                opened_here = None
+                if child_hold is None:
+                    descriptor = os.open(
+                        name,
+                        os.O_RDONLY
+                        | getattr(os, "O_DIRECTORY", 0)
+                        | getattr(os, "O_NOFOLLOW", 0),
+                        dir_fd=parent_hold[0],
+                    )
+                    state = os.fstat(descriptor)
+                    child_hold = (descriptor, (state.st_dev, state.st_ino))
+                    opened_here = descriptor
+                try:
+                    _delete_held_child(parent_hold, name, child_hold, identity)
+                finally:
+                    if opened_here is not None:
+                        os.close(opened_here)
+            holds.close()
+        else:
+            holds.close()
+            for path, _, _, _, identity in removals:
+                if identity is not None:
+                    _delete_windows_tree(path, identity)
 
 
 def unlink_owned_marker(path: Path, identity: tuple[int, int]) -> None:
@@ -1314,8 +1453,7 @@ def ownership_record(
     }
 
 
-def _file_identity(path: Path) -> dict[str, int]:
-    value = os.stat(path, follow_symlinks=False)
+def _identity_from_stat(value) -> dict[str, int]:
     return {
         "size": value.st_size,
         "mtimeNs": value.st_mtime_ns,
@@ -1326,14 +1464,44 @@ def _file_identity(path: Path) -> dict[str, int]:
     }
 
 
+def _file_identity(path: Path) -> dict[str, int]:
+    return _identity_from_stat(os.stat(path, follow_symlinks=False))
+
+
 def sealed_ownership_record(runtime: Path) -> dict[str, object]:
-    ownership = ownership_record(runtime)
-    files = ownership["files"]
-    ownership["identities"] = {
-        relative: _file_identity(runtime / relative)
-        for relative in files  # type: ignore[union-attr]
+    if is_link_or_reparse(runtime):
+        raise ValueError(f"dependency runtime is a link or reparse point: {runtime}")
+    files: dict[str, str] = {}
+    identities: dict[str, dict[str, int]] = {}
+    directories: list[str] = []
+    links: list[dict[str, str]] = []
+    for path in runtime_entries(runtime):
+        relative = path.relative_to(runtime).as_posix()
+        if path.is_symlink():
+            target = os.readlink(path)
+            if Path(target).is_absolute():
+                raise ValueError(f"dependency runtime link target is not relative: {relative}")
+            _managed_link_target(runtime, path)
+            links.append({"path": relative, "target": target})
+        elif is_link_or_reparse(path):
+            raise ValueError(f"dependency runtime contains an unsupported reparse point: {relative}")
+        elif path.is_dir():
+            if not is_generated_python_cache(relative, directory=True):
+                directories.append(relative)
+        elif path.is_file() and relative != RECEIPT_NAME:
+            if not is_generated_python_cache(relative):
+                digest, identity = _capture_regular_relative(
+                    runtime, relative, f"sealed generation file {relative}"
+                )
+                files[relative] = digest
+                identities[relative] = identity
+    return {
+        "directories": directories,
+        "files": files,
+        "links": links,
+        "sha256": ownership_digest(files, links),
+        "identities": identities,
     }
-    return ownership
 
 
 def verify_sealed_ownership(runtime: Path, expected: object) -> None:
@@ -1378,18 +1546,15 @@ def verify_sealed_ownership(runtime: Path, expected: object) -> None:
         current = _file_identity(runtime / relative)
         if os.name != "nt" and current == expected_identity:
             continue
-        immutable = {"size", "mode", "device", "inode"}
-        if any(current.get(key) != expected_identity.get(key) for key in immutable):
-            raise ValueError("dependency sealed generation identity drift detected")
-        digest = _digest_regular_relative(
+        digest, captured = _capture_regular_relative(
             runtime,
             relative,
             f"sealed generation file {relative}",
             current["size"],
         )
-        after = _file_identity(runtime / relative)
-        if after != current:
-            raise ValueError("dependency sealed generation identity changed during verification")
+        immutable = {"size", "mode", "device", "inode"}
+        if any(captured.get(key) != expected_identity.get(key) for key in immutable):
+            raise ValueError("dependency sealed generation identity drift detected")
         if digest != files[relative]:
             raise ValueError("dependency sealed generation content drift detected")
 

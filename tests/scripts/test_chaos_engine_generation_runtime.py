@@ -169,9 +169,8 @@ class GenerationRuntimeTests(unittest.TestCase):
                 )
             except OSError as error:
                 self.skipTest(f"symlinks unavailable: {error}")
-            generation, active = self.generation_fixture(module, project)
             with self.assertRaisesRegex(ValueError, "ancestor|link|reparse"):
-                self.publish(module, project, active)
+                self.generation_fixture(module, project)
 
         with tempfile.TemporaryDirectory() as temporary:
             generation = Path(temporary) / "generation"
@@ -330,6 +329,29 @@ class GenerationRuntimeTests(unittest.TestCase):
             )
             with self.assertRaisesRegex(ValueError, "sealed generation|ownership"):
                 self.select(module, project, active)
+
+    def test_sealed_capture_detects_mutation_after_hash_before_identity_check(self):
+        module = load_controller()
+        with tempfile.TemporaryDirectory() as temporary:
+            runtime = Path(temporary)
+            owned = runtime / "owned.bin"
+            owned.write_bytes(b"original")
+            original = owned.stat()
+            real_read = module.os.read
+            mutated = False
+
+            def mutate_after_hash(descriptor, size):
+                nonlocal mutated
+                chunk = real_read(descriptor, size)
+                if not chunk and not mutated:
+                    mutated = True
+                    owned.write_bytes(b"changed!")
+                    os.utime(owned, ns=(original.st_atime_ns, original.st_mtime_ns))
+                return chunk
+
+            with mock.patch.object(module.os, "read", side_effect=mutate_after_hash):
+                with self.assertRaisesRegex(ValueError, "changed while hashing"):
+                    module.sealed_ownership_record(runtime)
 
     def test_linked_pointer_is_rejected_before_read(self):
         module = load_controller()
@@ -535,7 +557,8 @@ class GenerationRuntimeTests(unittest.TestCase):
             self.assertFalse((project / ".chaos-engine-runtime-current.json").exists())
             self.assertFalse((generation / "uv-cache").exists())
             self.assertFalse((generation / "bin").exists())
-            self.assertFalse((project / ".chaos-engine-runtime-transactions").exists())
+            transaction_root = project / ".chaos-engine-runtime-transactions"
+            self.assertEqual([], list(transaction_root.iterdir()))
             self.assertTrue(any("--no-cache" in command for command in commands))
             self.assertTrue(
                 any("--python" in command and "3.10" in command for command in commands)
@@ -653,6 +676,53 @@ class GenerationRuntimeTests(unittest.TestCase):
                 (project / ".chaos-engine-runtime-generations" / ("a" * 32)).exists()
             )
 
+    def test_failed_candidate_cleanup_never_uses_pathname_rmtree(self):
+        module = load_controller()
+        specification = json.loads(
+            (ROOT / "chaos-engine/dependencies.json").read_text(encoding="utf-8")
+        )
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary)
+            core = project / ".chaos-engine/manifest.json"
+            core.parent.mkdir()
+            core.write_text('{"owned":true}\n', encoding="utf-8")
+
+            def fail(_command, _environment):
+                generation = project / ".chaos-engine-runtime-generations" / ("a" * 32)
+                marker = generation / "partial/file.txt"
+                marker.parent.mkdir(parents=True, exist_ok=True)
+                marker.write_text("partial\n", encoding="utf-8")
+                raise OSError("offline")
+
+            with mock.patch.object(
+                module.shutil,
+                "rmtree",
+                side_effect=AssertionError("pathname rmtree is forbidden"),
+            ), self.assertRaisesRegex(RuntimeError, "install command failed"):
+                module.prepare_candidate(
+                    project,
+                    specification,
+                    module.sha256(core),
+                    runner=fail,
+                    generation_id="a" * 32,
+                    transaction_id="d" * 32,
+                )
+
+            self.assertFalse(
+                (project / ".chaos-engine-runtime-generations" / ("a" * 32)).exists()
+            )
+
+    def test_candidate_trust_boundary_is_explicit(self):
+        module = load_controller()
+        self.assertTrue(
+            hasattr(module, "CANDIDATE_TRUST_BOUNDARY"),
+            "candidate trust boundary is not encoded",
+        )
+        boundary = module.CANDIDATE_TRUST_BOUNDARY.lower()
+        self.assertIn("same-user", boundary)
+        self.assertIn("trusted subprocess", boundary)
+        self.assertIn("cannot sandbox", boundary)
+
     @unittest.skipIf(os.name == "nt", "POSIX ancestor substitution regression")
     def test_candidate_ancestor_swap_fails_before_outside_canary_is_touched(self):
         module = load_controller()
@@ -669,6 +739,9 @@ class GenerationRuntimeTests(unittest.TestCase):
             outside.mkdir()
             canary = outside / "canary.txt"
             canary.write_text("keep\n", encoding="utf-8")
+            foreign = outside / "foreign/tree/data.bin"
+            foreign.parent.mkdir(parents=True)
+            foreign.write_bytes(b"foreign-owned")
             swapped = threading.Event()
 
             def actor():
@@ -700,7 +773,11 @@ class GenerationRuntimeTests(unittest.TestCase):
                 )
 
             self.assertEqual("keep\n", canary.read_text(encoding="utf-8"))
-            self.assertEqual([], [path.name for path in outside.iterdir() if path != canary])
+            self.assertEqual(b"foreign-owned", foreign.read_bytes())
+            self.assertEqual({"canary.txt", "foreign"}, {path.name for path in outside.iterdir()})
+            self.assertFalse(
+                (project / ".generations-displaced" / ("a" * 32)).exists()
+            )
 
 
 if __name__ == "__main__":
