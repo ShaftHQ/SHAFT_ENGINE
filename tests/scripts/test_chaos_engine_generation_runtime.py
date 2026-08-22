@@ -265,7 +265,6 @@ class GenerationRuntimeTests(unittest.TestCase):
             root = Path(temporary)
             source = root / "source"
             shutil.copytree(SOURCE, source)
-            source.joinpath("hooks/kernel.py").unlink()
             project = root / "consumer"
             project.mkdir()
             with mock.patch.object(
@@ -315,7 +314,6 @@ class GenerationRuntimeTests(unittest.TestCase):
             root = Path(temporary)
             source = root / "source"
             shutil.copytree(SOURCE, source)
-            source.joinpath("hooks/kernel.py").unlink()
             project = root / "consumer"
             project.mkdir()
             with mock.patch.object(
@@ -391,7 +389,6 @@ class GenerationRuntimeTests(unittest.TestCase):
             root = Path(temporary)
             source = root / "source"
             shutil.copytree(SOURCE, source)
-            source.joinpath("hooks/kernel.py").unlink()
             project = root / "consumer"
             project.mkdir()
             with mock.patch.object(
@@ -474,7 +471,6 @@ class GenerationRuntimeTests(unittest.TestCase):
             root = Path(temporary)
             source = root / "source"
             shutil.copytree(SOURCE, source)
-            source.joinpath("hooks/kernel.py").unlink()
             project = root / "consumer"
             project.mkdir()
             with mock.patch.object(
@@ -621,7 +617,6 @@ class GenerationRuntimeTests(unittest.TestCase):
             root = Path(temporary)
             source = root / "source"
             shutil.copytree(SOURCE, source)
-            source.joinpath("hooks/kernel.py").unlink()
             project = root / "consumer"
             project.mkdir()
             with mock.patch.object(
@@ -672,7 +667,6 @@ class GenerationRuntimeTests(unittest.TestCase):
             root = Path(temporary)
             source = root / "source"
             shutil.copytree(SOURCE, source)
-            source.joinpath("hooks/kernel.py").unlink()
             project = root / "consumer"
             project.mkdir()
             with mock.patch.object(
@@ -730,7 +724,6 @@ class GenerationRuntimeTests(unittest.TestCase):
             root = Path(temporary)
             source = root / "source"
             shutil.copytree(SOURCE, source)
-            source.joinpath("hooks/kernel.py").unlink()
             project = root / "consumer"
             project.mkdir()
             with mock.patch.object(
@@ -799,7 +792,6 @@ class GenerationRuntimeTests(unittest.TestCase):
             root = Path(temporary)
             source = root / "source"
             shutil.copytree(SOURCE, source)
-            source.joinpath("hooks/kernel.py").unlink()
             project = root / "consumer"
             project.mkdir()
             with mock.patch.object(
@@ -868,7 +860,6 @@ class GenerationRuntimeTests(unittest.TestCase):
             root = Path(temporary)
             source = root / "source"
             shutil.copytree(SOURCE, source)
-            source.joinpath("hooks/kernel.py").unlink()
             project = root / "consumer"
             project.mkdir()
             with mock.patch.object(
@@ -936,7 +927,6 @@ class GenerationRuntimeTests(unittest.TestCase):
             root = Path(temporary)
             source = root / "source"
             shutil.copytree(SOURCE, source)
-            source.joinpath("hooks/kernel.py").unlink()
             project = root / "consumer"
             project.mkdir()
             with mock.patch.object(
