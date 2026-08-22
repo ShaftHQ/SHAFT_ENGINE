@@ -34,10 +34,10 @@ Its core promises are straightforward:
   claim.
 - **Research before mutation.** Retrieve prior decisions, inspect current
   callers, and compare viable approaches first.
-- **Test-driven behavior changes.** Observe RED, make the smallest GREEN
-  change, then refactor without losing proof.
-- **Independent challenge.** A separate reviewer tries to refute non-trivial
-  work before it ships.
+- **Coherent implementation.** Finish approved scope without microstep review,
+  validation, commit, or delivery interruptions.
+- **Consolidated challenge.** Validate complete implementation, then one
+  independent reviewer tries to refute it before merge.
 - **Owned delivery.** Work continues through review, checks, and confirmed
   merge when that authority is granted.
 - **Durable learning.** Reusable facts and decisions go to structured stores;
@@ -48,13 +48,14 @@ Its core promises are straightforward:
 ```mermaid
 flowchart LR
     accTitle: ChaosEngine delivery loop
-    accDescr: A task moves from triage and live research through planning, a test-driven change, independent review, verified delivery, and one durable learning decision.
+    accDescr: A task moves through Plan, Do, Check, Act, delivery, and one durable learning decision without microstep loops.
     T[Task and triage] --> R[Live research]
-    R --> P[Plan and design]
-    P --> D[RED, GREEN, refactor]
-    D --> V[Empirical verification]
-    V --> A[Adversarial review]
-    A --> G[Pull request and checks]
+    R --> P[Plan complete scope]
+    P --> D[Do complete implementation]
+    D --> V[Check once]
+    V --> A[Act on observed blockers]
+    A --> X[One PR review]
+    X --> G[Pull request and checks]
     G --> M[Confirmed merge]
     M --> L[Learning Session]
 ```
@@ -128,8 +129,8 @@ entrypoint will:
 3. retrieve relevant Memory, MemPalace, and Graphify evidence when configured;
 4. inspect current project files and authoritative sources;
 5. choose the narrowest applicable routed surface;
-6. plan and execute in verified increments;
-7. require independent review for consequential work; and
+6. implement approved scope as one coherent batch;
+7. run consolidated validation and one independent PR review; and
 8. report exact checks, delivery state, and the Learning Session result.
 
 Projects select one profile after loading the portable core. A profile supplies
@@ -154,6 +155,9 @@ default; repository-specific distributions require an explicit selection.
 | [`install.sh`](install.sh) | macOS and Linux one-liner installer for the current working directory |
 | [`hosts.py`](hosts.py) | Thin native host adapters and ownership receipts |
 | [`hooks/guard.py`](hooks/guard.py) | Portable lifecycle activation and catastrophic-scope guard |
+| [`hooks/kernel.py`](hooks/kernel.py) | Provider-neutral event normalization, lifecycle graph, rules, and host capability matrix |
+| [`hooks/lifecycle.py`](hooks/lifecycle.py) | Strict JSON protocol and compact startup context |
+| [`hooks/launch.js`](hooks/launch.js) | Cross-platform Gemini launcher using required Node.js runtime |
 | [`hooks/reflection.py`](hooks/reflection.py) | Bounded task-ledger reflection reducer and receipt validator |
 | [`dependencies.py`](dependencies.py) | Project-local dependency doctor, repair, and upgrade flow |
 | [`tool.py`](tool.py) | Relocatable launcher for ChaosEngine-owned local tools |
@@ -180,6 +184,58 @@ Memory's canonical store is bootstrapped from the pinned v5
 [patch](assets/memory-v5/patch.schema.json) schemas. The active doctor runs
 Memory status and validation inside the adopter project instead of treating a
 launchable CLI as proof of a usable store.
+
+## Transparent dependency and host map
+
+Installer control plane uses Python standard library only: `argparse`,
+`base64`, `contextlib`, `ctypes`, `datetime`, `hashlib`, `hmac`, `json`, `os`,
+`pathlib`, `re`, `runpy`, `secrets`, `shutil`, `sqlite3`, `stat`, `subprocess`,
+`sys`, `threading`, and `time`. No hidden Python package is required to run
+bootstrap, install, status, doctor, rollback, or uninstall.
+
+```mermaid
+flowchart TD
+    Shell["PowerShell 7+ or POSIX shell + curl"] --> Py["Python 3.10+"]
+    Py --> Installer["ChaosEngine bootstrap + transactional installer<br/>Python standard library only"]
+    Node["Node.js + npm"] --> Installer
+    Installer --> UV["uv 0.11.29"]
+    UV --> ManagedPython["uv-managed Python 3.10"]
+    ManagedPython --> MP["mempalace 3.7.1<br/>mempalace + mempalace-mcp"]
+    ManagedPython --> GF["graphifyy 0.9.43<br/>tree-sitter-sql 0.3.11"]
+    Node --> MEM["@aictx/memory 0.2.1<br/>memory + memory-mcp"]
+    Git["Git + Java 25<br/>optional"] --> Maven["Maven Tools MCP 3.2.0<br/>optional user cache"]
+```
+
+Missing or damaged `uv`, Graphify, MemPalace, or Memory entries trigger an
+automatic fresh immutable runtime generation. Healthy reruns reuse current
+generation without network access. Upgrade retains one authenticated previous
+generation for offline rollback; uninstall removes only receipt-owned paths.
+
+```mermaid
+flowchart LR
+    K["Canonical chaos-engine skill"] --> C["Caveman skill<br/>pinned 0.1.0"]
+    K --> P["Ponytail skill<br/>pinned 0.1.0"]
+    K --> Profile["portable or selected project profile"]
+    K --> Refs["on-demand references<br/>research, retrieval, isolation, roles,<br/>cleanup, reflection, GitHub delivery"]
+    K --> Kernel["provider-neutral lifecycle kernel"]
+    Kernel --> Codex["Codex<br/>AGENTS.md + .codex hooks"]
+    Kernel --> Claude["Claude<br/>CLAUDE.md + settings hooks"]
+    Kernel --> Gemini["Gemini CLI<br/>GEMINI.md + settings hooks"]
+    Kernel --> Grok["Grok<br/>AGENTS.md + project hooks"]
+    Kernel --> Copilot["GitHub Copilot CLI/cloud agent<br/>instructions + .github/hooks"]
+```
+
+Tracked prerequisites and optional boundaries:
+
+- Required: writable target directory, network for fresh install/upgrade,
+  Python 3.10+, Node.js with npm, and PowerShell or POSIX shell with `curl`.
+- Installed automatically: pinned uv; uv-managed Python 3.10; Graphify;
+  MemPalace; Memory; six stable tool entrypoints.
+- Optional: Git and Java 25 only for native Maven Tools MCP build/cache.
+- Generated and never tracked: dependency generations, receipts, caches,
+  Graphify output, MemPalace indexes, Memory runtime indexes, reports, secrets.
+- Canonical skills: `chaos-engine`, `caveman`, `ponytail`; project profiles and
+  reference playbooks are loaded on demand, never duplicated into host policy.
 
 ## Trust boundaries
 

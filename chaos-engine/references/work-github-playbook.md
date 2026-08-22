@@ -3,7 +3,7 @@
 A session-shaped method for taking an issue from filed to merged. Load
 the canonical ChaosEngine entrypoint alongside this playbook. Start with [planning and tracking](work-github-planning.md), then return here for delivery.
 
-## 4. Review before you commit — every time
+## 4. Implement, check, review, deliver
 
 Rule every open design choice on the issue before the first implementing commit;
 a ticket that reaches code still choosing between candidate fixes converts that
@@ -15,45 +15,17 @@ and cost four.
 
 A subagent's report describes intent, not necessarily its actual work. Before reviewing or shipping any nontrivial diff, query Graphify for the touched symbols, read the actual diff, and inspect changed tests for real assertions. Before committing any subagent's work, verify empirical claims rather than trusting a report. Scan the report/diff, and once opened, the PR body for deferred/out-of-scope/adjacent-finding/follow-up language; file every real finding before treating the item as done.
 
-Commit one reviewed sub-item at a time using the repository's normal message
-convention, including its issue number.
+Complete the approved implementation before local validation. Run its checks as
+one consolidated Check phase, patch observed blockers as one Act phase, then
+perform one independent pull-request review. Commit and push coherent batches;
+do not stop behavior work for per-step commits, reviews, PR-body updates, or
+delivery receipts.
 
-### Every retained checkpoint: make delivery visible immediately
-
-After the first reviewed implementation commit succeeds and remains at `HEAD`,
-stop behavior work and make that exact checkpoint visible before another
-behavior change or commit. Repeat this gate after every later retained commit:
-
-1. Resolve repository identity from the active worktree, then bind the full
-   `HEAD` SHA and implementation branch. Never infer an issue number from a
-   branch name.
-2. Push the branch and create or discover its open draft or ready PR. PR
-   creation always names `--base` explicitly; stacked and dependent work uses
-   its intended branch base, never an assumed default branch.
-3. Require the PR to cover the exact checkpoint SHA. Persist its canonical
-   `baseRefName`, PR identity, and `closingIssuesReferences`; those closing
-   references, not branch text, supply the issue mapping. GitHub ignores
-   closing keywords when a PR targets a non-default stacked base. Only in that
-   state, an explicit, unambiguous same-repository closing keyword in the PR
-   body supplies the fallback issue mapping until the stack reaches the
-   default branch; titles, branch names, ordinary references, and malformed or
-   cross-repository clauses never do.
-4. Update the PR body for that exact head with nonempty `## Summary`, `## Checks`,
-   and `## Continuation` sections. Visible Continuation text states the full
-   current `Head:`, plus meaningful `State:`, `Blockers:`, and `Next action:`
-   fields so a new owner can resume without reconstructing the session. Hidden
-   comments and code blocks do not count. Keep the linked tracker current as
-   later commits land.
-
-Read-only work, failed commit attempts, and sessions with no retained
-implementation commit owe no PR. For an already-running session whose first
-checkpoint predates this rule, perform steps 1–3 before resuming behavior. An
-older-head PR does not repair the state: push/update it until its head is exact.
-If the exact PR lacks a closing issue reference, add one. If GitHub is
-unavailable, report that concrete blocker and retry; do not treat unknown as no
-PR or continue accumulating commits. The guard leaves the inspection, push,
-explicit-base PR creation/update, and narrowly defined checkpoint-repair paths
-available while this duty is pending.
+After the implementation batch is ready, resolve repository identity from the
+active worktree, bind the full `HEAD` SHA and branch, push, and create or update
+the PR with an explicit base. Persist its `baseRefName`, PR identity, and
+`closingIssuesReferences`. Keep nonempty `## Summary`, `## Checks`, and
+`## Continuation` sections current for the delivered head.
 
 ## 5. Docs, catalog, and screenshots — only where real
 
@@ -107,8 +79,8 @@ performs and verifies the repair or revert.
 
 ## 7. Push, PR, green, merge, compact
 
-- For work not already covered by the first-checkpoint rule, push the branch and
-  open the agreed PR shape with a
+- After the implementation and Check/Act batch, push the branch and open or
+  update the agreed PR shape with a
   description that lists each sub-item and its commit. Keep that description
   current as later commits land.
 - Verify `closingIssuesReferences` after opening: GitHub matches closing words

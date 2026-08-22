@@ -24,10 +24,10 @@ TERMINAL_PHASES = frozenset({"Complete", "Blocked"})
 LIFECYCLE_TRANSITIONS: Mapping[str, tuple[str, ...]] = {
     "ReadOnly": ("Complete", "Planned", "Blocked"),
     "Planned": ("Approved", "Blocked"),
-    "Approved": ("Isolated", "Blocked"),
-    "Isolated": ("Red", "Blocked"),
-    "Red": ("Green", "Blocked"),
-    "Green": ("PullRequest", "Blocked"),
+    "Approved": ("Do", "Blocked"),
+    "Do": ("Check", "Blocked"),
+    "Check": ("Act", "Blocked"),
+    "Act": ("PullRequest", "Blocked"),
     "PullRequest": ("Reviewed", "Blocked"),
     "Reviewed": ("Authorized", "Blocked"),
     "Authorized": ("Merged", "Blocked"),
@@ -64,7 +64,10 @@ COPILOT_EVENTS = (
     "UserPromptSubmit",
     "PreToolUse",
     "PostToolUse",
+    "PostToolUseFailure",
     "Stop",
+    "SubagentStop",
+    "PreCompact",
     "SessionEnd",
 )
 
@@ -120,7 +123,10 @@ HOST_CAPABILITIES: Mapping[str, HostCapability] = {
             userPromptSubmitted="UserPromptSubmit",
             preToolUse="PreToolUse",
             postToolUse="PostToolUse",
+            postToolUseFailure="PostToolUseFailure",
             agentStop="Stop",
+            subagentStop="SubagentStop",
+            preCompact="PreCompact",
             sessionEnd="SessionEnd",
         ),
         COPILOT_EVENTS,
@@ -270,6 +276,25 @@ def normalize_hook_input(raw: Mapping[str, object]) -> dict[str, object]:
         }
     )
     return normalized
+
+
+def adapt_hook_output(
+    output: Mapping[str, object], event_name: str, host: str
+) -> dict[str, object]:
+    """Project canonical decisions/context into each host's native hook protocol."""
+    adapted = dict(output)
+    if host == "gemini" and "additionalContext" in adapted:
+        context = adapted.pop("additionalContext")
+        adapted["hookSpecificOutput"] = {"additionalContext": context}
+    if host == "copilot" and event_name == "PreToolUse":
+        decision = adapted.pop("decision", None)
+        reason = adapted.pop("reason", None)
+        if decision in {"block", "deny"}:
+            adapted["permissionDecision"] = "deny"
+            adapted["permissionDecisionReason"] = str(reason or "Blocked by ChaosEngine.")
+        elif decision == "allow":
+            adapted["permissionDecision"] = "allow"
+    return adapted
 
 
 @dataclass(frozen=True)

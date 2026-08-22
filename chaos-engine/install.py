@@ -1334,6 +1334,24 @@ def load_dependency_controller(installed_root: Path):
     return load_installed_controller(installed_root, "dependencies")
 
 
+def installed_kernel_status(installed_root: Path) -> dict[str, object]:
+    """Report canonical kernel health and declared host coverage."""
+    try:
+        kernel = load_installed_controller(installed_root / "hooks", "kernel")
+        errors = [*kernel.validate_lifecycle(), *kernel.validate_rules(kernel.RULES)]
+        hosts = sorted(kernel.HOST_CAPABILITIES)
+        if hosts != ["claude", "codex", "copilot", "gemini", "grok"]:
+            errors.append("kernel host capability matrix is incomplete")
+        return {
+            "status": "healthy" if not errors else "recovery-required",
+            "schemaVersion": kernel.SCHEMA_VERSION,
+            "hosts": hosts,
+            "errors": errors,
+        }
+    except (OSError, RuntimeError, ValueError) as error:
+        return {"status": "recovery-required", "errors": [str(error)]}
+
+
 def install_with_dependencies(  # noqa: MC0001 - owned resources share one compensation boundary.
     project: Path,
     source: Path,
@@ -1554,11 +1572,15 @@ def attach_component_status(
         "hooks": [
             target / "hooks/guard.py",
             target / "hooks/kernel.py",
+            target / "hooks/launch.js",
             target / "hooks/lifecycle.py",
             target / "hooks/reflection.py",
             project / ".codex/hooks.json",
             project / ".grok/hooks/lifecycle.json",
+            project / ".gemini/settings.json",
+            project / ".github/hooks/chaos-engine.json",
             project / "plugins/chaos-engine/hooks/hooks.json",
+            project / "plugins/chaos-engine/hooks/launch.js",
             project / "plugins/caveman/src/hooks/caveman-activate.js",
             project / "plugins/caveman/src/hooks/caveman-mode-tracker.js",
             project / "plugins/ponytail/hooks/ponytail-activate.js",
@@ -1629,6 +1651,9 @@ def status_with_dependencies(project: Path, *, active_probes: bool = False) -> d
                 "distribution": str(manifest["distribution"]["id"]),  # type: ignore[index]
                 "policySha256": str(manifest["distribution"]["policySha256"]),  # type: ignore[index]
             }
+            result["kernel"] = installed_kernel_status(target)
+            if result["kernel"]["status"] != "healthy":  # type: ignore[index]
+                result["status"] = "recovery-required"
             host_controller = load_installed_controller(target, "hosts")
             pending_rollback = read_cross_rollback_journal(project)
             if pending_rollback is not None:

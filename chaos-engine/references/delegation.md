@@ -86,8 +86,9 @@ Status values at least: `planned`, `in progress`, `blocked`, `review`,
 
 ## Independent adversarial review
 
-Every behavior-changing step ends with a review before the next step starts. The
-property that makes it work is independence, so it is not optional:
+Review the complete pull-request implementation once, after its consolidated
+validation and before arming merge. Never review individual implementation
+steps or restart review after each correction. Independence remains mandatory:
 
 - The reviewer is a **separate agent instance, never the author** of the work.
 - Choose a disposable review mechanism. When the host provides reliable terminal
@@ -111,9 +112,8 @@ property that makes it work is independence, so it is not optional:
   search that misses because the tree is wrong returns a clean no-match, which
   is indistinguishable from a real absence and is the most confident wrong
   answer a review can produce.
-- Depth scales with the step, matching the consult triage: one reviewer for
-  bounded reversible work; three reviewers with distinct lenses (correctness,
-  does-it-reproduce, blast radius) for hard-to-reverse or cross-cutting change.
+- Depth scales with the pull request, matching consult triage. Use one reviewer
+  with correctness, reproduction, and blast-radius lenses.
 - Escalate to the most intelligent model for a new subsystem, a migration, a
   dependency swap, or any decision that is expensive to unwind.
 
@@ -152,18 +152,11 @@ a row that already exists.
 | `live-state-in-tests` | the test's answer depends on the machine | `StopTestsAreIndependentOfLiveStateTest` |
 | `wrong-width-check` | the command measured is not the command that matters | nothing -- see #4559 item 3 |
 
-### When the loop stops
+### Review disposition
 
-The loop stops at the first round with **zero blocking findings**. Every
-remaining finding is ticketed, never carried. Fixes to that final round's own
-findings ship without a new round unless a fix is itself blocking. Three rounds
-is the hard ceiling; continuing past it needs an explicit owner instruction on
-the pull request. Measured on #4554: blocking yield ran 14, 5, 0, 0, and
-stopping at the first zero would have merged the same content about two hours
-earlier.
-
-Every round after the first is scoped to the diff since the last verdict, never
-a full-branch re-read.
+Run one review pass. Patch confirmed blocking findings together, validate the
+affected paths once, then proceed to delivery. Do not start another review
+round; a finding that changes architecture returns the work to planning.
 
 Post the findings as a pull-request review, not only in chat. Findings that live
 only in a transcript die with the session, which is how the same class gets
@@ -177,8 +170,8 @@ carries it:
 > Load the canonical ChaosEngine entrypoint before all other work. Evidence over
 > inference: read or run before claiming. Stay inside assigned scope; report
 > adjacent findings. Cite repository-relative `file:line` evidence. Behavior
-> changes use observed RED, minimal implementation, observed GREEN. Never claim
-> an unrun check. Escalate architecture or ambiguity instead of deciding it.
+> complete the bounded implementation before consolidated validation. Never
+> claim an unrun check. Escalate architecture or ambiguity instead of deciding it.
 > Report failures plainly. Before waiting or after a material finding, send a
 > substantive handoff: done evidence, current step, blockers, and whether a
 > decision is needed.

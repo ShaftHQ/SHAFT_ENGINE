@@ -23,6 +23,8 @@ LIFECYCLE_EVENTS = (
     "PostToolUseFailure",
     "Stop",
     "SubagentStop",
+    "PreCompact",
+    "SessionEnd",
 )
 HOOK_PROTOCOL_ERROR = "Lifecycle hook produced invalid JSON output."
 
@@ -61,15 +63,20 @@ def _read_companion(name: str) -> str | None:
 
 
 def session_start_context(token: str | None, activation: str) -> str:
-    """Return the shared activation and exact, once-only companion payload."""
+    """Return compact activation; agents load canonical skills from owned paths."""
     parts = [f"ChaosEngine: {activation}"]
     if token:
         parts.append(f"Reflection session token (never track it): {token}")
     parts.append(ULTRA_SELECTOR)
     for name in COMPANION_NAMES:
-        text = _read_companion(name)
-        if text:
-            parts.append(text)
+        for root in _search_roots():
+            relative = next(
+                (candidate for candidate in _skill_relatives(name) if (root / candidate).is_file()),
+                None,
+            )
+            if relative is not None:
+                parts.append(f"Required companion: read and follow `{relative}` before responding.")
+                break
     return "\n\n".join(parts)
 
 
@@ -92,6 +99,7 @@ def run_hook_protocol(
     normalize: Callable[[dict], dict] = dict,
     host_for_input: Callable[[dict], str] = lambda _raw: "portable",
     prepare: Callable[[dict], None] = lambda _event: None,
+    adapt_output: Callable[[dict, str, str], dict] = lambda output, _event, _host: output,
     fallback: Callable[[str, str], dict] = lambda event, _host: (
         {"decision": "block", "reason": HOOK_PROTOCOL_ERROR}
         if event in {"PreToolUse", "Stop", "SubagentStop"}
@@ -130,6 +138,9 @@ def run_hook_protocol(
         output = {} if not rendered else _strict_json_loads(rendered)
         if not isinstance(output, dict):
             raise ValueError("hook output is not a JSON object")
+        output = adapt_output(output, event_name, host)
+        if not isinstance(output, dict):
+            raise ValueError("adapted hook output is not a JSON object")
         json.dumps(output, allow_nan=False)
     except Exception as error:
         print(f"Hook protocol error: {error}", file=sys.stderr)

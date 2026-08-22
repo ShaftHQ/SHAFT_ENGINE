@@ -14,6 +14,7 @@ import shutil
 import stat
 import subprocess  # nosec B404 - fixed list-form dependency commands from tracked spec.
 import sys
+import time
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
@@ -29,6 +30,8 @@ POINTER_NAME = ".chaos-engine-runtime-current.json"
 POINTER_SCHEMA = 1
 GENERATIONS_NAME = ".chaos-engine-runtime-generations"
 MAX_CONTROL_BYTES = 4 * 1024 * 1024
+# Pinned uv 0.11.29 + Graphify/MemPalace ownership is ~6.74 MiB compact.
+MAX_RECEIPT_BYTES = 8 * 1024 * 1024
 MAX_EXECUTABLE_BYTES = 256 * 1024 * 1024
 HEX_ID = re.compile(r"[0-9a-f]{32}")
 HEX_DIGEST = re.compile(r"[0-9a-f]{64}")
@@ -40,6 +43,10 @@ REQUIRED_DISPATCHES = {
     "memory",
     "memory-mcp",
 }
+WINDOWS_UV_JUNCTION_TAG = 0xA0000003
+WINDOWS_UV_ALIAS = re.compile(
+    r"uv-python/cpython-3\.10-windows-(?P<arch>x86_64|aarch64)-none"
+)
 CANDIDATE_TRUST_BOUNDARY = (
     "A same-user trusted subprocess has ambient write authority and this stdlib "
     "controller cannot sandbox it. Held handles and no-follow operations contain "
@@ -432,21 +439,29 @@ def _delete_held_child(
     os.rmdir(name, dir_fd=parent_fd)
 
 
-def _delete_windows_tree(path: Path, expected: tuple[int, int]) -> None:
+def _delete_windows_tree(
+    path: Path, expected: tuple[int, int], runtime: Path | None = None
+) -> None:
+    runtime = runtime or path
     if is_link_or_reparse(path):
         raise ValueError("dependency cleanup path is unsafe; quarantine retained")
     value = os.stat(path, follow_symlinks=False)
     if (value.st_dev, value.st_ino) != expected:
         raise ValueError("dependency cleanup identity changed; quarantine retained")
-    for child in sorted(path.iterdir(), reverse=True):
+    children = sorted(path.iterdir(), reverse=True)
+    for child in children:
         if is_link_or_reparse(child):
             if child.is_symlink():
                 child.unlink()
                 continue
-            raise ValueError("dependency cleanup contains unsupported reparse state")
+            _windows_uv_junction_record(runtime, child)
+            child.rmdir()
+    for child in children:
+        if not child.exists() and not is_link_or_reparse(child):
+            continue
         if child.is_dir():
             state = os.stat(child, follow_symlinks=False)
-            _delete_windows_tree(child, (state.st_dev, state.st_ino))
+            _delete_windows_tree(child, (state.st_dev, state.st_ino), runtime)
         else:
             child.unlink()
     path.rmdir()
@@ -520,18 +535,30 @@ def _open_windows_regular(root: Path, path: Path, label: str) -> int:
         wintypes.HANDLE,
     ]
     create_file.restype = wintypes.HANDLE
-    handle = create_file(
-        str(path),
-        0x80000000,
-        0x00000001 | 0x00000002 | 0x00000004,
-        None,
-        3,
-        0x00200000 | 0x08000000,
-        None,
-    )
     invalid = ctypes.c_void_p(-1).value
+    handle = invalid
+    error_number = 0
+    for delay in (0.0, 0.02, 0.05, 0.1, 0.2):
+        if delay:
+            time.sleep(delay)
+        handle = create_file(
+            str(path),
+            0x80000000,
+            0x00000001 | 0x00000002 | 0x00000004,
+            None,
+            3,
+            0x00200000 | 0x08000000,
+            None,
+        )
+        if handle != invalid:
+            break
+        error_number = ctypes.get_last_error()
+        if error_number not in {5, 32, 33}:
+            break
     if handle == invalid:
-        raise ValueError(f"dependency {label} is missing or unsafe")
+        raise ValueError(
+            f"dependency {label} is missing or unsafe (Windows error {error_number})"
+        ) from OSError(error_number, ctypes.FormatError(error_number))
     try:
         attributes = FILE_ATTRIBUTE_TAG_INFO()
         if not kernel32.GetFileInformationByHandleEx(
@@ -594,7 +621,7 @@ def _capture_regular_relative(
     expected_size: int | None = None,
 ) -> tuple[str, dict[str, int]]:
     if expected_size is not None and (
-        not isinstance(expected_size, int) or not 0 < expected_size <= MAX_EXECUTABLE_BYTES
+        not isinstance(expected_size, int) or not 0 <= expected_size <= MAX_EXECUTABLE_BYTES
     ):
         raise ValueError(f"dependency {label} size is invalid")
     descriptor = _open_regular_relative(root, relative, label)
@@ -627,9 +654,14 @@ def _digest_regular_relative(
     return _capture_regular_relative(root, relative, label, expected_size)[0]
 
 
-def _bounded_json(root: Path, relative: str, label: str) -> tuple[dict[str, object], bytes]:
+def _bounded_json(
+    root: Path,
+    relative: str,
+    label: str,
+    limit: int = MAX_CONTROL_BYTES,
+) -> tuple[dict[str, object], bytes]:
     try:
-        data = _read_regular_relative(root, relative, label, MAX_CONTROL_BYTES)
+        data = _read_regular_relative(root, relative, label, limit)
         value = json.loads(data)
     except (OSError, UnicodeDecodeError, json.JSONDecodeError) as error:
         raise ValueError(f"dependency {label} is missing or invalid") from error
@@ -710,7 +742,16 @@ def _validate_dispatch_metadata(name: str, value: object) -> dict[str, object]:
             "entrypoint": name,
         }
         required = set(expected) | {"interpreterSha256", "interpreterSize"}
-        if set(value) != required or any(value.get(key) != item for key, item in expected.items()):
+        linked = {"interpreterLinkTarget", "interpreterTarget"}
+        if set(value) not in {frozenset(required), frozenset(required | linked)} or any(
+            value.get(key) != item for key, item in expected.items()
+        ):
+            raise ValueError(f"dependency generation tool metadata is invalid: {name}")
+        if linked <= set(value) and (
+            not all(isinstance(value.get(key), str) and value.get(key) for key in linked)
+            or Path(str(value["interpreterLinkTarget"])).is_absolute()
+            or Path(str(value["interpreterTarget"])).is_absolute()
+        ):
             raise ValueError(f"dependency generation tool metadata is invalid: {name}")
         digest, size = value.get("interpreterSha256"), value.get("interpreterSize")
     elif name in {"memory", "memory-mcp"}:
@@ -777,6 +818,7 @@ def _validate_selected_generation(
         project,
         f"{GENERATIONS_NAME}/{active['generationId']}/{RECEIPT_NAME}",
         "generation receipt",
+        MAX_RECEIPT_BYTES,
     )
     if hashlib.sha256(receipt_bytes).hexdigest() != active["receiptSha256"]:
         raise ValueError("dependency generation receipt digest drift detected")
@@ -846,6 +888,7 @@ def validated_previous(
         project,
         f"{GENERATIONS_NAME}/{previous['generationId']}/{RECEIPT_NAME}",
         "generation receipt",
+        MAX_RECEIPT_BYTES,
     )
     environment = os.environ.copy()
     environment["PYTHONDONTWRITEBYTECODE"] = "1"
@@ -882,6 +925,7 @@ def probe_active(
         project,
         f"{GENERATIONS_NAME}/{active['generationId']}/{RECEIPT_NAME}",
         "generation receipt",
+        MAX_RECEIPT_BYTES,
     )
     environment = os.environ.copy()
     environment["PYTHONDONTWRITEBYTECODE"] = "1"
@@ -913,6 +957,7 @@ def active_dispatch(project: Path, tool: str, arguments: list[str]) -> list[str]
         project,
         f"{GENERATIONS_NAME}/{active['generationId']}/{RECEIPT_NAME}",
         "generation receipt",
+        MAX_RECEIPT_BYTES,
     )
     return dispatch_command(generation, receipt, tool, arguments)
 
@@ -942,11 +987,19 @@ def dispatch_command(
             raise ValueError(f"dependency Python dispatch is invalid: {tool}")
         interpreter = generation / str(relative)
         try:
+            target = str(relative)
+            if "interpreterLinkTarget" in dispatch:
+                if not interpreter.is_symlink():
+                    raise ValueError("recorded interpreter link is missing")
+                link_target = os.readlink(interpreter)
+                if link_target != dispatch["interpreterLinkTarget"]:
+                    raise ValueError("recorded interpreter link target drift detected")
+                resolved = _managed_link_target(generation, interpreter)
+                target = resolved.relative_to(generation).as_posix()
+                if target != dispatch["interpreterTarget"]:
+                    raise ValueError("recorded interpreter terminal target drift detected")
             actual_digest = _digest_regular_relative(
-                generation,
-                str(relative),
-                f"Python interpreter for {tool}",
-                expected_size,  # type: ignore[arg-type]
+                generation, target, f"Python interpreter for {tool}", expected_size  # type: ignore[arg-type]
             )
         except ValueError as error:
             raise ValueError(
@@ -1082,7 +1135,19 @@ def _generation_dispatches(generation: Path) -> dict[str, dict[str, object]]:
         ("graphify", "graphifyy", "graphifyy"),
     ):
         interpreter = generation / f"uv-tools/{environment}/{scripts}/{python_name}"
-        digest, size = file_record(interpreter)
+        link_metadata: dict[str, object] = {}
+        if interpreter.is_symlink():
+            link_target = os.readlink(interpreter)
+            if Path(link_target).is_absolute():
+                raise ValueError(f"dependency entrypoint link is not canonical: {interpreter}")
+            target = _managed_link_target(generation, interpreter)
+            digest, size = file_record(target)
+            link_metadata = {
+                "interpreterLinkTarget": link_target,
+                "interpreterTarget": target.relative_to(generation).as_posix(),
+            }
+        else:
+            digest, size = file_record(interpreter)
         records[name] = {"dispatch": {
             "kind": "python",
             "interpreter": interpreter.relative_to(generation).as_posix(),
@@ -1090,6 +1155,7 @@ def _generation_dispatches(generation: Path) -> dict[str, dict[str, object]]:
             "interpreterSize": size,
             "distribution": distribution,
             "entrypoint": name,
+            **link_metadata,
         }}
     for name, suffix in (
         ("memory", "dist/cli/main.js"),
@@ -1114,7 +1180,7 @@ def _verify_dispatch_set(
         dispatch = _validate_dispatch_metadata(name, records[name]["dispatch"])
         if dispatch["kind"] == "python":
             path, digest, size = (
-                dispatch["interpreter"],
+                dispatch.get("interpreterTarget", dispatch["interpreter"]),
                 dispatch["interpreterSha256"],
                 dispatch["interpreterSize"],
             )
@@ -1140,13 +1206,21 @@ def _crosscheck_dispatch_ownership(
     ownership: dict[str, object], records: dict[str, dict[str, object]]
 ) -> None:
     files = ownership.get("files")
-    if not isinstance(files, dict):
+    links = ownership.get("links")
+    if not isinstance(files, dict) or not valid_link_records(links):
         raise ValueError("dependency sealed ownership files are invalid")
     for name, record in records.items():
         dispatch = record["dispatch"]
         kind = dispatch["kind"]
         if kind == "python":
-            path, digest = dispatch["interpreter"], dispatch["interpreterSha256"]
+            path = dispatch.get("interpreterTarget", dispatch["interpreter"])
+            digest = dispatch["interpreterSha256"]
+            if "interpreterTarget" in dispatch and not any(
+                link.get("path") == dispatch["interpreter"]
+                and link.get("target") == dispatch["interpreterLinkTarget"]
+                for link in links
+            ):
+                raise ValueError(f"dependency dispatch ownership link drift detected: {name}")
         elif kind == "npm":
             path, digest = dispatch["script"], dispatch["scriptSha256"]
         else:
@@ -1266,6 +1340,7 @@ def prepare_candidate(
                     raise RuntimeError(f"{tool} install command failed: {command[0]}") from error
                 validate_holds()
                 completed[tool].append((result.stdout or result.stderr).strip())
+        canonicalize_runtime_links(generation)
         records = _generation_dispatches(generation)
         probes = {
             "uv": ["--version"],
@@ -1311,7 +1386,10 @@ def prepare_candidate(
         }
         receipt["receiptIntegritySha256"] = json_integrity(receipt)
         receipt_path = generation / RECEIPT_NAME
-        receipt_path.write_text(json.dumps(receipt, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+        receipt_path.write_text(
+            json.dumps(receipt, sort_keys=True, separators=(",", ":")) + "\n",
+            encoding="utf-8",
+        )
         record = {
             "generationId": generation_name,
             "specificationSha256": specification_digest(specification),
@@ -1344,33 +1422,39 @@ def prepare_candidate(
                 created_generation if failed else None,
             ),
         )
-        if os.name != "nt":
-            for _, name, parent_hold, child_hold, identity in removals:
-                if identity is None or parent_hold is None:
-                    continue
-                opened_here = None
-                if child_hold is None:
-                    descriptor = os.open(
-                        name,
-                        os.O_RDONLY
-                        | getattr(os, "O_DIRECTORY", 0)
-                        | getattr(os, "O_NOFOLLOW", 0),
-                        dir_fd=parent_hold[0],
-                    )
-                    state = os.fstat(descriptor)
-                    child_hold = (descriptor, (state.st_dev, state.st_ino))
-                    opened_here = descriptor
+        try:
+            if os.name != "nt":
                 try:
-                    _delete_held_child(parent_hold, name, child_hold, identity)
+                    for _, name, parent_hold, child_hold, identity in removals:
+                        if identity is None or parent_hold is None:
+                            continue
+                        opened_here = None
+                        if child_hold is None:
+                            descriptor = os.open(
+                                name,
+                                os.O_RDONLY
+                                | getattr(os, "O_DIRECTORY", 0)
+                                | getattr(os, "O_NOFOLLOW", 0),
+                                dir_fd=parent_hold[0],
+                            )
+                            state = os.fstat(descriptor)
+                            child_hold = (descriptor, (state.st_dev, state.st_ino))
+                            opened_here = descriptor
+                        try:
+                            _delete_held_child(parent_hold, name, child_hold, identity)
+                        finally:
+                            if opened_here is not None:
+                                os.close(opened_here)
                 finally:
-                    if opened_here is not None:
-                        os.close(opened_here)
-            holds.close()
-        else:
-            holds.close()
-            for path, _, _, _, identity in removals:
-                if identity is not None:
-                    _delete_windows_tree(path, identity)
+                    holds.close()
+            else:
+                holds.close()
+                for path, _, _, _, identity in removals:
+                    if identity is not None:
+                        _delete_windows_tree(path, identity)
+        except BaseException:
+            if not failed:
+                raise
 
 
 def unlink_owned_marker(path: Path, identity: tuple[int, int]) -> None:
@@ -1427,15 +1511,26 @@ def ownership_digest(
         digest.update(link["path"].encode())
         digest.update(b"\0")
         digest.update(link["target"].encode())
+        digest.update(b"\0")
+        digest.update(str(link.get("type", "symlink")).encode())
+        digest.update(b"\0")
+        digest.update(str(link.get("tag", "")).encode())
     return digest.hexdigest()
 
 
 def valid_link_records(value: object) -> bool:
     return isinstance(value, list) and all(
         isinstance(link, dict)
-        and set(link) == {"path", "target"}
+        and set(link) in (
+            {"path", "target"},
+            {"path", "target", "type", "tag"},
+        )
         and isinstance(link["path"], str)
         and isinstance(link["target"], str)
+        and (
+            set(link) == {"path", "target"}
+            or (link["type"] == "junction" and link["tag"] == "0xa0000003")
+        )
         for link in value
     )
 
@@ -1447,6 +1542,35 @@ def _lexical_path(path: Path) -> Path:
     elif os.name == "nt" and value.startswith("\\\\?\\"):
         value = value[4:]
     return Path(value)
+
+
+def _windows_uv_junction_record(runtime: Path, path: Path) -> dict[str, str]:
+    if os.name != "nt":
+        raise ValueError("dependency runtime contains an unsupported reparse point")
+    relative = path.relative_to(runtime).as_posix()
+    alias = WINDOWS_UV_ALIAS.fullmatch(relative)
+    state = os.lstat(path)
+    if alias is None or getattr(state, "st_reparse_tag", 0) != WINDOWS_UV_JUNCTION_TAG:
+        raise ValueError(f"dependency runtime contains an unsupported reparse point: {relative}")
+    try:
+        target = _lexical_path(Path(os.readlink(path)))
+    except OSError as error:
+        raise ValueError(f"dependency runtime junction is unreadable: {relative}") from error
+    root = _lexical_path(runtime)
+    if not target.is_relative_to(root) or target.parent != _lexical_path(path.parent):
+        raise ValueError(f"dependency runtime junction escapes the runtime: {relative}")
+    expected = re.fullmatch(
+        rf"cpython-3\.10\.\d+-windows-{re.escape(alias.group('arch'))}-none",
+        target.name,
+    )
+    if expected is None or is_link_or_reparse(target) or not target.is_dir():
+        raise ValueError(f"dependency runtime junction target is invalid: {relative}")
+    return {
+        "path": relative,
+        "target": target.relative_to(root).as_posix(),
+        "type": "junction",
+        "tag": "0xa0000003",
+    }
 
 
 def _managed_link_target(
@@ -1490,7 +1614,7 @@ def canonicalize_runtime_links(runtime: Path) -> None:
             relative = os.path.relpath(immediate, path.parent)
             links.append((path, relative, resolved))
         elif is_link_or_reparse(path):
-            raise ValueError(f"dependency runtime contains an unsupported reparse point: {path}")
+            _windows_uv_junction_record(runtime, path)
     for path, target, resolved in links:
         if os.readlink(path) == target:
             continue
@@ -1551,7 +1675,7 @@ def ownership_record(
                     raise
             links.append({"path": relative, "target": target})
         elif is_link_or_reparse(path):
-            raise ValueError(f"dependency runtime contains an unsupported reparse point: {relative}")
+            links.append(_windows_uv_junction_record(runtime, path))
         elif path.is_dir():
             if not is_generated_python_cache(relative, directory=True):
                 directories.append(relative)
@@ -1597,7 +1721,7 @@ def sealed_ownership_record(runtime: Path) -> dict[str, object]:
             _managed_link_target(runtime, path)
             links.append({"path": relative, "target": target})
         elif is_link_or_reparse(path):
-            raise ValueError(f"dependency runtime contains an unsupported reparse point: {relative}")
+            links.append(_windows_uv_junction_record(runtime, path))
         elif path.is_dir():
             if not is_generated_python_cache(relative, directory=True):
                 directories.append(relative)
@@ -1644,7 +1768,7 @@ def verify_sealed_ownership(
             _managed_link_target(runtime, path)
             actual_links.append({"path": relative, "target": target})
         elif is_link_or_reparse(path):
-            raise ValueError("dependency sealed generation has an unsupported reparse point")
+            actual_links.append(_windows_uv_junction_record(runtime, path))
         elif path.is_dir() and not is_generated_python_cache(relative, directory=True):
             actual_directories.append(relative)
         elif path.is_file() and relative != RECEIPT_NAME and not is_generated_python_cache(relative):
@@ -1694,6 +1818,7 @@ def remove_generation(project: Path, record: dict[str, str]) -> None:
         project,
         f"{GENERATIONS_NAME}/{record['generationId']}/{RECEIPT_NAME}",
         "generation receipt",
+        MAX_RECEIPT_BYTES,
     )
     verify_sealed_ownership(generation, receipt["ownership"], full=True)
     generations = project / GENERATIONS_NAME

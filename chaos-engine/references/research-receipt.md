@@ -23,8 +23,8 @@ Do these in order:
    standards, and proven upstream implementations. Record source URLs and date.
 7. Compare proven approaches, steelman the rejected approach, and choose the
    smallest root-owner fix that preserves the invariants.
-8. Record a concrete plan, proof commands, and the first RED observation in the
-   issue for issue-backed work, otherwise in the transient working context.
+8. Record a concrete plan and deferred consolidated proof commands in the issue
+   for issue-backed work, otherwise in transient working context.
 
 This list is the research receipt. Memory, MemPalace, and Graphify are advisory
 for ordinary tasks: store failure records `degraded` and never blocks work.
@@ -52,7 +52,8 @@ two complete approaches and steelman the rejected option. Use Mermaid when
 dependencies, components, state, or workflows become materially clearer;
 otherwise record why a diagram would be decorative. Own implementation of the
 plan: after approval, go completely unattended and carry it proactively through
-RED, implementation, independent review, PR delivery, authorized merge, and
+complete implementation, consolidated Check/Act, one independent PR review,
+PR delivery, authorized merge, and
 scoped cleanup. Do not ask the user for implementation clarifications; dispatch
 a consultant agent. HALT only when merge authority was never granted or a new
 request contradicts the approved plan, not for approval already granted.

@@ -1802,7 +1802,7 @@ def _record_guard_block_and_deny(hook_input: dict, reason: str, host: str) -> No
     _print_deny(reason, host)
 
 
-# R12: iron law 3 -- no production code before an observed failing test.
+# Legacy R12 retained only to decode old ledger behavior. It is not dispatched.
 # Production means compiled source under any module's src/main/. Guidance,
 # configuration, tests, scripts and docs are excluded because the entrypoint
 # excludes them itself: they "may skip test-first; validate their structure or
@@ -1947,7 +1947,7 @@ def looks_like_a_test_run(command: str) -> bool:
     return False
 
 
-def check_r12_test_before_production(hook_input: dict, tool_name: str) -> str | None:
+def _legacy_test_before_production(hook_input: dict, tool_name: str) -> str | None:
     """Block a production-source write when no test run was observed this session.
 
     Iron law 3 with a mechanism. The law predates every check in this file and
@@ -3066,9 +3066,8 @@ def check_r15_review_before_arming(
 ) -> str | None:
     """Refuse arming auto-merge before an independent review exists.
 
-    Iron law 6 requires an independent adversarial review before the next step
-    starts, and the Ownership section requires arming only once that gate
-    passes. Handing a diff to auto-merge is the one irreversible step in the
+    Canonical policy requires one independent adversarial review after complete
+    implementation and consolidated validation. Handing a diff to auto-merge is the one irreversible step in the
     whole workflow -- after it, the next green run merges without asking --
     and it rested entirely on remembering.
 
@@ -4319,10 +4318,10 @@ def _checkpoint_snapshot_complete(body: object, head: str) -> bool:
     )
 
 
-def check_r27_checkpoint_pull_request(
+def _legacy_checkpoint_pull_request(
     hook_input: dict, tool_name: str | None = None, *, stopping: bool = False
 ) -> str | None:
-    """Require every reviewed retained checkpoint to have an exact-head PR snapshot."""
+    """Read legacy checkpoint state; no longer dispatched as an implementation gate."""
     identity = _checkpoint_identity(hook_input)
     if identity is None:
         return None
@@ -4692,18 +4691,7 @@ def run_pretooluse(hook_input: dict, host: str = "portable") -> int:
         _record_guard_block_and_deny(hook_input, reason, host)
         return 0
 
-    reason = check_r27_checkpoint_pull_request(hook_input, tool_name)
-    if reason is not None:
-        _record_guard_block_and_deny(hook_input, reason, host)
-        return 0
-
     reason = check_r25_research_before_implementation(hook_input, tool_name)
-    if reason is not None:
-        _record_guard_block_and_deny(hook_input, reason, host)
-        return 0
-
-    reason = check_r12_test_before_production(hook_input, tool_name)
-
     if reason is not None:
         _record_guard_block_and_deny(hook_input, reason, host)
         return 0
@@ -5982,7 +5970,6 @@ def run_stop(hook_input: dict) -> int:
             check_r20_user_harness_drift(hook_input),
             check_r21_run_state_not_recorded(hook_input),
             check_r24_foreign_worktree_left_behind(hook_input, report),
-            check_r27_checkpoint_pull_request(hook_input, stopping=True),
             check_r29_delivery_complete(hook_input),
         )
         if item is not None
@@ -6242,7 +6229,6 @@ _SELF_TEST_COVERAGE: dict[str, str] = {
     "check_r9_worktree_add": "run_r9_worktree_self_test",
     "check_r10_nul_corruption": "run_r10_nul_corruption_self_test",
     "check_r11_memory_write_worktree": "run_r11_memory_write_self_test",
-    "check_r12_test_before_production": "run_required_action_self_test",
     "check_r13_push_before_delete": "run_required_action_self_test",
     "check_r14_hard_reset": "run_required_action_self_test",
     "check_r15_review_before_arming": "run_required_action_self_test",
@@ -6255,7 +6241,6 @@ _SELF_TEST_COVERAGE: dict[str, str] = {
     "check_r22_dispatch_adapter": "run_required_action_self_test",
     "check_r24_foreign_worktree_left_behind": "run_required_action_self_test",
     "check_r25_research_before_implementation": "run_required_action_self_test",
-    "check_r27_checkpoint_pull_request": "run_required_action_self_test",
     "check_r28_pr_audit_before_arming": "run_required_action_self_test",
     "check_r29_delivery_complete": "run_required_action_self_test",
     "check_r30_merge_authority_before_arming": "run_required_action_self_test",
@@ -6358,16 +6343,6 @@ _STOP_RULE_RENDERERS = {
             ]
         },
     ),
-    "check_r27_checkpoint_pull_request": lambda: _with_stubs(
-        {
-            "_checkpoint_identity": lambda payload: ("owner/repo", "ChaosEngine/x", "b" * 40),
-            "ledger_events": lambda payload: [
-                _checkpoint_json_event("checkpoint", "owner/repo", "ChaosEngine/x", "b" * 40)
-            ],
-            "_exact_head_pull_request": lambda repository, branch, head: ("none", None),
-        },
-        lambda: check_r27_checkpoint_pull_request({}, stopping=True),
-    ),
     "check_r29_delivery_complete": lambda: _with_stubs(
         {
             "ledger_events": lambda payload: ["commit"],
@@ -6455,7 +6430,7 @@ def run_required_action_self_test() -> int:
         "R12 blocks a production write with no test run recorded",
         _with_stubs(
             {"_ledger_path": lambda payload: "x", "ledger_events": lambda payload: set()},
-            lambda: check_r12_test_before_production(write, "Write"),
+            lambda: _legacy_test_before_production(write, "Write"),
         )
         is not None,
     )
@@ -6463,7 +6438,7 @@ def run_required_action_self_test() -> int:
         "R12 allows a production write once a test run is recorded",
         _with_stubs(
             {"_ledger_path": lambda payload: "x", "ledger_events": lambda payload: {"test-run"}},
-            lambda: check_r12_test_before_production(write, "Write"),
+            lambda: _legacy_test_before_production(write, "Write"),
         )
         is None,
     )

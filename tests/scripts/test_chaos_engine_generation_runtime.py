@@ -6,6 +6,7 @@ import importlib.util
 import json
 import os
 import shutil
+import subprocess
 import tempfile
 import threading
 import unittest
@@ -185,6 +186,17 @@ class GenerationRuntimeTests(unittest.TestCase):
             pointer_path.write_text(json.dumps(value), encoding="utf-8")
             with self.assertRaisesRegex(ValueError, "generation identifier"):
                 self.select(module, project, active)
+
+    def test_generation_selection_supports_unicode_and_spaces_in_project_path(self):
+        module = load_controller()
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary) / "consumer with spaces Ω"
+            project.mkdir()
+            generation, active = self.generation_fixture(module, project)
+
+            self.publish(module, project, active)
+
+            self.assertEqual(generation, self.select(module, project, active)[0])
 
     def test_stable_launcher_dispatches_all_tools_from_active_generation(self):
         controller = load_controller()
@@ -1132,6 +1144,62 @@ class GenerationRuntimeTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "receipt schema|tool metadata"):
                 self.publish(module, project, active)
 
+    def test_generation_receipt_uses_a_dedicated_bounded_capacity(self):
+        module = load_controller()
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary) / "consumer with spaces Ω"
+            project.mkdir()
+            generation, active = self.generation_fixture(module, project)
+            receipt_path = generation / "receipt.json"
+            receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
+            receipt["installed"] = {"uv": ["x" * (5 * 1024 * 1024)]}
+            receipt["receiptIntegritySha256"] = module.json_integrity(receipt)
+            receipt_path.write_text(
+                json.dumps(receipt, sort_keys=True, separators=(",", ":")),
+                encoding="utf-8",
+            )
+            active["receiptSha256"] = module.sha256(receipt_path)
+
+            self.publish(module, project, active)
+            self.assertEqual(generation, self.select(module, project, active)[0])
+            self.assertLess(receipt_path.stat().st_size, module.MAX_RECEIPT_BYTES)
+            round_trip, encoded = module._bounded_json(
+                generation,
+                "receipt.json",
+                "generation receipt",
+                module.MAX_RECEIPT_BYTES,
+            )
+            self.assertEqual(receipt, round_trip)
+            self.assertEqual(
+                json.dumps(receipt, sort_keys=True, separators=(",", ":")).encode(),
+                encoded,
+            )
+            self.assertEqual(module.json_integrity(round_trip), round_trip["receiptIntegritySha256"])
+
+    def test_generation_receipt_cap_accepts_exact_limit_and_rejects_one_more_byte(self):
+        module = load_controller()
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            prefix = b'{"padding":"'
+            suffix = b'"}'
+            payload = prefix + b"x" * (
+                module.MAX_RECEIPT_BYTES - len(prefix) - len(suffix)
+            ) + suffix
+            receipt = root / "receipt.json"
+            receipt.write_bytes(payload)
+
+            value, encoded = module._bounded_json(
+                root, "receipt.json", "generation receipt", module.MAX_RECEIPT_BYTES
+            )
+            self.assertEqual(module.MAX_RECEIPT_BYTES, len(encoded))
+            self.assertEqual(module.MAX_RECEIPT_BYTES - len(prefix) - len(suffix), len(value["padding"]))
+
+            receipt.write_bytes(payload + b" ")
+            with self.assertRaisesRegex(ValueError, "generation receipt is too large"):
+                module._bounded_json(
+                    root, "receipt.json", "generation receipt", module.MAX_RECEIPT_BYTES
+                )
+
     def test_active_generation_denies_added_or_changed_sealed_content(self):
         module = load_controller()
         self.assertTrue(
@@ -1189,6 +1257,17 @@ class GenerationRuntimeTests(unittest.TestCase):
             with mock.patch.object(module.os, "read", side_effect=mutate_after_hash):
                 with self.assertRaisesRegex(ValueError, "changed while hashing"):
                     module.sealed_ownership_record(runtime)
+
+    def test_sealed_ownership_accepts_legitimate_zero_byte_regular_file(self):
+        module = load_controller()
+        with tempfile.TemporaryDirectory() as temporary:
+            runtime = Path(temporary)
+            (runtime / "REQUESTED").write_bytes(b"")
+            ownership = module.sealed_ownership_record(runtime)
+
+            module.verify_sealed_ownership(runtime, ownership, full=True)
+
+            self.assertEqual(module.sha256(runtime / "REQUESTED"), ownership["files"]["REQUESTED"])
 
     def test_linked_pointer_is_rejected_before_read(self):
         module = load_controller()
@@ -1301,6 +1380,120 @@ class GenerationRuntimeTests(unittest.TestCase):
             )
             with self.assertRaisesRegex(ValueError, "metadata.*invalid"):
                 module.dispatch_command(generation, receipt, "mempalace", [])
+
+    @unittest.skipIf(os.name == "nt", "POSIX uv interpreter-link topology")
+    def test_posix_uv_interpreter_link_is_canonicalized_bound_and_dispatched(self):
+        module = load_controller()
+        with tempfile.TemporaryDirectory() as temporary:
+            generation = Path(temporary)
+            target = (
+                generation
+                / "uv-python/cpython-3.10.18-linux-x86_64-gnu/bin/python3.10"
+            )
+            target.parent.mkdir(parents=True)
+            target.write_bytes(b"managed-python")
+            interpreter = generation / "uv-tools/mempalace/bin/python"
+            interpreter.parent.mkdir(parents=True)
+            interpreter.symlink_to(target)
+            uv = generation / "bootstrap/bin/uv"
+            uv.parent.mkdir(parents=True)
+            uv.write_bytes(b"uv")
+            graphify = generation / "uv-tools/graphifyy/bin/python"
+            graphify.parent.mkdir(parents=True)
+            graphify.write_bytes(b"graphify-python")
+            for suffix in ("dist/cli/main.js", "dist/mcp/server.js"):
+                script = generation / f"npm/node_modules/@aictx/memory/{suffix}"
+                script.parent.mkdir(parents=True, exist_ok=True)
+                script.write_bytes(b"memory")
+
+            module.canonicalize_runtime_links(generation)
+            records = module._generation_dispatches(generation)
+            dispatch = records["mempalace"]["dispatch"]
+            ownership = module.sealed_ownership_record(generation)
+            module._crosscheck_dispatch_ownership(ownership, records)
+
+            self.assertEqual(
+                "../../../uv-python/cpython-3.10.18-linux-x86_64-gnu/bin/python3.10",
+                dispatch["interpreterLinkTarget"],
+            )
+            self.assertEqual(
+                "uv-python/cpython-3.10.18-linux-x86_64-gnu/bin/python3.10",
+                dispatch["interpreterTarget"],
+            )
+            self.assertEqual(str(interpreter), module.dispatch_command(
+                generation, {"tools": records}, "mempalace", []
+            )[0])
+
+            outside = generation.parent / "outside-python"
+            outside.write_bytes(b"outside")
+            interpreter.unlink()
+            interpreter.symlink_to(outside)
+            with self.assertRaisesRegex(ValueError, "escape|drift|unsafe"):
+                module.dispatch_command(generation, {"tools": records}, "mempalace", [])
+
+    @unittest.skipUnless(os.name == "nt", "Windows uv junction topology")
+    def test_windows_uv_python_alias_junction_is_owned_and_cleanup_unlinks_node(self):
+        module = load_controller()
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            generation = root / "generation"
+            exact = generation / "uv-python/cpython-3.10.18-windows-x86_64-none"
+            exact.mkdir(parents=True)
+            (exact / "python.exe").write_bytes(b"managed-python")
+            alias = generation / "uv-python/cpython-3.10-windows-x86_64-none"
+            result = subprocess.run(
+                ["cmd.exe", "/d", "/c", "mklink", "/J", str(alias), str(exact)],
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            if result.returncode:
+                self.skipTest(f"junction unavailable: {result.stderr.strip()}")
+            self.assertEqual(0xA0000003, os.lstat(alias).st_reparse_tag)
+
+            ownership = module.sealed_ownership_record(generation)
+            self.assertIn(
+                {
+                    "path": "uv-python/cpython-3.10-windows-x86_64-none",
+                    "target": "uv-python/cpython-3.10.18-windows-x86_64-none",
+                    "type": "junction",
+                    "tag": "0xa0000003",
+                },
+                ownership["links"],
+            )
+            module.verify_sealed_ownership(generation, ownership, full=True)
+            module._delete_windows_tree(generation, (
+                generation.stat().st_dev,
+                generation.stat().st_ino,
+            ))
+            self.assertFalse(generation.exists())
+            self.assertFalse(exact.exists())
+
+    def test_candidate_cleanup_preserves_primary_install_error(self):
+        module = load_controller()
+        specification = json.loads(
+            (ROOT / "chaos-engine/dependencies.json").read_text(encoding="utf-8")
+        )
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary)
+            core = project / ".chaos-engine/manifest.json"
+            core.parent.mkdir()
+            core.write_text('{"owned":true}\n', encoding="utf-8")
+            cleanup = "_delete_windows_tree" if os.name == "nt" else "_delete_held_child"
+            with mock.patch.object(
+                module, cleanup, side_effect=ValueError("cleanup quarantine retained")
+            ):
+                with self.assertRaisesRegex(RuntimeError, "uv install command failed") as raised:
+                    module.prepare_candidate(
+                        project,
+                        specification,
+                        module.sha256(core),
+                        runner=lambda *_args: (_ for _ in ()).throw(OSError("primary offline")),
+                        generation_id="a" * 32,
+                        transaction_id="d" * 32,
+                    )
+            self.assertIsInstance(raised.exception.__cause__, OSError)
+            self.assertEqual("primary offline", str(raised.exception.__cause__))
 
     @unittest.skipUnless(os.name == "nt", "Windows rooted-path rule")
     def test_windows_rooted_interpreter_path_cannot_escape_generation(self):
