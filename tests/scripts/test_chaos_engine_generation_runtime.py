@@ -111,12 +111,7 @@ class GenerationRuntimeTests(unittest.TestCase):
             "environment": {},
             "installed": {},
             "tools": dispatches,
-            "ownership": {
-                "directories": [],
-                "files": {},
-                "links": [],
-                "sha256": module.ownership_digest({}),
-            },
+            "ownership": module.sealed_ownership_record(generation),
         }
         receipt_value["receiptIntegritySha256"] = module.json_integrity(
             receipt_value
@@ -259,10 +254,17 @@ class GenerationRuntimeTests(unittest.TestCase):
             self.publish(module, project, active)
             second = first.with_name("e" * 32)
             shutil.copytree(first, second)
+            second_receipt_path = second / "receipt.json"
+            second_receipt = json.loads(second_receipt_path.read_text(encoding="utf-8"))
+            second_receipt["ownership"] = module.sealed_ownership_record(second)
+            second_receipt["receiptIntegritySha256"] = module.json_integrity(
+                second_receipt
+            )
+            second_receipt_path.write_text(json.dumps(second_receipt), encoding="utf-8")
             replacement = {
                 **active,
                 "generationId": "e" * 32,
-                "receiptSha256": module.sha256(second / "receipt.json"),
+                "receiptSha256": module.sha256(second_receipt_path),
             }
 
             result = self.publish(module, project, replacement)
@@ -292,6 +294,36 @@ class GenerationRuntimeTests(unittest.TestCase):
             active["receiptSha256"] = module.sha256(receipt_path)
             with self.assertRaisesRegex(ValueError, "receipt schema|tool metadata"):
                 self.publish(module, project, active)
+
+    def test_active_generation_denies_added_or_changed_sealed_content(self):
+        module = load_controller()
+        self.assertTrue(
+            hasattr(module, "sealed_ownership_record"),
+            "sealed generation ownership is not implemented",
+        )
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary)
+            generation, active = self.generation_fixture(module, project)
+            receipt_path = generation / "receipt.json"
+            receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
+            receipt["ownership"] = module.sealed_ownership_record(generation)
+            receipt["receiptIntegritySha256"] = module.json_integrity(receipt)
+            receipt_path.write_text(json.dumps(receipt), encoding="utf-8")
+            active["receiptSha256"] = module.sha256(receipt_path)
+            self.publish(module, project, active)
+
+            added = generation / "unexpected.py"
+            added.write_text("print('owned?')\n", encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "sealed generation|ownership"):
+                self.select(module, project, active)
+            added.unlink()
+
+            scripts = "Scripts" if os.name == "nt" else "bin"
+            python_name = "python.exe" if os.name == "nt" else "python"
+            interpreter = generation / f"uv-tools/mempalace/{scripts}/{python_name}"
+            interpreter.write_bytes(b"changed")
+            with self.assertRaisesRegex(ValueError, "sealed generation|ownership"):
+                self.select(module, project, active)
 
     def test_linked_pointer_is_rejected_before_read(self):
         module = load_controller()

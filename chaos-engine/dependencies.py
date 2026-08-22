@@ -4,7 +4,7 @@
 from __future__ import annotations
 
 import argparse
-from contextlib import contextmanager, nullcontext
+from contextlib import ExitStack, contextmanager, nullcontext
 import hashlib
 import json
 import os
@@ -296,6 +296,73 @@ def _trusted_root(root: Path, label: str) -> Path:
     return lexical
 
 
+@contextmanager
+def _hold_directory(path: Path, label: str):
+    """Hold directory identity; Windows handle denies rename/delete while in use."""
+    path = _trusted_root(path, label)
+    if os.name == "nt":
+        import ctypes
+        from ctypes import wintypes
+
+        class FILE_ATTRIBUTE_TAG_INFO(ctypes.Structure):
+            _fields_ = [("FileAttributes", wintypes.DWORD), ("ReparseTag", wintypes.DWORD)]
+
+        kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+        create_file = kernel32.CreateFileW
+        create_file.argtypes = [
+            wintypes.LPCWSTR,
+            wintypes.DWORD,
+            wintypes.DWORD,
+            wintypes.LPVOID,
+            wintypes.DWORD,
+            wintypes.DWORD,
+            wintypes.HANDLE,
+        ]
+        create_file.restype = wintypes.HANDLE
+        handle = create_file(
+            str(path),
+            0x80000000,
+            0x00000001 | 0x00000002,
+            None,
+            3,
+            0x00200000 | 0x02000000,
+            None,
+        )
+        if handle == ctypes.c_void_p(-1).value:
+            raise ValueError(f"dependency {label} directory cannot be held safely")
+        try:
+            attributes = FILE_ATTRIBUTE_TAG_INFO()
+            if not kernel32.GetFileInformationByHandleEx(
+                handle, 9, ctypes.byref(attributes), ctypes.sizeof(attributes)
+            ) or attributes.FileAttributes & 0x400:
+                raise ValueError(f"dependency {label} directory is a reparse point")
+            value = os.stat(path, follow_symlinks=False)
+            yield (None, (value.st_dev, value.st_ino))
+        finally:
+            kernel32.CloseHandle(handle)
+        return
+    descriptor = os.open(
+        path,
+        os.O_RDONLY | getattr(os, "O_DIRECTORY", 0) | getattr(os, "O_NOFOLLOW", 0),
+    )
+    try:
+        value = os.fstat(descriptor)
+        yield (descriptor, (value.st_dev, value.st_ino))
+    finally:
+        os.close(descriptor)
+
+
+def _assert_held_directory(path: Path, held: tuple[object, tuple[int, int]], label: str) -> None:
+    if is_link_or_reparse(path):
+        raise ValueError(f"dependency {label} directory became unsafe")
+    try:
+        value = os.stat(path, follow_symlinks=False)
+    except OSError as error:
+        raise ValueError(f"dependency {label} directory identity changed") from error
+    if (value.st_dev, value.st_ino) != held[1]:
+        raise ValueError(f"dependency {label} directory identity changed")
+
+
 def _open_regular_relative(root: Path, relative: str, label: str) -> int:
     """Open a regular descendant without following POSIX links in any component."""
     root = _trusted_root(root, label)
@@ -485,10 +552,11 @@ def _validate_generation_receipt(receipt: dict[str, object]) -> None:
         raise ValueError("dependency generation receipt schema is invalid")
     ownership = receipt["ownership"]
     if (
-        set(ownership) != {"directories", "files", "links", "sha256"}
+        set(ownership) != {"directories", "files", "links", "sha256", "identities"}
         or not isinstance(ownership.get("directories"), list)
         or not isinstance(ownership.get("files"), dict)
         or not isinstance(ownership.get("links"), list)
+        or not isinstance(ownership.get("identities"), dict)
         or HEX_DIGEST.fullmatch(str(ownership.get("sha256", ""))) is None
     ):
         raise ValueError("dependency generation receipt ownership is invalid")
@@ -607,6 +675,7 @@ def _validate_selected_generation(
         raise ValueError("dependency generation specification digest drift detected")
     if receipt.get("coreSha256") != expected_core_sha256:
         raise ValueError("dependency generation core digest drift detected")
+    verify_sealed_ownership(generation, receipt["ownership"])
     if verify_installed_core:
         core = _read_regular_relative(
             project,
@@ -856,20 +925,45 @@ def prepare_candidate(
         raise ValueError("dependency installed core digest drift detected")
     generations = project / GENERATIONS_NAME
     transactions = project / ".chaos-engine-runtime-transactions"
-    generations.mkdir(exist_ok=True)
-    transactions.mkdir(exist_ok=True)
     generation = generations / generation_name
     transaction = transactions / transaction_name
+    holds = ExitStack()
+    project_hold = holds.enter_context(_hold_directory(project, "project"))
+    project_descriptor = project_hold[0]
+    for path in (generations, transactions):
+        if not path.exists():
+            if os.name != "nt" and project_descriptor is not None:
+                os.mkdir(path.name, dir_fd=project_descriptor)
+            else:
+                path.mkdir()
+        holds.enter_context(_hold_directory(path, path.name))
     if any(path.exists() or is_link_or_reparse(path) for path in (generation, transaction)):
+        holds.close()
         raise ValueError("dependency generation or transaction collision")
-    generation.mkdir()
-    transaction.mkdir()
+    generation_hold = holds.enter_context(_hold_directory(generations, "generations"))
+    transaction_hold = holds.enter_context(_hold_directory(transactions, "transactions"))
+    generation_parent = generation_hold[0]
+    transaction_parent = transaction_hold[0]
+    if os.name != "nt" and generation_parent is not None and transaction_parent is not None:
+        os.mkdir(generation_name, dir_fd=generation_parent)
+        os.mkdir(transaction_name, dir_fd=transaction_parent)
+    else:
+        generation.mkdir()
+        transaction.mkdir()
+    candidate_hold = holds.enter_context(_hold_directory(generation, "candidate generation"))
+    candidate_transaction_hold = holds.enter_context(
+        _hold_directory(transaction, "candidate transaction")
+    )
     environment = generation_environment(generation, transaction)
     completed: dict[str, list[str]] = {}
     try:
         for tool, commands in generation_install_plan(generation, specification).items():
             completed[tool] = []
             for command in commands:
+                _assert_held_directory(generation, candidate_hold, "candidate generation")
+                _assert_held_directory(
+                    transaction, candidate_transaction_hold, "candidate transaction"
+                )
                 try:
                     result = command_runner(command, environment)
                 except (OSError, subprocess.SubprocessError) as error:
@@ -885,6 +979,10 @@ def prepare_candidate(
             "memory-mcp": ["--help"],
         }
         for name, arguments in probes.items():
+            _assert_held_directory(generation, candidate_hold, "candidate generation")
+            _assert_held_directory(
+                transaction, candidate_transaction_hold, "candidate transaction"
+            )
             try:
                 result = command_runner(
                     dispatch_command(generation, {"tools": records}, name, arguments),
@@ -911,7 +1009,7 @@ def prepare_candidate(
             },
             "installed": completed,
             "tools": records,
-            "ownership": ownership_record(generation),
+            "ownership": sealed_ownership_record(generation),
         }
         receipt["receiptIntegritySha256"] = json_integrity(receipt)
         receipt_path = generation / RECEIPT_NAME
@@ -929,12 +1027,15 @@ def prepare_candidate(
             core_sha256,
             verify_installed_core=True,
         )
+        holds.close()
         return record
     except BaseException:
+        holds.close()
         if generation.exists() and not is_link_or_reparse(generation):
             shutil.rmtree(generation)
         raise
     finally:
+        holds.close()
         if transaction.exists() and not is_link_or_reparse(transaction):
             shutil.rmtree(transaction)
         if transactions.exists() and not any(transactions.iterdir()):
@@ -1132,6 +1233,77 @@ def ownership_record(
         "links": links,
         "sha256": ownership_digest(files, links),
     }
+
+
+def _file_identity(path: Path) -> dict[str, int]:
+    value = os.stat(path, follow_symlinks=False)
+    return {
+        "size": value.st_size,
+        "mtimeNs": value.st_mtime_ns,
+        "ctimeNs": value.st_ctime_ns,
+        "mode": value.st_mode,
+        "device": value.st_dev,
+        "inode": value.st_ino,
+    }
+
+
+def sealed_ownership_record(runtime: Path) -> dict[str, object]:
+    ownership = ownership_record(runtime)
+    files = ownership["files"]
+    ownership["identities"] = {
+        relative: _file_identity(runtime / relative)
+        for relative in files  # type: ignore[union-attr]
+    }
+    return ownership
+
+
+def verify_sealed_ownership(runtime: Path, expected: object) -> None:
+    if not isinstance(expected, dict):
+        raise ValueError("dependency sealed generation ownership is invalid")
+    files = expected.get("files")
+    identities = expected.get("identities")
+    directories = expected.get("directories")
+    links = expected.get("links")
+    if (
+        not isinstance(files, dict)
+        or not isinstance(identities, dict)
+        or set(files) != set(identities)
+        or not isinstance(directories, list)
+        or not valid_link_records(links)
+    ):
+        raise ValueError("dependency sealed generation ownership is invalid")
+    actual_files: set[str] = set()
+    actual_directories: list[str] = []
+    actual_links: list[dict[str, str]] = []
+    for path in runtime_entries(runtime):
+        relative = path.relative_to(runtime).as_posix()
+        if path.is_symlink():
+            target = os.readlink(path)
+            _managed_link_target(runtime, path)
+            actual_links.append({"path": relative, "target": target})
+        elif is_link_or_reparse(path):
+            raise ValueError("dependency sealed generation has an unsupported reparse point")
+        elif path.is_dir() and not is_generated_python_cache(relative, directory=True):
+            actual_directories.append(relative)
+        elif path.is_file() and relative != RECEIPT_NAME and not is_generated_python_cache(relative):
+            actual_files.add(relative)
+    if (
+        actual_directories != directories
+        or actual_links != links
+        or actual_files != set(files)
+    ):
+        raise ValueError("dependency sealed generation contains unexpected or missing content")
+    for relative, expected_identity in identities.items():
+        if not isinstance(expected_identity, dict):
+            raise ValueError("dependency sealed generation identity is invalid")
+        current = _file_identity(runtime / relative)
+        if current == expected_identity:
+            continue
+        immutable = {"size", "mode", "device", "inode"}
+        if any(current.get(key) != expected_identity.get(key) for key in immutable):
+            raise ValueError("dependency sealed generation identity drift detected")
+        if sha256(runtime / relative) != files[relative]:
+            raise ValueError("dependency sealed generation content drift detected")
 
 
 def install_plan(runtime: Path, specification: dict[str, object]) -> dict[str, list[list[str]]]:
