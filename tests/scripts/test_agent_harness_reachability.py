@@ -814,8 +814,8 @@ class EntrypointDutyTest(unittest.TestCase):
                 self.assertIn(link, content, f"the entrypoint must link {link}")
                 self.assertIn(anchor, slugs, f"{anchor} names no heading in the playbook")
 
-    def test_pr_merger_babysit_must_fix_review_comments_and_failed_tests(self):
-        """Babysitting is not watch-only: comments and failed tests are in-scope."""
+    def test_pr_merger_babysit_must_clear_feedback_and_accept_before_arming(self):
+        """Babysitting clears remote state before final acceptance and arming."""
         playbook = section_body(
             self.PLAYBOOK.read_text(encoding="utf-8"),
             "### PR-merger workflow: arm, watch, fix, confirm",
@@ -824,6 +824,18 @@ class EntrypointDutyTest(unittest.TestCase):
         self.assertTrue(playbook, "the PR-merger workflow section must exist")
         self.assertIn("review comments", compact)
         self.assertIn("failed tests", compact)
+        ordered_clauses = (
+            "clear every github comment before acceptance",
+            "require the exact head to be fully green before acceptance",
+            "run final holistic acceptance last",
+            "no bot finding",
+            "remains unresolved",
+            "final assurance action before arming auto-merge",
+            "immediately after that acceptance remains current",
+        )
+        offsets = [compact.index(clause) for clause in ordered_clauses]
+        self.assertEqual(offsets, sorted(offsets))
+        self.assertIn("unchanged state never triggers a retry", compact)
         self.assertIsNone(OPTIONALITY_HEDGE.search(playbook))
         lifecycle = section_body(
             (ROOT / "chaos-engine/references/consult-first.md").read_text(

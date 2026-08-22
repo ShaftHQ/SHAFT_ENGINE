@@ -108,26 +108,39 @@ secret-safety, installer acceptance, and confirmed correctness checks cannot be
 waived. An authorized merge bypass likewise records the obsolete checks waived
 and focused proofs observed; it must not represent remote checks as green.
 
-1. **Clear every GitHub comment before arming.** Read and address every open
+1. **Clear every GitHub comment before acceptance.** Read and address every open
    review thread, inline review comment, conversation comment, check annotation,
    and bot finding (including code-quality and security bots). A green check is
    not evidence that its comments were handled. Reply or resolve only after the
    finding is fixed, ruled non-applicable with evidence, or filed as explicitly
    approved follow-up work. Re-query GitHub after the final push and require zero
    unhandled comments before continuing.
-2. **Arm** after the review and comment gates: `gh pr merge <n> --auto --merge`.
-3. **Watch** from the target repository with
+2. **Require the exact head to be fully green before acceptance.** Every required
+   and protected check must be complete and successful for the bound head SHA;
+   pending, red, conflicting, or stale is not green. Apply only the exact-head,
+   non-protected waiver rules above.
+3. **Run final holistic acceptance last.** Do not execute final holistic
+   acceptance until the current exact head is fully green and no bot finding,
+   review thread, inline comment, conversation comment, or annotation remains
+   unresolved. Map the approved initial plan and every closing ticket to the
+   user-facing affected flows. This is the final assurance action before arming
+   auto-merge. If the head or remote feedback changes afterward, the receipt is
+   stale: clear only that new observable state, then run one replacement
+   acceptance against the new exact head. Unchanged state never triggers a retry.
+4. **Arm** immediately after that acceptance remains current:
+   `gh pr merge <n> --auto --merge`.
+5. **Watch** from the target repository with
    `gh pr checks <n> --watch --fail-fast`. Pass `--repo` for an explicit
    cross-repository target.
-4. **Ask for unseen states** with `gh pr view <n> --json
+6. **Ask for unseen states** with `gh pr view <n> --json
    mergeStateStatus,mergedAt`; `DIRTY` conflicts and `BEHIND` stale heads need
    action even when no event fires.
-5. **Fix** red checks, failed tests, review comments, and bot findings on the
+7. **Fix** red checks, failed tests, review comments, and bot findings on the
    branch, or merge the fetched configured upstream default branch for a
    conflict or stale head, then return to watch. Never force-push away
    owner-visible history. Any new push restarts the comment gate before
    auto-merge may remain armed.
-6. **Confirm** remotely that `mergedAt` is non-null; armed is not merged.
+8. **Confirm** remotely that `mergedAt` is non-null; armed is not merged.
 
 ## 8. Report
 
