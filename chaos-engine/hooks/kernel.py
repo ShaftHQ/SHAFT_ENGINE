@@ -17,7 +17,7 @@ from typing import Callable, Mapping
 
 
 SCHEMA_VERSION = 1
-STATE_SCHEMA_VERSION = 2
+STATE_SCHEMA_VERSION = 3
 CANONICAL_IDENTITY = "chaos-engine"
 LEGACY_IDENTITIES = ("act-as-" + "mo" + "hab",)
 TERMINAL_PHASES = frozenset({"Complete", "Blocked"})
@@ -875,7 +875,7 @@ class EffectJournal:
                 raise JournalCorruptionError(
                     f"invalid effect journal record at line {line_number}"
                 )
-            if item["schemaVersion"] not in {1, 2}:
+            if item["schemaVersion"] not in {1, 2, 3}:
                 raise JournalCorruptionError(
                     f"invalid effect journal record at line {line_number}"
                 )
@@ -889,13 +889,15 @@ class EffectJournal:
                 "effect",
                 "payloadDigest",
             ]
-            if item["schemaVersion"] == 2:
+            if item["schemaVersion"] == 3:
                 required_strings.append("phase")
             if any(type(item.get(field)) is not str for field in required_strings):
                 raise JournalCorruptionError(
                     f"invalid effect journal record at line {line_number}"
                 )
-            fields = _EFFECT_FIELDS_V1 if item["schemaVersion"] == 1 else _EFFECT_FIELDS
+            fields = (
+                _EFFECT_FIELDS if item["schemaVersion"] == 3 else _EFFECT_FIELDS_V1
+            )
             effect_values = tuple(str(item[field]) for field in fields)
             if item["schemaVersion"] == 1:
                 if any(_CONTROL_CHARACTER.search(value) for value in effect_values):
@@ -940,11 +942,12 @@ class EffectJournal:
         if any(
             item.get("idempotencyKey") == effect.key
             or (
-                item.get("schemaVersion") == 2
+                item.get("schemaVersion") == 3
                 and tuple(str(item[field]) for field in _EFFECT_FIELDS) == effect_values
             )
             or (
-                item.get("schemaVersion") == 1
+                item.get("schemaVersion") in {1, 2}
+                and effect.effect != "lifecycle-phase"
                 and tuple(str(item[field]) for field in _EFFECT_FIELDS_V1)
                 == effect_values[:-1]
             )
@@ -985,7 +988,9 @@ def evaluate_session(
             (
                 str(record["phase"])
                 for record in reversed(records)
-                if record.get("effect") == "lifecycle-phase" and "phase" in record
+                if record.get("schemaVersion") == 3
+                and record.get("effect") == "lifecycle-phase"
+                and "phase" in record
             ),
             "ReadOnly",
         )

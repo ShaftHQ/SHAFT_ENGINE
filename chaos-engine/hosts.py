@@ -2438,9 +2438,12 @@ def without_chaos_hooks(before: bytes | None, label: str) -> bytes:
         existing = json.loads(before) if before is not None else {"hooks": {}}
     except (UnicodeDecodeError, json.JSONDecodeError) as error:
         raise ValueError(f"invalid {label} hook configuration") from error
-    if not isinstance(existing, dict) or not isinstance(existing.get("hooks"), dict):
+    if not isinstance(existing, dict):
         raise ValueError(f"invalid {label} hook configuration")
-    for event, groups in list(existing["hooks"].items()):
+    hooks = existing.setdefault("hooks", {})
+    if not isinstance(hooks, dict):
+        raise ValueError(f"invalid {label} hook configuration")
+    for event, groups in list(hooks.items()):
         if not isinstance(groups, list):
             raise ValueError(f"invalid {label} hook configuration")
         retained_groups = []
@@ -2458,9 +2461,9 @@ def without_chaos_hooks(before: bytes | None, label: str) -> bytes:
                 retained_group["hooks"] = retained_hooks
                 retained_groups.append(retained_group)
         if retained_groups:
-            existing["hooks"][event] = retained_groups
+            hooks[event] = retained_groups
         else:
-            del existing["hooks"][event]
+            del hooks[event]
     return (json.dumps(existing, indent=2, sort_keys=True) + "\n").encode()
 
 

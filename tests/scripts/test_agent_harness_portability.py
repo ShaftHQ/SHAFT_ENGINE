@@ -750,6 +750,7 @@ class AgentHarnessPortabilityTest(unittest.TestCase):
         payload = json.dumps(
             {
                 "hook_event_name": "PreToolUse",
+                "session_id": "windows-nested-hook",
                 "tool_name": "shell_command",
                 "tool_input": {"command": "mvn test"},
             }
@@ -847,6 +848,7 @@ class AgentHarnessPortabilityTest(unittest.TestCase):
             completed = self.run_guard_completed(
                 {
                     "hook_event_name": "PreToolUse",
+                    "session_id": "default-branch-write",
                     "tool_name": "Write",
                     "cwd": str(repository),
                     "tool_input": {"file_path": "Example.java"},

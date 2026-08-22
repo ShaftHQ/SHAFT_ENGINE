@@ -4709,6 +4709,16 @@ def _session_start_payload(context: list[str]) -> dict[str, object]:
     budget = max(0, SESSION_START_MAX_BYTES - len(envelope) - 1)
     bounded = joined.encode("utf-8")[:budget].decode("utf-8", errors="ignore")
     payload["hookSpecificOutput"]["additionalContext"] = bounded
+    while True:
+        rendered = json.dumps(
+            payload, ensure_ascii=False, separators=(",", ":")
+        ).encode("utf-8")
+        overflow = len(rendered) + 1 - SESSION_START_MAX_BYTES
+        if overflow <= 0:
+            break
+        raw = bounded.encode("utf-8")
+        bounded = raw[: max(0, len(raw) - overflow)].decode("utf-8", errors="ignore")
+        payload["hookSpecificOutput"]["additionalContext"] = bounded
     return payload
 
 
@@ -6299,7 +6309,7 @@ def _evaluate_kernel_event(hook_input: dict, host: str):
     normalized_input["agent_id"] = ""
     kernel_host = host if host in kernel.HOST_CAPABILITIES else kernel.detect_host(hook_input)
     journal = kernel.EffectJournal(
-        _reflection.ledger_path(session_id).with_suffix(".kernel-v2.jsonl")
+        _reflection.ledger_path(session_id).with_suffix(".kernel-v3.jsonl")
     )
     return kernel.evaluate_session(
         kernel.normalize_event(normalized_input, kernel_host), journal

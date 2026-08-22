@@ -1879,7 +1879,7 @@ class GuardLifecycleTest(unittest.TestCase):
 
 
 class SessionStartRetrievalIsolationTest(unittest.TestCase):
-    """SessionStart emits locators only and never invokes optional retrieval stores."""
+    """#5304: SessionStart emits locators and never invokes optional retrieval stores."""
 
     def test_session_start_does_not_start_memory_mempalace_or_graphify(self):
         with patch(

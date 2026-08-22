@@ -485,7 +485,7 @@ def _run_event(event: dict, _host: str) -> int:
     kernel_event["session_id"] = session_id
     kernel_event["agent_id"] = ""
     kernel_journal = _kernel.EffectJournal(
-        reflection.ledger_path(session_id).with_suffix(".kernel-v2.jsonl")
+        reflection.ledger_path(session_id).with_suffix(".kernel-v3.jsonl")
     )
     kernel_report = _kernel.evaluate_session(
         _kernel.normalize_event(kernel_event, _host), kernel_journal

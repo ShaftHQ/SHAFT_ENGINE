@@ -1863,7 +1863,7 @@ def _remove_sealed_generation_contents(
     for relative, identity in captured.items():
         path = generation / relative
         current = _file_identity(path)
-        if any(current.get(key) != identity.get(key) for key in ("size", "mode", "device", "inode")):
+        if any(current.get(key) != identity.get(key) for key in ("size", "device", "inode")):
             raise ValueError("dependency sealed generation changed during removal")
         path.unlink()
 

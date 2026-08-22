@@ -718,7 +718,7 @@ class ChaosEngineKernelTest(TestCase):
             self.assertEqual(1, len(journal.records("s1")))
             self.assertEqual(1, len(journal.records("s2")))
             self.assertEqual("s1", journal.records("s1")[0]["sessionId"])
-            self.assertTrue(all(item["schemaVersion"] == 2 for item in journal.records("s1")))
+            self.assertTrue(all(item["schemaVersion"] == 3 for item in journal.records("s1")))
 
             with self.assertRaises(ValueError):
                 self.kernel.Effect("", "PreToolUse", "call", "rule", "record")
@@ -836,7 +836,28 @@ class ChaosEngineKernelTest(TestCase):
             with self.assertRaises(self.kernel.JournalCorruptionError):
                 journal.records("s")
 
-    def test_effect_v2_key_uses_unambiguous_json_tuple_framing(self):
+    def test_effect_journal_reads_pre_phase_v2_without_trusting_a_phase(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "state-v2.jsonl"
+            effect = self.kernel.Effect("s", "PreToolUse", "call", "rule", "record")
+            record = effect.to_record()
+            record["schemaVersion"] = 2
+            record.pop("phase")
+            values = [
+                record[field]
+                for field in ("sessionId", "event", "toolCallId", "rule", "effect")
+            ]
+            record["idempotencyKey"] = hashlib.sha256(
+                json.dumps(values, ensure_ascii=False, separators=(",", ":")).encode()
+            ).hexdigest()
+            path.write_text(json.dumps(record) + "\n", encoding="utf-8")
+
+            loaded = self.kernel.EffectJournal(path).records("s")
+
+            self.assertEqual(2, loaded[0]["schemaVersion"])
+            self.assertNotIn("phase", loaded[0])
+
+    def test_effect_v3_key_uses_unambiguous_json_tuple_framing(self):
         left = self.kernel.Effect("a\0b", "c", "d", "e", "f")
         right = self.kernel.Effect("a", "b\0c", "d", "e", "f")
 
