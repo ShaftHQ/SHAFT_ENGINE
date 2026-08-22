@@ -109,6 +109,33 @@ class ChaosEngineLiveInstallerAcceptanceTest(unittest.TestCase):
         self.assertNotIn(leaked, json.dumps(evidence))
         self.assertEqual("RuntimeError", evidence["failure"]["type"])
 
+    def test_sanitize_redacts_platform_paths_without_hiding_relative_diagnostics(self):
+        module = load_acceptance()
+        self.assertIsNotNone(module, "live installer acceptance runner is missing")
+        if module is None:
+            return
+        cases = {
+            "/var/folders/ab/cd/consumer/state.json": "failed at <path>",
+            "/Users/runner/work/project with spaces/state.json": 'failed at "<path>": denied',
+            "/tmp/chaos-engine-live/consumer/state.json": "failed at <path>",
+            "/private/var/folders/ab/cd/consumer/state.json": "failed at <path>",
+            "/home/runner/work/SHAFT_ENGINE/consumer/state.json": "failed at <path>",
+            r"C:\Users\runner\work\SHAFT_ENGINE\consumer\state.json": "failed at <path>",
+            r"\\server\share\runner\work\SHAFT_ENGINE\consumer\state.json": 'failed at "<path>": denied',
+        }
+        for leaked, expected in cases.items():
+            diagnostic = (
+                f'failed at "{leaked}": denied'
+                if "spaces" in leaked or leaked.startswith("\\\\")
+                else f"failed at {leaked}"
+            )
+            with self.subTest(path=leaked):
+                sanitized = module.sanitize(diagnostic)
+                self.assertEqual(expected, sanitized)
+                self.assertNotIn(leaked, sanitized)
+        relative = "distribution policy rejected forbidden content: hooks/kernel.py"
+        self.assertEqual(relative, module.sanitize(relative))
+
     def test_staged_source_preserves_actual_checked_out_payload(self):
         module = load_acceptance()
         self.assertIsNotNone(module, "live installer acceptance runner is missing")
