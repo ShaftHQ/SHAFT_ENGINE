@@ -16,11 +16,16 @@ from pathlib import Path
 
 
 RECEIPT_SCHEMA = 1
+RUNTIME_CONTRACT_VERSION = 2
 STALE_AFTER = timedelta(hours=24)
 RECEIPT_NAME = "receipt.json"
 LOCK_MAGIC = b"chaos-engine-dependencies-lock-v1\n"
 BUILD_MARKER_MAGIC = "chaos-engine-dependencies-build-v1\n"
 BUILD_MARKER_OWNED_SUFFIX = ".owned"
+
+
+class DanglingRuntimeLink(ValueError):
+    pass
 
 
 def is_link_or_reparse(path: Path) -> bool:
@@ -31,6 +36,21 @@ def is_link_or_reparse(path: Path) -> bool:
     except FileNotFoundError:
         return False
     return bool(attributes & 0x400)
+
+
+def runtime_entries(runtime: Path) -> list[Path]:
+    """List a runtime tree without traversing links or reparse points."""
+    entries: list[Path] = []
+    pending = [runtime]
+    while pending:
+        directory = pending.pop()
+        with os.scandir(directory) as children:
+            paths = sorted((Path(child.path) for child in children), reverse=True)
+        for path in paths:
+            entries.append(path)
+            if not is_link_or_reparse(path) and path.is_dir():
+                pending.append(path)
+    return sorted(entries)
 
 
 def executable(directory: Path, name: str) -> str:
@@ -146,13 +166,90 @@ def is_generated_python_cache(relative: str, *, directory: bool = False) -> bool
     return len(parts) >= 2 and parts[-2] == "__pycache__" and parts[-1].endswith(".pyc")
 
 
-def ownership_digest(files: dict[str, str]) -> str:
+def ownership_digest(
+    files: dict[str, str], links: list[dict[str, str]] | None = None
+) -> str:
     digest = hashlib.sha256()
     for relative, file_digest in sorted(files.items()):
         digest.update(relative.encode())
         digest.update(b"\0")
         digest.update(bytes.fromhex(file_digest))
+    for link in sorted(links or [], key=lambda item: item["path"]):
+        digest.update(b"link\0")
+        digest.update(link["path"].encode())
+        digest.update(b"\0")
+        digest.update(link["target"].encode())
     return digest.hexdigest()
+
+
+def valid_link_records(value: object) -> bool:
+    return isinstance(value, list) and all(
+        isinstance(link, dict)
+        and set(link) == {"path", "target"}
+        and isinstance(link["path"], str)
+        and isinstance(link["target"], str)
+        for link in value
+    )
+
+
+def _lexical_path(path: Path) -> Path:
+    value = os.path.abspath(path)
+    if os.name == "nt" and value.startswith("\\\\?\\UNC\\"):
+        value = f"\\\\{value[8:]}"
+    elif os.name == "nt" and value.startswith("\\\\?\\"):
+        value = value[4:]
+    return Path(value)
+
+
+def _managed_link_target(
+    runtime: Path, path: Path, active: set[Path] | None = None
+) -> Path:
+    root = _lexical_path(runtime)
+    candidate = _lexical_path(path)
+    if not candidate.is_relative_to(root):
+        raise ValueError(f"dependency runtime link escapes the runtime: {path}")
+    seen = active or set()
+    current = root
+    for part in candidate.relative_to(root).parts:
+        current /= part
+        if current.is_symlink():
+            identity = _lexical_path(current)
+            if identity in seen:
+                raise ValueError(f"dependency runtime link cycle detected: {path}")
+            raw_target = Path(os.readlink(current))
+            target = _lexical_path(
+                raw_target if raw_target.is_absolute() else current.parent / raw_target
+            )
+            if not target.is_relative_to(root):
+                raise ValueError(f"dependency runtime link escapes the runtime: {current}")
+            current = _managed_link_target(root, target, seen | {identity})
+        elif is_link_or_reparse(current):
+            raise ValueError(f"dependency runtime contains an unsupported reparse point: {current}")
+        elif not current.exists():
+            raise DanglingRuntimeLink(f"dependency runtime link is dangling: {path}")
+    return current
+
+
+def canonicalize_runtime_links(runtime: Path) -> None:
+    """Validate every managed link, then rewrite safe targets for relocation."""
+    runtime = _lexical_path(runtime)
+    links: list[tuple[Path, str, Path]] = []
+    for path in runtime_entries(runtime):
+        if path.is_symlink():
+            resolved = _managed_link_target(runtime, path)
+            raw = Path(os.readlink(path))
+            immediate = _lexical_path(raw if raw.is_absolute() else path.parent / raw)
+            relative = os.path.relpath(immediate, path.parent)
+            links.append((path, relative, resolved))
+        elif is_link_or_reparse(path):
+            raise ValueError(f"dependency runtime contains an unsupported reparse point: {path}")
+    for path, target, resolved in links:
+        if os.readlink(path) == target:
+            continue
+        path.unlink()
+        path.symlink_to(target, target_is_directory=resolved.is_dir())
+    for path, _, _ in links:
+        _managed_link_target(runtime, path)
 
 
 def normalized_ownership_record(ownership: object) -> object:
@@ -168,6 +265,9 @@ def normalized_ownership_record(ownership: object) -> object:
     ):
         return ownership
     normalized = dict(ownership)
+    links = ownership.get("links", [])
+    if not valid_link_records(links):
+        return ownership
     normalized["directories"] = [
         path for path in directories if not is_generated_python_cache(path, directory=True)
     ]
@@ -177,26 +277,45 @@ def normalized_ownership_record(ownership: object) -> object:
         if not is_generated_python_cache(path)
     }
     normalized["files"] = normalized_files
-    normalized["sha256"] = ownership_digest(normalized_files)
+    normalized["links"] = links
+    normalized["sha256"] = ownership_digest(normalized_files, links)
     return normalized
 
 
-def ownership_record(runtime: Path) -> dict[str, object]:
+def ownership_record(
+    runtime: Path, expected_links: dict[str, str] | None = None
+) -> dict[str, object]:
     if is_link_or_reparse(runtime):
         raise ValueError(f"dependency runtime is a link or reparse point: {runtime}")
     files: dict[str, str] = {}
     directories: list[str] = []
-    for path in sorted(runtime.rglob("*")):
+    links: list[dict[str, str]] = []
+    for path in runtime_entries(runtime):
         relative = path.relative_to(runtime).as_posix()
-        if is_link_or_reparse(path):
-            raise ValueError(f"dependency runtime contains a link: {relative}")
-        if path.is_dir():
+        if path.is_symlink():
+            target = os.readlink(path)
+            if Path(target).is_absolute():
+                raise ValueError(f"dependency runtime link target is not relative: {relative}")
+            try:
+                _managed_link_target(runtime, path)
+            except DanglingRuntimeLink:
+                if expected_links is None or expected_links.get(relative) != target:
+                    raise
+            links.append({"path": relative, "target": target})
+        elif is_link_or_reparse(path):
+            raise ValueError(f"dependency runtime contains an unsupported reparse point: {relative}")
+        elif path.is_dir():
             if not is_generated_python_cache(relative, directory=True):
                 directories.append(relative)
         elif path.is_file() and relative != RECEIPT_NAME:
             if not is_generated_python_cache(relative):
                 files[relative] = sha256(path)
-    return {"directories": directories, "files": files, "sha256": ownership_digest(files)}
+    return {
+        "directories": directories,
+        "files": files,
+        "links": links,
+        "sha256": ownership_digest(files, links),
+    }
 
 
 def install_plan(runtime: Path, specification: dict[str, object]) -> dict[str, list[list[str]]]:
@@ -215,14 +334,14 @@ def install_plan(runtime: Path, specification: dict[str, object]) -> dict[str, l
         raise ValueError("graphify dependency specification is invalid")
     return {
         "uv": [
-            [sys.executable, "-m", "venv", str(environment)],
+            [sys.executable, "-m", "venv", "--copies", str(environment)],
             [executable(scripts, "python"), "-m", "pip", "install", "--upgrade", str(tools["uv"]["package"])],  # type: ignore[index]
         ],
         "mempalace": [
-            [uv, "tool", "install", str(tools["mempalace"]["package"])],  # type: ignore[index]
+            [uv, "tool", "install", "--managed-python", "--link-mode", "copy", str(tools["mempalace"]["package"])],  # type: ignore[index]
         ],
         "graphify": [
-            [uv, "tool", "install", "--with", str(graphify["with"][0]), str(graphify["package"])],  # type: ignore[index]
+            [uv, "tool", "install", "--managed-python", "--link-mode", "copy", "--with", str(graphify["with"][0]), str(graphify["package"])],  # type: ignore[index]
         ],
         "memory": [
             [npm, "install", "--prefix", str(npm_prefix), str(tools["memory"]["package"])],  # type: ignore[index]
@@ -234,6 +353,10 @@ def tool_environment(runtime: Path) -> dict[str, str]:
     return {
         "UV_TOOL_DIR": str(runtime / "uv-tools"),
         "UV_TOOL_BIN_DIR": str(runtime / "bin"),
+        "UV_CACHE_DIR": str(runtime / "uv-cache"),
+        "UV_PYTHON_INSTALL_DIR": str(runtime / "uv-python"),
+        "UV_PYTHON_BIN_DIR": str(runtime / "python-bin"),
+        "UV_LINK_MODE": "copy",
         "NPM_CONFIG_PREFIX": str(runtime / "npm"),
         "PYTHONDONTWRITEBYTECODE": "1",
     }
@@ -301,6 +424,7 @@ def execute_plan(
             except (OSError, subprocess.SubprocessError) as error:
                 raise RuntimeError(f"{tool} install command failed: {command[0]}") from error
             completed[tool].append((result.stdout or result.stderr).strip())
+    canonicalize_runtime_links(runtime)
     probes: dict[str, list[str]] = {}
     for tool, commands in probe_plan(runtime).items():
         probes[tool] = []
@@ -324,15 +448,14 @@ def execute_plan(
         }
     receipt: dict[str, object] = {
         "schemaVersion": RECEIPT_SCHEMA,
+        "runtimeContractVersion": RUNTIME_CONTRACT_VERSION,
         "checkedAt": (now or datetime.now(timezone.utc)).isoformat(),
         "specificationSha256": specification_digest(specification),
         "capabilityPolicySha256": capability_policy_digest(specification),
         "environment": {
-            key: (
-                value
-                if key == "PYTHONDONTWRITEBYTECODE"
-                else Path(value).relative_to(runtime).as_posix()
-            )
+            key: value
+            if key in {"PYTHONDONTWRITEBYTECODE", "UV_LINK_MODE"}
+            else Path(value).relative_to(runtime).as_posix()
             for key, value in environment.items()
         },
         "installed": completed,
@@ -340,6 +463,8 @@ def execute_plan(
     }
     metadata = json.dumps(receipt, sort_keys=True, separators=(",", ":")).encode()
     ownership = ownership_record(runtime)
+    if not ownership["links"]:
+        del ownership["links"]
     ownership["metadataSha256"] = hashlib.sha256(metadata).hexdigest()
     receipt["ownership"] = ownership
     integrity = json.dumps(receipt, sort_keys=True, separators=(",", ":")).encode()
@@ -358,6 +483,68 @@ def relative_command(runtime: Path, command: list[str]) -> list[str]:
         # External system executables remain absolute; only runtime-owned paths relocate.
         pass
     return result
+
+
+def runtime_ownership_state(
+    runtime: Path,
+    receipt: dict[str, object],
+    specification: dict[str, object],
+) -> str:
+    """Classify authenticated runtime content without following foreign links."""
+    verify_receipt_integrity(receipt)
+    ownership = normalized_ownership_record(receipt.get("ownership"))
+    if not isinstance(ownership, dict):
+        raise ValueError("dependency runtime ownership record is invalid")
+    metadata_receipt = {
+        key: value
+        for key, value in receipt.items()
+        if key not in {"ownership", "receiptIntegritySha256"}
+    }
+    metadata = json.dumps(metadata_receipt, sort_keys=True, separators=(",", ":")).encode()
+    expected_files = ownership.get("files")
+    expected_directories = ownership.get("directories")
+    expected_links = ownership.get("links", [])
+    if (
+        not isinstance(expected_files, dict)
+        or not isinstance(expected_directories, list)
+        or not valid_link_records(expected_links)
+    ):
+        raise ValueError("dependency runtime ownership record is invalid")
+    expected_link_map = {item["path"]: item["target"] for item in expected_links}
+    actual = ownership_record(runtime, expected_links=expected_link_map)
+    actual["metadataSha256"] = hashlib.sha256(metadata).hexdigest()
+    if actual == ownership:
+        specification_changed = receipt.get("specificationSha256") != specification_digest(
+            specification
+        )
+        capability_changed = (
+            "capabilityPolicySha256" in receipt
+            and receipt.get("capabilityPolicySha256")
+            != capability_policy_digest(specification)
+        )
+        contract_changed = receipt.get("runtimeContractVersion") != RUNTIME_CONTRACT_VERSION
+        return (
+            "specification-stale"
+            if specification_changed or capability_changed or contract_changed
+            else "healthy"
+        )
+    actual_files = actual["files"]
+    actual_directories = actual["directories"]
+    actual_links = actual["links"]
+    actual_link_map = {item["path"]: item["target"] for item in actual_links}
+    if (
+        not set(actual_files) <= set(expected_files)
+        or not set(actual_directories) <= set(expected_directories)
+        or not set(actual_link_map) <= set(expected_link_map)
+    ):
+        raise ValueError("dependency runtime contains foreign content")
+    if (
+        any(expected_files[path] != digest for path, digest in actual_files.items())
+        or any(expected_link_map[path] != target for path, target in actual_link_map.items())
+        or actual.get("metadataSha256") != ownership.get("metadataSha256")
+    ):
+        raise ValueError("dependency runtime ownership drift detected")
+    return "missing-only"
 
 
 def repair(  # noqa: MC0001 - one locked transaction keeps recovery and publication atomic.
@@ -433,8 +620,8 @@ def repair(  # noqa: MC0001 - one locked transaction keeps recovery and publicat
         previous = runtime.exists()
         if previous:
             current = read_receipt(runtime)
-            verify_receipt(runtime, current)
-            if not force:
+            state = runtime_ownership_state(runtime, current, specification)
+            if state == "healthy" and not force:
                 doctor(runtime, runner=runner, now=now, specification=specification)
                 return upgrade_capability_receipt(runtime, current, specification)
         marker_created = False
@@ -462,8 +649,6 @@ def repair(  # noqa: MC0001 - one locked transaction keeps recovery and publicat
             if previous and backup.exists() and not runtime.exists():
                 backup.replace(runtime)
             if marker_created and building.exists() and not backup.exists():
-                if runtime.exists():
-                    verify_receipt(runtime, read_receipt(runtime))
                 unlink_owned_marker(building, marker_identity)  # type: ignore[arg-type]
             raise
         else:
@@ -502,6 +687,11 @@ def verify_receipt(
     verify_receipt_integrity(receipt)
     if specification is not None and receipt["specificationSha256"] != specification_digest(specification):
         raise ValueError("dependency runtime specification drift detected")
+    if (
+        specification is not None
+        and receipt.get("runtimeContractVersion") != RUNTIME_CONTRACT_VERSION
+    ):
+        raise ValueError("dependency runtime contract drift detected")
     if (
         specification is not None
         and "capabilityPolicySha256" in receipt
@@ -648,12 +838,28 @@ def remove(
         ownership = normalized_ownership_record(receipt["ownership"])
         files = ownership.get("files") if isinstance(ownership, dict) else None
         directories = ownership.get("directories") if isinstance(ownership, dict) else None
-        if not isinstance(files, dict) or not isinstance(directories, list):
+        links = ownership.get("links", []) if isinstance(ownership, dict) else None
+        if (
+            not isinstance(files, dict)
+            or not isinstance(directories, list)
+            or not valid_link_records(links)
+        ):
             raise ValueError("dependency removal ownership record is invalid")
+        expected_links = {item["path"]: item["target"] for item in links}
+        entries = runtime_entries(removing)
+        present_links = {
+            path.relative_to(removing).as_posix(): os.readlink(path)
+            for path in entries
+            if path.is_symlink()
+        }
+        if not set(present_links) <= set(expected_links) or any(
+            expected_links[path] != target for path, target in present_links.items()
+        ):
+            raise ValueError("dependency removal link ownership drift detected")
         present = {
             path.relative_to(removing).as_posix()
-            for path in removing.rglob("*")
-            if path.is_file()
+            for path in entries
+            if not is_link_or_reparse(path) and path.is_file()
         }
         generated_files = {
             relative for relative in present if is_generated_python_cache(relative)
@@ -666,10 +872,12 @@ def remove(
             if relative not in generated_files and sha256(path) != files[relative]:
                 raise ValueError("dependency removal ownership drift detected")
             path.unlink()
+        for relative in sorted(present_links):
+            (removing / relative).unlink()
         present_directories = {
             path.relative_to(removing).as_posix()
-            for path in removing.rglob("*")
-            if path.is_dir()
+            for path in entries
+            if not is_link_or_reparse(path) and path.is_dir()
         }
         expected_directories = set(directories) | {
             relative
@@ -679,7 +887,11 @@ def remove(
         if not present_directories <= expected_directories:
             raise ValueError("dependency removal directory ownership drift detected")
         for directory in sorted(
-            (path for path in removing.rglob("*") if path.is_dir()),
+            (
+                path
+                for path in entries
+                if not is_link_or_reparse(path) and path.is_dir()
+            ),
             key=lambda path: len(path.parts),
             reverse=True,
         ):

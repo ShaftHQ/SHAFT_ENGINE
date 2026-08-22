@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import os
 import shutil
 import tempfile
 import unittest
@@ -38,6 +39,14 @@ def load_tool():
 
 
 class ChaosEngineDependenciesTest(unittest.TestCase):
+    def symlink_or_skip(self, target: Path | str, link: Path) -> None:
+        try:
+            link.symlink_to(target)
+        except OSError as error:
+            if os.name == "nt" and getattr(error, "winerror", None) == 1314:
+                self.skipTest("Windows symlink privilege is unavailable")
+            raise
+
     @staticmethod
     def write_legacy_receipt_with_cache(module, runtime: Path) -> None:
         receipt_path = runtime / module.RECEIPT_NAME
@@ -168,8 +177,17 @@ def mempalace_runtime_status(project: Path):
         environment = module.tool_environment(runtime)
         self.assertEqual(str(runtime / "uv-tools"), environment["UV_TOOL_DIR"])
         self.assertEqual(str(runtime / "bin"), environment["UV_TOOL_BIN_DIR"])
+        self.assertEqual(str(runtime / "uv-cache"), environment["UV_CACHE_DIR"])
+        self.assertEqual(str(runtime / "uv-python"), environment["UV_PYTHON_INSTALL_DIR"])
+        self.assertEqual(str(runtime / "python-bin"), environment["UV_PYTHON_BIN_DIR"])
         self.assertEqual(str(runtime / "npm"), environment["NPM_CONFIG_PREFIX"])
         self.assertEqual("1", environment["PYTHONDONTWRITEBYTECODE"])
+        self.assertEqual("copy", environment["UV_LINK_MODE"])
+        self.assertIn("--copies", plan["uv"][0])
+        for tool in ("mempalace", "graphify"):
+            self.assertIn("--managed-python", plan[tool][0])
+            self.assertIn("--link-mode", plan[tool][0])
+            self.assertIn("copy", plan[tool][0])
         for commands in plan.values():
             for command in commands:
                 self.assertNotIn("--global", command)
@@ -203,11 +221,305 @@ def mempalace_runtime_status(project: Path):
             persisted = json.loads((runtime / "receipt.json").read_text(encoding="utf-8"))
 
         self.assertEqual(1, receipt["schemaVersion"])
+        self.assertEqual(module.RUNTIME_CONTRACT_VERSION, receipt["runtimeContractVersion"])
+        self.assertNotIn("links", receipt["ownership"])
         self.assertEqual(receipt, persisted)
         self.assertRegex(receipt["capabilityPolicySha256"], r"^[0-9a-f]{64}$")
         invoked = {Path(command[0]).stem for command, _ in calls}
         self.assertLessEqual({"mempalace", "mempalace-mcp", "graphify", "memory", "memory-mcp"}, invoked)
         self.assertTrue(all("UV_TOOL_DIR" in environment for _, environment in calls))
+
+    def test_linkless_receipt_preserves_legacy_controller_ownership_shape(self):
+        module = load_controller()
+        specification = json.loads(SPECIFICATION.read_text(encoding="utf-8"))
+        with tempfile.TemporaryDirectory() as temporary:
+            runtime = Path(temporary) / ".chaos-engine-runtime"
+            receipt = module.repair(
+                runtime, specification, runner=self.fake_runner(runtime)
+            )
+            legacy_ownership = module.ownership_record(runtime)
+            legacy_ownership.pop("links")
+            metadata = {
+                key: value
+                for key, value in receipt.items()
+                if key not in {"ownership", "receiptIntegritySha256"}
+            }
+            legacy_ownership["metadataSha256"] = module.hashlib.sha256(
+                json.dumps(metadata, sort_keys=True, separators=(",", ":")).encode()
+            ).hexdigest()
+
+            self.assertNotIn("links", receipt["ownership"])
+            self.assertEqual(legacy_ownership, receipt["ownership"])
+
+    def test_internal_tool_link_is_canonicalized_recorded_and_relocatable(self):
+        module = load_controller()
+        specification = json.loads(SPECIFICATION.read_text(encoding="utf-8"))
+
+        with tempfile.TemporaryDirectory() as temporary:
+            first = Path(temporary) / "first/.chaos-engine-runtime"
+            second = Path(temporary) / "second/.chaos-engine-runtime"
+
+            def runner(command, environment):
+                executable = Path(command[0])
+                if command[1:3] == ["tool", "install"] or "install" in command[1:3]:
+                    package = command[-1].split("==", 1)[0]
+                    if package in {"graphifyy", "mempalace"}:
+                        target_name = "graphify" if package == "graphifyy" else "mempalace"
+                        target = first / "uv-tools" / package / "bin" / target_name
+                        target.parent.mkdir(parents=True, exist_ok=True)
+                        target.write_text("tool\n", encoding="utf-8")
+                        link = first / "bin" / target_name
+                        link.parent.mkdir(parents=True, exist_ok=True)
+                        if not link.exists() and not link.is_symlink():
+                            self.symlink_or_skip(target, link)
+                if not executable.exists() and executable.is_relative_to(first):
+                    executable.parent.mkdir(parents=True, exist_ok=True)
+                    executable.write_text("tool\n", encoding="utf-8")
+                return SimpleNamespace(stdout="tool 1.0\n", stderr="")
+
+            receipt = module.repair(first, specification, runner=runner)
+            links = {item["path"]: item["target"] for item in receipt["ownership"]["links"]}
+            self.assertIn("bin/graphify", links)
+            self.assertFalse(Path(links["bin/graphify"]).is_absolute())
+            second.parent.mkdir()
+            first.replace(second)
+
+            module.verify_receipt(second, module.read_receipt(second), specification)
+            self.assertEqual("tool\n", (second / "bin/graphify").read_text(encoding="utf-8"))
+            graphify = second / "bin/graphify"
+            graphify.unlink()
+            self.symlink_or_skip(
+                Path("../uv-tools/mempalace/bin/mempalace"), graphify
+            )
+            with self.assertRaisesRegex(ValueError, "ownership drift"):
+                module.verify_receipt(
+                    second, module.read_receipt(second), specification
+                )
+
+    def test_tool_venv_and_npm_link_shapes_are_portable_owned_links(self):
+        module = load_controller()
+        with tempfile.TemporaryDirectory() as temporary:
+            runtime = Path(temporary) / ".chaos-engine-runtime"
+            targets = {
+                "uv-tools/graphify/bin/graphify": "graphify\n",
+                "uv-python/python3": "python\n",
+                "npm/node_modules/@aictx/memory/bin/memory.js": "memory\n",
+            }
+            for relative, content in targets.items():
+                target = runtime / relative
+                target.parent.mkdir(parents=True, exist_ok=True)
+                target.write_text(content, encoding="utf-8")
+            links = {
+                "bin/graphify": runtime / "uv-tools/graphify/bin/graphify",
+                "bootstrap/bin/python3": runtime / "uv-python/python3",
+                "bootstrap/bin/python": Path("python3"),
+                "npm/node_modules/.bin/memory": Path("../@aictx/memory/bin/memory.js"),
+            }
+            for relative, target in links.items():
+                link = runtime / relative
+                link.parent.mkdir(parents=True, exist_ok=True)
+                self.symlink_or_skip(target, link)
+
+            module.canonicalize_runtime_links(runtime)
+            ownership = module.ownership_record(runtime)
+            recorded = {item["path"]: item["target"] for item in ownership["links"]}
+
+            self.assertEqual(set(links), set(recorded))
+            self.assertTrue(all(not Path(target).is_absolute() for target in recorded.values()))
+
+    def test_runtime_links_reject_external_dangling_and_cycles(self):
+        module = load_controller()
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            outside = root / "outside"
+            outside.write_text("mine\n", encoding="utf-8")
+            cases = {
+                "external": outside,
+                "dangling": Path("missing"),
+                "cycle": Path("cycle"),
+            }
+            for name, target in cases.items():
+                runtime = root / name
+                runtime.mkdir()
+                link = runtime / "cycle"
+                self.symlink_or_skip(target, link)
+                with self.subTest(name=name):
+                    with self.assertRaisesRegex(ValueError, "link"):
+                        module.canonicalize_runtime_links(runtime)
+
+    def test_missing_managed_tools_rebuild_but_foreign_content_fails_closed(self):
+        module = load_controller()
+        specification = json.loads(SPECIFICATION.read_text(encoding="utf-8"))
+        for missing in (("graphify",), ("mempalace",), ("graphify", "mempalace")):
+            with self.subTest(missing=missing), tempfile.TemporaryDirectory() as temporary:
+                runtime = Path(temporary) / ".chaos-engine-runtime"
+                runner = self.fake_runner(runtime)
+                first = module.repair(runtime, specification, runner=runner)
+                for name in missing:
+                    entrypoint = Path(module.executable(runtime / "bin", name))
+                    entrypoint.unlink()
+                repaired = module.repair(runtime, specification, runner=runner)
+                self.assertNotEqual(first["checkedAt"], repaired["checkedAt"])
+                for name in missing:
+                    self.assertTrue(Path(module.executable(runtime / "bin", name)).is_file())
+
+                unknown = runtime / "foreign.txt"
+                unknown.write_text("mine\n", encoding="utf-8")
+                with self.assertRaisesRegex(ValueError, "foreign|drift"):
+                    module.repair(runtime, specification, runner=runner)
+                self.assertEqual("mine\n", unknown.read_text(encoding="utf-8"))
+
+    def test_missing_owned_target_behind_unchanged_shim_rebuilds(self):
+        module = load_controller()
+        specification = json.loads(SPECIFICATION.read_text(encoding="utf-8"))
+        with tempfile.TemporaryDirectory() as temporary:
+            runtime = Path(temporary) / ".chaos-engine-runtime"
+
+            def runner(command, environment):
+                del environment
+                executable = Path(command[0])
+                if command[1:3] == ["tool", "install"] and command[-1].startswith(
+                    "graphifyy=="
+                ):
+                    target = runtime / "uv-tools/graphifyy/bin/graphify"
+                    target.parent.mkdir(parents=True, exist_ok=True)
+                    target.write_text("tool\n", encoding="utf-8")
+                    link = runtime / "bin/graphify"
+                    link.parent.mkdir(parents=True, exist_ok=True)
+                    if not link.exists() and not link.is_symlink():
+                        self.symlink_or_skip(target, link)
+                if not executable.exists() and executable.is_relative_to(runtime.parent):
+                    executable.parent.mkdir(parents=True, exist_ok=True)
+                    executable.write_text("tool\n", encoding="utf-8")
+                return SimpleNamespace(stdout="tool 1.0\n", stderr="")
+
+            module.repair(runtime, specification, runner=runner)
+            shim = runtime / "bin/graphify"
+            target = runtime / "uv-tools/graphifyy/bin/graphify"
+            target.unlink()
+            self.assertTrue(shim.is_symlink())
+
+            module.repair(runtime, specification, runner=runner)
+
+            self.assertTrue(target.is_file())
+            self.assertEqual("tool\n", shim.read_text(encoding="utf-8"))
+
+    def test_specification_change_rebuilds_without_force(self):
+        module = load_controller()
+        specification = json.loads(SPECIFICATION.read_text(encoding="utf-8"))
+        with tempfile.TemporaryDirectory() as temporary:
+            runtime = Path(temporary) / ".chaos-engine-runtime"
+            first = module.repair(runtime, specification, runner=self.fake_runner(runtime))
+            changed = json.loads(json.dumps(specification))
+            changed["tools"]["graphify"]["package"] = "graphifyy==next"
+            upgraded = module.repair(runtime, changed, runner=self.fake_runner(runtime))
+
+            self.assertNotEqual(first["specificationSha256"], upgraded["specificationSha256"])
+            self.assertEqual(module.specification_digest(changed), upgraded["specificationSha256"])
+
+    def test_runtime_contract_version_preserves_specification_digest_semantics(self):
+        module = load_controller()
+        specification = json.loads(SPECIFICATION.read_text(encoding="utf-8"))
+        current = module.specification_digest(specification)
+        current_version = getattr(module, "RUNTIME_CONTRACT_VERSION", 0)
+
+        with mock.patch.object(
+            module, "RUNTIME_CONTRACT_VERSION", current_version + 1, create=True
+        ):
+            changed = module.specification_digest(specification)
+
+        self.assertEqual(current, changed)
+
+    def test_previous_runtime_contract_receipt_rebuilds_on_normal_repair(self):
+        module = load_controller()
+        specification = json.loads(SPECIFICATION.read_text(encoding="utf-8"))
+        with tempfile.TemporaryDirectory() as temporary:
+            runtime = Path(temporary) / ".chaos-engine-runtime"
+            module.repair(runtime, specification, runner=self.fake_runner(runtime))
+            receipt_path = runtime / module.RECEIPT_NAME
+            receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
+            receipt.pop("runtimeContractVersion")
+            metadata = {
+                key: value
+                for key, value in receipt.items()
+                if key not in {"ownership", "receiptIntegritySha256"}
+            }
+            receipt["ownership"]["metadataSha256"] = module.hashlib.sha256(
+                json.dumps(metadata, sort_keys=True, separators=(",", ":")).encode()
+            ).hexdigest()
+            integrity = {
+                key: value
+                for key, value in receipt.items()
+                if key != "receiptIntegritySha256"
+            }
+            receipt["receiptIntegritySha256"] = module.hashlib.sha256(
+                json.dumps(integrity, sort_keys=True, separators=(",", ":")).encode()
+            ).hexdigest()
+            receipt_path.write_text(json.dumps(receipt), encoding="utf-8")
+            calls = []
+            runner = self.fake_runner(runtime)
+
+            def counting_runner(command, environment):
+                calls.append(command)
+                return runner(command, environment)
+
+            upgraded = module.repair(runtime, specification, runner=counting_runner)
+
+            self.assertTrue(calls)
+            self.assertEqual(
+                module.specification_digest(specification),
+                upgraded["specificationSha256"],
+            )
+
+    def test_malformed_authenticated_link_records_fail_closed(self):
+        module = load_controller()
+        specification = json.loads(SPECIFICATION.read_text(encoding="utf-8"))
+        with tempfile.TemporaryDirectory() as temporary:
+            runtime = Path(temporary) / ".chaos-engine-runtime"
+            module.repair(runtime, specification, runner=self.fake_runner(runtime))
+            receipt_path = runtime / module.RECEIPT_NAME
+            receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
+            receipt["ownership"]["links"] = ["invalid"]
+            integrity = {
+                key: value
+                for key, value in receipt.items()
+                if key != "receiptIntegritySha256"
+            }
+            receipt["receiptIntegritySha256"] = module.hashlib.sha256(
+                json.dumps(integrity, sort_keys=True, separators=(",", ":")).encode()
+            ).hexdigest()
+            receipt_path.write_text(json.dumps(receipt), encoding="utf-8")
+
+            with self.assertRaisesRegex(ValueError, "ownership record"):
+                module.repair(runtime, specification, runner=self.fake_runner(runtime))
+
+            removing = runtime.with_name(f"{runtime.name}.removing")
+            runtime.replace(removing)
+            with self.assertRaisesRegex(ValueError, "ownership record"):
+                module.remove(
+                    runtime,
+                    specification,
+                    removal_path=removing,
+                    already_locked=True,
+                )
+
+    def test_remove_never_follows_a_retargeted_link(self):
+        module = load_controller()
+        specification = json.loads(SPECIFICATION.read_text(encoding="utf-8"))
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            runtime = root / ".chaos-engine-runtime"
+            module.repair(runtime, specification, runner=self.fake_runner(runtime))
+            outside = root / "outside.txt"
+            outside.write_text("mine\n", encoding="utf-8")
+            entrypoint = Path(module.executable(runtime / "bin", "graphify"))
+            entrypoint.unlink()
+            self.symlink_or_skip(outside, entrypoint)
+
+            with self.assertRaisesRegex(ValueError, "link|ownership drift"):
+                module.remove(runtime, specification)
+
+            self.assertEqual("mine\n", outside.read_text(encoding="utf-8"))
 
     def test_legacy_schema_v1_receipt_without_capability_digest_remains_readable(self):
         module = load_controller()
@@ -260,6 +572,28 @@ def mempalace_runtime_status(project: Path):
             with self.assertRaisesRegex(RuntimeError, "uv install"):
                 module.repair(runtime, specification, runner=failing_runner, force=True)
             self.assertEqual(before, marker.read_text(encoding="utf-8"))
+
+    def test_failed_missing_only_repair_restores_state_and_retry_succeeds(self):
+        module = load_controller()
+        specification = json.loads(SPECIFICATION.read_text(encoding="utf-8"))
+        with tempfile.TemporaryDirectory() as temporary:
+            runtime = Path(temporary) / ".chaos-engine-runtime"
+            runner = self.fake_runner(runtime)
+            module.repair(runtime, specification, runner=runner)
+            graphify = Path(module.executable(runtime / "bin", "graphify"))
+            graphify.unlink()
+
+            def fail(command, environment):
+                del command, environment
+                raise OSError("offline")
+
+            with self.assertRaisesRegex(RuntimeError, "uv install"):
+                module.repair(runtime, specification, runner=fail)
+            self.assertTrue(runtime.is_dir())
+            self.assertFalse(graphify.exists())
+
+            module.repair(runtime, specification, runner=runner)
+            self.assertTrue(graphify.is_file())
 
     def test_repair_rejects_an_unknown_runtime_without_claiming_it(self):
         module = load_controller()

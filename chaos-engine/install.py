@@ -143,6 +143,20 @@ def is_link_or_reparse(path: Path) -> bool:
     return bool(attributes & 0x400)
 
 
+def dependency_tombstone_entries(root: Path) -> list[Path]:
+    entries: list[Path] = []
+    pending = [root]
+    while pending:
+        directory = pending.pop()
+        with os.scandir(directory) as children:
+            paths = sorted((Path(child.path) for child in children), reverse=True)
+        for path in paths:
+            entries.append(path)
+            if not is_link_or_reparse(path) and path.is_dir():
+                pending.append(path)
+    return sorted(entries)
+
+
 def reject_link_or_reparse(path: Path) -> None:
     if is_link_or_reparse(path):
         raise ValueError(f"path is a link or reparse point: {path}")
@@ -1117,11 +1131,35 @@ def rollback(  # noqa: MC0001 - cross-resource rollback is one journaled state m
                 if isinstance(restored_host_receipt.get("clientActivation"), dict):
                     previous_hosts.activate_detected_plugins(project)
                 previous_dependencies = load_dependency_controller(target)
-                repair = provisioner or previous_dependencies.repair
-                repair(
-                    project / ".chaos-engine-runtime",
-                    previous_dependencies.load_specification(target / "dependencies.json"),
-                )
+                runtime = project / ".chaos-engine-runtime"
+                removed_newer_runtime = False
+                if not hasattr(previous_dependencies, "RUNTIME_CONTRACT_VERSION"):
+                    removed_newer_runtime = not runtime.exists()
+                    if runtime.exists():
+                        current_dependencies = load_dependency_controller(backup)
+                        current_receipt = current_dependencies.read_receipt(runtime)
+                        ownership = current_receipt.get("ownership")
+                        links = (
+                            ownership.get("links", [])
+                            if isinstance(ownership, dict)
+                            else None
+                        )
+                        if links:
+                            current_dependencies.remove(
+                                runtime,
+                                current_dependencies.load_specification(
+                                    backup / "dependencies.json"
+                                ),
+                            )
+                            removed_newer_runtime = True
+                if not removed_newer_runtime:
+                    repair = provisioner or previous_dependencies.repair
+                    repair(
+                        runtime,
+                        previous_dependencies.load_specification(
+                            target / "dependencies.json"
+                        ),
+                    )
             except BaseException:
                 raise
             transaction_path = project / CROSS_ROLLBACK_JOURNAL_NAME
@@ -1584,9 +1622,10 @@ def finalize_dependency_tombstone(removing: Path) -> None:
     if not any(removing.iterdir()):
         removing.rmdir()
         return
-    for path in removing.rglob("*"):
-        if is_link_or_reparse(path):
-            raise ValueError("dependency removal contains a link or reparse point")
+    entries = dependency_tombstone_entries(removing)
+    for path in entries:
+        if is_link_or_reparse(path) and not path.is_symlink():
+            raise ValueError("dependency removal contains an unsupported reparse point")
     receipt_path = removing / "receipt.json"
     receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
     integrity = receipt.pop("receiptIntegritySha256", None)
@@ -1596,12 +1635,34 @@ def finalize_dependency_tombstone(removing: Path) -> None:
     ownership = receipt.get("ownership")
     files = ownership.get("files") if isinstance(ownership, dict) else None
     directories = ownership.get("directories") if isinstance(ownership, dict) else None
-    if not isinstance(files, dict) or not isinstance(directories, list):
+    links = ownership.get("links", []) if isinstance(ownership, dict) else None
+    if (
+        not isinstance(files, dict)
+        or not isinstance(directories, list)
+        or not isinstance(links, list)
+        or not all(
+            isinstance(link, dict)
+            and set(link) == {"path", "target"}
+            and isinstance(link["path"], str)
+            and isinstance(link["target"], str)
+            for link in links
+        )
+    ):
         raise ValueError("dependency removal ownership record is invalid")
+    expected_links = {link["path"]: link["target"] for link in links}
+    present_links = {
+        path.relative_to(removing).as_posix(): os.readlink(path)
+        for path in entries
+        if path.is_symlink()
+    }
+    if not set(present_links) <= set(expected_links) or any(
+        expected_links[path] != target for path, target in present_links.items()
+    ):
+        raise ValueError("dependency removal link ownership drift detected")
     present_files = {
         path.relative_to(removing).as_posix()
-        for path in removing.rglob("*")
-        if path.is_file() and path != receipt_path
+        for path in entries
+        if not is_link_or_reparse(path) and path.is_file() and path != receipt_path
     }
     if not present_files <= set(files):
         raise ValueError("dependency removal contains an unowned file")
@@ -1610,15 +1671,21 @@ def finalize_dependency_tombstone(removing: Path) -> None:
         if file_sha256(path) != files[relative]:
             raise ValueError("dependency removal ownership drift detected")
         path.unlink()
+    for relative in sorted(present_links):
+        (removing / relative).unlink()
     present_directories = {
         path.relative_to(removing).as_posix()
-        for path in removing.rglob("*")
-        if path.is_dir()
+        for path in entries
+        if not is_link_or_reparse(path) and path.is_dir()
     }
     if not present_directories <= set(directories):
         raise ValueError("dependency removal directory ownership drift detected")
     for directory in sorted(
-        (path for path in removing.rglob("*") if path.is_dir()),
+        (
+            path
+            for path in entries
+            if not is_link_or_reparse(path) and path.is_dir()
+        ),
         key=lambda path: len(path.parts),
         reverse=True,
     ):
