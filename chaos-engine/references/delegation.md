@@ -86,9 +86,10 @@ Status values at least: `planned`, `in progress`, `blocked`, `review`,
 
 ## Independent adversarial review
 
-Review the complete pull-request implementation once, after its consolidated
-validation and before arming merge. Never review individual implementation
-steps or restart review after each correction. Independence remains mandatory:
+Review is optional and selected explicitly during planning; recommend it and
+default it on. If approved, review complete pull-request implementation only
+after final scope commit plus automated CI/comment fixes. Never review
+individual implementation steps. Independence remains mandatory when enabled:
 
 - The reviewer is a **separate agent instance, never the author** of the work.
 - Choose a disposable review mechanism. When the host provides reliable terminal
@@ -96,7 +97,7 @@ steps or restart review after each correction. Independence remains mandatory:
   reliable terminal close, use an artifact-bounded ephemeral reviewer and pass
   the exact revision or diff plus its directly required guidance as immutable
   input. It must not depend on repository shell access to discover the artifact.
-  Such a review clears the automated review gate only when the active host
+  When review is enabled, such a review records a valid receipt only when active host
   adapter records its successful receipt, bound to that artifact. Until an
   adapter supports that receipt, obtain an independent pull-request review too;
   prose claiming the one-shot review happened is not evidence.
@@ -154,9 +155,10 @@ a row that already exists.
 
 ### Review disposition
 
-Run one review pass. Patch confirmed blocking findings together, validate the
-affected paths once, then proceed to delivery. Do not start another review
-round; a finding that changes architecture returns the work to planning.
+Run no more than two rounds. Batch-fix first-round confirmed findings at the
+end, then use a second round only to assess those fixes. Never exceed two or
+restart full review. A finding that changes architecture returns work to
+planning. Extra local tests run only after this terminal review stage.
 
 Post the findings as a pull-request review, not only in chat. Findings that live
 only in a transcript die with the session, which is how the same class gets

@@ -36,8 +36,8 @@ Its core promises are straightforward:
   callers, and compare viable approaches first.
 - **Coherent implementation.** Finish approved scope without microstep review,
   validation, commit, or delivery interruptions.
-- **Consolidated challenge.** Validate complete implementation, then one
-  independent reviewer tries to refute it before merge.
+- **Terminal challenge.** After final scope commit and automated PR findings,
+  optional owner-approved review runs at most twice, then extra local tests.
 - **Owned delivery.** Work continues through review, checks, and confirmed
   merge when that authority is granted.
 - **Durable learning.** Reusable facts and decisions go to structured stores;
@@ -52,10 +52,11 @@ flowchart LR
     T[Task and triage] --> R[Live research]
     R --> P[Plan complete scope]
     P --> D[Do complete implementation]
-    D --> V[Check once]
-    V --> A[Act on observed blockers]
-    A --> X[One PR review]
-    X --> G[Pull request and checks]
+    D --> F[Final scope commit]
+    F --> A[Automated CI and comment fixes]
+    A --> X[Optional adversarial review<br/>maximum two rounds]
+    X --> V[Extra local tests]
+    V --> G[Merge]
     G --> M[Confirmed merge]
     M --> L[Learning Session]
 ```
@@ -110,7 +111,11 @@ path-unique local marketplace registration and cached plugin.
   run the portable bootstrap. This deliberate reinstall prevents old
   repository-specific payloads from surviving in the rollback backup.
 - **Inspect:** run
-  `python .chaos-engine/install.py status --project .`.
+  `python .chaos-engine/install.py status --project . --json`. JSON schema v1
+  is deterministic and omits paths and credential-shaped fields.
+- **Explain:** run
+  `python .chaos-engine/install.py explain Stop --project . --host codex --json`
+  to evaluate one event without reading ambient session state.
 - **Roll back:** run
   `python .chaos-engine/install.py rollback --project .`.
 - **Uninstall:** run
@@ -130,7 +135,8 @@ entrypoint will:
 4. inspect current project files and authoritative sources;
 5. choose the narrowest applicable routed surface;
 6. implement approved scope as one coherent batch;
-7. run consolidated validation and one independent PR review; and
+7. triage remote findings, run at most two owner-approved terminal reviews,
+   then consolidated validation; and
 8. report exact checks, delivery state, and the Learning Session result.
 
 Projects select one profile after loading the portable core. A profile supplies
@@ -236,6 +242,289 @@ Tracked prerequisites and optional boundaries:
   Graphify output, MemPalace indexes, Memory runtime indexes, reports, secrets.
 - Canonical skills: `chaos-engine`, `caveman`, `ponytail`; project profiles and
   reference playbooks are loaded on demand, never duplicated into host policy.
+
+## Source-derived inventory
+
+These tables are generated from the dependency manifest, Python imports, skill
+catalogs, lifecycle event registry, and host capability map. Their text remains
+usable without Mermaid; unknown source entries fail the inventory validator.
+
+### Prerequisites
+
+<!-- inventory:prerequisites:start -->
+| Item | Purpose | Source of truth | Status | Platforms | Provisioner | Owner | Failure behavior |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| Python 3.10+ | Run bootstrap, installer, kernel, and tools. | install.ps1; install.sh | required | Windows, Linux, macOS | operator | consumer environment | install stops before mutation |
+| PowerShell or POSIX shell | Launch the reviewed bootstrap wrapper. | install.ps1; install.sh | required | platform native | operating system | consumer environment | bootstrap does not start |
+| curl or wget | Download immutable source on POSIX. | install.sh | required on POSIX | Linux, macOS | operator | consumer environment | download fails closed |
+| Node.js and npm | Provision Memory and launch Gemini hooks. | dependencies.json; hooks/launch.js | required | Windows, Linux, macOS | operator | consumer environment | dependency generation is not published |
+| network | Resolve source and provision a fresh or upgraded generation. | bootstrap.py; dependencies.py | required for fresh install or upgrade | Windows, Linux, macOS | operator | prior verified generation remains active |
+| Git and Java 25 | Build optional Maven Tools MCP cache. | hosts.py | optional | Windows, Linux, macOS | operator | optional component reports absent |
+<!-- inventory:prerequisites:end -->
+
+### Python Libraries
+
+<!-- inventory:python-libraries:start -->
+| Item | Purpose | Source of truth | Status | Platforms | Provisioner | Owner | Failure behavior |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| argparse | Portable runtime standard-library dependency. | chaos-engine/bootstrap.py, chaos-engine/dependencies.py, chaos-engine/hooks/reflection.py, chaos-engine/install.py, chaos-engine/learning.py | required | Windows, Linux, macOS | system Python 3.10+ | Python runtime | affected command fails closed |
+| base64 | Portable runtime standard-library dependency. | chaos-engine/hosts.py | required | Windows, Linux, macOS | system Python 3.10+ | Python runtime | affected command fails closed |
+| collections | Portable runtime standard-library dependency. | chaos-engine/hooks/lifecycle.py | required | Windows, Linux, macOS | system Python 3.10+ | Python runtime | affected command fails closed |
+| contextlib | Portable runtime standard-library dependency. | chaos-engine/dependencies.py, chaos-engine/hooks/kernel.py, chaos-engine/hooks/lifecycle.py, chaos-engine/hosts.py, chaos-engine/install.py, chaos-engine/learning.py | required | Windows, Linux, macOS | system Python 3.10+ | Python runtime | affected command fails closed |
+| ctypes | Portable runtime standard-library dependency. | chaos-engine/dependencies.py, chaos-engine/hosts.py | required | Windows, Linux, macOS | system Python 3.10+ | Python runtime | affected command fails closed |
+| dataclasses | Portable runtime standard-library dependency. | chaos-engine/hooks/kernel.py | required | Windows, Linux, macOS | system Python 3.10+ | Python runtime | affected command fails closed |
+| datetime | Portable runtime standard-library dependency. | chaos-engine/dependencies.py, chaos-engine/hooks/reflection.py | required | Windows, Linux, macOS | system Python 3.10+ | Python runtime | affected command fails closed |
+| email | Portable runtime standard-library dependency. | chaos-engine/bootstrap.py | required | Windows, Linux, macOS | system Python 3.10+ | Python runtime | affected command fails closed |
+| errno | Portable runtime standard-library dependency. | chaos-engine/hosts.py | required | Windows, Linux, macOS | system Python 3.10+ | Python runtime | affected command fails closed |
+| fcntl | Portable runtime standard-library dependency. | chaos-engine/dependencies.py, chaos-engine/hooks/kernel.py, chaos-engine/hosts.py, chaos-engine/install.py, chaos-engine/learning.py | required | Windows, Linux, macOS | system Python 3.10+ | Python runtime | affected command fails closed |
+| hashlib | Portable runtime standard-library dependency. | chaos-engine/bootstrap.py, chaos-engine/dependencies.py, chaos-engine/hooks/guard.py, chaos-engine/hooks/kernel.py, chaos-engine/hooks/reflection.py, chaos-engine/hosts.py, chaos-engine/install.py, chaos-engine/learning.py | required | Windows, Linux, macOS | system Python 3.10+ | Python runtime | affected command fails closed |
+| hmac | Portable runtime standard-library dependency. | chaos-engine/hooks/reflection.py, chaos-engine/hosts.py | required | Windows, Linux, macOS | system Python 3.10+ | Python runtime | affected command fails closed |
+| importlib | Portable runtime standard-library dependency. | chaos-engine/hooks/guard.py | required | Windows, Linux, macOS | system Python 3.10+ | Python runtime | affected command fails closed |
+| io | Portable runtime standard-library dependency. | chaos-engine/hooks/lifecycle.py | required | Windows, Linux, macOS | system Python 3.10+ | Python runtime | affected command fails closed |
+| json | Portable runtime standard-library dependency. | chaos-engine/bootstrap.py, chaos-engine/dependencies.py, chaos-engine/hooks/guard.py, chaos-engine/hooks/kernel.py, chaos-engine/hooks/lifecycle.py, chaos-engine/hooks/reflection.py, chaos-engine/hosts.py, chaos-engine/install.py, chaos-engine/learning.py | required | Windows, Linux, macOS | system Python 3.10+ | Python runtime | affected command fails closed |
+| msvcrt | Portable runtime standard-library dependency. | chaos-engine/dependencies.py, chaos-engine/hooks/kernel.py, chaos-engine/hosts.py, chaos-engine/install.py, chaos-engine/learning.py | required | Windows, Linux, macOS | system Python 3.10+ | Python runtime | affected command fails closed |
+| os | Portable runtime standard-library dependency. | chaos-engine/bootstrap.py, chaos-engine/dependencies.py, chaos-engine/hooks/kernel.py, chaos-engine/hooks/reflection.py, chaos-engine/hosts.py, chaos-engine/install.py, chaos-engine/learning.py, chaos-engine/tool.py | required | Windows, Linux, macOS | system Python 3.10+ | Python runtime | affected command fails closed |
+| pathlib | Portable runtime standard-library dependency. | chaos-engine/bootstrap.py, chaos-engine/dependencies.py, chaos-engine/hooks/guard.py, chaos-engine/hooks/kernel.py, chaos-engine/hooks/lifecycle.py, chaos-engine/hooks/reflection.py, chaos-engine/hosts.py, chaos-engine/install.py, chaos-engine/learning.py, chaos-engine/tool.py | required | Windows, Linux, macOS | system Python 3.10+ | Python runtime | affected command fails closed |
+| posixpath | Portable runtime standard-library dependency. | chaos-engine/hooks/guard.py | required | Windows, Linux, macOS | system Python 3.10+ | Python runtime | affected command fails closed |
+| re | Portable runtime standard-library dependency. | chaos-engine/bootstrap.py, chaos-engine/dependencies.py, chaos-engine/hooks/guard.py, chaos-engine/hooks/kernel.py, chaos-engine/hooks/reflection.py, chaos-engine/hosts.py, chaos-engine/install.py, chaos-engine/learning.py | required | Windows, Linux, macOS | system Python 3.10+ | Python runtime | affected command fails closed |
+| runpy | Portable runtime standard-library dependency. | chaos-engine/bootstrap.py, chaos-engine/install.py, chaos-engine/tool.py | required | Windows, Linux, macOS | system Python 3.10+ | Python runtime | affected command fails closed |
+| secrets | Portable runtime standard-library dependency. | chaos-engine/dependencies.py, chaos-engine/hooks/reflection.py, chaos-engine/hosts.py, chaos-engine/install.py | required | Windows, Linux, macOS | system Python 3.10+ | Python runtime | affected command fails closed |
+| shlex | Portable runtime standard-library dependency. | chaos-engine/hooks/guard.py | required | Windows, Linux, macOS | system Python 3.10+ | Python runtime | affected command fails closed |
+| shutil | Portable runtime standard-library dependency. | chaos-engine/dependencies.py, chaos-engine/hosts.py, chaos-engine/install.py | required | Windows, Linux, macOS | system Python 3.10+ | Python runtime | affected command fails closed |
+| sqlite3 | Portable runtime standard-library dependency. | chaos-engine/hosts.py | required | Windows, Linux, macOS | system Python 3.10+ | Python runtime | affected command fails closed |
+| stat | Portable runtime standard-library dependency. | chaos-engine/dependencies.py, chaos-engine/hosts.py | required | Windows, Linux, macOS | system Python 3.10+ | Python runtime | affected command fails closed |
+| subprocess | Portable runtime standard-library dependency. | chaos-engine/dependencies.py, chaos-engine/hosts.py, chaos-engine/learning.py, chaos-engine/tool.py | required | Windows, Linux, macOS | system Python 3.10+ | Python runtime | affected command fails closed |
+| sys | Portable runtime standard-library dependency. | chaos-engine/bootstrap.py, chaos-engine/dependencies.py, chaos-engine/hooks/guard.py, chaos-engine/hooks/lifecycle.py, chaos-engine/hosts.py, chaos-engine/install.py, chaos-engine/learning.py, chaos-engine/tool.py | required | Windows, Linux, macOS | system Python 3.10+ | Python runtime | affected command fails closed |
+| tempfile | Portable runtime standard-library dependency. | chaos-engine/bootstrap.py, chaos-engine/hooks/reflection.py, chaos-engine/install.py, chaos-engine/learning.py | required | Windows, Linux, macOS | system Python 3.10+ | Python runtime | affected command fails closed |
+| threading | Portable runtime standard-library dependency. | chaos-engine/hooks/kernel.py, chaos-engine/learning.py | required | Windows, Linux, macOS | system Python 3.10+ | Python runtime | affected command fails closed |
+| time | Portable runtime standard-library dependency. | chaos-engine/bootstrap.py, chaos-engine/dependencies.py, chaos-engine/hooks/kernel.py, chaos-engine/learning.py | required | Windows, Linux, macOS | system Python 3.10+ | Python runtime | affected command fails closed |
+| types | Portable runtime standard-library dependency. | chaos-engine/bootstrap.py, chaos-engine/hooks/kernel.py, chaos-engine/install.py | required | Windows, Linux, macOS | system Python 3.10+ | Python runtime | affected command fails closed |
+| typing | Portable runtime standard-library dependency. | chaos-engine/hooks/kernel.py | required | Windows, Linux, macOS | system Python 3.10+ | Python runtime | affected command fails closed |
+| urllib | Portable runtime standard-library dependency. | chaos-engine/bootstrap.py | required | Windows, Linux, macOS | system Python 3.10+ | Python runtime | affected command fails closed |
+| zipfile | Portable runtime standard-library dependency. | chaos-engine/install.py | required | Windows, Linux, macOS | system Python 3.10+ | Python runtime | affected command fails closed |
+<!-- inventory:python-libraries:end -->
+
+### Managed Dependencies
+
+<!-- inventory:managed-dependencies:start -->
+| Item | Purpose | Source of truth | Status | Platforms | Provisioner | Owner | Failure behavior |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| graphify | Managed commands: graphify; packages: graphifyy==0.9.43, tree-sitter-sql==0.3.11. | chaos-engine/dependencies.json | required | Windows, Linux, macOS | immutable generation installer | installer receipt | repair full candidate or retain prior active generation |
+| memory | Managed commands: memory, memory-mcp; packages: @aictx/memory@0.2.1. | chaos-engine/dependencies.json | required | Windows, Linux, macOS | immutable generation installer | installer receipt | repair full candidate or retain prior active generation |
+| mempalace | Managed commands: mempalace, mempalace-mcp; packages: mempalace==3.7.1. | chaos-engine/dependencies.json | required | Windows, Linux, macOS | immutable generation installer | installer receipt | repair full candidate or retain prior active generation |
+| uv | Managed commands: uv; packages: uv==0.11.29. | chaos-engine/dependencies.json | required | Windows, Linux, macOS | immutable generation installer | installer receipt | repair full candidate or retain prior active generation |
+<!-- inventory:managed-dependencies:end -->
+
+### Skills
+
+<!-- inventory:skills:start -->
+| Item | Purpose | Source of truth | Status | Platforms | Provisioner | Owner | Failure behavior |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| chaos-engine | >- | chaos-engine/skills/chaos-engine/SKILL.md | required | all hosts | core or pinned vendor installer | canonical skill | required skill blocks routing; optional skill reports capability gap |
+| local-coding-delegate | >- | chaos-engine/skills/local-coding-delegate/SKILL.md | optional routed | all hosts | core or pinned vendor installer | skill package | required skill blocks routing; optional skill reports capability gap |
+| work-item | >- | chaos-engine/skills/work-item/SKILL.md | optional routed | all hosts | core or pinned vendor installer | skill package | required skill blocks routing; optional skill reports capability gap |
+| caveman | > | chaos-engine/vendor/caveman/skills/caveman/SKILL.md | required | all hosts | core or pinned vendor installer | skill package | required skill blocks routing; optional skill reports capability gap |
+| ponytail | > | chaos-engine/vendor/ponytail/skills/ponytail/SKILL.md | required | all hosts | core or pinned vendor installer | skill package | required skill blocks routing; optional skill reports capability gap |
+<!-- inventory:skills:end -->
+
+### Hosts
+
+<!-- inventory:hosts:start -->
+| Item | Purpose | Source of truth | Status | Platforms | Provisioner | Owner | Failure behavior |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| claude | Thin native event and JSON protocol adapter. | chaos-engine/hooks/kernel.py; chaos-engine/hosts.py | supported adapter | Windows, Linux, macOS | host installer | provider-neutral kernel | unsupported native events remain explicit capability gaps |
+| codex | Thin native event and JSON protocol adapter. | chaos-engine/hooks/kernel.py; chaos-engine/hosts.py | supported adapter | Windows, Linux, macOS | host installer | provider-neutral kernel | unsupported native events remain explicit capability gaps |
+| copilot | Thin native event and JSON protocol adapter. | chaos-engine/hooks/kernel.py; chaos-engine/hosts.py | supported adapter | Windows, Linux, macOS | host installer | provider-neutral kernel | unsupported native events remain explicit capability gaps |
+| gemini | Thin native event and JSON protocol adapter. | chaos-engine/hooks/kernel.py; chaos-engine/hosts.py | supported adapter | Windows, Linux, macOS | host installer | provider-neutral kernel | unsupported native events remain explicit capability gaps |
+| grok | Thin native event and JSON protocol adapter. | chaos-engine/hooks/kernel.py; chaos-engine/hosts.py | supported adapter | Windows, Linux, macOS | host installer | provider-neutral kernel | unsupported native events remain explicit capability gaps |
+<!-- inventory:hosts:end -->
+
+### Lifecycle Events
+
+<!-- inventory:lifecycle-events:start -->
+| Item | Purpose | Source of truth | Status | Platforms | Provisioner | Owner | Failure behavior |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| SessionStart | Normalize native input and evaluate one provider-neutral lifecycle event. | chaos-engine/hooks/lifecycle.py; chaos-engine/hooks/kernel.py | declared | capability-mapped hosts | generated host adapter | lifecycle kernel | missing mapping fails host parity validation |
+| UserPromptSubmit | Normalize native input and evaluate one provider-neutral lifecycle event. | chaos-engine/hooks/lifecycle.py; chaos-engine/hooks/kernel.py | declared | capability-mapped hosts | generated host adapter | lifecycle kernel | missing mapping fails host parity validation |
+| PreToolUse | Normalize native input and evaluate one provider-neutral lifecycle event. | chaos-engine/hooks/lifecycle.py; chaos-engine/hooks/kernel.py | declared | capability-mapped hosts | generated host adapter | lifecycle kernel | missing mapping fails host parity validation |
+| PostToolUse | Normalize native input and evaluate one provider-neutral lifecycle event. | chaos-engine/hooks/lifecycle.py; chaos-engine/hooks/kernel.py | declared | capability-mapped hosts | generated host adapter | lifecycle kernel | missing mapping fails host parity validation |
+| PostToolUseFailure | Normalize native input and evaluate one provider-neutral lifecycle event. | chaos-engine/hooks/lifecycle.py; chaos-engine/hooks/kernel.py | declared | capability-mapped hosts | generated host adapter | lifecycle kernel | missing mapping fails host parity validation |
+| Stop | Normalize native input and evaluate one provider-neutral lifecycle event. | chaos-engine/hooks/lifecycle.py; chaos-engine/hooks/kernel.py | declared | capability-mapped hosts | generated host adapter | lifecycle kernel | missing mapping fails host parity validation |
+| SubagentStop | Normalize native input and evaluate one provider-neutral lifecycle event. | chaos-engine/hooks/lifecycle.py; chaos-engine/hooks/kernel.py | declared | capability-mapped hosts | generated host adapter | lifecycle kernel | missing mapping fails host parity validation |
+| PreCompact | Normalize native input and evaluate one provider-neutral lifecycle event. | chaos-engine/hooks/lifecycle.py; chaos-engine/hooks/kernel.py | declared | capability-mapped hosts | generated host adapter | lifecycle kernel | missing mapping fails host parity validation |
+| SessionEnd | Normalize native input and evaluate one provider-neutral lifecycle event. | chaos-engine/hooks/lifecycle.py; chaos-engine/hooks/kernel.py | declared | capability-mapped hosts | generated host adapter | lifecycle kernel | missing mapping fails host parity validation |
+<!-- inventory:lifecycle-events:end -->
+
+### External Services
+
+<!-- inventory:external-services:start -->
+| Item | Purpose | Source of truth | Status | Platforms | Provisioner | Owner | Failure behavior |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| GitHub API and raw content | Resolve immutable source and deliver pull requests. | bootstrap.py; work-github-playbook.md | required for remote install and delivery | network | operator credentials | GitHub and repository owner | install or delivery blocks |
+| PyPI and uv package service | Provision uv, MemPalace, and Graphify packages. | dependencies.json | required when generation repair needs Python packages | network | uv | installer generation | candidate is discarded |
+| npm registry | Provision project-local Memory commands. | dependencies.json | required when Memory is missing or stale | network | npm | installer generation | candidate is discarded |
+| five host APIs | Run scheduled paired promotion trials. | scripts/ci/chaos_engine_promotion.py | required for promotion only | scheduled/manual CI | host credentials | promotion evaluator | promotion remains Blocked |
+| ShaftHQ/shafthq.github.io | Publish companion functional documentation. | repository documentation policy | required in same delivery campaign | GitHub | documentation PR | documentation repository | campaign remains incomplete |
+<!-- inventory:external-services:end -->
+
+### Generated Assets
+
+<!-- inventory:generated-assets:start -->
+| Item | Purpose | Source of truth | Status | Platforms | Provisioner | Owner | Failure behavior |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| dependency generations | Immutable project-local tools and interpreters. | dependencies.py | generated | Windows, Linux, macOS | installer | receipt-owned | unselected candidate is removed; foreign content is preserved |
+| active and previous pointers | Atomically select current and rollback generations. | dependencies.py | generated | Windows, Linux, macOS | installer | installer control plane | invalid pointer fails closed |
+| host adapters and receipts | Install native hook, skill, plugin, and MCP projections. | hosts.py | generated and trackable | five hosts | host installer | receipt-owned | rollback restores exact prior bytes |
+| Memory, MemPalace, and Graphify state | Persist canonical data or derived indexes. | .gitignore; hosts.py | generated and never tracked | project local | owned tools | project or derived single writer | doctor reports recovery-required |
+| reports, caches, and evaluation receipts | Carry bounded diagnostics without transcripts or secrets. | .gitignore; chaos_engine_promotion.py | generated and never tracked | local and CI | requesting command | ephemeral evidence owner | missing evidence blocks promotion |
+<!-- inventory:generated-assets:end -->
+
+## Installation, lifecycle, and ownership flows
+
+```mermaid
+flowchart TD
+    accTitle: Prerequisite and dependency topology
+    accDescr: Required platform tools feed the standard-library installer and one immutable dependency generation.
+    Shell[PowerShell or POSIX shell] --> Python[Python 3.10+]
+    Network[Network] --> Bootstrap[Immutable source]
+    Python --> Installer[Transactional installer]
+    Node[Node.js and npm] --> Installer
+    Installer --> UV[uv]
+    UV --> MemPalace[MemPalace]
+    UV --> Graphify[Graphify]
+    Node --> Memory[Memory]
+```
+
+```mermaid
+flowchart LR
+    accTitle: Skill topology
+    accDescr: The canonical skill routes optional work skills and two pinned companions without duplicating policy.
+    CE[chaos-engine] --> Caveman[caveman]
+    CE --> Ponytail[ponytail]
+    CE --> Delegate[local-coding-delegate optional]
+    CE --> WorkItem[work-item optional]
+    CE --> Refs[On-demand references]
+```
+
+```mermaid
+flowchart LR
+    accTitle: Five-host lifecycle topology
+    accDescr: Five thin adapters normalize events into one kernel; Copilot CLI is live-gated and cloud and IDE are statically validated.
+    Codex --> Kernel[Provider-neutral kernel]
+    Claude --> Kernel
+    Gemini --> Kernel
+    Grok --> Kernel
+    CopilotCLI[Copilot CLI live] --> Kernel
+    CopilotStatic[Copilot cloud and IDE static] -.-> Kernel
+```
+
+```mermaid
+flowchart TD
+    accTitle: Fresh installation flow
+    accDescr: Fresh install verifies core and hosts, builds dependencies at their final path, probes them, and publishes the pointer last.
+    Resolve[Resolve immutable commit] --> Stage[Verify staged core]
+    Stage --> Hosts[Prepare host adapters]
+    Hosts --> Candidate[Build generation at final path]
+    Candidate --> Probe[Probe exact dispatches]
+    Probe --> Seal[Seal ownership]
+    Seal --> Publish[Publish active pointer]
+```
+
+```mermaid
+flowchart TD
+    accTitle: Managed upgrade and repair flow
+    accDescr: Upgrade reuses a healthy generation or replaces the complete generation when one tool is missing, damaged, or stale.
+    Inspect[Authenticate active] --> Healthy{Healthy and current?}
+    Healthy -->|yes| Reuse[Reuse without network]
+    Healthy -->|no| Build[Build complete candidate]
+    Build --> Verify[Verify every tool]
+    Verify --> Switch[Retain prior and switch]
+    Switch --> Retire[Remove obsolete verified generation]
+```
+
+```mermaid
+flowchart LR
+    accTitle: Dependency provisioning flow
+    accDescr: Tracked pins drive isolated uv and npm provisioning and one bounded receipt.
+    Spec[dependencies.json] --> UV[uv bootstrap]
+    UV --> Py[uv-managed Python]
+    Py --> MP[MemPalace]
+    Py --> GF[Graphify plus tree-sitter-sql]
+    Spec --> NPM[npm prefix]
+    NPM --> MEM[Memory]
+    MP --> Receipt[Bounded receipt]
+    GF --> Receipt
+    MEM --> Receipt
+```
+
+```mermaid
+flowchart TD
+    accTitle: POSIX symlink and Windows junction flow
+    accDescr: Platform-native uv aliases are accepted only when targets and identities remain inside the sealed generation.
+    Alias[uv interpreter alias] --> Platform{Platform}
+    Platform -->|POSIX| Symlink[Trusted relative symlink]
+    Platform -->|Windows| Junction[Owned junction or verified copy]
+    Symlink --> Bound[Resolve inside generation]
+    Junction --> Bound
+    Bound --> Seal[Record target and identity]
+    Bound -->|escape or drift| Reject[Fail closed]
+```
+
+```mermaid
+flowchart TD
+    accTitle: Rollback flow
+    accDescr: Rollback authenticates the prior core, host bytes, and dependency generation before selection changes.
+    Intent[Write rollback intent] --> Previous[Authenticate prior core and hosts]
+    Previous --> Probe[Probe prior dispatches]
+    Probe --> Swap[Swap verified core trees]
+    Swap --> Restore[Restore host bytes]
+    Restore --> Pointer[Publish prior generation]
+    Pointer --> Clear[Clear journal]
+```
+
+```mermaid
+flowchart TD
+    accTitle: Ownership and foreign-file preservation flow
+    accDescr: Receipts identify installer-owned bytes while foreign handlers and files survive upgrade, rollback, and uninstall.
+    Inspect[No-follow inspection] --> Owned{Receipt-owned and exact?}
+    Owned -->|yes| Update[Update owned bytes]
+    Owned -->|foreign| Preserve[Preserve byte-for-byte]
+    Owned -->|mixed or drifted| Stop[Fail closed]
+    Update --> Receipt[Publish receipt]
+```
+
+```mermaid
+stateDiagram-v2
+    accTitle: Lifecycle terminal-state flow
+    accDescr: Every phase reaches Complete or Blocked; cancellation, timeout, malformed events, and conflicts terminate safely.
+    [*] --> ReadOnly
+    ReadOnly --> Planned
+    Planned --> Approved
+    Approved --> Do
+    Do --> Check
+    Check --> Act
+    Act --> PullRequest
+    PullRequest --> Reviewed
+    Reviewed --> Authorized
+    Authorized --> Merged
+    Merged --> Learned
+    Learned --> Complete
+    ReadOnly --> Blocked
+    Planned --> Blocked
+    Approved --> Blocked
+    Do --> Blocked
+    Check --> Blocked
+    Act --> Blocked
+    PullRequest --> Blocked
+    Reviewed --> Blocked
+    Authorized --> Blocked
+    Merged --> Blocked
+    Learned --> Blocked
+```
+
+Repository policy requires companion functional documentation in
+`ShaftHQ/shafthq.github.io` through a separate documentation pull request,
+reviewed and delivered in the same delivery campaign as behavior changes.
 
 ## Trust boundaries
 

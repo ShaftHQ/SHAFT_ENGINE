@@ -22,6 +22,8 @@ from pathlib import Path, PurePosixPath
 INSTALL_DIRECTORY = ".chaos-engine"
 MANIFEST_NAME = "manifest.json"
 SCHEMA_VERSION = 1
+DIAGNOSTIC_SCHEMA_VERSION = 1
+CANONICAL_IDENTITY = "chaos-engine"
 DEFAULT_DISTRIBUTION = "portable"
 DISTRIBUTIONS_NAME = "distributions.json"
 COMMIT_PATTERN = re.compile(r"[0-9a-f]{40}")
@@ -344,6 +346,7 @@ def load_capability_policy(source: Path, distribution: str) -> tuple[dict[str, d
 
 def is_origin_only(relative: Path) -> bool:
     return relative.parts[:2] == ("assets", "brand") or relative.as_posix() in {
+        "README.md",
         "RESEARCH.md",
         "STANDALONE.md",
     }
@@ -1346,6 +1349,19 @@ def installed_kernel_status(installed_root: Path) -> dict[str, object]:
             "status": "healthy" if not errors else "recovery-required",
             "schemaVersion": kernel.SCHEMA_VERSION,
             "hosts": hosts,
+            "capabilities": {
+                host: {
+                    "events": list(kernel.HOST_CAPABILITIES[host].supported_events),
+                    "strictJsonStdout": getattr(
+                        kernel.HOST_CAPABILITIES[host], "strict_json_stdout", True
+                    ),
+                    "liveGate": getattr(kernel.HOST_CAPABILITIES[host], "live_gate", False),
+                    "staticSurfaces": list(
+                        getattr(kernel.HOST_CAPABILITIES[host], "static_surfaces", ())
+                    ),
+                }
+                for host in hosts
+            },
             "errors": errors,
         }
     except (OSError, RuntimeError, ValueError) as error:
@@ -1754,6 +1770,116 @@ def doctor_with_dependencies(
     return result
 
 
+_SECRET_FIELD = re.compile(
+    r"(?:authorization|credential|password|private.?key|secret|token)", re.IGNORECASE
+)
+_URL_CREDENTIAL = re.compile(r"(?P<scheme>[a-z][a-z0-9+.-]*://)[^/@\s]+@", re.IGNORECASE)
+_DIAGNOSTIC_FIELDS = {
+    "status": {
+        "schemaVersion", "identity", "kind", "status", "commit", "distribution",
+        "policySha256", "kernel", "hosts", "dependencies", "components",
+    },
+    "doctor": {
+        "schemaVersion", "identity", "kind", "status", "commit", "distribution",
+        "policySha256", "kernel", "hosts", "dependencies", "components", "clients",
+    },
+    "explain": {
+        "schemaVersion", "identity", "kind", "host", "event", "phase", "decision",
+        "diagnosticCode", "reason", "remedy", "factsUsed", "effects", "terminalReason",
+    },
+}
+
+
+def _diagnostic_value(value: object, project: Path) -> object:
+    """Return bounded, canonical JSON data without paths or credential-shaped fields."""
+    if isinstance(value, dict):
+        result: dict[str, object] = {}
+        for key in sorted(str(item) for item in value):
+            if key in {"path", "root"} or _SECRET_FIELD.search(key):
+                continue
+            result[key] = _diagnostic_value(value[key], project)
+        return result
+    if isinstance(value, list):
+        return [_diagnostic_value(item, project) for item in value]
+    if isinstance(value, tuple):
+        return [_diagnostic_value(item, project) for item in value]
+    if isinstance(value, str):
+        rendered = _URL_CREDENTIAL.sub(r"\g<scheme><redacted>@", value)
+        replacements = ((str(project.resolve()), "<project>"), (str(Path.home()), "<home>"))
+        for source, replacement in replacements:
+            if source:
+                rendered = rendered.replace(source, replacement)
+                rendered = rendered.replace(source.replace("\\", "/"), replacement)
+        return rendered[:2048]
+    if value is None or type(value) in {bool, int, float}:
+        return value
+    return type(value).__name__
+
+
+def validate_diagnostic_json(document: object) -> dict[str, object]:
+    """Reject schema drift, including compatibility fields removed from JSON v1."""
+    if not isinstance(document, dict) or document.get("schemaVersion") != 1:
+        raise ValueError("diagnostic JSON schema v1 is invalid")
+    kind = document.get("kind")
+    allowed = _DIAGNOSTIC_FIELDS.get(str(kind))
+    if allowed is None or set(document) - allowed:
+        raise ValueError("diagnostic JSON contains unknown or removed fields")
+    required = {"schemaVersion", "identity", "kind"}
+    if not required <= set(document) or document.get("identity") != CANONICAL_IDENTITY:
+        raise ValueError("diagnostic JSON identity is invalid")
+    return document
+
+
+def status_json(project: Path, *, active_probes: bool = False) -> dict[str, object]:
+    """Expose the stable secret-free status JSON v1 contract."""
+    state = (
+        doctor_with_dependencies(project)
+        if active_probes
+        else status_with_dependencies(project)
+    )
+    return validate_diagnostic_json({
+        "schemaVersion": DIAGNOSTIC_SCHEMA_VERSION,
+        "identity": CANONICAL_IDENTITY,
+        "kind": "doctor" if active_probes else "status",
+        **_diagnostic_value(state, project.resolve()),  # type: ignore[arg-type]
+    })
+
+
+def explain_json(
+    project: Path,
+    event: str,
+    *,
+    host: str,
+    session_id: str = "diagnostic-session",
+    phase: str = "ReadOnly",
+    target_phase: str = "",
+    cancelled: bool = False,
+    timed_out: bool = False,
+) -> dict[str, object]:
+    """Evaluate one declarative event without reading ambient session state."""
+    target = project.resolve() / INSTALL_DIRECTORY
+    verify_install(target)
+    kernel = load_installed_controller(target / "hooks", "kernel")
+    if host not in kernel.HOST_CAPABILITIES:
+        raise ValueError("unsupported diagnostic host")
+    normalized = kernel.normalize_event(
+        {
+            "hook_event_name": event,
+            "session_id": session_id,
+            "phase": phase,
+            "target_phase": target_phase,
+            "cancelled": cancelled,
+            "timed_out": timed_out,
+        },
+        host,
+    )
+    report = kernel.evaluate(normalized).to_dict()
+    return validate_diagnostic_json({
+        **_diagnostic_value(report, project.resolve()),  # type: ignore[arg-type]
+        "kind": "explain",
+    })
+
+
 def uninstall_with_dependencies(  # noqa: MC0001 - coordinated host, runtime, and core teardown.
     project: Path,
 ) -> None:
@@ -1915,6 +2041,20 @@ def parser() -> argparse.ArgumentParser:
     for name in ("status", "doctor", "rollback", "uninstall"):
         command = commands.add_parser(name)
         command.add_argument("--project", required=True, type=Path)
+        if name in {"status", "doctor"}:
+            command.add_argument("--json", action="store_true")
+    explain = commands.add_parser("explain")
+    explain.add_argument("event")
+    explain.add_argument("--project", required=True, type=Path)
+    explain.add_argument(
+        "--host", choices=("codex", "claude", "gemini", "grok", "copilot"), required=True
+    )
+    explain.add_argument("--session", default="diagnostic-session")
+    explain.add_argument("--phase", default="ReadOnly")
+    explain.add_argument("--target-phase", default="")
+    explain.add_argument("--cancelled", action="store_true")
+    explain.add_argument("--timeout", action="store_true")
+    explain.add_argument("--json", action="store_true")
     cache = commands.add_parser("cache")
     cache_commands = cache.add_subparsers(dest="cache_command", required=True)
     cache_status = cache_commands.add_parser("status")
@@ -1953,18 +2093,45 @@ def main() -> int:
                 else controller.purge_maven_tools_cache(args.version)
             )
         elif args.command == "status":
-            result = status_with_dependencies(args.project)
+            result = status_json(args.project)
         elif args.command == "doctor":
-            result = doctor_with_dependencies(args.project)
+            result = status_json(args.project, active_probes=True)
+        elif args.command == "explain":
+            result = explain_json(
+                args.project,
+                args.event,
+                host=args.host,
+                session_id=args.session,
+                phase=args.phase,
+                target_phase=args.target_phase,
+                cancelled=args.cancelled,
+                timed_out=args.timeout,
+            )
         elif args.command == "rollback":
             result = {"status": "rolled-back", "root": str(rollback(args.project))}
         else:
             uninstall_with_dependencies(args.project)
             result = {"status": "uninstalled"}
     except (OSError, RuntimeError, ValueError) as error:
-        print(str(error), file=sys.stderr)
+        if getattr(args, "json", False):
+            print(
+                json.dumps(
+                    {
+                        "schemaVersion": DIAGNOSTIC_SCHEMA_VERSION,
+                        "identity": CANONICAL_IDENTITY,
+                        "kind": args.command,
+                        "status": "Blocked",
+                        "diagnosticCode": "CE_DIAGNOSTIC_UNAVAILABLE",
+                        "terminalReason": "blocked",
+                    },
+                    sort_keys=True,
+                    separators=(",", ":"),
+                )
+            )
+        else:
+            print(str(error), file=sys.stderr)
         return 1
-    print(json.dumps(result))
+    print(json.dumps(result, sort_keys=True, separators=(",", ":")))
     return 0
 
 

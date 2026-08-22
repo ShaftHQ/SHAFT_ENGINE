@@ -60,8 +60,8 @@ sequenceDiagram
     A->>G: load the gate at the selected depth
     G-->>A: approach, invariants, research receipt
     A->>W: proceed at the routed surface
-    W-->>A: complete implementation batch
-    A->>A: consolidated validation and PR review
+    W-->>A: complete implementation and final scope commit
+    A->>A: automated findings, optional terminal review, local tests
     A-->>U: outcome, checks run, what was refuted
 ```
 
@@ -76,7 +76,7 @@ flowchart TD
     Q{"How many independent<br/>work streams?"}
     Q -->|one| S["<b>Solo</b><br/>implement it yourself, in sequence"]
     Q -->|"two or more"| O["<b>Orchestrate</b><br/>one agent per stream, up to four"]
-    S --> RV["consolidated validation<br/>then one PR review"]
+    S --> RV["terminal assurance only<br/>optional review, max two"]
     O --> OW["main thread implements nothing<br/>and stays reachable"]
     OW --> RV
 ```
@@ -88,9 +88,10 @@ not turn a solo session into an orchestrated one.
 
 ## Delivery cycle
 
-Finish the approved implementation batch, validate it once, patch observed
-blockers, then run one independent pull-request review before merge. No
-microstep review, validation, commit, push, or delivery loops interrupt work.
+Finish full approved implementation and final scope commit, then fix automated
+CI/comment findings. Run planning-approved adversarial review at most twice,
+then extra local tests. No microstep review, test, validation, commit, push, or
+delivery loops interrupt work.
 
 ```mermaid
 flowchart LR
@@ -299,7 +300,7 @@ does not know they exist meets them as an interruption instead of a tool.
 | Learning controller | `scripts/agents/learning_session.py` | Stores redacted, evidence-consistent event receipts outside git; binds every actionable incident candidate to one distinct standalone `ShaftHQ/SHAFT_ENGINE` issue; records evaluation and exact-commit promotion intent; and records repair-once then frozen-revert recovery intent. Receipts are evidence, never the action queue. GitHub/git workflows separately create and verify issues and execute those intents. Hashes detect corruption; runtime state is not an authentication boundary against another process running as the same OS user. |
 | Retrieval servers | `.mcp.json`, `.codex/config.toml`, `mempalace.yaml` | Declare the memory, MemPalace and Graphify servers the knowledge table sends you to, and gate memory writes behind a prompt. |
 | Plugin manifest | `.claude-plugin/marketplace.json` | Publishes this repository's skills to a host that installs them as a plugin rather than reading them in place. |
-| Repository operations | `scripts/agents/repository_context.py`, `scripts/agents/watch_pr_checks.py`, `scripts/agents/github_client.py`, `scripts/agents/pr_audit.py`, `scripts/agents/delivery_status.py`, `scripts/agents/issue_filing.py`, `scripts/agents/planning_contract.py`, `scripts/agents/act_as_mohab_cli.py` | Resolve the caller's repository and expose bounded PR watching, checkpoint status, evidence-backed plan validation, complete PR feedback audit, owned-PR delivery proof, and template/taxonomy issue operations through the source adapter, portable zipapp, and bounded MCP surfaces. Delivery cleanup alone may make one exact removal attempt after live merge and safety checks. |
+| Repository operations | `scripts/agents/repository_context.py`, `scripts/agents/watch_pr_checks.py`, `scripts/agents/github_client.py`, `scripts/agents/pr_audit.py`, `scripts/agents/delivery_status.py`, `scripts/agents/issue_filing.py`, `scripts/agents/planning_contract.py`, `scripts/agents/act_as_mohab_cli.py` | Resolve the caller's repository and expose bounded PR watching, evidence-backed plan validation, complete PR feedback audit, owned-PR delivery proof, and template/taxonomy issue operations through the source adapter, portable zipapp, and bounded MCP surfaces. Delivery cleanup alone may make one exact removal attempt after live merge and safety checks. |
 | PR watcher adapter | `scripts/ci/watch_pr_checks.py` | Keeps the historical source-tree command as a thin adapter to canonical repository operations. |
 | Worktree survey | `scripts/ci/worktree_hygiene.py` | Reports which worktrees are safe to remove and which hold work nobody will come back for. |
 | Local gate | `scripts/ci/local_gate.py` | Runs the pull-request gate's checks before you push, so a red run costs a minute instead of a round trip. |

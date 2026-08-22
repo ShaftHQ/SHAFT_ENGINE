@@ -75,6 +75,8 @@ PROTECTED_IDS = frozenset(
     }
 )
 WAIVER_OWNER = "MohabMohie"
+RECORDED_BASELINE_MEDIAN_SECONDS = 600
+PR_BUDGET_SECONDS = 240
 WAIVER_FENCE = re.compile(
     r"```chaos-engine-waiver[ \t]*\r?\n(.*?)\r?\n```", re.DOTALL
 )
@@ -101,6 +103,7 @@ DISPLACED_PR_MODULES = (
     "tests.scripts.test_chaos_engine_installer",
     "tests.scripts.test_chaos_engine_learning",
     "tests.scripts.test_chaos_engine_live_installer_acceptance",
+    "tests.scripts.test_chaos_engine_promotion",
     "tests.scripts.test_chaos_engine_portable_core",
     "tests.scripts.test_chaos_engine_research",
     "tests.scripts.test_delivery_status",
@@ -127,6 +130,7 @@ DISPLACED_PR_MODULES = (
     "tests.scripts.test_shaft_skills_content",
     "tests.scripts.test_sync_user_harness",
     "tests.scripts.test_validate_agent_guidance",
+    "tests.scripts.test_validate_chaos_engine_readme",
     "tests.scripts.test_validate_agent_ownership",
     "tests.scripts.test_validate_agent_plugins",
     "tests.scripts.test_validate_agent_setup",
@@ -185,6 +189,16 @@ CHECKS = {
         "setup-aggregator-contract",
         "ci",
         ("tests.scripts.test_validate_agent_setup",),
+    ),
+    "documentation-inventory-contract": Check(
+        "documentation-inventory-contract",
+        "documentation",
+        ("tests.scripts.test_validate_chaos_engine_readme",),
+    ),
+    "promotion-contract": Check(
+        "promotion-contract",
+        "promotion",
+        ("tests.scripts.test_chaos_engine_promotion",),
     ),
     "fallback-contract": Check(
         "fallback-contract",
@@ -248,6 +262,8 @@ SURFACE_CHECKS = {
     "retrieval": ("retrieval-contract", "graph-resolver-contract"),
     "ci": ("ci-contract", "setup-aggregator-contract"),
     "installer": ("protected-installer-acceptance", "protected-rollback"),
+    "documentation": ("documentation-inventory-contract",),
+    "promotion": ("promotion-contract",),
     "fallback": ("fallback-contract", "fallback-reachability"),
 }
 
@@ -337,6 +353,15 @@ SURFACE_PATTERNS = {
         "tests/scripts/test_validate_agent_ownership.py",
         "tests/scripts/test_validate_agent_setup.py",
         "tests/scripts/test_validate_workflow_timeouts.py",
+    ),
+    "documentation": (
+        "chaos-engine/README.md",
+        "scripts/ci/validate_chaos_engine_readme.py",
+        "tests/scripts/test_validate_chaos_engine_readme.py",
+    ),
+    "promotion": (
+        "scripts/ci/chaos_engine_promotion.py",
+        "tests/scripts/test_chaos_engine_promotion.py",
     ),
 }
 
@@ -531,12 +556,21 @@ def render_json(plan: GatePlan, *, head_sha: str, budget_seconds: int) -> str:
                     "id": check.id,
                     "surface": check.surface,
                     "protected": check.protected,
+                    "class": "blocking-protected-invariant" if check.protected else "change-scoped",
                     "tests": list(check.modules),
                     "reproduction_command": check.reproduction_command,
                 }
                 for check in plan.checks
             ],
-            "timing": {"budget_seconds": budget_seconds, "elapsed_seconds": 0.0},
+            "timing": {
+                "budget_seconds": budget_seconds,
+                "elapsed_seconds": 0.0,
+                "recorded_baseline_median_seconds": RECORDED_BASELINE_MEDIAN_SECONDS,
+                "maximum_budget_reduction": round(
+                    1 - budget_seconds / RECORDED_BASELINE_MEDIAN_SECONDS, 3
+                ),
+            },
+            "deferred_classes": ["scheduled-exhaustive", "release-promotion"],
             "safe_history_update_command": "git push --force-with-lease origin HEAD",
         },
         indent=2,
@@ -709,6 +743,7 @@ def run_plan(
                 "id": check.id,
                 "surface": check.surface,
                 "protected": check.protected,
+                "class": "blocking-protected-invariant" if check.protected else "change-scoped",
                 "tests": list(check.modules),
                 "status": status,
                 "exit_code": exit_code,
@@ -734,7 +769,12 @@ def run_plan(
         "timing": {
             "budget_seconds": budget_seconds,
             "elapsed_seconds": round(time.monotonic() - started, 3),
+            "recorded_baseline_median_seconds": RECORDED_BASELINE_MEDIAN_SECONDS,
+            "maximum_budget_reduction": round(
+                1 - budget_seconds / RECORDED_BASELINE_MEDIAN_SECONDS, 3
+            ),
         },
+        "deferred_classes": ["scheduled-exhaustive", "release-promotion"],
         "safe_history_update_command": "git push --force-with-lease origin HEAD",
     }
     return payload, 0 if valid else 1
@@ -760,7 +800,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--base", required=True)
     parser.add_argument("--head", required=True)
     parser.add_argument("--reviews", type=Path)
-    parser.add_argument("--budget-seconds", type=int, default=240)
+    parser.add_argument("--budget-seconds", type=int, default=PR_BUDGET_SECONDS)
     parser.add_argument("--output", type=Path)
     parser.add_argument("--format", choices=("text", "json"), default="text")
     parser.add_argument("--plan-only", action="store_true")

@@ -6,7 +6,6 @@ import argparse
 import contextlib
 import io
 import json
-import shutil
 import subprocess  # nosec B404 - fixed read-only git/gh commands, never a shell.
 import sys
 from pathlib import Path
@@ -58,87 +57,6 @@ def context_payload(context: RepositoryContext) -> dict:
     return {"repo": context.repo, "root": str(context.root), "pr": context.pr_number}
 
 
-def checkpoint_status(
-    context: RepositoryContext,
-    *,
-    runner=None,
-    executable_resolver=None,
-) -> dict:
-    """Report current HEAD and any open pull request whose head is exact."""
-    runner = subprocess.run if runner is None else runner
-    executable_resolver = shutil.which if executable_resolver is None else executable_resolver
-    git = executable_resolver("git")
-    gh = executable_resolver("gh")
-    if git is None or gh is None:
-        raise RepositoryContextError("checkpoint status requires git and gh on PATH")
-    try:
-        head_result = runner(  # nosec B603
-            [git, "rev-parse", "HEAD"], cwd=context.root, capture_output=True,
-            text=True, check=False,
-        )
-        if head_result.returncode:
-            raise RepositoryContextError(head_result.stderr.strip() or "cannot resolve current HEAD")
-        head = head_result.stdout.strip()
-        pull_requests = runner(  # nosec B603
-            [
-                gh,
-                "api",
-                f"repos/{context.repo}/commits/{head}/pulls",
-                "--paginate",
-                "--slurp",
-            ],
-            cwd=context.root, capture_output=True, text=True, check=False,
-        )
-    except (OSError, subprocess.SubprocessError) as error:
-        raise RepositoryContextError(f"cannot query checkpoint status: {error}") from error
-    if pull_requests.returncode:
-        raise RepositoryContextError(
-            pull_requests.stderr.strip() or "cannot query open pull requests"
-        )
-    try:
-        pages = json.loads(pull_requests.stdout or "[]")
-    except json.JSONDecodeError as error:
-        raise RepositoryContextError(f"invalid pull-request response: {error}") from error
-    if not isinstance(pages, list):
-        raise RepositoryContextError("invalid pull-request response: expected page arrays")
-    listed: list[dict] = []
-    for page_number, page in enumerate(pages):
-        if not isinstance(page, list):
-            raise RepositoryContextError(
-                f"invalid pull-request response: page {page_number} is not an array"
-            )
-        for item_number, item in enumerate(page):
-            valid = (
-                isinstance(item, dict)
-                and isinstance(item.get("number"), int)
-                and not isinstance(item.get("number"), bool)
-                and isinstance(item.get("html_url"), str)
-                and isinstance(item.get("state"), str)
-                and isinstance(item.get("draft"), bool)
-                and isinstance(item.get("head"), dict)
-                and isinstance(item["head"].get("sha"), str)
-            )
-            if not valid:
-                raise RepositoryContextError(
-                    "invalid pull-request response: "
-                    f"page {page_number} item {item_number} has an invalid shape"
-                )
-            listed.append(item)
-    exact = next(
-        (
-            {
-                "number": item.get("number"),
-                "url": item.get("html_url"),
-                "headRefOid": (item.get("head") or {}).get("sha"),
-                "isDraft": bool(item.get("draft")),
-            }
-            for item in listed
-            if item.get("state") == "open"
-            and item["head"].get("sha") == head
-        ),
-        None,
-    )
-    return {**context_payload(context), "head": head, "pullRequest": exact}
 
 
 def local_head(context: RepositoryContext) -> str:
@@ -159,8 +77,6 @@ def build_parser() -> argparse.ArgumentParser:
     add_context_arguments(context)
     watch = commands.add_parser("watch-pr-checks", add_help=False, help="run the bounded PR watcher")
     watch.add_argument("arguments", nargs=argparse.REMAINDER)
-    checkpoint = commands.add_parser("checkpoint-status", help="report HEAD and exact-head PR")
-    add_context_arguments(checkpoint)
     plan = commands.add_parser("plan-validate", help="validate an evidence-backed plan")
     plan.add_argument("input", type=Path)
     audit = commands.add_parser("pr-audit", help="audit every PR feedback surface")
@@ -211,11 +127,6 @@ def _tool_schemas() -> list[dict]:
             "name": "watch_pr_checks",
             "description": "Poll one pull request with bounded exit semantics.",
             "inputSchema": {"type": "object", "properties": context_properties, "additionalProperties": True},
-        },
-        {
-            "name": "checkpoint_status",
-            "description": "Report local HEAD and an exact-head open pull request.",
-            "inputSchema": {"type": "object", "properties": context_properties, "additionalProperties": False},
         },
         {
             "name": "plan_validate",
@@ -283,9 +194,6 @@ def call_tool(name: str, arguments: dict) -> dict:
     try:
         if name == "repository_context":
             payload = context_payload(context_from_arguments(_namespace(arguments)))
-            return {"content": [{"type": "text", "text": json.dumps(payload, sort_keys=True)}]}
-        if name == "checkpoint_status":
-            payload = checkpoint_status(context_from_arguments(_namespace(arguments)))
             return {"content": [{"type": "text", "text": json.dumps(payload, sort_keys=True)}]}
         if name == "watch_pr_checks":
             stdout = io.StringIO()
@@ -544,11 +452,7 @@ def main(argv: list[str] | None = None) -> int:
         return 0 if payload["decision"] == "allow" else 1
     try:
         context = context_from_arguments(parsed)
-        payload = (
-            context_payload(context)
-            if parsed.command == "repository-context"
-            else checkpoint_status(context)
-        )
+        payload = context_payload(context)
     except RepositoryContextError as error:
         print(f"act-as-mohab: {error}", file=sys.stderr)
         return EXIT_ENVIRONMENT_ERROR

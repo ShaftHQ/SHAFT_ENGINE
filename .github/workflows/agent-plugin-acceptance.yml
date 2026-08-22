@@ -50,6 +50,7 @@ jobs:
           tests.scripts.test_chaos_engine_kernel
           tests.scripts.test_chaos_engine_learning
           tests.scripts.test_chaos_engine_live_installer_acceptance
+          tests.scripts.test_chaos_engine_promotion
           tests.scripts.test_chaos_engine_portable_core
           tests.scripts.test_chaos_engine_research
           tests.scripts.test_delivery_status
@@ -77,6 +78,7 @@ jobs:
           tests.scripts.test_shaft_skills_content
           tests.scripts.test_sync_user_harness
           tests.scripts.test_validate_agent_guidance
+          tests.scripts.test_validate_chaos_engine_readme
           tests.scripts.test_validate_agent_ownership
           tests.scripts.test_validate_agent_plugins
           tests.scripts.test_validate_agent_setup
@@ -282,5 +284,35 @@ jobs:
         with:
           name: agent-plugin-live-acceptance-evidence
           path: agent-plugin-client-evidence.json
+          if-no-files-found: error
+          retention-days: 30
+
+  chaos-engine-promotion:
+    name: Five-host promotion evaluator
+    runs-on: ubuntu-22.04
+    timeout-minutes: 10
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v7
+      - name: Set up Python 3.13
+        uses: actions/setup-python@v7
+        with:
+          python-version: '3.13'
+      - name: Evaluate credential and receipt readiness
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          XAI_API_KEY: ${{ secrets.XAI_API_KEY }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: >-
+          python scripts/ci/chaos_engine_promotion.py
+          --output chaos-engine-promotion-evidence.json
+      - name: Upload secret-free promotion evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: chaos-engine-promotion-evidence
+          path: chaos-engine-promotion-evidence.json
           if-no-files-found: error
           retention-days: 30

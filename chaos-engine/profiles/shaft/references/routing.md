@@ -43,9 +43,9 @@ The native store is source-controlled, and its contract travels with it:
 `.memory/schema/object.schema.json`, `.memory/schema/relation.schema.json`,
 `.memory/schema/event.schema.json`, `.memory/schema/patch.schema.json` and
 `.memory/schema/config.schema.json` validate every write. The entries
-themselves are data the CLI owns; reach them with `memory load`, `memory
-search` and `memory inspect`. Standing constraints need no query at all — the
-session-start hook injects them before your first tool call.
+themselves are data the CLI owns; reach them with a bounded `memory search`,
+then `memory inspect` only for selected records. SessionStart injects tracked
+locators only and never starts an optional retrieval process.
 
 A retrieved claim is a lead, never a verdict: confirm it against the live file
 before acting on it, and a stale index never outranks what is on disk. Your own

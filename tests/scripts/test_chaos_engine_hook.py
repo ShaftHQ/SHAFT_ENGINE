@@ -46,7 +46,7 @@ class ChaosEngineHookTest(unittest.TestCase):
         self.assertEqual(0, result.returncode)
         self.assertIn(".chaos-engine/skills/chaos-engine/SKILL.md", result.stdout)
 
-    def test_session_start_injects_vendor_companion_skills_verbatim(self):
+    def test_session_start_injects_companion_locators_not_skill_bodies(self):
         result = self.run_hook({"hook_event_name": "SessionStart"})
         payload = json.loads(result.stdout)
         context = payload.get("additionalContext") or payload["hookSpecificOutput"]["additionalContext"]
@@ -58,10 +58,11 @@ class ChaosEngineHookTest(unittest.TestCase):
         ).read_text(encoding="utf-8")
 
         self.assertEqual(0, result.returncode)
-        self.assertIn(caveman, context)
-        self.assertIn(ponytail, context)
-        self.assertEqual(1, context.count(caveman))
-        self.assertEqual(1, context.count(ponytail))
+        self.assertNotIn(caveman, context)
+        self.assertNotIn(ponytail, context)
+        self.assertIn("vendor/caveman/skills/caveman/SKILL.md", context)
+        self.assertIn("vendor/ponytail/skills/ponytail/SKILL.md", context)
+        self.assertLessEqual(len(result.stdout.encode("utf-8")), 4096)
 
     def test_source_and_portable_session_start_share_exact_companion_context(self):
         event = {"hook_event_name": "SessionStart", "session_id": "companion-parity", "cwd": str(ROOT)}
@@ -69,21 +70,19 @@ class ChaosEngineHookTest(unittest.TestCase):
         source = self.run_source_hook(event)
         portable_context = json.loads(portable.stdout)["additionalContext"]
         source_context = json.loads(source.stdout)["hookSpecificOutput"]["additionalContext"]
-        caveman = (ROOT / "chaos-engine/vendor/caveman/skills/caveman/SKILL.md").read_text(encoding="utf-8")
-        ponytail = (ROOT / "chaos-engine/vendor/ponytail/skills/ponytail/SKILL.md").read_text(encoding="utf-8")
         selector = "ChaosEngine companion intensity: caveman=ultra; ponytail=ultra. Off only: stop caveman, stop ponytail, or normal mode."
 
         for context in (portable_context, source_context):
-            self.assertEqual(1, context.count(caveman))
-            self.assertEqual(1, context.count(ponytail))
             self.assertEqual(1, context.count(selector))
-        portable_shared = portable_context[
-            portable_context.index(selector):portable_context.index(ponytail) + len(ponytail)
+            self.assertIn("Required companion: read and follow", context)
+        portable_locators = [
+            line for line in portable_context.splitlines() if "Required companion:" in line
         ]
-        source_shared = source_context[
-            source_context.index(selector):source_context.index(ponytail) + len(ponytail)
+        source_locators = [
+            line for line in source_context.splitlines() if "Required companion:" in line
         ]
-        self.assertEqual(portable_shared.encode("utf-8"), source_shared.encode("utf-8"))
+        self.assertEqual(portable_locators, source_locators)
+        self.assertLessEqual(len(source.stdout.encode("utf-8")), 4096)
 
     def test_shared_lifecycle_core_owns_protocol_dispatch_for_both_launchers(self):
         lifecycle = (ROOT / "chaos-engine/hooks/lifecycle.py").read_text(encoding="utf-8")

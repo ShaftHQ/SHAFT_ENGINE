@@ -15,11 +15,11 @@ and cost four.
 
 A subagent's report describes intent, not necessarily its actual work. Before reviewing or shipping any nontrivial diff, query Graphify for the touched symbols, read the actual diff, and inspect changed tests for real assertions. Before committing any subagent's work, verify empirical claims rather than trusting a report. Scan the report/diff, and once opened, the PR body for deferred/out-of-scope/adjacent-finding/follow-up language; file every real finding before treating the item as done.
 
-Complete the approved implementation before local validation. Run its checks as
-one consolidated Check phase, patch observed blockers as one Act phase, then
-perform one independent pull-request review. Commit and push coherent batches;
-do not stop behavior work for per-step commits, reviews, PR-body updates, or
-delivery receipts.
+Complete approved scope and create its final scope commit before any local
+validation or review. Triage automated CI, annotations, bots, and PR comments;
+batch-fix applicable findings. Then run planning-approved adversarial review,
+at most two rounds, followed by extra local tests. Do not stop behavior work
+for per-step commits, tests, reviews, PR-body updates, or delivery receipts.
 
 After the implementation batch is ready, resolve repository identity from the
 active worktree, bind the full `HEAD` SHA and branch, push, and create or update
@@ -69,7 +69,7 @@ corpus with zero unmeasured rules and no regression. The record is a
 consistency summary, not proof that commands ran or reviewers are authentic.
 Independently derive the live diff, rerun tests, and verify review artifacts.
 Use `promote` to record intent only for the exact evaluated commit after the
-normal pull-request review gate; the normal GitHub workflow must still perform
+selected terminal assurance; normal GitHub workflow must still perform
 and verify the merge. Kernel-tier changes require
 two independent reviewer keys, correctness/reproduction/safety lenses, and two
 independent runs on the same commit and corpus. If a promoted change regresses,
@@ -98,6 +98,15 @@ conflicting, and stale; a watcher observes only green and red.
 
 This repository uses merge commits so a delivered branch remains identifiable
 by ancestry. Squash and rebase merging are disabled; do not substitute them.
+
+An owner-authorized history correction binds the expected remote tip and uses
+`git push --force-with-lease origin HEAD:<branch>`; unguarded `--force` is never
+safe. A rewrite-only gate waiver is machine-readable, names exact non-protected
+check IDs, the exact head SHA, replacement proof, owner review, and an expiry.
+It records `waived`, never `passed`. Security, ownership, corruption, rollback,
+secret-safety, installer acceptance, and confirmed correctness checks cannot be
+waived. An authorized merge bypass likewise records the obsolete checks waived
+and focused proofs observed; it must not represent remote checks as green.
 
 1. **Clear every GitHub comment before arming.** Read and address every open
    review thread, inline review comment, conversation comment, check annotation,

@@ -25,9 +25,11 @@ below.
 4. Never weaken, delete, or rewrite a test to reach green. When a test and the
    requirement disagree, stop and report which one you believe is wrong.
 5. Never claim a check you did not run.
-6. Every pull request gets one independent adversarial review after its complete
-   implementation and consolidated validation, before it is armed. Do not put
-   review or delivery gates between implementation steps.
+6. During planning, ask whether to enable terminal adversarial review;
+   recommend it and default it on, but owner confirmation controls. If enabled,
+   run at most two rounds only after complete implementation, final scope
+   commit, and automated CI/comment fixes. No hook may force tests or reviews
+   between actions or before that terminal phase.
 
 ## Triage
 
@@ -103,11 +105,11 @@ not restate or override them.
 1. Orient on requested outcome and concrete proof of done.
 2. Read current instructions and live files before acting.
 3. Plan by uncertainty, blast radius, and reversibility; test riskiest premise first; keep asking follow-ups until the plan is decision-ready. After owner approval, go unattended and dispatch a consultant agent for execution ambiguity.
-4. Implement the approved scope as one coherent batch. Fix root owner of an
-   invariant, not each symptom; do not interrupt implementation with review,
-   commit, push, or validation gates.
-5. After implementation is complete, validate affected behavior in one
-   consolidated Check phase, including nearest plausible regression.
+4. Implement the full approved scope as one coherent batch. Fix root owner of
+   an invariant, not each symptom; do not interrupt implementation with review,
+   test, commit, push, or validation gates.
+5. After the final scope commit, triage automated CI, annotations, bots, and PR
+   comments first. Then run approved terminal review and extra local tests.
 6. Report outcome, exact checks, failures, and Learning Session result.
 
 Consult [field heuristics](../../references/heuristics.md) only for deeper
@@ -174,6 +176,8 @@ for behavior that lacked proof.
 During planning, offer three explicit validation scopes: only tests created or
 edited by the task; the balanced default of those tests plus directly impacted
 tests; or the full suite. Recommend the balanced option and let the owner choose.
+Separately ask whether to enable terminal adversarial review. Recommend and
+default to enabled, capped at two rounds, but record owner's explicit choice.
 
 When a CI job fails, inspect the failing job and isolate its exact failing
 test first. Fix the cause, run only tests created or edited for that cause, and
@@ -244,7 +248,7 @@ writer slots.
 Capability comes in three levels on every host: most intelligent, default, and
 mechanical. Name them that way, never by provider or product.
 
-[Delegation](../../references/delegation.md) defines the levels and the review gate;
+[Delegation](../../references/delegation.md) defines levels and optional terminal review;
 [roles](../../references/roles.md) defines role boundaries. Read both before dispatch.
 Every dispatch loads this entrypoint and carries its bounded covenant.
 
@@ -254,7 +258,7 @@ For issue-to-merged-PR work, use the [GitHub playbook](../../references/work-git
 Do not confuse a diff with an outcome: run the real affected flow, review the
 actual diff, and keep external actions within granted authority.
 
-Opening a PR does not end the duty. Arm auto-merge once its review gate passes,
+Opening a PR does not end the duty. Arm auto-merge once selected terminal assurance passes,
 then watch with `gh pr checks <n> --watch --fail-fast` until the remote confirms
 merged. Red and conflicting are yours to fix, not to hand back; stale emits no
 event, so ask for it. The duty survives compaction, a dead delegate, and the

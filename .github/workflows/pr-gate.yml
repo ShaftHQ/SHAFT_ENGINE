@@ -91,6 +91,8 @@ jobs:
               - '.memory/**'
               - 'scripts/agents/**'
               - 'scripts/ci/harness_pr_gate.py'
+              - 'scripts/ci/chaos_engine_promotion.py'
+              - 'scripts/ci/validate_chaos_engine_readme.py'
               - 'scripts/ci/validate_agent_setup.py'
               - 'scripts/ci/validate_agent_ownership.py'
               - 'scripts/ci/agent_ownership.json'
@@ -159,6 +161,8 @@ jobs:
               - 'tests/scripts/test_agnix_conformance.py'
               - 'tests/scripts/test_agent_plugin_client_smoke.py'
               - 'tests/scripts/test_harness_pr_gate.py'
+              - 'tests/scripts/test_chaos_engine_promotion.py'
+              - 'tests/scripts/test_validate_chaos_engine_readme.py'
               # Not agent guidance, but this is the only gate that runs the
               # script suites on both a Linux and a Windows runner, which is
               # what build_retry.sh needs (issue #4445).

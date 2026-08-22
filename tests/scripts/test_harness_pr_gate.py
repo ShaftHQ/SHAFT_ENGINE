@@ -64,6 +64,22 @@ def write_reviews(directory: str, reviews: list[dict[str, object]]) -> Path:
 
 
 class ClassifierTest(unittest.TestCase):
+    def test_readme_and_promotion_changes_select_only_focused_contracts(self) -> None:
+        documentation = classify_paths(["chaos-engine/README.md"])
+        promotion = classify_paths(["scripts/ci/chaos_engine_promotion.py"])
+
+        self.assertEqual(("documentation",), documentation.surfaces)
+        self.assertEqual(
+            {
+                "documentation-inventory-contract",
+                "protected-ownership",
+                "protected-secret-safety",
+            },
+            {check.id for check in documentation.checks},
+        )
+        self.assertEqual(("promotion",), promotion.surfaces)
+        self.assertIn("promotion-contract", {check.id for check in promotion.checks})
+
     def test_kernel_change_selects_only_focused_and_protected_checks(self) -> None:
         plan = classify_paths(["chaos-engine/hooks/kernel.py"])
 
@@ -441,6 +457,12 @@ class OutputAndWorkflowTest(unittest.TestCase):
         self.assertEqual(1, payload["schema"])
         self.assertEqual(["kernel"], payload["surfaces"])
         self.assertEqual(240, payload["timing"]["budget_seconds"])
+        self.assertEqual(600, payload["timing"]["recorded_baseline_median_seconds"])
+        self.assertEqual(0.6, payload["timing"]["maximum_budget_reduction"])
+        self.assertEqual(
+            ["scheduled-exhaustive", "release-promotion"], payload["deferred_classes"]
+        )
+        self.assertEqual("change-scoped", payload["checks"][0]["class"])
         self.assertIn("-m unittest", payload["checks"][0]["reproduction_command"])
         self.assertNotIn("pr_body", payload)
         self.assertNotIn("replacement_proof", payload)

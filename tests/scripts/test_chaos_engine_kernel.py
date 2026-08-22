@@ -44,6 +44,18 @@ class ChaosEngineKernelTest(unittest.TestCase):
                 self.assertTrue(capability.event_aliases)
                 self.assertIn("PreToolUse", capability.supported_events)
                 self.assertIn("Stop", capability.supported_events)
+                self.assertTrue(capability.strict_json_stdout)
+                self.assertTrue(capability.live_gate)
+        self.assertEqual(
+            ("cloud", "ide"), self.kernel.HOST_CAPABILITIES["copilot"].static_surfaces
+        )
+        self.assertTrue(
+            all(
+                not capability.static_surfaces
+                for host, capability in self.kernel.HOST_CAPABILITIES.items()
+                if host != "copilot"
+            )
+        )
 
     def test_native_payloads_normalize_to_one_event_shape(self):
         fixtures = (
@@ -210,8 +222,8 @@ class ChaosEngineKernelTest(unittest.TestCase):
         self.assertEqual("CE_SESSION_REQUIRED", mutation.diagnostic_code)
         self.assertEqual("allow", stopped.decision)
         self.assertEqual("CE_SESSION_MISSING_STOP", stopped.diagnostic_code)
-        self.assertEqual("ReadOnly", stopped.phase)
-        self.assertIsNone(stopped.terminal_reason)
+        self.assertEqual("Complete", stopped.phase)
+        self.assertEqual("complete", stopped.terminal_reason)
         self.assertEqual((), mutation.effects)
         self.assertEqual((), stopped.effects)
 
@@ -415,6 +427,80 @@ class ChaosEngineKernelTest(unittest.TestCase):
         self.assertEqual("deny", report.decision)
         self.assertEqual("CE_INVALID_TRANSITION", report.diagnostic_code)
         self.assertEqual("Planned", report.phase)
+
+    def test_cancel_timeout_unknown_and_repeated_events_have_bounded_outcomes(self):
+        cancelled = self.kernel.evaluate(
+            self.kernel.normalize_event(
+                {
+                    "hook_event_name": "PreToolUse",
+                    "session_id": "cancelled-session",
+                    "phase": "Do",
+                    "cancelled": True,
+                },
+                "codex",
+            )
+        )
+        timed_out = self.kernel.evaluate(
+            self.kernel.normalize_event(
+                {
+                    "hook_event_name": "Stop",
+                    "session_id": "timeout-session",
+                    "phase": "Check",
+                    "timeout": True,
+                },
+                "copilot",
+            )
+        )
+        malformed = self.kernel.evaluate(
+            self.kernel.normalize_event(
+                {"hook_event_name": "", "session_id": "malformed"}, "gemini"
+            )
+        )
+        repeated = self.kernel.evaluate(
+            self.kernel.normalize_event(
+                {
+                    "hook_event_name": "Stop",
+                    "session_id": "repeat",
+                    "phase": "Complete",
+                },
+                "claude",
+            )
+        )
+        incomplete_stop = self.kernel.evaluate(
+            self.kernel.normalize_event(
+                {
+                    "hook_event_name": "Stop",
+                    "session_id": "incomplete",
+                    "phase": "Do",
+                },
+                "codex",
+            )
+        )
+
+        self.assertEqual(
+            ("Blocked", "blocked", "CE_CANCELLED"),
+            (cancelled.phase, cancelled.terminal_reason, cancelled.diagnostic_code),
+        )
+        self.assertEqual(
+            ("Blocked", "blocked", "CE_TIMEOUT"),
+            (timed_out.phase, timed_out.terminal_reason, timed_out.diagnostic_code),
+        )
+        self.assertEqual(
+            ("Blocked", "blocked", "CE_UNKNOWN_EVENT"),
+            (malformed.phase, malformed.terminal_reason, malformed.diagnostic_code),
+        )
+        self.assertEqual(
+            ("Complete", "complete", "CE_TERMINAL_REPLAY"),
+            (repeated.phase, repeated.terminal_reason, repeated.diagnostic_code),
+        )
+        self.assertEqual(
+            ("Blocked", "blocked", "CE_STOP_INCOMPLETE"),
+            (
+                incomplete_stop.phase,
+                incomplete_stop.terminal_reason,
+                incomplete_stop.diagnostic_code,
+            ),
+        )
 
     def test_snapshot_memoizes_each_external_fact_once(self):
         calls = []

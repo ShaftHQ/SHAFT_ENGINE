@@ -31,6 +31,7 @@ from scripts.ci.validate_agent_guidance import (  # noqa: E402
     validate_repository as validate_guidance,
 )
 from scripts.ci.validate_agent_ownership import validate as validate_ownership  # noqa: E402
+from scripts.ci.validate_chaos_engine_readme import validate as validate_chaos_readme  # noqa: E402
 from scripts.ci.validate_documentation_boundaries import (  # noqa: E402
     validate_repository as validate_documentation,
 )
@@ -912,6 +913,14 @@ def validate_repository(
             issue("documentation-boundary", "documentation", message)
             for message in validate_documentation(root)
         ],
+        *(
+            [
+                issue("chaos-engine-readme", "chaos-engine/README.md", message)
+                for message in validate_chaos_readme(root)
+            ]
+            if (root / "chaos-engine").is_dir()
+            else []
+        ),
         *validate_memory_setup(root),
         *validate_memory_integrity(root),
         *validate_host_parity(root),

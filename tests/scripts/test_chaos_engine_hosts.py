@@ -479,7 +479,7 @@ class ChaosEngineHostsTest(unittest.TestCase):
             project.joinpath(".chaos-engine/skills/chaos-engine/SKILL.md").write_text("# C\n")
             legacy_plugin_hooks = project / "plugins/chaos-engine/hooks/hooks.json"
             legacy_plugin_hooks.parent.mkdir(parents=True)
-            legacy_plugin_hooks.write_bytes(module.lifecycle_hooks_document())
+            legacy_plugin_hooks.write_bytes(module.lifecycle_hooks_document("codex"))
 
             receipt = module.install(project)
 
@@ -496,6 +496,7 @@ class ChaosEngineHostsTest(unittest.TestCase):
                 "plugins/chaos-engine/hooks/reflection.py",
                 "plugins/chaos-engine/skills/chaos-engine/SKILL.md",
                 ".grok/hooks/lifecycle.json",
+                ".github/hooks/chaos-engine.json",
                 "plugins/caveman/.codex-plugin/plugin.json",
                 "plugins/caveman/.claude-plugin/plugin.json",
                 "plugins/caveman/skills/caveman/SKILL.md",
@@ -632,11 +633,39 @@ class ChaosEngineHostsTest(unittest.TestCase):
             ):
                 manifest = json.loads(project.joinpath(manifest_path).read_text())
                 self.assertNotIn("hooks", manifest)
-            self.assertNotIn(
-                "hooks",
-                json.loads(project.joinpath(".gemini/settings.json").read_text()),
+            gemini_lifecycle = json.loads(
+                project.joinpath(".gemini/settings.json").read_text()
+            )["hooks"]
+            self.assertEqual(
+                {
+                    "SessionStart",
+                    "BeforeAgent",
+                    "BeforeTool",
+                    "AfterTool",
+                    "AfterAgent",
+                    "PreCompress",
+                    "SessionEnd",
+                },
+                set(gemini_lifecycle),
             )
-            self.assertFalse(project.joinpath(".github/hooks.json").exists())
+            copilot_lifecycle = json.loads(
+                project.joinpath(".github/hooks/chaos-engine.json").read_text()
+            )
+            self.assertEqual(1, copilot_lifecycle["version"])
+            self.assertEqual(
+                {
+                    "SessionStart",
+                    "UserPromptSubmit",
+                    "PreToolUse",
+                    "PostToolUse",
+                    "PostToolUseFailure",
+                    "Stop",
+                    "SubagentStop",
+                    "PreCompact",
+                    "SessionEnd",
+                },
+                set(copilot_lifecycle["hooks"]),
+            )
             installed_hook = project / "plugins/chaos-engine/hooks/guard.py"
             hook_environment = {**os.environ, "TMPDIR": temporary, "TEMP": temporary}
             failure = {
@@ -705,7 +734,7 @@ class ChaosEngineHostsTest(unittest.TestCase):
 
     def test_lifecycle_hook_is_a_noop_outside_an_installed_project(self):
         module = load(HOSTS, "chaos_engine_hook_noop")
-        document = json.loads(module.lifecycle_hooks_document())
+        document = json.loads(module.lifecycle_hooks_document("codex"))
         handler = document["hooks"]["PreToolUse"][0]["hooks"][0]
         command = handler["commandWindows"] if os.name == "nt" else handler["command"]
 
@@ -831,6 +860,36 @@ class ChaosEngineHostsTest(unittest.TestCase):
             self.assertEqual("user-hook", merged["hooks"]["SessionStart"][0]["hooks"][0]["command"])
             self.assertGreater(len(merged["hooks"]["SessionStart"]), 1)
             self.assertIn("Stop", merged["hooks"])
+            module.uninstall(project)
+            self.assertEqual(original, json.loads(hook_path.read_text()))
+
+    def test_copilot_cli_hooks_preserve_foreign_handlers_and_metadata(self):
+        module = load(HOSTS, "chaos_engine_copilot_hook_merge")
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary) / "consumer"
+            project.joinpath(".chaos-engine/skills/chaos-engine").mkdir(parents=True)
+            project.joinpath(".chaos-engine/skills/chaos-engine/SKILL.md").write_text("# C\n")
+            hook_path = project / ".github/hooks/chaos-engine.json"
+            hook_path.parent.mkdir(parents=True)
+            original = {
+                "version": 1,
+                "ownerMetadata": {"preserve": True},
+                "hooks": {
+                    "SessionStart": [
+                        {"type": "command", "bash": "python tools/user-hook.py"}
+                    ]
+                },
+            }
+            hook_path.write_text(json.dumps(original), encoding="utf-8")
+
+            module.install(project)
+            merged = json.loads(hook_path.read_text())
+            self.assertEqual({"preserve": True}, merged["ownerMetadata"])
+            self.assertEqual(
+                "python tools/user-hook.py", merged["hooks"]["SessionStart"][0]["bash"]
+            )
+            self.assertGreater(len(merged["hooks"]["SessionStart"]), 1)
+            self.assertIn("PreToolUse", merged["hooks"])
             module.uninstall(project)
             self.assertEqual(original, json.loads(hook_path.read_text()))
 

@@ -155,6 +155,72 @@ class ChaosEngineInstallerTest(unittest.TestCase):
         self.assertEqual(("cache", "status", "maven-tools-mcp"), (status.command, status.cache_command, status.component))
         self.assertEqual("3.2.0", purge.version)
 
+    def test_status_and_explain_json_v1_are_deterministic_and_secret_free(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary) / "consumer"
+            project.mkdir()
+            MODULE.install_with_dependencies(
+                project,
+                SOURCE,
+                TEST_COMMIT,
+                provisioner=lambda *_args, **_kwargs: None,
+            )
+
+            with mock.patch.object(
+                MODULE,
+                "status_with_dependencies",
+                return_value={
+                    "status": "healthy",
+                    "path": str(project / "private"),
+                    "apiToken": "do-not-render",
+                    "kernel": {"url": "https://user:password@example.invalid/path"},
+                },
+            ):
+                first = MODULE.status_json(project)
+                second = MODULE.status_json(project)
+            explained = MODULE.explain_json(
+                project,
+                "Stop",
+                host="codex",
+                session_id="diagnostic",
+            )
+
+            self.assertEqual(first, second)
+            self.assertEqual(
+                (1, "chaos-engine", "status"),
+                (first["schemaVersion"], first["identity"], first["kind"]),
+            )
+            rendered = json.dumps(first, sort_keys=True)
+            self.assertNotIn(str(project), rendered)
+            self.assertNotIn("do-not-render", rendered)
+            self.assertNotIn("user:password", rendered)
+            self.assertEqual(
+                (1, "chaos-engine", "explain", "complete"),
+                (
+                    explained["schemaVersion"],
+                    explained["identity"],
+                    explained["kind"],
+                    explained["terminalReason"],
+                ),
+            )
+            removed = dict(first)
+            removed["legacyStatus"] = "healthy"
+            with self.assertRaisesRegex(ValueError, "removed fields"):
+                MODULE.validate_diagnostic_json(removed)
+
+            parsed = MODULE.parser().parse_args(
+                [
+                    "explain",
+                    "Stop",
+                    "--project",
+                    str(project),
+                    "--host",
+                    "copilot",
+                    "--json",
+                ]
+            )
+            self.assertTrue(parsed.json)
+
     def test_status_exposes_validated_capability_metadata_for_every_component(self):
         with tempfile.TemporaryDirectory() as temporary:
             project = Path(temporary) / "consumer"
@@ -946,6 +1012,8 @@ class ChaosEngineInstallerTest(unittest.TestCase):
         )
         self.assertNotIn("RESEARCH.md", relatives)
         self.assertNotIn("STANDALONE.md", relatives)
+        self.assertNotIn("README.md", relatives)
+        self.assertTrue((SOURCE / "README.md").is_file())
         self.assertTrue((SOURCE / "STANDALONE.md").is_file())
         self.assertTrue(any(relative.startswith("assets/memory-v5/") for relative in relatives))
         self.assertIn("INSTALL.md", relatives)
@@ -1918,7 +1986,7 @@ class ChaosEngineInstallerTest(unittest.TestCase):
             manifest = json.loads((repaired / "manifest.json").read_text(encoding="utf-8"))
             self.assertEqual(host_token, manifest["hostToken"])
             self.assertEqual("2" * 40, manifest["source"]["commit"])
-            self.assertNotIn(b"\r\n", (repaired / "README.md").read_bytes())
+            self.assertNotIn(b"\r\n", (repaired / "profiles/README.md").read_bytes())
             self.assertFalse(project.joinpath(".chaos-engine.backup").exists())
             self.assertFalse(project.joinpath(".chaos-engine.backup.next").exists())
 

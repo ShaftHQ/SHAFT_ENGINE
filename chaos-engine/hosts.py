@@ -2374,32 +2374,35 @@ def gemini_hooks_document() -> bytes:
 
 
 def copilot_hook_content(before: bytes | None) -> bytes:
-    desired = copilot_hooks_document()
-    if before is None or before == desired:
-        return desired
+    desired = json.loads(copilot_hooks_document())
+    if before is None:
+        return (json.dumps(desired, indent=2, sort_keys=True) + "\n").encode()
     try:
         existing = json.loads(before)
     except (UnicodeDecodeError, json.JSONDecodeError) as error:
         raise ValueError("invalid Copilot hook configuration") from error
     hooks = existing.get("hooks") if isinstance(existing, dict) else None
-    if (
-        existing.get("version") != 1
-        or not isinstance(hooks, dict)
-        or any(
-            not isinstance(entries, list)
-            or any(
-                not isinstance(entry, dict)
-                or not any(
-                    chaos_hook_command(entry.get(field))
-                    for field in ("bash", "powershell", "command")
-                )
-                for entry in entries
-            )
-            for entries in hooks.values()
-        )
-    ):
+    if existing.get("version") != 1 or not isinstance(hooks, dict):
         raise ValueError("ChaosEngine Copilot hook collision")
-    return desired
+    for event, entries in list(hooks.items()):
+        if not isinstance(entries, list) or not all(isinstance(entry, dict) for entry in entries):
+            raise ValueError("ChaosEngine Copilot hook collision")
+        hooks[event] = [
+            entry
+            for entry in entries
+            if not any(
+                chaos_hook_command(entry.get(field))
+                for field in ("bash", "powershell", "command")
+            )
+        ]
+        if not hooks[event]:
+            del hooks[event]
+    for event, entries in desired["hooks"].items():
+        current = hooks.setdefault(event, [])
+        for entry in entries:
+            if entry not in current:
+                current.append(entry)
+    return (json.dumps(existing, indent=2, sort_keys=True) + "\n").encode()
 
 
 def chaos_hook_command(command: object) -> bool:

@@ -79,6 +79,7 @@ class HostCapability:
     supported_events: tuple[str, ...]
     strict_json_stdout: bool = True
     live_gate: bool = True
+    static_surfaces: tuple[str, ...] = ()
 
 
 def _aliases(supported: tuple[str, ...], **values: str) -> Mapping[str, str]:
@@ -130,6 +131,7 @@ HOST_CAPABILITIES: Mapping[str, HostCapability] = {
             sessionEnd="SessionEnd",
         ),
         COPILOT_EVENTS,
+        static_surfaces=("cloud", "ide"),
     ),
 }
 
@@ -181,6 +183,8 @@ class HookEvent:
     raw_fields: tuple[str, ...]
     phase: str = "ReadOnly"
     target_phase: str = ""
+    cancelled: bool = False
+    timed_out: bool = False
 
 
 def detect_host(raw: Mapping[str, object] | None = None) -> str:
@@ -258,6 +262,12 @@ def normalize_event(raw: Mapping[str, object], host: str | None = None) -> HookE
         raw_fields=tuple(sorted(str(key) for key in raw)),
         phase=str(normalized.get("phase") or "ReadOnly"),
         target_phase=str(normalized.get("target_phase") or ""),
+        cancelled=(
+            normalized.get("cancelled") is True or normalized.get("canceled") is True
+        ),
+        timed_out=(
+            normalized.get("timed_out") is True or normalized.get("timeout") is True
+        ),
     )
 
 
@@ -385,7 +395,16 @@ class Rule:
     remedy_code: str | None = None
 
 
-PREDICATE_CODES = frozenset({"always", "missing_session", "missing_session_mutation"})
+PREDICATE_CODES = frozenset(
+    {
+        "always",
+        "cancelled",
+        "timed_out",
+        "missing_session",
+        "missing_session_mutation",
+        "stop_without_target",
+    }
+)
 REMEDY_PREDICATES: Mapping[str, frozenset[str]] = {
     "retry_with_session": frozenset({"missing_session", "missing_session_mutation"})
 }
@@ -398,6 +417,12 @@ def _predicate_matches(code: str, event: HookEvent) -> bool:
         return not event.session_id
     if code == "missing_session_mutation":
         return not event.session_id and event.stateful_mutation
+    if code == "cancelled":
+        return event.cancelled
+    if code == "timed_out":
+        return event.timed_out
+    if code == "stop_without_target":
+        return event.name == "Stop" and not event.target_phase
     return False
 
 
@@ -471,6 +496,24 @@ class EvaluationReport:
 
 RULES = (
     Rule(
+        code="CE_CANCELLED",
+        event="*",
+        priority=300,
+        decision="deny",
+        remedy=None,
+        terminal=True,
+        predicate_code="cancelled",
+    ),
+    Rule(
+        code="CE_TIMEOUT",
+        event="*",
+        priority=200,
+        decision="deny",
+        remedy=None,
+        terminal=True,
+        predicate_code="timed_out",
+    ),
+    Rule(
         code="CE_SESSION_REQUIRED",
         event="PreToolUse",
         priority=100,
@@ -486,8 +529,17 @@ RULES = (
         priority=100,
         decision="allow",
         remedy="Configure the host adapter to provide session identity for stateful enforcement.",
-        terminal=False,
+        terminal=True,
         predicate_code="missing_session",
+    ),
+    Rule(
+        code="CE_STOP_COMPLETE",
+        event="Stop",
+        priority=10,
+        decision="allow",
+        remedy=None,
+        terminal=True,
+        predicate_code="stop_without_target",
     ),
 )
 
@@ -510,18 +562,7 @@ def validate_rules(rules: tuple[Rule, ...]) -> list[str]:
             errors.append(f"unknown rule event: {rule.code}")
         for prior in rules[:index]:
             events_overlap = rule.event == prior.event or "*" in {rule.event, prior.event}
-            semantics = (rule.decision, rule.terminal, rule.remedy, rule.remedy_code)
-            prior_semantics = (
-                prior.decision,
-                prior.terminal,
-                prior.remedy,
-                prior.remedy_code,
-            )
-            if (
-                events_overlap
-                and rule.priority == prior.priority
-                and semantics != prior_semantics
-            ):
+            if events_overlap and rule.priority == prior.priority:
                 scope = "wildcard overlap" if "*" in {rule.event, prior.event} else rule.event
                 errors.append(
                     f"conflicting rule semantics at {scope} priority {rule.priority}"
@@ -606,15 +647,47 @@ def evaluate(
             remedy="Retry with a phase declared by the lifecycle registry.",
             terminal_reason=None,
         )
+    if current_phase in TERMINAL_PHASES:
+        return EvaluationReport(
+            host=event.host,
+            event=event.name,
+            phase=current_phase,
+            decision="allow" if current_phase == "Complete" else "deny",
+            diagnostic_code="CE_TERMINAL_REPLAY",
+            reason="Repeated event preserved the existing terminal outcome.",
+            remedy=None,
+            terminal_reason=current_phase.casefold(),
+        )
+    known_events = {
+        name
+        for capability in HOST_CAPABILITIES.values()
+        for name in capability.supported_events
+    }
+    if event.name not in known_events:
+        return EvaluationReport(
+            host=event.host,
+            event=event.name,
+            phase="Blocked",
+            decision="deny",
+            diagnostic_code="CE_UNKNOWN_EVENT",
+            reason="Event is missing or is not declared by a supported host capability.",
+            remedy=None,
+            terminal_reason="blocked",
+        )
     applicable = sorted(
         (rule for rule in rules if rule.event in {event.name, "*"}),
         key=lambda rule: (-rule.priority, rule.code),
     )
     for rule in applicable:
         if _predicate_matches(rule.predicate_code, event):
+            diagnostic_code = rule.code
+            decision = rule.decision
             reason = {
+                "CE_CANCELLED": "Lifecycle evaluation was cancelled.",
+                "CE_TIMEOUT": "Lifecycle evaluation reached its bounded timeout.",
                 "CE_SESSION_REQUIRED": "Stateful lifecycle enforcement requires a unique session identity.",
                 "CE_SESSION_MISSING_STOP": "Stop allowed without state lookup because host omitted session identity.",
+                "CE_STOP_COMPLETE": "Stop reached a bounded terminal outcome.",
             }.get(rule.code, rule.code)
             next_phase = (
                 "Blocked"
@@ -623,6 +696,15 @@ def evaluate(
                 if rule.terminal and rule.decision == "allow"
                 else current_phase
             )
+            if (
+                rule.code in {"CE_SESSION_MISSING_STOP", "CE_STOP_COMPLETE"}
+                and next_phase == "Complete"
+                and next_phase not in LIFECYCLE_TRANSITIONS[current_phase]
+            ):
+                next_phase = "Blocked"
+                decision = "deny"
+                diagnostic_code = "CE_STOP_INCOMPLETE"
+                reason = "Stop reached a bounded blocked outcome before lifecycle completion."
             if (
                 next_phase != current_phase
                 and next_phase not in LIFECYCLE_TRANSITIONS[current_phase]
@@ -644,15 +726,15 @@ def evaluate(
                 host=event.host,
                 event=event.name,
                 phase=next_phase,
-                decision=rule.decision,
-                diagnostic_code=rule.code,
+                decision=decision,
+                diagnostic_code=diagnostic_code,
                 reason=reason,
                 remedy=rule.remedy,
                 terminal_reason=(
                     "blocked"
-                    if rule.terminal and rule.decision == "deny"
+                    if rule.terminal and decision == "deny"
                     else "complete"
-                    if rule.terminal and rule.decision == "allow"
+                    if rule.terminal and decision == "allow"
                     else None
                 ),
                 facts_used=observed.used_facts,
