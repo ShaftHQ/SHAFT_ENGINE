@@ -302,7 +302,7 @@
       "message": "automatic remote PR creation"
     },
     {
-      "pattern": "(?i)\\b(?:sonnet|haiku|opus|fable|gemini|gemma|deepseek|qwen|llama|mistral|codex-[\\w.]+|gpt-?[0-9][\\w.]*|grok-?[0-9][\\w.]*|o[1-9][\\w.]*-(?:mini|preview))\\b",
+      "pattern": "(?i)\\b(?:sonnet|haiku|opus|fable|gemini-(?:[0-9][\\w.-]*|pro|flash)|gemma|deepseek|qwen|llama|mistral|codex-[\\w.]+|gpt-?[0-9][\\w.]*|grok-?[0-9][\\w.]*|o[1-9][\\w.]*-(?:mini|preview))\\b",
       "message": "named model or product instead of a capability level"
     }
   ],
