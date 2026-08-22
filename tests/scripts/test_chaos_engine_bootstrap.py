@@ -569,6 +569,63 @@ class ChaosEngineBootstrapTest(unittest.TestCase):
             )
             self.assertEqual(COMMIT_ONE, repeated["commit"])
 
+    def test_public_bootstrap_upgrade_repairs_missing_mempalace(self):
+        module = load()
+        dependency = importlib.util.spec_from_file_location(
+            "bootstrap_dependency_upgrade", ROOT / "chaos-engine/dependencies.py"
+        )
+        if dependency is None or dependency.loader is None:
+            raise RuntimeError("dependency test module could not be loaded")
+        dependency_module = importlib.util.module_from_spec(dependency)
+        dependency.loader.exec_module(dependency_module)
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary) / "project"
+            project.mkdir()
+
+            def provisioner(runtime, specification):
+                def runner(command, environment):
+                    del environment
+                    executable = Path(command[0])
+                    if not executable.exists() and executable.is_relative_to(runtime.parent):
+                        executable.parent.mkdir(parents=True, exist_ok=True)
+                        executable.write_text("tool\n", encoding="utf-8")
+                    return SimpleNamespace(stdout="tool 1.0\n", stderr="")
+
+                return dependency_module.repair(runtime, specification, runner=runner)
+
+            initial, _ = self.opener([(COMMIT_ONE, "fresh")])
+            module.install_latest(
+                project,
+                repository="Example/Project",
+                branch="main",
+                opener=initial,
+                provisioner=provisioner,
+                distribution="repository",
+            )
+            mempalace = Path(
+                dependency_module.executable(
+                    project / ".chaos-engine-runtime/bin", "mempalace"
+                )
+            )
+            mempalace.unlink()
+
+            upgrade, _ = self.opener([(COMMIT_TWO, "upgrade")])
+            result = module.install_latest(
+                project,
+                repository="Example/Project",
+                branch="main",
+                opener=upgrade,
+                provisioner=provisioner,
+                distribution="repository",
+            )
+
+            self.assertEqual(COMMIT_TWO, result["commit"])
+            self.assertTrue(mempalace.is_file())
+            installed = module.load_installer(project / ".chaos-engine")
+            self.assertEqual(
+                "healthy", installed.status_with_dependencies(project)["dependencies"]["status"]
+            )
+
     def test_existing_local_install_adopts_git_provenance_through_staged_update(self):
         module = load()
         with tempfile.TemporaryDirectory() as temporary:
