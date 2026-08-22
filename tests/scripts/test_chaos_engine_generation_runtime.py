@@ -8,6 +8,7 @@ import os
 import tempfile
 import unittest
 import unittest.mock as mock
+from datetime import datetime, timezone
 from pathlib import Path
 
 
@@ -34,11 +35,42 @@ class GenerationRuntimeTests(unittest.TestCase):
         core.write_text('{"owned":true}\n', encoding="utf-8")
         generation = project / ".chaos-engine-runtime-generations" / ("a" * 32)
         generation.mkdir(parents=True)
+        interpreter = generation / "uv-tools/shared/bin/python"
+        interpreter.parent.mkdir(parents=True)
+        interpreter.write_bytes(b"python")
+        dispatches = {}
+        for name in (
+            "uv",
+            "mempalace",
+            "mempalace-mcp",
+            "graphify",
+            "memory",
+            "memory-mcp",
+        ):
+            dispatches[name] = {
+                "dispatch": {
+                    "kind": "python",
+                    "interpreter": "uv-tools/shared/bin/python",
+                    "interpreterSha256": module.sha256(interpreter),
+                    "distribution": "mempalace",
+                    "entrypoint": name,
+                }
+            }
         receipt_value = {
             "schemaVersion": 2,
+            "runtimeContractVersion": 3,
+            "checkedAt": datetime.now(timezone.utc).isoformat(),
             "specificationSha256": "b" * 64,
             "coreSha256": module.sha256(core),
-            "tools": {},
+            "environment": {},
+            "installed": {},
+            "tools": dispatches,
+            "ownership": {
+                "directories": [],
+                "files": {},
+                "links": [],
+                "sha256": module.ownership_digest({}),
+            },
         }
         receipt_value["receiptIntegritySha256"] = module.json_integrity(
             receipt_value
@@ -171,6 +203,22 @@ class GenerationRuntimeTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "specification digest"):
                 module.active_generation(project)
 
+    def test_structurally_incomplete_receipt_is_never_active(self):
+        module = load_controller()
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary)
+            generation, active = self.generation_fixture(module, project)
+            receipt_path = generation / "receipt.json"
+            receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
+            receipt["tools"] = {}
+            receipt["receiptIntegritySha256"] = module.json_integrity(receipt)
+            receipt_path.write_text(json.dumps(receipt), encoding="utf-8")
+            active["receiptSha256"] = module.sha256(receipt_path)
+            module.publish_pointer(project, active, None, transaction_id="d" * 32)
+
+            with self.assertRaisesRegex(ValueError, "receipt schema|tool metadata"):
+                module.active_generation(project)
+
     def test_linked_pointer_is_rejected_before_read(self):
         module = load_controller()
         if not hasattr(os, "symlink"):
@@ -187,6 +235,54 @@ class GenerationRuntimeTests(unittest.TestCase):
 
             with self.assertRaisesRegex(ValueError, "pointer.*link|reparse"):
                 module.active_generation(project)
+
+    def test_linked_project_or_generation_root_is_rejected(self):
+        module = load_controller()
+        if not hasattr(os, "symlink"):
+            self.skipTest("symlinks unavailable")
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            real = root / "real"
+            real.mkdir()
+            generation, active = self.generation_fixture(module, real)
+            module.publish_pointer(real, active, None, transaction_id="d" * 32)
+            linked = root / "linked"
+            try:
+                linked.symlink_to(real, target_is_directory=True)
+            except OSError as error:
+                self.skipTest(f"symlinks unavailable: {error}")
+            with self.assertRaisesRegex(ValueError, "root.*unsafe|ancestor|link"):
+                module.active_generation(linked)
+
+            generation_link = root / "generation-link"
+            generation_link.symlink_to(generation, target_is_directory=True)
+            receipt = json.loads((generation / "receipt.json").read_text(encoding="utf-8"))
+            with self.assertRaisesRegex(ValueError, "root.*unsafe|ancestor|link"):
+                module.dispatch_command(generation_link, receipt, "mempalace", [])
+
+    @unittest.skipIf(os.name == "nt", "directory fsync is POSIX-only")
+    def test_post_replace_directory_fsync_failure_reports_committed_pointer(self):
+        module = load_controller()
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary)
+            generation, active = self.generation_fixture(module, project)
+            real_fsync = module.os.fsync
+            calls = 0
+
+            def fail_directory_fsync(descriptor):
+                nonlocal calls
+                calls += 1
+                if calls == 2:
+                    raise OSError("directory fsync unavailable")
+                return real_fsync(descriptor)
+
+            with mock.patch.object(module.os, "fsync", side_effect=fail_directory_fsync):
+                pointer = module.publish_pointer(
+                    project, active, None, transaction_id="d" * 32
+                )
+
+            self.assertEqual("d" * 32, pointer["transactionId"])
+            self.assertEqual(generation, module.active_generation(project)[0])
 
     def test_dispatch_uses_recorded_environment_python_not_a_uv_shim(self):
         module = load_controller()
@@ -216,6 +312,33 @@ class GenerationRuntimeTests(unittest.TestCase):
             self.assertIn("importlib.metadata", command[2])
             self.assertEqual(["mempalace", "mempalace", "--version"], command[3:])
             self.assertNotIn(str(generation / "bin/mempalace"), command)
+
+    @unittest.skipUnless(os.name == "nt", "Windows rooted-path rule")
+    def test_windows_rooted_interpreter_path_cannot_escape_generation(self):
+        module = load_controller()
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            generation = root / "generation"
+            generation.mkdir()
+            outside = root / "outside-python.exe"
+            outside.write_bytes(b"python")
+            rooted = os.path.splitdrive(str(outside))[1]
+            receipt = {
+                "tools": {
+                    "graphify": {
+                        "dispatch": {
+                            "kind": "python",
+                            "interpreter": rooted,
+                            "interpreterSha256": module.sha256(outside),
+                            "distribution": "graphifyy",
+                            "entrypoint": "graphify",
+                        }
+                    }
+                }
+            }
+
+            with self.assertRaisesRegex(ValueError, "path.*unsafe|interpreter.*unsafe"):
+                module.dispatch_command(generation, receipt, "graphify", [])
 
 
 if __name__ == "__main__":
