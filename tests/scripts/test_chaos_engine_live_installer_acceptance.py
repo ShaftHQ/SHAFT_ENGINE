@@ -145,6 +145,13 @@ class ChaosEngineLiveInstallerAcceptanceTest(unittest.TestCase):
             "failed at /Users/alice/work/state.json; fallback hooks/kernel.py": (
                 "failed at <path>; fallback hooks/kernel.py"
             ),
+            "failed at /Users/alice/Library/Application Support/Chaos/state.json; "
+            "fallback hooks/kernel.py": (
+                "failed at <path>; fallback hooks/kernel.py"
+            ),
+            "failed at /Users/alice/; fallback hooks/kernel.py": (
+                "failed at <path>; fallback hooks/kernel.py"
+            ),
             'failed at "/Users/build agent/Library/Application Support/Chaos/state.json", '
             "fallback hooks/kernel.py": (
                 'failed at "<path>", fallback hooks/kernel.py'
@@ -154,6 +161,14 @@ class ChaosEngineLiveInstallerAcceptanceTest(unittest.TestCase):
             ),
             "index http://token@packages.example.test/simple unavailable": (
                 "index http://<redacted>@packages.example.test/simple unavailable"
+            ),
+            "proxy https://o'connor:secret@proxy.example.com/simple failed": (
+                "proxy https://<redacted>@proxy.example.com/simple failed"
+            ),
+            "proxy https://alice:secret@[2001:db8::1]:8443/Users/alice/simple"
+            "?next=/tmp/x failed": (
+                "proxy https://<redacted>@[2001:db8::1]:8443/Users/alice/simple"
+                "?next=/tmp/x failed"
             ),
         }
         for diagnostic, expected in diagnostics.items():

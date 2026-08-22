@@ -14,6 +14,7 @@ import subprocess  # nosec B404 - fixed repository-owned commands only.
 import sys
 import tempfile
 import time
+import urllib.parse
 from pathlib import Path
 
 
@@ -32,6 +33,18 @@ COMMIT_A = "a" * 40
 COMMIT_B = "b" * 40
 HEX_ID = re.compile(r"[0-9a-f]{32}")
 SECRET_NAME = re.compile(r"(?:TOKEN|SECRET|PASSWORD|API_KEY|PRIVATE_KEY)", re.I)
+URL_START = re.compile(r"https?://", re.I)
+ABSOLUTE_ROOT = re.compile(
+    r"(?<![A-Za-z0-9])(?:"
+    r"[A-Za-z]:[\\/]"
+    r"|\\\\[^\\/\r\n\"';,:]+[\\/][^\\/\r\n\"';,:]+(?:[\\/]|$)"
+    r"|/(?:tmp|var/folders|private/var/folders|home/runner/work)(?:/|$)"
+    r"|/Users/[^/\r\n\"';,:]+(?:/|$)"
+    r")"
+)
+PATH_DELIMITERS = frozenset(";,:\r\n\t\"'<>{}[]()")
+SANITIZER_INPUT_LIMIT = 8192
+SANITIZER_OUTPUT_LIMIT = 500
 
 
 def clean_environment(base: dict[str, str] | None = None) -> dict[str, str]:
@@ -63,29 +76,68 @@ def offline_environment(
     return environment
 
 
+def _sanitize_http_url(token: str) -> str:
+    trailing = ""
+    while token and token[-1] in ".,;)}'":
+        trailing = token[-1] + trailing
+        token = token[:-1]
+    try:
+        parsed = urllib.parse.urlsplit(token)
+    except ValueError:
+        return ("<url>" if "@" in token else token) + trailing
+    if parsed.scheme.casefold() not in {"http", "https"} or "@" not in parsed.netloc:
+        return token + trailing
+    host_port = parsed.netloc.rsplit("@", 1)[1]
+    sanitized = urllib.parse.urlunsplit(
+        (parsed.scheme, f"<redacted>@{host_port}", parsed.path, parsed.query, parsed.fragment)
+    )
+    return sanitized + trailing
+
+
+def _protect_http_urls(text: str) -> tuple[str, list[str]]:
+    protected: list[str] = []
+    output: list[str] = []
+    cursor = 0
+    while match := URL_START.search(text, cursor):
+        start = match.start()
+        end = match.end()
+        while end < len(text) and text[end] not in "\r\n\t <>\"":
+            end += 1
+        output.append(text[cursor:start])
+        marker = f"\x00chaos-url-{len(protected)}\x00"
+        output.append(marker)
+        protected.append(_sanitize_http_url(text[start:end]))
+        cursor = end
+    output.append(text[cursor:])
+    return "".join(output), protected
+
+
+def _redact_absolute_paths(text: str) -> str:
+    output: list[str] = []
+    cursor = 0
+    while match := ABSOLUTE_ROOT.search(text, cursor):
+        start = match.start()
+        end = match.end()
+        quote = text[start - 1] if start and text[start - 1] in "\"'" else None
+        if quote is not None:
+            closing = text.find(quote, end)
+            end = len(text) if closing < 0 else closing
+        else:
+            while end < len(text) and text[end] not in PATH_DELIMITERS:
+                end += 1
+        output.extend((text[cursor:start], "<path>"))
+        cursor = end
+    output.append(text[cursor:])
+    return "".join(output)
+
+
 def sanitize(value: object) -> str:
-    text = str(value)
-    text = re.sub(
-        r"(?i)\b(https?://)[^/@\s\"']+@", r"\1<redacted>@", text
-    )
-    absolute_root = (
-        r"(?:[A-Za-z]:[\\/]"
-        r"|\\\\[^\\/\r\n\"']+[\\/][^\\/\r\n\"']+[\\/]"
-        r"|/(?:tmp|var/folders|private/var/folders|home/runner/work)/"
-        r"|/Users/[^/\r\n\"']+/)"
-    )
-    text = re.sub(
-        rf"(?P<quote>[\"']){absolute_root}.*?(?P=quote)",
-        lambda match: f'{match.group("quote")}<path>{match.group("quote")}',
-        text,
-    )
-    text = re.sub(
-        rf"(?<![A-Za-z0-9]){absolute_root}"
-        r"[^\s\r\n\t\"'<>?,;:()\[\]{}]+",
-        "<path>",
-        text,
-    )
-    return text[:500]
+    text = str(value)[:SANITIZER_INPUT_LIMIT].replace("\x00", "<nul>")
+    text, urls = _protect_http_urls(text)
+    text = _redact_absolute_paths(text)
+    for index, url in enumerate(urls):
+        text = text.replace(f"\x00chaos-url-{index}\x00", url)
+    return text[:SANITIZER_OUTPUT_LIMIT]
 
 
 def run_checked(
