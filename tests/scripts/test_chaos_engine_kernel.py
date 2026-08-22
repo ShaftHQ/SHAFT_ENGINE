@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import importlib.util
 import json
 import os
@@ -108,7 +109,7 @@ class ChaosEngineKernelTest(unittest.TestCase):
                 self.assertTrue(event.stateful_mutation)
                 self.assertEqual("CE_SESSION_REQUIRED", report.diagnostic_code)
 
-        read_only = self.kernel.normalize_event(
+        shell_read = self.kernel.normalize_event(
             {
                 "hook_event_name": "PreToolUse",
                 "tool_name": "bash",
@@ -116,7 +117,48 @@ class ChaosEngineKernelTest(unittest.TestCase):
             },
             "claude",
         )
-        self.assertFalse(read_only.stateful_mutation)
+        self.assertTrue(shell_read.stateful_mutation)
+        self.assertEqual(
+            "CE_SESSION_REQUIRED", self.kernel.evaluate(shell_read).diagnostic_code
+        )
+
+    def test_missing_session_allows_only_explicit_direct_read_tools(self):
+        for tool_name in ("Read", "Grep", "Glob"):
+            with self.subTest(tool_name=tool_name):
+                event = self.kernel.normalize_event(
+                    {
+                        "hook_event_name": "PreToolUse",
+                        "tool_name": tool_name,
+                        "tool_input": {"file_path": "README.md"},
+                    },
+                    "claude",
+                )
+                self.assertFalse(event.stateful_mutation)
+                self.assertEqual("CE_OK", self.kernel.evaluate(event).diagnostic_code)
+
+        unsafe_shapes = (
+            ("functions.exec", {"source": "await tools.exec_command({cmd: 'git status'})"}),
+            ("functions.exec", {"input": {"cmd": "git status"}}),
+            ("run_shell_command", {"command": "git status"}),
+            ("write_file", {"file_path": "result.txt", "content": "changed"}),
+            ("replace", {"file_path": "result.txt", "old_string": "a", "new_string": "b"}),
+            ("unknown_tool", {}),
+            ("", {}),
+        )
+        for tool_name, tool_input in unsafe_shapes:
+            with self.subTest(tool_name=tool_name, tool_input=tool_input):
+                event = self.kernel.normalize_event(
+                    {
+                        "hook_event_name": "BeforeTool",
+                        "tool_name": tool_name,
+                        "tool_input": tool_input,
+                    },
+                    "gemini",
+                )
+                self.assertTrue(event.stateful_mutation)
+                self.assertEqual(
+                    "CE_SESSION_REQUIRED", self.kernel.evaluate(event).diagnostic_code
+                )
 
     def test_missing_session_malformed_shell_json_fails_closed(self):
         event = self.kernel.normalize_event(
@@ -156,6 +198,8 @@ class ChaosEngineKernelTest(unittest.TestCase):
         self.assertEqual("CE_SESSION_REQUIRED", mutation.diagnostic_code)
         self.assertEqual("allow", stopped.decision)
         self.assertEqual("CE_SESSION_MISSING_STOP", stopped.diagnostic_code)
+        self.assertEqual("ReadOnly", stopped.phase)
+        self.assertIsNone(stopped.terminal_reason)
         self.assertEqual((), mutation.effects)
         self.assertEqual((), stopped.effects)
 
@@ -170,7 +214,7 @@ class ChaosEngineKernelTest(unittest.TestCase):
             decision="allow",
             remedy=None,
             terminal=True,
-            predicate=lambda _event, _snapshot: True,
+            predicate_code="always",
         )
         errors = self.kernel.validate_rules((*self.kernel.RULES, conflict))
         self.assertTrue(any("priority" in error.casefold() for error in errors))
@@ -193,7 +237,7 @@ class ChaosEngineKernelTest(unittest.TestCase):
             decision="deny",
             remedy="Retry with a session.",
             terminal=False,
-            predicate=lambda _event, _snapshot: True,
+            predicate_code="always",
             remedy_code="retry_with_session",
         )
         specific = self.kernel.Rule(
@@ -203,7 +247,7 @@ class ChaosEngineKernelTest(unittest.TestCase):
             decision="allow",
             remedy=None,
             terminal=True,
-            predicate=lambda _event, _snapshot: True,
+            predicate_code="always",
         )
         unproven = self.kernel.Rule(
             code="CE_UNPROVEN",
@@ -212,7 +256,7 @@ class ChaosEngineKernelTest(unittest.TestCase):
             decision="deny",
             remedy="Try something else.",
             terminal=False,
-            predicate=lambda _event, _snapshot: True,
+            predicate_code="always",
         )
 
         errors = self.kernel.validate_rules((wildcard, specific, unproven))
@@ -221,7 +265,6 @@ class ChaosEngineKernelTest(unittest.TestCase):
         self.assertTrue(any("satisfiable remedy" in error.casefold() for error in errors))
 
     def test_rule_validation_rejects_equal_priority_semantic_conflicts(self):
-        retry = lambda event, _snapshot: not event.session_id
         wildcard = self.kernel.Rule(
             code="CE_WILDCARD_RETRY",
             event="*",
@@ -229,7 +272,7 @@ class ChaosEngineKernelTest(unittest.TestCase):
             decision="deny",
             remedy="Retry with a session.",
             terminal=False,
-            predicate=retry,
+            predicate_code="missing_session",
             remedy_code="retry_with_session",
         )
         terminal = self.kernel.Rule(
@@ -239,7 +282,7 @@ class ChaosEngineKernelTest(unittest.TestCase):
             decision="deny",
             remedy=None,
             terminal=True,
-            predicate=lambda _event, _snapshot: True,
+            predicate_code="always",
         )
         different_remedy = self.kernel.Rule(
             code="CE_SPECIFIC_REMEDY",
@@ -248,7 +291,7 @@ class ChaosEngineKernelTest(unittest.TestCase):
             decision="deny",
             remedy="Use a different recovery action.",
             terminal=False,
-            predicate=retry,
+            predicate_code="missing_session",
             remedy_code="retry_with_session",
         )
 
@@ -259,7 +302,7 @@ class ChaosEngineKernelTest(unittest.TestCase):
             2,
         )
 
-    def test_rule_validation_executes_remedy_witness(self):
+    def test_rule_validation_uses_closed_structural_predicates(self):
         always_true = self.kernel.Rule(
             code="CE_FALSE_REMEDY",
             event="PreToolUse",
@@ -267,13 +310,31 @@ class ChaosEngineKernelTest(unittest.TestCase):
             decision="deny",
             remedy="Retry with a session.",
             terminal=False,
-            predicate=lambda _event, _snapshot: True,
+            predicate_code="always",
             remedy_code="retry_with_session",
         )
 
-        errors = self.kernel.validate_rules((always_true,))
+        custom = self.kernel.Rule(
+            code="CE_CUSTOM",
+            event="PreToolUse",
+            priority=30,
+            decision="allow",
+            remedy=None,
+            terminal=False,
+            predicate_code="run_arbitrary_python",
+        )
 
-        self.assertTrue(any("remedy witness" in error.casefold() for error in errors))
+        errors = self.kernel.validate_rules((always_true, custom))
+
+        self.assertTrue(any("remedy" in error.casefold() for error in errors))
+        self.assertTrue(any("predicate" in error.casefold() for error in errors))
+        report = self.kernel.evaluate(
+            self.kernel.normalize_event(
+                {"hook_event_name": "PreToolUse", "session_id": "s"}, "codex"
+            ),
+            rules=(custom,),
+        )
+        self.assertEqual("CE_INVALID_RULESET", report.diagnostic_code)
 
     def test_evaluate_preserves_phase_for_retry_and_enforces_transitions(self):
         retry = self.kernel.evaluate(
@@ -326,13 +387,12 @@ class ChaosEngineKernelTest(unittest.TestCase):
             decision="allow",
             remedy=None,
             terminal=True,
-            predicate=lambda _event, _snapshot: True,
+            predicate_code="missing_session",
         )
         report = self.kernel.evaluate(
             self.kernel.normalize_event(
                 {
                     "hook_event_name": "Stop",
-                    "session_id": "s",
                     "phase": "Planned",
                 },
                 "codex",
@@ -467,6 +527,41 @@ class ChaosEngineKernelTest(unittest.TestCase):
         owner.join(timeout=1)
         self.assertEqual(["slow"], calls)
 
+    def test_snapshot_bounds_first_caller_and_late_result_cannot_overwrite_unknown(self):
+        release = threading.Event()
+        calls = []
+
+        def provider():
+            calls.append("slow")
+            release.wait(1)
+            return "late"
+
+        snapshot = self.kernel.HarnessSnapshot(
+            providers={"slow": provider}, wait_timeout=0.03
+        )
+        started = time.monotonic()
+        self.assertEqual("unknown", snapshot.fact("slow"))
+        self.assertLess(time.monotonic() - started, 0.15)
+        release.set()
+        time.sleep(0.03)
+        self.assertEqual("unknown", snapshot.fact("slow"))
+        self.assertEqual(["slow"], calls)
+
+    def test_snapshot_base_exception_still_signals_and_commits_unknown(self):
+        calls = []
+
+        def provider():
+            calls.append("boom")
+            raise SystemExit(2)
+
+        snapshot = self.kernel.HarnessSnapshot(
+            providers={"fact": provider}, wait_timeout=0.1
+        )
+        self.assertEqual("unknown", snapshot.fact("fact"))
+        self.assertEqual("unknown", snapshot.fact("fact"))
+        self.assertEqual(["boom"], calls)
+        self.assertEqual(("fact",), snapshot.used_facts)
+
     def test_effect_journal_is_append_only_idempotent_and_session_scoped(self):
         with tempfile.TemporaryDirectory() as directory:
             journal = self.kernel.EffectJournal(Path(directory) / "state-v2.jsonl")
@@ -522,6 +617,12 @@ class ChaosEngineKernelTest(unittest.TestCase):
             valid = effect.to_record()
             valid["schemaVersion"] = 1
             valid["identity"] = "act-as-mohab"
+            valid["idempotencyKey"] = hashlib.sha256(
+                "\0".join(
+                    valid[field]
+                    for field in ("sessionId", "event", "toolCallId", "rule", "effect")
+                ).encode("utf-8")
+            ).hexdigest()
             path.write_text(json.dumps(valid) + "\n", encoding="utf-8")
             journal = self.kernel.EffectJournal(path)
 
@@ -542,6 +643,26 @@ class ChaosEngineKernelTest(unittest.TestCase):
                     path.write_text(json.dumps(malformed) + "\n", encoding="utf-8")
                     with self.assertRaises(self.kernel.JournalCorruptionError):
                         journal.append(effect)
+
+            ambiguous = dict(valid)
+            ambiguous["toolCallId"] = "call\0rule"
+            ambiguous["rule"] = "record"
+            ambiguous["effect"] = ""
+            ambiguous["idempotencyKey"] = hashlib.sha256(
+                "\0".join(
+                    ambiguous[field]
+                    for field in ("sessionId", "event", "toolCallId", "rule", "effect")
+                ).encode("utf-8")
+            ).hexdigest()
+            path.write_text(json.dumps(ambiguous) + "\n", encoding="utf-8")
+            with self.assertRaises(self.kernel.JournalCorruptionError):
+                journal.records("s")
+
+    def test_effect_v2_key_uses_unambiguous_json_tuple_framing(self):
+        left = self.kernel.Effect("a\0b", "c", "d", "e", "f")
+        right = self.kernel.Effect("a", "b\0c", "d", "e", "f")
+
+        self.assertNotEqual(left.key, right.key)
 
     def test_status_and_explain_are_versioned_secret_safe_json(self):
         report = self.kernel.evaluate(

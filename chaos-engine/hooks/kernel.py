@@ -159,32 +159,7 @@ TOOL_ALIASES = {
     "apply_patch": "apply_patch",
 }
 
-_DIRECT_MUTATION_TOOLS = frozenset(
-    {
-        "applypatch",
-        "copy",
-        "create",
-        "delete",
-        "edit",
-        "mkdir",
-        "move",
-        "notebookedit",
-        "touch",
-        "write",
-    }
-)
-_READ_ONLY_SHELL_COMMAND = re.compile(
-    r"(?:git\s+(?:status|diff|log|show|rev-parse|ls-files|ls-tree|cat-file)\b[^;&|>`\r\n]*|"
-    r"gh\s+(?:(?:issue|pr)\s+(?:view|list|status|checks|diff)|status)\b[^;&|>`\r\n]*|"
-    r"(?:get-content|test-path|resolve-path|pwd)\b[^;&|>`\r\n]*)",
-    re.IGNORECASE,
-)
-_SHELL_METACHARACTERS = re.compile(r"[\r\n;&|<>`$()]")
-_SHELL_TOOLS = frozenset({"powershell"})
-_MUTATING_READ_COMMAND_OPTIONS = re.compile(
-    r"(?:^|\s)(?:--output|--ext-diff|--textconv|--web)(?:=|\s|$)",
-    re.IGNORECASE,
-)
+_DIRECT_READ_ONLY_TOOLS = frozenset({"glob", "grep", "read"})
 
 
 @dataclass(frozen=True)
@@ -237,20 +212,11 @@ def _tool_name(value: object) -> str:
     return TOOL_ALIASES.get(key, rendered)
 
 
-def _is_mutation(tool_name: str, tool_input: Mapping[str, object]) -> bool:
+def _is_mutation(tool_name: str, _tool_input: Mapping[str, object]) -> bool:
     compact_name = re.sub(r"[^a-z]", "", tool_name.casefold())
-    if compact_name in _DIRECT_MUTATION_TOOLS:
-        return True
-    command = str(tool_input.get("command") or tool_input.get("cmd") or "").strip()
-    if not command:
-        return compact_name in _SHELL_TOOLS
-    # Shell syntax is open-ended. Only a narrow, anchored read-only grammar is
-    # safe to exempt; unknown commands fail closed as possible mutations.
-    return (
-        _SHELL_METACHARACTERS.search(command) is not None
-        or _MUTATING_READ_COMMAND_OPTIONS.search(command) is not None
-        or _READ_ONLY_SHELL_COMMAND.fullmatch(command) is None
-    )
+    # Shell tools can execute configured helpers even for commands which look
+    # read-only. Exempt only host-native tools whose contract is direct reading.
+    return compact_name not in _DIRECT_READ_ONLY_TOOLS
 
 
 def normalize_event(raw: Mapping[str, object], host: str | None = None) -> HookEvent:
@@ -308,7 +274,6 @@ def normalize_hook_input(raw: Mapping[str, object]) -> dict[str, object]:
 
 @dataclass(frozen=True)
 class _FactFlight:
-    owner: int
     done: threading.Event
 
 
@@ -319,63 +284,63 @@ class HarnessSnapshot:
     _cache: dict[str, object] = field(default_factory=dict, init=False, repr=False)
     _lock: threading.RLock = field(default_factory=threading.RLock, init=False, repr=False)
     _inflight: dict[str, _FactFlight] = field(default_factory=dict, init=False, repr=False)
-    _waiting: dict[int, str] = field(default_factory=dict, init=False, repr=False)
 
     def __post_init__(self) -> None:
         self.providers = MappingProxyType(dict(self.providers))
         if self.wait_timeout < 0:
             raise ValueError("fact wait timeout must be non-negative")
 
-    def _would_cycle(self, waiter: int, owner: int) -> bool:
-        visited: set[int] = set()
-        while owner not in visited:
-            if owner == waiter:
-                return True
-            visited.add(owner)
-            waiting_for = self._waiting.get(owner)
-            flight = self._inflight.get(waiting_for) if waiting_for else None
-            if flight is None:
-                return False
-            owner = flight.owner
-        return False
+    def _resolve(
+        self, name: str, provider: Callable[[], object] | None, flight: _FactFlight
+    ) -> None:
+        value: object = "unknown"
+        try:
+            if provider is not None:
+                value = provider()
+        except BaseException:
+            pass
+        finally:
+            with self._lock:
+                self._cache.setdefault(name, value)
+                if self._inflight.get(name) is flight:
+                    self._inflight.pop(name, None)
+                flight.done.set()
 
     def fact(self, name: str) -> object:
-        current = threading.get_ident()
-        owner = False
+        start_resolver = False
         with self._lock:
             if name in self._cache:
                 return self._cache[name]
             flight = self._inflight.get(name)
             if flight is None:
-                flight = _FactFlight(current, threading.Event())
+                flight = _FactFlight(threading.Event())
                 self._inflight[name] = flight
                 provider = self.providers.get(name)
-                owner = True
-            elif flight.owner == current or self._would_cycle(current, flight.owner):
-                return "unknown"
-            else:
-                self._waiting[current] = name
+                start_resolver = True
 
-        if not owner:
+        if start_resolver:
             try:
-                if not flight.done.wait(self.wait_timeout):
-                    return "unknown"
+                threading.Thread(
+                    target=self._resolve,
+                    args=(name, provider, flight),
+                    name=f"chaos-engine-fact-{name}",
+                    daemon=True,
+                ).start()
+            except BaseException:
                 with self._lock:
-                    return self._cache.get(name, "unknown")
-            finally:
-                with self._lock:
-                    if self._waiting.get(current) == name:
-                        self._waiting.pop(current)
+                    self._cache.setdefault(name, "unknown")
+                    if self._inflight.get(name) is flight:
+                        self._inflight.pop(name, None)
+                    flight.done.set()
 
-        try:
-            value = "unknown" if provider is None else provider()
-        except Exception:
-            value = "unknown"
+        if not flight.done.wait(self.wait_timeout):
+            with self._lock:
+                self._cache.setdefault(name, "unknown")
+                if self._inflight.get(name) is flight:
+                    self._inflight.pop(name, None)
+                flight.done.set()
         with self._lock:
-            self._cache[name] = value
-            self._inflight.pop(name, None)
-            flight.done.set()
-            return value
+            return self._cache.get(name, "unknown")
 
     @property
     def used_facts(self) -> tuple[str, ...]:
@@ -391,8 +356,24 @@ class Rule:
     decision: str
     remedy: str | None
     terminal: bool
-    predicate: Callable[[HookEvent, HarnessSnapshot], bool] = field(compare=False, repr=False)
+    predicate_code: str
     remedy_code: str | None = None
+
+
+PREDICATE_CODES = frozenset({"always", "missing_session", "missing_session_mutation"})
+REMEDY_PREDICATES: Mapping[str, frozenset[str]] = {
+    "retry_with_session": frozenset({"missing_session", "missing_session_mutation"})
+}
+
+
+def _predicate_matches(code: str, event: HookEvent) -> bool:
+    if code == "always":
+        return True
+    if code == "missing_session":
+        return not event.session_id
+    if code == "missing_session_mutation":
+        return not event.session_id and event.stateful_mutation
+    return False
 
 
 @dataclass(frozen=True)
@@ -410,8 +391,10 @@ class Effect:
 
     @property
     def key(self) -> str:
-        rendered = "\0".join(
-            (self.session_id, self.event, self.tool_call_id, self.rule, self.effect)
+        rendered = json.dumps(
+            [self.session_id, self.event, self.tool_call_id, self.rule, self.effect],
+            ensure_ascii=False,
+            separators=(",", ":"),
         )
         return hashlib.sha256(rendered.encode("utf-8")).hexdigest()
 
@@ -469,7 +452,7 @@ RULES = (
         decision="deny",
         remedy="Retry from a host event carrying a unique session identity.",
         terminal=False,
-        predicate=lambda event, _snapshot: not event.session_id and event.stateful_mutation,
+        predicate_code="missing_session_mutation",
         remedy_code="retry_with_session",
     ),
     Rule(
@@ -478,8 +461,8 @@ RULES = (
         priority=100,
         decision="allow",
         remedy="Configure the host adapter to provide session identity for stateful enforcement.",
-        terminal=True,
-        predicate=lambda event, _snapshot: not event.session_id,
+        terminal=False,
+        predicate_code="missing_session",
     ),
 )
 
@@ -487,11 +470,19 @@ RULES = (
 def validate_rules(rules: tuple[Rule, ...]) -> list[str]:
     errors: list[str] = []
     codes: set[str] = set()
-    satisfying_remedies = {"retry_with_session"}
+    known_events = {
+        event
+        for capability in HOST_CAPABILITIES.values()
+        for event in capability.supported_events
+    }
     for index, rule in enumerate(rules):
         if rule.code in codes:
             errors.append(f"duplicate rule code: {rule.code}")
         codes.add(rule.code)
+        if rule.predicate_code not in PREDICATE_CODES:
+            errors.append(f"unknown predicate code: {rule.code}")
+        if rule.event != "*" and rule.event not in known_events:
+            errors.append(f"unknown rule event: {rule.code}")
         for prior in rules[:index]:
             events_overlap = rule.event == prior.event or "*" in {rule.event, prior.event}
             semantics = (rule.decision, rule.terminal, rule.remedy, rule.remedy_code)
@@ -513,40 +504,11 @@ def validate_rules(rules: tuple[Rule, ...]) -> list[str]:
         if rule.decision == "deny" and not rule.terminal:
             if not rule.remedy:
                 errors.append(f"nonterminal denial lacks remedy: {rule.code}")
-            if rule.remedy_code not in satisfying_remedies:
+            compatible_predicates = REMEDY_PREDICATES.get(rule.remedy_code or "")
+            if compatible_predicates is None:
                 errors.append(f"nonterminal denial lacks satisfiable remedy: {rule.code}")
-            else:
-                event_name = "PreToolUse" if rule.event == "*" else rule.event
-                before = HookEvent(
-                    name=event_name,
-                    host="validation",
-                    session_id="",
-                    agent_id="",
-                    tool_name="Write",
-                    tool_input=MappingProxyType({}),
-                    stop_hook_active=False,
-                    stateful_mutation=True,
-                    raw_fields=(),
-                )
-                after = HookEvent(
-                    name=event_name,
-                    host="validation",
-                    session_id="remedied-session",
-                    agent_id="",
-                    tool_name="Write",
-                    tool_input=MappingProxyType({}),
-                    stop_hook_active=False,
-                    stateful_mutation=True,
-                    raw_fields=(),
-                )
-                try:
-                    witness_holds = rule.predicate(
-                        before, HarnessSnapshot()
-                    ) and not rule.predicate(after, HarnessSnapshot())
-                except Exception:
-                    witness_holds = False
-                if not witness_holds:
-                    errors.append(f"nonterminal denial fails remedy witness: {rule.code}")
+            elif rule.predicate_code not in compatible_predicates:
+                errors.append(f"nonterminal denial fails structural remedy: {rule.code}")
     return errors
 
 
@@ -596,6 +558,18 @@ def evaluate(
 ) -> EvaluationReport:
     observed = snapshot or HarnessSnapshot()
     current_phase = event.phase
+    rule_errors = validate_rules(rules)
+    if rule_errors:
+        return EvaluationReport(
+            host=event.host,
+            event=event.name,
+            phase=current_phase,
+            decision="deny",
+            diagnostic_code="CE_INVALID_RULESET",
+            reason="Rule registry failed closed validation.",
+            remedy="Use only declared events, predicates, and structural remedies.",
+            terminal_reason=None,
+        )
     if current_phase not in LIFECYCLE_TRANSITIONS:
         return EvaluationReport(
             host=event.host,
@@ -612,7 +586,7 @@ def evaluate(
         key=lambda rule: (-rule.priority, rule.code),
     )
     for rule in applicable:
-        if rule.predicate(event, observed):
+        if _predicate_matches(rule.predicate_code, event):
             reason = {
                 "CE_SESSION_REQUIRED": "Stateful lifecycle enforcement requires a unique session identity.",
                 "CE_SESSION_MISSING_STOP": "Stop allowed without state lookup because host omitted session identity.",
@@ -688,6 +662,19 @@ def evaluate(
 
 class JournalCorruptionError(ValueError):
     pass
+
+
+_EFFECT_FIELDS = ("sessionId", "event", "toolCallId", "rule", "effect")
+_CONTROL_CHARACTER = re.compile(r"[\x00-\x1f\x7f]")
+
+
+def _v2_effect_key(values: tuple[str, ...]) -> str:
+    rendered = json.dumps(list(values), ensure_ascii=False, separators=(",", ":"))
+    return hashlib.sha256(rendered.encode("utf-8")).hexdigest()
+
+
+def _v1_effect_key(values: tuple[str, ...]) -> str:
+    return hashlib.sha256("\0".join(values).encode("utf-8")).hexdigest()
 
 
 class EffectJournal:
@@ -777,12 +764,15 @@ class EffectJournal:
                 raise JournalCorruptionError(
                     f"invalid effect journal record at line {line_number}"
                 )
-            expected_key = hashlib.sha256(
-                "\0".join(
-                    str(item[field])
-                    for field in ("sessionId", "event", "toolCallId", "rule", "effect")
-                ).encode("utf-8")
-            ).hexdigest()
+            effect_values = tuple(str(item[field]) for field in _EFFECT_FIELDS)
+            if item["schemaVersion"] == 1:
+                if any(_CONTROL_CHARACTER.search(value) for value in effect_values):
+                    raise JournalCorruptionError(
+                        f"invalid effect journal record at line {line_number}"
+                    )
+                expected_key = _v1_effect_key(effect_values)
+            else:
+                expected_key = _v2_effect_key(effect_values)
             accepted_identities = (
                 {CANONICAL_IDENTITY, *LEGACY_IDENTITIES}
                 if item["schemaVersion"] == 1
@@ -810,8 +800,16 @@ class EffectJournal:
 
     def append(self, effect: Effect) -> bool:
         with self._lock():
+            effect_values = (
+                effect.session_id,
+                effect.event,
+                effect.tool_call_id,
+                effect.rule,
+                effect.effect,
+            )
             if any(
                 item.get("idempotencyKey") == effect.key
+                or tuple(str(item[field]) for field in _EFFECT_FIELDS) == effect_values
                 for item in self._records_unlocked(effect.session_id)
             ):
                 return False
