@@ -98,6 +98,18 @@ ISOLATED_STOP_RULES = (
 )
 
 
+def isolate_stop_rules(
+    case: unittest.TestCase, except_for: tuple[str, ...] = ()
+) -> None:
+    """Patch retained Stop rules off except for the rule under test."""
+    for name in ISOLATED_STOP_RULES:
+        if name in except_for:
+            continue
+        patcher = patch(f"scripts.agents.guard.{name}", return_value=None)
+        patcher.start()
+        case.addCleanup(patcher.stop)
+
+
 class ReflectionCheckpointContractTest(unittest.TestCase):
     """#5001: the second attempt failure opens a reflection checkpoint."""
 

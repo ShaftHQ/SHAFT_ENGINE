@@ -921,8 +921,9 @@ class ChaosEngineHostsTest(unittest.TestCase):
             self.assertEqual(
                 "python tools/user-hook.py", merged["hooks"]["SessionStart"][0]["bash"]
             )
-            self.assertGreater(len(merged["hooks"]["SessionStart"]), 1)
-            self.assertIn("PreToolUse", merged["hooks"])
+            self.assertEqual(1, len(merged["hooks"]["SessionStart"]))
+            self.assertIn("sessionStart", merged["hooks"])
+            self.assertIn("preToolUse", merged["hooks"])
             module.uninstall(project)
             self.assertEqual(original, json.loads(hook_path.read_text()))
 
@@ -2861,7 +2862,9 @@ class ChaosEngineHostsTest(unittest.TestCase):
             budget["harness_reachability"]["element_globs"],
         )
         workflow = (ROOT / ".github/workflows/pr-gate.yml").read_text(encoding="utf-8")
-        self.assertIn("tests.scripts.test_chaos_engine_hosts", workflow)
+        self.assertIn("python scripts/ci/harness_pr_gate.py", workflow)
+        gate = (ROOT / "scripts/ci/harness_pr_gate.py").read_text(encoding="utf-8")
+        self.assertIn("tests.scripts.test_chaos_engine_hosts", gate)
 
 
 class HostReceiptImageTest(unittest.TestCase):

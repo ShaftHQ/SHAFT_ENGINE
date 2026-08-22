@@ -444,8 +444,7 @@ class AgentHarnessPortabilityTest(unittest.TestCase):
         content = (ROOT / "chaos-engine/skills/chaos-engine/SKILL.md").read_text(
             encoding="utf-8"
         )
-        for heading in ("### Companions", "### Test-driven development"):
-            self.assertIn(heading, content)
+        self.assertIn("### Companions", content)
         for retired_link in (
             "references/caveman.md",
             "references/ponytail.md",

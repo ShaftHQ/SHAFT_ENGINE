@@ -20,7 +20,16 @@ def _load_sibling(module_name: str):
     if specification is None or specification.loader is None:
         raise RuntimeError(f"ChaosEngine {module_name} module is unavailable")
     module = importlib.util.module_from_spec(specification)
-    specification.loader.exec_module(module)
+    previous = sys.modules.get(specification.name)
+    sys.modules[specification.name] = module
+    try:
+        specification.loader.exec_module(module)
+    except BaseException:
+        if previous is None:
+            sys.modules.pop(specification.name, None)
+        else:
+            sys.modules[specification.name] = previous
+        raise
     return module
 
 
