@@ -8,6 +8,7 @@ import os
 import sys
 import tempfile
 import threading
+import time
 import unittest
 from pathlib import Path
 from unittest import mock
@@ -80,6 +81,14 @@ class ChaosEngineKernelTest(unittest.TestCase):
             "git tag release",
             "git branch feature",
             "git config user.name Chaos",
+            "git diff --output=artifact.patch",
+            "git diff --output artifact.patch",
+            "git status $(touch pwned)",
+            "git status > artifact.txt",
+            "git status | tee artifact.txt",
+            "git status; touch pwned",
+            "git status && touch pwned",
+            "git status `touch pwned`",
             "gh issue create --title bug --body body",
             "mkdir output",
             "echo changed > output.txt",
@@ -108,6 +117,21 @@ class ChaosEngineKernelTest(unittest.TestCase):
             "claude",
         )
         self.assertFalse(read_only.stateful_mutation)
+
+    def test_missing_session_malformed_shell_json_fails_closed(self):
+        event = self.kernel.normalize_event(
+            {
+                "hookEventName": "preToolUse",
+                "toolName": "bash",
+                "toolArgs": '{"command":"git status"',
+            },
+            "copilot",
+        )
+
+        report = self.kernel.evaluate(event)
+
+        self.assertTrue(event.stateful_mutation)
+        self.assertEqual("CE_SESSION_REQUIRED", report.diagnostic_code)
 
     def test_ambiguous_snake_case_host_detection_uses_explicit_environment(self):
         raw = {"hook_event_name": "PreToolUse", "session_id": "s"}
@@ -195,6 +219,61 @@ class ChaosEngineKernelTest(unittest.TestCase):
 
         self.assertTrue(any("wildcard" in error.casefold() for error in errors))
         self.assertTrue(any("satisfiable remedy" in error.casefold() for error in errors))
+
+    def test_rule_validation_rejects_equal_priority_semantic_conflicts(self):
+        retry = lambda event, _snapshot: not event.session_id
+        wildcard = self.kernel.Rule(
+            code="CE_WILDCARD_RETRY",
+            event="*",
+            priority=50,
+            decision="deny",
+            remedy="Retry with a session.",
+            terminal=False,
+            predicate=retry,
+            remedy_code="retry_with_session",
+        )
+        terminal = self.kernel.Rule(
+            code="CE_SPECIFIC_TERMINAL",
+            event="PreToolUse",
+            priority=50,
+            decision="deny",
+            remedy=None,
+            terminal=True,
+            predicate=lambda _event, _snapshot: True,
+        )
+        different_remedy = self.kernel.Rule(
+            code="CE_SPECIFIC_REMEDY",
+            event="Stop",
+            priority=50,
+            decision="deny",
+            remedy="Use a different recovery action.",
+            terminal=False,
+            predicate=retry,
+            remedy_code="retry_with_session",
+        )
+
+        errors = self.kernel.validate_rules((wildcard, terminal, different_remedy))
+
+        self.assertGreaterEqual(
+            sum("wildcard" in error.casefold() for error in errors),
+            2,
+        )
+
+    def test_rule_validation_executes_remedy_witness(self):
+        always_true = self.kernel.Rule(
+            code="CE_FALSE_REMEDY",
+            event="PreToolUse",
+            priority=40,
+            decision="deny",
+            remedy="Retry with a session.",
+            terminal=False,
+            predicate=lambda _event, _snapshot: True,
+            remedy_code="retry_with_session",
+        )
+
+        errors = self.kernel.validate_rules((always_true,))
+
+        self.assertTrue(any("remedy witness" in error.casefold() for error in errors))
 
     def test_evaluate_preserves_phase_for_retry_and_enforces_transitions(self):
         retry = self.kernel.evaluate(
@@ -311,6 +390,83 @@ class ChaosEngineKernelTest(unittest.TestCase):
         self.assertEqual(1, calls.count("root"))
         self.assertEqual(1, calls.count("branch"))
 
+    def test_snapshot_provider_never_runs_under_shared_lock(self):
+        probe_finished = threading.Event()
+        probe = None
+
+        def provider():
+            nonlocal probe
+            probe = threading.Thread(
+                target=lambda: (snapshot.used_facts, probe_finished.set())
+            )
+            probe.start()
+            return probe_finished.wait(0.2)
+
+        snapshot = self.kernel.HarnessSnapshot(providers={"branch": provider})
+
+        self.assertTrue(snapshot.fact("branch"))
+        probe.join(timeout=1)
+
+    def test_snapshot_bounds_cross_thread_cycles_and_runs_each_provider_once(self):
+        a_started = threading.Event()
+        b_started = threading.Event()
+        calls = []
+        snapshot = None
+
+        def a_provider():
+            calls.append("a")
+            a_started.set()
+            b_started.wait(0.4)
+            return f"a:{snapshot.fact('b')}"
+
+        def b_provider():
+            calls.append("b")
+            b_started.set()
+            a_started.wait(0.4)
+            return f"b:{snapshot.fact('a')}"
+
+        snapshot = self.kernel.HarnessSnapshot(
+            providers={"a": a_provider, "b": b_provider}
+        )
+        values = []
+        started = time.monotonic()
+        threads = [
+            threading.Thread(
+                target=lambda fact_name=name: values.append(snapshot.fact(fact_name))
+            )
+            for name in ("a", "b")
+        ]
+        for thread in threads:
+            thread.start()
+        for thread in threads:
+            thread.join(timeout=1)
+
+        self.assertTrue(all(not thread.is_alive() for thread in threads))
+        self.assertLess(time.monotonic() - started, 0.25)
+        self.assertEqual(1, calls.count("a"))
+        self.assertEqual(1, calls.count("b"))
+
+    def test_snapshot_bounds_wait_for_slow_cross_thread_provider(self):
+        provider_started = threading.Event()
+        calls = []
+
+        def provider():
+            calls.append("slow")
+            provider_started.set()
+            time.sleep(0.4)
+            return "done"
+
+        snapshot = self.kernel.HarnessSnapshot(providers={"slow": provider})
+        owner = threading.Thread(target=lambda: snapshot.fact("slow"))
+        owner.start()
+        self.assertTrue(provider_started.wait(0.2))
+
+        started = time.monotonic()
+        self.assertEqual("unknown", snapshot.fact("slow"))
+        self.assertLess(time.monotonic() - started, 0.25)
+        owner.join(timeout=1)
+        self.assertEqual(["slow"], calls)
+
     def test_effect_journal_is_append_only_idempotent_and_session_scoped(self):
         with tempfile.TemporaryDirectory() as directory:
             journal = self.kernel.EffectJournal(Path(directory) / "state-v2.jsonl")
@@ -358,6 +514,34 @@ class ChaosEngineKernelTest(unittest.TestCase):
             path.write_text(json.dumps(malformed) + "\n", encoding="utf-8")
             with self.assertRaises(self.kernel.JournalCorruptionError):
                 journal.records("s")
+
+    def test_effect_journal_validates_legacy_v1_before_idempotency_check(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "state-v1.jsonl"
+            effect = self.kernel.Effect("s", "PreToolUse", "call", "rule", "record")
+            valid = effect.to_record()
+            valid["schemaVersion"] = 1
+            valid["identity"] = "act-as-mohab"
+            path.write_text(json.dumps(valid) + "\n", encoding="utf-8")
+            journal = self.kernel.EffectJournal(path)
+
+            self.assertFalse(journal.append(effect))
+
+            for field, value in (
+                ("event", None),
+                ("sessionId", 7),
+                ("identity", "foreign-kernel"),
+                ("idempotencyKey", "0" * 64),
+            ):
+                with self.subTest(field=field):
+                    malformed = dict(valid)
+                    if value is None:
+                        malformed.pop(field)
+                    else:
+                        malformed[field] = value
+                    path.write_text(json.dumps(malformed) + "\n", encoding="utf-8")
+                    with self.assertRaises(self.kernel.JournalCorruptionError):
+                        journal.append(effect)
 
     def test_status_and_explain_are_versioned_secret_safe_json(self):
         report = self.kernel.evaluate(

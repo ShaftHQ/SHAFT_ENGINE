@@ -179,6 +179,12 @@ _READ_ONLY_SHELL_COMMAND = re.compile(
     r"(?:get-content|test-path|resolve-path|pwd)\b[^;&|>`\r\n]*)",
     re.IGNORECASE,
 )
+_SHELL_METACHARACTERS = re.compile(r"[\r\n;&|<>`$()]")
+_SHELL_TOOLS = frozenset({"powershell"})
+_MUTATING_READ_COMMAND_OPTIONS = re.compile(
+    r"(?:^|\s)(?:--output|--ext-diff|--textconv|--web)(?:=|\s|$)",
+    re.IGNORECASE,
+)
 
 
 @dataclass(frozen=True)
@@ -237,10 +243,14 @@ def _is_mutation(tool_name: str, tool_input: Mapping[str, object]) -> bool:
         return True
     command = str(tool_input.get("command") or tool_input.get("cmd") or "").strip()
     if not command:
-        return False
+        return compact_name in _SHELL_TOOLS
     # Shell syntax is open-ended. Only a narrow, anchored read-only grammar is
     # safe to exempt; unknown commands fail closed as possible mutations.
-    return _READ_ONLY_SHELL_COMMAND.fullmatch(command) is None
+    return (
+        _SHELL_METACHARACTERS.search(command) is not None
+        or _MUTATING_READ_COMMAND_OPTIONS.search(command) is not None
+        or _READ_ONLY_SHELL_COMMAND.fullmatch(command) is None
+    )
 
 
 def normalize_event(raw: Mapping[str, object], host: str | None = None) -> HookEvent:
@@ -257,7 +267,7 @@ def normalize_event(raw: Mapping[str, object], host: str | None = None) -> HookE
         try:
             tool_input = json.loads(tool_input)
         except (json.JSONDecodeError, ValueError):
-            tool_input = {}
+            tool_input = {"invalidJson": True}
     if not isinstance(tool_input, Mapping):
         tool_input = {}
     tool_input = dict(tool_input)
@@ -296,31 +306,75 @@ def normalize_hook_input(raw: Mapping[str, object]) -> dict[str, object]:
     return normalized
 
 
+@dataclass(frozen=True)
+class _FactFlight:
+    owner: int
+    done: threading.Event
+
+
 @dataclass
 class HarnessSnapshot:
     providers: Mapping[str, Callable[[], object]] = field(default_factory=dict)
+    wait_timeout: float = 0.1
     _cache: dict[str, object] = field(default_factory=dict, init=False, repr=False)
     _lock: threading.RLock = field(default_factory=threading.RLock, init=False, repr=False)
-    _resolving: set[str] = field(default_factory=set, init=False, repr=False)
+    _inflight: dict[str, _FactFlight] = field(default_factory=dict, init=False, repr=False)
+    _waiting: dict[int, str] = field(default_factory=dict, init=False, repr=False)
 
     def __post_init__(self) -> None:
         self.providers = MappingProxyType(dict(self.providers))
+        if self.wait_timeout < 0:
+            raise ValueError("fact wait timeout must be non-negative")
+
+    def _would_cycle(self, waiter: int, owner: int) -> bool:
+        visited: set[int] = set()
+        while owner not in visited:
+            if owner == waiter:
+                return True
+            visited.add(owner)
+            waiting_for = self._waiting.get(owner)
+            flight = self._inflight.get(waiting_for) if waiting_for else None
+            if flight is None:
+                return False
+            owner = flight.owner
+        return False
 
     def fact(self, name: str) -> object:
+        current = threading.get_ident()
+        owner = False
         with self._lock:
             if name in self._cache:
                 return self._cache[name]
-            if name in self._resolving:
+            flight = self._inflight.get(name)
+            if flight is None:
+                flight = _FactFlight(current, threading.Event())
+                self._inflight[name] = flight
+                provider = self.providers.get(name)
+                owner = True
+            elif flight.owner == current or self._would_cycle(current, flight.owner):
                 return "unknown"
-            provider = self.providers.get(name)
-            self._resolving.add(name)
+            else:
+                self._waiting[current] = name
+
+        if not owner:
             try:
-                value = "unknown" if provider is None else provider()
-            except Exception:
-                value = "unknown"
+                if not flight.done.wait(self.wait_timeout):
+                    return "unknown"
+                with self._lock:
+                    return self._cache.get(name, "unknown")
             finally:
-                self._resolving.remove(name)
+                with self._lock:
+                    if self._waiting.get(current) == name:
+                        self._waiting.pop(current)
+
+        try:
+            value = "unknown" if provider is None else provider()
+        except Exception:
+            value = "unknown"
+        with self._lock:
             self._cache[name] = value
+            self._inflight.pop(name, None)
+            flight.done.set()
             return value
 
     @property
@@ -440,20 +494,59 @@ def validate_rules(rules: tuple[Rule, ...]) -> list[str]:
         codes.add(rule.code)
         for prior in rules[:index]:
             events_overlap = rule.event == prior.event or "*" in {rule.event, prior.event}
+            semantics = (rule.decision, rule.terminal, rule.remedy, rule.remedy_code)
+            prior_semantics = (
+                prior.decision,
+                prior.terminal,
+                prior.remedy,
+                prior.remedy_code,
+            )
             if (
                 events_overlap
                 and rule.priority == prior.priority
-                and rule.decision != prior.decision
+                and semantics != prior_semantics
             ):
                 scope = "wildcard overlap" if "*" in {rule.event, prior.event} else rule.event
                 errors.append(
-                    f"conflicting decisions at {scope} priority {rule.priority}"
+                    f"conflicting rule semantics at {scope} priority {rule.priority}"
                 )
         if rule.decision == "deny" and not rule.terminal:
             if not rule.remedy:
                 errors.append(f"nonterminal denial lacks remedy: {rule.code}")
             if rule.remedy_code not in satisfying_remedies:
                 errors.append(f"nonterminal denial lacks satisfiable remedy: {rule.code}")
+            else:
+                event_name = "PreToolUse" if rule.event == "*" else rule.event
+                before = HookEvent(
+                    name=event_name,
+                    host="validation",
+                    session_id="",
+                    agent_id="",
+                    tool_name="Write",
+                    tool_input=MappingProxyType({}),
+                    stop_hook_active=False,
+                    stateful_mutation=True,
+                    raw_fields=(),
+                )
+                after = HookEvent(
+                    name=event_name,
+                    host="validation",
+                    session_id="remedied-session",
+                    agent_id="",
+                    tool_name="Write",
+                    tool_input=MappingProxyType({}),
+                    stop_hook_active=False,
+                    stateful_mutation=True,
+                    raw_fields=(),
+                )
+                try:
+                    witness_holds = rule.predicate(
+                        before, HarnessSnapshot()
+                    ) and not rule.predicate(after, HarnessSnapshot())
+                except Exception:
+                    witness_holds = False
+                if not witness_holds:
+                    errors.append(f"nonterminal denial fails remedy witness: {rule.code}")
     return errors
 
 
@@ -670,37 +763,41 @@ class EffectJournal:
                 raise JournalCorruptionError(
                     f"invalid effect journal record at line {line_number}"
                 )
-            if item["schemaVersion"] == 2:
-                required_strings = (
-                    "identity",
-                    "idempotencyKey",
-                    "sessionId",
-                    "event",
-                    "toolCallId",
-                    "rule",
-                    "effect",
-                    "payloadDigest",
+            required_strings = (
+                "identity",
+                "idempotencyKey",
+                "sessionId",
+                "event",
+                "toolCallId",
+                "rule",
+                "effect",
+                "payloadDigest",
+            )
+            if any(type(item.get(field)) is not str for field in required_strings):
+                raise JournalCorruptionError(
+                    f"invalid effect journal record at line {line_number}"
                 )
-                if any(type(item.get(field)) is not str for field in required_strings):
-                    raise JournalCorruptionError(
-                        f"invalid effect journal record at line {line_number}"
-                    )
-                expected_key = hashlib.sha256(
-                    "\0".join(
-                        str(item[field])
-                        for field in ("sessionId", "event", "toolCallId", "rule", "effect")
-                    ).encode("utf-8")
-                ).hexdigest()
-                digest = str(item["payloadDigest"])
-                if (
-                    item["identity"] != CANONICAL_IDENTITY
-                    or not str(item["sessionId"]).strip()
-                    or item["idempotencyKey"] != expected_key
-                    or re.fullmatch(r"[0-9a-f]{64}", digest) is None
-                ):
-                    raise JournalCorruptionError(
-                        f"invalid effect journal record at line {line_number}"
-                    )
+            expected_key = hashlib.sha256(
+                "\0".join(
+                    str(item[field])
+                    for field in ("sessionId", "event", "toolCallId", "rule", "effect")
+                ).encode("utf-8")
+            ).hexdigest()
+            accepted_identities = (
+                {CANONICAL_IDENTITY, *LEGACY_IDENTITIES}
+                if item["schemaVersion"] == 1
+                else {CANONICAL_IDENTITY}
+            )
+            digest = str(item["payloadDigest"])
+            if (
+                item["identity"] not in accepted_identities
+                or not str(item["sessionId"]).strip()
+                or item["idempotencyKey"] != expected_key
+                or re.fullmatch(r"[0-9a-f]{64}", digest) is None
+            ):
+                raise JournalCorruptionError(
+                    f"invalid effect journal record at line {line_number}"
+                )
             if item.get("sessionId") == session_id:
                 records.append(item)
         return records
