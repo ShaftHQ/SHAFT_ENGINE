@@ -1118,6 +1118,7 @@ def rollback(  # noqa: MC0001 - cross-resource rollback is one journaled state m
             if not valid_phase:
                 raise ValueError("rollback state does not match the recorded phase")
             generation_previous = None
+            generation_pointer_already_published = False
             previous_specification_sha256 = None
             previous_core_sha256 = None
             current_dependencies = load_dependency_controller(target)
@@ -1133,11 +1134,28 @@ def rollback(  # noqa: MC0001 - cross-resource rollback is one journaled state m
                     previous_dependencies.specification_digest(previous_specification)
                 )
                 previous_core_sha256 = file_sha256(desired_root / MANIFEST_NAME)
-                generation_previous = current_dependencies.validated_previous(
-                    project,
-                    previous_specification_sha256,
-                    previous_core_sha256,
-                )
+                pointer = current_dependencies.pointer_records(project)
+                active_record = pointer["active"]
+                if (
+                    active_record["specificationSha256"]
+                    == previous_specification_sha256
+                    and active_record["coreSha256"] == previous_core_sha256
+                ):
+                    _, authenticated_pointer = current_dependencies.active_generation(
+                        project,
+                        expected_specification_sha256=previous_specification_sha256,
+                        expected_core_sha256=previous_core_sha256,
+                    )
+                    if authenticated_pointer["active"] != active_record:
+                        raise ValueError("dependency pointer changed during rollback recovery")
+                    generation_previous = active_record
+                    generation_pointer_already_published = True
+                else:
+                    generation_previous = current_dependencies.validated_previous(
+                        project,
+                        previous_specification_sha256,
+                        previous_core_sha256,
+                    )
             if target_commit != desired_commit:
                 rollback(project, _locked=True)
             try:
@@ -1152,7 +1170,10 @@ def rollback(  # noqa: MC0001 - cross-resource rollback is one journaled state m
                 if isinstance(restored_host_receipt.get("clientActivation"), dict):
                     previous_hosts.activate_detected_plugins(project)
                 previous_dependencies = load_dependency_controller(target)
-                if generation_previous is not None:
+                if (
+                    generation_previous is not None
+                    and not generation_pointer_already_published
+                ):
                     previous_dependencies.publish_pointer(
                         project,
                         generation_previous,

@@ -829,6 +829,117 @@ class GenerationRuntimeTests(unittest.TestCase):
             self.assertEqual("1" * 40, installer.status(project)["commit"])
             self.assertEqual("a" * 32, pointer["active"]["generationId"])
 
+    def test_generation_rollback_resumes_after_pointer_publish_before_cleanup(self):
+        installer = load_installer()
+        controller = load_controller()
+        identifiers = iter(("a" * 32, "b" * 32))
+        publications = 0
+
+        def prepare(project, specification, core_sha256):
+            _, record = self.generation_fixture(
+                controller,
+                project,
+                generation_id=next(identifiers),
+                specification_sha256=controller.specification_digest(specification),
+            )
+            return record
+
+        def publish(project, active, **kwargs):
+            nonlocal publications
+            publications += 1
+            result = controller.publish_pointer(project, active, **kwargs)
+            if publications == 3:
+                raise RuntimeError("crash after pointer publication")
+            return result
+
+        def validated_previous(
+            project, expected_specification_sha256, expected_core_sha256
+        ):
+            return controller.validated_previous(
+                project,
+                expected_specification_sha256,
+                expected_core_sha256,
+                runner=lambda *_args: SimpleNamespace(stdout="ok\n", stderr=""),
+            )
+
+        fake_dependencies = SimpleNamespace(
+            load_specification=controller.load_specification,
+            specification_digest=controller.specification_digest,
+            active_generation=controller.active_generation,
+            prepare_candidate=prepare,
+            publish_pointer=publish,
+            pointer_records=controller.pointer_records,
+            remove_generation=controller.remove_generation,
+            validated_previous=validated_previous,
+        )
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            source = root / "source"
+            shutil.copytree(SOURCE, source)
+            source.joinpath("hooks/kernel.py").unlink()
+            project = root / "consumer"
+            project.mkdir()
+            with mock.patch.object(
+                installer, "load_dependency_controller", return_value=fake_dependencies
+            ):
+                installer.install_with_dependencies(project, source, "1" * 40)
+                desired_core = (project / ".chaos-engine/manifest.json").read_bytes()
+                host_controller = installer.load_installed_controller(
+                    project / ".chaos-engine", "hosts"
+                )
+                desired_host_receipt = (project / ".chaos-engine-hosts.json").read_bytes()
+                desired_host_files = host_controller.current_images(project)
+                installer.install_with_dependencies(project, source, "2" * 40)
+                with self.assertRaisesRegex(
+                    RuntimeError, "crash after pointer publication"
+                ):
+                    installer.rollback(project)
+
+                pointer_path = project / controller.POINTER_NAME
+                crash_pointer = pointer_path.read_bytes()
+                crash_records = controller.pointer_records(project)
+                self.assertEqual("a" * 32, crash_records["active"]["generationId"])
+                self.assertEqual("b" * 32, crash_records["previous"]["generationId"])
+                self.assertEqual(
+                    desired_core,
+                    (project / ".chaos-engine/manifest.json").read_bytes(),
+                )
+                journal_path = (
+                    project / installer.CROSS_ROLLBACK_JOURNAL_NAME / "journal.json"
+                )
+                journal_body = {
+                    "schemaVersion": 1,
+                    "desiredCommit": "1" * 40,
+                    "priorCommit": "2" * 40,
+                }
+                journal_body["integritySha256"] = installer.hashlib.sha256(
+                    json.dumps(
+                        journal_body, sort_keys=True, separators=(",", ":")
+                    ).encode()
+                ).hexdigest()
+                self.assertEqual(
+                    (json.dumps(journal_body, sort_keys=True) + "\n").encode(),
+                    journal_path.read_bytes(),
+                )
+
+                installer.rollback(project)
+
+            self.assertEqual(3, publications)
+            self.assertEqual(
+                desired_core,
+                (project / ".chaos-engine/manifest.json").read_bytes(),
+            )
+            self.assertEqual(
+                desired_host_receipt,
+                (project / ".chaos-engine-hosts.json").read_bytes(),
+            )
+            self.assertEqual(desired_host_files, host_controller.current_images(project))
+            self.assertEqual(crash_pointer, pointer_path.read_bytes())
+            self.assertIsNone(installer.read_cross_rollback_journal(project))
+            self.assertFalse(
+                (project / installer.CROSS_ROLLBACK_JOURNAL_NAME).exists()
+            )
+
     def test_generation_ancestor_and_interpreter_links_fail_closed(self):
         module = load_controller()
         if not hasattr(os, "symlink"):
