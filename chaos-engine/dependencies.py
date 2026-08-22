@@ -8,6 +8,8 @@ from contextlib import contextmanager, nullcontext
 import hashlib
 import json
 import os
+import re
+import secrets
 import shutil
 import subprocess  # nosec B404 - fixed list-form dependency commands from tracked spec.
 import sys
@@ -22,6 +24,18 @@ RECEIPT_NAME = "receipt.json"
 LOCK_MAGIC = b"chaos-engine-dependencies-lock-v1\n"
 BUILD_MARKER_MAGIC = "chaos-engine-dependencies-build-v1\n"
 BUILD_MARKER_OWNED_SUFFIX = ".owned"
+POINTER_NAME = ".chaos-engine-runtime-current.json"
+POINTER_SCHEMA = 1
+GENERATIONS_NAME = ".chaos-engine-runtime-generations"
+MAX_CONTROL_BYTES = 4 * 1024 * 1024
+HEX_ID = re.compile(r"[0-9a-f]{32}")
+HEX_DIGEST = re.compile(r"[0-9a-f]{64}")
+PYTHON_DISPATCH = (
+    "import importlib.metadata as m,sys;"
+    "e=next(e for e in m.distribution(sys.argv[1]).entry_points "
+    "if e.group=='console_scripts' and e.name==sys.argv[2]);"
+    "sys.argv=[sys.argv[2],*sys.argv[3:]];raise SystemExit(e.load()())"
+)
 
 
 class DanglingRuntimeLink(ValueError):
@@ -123,6 +137,147 @@ def runtime_lock(runtime: Path):
 
 def sha256(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def json_integrity(value: dict[str, object]) -> str:
+    body = {key: item for key, item in value.items() if key != "integritySha256"}
+    encoded = json.dumps(body, sort_keys=True, separators=(",", ":")).encode()
+    return hashlib.sha256(encoded).hexdigest()
+
+
+def _validate_generation_record(value: object) -> dict[str, str]:
+    fields = {
+        "generationId",
+        "specificationSha256",
+        "coreSha256",
+        "receiptSha256",
+    }
+    if not isinstance(value, dict) or set(value) != fields:
+        raise ValueError("dependency generation record is invalid")
+    record = {key: item for key, item in value.items() if isinstance(item, str)}
+    if set(record) != fields or HEX_ID.fullmatch(record["generationId"]) is None:
+        raise ValueError("dependency generation identifier is invalid")
+    if any(
+        HEX_DIGEST.fullmatch(record[name]) is None
+        for name in fields - {"generationId"}
+    ):
+        raise ValueError("dependency generation digest is invalid")
+    return record
+
+
+def publish_pointer(
+    project: Path,
+    active: dict[str, str],
+    previous: dict[str, str] | None,
+    *,
+    transaction_id: str | None = None,
+) -> dict[str, object]:
+    """Atomically select immutable generations using identifiers, never paths."""
+    project = project.absolute()
+    active = _validate_generation_record(active)
+    previous = _validate_generation_record(previous) if previous is not None else None
+    transaction = transaction_id or secrets.token_hex(16)
+    if HEX_ID.fullmatch(transaction) is None:
+        raise ValueError("dependency transaction identifier is invalid")
+    pointer: dict[str, object] = {
+        "schemaVersion": POINTER_SCHEMA,
+        "transactionId": transaction,
+        "active": active,
+        "previous": previous,
+    }
+    pointer["integritySha256"] = json_integrity(pointer)
+    path = project / POINTER_NAME
+    temporary = project / f"{POINTER_NAME}.tmp"
+    if is_link_or_reparse(path) or temporary.exists() or is_link_or_reparse(temporary):
+        raise ValueError("dependency pointer is a link, reparse point, or collision")
+    descriptor = os.open(
+        temporary,
+        os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_BINARY", 0),
+        0o600,
+    )
+    try:
+        with os.fdopen(descriptor, "w", encoding="utf-8") as stream:
+            json.dump(pointer, stream, indent=2, sort_keys=True)
+            stream.write("\n")
+            stream.flush()
+            os.fsync(stream.fileno())
+        temporary.replace(path)
+    finally:
+        if temporary.exists() and not is_link_or_reparse(temporary):
+            temporary.unlink()
+    return pointer
+
+
+def _bounded_json(path: Path, label: str) -> dict[str, object]:
+    if is_link_or_reparse(path):
+        raise ValueError(f"dependency {label} is a link or reparse point")
+    try:
+        if path.stat().st_size > MAX_CONTROL_BYTES:
+            raise ValueError(f"dependency {label} is too large")
+        value = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as error:
+        raise ValueError(f"dependency {label} is missing or invalid") from error
+    if not isinstance(value, dict):
+        raise ValueError(f"dependency {label} is invalid")
+    return value
+
+
+def active_generation(project: Path) -> tuple[Path, dict[str, object]]:
+    project = project.absolute()
+    pointer = _bounded_json(project / POINTER_NAME, "pointer")
+    if (
+        pointer.get("schemaVersion") != POINTER_SCHEMA
+        or HEX_ID.fullmatch(str(pointer.get("transactionId", ""))) is None
+        or pointer.get("integritySha256") != json_integrity(pointer)
+    ):
+        raise ValueError("dependency pointer schema or integrity is invalid")
+    active = _validate_generation_record(pointer.get("active"))
+    if pointer.get("previous") is not None:
+        _validate_generation_record(pointer["previous"])
+    generation = project / GENERATIONS_NAME / active["generationId"]
+    if is_link_or_reparse(generation) or not generation.is_dir():
+        raise ValueError("dependency active generation is missing or unsafe")
+    receipt = generation / RECEIPT_NAME
+    if is_link_or_reparse(receipt) or not receipt.is_file():
+        raise ValueError("dependency generation receipt is missing or unsafe")
+    if sha256(receipt) != active["receiptSha256"]:
+        raise ValueError("dependency generation receipt digest drift detected")
+    return generation, pointer
+
+
+def dispatch_command(
+    generation: Path,
+    receipt: dict[str, object],
+    tool: str,
+    arguments: list[str],
+) -> list[str]:
+    tools = receipt.get("tools")
+    record = tools.get(tool) if isinstance(tools, dict) else None
+    dispatch = record.get("dispatch") if isinstance(record, dict) else None
+    if not isinstance(dispatch, dict):
+        raise ValueError(f"dependency tool dispatch is missing: {tool}")
+    if dispatch.get("kind") == "python":
+        relative = dispatch.get("interpreter")
+        distribution = dispatch.get("distribution")
+        entrypoint = dispatch.get("entrypoint")
+        if not all(isinstance(item, str) and item for item in (relative, distribution, entrypoint)):
+            raise ValueError(f"dependency Python dispatch is invalid: {tool}")
+        interpreter = generation / str(relative)
+        if (
+            Path(str(relative)).is_absolute()
+            or ".." in Path(str(relative)).parts
+            or not interpreter.is_file()
+        ):
+            raise ValueError(f"dependency Python interpreter is invalid: {tool}")
+        return [
+            str(interpreter),
+            "-c",
+            PYTHON_DISPATCH,
+            str(distribution),
+            str(entrypoint),
+            *arguments,
+        ]
+    raise ValueError(f"dependency tool dispatch kind is unsupported: {tool}")
 
 
 def unlink_owned_marker(path: Path, identity: tuple[int, int]) -> None:
