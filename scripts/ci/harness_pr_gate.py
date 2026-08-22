@@ -337,7 +337,6 @@ HARNESS_FILES = frozenset(
         ".mcp.json",
         "mempalace.yaml",
         ".github/copilot-instructions.md",
-        "scripts/ci/validate_red_before_green.py",
         "scripts/ci/external_guardrail_corpus.py",
         "scripts/ci/external_guardrail_corpus.json",
         "scripts/ci/local_gate.py",

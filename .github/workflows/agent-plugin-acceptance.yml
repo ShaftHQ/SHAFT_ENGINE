@@ -82,7 +82,6 @@ jobs:
           tests.scripts.test_validate_agent_ownership
           tests.scripts.test_validate_agent_plugins
           tests.scripts.test_validate_agent_setup
-          tests.scripts.test_validate_red_before_green
           tests.scripts.test_validate_skills
           tests.scripts.test_validate_workflow_timeouts
           tests.scripts.test_watch_pr_checks

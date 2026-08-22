@@ -420,6 +420,7 @@ class NulCorruptionGuardTest(unittest.TestCase):
             input=json.dumps(
                 {
                     "hook_event_name": "PreToolUse",
+                    "session_id": f"nul-corruption-{self.root.name}",
                     "tool_name": "Bash",
                     "tool_input": {"command": "git add -A"},
                 }
@@ -444,6 +445,7 @@ class NulCorruptionGuardTest(unittest.TestCase):
             input=json.dumps(
                 {
                     "hook_event_name": "PreToolUse",
+                    "session_id": f"nul-corruption-{self.root.name}",
                     "tool_name": "Bash",
                     "tool_input": {"command": "git add -A"},
                     "cwd": str(self.root),

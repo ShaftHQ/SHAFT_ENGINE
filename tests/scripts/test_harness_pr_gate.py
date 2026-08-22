@@ -169,7 +169,6 @@ class ClassifierTest(unittest.TestCase):
     def test_every_registered_but_unmapped_harness_path_uses_fallback(self) -> None:
         for path in (
             ".github/copilot-instructions.md",
-            "scripts/ci/validate_red_before_green.py",
             "scripts/ci/build_retry.sh",
             "scripts/ci/extract_allure_failures.py",
             "tests/scripts/test_repository_context.py",

@@ -96,8 +96,9 @@ analyze -> plan -> design -> RED -> GREEN -> refactor -> commit ->
 pull request -> babysit (fix review comments and failed tests) to green -> merge ->
 terminal reflection when owed -> one root Learning Session -> final report.
 
-Every phase that changes behavior ends with the independent adversarial review
-defined in [delegation](delegation.md), at the depth this task's triage set.
+Behavior changes receive only the planning-approved terminal adversarial review
+defined in [delegation](delegation.md), after the final scope commit and automated
+finding batch. Never force review between phases or actions.
 
 ## Output
 

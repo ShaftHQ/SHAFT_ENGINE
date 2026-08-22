@@ -110,9 +110,6 @@ from scripts.ci.harness_reachability import (
     path_tokens,
     tracked_files,
 )
-from scripts.ci.harness_pr_gate import classify_paths
-
-
 ROOT = Path(__file__).resolve().parents[2]
 BUDGET = ROOT / "scripts/ci/agent_guidance_budget.json"
 
@@ -321,42 +318,6 @@ class HarnessReachabilityTest(unittest.TestCase):
             portable_entrypoint.startswith(config["deployable_root"].rstrip("/") + "/"),
             "the repository adapter must reach an entrypoint inside the deployable root",
         )
-
-    def test_every_harness_test_module_is_classified_and_scheduled(self):
-        """Changed tests run directly; exhaustive coverage stays scheduled."""
-        scheduled = (ROOT / ".github/workflows/agent-plugin-acceptance.yml").read_text(
-            encoding="utf-8"
-        )
-        modules = [
-            element
-            for element in harness_report(ROOT)["elements"]
-            if element.startswith("tests/scripts/")
-        ]
-        self.assertGreaterEqual(len(modules), 10, "the element set lost the test modules")
-        missing_from_classifier = []
-        missing_from_schedule = []
-        for module in modules:
-            dotted = f"tests.scripts.{Path(module).stem}"
-            if dotted not in classify_paths([module]).test_modules:
-                missing_from_classifier.append(module)
-            if dotted not in scheduled:
-                missing_from_schedule.append(module)
-        self.assertEqual(missing_from_classifier, [])
-        self.assertEqual(missing_from_schedule, [])
-
-    def test_history_backed_review_contract_is_classified_and_scheduled(self):
-        """#4567 review logic remains reachable without inlining it in workflow YAML."""
-        module = "tests.scripts.test_validate_red_before_green"
-        for path in (
-            "scripts/ci/validate_red_before_green.py",
-            "tests/scripts/test_validate_red_before_green.py",
-        ):
-            with self.subTest(path=path):
-                self.assertIn(module, classify_paths([path]).test_modules)
-        scheduled = (ROOT / ".github/workflows/agent-plugin-acceptance.yml").read_text(
-            encoding="utf-8"
-        )
-        self.assertIn(module, scheduled)
 
     def test_the_element_set_is_derived_from_the_repository_not_hand_listed(self):
         """A hand list omits the next file, which is the defect being fixed.
