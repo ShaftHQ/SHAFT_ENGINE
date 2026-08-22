@@ -5,7 +5,6 @@ from __future__ import annotations
 
 import argparse
 import concurrent.futures
-from dataclasses import dataclass
 import hashlib
 import importlib.util
 import json
@@ -17,7 +16,7 @@ import subprocess  # nosec B404 - list-form commands come from protected CI conf
 import threading
 import time
 from pathlib import Path
-from typing import Mapping
+from typing import Mapping, NamedTuple
 
 
 _PROMOTION_PATH = Path(__file__).with_name("chaos_engine_promotion.py")
@@ -74,8 +73,7 @@ class TrialCollectionError(RuntimeError):
         self.code = code
 
 
-@dataclass(frozen=True)
-class DriverSpec:
+class DriverSpec(NamedTuple):
     host: str
     variant: str
     argv: tuple[str, ...]
