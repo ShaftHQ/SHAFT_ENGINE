@@ -136,6 +136,32 @@ class ChaosEngineLiveInstallerAcceptanceTest(unittest.TestCase):
         relative = "distribution policy rejected forbidden content: hooks/kernel.py"
         self.assertEqual(relative, module.sanitize(relative))
 
+    def test_sanitize_bounds_paths_and_url_credentials_without_losing_suffix(self):
+        module = load_acceptance()
+        self.assertIsNotNone(module, "live installer acceptance runner is missing")
+        if module is None:
+            return
+        diagnostics = {
+            "failed at /Users/alice/work/state.json; fallback hooks/kernel.py": (
+                "failed at <path>; fallback hooks/kernel.py"
+            ),
+            'failed at "/Users/build agent/Library/Application Support/Chaos/state.json", '
+            "fallback hooks/kernel.py": (
+                'failed at "<path>", fallback hooks/kernel.py'
+            ),
+            "proxy https://alice:s3cr3t@proxy.example.com:8443/simple failed": (
+                "proxy https://<redacted>@proxy.example.com:8443/simple failed"
+            ),
+            "index http://token@packages.example.test/simple unavailable": (
+                "index http://<redacted>@packages.example.test/simple unavailable"
+            ),
+        }
+        for diagnostic, expected in diagnostics.items():
+            with self.subTest(diagnostic=diagnostic):
+                self.assertEqual(expected, module.sanitize(diagnostic))
+        safe = "index https://packages.example.test/simple; fallback hooks/kernel.py"
+        self.assertEqual(safe, module.sanitize(safe))
+
     def test_staged_source_preserves_actual_checked_out_payload(self):
         module = load_acceptance()
         self.assertIsNotNone(module, "live installer acceptance runner is missing")

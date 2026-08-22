@@ -65,10 +65,14 @@ def offline_environment(
 
 def sanitize(value: object) -> str:
     text = str(value)
+    text = re.sub(
+        r"(?i)\b(https?://)[^/@\s\"']+@", r"\1<redacted>@", text
+    )
     absolute_root = (
         r"(?:[A-Za-z]:[\\/]"
         r"|\\\\[^\\/\r\n\"']+[\\/][^\\/\r\n\"']+[\\/]"
-        r"|/(?:tmp|var/folders|private/var/folders|Users/runner/work|home/runner/work)/)"
+        r"|/(?:tmp|var/folders|private/var/folders|home/runner/work)/"
+        r"|/Users/[^/\r\n\"']+/)"
     )
     text = re.sub(
         rf"(?P<quote>[\"']){absolute_root}.*?(?P=quote)",
@@ -76,7 +80,10 @@ def sanitize(value: object) -> str:
         text,
     )
     text = re.sub(
-        rf"(?<![A-Za-z0-9]){absolute_root}[^\r\n\t\"']+", "<path>", text
+        rf"(?<![A-Za-z0-9]){absolute_root}"
+        r"[^\s\r\n\t\"'<>?,;:()\[\]{}]+",
+        "<path>",
+        text,
     )
     return text[:500]
 
