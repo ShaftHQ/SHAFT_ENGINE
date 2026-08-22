@@ -19,6 +19,7 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
+from scripts.ci.harness_pr_gate import classify_paths
 from scripts.ci.validate_agent_guidance import (
     expand_reported_globs,
     require_glob_list,
@@ -1806,11 +1807,17 @@ class CiGateIsBlockingTest(unittest.TestCase):
             "tests/scripts/test_validate_agent_plugins.py",
         ):
             self.assertIn(required, guarded, f"guidance filter misses {required}")
-        commands = " ".join(
-            str(step.get("run", "")) for step in workflow["jobs"]["agent-guidance"]["steps"]
+        scheduled = (ROOT / ".github/workflows/agent-plugin-acceptance.yml").read_text(
+            encoding="utf-8"
         )
-        self.assertIn("tests.scripts.test_agent_plugin_release", commands)
-        self.assertIn("tests.scripts.test_validate_agent_plugins", commands)
+        for path in (
+            "tests/scripts/test_agent_plugin_release.py",
+            "tests/scripts/test_validate_agent_plugins.py",
+        ):
+            with self.subTest(path=path):
+                module = f"tests.scripts.{Path(path).stem}"
+                self.assertIn(module, classify_paths([path]).test_modules)
+                self.assertIn(module, scheduled)
 
     def test_dependency_review_runs_only_for_dependency_bearing_diffs(self):
         yaml = __import__("yaml")
@@ -1850,25 +1857,21 @@ class CiGateIsBlockingTest(unittest.TestCase):
         )
 
     def test_coverage_continue_on_error_pin_runs_in_agent_guidance_gate(self):
-        # #5172: deleting continue-on-error must fail required CI, not only a
-        # local module the Agent Guidance Gate never runs.
+        # #5172: deleting continue-on-error must fail both changed-surface CI
+        # and scheduled exhaustive acceptance.
         pin_def = "def test_required_pr_gate_coverage_uploads_continue_on_error"
-        yaml = __import__("yaml")
-        workflow = yaml.safe_load(self.WORKFLOW.read_text(encoding="utf-8"))
-        commands = " ".join(
-            str(step.get("run", "")) for step in workflow["jobs"]["agent-guidance"]["steps"]
-        )
-        owners = []
+        owners: list[tuple[str, str]] = []
         for path in (ROOT / "tests" / "scripts").glob("test_*.py"):
             if pin_def in path.read_text(encoding="utf-8"):
-                owners.append(f"tests.scripts.{path.stem}")
+                owners.append((path.relative_to(ROOT).as_posix(), f"tests.scripts.{path.stem}"))
         self.assertTrue(owners, "continue-on-error coverage pin is missing")
-        missing = [module for module in owners if module not in commands]
-        self.assertEqual(
-            missing,
-            [],
-            "coverage continue-on-error pin must live in an Agent Guidance Gate unittest module",
+        scheduled = (ROOT / ".github/workflows/agent-plugin-acceptance.yml").read_text(
+            encoding="utf-8"
         )
+        for path, module in owners:
+            with self.subTest(module=module):
+                self.assertIn(module, classify_paths([path]).test_modules)
+                self.assertIn(module, scheduled)
 
     def test_required_pr_gate_coverage_uploads_continue_on_error(self):
         # #5050 / #5172: codecov-action downloads before the composite's

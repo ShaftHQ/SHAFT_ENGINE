@@ -135,6 +135,9 @@ DISPLACED_PR_MODULES = (
     "tests.scripts.test_watch_pr_checks",
     "tests.scripts.test_worktree_hygiene",
 )
+DISPLACED_PR_TEST_PATHS = frozenset(
+    module.replace(".", "/") + ".py" for module in DISPLACED_PR_MODULES
+)
 
 
 CHECKS = {
@@ -298,6 +301,7 @@ SURFACE_PATTERNS = {
         "chaos-engine/vendor/*",
         "tests/scripts/test_agent_router_contract.py",
         "tests/scripts/test_agent_harness_portability.py",
+        "tests/scripts/test_agent_harness_reachability.py",
         "tests/scripts/test_validate_agent_guidance.py",
         "tests/scripts/test_validate_skills.py",
     ),
@@ -416,6 +420,7 @@ def classify_paths(paths: list[str]) -> GatePlan:
                 matched = True
         harness_path = (
             path in HARNESS_FILES
+            or path in DISPLACED_PR_TEST_PATHS
             or path.startswith(HARNESS_PREFIXES)
             or any(fnmatch.fnmatchcase(path, pattern) for pattern in HARNESS_PATTERNS)
         )

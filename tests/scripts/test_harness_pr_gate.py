@@ -1,12 +1,15 @@
 from __future__ import annotations
 
 import json
+import re
 import subprocess
 import tempfile
 import unittest
 from datetime import datetime, timezone
 from pathlib import Path
 from unittest.mock import patch
+
+import yaml
 
 import scripts.ci.harness_pr_gate as harness_gate
 from scripts.ci.harness_pr_gate import (
@@ -218,6 +221,66 @@ class ClassifierTest(unittest.TestCase):
 
         self.assertEqual(["candidate-only.txt"], list(paths))
 
+    def test_force_rewrite_uses_only_the_rewritten_head_tree(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+
+            def git(*args: str) -> str:
+                completed = subprocess.run(
+                    ["git", *args],
+                    cwd=root,
+                    capture_output=True,
+                    text=True,
+                    check=True,
+                )
+                return completed.stdout.strip()
+
+            git("init", "--initial-branch=main")
+            git("config", "user.name", "Harness Test")
+            git("config", "user.email", "harness@example.invalid")
+            (root / "shared.txt").write_text("shared\n", encoding="utf-8")
+            git("add", "shared.txt")
+            git("commit", "-m", "shared")
+            git("switch", "-c", "candidate")
+            old_path = root / "scripts/agents/old_only.py"
+            old_path.parent.mkdir(parents=True)
+            old_path.write_text("old\n", encoding="utf-8")
+            git("add", old_path.relative_to(root).as_posix())
+            git("commit", "-m", "old candidate")
+            old_head = git("rev-parse", "HEAD")
+
+            git("switch", "-C", "candidate", "main")
+            new_path = root / ".github/workflows/pr-gate.yml"
+            new_path.parent.mkdir(parents=True)
+            new_path.write_text("name: rewritten\n", encoding="utf-8")
+            git("add", new_path.relative_to(root).as_posix())
+            git("commit", "-m", "rewritten candidate")
+            rewritten_head = git("rev-parse", "HEAD")
+
+            paths = changed_paths(root, old_head, rewritten_head)
+
+        self.assertEqual([".github/workflows/pr-gate.yml"], list(paths))
+
+    def test_generation_and_live_installer_contracts_never_use_full_fallback(self) -> None:
+        for path in (
+            "tests/scripts/test_chaos_engine_generation_runtime.py",
+            "tests/scripts/test_chaos_engine_live_installer_acceptance.py",
+        ):
+            with self.subTest(path=path):
+                plan = classify_paths([path])
+                check_ids = {check.id for check in plan.checks}
+                self.assertEqual(("installer",), plan.surfaces)
+                self.assertNotIn("fallback-contract", check_ids)
+                self.assertIn("protected-installer-acceptance", check_ids)
+                self.assertIn("protected-rollback", check_ids)
+
+    def test_reachability_contract_uses_focused_guidance_surface(self) -> None:
+        plan = classify_paths(["tests/scripts/test_agent_harness_reachability.py"])
+
+        self.assertEqual(("guidance",), plan.surfaces)
+        self.assertNotIn("fallback-contract", {check.id for check in plan.checks})
+        self.assertIn("tests.scripts.test_agent_harness_reachability", plan.test_modules)
+
     def test_non_harness_path_selects_no_harness_checks(self) -> None:
         plan = classify_paths(["shaft-engine/src/main/java/example/Thing.java"])
 
@@ -319,6 +382,58 @@ class WaiverTest(unittest.TestCase):
 
 
 class OutputAndWorkflowTest(unittest.TestCase):
+    def workflow(self) -> dict[str, object]:
+        return yaml.safe_load(
+            (ROOT / ".github/workflows/pr-gate.yml").read_text(encoding="utf-8")
+        )
+
+    def filters(self) -> dict[str, list[str]]:
+        workflow = self.workflow()
+        steps = workflow["jobs"]["changes"]["steps"]
+        filter_step = next(step for step in steps if step.get("id") == "filter")
+        return yaml.safe_load(filter_step["with"]["filters"])
+
+    def test_every_referenced_changes_output_is_declared_and_filtered(self) -> None:
+        workflow = self.workflow()
+        jobs = workflow["jobs"]
+        outputs = set(jobs["changes"]["outputs"])
+        filters = set(self.filters())
+        referenced = {
+            match.group(1)
+            for job in jobs.values()
+            for match in re.finditer(
+                r"needs\.changes\.outputs\.([a-z_]+)", str(job.get("if", ""))
+            )
+        }
+
+        self.assertEqual(set(), referenced - outputs)
+        self.assertEqual(set(), referenced - filters)
+
+    def test_pr_gate_definition_and_shared_actions_have_distinct_fanout(self) -> None:
+        workflow = self.workflow()
+        jobs = workflow["jobs"]
+        filters = self.filters()
+        product_jobs = (
+            "installer-verify",
+            "intellij-build",
+            "cli",
+            "capture-e2e",
+            "unit-tests",
+            "template-coupling",
+            "module-boundary",
+        )
+
+        self.assertIn("pr_gate", filters)
+        self.assertEqual([".github/workflows/pr-gate.yml"], filters["pr_gate"])
+        self.assertNotIn(".github/workflows/pr-gate.yml", filters["infra"])
+        self.assertIn(".github/actions/**", filters["infra"])
+        self.assertIn("needs.changes.outputs.pr_gate == 'true'", jobs["agent-guidance"]["if"])
+        for name in product_jobs:
+            with self.subTest(job=name):
+                condition = jobs[name]["if"]
+                self.assertNotIn("outputs.pr_gate", condition)
+                self.assertIn("outputs.infra", condition)
+
     def test_json_plan_is_concise_reproducible_and_contains_no_pr_body(self) -> None:
         plan = classify_paths(["chaos-engine/hooks/kernel.py"])
         payload = json.loads(render_json(plan, head_sha=HEAD, budget_seconds=240))

@@ -50,6 +50,8 @@ jobs:
       templates: ${{ steps.filter.outputs.templates }}
       javacore: ${{ steps.filter.outputs.javacore }}
       dependencies: ${{ steps.filter.outputs.dependencies }}
+      module_boundary: ${{ steps.filter.outputs.module_boundary }}
+      pr_gate: ${{ steps.filter.outputs.pr_gate }}
       infra: ${{ steps.filter.outputs.infra }}
       workflows: ${{ steps.filter.outputs.workflows }}
       agent_guidance: ${{ steps.filter.outputs.agent_guidance }}
@@ -259,10 +261,14 @@ jobs:
               - 'tests/scripts/test_ocr_infrastructure_boundary.py'
               - 'tests/scripts/test_lighthouse_infrastructure_boundary.py'
               - 'tests/scripts/test_android_infrastructure_boundary.py'
-            infra:
+            # A definition-only edit must validate this workflow without
+            # fanning out product builds. Shared actions remain `infra`
+            # because their steps execute inside every product job below.
+            pr_gate:
               - '.github/workflows/pr-gate.yml'
+            infra:
               # Composite actions this gate's jobs call (issue #4440 added
-              # cache-maven-repo): editing one changes what every java job here
+              # cache-maven-repo): editing one changes what every Java job here
               # actually runs, so it has to re-run them.
               - '.github/actions/**'
             # Issue #4081's regression guard (scripts/ci/validate_workflow_timeouts.py):
@@ -315,7 +321,7 @@ jobs:
   agent-guidance:
     name: Agent Guidance Gate
     needs: changes
-    if: needs.changes.outputs.agent_guidance == 'true' || needs.changes.outputs.infra == 'true'
+    if: needs.changes.outputs.agent_guidance == 'true' || needs.changes.outputs.pr_gate == 'true' || needs.changes.outputs.infra == 'true'
     runs-on: ubuntu-22.04
     timeout-minutes: 6
     permissions:
