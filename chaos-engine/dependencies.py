@@ -27,8 +27,10 @@ LOCK_MAGIC = b"chaos-engine-dependencies-lock-v1\n"
 BUILD_MARKER_MAGIC = "chaos-engine-dependencies-build-v1\n"
 BUILD_MARKER_OWNED_SUFFIX = ".owned"
 POINTER_NAME = ".chaos-engine-runtime-current.json"
+POINTER_REMOVING_NAME = f"{POINTER_NAME}.removing"
 POINTER_SCHEMA = 1
 GENERATIONS_NAME = ".chaos-engine-runtime-generations"
+TRANSACTIONS_NAME = ".chaos-engine-runtime-transactions"
 MAX_CONTROL_BYTES = 4 * 1024 * 1024
 # Pinned uv 0.11.29 + Graphify/MemPalace ownership is ~6.74 MiB compact.
 MAX_RECEIPT_BYTES = 8 * 1024 * 1024
@@ -777,8 +779,8 @@ def _validate_dispatch_metadata(name: str, value: object) -> dict[str, object]:
     return value
 
 
-def _read_pointer(project: Path) -> dict[str, object]:
-    pointer, _ = _bounded_json(project, POINTER_NAME, "pointer")
+def _read_pointer_at(project: Path, relative: str) -> dict[str, object]:
+    pointer, _ = _bounded_json(project, relative, "pointer")
     if (
         pointer.get("schemaVersion") != POINTER_SCHEMA
         or HEX_ID.fullmatch(str(pointer.get("transactionId", ""))) is None
@@ -796,6 +798,10 @@ def _read_pointer(project: Path) -> dict[str, object]:
     if pointer.get("previous") is not None:
         _validate_generation_record(pointer["previous"])
     return pointer
+
+
+def _read_pointer(project: Path) -> dict[str, object]:
+    return _read_pointer_at(project, POINTER_NAME)
 
 
 def _validate_selected_generation(
@@ -1830,6 +1836,99 @@ def remove_generation(project: Path, record: dict[str, str]) -> None:
             _delete_held_child(parent, record["generationId"], child, expected)
             return
     _delete_windows_tree(generation, expected)
+
+
+def _pointer_generation_records(pointer: dict[str, object]) -> list[dict[str, str]]:
+    records = [_validate_generation_record(pointer["active"])]
+    if pointer.get("previous") is not None:
+        previous = _validate_generation_record(pointer["previous"])
+        if previous not in records:
+            records.append(previous)
+    return records
+
+
+def prepare_generation_remove(
+    project: Path,
+    *,
+    expected_specification_sha256: str,
+    expected_core_sha256: str,
+) -> list[dict[str, str]]:
+    """Authenticate selected generations and tombstone the active pointer."""
+    project = _trusted_root(project.absolute(), "project")
+    pointer_path = project / POINTER_NAME
+    removing_path = project / POINTER_REMOVING_NAME
+    if is_link_or_reparse(pointer_path) or is_link_or_reparse(removing_path):
+        raise ValueError("dependency pointer removal path is a link or reparse point")
+    if removing_path.exists():
+        raise ValueError("dependency generation removal recovery is required")
+    pointer = _read_pointer(project)
+    records = _pointer_generation_records(pointer)
+    for record in records:
+        generation = _validate_selected_generation(
+            project,
+            record,
+            record["specificationSha256"],
+            record["coreSha256"],
+            verify_installed_core=False,
+        )
+        receipt, _ = _bounded_json(
+            project,
+            f"{GENERATIONS_NAME}/{record['generationId']}/{RECEIPT_NAME}",
+            "generation receipt",
+            MAX_RECEIPT_BYTES,
+        )
+        verify_sealed_ownership(generation, receipt["ownership"], full=True)
+    active = records[0]
+    if (
+        active["specificationSha256"] != expected_specification_sha256
+        or active["coreSha256"] != expected_core_sha256
+    ):
+        raise ValueError("dependency active generation does not match installed core")
+    pointer_path.replace(removing_path)
+    return records
+
+
+def cancel_generation_remove(project: Path) -> None:
+    """Restore a prepared pointer after another uninstall resource failed."""
+    project = _trusted_root(project.absolute(), "project")
+    pointer_path = project / POINTER_NAME
+    removing_path = project / POINTER_REMOVING_NAME
+    if pointer_path.exists() or is_link_or_reparse(pointer_path):
+        raise ValueError("dependency generation removal cannot be cancelled")
+    pointer = _read_pointer_at(project, POINTER_REMOVING_NAME)
+    for record in _pointer_generation_records(pointer):
+        _validate_selected_generation(
+            project,
+            record,
+            record["specificationSha256"],
+            record["coreSha256"],
+            verify_installed_core=False,
+        )
+    removing_path.replace(pointer_path)
+
+
+def finalize_generation_remove(project: Path) -> None:
+    """Remove only authenticated selected generations, leaving foreign files intact."""
+    project = _trusted_root(project.absolute(), "project")
+    pointer_path = project / POINTER_NAME
+    removing_path = project / POINTER_REMOVING_NAME
+    if pointer_path.exists() or is_link_or_reparse(pointer_path):
+        raise ValueError("dependency generation removal is not prepared")
+    if not removing_path.exists():
+        return
+    pointer = _read_pointer_at(project, POINTER_REMOVING_NAME)
+    for record in _pointer_generation_records(pointer):
+        generation = project / GENERATIONS_NAME / record["generationId"]
+        if generation.exists() or is_link_or_reparse(generation):
+            remove_generation(project, record)
+    generations = project / GENERATIONS_NAME
+    transactions = project / TRANSACTIONS_NAME
+    for container in (generations, transactions):
+        if is_link_or_reparse(container):
+            raise ValueError("dependency runtime container is a link or reparse point")
+        if container.is_dir() and not any(container.iterdir()):
+            container.rmdir()
+    removing_path.unlink()
 
 
 def install_plan(runtime: Path, specification: dict[str, object]) -> dict[str, list[list[str]]]:

@@ -33,7 +33,7 @@ NOW = datetime(2026, 8, 22, 12, 0, tzinfo=timezone.utc)
 def waiver_body(**overrides: object) -> str:
     payload: dict[str, object] = {
         "schema": 1,
-        "allowed_check_ids": ["kernel-contract"],
+        "allowed_check_ids": ["guidance-contract"],
         "expires_at": "2026-08-29T12:00:00Z",
         "rationale": "Legacy router shape is replaced by the lifecycle kernel contract.",
         "replacement_proof": "py -3 -m unittest tests.scripts.test_chaos_engine_kernel -v",
@@ -66,6 +66,9 @@ class ClassifierTest(unittest.TestCase):
     def test_readme_and_promotion_changes_select_only_focused_contracts(self) -> None:
         documentation = classify_paths(["chaos-engine/README.md"])
         promotion = classify_paths(["scripts/ci/chaos_engine_promotion.py"])
+        promotion_runner = classify_paths(
+            ["scripts/ci/chaos_engine_promotion_trials.py"]
+        )
 
         self.assertEqual(("documentation",), documentation.surfaces)
         self.assertEqual(
@@ -78,6 +81,7 @@ class ClassifierTest(unittest.TestCase):
         )
         self.assertEqual(("promotion",), promotion.surfaces)
         self.assertIn("promotion-contract", {check.id for check in promotion.checks})
+        self.assertEqual(("promotion",), promotion_runner.surfaces)
 
     def test_kernel_change_selects_only_focused_and_protected_checks(self) -> None:
         plan = classify_paths(["chaos-engine/hooks/kernel.py"])
@@ -321,7 +325,7 @@ class WaiverTest(unittest.TestCase):
 
         self.assertIsNotNone(receipt)
         assert receipt is not None
-        self.assertEqual(("kernel-contract",), receipt.check_ids)
+        self.assertEqual(("guidance-contract",), receipt.check_ids)
         self.assertEqual(HEAD, receipt.head_sha)
 
     def test_stale_malformed_blanket_and_blank_receipts_fail_closed(self) -> None:
@@ -350,6 +354,28 @@ class WaiverTest(unittest.TestCase):
         )
         for check_id in protected:
             with self.subTest(check_id=check_id):
+                with self.assertRaises(GateError):
+                    parse_waiver(
+                        waiver_body(allowed_check_ids=[check_id]),
+                        now=NOW,
+                    )
+
+    def test_behavioral_kernel_lifecycle_and_host_contracts_cannot_be_waived(self) -> None:
+        for check_id in ("kernel-contract", "lifecycle-contract", "host-contract"):
+            with self.subTest(check_id=check_id):
+                self.assertTrue(
+                    next(
+                        check
+                        for check in classify_paths(
+                            {
+                                "kernel-contract": ["chaos-engine/hooks/kernel.py"],
+                                "lifecycle-contract": ["chaos-engine/hooks/guard.py"],
+                                "host-contract": ["chaos-engine/hosts.py"],
+                            }[check_id]
+                        ).checks
+                        if check.id == check_id
+                    ).protected
+                )
                 with self.assertRaises(GateError):
                     parse_waiver(
                         waiver_body(allowed_check_ids=[check_id]),

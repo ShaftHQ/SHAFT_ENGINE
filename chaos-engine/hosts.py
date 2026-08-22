@@ -2301,6 +2301,7 @@ REQUIRED_HOOK_EVENTS = (
     "Stop",
     "SubagentStop",
 )
+CLAUDE_HOOK_EVENTS = (*REQUIRED_HOOK_EVENTS, "PreCompact", "SessionEnd")
 
 
 def chaos_guard_locator_command(*, windows: bool, host: str) -> str:
@@ -2322,7 +2323,8 @@ def lifecycle_hooks_document(host: str, events: dict[str, str] | None = None) ->
         "commandWindows": chaos_guard_locator_command(windows=True, host=host),
         "timeout": 30,
     }
-    selected = events or {event: event for event in REQUIRED_HOOK_EVENTS}
+    defaults = CLAUDE_HOOK_EVENTS if host == "claude" else REQUIRED_HOOK_EVENTS
+    selected = events or {event: event for event in defaults}
     hooks = {native: [{"hooks": [handler]}] for native in selected}
     return (json.dumps({"hooks": hooks}, indent=2, sort_keys=True) + "\n").encode()
 
@@ -2337,15 +2339,15 @@ def copilot_hooks_document() -> bytes:
     hooks = {
         event: [handler]
         for event in (
-            "SessionStart",
-            "UserPromptSubmit",
-            "PreToolUse",
-            "PostToolUse",
-            "PostToolUseFailure",
-            "Stop",
-            "SubagentStop",
-            "PreCompact",
-            "SessionEnd",
+            "sessionStart",
+            "userPromptSubmitted",
+            "preToolUse",
+            "postToolUse",
+            "postToolUseFailure",
+            "agentStop",
+            "subagentStop",
+            "preCompact",
+            "sessionEnd",
         )
     }
     return (json.dumps({"version": 1, "hooks": hooks}, indent=2, sort_keys=True) + "\n").encode()
@@ -2492,6 +2494,8 @@ def gitignore_content(before: bytes | None) -> bytes:
     block = (
         f"{GITIGNORE_START}\n"
         ".chaos-engine-runtime/\n.chaos-engine-runtime.lock\n.chaos-engine-runtime.*\n.chaos-engine-state/\n"
+        ".chaos-engine-runtime-current.json\n.chaos-engine-runtime-current.json.*\n"
+        ".chaos-engine-runtime-generations/\n.chaos-engine-runtime-transactions/\n"
         ".chaos-engine.lock\n.chaos-engine.transaction.json\n"
         ".chaos-engine.backup/\n.chaos-engine.backup.*/\n"
         ".chaos-engine-cross-rollback/\n.chaos-engine-uninstall-*\n"

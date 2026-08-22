@@ -568,6 +568,9 @@ class ChaosEngineHostsTest(unittest.TestCase):
             self.assertIn(".chaos-engine-runtime/", ignores)
             self.assertIn(".chaos-engine.lock", ignores)
             self.assertIn(".chaos-engine-runtime.lock", ignores)
+            self.assertIn(".chaos-engine-runtime-current.json", ignores)
+            self.assertIn(".chaos-engine-runtime-generations/", ignores)
+            self.assertIn(".chaos-engine-runtime-transactions/", ignores)
             self.assertIn(".chaos-engine.backup/", ignores)
             self.assertIn(".chaos-engine-owned-directory", ignores)
             self.assertGreater(
@@ -615,7 +618,7 @@ class ChaosEngineHostsTest(unittest.TestCase):
             claude_lifecycle = json.loads(
                 project.joinpath(".claude/settings.json").read_text()
             )["hooks"]
-            for document in (lifecycle, grok_lifecycle, claude_lifecycle):
+            for document in (lifecycle, grok_lifecycle):
                 self.assertEqual(required_events, set(document))
                 for event in required_events:
                     self.assertEqual(1, len(document[event]), event)
@@ -627,6 +630,11 @@ class ChaosEngineHostsTest(unittest.TestCase):
                         or "plugins/chaos-engine/hooks/guard.py" in command,
                         event,
                     )
+            claude_events = required_events | {"PreCompact", "SessionEnd"}
+            self.assertEqual(claude_events, set(claude_lifecycle))
+            for event in claude_events:
+                self.assertEqual(1, len(claude_lifecycle[event]), event)
+                self.assertEqual(1, len(claude_lifecycle[event][0]["hooks"]), event)
             for manifest_path in (
                 "plugins/chaos-engine/.codex-plugin/plugin.json",
                 "plugins/chaos-engine/.claude-plugin/plugin.json",
@@ -654,15 +662,15 @@ class ChaosEngineHostsTest(unittest.TestCase):
             self.assertEqual(1, copilot_lifecycle["version"])
             self.assertEqual(
                 {
-                    "SessionStart",
-                    "UserPromptSubmit",
-                    "PreToolUse",
-                    "PostToolUse",
-                    "PostToolUseFailure",
-                    "Stop",
-                    "SubagentStop",
-                    "PreCompact",
-                    "SessionEnd",
+                    "sessionStart",
+                    "userPromptSubmitted",
+                    "preToolUse",
+                    "postToolUse",
+                    "postToolUseFailure",
+                    "agentStop",
+                    "subagentStop",
+                    "preCompact",
+                    "sessionEnd",
                 },
                 set(copilot_lifecycle["hooks"]),
             )

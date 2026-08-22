@@ -481,7 +481,15 @@ def _run_event(event: dict, _host: str) -> int:
     session_id = reflection.scope_session_id(
         root_session_id, event.get("agent_id") or event.get("agentId")
     )
-    kernel_report = _kernel.evaluate(_kernel.normalize_event(event, _host))
+    kernel_event = dict(event)
+    kernel_event["session_id"] = session_id
+    kernel_event["agent_id"] = ""
+    kernel_journal = _kernel.EffectJournal(
+        reflection.ledger_path(session_id).with_suffix(".kernel-v2.jsonl")
+    )
+    kernel_report = _kernel.evaluate_session(
+        _kernel.normalize_event(kernel_event, _host), kernel_journal
+    )
     if kernel_report.decision == "deny":
         print(json.dumps({"decision": "block", "reason": kernel_report.reason}))
         return 2

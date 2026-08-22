@@ -2091,6 +2091,21 @@ class HookJsonProtocolTest(unittest.TestCase):
         self.assertNotIn("Lifecycle hook produced invalid JSON output", output)
         self.assertIsInstance(json.loads(output), dict)
 
+    def test_repository_hook_dispatch_reaches_the_portable_kernel(self):
+        payload = {
+            "hook_event_name": "SessionStart",
+            "session_id": "repository-kernel-reachability",
+        }
+        with patch.object(
+            guard,
+            "_evaluate_kernel_event",
+            wraps=guard._evaluate_kernel_event,
+        ) as evaluate_kernel:
+            output = self.invoke(payload)
+
+        evaluate_kernel.assert_called_once()
+        self.assertIsInstance(json.loads(output), dict)
+
     def test_functions_exec_cmd_wrapped_shell_is_inspected(self):
         output = self.invoke(
             {
@@ -2117,11 +2132,23 @@ class HookJsonProtocolTest(unittest.TestCase):
             "SubagentStop": "run_stop",
             "PreToolUse": "run_pretooluse",
             "PostToolUse": "run_posttooluse",
+            "PreCompact": "run_observational_event",
+            "SessionEnd": "run_observational_event",
         }
         observed = []
         for event, callback in callbacks.items():
             with patch.object(guard, callback, return_value=0):
-                observed.append((event, self.invoke({"hook_event_name": event})))
+                observed.append(
+                    (
+                        event,
+                        self.invoke(
+                            {
+                                "hook_event_name": event,
+                                "session_id": f"protocol-{event}",
+                            }
+                        ),
+                    )
+                )
         decisions = (
             (
                 "PreToolUse",
@@ -2144,7 +2171,17 @@ class HookJsonProtocolTest(unittest.TestCase):
             with patch.object(
                 guard, callback, side_effect=lambda *_args, value=decision: print(json.dumps(value))
             ):
-                observed.append((event, self.invoke({"hook_event_name": event})))
+                observed.append(
+                    (
+                        event,
+                        self.invoke(
+                            {
+                                "hook_event_name": event,
+                                "session_id": f"decision-{event}",
+                            }
+                        ),
+                    )
+                )
         expected = [(event, "{}\n") for event in callbacks]
         expected.extend(
             (event, json.dumps(decision, separators=(",", ":")) + "\n")
@@ -2158,11 +2195,23 @@ class HookJsonProtocolTest(unittest.TestCase):
             with patch.object(guard, "run_pretooluse", side_effect=lambda: None) as callback:
                 callback.side_effect = lambda *_args, value=rendered: print(value)
                 observed.append(
-                    self.invoke({"hook_event_name": "PreToolUse", "tool_name": "Write"})
+                    self.invoke(
+                        {
+                            "hook_event_name": "PreToolUse",
+                            "tool_name": "Write",
+                            "session_id": "invalid-callback",
+                        }
+                    )
                 )
         with patch.object(guard, "run_pretooluse", side_effect=RuntimeError("crash")):
             observed.append(
-                self.invoke({"hook_event_name": "PreToolUse", "tool_name": "Write"})
+                self.invoke(
+                    {
+                        "hook_event_name": "PreToolUse",
+                        "tool_name": "Write",
+                        "session_id": "crashing-callback",
+                    }
+                )
             )
         expected = json.dumps(
             {
@@ -2187,7 +2236,13 @@ class HookJsonProtocolTest(unittest.TestCase):
             with patch.object(guard, callback, side_effect=lambda *_args: print("junk")):
                 observational_outputs.append(self.invoke({"hook_event_name": event}))
         with patch.object(guard, "run_pretooluse", side_effect=lambda *_args: print("junk")):
-            grok = self.invoke({"hookEventName": "PreToolUse", "toolName": "Write"})
+            grok = self.invoke(
+                {
+                    "hookEventName": "PreToolUse",
+                    "toolName": "Write",
+                    "sessionId": "grok-invalid-callback",
+                }
+            )
         block = (
             json.dumps(
                 {"decision": "block", "reason": "Lifecycle hook produced invalid JSON output."},

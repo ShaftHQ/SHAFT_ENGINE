@@ -187,6 +187,78 @@ class GenerationRuntimeTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "generation identifier"):
                 self.select(module, project, active)
 
+    def test_generation_removal_is_recoverable_and_preserves_foreign_content(self):
+        module = load_controller()
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary)
+            generation, active = self.generation_fixture(module, project)
+            self.publish(module, project, active)
+            transactions = project / module.TRANSACTIONS_NAME
+            transactions.mkdir()
+            foreign = project / module.GENERATIONS_NAME / "operator-note.txt"
+            foreign.write_text("mine\n", encoding="utf-8")
+
+            module.prepare_generation_remove(
+                project,
+                expected_specification_sha256=active["specificationSha256"],
+                expected_core_sha256=active["coreSha256"],
+            )
+            self.assertFalse((project / module.POINTER_NAME).exists())
+            self.assertTrue((project / module.POINTER_REMOVING_NAME).exists())
+
+            module.cancel_generation_remove(project)
+            self.assertTrue((project / module.POINTER_NAME).exists())
+            self.assertFalse((project / module.POINTER_REMOVING_NAME).exists())
+
+            module.prepare_generation_remove(
+                project,
+                expected_specification_sha256=active["specificationSha256"],
+                expected_core_sha256=active["coreSha256"],
+            )
+            module.finalize_generation_remove(project)
+
+            self.assertFalse(generation.exists())
+            self.assertFalse((project / module.POINTER_NAME).exists())
+            self.assertFalse((project / module.POINTER_REMOVING_NAME).exists())
+            self.assertFalse(transactions.exists())
+            self.assertEqual("mine\n", foreign.read_text(encoding="utf-8"))
+
+    def test_normal_generation_install_uninstall_removes_runtime_control_plane(self):
+        installer = load_installer()
+        controller = load_controller()
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary) / "consumer"
+            project.mkdir()
+            installer.install(project, SOURCE, TEST_COMMIT)
+            specification = controller.load_specification(
+                project / ".chaos-engine/dependencies.json"
+            )
+            _, active = self.generation_fixture(
+                controller,
+                project,
+                specification_sha256=controller.specification_digest(specification),
+            )
+            self.publish(controller, project, active)
+            host_controller = SimpleNamespace(
+                prepare_uninstall=lambda _project: None,
+                cancel_uninstall=lambda _project: None,
+                finalize_uninstall=lambda _project: None,
+            )
+            original = installer.load_installed_controller
+
+            def installed(installed_root, name):
+                return host_controller if name == "hosts" else original(installed_root, name)
+
+            with mock.patch.object(
+                installer, "load_installed_controller", side_effect=installed
+            ):
+                installer.uninstall_with_dependencies(project)
+
+            self.assertFalse((project / ".chaos-engine").exists())
+            self.assertFalse((project / controller.POINTER_NAME).exists())
+            self.assertFalse((project / controller.POINTER_REMOVING_NAME).exists())
+            self.assertFalse((project / controller.GENERATIONS_NAME).exists())
+
     def test_generation_selection_supports_unicode_and_spaces_in_project_path(self):
         module = load_controller()
         with tempfile.TemporaryDirectory() as temporary:

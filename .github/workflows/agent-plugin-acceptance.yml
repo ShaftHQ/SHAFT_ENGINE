@@ -290,7 +290,7 @@ jobs:
   chaos-engine-promotion:
     name: Five-host promotion evaluator
     runs-on: ubuntu-22.04
-    timeout-minutes: 10
+    timeout-minutes: 180
     steps:
       - name: Checkout Code
         uses: actions/checkout@v7
@@ -298,7 +298,33 @@ jobs:
         uses: actions/setup-python@v7
         with:
           python-version: '3.13'
-      - name: Evaluate credential and receipt readiness
+      - name: Collect paired live trial receipts
+        id: promotion-trials
+        continue-on-error: true
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          XAI_API_KEY: ${{ secrets.XAI_API_KEY }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CHAOS_ENGINE_BASELINE_CODEX_COMMAND: ${{ secrets.CHAOS_ENGINE_BASELINE_CODEX_COMMAND }}
+          CHAOS_ENGINE_CANDIDATE_CODEX_COMMAND: ${{ secrets.CHAOS_ENGINE_CANDIDATE_CODEX_COMMAND }}
+          CHAOS_ENGINE_BASELINE_CLAUDE_COMMAND: ${{ secrets.CHAOS_ENGINE_BASELINE_CLAUDE_COMMAND }}
+          CHAOS_ENGINE_CANDIDATE_CLAUDE_COMMAND: ${{ secrets.CHAOS_ENGINE_CANDIDATE_CLAUDE_COMMAND }}
+          CHAOS_ENGINE_BASELINE_GEMINI_COMMAND: ${{ secrets.CHAOS_ENGINE_BASELINE_GEMINI_COMMAND }}
+          CHAOS_ENGINE_CANDIDATE_GEMINI_COMMAND: ${{ secrets.CHAOS_ENGINE_CANDIDATE_GEMINI_COMMAND }}
+          CHAOS_ENGINE_BASELINE_GROK_COMMAND: ${{ secrets.CHAOS_ENGINE_BASELINE_GROK_COMMAND }}
+          CHAOS_ENGINE_CANDIDATE_GROK_COMMAND: ${{ secrets.CHAOS_ENGINE_CANDIDATE_GROK_COMMAND }}
+          CHAOS_ENGINE_BASELINE_COPILOT_COMMAND: ${{ secrets.CHAOS_ENGINE_BASELINE_COPILOT_COMMAND }}
+          CHAOS_ENGINE_CANDIDATE_COPILOT_COMMAND: ${{ secrets.CHAOS_ENGINE_CANDIDATE_COPILOT_COMMAND }}
+        run: >-
+          python scripts/ci/chaos_engine_promotion_trials.py
+          --output chaos-engine-promotion-receipts
+          --status chaos-engine-promotion-trial-status.json
+          --workers 10
+          --timeout 90
+      - name: Evaluate and enforce promotion thresholds
+        if: always()
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
@@ -307,12 +333,16 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: >-
           python scripts/ci/chaos_engine_promotion.py
+          --receipts chaos-engine-promotion-receipts
           --output chaos-engine-promotion-evidence.json
       - name: Upload secret-free promotion evidence
         if: always()
         uses: actions/upload-artifact@v7
         with:
           name: chaos-engine-promotion-evidence
-          path: chaos-engine-promotion-evidence.json
+          path: |
+            chaos-engine-promotion-evidence.json
+            chaos-engine-promotion-trial-status.json
+            chaos-engine-promotion-receipts
           if-no-files-found: error
           retention-days: 30

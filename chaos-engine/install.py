@@ -1788,6 +1788,9 @@ _DIAGNOSTIC_FIELDS = {
         "diagnosticCode", "reason", "remedy", "factsUsed", "effects", "terminalReason",
     },
 }
+_DIAGNOSTIC_REQUIRED_FIELDS = {
+    kind: frozenset(fields) for kind, fields in _DIAGNOSTIC_FIELDS.items()
+}
 
 
 def _diagnostic_value(value: object, project: Path) -> object:
@@ -1827,6 +1830,11 @@ def validate_diagnostic_json(document: object) -> dict[str, object]:
     required = {"schemaVersion", "identity", "kind"}
     if not required <= set(document) or document.get("identity") != CANONICAL_IDENTITY:
         raise ValueError("diagnostic JSON identity is invalid")
+    missing = _DIAGNOSTIC_REQUIRED_FIELDS[str(kind)] - set(document)
+    if missing:
+        raise ValueError(
+            "diagnostic JSON is missing required fields: " + ", ".join(sorted(missing))
+        )
     return document
 
 
@@ -1903,6 +1911,13 @@ def uninstall_with_dependencies(  # noqa: MC0001 - coordinated host, runtime, an
                 receipt, _ = host_controller.read_receipt(project)
                 if receipt["phase"] != "removing":
                     raise ValueError("host removal is not prepared for absent-core recovery")
+            generation_controller = load_source_controller("dependencies")
+            generation_pointer = project / generation_controller.POINTER_NAME
+            generation_removing = project / generation_controller.POINTER_REMOVING_NAME
+            if generation_pointer.exists() or is_link_or_reparse(generation_pointer):
+                raise ValueError("dependency generation removal is not prepared")
+            if generation_removing.exists() or is_link_or_reparse(generation_removing):
+                generation_controller.finalize_generation_remove(project)
             with dependency_runtime_lock(runtime):
                 if removing.exists():
                     finalize_dependency_tombstone(removing)
@@ -1916,20 +1931,42 @@ def uninstall_with_dependencies(  # noqa: MC0001 - coordinated host, runtime, an
         controller = load_dependency_controller(target)
         host_controller = load_installed_controller(target, "hosts")
         specification = controller.load_specification(target / "dependencies.json")
+        generation_pointer = project / controller.POINTER_NAME
+        generation_removing = project / controller.POINTER_REMOVING_NAME
+        if generation_removing.exists() or is_link_or_reparse(generation_removing):
+            raise ValueError("dependency generation removal recovery is required")
+        generation_mode = generation_pointer.exists() or is_link_or_reparse(generation_pointer)
+        if generation_mode and (runtime.exists() or is_link_or_reparse(runtime)):
+            raise ValueError("mixed dependency runtime ownership requires recovery")
         preflight_uninstall(project)
         manifest = verify_install(target)
         commit = str(manifest["source"]["commit"])
         prepared = False
+        generation_prepared = False
         host_prepared = False
         try:
             host_controller.prepare_uninstall(project)
             host_prepared = True
-            if runtime.exists() or is_link_or_reparse(runtime):
+            if generation_mode:
+                controller.prepare_generation_remove(
+                    project,
+                    expected_specification_sha256=controller.specification_digest(
+                        specification
+                    ),
+                    expected_core_sha256=file_sha256(target / MANIFEST_NAME),
+                )
+                generation_prepared = True
+            elif runtime.exists() or is_link_or_reparse(runtime):
                 controller.prepare_remove(runtime, specification)
                 prepared = True
             uninstall(project, expected_commit=commit, _locked=True)
         except BaseException as error:
             compensation_errors: list[BaseException] = []
+            if generation_prepared:
+                try:
+                    controller.cancel_generation_remove(project)
+                except BaseException as cleanup_error:
+                    compensation_errors.append(cleanup_error)
             if prepared:
                 try:
                     controller.cancel_remove(runtime)
@@ -1948,6 +1985,8 @@ def uninstall_with_dependencies(  # noqa: MC0001 - coordinated host, runtime, an
             raise
         if prepared or removing.exists():
             controller.finalize_remove(runtime, specification)
+        if generation_prepared:
+            controller.finalize_generation_remove(project)
         host_controller.finalize_uninstall(project)
 
 

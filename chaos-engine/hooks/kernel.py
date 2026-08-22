@@ -10,7 +10,7 @@ import os
 import re
 import threading
 import time
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from pathlib import Path
 from types import MappingProxyType
 from typing import Callable, Mapping
@@ -181,6 +181,7 @@ class HookEvent:
     stop_hook_active: bool
     stateful_mutation: bool
     raw_fields: tuple[str, ...]
+    tool_call_id: str = ""
     phase: str = "ReadOnly"
     target_phase: str = ""
     cancelled: bool = False
@@ -260,6 +261,7 @@ def normalize_event(raw: Mapping[str, object], host: str | None = None) -> HookE
         stop_hook_active=bool(normalized.get("stop_hook_active")),
         stateful_mutation=_is_mutation(tool_name, tool_input),
         raw_fields=tuple(sorted(str(key) for key in raw)),
+        tool_call_id=str(normalized.get("tool_use_id") or "").strip(),
         phase=str(normalized.get("phase") or "ReadOnly"),
         target_phase=str(normalized.get("target_phase") or ""),
         cancelled=(
@@ -435,6 +437,7 @@ class Effect:
     rule: str
     effect: str
     payload: Mapping[str, object] = field(default_factory=dict)
+    phase: str = ""
 
     def __post_init__(self) -> None:
         if not self.session_id.strip():
@@ -450,7 +453,7 @@ class Effect:
         return hashlib.sha256(rendered.encode("utf-8")).hexdigest()
 
     def to_record(self) -> dict[str, object]:
-        return {
+        record = {
             "schemaVersion": STATE_SCHEMA_VERSION,
             "identity": CANONICAL_IDENTITY,
             "idempotencyKey": self.key,
@@ -463,6 +466,11 @@ class Effect:
                 json.dumps(self.payload, sort_keys=True, default=str).encode("utf-8")
             ).hexdigest(),
         }
+        if self.phase:
+            if self.phase not in LIFECYCLE_TRANSITIONS:
+                raise ValueError("effect lifecycle phase is invalid")
+            record["phase"] = self.phase
+        return record
 
 
 @dataclass(frozen=True)
@@ -896,6 +904,13 @@ class EffectJournal:
                 raise JournalCorruptionError(
                     f"invalid effect journal record at line {line_number}"
                 )
+            phase = item.get("phase")
+            if phase is not None and (
+                type(phase) is not str or phase not in LIFECYCLE_TRANSITIONS
+            ):
+                raise JournalCorruptionError(
+                    f"invalid effect journal record at line {line_number}"
+                )
             if item.get("sessionId") == session_id:
                 records.append(item)
         return records
@@ -906,25 +921,68 @@ class EffectJournal:
         with self._lock():
             return self._records_unlocked(session_id)
 
+    def _append_unlocked(self, effect: Effect) -> bool:
+        effect_values = (
+            effect.session_id,
+            effect.event,
+            effect.tool_call_id,
+            effect.rule,
+            effect.effect,
+        )
+        if any(
+            item.get("idempotencyKey") == effect.key
+            or tuple(str(item[field]) for field in _EFFECT_FIELDS) == effect_values
+            for item in self._records_unlocked(effect.session_id)
+        ):
+            return False
+        self.path.parent.mkdir(parents=True, exist_ok=True)
+        with self.path.open("a", encoding="utf-8", newline="\n") as handle:
+            handle.write(json.dumps(effect.to_record(), sort_keys=True, separators=(",", ":")))
+            handle.write("\n")
+            handle.flush()
+            os.fsync(handle.fileno())
+        return True
+
     def append(self, effect: Effect) -> bool:
         with self._lock():
-            effect_values = (
-                effect.session_id,
-                effect.event,
-                effect.tool_call_id,
-                effect.rule,
-                effect.effect,
+            return self._append_unlocked(effect)
+
+
+def evaluate_session(
+    event: HookEvent,
+    journal: EffectJournal,
+    snapshot: HarnessSnapshot | None = None,
+    rules: tuple[Rule, ...] = RULES,
+) -> EvaluationReport:
+    """Evaluate and persist one session transition under the journal lock.
+
+    Native hosts do not send lifecycle phases. The first event starts at
+    ReadOnly; later events load the last authenticated v2 phase. Appending the
+    phase change in the same critical section makes concurrent callbacks
+    deterministic and duplicate hook deliveries idempotent.
+    """
+    if not event.session_id:
+        return evaluate(event, snapshot, rules)
+    with journal._lock():
+        records = journal._records_unlocked(event.session_id)
+        current_phase = next(
+            (
+                str(record["phase"])
+                for record in reversed(records)
+                if record.get("effect") == "lifecycle-phase" and "phase" in record
+            ),
+            "ReadOnly",
+        )
+        report = evaluate(replace(event, phase=current_phase), snapshot, rules)
+        if report.phase != current_phase:
+            journal._append_unlocked(
+                Effect(
+                    event.session_id,
+                    event.name,
+                    event.tool_call_id or event.name,
+                    "CE_LIFECYCLE_STATE",
+                    "lifecycle-phase",
+                    phase=report.phase,
+                )
             )
-            if any(
-                item.get("idempotencyKey") == effect.key
-                or tuple(str(item[field]) for field in _EFFECT_FIELDS) == effect_values
-                for item in self._records_unlocked(effect.session_id)
-            ):
-                return False
-            self.path.parent.mkdir(parents=True, exist_ok=True)
-            with self.path.open("a", encoding="utf-8", newline="\n") as handle:
-                handle.write(json.dumps(effect.to_record(), sort_keys=True, separators=(",", ":")))
-                handle.write("\n")
-                handle.flush()
-                os.fsync(handle.fileno())
-            return True
+        return report

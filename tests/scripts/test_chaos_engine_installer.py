@@ -171,9 +171,15 @@ class ChaosEngineInstallerTest(unittest.TestCase):
                 "status_with_dependencies",
                 return_value={
                     "status": "healthy",
+                    "commit": TEST_COMMIT,
+                    "distribution": "portable",
+                    "policySha256": "a" * 64,
                     "path": str(project / "private"),
                     "apiToken": "do-not-render",
                     "kernel": {"url": "https://user:password@example.invalid/path"},
+                    "hosts": {"status": "healthy"},
+                    "dependencies": {"status": "healthy"},
+                    "components": {},
                 },
             ):
                 first = MODULE.status_json(project)
@@ -207,6 +213,12 @@ class ChaosEngineInstallerTest(unittest.TestCase):
             removed["legacyStatus"] = "healthy"
             with self.assertRaisesRegex(ValueError, "removed fields"):
                 MODULE.validate_diagnostic_json(removed)
+            for document, field in ((first, "status"), (explained, "decision")):
+                with self.subTest(kind=document["kind"], field=field):
+                    missing = dict(document)
+                    missing.pop(field)
+                    with self.assertRaisesRegex(ValueError, "required fields"):
+                        MODULE.validate_diagnostic_json(missing)
 
             parsed = MODULE.parser().parse_args(
                 [

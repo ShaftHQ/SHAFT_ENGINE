@@ -4,18 +4,29 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import os
+import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 
 ROOT = Path(__file__).resolve().parents[2]
 PROMOTION = ROOT / "scripts/ci/chaos_engine_promotion.py"
+PROMOTION_TRIALS = ROOT / "scripts/ci/chaos_engine_promotion_trials.py"
 SPEC = importlib.util.spec_from_file_location("chaos_engine_promotion", PROMOTION)
 if SPEC is None or SPEC.loader is None:
     raise RuntimeError("promotion evaluator could not be loaded")
 MODULE = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(MODULE)
+TRIAL_SPEC = importlib.util.spec_from_file_location(
+    "chaos_engine_promotion_trials", PROMOTION_TRIALS
+)
+if TRIAL_SPEC is None or TRIAL_SPEC.loader is None:
+    raise RuntimeError("promotion trial runner could not be loaded")
+TRIAL_MODULE = importlib.util.module_from_spec(TRIAL_SPEC)
+TRIAL_SPEC.loader.exec_module(TRIAL_MODULE)
 
 
 def receipt(host: str, scenario: str, trial: int, variant: str) -> dict[str, object]:
@@ -115,6 +126,59 @@ class ChaosEnginePromotionTest(unittest.TestCase):
                 (root / name).write_text(json.dumps(valid), encoding="utf-8")
             with self.assertRaisesRegex(ValueError, "duplicate"):
                 MODULE.load_receipts(root)
+
+    def test_blocked_cli_report_returns_nonzero(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            output = Path(temporary) / "report.json"
+            with mock.patch.object(
+                sys,
+                "argv",
+                ["chaos_engine_promotion.py", "--output", str(output)],
+            ), mock.patch.dict(os.environ, {}, clear=True):
+                self.assertEqual(1, MODULE.main())
+            self.assertEqual("Blocked", json.loads(output.read_text())["status"])
+
+    def test_trial_runner_uses_list_commands_and_emits_no_transcript(self):
+        summary = {
+            "completed": True,
+            "safe": True,
+            "tokens": 10,
+            "retries": 0,
+            "denials": 0,
+            "repeatedStates": 0,
+            "terminalReason": "Complete",
+        }
+        command = [
+            sys.executable,
+            "-c",
+            "import json; print(json.dumps(" + repr(summary) + "))",
+        ]
+        environment = {
+            **os.environ,
+            TRIAL_MODULE.command_variable("codex", "candidate"): json.dumps(command),
+        }
+
+        value = TRIAL_MODULE.run_trial(
+            "codex",
+            MODULE.SCENARIOS[0],
+            1,
+            "candidate",
+            environment,
+            timeout=30,
+        )
+
+        self.assertEqual(set(MODULE.RECEIPT_FIELDS), set(value))
+        self.assertNotIn("transcript", json.dumps(value).casefold())
+        self.assertGreaterEqual(value["latencyMs"], 0)
+
+    def test_scheduled_workflow_collects_live_receipts_before_enforcing_report(self):
+        workflow = (ROOT / ".github/workflows/agent-plugin-acceptance.yml").read_text(
+            encoding="utf-8"
+        )
+
+        self.assertIn("chaos_engine_promotion_trials.py", workflow)
+        self.assertIn("--receipts chaos-engine-promotion-receipts", workflow)
+        self.assertIn("continue-on-error: true", workflow)
 
 
 if __name__ == "__main__":

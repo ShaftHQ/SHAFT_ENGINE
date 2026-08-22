@@ -26,6 +26,8 @@ class ChaosEngineReadmeInventoryTest(unittest.TestCase):
             self.assertIn(f"| {host} |", sections["hosts"])
         for event in ("SessionStart", "PreToolUse", "Stop", "SessionEnd"):
             self.assertIn(f"| {event} |", sections["lifecycle-events"])
+        self.assertIn("probe_hardware.py", sections["python-libraries"])
+        self.assertIn("| platform |", sections["python-libraries"])
 
     def test_unknown_skill_and_one_changed_inventory_byte_fail_closed(self):
         with tempfile.TemporaryDirectory() as temporary:
@@ -62,6 +64,32 @@ class ChaosEngineReadmeInventoryTest(unittest.TestCase):
             readme.write_text(content, encoding="utf-8")
 
             self.assertTrue(any("Rollback flow" in error for error in validate(root)))
+
+    def test_new_packaged_python_source_cannot_disappear_from_inventory(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            shutil.copytree(ROOT / "chaos-engine", root / "chaos-engine")
+            (root / "chaos-engine/new_runtime.py").write_text(
+                "import fractions\n", encoding="utf-8"
+            )
+
+            errors = validate(root)
+
+            self.assertTrue(any("python-libraries" in error for error in errors), errors)
+
+    def test_malformed_mermaid_edge_is_rejected_by_the_parser(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            shutil.copytree(ROOT / "chaos-engine", root / "chaos-engine")
+            readme = root / "chaos-engine/README.md"
+            content = readme.read_text(encoding="utf-8").replace(
+                "Intent[Write rollback intent] --> Previous[Authenticate prior core and hosts]",
+                "Intent[Write rollback intent --> Previous[Authenticate prior core and hosts]",
+                1,
+            )
+            readme.write_text(content, encoding="utf-8")
+
+            self.assertTrue(any("Mermaid syntax" in error for error in validate(root)))
 
 
 if __name__ == "__main__":

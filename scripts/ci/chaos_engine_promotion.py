@@ -310,7 +310,7 @@ def main() -> int:
         json.dumps(report, sort_keys=True, separators=(",", ":")) + "\n",
         encoding="utf-8",
     )
-    return 0
+    return 0 if report.get("status") == "Promoted" else 1
 
 
 if __name__ == "__main__":

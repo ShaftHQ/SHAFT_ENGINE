@@ -4724,6 +4724,19 @@ def _lifecycle_core():
     return lifecycle
 
 
+@lru_cache(maxsize=1)
+def _kernel_core():
+    """Load the same provider-neutral policy kernel shipped to consumers."""
+    kernel_path = os.path.join(_harness_root(), "chaos-engine", "hooks", "kernel.py")
+    specification = importlib.util.spec_from_file_location("chaos_engine_kernel", kernel_path)
+    if specification is None or specification.loader is None:
+        raise RuntimeError("ChaosEngine policy kernel is unavailable")
+    kernel = importlib.util.module_from_spec(specification)
+    sys.modules[specification.name] = kernel
+    specification.loader.exec_module(kernel)
+    return kernel
+
+
 def run_session_start(hook_input: dict) -> int:
     """Inject one bounded locator payload without starting optional stores."""
     reflection_token = _reflection.record_session_start(
@@ -6278,6 +6291,40 @@ def _prepare_hook(hook_input: dict) -> None:
     _ledger_path(hook_input)
 
 
+def _evaluate_kernel_event(hook_input: dict, host: str):
+    kernel = _kernel_core()
+    session_id = _reflection_session_id(hook_input)
+    normalized_input = dict(hook_input)
+    normalized_input["session_id"] = session_id
+    normalized_input["agent_id"] = ""
+    kernel_host = host if host in kernel.HOST_CAPABILITIES else kernel.detect_host(hook_input)
+    journal = kernel.EffectJournal(
+        _reflection.ledger_path(session_id).with_suffix(".kernel-v2.jsonl")
+    )
+    return kernel.evaluate_session(
+        kernel.normalize_event(normalized_input, kernel_host), journal
+    )
+
+
+def run_observational_event(_hook_input: dict) -> int:
+    """Acknowledge native lifecycle events whose only policy lives in the kernel."""
+    return 0
+
+
+def _kernel_guarded(callback):
+    def dispatch(hook_input: dict, host: str) -> int:
+        report = _evaluate_kernel_event(hook_input, host)
+        if report.decision == "deny":
+            if hook_input.get("hook_event_name") == "PreToolUse":
+                _print_deny(report.reason, host)
+            else:
+                print(json.dumps({"decision": "block", "reason": report.reason}))
+            return 0
+        return callback(hook_input, host)
+
+    return dispatch
+
+
 def main(argv: list[str]) -> int:
     if "--self-test" in argv:
         command_result = run_self_test()
@@ -6306,7 +6353,10 @@ def main(argv: list[str]) -> int:
         "PreToolUse": run_pretooluse,
         "PostToolUse": lambda event, _host: run_posttooluse(event),
         "PostToolUseFailure": lambda event, _host: run_posttooluse(event),
+        "PreCompact": lambda event, _host: run_observational_event(event),
+        "SessionEnd": lambda event, _host: run_observational_event(event),
     }
+    callbacks = {event: _kernel_guarded(callback) for event, callback in callbacks.items()}
     return _lifecycle_core().run_hook_protocol(
         sys.stdin.read(),
         callbacks,

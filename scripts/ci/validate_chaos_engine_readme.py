@@ -13,18 +13,6 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 README = Path("chaos-engine/README.md")
-CORE_PYTHON = (
-    "bootstrap.py",
-    "dependencies.py",
-    "hosts.py",
-    "install.py",
-    "learning.py",
-    "tool.py",
-    "hooks/guard.py",
-    "hooks/kernel.py",
-    "hooks/lifecycle.py",
-    "hooks/reflection.py",
-)
 FIELDS = ("Item", "Purpose", "Source of truth", "Status", "Platforms", "Provisioner", "Owner", "Failure behavior")
 REQUIRED_DIAGRAMS = {
     "Prerequisite and dependency topology",
@@ -38,6 +26,12 @@ REQUIRED_DIAGRAMS = {
     "Ownership and foreign-file preservation flow",
     "Lifecycle terminal-state flow",
 }
+MERMAID_FENCE = re.compile(r"```mermaid[ \t]*\r?\n(.*?)\r?\n```", re.DOTALL)
+MERMAID_DIRECTIVE = re.compile(r"(?:flowchart\s+(?:TB|TD|BT|RL|LR)|stateDiagram-v2)")
+MERMAID_NODE = r"(?:\[\*\]|[A-Za-z][A-Za-z0-9_]*(?:\[[^\]\r\n]+\]|\{[^}\r\n]+\})?)"
+MERMAID_EDGE = re.compile(
+    rf"{MERMAID_NODE}\s*(?:-->|-\.->)(?:\|[^|\r\n]+\|\s*)?{MERMAID_NODE}"
+)
 
 
 def _escape(value: object) -> str:
@@ -61,8 +55,16 @@ def _description(path: Path) -> str:
 
 def _python_libraries(root: Path) -> list[tuple[object, ...]]:
     uses: dict[str, list[str]] = {}
-    for relative in CORE_PYTHON:
-        path = root / "chaos-engine" / relative
+    python_root = root / "chaos-engine"
+    paths = sorted(
+        path
+        for path in python_root.rglob("*.py")
+        if "__pycache__" not in path.parts and path.is_file() and not path.is_symlink()
+    )
+    if not paths:
+        raise ValueError("packaged Python source catalog is empty")
+    for path in paths:
+        relative = path.relative_to(root).as_posix()
         tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
         for node in ast.walk(tree):
             names: list[str] = []
@@ -72,7 +74,7 @@ def _python_libraries(root: Path) -> list[tuple[object, ...]]:
                 names = [node.module.split(".")[0]]
             for name in names:
                 if name != "__future__" and name in sys.stdlib_module_names:
-                    uses.setdefault(name, []).append(f"chaos-engine/{relative}")
+                    uses.setdefault(name, []).append(relative)
     return [
         (
             name,
@@ -240,6 +242,44 @@ def rendered_inventory(root: Path = ROOT) -> str:
     return "\n\n".join(parts)
 
 
+def _parse_mermaid(readme: str) -> tuple[set[str], list[str]]:
+    blocks = MERMAID_FENCE.findall(readme)
+    errors: list[str] = []
+    if len(blocks) != readme.count("```mermaid"):
+        errors.append("Mermaid syntax has an unterminated fenced block")
+    titles: list[str] = []
+    for index, block in enumerate(blocks, start=1):
+        lines = [line.strip() for line in block.splitlines() if line.strip()]
+        if not lines or MERMAID_DIRECTIVE.fullmatch(lines[0]) is None:
+            errors.append(f"Mermaid syntax block {index} has an invalid diagram directive")
+            continue
+        title_count = 0
+        description_count = 0
+        for line in lines[1:]:
+            if line.startswith("accTitle:"):
+                title = line.partition(":")[2].strip()
+                title_count += 1
+                if title:
+                    titles.append(title)
+                else:
+                    errors.append(f"Mermaid syntax block {index} has a blank accTitle")
+                continue
+            if line.startswith("accDescr:"):
+                description_count += 1
+                if not line.partition(":")[2].strip():
+                    errors.append(f"Mermaid syntax block {index} has a blank accDescr")
+                continue
+            if MERMAID_EDGE.fullmatch(line) is None:
+                errors.append(f"Mermaid syntax block {index} has an invalid statement")
+        if title_count != 1 or description_count != 1:
+            errors.append(
+                f"Mermaid syntax block {index} requires one accTitle and one accDescr"
+            )
+    if len(titles) != len(set(titles)):
+        errors.append("Mermaid syntax contains duplicate accTitle values")
+    return set(titles), errors
+
+
 def validate(root: Path = ROOT) -> list[str]:
     readme = (root / README).read_text(encoding="utf-8")
     errors: list[str] = []
@@ -252,7 +292,8 @@ def validate(root: Path = ROOT) -> list[str]:
         actual = readme.split(start, 1)[1].split(end, 1)[0].strip()
         if actual != table:
             errors.append(f"source-derived inventory drift: {name}")
-    titles = set(re.findall(r"accTitle:\s*(.+)", readme))
+    titles, mermaid_errors = _parse_mermaid(readme)
+    errors.extend(mermaid_errors)
     missing_titles = REQUIRED_DIAGRAMS - titles
     if missing_titles:
         errors.append("missing Mermaid topology diagrams: " + ", ".join(sorted(missing_titles)))

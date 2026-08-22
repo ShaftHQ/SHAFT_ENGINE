@@ -146,15 +146,16 @@ DISPLACED_PR_TEST_PATHS = frozenset(
 
 CHECKS = {
     "kernel-contract": Check(
-        "kernel-contract", "kernel", ("tests.scripts.test_chaos_engine_kernel",)
+        "kernel-contract", "kernel", ("tests.scripts.test_chaos_engine_kernel",), True
     ),
     "lifecycle-contract": Check(
         "lifecycle-contract",
         "lifecycle",
         ("tests.scripts.test_chaos_engine_hook",),
+        True,
     ),
     "host-contract": Check(
-        "host-contract", "hosts", ("tests.scripts.test_chaos_engine_hosts",)
+        "host-contract", "hosts", ("tests.scripts.test_chaos_engine_hosts",), True
     ),
     "guidance-contract": Check(
         "guidance-contract",
@@ -360,7 +361,7 @@ SURFACE_PATTERNS = {
         "tests/scripts/test_validate_chaos_engine_readme.py",
     ),
     "promotion": (
-        "scripts/ci/chaos_engine_promotion.py",
+        "scripts/ci/chaos_engine_promotion*.py",
         "tests/scripts/test_chaos_engine_promotion.py",
     ),
 }

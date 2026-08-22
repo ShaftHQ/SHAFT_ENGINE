@@ -46,7 +46,10 @@
     "promotion evaluation": {
       "owner": "scripts/ci/chaos_engine_promotion.py",
       "terms": ["case_manifest", "validate_receipt", "pairedTrials", "individualRuns"],
-      "allowed": ["tests/scripts/test_chaos_engine_promotion.py"]
+      "allowed": [
+        "scripts/ci/chaos_engine_promotion_trials.py",
+        "tests/scripts/test_chaos_engine_promotion.py"
+      ]
     },
     "ChaosEngine README inventory": {
       "owner": "scripts/ci/validate_chaos_engine_readme.py",

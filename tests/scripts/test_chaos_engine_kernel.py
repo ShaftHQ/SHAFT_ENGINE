@@ -501,6 +501,53 @@ class ChaosEngineKernelTest(TestCase):
             ),
         )
 
+    def test_session_evaluation_persists_terminal_phase_and_deduplicates_replays(self):
+        with tempfile.TemporaryDirectory() as directory:
+            journal = self.kernel.EffectJournal(Path(directory) / "state-v2.jsonl")
+            event = self.kernel.normalize_event(
+                {"hook_event_name": "Stop", "session_id": "session-one"},
+                "codex",
+            )
+
+            first = self.kernel.evaluate_session(event, journal)
+            repeated = self.kernel.evaluate_session(event, journal)
+
+            self.assertEqual(
+                ("Complete", "CE_STOP_COMPLETE"),
+                (first.phase, first.diagnostic_code),
+            )
+            self.assertEqual(
+                ("Complete", "CE_TERMINAL_REPLAY"),
+                (repeated.phase, repeated.diagnostic_code),
+            )
+            records = journal.records("session-one")
+            self.assertEqual(1, len(records))
+            self.assertEqual("Complete", records[0]["phase"])
+            self.assertEqual([], journal.records("session-other"))
+
+    def test_session_evaluation_loads_prior_phase_before_native_event(self):
+        with tempfile.TemporaryDirectory() as directory:
+            journal = self.kernel.EffectJournal(Path(directory) / "state-v2.jsonl")
+            planned = self.kernel.normalize_event(
+                {
+                    "hook_event_name": "UserPromptSubmit",
+                    "session_id": "session-two",
+                    "target_phase": "Planned",
+                },
+                "claude",
+            )
+            self.assertEqual("Planned", self.kernel.evaluate_session(planned, journal).phase)
+
+            native_stop = self.kernel.normalize_event(
+                {"hook_event_name": "Stop", "session_id": "session-two"},
+                "claude",
+            )
+            stopped = self.kernel.evaluate_session(native_stop, journal)
+
+            self.assertEqual("Blocked", stopped.phase)
+            self.assertEqual("CE_STOP_INCOMPLETE", stopped.diagnostic_code)
+            self.assertEqual("Blocked", journal.records("session-two")[-1]["phase"])
+
     def test_snapshot_memoizes_each_external_fact_once(self):
         calls = []
         providers = {"branch": lambda: calls.append("branch") or "main"}
