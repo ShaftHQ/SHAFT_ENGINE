@@ -1910,13 +1910,13 @@ class ChaosEngineHostsTest(unittest.TestCase):
                 with mock.patch.dict(
                     os.environ,
                     {
-                        "LOCALAPPDATA": str(root / "data"),
-                        "XDG_DATA_HOME": str(root / "other-data"),
                         "CHAOSENGINE_JAVA": str(java),
                         "CHAOSENGINE_MAVEN_TOOLS_MCP_JAR": "",
                     },
                     clear=False,
-                ), mock.patch.object(module.os, "name", "nt"):
+                ), mock.patch.object(
+                    module, "maven_tools_data_root", return_value=root / "data"
+                ):
                     self.assertEqual(
                         (java.resolve(), jar.resolve()),
                         module.discover_maven_tools_runtime(),

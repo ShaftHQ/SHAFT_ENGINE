@@ -978,13 +978,7 @@ def evaluate_session(
     snapshot: HarnessSnapshot | None = None,
     rules: tuple[Rule, ...] = RULES,
 ) -> EvaluationReport:
-    """Evaluate and persist one session transition under the journal lock.
-
-    Native hosts do not send lifecycle phases. The first event starts at
-    ReadOnly; later events load the last authenticated v2 phase. Appending the
-    phase change in the same critical section makes concurrent callbacks
-    deterministic and duplicate hook deliveries idempotent.
-    """
+    """Evaluate and persist one session transition under the journal lock."""
     if not event.session_id:
         return evaluate(event, snapshot, rules)
     with journal._lock():

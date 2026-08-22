@@ -1381,12 +1381,7 @@ def prepare_candidate(
     generation_id: str | None = None,
     transaction_id: str | None = None,
 ) -> dict[str, str]:
-    """Build once at final path.
-
-    Concurrent path substitution is contained with held no-follow identities. A
-    same-user installer subprocess remains trusted: ambient write authority can
-    mutate any user-owned path and cannot be sandboxed by this stdlib controller.
-    """
+    """Build once at the final path with held no-follow identities."""
     project = _trusted_root(project.absolute(), "project")
     command_runner = runner or run_command
     generation_name = generation_id or secrets.token_hex(16)
